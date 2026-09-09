@@ -112,8 +112,13 @@ by it. Namespacing follows services (`team/alerts`); local shadows upstream.
   known service available to the caller, plus tool descriptions where the
   service exposes tools), **WEB** (humans: registry browser, health, stats
   dashboards; curl-friendly; runs as a cgroup-limited child).
-- Registry data is live and per node; snapshots go to the git repo as backup.
-  ❓ Replication of the registry between nodes vs. chaining only — open (`00`).
+- **Registry replication is git.** Each node holds its registry live and
+  writes snapshots to the shared git repo. **On start a node pushes its
+  snapshot and pulls from the other known nodes** (peers at the same level);
+  newer record wins per entry. No live replication protocol.
+- **Upstreams are not replicated.** An upstream `agent-busd` has its own
+  registry and we usually lack full access to it; chaining queries it and
+  caches answers, nothing more.
 
 ## Health-checker and Stats (modules of discovery)
 

@@ -80,7 +80,9 @@ generation wins**, gap logged.
   **git remote as backup**: a GitHub repo (private suggested, not required) or
   the user's own SSH account on another server. The same repo also receives
   unsigned **registry snapshots** (services, topics) from the core, in a
-  separate directory, as backup only — never authority. The remote cannot
+  separate directory — also how peer nodes sync their registries on start
+  (push own, pull others'; newer record wins). Backup and peer sync, never
+  authority. The remote cannot
   forge (no signing key) and holds no `master_secret`. Lose the box → clone,
   drop in the `master_secret` file, start. Works offline; the remote is the
   off-site copy, not a dependency.

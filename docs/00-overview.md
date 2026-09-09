@@ -83,6 +83,9 @@ falls through. Applies to identities, ACL/roles, service and topic lookups.
   upstream = "cached or unresolved", never a wrong answer.
 - `master_secret` does not span levels → cross-level access uses pairwise keys
   or keys issued by the upstream itself.
+- **An upstream has its own registry**, and we usually do not have full
+  access to it: chaining is *querying* upstream, never replicating it.
+  Peer nodes at the same level sync their registry through git (`03`).
 - The MCP face merges levels into one catalog, tagged by origin.
 
 ## Storage
@@ -130,18 +133,16 @@ Settled with the owner; each is written into the doc named.
 - Admin keys live in the bundle; root on the box is the break-glass → `02`
 - Go first, bun/NPM later; client libs Go, PHP, Rust, JS, Python → `04`
 - V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core → `v1-original.md`
+- Registry between peer nodes: **git push/pull on start** with the other known nodes; an **upstream keeps its own registry** we usually cannot fully read → `03`
 
 ## Open
 
 1. ❓ **Process layout** — how many child processes beyond WEB and AUTH, and
    what is shared between core and children (store, queues, sockets, memory)
    vs. isolated. *Settled by:* owner review.
-2. ❓ **Registry across nodes** — is the registry replicated between
-   `agent-busd` nodes, or is each node its own registry reached via chaining?
-   *Settled by:* owner decision.
-3. ❓ **Audience filtering with AUTH off** — per token only? *Settled by:*
+2. ❓ **Audience filtering with AUTH off** — per token only? *Settled by:*
    owner decision.
-4. ❓ **Handshake key confirmation** — detect a wrong key before data flows.
+3. ❓ **Handshake key confirmation** — detect a wrong key before data flows.
    *Settled by:* owner decision at protocol-design time.
-5. ❓ **GitHub `last_used`** on `/users/<login>/keys`. *Settled by:* one `curl`
+4. ❓ **GitHub `last_used`** on `/users/<login>/keys`. *Settled by:* one `curl`
    from a network that can reach it.
