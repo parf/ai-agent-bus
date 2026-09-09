@@ -46,9 +46,17 @@ changed by owners, **signed by the writer when it has a key**.
 
 ## Messaging
 
-- **Every agent gets its own queue when it starts** — an implicit queue topic
-  named after it, in memory in `agent-busd`, bounded; overflow **drops the
-  oldest** and counts it in stats.
+- **Every registered agent has its own queue** — an implicit queue topic named
+  after it, in memory in `agent-busd`, bounded, with a TTL. **The address
+  outlives the process**: anyone may `send` to a registered agent that is down;
+  the message waits in its queue and is picked up when the agent comes back —
+  unless the TTL expires or the queue is full first. Choose both sensibly.
+- **Two overflow modes**, declared per topic (inboxes included) at creation:
+
+  | Mode | Full queue | For |
+  |---|---|---|
+  | **ring** (default) | drop the **oldest**, count it in stats | alerts, telemetry — newest matters most |
+  | **strict** | **reject the send/publish** with an error to the producer | jobs, commands — losing one silently is worse than failing loudly |
 - Every message carries **`topic`** (conversation id, e.g. one A→B exchange)
   and **`tag`** (message id). A asks B three questions with three tags; B's
   answers carry the same tags, so A matches them.
@@ -74,17 +82,17 @@ Two kinds — the Redis model:
 
 | Kind | Delivery | Retention | No subscribers at publish time | Redis analogue |
 |---|---|---|---|---|
-| **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded, drop-oldest | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
+| **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded; overflow per mode (`ring` / `strict`) | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
 | **pub/sub** | a **copy** to every current subscriber | none | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
 
-A topic **declares its kind, TTL and bound at creation**, and is a
+A topic **declares its kind, TTL, bound and overflow mode at creation**, and is a
 **first-class record registered like a service**:
 
 | Aspect | Rule |
 |---|---|
 | Create | any valid token |
 | Change / delete | owner or owner group |
-| Record | name, kind, TTL, bound, owner, description, audience |
+| Record | name, kind, TTL, bound, overflow (`ring` / `strict`), owner, description, audience |
 | Visibility | registry and MCP catalog, audience-filtered |
 | Access | `publish:<glob>` / `consume:<glob>` on principals |
 | Signature | signed by the writing principal **when it has a key**; a **static-token write is unsigned** — the token authenticated it, nothing more is needed. Nodes verify signatures where present before accepting or syncing |

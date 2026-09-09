@@ -106,7 +106,7 @@ and unsigned registry snapshots (backup). Queues and stats are memory only.
 - **Registry records are owner-signed, not admin-signed**: anyone with a
   valid token may publish a new service or topic; only ownership guards
   changes. No offline key stands behind them.
-- **Queues are memory**: restart = empty; overflow drops the oldest.
+- **Queues are memory**: an `agent-busd` restart empties them. A *consumer* being down is fine — its queue holds messages until TTL or bound. Overflow: `ring` drops the oldest, `strict` refuses the send.
 - GitHub keys are pinned at enrolment; a key deleted on GitHub stays valid
   until someone refreshes.
 - Static tokens, pairwise keys and local files have no central revocation or audit.
@@ -124,7 +124,7 @@ Settled with the owner; each is written into the doc named.
 - Delegation: A + on-behalf-of U claim → `01`
 - No forward secrecy → `02`
 - Consumers pull by default, may register a push address → `03`
-- Overflow: drop oldest → `03`
+- Overflow: drop oldest → `03` *(revised same day, see below)*
 - Per-agent queue on start; topic + tag; reply-to → `03`
 - `send` to known receiver, `publish` to topic, `consume` own queue → `03`
 - Topic kinds queue / pub·sub; kind, TTL, bound declared at creation; topics registered like services → `03`
@@ -141,6 +141,8 @@ Settled with the owner; each is written into the doc named.
 - Wrong key at handshake: **re-query AUTH for a fresh key once; if it still fails, alert — loud** (bus event + dashboard + log). Never silent, never an endless retry → `02`
 - **Registry records are signed** by the writing principal when it has a key; **static-token principals do not sign** — the token authenticated the write, and that is enough → `03`
 - GitHub `/users/<login>/keys` **does** return `created_at` and `last_used` — verified with one `curl`, 2026-09-09 → `01`
+- **The address outlives the process**: a registered agent's queue accepts messages while it is down; picked up on return, bounded by TTL and size → `03`
+- **Two overflow modes per topic**: `ring` (drop oldest, default) and `strict` (reject the send with an error) → `03`
 
 ## Open
 

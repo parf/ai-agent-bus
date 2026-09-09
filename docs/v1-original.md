@@ -161,7 +161,8 @@ forwarding chains, and a queue owned by one consumer with in-order delivery
 | Auto-doc service | **Kept**, folded into `agent-busd`'s MCP server (generated docs per client). |
 | RAG service, KV/DB gateways, writers/updaters | **Deferred, non-core** (2026-09-09) — later as ordinary bus services; existing `db-tools`/`server-tools` are the V1 realisation. |
 | `sign` = keyed xxh3-63 (attribution, not a MAC); no transport encryption without NATS TLS | **Replaced**: Ed25519 identities, HKDF access keys, AEAD-encrypted sessions (`02`). |
-| Durable at-least-once delivery: JetStream inbox, dedup, dead letter + replay, delivery observations | **Dropped by design**: queues are memory, drop-oldest, no dead letter (`00` trade-offs). Any flow that needs it gets its own WAL. |
+| Offline delivery: send to a down participant, it reads the backlog on return | **Kept**: a registered agent's queue accepts messages while it is down, bounded by TTL and size; `ring` / `strict` overflow (`03`). |
+| Survives a bus restart; dedup, dead letter + replay, delivery observations | **Dropped by design**: queues are memory (`00` trade-offs); no dead letter, no per-message status. Any flow that needs it gets its own WAL. |
 | `deadline_ts` on requests; `FAIL:timeout` published before ACK | **Not in V2 docs.** |
 | Data classes `standard / sensitive / restricted` → retention, metadata-only dead letters | **Not in V2 docs** (no retention to classify; sessions encrypted instead). |
 | Directory-scoped sessions `claude(/rd/vhosts/realty)`; heartbeat 10 s / lease 30 s | **Kept** in spirit: instance = `unique-name@host`, heartbeat, K missed → down (`03`). |

@@ -42,7 +42,8 @@ Participants know each other by **public key**, and everything they say is
 - Every participant has an **identity** and an **address**, `unique-name@host`.
   In the smallest setup the identity is just a token; with AUTH or pairwise
   keys it is an Ed25519 key. The `agent-bus` CLI handles both and joins the bus.
-- Every participant gets its **own queue** when it starts.
+- Every registered participant has its **own queue**. Send to it while it is down;
+  it reads the backlog when it comes back.
 - **`send`** delivers to one known receiver; **`publish`** delivers to a topic. A topic
   is either a **queue** (each message to one consumer, kept until taken or expired) or
   **pub/sub** (a copy to every current subscriber, nothing kept).
@@ -117,8 +118,9 @@ export for Grafana if you want history.
 
 ## What it is not
 
-- **Not a durable queue.** Queues live in memory. A restart empties them, and a full
-  queue drops its oldest message. If one flow needs durability, give that one a WAL.
+- **Not a durable queue.** Queues live in memory: a daemon restart empties them, and
+  each queue has a TTL and a size. On overflow a queue either drops its oldest message
+  or refuses new ones — the topic chooses. If one flow needs more, give that one a WAL.
 - **Not a workflow engine.** It routes messages; what to do with them is the agent's job.
 - **Not forward secret.** A leaked long-term key exposes recorded sessions. Accepted for
   this design.
