@@ -175,6 +175,7 @@ forwarding chains, and a queue owned by one consumer with in-order delivery
 | Layered libs `protocol → ports → core → transport`; Go, Python, Rust, TS, PHP, sh | **Kept**: Go first; client libs Go, PHP, Rust, JS, Python (`04`). |
 | Handler exit codes `0 / 75 / 65`, envelope on stdin | **Not in V2 docs**; the runner's shell adapter (`04`) is the natural home. |
 | Listener `trusted_users`; adapters must not re-sign outside text as a trusted `agent.request` | **Replaced**: the bus delivers verified sender + on-behalf-of and nothing more; the receiver decides (`03`). No message kinds. |
+| Destructive tools (`db_process_kill`, `server_service_action`) demand an exact confirmation token | **Kept as a hint only**: the service description marks methods destructive; the MCP face passes it through; confirmation is the caller's business (`03`). |
 
 ## 6. Weaknesses V1's own docs admit
 

@@ -152,6 +152,7 @@ Settled with the owner; each is written into the doc named.
 - **TTL per message**, optional, within the topic's TTL; expired = dropped and counted, never delivered → `03`
 - **One push adapter per agent runtime**, borrowed from V1's notifiers: Claude Code (Channels), Codex (App Server), ❓ OpenCode (Z.AI); ChatGPT pull-only → `03`, `04`
 - **No message kinds, no receiver policy in the bus**: it delivers securely with verified sender and on-behalf-of; the receiver decides what to do → `03`
+- **Destructive methods**: a service may mark them so in its description; the MCP face passes the mark through, enforces nothing → `03`
 
 ## Open
 

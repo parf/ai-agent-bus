@@ -38,6 +38,9 @@ Two axes: reachable or not, and who owns the record.
 
 A service is the *kind*: description, declared roles, health hints, optional
 MCP method info (stored **raw**, shape-checked only; docs generated from it).
+The description may mark individual methods as **destructive**; the MCP face
+passes the mark through to the calling agent and does nothing else with it — a
+hint from the service, enforced by nobody but the receiver.
 An instance is service + private config + a place it runs, identified as
 **`unique-name@host`** — stable across restarts, and also its address. Private
 config stays with the instance by default, optionally sealed in `agent-busd`
