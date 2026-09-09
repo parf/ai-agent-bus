@@ -96,7 +96,7 @@ A topic **declares its kind, TTL, bound and overflow mode at creation**, and is 
 | Visibility | registry and MCP catalog, audience-filtered |
 | Access | `publish:<glob>` / `consume:<glob>` on principals |
 | Signature | signed by the writing principal **when it has a key**; a **static-token write is unsigned** — the token authenticated it, nothing more is needed. Nodes verify signatures where present before accepting or syncing |
-| Storage | live record in `agent-busd`; messages are live state; snapshotted to git for backup and peer sync |
+| Storage | live record in `agent-busd`, snapshotted to git for backup and peer sync; **messages** are in memory, **dumped to Parquet on graceful shutdown/restart** and reloaded on start; an optional periodic dump (~1 min) bounds the loss from a crash to one interval |
 | Stats | depth, in/out rate, drops, subscriber count — on the dashboard like a service |
 
 Inboxes are implicit queue topics created on an agent's first start and owned
@@ -142,7 +142,8 @@ by it. Namespacing follows services (`team/alerts`); local shadows upstream.
 - **Stats**: agent heartbeats carry a small metrics blob; probe results
   (latency, up/down) are the stats for generic; queue depth and rates for
   topics. Kept in memory — ring buffers, last N hours, fixed resolution;
-  restart = empty window (accepted).
+  dumped to Parquet with the queues, so a graceful restart keeps the window and
+  a crash loses at most the last dump interval.
 - **Dashboard** (the WEB child): graphs straight from the ring buffers, no
   external TSDB. Views per service / server / user / topic — any dimension the
   metrics carry; numbers + sparklines; audience-filtered. API

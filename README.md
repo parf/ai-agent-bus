@@ -118,9 +118,10 @@ export for Grafana if you want history.
 
 ## What it is not
 
-- **Not a durable queue.** Queues live in memory: a daemon restart empties them, and
-  each queue has a TTL and a size. On overflow a queue either drops its oldest message
-  or refuses new ones — the topic chooses. If one flow needs more, give that one a WAL.
+- **Not a durable queue.** Queues live in memory and are saved to a Parquet file on a
+  graceful restart (optionally every minute), so a crash loses at most a minute. Each
+  queue has a TTL and a size; on overflow it either drops its oldest message or refuses
+  new ones — the topic chooses. If one flow needs more, give that one a WAL.
 - **Not a workflow engine.** It routes messages; what to do with them is the agent's job.
 - **Not forward secret.** A leaked long-term key exposes recorded sessions. Accepted for
   this design.

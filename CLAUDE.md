@@ -91,7 +91,7 @@ Getting these wrong produces drift that is easy to miss:
 - **Chaining queries upstream; it never replicates it.** Peer nodes at the same
   level sync registry via git push/pull on start, newer record wins per entry.
 - Ed25519 everywhere a key exists; no passwords, no client secrets, no TLS/PKI.
-- Queues and stats are memory-only: restart empties them, overflow drops the oldest.
+- Queues and stats are memory, dumped to Parquet on graceful restart (optional periodic dump); a consumer being down is fine — its queue waits. Overflow per topic: `ring` or `strict`.
 
 ## Git
 

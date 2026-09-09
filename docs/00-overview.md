@@ -94,7 +94,10 @@ falls through. Applies to identities, ACL/roles, service and topic lookups.
 
 SQLite by default (single file, zero ops); MySQL/PostgreSQL optional behind one
 thin store layer. The git repo (over SSH) holds signed AUTH bundles (authority)
-and unsigned registry snapshots (backup). Queues and stats are memory only.
+and unsigned registry snapshots (backup). Queues and stats live in memory and are
+**dumped to a Parquet file on graceful shutdown or restart**, loaded back on start;
+an optional **periodic dumper** (about once a minute) makes them survive an untimely
+death too, losing at most one interval.
 
 ## Known trade-offs
 
@@ -106,11 +109,11 @@ and unsigned registry snapshots (backup). Queues and stats are memory only.
 - **Registry records are owner-signed, not admin-signed**: anyone with a
   valid token may publish a new service or topic; only ownership guards
   changes. No offline key stands behind them.
-- **Queues are memory**: an `agent-busd` restart empties them. A *consumer* being down is fine — its queue holds messages until TTL or bound. Overflow: `ring` drops the oldest, `strict` refuses the send.
+- **Queues are memory, dumped to Parquet**: a graceful restart keeps them; a crash loses what arrived since the last periodic dump (if enabled) or everything (if not). A *consumer* being down is fine — its queue holds messages until TTL or bound. Overflow: `ring` drops the oldest, `strict` refuses the send.
 - GitHub keys are pinned at enrolment; a key deleted on GitHub stays valid
   until someone refreshes.
 - Static tokens, pairwise keys and local files have no central revocation or audit.
-- Stats are memory: restart = empty window.
+- Stats are memory, dumped with the queues: a crash loses the last interval.
 - `master_secret` and the offline signing key are the roots of trust; every
   AUTH replica holds `master_secret`, so a compromised replica mints keys.
 
@@ -143,6 +146,7 @@ Settled with the owner; each is written into the doc named.
 - GitHub `/users/<login>/keys` **does** return `created_at` and `last_used` — verified with one `curl`, 2026-09-09 → `01`
 - **The address outlives the process**: a registered agent's queue accepts messages while it is down; picked up on return, bounded by TTL and size → `03`
 - **Two overflow modes per topic**: `ring` (drop oldest, default) and `strict` (reject the send with an error) → `03`
+- **Graceful shutdown / restart dumps in-memory state to Parquet** and reloads it; an optional periodic dumper (~1 min) covers untimely death → `00`, `03`
 
 ## Open
 
