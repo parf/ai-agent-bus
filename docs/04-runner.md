@@ -37,6 +37,13 @@ process hosting many instances and speaking the bus on their behalf.
 - **Is itself an agent** — self-registers, self-reports, has its own key, is
   controllable over the bus (start/stop children, reload) under its owner's ACL.
 
+## Supervises itself first
+
+The first children `agent-busd` supervises are **its own roles**: the **WEB**
+dashboard (cgroup-limited) and, when `auth: on`, the **AUTH** role (holds
+`master_secret`, unix socket to the core). Same spawn/restart/limits machinery
+as for any child; no special cases.
+
 ## Who it runs as
 
 - **Separate user** (default for shared/server use): `agent-busd` as the

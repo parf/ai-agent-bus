@@ -28,15 +28,16 @@ gets out of the way.
 ## Principles
 
 - **Minimum to run: `agent-busd`** — Service Discovery (registrations +
-  **in-memory queues**), API, MCP server, WEB dashboards. **No AUTH in it.**
+  **in-memory queues**), API, MCP server, WEB dashboards. **AUTH role off.**
   Nothing else is required.
-- **AUTH is a separate, optional service**; health-checker and stats are
-  optional too. A service must work without any of them.
+- **AUTH is an optional role of the same daemon** — `auth: on` in config and
+  a restart. It runs as its **own child process**; health-checker and stats
+  are optional too. A service must work without any of them.
 - **Authentication is always required** — every participant presents a
   token; there is no anonymous access. What is optional is the AUTH
   *service*. **Minimal mode**: a token set manually, at minimum
   `ENV AGENT_BUS_USER_TOKEN`, matched by the service's local mapping file →
-  **zero AUTH calls**. The AUTH service is added only when an org wants
+  **zero AUTH calls**. The AUTH role is turned on only when an org wants
   central identities and derived keys.
 - Ed25519 keys wherever there is a key; no passwords, no client secrets.
   In minimal mode the token *is* the identity and there is no key.
@@ -55,25 +56,32 @@ gets out of the way.
 ## Core services
 
 **The main service is `agent-busd`** (one daemon; also the runner, see
-`04-runner.md`). Its parts:
+`04-runner.md`). It supervises its own roles as **child processes** — the
+runner design applied to itself. Its parts:
 - **Service Discovery** — registrations of **services and topics** (anyone can
   push a description: "MySQL `xxx` on host:port"; "topic `alerts.prod`,
   pub/sub") + the in-memory queues behind them
 - **API** — the wire face for agents and services
 - **MCP server** — exposes the bus to agents; **generates docs/tool
   descriptions for all known services available to the calling client**
-- **WEB** — fancy dashboards: registry, health, stats graphs
+- **WEB** — fancy dashboards: registry, health, stats graphs; **child
+  process under cgroup limits** (CPU/memory/pids), so a heavy dashboard
+  cannot starve the bus
+- **AUTH / Config** — **optional role, off by default**; **child process**
+  that alone holds `master_secret` and the signed bundle, talking to the core
+  over a unix socket (sshd/Postfix-style privilege separation)
 
-| Service | Role | Optional |
+| Process | Role | Optional |
 |---|---|---|
-| **`agent-busd`** (main service) | discovery (registrations, in-memory queues) · API · MCP server with generated docs · WEB dashboards · runner | **no — the minimum** |
-| **AUTH / Config** | identities, keys, groups, ACLs, roles, encrypted private configs | yes |
+| **`agent-busd` core** | discovery (services, topics, in-memory queues) · API · MCP server with generated docs · runner · supervises the children below | **no — the minimum** |
+| **`agent-busd` WEB child** | dashboards; cgroup-limited | on by default, may be off |
+| **`agent-busd` AUTH child** | identities, keys, groups, ACLs, roles, encrypted private configs; owns `master_secret` | **off by default — `auth: on`** |
 | **Health-checker** | module of discovery; probes generic services per their hints | yes |
-| **Stats** | module of discovery; in-memory ring buffers, **own dashboard** (graphs per service / server / user / …), exporters | yes |
+| **Stats** | module of discovery; in-memory ring buffers feeding the WEB child, exporters | yes |
 
-All are replicated the same way (signed generations, master/slave).
-AUTH may be co-hosted in the same process as Discovery as an optional role
-(leaning yes, open) — but the minimal daemon runs without it.
+One binary, one unit, one config dir, one CLI, one git repo. Nodes with the
+AUTH role on are the AUTH replicas (2+); a laptop node never holds
+`master_secret`.
 
 ## Chaining — local first, upstream for the rest
 
@@ -120,7 +128,7 @@ one thin store layer. Only instance health/stats is high-churn.
 |---|---|
 | Minimal identity | In static mode **the token is the whole identity** — no Ed25519 key. Keys appear with pairwise mode or AUTH. |
 | Publishing services | Needs a **token** (min `ENV AGENT_BUS_USER_TOKEN`; from AUTH when on). Anyone who can reach `agent-busd` may publish a **new** service; changing an **existing** one requires being **owner or in the owner group**. Definitions are live in `agent-busd`, not in the signed bundle. |
-| One binary | `agent-busd` = discovery + API + MCP server + WEB + runner. AUTH separate, optional, may be co-hosted. |
+| One binary | `agent-busd` = discovery + API + MCP server + WEB + runner **+ AUTH as an optional role**. AUTH and WEB run as **child processes** of the core: AUTH alone holds `master_secret` (privilege separation); WEB is cgroup-limited. Turn AUTH on with `auth: on`. *(revised: was "AUTH separate, may be co-hosted")* |
 | Delegation | A calls B for user U as **A + on-behalf-of U** claim; B checks A's delegation role. U's key never leaves U. |
 | Forward secrecy | **No** ephemeral exchange. Accepted trade-off. |
 | Consumers | **Both**: pull (long-poll/stream) by default; a consumer may register a push address. |
@@ -134,7 +142,8 @@ one thin store layer. Only instance health/stats is high-churn.
 | Wire format | **JSON**, with **msgpack** as an optional negotiated binary encoding. |
 | MCP tool info | Store raw `tools` JSON, check shape only; docs generated from it. |
 | Bundle gaps | **Newer generation wins**. Bundle repo in **git over SSH**; replicas pull on start; **master/slave is the default config**. |
-| AUTH deployment option | **Local AUTH server + a git-over-SSH remote as backup** of the signed bundles (GitHub repo, private suggested; or the user's SSH account on another server): push on every generation, pull to bootstrap/restore. The remote is the off-site copy, never a runtime dependency. Bundle holds no secrets (pubkeys only). |
+| Shared git repo | The bundle repo is **the daemon's repo**: signed AUTH bundles in one directory (authority), unsigned registry snapshots (services, topics) in another (backup only, never authority). |
+| AUTH deployment option | **Local `agent-busd` with `auth: on` + a git-over-SSH remote as backup** of the signed bundles (GitHub repo, private suggested; or the user's SSH account on another server): push on every generation, pull to bootstrap/restore. The remote is the off-site copy, never a runtime dependency. Bundle holds no secrets (pubkeys only). |
 | Language | **Go** first; **bun/NPM** version later. Client libs: **Go, PHP, Rust, JS, Python**. |
 | V1 leftovers | RAG, KV/DB gateways, writers: **deferred, non-core** — later as ordinary bus services. |
 
@@ -144,7 +153,7 @@ one thin store layer. Only instance health/stats is high-churn.
    `publish` to a topic, `consume:<glob>` decides whose queues receive it;
    `send` to a known receiver needs only permission to talk to that principal.
    `topic` on a sent message is just the conversation id.
-2. ❓ Audience filtering in minimal mode (no AUTH): per-token only?
+2. ❓ Audience filtering in minimal mode (AUTH role off): per-token only?
    *Settled by:* owner decision.
 3. ❓ Handshake key confirmation (detect a wrong key before data flows).
    *Settled by:* owner decision at protocol-design time.

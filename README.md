@@ -44,8 +44,8 @@ the dashboard in one binary.
 - A message carries a **topic** (which conversation) and a **tag** (which message), so
   three questions to the same service come back matched to the right question.
 - **Authentication is always on.** The smallest setup is one token in an environment
-  variable, and that token is the whole identity. A central AUTH service is optional;
-  add it when you need central identities and groups.
+  variable, and that token is the whole identity. Central AUTH is an optional role of
+  the same daemon: turn it on when you need central identities and groups.
 
 ## Use cases
 
@@ -87,7 +87,7 @@ network exposure. Everything above works.
 
 ### Run a team or company bus
 
-Add the optional **AUTH** service: identities come from GitHub (any developer already
+Turn on the **AUTH** role (`auth: on`, same daemon, same git repo): identities come from GitHub (any developer already
 has an Ed25519 key there) or LDAP, groups compose with `& | !`, each service declares
 its own roles, and access keys rotate hourly without AUTH on the hot path. Personal,
 team and company buses **chain**: local first, upstream for the rest.
@@ -146,6 +146,9 @@ Highlights for the impatient:
   are live records in `agent-busd`, guarded by token and ownership.
 - **Admin over SSH only.** Forced commands, no shell, every call audit-logged. Root on
   the box is the break-glass.
+- **One daemon that supervises itself.** AUTH and the dashboard run as child processes
+  of `agent-busd`: AUTH alone holds the master secret, the dashboard is cgroup-limited
+  so it can never starve the bus.
 
 The `docs/` files are short and meant to be read in order.
 

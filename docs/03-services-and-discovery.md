@@ -114,9 +114,9 @@ service definition is signed and rare-change.
 
 - **The required minimum**: the daemon runs discovery (registrations) and
   hosts **in-memory queues** (bounded, non-durable) that events land in and
-  consumers pull from. **No AUTH service in the minimum** — auth is still
-  required (static token, `AGENT_BUS_USER_TOKEN`); the AUTH *service* is
-  separate and optional, as is everything else.
+  consumers pull from. **AUTH role off in the minimum** — auth is still
+  required (static token, `AGENT_BUS_USER_TOKEN`); the AUTH *role* is an
+  optional child process of the same daemon, as is the WEB dashboard.
 - Direct talk is still allowed: if you already know where something lives, skip
   the lookup.
 - Registration carries **health hints**: HTTP endpoint + expected status, TCP
@@ -124,6 +124,8 @@ service definition is signed and rare-change.
   are first-class (`unix:/path`).
 - **Audience** per service — users, services or org groups (from AUTH) who may
   see and use it. Discovery is personalized; MCP tool lists come pre-filtered.
+- **WEB runs as a child process under cgroup limits** (CPU/memory/pids):
+  dashboards can be heavy and must never starve registry or queues.
 - Faces of `agent-busd`: **API** (agents/services register, look up,
   push/pull queues), **MCP server** (agents ask "what can I use, and how";
   `agent-busd` **generates docs and tool descriptions for every known service

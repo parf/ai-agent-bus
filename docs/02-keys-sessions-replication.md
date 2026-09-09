@@ -59,14 +59,20 @@ Enforced by replicas **and** services: valid signature; `gen > current`
   in a git repo accessed over SSH**: config-as-code, git history = audit
   trail. Replicas **pull on start** (and on poll); master pushes. **Default
   topology: master/slave.**
-- **Reference deployment**: a **local AUTH server** (master) + a **git remote
-  as the bundle backup**: a GitHub repo (private *suggested*, not required —
+- **Reference deployment**: a **local `agent-busd` with `auth: on`** (master)
+  + a **git remote as the bundle backup** — the same repo also receives
+  unsigned registry snapshots (services, topics) from the core, in a separate
+  directory, as backup only: a GitHub repo (private *suggested*, not required —
   the bundle holds nothing secret) **or the user's own SSH account on another
   server** (any git-over-SSH remote). Master pushes each signed generation;
   slaves and a rebuilt master pull from it. The remote cannot forge (no
   signing key) and holds no `master_secret`. Lose the box → clone + drop in
   `master_secret` file → AUTH is back. Works offline: the local master keeps
   serving; the remote is the off-site copy, not a dependency.
+- **Where it runs**: the AUTH role is a **child process of `agent-busd`**
+  (`auth: on`). Only that child holds `master_secret` and verifies/serves the
+  bundle; the core talks to it over a unix socket and never sees the secret.
+  A node with the role on is an AUTH replica.
 - **Master/slave, pull**: slaves `GET /bundle?since=<gen>` every 30–60 s (304
   if unchanged), optional push on change. Reads (key issuance, lookups) from
   **any** replica; writes only via master. Master down → reads continue;
@@ -87,17 +93,17 @@ Enforced by replicas **and** services: valid signature; `gen > current`
 
 ## Admin access — SSH forced commands
 
-Core services run as a dedicated user (`agent-bus`/`auth`): nologin shell,
-no sudo, home 0700. Admins SSH in with their own keys; identity is bound to
-the key.
+`agent-busd` runs as the dedicated `agent-bus` user: nologin shell, no sudo,
+home 0700. Admins SSH in with their own keys; identity is bound to the key.
+The forced command talks to the AUTH child.
 
-- `authorized_keys`: `restrict,command="/…/auth-admin <admin-name>" ssh-ed25519 …`
+- `authorized_keys`: `restrict,command="/…/agent-bus auth admin <admin-name>" ssh-ed25519 …`
   (optionally `from=`).
 - `sshd_config`: `Match User auth` → `ForceCommand`, `PermitTTY no`,
   `AllowTcpForwarding no`, `AllowAgentForwarding no`, `X11Forwarding no`,
   `PermitUserEnvironment no`, `PasswordAuthentication no`;
   `ExposeAuthInfo yes` to log the key fingerprint.
-- `auth-admin`: parses `$SSH_ORIGINAL_COMMAND` against a fixed verb grammar
+- `agent-bus auth admin` (was `auth-admin`): parses `$SSH_ORIGINAL_COMMAND` against a fixed verb grammar
   (`bundle show|push|history`, `user list`, `service list`, `status`,
   `replica-sync`); reads signed bundles from **stdin** and still verifies
   signature + gen (SSH gates who may talk; signature gates what config is
