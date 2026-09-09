@@ -125,6 +125,7 @@ one thin store layer. Only instance health/stats is high-churn.
 | Consumers | **Both**: pull (long-poll/stream) by default; a consumer may register a push address. |
 | Overflow | **Drop oldest**, count in stats. |
 | Queues & addressing | Every agent gets its **own queue on start**. Messages carry **topic + tag**: *topic* = conversation identifier (A→B), *tag* = message id. Reply goes to sender's queue with the same topic+tag, **unless** the sender sets `reply-to: {service, topic, tag}`. |
+| Delivery verbs | **`send`** = to a known receiver (`name@host`), one queue. **`publish`** = to a topic, every matching consumer. `consume` reads your own queue. |
 | Instance / address | **`unique-name@host`** — instance id and address are the same string. |
 | `master_secret` | Out-of-band file on each replica. |
 | Wire format | **JSON**, with **msgpack** as an optional negotiated binary encoding. |
@@ -136,9 +137,10 @@ one thin store layer. Only instance health/stats is high-churn.
 
 ## Still open
 
-1. ❓ Capability globs (`publish:<glob>` / `consume:<glob>`) vs. the topic+tag
-   scheme — are topics ACL'd, and how do they map to per-agent queues?
-   *Settled by:* owner decision.
+1. Capability globs vs. topic+tag — **settled**: `publish:<glob>` guards
+   `publish` to a topic, `consume:<glob>` decides whose queues receive it;
+   `send` to a known receiver needs only permission to talk to that principal.
+   `topic` on a sent message is just the conversation id.
 2. ❓ Audience filtering in minimal mode (no AUTH): per-token only?
    *Settled by:* owner decision.
 3. ❓ Handshake key confirmation (detect a wrong key before data flows).

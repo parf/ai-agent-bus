@@ -37,6 +37,8 @@ the dashboard in one binary.
   In the smallest setup the identity is just a token; with AUTH or pairwise
   keys it is an Ed25519 key. The `agent-bus` CLI handles both and joins the bus.
 - Every participant gets its **own queue** when it starts.
+- **`send`** delivers to one known receiver; **`publish`** delivers to a topic, and
+  everyone who consumes that topic gets a copy.
 - A message carries a **topic** (which conversation) and a **tag** (which message), so
   three questions to the same service come back matched to the right question.
 - **Authentication is always on.** The smallest setup is one token in an environment
@@ -114,8 +116,9 @@ export AGENT_BUS_USER_TOKEN=...        # minimal auth: one token
 agent-bus register mysql-prod --kind generic --addr host:3306
 
 # talk
-agent-bus publish  fixer@srv1 --topic deploy-42 --tag q1 "run the migration?"
-agent-bus consume  me@laptop           # read my queue
+agent-bus send     fixer@srv1 --topic deploy-42 --tag q1 "run the migration?"   # known receiver
+agent-bus publish  --topic alerts.prod "disk 91% on db3"                        # whoever consumes it
+agent-bus consume                                                                # read my own queue
 
 # supervise a child under the runner
 agent-bus start my-mcp-server --sandbox default

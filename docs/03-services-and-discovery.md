@@ -50,6 +50,12 @@ identity of their own.
   exchange) and **`tag`** (unique message id). Example: A asks B three
   questions, each with its own tag; B's answers carry the same tags so A can
   match them.
+- **Two delivery verbs.** **`send`** = one message to a **known receiver**
+  (`unique-name@host`), lands in exactly that queue; allowed if you may talk
+  to that principal. **`publish`** = one message to a **topic**; copied into
+  the queue of every principal holding a matching `consume:<glob>`; the
+  publisher never learns who they were; allowed if you hold `publish:<glob>`.
+  `consume` reads your own queue in both cases.
 - **Reply routing**: answer goes to the sender's queue with the same
   topic+tag — **unless** the request sets `reply-to: {service, topic, tag}`.
 - **Delivery**: consumers **pull** (long-poll/stream) by default; a consumer
