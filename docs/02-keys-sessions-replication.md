@@ -41,7 +41,14 @@ replay protection. Never use `access_key` raw as the cipher key.
 - **No forward secrecy** (decided): no ephemeral exchange; a leaked long-term
   key exposes recorded sessions.
 - Payload encoding: **JSON**; **msgpack** as an optional negotiated binary form.
-- ❓ Key confirmation before data flows — open (`00`).
+- **Key confirmation.** The first AEAD message after the handshake is the
+  check: if it fails to decrypt, the key is wrong. Then:
+  1. **re-query AUTH once** for a fresh key (epoch boundary, rotation,
+     revocation) and retry the handshake;
+  2. **if it still fails — alert, loud**: emit a bus event on the caller's
+     inbox and the `alerts` topic, mark the pair on the dashboard, log it.
+     No further retries. In static/pairwise mode step 1 is skipped: there is
+     nothing to re-query, so it goes straight to the alert.
 
 ## Replication — signed generations in git
 
