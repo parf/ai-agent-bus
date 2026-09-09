@@ -53,8 +53,10 @@ identity of their own.
 - **Two delivery verbs.** **`send`** = one message to a **known receiver**
   (`unique-name@host`), lands in exactly that queue; allowed if you may talk
   to that principal. **`publish`** = one message to a **topic**; copied into
-  the queue of every principal holding a matching `consume:<glob>`; the
-  publisher never learns who they were; allowed if you hold `publish:<glob>`.
+  the queue of every principal holding a matching `consume:<glob>`; allowed if
+  you hold `publish:<glob>`. Delivery itself does not tell the publisher who
+  received it, but the API answers **"are there subscribers on this topic, and
+  who?"** to anyone whose access allows the lookup (audience-filtered).
   `consume` reads your own queue in both cases.
 - **Reply routing**: answer goes to the sender's queue with the same
   topic+tag — **unless** the request sets `reply-to: {service, topic, tag}`.
