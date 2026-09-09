@@ -92,8 +92,9 @@ one thin store layer. Only instance health/stats is high-churn.
 ## Open questions (decide with owner before modeling)
 
 1. **Event delivery** — events land in the discovery daemon's **in-memory
-   queues** (decided). Required: a named queue owned by one consumer with
-   in-order delivery (V1 fixer pattern, see `v1-original.md` §3). Still open:
+   queues** (decided). Must support, among other patterns: a named queue
+   owned by one consumer with in-order delivery (V1 fixer, `v1-original.md`
+   §3). Still open:
    queue naming/topic namespace for publish/consume, pull vs push to
    consumers, bounds and overflow policy.
 2. **AUTH + Discovery**: one daemon with two roles, or two daemons? Leaning one.

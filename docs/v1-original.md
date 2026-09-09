@@ -89,11 +89,11 @@ Slack channels → slack-reader → claude-watch (CLI session)
                                    └→ fixer (ONE session, its own queue, serial)
 ```
 
-V2 must keep serving exactly this: session↔session and session↔agent
-messaging, a registry everyone can read, and event forwarding chains — with
-its own daemon instead of the broker. Required queue property from the fixer
-pattern: **one named queue, one consumer, in-order delivery** (a session
-owns its queue; events wait rather than fan out).
+This is **current mechanics, one usage among many** — agent-bus is a
+universal mechanism, not built around this flow. V2 must still be able to run
+it: session↔session and session↔agent messaging, a readable registry, event
+forwarding chains, and a queue owned by one consumer with in-order delivery
+(the fixer pattern).
 
 ## 4. What exists in code (V1 implementation, per Linear)
 
