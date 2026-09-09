@@ -25,9 +25,9 @@ gets out of the way.
 
 ## Principles
 
-- **Minimum to run: the main service** — Service Discovery (registrations +
-  **in-memory queues**), API, WEB dashboards. **No AUTH in it.** Nothing else
-  is required.
+- **Minimum to run: `agent-busd`** — Service Discovery (registrations +
+  **in-memory queues**), API, MCP server, WEB dashboards. **No AUTH in it.**
+  Nothing else is required.
 - **AUTH is a separate, optional service**; health-checker and stats are
   optional too. A service must work without any of them.
 - **Minimal mode**: tokens are set **manually** in service configs (static
@@ -44,15 +44,18 @@ gets out of the way.
 
 ## Core services
 
-**The main service** (the daemon) has three parts:
+**The main service is `agent-busd`** (one daemon; also the runner, see
+`04-runner.md`). Its parts:
 - **Service Discovery** — registrations (anyone can push a description:
   "MySQL `xxx` on host:port") + in-memory queues
-- **API** — the wire face for agents and services (incl. the MCP face)
+- **API** — the wire face for agents and services
+- **MCP server** — exposes the bus to agents; **generates docs/tool
+  descriptions for all known services available to the calling client**
 - **WEB** — fancy dashboards: registry, health, stats graphs
 
 | Service | Role | Optional |
 |---|---|---|
-| **Main service** | discovery (registrations, in-memory queues) · API · WEB dashboards | **no — the minimum** |
+| **`agent-busd`** (main service) | discovery (registrations, in-memory queues) · API · MCP server with generated docs · WEB dashboards · runner | **no — the minimum** |
 | **AUTH / Config** | identities, keys, groups, ACLs, roles, encrypted private configs | yes |
 | **Health-checker** | module of discovery; probes generic services per their hints | yes |
 | **Stats** | module of discovery; in-memory ring buffers, **own dashboard** (graphs per service / server / user / …), exporters | yes |
@@ -114,5 +117,5 @@ one thin store layer. Only instance health/stats is high-churn.
    replica in the bundle (later).
 7. **Language** — assume **Go** (owner's daemons are Go), unconfirmed.
 8. Bundle gaps (`prev_gen != current`): reject or log.
-9. **One binary or two** — is the discovery/queue daemon the same process as
-   the `agent-busd` runner, or a separate daemon the runner talks to?
+9. ~~One binary or two~~ — **decided: one.** `agent-busd` is the main
+   service (discovery, API, MCP, WEB) and the runner.

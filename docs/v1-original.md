@@ -132,6 +132,7 @@ PRF-49 Plan Management service (In Progress; candidate future bus service, not c
 | Cloudflare Tunnel/Access, mTLS | **Out of core** (customer exposure only). |
 | Wire formats (JSON-RPC, gRPC, GraphQL, msgpack multiquery) | **Undecided** in V2; only "JSON and binary payloads" survives implicitly. |
 | Service channel + tag reply, "avoid ephemeral channels" | **Not carried over**; relates to V2 open question #1 (event delivery). |
-| MCP auto-generated from services | **Kept**: discovery MCP face, pre-filtered tool lists. |
+| MCP auto-generated from services | **Kept**: `agent-busd` is an MCP server; generates docs/tools for services available to the client. |
 | MCP gateway for existing services | **Not in V2 docs** (partly covered by generic kind + runner adapters). |
-| Auto-doc service, RAG service, KV/DB gateways, writers/updaters | **Not in V2 docs** — non-core; existing `db-tools`/`server-tools` are the V1 realisation. |
+| Auto-doc service | **Kept**, folded into `agent-busd`'s MCP server (generated docs per client). |
+| RAG service, KV/DB gateways, writers/updaters | **Not in V2 docs** — non-core; existing `db-tools`/`server-tools` are the V1 realisation. |

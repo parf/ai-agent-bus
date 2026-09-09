@@ -4,7 +4,8 @@ Status: draft · Scope: main ideas only
 
 ## Names
 
-- **`agent-busd`** — the runner daemon (`sshd`/`dockerd` convention)
+- **`agent-busd`** — **the** daemon (`sshd`/`dockerd` convention): main
+  service (discovery, API, MCP server, WEB) **and** runner in one binary
 - **`agent-bus`** — the CLI: talks to the runner (`agent-bus start | stop | ls | logs`)
   **and provides identity** for anything on the bus — key creation, register,
   publish, consume, sign (`agent-bus keygen | register | publish | consume | …`)
@@ -14,9 +15,10 @@ Status: draft · Scope: main ideas only
 
 ## What it is
 
-A pm2/php-fpm-style supervisor **plus** bus integration **plus** sandboxing.
-It is the *agent* service kind made concrete: one supervised process hosting
-many instances and speaking the bus on their behalf.
+This file covers the **runner** role of `agent-busd`; discovery/API/MCP/WEB
+are in `03-services-and-discovery.md`. The runner role is a pm2/php-fpm-style
+supervisor **plus** bus integration **plus** sandboxing: one supervised
+process hosting many instances and speaking the bus on their behalf.
 
 - **Supervise** — spawn, restart with backoff, stop, reload, log capture, exit codes.
 - **Adapt** — children come in a few shapes; the runner gives each the same bus face:

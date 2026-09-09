@@ -41,7 +41,7 @@ The owner explicitly deferred data models. Do not invent schemas until asked.
 
 ### Open questions (not yet decided)
 1. **Event delivery without a broker** — where does a `curl`-published event *land*, and how do consumers pull it (from the target agent's queue? buffered by AUTH/Discovery?). Topic namespace for publish/consume capabilities.
-2. **AUTH and Discovery: one daemon with two roles, or two daemons?** Leaning one.
+2. **AUTH and Discovery: one daemon with two roles, or two daemons?** Leaning one. *(2026-09-09: main service = `agent-busd` = discovery + API + MCP + WEB + runner, one binary; AUTH remains a separate optional service, may be co-hosted.)*
 3. **Instance identity** — `host+pid` vs persisted UUID (restart semantics).
 4. **MCP method info** — store raw MCP `tools` JSON and pass through, or validate at registration.
 5. **Delegation** — when service A calls B for user U: pass U's key/token (per-service `aud`) or A's own identity? Leaning per-service keys → U's key for B.
