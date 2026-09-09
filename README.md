@@ -184,7 +184,7 @@ The `docs/` files are short and meant to be read in order.
 
 | Area | State |
 |---|---|
-| Design docs | ✅ decisions of 2026-09-09 recorded; two open items marked ❓ in the overview |
+| Design docs | ✅ decisions of 2026-09-09 recorded; one open item marked ❓ in the overview |
 | Code | 🚧 none yet. Go first, a bun/NPM build later; client libs for Go, PHP, Rust, JS, Python |
 | V1 | runs in production on a broker; its ideas and usage are recorded in `docs/v1-original.md` |
 

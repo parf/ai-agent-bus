@@ -5,7 +5,7 @@ being **replaced by V2** — owner is not satisfied with it. Source: Linear, rea
 Primary: [PRF-36 "Ai agent-bus"](https://linear.app/realmo-product/issue/PRF-36/ai-agent-bus)
 (2026-08-04, description + 14 comments, all by owner). Secondary: issues listed in §4; usage in §3 from owner.
 This file records what V1 is; `00-04` and `HANDOFF.md` are the V2 design.
-V1 pain points (the *why* of V2): to be filled in by owner.
+❓ V1 pain points (the *why* of V2) are not written down. *Settled by:* owner.
 
 ## 1. PRF-36 description — the brainstorm (2026-08-04)
 
@@ -128,7 +128,7 @@ PRF-49 Plan Management service (In Progress; candidate future bus service, not c
 | Instances = service + config, spawned on demand; special user; secrets preserved | **Kept**: instance model, `agent-busd` user, sealed private config. |
 | Process manager super service (Apache/php-fpm style, from–to rules) | **Kept** as `agent-busd`; from–to enable rules **not carried over**. |
 | Statistics server | **Kept** as stats module of discovery (in-memory). |
-| Restricted SSH forced commands | **Kept** for admin access (`auth-admin`). |
+| Restricted SSH forced commands | **Kept** for admin access (`agent-bus auth admin`). |
 | Cloudflare Tunnel/Access, mTLS | **Out of core** (customer exposure only). |
 | Wire formats (JSON-RPC, gRPC, GraphQL, msgpack multiquery) | **Decided**: JSON + optional msgpack. |
 | Service channel + tag reply, "avoid ephemeral channels" | **Kept** as V2 messaging: per-agent queue + topic + tag + reply-to (`03` Messaging). |

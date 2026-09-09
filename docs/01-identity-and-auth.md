@@ -24,8 +24,7 @@ The `agent-bus` CLI creates the key or takes the token, and joins the bus with i
 
 - **GitHub is the main user id.** `api.github.com/users/<login>` → `id`,
   `login`, `name`, `avatar_url`, `email` (if public); `/users/<login>/keys` →
-  per key `id`, `key`, `created_at`, `last_used` (owner verified 2026-09;
-  re-check open, see `00`). Plain-text fallback `github.com/<login>.keys`.
+  per key `id`, `key`, `created_at`, `last_used` (verified 2026-09-09). Plain-text fallback `github.com/<login>.keys`.
   Principal id = the **numeric `id`** (logins can be renamed).
   - `created_at` → "new key on privileged principal" alert · `last_used` →
     stale-key pruning (e.g. ignore > 12 months) · `id` → rotation vs addition.

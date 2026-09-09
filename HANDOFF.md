@@ -34,7 +34,7 @@ The owner explicitly deferred data models. Do not invent schemas until asked.
 | Service kinds | generic, agent, consumer, publisher (publisher/consumer are roles on a principal). |
 | Personal/shared | terms are **personal** and **shared**; **shared is default**. |
 | Runner | **`agent-busd`** (daemon), **`agent-bus`** (CLI), **`ab_`** MCP tool prefix only. Keyword `agent-bus` everywhere else. |
-| Admin access | SSH with admin's own Ed25519 keys, `authorized_keys` forced command → `auth-admin`. |
+| Admin access | SSH with admin's own Ed25519 keys, `authorized_keys` forced command → `auth-admin`. *(2026-09-09: named `agent-bus auth admin`; signing is `agent-bus auth sign`; root on the box is the break-glass.)* |
 | Chaining | AUTH and Discovery accept an **upstream**; local first, unresolved forwarded up. |
 | Encrypted private config in AUTH/Config | **Yes** — sealed to the instance's own key. |
 | Docs | Keep as several small files (`docs/00…04`), main ideas only. |
@@ -67,7 +67,7 @@ The owner explicitly deferred data models. Do not invent schemas until asked.
 
 ### GitHub (verified live, 2026-09)
 - `GET https://api.github.com/users/<login>` → `id`, `login`, `name`, `avatar_url`, `email` (if public). Use **numeric `id`** as principal id (logins can be renamed).
-- `GET https://api.github.com/users/<login>/keys` → per key: `id`, `key`, **`created_at`**, **`last_used`** (the public endpoint does return these, contrary to the docs excerpt). `https://github.com/<login>.keys` is the plain-text fallback.
+- `GET https://api.github.com/users/<login>/keys` → per key: `id`, `key`, **`created_at`**, **`last_used`** (the public endpoint does return these, contrary to the docs excerpt; re-verified by `curl` 2026-09-09). `https://github.com/<login>.keys` is the plain-text fallback.
 - Use of the fields: `created_at` → "new key on privileged principal" alert; `last_used` → stale-key pruning (e.g. ignore > 12 months) and liveness hint; `id` → rotation vs addition. Track our own `last_used` separately.
 - **Enrollment-time only**: fetched when a person is added or an explicit refresh is requested; keys are pinned in the signed generation. No runtime dependency, no periodic polling, no rate-limit concern. Consequence: a key deleted on GitHub stays valid until refresh — accepted.
 - If ever fetched more often: use a token (5 000 req/h) + `If-None-Match` ETag (304s are free), cache last-good keys.
@@ -90,7 +90,7 @@ The owner explicitly deferred data models. Do not invent schemas until asked.
 - Derived keys are **deterministic** → every AUTH replica computes the same key; no shared token store. Accept current **and previous** epoch across the boundary. Shrink epoch (e.g. 15 min) if faster revocation is needed — same design.
 - Do **not** put `level`/roles into the key derivation (a role change would break live sessions); deliver roles as metadata.
 - `master_secret` lives only on AUTH replicas. Rotate with a `key_version` prefix in the HKDF label, accept both for one epoch.
-- Pairwise = personal/standalone mode and break-glass path. Static = fallback for keyless parties (scripts, webhooks). A service may accept several modes; the handshake carries `key_mode` + identifiers (`user_id`/pubkey fp, `service`, `epoch` or none).
+- Pairwise = personal/standalone mode and break-glass path. Static = fallback for keyless parties (scripts, webhooks). *(2026-09-09: static is also **the minimal mode** — the token is the whole identity, no key, no AUTH; see `docs/02`.)* A service may accept several modes; the handshake carries `key_mode` + identifiers (`user_id`/pubkey fp, `service`, `epoch` or none).
 - Ed25519→X25519: libsodium `crypto_sign_ed25519_pk_to_curve25519`, Go `filippo.io/edwards25519`.
 
 ### Session encryption (Kerberos-like)
@@ -118,7 +118,7 @@ Cached for the epoch. Roles/access/key all take effect on next epoch.
 - **ACL** (who may access) and **roles** (what they may do) are both expressions over users/groups, evaluated by **one engine**. Keep them as **two separate layers**.
 - Roles are **service-defined strings** (admin, manager, read-only…). AUTH stores/resolves, never interprets. Roles assigned with the same expression pattern as groups.
 - **Resolved at login**; services never see groups or mappings (admin-only).
-- **Ownership**: owner = expression. Tiers: `owner` (everything incl. ACL and adding owners) and `maintainer` (definition only). Owners use org groups but cannot create groups or grant beyond their own service. Personal services are owned by their user. Ownership changes are generation data.
+- **Ownership**: owner = expression. Tiers: `owner` (everything incl. ACL and adding owners) and `maintainer` (definition only). Owners use org groups but cannot create groups or grant beyond their own service. Personal services are owned by their user. ~~Ownership changes are generation data.~~ *(2026-09-09: service/topic definitions and ownership are **live records** in `agent-busd`, writer-signed where a key exists, snapshotted to git — not bundle data.)*
 - Users create/control their own services without admin; admin's job = identities + org groups.
 - **Encrypted private config**: instance encrypts its config (e.g. IMAP creds) to its own key (age-style sealed box), pushes blob to AUTH/Config; AUTH stores opaque bytes + owner + instance id. Boot = key + binary → fetch + decrypt. Versioned, owner-pushed, **not** part of the signed generation. Local file remains default. Multi-instance sharing = encrypt to each key or share a key.
 
@@ -130,12 +130,12 @@ Cached for the epoch. Roles/access/key all take effect on next epoch.
 bundle { gen, prev_gen, created_at, payload, payload_hash }
 signature = Ed25519(offline_signing_key, gen | prev_gen | created_at | payload_hash)
 ```
-- Enforced by replicas **and** services: valid signature; `gen > current` (anti-rollback; identical gen+hash = no-op); `prev_gen == current` (gaps: reject or log — decide).
-- **Signing key is offline** (admin machine, `authctl`), never on servers → any replica can be master; failover = pointer flip; compromised replica can only serve stale-but-valid.
+- Enforced by replicas **and** services: valid signature; `gen > current` (anti-rollback; identical gen+hash = no-op); `prev_gen == current` (gaps: ~~reject or log — decide~~ *decided 2026-09-09: newer generation wins, gap logged*).
+- **Signing key is offline** (admin machine, `authctl` — *now `agent-bus auth sign`*), never on servers → any replica can be master; failover = pointer flip; compromised replica can only serve stale-but-valid.
 - Workflow: edit → `authctl sign --gen N` → push to master. Config-as-code; signed bundles can live in git as audit trail.
 - **Master/slave, pull**: slaves `GET /bundle?since=<gen>` every 30–60 s (304 if unchanged); optional push on change. Reads (key issuance, lookups) served by **any** replica (deterministic); writes only via master. Master down → reads continue; promotion is manual flag flip.
 - Every response carries `gen`; services refetch config when they see a newer one. Key derivation does **not** include `gen`.
-- Payload = principals, pubkeys, services (definitions), groups, ACL/role expressions, ownership, admin keys, identity-source config, optional `next_signing_pubkey` for rotation. **Not** in payload: instance health/stats, encrypted private configs.
+- Payload = principals, pubkeys, ~~services (definitions)~~, groups, ACL/role expressions, ~~ownership~~, admin keys, identity-source config, optional `next_signing_pubkey` for rotation. **Not** in payload: instance health/stats, encrypted private configs *(2026-09-09: also not service/topic definitions or ownership — those are live registry records, see `docs/03`)*.
 - **Consistency window** (write it down): revoked access can be honored for up to poll interval (lagging slave) + one epoch (service cache). Optional `revoked_users` list in bundle checked on every session start for immediate effect on new sessions.
 
 ### Admin over SSH

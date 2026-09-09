@@ -27,9 +27,12 @@ Go, PHP, Rust, JS, Python.
 | `docs/04-runner.md` | runner role: adapters, self-supervision, sandboxing, in-process queue |
 | `docs/v1-original.md` | what V1 is, and the V1 → V2 mapping |
 
-Docs 00–04 are meant to be read in order and are the design of record. When
-`HANDOFF.md` and `docs/` disagree, `HANDOFF.md` is more complete — fix the drift
-in `docs/`.
+Docs 00–04 are meant to be read in order and are the design of record. On
+**decisions**, `docs/00-overview.md` (decision log) and the doc it names win;
+`HANDOFF.md` predates the 2026-09-09 round in places and carries inline
+*(2026-09-09: …)* corrections rather than rewrites. On **rationale and history**
+(why something was rejected, what was verified), `HANDOFF.md` is more complete.
+When they disagree, check the decision log first, then fix the stale side.
 
 ## Working rules
 
