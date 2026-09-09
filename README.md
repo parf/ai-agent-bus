@@ -26,11 +26,8 @@ service called `xxx` on `host:port`" is a valid registration.
 There is no external broker to install. `agent-busd` is the broker, the registry and
 the dashboard in one binary.
 
-Identity is a **key, not a password**. Wherever there is a key it is **Ed25519** — the
-same kind you already have on GitHub — and the smallest setup uses a shared token
-instead. Either way the two sides derive a session key from it, so **every message on
-the wire is encrypted** point-to-point, end to end. No passwords, no client secrets,
-no TLS or certificates to run.
+Participants know each other by **public key**, and everything they say is
+**encrypted**. No passwords, no certificates to manage.
 
 ## The 60-second picture
 
@@ -52,10 +49,9 @@ no TLS or certificates to run.
 - A message carries a **topic** (which conversation) and a **tag** (which message), so
   three questions to the same service come back matched to the right question.
 - **Authentication is always on, and every session is encrypted.** The smallest setup
-  is one token in an environment variable, and that token is the whole identity.
-  Two key holders can derive a shared secret from their **public keys alone**, with no
-  AUTH involved. Central AUTH is an optional role of the same daemon: turn it on when
-  you need central identities, groups and hourly keys.
+  is one token in an environment variable, and that token is the whole identity. Central
+  AUTH is an optional role of the same daemon: turn it on when you need central
+  identities and groups.
 
 ## Use cases
 
