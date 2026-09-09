@@ -29,6 +29,9 @@ gets out of the way.
   registrations + **in-memory queues**. **No AUTH in it.** Nothing else is required.
 - **AUTH is a separate, optional service**; health-checker and stats are
   optional too. A service must work without any of them.
+- **Minimal mode**: tokens are set **manually** in service configs (static
+  keys + local mapping file) → **zero AUTH calls**. AUTH is added only when an
+  org wants central identities and derived keys.
 - Ed25519 keys everywhere; no passwords, no client secrets.
 - Core is on the hot path **only once** per (user, service, epoch).
 - Definitions change rarely (few/week) → signed generations, master/slave,

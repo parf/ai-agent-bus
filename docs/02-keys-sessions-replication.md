@@ -15,8 +15,11 @@
   sessions); they travel as metadata. `gen` is not in the derivation either.
 - `master_secret` lives only on AUTH replicas. Rotate via a `key_version`
   prefix in the HKDF label; accept both for one epoch.
-- Pairwise is the standalone/personal mode and a break-glass path independent
-  of AUTH. Static is the fallback for keyless parties (scripts, webhooks).
+- **Static is the minimal mode**: tokens specified manually in both configs
+  (service side: local mapping file), no AUTH calls ever. Also the fallback
+  for keyless parties (scripts, webhooks).
+- Pairwise is the standalone/personal mode for key-holding parties and a
+  break-glass path independent of AUTH.
 - A service may accept several modes; the handshake carries `key_mode` +
   identifiers (`user_id`/pubkey fp, `service`, `epoch` or none).
 - Ed25519→X25519: libsodium `crypto_sign_ed25519_pk_to_curve25519`,
