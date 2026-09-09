@@ -68,8 +68,9 @@ one question, signed with the service key, and cache the answer for the epoch:
 
 ## Local mapping file
 
-Every service may carry `principal → {access, roles[, static token]}`. Local is
-consulted first, then AUTH (if on). Populated the same way AUTH does it:
+Every service may carry `principal → {access, roles[, static token]}` — with
+AUTH off this `user: token` map **is** the service's audience and role source.
+Local is consulted first, then AUTH (if on). Populated the same way AUTH does it:
 `github:parf` → fetch once → pin. Modes: file only · AUTH only · both (local
 overrides for owner, break-glass admin, peer services).
 

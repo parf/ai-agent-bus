@@ -137,6 +137,7 @@ Settled with the owner; each is written into the doc named.
 - Go first, bun/NPM later; client libs Go, PHP, Rust, JS, Python → `04`
 - V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core → `v1-original.md`
 - Registry between peer nodes: **git push/pull on start** with the other known nodes; **newer record wins per entry, provided the writer had access**; an **upstream keeps its own registry** we usually cannot fully read → `03`
+- Audience with AUTH off: **each service defines its own `user: token` map** (the local mapping file); the token names the user, the service's map decides who sees and uses it → `03`
 - **Registry records are signed** by the writing principal when it has a key; **static-token principals do not sign** — the token authenticated the write, and that is enough → `03`
 
 ## Open
@@ -144,9 +145,7 @@ Settled with the owner; each is written into the doc named.
 1. ❓ **Process layout** — how many child processes beyond WEB and AUTH, and
    what is shared between core and children (store, queues, sockets, memory)
    vs. isolated. *Settled by:* owner review.
-2. ❓ **Audience filtering with AUTH off** — per token only? *Settled by:*
-   owner decision.
-3. ❓ **Handshake key confirmation** — detect a wrong key before data flows.
+2. ❓ **Handshake key confirmation** — detect a wrong key before data flows.
    *Settled by:* owner decision at protocol-design time.
-4. ❓ **GitHub `last_used`** on `/users/<login>/keys`. *Settled by:* one `curl`
+3. ❓ **GitHub `last_used`** on `/users/<login>/keys`. *Settled by:* one `curl`
    from a network that can reach it.

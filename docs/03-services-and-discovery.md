@@ -106,8 +106,10 @@ by it. Namespacing follows services (`team/alerts`); local shadows upstream.
   are first-class (`unix:/path`).
 - **Audience** per service and topic — users, services or org groups who may
   see and use it. Discovery is personalised; MCP catalogs come pre-filtered.
-  ❓ With AUTH off the only identity is the token — filtering per token is the
-  assumption (`00`).
+  **With AUTH off**, audience is **defined per service** in its local mapping
+  file as `user: token` entries: the presented token names the user, and the
+  service's own map decides whether that user sees and uses it. Groups exist
+  only with AUTH on.
 - **Faces**: **API** (register, look up, send / publish / consume), **MCP
   server** (agents ask "what can I use, and how" — generated docs for every
   known service available to the caller, plus tool descriptions where the
