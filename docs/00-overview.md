@@ -10,6 +10,7 @@ Documents:
 5. `04-runner.md` — `agent-busd` supervisor: adapters, identity injection, sandboxing, in-process queue
 
 `../HANDOFF.md` holds the full discussion record, incl. superseded ideas.
+`v1-original.md` records the V1 brainstorm (Linear PRF-36) and the existing V1 code.
 
 ## Goal
 

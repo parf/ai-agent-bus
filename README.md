@@ -19,6 +19,7 @@ questions, superseded ideas. `docs/` is the terse distilled version.
 | [docs/02-keys-sessions-replication.md](docs/02-keys-sessions-replication.md) | access-key modes, encrypted sessions, signed generations, SSH admin |
 | [docs/03-services-and-discovery.md](docs/03-services-and-discovery.md) | service kinds, personal/shared, instances, discovery, health, stats |
 | [docs/04-runner.md](docs/04-runner.md) | `agent-busd` supervisor: adapters, identity injection, sandboxing, in-process queue |
+| [docs/v1-original.md](docs/v1-original.md) | historical: PRF-36 brainstorm + comments, existing V1 code per Linear, V1→V2 mapping |
 
 ## Names
 
