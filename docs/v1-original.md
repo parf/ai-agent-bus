@@ -1,9 +1,11 @@
 # V1 — Original Ideas and Existing Implementation
 
-Status: historical record · Source: Linear, read 2026-09-09
+Status: V1 is **implemented** (monorepo `/rd/service/agent-bus`, NATS-based) and
+being **replaced by V2** — owner is not satisfied with it. Source: Linear, read 2026-09-09.
 Primary: [PRF-36 "Ai agent-bus"](https://linear.app/realmo-product/issue/PRF-36/ai-agent-bus)
 (2026-08-04, description + 14 comments, all by owner). Secondary: issues listed in §4.
-This file records what V1 was; `00-04` and `HANDOFF.md` are the current (V2) design.
+This file records what V1 is; `00-04` and `HANDOFF.md` are the V2 design.
+V1 pain points (the *why* of V2): to be filled in by owner.
 
 ## 1. PRF-36 description — the brainstorm (2026-08-04)
 
@@ -64,7 +66,7 @@ process control (process list, kill, load check), writers/updaters.
 The ladder in 11–14 is the V1 answer to "Auth is optional": four escalating
 levels rather than V2's single optional AUTH with pluggable key modes.
 
-## 3. What existed in code (V1 implementation, per Linear)
+## 3. What exists in code (V1 implementation, per Linear)
 
 Not verified from source; taken from issue text.
 
