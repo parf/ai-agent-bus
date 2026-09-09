@@ -45,7 +45,8 @@ gets out of the way.
 ## Core services
 
 **The main service** (the daemon) has three parts:
-- **Service Discovery** — registrations + in-memory queues
+- **Service Discovery** — registrations (anyone can push a description:
+  "MySQL `xxx` on host:port") + in-memory queues
 - **API** — the wire face for agents and services (incl. the MCP face)
 - **WEB** — fancy dashboards: registry, health, stats graphs
 

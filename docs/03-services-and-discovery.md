@@ -11,6 +11,10 @@ Two axes: reachable or not, and who owns the record.
 | **consumer** | no (pulls) | itself or user | none | no |
 | **publisher** | not a service — an identity that signs events (`curl` + user key) | — | none | yes |
 
+- **Registering is just pushing a description.** Anyone may tell discovery
+  "there is a MySQL service named `xxx` on `host:port`" — the thing itself
+  need not know the bus exists (generic kind). Same for an HTTP API, a unix
+  socket, a cron job's host. Health hints are optional extras on the record.
 - Publisher/consumer are **capabilities on a principal** (`publish:<topic-glob>`,
   `consume:<topic-glob>`), not service objects.
 - generic vs agent differ only in record owner and health mode → same record
