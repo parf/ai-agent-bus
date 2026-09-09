@@ -70,6 +70,12 @@ changed by owners, **signed by the writer when it has a key**.
   the topic's; when it expires undelivered it is dropped from the queue and
   counted, never handed to a consumer. A question nobody should answer late
   sets one.
+- **Who sent it — the receiver decides the rest.** Every delivered message
+  carries the **sender principal**, verified by the bus, and the
+  **on-behalf-of** principal when there is one (`01`). That is all the bus
+  adds: it does not classify messages as orders or content and enforces no
+  policy on the receiver. Secure delivery plus who and for whom; what to do
+  with it is the receiver's call.
 - **Two verbs.**
 
   | Verb | Target | Lands in | Allowed if |

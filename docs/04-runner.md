@@ -41,8 +41,9 @@ one supervised process hosting many instances and speaking the bus on their beha
     | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
 
     The adapter acknowledges to the bus only after the runtime has *accepted*
-    the message, and an incoming message can never change the session's
-    permissions or mode.
+    the message. It never lets an incoming message change the session's
+    permissions or mode — that is the adapter's policy as receiver (`03`), not
+    a rule of the bus.
 - **Represent** — registers each child as an **instance** (`name@host`),
   heartbeats and reports stats for it, holds and injects the child's identity
   and private config. Children need not know the bus exists.
