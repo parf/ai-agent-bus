@@ -66,6 +66,10 @@ changed by owners, **signed by the writer when it has a key**.
   (received) and later **`done`** (processed). Both are ordinary messages to
   the sender's queue (or its `reply-to`), carrying the original `message_id`,
   topic and tag. Neither is required; a sender that wants them asks.
+- **TTL per message, optional.** A message may carry its own TTL, shorter than
+  the topic's; when it expires undelivered it is dropped from the queue and
+  counted, never handed to a consumer. A question nobody should answer late
+  sets one.
 - **Two verbs.**
 
   | Verb | Target | Lands in | Allowed if |

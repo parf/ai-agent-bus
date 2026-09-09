@@ -149,6 +149,7 @@ Settled with the owner; each is written into the doc named.
 - **Graceful shutdown / restart dumps in-memory state to Parquet** and reloads it; an optional periodic dumper (~1 min) covers untimely death → `00`, `03`
 - **`message_id`**, unique per channel, on every message → `03`
 - **Optional receipts**: `ack` (received) and `done` (processed), sent back to the sender carrying the `message_id` → `03`
+- **TTL per message**, optional, within the topic's TTL; expired = dropped and counted, never delivered → `03`
 
 ## Open
 

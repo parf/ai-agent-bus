@@ -166,7 +166,7 @@ forwarding chains, and a queue owned by one consumer with in-order delivery
 | Content-derived `event_hash` as message id; dedup by it | **Kept** as `message_id`, unique per channel, assigned by the bus (`03`). |
 | Delivery observations `accepted / processing / succeeded / failed` | **Kept, lighter**: optional `ack` (received) and `done` (processed) receipts to the sender (`03`). |
 | Dead letter + replay | **Dropped by design**: no dead letter. Any flow that needs it gets its own WAL. |
-| `deadline_ts` on requests; `FAIL:timeout` published before ACK | **Not in V2 docs.** |
+| `deadline_ts` on requests; `FAIL:timeout` published before ACK | **Kept, lighter**: optional TTL per message; expired messages are dropped and counted, never delivered (`03`). No timeout reply. |
 | Data classes `standard / sensitive / restricted` → retention, metadata-only dead letters | **Not in V2 docs** (no retention to classify; sessions encrypted instead). |
 | Directory-scoped sessions `claude(/rd/vhosts/realty)`; heartbeat 10 s / lease 30 s | **Kept** in spirit: instance = `unique-name@host`, heartbeat, K missed → down (`03`). |
 | notifier-claude (Channels), notifier-codex (App Server), agent-sync | **Kept**: `claude --channel` is the V2 Claude face; Codex/agent-sync paths not yet written into `03`/`04`. |
