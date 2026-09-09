@@ -81,6 +81,25 @@ identity of their own.
 - MCP tool info: stored **raw**, shape-checked only; `agent-busd` generates
   docs from it.
 
+## Topics — registered like services
+
+A topic is a **first-class record in `agent-busd`**, handled the same way as a
+service definition:
+
+| Aspect | Same as a service |
+|---|---|
+| Create | needs a **token**; anyone who can reach `agent-busd` may create a new topic |
+| Change / delete | **owner or owner group** only |
+| Record | name, **kind** (queue / pub·sub), **TTL**, **bound**, owner, description, audience |
+| Visibility | listed in the registry and in the MCP catalog, **audience-filtered** |
+| Access | `publish:<glob>` / `consume:<glob>` capabilities on principals |
+| Storage | live record in `agent-busd`, not in the signed bundle; the topic's *messages* are live state |
+| Health / stats | depth, in/out rate, drops, subscriber count — shown on the dashboard like a service's stats |
+
+An agent's own inbox is an implicit queue topic named after it, created on
+first start and owned by that agent. Namespacing follows services
+(`team/alerts`, `company/deploys`); local shadows upstream.
+
 ## Service vs instance
 
 A service is the *kind* (code, description, declared roles, health hints,

@@ -56,8 +56,9 @@ gets out of the way.
 
 **The main service is `agent-busd`** (one daemon; also the runner, see
 `04-runner.md`). Its parts:
-- **Service Discovery** — registrations (anyone can push a description:
-  "MySQL `xxx` on host:port") + in-memory queues
+- **Service Discovery** — registrations of **services and topics** (anyone can
+  push a description: "MySQL `xxx` on host:port"; "topic `alerts.prod`,
+  pub/sub") + the in-memory queues behind them
 - **API** — the wire face for agents and services
 - **MCP server** — exposes the bus to agents; **generates docs/tool
   descriptions for all known services available to the calling client**
@@ -127,6 +128,7 @@ one thin store layer. Only instance health/stats is high-churn.
 | Queues & addressing | Every agent gets its **own queue on start**. Messages carry **topic + tag**: *topic* = conversation identifier (A→B), *tag* = message id. Reply goes to sender's queue with the same topic+tag, **unless** the sender sets `reply-to: {service, topic, tag}`. |
 | Delivery verbs | **`send`** = to a known receiver (`name@host`), one queue. **`publish`** = to a topic, every matching consumer. `consume` reads your own queue. |
 | Topic kinds | **queue** (one consumer per message, retained until consumed or TTL) and **pub/sub** (copy to every current subscriber, no retention). A topic **declares its kind, TTL and bound at creation**. Publishing to an empty queue topic with a TTL is fine; to an empty pub/sub topic it is a no-op. |
+| Topics as records | A topic is **registered like a service**: token to create, owner/owner group to change, audience-filtered in registry and MCP catalog, stats on the dashboard. Inboxes are implicit queue topics owned by their agent. |
 | Instance / address | **`unique-name@host`** — instance id and address are the same string. |
 | `master_secret` | Out-of-band file on each replica. |
 | Wire format | **JSON**, with **msgpack** as an optional negotiated binary encoding. |

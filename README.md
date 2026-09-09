@@ -16,7 +16,8 @@ Today each pair needs its own glue.
 agent-bus gives them one meeting point. A small daemon, `agent-busd`, keeps a
 **registry** of everything that joined, holds a **queue** for each of them, answers
 **"what can I use?"** over MCP with generated docs, and shows it all on a
-**dashboard**. Any participant can look up another by name and send it a message.
+**dashboard**. Topics are registered the same way as services and show up in the
+same registry. Any participant can look up another by name and send it a message.
 Anything that already has an address can be **registered by hand**: "there is a MySQL
 service called `xxx` on `host:port`" is a valid registration.
 
@@ -115,6 +116,10 @@ export AGENT_BUS_USER_TOKEN=...        # minimal auth: one token
 
 # describe something that already exists
 agent-bus register mysql-prod --kind generic --addr host:3306
+
+# create a topic (registered like a service: token to create, owner to change)
+agent-bus topic create alerts.prod --kind pubsub
+agent-bus topic create build-jobs  --kind queue --ttl 1h --bound 1000
 
 # talk
 agent-bus send     fixer@srv1 --topic deploy-42 --tag q1 "run the migration?"   # known receiver
