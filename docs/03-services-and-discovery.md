@@ -1,4 +1,4 @@
-# Services and Discovery
+# Services, Messaging and Discovery
 
 ## Service kinds
 
@@ -6,144 +6,126 @@ Two axes: reachable or not, and who owns the record.
 
 | Kind | Reachable | Registered by | Health | Signs events |
 |---|---|---|---|---|
-| **generic** | yes (host/port, unix socket, HTTP) | a user, on behalf of something existing (host/port, description, optional MCP method info) | health-checker polls per hints | no (no key) |
-| **agent** | yes | itself, own key | self-reports health/stats | yes, as service |
-| **consumer** | no (pulls) | itself, own key | none | no |
-| **publisher** | not a service — an identity that signs events (`agent-bus` CLI or `curl` + key) | — | none | yes |
+| **generic** | yes (host/port, unix socket, HTTP) | a user, on behalf of something that exists — description, address, optional MCP method info | health-checker probes per hints | no (no identity) |
+| **agent** | yes | itself, own identity | self-reports health/stats | if key-holding |
+| **consumer** | no (pulls) | itself, own identity | none | no |
+| **publisher** | not a service — an identity that emits events (`agent-bus` CLI or `curl`) | — | none | if key-holding |
 
-**Identity is required** for agents, consumers and publishers: each is a
-principal identified by an Ed25519 key — or, in minimal/static mode, by a
-**token, which is the whole identity**. The **`agent-bus` CLI provides it** —
-creates the key or takes the token, registers, publishes, consumes, signs.
-Only *generic* records (a description pushed by someone else) have no
-identity of their own.
-
-- **Registering is just pushing a description.** Anyone may tell discovery
-  "there is a MySQL service named `xxx` on `host:port`" — the thing itself
-  need not know the bus exists (generic kind). Same for an HTTP API, a unix
-  socket, a cron job's host. Health hints are optional extras on the record.
-- Publisher/consumer are **capabilities on a principal** (`publish:<topic-glob>`,
-  `consume:<topic-glob>`), not service objects.
+- **Registering is just pushing a description.** "There is a MySQL service
+  named `xxx` on `host:port`" is a complete registration; the thing itself need
+  not know the bus exists. Same for an HTTP API, a unix socket, a cron host.
+  Health hints are optional extras.
+- **Identity is required** for agents, consumers and publishers: a token
+  (minimal mode, the token *is* the identity) or an Ed25519 key. The
+  `agent-bus` CLI provides it. Only generic records have none.
+- Publisher/consumer are **capabilities on a principal** (`publish:<glob>`,
+  `consume:<glob>`), not service objects.
 - generic vs agent differ only in record owner and health mode → same record
   type with a `kind` (when models are designed).
 
 ## Personal vs shared (default: shared)
 
-- **personal** — runs *as* a specific user with their account/session
-  (mail-reader, the Claude-session input channel — the reference personal
-  service). Owner = the user; default audience = the user; lifecycle follows
-  the user; usually one instance per user; typically runs on the user's own
-  machine (why AUTH-optional matters).
-  Key: the user's key (ephemeral sessions) or its own key (recommended for
-  anything long-running — narrower access, individually revocable).
-  When a personal service calls another service, it *is the user calling* —
-  no separate delegation.
+- **personal** — runs *as* a specific user with their account (mail-reader, a
+  Claude session joined via `claude --channel`). Owner = the user; default
+  audience = the user; lifecycle follows the user; usually one instance;
+  typically on the user's own machine. Key: the user's (ephemeral sessions) or
+  its own (recommended for anything long-running — narrower, individually
+  revocable). When it calls another service, *it is the user calling*.
 - **shared** — runs as `svc:<name>` for many; explicit ACL; long-lived;
   health-checked.
 
-## Messaging — queues, topic + tag
-
-- **Every agent gets its own queue when it starts** (in-memory in `agent-busd`,
-  bounded; overflow **drops the oldest** and counts it in stats).
-- Address = instance id = **`unique-name@host`**.
-- Each message carries **`topic`** (conversation identifier, e.g. A→B
-  exchange) and **`tag`** (unique message id). Example: A asks B three
-  questions, each with its own tag; B's answers carry the same tags so A can
-  match them.
-- **Two delivery verbs.** **`send`** = one message to a **known receiver**
-  (`unique-name@host`), lands in exactly that queue; allowed if you may talk
-  to that principal. **`publish`** = one message to a **topic**; copied into
-  the queue of every principal holding a matching `consume:<glob>`; allowed if
-  you hold `publish:<glob>`. Delivery itself does not tell the publisher who
-  received it, but the API answers **"are there subscribers on this topic, and
-  who?"** to anyone whose access allows the lookup (audience-filtered).
-  `consume` reads your own queue in both cases.
-- **Two kinds of topic.**
-  | Kind | Delivery | Retention | No subscribers at publish time |
-  |---|---|---|---|
-  | **queue** | each message goes to **one** consumer (competing consumers take turns) | kept in memory until consumed or **TTL** expires (bounded, drop-oldest) | fine — the message waits for its TTL |
-  | **pub/sub** | every current subscriber gets a **copy** | none | message is dropped (a no-op) |
-
-  Same model as Redis: a queue topic is a list with `BRPOP` and an `EXPIRE`
-  (competing consumers, retained, TTL); pub/sub is `PUBLISH`/`SUBSCRIBE`
-  (fan-out to whoever is listening right now, nothing kept).
-  A topic declares its kind and, for queues, its TTL and bound. An agent's own
-  inbox is a queue topic with a single consumer. Publishing to a topic with no
-  subscribers is legitimate on a queue with a TTL; on pub/sub it is a no-op,
-  and the subscriber lookup above tells you which case you are in.
-- **Reply routing**: answer goes to the sender's queue with the same
-  topic+tag — **unless** the request sets `reply-to: {service, topic, tag}`.
-- **Delivery**: consumers **pull** (long-poll/stream) by default; a consumer
-  may register a **push** address and `agent-busd` delivers to it.
-- Encoding: **JSON**, optional negotiated **msgpack** for heavy payloads.
-- Publishing a service definition needs a token; changing one needs owner /
-  owner group (see `01`). Definitions are live records, not signed bundle data.
-- MCP tool info: stored **raw**, shape-checked only; `agent-busd` generates
-  docs from it.
-
-## Topics — registered like services
-
-A topic is a **first-class record in `agent-busd`**, handled the same way as a
-service definition:
-
-| Aspect | Same as a service |
-|---|---|
-| Create | needs a **token**; anyone who can reach `agent-busd` may create a new topic |
-| Change / delete | **owner or owner group** only |
-| Record | name, **kind** (queue / pub·sub), **TTL**, **bound**, owner, description, audience |
-| Visibility | listed in the registry and in the MCP catalog, **audience-filtered** |
-| Access | `publish:<glob>` / `consume:<glob>` capabilities on principals |
-| Storage | live record in `agent-busd`, not in the signed bundle; the topic's *messages* are live state |
-| Health / stats | depth, in/out rate, drops, subscriber count — shown on the dashboard like a service's stats |
-
-An agent's own inbox is an implicit queue topic named after it, created on
-first start and owned by that agent. Namespacing follows services
-(`team/alerts`, `company/deploys`); local shadows upstream.
-
 ## Service vs instance
 
-A service is the *kind* (code, description, declared roles, health hints,
-optional MCP method info). An instance is service + **private config** + a
-place it runs, identified as **`unique-name@host`** (stable across restarts). Private config is kept by the instance by default (any format),
-optionally sealed in AUTH/Config. Instances register, heartbeat, vanish; the
-service definition is signed and rare-change.
+A service is the *kind*: description, declared roles, health hints, optional
+MCP method info (stored **raw**, shape-checked only; docs generated from it).
+An instance is service + private config + a place it runs, identified as
+**`unique-name@host`** — stable across restarts, and also its address. Private
+config stays with the instance by default, optionally sealed in `agent-busd`
+(`01`). Instances register, heartbeat, vanish; definitions are live records
+changed by owners.
+
+## Messaging
+
+- **Every agent gets its own queue when it starts** — an implicit queue topic
+  named after it, in memory in `agent-busd`, bounded; overflow **drops the
+  oldest** and counts it in stats.
+- Every message carries **`topic`** (conversation id, e.g. one A→B exchange)
+  and **`tag`** (message id). A asks B three questions with three tags; B's
+  answers carry the same tags, so A matches them.
+- **Two verbs.**
+
+  | Verb | Target | Lands in | Allowed if |
+  |---|---|---|---|
+  | **`send`** | a known receiver, `unique-name@host` | exactly that queue | you may talk to that principal |
+  | **`publish`** | a topic | every queue holding a matching `consume:<glob>` | you hold `publish:<glob>` |
+
+  `consume` reads your own queue in both cases. Delivery does not report who
+  received a publish, but the API answers "are there subscribers on this
+  topic, and who?" to anyone whose access allows the lookup.
+- **Reply routing**: to the sender's queue with the same topic + tag — unless
+  the request sets `reply-to: {service, topic, tag}`.
+- **Consumers pull** by default (long-poll / stream); a consumer may register a
+  **push** address and `agent-busd` delivers to it.
+- **Encoding**: JSON; msgpack as an optional negotiated binary form.
+
+## Topics
+
+Two kinds — the Redis model:
+
+| Kind | Delivery | Retention | No subscribers at publish time | Redis analogue |
+|---|---|---|---|---|
+| **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded, drop-oldest | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
+| **pub/sub** | a **copy** to every current subscriber | none | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
+
+A topic **declares its kind, TTL and bound at creation**, and is a
+**first-class record registered like a service**:
+
+| Aspect | Rule |
+|---|---|
+| Create | any valid token |
+| Change / delete | owner or owner group |
+| Record | name, kind, TTL, bound, owner, description, audience |
+| Visibility | registry and MCP catalog, audience-filtered |
+| Access | `publish:<glob>` / `consume:<glob>` on principals |
+| Storage | live record in `agent-busd`; messages are live state; snapshotted to git as backup |
+| Stats | depth, in/out rate, drops, subscriber count — on the dashboard like a service |
+
+Inboxes are implicit queue topics created on an agent's first start and owned
+by it. Namespacing follows services (`team/alerts`); local shadows upstream.
 
 ## Service Discovery
 
-("Service discovery" is the preferred name over "registration".)
+("Service discovery" is the name; "registration" is one operation on it.)
 
-- **The required minimum**: the daemon runs discovery (registrations) and
-  hosts **in-memory queues** (bounded, non-durable) that events land in and
-  consumers pull from. **AUTH role off in the minimum** — auth is still
-  required (static token, `AGENT_BUS_USER_TOKEN`); the AUTH *role* is an
-  optional child process of the same daemon, as is the WEB dashboard.
-- Direct talk is still allowed: if you already know where something lives, skip
-  the lookup.
+- **The required minimum**: the `agent-busd` core with its registry and queues.
+  AUTH role off; auth still required via static token.
+- Direct talk is allowed: if you already know where something lives, skip the lookup.
 - Registration carries **health hints**: HTTP endpoint + expected status, TCP
   connect, unix-socket ping, command, interval, timeout. Unix-socket services
   are first-class (`unix:/path`).
-- **Audience** per service — users, services or org groups (from AUTH) who may
-  see and use it. Discovery is personalized; MCP tool lists come pre-filtered.
-- **WEB runs as a child process under cgroup limits** (CPU/memory/pids):
-  dashboards can be heavy and must never starve registry or queues.
-- Faces of `agent-busd`: **API** (agents/services register, look up,
-  push/pull queues), **MCP server** (agents ask "what can I use, and how";
-  `agent-busd` **generates docs and tool descriptions for every known service
-  that is available to the calling client** — audience-filtered, so each
-  client sees its own catalog) and **WEB** (humans: registry browser, health,
-  fancy stats dashboards; curl-friendly).
-- Same replicated generation-based core as AUTH; live state kept separate.
+- **Audience** per service and topic — users, services or org groups who may
+  see and use it. Discovery is personalised; MCP catalogs come pre-filtered.
+  ❓ With AUTH off the only identity is the token — filtering per token is the
+  assumption (`00`).
+- **Faces**: **API** (register, look up, send / publish / consume), **MCP
+  server** (agents ask "what can I use, and how" — generated docs for every
+  known service available to the caller, plus tool descriptions where the
+  service exposes tools), **WEB** (humans: registry browser, health, stats
+  dashboards; curl-friendly; runs as a cgroup-limited child).
+- Registry data is live and per node; snapshots go to the git repo as backup.
+  ❓ Replication of the registry between nodes vs. chaining only — open (`00`).
 
 ## Health-checker and Stats (modules of discovery)
 
-- Health-checker is itself an agent: registered, replicated 2×, holds a
-  `health` role on the services it polls. generic → probe per hints;
-  agent → heartbeat, K missed → down.
-- Stats: agent heartbeats carry a small metrics blob; probe results (latency,
-  up/down) are the stats for generic. Kept **in memory** (ring buffers, last N
-  hours, fixed resolution). Restart = empty window (accepted).
-- **Dashboard** (own, built into stats): graphs rendered straight from the
-  ring buffers — no external TSDB needed. Views **per service / per server /
-  per user / …** (any dimension carried by the metrics), numbers + sparklines,
-  audience-filtered. API: `/stats/<dimension>/<id>`.
-  Export: Prometheus `/metrics` first (Grafana reads it); OTLP/StatsD secondary.
+- **Health-checker** is itself an agent: registered, replicated 2×, holds a
+  `health` role on the services it probes. generic → probe per hints; agent →
+  heartbeat, K missed → down.
+- **Stats**: agent heartbeats carry a small metrics blob; probe results
+  (latency, up/down) are the stats for generic; queue depth and rates for
+  topics. Kept in memory — ring buffers, last N hours, fixed resolution;
+  restart = empty window (accepted).
+- **Dashboard** (the WEB child): graphs straight from the ring buffers, no
+  external TSDB. Views per service / server / user / topic — any dimension the
+  metrics carry; numbers + sparklines; audience-filtered. API
+  `/stats/<dimension>/<id>`. Export: Prometheus `/metrics` first (Grafana reads
+  it); OTLP / StatsD secondary.

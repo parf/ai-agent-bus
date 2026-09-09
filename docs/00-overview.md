@@ -1,166 +1,147 @@
 # Agent Bus — Overview
 
-Status: draft · Scope: main ideas only, no data models yet (deferred by owner)
+Status: design, main ideas only · no data models yet (deferred by owner) · no code
 
-Documents:
-1. `00-overview.md` — goal, principles, core services, chaining, storage, trade-offs, open questions
-2. `01-identity-and-auth.md` — principals, key directories, groups/ACL/roles, ownership, private config
-3. `02-keys-sessions-replication.md` — access keys, encrypted sessions, signed generations, SSH admin
-4. `03-services-and-discovery.md` — service kinds, personal/shared, instances, discovery, health, stats
-5. `04-runner.md` — `agent-busd` supervisor: adapters, identity injection, sandboxing, in-process queue
+Documents, in reading order:
+1. `00-overview.md` — goal, principles, `agent-busd` and its roles, chaining, storage, trade-offs, open items
+2. `01-identity-and-auth.md` — principals, key directories, groups/ACL/roles, ownership, delegation, private config
+3. `02-keys-sessions-replication.md` — access-key modes, encrypted sessions, signed generations in git, SSH admin
+4. `03-services-and-discovery.md` — service kinds, messaging (queues, topics, send/publish), topics as records, discovery, health, stats
+5. `04-runner.md` — the runner role: adapters, self-supervision, sandboxing, in-process queue, languages
 
-`../HANDOFF.md` holds the full discussion record, incl. superseded ideas.
-`v1-original.md` records the V1 brainstorm (Linear PRF-36) and the existing V1 code.
+`v1-original.md` records V1 (the broker-based system in production) and the V1 → V2 mapping.
+`../HANDOFF.md` is the owner's full discussion record.
 
 ## Goal
 
-Replace V1 (external broker, per-service `user → token` maps; see
-`v1-original.md`) with our **own daemon** and a small set of **optional** core
-services. **`agent-busd` is the broker** — registry + per-agent queues in one
-process — so there is **no external broker** to run. Direct calls between
-services that already know each other stay point-to-point, encrypted, with
-the core needed only on first contact. Inside a service, local work uses a
-bounded in-process queue (see `04-runner.md`).
+Replace V1 — an external broker plus a `user → token` map inside every service —
+with **one daemon of our own, `agent-busd`**. It is the registry, the broker,
+the MCP server and the dashboard in one binary. There is no external broker to
+run. Parties that already know each other may also talk directly,
+point-to-point and encrypted.
 
-Model: **Kerberos-style** — AUTH hands both parties a shared secret, then
-gets out of the way.
+Model for access: **Kerberos-style** — when the AUTH role is on, it hands both
+parties a shared secret once, then gets out of the way.
 
 ## Principles
 
-- **Minimum to run: `agent-busd`** — Service Discovery (registrations +
-  **in-memory queues**), API, MCP server, WEB dashboards. **AUTH role off.**
-  Nothing else is required.
-- **AUTH is an optional role of the same daemon** — `auth: on` in config and
-  a restart. It runs as its **own child process**; health-checker and stats
-  are optional too. A service must work without any of them.
-- **Authentication is always required** — every participant presents a
-  token; there is no anonymous access. What is optional is the AUTH
-  *service*. **Minimal mode**: a token set manually, at minimum
-  `ENV AGENT_BUS_USER_TOKEN`, matched by the service's local mapping file →
-  **zero AUTH calls**. The AUTH role is turned on only when an org wants
-  central identities and derived keys.
-- Ed25519 keys wherever there is a key; no passwords, no client secrets.
-  In minimal mode the token *is* the identity and there is no key.
-- Core is on the hot path **only once** per (user, service, epoch).
-- **AUTH data** (principals, groups, ACL/roles, admin SSH keys) changes rarely
-  (few/week) → signed generations, master/slave, 2+ replicas, kept in **git
-  over SSH**. **Service definitions are live records in `agent-busd`**
-  (token to publish, owner to change) — not in the signed bundle. Live state
-  (health, stats, instances, queues) is separate and never signed.
-- Policy lives in AUTH; **services only interpret**, never decide.
-- Two independent controls: SSH decides *who may administer*; a signature
+- **Minimum to run: `agent-busd` alone.** Registry (services + topics),
+  in-memory queues, API, MCP server, dashboard. AUTH role off.
+- **Authentication is always on; the AUTH role is optional.** Every participant
+  presents a token or a key; there is no anonymous access. Minimal mode: a
+  token set by hand (`ENV AGENT_BUS_USER_TOKEN`), matched by the receiving
+  service's local mapping file. **The token is the whole identity** — no key,
+  zero AUTH calls. Turn the AUTH role on when an org wants central identities,
+  groups and hourly derived keys.
+- **One binary, one unit, one config dir, one CLI, one git repo.** `agent-busd`
+  supervises its own roles as child processes (see below) with the same
+  machinery it uses for any child.
+- **Ed25519 wherever there is a key**; no passwords, no client secrets.
+- **AUTH is on the hot path once** per (user, service, epoch).
+- **Two kinds of data.** *AUTH data* (principals, groups, ACL/roles, admin SSH
+  keys) changes a few times a week → offline-signed generations in git over SSH.
+  *Registry data* (service and topic definitions, ownership) is **live** in
+  `agent-busd`, guarded by token and ownership, snapshotted to the same git repo
+  as backup only. *Live state* (health, stats, instances, queue contents) is
+  neither signed nor snapshotted.
+- **Policy lives in AUTH; services only interpret**, never decide.
+- **Two independent controls**: SSH decides *who may administer*; a signature
   decides *which config is real*.
-- Maximal simplicity: one daemon, no external broker; once two parties know
-  each other they may talk directly.
 
-## Core services
+## `agent-busd` and its roles
 
-**The main service is `agent-busd`** (one daemon; also the runner, see
-`04-runner.md`). It supervises its own roles as **child processes** — the
-runner design applied to itself. Its parts:
-- **Service Discovery** — registrations of **services and topics** (anyone can
-  push a description: "MySQL `xxx` on host:port"; "topic `alerts.prod`,
-  pub/sub") + the in-memory queues behind them
-- **API** — the wire face for agents and services
-- **MCP server** — exposes the bus to agents; **generates docs/tool
-  descriptions for all known services available to the calling client**
-- **WEB** — fancy dashboards: registry, health, stats graphs; **child
-  process under cgroup limits** (CPU/memory/pids), so a heavy dashboard
-  cannot starve the bus
-- **AUTH / Config** — **optional role, off by default**; **child process**
-  that alone holds `master_secret` and the signed bundle, talking to the core
-  over a unix socket (sshd/Postfix-style privilege separation)
-
-| Process | Role | Optional |
+| Process | Does | Default |
 |---|---|---|
-| **`agent-busd` core** | discovery (services, topics, in-memory queues) · API · MCP server with generated docs · runner · supervises the children below | **no — the minimum** |
-| **`agent-busd` WEB child** | dashboards; cgroup-limited | on by default, may be off |
-| **`agent-busd` AUTH child** | identities, keys, groups, ACLs, roles, encrypted private configs; owns `master_secret` | **off by default — `auth: on`** |
-| **Health-checker** | module of discovery; probes generic services per their hints | yes |
-| **Stats** | module of discovery; in-memory ring buffers feeding the WEB child, exporters | yes |
+| **core** | registry of services and topics · in-memory queues · API · MCP server with generated docs · runner · supervises the children below | always |
+| **WEB child** | dashboards: registry browser, health, stats graphs from ring buffers; **cgroup-limited** (CPU / memory / pids) so it can never starve the bus | on, may be off |
+| **AUTH child** | identities, keys, groups, ACLs, roles, sealed private configs; **alone holds `master_secret`** and the signed bundle; core talks to it over a unix socket (sshd/Postfix-style privilege separation) | **off** — `auth: on` |
+| health-checker | module of discovery; probes generic services per their hints | optional |
+| stats | module of discovery; in-memory ring buffers feeding WEB and exporters | optional |
 
-One binary, one unit, one config dir, one CLI, one git repo. Nodes with the
-AUTH role on are the AUTH replicas (2+); a laptop node never holds
-`master_secret`.
+Nodes with `auth: on` are the AUTH replicas (run 2+). A laptop node never holds
+`master_secret`. How many children there are beyond WEB and AUTH, and what is
+shared between core and children, is still open (see below).
+
+Faces of the core: **API** (register, look up, send/publish/consume),
+**MCP server** (agents ask "what can I use, and how"; `agent-busd` generates
+docs and, where a service exposes them, tool descriptions — filtered to what
+the calling client may see), **WEB** (humans; curl-friendly).
 
 ## Chaining — local first, upstream for the rest
 
-AUTH and Discovery accept an **upstream** (which may have its own). Resolution
-is local file → local service → upstream → …; first hit wins, unresolved falls
-through. The same rule applies to identities, ACL/roles and service lookups.
+`agent-busd` accepts an **upstream** `agent-busd` (which may have its own).
+Resolution: local file → local node → upstream → …; first hit wins, unresolved
+falls through. Applies to identities, ACL/roles, service and topic lookups.
 
-- Scopes stay where they belong: personal on the laptop, team on the team node,
-  company/public upstream. Nothing is pushed up; definitions never leak upward
-  (queries do).
-- Each hop pins its upstream's signing key; answers arrive as signed
-  generations, so a middle hop can fail to forward but cannot forge.
+- Scopes stay put: personal on the laptop, team on the team node, company
+  upstream. Nothing is pushed up; definitions never leak upward (queries do).
+- Each hop pins its upstream's signing key; AUTH answers arrive as signed
+  generations — a middle hop can fail to forward, not forge.
 - Local shadows upstream by design; writes warn when they shadow.
-- Namespaced ids (`team/ci`, `company/mail`) avoid most collisions.
-- Upstream answers are cached with the usual epoch/gen rules; an unreachable
-  upstream means "cached or unresolved", never a wrong answer.
-- Derived keys need a shared `master_secret`, which does not span levels →
-  cross-level access uses pairwise keys (or keys issued by the upstream itself).
-- Discovery's MCP face merges levels into one view, tagged by origin.
+- Namespaced ids (`team/ci`, `company/mail`, `team/alerts`) avoid collisions.
+- Upstream answers are cached under the usual epoch/gen rules; unreachable
+  upstream = "cached or unresolved", never a wrong answer.
+- `master_secret` does not span levels → cross-level access uses pairwise keys
+  or keys issued by the upstream itself.
+- The MCP face merges levels into one catalog, tagged by origin.
 
 ## Storage
 
-SQLite by default (single file, zero ops); MySQL/PostgreSQL optional behind
-one thin store layer. Only instance health/stats is high-churn.
+SQLite by default (single file, zero ops); MySQL/PostgreSQL optional behind one
+thin store layer. The git repo (over SSH) holds signed AUTH bundles (authority)
+and unsigned registry snapshots (backup). Queues and stats are memory only.
 
 ## Known trade-offs
 
-- Consistency window: revoked access may be honored for replica poll interval
-  (lagging slave) + one epoch (service cache). Optional `revoked_users` list in
-  the bundle closes it for *new* sessions.
-- GitHub keys are pinned at enrollment; a key deleted on GitHub stays valid
-  until someone refreshes.
-- Pairwise/static and local files have no central revocation or audit.
-- Stats are in-memory: restart = empty window.
-- `master_secret` and the offline signing key are the roots of trust.
+- **Consistency window**: revoked access may be honoured for one replica poll
+  interval + one epoch. Optional `revoked_users` list in the bundle closes it
+  for *new* sessions; live sessions are not torn down.
 - **No forward secrecy** (decided): session keys derive from the access key +
   nonces; a leaked long-term key exposes recorded sessions.
-- Service definitions are not signed: anyone holding a valid token can
-  publish a new service; only ownership guards changes.
+- **Registry is unsigned**: anyone with a valid token may publish a new service
+  or topic; only ownership guards changes.
+- **Queues are memory**: restart = empty; overflow drops the oldest.
+- GitHub keys are pinned at enrolment; a key deleted on GitHub stays valid
+  until someone refreshes.
+- Static tokens, pairwise keys and local files have no central revocation or audit.
+- Stats are memory: restart = empty window.
+- `master_secret` and the offline signing key are the roots of trust; every
+  AUTH replica holds `master_secret`, so a compromised replica mints keys.
 
-## Decisions 2026-09-09 (owner Q&A)
+## Decision log (2026-09-09)
 
-| Topic | Decision |
-|---|---|
-| Minimal identity | In static mode **the token is the whole identity** — no Ed25519 key. Keys appear with pairwise mode or AUTH. |
-| Publishing services | Needs a **token** (min `ENV AGENT_BUS_USER_TOKEN`; from AUTH when on). Anyone who can reach `agent-busd` may publish a **new** service; changing an **existing** one requires being **owner or in the owner group**. Definitions are live in `agent-busd`, not in the signed bundle. |
-| One binary | `agent-busd` = discovery + API + MCP server + WEB + runner **+ AUTH as an optional role**. AUTH and WEB run as **child processes** of the core: AUTH alone holds `master_secret` (privilege separation); WEB is cgroup-limited. Turn AUTH on with `auth: on`. *(revised: was "AUTH separate, may be co-hosted")* |
-| Delegation | A calls B for user U as **A + on-behalf-of U** claim; B checks A's delegation role. U's key never leaves U. |
-| Forward secrecy | **No** ephemeral exchange. Accepted trade-off. |
-| Consumers | **Both**: pull (long-poll/stream) by default; a consumer may register a push address. |
-| Overflow | **Drop oldest**, count in stats. |
-| Queues & addressing | Every agent gets its **own queue on start**. Messages carry **topic + tag**: *topic* = conversation identifier (A→B), *tag* = message id. Reply goes to sender's queue with the same topic+tag, **unless** the sender sets `reply-to: {service, topic, tag}`. |
-| Delivery verbs | **`send`** = to a known receiver (`name@host`), one queue. **`publish`** = to a topic, every matching consumer. `consume` reads your own queue. |
-| Topic kinds | **queue** (one consumer per message, retained until consumed or TTL) and **pub/sub** (copy to every current subscriber, no retention). A topic **declares its kind, TTL and bound at creation**. Publishing to an empty queue topic with a TTL is fine; to an empty pub/sub topic it is a no-op. |
-| Topics as records | A topic is **registered like a service**: token to create, owner/owner group to change, audience-filtered in registry and MCP catalog, stats on the dashboard. Inboxes are implicit queue topics owned by their agent. |
-| Instance / address | **`unique-name@host`** — instance id and address are the same string. |
-| `master_secret` | Out-of-band file on each replica. |
-| Wire format | **JSON**, with **msgpack** as an optional negotiated binary encoding. |
-| MCP tool info | Store raw `tools` JSON, check shape only; docs generated from it. |
-| Bundle gaps | **Newer generation wins**. Bundle repo in **git over SSH**; replicas pull on start; **master/slave is the default config**. |
-| Shared git repo | The bundle repo is **the daemon's repo**: signed AUTH bundles in one directory (authority), unsigned registry snapshots (services, topics) in another (backup only, never authority). |
-| AUTH deployment option | **Local `agent-busd` with `auth: on` + a git-over-SSH remote as backup** of the signed bundles (GitHub repo, private suggested; or the user's SSH account on another server): push on every generation, pull to bootstrap/restore. The remote is the off-site copy, never a runtime dependency. Bundle holds no secrets (pubkeys only). |
-| Language | **Go** first; **bun/NPM** version later. Client libs: **Go, PHP, Rust, JS, Python**. |
-| V1 leftovers | RAG, KV/DB gateways, writers: **deferred, non-core** — later as ordinary bus services. |
+Settled with the owner; each is written into the doc named.
 
-## Still open
+- Token is the whole identity in minimal mode → `01`, `02`
+- Publish new service/topic: any token; change: owner or owner group → `01`, `03`
+- AUTH merged into `agent-busd` as an optional role, child process; WEB child cgroup-limited → `00`, `02`, `04`
+- Delegation: A + on-behalf-of U claim → `01`
+- No forward secrecy → `02`
+- Consumers pull by default, may register a push address → `03`
+- Overflow: drop oldest → `03`
+- Per-agent queue on start; topic + tag; reply-to → `03`
+- `send` to known receiver, `publish` to topic, `consume` own queue → `03`
+- Topic kinds queue / pub·sub; kind, TTL, bound declared at creation; topics registered like services → `03`
+- Instance id = address = `unique-name@host` → `03`
+- `master_secret` as out-of-band file → `02`
+- Wire: JSON, optional msgpack → `02`
+- MCP tool info stored raw, shape-checked → `03`
+- Bundle gaps: newer generation wins; bundle repo in git over SSH; master/slave default; local node + git remote (GitHub or own SSH host) as backup → `02`
+- Admin keys live in the bundle; root on the box is the break-glass → `02`
+- Go first, bun/NPM later; client libs Go, PHP, Rust, JS, Python → `04`
+- V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core → `v1-original.md`
 
-1. Capability globs vs. topic+tag — **settled**: `publish:<glob>` guards
-   `publish` to a topic, `consume:<glob>` decides whose queues receive it;
-   `send` to a known receiver needs only permission to talk to that principal.
-   `topic` on a sent message is just the conversation id.
-2. ❓ Audience filtering in minimal mode (AUTH role off): per-token only?
+## Open
+
+1. ❓ **Process layout** — how many child processes beyond WEB and AUTH, and
+   what is shared between core and children (store, queues, sockets, memory)
+   vs. isolated. *Settled by:* owner review.
+2. ❓ **Registry across nodes** — is the registry replicated between
+   `agent-busd` nodes, or is each node its own registry reached via chaining?
    *Settled by:* owner decision.
-3. ❓ Handshake key confirmation (detect a wrong key before data flows).
+3. ❓ **Audience filtering with AUTH off** — per token only? *Settled by:*
+   owner decision.
+4. ❓ **Handshake key confirmation** — detect a wrong key before data flows.
    *Settled by:* owner decision at protocol-design time.
-4. ❓ **Process layout** — how many child processes `agent-busd` runs (AUTH,
-   WEB, others?) and what is shared between core and children vs. isolated
-   (store, queues, sockets, memory). AUTH-holds-`master_secret` and
-   WEB-under-cgroups are decided; the rest is not.
-   *Settled by:* owner review.
-5. ❓ GitHub `/users/<login>/keys` `last_used` field.
-   *Settled by:* one `curl` against the live API from a network that can reach it.
+5. ❓ **GitHub `last_used`** on `/users/<login>/keys`. *Settled by:* one `curl`
+   from a network that can reach it.

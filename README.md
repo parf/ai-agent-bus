@@ -49,15 +49,15 @@ the dashboard in one binary.
 
 ## Use cases
 
-You can build these, or something like them, in minutes.
+You can build these, or something like them, in minutes once it ships.
 
 ### Watch a Slack channel and act on it
 
-The flow that runs in production today. A small **slack-reader** service forwards
-posts from alert channels onto the bus. A Claude Code session started with
-`claude --channel` receives them, decides what each one is, and forwards it: noise to
-nowhere, "tell a human" to the Slack/Telegram/SMS/email bots, "fix it" to a **fixer**
-session.
+The flow that runs in production today on V1. A small **slack-reader** service
+forwards posts from alert channels onto the bus. A Claude Code session started with
+`claude --channel` (a Claude Code channels feature, research preview) receives them,
+decides what each one is, and forwards it: noise to nowhere, "tell a human" to the
+Slack/Telegram/SMS/email bots, "fix it" to a **fixer** session.
 
 ```
 Slack channels → slack-reader → claude-watch (claude --channel)
@@ -77,8 +77,8 @@ ask another for a review, hand over a task, or wait for a result, addressed by n
 
 Register a database, an HTTP API, a unix socket or a cron host by description. Agents
 asking the MCP server "what can I use?" get a catalog **filtered to what they may see**,
-with tool descriptions generated from the registrations. No adapter code on the
-service side.
+with docs generated from the registrations and tool descriptions where a service exposes
+tools. No adapter code on the service side.
 
 ### Run a personal bus on your laptop
 
@@ -87,8 +87,9 @@ network exposure. Everything above works.
 
 ### Run a team or company bus
 
-Turn on the **AUTH** role (`auth: on`, same daemon, same git repo): identities come from GitHub (any developer already
-has an Ed25519 key there) or LDAP, groups compose with `& | !`, each service declares
+Turn on the **AUTH** role (`auth: on`, same daemon, same git repo): identities come from
+GitHub (most developers already have an SSH key there; Ed25519 ones are used) or LDAP,
+groups compose with `& | !`, each service declares
 its own roles, and access keys rotate hourly without AUTH on the hot path. Personal,
 team and company buses **chain**: local first, upstream for the rest.
 
@@ -104,6 +105,16 @@ and private config, and sandboxes it by default (`systemd-run`, `bubblewrap` or
 The dashboard renders health and stats straight from in-memory ring buffers: per
 service, per server, per user, whatever dimension the metrics carry. Prometheus
 export for Grafana if you want history.
+
+## What it is not
+
+- **Not a durable queue.** Queues live in memory. A restart empties them, and a full
+  queue drops its oldest message. If one flow needs durability, give that one a WAL.
+- **Not a workflow engine.** It routes messages; what to do with them is the agent's job.
+- **Not forward secret.** A leaked long-term key exposes recorded sessions. Accepted for
+  this design.
+- **Not a public-internet gateway.** Sessions are encrypted, but the design targets your
+  own hosts and laptops, not anonymous clients.
 
 ## Intended CLI shape
 
