@@ -3,7 +3,7 @@
 Status: V1 is **implemented** (monorepo `/rd/service/agent-bus`, NATS-based) and
 being **replaced by V2** — owner is not satisfied with it. Source: Linear, read 2026-09-09.
 Primary: [PRF-36 "Ai agent-bus"](https://linear.app/realmo-product/issue/PRF-36/ai-agent-bus)
-(2026-08-04, description + 14 comments, all by owner). Secondary: issues listed in §4.
+(2026-08-04, description + 14 comments, all by owner). Secondary: issues listed in §4; usage in §3 from owner.
 This file records what V1 is; `00-04` and `HANDOFF.md` are the V2 design.
 V1 pain points (the *why* of V2): to be filled in by owner.
 
@@ -66,7 +66,33 @@ process control (process list, kill, load check), writers/updaters.
 The ladder in 11–14 is the V1 answer to "Auth is optional": four escalating
 levels rather than V2's single optional AUTH with pluggable key modes.
 
-## 3. What exists in code (V1 implementation, per Linear)
+## 3. How V1 is used today (owner, 2026-09-09)
+
+Participants on the bus:
+
+| Participant | Kind | Notes |
+|---|---|---|
+| **Claude Code sessions** | agent (via Claude channels) | talk to each other, to Codex sessions, to agents |
+| **Codex sessions** | agent (Codex apps) | same |
+| **Simple agents** | agent | Slack in/out, Telegram in/out, SMS out, email out, … |
+| **Slack reader** | personal/shared service | receives alerts from Slack channels → forwards to `claude-watch` |
+| **`claude-watch`** | CLI Claude session | sorts alerts → forwards to **alerters** or **fixer sessions** |
+
+Anyone can see what is registered on the bus; that is how sessions find each other.
+
+Alert pipeline (the reference flow):
+
+```
+Slack channels → slack-reader → claude-watch (CLI session)
+                                   ├→ alerters  (Slack / Telegram / SMS / email out)
+                                   └→ fixer sessions (Claude / Codex)
+```
+
+V2 must keep serving exactly this: session↔session and session↔agent
+messaging, a registry everyone can read, and event forwarding chains — with
+its own daemon instead of the broker.
+
+## 4. What exists in code (V1 implementation, per Linear)
 
 Not verified from source; taken from issue text.
 
@@ -84,7 +110,7 @@ Adjacent issues: PRF-15 "Use new NATS queue service" (canceled → Future);
 RLM-250 tableflip zero-downtime reload (canceled → Future; 2× RAM caveat);
 PRF-49 Plan Management service (In Progress; candidate future bus service, not core).
 
-## 4. V1 → V2 mapping
+## 5. V1 → V2 mapping
 
 | V1 idea | V2 status |
 |---|---|
