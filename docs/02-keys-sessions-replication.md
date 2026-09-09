@@ -15,9 +15,10 @@
   sessions); they travel as metadata. `gen` is not in the derivation either.
 - `master_secret` lives only on AUTH replicas. Rotate via a `key_version`
   prefix in the HKDF label; accept both for one epoch.
-- **Static is the minimal mode**: tokens specified manually in both configs
-  (service side: local mapping file), no AUTH calls ever. Also the fallback
-  for keyless parties (scripts, webhooks).
+- **Static is the minimal mode**: token specified manually on both sides —
+  client: `ENV AGENT_BUS_USER_TOKEN` (or config); service: local mapping
+  file — no AUTH calls ever. Auth itself is never skipped: no token, no
+  access. Also the fallback for keyless parties (scripts, webhooks).
 - Pairwise is the standalone/personal mode for key-holding parties and a
   break-glass path independent of AUTH.
 - A service may accept several modes; the handshake carries `key_mode` +
