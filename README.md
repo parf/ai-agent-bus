@@ -26,6 +26,12 @@ service called `xxx` on `host:port`" is a valid registration.
 There is no external broker to install. `agent-busd` is the broker, the registry and
 the dashboard in one binary.
 
+Identity is a **key, not a password**. Wherever there is a key it is **Ed25519** — the
+same kind you already have on GitHub — and the smallest setup uses a shared token
+instead. Either way the two sides derive a session key from it, so **every message on
+the wire is encrypted** point-to-point, end to end. No passwords, no client secrets,
+no TLS or certificates to run.
+
 ## The 60-second picture
 
 ```
@@ -45,9 +51,11 @@ the dashboard in one binary.
   **pub/sub** (a copy to every current subscriber, nothing kept).
 - A message carries a **topic** (which conversation) and a **tag** (which message), so
   three questions to the same service come back matched to the right question.
-- **Authentication is always on.** The smallest setup is one token in an environment
-  variable, and that token is the whole identity. Central AUTH is an optional role of
-  the same daemon: turn it on when you need central identities and groups.
+- **Authentication is always on, and every session is encrypted.** The smallest setup
+  is one token in an environment variable, and that token is the whole identity.
+  Two key holders can derive a shared secret from their **public keys alone**, with no
+  AUTH involved. Central AUTH is an optional role of the same daemon: turn it on when
+  you need central identities, groups and hourly keys.
 
 ## Use cases
 
@@ -156,7 +164,8 @@ Highlights for the impatient:
   *Derived*: issued by AUTH, one hour, deterministic across replicas.
 - **Config as code.** AUTH data is a signed bundle in a git repo over SSH. Replicas pull
   on start, newer generation wins, git history is the audit trail. Service definitions
-  are live records in `agent-busd`, guarded by token and ownership.
+  are live records in `agent-busd`, guarded by token and ownership, signed by whoever
+  wrote them when that principal has a key.
 - **Admin over SSH only.** Forced commands, no shell, every call audit-logged. Root on
   the box is the break-glass.
 - **One daemon that supervises itself.** AUTH and the dashboard run as child processes
@@ -179,7 +188,7 @@ The `docs/` files are short and meant to be read in order.
 
 | Area | State |
 |---|---|
-| Design docs | ✅ decisions of 2026-09-09 recorded; four open items marked ❓ in the overview |
+| Design docs | ✅ decisions of 2026-09-09 recorded; two open items marked ❓ in the overview |
 | Code | 🚧 none yet. Go first, a bun/NPM build later; client libs for Go, PHP, Rust, JS, Python |
 | V1 | runs in production on a broker; its ideas and usage are recorded in `docs/v1-original.md` |
 
