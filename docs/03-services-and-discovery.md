@@ -64,6 +64,9 @@ identity of their own.
   | **queue** | each message goes to **one** consumer (competing consumers take turns) | kept in memory until consumed or **TTL** expires (bounded, drop-oldest) | fine — the message waits for its TTL |
   | **pub/sub** | every current subscriber gets a **copy** | none | message is dropped (a no-op) |
 
+  Same model as Redis: a queue topic is a list with `BRPOP` and an `EXPIRE`
+  (competing consumers, retained, TTL); pub/sub is `PUBLISH`/`SUBSCRIBE`
+  (fan-out to whoever is listening right now, nothing kept).
   A topic declares its kind and, for queues, its TTL and bound. An agent's own
   inbox is a queue topic with a single consumer. Publishing to a topic with no
   subscribers is legitimate on a queue with a TTL; on pub/sub it is a no-op,
