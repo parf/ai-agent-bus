@@ -83,7 +83,8 @@ changed by owners, **signed by the writer when it has a key**.
 - **Reply routing**: to the sender's queue with the same topic + tag — unless
   the request sets `reply-to: {service, topic, tag}`.
 - **Consumers pull** by default (long-poll / stream); a consumer may register a
-  **push** address and `agent-busd` delivers to it.
+  **push** address and `agent-busd` delivers to it. Agent sessions are pushed
+  through a per-runtime adapter (`04`): Claude Code, Codex, maybe OpenCode.
 - **Encoding**: JSON; msgpack as an optional negotiated binary form.
 
 ## Topics

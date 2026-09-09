@@ -29,6 +29,20 @@ one supervised process hosting many instances and speaking the bus on their beha
   - HTTP/REST/any API → registered with health hints
   - shell processes (stdin/stdout) → request/response or stream services
   - ad-hoc spawn/control → the runner's own API to start/stop things on demand
+  - **agent runtimes → one push adapter per runtime**, borrowed from V1's
+    notifiers: each runtime takes a message differently, so each gets its own
+    adapter that reads the session's queue and pushes into the *running* session.
+
+    | Runtime | Push path | Status |
+    |---|---|---|
+    | Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool | yes |
+    | Codex | App Server over a private unix socket — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart | yes |
+    | OpenCode (Z.AI) | ❓ to be found — the owner has an account. *Settled by:* one spike | maybe |
+    | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
+
+    The adapter acknowledges to the bus only after the runtime has *accepted*
+    the message, and an incoming message can never change the session's
+    permissions or mode.
 - **Represent** — registers each child as an **instance** (`name@host`),
   heartbeats and reports stats for it, holds and injects the child's identity
   and private config. Children need not know the bus exists.

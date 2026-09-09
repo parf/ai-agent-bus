@@ -150,6 +150,7 @@ Settled with the owner; each is written into the doc named.
 - **`message_id`**, unique per channel, on every message → `03`
 - **Optional receipts**: `ack` (received) and `done` (processed), sent back to the sender carrying the `message_id` → `03`
 - **TTL per message**, optional, within the topic's TTL; expired = dropped and counted, never delivered → `03`
+- **One push adapter per agent runtime**, borrowed from V1's notifiers: Claude Code (Channels), Codex (App Server), ❓ OpenCode (Z.AI); ChatGPT pull-only → `03`, `04`
 
 ## Open
 

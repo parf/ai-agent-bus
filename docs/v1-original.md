@@ -169,7 +169,7 @@ forwarding chains, and a queue owned by one consumer with in-order delivery
 | `deadline_ts` on requests; `FAIL:timeout` published before ACK | **Kept, lighter**: optional TTL per message; expired messages are dropped and counted, never delivered (`03`). No timeout reply. |
 | Data classes `standard / sensitive / restricted` → retention, metadata-only dead letters | **Not in V2 docs** (no retention to classify; sessions encrypted instead). |
 | Directory-scoped sessions `claude(/rd/vhosts/realty)`; heartbeat 10 s / lease 30 s | **Kept** in spirit: instance = `unique-name@host`, heartbeat, K missed → down (`03`). |
-| notifier-claude (Channels), notifier-codex (App Server), agent-sync | **Kept**: `claude --channel` is the V2 Claude face; Codex/agent-sync paths not yet written into `03`/`04`. |
+| notifier-claude (Channels), notifier-codex (App Server), agent-sync | **Borrowed**: one push adapter per runtime — Claude Code, Codex, ❓ OpenCode (Z.AI); ChatGPT pull-only (`04`). agent-sync becomes ordinary send/receipt between two sessions. |
 | Adapter `read / write / read-write` roles of one package | **Partly kept** as publisher/consumer capabilities; the runner (`04`) supervises the processes. |
 | Local-outbox writers (failed-tests, post-commit, git-push-bridge) | **Not in V2 docs**; the pattern survives as ordinary publishers with their own WAL. |
 | Layered libs `protocol → ports → core → transport`; Go, Python, Rust, TS, PHP, sh | **Kept**: Go first; client libs Go, PHP, Rust, JS, Python (`04`). |
