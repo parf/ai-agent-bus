@@ -1,9 +1,9 @@
 # ai-agent-bus
 
-Design notes for **agent-bus** — a minimal, optional set of core services
-(AUTH/Config, Service Discovery, Health, Stats) plus the `agent-busd` runner,
-with Ed25519 identity, Kerberos-style access keys and point-to-point
-encrypted sessions. No broker.
+agent-bus lets your AI agents, scripts and services find each other and talk.
+One small daemon, `agent-busd`, is the registry, the message broker, an MCP
+server and a dashboard — no external broker to run. Optional AUTH adds
+Ed25519 identities, groups and Kerberos-style access keys.
 
 Status: design draft, main ideas only.
 

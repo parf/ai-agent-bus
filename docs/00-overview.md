@@ -14,11 +14,13 @@ Documents:
 
 ## Goal
 
-Replace V1 (broker-based, per-service `user → token` maps; see `v1-original.md`)
-with our **own daemon** and a small set of **optional** core services. No
-broker: everything talks point-to-point, encrypted, with the core needed only
-on first contact — or not at all. Inside a service, queuing is a bounded
-in-process queue (see `04-runner.md`).
+Replace V1 (external broker, per-service `user → token` maps; see
+`v1-original.md`) with our **own daemon** and a small set of **optional** core
+services. **`agent-busd` is the broker** — registry + per-agent queues in one
+process — so there is **no external broker** to run. Direct calls between
+services that already know each other stay point-to-point, encrypted, with
+the core needed only on first contact. Inside a service, local work uses a
+bounded in-process queue (see `04-runner.md`).
 
 Model: **Kerberos-style** — AUTH hands both parties a shared secret, then
 gets out of the way.
@@ -46,7 +48,8 @@ gets out of the way.
 - Policy lives in AUTH; **services only interpret**, never decide.
 - Two independent controls: SSH decides *who may administer*; a signature
   decides *which config is real*.
-- Maximal simplicity: once discovered, a broker is useless.
+- Maximal simplicity: one daemon, no external broker; once two parties know
+  each other they may talk directly.
 
 ## Core services
 
