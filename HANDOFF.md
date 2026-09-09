@@ -23,7 +23,7 @@ The owner explicitly deferred data models. Do not invent schemas until asked.
 | Topic | Decision |
 |---|---|
 | Broker | **Drop NATS entirely.** Point-to-point connections; per-service in-process bounded queue. |
-| Core services | AUTH/Config, Service Discovery (+ health-checker, stats modules). **Discovery (registrations + in-memory queues) is the required minimum**; the rest optional. *(revised 2026-09-09, was "all optional")* |
+| Core services | AUTH/Config, Service Discovery (+ health-checker, stats modules). **Discovery (registrations + in-memory queues) is the required minimum, with no AUTH in it**; AUTH and the rest optional. *(revised 2026-09-09, was "all optional")* |
 | Access key model | **Option A**: opaque-style key, AUTH is source of truth, **60-min lifetime**, AUTH needed only on first contact. Implemented as *derived* keys (see §3). |
 | AUTH replication | **master/slave**, pull-based, **crypto-signed generation-id**. Raft/consensus = overkill. Changes: a few per week. |
 | AUTH availability | run **2+ replicas**. |

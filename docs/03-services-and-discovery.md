@@ -44,7 +44,8 @@ service definition is signed and rare-change.
 
 - **The required minimum**: the daemon runs discovery (registrations) and
   hosts **in-memory queues** (bounded, non-durable) that events land in and
-  consumers pull from. Everything else is optional.
+  consumers pull from. **No AUTH in the minimum** — AUTH is a separate
+  optional service; everything else is optional too.
 - Direct talk is still allowed: if you already know where something lives, skip
   the lookup.
 - Registration carries **health hints**: HTTP endpoint + expected status, TCP

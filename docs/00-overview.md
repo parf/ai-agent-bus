@@ -26,8 +26,9 @@ gets out of the way.
 ## Principles
 
 - **Minimum to run: the daemon with Service Discovery** — service
-  registrations + **in-memory queues**. Nothing else is required.
-- AUTH, health-checker and stats are optional; a service must work without them.
+  registrations + **in-memory queues**. **No AUTH in it.** Nothing else is required.
+- **AUTH is a separate, optional service**; health-checker and stats are
+  optional too. A service must work without any of them.
 - Ed25519 keys everywhere; no passwords, no client secrets.
 - Core is on the hot path **only once** per (user, service, epoch).
 - Definitions change rarely (few/week) → signed generations, master/slave,
@@ -47,7 +48,8 @@ gets out of the way.
 | **Stats** | module of discovery; in-memory metrics, dashboards, exporters | yes |
 
 All are replicated the same way (signed generations, master/slave).
-AUTH and Discovery may be one daemon with two roles (leaning yes, open).
+AUTH may be co-hosted in the same process as Discovery as an optional role
+(leaning yes, open) — but the minimal daemon runs without it.
 
 ## Chaining — local first, upstream for the rest
 
