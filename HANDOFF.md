@@ -230,3 +230,6 @@ signature = Ed25519(offline_signing_key, gen | prev_gen | created_at | payload_h
 - Small files, main ideas only, tables over prose, no data models until requested.
 - Owner writes terse shorthand and corrects directly; update without ceremony.
 - Owner reads both English and Russian; docs are in English.
+- Glyphs: follow https://parf.dev/ai-skills/Glyphs.md — default is no glyph; ❓ marks an
+  open question (with what would settle it), ❌ is failure only, ⛔ cannot be done,
+  🚫 cancelled, ⚠️ partial, ✅ done. One glyph per cell; if most rows would carry it, none do.

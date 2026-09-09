@@ -134,8 +134,12 @@ one thin store layer. Only instance health/stats is high-churn.
 
 ## Still open
 
-1. Capability globs (`publish:<glob>` / `consume:<glob>`) vs. the topic+tag
+1. ❓ Capability globs (`publish:<glob>` / `consume:<glob>`) vs. the topic+tag
    scheme — are topics ACL'd, and how do they map to per-agent queues?
-2. Audience filtering in minimal mode (no AUTH): per-token only?
-3. Handshake key confirmation (detect a wrong key before data flows).
-4. GitHub `/users/<login>/keys` `last_used` field — re-verify against the live API.
+   *Settled by:* owner decision.
+2. ❓ Audience filtering in minimal mode (no AUTH): per-token only?
+   *Settled by:* owner decision.
+3. ❓ Handshake key confirmation (detect a wrong key before data flows).
+   *Settled by:* owner decision at protocol-design time.
+4. ❓ GitHub `/users/<login>/keys` `last_used` field.
+   *Settled by:* one `curl` against the live API from a network that can reach it.

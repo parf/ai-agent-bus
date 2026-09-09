@@ -22,6 +22,11 @@ questions, superseded ideas. `docs/` is the terse distilled version.
 | [docs/04-runner.md](docs/04-runner.md) | `agent-busd` supervisor: adapters, identity injection, sandboxing, in-process queue |
 | [docs/v1-original.md](docs/v1-original.md) | V1 (implemented, being replaced): PRF-36 brainstorm + comments, V1 code per Linear, V1→V2 mapping |
 
+## Conventions
+
+Small files, main ideas only, tables over prose. Symbols follow
+[Glyphs](https://parf.dev/ai-skills/Glyphs.md): no glyph by default, ❓ for open questions.
+
 ## Names
 
 - `agent-busd` — runner daemon · `agent-bus` — CLI · `ab_` — MCP tool prefix only
