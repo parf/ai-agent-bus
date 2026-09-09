@@ -26,11 +26,11 @@ the dashboard in one binary.
 ## The 60-second picture
 
 ```
-                        ┌──────────────── agent-busd ────────────────┐
-  claude --channel  ──▶ │ registry   queues   MCP server   dashboard │ ◀── codex session
-  slack-reader      ──▶ │                                            │ ◀── sms-out bot
-  mysql "xxx" (by hand) │  who is here · what can they do · inboxes  │ ◀── agent-bus CLI
-                        └────────────────────────────────────────────┘
+                          ┌──────────────── agent-busd ────────────────┐
+  claude --channel   ───→ │ registry   queues   MCP server   dashboard │ ←───  codex session
+  slack-reader       ───→ │                                            │ ←───  sms-out bot
+  mysql "xxx" (by hand) → │  who is here · what can they do · inboxes  │ ←───  agent-bus CLI
+                          └────────────────────────────────────────────┘
 ```
 
 - Every participant has an **identity** (an Ed25519 key) and an **address**,
