@@ -48,7 +48,7 @@ gets out of the way.
 | **Service Discovery** | registrations (what exists, where, how to check it, who may see it), **in-memory queues**; web + MCP faces | **no — the minimum** |
 | **AUTH / Config** | identities, keys, groups, ACLs, roles, encrypted private configs | yes |
 | **Health-checker** | module of discovery; probes generic services per their hints | yes |
-| **Stats** | module of discovery; in-memory metrics, dashboards, exporters | yes |
+| **Stats** | module of discovery; in-memory ring buffers, **own dashboard** (graphs per service / server / user / …), exporters | yes |
 
 All are replicated the same way (signed generations, master/slave).
 AUTH may be co-hosted in the same process as Discovery as an optional role

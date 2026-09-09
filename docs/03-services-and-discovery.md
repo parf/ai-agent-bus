@@ -64,7 +64,9 @@ service definition is signed and rare-change.
   agent → heartbeat, K missed → down.
 - Stats: agent heartbeats carry a small metrics blob; probe results (latency,
   up/down) are the stats for generic. Kept **in memory** (ring buffers, last N
-  hours, fixed resolution). Human face via discovery API (`/stats/<service>`)
-  + dashboard with numbers/sparklines, audience-filtered.
+  hours, fixed resolution). Restart = empty window (accepted).
+- **Dashboard** (own, built into stats): graphs rendered straight from the
+  ring buffers — no external TSDB needed. Views **per service / per server /
+  per user / …** (any dimension carried by the metrics), numbers + sparklines,
+  audience-filtered. API: `/stats/<dimension>/<id>`.
   Export: Prometheus `/metrics` first (Grafana reads it); OTLP/StatsD secondary.
-  Restart = empty window (accepted).
