@@ -102,8 +102,8 @@ the key.
   signature + gen (SSH gates who may talk; signature gates what config is
   real); append-only audit log `ts admin fp verb gen result`.
 - **Admin keys** = the pubkeys in `authorized_keys`. They live in the bundle;
-  `authorized_keys` is regenerated on every new generation. Never remove the
-  last admin key; keep one **break-glass key offline** (in `authorized_keys`
-  by hand, outside the bundle).
+  `authorized_keys` is regenerated on every new generation. No separate
+  break-glass key: **root on the box is the break-glass** — it can always edit
+  `authorized_keys` or the bundle pointer by hand.
 - Master→slave sync can itself be SSH with a `replica-sync` forced command.
 - Test the lockdown: `ssh auth@host bash`, `-L`, `-A`, `-t` must all fail.
