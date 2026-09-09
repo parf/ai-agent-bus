@@ -126,7 +126,7 @@ one thin store layer. Only instance health/stats is high-churn.
 | Overflow | **Drop oldest**, count in stats. |
 | Queues & addressing | Every agent gets its **own queue on start**. Messages carry **topic + tag**: *topic* = conversation identifier (A→B), *tag* = message id. Reply goes to sender's queue with the same topic+tag, **unless** the sender sets `reply-to: {service, topic, tag}`. |
 | Delivery verbs | **`send`** = to a known receiver (`name@host`), one queue. **`publish`** = to a topic, every matching consumer. `consume` reads your own queue. |
-| Topic kinds | **queue** (one consumer per message, retained until consumed or TTL) and **pub/sub** (copy to every current subscriber, no retention). Publishing to an empty queue topic with a TTL is fine; to an empty pub/sub topic it is a no-op. |
+| Topic kinds | **queue** (one consumer per message, retained until consumed or TTL) and **pub/sub** (copy to every current subscriber, no retention). A topic **declares its kind, TTL and bound at creation**. Publishing to an empty queue topic with a TTL is fine; to an empty pub/sub topic it is a no-op. |
 | Instance / address | **`unique-name@host`** — instance id and address are the same string. |
 | `master_secret` | Out-of-band file on each replica. |
 | Wire format | **JSON**, with **msgpack** as an optional negotiated binary encoding. |
