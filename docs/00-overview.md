@@ -38,8 +38,11 @@ gets out of the way.
   central identities and derived keys.
 - Ed25519 keys everywhere; no passwords, no client secrets.
 - Core is on the hot path **only once** per (user, service, epoch).
-- Definitions change rarely (few/week) → signed generations, master/slave,
-  2+ replicas. Live state (health, stats, instances) is separate and never signed.
+- **AUTH data** (principals, groups, ACL/roles, admin keys) changes rarely
+  (few/week) → signed generations, master/slave, 2+ replicas, kept in **git
+  over SSH**. **Service definitions are live records in `agent-busd`**
+  (token to publish, owner to change) — not in the signed bundle. Live state
+  (health, stats, instances, queues) is separate and never signed.
 - Policy lives in AUTH; **services only interpret**, never decide.
 - Two independent controls: SSH decides *who may administer*; a signature
   decides *which config is real*.
@@ -101,24 +104,34 @@ one thin store layer. Only instance health/stats is high-churn.
 - Pairwise/static and local files have no central revocation or audit.
 - Stats are in-memory: restart = empty window.
 - `master_secret` and the offline signing key are the roots of trust.
+- **No forward secrecy** (decided): session keys derive from the access key +
+  nonces; a leaked long-term key exposes recorded sessions.
+- Service definitions are not signed: anyone holding a valid token can
+  publish a new service; only ownership guards changes.
 
-## Open questions (decide with owner before modeling)
+## Decisions 2026-09-09 (owner Q&A)
 
-1. **Event delivery** — events land in the discovery daemon's **in-memory
-   queues** (decided). Must support, among other patterns: a named queue
-   owned by one consumer with in-order delivery (V1 fixer, `v1-original.md`
-   §3). Still open:
-   queue naming/topic namespace for publish/consume, pull vs push to
-   consumers, bounds and overflow policy.
-2. **AUTH + Discovery**: one daemon with two roles, or two daemons? Leaning one.
-3. **Instance identity** — `host+pid` vs persisted UUID (restart semantics).
-4. **MCP method info** — store raw `tools` JSON and pass through, or validate
-   at registration.
-5. **Delegation** — A calls B for user U: U's key for B (per-service `aud`,
-   leaning) or A's own identity.
-6. **Master secret distribution** — out-of-band file (start) vs sealed per
-   replica in the bundle (later).
-7. **Language** — assume **Go** (owner's daemons are Go), unconfirmed.
-8. Bundle gaps (`prev_gen != current`): reject or log.
-9. ~~One binary or two~~ — **decided: one.** `agent-busd` is the main
-   service (discovery, API, MCP, WEB) and the runner.
+| Topic | Decision |
+|---|---|
+| Publishing services | Needs a **token** (min `ENV AGENT_BUS_USER_TOKEN`; from AUTH when on). Anyone who can reach `agent-busd` may publish a **new** service; changing an **existing** one requires being **owner or in the owner group**. Definitions are live in `agent-busd`, not in the signed bundle. |
+| One binary | `agent-busd` = discovery + API + MCP server + WEB + runner. AUTH separate, optional, may be co-hosted. |
+| Delegation | A calls B for user U as **A + on-behalf-of U** claim; B checks A's delegation role. U's key never leaves U. |
+| Forward secrecy | **No** ephemeral exchange. Accepted trade-off. |
+| Consumers | **Both**: pull (long-poll/stream) by default; a consumer may register a push address. |
+| Overflow | **Drop oldest**, count in stats. |
+| Queues & addressing | Every agent gets its **own queue on start**. Messages carry **topic + tag**: *topic* = conversation identifier (A→B), *tag* = message id. Reply goes to sender's queue with the same topic+tag, **unless** the sender sets `reply-to: {service, topic, tag}`. |
+| Instance / address | **`unique-name@host`** — instance id and address are the same string. |
+| `master_secret` | Out-of-band file on each replica. |
+| Wire format | **JSON**, with **msgpack** as an optional negotiated binary encoding. |
+| MCP tool info | Store raw `tools` JSON, check shape only; docs generated from it. |
+| Bundle gaps | **Newer generation wins**. Bundle repo in **git over SSH**; replicas pull on start; **master/slave is the default config**. |
+| Language | **Go** first; **bun/NPM** version later. Client libs: **Go, PHP, Rust, JS, Python**. |
+| V1 leftovers | RAG, KV/DB gateways, writers: **deferred, non-core** — later as ordinary bus services. |
+
+## Still open
+
+1. Capability globs (`publish:<glob>` / `consume:<glob>`) vs. the topic+tag
+   scheme — are topics ACL'd, and how do they map to per-agent queues?
+2. Audience filtering in minimal mode (no AUTH): per-token only?
+3. Handshake key confirmation (detect a wrong key before data flows).
+4. GitHub `/users/<login>/keys` `last_used` field — re-verify against the live API.

@@ -36,7 +36,9 @@ the one-time AUTH lookup in between if the user is unknown).
 replay protection. Never use `access_key` raw as the cipher key.
 Integrity is free: a message that decrypts is from a party AUTH (or the local
 file) vouched for. Transport: anything direct — TCP, WebSocket, unix socket.
-No TLS/PKI.
+No TLS/PKI. **No forward secrecy** (decided): no ephemeral exchange; a leaked
+access key exposes recorded sessions. Payload encoding: **JSON**, optional
+negotiated **msgpack**.
 
 ## Replication — signed generations
 
@@ -46,23 +48,26 @@ signature = Ed25519(offline_signing_key, gen | prev_gen | created_at | payload_h
 ```
 
 Enforced by replicas **and** services: valid signature; `gen > current`
-(anti-rollback; identical gen+hash = no-op); `prev_gen == current` (gaps:
-reject or log — open).
+(anti-rollback; identical gen+hash = no-op). Gaps (`prev_gen != current`):
+**newer generation wins**, gap logged.
 
 - **Signing key is offline** (admin machine, `authctl`), never on servers →
   any replica can be master; failover is a pointer flip; a compromised replica
   can only serve stale-but-valid.
-- Workflow: edit → `authctl sign --gen N` → push to master. Config-as-code;
-  signed bundles can live in git as the audit trail.
+- Workflow: edit → `authctl sign --gen N` → `git push`. **The bundle lives
+  in a git repo accessed over SSH**: config-as-code, git history = audit
+  trail. Replicas **pull on start** (and on poll); master pushes. **Default
+  topology: master/slave.**
 - **Master/slave, pull**: slaves `GET /bundle?since=<gen>` every 30–60 s (304
   if unchanged), optional push on change. Reads (key issuance, lookups) from
   **any** replica; writes only via master. Master down → reads continue;
   promotion is a manual flag flip. Run **2+ replicas**.
 - Every response carries `gen`; services refetch config when they see a newer one.
-- **Payload**: principals, pubkeys, service definitions, groups, ACL/role
-  expressions, ownership, admin keys, identity-source config, optional
-  `next_signing_pubkey` for rotation. **Not** in payload: instance
-  health/stats, encrypted private configs.
+- **Payload**: principals, pubkeys, groups, ACL/role expressions, admin keys,
+  identity-source config, optional `next_signing_pubkey` for rotation.
+  **Not** in payload: service definitions and ownership (live in
+  `agent-busd`), instance health/stats, queues, encrypted private configs.
+- `master_secret`: **out-of-band file** on each replica (not in the bundle).
 - **Consistency window**: revoked access honored up to poll interval + one
   epoch. Optional `revoked_users` list in the bundle, checked on every session
   start, for immediate effect on new sessions.

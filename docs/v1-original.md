@@ -130,9 +130,9 @@ PRF-49 Plan Management service (In Progress; candidate future bus service, not c
 | Statistics server | **Kept** as stats module of discovery (in-memory). |
 | Restricted SSH forced commands | **Kept** for admin access (`auth-admin`). |
 | Cloudflare Tunnel/Access, mTLS | **Out of core** (customer exposure only). |
-| Wire formats (JSON-RPC, gRPC, GraphQL, msgpack multiquery) | **Undecided** in V2; only "JSON and binary payloads" survives implicitly. |
-| Service channel + tag reply, "avoid ephemeral channels" | **Not carried over**; relates to V2 open question #1 (event delivery). |
+| Wire formats (JSON-RPC, gRPC, GraphQL, msgpack multiquery) | **Decided**: JSON + optional msgpack. |
+| Service channel + tag reply, "avoid ephemeral channels" | **Kept** as V2 messaging: per-agent queue + topic + tag + reply-to (`03` Messaging). |
 | MCP auto-generated from services | **Kept**: `agent-busd` is an MCP server; generates docs/tools for services available to the client. |
 | MCP gateway for existing services | **Not in V2 docs** (partly covered by generic kind + runner adapters). |
 | Auto-doc service | **Kept**, folded into `agent-busd`'s MCP server (generated docs per client). |
-| RAG service, KV/DB gateways, writers/updaters | **Not in V2 docs** — non-core; existing `db-tools`/`server-tools` are the V1 realisation. |
+| RAG service, KV/DB gateways, writers/updaters | **Deferred, non-core** (2026-09-09) — later as ordinary bus services; existing `db-tools`/`server-tools` are the V1 realisation. |

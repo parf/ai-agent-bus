@@ -39,11 +39,30 @@ description pushed by someone else) have no key of their own.
 - **shared** — runs as `svc:<name>` for many; explicit ACL; long-lived;
   health-checked.
 
+## Messaging — queues, topic + tag
+
+- **Every agent gets its own queue when it starts** (in-memory in `agent-busd`,
+  bounded; overflow **drops the oldest** and counts it in stats).
+- Address = instance id = **`unique-name@host`**.
+- Each message carries **`topic`** (conversation identifier, e.g. A→B
+  exchange) and **`tag`** (unique message id). Example: A asks B three
+  questions, each with its own tag; B's answers carry the same tags so A can
+  match them.
+- **Reply routing**: answer goes to the sender's queue with the same
+  topic+tag — **unless** the request sets `reply-to: {service, topic, tag}`.
+- **Delivery**: consumers **pull** (long-poll/stream) by default; a consumer
+  may register a **push** address and `agent-busd` delivers to it.
+- Encoding: **JSON**, optional negotiated **msgpack** for heavy payloads.
+- Publishing a service definition needs a token; changing one needs owner /
+  owner group (see `01`). Definitions are live records, not signed bundle data.
+- MCP tool info: stored **raw**, shape-checked only; `agent-busd` generates
+  docs from it.
+
 ## Service vs instance
 
 A service is the *kind* (code, description, declared roles, health hints,
 optional MCP method info). An instance is service + **private config** + a
-place it runs. Private config is kept by the instance by default (any format),
+place it runs, identified as **`unique-name@host`** (stable across restarts). Private config is kept by the instance by default (any format),
 optionally sealed in AUTH/Config. Instances register, heartbeat, vanish; the
 service definition is signed and rare-change.
 

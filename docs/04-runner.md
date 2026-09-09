@@ -13,6 +13,11 @@ Status: draft · Scope: main ideas only
   `~/.config/agent-bus/`), dedicated user, `agent-busd.service`
 - **`ab_`** — MCP tool prefix only (`ab_list_services`, `ab_call`); never in CLI or config
 
+## Implementation
+
+- **Go** first (`agent-busd`, `agent-bus`, AUTH); a **bun/NPM** version later.
+- Client libraries: **Go, PHP, Rust, JS, Python**.
+
 ## What it is
 
 This file covers the **runner** role of `agent-busd`; discovery/API/MCP/WEB

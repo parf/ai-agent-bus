@@ -50,6 +50,12 @@ All written as expressions over users and groups, evaluated by one engine:
   Roles are assigned with the same expression pattern — to users **or groups**.
 - Keep ACL and roles as two separate layers (access vs. authority).
 
+## Delegation
+
+Service A calling B for user U authenticates as **A** and adds an
+**on-behalf-of: U** claim. B grants it only if A holds a delegation role (for
+U or U's group). U's key or token never leaves U.
+
 ## Resolved at login
 
 Services know nothing about groups or mappings (admin-only); on first contact
@@ -74,7 +80,10 @@ for owner, break-glass admin, peer services).
 Owner is an expression too. Owners edit the service definition, ACL and roles
 (using org groups; they cannot create groups or grant beyond their own service).
 Two tiers: `owner` (all, incl. ACL/owners) and `maintainer` (definition only).
-Personal services are owned by their user. Ownership changes are generation data.
+Personal services are owned by their user.
+**Publishing** a new service needs only a valid token; **changing** an existing
+one needs owner or owner-group membership. Service definitions and ownership
+are live records in `agent-busd` (not in the signed bundle).
 Users create and control their own services without admin; admin's job is
 identities + org groups.
 

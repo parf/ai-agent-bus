@@ -40,6 +40,8 @@ The owner explicitly deferred data models. Do not invent schemas until asked.
 | Docs | Keep as several small files (`docs/00…04`), main ideas only. |
 
 ### Open questions (not yet decided)
+
+*2026-09-09: all eight answered by owner — see `docs/00-overview.md` → "Decisions 2026-09-09". Kept below for history.*
 1. **Event delivery without a broker** — where does a `curl`-published event *land*, and how do consumers pull it (from the target agent's queue? buffered by AUTH/Discovery?). Topic namespace for publish/consume capabilities.
 2. **AUTH and Discovery: one daemon with two roles, or two daemons?** Leaning one. *(2026-09-09: main service = `agent-busd` = discovery + API + MCP + WEB + runner, one binary; AUTH remains a separate optional service, may be co-hosted.)*
 3. **Instance identity** — `host+pid` vs persisted UUID (restart semantics).
@@ -211,6 +213,7 @@ signature = Ed25519(offline_signing_key, gen | prev_gen | created_at | payload_h
 - **Claude Code Channels** (`--channels`, MCP-based, Telegram/Discord plugins, research preview 2026): the agent-bus session channel could be wrapped as a custom channel-capable MCP server so Claude Code sessions receive bus events natively. ~~Worth a spike later.~~ *Correction 2026-09-09: already in use in V1 — Claude sessions join the bus via `claude --channel`; see `docs/v1-original.md` §3.*
 - **Zero-downtime reload** for Go daemons via `cloudflare/tableflip` (Linear **RLM-250**) — applies to `agent-busd` and AUTH replicas (socket inheritance, load-before-`Ready()`, 2× RAM during overlap; consider mmap/shared memory if datasets are large).
 - **Cloudflare Tunnel + Access** and **mTLS** were evaluated for exposing a daemon to *customers*; **restricted SSH tunnels** (`restrict,permitopen`) for technical customers. Not part of agent-bus core, but the SSH lockdown pattern is reused for admin access.
+- **PRF-36 leftovers** — RAG service, KV/DB gateways, writers/updaters: **deferred, non-core** (2026-09-09); to be built later as ordinary bus services.
 - **Kvrocks / KQIR** (Redis-compatible on RocksDB, search via `FT.CREATE`/`FT.SEARCHSQL`) evaluated separately for Realmo data — not for agent-bus.
 
 ---
