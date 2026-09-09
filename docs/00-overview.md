@@ -25,7 +25,9 @@ gets out of the way.
 
 ## Principles
 
-- Every core service is optional; a service must work with none of them.
+- **Minimum to run: the daemon with Service Discovery** — service
+  registrations + **in-memory queues**. Nothing else is required.
+- AUTH, health-checker and stats are optional; a service must work without them.
 - Ed25519 keys everywhere; no passwords, no client secrets.
 - Core is on the hot path **only once** per (user, service, epoch).
 - Definitions change rarely (few/week) → signed generations, master/slave,
@@ -39,8 +41,8 @@ gets out of the way.
 
 | Service | Role | Optional |
 |---|---|---|
+| **Service Discovery** | registrations (what exists, where, how to check it, who may see it), **in-memory queues**; web + MCP faces | **no — the minimum** |
 | **AUTH / Config** | identities, keys, groups, ACLs, roles, encrypted private configs | yes |
-| **Service Discovery** | what exists, where, how to check it, who may see it; web + MCP faces | yes |
 | **Health-checker** | module of discovery; probes generic services per their hints | yes |
 | **Stats** | module of discovery; in-memory metrics, dashboards, exporters | yes |
 
@@ -84,9 +86,9 @@ one thin store layer. Only instance health/stats is high-churn.
 
 ## Open questions (decide with owner before modeling)
 
-1. **Event delivery without a broker** — where a `curl`-published event lands,
-   how consumers pull (target agent's queue? buffered by AUTH/Discovery?);
-   topic namespace for publish/consume.
+1. **Event delivery** — events land in the discovery daemon's **in-memory
+   queues** (decided). Still open: queue naming/topic namespace for
+   publish/consume, pull vs push to consumers, bounds and overflow policy.
 2. **AUTH + Discovery**: one daemon with two roles, or two daemons? Leaning one.
 3. **Instance identity** — `host+pid` vs persisted UUID (restart semantics).
 4. **MCP method info** — store raw `tools` JSON and pass through, or validate
@@ -97,3 +99,5 @@ one thin store layer. Only instance health/stats is high-churn.
    replica in the bundle (later).
 7. **Language** — assume **Go** (owner's daemons are Go), unconfirmed.
 8. Bundle gaps (`prev_gen != current`): reject or log.
+9. **One binary or two** — is the discovery/queue daemon the same process as
+   the `agent-busd` runner, or a separate daemon the runner talks to?

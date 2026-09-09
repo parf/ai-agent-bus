@@ -42,7 +42,11 @@ service definition is signed and rare-change.
 
 ("Service discovery" is the preferred name over "registration".)
 
-- Optional: if you already know where something lives, talk to it directly.
+- **The required minimum**: the daemon runs discovery (registrations) and
+  hosts **in-memory queues** (bounded, non-durable) that events land in and
+  consumers pull from. Everything else is optional.
+- Direct talk is still allowed: if you already know where something lives, skip
+  the lookup.
 - Registration carries **health hints**: HTTP endpoint + expected status, TCP
   connect, unix-socket ping, command, interval, timeout. Unix-socket services
   are first-class (`unix:/path`).
