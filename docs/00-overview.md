@@ -147,6 +147,8 @@ Settled with the owner; each is written into the doc named.
 - **The address outlives the process**: a registered agent's queue accepts messages while it is down; picked up on return, bounded by TTL and size → `03`
 - **Two overflow modes per topic**: `ring` (drop oldest, default) and `strict` (reject the send with an error) → `03`
 - **Graceful shutdown / restart dumps in-memory state to Parquet** and reloads it; an optional periodic dumper (~1 min) covers untimely death → `00`, `03`
+- **`message_id`**, unique per channel, on every message → `03`
+- **Optional receipts**: `ack` (received) and `done` (processed), sent back to the sender carrying the `message_id` → `03`
 
 ## Open
 

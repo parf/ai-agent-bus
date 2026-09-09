@@ -57,9 +57,15 @@ changed by owners, **signed by the writer when it has a key**.
   |---|---|---|
   | **ring** (default) | drop the **oldest**, count it in stats | alerts, telemetry — newest matters most |
   | **strict** | **reject the send/publish** with an error to the producer | jobs, commands — losing one silently is worse than failing loudly |
-- Every message carries **`topic`** (conversation id, e.g. one A→B exchange)
-  and **`tag`** (message id). A asks B three questions with three tags; B's
-  answers carry the same tags, so A matches them.
+- Every message carries **`message_id`** (unique within its channel, assigned
+  by `agent-busd`), **`topic`** (conversation id, e.g. one A→B exchange) and
+  **`tag`** (the sender's label for the message). A asks B three questions with
+  three tags; B's answers carry the same tags, so A matches them. `message_id`
+  is what dedup, "did you get it?" and the dashboard refer to.
+- **Receipts, optional.** A receiver may answer a message with **`ack`**
+  (received) and later **`done`** (processed). Both are ordinary messages to
+  the sender's queue (or its `reply-to`), carrying the original `message_id`,
+  topic and tag. Neither is required; a sender that wants them asks.
 - **Two verbs.**
 
   | Verb | Target | Lands in | Allowed if |
