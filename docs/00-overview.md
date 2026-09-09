@@ -1,19 +1,22 @@
 # Agent Bus — Overview
 
-Status: draft · Scope: main ideas only, no data models yet
+Status: draft · Scope: main ideas only, no data models yet (deferred by owner)
 
 Documents:
-1. `00-overview.md` — goal, principles, core services, storage, trade-offs
+1. `00-overview.md` — goal, principles, core services, chaining, storage, trade-offs, open questions
 2. `01-identity-and-auth.md` — principals, key directories, groups/ACL/roles, ownership, private config
 3. `02-keys-sessions-replication.md` — access keys, encrypted sessions, signed generations, SSH admin
 4. `03-services-and-discovery.md` — service kinds, personal/shared, instances, discovery, health, stats
-5. `04-runner.md` — `agent-busd` supervisor: adapters, identity injection, sandboxing profiles
+5. `04-runner.md` — `agent-busd` supervisor: adapters, identity injection, sandboxing, in-process queue
+
+`../HANDOFF.md` holds the full discussion record, incl. superseded ideas.
 
 ## Goal
 
 Replace per-service `user → token` maps and the NATS bus with a small set of
 **optional** core services. Everything else talks point-to-point, encrypted,
-with the core needed only on first contact — or not at all.
+with the core needed only on first contact — or not at all. Inside a service,
+NATS is replaced by a bounded in-process queue (see `04-runner.md`).
 
 Model: **Kerberos-style** — AUTH hands both parties a shared secret, then
 gets out of the way.
@@ -23,11 +26,12 @@ gets out of the way.
 - Every core service is optional; a service must work with none of them.
 - Ed25519 keys everywhere; no passwords, no client secrets.
 - Core is on the hot path **only once** per (user, service, epoch).
-- Definitions change rarely (few/week) → signed generations, master/slave.
-  Live state (health, stats, instances) is separate and never signed.
+- Definitions change rarely (few/week) → signed generations, master/slave,
+  2+ replicas. Live state (health, stats, instances) is separate and never signed.
 - Policy lives in AUTH; **services only interpret**, never decide.
 - Two independent controls: SSH decides *who may administer*; a signature
   decides *which config is real*.
+- Maximal simplicity: once discovered, a broker is useless.
 
 ## Core services
 
@@ -39,7 +43,7 @@ gets out of the way.
 | **Stats** | module of discovery; in-memory metrics, dashboards, exporters | yes |
 
 All are replicated the same way (signed generations, master/slave).
-AUTH and Discovery may be one daemon with two roles.
+AUTH and Discovery may be one daemon with two roles (leaning yes, open).
 
 ## Chaining — local first, upstream for the rest
 
@@ -67,9 +71,27 @@ one thin store layer. Only instance health/stats is high-churn.
 
 ## Known trade-offs
 
-- Propagation lag: replica poll interval + one epoch for cached pairs.
+- Consistency window: revoked access may be honored for replica poll interval
+  (lagging slave) + one epoch (service cache). Optional `revoked_users` list in
+  the bundle closes it for *new* sessions.
 - GitHub keys are pinned at enrollment; a key deleted on GitHub stays valid
   until someone refreshes.
 - Pairwise/static and local files have no central revocation or audit.
 - Stats are in-memory: restart = empty window.
 - `master_secret` and the offline signing key are the roots of trust.
+
+## Open questions (decide with owner before modeling)
+
+1. **Event delivery without a broker** — where a `curl`-published event lands,
+   how consumers pull (target agent's queue? buffered by AUTH/Discovery?);
+   topic namespace for publish/consume.
+2. **AUTH + Discovery**: one daemon with two roles, or two daemons? Leaning one.
+3. **Instance identity** — `host+pid` vs persisted UUID (restart semantics).
+4. **MCP method info** — store raw `tools` JSON and pass through, or validate
+   at registration.
+5. **Delegation** — A calls B for user U: U's key for B (per-service `aud`,
+   leaning) or A's own identity.
+6. **Master secret distribution** — out-of-band file (start) vs sealed per
+   replica in the bundle (later).
+7. **Language** — assume **Go** (owner's daemons are Go), unconfirmed.
+8. Bundle gaps (`prev_gen != current`): reject or log.
