@@ -3,6 +3,8 @@
 Connect AI agents, bots and services so they can find and message each other.
 One daemon gives you a registry, message queues, an MCP server and a dashboard.
 
+![Agents Bus — connecting agents](docs/img/agent-bus.png)
+
 🚧 **Design phase.** Nothing here is implemented yet; the commands below show the
 intended shape. A first version (V1) runs in production on a message broker and is
 being replaced by this design. See [Status](#status).
