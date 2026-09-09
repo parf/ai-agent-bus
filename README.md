@@ -17,8 +17,8 @@ Today each pair needs its own glue.
 
 agent-bus gives them one meeting point. A small daemon, `agent-busd`, keeps a
 **registry** of everything that joined, holds a **queue** for each of them, answers
-**"what can I use?"** over MCP with generated docs, and shows it all on a
-**dashboard**. Topics are registered the same way as services and show up in the
+**"what can I use?"** over MCP with generated docs, and shows who is here and how
+busy on a **dashboard**. Topics are registered the same way as services and show up in the
 same registry. Any participant can look up another by name and send it a message.
 Anything that already has an address can be **registered by hand**: "there is a MySQL
 service called `xxx` on `host:port`" is a valid registration.
@@ -112,9 +112,10 @@ and private config, and sandboxes it by default (`systemd-run`, `bubblewrap` or
 
 ### See what is going on
 
-The dashboard renders health and stats straight from in-memory ring buffers: per
-service, per server, per user, whatever dimension the metrics carry. Prometheus
-export for Grafana if you want history.
+The dashboard lists services and topics with their descriptions, who is up, and how
+many calls each takes per minute or hour — straight from memory. Message bodies are not
+on it, or anywhere else on the bus: they are encrypted between sender and receiver, and
+once consumed they are gone. Prometheus export for Grafana if you want history.
 
 ## What it is not
 

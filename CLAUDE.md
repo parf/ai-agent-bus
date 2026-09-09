@@ -91,6 +91,7 @@ Getting these wrong produces drift that is easy to miss:
 - **Chaining queries upstream; it never replicates it.** Peer nodes at the same
   level sync registry via git push/pull on start, newer record wins per entry.
 - Ed25519 everywhere a key exists; no passwords, no client secrets, no TLS/PKI.
+- Bodies are end-to-end encrypted between sender and receiver; `agent-busd` and its dashboard see envelopes (metadata) only. Don't write anything that implies the bus reads payloads.
 - Queues and stats are memory, dumped to Parquet on graceful restart (optional periodic dump); a consumer being down is fine — its queue waits. Overflow per topic: `ring` or `strict`.
 
 ## Git

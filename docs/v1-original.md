@@ -167,7 +167,7 @@ forwarding chains, and a queue owned by one consumer with in-order delivery
 | Delivery observations `accepted / processing / succeeded / failed` | **Kept, lighter**: optional `ack` (received) and `done` (processed) receipts to the sender (`03`). |
 | Dead letter + replay | **Dropped by design**: no dead letter. Any flow that needs it gets its own WAL. |
 | `deadline_ts` on requests; `FAIL:timeout` published before ACK | **Kept, lighter**: optional TTL per message; expired messages are dropped and counted, never delivered (`03`). No timeout reply. |
-| Data classes `standard / sensitive / restricted` → retention, metadata-only dead letters; payload never in logs/UI | **Kept, simpler**: no classes; dashboard and logs show metadata only, the owner may open held contents (`03`). Retention is TTL + bound per topic. |
+| Data classes `standard / sensitive / restricted` → retention, metadata-only dead letters; payload never in logs/UI | **Superseded by encryption**: bodies are end-to-end encrypted, the bus and its dashboard see envelopes only; consumed = gone. Admin-only debug trace per service (`02`, `03`). Retention is TTL + bound per topic. |
 | Directory-scoped sessions `claude(/rd/vhosts/realty)`; heartbeat 10 s / lease 30 s | **Kept** in spirit: instance = `unique-name@host`, heartbeat, K missed → down (`03`). |
 | notifier-claude (Channels), notifier-codex (App Server), agent-sync | **Borrowed**: one push adapter per runtime — Claude Code, Codex, ❓ OpenCode (Z.AI); ChatGPT pull-only (`04`). agent-sync becomes ordinary send/receipt between two sessions. |
 | Adapter `read / write / read-write` roles of one package | **Partly kept** as publisher/consumer capabilities; the runner (`04`) supervises the processes. |

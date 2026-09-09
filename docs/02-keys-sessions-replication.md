@@ -35,6 +35,10 @@ server does its one-time AUTH lookup in between if the principal is unknown.
 (XChaCha20-Poly1305 or AES-256-GCM), per-message counter in associated data for
 replay protection. Never use `access_key` raw as the cipher key.
 
+- **End to end, through the bus.** The session is between sender and receiver,
+  not between either of them and `agent-busd`: a queued message body is
+  ciphertext the daemon stores and forwards without being able to read it.
+  The bus sees the envelope only.
 - Integrity is free: a message that decrypts is from a party AUTH or the local
   file vouched for.
 - Transport: anything direct — TCP, WebSocket, unix socket. No TLS, no PKI.

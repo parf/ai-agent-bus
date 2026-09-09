@@ -95,6 +95,9 @@ changed by owners, **signed by the writer when it has a key**.
   **push** address and `agent-busd` delivers to it. Agent sessions are pushed
   through a per-runtime adapter (`04`): Claude Code, Codex, maybe OpenCode.
 - **Encoding**: JSON; msgpack as an optional negotiated binary form.
+- **Bodies are opaque to the bus.** A message body is encrypted for its
+  receiver (`02`); `agent-busd` queues and forwards ciphertext and never holds
+  plaintext. What the bus reads and shows is the envelope.
 
 ## Topics
 
@@ -164,13 +167,15 @@ by it. Namespacing follows services (`team/alerts`); local shadows upstream.
   topics. Kept in memory — ring buffers, last N hours, fixed resolution;
   dumped to Parquet with the queues, so a graceful restart keeps the window and
   a crash loses at most the last dump interval.
-- **Dashboard** (the WEB child): graphs straight from the ring buffers, no
-  external TSDB. Views per service / server / user / topic — any dimension the
-  metrics carry; numbers + sparklines; audience-filtered. API
+- **Dashboard** (the WEB child): the **list of services and topics** with
+  their descriptions, who is up, and **call counts grouped by minute or hour**
+  — straight from the ring buffers, no external TSDB; audience-filtered. API
   `/stats/<dimension>/<id>`. Export: Prometheus `/metrics` first (Grafana reads
   it); OTLP / StatsD secondary.
-- **What the dashboard and logs show: metadata.** Sender, receiver,
-  on-behalf-of, `message_id`, topic, tag, type, size, timestamps, receipts —
-  never the payload. The **owner** of a service or topic may additionally open
-  the contents of messages still held for it (in the queue or the last dump);
-  nobody else can, and once a message is gone there is nothing to see.
+- **Nobody reads message bodies but sender and receiver.** Bodies are
+  encrypted end to end (`02`); `agent-busd` stores and forwards ciphertext and
+  reads only the envelope: sender, receiver, on-behalf-of, `message_id`,
+  topic, tag, size, timestamps, receipts. Once a message is consumed it is gone
+  — the bus keeps counts, not content. An admin may switch a service into
+  **debug mode**, which keeps a trace of that service's messages; admins only,
+  and the bodies in it are still ciphertext to the bus.

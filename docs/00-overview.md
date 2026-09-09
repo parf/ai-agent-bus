@@ -37,6 +37,7 @@ parties a shared secret once, then gets out of the way.
   supervises its own roles as child processes (see below) with the same
   machinery it uses for any child.
 - **Ed25519 wherever there is a key**; no passwords, no client secrets.
+- **Bodies are end-to-end encrypted**: only sender and receiver read them; `agent-busd` forwards ciphertext and sees the envelope only.
 - **AUTH is on the hot path once** per (user, service, epoch).
 - **Two kinds of data.** *AUTH data* (principals, groups, ACL/roles, admin SSH
   keys) changes a few times a week → offline-signed generations in git over SSH.
@@ -55,7 +56,7 @@ parties a shared secret once, then gets out of the way.
 | Process | Does | Default |
 |---|---|---|
 | **core** | registry of services and topics · in-memory queues · API · MCP server with generated docs · runner · supervises the children below | always |
-| **WEB child** | dashboards: registry browser, health, stats graphs from ring buffers; **cgroup-limited** (CPU / memory / pids) so it can never starve the bus | on, may be off |
+| **WEB child** | dashboard: services and topics with descriptions, who is up, call counts per minute / hour from ring buffers; **cgroup-limited** (CPU / memory / pids) so it can never starve the bus | on, may be off |
 | **AUTH child** | identities, keys, groups, ACLs, roles, sealed private configs; **alone holds `master_secret`** and the signed bundle; core talks to it over a unix socket (sshd/Postfix-style privilege separation) | **off** — `auth: on` |
 | health-checker | module of discovery; probes generic services per their hints | optional |
 | stats | module of discovery; in-memory ring buffers feeding WEB and exporters | optional |
@@ -153,7 +154,7 @@ Settled with the owner; each is written into the doc named.
 - **One push adapter per agent runtime**, borrowed from V1's notifiers: Claude Code (Channels), Codex (App Server), ❓ OpenCode (Z.AI); ChatGPT pull-only → `03`, `04`
 - **No message kinds, no receiver policy in the bus**: it delivers securely with verified sender and on-behalf-of; the receiver decides what to do → `03`
 - **Destructive methods**: a service may mark them so in its description; the MCP face passes the mark through, enforces nothing → `03`
-- **Dashboard and logs show metadata only**; the owner of a service/topic may open the contents of messages still held for it → `03`
+- **Dashboard** = services and topics with descriptions, who is up, call counts per minute/hour. **Bodies are encrypted end to end** — sender and receiver only; the bus sees envelopes; consumed = gone. Admin-only **debug mode** per service keeps a message trace → `02`, `03`
 
 ## Open
 
