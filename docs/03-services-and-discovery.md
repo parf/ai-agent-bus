@@ -12,9 +12,11 @@ Two axes: reachable or not, and who owns the record.
 | **publisher** | not a service — an identity that signs events (`agent-bus` CLI or `curl` + key) | — | none | yes |
 
 **Identity is required** for agents, consumers and publishers: each is a
-principal with an Ed25519 key. The **`agent-bus` CLI provides it** — creates
-the key, registers, publishes, consumes, signs. Only *generic* records (a
-description pushed by someone else) have no key of their own.
+principal identified by an Ed25519 key — or, in minimal/static mode, by a
+**token, which is the whole identity**. The **`agent-bus` CLI provides it** —
+creates the key or takes the token, registers, publishes, consumes, signs.
+Only *generic* records (a description pushed by someone else) have no
+identity of their own.
 
 - **Registering is just pushing a description.** Anyone may tell discovery
   "there is a MySQL service named `xxx` on `host:port`" — the thing itself

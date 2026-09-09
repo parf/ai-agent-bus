@@ -2,10 +2,11 @@
 
 ## Principals
 
-- Every **user**, **service** and **instance** is a *principal* with an
-  Ed25519 key — agents, consumers and publishers included; no keyless
-  participants except generic records. The **`agent-bus` CLI** creates and
-  uses these identities. Ids are namespaced: `github:<numeric id>`, `ldap:<entryUUID>`,
+- Every **user**, **service** and **instance** is a *principal* — agents,
+  consumers and publishers included. A principal's identity is **either** an
+  Ed25519 key **or, in minimal/static mode, a token — the token *is* the whole
+  identity**, no key involved. Generic records have no identity of their own.
+  The **`agent-bus` CLI** creates and uses these identities. Ids are namespaced: `github:<numeric id>`, `ldap:<entryUUID>`,
   `svc:<name>`, possibly `static:<name>`. One human may hold several
   principals; a grouping "person" record is **deferred**.
 - Authentication is always a signed challenge: single-use nonce (~60 s),

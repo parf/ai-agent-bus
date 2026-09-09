@@ -38,7 +38,8 @@ gets out of the way.
   `ENV AGENT_BUS_USER_TOKEN`, matched by the service's local mapping file →
   **zero AUTH calls**. The AUTH service is added only when an org wants
   central identities and derived keys.
-- Ed25519 keys everywhere; no passwords, no client secrets.
+- Ed25519 keys wherever there is a key; no passwords, no client secrets.
+  In minimal mode the token *is* the identity and there is no key.
 - Core is on the hot path **only once** per (user, service, epoch).
 - **AUTH data** (principals, groups, ACL/roles, admin SSH keys) changes rarely
   (few/week) → signed generations, master/slave, 2+ replicas, kept in **git
@@ -116,6 +117,7 @@ one thin store layer. Only instance health/stats is high-churn.
 
 | Topic | Decision |
 |---|---|
+| Minimal identity | In static mode **the token is the whole identity** — no Ed25519 key. Keys appear with pairwise mode or AUTH. |
 | Publishing services | Needs a **token** (min `ENV AGENT_BUS_USER_TOKEN`; from AUTH when on). Anyone who can reach `agent-busd` may publish a **new** service; changing an **existing** one requires being **owner or in the owner group**. Definitions are live in `agent-busd`, not in the signed bundle. |
 | One binary | `agent-busd` = discovery + API + MCP server + WEB + runner. AUTH separate, optional, may be co-hosted. |
 | Delegation | A calls B for user U as **A + on-behalf-of U** claim; B checks A's delegation role. U's key never leaves U. |
