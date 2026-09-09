@@ -58,20 +58,24 @@ Enforced by replicas **and** services: valid signature; `gen > current`
   in a git repo accessed over SSH**: config-as-code, git history = audit
   trail. Replicas **pull on start** (and on poll); master pushes. **Default
   topology: master/slave.**
-- **Reference deployment**: a **local AUTH server** (master) + a **private
-  GitHub repo as the bundle backup/remote**. Master pushes each signed
-  generation to GitHub; slaves and a rebuilt master pull from it. GitHub holds
-  only signed bundles — it cannot forge (no signing key) and holds no
-  `master_secret`. Lose the box → clone + drop in `master_secret` file → AUTH
-  is back. Works offline: the local master keeps serving; GitHub is the
-  off-site copy, not a dependency.
+- **Reference deployment**: a **local AUTH server** (master) + a **git remote
+  as the bundle backup**: a GitHub repo (private *suggested*, not required —
+  the bundle holds nothing secret) **or the user's own SSH account on another
+  server** (any git-over-SSH remote). Master pushes each signed generation;
+  slaves and a rebuilt master pull from it. The remote cannot forge (no
+  signing key) and holds no `master_secret`. Lose the box → clone + drop in
+  `master_secret` file → AUTH is back. Works offline: the local master keeps
+  serving; the remote is the off-site copy, not a dependency.
 - **Master/slave, pull**: slaves `GET /bundle?since=<gen>` every 30–60 s (304
   if unchanged), optional push on change. Reads (key issuance, lookups) from
   **any** replica; writes only via master. Master down → reads continue;
   promotion is a manual flag flip. Run **2+ replicas**.
 - Every response carries `gen`; services refetch config when they see a newer one.
-- **Payload**: principals, pubkeys, groups, ACL/role expressions, admin keys,
+- **Payload**: principals, pubkeys, groups, ACL/role expressions,
   identity-source config, optional `next_signing_pubkey` for rotation.
+  **No admin keys** — those live only in `authorized_keys` on the box.
+  Nothing in the bundle is secret: the pubkeys are already public on GitHub,
+  which is where they came from.
   **Not** in payload: service definitions and ownership (live in
   `agent-busd`), instance health/stats, queues, encrypted private configs.
 - `master_secret`: **out-of-band file** on each replica (not in the bundle).
@@ -96,7 +100,7 @@ the key.
   `replica-sync`); reads signed bundles from **stdin** and still verifies
   signature + gen (SSH gates who may talk; signature gates what config is
   real); append-only audit log `ts admin fp verb gen result`.
-- Admin pubkeys may live in the bundle → regenerate `authorized_keys` on push;
+- Admin pubkeys live **only** in `authorized_keys` (not in the bundle);
   never remove the last admin key; keep one **break-glass key offline**.
 - Master→slave sync can itself be SSH with a `replica-sync` forced command.
 - Test the lockdown: `ssh auth@host bash`, `-L`, `-A`, `-t` must all fail.
