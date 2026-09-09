@@ -1,13 +1,53 @@
-# V1 — Original Ideas and Existing Implementation
+# V1 — What Exists, the Brainstorm That Followed, and the V1 → V2 Map
 
-Status: V1 is **implemented** (monorepo `/rd/service/agent-bus`, NATS-based) and
-being **replaced by V2** — owner is not satisfied with it. Source: Linear, read 2026-09-09.
-Primary: [PRF-36 "Ai agent-bus"](https://linear.app/realmo-product/issue/PRF-36/ai-agent-bus)
-(2026-08-04, description + 14 comments, all by owner). Secondary: issues listed in §4; usage in §3 from owner.
-This file records what V1 is; `00-04` and `HANDOFF.md` are the V2 design.
-❓ V1 pain points (the *why* of V2) are not written down. *Settled by:* owner.
+Status: V1 is **implemented and runnable** (Radaris monorepo, `/rd/service/agent-bus`,
+NATS JetStream) and being **replaced by V2** — owner is not satisfied with it.
 
-## 1. PRF-36 description — the brainstorm (2026-08-04)
+Two sources, two dates — do not conflate them:
+
+| Source | What it is | Where |
+|---|---|---|
+| **PRF-25** "Universal AI session pipeline" (2026-07-23 →) | the **implemented V1**: normative design, protocol, NATS topology, decisions, TODO | `/rd/vhosts/realty/Plans/PRF-25/` (`README`, `PROTOCOL`, `NATS`, `TOOLS`, `LIBRARIES`, `SECURITY`, `OPERATIONS`, `MIGRATION`, `DECISIONS`, `QUESTIONS`, `TODO`, `SERVICES`) · code `/rd/service/agent-bus/` (`README`, `HOWTO`) · [Linear PRF-25](https://linear.app/realmo-product/issue/PRF-25/dvp-universal-ai-pipeline) |
+| **PRF-36** "Ai agent-bus" (2026-08-04) | the owner's **brainstorm for what comes after V1** — the seed of V2 | [Linear PRF-36](https://linear.app/realmo-product/issue/PRF-36/ai-agent-bus), description + 14 comments |
+
+§1 is verified from the source tree (2026-09-09, tree dated 2026-08-11). §2–3 are the
+brainstorm. §4 is how V1 is used. §5 maps V1 → V2. §6 lists weaknesses V1's own docs admit.
+❓ V1 pain points *as the owner sees them* are not written down. *Settled by:* owner.
+
+## 1. V1 as built (PRF-25)
+
+**Idea.** Every named participant — a Claude/Codex session, a Telegram reader, an SMS
+writer — has a stable address `(user, channel)` and a **durable inbox** on a global
+NATS JetStream. Anyone can send while the target is offline; the consumer resumes after
+restart and ACKs only after processing. An MCP server hides all of it from agents.
+
+| Aspect | V1 |
+|---|---|
+| Transport | one standalone **NATS JetStream** (`nats.ny.7w7.us`, dedicated Account `AGENT_BUS`, `replicas=1`, no HA); Core NATS only for lossy discovery/alive |
+| Streams / KV | 4 streams (`CHANNEL_EVENTS` work-queue inbox, `CHANNEL_DEAD`, `EVENT_TOPICS` fan-out, `DELIVERY_EVENTS`) · KV: `CHANNEL_REGISTRY`, `CHANNEL_LIVENESS`, `SOURCE_OWNERSHIP`, `EVENT_DEDUP`, `EVENT_OUTPUTS`, `EVENT_INDEX`, `ADAPTER_PENDING` + per-adapter correlation/state/journal buckets |
+| Address | `(user, channel_name)`; `user` = **signing principal / service-group** (`parf`, `prod`), not a person. Subjects `channel.<user>.<channel>.inbox`, `event.<user>.<topic>` |
+| Envelope | versioned JSON; `user/from_channel → to_user/to_channel`, `source`, `type`, opaque `payload`, `ts`, optional `deadline_ts`, `reply_to`, `reply_channel`; `event_hash` = xxh3-63 of exact wire bytes = message id / idempotency key |
+| "Signature" | `sign` = keyed **xxh3 63-bit** over exact bytes (`\HB::hash63`). **Not a MAC**: attribution to a group inside an already-authenticated NATS transport; all holders of a group key are indistinguishable. Authority = NATS credentials + subject ACL |
+| Trust | per listener: `AGENT_BUS_SIGN_KEYS {user:{key_id:secret}}`, default-deny `AGENT_BUS_TRUSTED_USERS`, `AGENT_BUS_SEND_RULES` (signer→destination matrix). Local `.env` files only |
+| Delivery | at-least-once, explicit ACK, durable dedup (CAS `processing/completed`, 37 d), output journaled **before** ACK, dead-letter with exact original wire + replay, `delivery.*` observations, strict ordering (`MaxAckPending=1`) by default |
+| Request / reply | durable both ways through inboxes; reply → signed sender address with `reply_to=<event_hash>`; optional `deadline_ts` (expired request never runs; `FAIL:timeout` published before ACK) |
+| Registry | durable registration + separate TTL liveness (heartbeat 10 s, lease 30 s, CAS ownership; incompatible duplicate owner rejected). Sessions are **directory-scoped**: `claude-rd-vhosts-realty` = `claude(/rd/vhosts/realty)` |
+| Data classes | `standard` / `sensitive` / `restricted` per channel → retention and metadata-only dead letters |
+| Agent faces | **notifier-claude** (Claude Code Channels: `--dangerously-load-development-channels`, `notifications/claude/channel`, `agent_bus_reply` tool) · **notifier-codex** (Codex App Server over private unix socket, `turn/steer|start`, `thread/resume`; modes `notify-only / ask-before-run / auto-run`) · **agent-sync** (Codex ↔ Claude one-shot RPC, fresh read-only process per request) · **MCP direct inbox** (`inbox_receive` / `event_ack` / `event_reply`) |
+| MCP control plane | Bun + TS, stdio and Streamable HTTP (`127.0.0.1:3333`), web admin, `/metrics` Prometheus, in-memory 24 h / 14 d stats, enabled-only discovery, **conf.d `services.d/*.json`** descriptors (metadata + static resources, never code); one MCP process = one `user` identity |
+| Adapters | Telegram (Python), Slack (Bun), Email (Python), SMS (PHP, Telnyx), Discord (Bun), ChatGPT Workspace Agent (Bun) — each `read | write | read-write` role of one package; **all gated** behind least-privilege credentials + live canary (A.3.6, never landed) |
+| Local sources | **failed-tests**, **post-commit**, **git-push-bridge** (Redis → JetStream): fsync a local outbox first, a supervised daemon publishes and clears after JetStream ACK |
+| Tools | `db-tools` (PHP, ORM/SQL read-only, confirmed process kill) · `server-tools` (PHP, `parf` only, signed request/reply, exact confirmation) |
+| Languages | Go reference lib + CLI (`/rd/bin/agent-bus`, multicall `agent-pub/sub/request/reply/channels/sessions/health`), Python, Rust (protocol only), TS/Bun, PHP, sh. Layers everywhere: `protocol` → `ports` → `core` → CLI/MCP/adapters; only `transport/nats` touches NATS |
+| Handler contract | one signed envelope on stdin; exit `0` ACK · `75` retry · `65` dead-letter; `--reply-output` publishes correlated reply before ACK; handler never sees NATS creds or keys |
+
+**State (TODO 2026-07-27, tree 2026-08-11).** Foundation, MCP control plane, both notifiers,
+agent-sync, DB/Server tools and all adapter packages are runnable with offline test
+suites. **Not done:** least-privilege production NATS credentials + TLS (A.3.6), live adapter
+canaries, retention sweeper, `ai-watch-fix` production cutover (D.6.3). Open questions
+left in PRF-25: which hosts run which instance; which service-groups beyond `parf`/`prod`.
+
+## 2. PRF-36 description — the brainstorm (2026-08-04)
 
 Participants on the bus:
 - **Services** — registered on a bus.
@@ -44,7 +84,7 @@ directory (SQL queries à la sql-cacher, Parquet, CSV, JSONL) · **DB gateways**
 safe read-only via granted user + prepared statements, structure caches,
 process control (process list, kill, load check), writers/updaters.
 
-## 2. PRF-36 comments — chronological
+## 3. PRF-36 comments — chronological
 
 | # | Time | Idea |
 |---|---|---|
@@ -66,7 +106,7 @@ process control (process list, kill, load check), writers/updaters.
 The ladder in 11–14 is the V1 answer to "Auth is optional": four escalating
 levels rather than V2's single optional AUTH with pluggable key modes.
 
-## 3. How V1 is used today (owner, 2026-09-09)
+## 4. How V1 is used today (owner, 2026-09-09)
 
 Participants on the bus:
 
@@ -95,44 +135,49 @@ it: session↔session and session↔agent messaging, a readable registry, event
 forwarding chains, and a queue owned by one consumer with in-order delivery
 (the fixer pattern).
 
-## 4. What exists in code (V1 implementation, per Linear)
-
-Not verified from source; taken from issue text.
-
-| Item | Evidence |
-|---|---|
-| Lives in the Radaris monorepo at `/rd/service/agent-bus`; languages Go, Python, shell (+ PHP, TypeScript below); secrets: `.env`, signing keys, **NATS credentials** | RLM-821 |
-| `db-tools` (PHP): `ModelTools::find()`, `ModelQueryGuard`, `QueryGuard` (MySQL vs PostgreSQL quoting), read-only txn, acceptance tests | RLM-608, RLM-609 (fixed `178a7eec38d`) |
-| `server-tools` (PHP): `ServerTools::execute` runs SSH commands, output capped at 2 MiB, `stream_select` loop | RLM-613 (fixed `1367a5259b0`) |
-| `mcp/` (TypeScript, bun): `main.ts`, `web.ts`, `contracts.ts`; `ServiceDefinition{enabledByDefault, alwaysEnabled}`; catalog in `services.d/*.json`; default **HTTP on 127.0.0.1:3333**, loopback = authenticated; `AGENT_BUS_MCP_TOKEN`; `PATCH /api/services/<id>`; **signed envelope**, `event.user`; service ids like `parf:server-tools`; review doc `fable-review-slice2.md` | PRF-26 |
-| Hardening backlog: stdio default, token required for HTTP when catalog has destructive tools, `destructive?: boolean` marker | PRF-26 (Backlog) |
-| Nothing deployed as of 2026-07-24 (no listener, no MCP process attached to an agent session) | PRF-26 |
-| A Claude-session input channel exists on the bus (reference personal service) | HANDOFF §1 |
-
-Adjacent issues: PRF-15 "Use new NATS queue service" (canceled → Future);
-RLM-250 tableflip zero-downtime reload (canceled → Future; 2× RAM caveat);
-PRF-49 Plan Management service (In Progress; candidate future bus service, not core).
-
 ## 5. V1 → V2 mapping
 
 | V1 idea | V2 status |
 |---|---|
-| NATS as bus, NATS auth/queues/KV | **Dropped.** Point-to-point + in-process bounded queue. |
+| NATS JetStream as bus; 4 streams + ~15 KV buckets; standalone, no HA | **Dropped.** `agent-busd` is the broker; in-memory bounded queues; registry live in the daemon, snapshotted to git. |
 | Four auth levels (none / NATS / SSH keys / IdP) | **Replaced** by one optional AUTH + key modes (derived / pairwise / static) + local mapping file. |
 | SSH key → JWT + refresh token (comment 3) | **Rejected** as "Option B"; derived HKDF keys instead. Nonce/SSHSIG-namespace ideas **kept** for the signed challenge. |
-| Per-service user→token map, no Auth | **Kept** as local mapping file / static mode. |
+| Per-listener `SIGN_KEYS` + `TRUSTED_USERS` + `SEND_RULES`; `user` = service-group | **Kept** as the local mapping file / static mode — but the token names **one principal**, not a group. |
 | Group requirements per method; local admin override | **Kept**: service-defined roles + local file overrides AUTH. |
 | GitHub/Google IdP; Auth keeps users & groups | **Kept**: GitHub numeric id as main identity, LDAP second; groups/ACL/roles in AUTH. Google dropped. |
 | Providers/consumers without registration | **Kept** as publisher/consumer capabilities on a principal. |
 | Personal vs public(group) services | **Kept** as personal vs shared. |
 | Instances = service + config, spawned on demand; special user; secrets preserved | **Kept**: instance model, `agent-busd` user, sealed private config. |
 | Process manager super service (Apache/php-fpm style, from–to rules) | **Kept** as `agent-busd`; from–to enable rules **not carried over**. |
-| Statistics server | **Kept** as stats module of discovery (in-memory). |
+| Statistics server; MCP in-memory 24 h / 14 d buckets + Prometheus | **Kept** as stats module of discovery (in-memory ring buffers, Prometheus first). |
 | Restricted SSH forced commands | **Kept** for admin access (`agent-bus auth admin`). |
 | Cloudflare Tunnel/Access, mTLS | **Out of core** (customer exposure only). |
 | Wire formats (JSON-RPC, gRPC, GraphQL, msgpack multiquery) | **Decided**: JSON + optional msgpack. |
 | Service channel + tag reply, "avoid ephemeral channels" | **Kept** as V2 messaging: per-agent queue + topic + tag + reply-to (`03` Messaging). |
-| MCP auto-generated from services | **Kept**: `agent-busd` is an MCP server; generates docs/tools for services available to the client. |
+| MCP control plane (Bun): enabled-only discovery, conf.d `services.d/*.json` metadata, web admin | **Kept**: `agent-busd` is an MCP server; docs/tools generated per client from registrations (`03`). conf.d descriptors → registration records. |
 | MCP gateway for existing services | **Not in V2 docs** (partly covered by generic kind + runner adapters). |
 | Auto-doc service | **Kept**, folded into `agent-busd`'s MCP server (generated docs per client). |
 | RAG service, KV/DB gateways, writers/updaters | **Deferred, non-core** (2026-09-09) — later as ordinary bus services; existing `db-tools`/`server-tools` are the V1 realisation. |
+| `sign` = keyed xxh3-63 (attribution, not a MAC); no transport encryption without NATS TLS | **Replaced**: Ed25519 identities, HKDF access keys, AEAD-encrypted sessions (`02`). |
+| Durable at-least-once delivery: JetStream inbox, dedup, dead letter + replay, delivery observations | **Dropped by design**: queues are memory, drop-oldest, no dead letter (`00` trade-offs). Any flow that needs it gets its own WAL. |
+| `deadline_ts` on requests; `FAIL:timeout` published before ACK | **Not in V2 docs.** |
+| Data classes `standard / sensitive / restricted` → retention, metadata-only dead letters | **Not in V2 docs** (no retention to classify; sessions encrypted instead). |
+| Directory-scoped sessions `claude(/rd/vhosts/realty)`; heartbeat 10 s / lease 30 s | **Kept** in spirit: instance = `unique-name@host`, heartbeat, K missed → down (`03`). |
+| notifier-claude (Channels), notifier-codex (App Server), agent-sync | **Kept**: `claude --channel` is the V2 Claude face; Codex/agent-sync paths not yet written into `03`/`04`. |
+| Adapter `read / write / read-write` roles of one package | **Partly kept** as publisher/consumer capabilities; the runner (`04`) supervises the processes. |
+| Local-outbox writers (failed-tests, post-commit, git-push-bridge) | **Not in V2 docs**; the pattern survives as ordinary publishers with their own WAL. |
+| Layered libs `protocol → ports → core → transport`; Go, Python, Rust, TS, PHP, sh | **Kept**: Go first; client libs Go, PHP, Rust, JS, Python (`04`). |
+| Handler exit codes `0 / 75 / 65`, envelope on stdin | **Not in V2 docs**; the runner's shell adapter (`04`) is the natural home. |
+
+## 6. Weaknesses V1's own docs admit
+
+Observed in PRF-25 `SECURITY.md`, `TODO.md`, `fable-nats-review.md`; **not** owner-stated
+pain points (those are still ❓ above).
+
+- `sign` is not cryptographic; no per-person identity, no third-party proof. A real profile (HMAC/Ed25519) was left for "later".
+- No encryption in transit: NKey auth on plaintext `nats://` was the standing exception; TLS was part of A.3.6, which never landed.
+- Least-privilege credentials/ACL (A.3.6) never landed → every production adapter stayed gated; the dev credential has account-wide `$JS.API.>` / `$KV.>`.
+- One standalone NATS host: no failover. Bus down = everything down.
+- Operational surface: 4 streams, ~15 KV buckets, retention sweeper, daily off-host backups, quarterly restore drill, per-role env files, systemd templates — for a low-volume bus.
+- Trust config duplicated in every listener's `.env`; no central identities or groups.
+- Docs are large and in two places (plan dir + code dir); PRF-25 README alone is 44 KB.

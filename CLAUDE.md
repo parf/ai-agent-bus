@@ -8,9 +8,11 @@ Design documentation for **agent-bus** — a single daemon (`agent-busd`) that i
 registry, broker, MCP server and dashboard for AI agents, bots and services.
 
 **There is no code.** No build, no tests, no lint, no dependencies — the repo is
-`README.md`, `HANDOFF.md` and `docs/*.md` only. V1 (NATS-based) runs in production
-elsewhere (monorepo `/rd/service/agent-bus`); this repo designs V2. Work here is
-editing Markdown, and the only tooling is git.
+`README.md`, `HANDOFF.md` and `docs/*.md` only. V1 (NATS JetStream) is implemented
+elsewhere: code at `/rd/service/agent-bus/` (`README.md`, `HOWTO.md`), normative
+design at `/rd/vhosts/realty/Plans/PRF-25/`. Read those, not Linear, when a V1 fact
+is needed; `docs/v1-original.md` §1 is the verified summary. This repo designs V2.
+Work here is editing Markdown, and the only tooling is git.
 
 Language for the future implementation: **Go** first, bun/NPM later; client libs
 Go, PHP, Rust, JS, Python.

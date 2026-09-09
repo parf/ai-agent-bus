@@ -177,7 +177,7 @@ The `docs/` files are short and meant to be read in order.
 | [docs/02-keys-sessions-replication.md](docs/02-keys-sessions-replication.md) | access-key modes (derived / pairwise / static), encrypted sessions, signed generations in git over SSH, SSH admin |
 | [docs/03-services-and-discovery.md](docs/03-services-and-discovery.md) | service kinds, personal vs shared, messaging (queues, topic + tag, reply-to), discovery faces, health, stats |
 | [docs/04-runner.md](docs/04-runner.md) | the runner role of `agent-busd`: adapters, identity injection, sandboxing, in-process queue, languages |
-| [docs/v1-original.md](docs/v1-original.md) | V1: the original brainstorm, how V1 is used today, V1 → V2 mapping |
+| [docs/v1-original.md](docs/v1-original.md) | V1 as built (NATS JetStream, verified from source), the PRF-36 brainstorm, how V1 is used today, V1 → V2 mapping, weaknesses V1 admits |
 | [HANDOFF.md](HANDOFF.md) | the full discussion record: decisions, open questions, superseded ideas |
 
 ## Status

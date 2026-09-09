@@ -15,7 +15,9 @@ The owner explicitly deferred data models. Do not invent schemas until asked.
 - Many agents/services publish info about themselves → service discovery.
 - Services communicate via **NATS**.
 - Every service keeps its own `user → token` map and its own service-defined
-  access level.
+  access level. *(2026-09-09: verified from source — `AGENT_BUS_SIGN_KEYS` +
+  default-deny `TRUSTED_USERS` + `SEND_RULES` per listener; `user` is a
+  service-group, `sign` a keyed xxh3, not a MAC. Full inventory: `docs/v1-original.md` §1.)*
 - A Claude-session "input channel" already exists on this bus (sessions talk to
   each other and call services). It is the reference **personal** service.
 
