@@ -5,7 +5,9 @@ Status: draft · Scope: main ideas only
 ## Names
 
 - **`agent-busd`** — the runner daemon (`sshd`/`dockerd` convention)
-- **`agent-bus`** — the CLI that talks to it (`agent-bus start | stop | ls | logs`)
+- **`agent-bus`** — the CLI: talks to the runner (`agent-bus start | stop | ls | logs`)
+  **and provides identity** for anything on the bus — key creation, register,
+  publish, consume, sign (`agent-bus keygen | register | publish | consume | …`)
 - **`agent-bus`** — the keyword everywhere else: config (`/etc/agent-bus/`,
   `~/.config/agent-bus/`), dedicated user, `agent-busd.service`
 - **`ab_`** — MCP tool prefix only (`ab_list_services`, `ab_call`); never in CLI or config

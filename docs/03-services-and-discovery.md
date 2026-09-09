@@ -8,8 +8,13 @@ Two axes: reachable or not, and who owns the record.
 |---|---|---|---|---|
 | **generic** | yes (host/port, unix socket, HTTP) | a user, on behalf of something existing (host/port, description, optional MCP method info) | health-checker polls per hints | no (no key) |
 | **agent** | yes | itself, own key | self-reports health/stats | yes, as service |
-| **consumer** | no (pulls) | itself or user | none | no |
-| **publisher** | not a service — an identity that signs events (`curl` + user key) | — | none | yes |
+| **consumer** | no (pulls) | itself, own key | none | no |
+| **publisher** | not a service — an identity that signs events (`agent-bus` CLI or `curl` + key) | — | none | yes |
+
+**Identity is required** for agents, consumers and publishers: each is a
+principal with an Ed25519 key. The **`agent-bus` CLI provides it** — creates
+the key, registers, publishes, consumes, signs. Only *generic* records (a
+description pushed by someone else) have no key of their own.
 
 - **Registering is just pushing a description.** Anyone may tell discovery
   "there is a MySQL service named `xxx` on `host:port`" — the thing itself
