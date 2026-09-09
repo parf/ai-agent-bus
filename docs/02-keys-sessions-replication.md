@@ -58,6 +58,13 @@ Enforced by replicas **and** services: valid signature; `gen > current`
   in a git repo accessed over SSH**: config-as-code, git history = audit
   trail. Replicas **pull on start** (and on poll); master pushes. **Default
   topology: master/slave.**
+- **Reference deployment**: a **local AUTH server** (master) + a **private
+  GitHub repo as the bundle backup/remote**. Master pushes each signed
+  generation to GitHub; slaves and a rebuilt master pull from it. GitHub holds
+  only signed bundles — it cannot forge (no signing key) and holds no
+  `master_secret`. Lose the box → clone + drop in `master_secret` file → AUTH
+  is back. Works offline: the local master keeps serving; GitHub is the
+  off-site copy, not a dependency.
 - **Master/slave, pull**: slaves `GET /bundle?since=<gen>` every 30–60 s (304
   if unchanged), optional push on change. Reads (key issuance, lookups) from
   **any** replica; writes only via master. Master down → reads continue;

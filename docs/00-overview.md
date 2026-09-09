@@ -125,6 +125,7 @@ one thin store layer. Only instance health/stats is high-churn.
 | Wire format | **JSON**, with **msgpack** as an optional negotiated binary encoding. |
 | MCP tool info | Store raw `tools` JSON, check shape only; docs generated from it. |
 | Bundle gaps | **Newer generation wins**. Bundle repo in **git over SSH**; replicas pull on start; **master/slave is the default config**. |
+| AUTH deployment option | **Local AUTH server + private GitHub repo as backup** of the signed bundles: push on every generation, pull to bootstrap/restore. GitHub is the off-site copy, never a runtime dependency. |
 | Language | **Go** first; **bun/NPM** version later. Client libs: **Go, PHP, Rust, JS, Python**. |
 | V1 leftovers | RAG, KV/DB gateways, writers: **deferred, non-core** — later as ordinary bus services. |
 
