@@ -92,8 +92,10 @@ one thin store layer. Only instance health/stats is high-churn.
 ## Open questions (decide with owner before modeling)
 
 1. **Event delivery** — events land in the discovery daemon's **in-memory
-   queues** (decided). Still open: queue naming/topic namespace for
-   publish/consume, pull vs push to consumers, bounds and overflow policy.
+   queues** (decided). Required: a named queue owned by one consumer with
+   in-order delivery (V1 fixer pattern, see `v1-original.md` §3). Still open:
+   queue naming/topic namespace for publish/consume, pull vs push to
+   consumers, bounds and overflow policy.
 2. **AUTH + Discovery**: one daemon with two roles, or two daemons? Leaning one.
 3. **Instance identity** — `host+pid` vs persisted UUID (restart semantics).
 4. **MCP method info** — store raw `tools` JSON and pass through, or validate

@@ -76,7 +76,8 @@ Participants on the bus:
 | **Codex sessions** | agent (Codex apps) | same |
 | **Simple agents** | agent | Slack in/out, Telegram in/out, SMS out, email out, … |
 | **Slack reader** | personal/shared service | receives alerts from Slack channels → forwards to `claude-watch` |
-| **`claude-watch`** | CLI Claude session | sorts alerts → forwards to **alerters** or **fixer sessions** |
+| **`claude-watch`** | CLI Claude session | sorts alerts → forwards to **alerters** or the **fixer** |
+| **Fixer** | **single** long-lived Claude session, spawned once | consumes **its own agent queue serially**; the one session keeps history/context of what was done, and serial processing **avoids git conflicts** |
 
 Anyone can see what is registered on the bus; that is how sessions find each other.
 
@@ -85,12 +86,14 @@ Alert pipeline (the reference flow):
 ```
 Slack channels → slack-reader → claude-watch (CLI session)
                                    ├→ alerters  (Slack / Telegram / SMS / email out)
-                                   └→ fixer sessions (Claude / Codex)
+                                   └→ fixer (ONE session, its own queue, serial)
 ```
 
 V2 must keep serving exactly this: session↔session and session↔agent
 messaging, a registry everyone can read, and event forwarding chains — with
-its own daemon instead of the broker.
+its own daemon instead of the broker. Required queue property from the fixer
+pattern: **one named queue, one consumer, in-order delivery** (a session
+owns its queue; events wait rather than fan out).
 
 ## 4. What exists in code (V1 implementation, per Linear)
 
