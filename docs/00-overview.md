@@ -25,8 +25,9 @@ gets out of the way.
 
 ## Principles
 
-- **Minimum to run: the daemon with Service Discovery** — service
-  registrations + **in-memory queues**. **No AUTH in it.** Nothing else is required.
+- **Minimum to run: the main service** — Service Discovery (registrations +
+  **in-memory queues**), API, WEB dashboards. **No AUTH in it.** Nothing else
+  is required.
 - **AUTH is a separate, optional service**; health-checker and stats are
   optional too. A service must work without any of them.
 - **Minimal mode**: tokens are set **manually** in service configs (static
@@ -43,9 +44,14 @@ gets out of the way.
 
 ## Core services
 
+**The main service** (the daemon) has three parts:
+- **Service Discovery** — registrations + in-memory queues
+- **API** — the wire face for agents and services (incl. the MCP face)
+- **WEB** — fancy dashboards: registry, health, stats graphs
+
 | Service | Role | Optional |
 |---|---|---|
-| **Service Discovery** | registrations (what exists, where, how to check it, who may see it), **in-memory queues**; web + MCP faces | **no — the minimum** |
+| **Main service** | discovery (registrations, in-memory queues) · API · WEB dashboards | **no — the minimum** |
 | **AUTH / Config** | identities, keys, groups, ACLs, roles, encrypted private configs | yes |
 | **Health-checker** | module of discovery; probes generic services per their hints | yes |
 | **Stats** | module of discovery; in-memory ring buffers, **own dashboard** (graphs per service / server / user / …), exporters | yes |

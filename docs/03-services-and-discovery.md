@@ -53,8 +53,10 @@ service definition is signed and rare-change.
   are first-class (`unix:/path`).
 - **Audience** per service — users, services or org groups (from AUTH) who may
   see and use it. Discovery is personalized; MCP tool lists come pre-filtered.
-- Faces: **web** (humans, curl, dashboards) and **MCP server** (agents ask
-  "what can I use, and how").
+- Faces of the main service: **API** (agents/services register, look up,
+  push/pull queues; includes the **MCP server** face — agents ask "what can I
+  use, and how") and **WEB** (humans: registry browser, health, fancy stats
+  dashboards; curl-friendly).
 - Same replicated generation-based core as AUTH; live state kept separate.
 
 ## Health-checker and Stats (modules of discovery)
