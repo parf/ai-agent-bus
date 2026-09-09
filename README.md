@@ -82,7 +82,7 @@ service side.
 
 ### Run a personal bus on your laptop
 
-Start `agent-busd` as yourself, set one token, done. No AUTH service, no admin, no
+Start `agent-busd` as yourself, set one token, done. AUTH role off, no admin, no
 network exposure. Everything above works.
 
 ### Run a team or company bus

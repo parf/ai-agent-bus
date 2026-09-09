@@ -157,5 +157,10 @@ one thin store layer. Only instance health/stats is high-churn.
    *Settled by:* owner decision.
 3. ❓ Handshake key confirmation (detect a wrong key before data flows).
    *Settled by:* owner decision at protocol-design time.
-4. ❓ GitHub `/users/<login>/keys` `last_used` field.
+4. ❓ **Process layout** — how many child processes `agent-busd` runs (AUTH,
+   WEB, others?) and what is shared between core and children vs. isolated
+   (store, queues, sockets, memory). AUTH-holds-`master_secret` and
+   WEB-under-cgroups are decided; the rest is not.
+   *Settled by:* owner review.
+5. ❓ GitHub `/users/<login>/keys` `last_used` field.
    *Settled by:* one `curl` against the live API from a network that can reach it.
