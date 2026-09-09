@@ -37,7 +37,7 @@ parties a shared secret once, then gets out of the way.
   supervises its own roles as child processes (see below) with the same
   machinery it uses for any child.
 - **Ed25519 wherever there is a key**; no passwords, no client secrets.
-- **Bodies are end-to-end encrypted**: only sender and receiver read them; `agent-busd` forwards ciphertext and sees the envelope only.
+- **Bodies are end-to-end encrypted**: only sender and receiver read them; `agent-busd` forwards ciphertext and sees the envelope only. A service may switch this off in its own config for development.
 - **AUTH is on the hot path once** per (user, service, epoch).
 - **Two kinds of data.** *AUTH data* (principals, groups, ACL/roles, admin SSH
   keys) changes a few times a week → offline-signed generations in git over SSH.
@@ -155,6 +155,7 @@ Settled with the owner; each is written into the doc named.
 - **No message kinds, no receiver policy in the bus**: it delivers securely with verified sender and on-behalf-of; the receiver decides what to do → `03`
 - **Destructive methods**: a service may mark them so in its description; the MCP face passes the mark through, enforces nothing → `03`
 - **Dashboard** = services and topics with descriptions, who is up, call counts per minute/hour. **Bodies are encrypted end to end** — sender and receiver only; the bus sees envelopes; consumed = gone. Admin-only **debug mode** per service keeps a message trace → `02`, `03`
+- **`encryption: off` per service** (service config): plaintext bodies, visible to bus/debug/logs; for development; shown on the registry record → `02`
 
 ## Open
 

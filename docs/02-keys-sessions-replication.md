@@ -39,6 +39,11 @@ replay protection. Never use `access_key` raw as the cipher key.
   not between either of them and `agent-busd`: a queued message body is
   ciphertext the daemon stores and forwards without being able to read it.
   The bus sees the envelope only.
+- **Opt-out per service.** A service may turn body encryption **off** in its
+  own config (`encryption: off`): its messages travel in plaintext and the bus,
+  its debug trace and its logs can then show them. Meant for development and
+  debugging; the flag is visible on the service's registry record so nobody
+  is surprised.
 - Integrity is free: a message that decrypts is from a party AUTH or the local
   file vouched for.
 - Transport: anything direct — TCP, WebSocket, unix socket. No TLS, no PKI.

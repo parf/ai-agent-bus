@@ -177,5 +177,6 @@ by it. Namespacing follows services (`team/alerts`); local shadows upstream.
   reads only the envelope: sender, receiver, on-behalf-of, `message_id`,
   topic, tag, size, timestamps, receipts. Once a message is consumed it is gone
   — the bus keeps counts, not content. An admin may switch a service into
-  **debug mode**, which keeps a trace of that service's messages; admins only,
-  and the bodies in it are still ciphertext to the bus.
+  **debug mode**, which keeps a trace of that service's messages; admins only.
+  Bodies in the trace are ciphertext — unless the service has switched
+  encryption off in its config (`02`), the usual pairing while developing.
