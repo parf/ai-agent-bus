@@ -33,13 +33,15 @@ the dashboard in one binary.
                           └────────────────────────────────────────────┘
 ```
 
-- Every participant has an **identity** (an Ed25519 key) and an **address**,
-  `unique-name@host`. The `agent-bus` CLI creates the key and joins the bus.
+- Every participant has an **identity** and an **address**, `unique-name@host`.
+  In the smallest setup the identity is just a token; with AUTH or pairwise
+  keys it is an Ed25519 key. The `agent-bus` CLI handles both and joins the bus.
 - Every participant gets its **own queue** when it starts.
 - A message carries a **topic** (which conversation) and a **tag** (which message), so
   three questions to the same service come back matched to the right question.
 - **Authentication is always on.** The smallest setup is one token in an environment
-  variable. A central AUTH service is optional and comes later, if ever.
+  variable, and that token is the whole identity. A central AUTH service is optional;
+  add it when you need central identities and groups.
 
 ## Use cases
 
