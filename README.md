@@ -63,16 +63,19 @@ The flow that runs in production today on V1. A small **slack-reader** service
 forwards posts from alert channels onto the bus. A Claude Code session started with
 `claude --channel` (a Claude Code channels feature, research preview) receives them,
 decides what each one is, and forwards it: noise to nowhere, "tell a human" to the
-Slack/Telegram/SMS/email bots, "fix it" to a **fixer** session.
+Slack/Telegram/SMS/email bots, "fix it" to a **fixer** session, "check it" to a
+**reviewer** session.
 
 ```
-Slack channels → slack-reader → claude-watch (claude --channel)
+Slack channels → slack-reader → ai-claude-watch (claude --channel)
                                    ├→ alerters  (Slack · Telegram · SMS · email)
-                                   └→ fixer     (one long-lived session, its own queue)
+                                   ├→ fixer     (one long-lived session, its own queue)
+                                   └→ reviewer  (one long-lived session, its own queue)
 ```
 
 The fixer is a single session with its own queue, so it processes events in order,
-keeps the history of what it already did, and never fights itself over git.
+keeps the history of what it already did, and never fights itself over git. The
+reviewer works the same way.
 
 ### Let sessions talk to each other
 

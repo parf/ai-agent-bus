@@ -10,8 +10,10 @@ Two sources, two dates — do not conflate them:
 | **PRF-25** "Universal AI session pipeline" (2026-07-23 →) | the **implemented V1**: normative design, protocol, NATS topology, decisions, TODO | `/rd/vhosts/realty/Plans/PRF-25/` (`README`, `PROTOCOL`, `NATS`, `TOOLS`, `LIBRARIES`, `SECURITY`, `OPERATIONS`, `MIGRATION`, `DECISIONS`, `QUESTIONS`, `TODO`, `SERVICES`) · code `/rd/service/agent-bus/` (`README`, `HOWTO`) · [Linear PRF-25](https://linear.app/realmo-product/issue/PRF-25/dvp-universal-ai-pipeline) |
 | **PRF-36** "Ai agent-bus" (2026-08-04) | the owner's **brainstorm for what comes after V1** — the seed of V2 | [Linear PRF-36](https://linear.app/realmo-product/issue/PRF-36/ai-agent-bus), description + 14 comments |
 
-§1 is verified from the source tree (2026-09-09, tree dated 2026-08-11). §2–3 are the
-brainstorm. §4 is how V1 is used. §5 maps V1 → V2. §6 lists weaknesses V1's own docs admit.
+§1 is verified from the source tree (2026-09-09, tree dated 2026-08-11). **PRF-25's plan
+docs are stale** (owner, 2026-09-09): use them for what V1 *is*, never for what is or is
+not deployed. §2–3 are the brainstorm. §4 is how V1 is used. §5 maps V1 → V2. §6 lists
+design weaknesses V1's own docs admit.
 ❓ V1 pain points *as the owner sees them* are not written down. *Settled by:* owner.
 
 ## 1. V1 as built (PRF-25)
@@ -35,17 +37,15 @@ restart and ACKs only after processing. An MCP server hides all of it from agent
 | Data classes | `standard` / `sensitive` / `restricted` per channel → retention and metadata-only dead letters |
 | Agent faces | **notifier-claude** (Claude Code Channels: `--dangerously-load-development-channels`, `notifications/claude/channel`, `agent_bus_reply` tool) · **notifier-codex** (Codex App Server over private unix socket, `turn/steer|start`, `thread/resume`; modes `notify-only / ask-before-run / auto-run`) · **agent-sync** (Codex ↔ Claude one-shot RPC, fresh read-only process per request) · **MCP direct inbox** (`inbox_receive` / `event_ack` / `event_reply`) |
 | MCP control plane | Bun + TS, stdio and Streamable HTTP (`127.0.0.1:3333`), web admin, `/metrics` Prometheus, in-memory 24 h / 14 d stats, enabled-only discovery, **conf.d `services.d/*.json`** descriptors (metadata + static resources, never code); one MCP process = one `user` identity |
-| Adapters | Telegram (Python), Slack (Bun), Email (Python), SMS (PHP, Telnyx), Discord (Bun), ChatGPT Workspace Agent (Bun) — each `read | write | read-write` role of one package; **all gated** behind least-privilege credentials + live canary (A.3.6, never landed) |
+| Adapters | Telegram (Python), Slack (Bun), Email (Python), SMS (PHP, Telnyx), Discord (Bun), ChatGPT Workspace Agent (Bun) — each `read | write | read-write` role of one package |
 | Local sources | **failed-tests**, **post-commit**, **git-push-bridge** (Redis → JetStream): fsync a local outbox first, a supervised daemon publishes and clears after JetStream ACK |
 | Tools | `db-tools` (PHP, ORM/SQL read-only, confirmed process kill) · `server-tools` (PHP, `parf` only, signed request/reply, exact confirmation) |
 | Languages | Go reference lib + CLI (`/rd/bin/agent-bus`, multicall `agent-pub/sub/request/reply/channels/sessions/health`), Python, Rust (protocol only), TS/Bun, PHP, sh. Layers everywhere: `protocol` → `ports` → `core` → CLI/MCP/adapters; only `transport/nats` touches NATS |
 | Handler contract | one signed envelope on stdin; exit `0` ACK · `75` retry · `65` dead-letter; `--reply-output` publishes correlated reply before ACK; handler never sees NATS creds or keys |
 
-**State (TODO 2026-07-27, tree 2026-08-11).** Foundation, MCP control plane, both notifiers,
-agent-sync, DB/Server tools and all adapter packages are runnable with offline test
-suites. **Not done:** least-privilege production NATS credentials + TLS (A.3.6), live adapter
-canaries, retention sweeper, `ai-watch-fix` production cutover (D.6.3). Open questions
-left in PRF-25: which hosts run which instance; which service-groups beyond `parf`/`prod`.
+**In use today** (owner, 2026-09-09): `ai-claude-watch` with its **fixer** and
+**reviewer** sessions, Claude/Codex session channels, the simple in/out agents (§4).
+PRF-25's `TODO.md` / `SERVICES.md` rollout status is stale and is not repeated here.
 
 ## 2. PRF-36 description — the brainstorm (2026-08-04)
 
@@ -115,18 +115,20 @@ Participants on the bus:
 | **Claude Code sessions** | agent, via **Claude channel** = `claude --channel …` (CLI option; an MCP-based channel through which agent-bus pushes messages into a running session) | talk to each other, to Codex sessions, to agents |
 | **Codex sessions** | agent (Codex apps) | same |
 | **Simple agents** | agent | Slack in/out, Telegram in/out, SMS out, email out, … |
-| **Slack reader** | personal/shared service | receives alerts from Slack channels → forwards to `claude-watch` |
-| **`claude-watch`** | CLI Claude session | sorts alerts → forwards to **alerters** or the **fixer** |
+| **Slack reader** | personal/shared service | receives alerts from Slack channels → forwards to `ai-claude-watch` |
+| **`ai-claude-watch`** | CLI Claude session | sorts alerts → forwards to **alerters**, the **fixer** or the **reviewer** |
 | **Fixer** | **single** long-lived Claude session, spawned once | consumes **its own agent queue serially**; the one session keeps history/context of what was done, and serial processing **avoids git conflicts** |
+| **Reviewer** | long-lived Claude session | reviews what the fixer (or a commit) produced; same own-queue pattern |
 
 Anyone can see what is registered on the bus; that is how sessions find each other.
 
 Alert pipeline (the reference flow):
 
 ```
-Slack channels → slack-reader → claude-watch (CLI session)
+Slack channels → slack-reader → ai-claude-watch (CLI session)
                                    ├→ alerters  (Slack / Telegram / SMS / email out)
-                                   └→ fixer (ONE session, its own queue, serial)
+                                   ├→ fixer     (ONE session, its own queue, serial)
+                                   └→ reviewer  (ONE session, its own queue)
 ```
 
 This is **current mechanics, one usage among many** — agent-bus is a
@@ -171,13 +173,14 @@ forwarding chains, and a queue owned by one consumer with in-order delivery
 
 ## 6. Weaknesses V1's own docs admit
 
-Observed in PRF-25 `SECURITY.md`, `TODO.md`, `fable-nats-review.md`; **not** owner-stated
-pain points (those are still ❓ above).
+Design-level, from PRF-25 `SECURITY.md`, `DECISIONS.md`, `fable-nats-review.md`; **not**
+owner-stated pain points (those are still ❓ above). Deployment status is left out — the
+plan docs are stale.
 
 - `sign` is not cryptographic; no per-person identity, no third-party proof. A real profile (HMAC/Ed25519) was left for "later".
-- No encryption in transit: NKey auth on plaintext `nats://` was the standing exception; TLS was part of A.3.6, which never landed.
-- Least-privilege credentials/ACL (A.3.6) never landed → every production adapter stayed gated; the dev credential has account-wide `$JS.API.>` / `$KV.>`.
-- One standalone NATS host: no failover. Bus down = everything down.
+- Encryption in transit is not part of the protocol; it depends on NATS TLS being configured per credential.
+- Authorization is NATS subject ACL, hand-written per role credential; the bus itself has no notion of who may talk to whom beyond `trusted_users`.
+- One standalone NATS host by decision: no failover. Bus down = everything down.
 - Operational surface: 4 streams, ~15 KV buckets, retention sweeper, daily off-host backups, quarterly restore drill, per-role env files, systemd templates — for a low-volume bus.
 - Trust config duplicated in every listener's `.env`; no central identities or groups.
 - Docs are large and in two places (plan dir + code dir); PRF-25 README alone is 44 KB.
