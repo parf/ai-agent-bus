@@ -41,8 +41,9 @@ parties a shared secret once, then gets out of the way.
 - **Two kinds of data.** *AUTH data* (principals, groups, ACL/roles, admin SSH
   keys) changes a few times a week → offline-signed generations in git over SSH.
   *Registry data* (service and topic definitions, ownership) is **live** in
-  `agent-busd`, guarded by token and ownership, snapshotted to the same git repo
-  as backup only. *Live state* (health, stats, instances, queue contents) is
+  `agent-busd`; **every record is signed by the principal that wrote it**,
+  guarded by token and ownership, snapshotted to the same git repo for backup
+  and peer sync. *Live state* (health, stats, instances, queue contents) is
   neither signed nor snapshotted.
 - **Policy lives in AUTH; services only interpret**, never decide.
 - **Two independent controls**: SSH decides *who may administer*; a signature
@@ -101,8 +102,9 @@ and unsigned registry snapshots (backup). Queues and stats are memory only.
   for *new* sessions; live sessions are not torn down.
 - **No forward secrecy** (decided): session keys derive from the access key +
   nonces; a leaked long-term key exposes recorded sessions.
-- **Registry is unsigned**: anyone with a valid token may publish a new service
-  or topic; only ownership guards changes.
+- **Registry records are owner-signed, not admin-signed**: anyone with a
+  valid token may publish a new service or topic; only ownership guards
+  changes. No offline key stands behind them.
 - **Queues are memory**: restart = empty; overflow drops the oldest.
 - GitHub keys are pinned at enrolment; a key deleted on GitHub stays valid
   until someone refreshes.
@@ -133,7 +135,8 @@ Settled with the owner; each is written into the doc named.
 - Admin keys live in the bundle; root on the box is the break-glass → `02`
 - Go first, bun/NPM later; client libs Go, PHP, Rust, JS, Python → `04`
 - V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core → `v1-original.md`
-- Registry between peer nodes: **git push/pull on start** with the other known nodes; an **upstream keeps its own registry** we usually cannot fully read → `03`
+- Registry between peer nodes: **git push/pull on start** with the other known nodes; **newer record wins per entry, provided the writer had access**; an **upstream keeps its own registry** we usually cannot fully read → `03`
+- **All registry records are signed** by the writing principal → `03`
 
 ## Open
 
@@ -144,5 +147,9 @@ Settled with the owner; each is written into the doc named.
    owner decision.
 3. ❓ **Handshake key confirmation** — detect a wrong key before data flows.
    *Settled by:* owner decision at protocol-design time.
-4. ❓ **GitHub `last_used`** on `/users/<login>/keys`. *Settled by:* one `curl`
+4. ❓ **Signing by token-only principals** — a static token has no key. Does
+   the accepting node sign the record on its behalf (attesting "token X wrote
+   this"), or is an HMAC with the token the signature? *Settled by:* owner
+   decision at protocol-design time.
+5. ❓ **GitHub `last_used`** on `/users/<login>/keys`. *Settled by:* one `curl`
    from a network that can reach it.

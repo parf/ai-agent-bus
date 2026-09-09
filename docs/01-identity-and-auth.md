@@ -82,7 +82,7 @@ overrides for owner, break-glass admin, peer services).
   groups or grant beyond their own service. Personal services are owned by
   their user.
 - Definitions and ownership are **live records in `agent-busd`**, not bundle
-  data. Users run their own services without admin; admin's job is identities
+  data; **each record is signed by the principal that wrote it**. Users run their own services without admin; admin's job is identities
   and org groups.
 
 ## Sealed private config

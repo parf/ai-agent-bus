@@ -42,7 +42,7 @@ An instance is service + private config + a place it runs, identified as
 **`unique-name@host`** — stable across restarts, and also its address. Private
 config stays with the instance by default, optionally sealed in `agent-busd`
 (`01`). Instances register, heartbeat, vanish; definitions are live records
-changed by owners.
+changed by owners, each **signed by its writer**.
 
 ## Messaging
 
@@ -87,7 +87,8 @@ A topic **declares its kind, TTL and bound at creation**, and is a
 | Record | name, kind, TTL, bound, owner, description, audience |
 | Visibility | registry and MCP catalog, audience-filtered |
 | Access | `publish:<glob>` / `consume:<glob>` on principals |
-| Storage | live record in `agent-busd`; messages are live state; snapshotted to git as backup |
+| Signature | **every record is signed by the principal that wrote it** (owner or publisher); nodes verify before accepting or syncing |
+| Storage | live record in `agent-busd`; messages are live state; snapshotted to git for backup and peer sync |
 | Stats | depth, in/out rate, drops, subscriber count — on the dashboard like a service |
 
 Inboxes are implicit queue topics created on an agent's first start and owned
@@ -114,8 +115,11 @@ by it. Namespacing follows services (`team/alerts`); local shadows upstream.
   dashboards; curl-friendly; runs as a cgroup-limited child).
 - **Registry replication is git.** Each node holds its registry live and
   writes snapshots to the shared git repo. **On start a node pushes its
-  snapshot and pulls from the other known nodes** (peers at the same level);
-  newer record wins per entry. No live replication protocol.
+  snapshot and pulls from the other known nodes** (peers at the same level).
+  **Newer record wins per entry, provided its writer had access** — every
+  record carries its writer's signature, so a peer can check that before
+  taking it. No live replication protocol. ❓ How token-only principals sign
+  is open (`00`).
 - **Upstreams are not replicated.** An upstream `agent-busd` has its own
   registry and we usually lack full access to it; chaining queries it and
   caches answers, nothing more.
