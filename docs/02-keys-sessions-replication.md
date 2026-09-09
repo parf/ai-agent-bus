@@ -72,8 +72,9 @@ Enforced by replicas **and** services: valid signature; `gen > current`
   promotion is a manual flag flip. Run **2+ replicas**.
 - Every response carries `gen`; services refetch config when they see a newer one.
 - **Payload**: principals, pubkeys, groups, ACL/role expressions,
-  identity-source config, optional `next_signing_pubkey` for rotation.
-  **No admin keys** — those live only in `authorized_keys` on the box.
+  **admin keys** (= the SSH pubkeys allowed to administer AUTH; `authorized_keys`
+  is regenerated from them on each generation), identity-source config,
+  optional `next_signing_pubkey` for rotation.
   Nothing in the bundle is secret: the pubkeys are already public on GitHub,
   which is where they came from.
   **Not** in payload: service definitions and ownership (live in
@@ -100,7 +101,9 @@ the key.
   `replica-sync`); reads signed bundles from **stdin** and still verifies
   signature + gen (SSH gates who may talk; signature gates what config is
   real); append-only audit log `ts admin fp verb gen result`.
-- Admin pubkeys live **only** in `authorized_keys` (not in the bundle);
-  never remove the last admin key; keep one **break-glass key offline**.
+- **Admin keys** = the pubkeys in `authorized_keys`. They live in the bundle;
+  `authorized_keys` is regenerated on every new generation. Never remove the
+  last admin key; keep one **break-glass key offline** (in `authorized_keys`
+  by hand, outside the bundle).
 - Master→slave sync can itself be SSH with a `replica-sync` forced command.
 - Test the lockdown: `ssh auth@host bash`, `-L`, `-A`, `-t` must all fail.

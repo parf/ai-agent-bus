@@ -38,7 +38,7 @@ gets out of the way.
   central identities and derived keys.
 - Ed25519 keys everywhere; no passwords, no client secrets.
 - Core is on the hot path **only once** per (user, service, epoch).
-- **AUTH data** (principals, groups, ACL/roles) changes rarely
+- **AUTH data** (principals, groups, ACL/roles, admin SSH keys) changes rarely
   (few/week) → signed generations, master/slave, 2+ replicas, kept in **git
   over SSH**. **Service definitions are live records in `agent-busd`**
   (token to publish, owner to change) — not in the signed bundle. Live state
@@ -125,7 +125,7 @@ one thin store layer. Only instance health/stats is high-churn.
 | Wire format | **JSON**, with **msgpack** as an optional negotiated binary encoding. |
 | MCP tool info | Store raw `tools` JSON, check shape only; docs generated from it. |
 | Bundle gaps | **Newer generation wins**. Bundle repo in **git over SSH**; replicas pull on start; **master/slave is the default config**. |
-| AUTH deployment option | **Local AUTH server + a git-over-SSH remote as backup** of the signed bundles (GitHub repo, private suggested; or the user's SSH account on another server): push on every generation, pull to bootstrap/restore. The remote is the off-site copy, never a runtime dependency. Bundle holds no secrets and no admin keys. |
+| AUTH deployment option | **Local AUTH server + a git-over-SSH remote as backup** of the signed bundles (GitHub repo, private suggested; or the user's SSH account on another server): push on every generation, pull to bootstrap/restore. The remote is the off-site copy, never a runtime dependency. Bundle holds no secrets (pubkeys only). |
 | Language | **Go** first; **bun/NPM** version later. Client libs: **Go, PHP, Rust, JS, Python**. |
 | V1 leftovers | RAG, KV/DB gateways, writers: **deferred, non-core** — later as ordinary bus services. |
 
