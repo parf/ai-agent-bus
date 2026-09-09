@@ -169,3 +169,8 @@ by it. Namespacing follows services (`team/alerts`); local shadows upstream.
   metrics carry; numbers + sparklines; audience-filtered. API
   `/stats/<dimension>/<id>`. Export: Prometheus `/metrics` first (Grafana reads
   it); OTLP / StatsD secondary.
+- **What the dashboard and logs show: metadata.** Sender, receiver,
+  on-behalf-of, `message_id`, topic, tag, type, size, timestamps, receipts —
+  never the payload. The **owner** of a service or topic may additionally open
+  the contents of messages still held for it (in the queue or the last dump);
+  nobody else can, and once a message is gone there is nothing to see.
