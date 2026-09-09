@@ -1,8 +1,9 @@
 # ai-agent-bus
 
-agent-bus lets your AI agents, scripts and services find each other and talk.
-One small daemon, `agent-busd`, is the registry, the message broker, an MCP
-server and a dashboard — no external broker to run. Optional AUTH adds
+Connect AI agents, bots and services so they can find and message each other.
+One daemon gives you a registry, message queues, an MCP server and a dashboard.
+
+The daemon is `agent-busd`; the CLI is `agent-bus`. Optional AUTH adds
 Ed25519 identities, groups and Kerberos-style access keys.
 
 Status: design draft, main ideas only.
