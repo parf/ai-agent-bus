@@ -72,7 +72,7 @@ Participants on the bus:
 
 | Participant | Kind | Notes |
 |---|---|---|
-| **Claude Code sessions** | agent (via Claude channels) | talk to each other, to Codex sessions, to agents |
+| **Claude Code sessions** | agent, via **Claude channel** = `claude --channel …` (CLI option; an MCP-based channel through which agent-bus pushes messages into a running session) | talk to each other, to Codex sessions, to agents |
 | **Codex sessions** | agent (Codex apps) | same |
 | **Simple agents** | agent | Slack in/out, Telegram in/out, SMS out, email out, … |
 | **Slack reader** | personal/shared service | receives alerts from Slack channels → forwards to `claude-watch` |
