@@ -14,10 +14,11 @@ Documents:
 
 ## Goal
 
-Replace per-service `user → token` maps and the NATS bus with a small set of
-**optional** core services. Everything else talks point-to-point, encrypted,
-with the core needed only on first contact — or not at all. Inside a service,
-NATS is replaced by a bounded in-process queue (see `04-runner.md`).
+Replace V1 (broker-based, per-service `user → token` maps; see `v1-original.md`)
+with our **own daemon** and a small set of **optional** core services. No
+broker: everything talks point-to-point, encrypted, with the core needed only
+on first contact — or not at all. Inside a service, queuing is a bounded
+in-process queue (see `04-runner.md`).
 
 Model: **Kerberos-style** — AUTH hands both parties a shared secret, then
 gets out of the way.

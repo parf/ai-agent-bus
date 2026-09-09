@@ -57,7 +57,7 @@ writable, no network unless declared, pids/memory cap, no new privileges.
 A child's registration declares what it needs (network, paths, sockets); the
 runner grants exactly that.
 
-## In-process queue (replaces NATS inside a service)
+## In-process queue (no broker inside a service)
 
 Bounded Go channel per named queue: `Push` non-blocking → `ErrFull`
 (backpressure); `Pop(ctx)` blocking; N goroutines = consumer group.
