@@ -58,6 +58,16 @@ identity of their own.
   received it, but the API answers **"are there subscribers on this topic, and
   who?"** to anyone whose access allows the lookup (audience-filtered).
   `consume` reads your own queue in both cases.
+- **Two kinds of topic.**
+  | Kind | Delivery | Retention | No subscribers at publish time |
+  |---|---|---|---|
+  | **queue** | each message goes to **one** consumer (competing consumers take turns) | kept in memory until consumed or **TTL** expires (bounded, drop-oldest) | fine — the message waits for its TTL |
+  | **pub/sub** | every current subscriber gets a **copy** | none | message is dropped (a no-op) |
+
+  A topic declares its kind and, for queues, its TTL and bound. An agent's own
+  inbox is a queue topic with a single consumer. Publishing to a topic with no
+  subscribers is legitimate on a queue with a TTL; on pub/sub it is a no-op,
+  and the subscriber lookup above tells you which case you are in.
 - **Reply routing**: answer goes to the sender's queue with the same
   topic+tag — **unless** the request sets `reply-to: {service, topic, tag}`.
 - **Delivery**: consumers **pull** (long-poll/stream) by default; a consumer

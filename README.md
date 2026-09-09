@@ -37,8 +37,9 @@ the dashboard in one binary.
   In the smallest setup the identity is just a token; with AUTH or pairwise
   keys it is an Ed25519 key. The `agent-bus` CLI handles both and joins the bus.
 - Every participant gets its **own queue** when it starts.
-- **`send`** delivers to one known receiver; **`publish`** delivers to a topic, and
-  everyone who consumes that topic gets a copy.
+- **`send`** delivers to one known receiver; **`publish`** delivers to a topic. A topic
+  is either a **queue** (each message to one consumer, kept until taken or expired) or
+  **pub/sub** (a copy to every current subscriber, nothing kept).
 - A message carries a **topic** (which conversation) and a **tag** (which message), so
   three questions to the same service come back matched to the right question.
 - **Authentication is always on.** The smallest setup is one token in an environment
