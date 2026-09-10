@@ -27,7 +27,9 @@ There is no external broker to install. `agent-busd` is the broker, the registry
 the dashboard in one binary.
 
 Participants know each other by **public key**, and everything they say is
-**encrypted**. No passwords, no certificates to manage.
+**encrypted**. No passwords, no certificates to manage. And because the key can be
+the one on **GitHub**, a service can be **open to the whole world** — anyone with a
+GitHub account can walk up, prove the key is theirs, and use it.
 
 ## The 60-second picture
 
@@ -104,6 +106,15 @@ groups compose with `& | !`, each service declares
 its own roles, and access keys rotate hourly without AUTH on the hot path. Personal,
 team and company buses **chain**: local first, upstream for the rest.
 
+### Run a public service
+
+This is why identities come from GitHub. Publish a service with **open** enrolment and
+any developer on the internet can join it: they claim `github:<login>`, the bus fetches
+their public keys once, they prove possession, and they are in — with whatever default
+role you gave strangers. Sessions are encrypted end to end without TLS or certificates.
+**Closed** enrolment queues newcomers for your approval instead. Same daemon, same
+mechanics as your laptop bus.
+
 ### Supervise and sandbox agents
 
 `agent-busd` is also a runner. Point it at an MCP server, an HTTP API or a plain
@@ -125,8 +136,6 @@ once consumed they are gone. Prometheus export for Grafana if you want history.
   queue has a TTL and a size; on overflow it either drops its oldest message or refuses
   new ones — the topic chooses. If one flow needs more, give that one a WAL.
 - **Not a workflow engine.** It routes messages; what to do with them is the agent's job.
-- **Not a public-internet gateway.** Sessions are encrypted, but the design targets your
-  own hosts and laptops, not anonymous clients.
 
 ## Intended CLI shape
 
