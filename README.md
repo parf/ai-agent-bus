@@ -125,8 +125,6 @@ once consumed they are gone. Prometheus export for Grafana if you want history.
   queue has a TTL and a size; on overflow it either drops its oldest message or refuses
   new ones — the topic chooses. If one flow needs more, give that one a WAL.
 - **Not a workflow engine.** It routes messages; what to do with them is the agent's job.
-- **Not forward secret.** A leaked long-term key exposes recorded sessions. Accepted for
-  this design.
 - **Not a public-internet gateway.** Sessions are encrypted, but the design targets your
   own hosts and laptops, not anonymous clients.
 
