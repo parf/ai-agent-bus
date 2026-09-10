@@ -27,6 +27,9 @@
 
 import { resolve } from "node:path";
 
+// The only MCP server this face will approve a tool call for: its own.
+const MCP_SERVER_NAME = "agent-bus";
+
 type Rpc = {
   jsonrpc?: "2.0";
   id?: number | string;
@@ -64,6 +67,17 @@ export class Codex {
   readonly #cwd: string;
   readonly #url?: string;
   readonly #log: (s: string) => void;
+  // Approvals go to the person in the TUI, never to us. Without this the App
+  // Server asks *the client that started the turn* — this face — and a face
+  // that approves nothing turns every tool call the session makes into "user
+  // rejected". Observed live: it killed the session's own ab_reply.
+  // `approvalPolicy` matches what the session is already configured for; it
+  // is not a way to switch protections off, which is why it is read and not
+  // assumed.
+  readonly #policy = {
+    approvalPolicy: (process.env.AGENT_BUS_CODEX_APPROVAL ?? "on-request") as "never" | "on-request",
+    approvalsReviewer: "user" as const,
+  };
 
   constructor(cwd: string, log: (s: string) => void, url = process.env.AGENT_BUS_CODEX_WS) {
     this.#cwd = resolve(cwd);
@@ -122,8 +136,8 @@ export class Codex {
     });
     const found = (listed.data ?? []).find((t) => t.cwd && resolve(t.cwd) === this.#cwd);
     const res = found
-      ? await this.#request<{ thread: Thread }>("thread/resume", { threadId: found.id }, 60_000)
-      : await this.#request<{ thread: Thread }>("thread/start", { cwd: this.#cwd });
+      ? await this.#request<{ thread: Thread }>("thread/resume", { threadId: found.id, ...this.#policy }, 60_000)
+      : await this.#request<{ thread: Thread }>("thread/start", { cwd: this.#cwd, ...this.#policy });
     this.#setThread(res.thread);
     this.#log(
       `codex: ${found ? "attached to the session's thread" : "no session here yet, started a thread"} ` +
@@ -141,6 +155,7 @@ export class Codex {
       clientUserMessageId: `agent-bus:${id}`,
       input: [{ type: "text", text, text_elements: [] }],
     };
+
     if (this.#activeTurn) {
       const epoch = this.#turnEpoch;
       try {
@@ -163,7 +178,7 @@ export class Codex {
       }
     }
     const epoch = this.#turnEpoch;
-    const r = await this.#request<{ turn: Turn }>("turn/start", common);
+    const r = await this.#request<{ turn: Turn }>("turn/start", { ...common, ...this.#policy });
     this.#setActiveTurn(r.turn.id, epoch);
     return "turn/start";
   }
@@ -184,7 +199,7 @@ export class Codex {
   // rejection — V1's lesson, in one call.
   async #refresh(): Promise<void> {
     try {
-      const r = await this.#request<{ thread: Thread }>("thread/resume", { threadId: this.#thread }, 60_000);
+      const r = await this.#request<{ thread: Thread }>("thread/resume", { threadId: this.#thread, ...this.#policy }, 60_000);
       this.#setThread(r.thread);
     } catch (err) {
       this.#log(`codex: could not refresh the thread: ${err}`);
@@ -230,8 +245,8 @@ export class Codex {
     );
   }
 
-  #respond(id: number | string, error: { code: number; message: string }): void {
-    this.#write(JSON.stringify({ jsonrpc: "2.0", id, error }) + "\n").catch((e) =>
+  #respond(id: number | string, body: { result: unknown } | { error: { code: number; message: string } }): void {
+    this.#write(JSON.stringify({ jsonrpc: "2.0", id, ...body }) + "\n").catch((e) =>
       this.#log(`codex: could not answer request ${id}: ${e}`),
     );
   }
@@ -335,14 +350,30 @@ export class Codex {
       return;
     }
     // A message with both an id and a method is a *request*: the server is
-    // waiting for us. Refusing is the honest answer — this client approves
-    // nothing, and silence would hang the turn.
+    // waiting for us, and silence hangs the turn.
     if (msg.id !== undefined && msg.method) {
-      this.#log(`codex: refusing server request ${msg.method}`);
-      this.#respond(msg.id, { code: -32601, message: `agent-bus does not implement ${msg.method}` });
+      this.#serverRequest(msg.id, msg.method, msg.params);
       return;
     }
     if (msg.method) this.#notification(msg.method, msg.params);
+  }
+
+  // A turn started by a bus message has no human at the keyboard, so the
+  // App Server asks *us* to approve what the session wants to do. Approving
+  // in general would be handing a remote peer the user's permissions. The
+  // one thing this face will approve is **the bus's own reply tool**: the
+  // peer asked a question, and answering it is what the turn is for.
+  // Everything else is declined and shows up in the session as such.
+  #serverRequest(id: number | string, method: string, params: unknown): void {
+    if (method !== "mcpServer/elicitation/request") {
+      this.#log(`codex: refusing server request ${method}`);
+      this.#respond(id, { error: { code: -32601, message: `agent-bus does not implement ${method}` } });
+      return;
+    }
+    const p = (params ?? {}) as { serverName?: string; _meta?: { codex_approval_kind?: string } };
+    const ours = p.serverName === MCP_SERVER_NAME && p._meta?.codex_approval_kind === "mcp_tool_call";
+    this.#log(`codex: ${ours ? "approving" : "declining"} an approval for ${p.serverName ?? "?"}`);
+    this.#respond(id, { result: { action: ours ? "accept" : "decline", content: {} } });
   }
 
   // Only turn boundaries matter: they decide steer vs start.

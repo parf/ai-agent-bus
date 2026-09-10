@@ -172,6 +172,31 @@ channels. Zero configuration beyond the token. Verified: a session started with
 no `AGENT_BUS_NAME` registered as
 `claude-code.home-parf-src-ai-agent-bus-src-mcp@parf.us`.
 
+## The live run — Codex
+
+**Done.** A bus message reached a **live interactive Codex TUI** and came back
+as a correlated reply, matched on topic and tag:
+
+```
+{"from":"codex.session@parf.us","to":"asker@parf.us","topic":"final","tag":"f1","body":"42"}
+```
+
+Driven under tmux: one App Server on `ws://127.0.0.1:8421`, the TUI attached
+with `--remote`, the pusher attached beside it. Five things had to be found
+first, and each is now either fixed or written down:
+
+| What happened | What it means |
+|---|---|
+| `thread/list` returned **nothing** for a directory whose TUI was running | a TUI has no thread until someone types into it. The pusher must pick the thread at the first *message*, and if the session has never been used it starts its own instead |
+| the face-as-MCP-server never started its push loop | the App Server starts its own MCP servers, so such a face cannot dial back into the App Server that is still starting it. **Codex needs two processes under one name** — tools inside the session, pusher beside it. This is V1's split, and now we know why |
+| `ab_reply` had nothing to reply to | the pusher consumed the message and the tools live in the other process. A Codex session answers with **`ab_send`**, and the pushed text carries the routing |
+| `ab_reply({"message":"42"})` — invented argument names | the pushed text now spells the call out. The model got it right immediately afterwards |
+| every tool call came back *"user rejected"* | a turn started by a bus message has no human, so the App Server asks the **client that started the turn** to approve. Blanket refusal killed the session's own reply; blanket approval would hand a remote peer the user's permissions. The pusher approves **only agent-bus's own tool calls** and declines the rest — two checks in the smoke |
+
+`approvalPolicy: "never"` means *deny without asking*, not *allow*: it blocks
+the reply. `on-request` is the default, and the reviewer is always the person
+in the TUI.
+
 ❓ **One headless run did not surface the channel message.** With the
 capability declared and the MCP server connected, a `claude -p` session
 registered and the push loop took the message off the daemon — and the model

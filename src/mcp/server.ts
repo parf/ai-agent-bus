@@ -253,7 +253,22 @@ if (mode === "claude") {
   }
   push = startPush(bus, async (e) => {
     remember(e);
-    const how = await codex.deliver(`${describe(e)}\n\nReply with the ab_reply tool.`, e.message_id);
+    // ab_send, not ab_reply: in the Codex shape the pusher is a sidecar and
+    // the session's tools come from a *different* process, whose reply
+    // context does not contain this message. So hand the model the routing
+    // instead — which is all a reply is (docs/04-messaging.md#reply-routing).
+    // Spelled out, because a model that guesses the argument names gets them
+    // wrong and the call is refused before it reaches any server.
+    const args = [
+      `to: "${e.from}"`,
+      e.topic && `topic: "${e.topic}"`,
+      e.tag && `tag: "${e.tag}"`,
+      `text: your answer`,
+    ].filter(Boolean).join(", ");
+    const how = await codex.deliver(
+      `${describe(e)}\n\nAnswer by calling ab_send with ${args}. The topic and tag are what match your answer to the question.`,
+      e.message_id,
+    );
     log(`delivered ${e.message_id} by ${how}`);
   }, log);
   stopWith(() => codex.stop());

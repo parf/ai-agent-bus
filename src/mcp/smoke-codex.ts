@@ -174,6 +174,48 @@ try {
     codex.stop();
     spy.stop(true);
   }
+  {
+    // Approvals are the safety-critical part: a turn started by a bus
+    // message has no human, so the server asks us. We approve the bus's own
+    // reply path and nothing else.
+    const answers: any[] = [];
+    const spy = Bun.serve({
+      port: 0, hostname: "127.0.0.1",
+      fetch: (req, s) => (s.upgrade(req) ? undefined : new Response("no", { status: 400 })),
+      websocket: {
+        message(ws, raw): void {
+          const msg = JSON.parse(String(raw));
+          if (msg.id >= 9000) { answers.push(msg); return; }
+          const reply = (result: unknown) => void ws.send(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result }));
+          if (msg.method === "initialize") return reply({});
+          if (msg.method === "initialized") return;
+          if (msg.method === "thread/list") return reply({ data: [{ id: "t", cwd: CWD, turns: [] }] });
+          if (msg.method === "thread/resume") return reply({ thread: { id: "t", cwd: CWD, turns: [] } });
+          if (msg.method === "turn/start") {
+            for (const [id, serverName] of [[9001, "agent-bus"], [9002, "some-other-server"]] as const) {
+              ws.send(JSON.stringify({
+                jsonrpc: "2.0", id, method: "mcpServer/elicitation/request",
+                params: { serverName, mode: "form", _meta: { codex_approval_kind: "mcp_tool_call" } },
+              }));
+            }
+            reply({ turn: { id: "turn-new" } });
+            return;
+          }
+        },
+        close() {},
+      },
+    });
+    const codex = new Codex(CWD, quiet, `ws://127.0.0.1:${spy.port}`);
+    await codex.start();
+    await codex.deliver("hello", "m7");
+    await Bun.sleep(600);
+    const ours = answers.find((a) => a.id === 9001);
+    const theirs = answers.find((a) => a.id === 9002);
+    check("the bus's own tool call is approved", ours?.result?.action === "accept", JSON.stringify(ours));
+    check("any other server's tool call is declined", theirs?.result?.action === "decline", JSON.stringify(theirs));
+    codex.stop();
+    spy.stop(true);
+  }
 } catch (e) {
   check("no exception", false, String(e));
 } finally {

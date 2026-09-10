@@ -63,14 +63,41 @@ resume a thread's saved history, but steering it does not reach the session
 somebody is typing in. V1 solved this by topology (`/rd/bin/ai-codex`): one
 App Server, the TUI attached to it, the notifier attached to the same one.
 
-Same shape here, launched by hand:
+Same shape here — and for Codex it is **two processes under one name**:
+
+| Process | Started by | Role |
+|---|---|---|
+| tools | the App Server, from `config.toml`, `AGENT_BUS_PUSH=off` | gives the session `ab_send`, `ab_ls`, `ab_consume` |
+| pusher | a launcher, beside the App Server, `AGENT_BUS_PUSH=codex` | holds the inbox's read and steers the session's turn |
+
+They must **not** be the same process: the App Server starts its own MCP
+servers, so a face started that way cannot dial back into the App Server that
+is still starting it. Verified — the push loop never came up. V1 keeps the
+pusher a sidecar for the same reason.
+
+Give both the same `AGENT_BUS_NAME`: one session, one name. Only the pusher
+consumes, so they do not contend for the inbox's one read.
 
 ```sh
-codex app-server --listen ws://127.0.0.1:8421 &     # one server
-AGENT_BUS_CODEX_WS=ws://127.0.0.1:8421 \
-AGENT_BUS_PUSH=codex bun run server.ts &            # the face attaches
-codex --remote ws://127.0.0.1:8421 -C "$PWD" resume --last   # so does the TUI
+codex app-server --listen ws://127.0.0.1:8421 &          # one server, tools inside it
+AGENT_BUS_NAME=me@host AGENT_BUS_PUSH=codex \
+  AGENT_BUS_CODEX_WS=ws://127.0.0.1:8421 \
+  AGENT_BUS_CWD="$PWD" bun run server.ts &               # the pusher attaches
+codex --remote ws://127.0.0.1:8421 -C "$PWD"             # so does the TUI
 ```
+
+**A Codex session answers with `ab_send`, not `ab_reply`**: the message was
+consumed by the pusher, and the tools live in the other process, so its reply
+context is empty. The pushed text therefore carries the routing — sender,
+topic and tag — which is all a reply is
+([messaging § reply routing](../../docs/04-messaging.md#reply-routing)).
+
+**Approvals.** A turn started by a bus message has no human at the keyboard,
+so the App Server asks the client that started it — the pusher. It approves
+**only agent-bus's own tool calls** and declines everything else, so a remote
+peer cannot spend the user's permissions. Set `AGENT_BUS_CODEX_APPROVAL` to
+match the session (`on-request` by default; `never` means *deny*, not *allow*,
+and blocks the reply).
 
 A **loopback WebSocket**, not `unix://`: both are WebSocket listeners, and bun
 can open one over a port but not over a unix socket — which is exactly what
