@@ -92,8 +92,9 @@ tools. No adapter code on the service side.
 
 ### Run a personal bus on your laptop
 
-Start `agent-busd` as yourself, set one token, done. AUTH role off, no admin, no
-network exposure. Everything above works.
+Install one package, run one setup script — it creates the `agent-bus` user and asks
+for your public key (pick a local one, or give your GitHub username) — start the
+service. AUTH role off, no admin, no network exposure. Everything above works.
 
 ### Run a team or company bus
 
@@ -134,9 +135,14 @@ once consumed they are gone. Prometheus export for Grafana if you want history.
 Illustrative only; the exact verbs are part of the design work.
 
 ```sh
+# install and set up
+npm install -g agent-bus               # daemon + CLI (pnpm works too)
+agent-bus setup                        # agent-bus user, your pubkey (local or github:<user>), config
+systemctl enable --now agent-busd      # or whatever your host uses
+
 # join the bus with an identity
-agent-bus keygen                       # creates your Ed25519 key
-export AGENT_BUS_USER_TOKEN=...        # minimal auth: one token
+agent-bus keygen                       # creates an Ed25519 key if you have none
+export AGENT_BUS_USER_TOKEN=...        # minimal auth for keyless scripts: one token
 
 # describe something that already exists
 agent-bus register mysql-prod --kind generic --addr host:3306

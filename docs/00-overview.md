@@ -156,6 +156,7 @@ Settled with the owner; each is written into the doc named.
 - **Destructive methods**: a service may mark them so in its description; the MCP face passes the mark through, enforces nothing → `03`
 - **Dashboard** = services and topics with descriptions, who is up, call counts per minute/hour. **Bodies are encrypted end to end** — sender and receiver only; the bus sees envelopes; consumed = gone. Admin-only **debug mode** per service keeps a message trace → `02`, `03`
 - **`encryption: off` per service** (service config): plaintext bodies, visible to bus/debug/logs; for development; shown on the registry record → `02`
+- **Minimal setup**: `npm`/`pnpm install -g`, then `agent-bus setup` (creates the `agent-bus` user, takes your pubkey — local file or fetched from GitHub by username — writes config), then start the service (systemd or whatever the host has) → `04`
 
 ## Open
 

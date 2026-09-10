@@ -18,6 +18,19 @@ Status: design, main ideas only
 - **Go** first (`agent-busd`, `agent-bus`); a **bun/NPM** build later.
 - Client libraries: **Go, PHP, Rust, JS, Python**.
 
+## Minimal setup — one install, one script, one service
+
+| Step | What happens |
+|---|---|
+| `npm install -g agent-bus` (or `pnpm`) | one package brings `agent-busd` and the `agent-bus` CLI |
+| `agent-bus setup` | creates the **`agent-bus` system user**; asks for **your public key** — pick one of your local Ed25519 keys, or give a **GitHub username** and it fetches them (Ed25519 only, `01`); writes it into the local mapping file as the owner; writes the config |
+| start the service | `systemd` where present (`agent-busd.service`), otherwise whatever the host has; the runner supervises the rest |
+
+Result: a personal bus, AUTH role off, you are its owner and its first
+principal — a **key**, with zero effort. The static token stays for scripts and
+webhooks that have no key. The same three steps on a team node plus
+`auth: on` make it an AUTH replica.
+
 ## What the runner does
 
 A pm2/php-fpm-style supervisor **plus** bus integration **plus** sandboxing:
