@@ -1,3 +1,4 @@
 /src/agent-bus
 /src/agent-busd
 tmp/
+/src/mcp/node_modules/

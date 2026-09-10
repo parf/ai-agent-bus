@@ -98,4 +98,24 @@ ab asker@srv1 send ' Pad@SRV1 ' --topic pad --tag p "padded name" >/dev/null
 has "a padded, upper-case send reaches it" "$(ab pad@srv1 consume --topic pad --tag p --wait 3s)" 'padded name'
 bad_exit "a non-ASCII name is refused" "$(ab asker@srv1 register 'pärf@srv1' >/dev/null 2>&1; echo $?)"
 
+echo "== the MCP face"
+if command -v bun >/dev/null 2>&1; then
+  ab peer@srv1 register peer@srv1 --kind agent >/dev/null
+  # the peer answers whatever the MCP session sends it, so ab_consume has something to read
+  ( sleep 0.5
+    msg=$(ab peer@srv1 consume --wait 8s)
+    id=$(printf '%s' "$msg" | sed 's/.*"message_id":"\([^"]*\)".*/\1/')
+    [ -n "$id" ] && ab peer@srv1 reply "$id" "pong from the peer" >/dev/null
+  ) &
+  PEER_PID=$!
+  out=$(cd mcp && AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=mcp.session@srv1 \
+        SMOKE_PEER=peer@srv1 bun run smoke.ts 2>&1)
+  rc=$?
+  echo "$out" | sed 's/^/  /'
+  ok_exit "mcp smoke" $rc
+  wait $PEER_PID 2>/dev/null
+else
+  echo "  skip bun not installed"
+fi
+
 echo; echo "passed $pass, failed $fail"; [ $fail -eq 0 ]
