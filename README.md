@@ -242,6 +242,7 @@ document owns what.
 | Area | State |
 |---|---|
 | Design docs | ✅ decisions of 2026-09-09 recorded; open items listed in [decisions](docs/decisions.md) |
+| Plan | [Plans/PoC/](Plans/PoC/TODO.md) — waves, blockers and what counts as done |
 | Code | 🚧 none yet. Build order is [PoC → MVP → Release 1](docs/12-stages.md); Go inside, bun for the MCP face and the push adapters; client libs for Go, PHP, Rust, JS, Python |
 | V1 | runs in production on a broker |
 

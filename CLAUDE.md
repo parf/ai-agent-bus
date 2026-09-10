@@ -24,6 +24,7 @@ it first rather than duplicating the index here. Beyond the numbered docs:
 | `docs/glossary.md` | **normative for naming.** Every name and term, one line each. Check a name here before inventing one |
 | `docs/decisions.md` | index of settled / open / superseded decisions — rows link, they never state the rule |
 | `docs/12-stages.md` | PoC / MVP / Release 1 — check which stage a feature belongs to before designing it in |
+| `Plans/PoC/` | the **active plan** — `README.md` is the PoC's own knowledge, `TODO.md` the waves and acceptance. Follows the Plans HOWTO (`/rd/vhosts/realty/Plans/README.md`): knowledge, active work and decisions stay in separate files |
 | `docs/future/` | designed but deferred; not part of the current scope |
 | `legacy/` | history only, not spec — never cite it, never update it |
 
@@ -48,6 +49,10 @@ disagree, fix the stale one.
   `README.md` or this file, prefix `docs/`. Link text is *short doc name §
   section*. Headings used as targets are plain words — no backticks or
   punctuation, so the anchor stays predictable — and are not renamed casually.
+- **The plan is not a design doc.** `Plans/PoC/` holds objective, waves,
+  blockers and acceptance criteria; anything a developer must know to work
+  correctly belongs in `docs/`, and a decision taken while planning lands in
+  `docs/decisions.md` like any other.
 - **Every settled decision gets two edits**: the substance into the doc that
   owns it, and one row in `docs/decisions.md` that *names* it and links. If you
   can learn the rule from the row, the row is too long.
