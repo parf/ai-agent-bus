@@ -23,13 +23,13 @@ Status: design, main ideas only
 | Step | What happens |
 |---|---|
 | `npm install -g agent-bus` (or `pnpm`) | one package brings `agent-busd` and the `agent-bus` CLI |
-| `agent-bus setup` | creates the **`agent-bus` system user**; asks for **your public key** — pick one of your local Ed25519 keys, or give a **GitHub username** and it fetches them (Ed25519 only, `01`); writes it into the local mapping file as the owner; writes the config |
+| `agent-bus setup` | creates the **`agent-bus` system user**; asks for **your public key** — pick one of your local Ed25519 keys, or give a **GitHub username** and it fetches them (Ed25519 only, `01`); writes it into the local mapping file as the owner **and** into the `agent-bus` user's `authorized_keys` with a forced command; writes the config |
 | start the service | `systemd` where present (`agent-busd.service`), otherwise whatever the host has; the runner supervises the rest |
 
 Result: a personal bus, AUTH role off, you are its owner and its first
-principal — a **key**, with zero effort. The static token stays for scripts and
-webhooks that have no key. The same three steps on a team node plus
-`auth: on` make it an AUTH replica.
+principal. Tokens for you and your scripts come from that key:
+`export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost token)` (`02`). The same
+three steps on a team node plus `auth: on` make it an AUTH replica.
 
 ## What the runner does
 

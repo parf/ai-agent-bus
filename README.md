@@ -140,9 +140,9 @@ npm install -g agent-bus               # daemon + CLI (pnpm works too)
 agent-bus setup                        # agent-bus user, your pubkey (local or github:<user>), config
 systemctl enable --now agent-busd      # or whatever your host uses
 
-# join the bus with an identity
-agent-bus keygen                       # creates an Ed25519 key if you have none
-export AGENT_BUS_USER_TOKEN=...        # minimal auth for keyless scripts: one token
+# get a token — your SSH key is the identity, sshd checks it
+export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost token)
+agent-bus keygen                       # an Ed25519 key for a long-running agent of its own
 
 # describe something that already exists
 agent-bus register mysql-prod --kind generic --addr host:3306

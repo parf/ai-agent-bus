@@ -12,6 +12,13 @@
   config); service: local mapping file. No key exists for a static principal;
   no AUTH calls ever. Auth itself is never skipped: no token, no access. Also
   the fallback for keyless parties (scripts, webhooks).
+- **Where the token comes from: your SSH key.**
+  `export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost token)` — the setup
+  script put your public key into the `agent-bus` user's `authorized_keys`
+  with a forced command (same mechanism as admin access below), so sshd
+  authenticates you with the key you already have and the daemon hands back a
+  token bound to that principal. No password, nothing to copy by hand; a
+  script on another host does the same against `agent-bus@<node>`.
 - **Pairwise** is the standalone mode for key-holding parties and a path that
   works with AUTH down.
 - **Derived** keys are deterministic → every AUTH replica computes the same
