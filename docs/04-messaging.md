@@ -17,7 +17,7 @@ unless the TTL expires or the queue fills first. Choose both sensibly.
 | Verb | Target | Lands in | Allowed if |
 |---|---|---|---|
 | **`send`** | a known receiver, `unique-name@host` | exactly that queue | you may talk to that principal |
-| **`publish`** | a topic | every queue holding a matching `consume:<glob>` | you hold `publish:<glob>` |
+| **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([services and topics § topics](03-services-and-topics.md#topics)) | you hold `publish:<glob>` |
 
 `consume` reads your own queue in both cases. Delivery does not report who
 received a publish, but the API answers "are there subscribers on this topic,
@@ -38,6 +38,26 @@ The bus adds nothing here — matching is the topic + tag it already carries, th
 wait is an ordinary `consume`, and a caller that does not want to wait simply
 does not. A service may answer twice (`ack` now, result later) or hand the
 answer to a third party with `reply-to`.
+
+## One reader per inbox
+
+**An inbox has exactly one reader.** A session runs a push adapter, an MCP
+face and possibly a CLI, and all three would otherwise `consume` the same
+queue and take each other's messages — a waiting `call` losing its reply to
+the notifier, or the reverse.
+
+| Rule | Why |
+|---|---|
+| one process per principal holds the inbox | anything else is a race nobody can debug |
+| it dispatches: a message matching a waiting topic + tag goes to that waiter, the rest are pushed | this is what makes `call` safe next to a live session |
+| a second reader is refused, not silently queued behind the first | a silent second reader looks like message loss |
+
+❓ **What `consume` does to a message** — the two honest options are
+*at-most-once* (handed over and gone; a crash between reading and delivering
+loses it) and *reserved until acknowledged* (returned to the queue if the
+reader disconnects). `ack` today is an optional business receipt, not a
+dequeue contract, so this has to be said out loud. PoC default: at-most-once,
+with the loss documented. *Settled by:* owner.
 
 ## Message fields
 

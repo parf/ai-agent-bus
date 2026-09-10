@@ -73,7 +73,7 @@ other client.
 |---|---|---|
 | protocol, ports, core, adapters | **Go** | one static binary, no runtime; peer credentials on a unix socket, privilege-dropped children and passed fds are stdlib, not FFI ([processes](11-processes.md)) |
 | `cli` face | **Go** | it ships with the daemon, and the same core is already linked |
-| `mcp` face, the push adapters | **bun / TypeScript** | both already exist in that shape in V1 and are ported, not rewritten ([stages § PoC](12-stages.md#poc)) |
+| `mcp` face, the push adapters | **TypeScript** — bun for install, typecheck, test and build | V1 proves the shape. The **Codex adapter runs on Node**, not bun: bun's native WebSocket does not work against the App Server's listener, so bun builds the bundle and Node executes it |
 | client libraries | Go, PHP, Rust, JS, Python | each reimplements `protocol` and nothing below it |
 
 Two rules hold this together:

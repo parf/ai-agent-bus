@@ -6,79 +6,98 @@ open questions and settled decisions live in
 [decisions](../../docs/decisions.md). This file holds only what is being built
 now.
 
-**Objective**: the PoC as scoped in [stages § PoC](../../docs/12-stages.md#poc) — a
-Claude Code session and a Codex session find each other and talk, through a Go
-daemon, with the bun MCP face and both notifiers ported from V1.
+**Objective**: the PoC as scoped in [stages § PoC](../../docs/12-stages.md#poc) —
+a Claude Code session and a Codex session find each other and talk, through a
+Go daemon with a TypeScript MCP face.
 
-**Next step**: A.1 — decide where the code lives, then the `protocol` package.
+**Next step**: A.1 — decide where the code lives, then the envelope struct.
+
+## We do not port V1
+
+V1's code is JetStream-era: signed wires, `event_hash`, KV journals, delivery
+observations, dead letters. PoC has none of that, so reading V1 to strip it
+costs more than writing fresh against a daemon that speaks JSON.
+
+| V1 | Size | What we take |
+|---|---|---|
+| `notifier-codex` | 2.6k LOC + 2.0k tests | `app-server.ts` only — the JSON-RPC client. It **runs on Node**: bun's WebSocket does not work against the App Server |
+| `mcp/src` | 4.2k LOC | nothing — it is a services.d control plane that shells out to the V1 CLI |
+| `libs/ts/src` | 730 LOC | nothing — our client is a `fetch` wrapper |
+| `libs/go/protocol` | 1.8k LOC | the identifier rules; not the envelope, which carries keys and trust we do not have |
+| `notifier-claude` | — | the shape: it is *already* an MCP server that also pushes `notifications/claude/channel` |
+
+**Every row below that says "new" means new.** A task that says "port" is a
+task nobody has estimated.
 
 ## Blockers
 
-| | Blocks | Settled by |
-|---|---|---|
-| ❓ Where V2 code lives — this repo, or a new one next to V1 at `/rd/service/agent-bus/` | everything | owner |
-| ❓ Whether the bun faces vendor V1's `libs/ts/src` or import it | C, D | first port |
+| | Blocks | Proposed | Settled by |
+|---|---|---|---|
+| ❓ Where V2 code lives | everything | this repo, one `src/` tree beside `docs/` | owner |
+| ❓ What the listeners speak | A.3 | **HTTP + JSON on both** — unix socket and TCP, `consume` a long-poll GET, `--follow` repeated long-polls. Bun's `fetch` speaks `unix:`, so no client library is needed either side | owner — it is a transport choice, not a data model |
+| ❓ What `consume` does to a message | A.2 | at-most-once for PoC, loss documented ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)) | owner |
 
 ## Waves
 
 One wave, one deliverable; review and commit at the end of each.
 
-### A — daemon answers
+### A — two shells talk
 
 | ID | Task | Notes |
 |---|---|---|
-| A.1 | `protocol`: envelope, `user@realm` and `name@host` parsing, JSON encoding | crib V1 `libs/go/protocol` (envelope, route, wire + tests) |
-| A.2 | `core`: registry of services and topics, in-memory inbox per principal | [services and topics](../../docs/03-services-and-topics.md) |
-| A.3 | `api` face: unix socket and HTTP, one process | [stages § PoC](../../docs/12-stages.md#poc) |
-| A.4 | tokens: one master token per user, checked on every call | [access § two parameters](../../docs/02-access.md#two-parameters) |
-| A.5 | `static-token` over SSH as a forced command | [access § getting a token](../../docs/02-access.md#getting-a-token) |
+| A.1 | envelope struct + `user@realm` / `name@host` parsing | new; take only the identifier rules from V1 |
+| A.2 | registry of services and topics, in-memory inbox per principal | [services and topics](../../docs/03-services-and-topics.md) |
+| A.3 | one process, both listeners, and the `agent-bus` binary that talks to them | token and address from env; no framing invented — see the blocker |
+| A.4 | master token per user: read at start, checked on every call | [access § two parameters](../../docs/02-access.md#two-parameters) |
+| A.5 | `register`, `ls`, `send`, `consume`, `status` | five of the ten verbs |
 
-**Done when**: `agent-bus status` answers over both the socket and HTTP, and a
-token issued by `ssh agent-bus@<node> static-token` is accepted while a wrong
-one is refused.
+**Done when**: shell 1 registers and consumes; shell 2 sends and it arrives.
+Kill the consumer, send again, restart it — the backlog arrives. A wrong token
+is refused.
 
-### B — the ten verbs
+### B — the live slice
 
-| ID | Task | Notes |
-|---|---|---|
-| B.1 | `register`, `ls` | records only; no health, no filtering |
-| B.2 | `send`, `consume` | including a backlog read after the receiver restarts |
-| B.3 | `topic create`, `publish` | both kinds — queue and pub/sub |
-| B.4 | `call`, `ack`, `reply` | matched on topic + tag ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)) |
-
-**Done when**: two shells hold a conversation — one registers a service, the
-other calls it and gets the reply; a publisher emits with no service record and
-a consumer reads it after being down.
-
-### C — MCP face
+The risky wave, and it comes second on purpose: runtime incompatibility and
+inbox ownership are what can sink this PoC, and neither shows up in a shell.
 
 | ID | Task | Notes |
 |---|---|---|
-| C.1 | port V1 `mcp/src` off NATS onto the socket protocol | drop the transport, keep the tool surface |
-| C.2 | tools: list, send, consume, call — unfiltered | filtering is MVP ([stages § MVP](../../docs/12-stages.md#mvp)) |
+| B.1 | **one inbox reader** per session: it dispatches replies to waiters and pushes the rest | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
+| B.2 | **new** bun MCP server: `ab_ls`, `ab_send`, `ab_consume`, `ab_reply` — each one `fetch` to the daemon | `ab_` is the MCP prefix and nothing else ([glossary](../../docs/glossary.md)) |
+| B.3 | same package, channel mode: push `notifications/claude/channel`; `ab_reply` keeps the reply context of the message it answers | a receiving agent that is merely *prompted* answers in its own UI — it needs the tool to answer the bus |
+| B.4 | it registers as `<name>@<host>` on start, name from an env var, and is the inbox reader for that name | without this, "find each other by name" has no name |
+| B.5 | Codex push: **new** script, long-poll inbox → `thread/list` newest by cwd → `turn/steer` if busy, else `turn/start`. **Runs on Node** | copy `app-server.ts`, nothing else |
+| B.6 | loaded into Claude (`--mcp-config` + the channels flag) and Codex (`~/.codex/config.toml`) | Codex without it can only answer from a shell |
 
-**Done when**: an agent asks the MCP face "what can I use?" and can send and
-consume through it.
+**Done when**: a Claude session and a Codex session hold a two-way exchange
+live — send, push, answer, read — and the proof is the **correlated reply**,
+not a transport ack, which says nothing about whether the model acted
+([runner § adapters](../../docs/08-runner-role.md#adapters)).
 
-### D — push adapters
+### C — the rest of the verbs
 
 | ID | Task | Notes |
 |---|---|---|
-| D.1 | port `notifier-claude` (Channels) | [runner § adapters](../../docs/08-runner-role.md#adapters) |
-| D.2 | port `notifier-codex` (App Server) | same |
+| C.1 | `call`, `ack` | `call` is **client-side**: send, then wait on the inbox reader for topic + tag. No call machinery in the daemon ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)) |
+| C.2 | `topic create`, `publish` — queue and pub/sub | pub/sub keeps nothing, so it is the smaller of the two; the backlog criterion is a queue topic |
 
-**Done when**: a Claude Code session and a Codex session talk to each other by
-name, both directions, live.
+**Done when**: one shell calls a service registered by another and gets the
+reply matched by topic + tag; a publisher with no service record emits to a
+queue topic and a consumer that was down reads it; a pub/sub topic delivers to
+current subscribers and keeps nothing.
 
-### E — close the stage
+### D — close the stage
 
 | ID | Task |
 |---|---|
-| E.1 | run all four PoC criteria end to end, from a clean host |
-| E.2 | doc review: what PoC taught that the design says wrongly |
+| D.1 | `static-token` over SSH as a forced command — a script that prints the token file |
+| D.2 | smoke recipe as one script: start the daemon, write both MCP configs, launch both sessions, assert the correlated answer |
+| D.3 | run every criterion in [stages § PoC](../../docs/12-stages.md#poc) from a fresh clone |
+| D.4 | doc review: what the PoC taught that the design says wrongly |
 
-**Done when**: [stages § PoC](../../docs/12-stages.md#poc) is true as written, and
-anything it got wrong is fixed in the doc that owns it.
+**Done when**: the script exits 0 and `stages § PoC` is true as written.
+"Fresh clone" means Go and bun installed and **both agent CLIs logged in** —
+not a bare host.
 
 ## Out of PoC
 

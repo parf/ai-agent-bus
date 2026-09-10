@@ -47,7 +47,9 @@ column below says which exist.
 | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
 
 The adapter acknowledges to the bus only after the runtime has *accepted* the
-message. It never lets an incoming message change the session's permissions or
+message. **Acceptance is not processing** — Claude Channels expose no later
+"the model handled it" signal — so anything that needs to know the work was
+done waits for a correlated reply, never for the ack. It never lets an incoming message change the session's permissions or
 mode — that is the adapter's policy as a receiver
 ([messaging § envelope](04-messaging.md#envelope)), not a rule of the bus.
 

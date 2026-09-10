@@ -67,7 +67,9 @@ All 2026-09-09 unless noted.
 | A service call is a `send` whose reply comes back on the same topic and tag; the bus adds no call machinery | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | PoC includes basic service support: consume, `ack`, reply, and a caller that waits | [stages § PoC](12-stages.md#poc) |
 | PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](12-stages.md#poc) |
-| The Channels and App Server adapters are ported from V1, not designed again | [runner § adapters](08-runner-role.md#adapters) |
+| The Channels and App Server adapters are written fresh against the V2 daemon; V1 supplies the shape, not the code | [stages § PoC](12-stages.md#poc) |
+| An inbox has exactly one reader, which dispatches to waiters and pushes the rest | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| A PoC daemon binds loopback or an SSH tunnel, never a public interface | [stages § PoC](12-stages.md#poc) |
 | Go for protocol, core and the CLI; bun for the MCP face and the push adapters; client libs Go, PHP, Rust, JS, Python | [modules § languages](10-modules.md#languages) |
 | No verb exists only in a face: every CLI and MCP operation is first a core API | [modules § languages](10-modules.md#languages) |
 | Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](10-modules.md#external-tools) |
@@ -102,6 +104,7 @@ All 2026-09-09 unless noted.
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
+| Whether `consume` is at-most-once or reserves until acknowledged | owner | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | Whether billing ships in Release 1 or moves to `future/` | owner | [stages § Release 1](12-stages.md#release-1) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 

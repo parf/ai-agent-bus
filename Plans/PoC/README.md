@@ -1,8 +1,12 @@
 # PoC — agent-bus V2
 
 What a developer must know to work on the PoC correctly. The active plan is
-[TODO.md](TODO.md); the design of record is
-[docs/](../../docs/00-overview.md) and it wins on every question of substance.
+[TODO.md](TODO.md).
+
+**[stages § PoC](../../docs/12-stages.md#poc) fixes the scope**; the rest of
+[docs/](../../docs/00-overview.md) is the design of record and governs *how*
+anything in that scope is built. Read it that way round, or persistence,
+crypto and the runner arrive through the back door.
 
 ## Purpose
 
@@ -16,18 +20,21 @@ adding anything here.
 ## Target shape
 
 ```
-  claude session ──┐                                  ┌── notifier-claude (bun)
-                   ├─ unix socket ─→ agent-busd (Go) ─┤
-  codex session  ──┘        HTTP                       └── notifier-codex   (bun)
-                                   ↑
-                              mcp face (bun)
+  claude session ──[ agent-bus mcp + channel push (bun) ]──┐
+                                                           ├─→ agent-busd (Go)
+  codex session  ──[ agent-bus mcp (bun) ]─────────────────┤    socket + HTTP
+                   [ codex push (Node)   ]─────────────────┘
 ```
+
+One package per session, not one per job: V1's `notifier-claude` is already an
+MCP server that also pushes, and process placement is a runtime choice, not a
+layer boundary ([modules § languages](../../docs/10-modules.md#languages)).
 
 | Part | Language | Source |
 |---|---|---|
-| `protocol`, `core`, `api` face, `cli` | Go | new; cribs V1 `libs/go/protocol` and `libs/go/app` |
-| `mcp` face | bun / TypeScript | ported from V1 `mcp/src` |
-| push adapters | bun / TypeScript | ported from V1 `notifier-claude`, `notifier-codex` |
+| `protocol`, `core`, `api` face, `cli` | Go | **new**; V1's protocol carries keys, trust and `event_hash` we do not have — take the identifier rules only |
+| `mcp` face + Claude push | TypeScript, built by bun | **new**; V1 `notifier-claude` shows the shape — an MCP server that also pushes |
+| Codex push | TypeScript, built by bun, **run on Node** | **new**; takes `app-server.ts` from V1 and nothing else |
 
 Why the split: [modules § languages](../../docs/10-modules.md#languages).
 
@@ -42,6 +49,8 @@ These are the ones a shortcut would quietly break.
 | A **reply matches on topic + tag**; the bus adds no call machinery | [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
 | **`ack` = got it, `done` = finished**, both emitted by the receiver | [messaging § receipts](../../docs/04-messaging.md#receipts) |
 | **Dependencies point inward**; only adapters touch the outside world, and no verb exists only in a face | [modules § the rule](../../docs/10-modules.md#the-rule) |
+| **An inbox has one reader**, which dispatches to waiters and pushes the rest | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
+| **A transport ack is not "the model acted"** — only a correlated reply is | [runner § adapters](../../docs/08-runner-role.md#adapters) |
 | **No external broker.** The daemon is the broker | [overview](../../docs/00-overview.md) |
 
 ## What PoC deliberately does not have
@@ -56,21 +65,25 @@ because sshd does the authentication for free
 
 ## V1 sources
 
-V1 is the code being ported from, not a spec: code at `/rd/service/agent-bus/`,
-normative design at `/rd/vhosts/realty/Plans/PRF-25/`.
+V1 is **prior art to read, not a codebase to inherit**: code at
+`/rd/service/agent-bus/`, normative design at
+`/rd/vhosts/realty/Plans/PRF-25/`.
 
-| Need | Look at |
+| To learn | Read |
 |---|---|
-| envelope, routing, wire, signing | `libs/go/protocol` |
-| send, consume, discovery, dead letters | `libs/go/app` |
+| identifier rules | `libs/go/protocol` |
+| what the core verbs had to handle in production | `libs/go/app` |
 | CLI shape | `cli/commands.go` |
-| MCP tools, inbox, registry, stats | `mcp/src` |
-| Channels push | `notifier-claude` |
-| App Server push | `notifier-codex` |
+| what an MCP tool surface looks like | `mcp/src` — for shape only; it is a control plane that shells out to the V1 CLI |
+| Channels push, and MCP-server-plus-push in one process | `notifier-claude/server.ts` |
+| App Server JSON-RPC client — the one file we copy | `notifier-codex/app-server.ts` |
 | the layer rules V2 inherited | `PRF-25/README.md` § Mandatory code layers |
 
-V1 runs on NATS JetStream. **The transport does not come across** — every port
-of a V1 component drops NATS and speaks the V2 socket protocol instead.
+V1 runs on NATS JetStream, and its components carry the machinery that came
+with it: signed wires, `event_hash`, KV journals, `ADAPTER_PENDING` recovery,
+delivery observations, a PHP handoff socket. **None of that exists in V2.**
+Reading a V1 component to strip it costs more than writing the small thing
+fresh — so nothing here is a "port" except `app-server.ts`.
 
 ## Working rules
 
