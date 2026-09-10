@@ -70,7 +70,7 @@ other client.
 |---|---|---|
 | protocol, ports, core, adapters | **Go** | one static binary, no runtime; peer credentials on a unix socket, privilege-dropped children and passed fds are stdlib, not FFI ([processes](11-processes.md)) |
 | `cli` face | **Go** | it ships with the daemon, and the same core is already linked |
-| `mcp` face, the push adapters | **TypeScript**, built and tested by bun, **run on Node** | one runtime to debug. V1 splits them — bun runs the Claude notifier, Node the Codex one, because bun's WebSocket does not work against the App Server's listener — and there is no reason to inherit the split |
+| `mcp` face, the push adapters | **TypeScript on bun** | one runtime, and the one thing that ever forced Node is avoidable: V1 needed a WebSocket over a unix socket, where bun substitutes its native WebSocket for the `ws` package and fails. `codex app-server proxy --sock` proxies the same protocol over **stdio**, which bun does natively ([stages § PoC](12-stages.md#poc)) |
 | client libraries | Go, PHP, Rust, JS, Python | each reimplements `protocol` and nothing below it |
 
 Two rules hold this together:

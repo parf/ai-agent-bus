@@ -78,7 +78,7 @@ All 2026-09-09 unless noted.
 | A queue topic is an inbox with a name, read by `consume --topic` | [stages § PoC](12-stages.md#poc) |
 | Pub/sub waits for MVP: fan-out is cheap, but a subscription is an ACL capability and PoC has no ACL | [stages § PoC](12-stages.md#poc) |
 | Both listeners speak HTTP and JSON; `consume` long-polls | [messaging § push and pull](04-messaging.md#push-and-pull) |
-| The TypeScript packages are built and tested by bun and run on Node — one runtime | [modules § languages](10-modules.md#languages) |
+| The TypeScript packages run on bun; the Codex App Server is reached over stdio via `app-server proxy`, not a WebSocket | [modules § languages](10-modules.md#languages) |
 | Go for protocol, core and the CLI; TypeScript for the MCP face and the push adapters; client libs Go, PHP, Rust, JS, Python | [modules § languages](10-modules.md#languages) |
 | No verb exists only in a face: every CLI and MCP operation is first a core API | [modules § languages](10-modules.md#languages) |
 | Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](10-modules.md#external-tools) |
@@ -120,6 +120,7 @@ All 2026-09-09 unless noted.
 | Was | Now |
 |---|---|
 | Go first, a bun/NPM build later | Go inside, TypeScript for the MCP face and adapters — built by bun, run on Node — [modules § languages](10-modules.md#languages) |
+| TypeScript runs on Node because bun's WebSocket fails on a unix socket | bun, reaching the App Server over stdio instead — the WebSocket was the only thing that needed Node — [modules § languages](10-modules.md#languages) |
 | The runner is part of the core | its own process — it is the one component that execs code it did not write — [processes](11-processes.md) |
 | A token lives in daemon memory and dies with a restart | tokens are saved, and the previous one is kept — otherwise a reloaded queue is undecryptable ciphertext — [access § token lifetime](02-access.md#token-lifetime) |
 | The token is the whole identity in "minimal mode" | a call always carries two parameters; the socket supplies them locally — [access § two parameters](02-access.md#two-parameters) |

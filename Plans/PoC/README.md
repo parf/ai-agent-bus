@@ -23,6 +23,7 @@ adding anything here.
   claude session ──[ agent-bus mcp, channel push ]──┐
                                                     ├─→ agent-busd (Go)
   codex session  ──[ agent-bus mcp, app-server push ]┘    socket + HTTP
+                     └─ codex app-server proxy (stdio)
 ```
 
 **One TypeScript package, two push modes, one process per session.** V1's
@@ -35,7 +36,7 @@ cannot, the push mode becomes its own process and nothing else changes.
 | Part | Language | Source |
 |---|---|---|
 | `protocol`, `core`, `api` face, `cli` | Go | **new**; V1's protocol carries keys, trust and `event_hash` we do not have — take the identifier rules only |
-| `mcp` face + both push modes | TypeScript, built and tested by bun, **run on Node** | **new**, all of it. V1 runs Claude's notifier on bun and Codex's on Node; we do not inherit that split either |
+| `mcp` face + both push modes | **TypeScript on bun** | **new**, all of it. V1 runs Claude's on bun and Codex's on Node — the WebSocket forced that, and the stdio proxy removes it |
 
 Why the split: [modules § languages](../../docs/10-modules.md#languages).
 

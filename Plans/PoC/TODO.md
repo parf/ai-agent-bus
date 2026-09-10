@@ -44,10 +44,10 @@ what can sink this PoC, and a shell cannot show either.
 
 | ID | Task | Notes |
 |---|---|---|
-| B.0 | **spike, one hour**: start `codex app-server --listen unix://…` beside the session, then check whether the MCP server Codex spawned from `config.toml` can reach that socket | nothing creates the socket on its own — V1's launcher does it. If the MCP process can reach it, B.3 is a mode of B.1; if not, it is a second process |
-| B.1 | **new** TypeScript package, run on Node: MCP tools `ab_ls`, `ab_send`, `ab_consume`, `ab_reply` — each one `fetch` to the daemon | `ab_` is the MCP prefix and nothing else ([glossary](../../docs/glossary.md)) |
+| B.0 | **spike, one hour**: bring up the App Server (`codex app-server daemon start`, or `--listen unix://…` beside the session) and drive it from bun through `codex app-server proxy --sock` over stdio | this is what keeps everything on bun. If the proxy path works, no WebSocket and no `ws` package; if it does not, that one push mode falls back to a Node process with `ws` — V1's reason for Node |
+| B.1 | **new** TypeScript package on bun: MCP tools `ab_ls`, `ab_send`, `ab_consume`, `ab_reply` — each one `fetch` to the daemon | `ab_` is the MCP prefix and nothing else ([glossary](../../docs/glossary.md)) |
 | B.2 | it registers as `<name>@<host>` on start, name from an env var, and is **the** reader of that inbox | without this, "find each other by name" has no name |
-| B.3 | push modes in the same package: Claude Channels (`notifications/claude/channel`) and Codex App Server (`thread/list` newest by cwd → `turn/steer` if busy, else `turn/start`) | start with our own small JSON-RPC client — no journal, no delivery events, no recovery. Compare against V1 on idle vs busy, thread changes, disconnect and runtime rejection, and take what earns its keep |
+| B.3 | push modes in the same package: Claude Channels (`notifications/claude/channel`) and Codex App Server (`thread/list` newest by cwd → `turn/steer` if busy, else `turn/start`) | JSON-RPC over the B.0 transport — no journal, no delivery events, no recovery. Compare against V1 on idle vs busy, thread changes, disconnect and runtime rejection, and take what earns its keep |
 | B.4 | loaded into Claude (`--mcp-config` + the channels flag) and Codex (`~/.codex/config.toml`), with the App Server started beside the Codex session and its socket path passed in | Codex without the MCP server can only answer from a shell; without the socket, nothing can push into it |
 
 **Done when**: a Claude session and a Codex session hold a two-way exchange
@@ -80,8 +80,7 @@ file, started with one command, answers a `call` from another shell.
 **Done when**: the smoke script exits 0, `stages § PoC` is true as written, and
 each component with a V1 counterpart has its comparison written down — what we
 took, what we skipped, why.
-Running it needs Go, bun and Node, and **both agent CLIs logged in** — not a
-bare host.
+Running it needs Go, bun and **both agent CLIs logged in** — not a bare host.
 
 Driving two interactive sessions headless is a test harness, not a PoC task:
 the live criterion is checked by hand, once, and the script covers the rest.
