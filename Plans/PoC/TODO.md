@@ -15,11 +15,13 @@ where it is better** — simplicity breaks the tie, and complexity is paid for
 by a case V1 actually hit, not by V1 having it:
 [README § V1 is the bar](README.md#v1-is-the-bar).
 
+**Next step**: B.0 — the spike that decides whether everything stays on bun.
+
 ## Blockers
 
-None. Code lives in this repo, in `src/` beside `docs/`; `consume` is
-at-most-once; the daemon keeps no reply state and a client replies from the
-envelope it consumed ([decisions](../../docs/decisions.md)).
+None. Code is in `src/`; `consume` is at-most-once; the daemon keeps no reply
+state and a client replies from the envelope it consumed
+([decisions](../../docs/decisions.md)).
 
 ## Waves
 
@@ -27,15 +29,7 @@ One wave, one deliverable; review and commit at the end of each.
 
 ### A — two shells talk
 
-| ID | Task | Notes |
-|---|---|---|
-| A.1 | `src/` tree, then registry and inboxes in memory, envelope and `user@realm` / `name@host` parsing | layout from [modules § modules](../../docs/10-modules.md#modules); records from [services and topics](../../docs/03-services-and-topics.md) |
-| A.2 | one process, both listeners, the `agent-bus` binary. **Every client carries a name and a token**: the daemon reads its token from a file at start, the CLI reads name, token and address from env | the name is the inbox it owns and the sender a reply returns to ([access § two parameters](../../docs/02-access.md#two-parameters)) — a client with only a token can send and never be answered |
-| A.3 | `status`, `register`, `ls`, `send`, `consume` (with the **topic + tag filter**), `reply` | `reply` is a `send` to the sender with topic + tag copied — it belongs here, not in a face ([modules § languages](../../docs/10-modules.md#languages)). `status` first: it is the first thing that runs |
-
-**Done when**: shell 1 registers and consumes; shell 2 sends; shell 1 replies
-and shell 2 reads the reply, matched by topic + tag. Kill the consumer, send
-again, restart it — the backlog arrives. A wrong token is refused.
+_Done → [DONE.md](DONE.md): A_
 
 ### B — the live slice
 
