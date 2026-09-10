@@ -28,7 +28,7 @@ Status: design, main ideas only
 
 Result: a personal bus, AUTH role off, you are its owner and its first
 principal. Tokens for you and your scripts come from that key:
-`export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost token)` (`02`). The same
+`export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost static-token)` (`02`). The same
 three steps on a team node plus `auth: on` make it an AUTH replica.
 
 ## What the runner does

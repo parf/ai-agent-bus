@@ -141,7 +141,7 @@ agent-bus setup                        # agent-bus user, your pubkey (local or g
 systemctl enable --now agent-busd      # or whatever your host uses
 
 # get a token — your SSH key is the identity, sshd checks it
-export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost token)
+export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost static-token)
 agent-bus keygen                       # an Ed25519 key for a long-running agent of its own
 
 # describe something that already exists

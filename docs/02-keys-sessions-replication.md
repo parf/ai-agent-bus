@@ -13,7 +13,7 @@
   no AUTH calls ever. Auth itself is never skipped: no token, no access. Also
   the fallback for keyless parties (scripts, webhooks).
 - **Where the token comes from: your SSH key.**
-  `export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost token)` — the setup
+  `export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost static-token)` — the setup
   script put your public key into the `agent-bus` user's `authorized_keys`
   with a forced command (same mechanism as admin access below), so sshd
   authenticates you with the key you already have and the daemon hands back a
