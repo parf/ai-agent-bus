@@ -11,7 +11,7 @@ wins.
 | `agent-busd` | *the* daemon (`sshd`/`dockerd` convention) | not "the server", not `agentbusd` |
 | `agent-bus` | the CLI | — |
 | `agent-bus` | the keyword everywhere else: `/etc/agent-bus/`, `~/.config/agent-bus/`, the `agent-bus` system user, `agent-busd.service` | — |
-| `ab_` | **MCP tool prefix only** (`ab_list_services`, `ab_call`) | never in CLI, config or prose |
+| `ab_` | **MCP tool prefix only** (`ab_list_services`, `ab_call`) | never in CLI, config or prose. Underscore, not `ab:` — a client exposes a tool as `mcp__<server>__<tool>` and model tool names must match `[a-zA-Z0-9_-]{1,64}`, so a colon does not survive the trip; `:` also already means a capability (`publish:<glob>`) |
 
 ## Vocabulary
 
