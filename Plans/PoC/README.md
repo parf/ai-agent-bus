@@ -64,36 +64,35 @@ One master token per user reaches every service, and it is issued over SSH
 because sshd does the authentication for free
 ([access § getting a token](../../docs/02-access.md#getting-a-token)).
 
-## V1 is the bar, not the source
+## V1 is the bar
 
-**No V1 code is reused.** Every component is entangled with JetStream's signed
-wires, `event_hash`, KV journals, `ADAPTER_PENDING` recovery, delivery
-observations and a PHP handoff socket — none of which V2 has — and untangling
-one costs more than writing the small version.
+**Write the small version first.** V1's components are entangled with
+JetStream's signed wires, `event_hash`, KV journals, `ADAPTER_PENDING`
+recovery, delivery observations and a PHP handoff socket — none of which V2
+has — so starting from them costs more than starting fresh.
 
-**But V1 is the standard our version has to meet.** It ran in production; every
-awkward branch in it is a case somebody actually hit. So each component with a
-V1 counterpart gets compared before its task closes:
+**Then compare, and take V1's solution where it is better.** It ran in
+production; every awkward branch in it is a case somebody actually hit. If
+V1's approach is better, use it — the code included, when it comes free of the
+JetStream machinery.
 
-> What does V1 handle here that ours does not — and for each, do we handle it,
-> or did we decide it is out of scope and write that down?
-
-A difference is fine. A difference nobody noticed is not.
+**Simplicity breaks the tie.** Complexity has to be paid for by a real case:
+*"V1 does X"* is not a reason, *"V1 does X because Y happened"* is. Skipping a
+V1 behaviour is fine; skipping it without noticing is not.
 
 | Ours | Compare against | Look for |
 |---|---|---|
 | envelope, names | `libs/go/protocol` | which identifier rules turned out to matter |
 | core verbs | `libs/go/app` | what send, consume and discovery had to handle in production |
 | CLI | `cli/commands.go` | the flags a real operator needed |
-| MCP face | `mcp/src` | the tool surface that agents actually used |
+| MCP face | `mcp/src` | the tool surface agents actually used |
 | Claude push | `notifier-claude/server.ts` | MCP-server-plus-push in one process; reply correlation |
-| Codex push | `notifier-codex/` | the App Server call sequence, and idle vs busy, thread changes, disconnects, runtime rejection |
+| Codex push | `notifier-codex/` | the App Server call sequence; idle vs busy, thread changes, disconnects, runtime rejection |
 | the layer rules V2 inherited | `PRF-25/README.md` § Mandatory code layers | |
 
 Code at `/rd/service/agent-bus/`, normative design at
-`/rd/vhosts/realty/Plans/PRF-25/`. V1's acceptance is `stages § PoC` plus this
-comparison — the PoC may be smaller than V1, but it may not be *worse at what
-it does*.
+`/rd/vhosts/realty/Plans/PRF-25/`. The PoC may be smaller than V1 — it may not
+be worse at what it does.
 
 ## Working rules
 
@@ -101,7 +100,8 @@ it does*.
 - One wave, one deliverable; commit at the end of each, push only when asked.
 - A decision taken here lands in [decisions](../../docs/decisions.md) and in
   the doc that owns it — never only in the plan.
-- **Before a task with a V1 counterpart closes**, compare the two and record
-  what V1 handles that we do not — handled, or out of scope with a reason.
+- **Before a task with a V1 counterpart closes**, compare the two: take V1's
+  solution where it is better, and record what we skip and why. Simplicity
+  wins a tie.
 - What the PoC teaches that contradicts the design is a **doc edit**, not a
   note in this file.
