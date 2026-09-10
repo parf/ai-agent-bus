@@ -1,6 +1,7 @@
 # Overview
 
 Status: design, main ideas only · no data models yet (deferred by owner) · no code
+yet — the build order is [stages](12-stages.md)
 
 Start here, then read in order. Each document **owns** its subject: values —
 paths, commands, field lists, mode names — are stated once, where they belong,
@@ -20,6 +21,7 @@ and linked from everywhere else.
 | 09 | [setup](09-setup.md) | install · `agent-bus setup` · local users · storage · reload |
 | 10 | [modules](10-modules.md) | layers · module boundaries · which dependency is swappable |
 | 11 | [processes](11-processes.md) | the supervisor and its children · privilege per process · what is shared |
+| 12 | [stages](12-stages.md) | PoC, MVP, Release 1 — what gets built when, and what counts as done |
 
 Also: [glossary](glossary.md) — every name and term, one line each ·
 [decisions](decisions.md) — what is settled, open and superseded ·

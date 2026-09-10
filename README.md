@@ -240,7 +240,7 @@ document owns what.
 | Area | State |
 |---|---|
 | Design docs | ✅ decisions of 2026-09-09 recorded; open items listed in [decisions](docs/decisions.md) |
-| Code | 🚧 none yet. Go first, a bun/NPM build later; client libs for Go, PHP, Rust, JS, Python |
+| Code | 🚧 none yet. Build order is [PoC → MVP → Release 1](docs/12-stages.md); Go first, a bun/NPM build later; client libs for Go, PHP, Rust, JS, Python |
 | V1 | runs in production on a broker |
 
 ## Conventions
