@@ -61,7 +61,7 @@ the bus inside the script.
 
 ```sh
 agent-bus start hello --algo=args ./hello-world.sh --descr "greets you"
-cat service.json | agent-bus start          # same fields, as JSON
+cat service.json | agent-bus start -5       # same fields as JSON, five at a time
 ```
 
 `hello-world.sh` is `echo "Hello $1"`, and that is the whole service.
@@ -79,8 +79,14 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 |---|---|
 | exit 0 | stdout is the reply; empty stdout means no reply |
 | exit non-zero | no reply, logged with stderr. Nothing retries it |
-| one process per message | no state between messages, and a bounded number at once |
+| one process per message | no state between messages |
+| `-N` | how many script processes may run **at once**; default 1, so a script that is not safe to run twice does not have to be |
 | registered while it runs | the description is what `ls` and the MCP catalog show; exit unregisters it |
+
+`-N` does not mean N services or N inboxes. **The `start` process is the one
+reader of that inbox** ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox));
+it hands messages to a pool of at most N script processes, and none of them
+knows the bus exists. One name, one queue, N hands.
 
 This is the runner's shell adapter with the supervision taken out. Restart
 policy, sandboxing and `stop`/`logs` are the runner proper — a script service

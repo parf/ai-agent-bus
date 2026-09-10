@@ -32,7 +32,7 @@ to be true.
 | tokens | issued **over SSH** — `ssh agent-bus@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
 | encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | services | **basic request/reply** ([messaging § request and reply](04-messaging.md#request-and-reply)): a service consumes its inbox, `ack`s it (got it), does the work and replies; a caller sends and waits for that reply. The reply stands in for `done`, which comes at MVP |
-| services from scripts | `agent-bus start <name> --algo=std|args <script>` — a shell script becomes a service, no bus code inside it ([runner § script services](08-runner-role.md#script-services)) |
+| services from scripts | `agent-bus start <name> --algo=std|args <script> [-N]` — a shell script becomes a service, `-N` of them running at once, no bus code inside it ([runner § script services](08-runner-role.md#script-services)) |
 | mcp | **basic MCP face** — list what is registered, send, consume. Unfiltered: the master token sees everything ([discovery § faces](05-discovery.md#faces)) |
 | install | run the built binary. **No npm** |
 | setup | one thing only: the user's pubkey in the `agent-bus` account's `authorized_keys` behind that forced command |
@@ -52,7 +52,7 @@ to be true.
 | `agent-bus ack <message-id>` | receipt: got it ([messaging § receipts](04-messaging.md#receipts)) |
 | `agent-bus reply <message-id>` | answer something this client consumed — routed back by topic + tag ([messaging § reply routing](04-messaging.md#reply-routing)) |
 | `agent-bus topic create <t> --kind queue\|pubsub` | a topic to publish into |
-| `agent-bus start <name> --algo=std\|args <script>` | publish a shell script as a service ([runner § script services](08-runner-role.md#script-services)) |
+| `agent-bus start <name> --algo=std\|args <script> [-N]` | publish a shell script as a service, `-N` at a time ([runner § script services](08-runner-role.md#script-services)) |
 | `agent-bus status` | is the daemon up, who is connected |
 
 Eleven verbs. Everything else (`keygen`, `auth *`, `stop`/`logs`) waits —

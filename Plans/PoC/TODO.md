@@ -62,7 +62,7 @@ about whether the model acted
 | C.1 | `call`, `ack` | `call` = send, then the A.3 filter. The daemon serves it, so no client dispatcher ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)) |
 | C.2 | `topic create`, `publish`, and `consume --topic <t>` | queue kind only: a queue topic is an inbox with a name. `--kind pubsub` is stored and publish to it answers *MVP* ([stages § PoC](../../docs/12-stages.md#poc)) |
 
-| C.3 | `start <name> --algo=std\|args <script>` and the JSON form on stdin | spawn per message, envelope in the environment, stdout is the reply, exit non-zero means none. No sandbox, no restart ([runner § script services](../../docs/08-runner-role.md#script-services)) |
+| C.3 | `start <name> --algo=std\|args <script> [-N]` and the JSON form on stdin | spawn per message up to N at once, envelope in the environment, stdout is the reply, exit non-zero means none. The `start` process is the inbox's one reader; the scripts never see the bus. No sandbox, no restart ([runner § script services](../../docs/08-runner-role.md#script-services)) |
 
 **Done when**: one shell calls a service another registered and gets the reply;
 a publisher with no service record emits to a queue topic, and a consumer that
