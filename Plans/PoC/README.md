@@ -35,7 +35,7 @@ cannot, the push mode becomes its own process and nothing else changes.
 | Part | Language | Source |
 |---|---|---|
 | `protocol`, `core`, `api` face, `cli` | Go | **new**; V1's protocol carries keys, trust and `event_hash` we do not have — take the identifier rules only |
-| `mcp` face + both push modes | TypeScript, built and tested by bun, **run on Node** | **new**; V1 `notifier-claude` shows the shape, and `app-server.ts` is the one file copied. V1 runs Claude's on bun and Codex's on Node — we do not inherit that split |
+| `mcp` face + both push modes | TypeScript, built and tested by bun, **run on Node** | **new**, all of it. V1 runs Claude's notifier on bun and Codex's on Node; we do not inherit that split either |
 
 Why the split: [modules § languages](../../docs/10-modules.md#languages).
 
@@ -66,8 +66,9 @@ because sshd does the authentication for free
 
 ## V1 sources
 
-V1 is **prior art to read, not a codebase to inherit**: code at
-`/rd/service/agent-bus/`, normative design at
+**No V1 code is reused.** It is documentation that happens to be executable:
+read it to learn how a protocol behaves in production, then close the file and
+write the small version. Code at `/rd/service/agent-bus/`, normative design at
 `/rd/vhosts/realty/Plans/PRF-25/`.
 
 | To learn | Read |
@@ -77,14 +78,15 @@ V1 is **prior art to read, not a codebase to inherit**: code at
 | CLI shape | `cli/commands.go` |
 | what an MCP tool surface looks like | `mcp/src` — for shape only; it is a control plane that shells out to the V1 CLI |
 | Channels push, and MCP-server-plus-push in one process | `notifier-claude/server.ts` |
-| App Server JSON-RPC client — the one file we copy | `notifier-codex/app-server.ts` |
+| the App Server call sequence, and what a real client had to handle | `notifier-codex/app-server.ts` |
 | the layer rules V2 inherited | `PRF-25/README.md` § Mandatory code layers |
 
 V1 runs on NATS JetStream, and its components carry the machinery that came
 with it: signed wires, `event_hash`, KV journals, `ADAPTER_PENDING` recovery,
-delivery observations, a PHP handoff socket. **None of that exists in V2.**
-Reading a V1 component to strip it costs more than writing the small thing
-fresh — so nothing here is a "port" except `app-server.ts`.
+delivery observations, a PHP handoff socket. **None of that exists in V2**, and
+untangling a component from it costs more than writing the small thing — which
+is why nothing is copied. What transfers is knowledge: the call sequences, the
+failure modes, and which assumptions turned out to be wrong.
 
 ## Working rules
 

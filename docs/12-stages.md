@@ -81,8 +81,8 @@ The **push adapters** — Claude Code Channels and the Codex App Server
 ([runner § adapters](08-runner-role.md#adapters)) — are what let a live session
 *receive* instead of poll. V1 has both, and they are **prior art, not code we
 inherit**: they carry the signed wires, journals and delivery observations
-JetStream needed and V2 does not. PoC writes small ones fresh and copies a
-single file, the App Server's JSON-RPC client.
+JetStream needed and V2 does not. PoC writes its own, small, and copies
+nothing.
 
 **Deliberately absent**: encryption, AUTH, per-service ACLs, persistence,
 sandboxing, the dashboard, generated docs and catalog filtering, npm.
