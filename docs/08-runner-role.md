@@ -42,7 +42,7 @@ read for their shape, not carried over ([stages § PoC](12-stages.md#poc)).
 | Runtime | Push path | Status |
 |---|---|---|
 | Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool | proven in V1 |
-| Codex | App Server — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart. Reachable two ways: a WebSocket on its unix socket, or `codex app-server proxy --sock` over **stdio** | proven in V1 over the socket |
+| Codex | App Server — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart. Spawned as `codex app-server`, **newline-delimited JSON-RPC on stdio**; the unix listener V1 used is a WebSocket and is not needed | proven in V1 over the socket; stdio measured |
 | OpenCode (Z.AI) | ❓ to be found — the owner has an account. *Settled by:* one spike | maybe |
 | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
 

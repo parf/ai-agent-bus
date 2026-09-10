@@ -30,5 +30,36 @@ per CLI process instead of one per poll, a stale socket is checked before
 removal and a live one refused, `chmod 0600` and `Serve` errors are fatal
 instead of ignored, header and idle timeouts, and a bounded graceful shutdown.
 
+---
+
+## B.0 — the runtime spike
+
+**Question**: does the TypeScript side have to run on Node, as V1 does, because
+bun cannot speak WebSocket over a unix socket?
+
+**Answer: no. Nothing needs a WebSocket.** `codex app-server` speaks
+**newline-delimited JSON-RPC on stdio**, and bun drives it with `Bun.spawn`
+and a `flush()` — `initialize` answered, and `thread/list` returned the live
+sessions with their `cwd`, including the interactive Codex session this repo
+had exchanged messages with minutes earlier.
+
+| Tried | Result |
+|---|---|
+| `codex app-server` on stdio, NDJSON | **works**, from bun |
+| the same with `Content-Length` framing | refused: *"Failed to deserialize JSONRPCMessage"* |
+| `codex app-server --listen unix://…` spoken to directly | silent — it is a **WebSocket** listener, which is exactly what bit V1 |
+| `codex app-server proxy [--sock …]` | exits 0 with no output; its control socket is not plain JSON-RPC. Not needed, so not pursued |
+
+**Consequence**: one runtime. The push adapter spawns `codex app-server` and
+talks NDJSON, instead of attaching to a WebSocket listener a launcher had to
+start. It also removes V1's `ws` dependency and its `permessage-deflate`
+workaround.
+
+**Not proven here**: that `turn/steer` reaches a thread a live TUI owns. That
+is B.3's job; B.0 only had to decide the runtime.
+
+The managed daemon started during the spike was stopped again; nothing was
+left running.
+
 **Not done in A, on purpose**: `call`, `ack`, topics, script services, the MCP
 face, any push adapter, SSH token issuance.

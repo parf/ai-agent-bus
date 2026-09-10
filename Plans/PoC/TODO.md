@@ -38,10 +38,10 @@ what can sink this PoC, and a shell cannot show either.
 
 | ID | Task | Notes |
 |---|---|---|
-| B.0 | **spike, one hour**: bring up the App Server (`codex app-server daemon start`, or `--listen unix://…` beside the session) and drive it from bun through `codex app-server proxy --sock` over stdio | this is what keeps everything on bun. If the proxy path works, no WebSocket and no `ws` package; if it does not, that one push mode falls back to a Node process with `ws` — V1's reason for Node |
+| B.0 | ✅ _Done → [DONE.md](DONE.md): B.0_ — bun drives `codex app-server` over stdio NDJSON; no WebSocket, no `ws`, one runtime |
 | B.1 | **new** TypeScript package on bun: MCP tools `ab_ls`, `ab_send`, `ab_consume`, `ab_reply` — each one `fetch` to the daemon | `ab_` is the MCP prefix and nothing else ([glossary](../../docs/glossary.md)) |
 | B.2 | it registers as `<name>@<host>` on start, name from an env var, and is **the** reader of that inbox | without this, "find each other by name" has no name |
-| B.3 | push modes in the same package: Claude Channels (`notifications/claude/channel`) and Codex App Server (`thread/list` newest by cwd → `turn/steer` if busy, else `turn/start`) | JSON-RPC over the B.0 transport — no journal, no delivery events, no recovery. Compare against V1 on idle vs busy, thread changes, disconnect and runtime rejection, and take what earns its keep |
+| B.3 | push modes in the same package: Claude Channels (`notifications/claude/channel`) and Codex App Server — spawn `codex app-server`, NDJSON on stdio, `thread/list` newest by cwd → `turn/steer` if busy, else `turn/start` | no journal, no delivery events, no recovery. The open question B.0 did not answer: whether steering reaches a thread a live TUI owns. Compare against V1 on idle vs busy, thread changes, disconnect and runtime rejection |
 | B.4 | loaded into Claude as a **plugin** `ab` (`claude plugin init ab` scaffolds locally and auto-loads; its `plugin.json` declares the MCP server) and into Codex via `~/.codex/config.toml`, with the App Server started beside the Codex session and its socket path passed in | Codex without the MCP server can only answer from a shell; without the socket, nothing can push into it. `--mcp-config` is the fallback if the plugin path costs anything |
 | B.5 | if the plugin carries its weight: `/ab:send`, `/ab:ls` as commands, and a SessionStart hook that registers `<name>@<host>` — which is B.2 done by the runtime | plugin commands and skills use the colon namespace; **MCP tools cannot** ([glossary](../../docs/glossary.md)) |
 

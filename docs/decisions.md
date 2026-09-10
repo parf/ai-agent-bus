@@ -79,7 +79,7 @@ All 2026-09-09 unless noted.
 | A queue topic is an inbox with a name, read by `consume --topic` | [stages § PoC](12-stages.md#poc) |
 | Pub/sub waits for MVP: fan-out is cheap, but a subscription is an ACL capability and PoC has no ACL | [stages § PoC](12-stages.md#poc) |
 | Both listeners speak HTTP and JSON; `consume` long-polls | [messaging § push and pull](04-messaging.md#push-and-pull) |
-| The TypeScript packages run on bun; the Codex App Server is reached over stdio via `app-server proxy`, not a WebSocket | [modules § languages](10-modules.md#languages) |
+| The TypeScript packages run on bun; the Codex App Server is reached by spawning `codex app-server` and speaking NDJSON on stdio, not a WebSocket | [modules § languages](10-modules.md#languages) |
 | Go for protocol, core and the CLI; TypeScript for the MCP face and the push adapters; client libs Go, PHP, Rust, JS, Python | [modules § languages](10-modules.md#languages) |
 | No verb exists only in a face: every CLI and MCP operation is first a core API | [modules § languages](10-modules.md#languages) |
 | Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](10-modules.md#external-tools) |

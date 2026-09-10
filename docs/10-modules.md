@@ -70,7 +70,7 @@ other client.
 |---|---|---|
 | protocol, ports, core, adapters | **Go** | one static binary, no runtime; peer credentials on a unix socket, privilege-dropped children and passed fds are stdlib, not FFI ([processes](11-processes.md)) |
 | `cli` face | **Go** | it ships with the daemon, and the same core is already linked |
-| `mcp` face, the push adapters | **TypeScript on bun** | one runtime, and the one thing that ever forced Node is avoidable: V1 needed a WebSocket over a unix socket, where bun substitutes its native WebSocket for the `ws` package and fails. `codex app-server proxy --sock` proxies the same protocol over **stdio**, which bun does natively ([stages § PoC](12-stages.md#poc)) |
+| `mcp` face, the push adapters | **TypeScript on bun** | one runtime. The one thing that ever forced Node — a WebSocket over a unix socket, where bun substitutes its native WebSocket for `ws` and fails — turned out to be avoidable: `codex app-server` speaks newline-delimited JSON-RPC on **stdio**, which bun drives with a spawn and a flush (measured, [Plans/PoC/DONE.md](../Plans/PoC/DONE.md)) |
 | client libraries | Go, PHP, Rust, JS, Python | each reimplements `protocol` and nothing below it |
 
 Two rules hold this together:
