@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
@@ -137,11 +138,11 @@ func reply(args []string) error {
 		if len(pos) < 2 {
 			return fmt.Errorf("reply wants <message-id> and text, or --to")
 		}
-		e, ok := recall(pos[0])
+		c, ok := recall(pos[0])
 		if !ok {
 			return fmt.Errorf("message %s is not one this client consumed; use --to --topic --tag", pos[0])
 		}
-		to, topic, tag, text = e.From, e.Topic, e.Tag, pos[1:]
+		to, topic, tag, text = c.From, c.Topic, c.Tag, pos[1:]
 	}
 	if len(text) == 0 {
 		return fmt.Errorf("reply wants text")
@@ -188,8 +189,10 @@ func call(method, path string, q url.Values, body any) ([]byte, int, error) {
 }
 
 // transport speaks HTTP over either a unix socket or loopback TCP: same
-// protocol on both listeners. See docs/decisions.md.
-func transport() (*http.Client, string) {
+// protocol on both listeners. Built once — `consume --follow` polls in a loop,
+// and a fresh Transport each time would leak idle connections.
+// See docs/decisions.md.
+var transport = sync.OnceValues(func() (*http.Client, string) {
 	addr := os.Getenv("AGENT_BUS_ADDR")
 	if addr == "" {
 		addr = defaultSocket()
@@ -199,12 +202,13 @@ func transport() (*http.Client, string) {
 		return client, strings.TrimSuffix(addr, "/")
 	}
 	client.Transport = &http.Transport{
+		IdleConnTimeout: 90 * time.Second,
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			return (&net.Dialer{}).DialContext(ctx, "unix", addr)
 		},
 	}
 	return client, "http://unix"
-}
+})
 
 func get(path string, q url.Values) error { return show(call("GET", path, q, nil)) }
 func post(path string, body any) error    { return show(call("POST", path, nil, body)) }
@@ -221,51 +225,78 @@ func show(body []byte, code int, err error) error {
 }
 
 // ---- the client's own memory of what it consumed ---------------------------
+//
+// The daemon keeps no reply state (docs/04-messaging.md#reply-routing), so the
+// client that consumed a message keeps what it needs to answer: the routing
+// fields, never the body. One file per message, so two filtered consumes
+// running at once cannot overwrite each other.
 
-func stateFile() string {
+type replyContext struct {
+	ID    string `json:"message_id"`
+	From  string `json:"from"`
+	Topic string `json:"topic,omitempty"`
+	Tag   string `json:"tag,omitempty"`
+}
+
+const replyContextTTL = 24 * time.Hour
+
+func stateDir() string {
 	dir := os.Getenv("XDG_CACHE_HOME")
 	if dir == "" {
 		home, _ := os.UserHomeDir()
 		dir = filepath.Join(home, ".cache")
 	}
-	return filepath.Join(dir, "agent-bus", "consumed-"+safe(os.Getenv("AGENT_BUS_NAME"))+".json")
+	return filepath.Join(dir, "agent-bus", safe(os.Getenv("AGENT_BUS_NAME")))
 }
 
 func remember(e protocol.Envelope) {
-	seen := load()
-	seen = append(seen, e)
-	if len(seen) > 50 {
-		seen = seen[len(seen)-50:]
+	dir := stateDir()
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		warn("cannot keep reply context: %v", err)
+		return
 	}
-	b, err := json.Marshal(seen)
+	b, err := json.Marshal(replyContext{ID: e.ID, From: e.From, Topic: e.Topic, Tag: e.Tag})
+	if err != nil {
+		warn("cannot keep reply context: %v", err)
+		return
+	}
+	if err := os.WriteFile(filepath.Join(dir, e.ID+".json"), b, 0o600); err != nil {
+		warn("cannot keep reply context for %s: %v — reply will need --to", e.ID, err)
+		return
+	}
+	sweep(dir)
+}
+
+func recall(id string) (replyContext, bool) {
+	var c replyContext
+	b, err := os.ReadFile(filepath.Join(stateDir(), safe(id)+".json"))
+	if err != nil || json.Unmarshal(b, &c) != nil {
+		return replyContext{}, false
+	}
+	return c, true
+}
+
+// sweep drops contexts older than a day, so the directory does not grow
+// forever. Cheap enough to do on write.
+func sweep(dir string) {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
 	}
-	os.MkdirAll(filepath.Dir(stateFile()), 0o700)
-	os.WriteFile(stateFile(), b, 0o600)
-}
-
-func recall(id string) (protocol.Envelope, bool) {
-	for _, e := range load() {
-		if e.ID == id {
-			return e, true
+	for _, e := range entries {
+		if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > replyContextTTL {
+			os.Remove(filepath.Join(dir, e.Name()))
 		}
 	}
-	return protocol.Envelope{}, false
 }
 
-func load() []protocol.Envelope {
-	b, err := os.ReadFile(stateFile())
-	if err != nil {
-		return nil
-	}
-	var out []protocol.Envelope
-	json.Unmarshal(b, &out)
-	return out
-}
-
+// safe keeps a name or id from escaping the cache directory.
 func safe(s string) string {
-	return strings.NewReplacer("/", "_", "@", "-at-", " ", "_").Replace(s)
+	return strings.NewReplacer("/", "_", "\\", "_", "..", "_", "@", "-at-", " ", "_").Replace(s)
+}
+
+func warn(format string, a ...any) {
+	fmt.Fprintf(os.Stderr, "agent-bus: "+format+"\n", a...)
 }
 
 // ---- tiny arg splitting ----------------------------------------------------

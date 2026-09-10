@@ -48,8 +48,8 @@ the notifier, or the reverse.
 
 | Rule | Why |
 |---|---|
-| one process per principal holds the inbox | anything else is a race nobody can debug |
-| a second unfiltered `consume` is **refused**, not queued behind the first | a silent second reader looks exactly like message loss |
+| **one outstanding unfiltered read** at a time — a second is **refused**, not queued behind the first | a silent second reader looks exactly like message loss |
+| by convention, one *designated* process does that reading for a principal | the bus enforces the outstanding read, not process ownership; claiming otherwise would need a lease nobody wants in a PoC |
 | a waiter passes a **topic + tag filter** to `consume`, and the daemon hands it a match ahead of the unfiltered reader | the match happens where the message already is: no dispatcher in a client, and no local protocol between a Go CLI and a TypeScript session process |
 
 The filter is what keeps [request and reply](#request-and-reply) honest next to

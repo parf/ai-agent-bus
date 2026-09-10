@@ -65,15 +65,17 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 	if !read(w, r, &in) {
 		return
 	}
-	if _, err := protocol.ParseName(in.Name); err != nil {
+	in.Owner = caller.String()
+	rec, err := s.bus.Register(in)
+	if errors.Is(err, core.ErrBadName) {
 		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if in.Kind == "" {
-		in.Kind = "generic"
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
 	}
-	in.Owner = caller.String()
-	ok(w, s.bus.Register(in))
+	ok(w, rec)
 }
 
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
@@ -85,13 +87,13 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 	if !read(w, r, &in) {
 		return
 	}
-	if _, err := protocol.ParseName(in.To); err != nil {
-		fail(w, http.StatusBadRequest, err.Error())
-		return
-	}
 	in.From = caller.String()
 	e, err := s.bus.Send(in)
-	if errors.Is(err, core.ErrUnknown) {
+	switch {
+	case errors.Is(err, core.ErrBadName):
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	case errors.Is(err, core.ErrUnknown):
 		fail(w, http.StatusNotFound, "no such receiver: "+in.To)
 		return
 	}
