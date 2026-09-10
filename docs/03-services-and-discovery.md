@@ -183,7 +183,10 @@ by it. Namespacing follows services (`team/alerts`); local shadows upstream.
 
 ## Billing (optional role, `billing: on`)
 
-Minimal by intent: the bus counts, someone else holds the money.
+Minimal by intent: the bus counts, RADIUS holds the balance, a payment provider
+holds the money. Together they make **agent-bus a paid public API platform**: a
+stranger **registers** (web page or the API), **pays** (the API), **uses services**
+(the same API) — one surface for all three.
 
 | Aspect | Rule |
 |---|---|
@@ -192,4 +195,6 @@ Minimal by intent: the bus counts, someone else holds the money.
 | Usage | the bus records every billable call per (principal, service) and reports it to the balance service; the dashboard shows the same counts it already keeps |
 | Denied | **no balance = call denied**, with a clear error, like a missing role |
 | What is billable | what the bus can see — a message and its size. Bodies are encrypted, so per-method pricing needs the method name in the envelope (open) |
-| Money | never in the bus: no prices in currency units beyond what the service declares, no payments, no invoices — accounting only |
+| Sign-up | a service with `allow: *` (`01`), reachable from the WEB child's page or directly over the API; the newcomer's first call enrols them |
+| Pay | **a service on the bus like any other** — `pay` takes a payment through a provider and tops up the principal's RADIUS balance. The core never handles money; it just routes to the service that does |
+| Money | never in the core: no currency, no invoices, no card data — the `pay` service and the provider behind it own that; the core owns counting and denying |
