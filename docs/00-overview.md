@@ -67,15 +67,14 @@ Claims only; the mechanism lives in the doc each one links to.
   processes out of that one binary ([processes](11-processes.md)).
 - **Ed25519 wherever there is a key**; no passwords, no client secrets, no
   TLS/PKI.
-- **Do not reinvent the wheel — use the system's tools.** `ssh-keygen`,
-  `openssl`, `ldapsearch`, `curl`, `git`, `age`, `systemd-run`, `sshd`: where
-  something standard already does the job, we call it rather than link a
-  library or write our own. The system owns TLS, Kerberos, proxies and trust
-  stores; we own an invocation and a field map, and an operator can run the
-  same command by hand. Glue stays thin because there is little of it. The
-  exception is the per-message hot path, which cannot spawn a process — there
-  it is a well-known library, never our own primitives
-  ([modules § external tools](10-modules.md#external-tools)).
+- **Do not reinvent the wheel.** Prefer the language's built-in, then the
+  system's tool (`ssh-keygen`, `ldapsearch`, `git`, `age`, `systemd-run`,
+  `sshd`), then a well-known library — and never our own crypto or protocol
+  primitives. **HTTP is always built in**: web requests are a first-class part
+  of this design and every language ships a client, so they are never a
+  subprocess — unless the caller is a script, which has `curl`. The system
+  owns TLS, Kerberos, proxies and trust stores; we own an invocation and a
+  field map ([modules § external tools](10-modules.md#external-tools)).
 - **Public services are a goal, not an exception.** Open enrolment for anyone
   with a provider key; closed services queue newcomers for approval. Encrypted
   sessions without TLS or PKI are what make this safe to expose. With billing

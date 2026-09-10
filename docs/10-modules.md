@@ -51,7 +51,7 @@ Consequences worth stating, because they are the point:
 | `dump` | **port** | snapshot and reload in-memory state | [messaging § durability](04-messaging.md#durability) |
 | `vcs` | **port** | push and pull the git repo | [AUTH role § topology](06-auth-role.md#topology) |
 | `store/sqlite`, `store/postgres` | adapter | the one place SQL is written | |
-| `directory/github` | adapter | shells out to `curl` | |
+| `directory/github` | adapter | the built-in HTTP client | |
 | `balance/radius` | adapter | shells out to the standard client | |
 | `sandbox/systemd`, `sandbox/bwrap`, `sandbox/unshare` | adapter | one per backend, chosen by environment | |
 | `dump/parquet` | adapter | the Parquet writer and loader | |
@@ -64,11 +64,29 @@ above, and a module can move between processes without changing layer.
 
 ## External tools
 
-**Do not reinvent the wheel.** Where the system already ships a tool that does
-the job, call it instead of linking a library or writing our own — and this is
-an **adapter-layer rule**: each tool sits behind one port, so core cannot tell
-a subprocess from a library, which is also what makes it testable without any
-of them.
+**Do not reinvent the wheel.** Nothing here is ours if something standard
+already does it. Three ways to satisfy that, in order of preference:
+
+| | Use | When |
+|---|---|---|
+| 1 | **the language's built-in** | it already covers the job. **HTTP above all** — every language ships a client, so a web request is never a subprocess |
+| 2 | **the system's tool**, shelled out to | a standard binary is the well-trodden path, and the call is occasional |
+| 3 | **a well-known library**, in-process | neither fits and it is on the hot path |
+| — | **never** our own crypto or protocol primitives | — |
+
+### HTTP is built in
+
+**Web requests are a first-class citizen of this design, not glue.** Generic
+services are HTTP endpoints, health hints are HTTP probes, and one of the
+three faces is a web server ([discovery § faces](05-discovery.md#faces)). It
+is also the one thing every language already has in stock, so there is no
+wheel to avoid reinventing.
+
+So HTTP is always the built-in client — including fetching a login's public
+keys, which is an ordinary GET. **The exception is a script**: a shell or
+script adapter uses `curl`, because that is what a script has.
+
+### What we do shell out to
 
 | Job | Tool | Behind |
 |---|---|---|
@@ -76,36 +94,30 @@ of them.
 | sign / verify a challenge | `ssh-keygen -Y sign -n agent-bus`, `-Y verify` (SSHSIG) | `session` |
 | sign / verify a bundle generation | the same | `vcs` |
 | seal private config to a key | `age` | `store` |
-| fetch a name and public keys | `curl` | `directory/github` |
 | query a directory | `ldapsearch` | `directory/ldap` ([future](future/ldap-ad.md)) |
 | push and pull the repo | `git` | `vcs/git` |
 | ask for a balance | the standard RADIUS client | `balance/radius` |
 | confine a child | `systemd-run` · `bwrap` · `unshare` | `sandbox/*` |
 | authenticate an admin or issue a token | `sshd` with a forced command | — |
 
-What we get for free by doing this: the user's existing SSH keys work with no
-conversion, TLS and Kerberos and proxy and trust-store handling belong to the
-system, and every one of these is a tool an operator can run by hand to see
-what the daemon sees.
+Each sits behind one port, in an adapter — so core cannot tell a subprocess
+from a library, which is also what makes it testable without any of them.
+What it buys: the user's existing SSH keys work with no conversion, TLS and
+Kerberos and proxy and trust-store handling belong to the system, and every
+one of these is a command an operator can run by hand to see what the daemon
+sees.
 
-**The exception is the per-message hot path.** AEAD on every message and the
-HKDF behind a session cannot spawn a process; those stay in-process
-([access § encrypted sessions](02-access.md#encrypted-sessions)). "Do not
-reinvent" still binds there — it means a well-known library, never our own
-primitives. So:
+### The hot path
 
-| How often | What to use |
-|---|---|
-| setup, enrolment, admin, an occasional re-check | the system tool, shelled out to |
-| per message or per session | a well-known library, in-process |
-| **never** | our own crypto or protocol primitives |
+Per-message AEAD and the HKDF behind a session cannot spawn a process; those
+are rule 3, in-process
+([access § encrypted sessions](02-access.md#encrypted-sessions)).
 
-**On `openssl` specifically**: it fits where you would expect it to and mostly
-is not needed, because two earlier decisions removed its usual jobs — identity
-is SSH keys, so `ssh-keygen` covers generation and signing, and there is no
-TLS and no PKI ([access § encrypted sessions](02-access.md#encrypted-sessions)),
-so there are no certificates to make or verify. It stays the right reach for
-one-off key inspection and format conversion.
+**On `openssl` specifically**: it fits where you would expect and mostly is
+not needed, because two earlier decisions removed its usual jobs — identity is
+SSH keys, so `ssh-keygen` covers generation and signing, and there is no TLS
+and no PKI, so there are no certificates to make or verify. It stays the right
+reach for one-off key inspection and format conversion.
 
 ## What this buys
 

@@ -63,8 +63,9 @@ All 2026-09-09 unless noted.
 | Sandboxing on by default, backend chosen by environment | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | Minimal setup: install, `agent-bus setup`, start the service | [setup § install](09-setup.md#install) |
 | Go first, bun/NPM later; client libs Go, PHP, Rust, JS, Python | [setup § install](09-setup.md#install) |
-| Do not reinvent the wheel: call the system's tools (`ssh-keygen`, `openssl`, `ldapsearch`, `curl`, `git`, `age`, `sshd`) | [modules § external tools](10-modules.md#external-tools) |
-| Exception is the per-message hot path — a well-known library in-process, never our own primitives | [modules § external tools](10-modules.md#external-tools) |
+| Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](10-modules.md#external-tools) |
+| HTTP is a first-class citizen and always the built-in client, never a subprocess — unless the caller is a script | [modules § HTTP is built in](10-modules.md#http-is-built-in) |
+| The per-message hot path stays in-process: a well-known library, never our own primitives | [modules § the hot path](10-modules.md#the-hot-path) |
 | Modular by layer: protocol, ports, core, adapters, faces; dependencies point inward | [modules § the rule](10-modules.md#the-rule) |
 | Process layout follows systemd: a supervisor that holds nothing, plus small single-task children | [processes § the rule](11-processes.md#the-rule) |
 | Each child gets the narrowest privilege its task needs, declared not acquired | [processes § the processes](11-processes.md#the-processes) |
