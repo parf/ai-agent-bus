@@ -115,11 +115,11 @@ role you gave strangers. Google, LinkedIn and Facebook sign-in come later. Sessi
 encrypted end to end without TLS or certificates. **Closed** enrolment queues newcomers
 for your approval instead.
 
-Turn on **billing** and the same bus is a paid API platform: a user **registers** on
-the web page or through the API, **pays** through the API, and **uses your services**
-through the same API. Each service names its price — a flat fee or a cost per call; the
-bus counts, denies when the balance is gone, and never touches the money itself. Same
-daemon, same mechanics as your laptop bus.
+Turn on **billing** and the same bus is a paid API platform: a user **registers**,
+**pays** and **uses your services** through one API. Each service names its price — a
+flat fee or a cost per call; the bus counts and denies when the balance is gone. The
+payment gateway is just another service on the bus; a web site with a checkout page is
+your web site, not agent-bus. Same daemon, same mechanics as your laptop bus.
 
 ### Supervise and sandbox agents
 

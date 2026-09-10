@@ -43,7 +43,8 @@ parties a shared secret once, then gets out of the way.
   **open** service (`01`); **closed** services queue newcomers for approval.
   Encrypted sessions without TLS or PKI are what make this safe to expose.
   With billing on, this is a **paid public API platform**: register, pay and
-  use — all through the bus itself (`03`).
+  use through the bus's API; the payment gateway is a bus citizen, the web site
+  in front is not agent-bus (`03`).
 - **Bodies are end-to-end encrypted**: only sender and receiver read them; `agent-busd` forwards ciphertext and sees the envelope only. A service may switch this off in its own config for development.
 - **AUTH is on the hot path once** per (user, service, epoch).
 - **Two kinds of data.** *AUTH data* (principals, groups, ACL/roles, admin SSH
@@ -169,7 +170,7 @@ Settled with the owner; each is written into the doc named.
 - **`allow: *`** in an ACL = anyone who can authenticate (e.g. every GitHub user); how a sign-up service opens to the world → `01`
 - **More identity sources later**: Google, LinkedIn, Facebook — account proves who, bus issues the key; not designed → `01`
 - **Minimal billing as an optional role**: balance and accounting over **RADIUS** (our network only), usage tracked per (principal, service); a service prices itself either **flat** or **per call**; **no balance = call denied** → `00`, `03`
-- **Paid public API platform**: register (web or API), pay (API), use (API) — the API *is* agent-bus; `pay` is an ordinary service on the bus that tops up the RADIUS balance → `00`, `03`
+- **Paid public API platform**: register, pay, use — the API *is* agent-bus; the **payment gateway is an ordinary bus service** topping up the RADIUS balance; any **web site with payments is not agent-bus**, just a front → `00`, `03`
 - **Token from your SSH key**: `export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost static-token)`; setup puts the pubkey into `agent-bus`'s `authorized_keys` with a forced command, the daemon returns a token bound to that principal, valid until the daemon restarts or the principal refreshes → `02`, `04`
 
 ## Open

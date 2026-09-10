@@ -185,8 +185,8 @@ by it. Namespacing follows services (`team/alerts`); local shadows upstream.
 
 Minimal by intent: the bus counts, RADIUS holds the balance, a payment provider
 holds the money. Together they make **agent-bus a paid public API platform**: a
-stranger **registers** (web page or the API), **pays** (the API), **uses services**
-(the same API) — one surface for all three.
+stranger **registers**, **pays** and **uses services** through the bus's API. A
+web site in front of it is somebody's ordinary web site, not part of agent-bus.
 
 | Aspect | Rule |
 |---|---|
@@ -195,6 +195,6 @@ stranger **registers** (web page or the API), **pays** (the API), **uses service
 | Usage | the bus records every billable call per (principal, service) and reports it to the balance service; the dashboard shows the same counts it already keeps |
 | Denied | **no balance = call denied**, with a clear error, like a missing role |
 | What is billable | what the bus can see — a message and its size. Bodies are encrypted, so per-method pricing needs the method name in the envelope (open) |
-| Sign-up | a service with `allow: *` (`01`), reachable from the WEB child's page or directly over the API; the newcomer's first call enrols them |
-| Pay | **a service on the bus like any other** — `pay` takes a payment through a provider and tops up the principal's RADIUS balance. The core never handles money; it just routes to the service that does |
+| Sign-up | a service with `allow: *` (`01`); the newcomer's first call enrols them. A web site may call it on the user's behalf — that site is not agent-bus |
+| Pay | the **payment gateway is a citizen of the bus** — a service like any other, talking to a provider and topping up the principal's RADIUS balance. The core never handles money; it routes to the service that does. Cards, checkout pages, receipts live on whatever web site fronts it |
 | Money | never in the core: no currency, no invoices, no card data — the `pay` service and the provider behind it own that; the core owns counting and denying |
