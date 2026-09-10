@@ -82,7 +82,8 @@ The **push adapters** — Claude Code Channels and the Codex App Server
 *receive* instead of poll. V1 has both, and they are **prior art, not code we
 inherit**: they carry the signed wires, journals and delivery observations
 JetStream needed and V2 does not. PoC writes its own, small, and copies
-nothing.
+nothing — then measures itself against V1, which ran in production and hit the
+cases a fresh implementation has not thought of yet.
 
 **Deliberately absent**: encryption, AUTH, per-service ACLs, persistence,
 sandboxing, the dashboard, generated docs and catalog filtering, npm.

@@ -67,7 +67,7 @@ All 2026-09-09 unless noted.
 | A service call is a `send` whose reply comes back on the same topic and tag; the bus adds no call machinery | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | PoC includes basic service support: consume, `ack`, reply, and a caller that waits | [stages § PoC](12-stages.md#poc) |
 | PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](12-stages.md#poc) |
-| No V1 code is reused: V1 is read for behaviour and call sequences, and every component is written fresh | [stages § PoC](12-stages.md#poc) |
+| No V1 code is reused; V1 is the benchmark each fresh component is compared against before its task closes | [stages § PoC](12-stages.md#poc) |
 | An inbox has exactly one reader; a waiter filters by topic and tag and the daemon serves the match | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | A PoC daemon binds loopback or an SSH tunnel, never a public interface | [stages § PoC](12-stages.md#poc) |
 | A queue topic is an inbox with a name, read by `consume --topic` | [stages § PoC](12-stages.md#poc) |

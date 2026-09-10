@@ -64,29 +64,36 @@ One master token per user reaches every service, and it is issued over SSH
 because sshd does the authentication for free
 ([access § getting a token](../../docs/02-access.md#getting-a-token)).
 
-## V1 sources
+## V1 is the bar, not the source
 
-**No V1 code is reused.** It is documentation that happens to be executable:
-read it to learn how a protocol behaves in production, then close the file and
-write the small version. Code at `/rd/service/agent-bus/`, normative design at
-`/rd/vhosts/realty/Plans/PRF-25/`.
+**No V1 code is reused.** Every component is entangled with JetStream's signed
+wires, `event_hash`, KV journals, `ADAPTER_PENDING` recovery, delivery
+observations and a PHP handoff socket — none of which V2 has — and untangling
+one costs more than writing the small version.
 
-| To learn | Read |
-|---|---|
-| identifier rules | `libs/go/protocol` |
-| what the core verbs had to handle in production | `libs/go/app` |
-| CLI shape | `cli/commands.go` |
-| what an MCP tool surface looks like | `mcp/src` — for shape only; it is a control plane that shells out to the V1 CLI |
-| Channels push, and MCP-server-plus-push in one process | `notifier-claude/server.ts` |
-| the App Server call sequence, and what a real client had to handle | `notifier-codex/app-server.ts` |
-| the layer rules V2 inherited | `PRF-25/README.md` § Mandatory code layers |
+**But V1 is the standard our version has to meet.** It ran in production; every
+awkward branch in it is a case somebody actually hit. So each component with a
+V1 counterpart gets compared before its task closes:
 
-V1 runs on NATS JetStream, and its components carry the machinery that came
-with it: signed wires, `event_hash`, KV journals, `ADAPTER_PENDING` recovery,
-delivery observations, a PHP handoff socket. **None of that exists in V2**, and
-untangling a component from it costs more than writing the small thing — which
-is why nothing is copied. What transfers is knowledge: the call sequences, the
-failure modes, and which assumptions turned out to be wrong.
+> What does V1 handle here that ours does not — and for each, do we handle it,
+> or did we decide it is out of scope and write that down?
+
+A difference is fine. A difference nobody noticed is not.
+
+| Ours | Compare against | Look for |
+|---|---|---|
+| envelope, names | `libs/go/protocol` | which identifier rules turned out to matter |
+| core verbs | `libs/go/app` | what send, consume and discovery had to handle in production |
+| CLI | `cli/commands.go` | the flags a real operator needed |
+| MCP face | `mcp/src` | the tool surface that agents actually used |
+| Claude push | `notifier-claude/server.ts` | MCP-server-plus-push in one process; reply correlation |
+| Codex push | `notifier-codex/` | the App Server call sequence, and idle vs busy, thread changes, disconnects, runtime rejection |
+| the layer rules V2 inherited | `PRF-25/README.md` § Mandatory code layers | |
+
+Code at `/rd/service/agent-bus/`, normative design at
+`/rd/vhosts/realty/Plans/PRF-25/`. V1's acceptance is `stages § PoC` plus this
+comparison — the PoC may be smaller than V1, but it may not be *worse at what
+it does*.
 
 ## Working rules
 
@@ -94,5 +101,7 @@ failure modes, and which assumptions turned out to be wrong.
 - One wave, one deliverable; commit at the end of each, push only when asked.
 - A decision taken here lands in [decisions](../../docs/decisions.md) and in
   the doc that owns it — never only in the plan.
+- **Before a task with a V1 counterpart closes**, compare the two and record
+  what V1 handles that we do not — handled, or out of scope with a reason.
 - What the PoC teaches that contradicts the design is a **doc edit**, not a
   note in this file.
