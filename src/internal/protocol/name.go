@@ -16,6 +16,9 @@ import (
 // of one name are one name, so a registration and a send cannot land in
 // different inboxes, and nothing depends on how a shell or a config file
 // happened to capitalise it.
+//
+// Both halves are [a-z0-9._-], starting alphanumeric: one charset, and a realm
+// can be a host — parf@om.parf.dev.
 var partRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
 
 // Name is one half of the two parameters every call carries.
@@ -40,10 +43,10 @@ func ParseName(s string) (Name, error) {
 	}
 	local, realm = strings.TrimSpace(local), strings.TrimSpace(realm)
 	if !partRe.MatchString(local) {
-		return Name{}, fmt.Errorf("bad name %q", s)
+		return Name{}, fmt.Errorf("bad name %q: a-z 0-9 . _ - only, starting alphanumeric", s)
 	}
 	if !partRe.MatchString(realm) {
-		return Name{}, fmt.Errorf("bad realm in %q", s)
+		return Name{}, fmt.Errorf("bad realm in %q: a-z 0-9 . _ - only, starting alphanumeric", s)
 	}
 	return Name{Local: local, Realm: realm}, nil
 }

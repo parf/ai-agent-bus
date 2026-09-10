@@ -15,6 +15,21 @@ func TestParseNameCanonicalises(t *testing.T) {
 	}
 }
 
+// Dots are allowed on both sides: a realm is often a host, and a local part
+// may be dotted too.
+func TestDotsAreAllowedOnBothSides(t *testing.T) {
+	for in, want := range map[string]string{
+		"Parf@OM.Parf.Dev":  "parf@om.parf.dev",
+		"first.last@srv1":   "first.last@srv1",
+		"slack.reader@host": "slack.reader@host",
+	} {
+		n, err := ParseName(in)
+		if err != nil || n.String() != want {
+			t.Fatalf("%q: got %q, %v", in, n, err)
+		}
+	}
+}
+
 func TestParseNameRejects(t *testing.T) {
 	for _, in := range []string{
 		"parf",           // no realm
