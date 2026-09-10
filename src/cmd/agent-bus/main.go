@@ -5,6 +5,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,9 +29,15 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus register <name> [--kind k] [--addr a] [--descr d]
   agent-bus ls [--kind k]
   agent-bus send <to> [--topic t] [--tag g] <text>
+  agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
   agent-bus consume [--topic t] [--tag g] [--wait 30s] [--follow]
+  agent-bus ack <message-id>
   agent-bus reply <message-id> <text>
   agent-bus reply --to <name> [--topic t] [--tag g] <text>
+  agent-bus topic create <name> [--kind queue|pubsub] [--descr d]
+  agent-bus publish --topic <name> <text>
+  agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
+  agent-bus start                     (the same, as JSON on stdin)
 
 Environment: AGENT_BUS_NAME (user@realm), AGENT_BUS_TOKEN, AGENT_BUS_ADDR.`
 
@@ -49,8 +57,18 @@ func main() {
 		err = ls(rest)
 	case "send":
 		err = send(rest)
+	case "call":
+		err = callVerb(rest)
 	case "consume":
 		err = consume(rest)
+	case "ack":
+		err = ack(rest)
+	case "topic":
+		err = topic(rest)
+	case "publish":
+		err = publish(rest)
+	case "start":
+		err = start(rest)
 	case "reply":
 		err = reply(rest)
 	case "help", "-h", "--help":
@@ -90,6 +108,131 @@ func send(args []string) error {
 	return post("/send", protocol.Envelope{
 		To: pos[0], Topic: flags["topic"], Tag: flags["tag"],
 		Body: strings.Join(pos[1:], " "),
+	})
+}
+
+// call is send plus the wait for its answer. There is no third verb on the
+// wire and no dispatcher here: the daemon serves a filtered consume ahead of
+// the unfiltered reader, so the reply finds this caller
+// (docs/04-messaging.md#request-and-reply).
+//
+// A receipt is an ordinary message on the same topic and tag, so the wait
+// reports it and keeps waiting for the answer
+// (docs/04-messaging.md#receipts).
+func callVerb(args []string) error {
+	pos, flags := split(args)
+	if len(pos) < 2 {
+		return fmt.Errorf("call wants <to> and text")
+	}
+	topic, tag := flags["topic"], flags["tag"]
+	if topic == "" {
+		topic = "call"
+	}
+	if tag == "" {
+		tag = newTag() // unique, so nothing else answers this wait
+	}
+	// A caller that wants an answer needs an address for it to arrive at.
+	// Registration is a record you state (docs/01-identity.md#registration),
+	// and this is the caller stating it.
+	if err := postQuiet("/register", protocol.Record{
+		Name: os.Getenv("AGENT_BUS_NAME"), Kind: "agent",
+	}); err != nil {
+		return fmt.Errorf("could not register as %s: %w", os.Getenv("AGENT_BUS_NAME"), err)
+	}
+	sent, code, err := call("POST", "/send", nil, protocol.Envelope{
+		To: pos[0], Topic: topic, Tag: tag, Body: strings.Join(pos[1:], " "),
+	})
+	if err != nil {
+		return err
+	}
+	if code >= 400 {
+		return fmt.Errorf("%s", strings.TrimSpace(string(sent)))
+	}
+
+	deadline := 30 * time.Second
+	if v := flags["wait"]; v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return fmt.Errorf("bad --wait: %v", err)
+		}
+		deadline = d
+	}
+	until := time.Now().Add(deadline)
+	q := url.Values{"topic": {topic}, "tag": {tag}}
+	for {
+		left := time.Until(until)
+		if left <= 0 {
+			return fmt.Errorf("no answer within %s (the message was accepted; do not resend it)", deadline)
+		}
+		q.Set("wait", left.Round(time.Second).String())
+		body, code, err := call("GET", "/consume", q, nil)
+		if err != nil {
+			return err
+		}
+		if code == http.StatusNoContent {
+			continue
+		}
+		if code >= 400 {
+			return fmt.Errorf("%s", strings.TrimSpace(string(body)))
+		}
+		var e protocol.Envelope
+		if err := json.Unmarshal(body, &e); err == nil && e.Receipt != "" {
+			fmt.Fprintf(os.Stderr, "%s from %s\n", e.Receipt, e.From)
+			continue // a receipt is not the answer
+		}
+		os.Stdout.Write(body)
+		return nil
+	}
+}
+
+// ack says "got it" back to whoever sent the message: an ordinary message on
+// the same topic and tag, naming the one it is about.
+// See docs/04-messaging.md#receipts.
+func ack(args []string) error {
+	pos, _ := split(args)
+	if len(pos) != 1 {
+		return fmt.Errorf("ack wants one message-id")
+	}
+	c, found := recall(pos[0])
+	if !found {
+		return fmt.Errorf("message %s is not one this client consumed", pos[0])
+	}
+	return post("/send", protocol.Envelope{
+		To: c.From, Topic: c.Topic, Tag: c.Tag, Receipt: "ack", Re: c.ID,
+	})
+}
+
+// A topic is a record like any other; `topic create` is the sugar that says
+// so. See docs/03-services-and-topics.md.
+func topic(args []string) error {
+	if len(args) == 0 || args[0] != "create" {
+		return fmt.Errorf("the only topic verb is: topic create <name> [--kind queue|pubsub]")
+	}
+	pos, flags := split(args[1:])
+	if len(pos) != 1 {
+		return fmt.Errorf("topic create wants one name")
+	}
+	mode := flags["kind"]
+	if mode == "" {
+		mode = protocol.ModeQueue
+	}
+	if mode != protocol.ModeQueue && mode != protocol.ModePubSub {
+		return fmt.Errorf("a topic is %s or %s", protocol.ModeQueue, protocol.ModePubSub)
+	}
+	return post("/register", protocol.Record{
+		Name: pos[0], Kind: protocol.KindTopic, Mode: mode, Descr: flags["descr"],
+	})
+}
+
+// publish is a send to a topic. A publisher need not be a registered service
+// — it only needs a name and a token. See docs/12-stages.md#poc.
+func publish(args []string) error {
+	pos, flags := split(args)
+	if flags["topic"] == "" || len(pos) == 0 {
+		return fmt.Errorf("publish wants --topic <name> and text")
+	}
+	return post("/send", protocol.Envelope{
+		To: flags["topic"], Topic: flags["topic"], Body: strings.Join(pos, " "),
 	})
 }
 
@@ -148,6 +291,12 @@ func reply(args []string) error {
 		return fmt.Errorf("reply wants text")
 	}
 	return post("/send", protocol.Envelope{To: to, Topic: topic, Tag: tag, Body: strings.Join(text, " ")})
+}
+
+func newTag() string {
+	var b [6]byte
+	rand.Read(b[:])
+	return hex.EncodeToString(b[:])
 }
 
 // ---- talking to the daemon -------------------------------------------------
@@ -212,6 +361,19 @@ var transport = sync.OnceValues(func() (*http.Client, string) {
 
 func get(path string, q url.Values) error { return show(call("GET", path, q, nil)) }
 func post(path string, body any) error    { return show(call("POST", path, nil, body)) }
+
+// postQuiet is the same call without printing the answer: a long-running
+// service writes messages, not JSON, to its stdout.
+func postQuiet(path string, body any) error {
+	out, code, err := call("POST", path, nil, body)
+	if err != nil {
+		return err
+	}
+	if code >= 400 {
+		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
 
 func show(body []byte, code int, err error) error {
 	if err != nil {

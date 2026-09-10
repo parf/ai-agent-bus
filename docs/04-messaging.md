@@ -30,7 +30,7 @@ the same topic + tag**, and the caller waits for it:
 
 | Side | Does |
 |---|---|
-| caller | `send`, then wait on its own queue for a message with that topic + tag |
+| caller | **states its own record** if it has none — an answer needs an address to arrive at ([identity § registration](01-identity.md#registration)) — then `send` and wait on its own queue for a message with that topic + tag |
 | service | `consume` its inbox, optionally `ack` (got it), do the work, `reply` — and `done` if the sender asked for it |
 | deadline | the caller's, and the message's TTL is what stops a late answer arriving |
 
@@ -51,6 +51,14 @@ the notifier, or the reverse.
 | **one outstanding unfiltered read** at a time — a second is **refused**, not queued behind the first | a silent second reader looks exactly like message loss |
 | by convention, one *designated* process does that reading for a principal | the bus enforces the outstanding read, not process ownership; claiming otherwise would need a lease nobody wants in a PoC |
 | a waiter passes a **topic + tag filter** to `consume`, and the daemon hands it a match ahead of the unfiltered reader | the match happens where the message already is: no dispatcher in a client, and no local protocol between a Go CLI and a TypeScript session process |
+
+**Reading a topic is not filtering.** A queue topic is an inbox with a name
+([services and topics § topics](03-services-and-topics.md#topics)), so
+`consume` reads it as an inbox — one reader, like any other. The same option
+names both, and the daemon decides once, for every face: a **registered
+topic named on its own** is an inbox to read; anything else, or anything with
+a tag beside it, filters the caller's own inbox. A reply always carries a
+tag, which is what keeps the two apart.
 
 The filter is what keeps [request and reply](#request-and-reply) honest next to
 a live session — the wait is still an ordinary `consume`, and every client

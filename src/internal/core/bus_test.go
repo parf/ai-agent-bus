@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -166,4 +167,61 @@ func waitForWaiters(t *testing.T, b *Bus, name string, n int) {
 		time.Sleep(time.Millisecond)
 	}
 	t.Fatalf("waited for %d waiters on %s, never arrived", n, name)
+}
+
+// A queue topic is an inbox with a name: anyone may send to it, and the
+// consumer that was down still finds the message.
+func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
+	b := New()
+	mustRegister(t, b, protocol.Record{Name: "jobs@srv", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "pub@srv", Owner: "pub@srv"})
+	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "jobs@srv", Topic: "jobs@srv", Body: "work"}); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	e, err := b.Consume(ctx, "jobs@srv", "", "", false)
+	if err != nil || e.Body != "work" {
+		t.Fatalf("reading the topic afterwards: %v %+v", err, e)
+	}
+}
+
+// Fan-out is MVP, and PoC says so instead of inventing a second meaning of
+// subscription. See docs/12-stages.md#poc.
+func TestPublishingToAPubSubTopicSaysMVP(t *testing.T) {
+	b := New()
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "pub@srv", Owner: "pub@srv"})
+	_, err := b.Send(protocol.Envelope{From: "pub@srv", To: "news@srv", Body: "x"})
+	if !errors.Is(err, ErrNotYet) {
+		t.Fatalf("want ErrNotYet, got %v", err)
+	}
+}
+
+// A receipt rides the same topic and tag as the message it is about, so the
+// caller's filtered wait sees it. See docs/04-messaging.md#receipts.
+func TestAReceiptReachesTheCallersFilteredWait(t *testing.T) {
+	b := New()
+	mustRegister(t, b, protocol.Record{Name: "caller@srv", Owner: "caller@srv"})
+	if _, err := b.Send(protocol.Envelope{
+		From: "caller@srv", To: "caller@srv", Topic: "call", Tag: "t1", Receipt: "ack", Re: "abc",
+	}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	e, err := b.Consume(ctx, "caller@srv", "call", "t1", true)
+	if err != nil {
+		t.Fatalf("consume: %v", err)
+	}
+	if e.Receipt != "ack" || e.Re != "abc" {
+		t.Fatalf("the receipt lost its meaning: %+v", e)
+	}
+}
+
+func mustRegister(t *testing.T, b *Bus, r protocol.Record) {
+	t.Helper()
+	if _, err := b.Register(r); err != nil {
+		t.Fatalf("register %s: %v", r.Name, err)
+	}
 }

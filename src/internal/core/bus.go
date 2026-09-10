@@ -23,6 +23,7 @@ var (
 	ErrUnknown  = errors.New("no such name")
 	ErrTwoReads = errors.New("inbox already has a reader")
 	ErrBadName  = errors.New("bad name")
+	ErrNotYet   = errors.New("pub/sub topics arrive at MVP")
 )
 
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.
@@ -83,6 +84,19 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	return r, nil
 }
 
+// Lookup answers what a name is, so a face can tell a topic from a filter
+// without guessing. See docs/03-services-and-topics.md.
+func (b *Bus) Lookup(name string) (protocol.Record, bool) {
+	n, err := canon(name)
+	if err != nil {
+		return protocol.Record{}, false
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	r, ok := b.records[n]
+	return r, ok
+}
+
 func (b *Bus) List(kind string) []protocol.Record {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -119,8 +133,15 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if _, known := b.records[to]; !known {
+	rec, known := b.records[to]
+	if !known {
 		return protocol.Envelope{}, ErrUnknown
+	}
+	// A queue topic is an inbox with a name, so publishing to one is an
+	// ordinary send. Fan-out is not: a subscriber is undefined without an
+	// ACL, so PoC stores the mode and says so. See docs/12-stages.md#poc.
+	if rec.Kind == protocol.KindTopic && rec.Mode == protocol.ModePubSub {
+		return protocol.Envelope{}, ErrNotYet
 	}
 	e.To, e.From = to, from
 	e.ID = newID()

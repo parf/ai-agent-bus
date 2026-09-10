@@ -96,6 +96,9 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 	case errors.Is(err, core.ErrUnknown):
 		fail(w, http.StatusNotFound, "no such receiver: "+in.To)
 		return
+	case errors.Is(err, core.ErrNotYet):
+		fail(w, http.StatusNotImplemented, in.To+" is a pub/sub topic: "+err.Error())
+		return
 	}
 	if err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
@@ -104,12 +107,27 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 	ok(w, e)
 }
 
-// consume long-polls the caller's own inbox. topic+tag make it a filtered
-// wait, which the daemon serves ahead of the unfiltered reader.
+// consume long-polls an inbox. Which one, and whether it is filtered, is
+// decided here so that every face gets the same answer:
+//
+//   - `topic` alone, naming a **registered topic** → read that topic's inbox.
+//     A queue topic is an inbox with a name (docs/12-stages.md#poc), and
+//     there is one reader of it like any other inbox.
+//   - otherwise `topic` and `tag` **filter the caller's own inbox** — the
+//     wait a reply is collected on (docs/04-messaging.md#request-and-reply).
+//
+// A tag is what makes the second case: a reply always carries one, and a
+// topic never doubles as a name when a tag is present.
 func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	q := r.URL.Query()
 	topic, tag := q.Get("topic"), q.Get("tag")
 	filtered := topic != "" || tag != ""
+	inbox := caller.String()
+	if topic != "" && tag == "" {
+		if rec, ok := s.bus.Lookup(topic); ok && rec.Kind == protocol.KindTopic {
+			inbox, topic, filtered = rec.Name, "", false
+		}
+	}
 
 	wait := 30 * time.Second
 	if v := q.Get("wait"); v != "" {
@@ -120,7 +138,7 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 	ctx, cancel := context.WithTimeout(r.Context(), wait)
 	defer cancel()
 
-	e, err := s.bus.Consume(ctx, caller.String(), topic, tag, filtered)
+	e, err := s.bus.Consume(ctx, inbox, topic, tag, filtered)
 	switch {
 	case errors.Is(err, core.ErrTwoReads):
 		fail(w, http.StatusConflict, "this inbox already has a reader")

@@ -131,6 +131,8 @@ All 2026-09-09 unless noted.
 | Principal id is GitHub's numeric id | the name is the identity; the id is only a re-check comparison — [identity § names](01-identity.md#names) |
 | GitHub is *the* identity source, and the reason public services work | a provider is an alternative to typing the record — [identity § registration](01-identity.md#registration) |
 | Overflow: drop oldest | two modes, `ring` and `strict` — [messaging § overflow](04-messaging.md#overflow) |
+| A registered topic named alone is an inbox to read; with a tag it is a filter | one rule for every face — [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| A caller states its own record before it calls | an answer needs an address — [messaging § request and reply](04-messaging.md#request-and-reply) |
 | Audience with AUTH off is a per-service `user: token` map | the two ACL layers — [identity § acl](01-identity.md#acl) |
 | LDAP/AD in scope | deferred — [future](future/ldap-ad.md) |
 | NATS · Redis Streams · AUTH-signed JWT keys | dropped; kept in `legacy/` for history |

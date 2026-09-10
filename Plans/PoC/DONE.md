@@ -245,3 +245,45 @@ nothing to add.
 
 **Not done in B, on purpose**: `call`, `ack`, topics, script services, SSH
 token issuance.
+
+## C — the rest of the verbs
+
+Eleven verbs now exist ([stages § PoC](../../docs/12-stages.md#poc)), and
+`src/smoke.sh` is 38 checks.
+
+**C.1 — `call` and `ack`.** `call` is `send` plus the filtered wait, with no
+third verb on the wire and no dispatcher in the client: the daemon already
+serves a filtered consume ahead of the unfiltered reader. It makes up a unique
+tag when none is given, so nothing else can answer that wait.
+
+`ack` is an ordinary message on the same topic and tag that names the message
+it is about, exactly as the design says. That means a caller's wait *sees* it,
+so `call` reports a receipt and keeps waiting for the answer.
+
+Two rules had to be settled, and both are in
+[decisions](../../docs/decisions.md):
+
+| | |
+|---|---|
+| **a registered topic named alone is an inbox to read; with a tag beside it, a filter** | `consume --topic` had two meanings — read the topic, or filter my own inbox. The daemon decides once, so every face agrees. A reply always carries a tag, which is what keeps them apart |
+| **a caller states its own record before it calls** | found by the smoke: the service's reply came back *no such receiver*. An answer needs an address to arrive at |
+
+**C.2 — topics.** `topic create` is sugar for registering a record of kind
+topic; `publish` is a send to it. A queue topic is an inbox with a name, so a
+consumer that was down reads the backlog afterwards. Publishing to a pub/sub
+topic answers *MVP* rather than inventing a second meaning of subscription.
+
+**C.3 — scripts as services.** `agent-bus start <name> --algo=std|args
+<script> [-N]`, or the same as JSON on stdin. The `start` process is the
+inbox's **one reader**; it acks, spawns the script per message up to `-N` at
+once, and sends what the script printed. A non-zero exit means no reply — the
+caller waits and times out, which is honest about work that did not happen.
+The script never sees the bus: `args` hands it the body as `$1`, `std` hands
+it the envelope on stdin, and both get the envelope in the environment.
+
+The bound is taken **before** the goroutine starts, so with all N busy nothing
+is consumed — at-most-once means a message taken and dropped is a message
+lost.
+
+**Not done in C, on purpose**: pub/sub fan-out, TTL, `done`, `reply-to`,
+deadlines, supervision, sandboxing, restart.

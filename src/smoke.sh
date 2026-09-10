@@ -1,5 +1,5 @@
 #!/bin/bash
-# Wave A acceptance — Plans/PoC/TODO.md. Builds, runs a daemon on loopback and
+# Wave A, B and C acceptance — Plans/PoC/TODO.md. Builds, runs a daemon on loopback and
 # a private socket, exercises the six verbs, exits non-zero on any failure.
 set -u
 cd "$(dirname "$0")"
@@ -97,6 +97,54 @@ has "ls shows the canonical form" "$(ab asker@srv1 ls)" '"name":"pad@srv1"'
 ab asker@srv1 send ' Pad@SRV1 ' --topic pad --tag p "padded name" >/dev/null
 has "a padded, upper-case send reaches it" "$(ab pad@srv1 consume --topic pad --tag p --wait 3s)" 'padded name'
 bad_exit "a non-ASCII name is refused" "$(ab asker@srv1 register 'pärf@srv1' >/dev/null 2>&1; echo $?)"
+
+echo "== call and ack: a service answers, and says it got the message first"
+ab svc@srv1 register svc@srv1 --kind generic --descr "answers calls" >/dev/null
+(
+  msg=$(ab svc@srv1 consume --wait 10s)
+  id=$(printf '%s' "$msg" | sed 's/.*"message_id":"\([^"]*\)".*/\1/')
+  [ -n "$id" ] && ab svc@srv1 ack "$id" >/dev/null
+  [ -n "$id" ] && ab svc@srv1 reply "$id" "the answer is 42" >/dev/null
+) &
+SPID=$!
+out=$(ab caller@srv1 call svc@srv1 --wait 15s "what is the answer?" 2>"$D/call.err"); rc=$?
+wait $SPID 2>/dev/null
+ok_exit "call returns" $rc
+has "call gets the answer, not the receipt" "$out" 'the answer is 42'
+has "the ack was seen and reported" "$(cat "$D/call.err")" 'ack from svc@srv1'
+has "a call to nobody fails" "$(ab caller@srv1 call ghost@nowhere --wait 2s hi 2>&1)" 'no such receiver'
+
+echo "== topics: a publisher with no service record, a consumer that was down"
+ab owner@srv1 topic create jobs@srv1 --descr "work queue" >/dev/null
+has "the topic is in ls" "$(ab owner@srv1 ls --kind topic)" 'jobs@srv1'
+ab drive-by@srv1 publish --topic jobs@srv1 "sweep the floor" >/dev/null
+has "a consumer that was down still finds it" "$(ab reader@srv1 consume --topic jobs@srv1 --wait 5s)" 'sweep the floor'
+ab owner@srv1 topic create news@srv1 --kind pubsub >/dev/null
+has "publishing to a pub/sub topic answers MVP" "$(ab drive-by@srv1 publish --topic news@srv1 hello 2>&1)" 'MVP'
+has "a topic filter is still a filter when a tag is given" "$(ab caller@srv1 consume --topic jobs@srv1 --tag none --wait 1s; echo -n empty)" 'empty'
+
+echo "== a shell script is a service"
+printf '#!/bin/sh\necho "Hello $1"\n' > "$D/hello-world.sh"; chmod +x "$D/hello-world.sh"
+ab hello@srv1 start hello@srv1 --algo args "$D/hello-world.sh" --descr "greets you" >"$D/start.log" 2>&1 &
+HPID=$!
+for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'greets you' && break; sleep 0.2; done
+has "the script is registered and discoverable" "$(ab asker@srv1 ls)" 'greets you'
+has "it answers a call" "$(ab greeter@srv1 call hello@srv1 --wait 15s world)" 'Hello world'
+kill $HPID 2>/dev/null; wait $HPID 2>/dev/null
+
+cat > "$D/std.sh" <<'SH'
+#!/bin/sh
+envelope=$(cat)
+case "$envelope" in *payload*) got=yes ;; *) got=no ;; esac
+echo "stdin=$got topic=$AGENT_BUS_TOPIC from=$AGENT_BUS_FROM"
+SH
+chmod +x "$D/std.sh"
+ab std@srv1 start std@srv1 --algo std "$D/std.sh" -2 --descr "reads the envelope" >>"$D/start.log" 2>&1 &
+SPID2=$!
+for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'reads the envelope' && break; sleep 0.2; done
+has "std gets the envelope on stdin and in the environment" \
+  "$(ab greeter@srv1 call std@srv1 --topic t9 --wait 15s payload)" 'stdin=yes topic=t9 from=greeter@srv1'
+kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 
 echo "== the MCP face"
 # bun is not optional: the MCP face and both push modes are the PoC

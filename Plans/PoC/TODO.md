@@ -15,7 +15,7 @@ where it is better** — simplicity breaks the tie, and complexity is paid for
 by a case V1 actually hit, not by V1 having it:
 [README § V1 is the bar](README.md#v1-is-the-bar).
 
-**Next step**: C.1 — `call` and `ack`.
+**Next step**: D.1 — the SSH token.
 
 ## Blockers
 
@@ -61,15 +61,17 @@ tag ([DONE.md](DONE.md): the live run). Recipe:
 
 | ID | Task | Notes |
 |---|---|---|
-| C.1 | `call`, `ack` | `call` = send, then the A.3 filter. The daemon serves it, so no client dispatcher ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)) |
-| C.2 | `topic create`, `publish`, and `consume --topic <t>` | queue kind only: a queue topic is an inbox with a name. `--kind pubsub` is stored and publish to it answers *MVP* ([stages § PoC](../../docs/12-stages.md#poc)) |
+| C.1 | ✅ _Done → [DONE.md](DONE.md): C_ — `call` is send plus the filtered wait; `ack` is an ordinary message on the same topic and tag |
+| C.2 | ✅ _Done → [DONE.md](DONE.md): C_ — queue topics read as inboxes; a pub/sub topic is stored and publishing to one answers *MVP* |
 
-| C.3 | `start <name> --algo=std\|args <script> [-N]` and the JSON form on stdin | spawn per message up to N at once, envelope in the environment, stdout is the reply, exit non-zero means none. The `start` process is the inbox's one reader; the scripts never see the bus. No sandbox, no restart ([runner § script services](../../docs/08-runner-role.md#script-services)) |
+| C.3 | ✅ _Done → [DONE.md](DONE.md): C_ — `start` is the inbox's one reader, spawns per message up to `-N`, both algos |
 
 **Done when**: one shell calls a service another registered and gets the reply;
 a publisher with no service record emits to a queue topic, and a consumer that
 was down reads it afterwards with `consume --topic`; and `echo "Hello $1"` in a
 file, started with one command, answers a `call` from another shell.
+
+✅ **Met** — all three are checks in `src/smoke.sh`.
 
 ### D — close the stage
 
