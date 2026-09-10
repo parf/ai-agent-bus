@@ -58,9 +58,9 @@ Consequences worth stating, because they are the point:
 | `vcs/git` | adapter | shells out to `git` | |
 | `api`, `mcp`, `web`, `cli` | face | one entry point each, no domain logic | [discovery § faces](05-discovery.md#faces) |
 
-The AUTH and billing **roles** are child processes
-([overview § roles](00-overview.md#roles)); that is a runtime boundary, not a
-layer. Each is still built from the layers above.
+Which process a module ends up in is a **runtime** boundary, not a layer:
+see [processes](11-processes.md). Each process is still built from the layers
+above, and a module can move between processes without changing layer.
 
 ## Where thin glue lands
 

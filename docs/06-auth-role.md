@@ -30,9 +30,11 @@ generation wins**, gap logged.
 
 ## Where it runs
 
-- The AUTH role is a **child process of `agent-busd`**. Only that child holds
-  `master_secret` and verifies/serves the bundle; the core reaches it over a
-  unix socket (sshd/Postfix-style privilege separation).
+- The AUTH role is a **child process of `agent-busd`**, with no network
+  listener of its own. Only that child holds `master_secret` and
+  verifies/serves the bundle; the bus reaches it over a unix socket
+  (sshd/Postfix-style privilege separation) —
+  [processes](11-processes.md).
 - **Signing key is offline** (admin machine): `agent-bus auth sign --gen N`.
   Never on a server → any replica can be master, failover is a pointer flip, a
   compromised replica can serve stale-but-valid config — but see

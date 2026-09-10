@@ -2,7 +2,13 @@
 
 A pm2/php-fpm-style supervisor **plus** bus integration **plus** sandboxing:
 one supervised process hosting many instances and speaking the bus on their
-behalf. Always present — it is part of the core, not an optional child.
+behalf. Always present.
+
+It is **its own process**, because it is the one component that executes code
+it did not write — see
+[processes § why the runner is its own process](11-processes.md#why-the-runner-is-its-own-process).
+So there are two levels: `agent-busd`'s supervisor runs the runner, and the
+runner runs user children.
 
 ## What the runner does
 
@@ -45,22 +51,18 @@ mode — that is the adapter's policy as a receiver
 
 ## Supervises itself
 
-The first children are `agent-busd`'s **own roles**: the **WEB** dashboard
-(cgroup-limited) and, with `auth: on`, the **AUTH** role
-([AUTH role § where it runs](06-auth-role.md#where-it-runs)). Same
-spawn/restart/limits machinery as any child; no special cases.
-
-❓ **Process layout** — how many child processes beyond WEB and AUTH, and what
-is shared between core and children (store, queues, sockets, memory) vs.
-isolated. *Settled by:* owner review.
+`agent-busd`'s own children — bus, runner, web, auth, billing, health — are
+spawned with the same machinery as any user child: same restart policy, same
+limits, no special cases. The list and the privilege each one gets are in
+[processes](11-processes.md).
 
 ## Who it runs as
 
 - **Separate user** (default for shared/server use): `agent-busd` as the
   `agent-bus` user (or per-tenant users); children as that user or further
-  dropped. Privileged installer once; **no root at runtime** — the one
-  capability held is `CAP_CHOWN`, for the per-user sockets
-  ([access § local socket](02-access.md#local-socket)).
+  dropped. Privileged installer once; **no root at runtime**, and the only
+  capability anywhere is the supervisor's
+  ([processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown)).
 - **Current user** (personal use): runner and children as you. Zero setup —
   the laptop story with the AUTH role off.
 

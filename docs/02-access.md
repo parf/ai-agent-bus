@@ -58,7 +58,9 @@ nothing for anyone to configure.
 
 Chowning a socket to another account needs **`CAP_CHOWN`** and nothing more,
 granted declaratively (`AmbientCapabilities=CAP_CHOWN` under systemd), not by
-running as root ([runner § who it runs as](08-runner-role.md#who-it-runs-as)).
+running as root. It is held by the supervisor alone, which then passes the
+listening fds down, so no long-running child has it
+([processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown)).
 
 ## Local and remote
 

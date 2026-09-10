@@ -65,6 +65,12 @@ All 2026-09-09 unless noted.
 | Go first, bun/NPM later; client libs Go, PHP, Rust, JS, Python | [setup § install](09-setup.md#install) |
 | Thin glue to external systems: shell out to the standard client | [overview § principles](00-overview.md#principles) |
 | Modular by layer: protocol, ports, core, adapters, faces; dependencies point inward | [modules § the rule](10-modules.md#the-rule) |
+| Process layout follows systemd: a supervisor that holds nothing, plus small single-task children | [processes § the rule](11-processes.md#the-rule) |
+| Each child gets the narrowest privilege its task needs, declared not acquired | [processes § the processes](11-processes.md#the-processes) |
+| Nothing is shared implicitly — children talk over unix sockets with explicit contracts | [processes § what is shared](11-processes.md#what-is-shared) |
+| The supervisor owns the listening sockets and passes fds down | [processes § the rule](11-processes.md#the-rule) |
+| The runner is its own process: the only component that execs code it did not write | [processes § why the runner is its own process](11-processes.md#why-the-runner-is-its-own-process) |
+| `CAP_CHOWN` is the supervisor's alone, so no long-running child holds a capability | [processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown) |
 | Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](10-modules.md#the-rule) |
 | Only adapters touch the outside world; thin glue is an adapter-layer rule | [modules § where thin glue lands](10-modules.md#where-thin-glue-lands) |
 | `protocol` is the layer the client libraries reimplement, and depends on nothing | [modules § the rule](10-modules.md#the-rule) |
@@ -75,7 +81,6 @@ All 2026-09-09 unless noted.
 
 | ❓ | Settled by | Where |
 |---|---|---|
-| Process layout — how many children, what is shared | owner review | [runner § supervises itself](08-runner-role.md#supervises-itself) |
 | Static sessions are not end-to-end against the daemon | owner | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Per-method pricing needs the method name in the envelope | owner | [billing role](07-billing-role.md) |
 | A newcomer with no balance cannot reach `pay` | owner | [billing role](07-billing-role.md) |
@@ -87,11 +92,13 @@ All 2026-09-09 unless noted.
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
+| Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
 
 ## Superseded
 
 | Was | Now |
 |---|---|
+| The runner is part of the core | its own process — it is the one component that execs code it did not write — [processes](11-processes.md) |
 | A token lives in daemon memory and dies with a restart | tokens are saved, and the previous one is kept — otherwise a reloaded queue is undecryptable ciphertext — [access § token lifetime](02-access.md#token-lifetime) |
 | The token is the whole identity in "minimal mode" | a call always carries two parameters; the socket supplies them locally — [access § two parameters](02-access.md#two-parameters) |
 | Local access needs no credential at all | the socket hides the credentials, it does not remove them — [access § local socket](02-access.md#local-socket) |

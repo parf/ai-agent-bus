@@ -217,9 +217,12 @@ Highlights for the impatient:
   wrote them when that principal has a key.
 - **Admin over SSH only.** Forced commands, no shell, every call audit-logged. Root on
   the box is the break-glass.
-- **One daemon that supervises itself.** AUTH and the dashboard run as child processes
-  of `agent-busd`: AUTH alone holds the master secret, the dashboard is cgroup-limited
-  so it can never starve the bus.
+- **One daemon, many small processes** — the systemd shape. A supervisor that
+  holds no state and almost no privilege spawns single-task children: the bus,
+  the runner, the dashboard, and optionally AUTH, billing and health. Each gets
+  only what its job needs — AUTH alone holds the master secret, only the runner
+  may execute anything, the dashboard is cgroup-limited so it can never starve
+  the bus ([processes](docs/11-processes.md)).
 
 Read `docs/` in order, starting at
 [00-overview.md](docs/00-overview.md) — it indexes the rest and says which

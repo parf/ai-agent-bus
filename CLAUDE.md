@@ -92,9 +92,13 @@ the mechanism behind the link:
   typing it and is not needed after enrolment. MVP is manual + GitHub.
 - **ACL is service first, then master**, and a service may refuse master
   access — `docs/01-identity.md`.
-- **Required minimum** is the core: registry (services *and* topics) + queues +
-  API + MCP + dashboard, AUTH off. WEB and AUTH are children; only AUTH holds
-  `master_secret`.
+- **Required minimum** is registry (services *and* topics) + queues + API +
+  MCP + dashboard, AUTH off.
+- **Supervisor plus least-privilege children**, systemd-style: the supervisor
+  holds only `CAP_CHOWN` and no state; bus, runner, web, auth, billing and
+  health are separate processes, each with a declared privilege set; nothing
+  shared implicitly — unix sockets and passed fds only. Only auth holds
+  `master_secret`; only the runner may exec — `docs/11-processes.md`.
 - **Two kinds of data.** AUTH data = offline-signed generations in git.
   Registry data = live records, writer-signed where a key exists, snapshotted
   to git. Live state (health, stats, queue contents) is neither.
