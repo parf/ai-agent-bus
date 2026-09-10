@@ -27,8 +27,9 @@ There is no external broker to install. `agent-busd` is the broker, the registry
 the dashboard in one binary.
 
 Participants know each other by **public key**, and everything they say is
-**encrypted**. No passwords, no certificates to manage. And because the key can be
-the one on **GitHub**, a service can be **open to the whole world** — anyone with a
+**encrypted**. No passwords, no certificates to manage. Registering someone is
+just `username + name + pubkey`. Because those can equally be *fetched* from a
+GitHub login, a service can be **open to the whole world** — anyone with a
 GitHub account can walk up, prove the key is theirs, and use it.
 
 ## The 60-second picture
@@ -41,9 +42,13 @@ GitHub account can walk up, prove the key is theirs, and use it.
                           └────────────────────────────────────────────┘
 ```
 
-- Every participant has an **identity** and an **address**, `unique-name@host`.
-  In the smallest setup the identity is just a token; with AUTH or pairwise
-  keys it is an Ed25519 key. The `agent-bus` CLI handles both and joins the bus.
+- Every participant is **`name@realm`** — `parf@localhost`, `parf@om.parf.dev`,
+  `parf@github` (the identity provider vouches), `parf@realmo` (a team on the
+  AUTH server). Services and instances use the same shape.
+- **A call carries two things: username and token.** Nothing else. On your own
+  host you handle neither — you talk to the daemon over a socket that is yours
+  alone, and it fills both in for you
+  ([access § local socket](docs/02-access.md#local-socket)).
 - Every registered participant has its **own queue**. Send to it while it is down;
   it reads the backlog when it comes back.
 - **`send`** delivers to one known receiver; **`publish`** delivers to a topic. A topic
@@ -51,10 +56,14 @@ GitHub account can walk up, prove the key is theirs, and use it.
   **pub/sub** (a copy to every current subscriber, nothing kept).
 - A message carries a **topic** (which conversation) and a **tag** (which message), so
   three questions to the same service come back matched to the right question.
-- **Authentication is always on, and every session is encrypted.** The smallest setup
-  is one token in an environment variable — issued to you over SSH against the key you
-  already have — and that token is the whole identity. Central AUTH is an optional
-  role of the same daemon: turn it on when you need central identities and groups.
+- **Authentication is always on — and locally there is nothing to set up.**
+  Setup maps each local account to a bus username; the daemon gives each one a
+  socket of its own and reads the username and token off it. To reach a
+  *remote* bus you need those same two values: get the token with
+  `ssh agent-bus@<node> static-token`, or `sudo -u agent-bus register <user>`
+  on the box. One daemon serves everyone on a host and knows who is calling, so
+  services open to some users and not others. Central AUTH is an optional role
+  of the same daemon.
 
 ## Use cases
 
@@ -94,22 +103,38 @@ tools. No adapter code on the service side.
 
 ### Run a personal bus on your laptop
 
-Install one package, run one setup script — it creates the `agent-bus` user and asks
-for your public key (pick a local one, or give your GitHub username) — start the
-service. AUTH role off, no admin, no network exposure. Everything above works.
+Install one package, run one setup script — it asks for your local account and
+the bus username it maps to, nothing else — start the service. No key to
+generate, no token to copy. AUTH role off, no network exposure. Everything
+above works.
+
+### Share one bus between everyone on a host
+
+The same setup, more users. Each configured user gets a socket of their own, so
+the daemon knows on every request which of them is calling, and a service can
+be opened to some and not others — all without anyone handling a credential
+([access § local socket](docs/02-access.md#local-socket)). The person who ran setup is the admin:
+users and groups, service ACLs, and starting and stopping services.
+
+Access is two layers. A service lists who may use it; the node's **master ACL**
+maps a user or group to a role that reaches **every** service — so an operator
+is set up once, not per service. A service that wants the last word can refuse
+master access.
 
 ### Run a team or company bus
 
-Turn on the **AUTH** role (`auth: on`, same daemon, same git repo): identities come from
-GitHub (most developers already have an SSH key there; Ed25519 ones are used) or LDAP,
-groups compose with `& | !`, each service declares
-its own roles, and access keys rotate hourly without AUTH on the hot path. Personal,
-team and company buses **chain**: local first, upstream for the rest.
+Turn on the **AUTH** role (`auth: on`, same daemon, same git repo): registering
+someone is `username + name + pubkey`, either stated outright or filled in for
+you from GitHub or LDAP/AD — which are an alternative to typing it, not a
+dependency, and are not consulted again once you are enrolled. Groups compose
+with `& | !`, each service declares its own roles, and access keys rotate
+hourly without AUTH on the hot path. Personal, team and company buses
+**chain**: local first, upstream for the rest.
 
 ### Sell an API on the public internet
 
-This is why identities come from GitHub. Publish a service with `allow: *` and any
-developer on the internet can join it: they claim `github:<login>`, the bus fetches
+This is what GitHub is recommended for. Publish a service with `allow: *` and any
+developer on the internet can join it: they claim `<login>@github`, the bus fetches
 their public keys once, they prove possession, and they are in — with whatever default
 role you gave strangers. Google, LinkedIn and Facebook sign-in come later. Sessions are
 encrypted end to end without TLS or certificates. **Closed** enrolment queues newcomers
@@ -150,11 +175,13 @@ Illustrative only; the exact verbs are part of the design work.
 ```sh
 # install and set up
 npm install -g agent-bus               # daemon + CLI (pnpm works too)
-agent-bus setup                        # agent-bus user, your pubkey (local or github:<user>), config
+agent-bus setup                        # asks: local account + bus username. no keys
 systemctl enable --now agent-busd      # or whatever your host uses
 
-# get a token — your SSH key is the identity, sshd checks it
-export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost static-token)
+# nothing to do for local use — the socket supplies username + token
+# for a REMOTE bus you need exactly those two; get the token one of two ways:
+export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@<node> static-token)   # over SSH
+sudo -u agent-bus register parf@github                             # on the box
 agent-bus keygen                       # an Ed25519 key for a long-running agent of its own
 
 # describe something that already exists
@@ -181,10 +208,9 @@ Highlights for the impatient:
 - **Security model.** Ed25519 everywhere, no passwords, no client secrets. Sessions are
   encrypted point-to-point with a key both sides derive; no TLS, no PKI. Kerberos-style:
   AUTH hands out a shared secret once per hour, then gets out of the way.
-- **Three ways to get a key.** *Static*: a token — `ssh agent-bus@host static-token`
-  against your SSH key, good until the daemon restarts; or set by hand in both configs,
-  never expires — the minimal mode. *Pairwise*: derived from the two parties' keys, no
-  AUTH needed. *Derived*: issued by AUTH, one hour, deterministic across replicas.
+- **Three ways to be known** — static (a token), pairwise (from the two
+  parties' keys) and derived (issued by AUTH, hourly):
+  [access § key modes](docs/02-access.md#key-modes).
 - **Config as code.** AUTH data is a signed bundle in a git repo over SSH. Replicas pull
   on start, newer generation wins, git history is the audit trail. Service definitions
   are live records in `agent-busd`, guarded by token and ownership, signed by whoever
@@ -195,25 +221,24 @@ Highlights for the impatient:
   of `agent-busd`: AUTH alone holds the master secret, the dashboard is cgroup-limited
   so it can never starve the bus.
 
-The `docs/` files are short and meant to be read in order.
+Read `docs/` in order, starting at
+[00-overview.md](docs/00-overview.md) — it indexes the rest and says which
+document owns what.
 
-| File | Covers |
+| | |
 |---|---|
-| [docs/00-overview.md](docs/00-overview.md) | goal, principles, `agent-busd` parts, chaining, storage, trade-offs, decisions, open questions |
-| [docs/01-identity-and-auth.md](docs/01-identity-and-auth.md) | principals, GitHub/LDAP key directories, groups/ACL/roles, ownership, delegation, sealed private config |
-| [docs/02-keys-sessions-replication.md](docs/02-keys-sessions-replication.md) | access-key modes (derived / pairwise / static), encrypted sessions, signed generations in git over SSH, SSH admin |
-| [docs/03-services-and-discovery.md](docs/03-services-and-discovery.md) | service kinds, personal vs shared, messaging (queues, `message_id`, topic + tag, receipts, TTL, `ring`/`strict`), topics as records, discovery faces, health, stats, what the dashboard shows |
-| [docs/04-runner.md](docs/04-runner.md) | the runner role of `agent-busd`: minimal setup, adapters incl. one push adapter per agent runtime, identity injection, sandboxing, in-process queue, languages |
-| [docs/v1-original.md](docs/v1-original.md) | V1 as built (NATS JetStream, verified from source), the PRF-36 brainstorm, how V1 is used today, V1 → V2 mapping, weaknesses V1 admits |
-| [HANDOFF.md](HANDOFF.md) | the full discussion record: decisions, open questions, superseded ideas |
+| [glossary](docs/glossary.md) | every name and term, one line each — normative for naming |
+| [decisions](docs/decisions.md) | what is settled, open and superseded |
+| [future/](docs/future/) | designed but deferred |
+| [legacy/](legacy/original-brainstorm-sep-26.md) | not spec, kept for history |
 
 ## Status
 
 | Area | State |
 |---|---|
-| Design docs | ✅ decisions of 2026-09-09 recorded; one open item marked ❓ in the overview |
+| Design docs | ✅ decisions of 2026-09-09 recorded; open items listed in [decisions](docs/decisions.md) |
 | Code | 🚧 none yet. Go first, a bun/NPM build later; client libs for Go, PHP, Rust, JS, Python |
-| V1 | runs in production on a broker; its ideas and usage are recorded in `docs/v1-original.md` |
+| V1 | runs in production on a broker |
 
 ## Conventions
 
@@ -222,6 +247,5 @@ Small files, main ideas only, tables over prose. Symbols follow
 
 ## Names
 
-- `agent-busd` — the daemon · `agent-bus` — the CLI · `ab_` — MCP tool prefix only
-- `agent-bus` is the keyword everywhere else: `/etc/agent-bus/`, `~/.config/agent-bus/`,
-  the `agent-bus` system user, `agent-busd.service`
+`agent-busd` is the daemon, `agent-bus` the CLI, `ab_` an MCP tool prefix only.
+The full list is in the [glossary](docs/glossary.md), which is normative.

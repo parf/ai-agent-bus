@@ -8,47 +8,58 @@ Design documentation for **agent-bus** — a single daemon (`agent-busd`) that i
 registry, broker, MCP server and dashboard for AI agents, bots and services.
 
 **There is no code.** No build, no tests, no lint, no dependencies — the repo is
-`README.md`, `HANDOFF.md` and `docs/*.md` only. V1 (NATS JetStream) is implemented
-elsewhere: code at `/rd/service/agent-bus/` (`README.md`, `HOWTO.md`), normative
-design at `/rd/vhosts/realty/Plans/PRF-25/`. Read those, not Linear, when a V1 fact
-is needed; `docs/v1-original.md` §1 is the verified summary. This repo designs V2.
-Work here is editing Markdown, and the only tooling is git.
+`README.md` and `docs/*.md` only. V1 (NATS JetStream) is implemented elsewhere:
+code at `/rd/service/agent-bus/` (`README.md`, `HOWTO.md`), normative design at
+`/rd/vhosts/realty/Plans/PRF-25/`. Read those, not Linear, when a V1 fact is
+needed. This repo designs V2. Work here is editing Markdown, and the only
+tooling is git.
 
-Language for the future implementation: **Go** first, bun/NPM later; client libs
-Go, PHP, Rust, JS, Python.
+## Document map
 
-## Document map and authority
+`docs/00-overview.md` indexes the set and says which document owns what — read
+it first rather than duplicating the index here. Beyond the numbered docs:
 
 | File | Role |
 |---|---|
-| `HANDOFF.md` | the owner's full discussion record — most complete, includes rejected/superseded ideas (§8) and the verified GitHub API findings. Read first. |
-| `docs/00-overview.md` | canonical: principles, `agent-busd` roles, chaining, storage, trade-offs, **Decision log (2026-09-09)**, **Open** items |
-| `docs/01-identity-and-auth.md` | principals, GitHub/LDAP key directories, groups/ACL/roles, ownership, delegation, sealed private config |
-| `docs/02-keys-sessions-replication.md` | access-key modes, encrypted sessions, signed generations in git, SSH admin |
-| `docs/03-services-and-discovery.md` | service kinds, messaging, topics, discovery, health, stats |
-| `docs/04-runner.md` | runner role: adapters, self-supervision, sandboxing, in-process queue |
-| `docs/v1-original.md` | what V1 is, and the V1 → V2 mapping |
+| `docs/glossary.md` | **normative for naming.** Every name and term, one line each. Check a name here before inventing one |
+| `docs/decisions.md` | index of settled / open / superseded decisions — rows link, they never state the rule |
+| `docs/future/` | designed but deferred; not part of the current scope |
+| `legacy/` | history only, not spec — never cite it, never update it |
 
-Docs 00–04 are meant to be read in order and are the design of record. On
-**decisions**, `docs/00-overview.md` (decision log) and the doc it names win;
-`HANDOFF.md` predates the 2026-09-09 round in places and carries inline
-*(2026-09-09: …)* corrections rather than rewrites. On **rationale and history**
-(why something was rejected, what was verified), `HANDOFF.md` is more complete.
-When they disagree, check the decision log first, then fix the stale side.
+On **decisions**, the doc that `docs/decisions.md` links to wins. When two docs
+disagree, fix the stale one.
 
 ## Working rules
 
-- **No data models, no schemas, no wire formats until the owner asks.** This is
-  explicit and repeated in `HANDOFF.md`; the design is deliberately at the level
-  of ideas. Do not invent tables, JSON shapes or endpoint lists.
-- **Every settled decision gets two edits**: the substance goes into the doc it
-  belongs to, and a one-line entry goes into the "Decision log" of
-  `docs/00-overview.md` naming that doc. Open items live in `00` under "Open",
-  each with *what would settle it*.
-- Decisions listed in the `HANDOFF.md` table and the `00` decision log are
-  closed — do not reopen without a reason from the owner.
-- Superseded ideas (NATS, Redis Streams, JWT keys) are kept on purpose in
-  `HANDOFF.md` §8. Do not delete them; add to them when something else is dropped.
+- **No data models, no schemas, no wire formats until the owner asks.** The
+  design is deliberately at the level of ideas. Do not invent tables, JSON
+  shapes or endpoint lists.
+- **Canonical home.** Every fact that carries a *value* — a path, a command, a
+  mode name, a field, a number, a list of kinds — is stated in exactly one
+  section. `docs/00-overview.md` says which.
+- **Claim vs value.** Any other doc may restate the *claim* in one sentence and
+  must link to the canonical section in the same breath. The test: *if the
+  value changed, would this line need editing?* If yes and this is not its
+  home, delete the value and keep the link. This is why a socket path once had
+  to be edited in seven places.
+- **Cross-references are section links**, never bare doc numbers. From inside
+  `docs/`, write `[access § local socket](02-access.md#local-socket)`; from
+  `README.md` or this file, prefix `docs/`. Link text is *short doc name §
+  section*. Headings used as targets are plain words — no backticks or
+  punctuation, so the anchor stays predictable — and are not renamed casually.
+- **Every settled decision gets two edits**: the substance into the doc that
+  owns it, and one row in `docs/decisions.md` that *names* it and links. If you
+  can learn the rule from the row, the row is too long.
+- **Revising a decision** is three edits: change the doc, add a new row, move
+  the old row to `## Superseded` with what replaced it.
+- **Open items** live as a `❓` with *Settled by:* at the point in the topic doc
+  where a reader hits the gap, and are indexed in `docs/decisions.md`. Never
+  state a count of them anywhere — it drifts.
+- **Summaries** (`README.md`, this file, the overview's principles) may restate claims,
+  comparisons and consequences; they may not restate values. The one exception
+  is the README's CLI sample block.
+- Decisions in `docs/decisions.md` are closed — do not reopen without a reason
+  from the owner.
 
 ## Writing conventions
 
@@ -59,42 +70,42 @@ When they disagree, check the decision log first, then fix the stale side.
   ❓ open question (with what settles it), ❌ failure, ⛔ impossible, 🚫 cancelled,
   ⚠️ partial, ✅ done. One glyph per cell; if most rows would carry one, none do.
 
-## Naming (enforced throughout)
-
-- `agent-busd` — the daemon · `agent-bus` — the CLI
-- `ab_` — **MCP tool prefix only** (`ab_list_services`); never in CLI or config
-- `agent-bus` is the keyword everywhere else: `/etc/agent-bus/`,
-  `~/.config/agent-bus/`, the `agent-bus` system user, `agent-busd.service`
-- Instance id = address = `unique-name@host`
-- Say "service discovery", not "registration" (registration is one operation on it)
-- "personal" / "shared" for scope (shared is the default) — not user-scoped/system,
-  bound/unbound, single-/multi-tenant
-
 ## Design invariants worth knowing before editing
 
-Getting these wrong produces drift that is easy to miss:
+Getting these wrong produces drift that is easy to miss. Stated as rules, with
+the mechanism behind the link:
 
-- **No external broker.** `agent-busd` *is* the broker; point-to-point connections
-  plus bounded in-memory queues. Never reintroduce one; if a single flow needs
+- **No external broker.** `agent-busd` *is* the broker; point-to-point plus
+  bounded in-memory queues. Never reintroduce one; if a single flow needs
   durability, give that one flow a WAL.
-- **Authentication is always on; the AUTH *role* is optional.** In minimal mode
-  the token in `AGENT_BUS_USER_TOKEN` **is the whole identity** — no key on the
-  wire, no AUTH calls; it is normally issued by `ssh agent-bus@host static-token`
-  against the user's own SSH key. AUTH on = central identities, groups, hourly
-  derived keys.
+- **Authentication is always on; the AUTH *role* is optional.** A call carries
+  exactly two parameters, and the local socket supplies them rather than
+  replacing them — `docs/02-access.md`.
+- **Names are `user@realm`**, and **the name is the identity**. Provider
+  numeric ids are stored only as a re-check comparison; never reintroduce
+  `github:<id>`-style ids as principal ids — `docs/01-identity.md`.
+- **Registration is a record you state.** A provider is an alternative to
+  typing it and is not needed after enrolment. MVP is manual + GitHub.
+- **ACL is service first, then master**, and a service may refuse master
+  access — `docs/01-identity.md`.
 - **Required minimum** is the core: registry (services *and* topics) + queues +
-  API + MCP + dashboard, with AUTH off. WEB and AUTH are child processes of
-  `agent-busd`; only the AUTH child holds `master_secret`.
-- **Two kinds of data.** AUTH data = offline-signed generations in git (rare
-  changes, admin authority). Registry data = live records in `agent-busd`,
-  signed by the writing principal *when it has a key* (static-token writes are
-  unsigned), snapshotted to git. Live state (health, stats, queue contents) is
-  neither signed nor snapshotted.
-- **Chaining queries upstream; it never replicates it.** Peer nodes at the same
-  level sync registry via git push/pull on start, newer record wins per entry.
-- Ed25519 everywhere a key exists; no passwords, no client secrets, no TLS/PKI.
-- Bodies are end-to-end encrypted between sender and receiver; `agent-busd` and its dashboard see envelopes (metadata) only. Don't write anything that implies the bus reads payloads.
-- Queues and stats are memory, dumped to Parquet on graceful restart (optional periodic dump); a consumer being down is fine — its queue waits. Overflow per topic: `ring` or `strict`.
+  API + MCP + dashboard, AUTH off. WEB and AUTH are children; only AUTH holds
+  `master_secret`.
+- **Two kinds of data.** AUTH data = offline-signed generations in git.
+  Registry data = live records, writer-signed where a key exists, snapshotted
+  to git. Live state (health, stats, queue contents) is neither.
+- **Chaining queries upstream; it never replicates it.** Peers sync registry
+  via git, newer record wins per entry.
+- **Ed25519 everywhere a key exists**; no passwords, no client secrets, no
+  TLS/PKI.
+- **Thin glue to external systems**: shell out to the standard client
+  (`ldapsearch`, `curl`, `ssh`) rather than linking a library or reimplementing
+  a protocol. Such calls happen at enrolment or explicit re-check only, never
+  on the runtime path.
+- **Bodies are end-to-end encrypted**; the bus and its dashboard see envelopes
+  only. Don't write anything implying the bus reads payloads.
+- **Queues and stats are memory**, dumped to Parquet on graceful restart. A
+  consumer being down is fine — its queue waits.
 
 ## Git
 
