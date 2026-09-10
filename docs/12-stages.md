@@ -13,7 +13,7 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
 | Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
 | Processes | one | supervisor + children | AUTH child |
-| Services | request/reply with `ack`; queue topics | pub/sub; deadlines, `done`, `reply-to`, many instances | calls across chained buses |
+| Services | request/reply with `ack`; queue topics; scripts as services | pub/sub; deadlines, `done`, `reply-to`, many instances; the runner supervises and sandboxes | calls across chained buses |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
 | Install | built Go binary; Node runs the faces | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
 
@@ -32,6 +32,7 @@ to be true.
 | tokens | issued **over SSH** — `ssh agent-bus@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
 | encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | services | **basic request/reply** ([messaging § request and reply](04-messaging.md#request-and-reply)): a service consumes its inbox, `ack`s it (got it), does the work and replies; a caller sends and waits for that reply. The reply stands in for `done`, which comes at MVP |
+| services from scripts | `agent-bus start <name> --algo=std|args <script>` — a shell script becomes a service, no bus code inside it ([runner § script services](08-runner-role.md#script-services)) |
 | mcp | **basic MCP face** — list what is registered, send, consume. Unfiltered: the master token sees everything ([discovery § faces](05-discovery.md#faces)) |
 | install | run the built binary. **No npm** |
 | setup | one thing only: the user's pubkey in the `agent-bus` account's `authorized_keys` behind that forced command |
@@ -51,9 +52,11 @@ to be true.
 | `agent-bus ack <message-id>` | receipt: got it ([messaging § receipts](04-messaging.md#receipts)) |
 | `agent-bus reply <message-id>` | answer something this client consumed — routed back by topic + tag ([messaging § reply routing](04-messaging.md#reply-routing)) |
 | `agent-bus topic create <t> --kind queue\|pubsub` | a topic to publish into |
+| `agent-bus start <name> --algo=std\|args <script>` | publish a shell script as a service ([runner § script services](08-runner-role.md#script-services)) |
 | `agent-bus status` | is the daemon up, who is connected |
 
-Ten verbs. Everything else (`keygen`, `auth *`, `start`/`stop`/`logs`) waits.
+Eleven verbs. Everything else (`keygen`, `auth *`, `stop`/`logs`) waits —
+`start` is here without supervision, sandboxing or restart.
 
 **A queue topic is an inbox with a name**, so `consume --topic <t>` reads it —
 an option, not an eleventh verb.
@@ -76,6 +79,8 @@ to be unpicked later.
   through it.
 - A **service** takes a request, acknowledges it, and answers; the caller
   blocks on the answer and gets the right one back, matched by topic + tag.
+- **`echo "Hello $1"` in a file is a service**: started with one command,
+  found by another party through `ls` or the MCP catalog, and it answers.
 
 The **push adapters** — Claude Code Channels and the Codex App Server
 ([runner § adapters](08-runner-role.md#adapters)) — are what let a live session
@@ -87,7 +92,8 @@ implementation has not thought of — and takes V1's solution wherever that is
 the better one.
 
 **Deliberately absent**: encryption, AUTH, per-service ACLs, persistence,
-sandboxing, the dashboard, generated docs and catalog filtering, npm.
+sandboxing, restart policy, the dashboard, generated docs and catalog
+filtering, npm.
 
 Note what plaintext costs: in PoC the daemon, its logs and anyone on the host
 can read message bodies, so *"the bus never reads payloads"* is not yet true.

@@ -53,6 +53,39 @@ done waits for a correlated reply, never for the ack. It never lets an incoming 
 mode — that is the adapter's policy as a receiver
 ([messaging § envelope](04-messaging.md#envelope)), not a rule of the bus.
 
+## Script services
+
+**A shell script is a service.** One command registers it, reads its inbox and
+answers from the script's output — no adapter code, no library, no knowledge of
+the bus inside the script.
+
+```sh
+agent-bus start hello --algo=args ./hello-world.sh --descr "greets you"
+cat service.json | agent-bus start          # same fields, as JSON
+```
+
+`hello-world.sh` is `echo "Hello $1"`, and that is the whole service.
+
+| | The message arrives as | The reply is |
+|---|---|---|
+| **`--algo=std`** | the body on **stdin** | whatever it writes to **stdout** |
+| **`--algo=args`** | the body as **`$1`** | the same |
+
+Both forms also get the envelope in the environment — sender, topic, tag,
+`message_id` — so a script that cares can route on it, and one that does not
+can ignore it ([messaging § envelope](04-messaging.md#envelope)).
+
+| Rule | |
+|---|---|
+| exit 0 | stdout is the reply; empty stdout means no reply |
+| exit non-zero | no reply, logged with stderr. Nothing retries it |
+| one process per message | no state between messages, and a bounded number at once |
+| registered while it runs | the description is what `ls` and the MCP catalog show; exit unregisters it |
+
+This is the runner's shell adapter with the supervision taken out. Restart
+policy, sandboxing and `stop`/`logs` are the runner proper — a script service
+in PoC is a foreground process you stop with Ctrl-C.
+
 ## Supervises itself
 
 `agent-busd`'s own children — bus, runner, web, auth, billing, health — are

@@ -62,16 +62,19 @@ about whether the model acted
 | C.1 | `call`, `ack` | `call` = send, then the A.3 filter. The daemon serves it, so no client dispatcher ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)) |
 | C.2 | `topic create`, `publish`, and `consume --topic <t>` | queue kind only: a queue topic is an inbox with a name. `--kind pubsub` is stored and publish to it answers *MVP* ([stages § PoC](../../docs/12-stages.md#poc)) |
 
+| C.3 | `start <name> --algo=std\|args <script>` and the JSON form on stdin | spawn per message, envelope in the environment, stdout is the reply, exit non-zero means none. No sandbox, no restart ([runner § script services](../../docs/08-runner-role.md#script-services)) |
+
 **Done when**: one shell calls a service another registered and gets the reply;
 a publisher with no service record emits to a queue topic, and a consumer that
-was down reads it afterwards with `consume --topic`.
+was down reads it afterwards with `consume --topic`; and `echo "Hello $1"` in a
+file, started with one command, answers a `call` from another shell.
 
 ### D — close the stage
 
 | ID | Task |
 |---|---|
 | D.1 | `static-token` over SSH as a forced command: a script that prints the token file the daemon already reads at start |
-| D.2 | the recipe — three terminals, commands to type — plus a scripted smoke over two `agent-bus` CLIs |
+| D.2 | the recipe — three terminals, commands to type — plus a scripted smoke over two `agent-bus` CLIs and the hello-world script service |
 | D.3 | run every criterion in [stages § PoC](../../docs/12-stages.md#poc) |
 
 **Done when**: the smoke script exits 0, `stages § PoC` is true as written, and

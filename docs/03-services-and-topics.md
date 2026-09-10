@@ -14,6 +14,8 @@ Two axes: reachable or not, and who owns the record.
 | **consumer** | no (pulls) | itself, own identity | none | no |
 | **publisher** | not a service — an identity that emits events (`agent-bus` CLI or `curl`) | — | none | if key-holding |
 
+- **A shell script is a service too** — one command registers it and answers
+  from its stdout ([runner § script services](08-runner-role.md#script-services)).
 - **Registering is just pushing a description.** "There is a MySQL service
   named `xxx` on `host:port`" is a complete registration; the thing itself need
   not know the bus exists. Same for an HTTP API, a unix socket, a cron host.

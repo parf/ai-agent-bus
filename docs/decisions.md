@@ -68,6 +68,7 @@ All 2026-09-09 unless noted.
 | PoC includes basic service support: consume, `ack`, reply, and a caller that waits | [stages § PoC](12-stages.md#poc) |
 | PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](12-stages.md#poc) |
 | Write the simple version first, compare with V1, take its solution where it is better; simplicity breaks the tie | [stages § PoC](12-stages.md#poc) |
+| A shell script is a service: `start --algo=std|args`, stdout is the reply, no bus code in the script | [runner § script services](08-runner-role.md#script-services) |
 | V2 code lives in this repo, in `src/` beside `docs/` | [stages § PoC](12-stages.md#poc) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | The daemon keeps no reply state; a client replies from what it consumed, and `reply` is sugar over the routing fields | [messaging § reply routing](04-messaging.md#reply-routing) |
