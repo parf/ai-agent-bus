@@ -1,11 +1,15 @@
-# agent-bus — Handoff for Claude Code
+# agent-bus — Original brainstorm, September 2026
+
+**Legacy — history only.** Superseded by `../docs/00-04`, which are the design
+of record. Nothing here is authoritative; do not cite it and do not update it.
+Kept because it records the reasoning, the rejected ideas (§8) and the verified
+GitHub API findings (§2) that the docs state without explaining.
 
 Repo: `github.com/parf/ai-agent-bus` (private). Owner: parf (Go / Linux infra,
-Realmo). This document captures **everything discussed so far**, including
-ideas that did not make it into `docs/`. Read this first, then `docs/00-04`.
-
-Status: **design phase, general ideas only — no data models, no code yet.**
-The owner explicitly deferred data models. Do not invent schemas until asked.
+Realmo). Written as the handoff into the 2026-09-09 design round; it captures
+everything discussed up to that point, including ideas that never reached
+`../docs/`. Inline *(2026-09-09: …)* notes mark where a later decision overtook
+the text.
 
 ---
 
@@ -17,7 +21,7 @@ The owner explicitly deferred data models. Do not invent schemas until asked.
 - Every service keeps its own `user → token` map and its own service-defined
   access level. *(2026-09-09: verified from source — `AGENT_BUS_SIGN_KEYS` +
   default-deny `TRUSTED_USERS` + `SEND_RULES` per listener; `user` is a
-  service-group, `sign` a keyed xxh3, not a MAC. Full inventory: `docs/v1-original.md` §1.)*
+  service-group, `sign` a keyed xxh3, not a MAC. Full inventory: `v1-original.md` §1.)*
 - A Claude-session "input channel" already exists on this bus (sessions talk to
   each other and call services). It is the reference **personal** service.
 
@@ -43,7 +47,7 @@ The owner explicitly deferred data models. Do not invent schemas until asked.
 
 ### Open questions (not yet decided)
 
-*2026-09-09: all eight answered by owner — see `docs/00-overview.md` → "Decisions 2026-09-09". Kept below for history.*
+*2026-09-09: all eight answered by owner — see `../docs/00-overview.md` → "Decisions 2026-09-09". Kept below for history.*
 1. **Event delivery without a broker** — where does a `curl`-published event *land*, and how do consumers pull it (from the target agent's queue? buffered by AUTH/Discovery?). Topic namespace for publish/consume capabilities.
 2. **AUTH and Discovery: one daemon with two roles, or two daemons?** Leaning one. *(2026-09-09: main service = `agent-busd` = discovery + API + MCP + WEB + runner, one binary. Later same day: **AUTH merged as an optional role**, `auth: on`, running as a child process that alone holds `master_secret`; WEB also a cgroup-limited child. Shared git repo.)*
 3. **Instance identity** — `host+pid` vs persisted UUID (restart semantics).
@@ -214,7 +218,7 @@ signature = Ed25519(offline_signing_key, gen | prev_gen | created_at | payload_h
 - **Redis Streams design** (before dropping brokers): per-session `session:{id}:inbox` streams with consumer groups, `XREADGROUP … BLOCK` + `XACK`, `XAUTOCLAIM` for stuck messages, dead-letter stream, `MAXLEN ~` trim, AOF `everysec`, registry hash with TTL refreshed by heartbeat, pub/sub only for `discovery:query/response` and `alive`. Writers: Telegram, Slack, post-commit hook, failed-tests hook, inter-agent (Claude/Codex) with `reply_to`. **Superseded** by point-to-point + in-process queues, but the writer list and the discovery/alive ideas carried over.
 - **NATS** as bus (accounts, scoped signing keys as roles, KV for discovery, request-reply subjects `auth.svc.config`, `auth.user.key`, `auth.svc.resolve`, `auth.revoke`, `auth.config.changed.<svc>`). **Rejected**: once discovered, a broker is useless; want maximal simplicity.
 - **Option B keys** (AUTH-signed JWT verified locally by services). **Rejected** in favor of Option A/derived; revisit only if AUTH-on-first-contact becomes a problem.
-- **Claude Code Channels** (`--channels`, MCP-based, Telegram/Discord plugins, research preview 2026): the agent-bus session channel could be wrapped as a custom channel-capable MCP server so Claude Code sessions receive bus events natively. ~~Worth a spike later.~~ *Correction 2026-09-09: already in use in V1 — Claude sessions join the bus via `claude --channel`; see `docs/v1-original.md` §3.*
+- **Claude Code Channels** (`--channels`, MCP-based, Telegram/Discord plugins, research preview 2026): the agent-bus session channel could be wrapped as a custom channel-capable MCP server so Claude Code sessions receive bus events natively. ~~Worth a spike later.~~ *Correction 2026-09-09: already in use in V1 — Claude sessions join the bus via `claude --channel`; see `v1-original.md` §3.*
 - **Zero-downtime reload** for Go daemons via `cloudflare/tableflip` (Linear **RLM-250**) — applies to `agent-busd` and AUTH replicas (socket inheritance, load-before-`Ready()`, 2× RAM during overlap; consider mmap/shared memory if datasets are large).
 - **Cloudflare Tunnel + Access** and **mTLS** were evaluated for exposing a daemon to *customers*; **restricted SSH tunnels** (`restrict,permitopen`) for technical customers. Not part of agent-bus core, but the SSH lockdown pattern is reused for admin access.
 - **PRF-36 leftovers** — RAG service, KV/DB gateways, writers/updaters: **deferred, non-core** (2026-09-09); to be built later as ordinary bus services.

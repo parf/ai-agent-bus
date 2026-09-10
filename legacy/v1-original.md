@@ -1,5 +1,8 @@
 # V1 — What Exists, the Brainstorm That Followed, and the V1 → V2 Map
 
+**Legacy — history only.** V1 is the system being replaced; `../docs/00-04` are
+the design of record for V2. §1 stays useful as the verified V1 inventory.
+
 Status: V1 is **implemented and runnable** (Radaris monorepo, `/rd/service/agent-bus`,
 NATS JetStream) and being **replaced by V2** — owner is not satisfied with it.
 
