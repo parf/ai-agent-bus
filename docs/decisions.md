@@ -68,11 +68,11 @@ All 2026-09-09 unless noted.
 | PoC includes basic service support: consume, `ack`, reply, and a caller that waits | [stages § PoC](12-stages.md#poc) |
 | PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](12-stages.md#poc) |
 | The Channels and App Server adapters are written fresh against the V2 daemon; V1 supplies the shape, not the code | [stages § PoC](12-stages.md#poc) |
-| An inbox has exactly one reader, which dispatches to waiters and pushes the rest | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| An inbox has exactly one reader; a waiter filters by topic and tag and the daemon serves the match | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | A PoC daemon binds loopback or an SSH tunnel, never a public interface | [stages § PoC](12-stages.md#poc) |
 | Both listeners speak HTTP and JSON; `consume` long-polls | [messaging § push and pull](04-messaging.md#push-and-pull) |
 | The TypeScript packages are built and tested by bun and run on Node — one runtime | [modules § languages](10-modules.md#languages) |
-| Go for protocol, core and the CLI; bun for the MCP face and the push adapters; client libs Go, PHP, Rust, JS, Python | [modules § languages](10-modules.md#languages) |
+| Go for protocol, core and the CLI; TypeScript for the MCP face and the push adapters; client libs Go, PHP, Rust, JS, Python | [modules § languages](10-modules.md#languages) |
 | No verb exists only in a face: every CLI and MCP operation is first a core API | [modules § languages](10-modules.md#languages) |
 | Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](10-modules.md#external-tools) |
 | HTTP is a first-class citizen and always the built-in client, never a subprocess — unless the caller is a script | [modules § HTTP is built in](10-modules.md#http-is-built-in) |

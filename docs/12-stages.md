@@ -15,7 +15,7 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Processes | one | supervisor + children | AUTH child; billing only if it ships |
 | Services | request/reply with `ack` | deadlines, `done`, `reply-to`, many instances | calls across chained buses |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
-| Install | built Go binary, bun for the faces | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
+| Install | built Go binary; Node runs the faces | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
 
 ## PoC
 
@@ -51,15 +51,16 @@ to be true.
 | `agent-bus ack <message-id>` | receipt: got it ([messaging § receipts](04-messaging.md#receipts)) |
 | `agent-bus reply <message-id>` | answer it — routed back by topic + tag |
 | `agent-bus topic create <t> --kind queue\|pubsub` | a topic to publish into |
-
-❓ **How a consumer names a topic** — `consume` reads *your own queue*, and a
-pub/sub topic reaches "every current subscriber", but with AUTH off nothing
-says who is subscribed and no verb subscribes. Queue topics have a criterion
-below; pub/sub has none. PoC default: the kind is stored, publish to a pub/sub
-topic answers *not in PoC*. *Settled by:* owner.
 | `agent-bus status` | is the daemon up, who is connected |
 
 Ten verbs. Everything else (`keygen`, `auth *`, `start`/`stop`/`logs`) waits.
+
+❓ **How a consumer names a topic** — `consume` reads *your own queue*, and a
+pub/sub topic reaches "every current subscriber", but with AUTH off nothing
+says who is subscribed and no verb subscribes. PoC default: **a queue topic is
+an inbox with a name**, so `consume --topic <t>` reads it — an option, not an
+eleventh verb — and publish to a pub/sub topic answers *not in PoC*.
+*Settled by:* owner.
 
 **Works at the end of PoC**
 

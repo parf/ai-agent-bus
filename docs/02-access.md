@@ -9,6 +9,12 @@ session; who the caller *is* belongs to [identity](01-identity.md).
 no third field on the wire and no per-service setup. Authentication is always
 on — no token, no access — and the AUTH role is not required for any of it.
 
+**A client that is not on the socket supplies both.** The token comes from the
+environment or a file; the **name comes from the same place**, and it is not
+decoration — it is the inbox this process owns, the sender a reply comes back
+to, and what another principal addresses. A process with a token and no name
+can send and never be answered.
+
 ## Getting a token
 
 Both paths need you to already have access to the machine.

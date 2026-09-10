@@ -33,9 +33,9 @@ One wave, one deliverable; review and commit at the end of each.
 
 | ID | Task | Notes |
 |---|---|---|
-| A.1 | registry and inboxes in memory, envelope and `user@realm` / `name@host` parsing | [services and topics](../../docs/03-services-and-topics.md) |
-| A.2 | one process, both listeners, the `agent-bus` binary, one token compared as a string | HTTP + JSON on socket and TCP; address and token from env |
-| A.3 | `register`, `ls`, `send`, `consume`, `reply`, `status` | `reply` is a `send` to the sender with topic + tag copied — it belongs here, not in a face ([modules § languages](../../docs/10-modules.md#languages)) |
+| A.1 | registry and inboxes in memory, envelope and `user@realm` / `name@host` parsing | layout from [modules § modules](../../docs/10-modules.md#modules); records from [services and topics](../../docs/03-services-and-topics.md) |
+| A.2 | one process, both listeners, the `agent-bus` binary. **Every client carries a name and a token**: the daemon reads its token from a file at start, the CLI reads name, token and address from env | the name is the inbox it owns and the sender a reply returns to ([access § two parameters](../../docs/02-access.md#two-parameters)) — a client with only a token can send and never be answered |
+| A.3 | `status`, `register`, `ls`, `send`, `consume` (with the **topic + tag filter**), `reply` | `reply` is a `send` to the sender with topic + tag copied — it belongs here, not in a face ([modules § languages](../../docs/10-modules.md#languages)). `status` first: it is the first thing that runs |
 
 **Done when**: shell 1 registers and consumes; shell 2 sends; shell 1 replies
 and shell 2 reads the reply, matched by topic + tag. Kill the consumer, send
@@ -48,11 +48,11 @@ what can sink this PoC, and a shell cannot show either.
 
 | ID | Task | Notes |
 |---|---|---|
-| B.0 | **spike, one hour**: can the MCP server Codex spawns from `config.toml` reach the App Server socket? | if yes, B.3 is a mode of B.1; if no, it is a second process |
+| B.0 | **spike, one hour**: start `codex app-server --listen unix://…` beside the session, then check whether the MCP server Codex spawned from `config.toml` can reach that socket | nothing creates the socket on its own — V1's launcher does it. If the MCP process can reach it, B.3 is a mode of B.1; if not, it is a second process |
 | B.1 | **new** TypeScript package, run on Node: MCP tools `ab_ls`, `ab_send`, `ab_consume`, `ab_reply` — each one `fetch` to the daemon | `ab_` is the MCP prefix and nothing else ([glossary](../../docs/glossary.md)) |
 | B.2 | it registers as `<name>@<host>` on start, name from an env var, and is **the** reader of that inbox | without this, "find each other by name" has no name |
 | B.3 | push modes in the same package: Claude Channels (`notifications/claude/channel`) and Codex App Server (`thread/list` newest by cwd → `turn/steer` if busy, else `turn/start`) | copy `app-server.ts`; no journal, no delivery events, no recovery |
-| B.4 | loaded into Claude (`--mcp-config` + the channels flag) and Codex (`~/.codex/config.toml`) | Codex without it can only answer from a shell |
+| B.4 | loaded into Claude (`--mcp-config` + the channels flag) and Codex (`~/.codex/config.toml`), with the App Server started beside the Codex session and its socket path passed in | Codex without the MCP server can only answer from a shell; without the socket, nothing can push into it |
 
 **Done when**: a Claude session and a Codex session hold a two-way exchange
 live. The proof is the **correlated reply** — a transport ack says nothing
@@ -63,12 +63,12 @@ about whether the model acted
 
 | ID | Task | Notes |
 |---|---|---|
-| C.1 | `call`, `ack` | `call` = send, then `consume` filtered by topic + tag. The filter is served by the daemon, so no client dispatcher ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)) |
-| C.2 | `topic create`, `publish` | queue topics deliver; `--kind pubsub` is stored and answers *not in PoC* until the owner settles who subscribes |
+| C.1 | `call`, `ack` | `call` = send, then the A.3 filter. The daemon serves it, so no client dispatcher ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)) |
+| C.2 | `topic create`, `publish`, and `consume --topic <t>` | a queue topic is an inbox with a name, so `--topic` reads it; `--kind pubsub` is stored and publish to it answers *not in PoC* ([stages § PoC](../../docs/12-stages.md#poc)) |
 
 **Done when**: one shell calls a service another registered and gets the reply;
-a publisher with no service record emits to a queue topic and a consumer that
-was down reads it.
+a publisher with no service record emits to a queue topic, and a consumer that
+was down reads it afterwards with `consume --topic`.
 
 ### D — close the stage
 
@@ -79,7 +79,8 @@ was down reads it.
 | D.3 | run every criterion in [stages § PoC](../../docs/12-stages.md#poc) |
 
 **Done when**: the smoke script exits 0 and `stages § PoC` is true as written.
-Running it needs Go, bun and **both agent CLIs logged in** — not a bare host.
+Running it needs Go, bun and Node, and **both agent CLIs logged in** — not a
+bare host.
 
 Driving two interactive sessions headless is a test harness, not a PoC task:
 the live criterion is checked by hand, once, and the script covers the rest.

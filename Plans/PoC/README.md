@@ -45,7 +45,7 @@ These are the ones a shortcut would quietly break.
 
 | Invariant | Where it is stated |
 |---|---|
-| A call carries **exactly two parameters** — `user@realm` and a token; the socket supplies them, it does not remove them | [access § two parameters](../../docs/02-access.md#two-parameters) |
+| A call carries **exactly two parameters** — `user@realm` and a token; the socket supplies them, it does not remove them, and a client off the socket supplies both itself | [access § two parameters](../../docs/02-access.md#two-parameters) |
 | **The name is the identity.** No provider numeric id is ever a principal id | [identity § names](../../docs/01-identity.md#names) |
 | A **reply matches on topic + tag**; the bus adds no call machinery | [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
 | **`ack` = got it, `done` = finished**, both emitted by the receiver | [messaging § receipts](../../docs/04-messaging.md#receipts) |
