@@ -1,3 +1,5 @@
+import os from "node:os";
+
 // The daemon, as seen from TypeScript. Every call carries the same two
 // parameters as any other client — see docs/02-access.md#two-parameters.
 // HTTP+JSON over a unix socket or loopback TCP: bun's fetch speaks both.
@@ -26,12 +28,10 @@ export class Bus {
   readonly #addr: string;
 
   constructor(env = process.env) {
-    this.name = (env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
+    this.name = (env.AGENT_BUS_NAME || defaultName(env)).trim().toLowerCase();
     this.#token = env.AGENT_BUS_TOKEN ?? "";
     this.#addr = env.AGENT_BUS_ADDR ?? defaultSocket(env);
-    if (!this.name || !this.#token) {
-      throw new Error("set AGENT_BUS_NAME (user@realm) and AGENT_BUS_TOKEN");
-    }
+    if (!this.#token) throw new Error("set AGENT_BUS_TOKEN");
   }
 
   async #call(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<any> {
@@ -84,6 +84,37 @@ export class Bus {
     for (const [k, v] of Object.entries(opts)) if (v) q.set(k, v);
     return this.#call("GET", "/consume" + (q.size ? `?${q}` : ""), undefined, signal);
   }
+}
+
+// A session that was launched by a plugin manifest cannot be told its own
+// name, so it derives one: runtime plus where it is working, which is how a
+// human refers to a session anyway. V1 names its channels the same way.
+// The rule is docs/01-identity.md#names — a-z0-9._- either side, 64 total.
+export function defaultName(env: NodeJS.ProcessEnv = process.env): string {
+  const realm = slug(env.AGENT_BUS_REALM || hostname());
+  const runtime = slug(env.AGENT_BUS_RUNTIME || "agent");
+  const where = slug(env.AGENT_BUS_CWD || process.cwd());
+  // Trim from the front: the tail of a path is the part that identifies it.
+  const room = MAX_NAME - realm.length - 1 - runtime.length - 1;
+  const tail = where.length > room ? where.slice(where.length - room) : where;
+  return `${runtime}.${trimEdges(tail)}@${realm}`;
+}
+
+const MAX_NAME = 64;
+
+function slug(s: string): string {
+  return trimEdges(
+    s.normalize("NFKD").replace(/[^\x20-\x7e]/g, "").toLowerCase().replace(/[^a-z0-9._-]+/g, "-"),
+  );
+}
+
+// The first character must be a letter or a digit.
+function trimEdges(s: string): string {
+  return s.replace(/^[^a-z0-9]+/, "").replace(/[^a-z0-9]+$/, "") || "x";
+}
+
+function hostname(): string {
+  return os.hostname() || "localhost";
 }
 
 function defaultSocket(env: NodeJS.ProcessEnv): string {

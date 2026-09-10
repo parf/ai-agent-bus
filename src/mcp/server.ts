@@ -89,7 +89,13 @@ const tools = [
 const server = new Server(
   { name: "agent-bus", version: "0.1.0" },
   {
-    capabilities: { tools: {} },
+    capabilities: {
+      tools: {},
+      // Claude Code only accepts notifications/claude/channel from a server
+      // that declared it here — without this the session refuses the
+      // connection outright, not just the notification.
+      ...(mode === "claude" ? { experimental: { "claude/channel": {} } } : {}),
+    },
     instructions:
       `You are ${bus.name} on the agent bus. ab_ls finds other participants, ab_send messages one, ` +
       `ab_consume takes the next message from your inbox, ab_reply answers one you received. ` +
@@ -202,6 +208,23 @@ await server.connect(new StdioServerTransport());
 // Push: the session receives instead of polling. Two modes, one loop
 // (push.ts); off is the default and everything above still works.
 let push: Push | undefined;
+const alsoStop: (() => void)[] = [];
+const stopWith = (f: () => void) => alsoStop.push(f);
+
+// When the client goes away the face has no reader to deliver to. A poll
+// left running would keep taking messages nobody will see.
+function shutDown(why: string): void {
+  if (!push?.running() && alsoStop.length === 0) return;
+  log(`stopping: ${why}`);
+  push?.stop();
+  for (const f of alsoStop.splice(0)) {
+    try { f(); } catch { /* going away anyway */ }
+  }
+}
+server.onclose = () => shutDown("the client closed the connection");
+for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => { shutDown(sig); process.exit(0); });
+process.on("exit", () => shutDown("exit"));
+
 
 if (mode === "claude") {
   // The Claude Code channel contract: one notification, content plus string
@@ -225,12 +248,15 @@ if (mode === "claude") {
 } else if (mode === "codex") {
   const codex = new Codex(process.env.AGENT_BUS_CWD ?? process.cwd(), log);
   await codex.start();
+  if (!codex.shared) {
+    log("codex: AGENT_BUS_CODEX_WS is not set, so this drives its own app-server — it will not reach a session someone is typing in");
+  }
   push = startPush(bus, async (e) => {
     remember(e);
     const how = await codex.deliver(`${describe(e)}\n\nReply with the ab_reply tool.`, e.message_id);
     log(`delivered ${e.message_id} by ${how}`);
   }, log);
-  process.on("exit", () => codex.stop());
+  stopWith(() => codex.stop());
 } else if (mode !== "off" && mode !== "") {
   log(`AGENT_BUS_PUSH=${mode} is not a mode; use claude, codex or off`);
 }

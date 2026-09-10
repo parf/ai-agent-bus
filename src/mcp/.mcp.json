@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "agent-bus": {
+      "command": "bun",
+      "args": ["run", "server.ts"],
+      "cwd": "."
+    }
+  }
+}

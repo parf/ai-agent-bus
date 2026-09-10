@@ -117,6 +117,11 @@ else
   rc=$?
   echo "$out" | sed 's/^/  /'
   ok_exit "claude push smoke" $rc
+
+  out=$(cd mcp && timeout 120 bun run smoke-codex.ts 2>&1)
+  rc=$?
+  echo "$out" | sed 's/^/  /'
+  ok_exit "codex adapter smoke" $rc
 fi
 
 echo; echo "passed $pass, failed $fail"; [ $fail -eq 0 ]

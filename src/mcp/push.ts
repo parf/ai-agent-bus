@@ -21,31 +21,50 @@ export type Push = { readonly running: () => boolean; stop: () => void };
 
 export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void): Push {
   let stopped = false;
-  const loop = (async () => {
+  const abort = new AbortController();
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    abort.abort(); // let go of the inbox now, rather than at the deadline
+  };
+
+  void (async () => {
     while (!stopped) {
       let e: Envelope | null = null;
       try {
-        e = await bus.consume({ wait: WAIT });
+        e = await bus.consume({ wait: WAIT }, abort.signal);
       } catch (err) {
-        // 409 means somebody else holds this inbox: that is a configuration
-        // mistake, not a transient one, but the loop keeps trying so the
-        // session recovers when the other reader goes away.
+        if (stopped) return;
+        // 409 is somebody else holding this inbox. That is a configuration
+        // mistake, not a transient one, and a loop that keeps retrying would
+        // steal the message from whoever legitimately owns the read.
+        if (err instanceof BusError && err.status === 409) {
+          log(`push: ${bus.name} already has a reader; not starting a second one`);
+          stopped = true;
+          return;
+        }
         log(`push: consume failed: ${err instanceof BusError ? `${err.status} ${err.message}` : err}`);
         await sleep(BACKOFF_MS);
         continue;
       }
+      if (stopped) return; // a message taken after stop would be lost anyway
       if (!e) continue; // deadline, no message
       try {
         await deliver(e);
       } catch (err) {
         // At-most-once: the daemon has already handed this message over, so a
-        // failed delivery loses it. Say so rather than pretending otherwise.
+        // failed delivery loses it. Stop rather than keep draining an inbox
+        // into a delivery path that is not working — the rest stays queued
+        // for whoever reads next.
         log(`push: message ${e.message_id} from ${e.from} was consumed but not delivered: ${err}`);
+        log(`push: stopping; later messages stay in ${bus.name}'s inbox`);
+        stopped = true;
+        return;
       }
     }
   })();
-  void loop;
-  return { running: () => !stopped, stop: () => (stopped = true) };
+
+  return { running: () => !stopped, stop };
 }
 
 export function sleep(ms: number): Promise<void> {

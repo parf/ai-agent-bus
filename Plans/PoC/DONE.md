@@ -6,6 +6,7 @@
 | **A review** | Codex reviewed `c8cde3a` over the V1 bus and found two real defects; both fixed, both now covered by tests that fail against the old code. |
 | **B — the live slice** | `src/mcp/` on bun: the MCP face (`ab_ls`, `ab_send`, `ab_consume`, `ab_reply`), self-registration, and both push modes. `src/smoke.sh` is 26 checks and carries two harnesses of its own — 12 for the face, 7 for Claude push. |
 | **B review** | Codex reviewed `170de8f` and reproduced four defects, two of which the smoke passed *for the wrong reason*. All fixed; every one now has a check that fails against the old code. |
+| **B.3 review** | Codex reviewed `1779e62` against a mock App Server and found the Claude blocker, the Codex **topology** mistake, and four state and lifecycle defects. All fixed. The Codex adapter now has a fake-App-Server harness of its own. |
 
 **A, what it proved**
 
@@ -130,5 +131,63 @@ a restart loses everything anyway
 ([stages § PoC](../../docs/12-stages.md#poc)); restarting the face with the
 daemon is the contract, and the MCP instructions say so.
 
-**Not done in B, on purpose**: `call`, `ack`, topics, script services, plugin
-packaging (B.4/B.5), SSH token issuance.
+**B.3 review — what Codex found**
+
+It ran the adapter against a mock App Server rather than a real one, which is
+how it reached states a live session will not produce on demand.
+
+| | Finding | Fix |
+|---|---|---|
+| BLOCKER | the server declared only `capabilities.tools`. Claude Code registers a channel listener **only** for a server that declares `experimental: {"claude/channel": {}}`, so the connection was refused outright. The raw smoke accepted any JSON notification, so it could not see this | declared in `claude` mode |
+| **topology** | the adapter spawned its **own** `codex app-server`. That is a second process: it can resume a thread's saved history, but steering it never reaches the session a person is typing in. V1 does not do this — one App Server, TUI and notifier both attached | the face attaches to a shared server given by `AGENT_BUS_CODEX_WS`, and says so in the log when it is driving its own instead |
+| | a rejected `turn/steer` fell through to `turn/start` for *any* error, so a timeout — where the steer may well have landed — started a second turn | only a protocol rejection, and only after the server confirms no turn is running. Overload and timeouts propagate |
+| | `thread/resume` reporting a turn already in progress was ignored, so the first message started a turn instead of steering | the active turn comes from the resume |
+| | a `turn/completed` arriving before a slow response let that response resurrect a finished turn | an epoch counter; a response that is out of date does not win |
+| | server-initiated requests were parsed as notifications and left unanswered, hanging the turn | refused with `-32601`. This client approves nothing |
+| | `stop()` did not abort the poll, so a delivery could run after it | the loop aborts the request and re-checks after every await |
+| | push was not tied to the transport closing | `server.onclose` and the signals stop it |
+| | a 409 retried every two seconds, which would steal the read from whoever legitimately owns it | one message, then stop |
+| smoke | **a doubled `deliver()` left everything green** — nothing counted notifications | two distinct messages, asserted by id, order and count. Verified: the mutation now fails |
+| smoke | the stderr-before-kill hang, fixed in `smoke.ts`, had been copied into `smoke-push.ts` | fixed there too |
+
+Codex also confirmed what did **not** need changing: no lock is needed while
+`start()` completes before a serial loop; the pending entry is registered
+before the write, so a fast answer cannot race it; and the line framing is
+correct. Refusing an unfiltered `ab_consume` while allowing a filtered one is
+the right cut — with the caveat that the filter only wins once the waiter is
+registered, so a *pushed* reply cannot be re-read.
+
+## B.4 — loading it
+
+| | |
+|---|---|
+| Claude, as a plugin | `.claude-plugin/plugin.json` declares the server. `claude --plugin-dir src/mcp` loads it and `mcp list` reports **connected** |
+| Claude, without it | `--mcp-config .mcp.json` — proven by a real session calling `ab_ls` and getting the registry back |
+| Codex | `[mcp_servers.agent-bus]` in `~/.codex/config.toml` |
+
+A plugin manifest cannot know the session's name, so the face **derives** one:
+`<runtime>.<cwd>@<host>`, trimmed to the name rule
+([identity § names](../../docs/01-identity.md#names)) — the way V1 names its
+channels. Zero configuration beyond the token. Verified: a session started with
+no `AGENT_BUS_NAME` registered as
+`claude-code.home-parf-src-ai-agent-bus-src-mcp@parf.us`.
+
+❓ **Channel push into a headless session did not surface.** With the
+capability declared and the MCP server connected, a `claude -p` run registered,
+the push loop took the message off the daemon — and the model never saw a
+channel message. Channels appear to be an interactive-session path. This costs
+nothing in the plan, which already says the live criterion is checked by hand,
+but it does mean **the headless harness cannot prove it**. *Settled by:* one
+interactive run.
+
+## B.5 — the plugin's own commands
+
+`/ab:ls` and `/ab:send` are in `commands/`. Colon namespace, because these are
+plugin commands and not MCP tools ([glossary](../../docs/glossary.md)).
+
+**The SessionStart hook was dropped**: the MCP server already registers itself
+at start, so a hook doing it again is a second implementation of B.2 with
+nothing to add.
+
+**Not done in B, on purpose**: `call`, `ack`, topics, script services, SSH
+token issuance.

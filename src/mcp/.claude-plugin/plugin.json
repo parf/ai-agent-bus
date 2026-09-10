@@ -1,0 +1,15 @@
+{
+  "name": "ab",
+  "version": "0.1.0",
+  "description": "agent-bus: find other agent sessions and services by name, message them, and answer them.",
+  "mcpServers": {
+    "agent-bus": {
+      "command": "bun",
+      "args": ["run", "${CLAUDE_PLUGIN_ROOT}/server.ts"],
+      "env": {
+        "AGENT_BUS_PUSH": "claude",
+        "AGENT_BUS_RUNTIME": "claude-code"
+      }
+    }
+  }
+}
