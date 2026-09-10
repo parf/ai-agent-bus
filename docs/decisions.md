@@ -63,7 +63,8 @@ All 2026-09-09 unless noted.
 | Sandboxing on by default, backend chosen by environment | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | Minimal setup: install, `agent-bus setup`, start the service | [setup § install](09-setup.md#install) |
 | Go first, bun/NPM later; client libs Go, PHP, Rust, JS, Python | [setup § install](09-setup.md#install) |
-| Thin glue to external systems: shell out to the standard client | [overview § principles](00-overview.md#principles) |
+| Do not reinvent the wheel: call the system's tools (`ssh-keygen`, `openssl`, `ldapsearch`, `curl`, `git`, `age`, `sshd`) | [modules § external tools](10-modules.md#external-tools) |
+| Exception is the per-message hot path — a well-known library in-process, never our own primitives | [modules § external tools](10-modules.md#external-tools) |
 | Modular by layer: protocol, ports, core, adapters, faces; dependencies point inward | [modules § the rule](10-modules.md#the-rule) |
 | Process layout follows systemd: a supervisor that holds nothing, plus small single-task children | [processes § the rule](11-processes.md#the-rule) |
 | Each child gets the narrowest privilege its task needs, declared not acquired | [processes § the processes](11-processes.md#the-processes) |
@@ -72,7 +73,7 @@ All 2026-09-09 unless noted.
 | The runner is its own process: the only component that execs code it did not write | [processes § why the runner is its own process](11-processes.md#why-the-runner-is-its-own-process) |
 | `CAP_CHOWN` is the supervisor's alone, so no long-running child holds a capability | [processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown) |
 | Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](10-modules.md#the-rule) |
-| Only adapters touch the outside world; thin glue is an adapter-layer rule | [modules § where thin glue lands](10-modules.md#where-thin-glue-lands) |
+| Only adapters touch the outside world; calling an external tool is an adapter-layer rule | [modules § external tools](10-modules.md#external-tools) |
 | `protocol` is the layer the client libraries reimplement, and depends on nothing | [modules § the rule](10-modules.md#the-rule) |
 | No external broker; `agent-busd` is the broker | [overview § goal](00-overview.md#goal) |
 | V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core — nothing to design | — |

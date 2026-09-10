@@ -50,7 +50,7 @@ wins.
 | **audience** | who may see and use a service or topic | [discovery § audience](05-discovery.md#audience) |
 | **debug mode** | admin-only message trace on one service | [discovery § debug mode](05-discovery.md#debug-mode) |
 | **adapter** (runtime) | per-runtime push path into a live agent session | [runner § adapters](08-runner-role.md#adapters) |
-| **thin glue** | shell out to the standard client, don't link a library | [overview § principles](00-overview.md#principles) |
+| **thin glue** | call the system's tool instead of linking a library or writing our own | [modules § external tools](10-modules.md#external-tools) |
 | **supervisor** | the `agent-busd` process that spawns the rest and holds nothing else | [processes](11-processes.md) |
 | **bus** | the child that is the core: registry, queues, sessions, delivery | [processes](11-processes.md) |
 | **port** | an interface core depends on; the seam a dependency is swapped at | [modules § the rule](10-modules.md#the-rule) |

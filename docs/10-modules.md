@@ -62,13 +62,50 @@ Which process a module ends up in is a **runtime** boundary, not a layer:
 see [processes](11-processes.md). Each process is still built from the layers
 above, and a module can move between processes without changing layer.
 
-## Where thin glue lands
+## External tools
 
-[Thin glue](00-overview.md#principles) — shell out to the standard client
-rather than link a library — is an **adapter-layer rule**. `curl`, `ldapsearch`,
-`git` and the RADIUS client are each one adapter behind one port. Core cannot
-tell whether a port is backed by a subprocess, a library or a stub, which is
-also what makes the whole thing testable without any of them.
+**Do not reinvent the wheel.** Where the system already ships a tool that does
+the job, call it instead of linking a library or writing our own — and this is
+an **adapter-layer rule**: each tool sits behind one port, so core cannot tell
+a subprocess from a library, which is also what makes it testable without any
+of them.
+
+| Job | Tool | Behind |
+|---|---|---|
+| generate an Ed25519 keypair | `ssh-keygen -t ed25519` | `cli` |
+| sign / verify a challenge | `ssh-keygen -Y sign -n agent-bus`, `-Y verify` (SSHSIG) | `session` |
+| sign / verify a bundle generation | the same | `vcs` |
+| seal private config to a key | `age` | `store` |
+| fetch a name and public keys | `curl` | `directory/github` |
+| query a directory | `ldapsearch` | `directory/ldap` ([future](future/ldap-ad.md)) |
+| push and pull the repo | `git` | `vcs/git` |
+| ask for a balance | the standard RADIUS client | `balance/radius` |
+| confine a child | `systemd-run` · `bwrap` · `unshare` | `sandbox/*` |
+| authenticate an admin or issue a token | `sshd` with a forced command | — |
+
+What we get for free by doing this: the user's existing SSH keys work with no
+conversion, TLS and Kerberos and proxy and trust-store handling belong to the
+system, and every one of these is a tool an operator can run by hand to see
+what the daemon sees.
+
+**The exception is the per-message hot path.** AEAD on every message and the
+HKDF behind a session cannot spawn a process; those stay in-process
+([access § encrypted sessions](02-access.md#encrypted-sessions)). "Do not
+reinvent" still binds there — it means a well-known library, never our own
+primitives. So:
+
+| How often | What to use |
+|---|---|
+| setup, enrolment, admin, an occasional re-check | the system tool, shelled out to |
+| per message or per session | a well-known library, in-process |
+| **never** | our own crypto or protocol primitives |
+
+**On `openssl` specifically**: it fits where you would expect it to and mostly
+is not needed, because two earlier decisions removed its usual jobs — identity
+is SSH keys, so `ssh-keygen` covers generation and signing, and there is no
+TLS and no PKI ([access § encrypted sessions](02-access.md#encrypted-sessions)),
+so there are no certificates to make or verify. It stays the right reach for
+one-off key inspection and format conversion.
 
 ## What this buys
 

@@ -9,7 +9,7 @@ in front of it is somebody's ordinary web site, not part of agent-bus.
 | Aspect | Rule |
 |---|---|
 | Price | declared by the **service** in its record: **flat** (a fee for access) or **per call** (the service sets the cost) |
-| Balance | lives in a **RADIUS** server on **our own network** — the bus asks it *"may this principal call this service?"* once, caches, refreshes per epoch; accounting records go the same way. Thin glue as everywhere ([overview § principles](00-overview.md#principles)): the standard client, not a RADIUS stack of our own. Never exposed to the public side; the bus is its only client |
+| Balance | lives in a **RADIUS** server on **our own network** — the bus asks it *"may this principal call this service?"* once, caches, refreshes per epoch; accounting records go the same way. The standard client, not a RADIUS stack of our own ([modules § external tools](10-modules.md#external-tools)). Never exposed to the public side; the bus is its only client |
 | Usage | the bus records every billable call per (principal, service) and reports it to the balance service; the dashboard shows the counts it already keeps ([discovery § dashboard](05-discovery.md#dashboard)) |
 | Denied | **no balance = call denied**, with a clear error, like a missing role |
 | What is billable | what the bus can see — a message and its size ([messaging § envelope](04-messaging.md#envelope)) |

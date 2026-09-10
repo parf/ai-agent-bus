@@ -106,10 +106,12 @@ the mechanism behind the link:
   via git, newer record wins per entry.
 - **Ed25519 everywhere a key exists**; no passwords, no client secrets, no
   TLS/PKI.
-- **Thin glue to external systems**: shell out to the standard client
-  (`ldapsearch`, `curl`, `ssh`) rather than linking a library or reimplementing
-  a protocol. Such calls happen at enrolment or explicit re-check only, never
-  on the runtime path.
+- **Do not reinvent the wheel.** Call the system's tools — `ssh-keygen`,
+  `openssl`, `ldapsearch`, `curl`, `git`, `age`, `systemd-run`, `sshd` —
+  rather than linking a library or writing our own. Each sits behind a port,
+  in an adapter. The only exception is the per-message hot path, which cannot
+  spawn a process: there use a well-known library, never our own crypto or
+  protocol implementation — `docs/10-modules.md`.
 - **Bodies are end-to-end encrypted**; the bus and its dashboard see envelopes
   only. Don't write anything implying the bus reads payloads.
 - **Queues and stats are memory**, dumped to Parquet on graceful restart. A
