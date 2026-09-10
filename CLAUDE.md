@@ -78,8 +78,10 @@ Getting these wrong produces drift that is easy to miss:
   plus bounded in-memory queues. Never reintroduce one; if a single flow needs
   durability, give that one flow a WAL.
 - **Authentication is always on; the AUTH *role* is optional.** In minimal mode
-  the token in `AGENT_BUS_USER_TOKEN` **is the whole identity** — no key, no AUTH
-  calls. AUTH on = central identities, groups, hourly derived keys.
+  the token in `AGENT_BUS_USER_TOKEN` **is the whole identity** — no key on the
+  wire, no AUTH calls; it is normally issued by `ssh agent-bus@host static-token`
+  against the user's own SSH key. AUTH on = central identities, groups, hourly
+  derived keys.
 - **Required minimum** is the core: registry (services *and* topics) + queues +
   API + MCP + dashboard, with AUTH off. WEB and AUTH are child processes of
   `agent-busd`; only the AUTH child holds `master_secret`.

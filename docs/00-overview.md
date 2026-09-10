@@ -6,8 +6,8 @@ Documents, in reading order:
 1. `00-overview.md` — goal, principles, `agent-busd` and its roles, chaining, storage, trade-offs, open items
 2. `01-identity-and-auth.md` — principals, key directories, groups/ACL/roles, ownership, delegation, private config
 3. `02-keys-sessions-replication.md` — access-key modes, encrypted sessions, signed generations in git, SSH admin
-4. `03-services-and-discovery.md` — service kinds, messaging (queues, topics, send/publish), topics as records, discovery, health, stats
-5. `04-runner.md` — the runner role: adapters, self-supervision, sandboxing, in-process queue, languages
+4. `03-services-and-discovery.md` — service kinds, messaging (queues, `message_id`, topic + tag, receipts, TTL, overflow modes, send/publish), topics as records, discovery, health, stats, dashboard scope
+5. `04-runner.md` — the runner role: minimal setup, adapters incl. push adapters per agent runtime, self-supervision, sandboxing, in-process queue, languages
 
 `v1-original.md` records V1 (the broker-based system in production) and the V1 → V2 mapping.
 `../HANDOFF.md` is the owner's full discussion record.
@@ -29,9 +29,10 @@ parties a shared secret once, then gets out of the way.
   in-memory queues, API, MCP server, dashboard. AUTH role off.
 - **Authentication is always on; the AUTH role is optional.** Every participant
   presents a token or a key; there is no anonymous access. Minimal mode: a
-  token set by hand (`ENV AGENT_BUS_USER_TOKEN`), matched by the receiving
-  service's local mapping file. **The token is the whole identity** — no key,
-  zero AUTH calls. Turn the AUTH role on when an org wants central identities,
+  token in `ENV AGENT_BUS_USER_TOKEN` — issued over SSH against your own key
+  (`ssh agent-bus@host static-token`) or set by hand — matched by the receiving
+  service's local mapping file. **The token is the whole identity** — no key
+  on the wire, zero AUTH calls. Turn the AUTH role on when an org wants central identities,
   groups and hourly derived keys.
 - **One binary, one unit, one config dir, one CLI, one git repo.** `agent-busd`
   supervises its own roles as child processes (see below) with the same

@@ -50,9 +50,9 @@ Participants know each other by **public key**, and everything they say is
 - A message carries a **topic** (which conversation) and a **tag** (which message), so
   three questions to the same service come back matched to the right question.
 - **Authentication is always on, and every session is encrypted.** The smallest setup
-  is one token in an environment variable, and that token is the whole identity. Central
-  AUTH is an optional role of the same daemon: turn it on when you need central
-  identities and groups.
+  is one token in an environment variable — issued to you over SSH against the key you
+  already have — and that token is the whole identity. Central AUTH is an optional
+  role of the same daemon: turn it on when you need central identities and groups.
 
 ## Use cases
 
@@ -168,9 +168,10 @@ Highlights for the impatient:
 - **Security model.** Ed25519 everywhere, no passwords, no client secrets. Sessions are
   encrypted point-to-point with a key both sides derive; no TLS, no PKI. Kerberos-style:
   AUTH hands out a shared secret once per hour, then gets out of the way.
-- **Three ways to get a key.** *Static*: a token you set by hand, never expires, the
-  minimal mode. *Pairwise*: derived from the two parties' keys, no AUTH needed.
-  *Derived*: issued by AUTH, one hour, deterministic across replicas.
+- **Three ways to get a key.** *Static*: a token — `ssh agent-bus@host static-token`
+  against your SSH key, good until the daemon restarts; or set by hand in both configs,
+  never expires — the minimal mode. *Pairwise*: derived from the two parties' keys, no
+  AUTH needed. *Derived*: issued by AUTH, one hour, deterministic across replicas.
 - **Config as code.** AUTH data is a signed bundle in a git repo over SSH. Replicas pull
   on start, newer generation wins, git history is the audit trail. Service definitions
   are live records in `agent-busd`, guarded by token and ownership, signed by whoever
@@ -188,8 +189,8 @@ The `docs/` files are short and meant to be read in order.
 | [docs/00-overview.md](docs/00-overview.md) | goal, principles, `agent-busd` parts, chaining, storage, trade-offs, decisions, open questions |
 | [docs/01-identity-and-auth.md](docs/01-identity-and-auth.md) | principals, GitHub/LDAP key directories, groups/ACL/roles, ownership, delegation, sealed private config |
 | [docs/02-keys-sessions-replication.md](docs/02-keys-sessions-replication.md) | access-key modes (derived / pairwise / static), encrypted sessions, signed generations in git over SSH, SSH admin |
-| [docs/03-services-and-discovery.md](docs/03-services-and-discovery.md) | service kinds, personal vs shared, messaging (queues, topic + tag, reply-to), discovery faces, health, stats |
-| [docs/04-runner.md](docs/04-runner.md) | the runner role of `agent-busd`: adapters, identity injection, sandboxing, in-process queue, languages |
+| [docs/03-services-and-discovery.md](docs/03-services-and-discovery.md) | service kinds, personal vs shared, messaging (queues, `message_id`, topic + tag, receipts, TTL, `ring`/`strict`), topics as records, discovery faces, health, stats, what the dashboard shows |
+| [docs/04-runner.md](docs/04-runner.md) | the runner role of `agent-busd`: minimal setup, adapters incl. one push adapter per agent runtime, identity injection, sandboxing, in-process queue, languages |
 | [docs/v1-original.md](docs/v1-original.md) | V1 as built (NATS JetStream, verified from source), the PRF-36 brainstorm, how V1 is used today, V1 → V2 mapping, weaknesses V1 admits |
 | [HANDOFF.md](HANDOFF.md) | the full discussion record: decisions, open questions, superseded ideas |
 

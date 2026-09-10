@@ -89,6 +89,8 @@ The owner explicitly deferred data models. Do not invent schemas until asked.
 | pairwise | `HKDF(X25519(my_priv, their_pub), "pairwise" \| sorted(fp_a, fp_b))` | never | no |
 | static | pre-shared key in both configs | never | no |
 
+*(2026-09-09: a static token is normally **issued over SSH** — `ssh agent-bus@host static-token`, forced command against the user's own key — and then lives until `agent-busd` restarts or the user refreshes; see `docs/02`.)*
+
 - Derived keys are **deterministic** → every AUTH replica computes the same key; no shared token store. Accept current **and previous** epoch across the boundary. Shrink epoch (e.g. 15 min) if faster revocation is needed — same design.
 - Do **not** put `level`/roles into the key derivation (a role change would break live sessions); deliver roles as metadata.
 - `master_secret` lives only on AUTH replicas. Rotate with a `key_version` prefix in the HKDF label, accept both for one epoch.
@@ -180,7 +182,7 @@ signature = Ed25519(offline_signing_key, gen | prev_gen | created_at | payload_h
 
 ### Health-checker & Stats (optional modules of discovery)
 - Health-checker is itself an agent (registered, replicated 2×, holds a `health` role on polled services); generic → probe per hints; agent → heartbeat, K missed → down.
-- Stats: agents' heartbeats carry a small metrics blob; probe results (latency, up/down) are the stats for generic. Kept **in memory** (ring buffers, last N hours, fixed resolution). Human face via discovery API (`/stats/<service>`) + dashboard with numbers/sparklines, audience-filtered. Forwarding: **Prometheus `/metrics` first** (Grafana reads it), OTLP/StatsD secondary. Restart = empty window (accepted).
+- Stats: agents' heartbeats carry a small metrics blob; probe results (latency, up/down) are the stats for generic. Kept **in memory** (ring buffers, last N hours, fixed resolution). *(2026-09-09: dumped to Parquet with the queues on graceful restart; optional periodic dump.)* Human face via discovery API (`/stats/<service>`) + dashboard with numbers/sparklines, audience-filtered. Forwarding: **Prometheus `/metrics` first** (Grafana reads it), OTLP/StatsD secondary. Restart = empty window (accepted).
 
 ### Chaining (upstream)
 - AUTH and Discovery accept an upstream (which may have its own). Resolution: local file → local service → upstream → …; first hit wins. Applies to identities, ACL/roles, service lookups.
