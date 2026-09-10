@@ -91,9 +91,11 @@ has "says no such receiver" "$out" 'no such receiver'; bad_exit "and exits non-z
 echo "== a name that is not a name"
 bad_exit "register without a realm" "$(ab asker@srv1 register no-realm >/dev/null 2>&1; echo $?)"
 
-echo "== the same inbox however the name is spelled"
-ab pad@srv1 register '  pad@srv1  ' --kind agent >/dev/null
-ab asker@srv1 send ' pad@srv1 ' --topic pad --tag p "padded name" >/dev/null
-has "a padded registration and a padded send meet" "$(ab pad@srv1 consume --topic pad --tag p --wait 3s)" 'padded name'
+echo "== one name, however it is spelled: trim, lower-case, ASCII"
+ab pad@srv1 register '  PAD@Srv1  ' --kind agent >/dev/null
+has "ls shows the canonical form" "$(ab asker@srv1 ls)" '"name":"pad@srv1"'
+ab asker@srv1 send ' Pad@SRV1 ' --topic pad --tag p "padded name" >/dev/null
+has "a padded, upper-case send reaches it" "$(ab pad@srv1 consume --topic pad --tag p --wait 3s)" 'padded name'
+bad_exit "a non-ASCII name is refused" "$(ab asker@srv1 register 'pärf@srv1' >/dev/null 2>&1; echo $?)"
 
 echo; echo "passed $pass, failed $fail"; [ $fail -eq 0 ]

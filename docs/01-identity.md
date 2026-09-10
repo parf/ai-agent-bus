@@ -24,6 +24,13 @@ Same shape as a service address
 ([services § service and instance](03-services-and-topics.md#service-and-instance))
 — one syntax for everything on the bus, three sources of authority behind it.
 
+**One name has one spelling: `trim(lower(name))`, ASCII only.** Case and
+surrounding space are noise, so they are removed before anything compares,
+stores or routes on a name — `PARF@Localhost` and ` parf@localhost ` are the
+same principal, and a registration cannot land in one inbox while a send goes
+to another. ASCII because a name that can be spelled two ways in Unicode is a
+name two people can be tricked by.
+
 **The name is the identity.** Provider numeric ids are stored, never used as
 ids: they are what a re-check compares against. If a name stops resolving to
 its stored id the **account is disabled** — a rename or a recycled login is
