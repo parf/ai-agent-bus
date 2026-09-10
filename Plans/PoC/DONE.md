@@ -4,6 +4,8 @@
 |---|---|
 | **A — two shells talk** | `agent-busd` on a unix socket and loopback HTTP, in-memory registry and inboxes; `agent-bus` with `status`, `register`, `ls`, `send`, `consume`, `reply`. `src/smoke.sh` is the acceptance (22 checks) and `go test -race ./...` the regressions. |
 | **A review** | Codex reviewed `c8cde3a` over the V1 bus and found two real defects; both fixed, both now covered by tests that fail against the old code. |
+| **B — the live slice** | `src/mcp/` on bun: the MCP face (`ab_ls`, `ab_send`, `ab_consume`, `ab_reply`), self-registration, and both push modes. `src/smoke.sh` is 26 checks and carries two harnesses of its own — 12 for the face, 7 for Claude push. |
+| **B review** | Codex reviewed `170de8f` and reproduced four defects, two of which the smoke passed *for the wrong reason*. All fixed; every one now has a check that fails against the old code. |
 
 **A, what it proved**
 
@@ -63,3 +65,70 @@ left running.
 
 **Not done in A, on purpose**: `call`, `ack`, topics, script services, the MCP
 face, any push adapter, SSH token issuance.
+
+## B — the live slice
+
+**B.1/B.2 — the MCP face**
+
+One TypeScript package on bun: `bus.ts` (the daemon as seen from TypeScript),
+`server.ts` (four tools over stdio). Each tool is one `fetch` and nothing
+else, over `fetch(url, { unix })` — the layer rule, in the smallest possible
+form. It registers `AGENT_BUS_NAME` at start, which is what makes "find each
+other by name" have a name.
+
+Reply context lives in the face, because the daemon keeps none
+([messaging § reply routing](../../docs/04-messaging.md#reply-routing)): the
+last 200 messages, **routing fields only** — sender, topic, tag. Bodies are
+unbounded and a reply needs none of one.
+
+**B.3 — the two push modes**
+
+One loop (`push.ts`), two deliveries. The loop long-polls `consume` and hands
+the envelope to a mode; while it runs it holds the inbox's one unfiltered
+read, so `ab_consume` says so instead of colliding with it.
+
+| Mode | How |
+|---|---|
+| `claude` | `notifications/claude/channel` — content plus string metadata. The session needs `--dangerously-load-development-channels` |
+| `codex` | spawn `codex app-server`, NDJSON on stdio: `initialize` → `thread/list` newest for this cwd → `thread/resume`, else `thread/start`; per message `turn/steer` if a turn is running, else `turn/start` |
+
+**Proven**: Claude push end to end in the smoke — a peer sends, the
+notification arrives with the body and routing, `ab_reply` answers it, and the
+peer receives the answer with the original topic and tag. Codex push proven as
+far as a fresh cwd goes: `thread/start` then `turn/start` both succeeded
+against a real `codex app-server`.
+
+⚠️ **Still not proven**: that `turn/steer` reaches a thread a live TUI owns —
+B.0 could not answer it and neither could this, because testing it means
+steering a session somebody is using. It is the by-hand criterion.
+
+**B — V1 compared**
+
+| V1 | Taken | Skipped, and why |
+|---|---|---|
+| `notifier-claude/server.ts` | the notification shape (`content` + string `meta`), and saying in the instructions that a transport ack is not an answer — this bit us live, when a reply stayed in the UI | the PHP handoff socket, the `agent-bus consume channel` subprocess, the raw signed-wire store with its TTL and byte budget. All of them serve the journal; we keep routing fields and nothing else |
+| `notifier-codex/dispatcher.ts` | the call sequence, the steer-vs-start branch, tracking the active turn from `turn/started` / `turn/completed`, and falling back to `turn/start` when steer is rejected — V1 hit that and left the reason in a comment | the adapter journal, delivery events, `ADAPTER_PENDING` recovery, sandbox-policy plumbing, thread re-selection on `thread/goal/cleared`. Each is a durability contract PoC does not have |
+| `notifier-codex/app-server.ts` | nothing structural — a WebSocket client we do not need | the `ws` dependency and the `permessage-deflate` workaround, both removed by B.0 |
+| dedup by `event_hash` | nothing | V1 is at-least-once because the journal can redeliver; our `consume` is at-most-once, so there is nothing to deduplicate |
+
+**B review — what Codex found**
+
+| | Finding | Fix |
+|---|---|---|
+| HIGH | a cancelled `ab_consume` kept polling, took the next message and threw the answer away | the handler's abort signal reaches `fetch`; a smoke check that fails without it |
+| MED | the low-level `Server` does not enforce the schema it advertises, so `ab_send` with no `text` sent an empty body | explicit argument checks, and a smoke check |
+| MED | the reply-context map held whole envelopes — 200 bodies, unbounded | routing fields only |
+| — | `ab_reply` on an evicted id claimed the session never consumed it | says which, and what to do instead |
+| smoke | the harness read `stderr` before killing the server, so a hang became a permanent hang | drain from the start, kill with a bound |
+| smoke | nothing checked what the peer received: with `ab_reply`'s topic and tag mutated to `WRONG`, every check still passed | the peer is in-process now and asserts body, sender, topic and tag. Verified by re-running the mutation: it fails |
+| smoke | a JSON-RPC error collapsed to `text: ""`, `isError: false` | checked before the result shape |
+| smoke | a host without bun passed green with the face unchecked | missing bun is a failure |
+
+**Accepted as a PoC limit, not fixed**: the face registers once at start, so a
+daemon restart leaves it connected but unreachable. Memory-only storage means
+a restart loses everything anyway
+([stages § PoC](../../docs/12-stages.md#poc)); restarting the face with the
+daemon is the contract, and the MCP instructions say so.
+
+**Not done in B, on purpose**: `call`, `ack`, topics, script services, plugin
+packaging (B.4/B.5), SSH token issuance.

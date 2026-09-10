@@ -8,16 +8,25 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { Bus, BusError, type Envelope } from "./bus.ts";
+import { startPush, type Push } from "./push.ts";
+import { Codex } from "./codex.ts";
 
 const bus = new Bus();
 
-// What this process consumed, so ab_reply can answer by id. The daemon keeps
-// no reply state (docs/04-messaging.md#reply-routing); a long-lived face keeps
-// it in memory, which is smaller than a file and dies with the session.
-const consumed = new Map<string, Envelope>();
+// Push mode is known before anything is served: ab_consume must not become
+// the reader in the window where a push adapter is still starting.
+const mode = (process.env.AGENT_BUS_PUSH ?? "off").trim().toLowerCase();
+const pushing = mode === "claude" || mode === "codex";
+const log = (s: string) => process.stderr.write(`agent-bus: ${s}\n`);
+
+// How to answer what this process consumed. The daemon keeps no reply state
+// (docs/04-messaging.md#reply-routing), so the face keeps the routing — and
+// only the routing: bodies are unbounded, and a reply needs none of one.
+type ReplyTo = { from: string; topic?: string; tag?: string };
+const consumed = new Map<string, ReplyTo>();
 const REMEMBER = 200;
 function remember(e: Envelope) {
-  consumed.set(e.message_id, e);
+  consumed.set(e.message_id, { from: e.from, topic: e.topic, tag: e.tag });
   if (consumed.size > REMEMBER) consumed.delete(consumed.keys().next().value!);
 }
 
@@ -34,7 +43,8 @@ const tools = [
   {
     name: "ab_send",
     description:
-      "Send a message to a registered participant by name (user@realm). Returns the message id. Use topic and tag to correlate a reply.",
+      "Send a message to a registered participant by name (user@realm). This means the bus accepted it, not that the peer read it — only a reply proves that. " +
+      "Pass a topic and a tag you have not used before if you intend to wait for the answer: a reply is matched on both.",
     inputSchema: {
       type: "object",
       properties: {
@@ -49,7 +59,8 @@ const tools = [
   {
     name: "ab_consume",
     description:
-      "Read the next message from my own inbox, waiting up to a few seconds. With topic and tag, wait for that one message instead — that is how you collect a reply to something you sent.",
+      "Take the next message from my own inbox, waiting up to a few seconds. Taking it removes it from the inbox: nobody else will see it, and there is no second chance to read it. " +
+      "Finding nothing is a normal result, not a failure. With a topic and tag, wait for that one message instead — that is how you collect a reply to something you sent.",
     inputSchema: {
       type: "object",
       properties: {
@@ -62,7 +73,8 @@ const tools = [
   {
     name: "ab_reply",
     description:
-      "Answer a message this session consumed, by its id. Routing comes from the original — sender, topic and tag — so the asker can match it.",
+      "Answer a message this session consumed or was pushed, by its id. This is the only way to answer: writing the reply in your own output leaves it in this session and the asker never sees it. " +
+      "Routing comes from the original — sender, topic and tag — so the asker can match it.",
     inputSchema: {
       type: "object",
       properties: {
@@ -80,18 +92,20 @@ const server = new Server(
     capabilities: { tools: {} },
     instructions:
       `You are ${bus.name} on the agent bus. ab_ls finds other participants, ab_send messages one, ` +
-      `ab_consume reads your inbox, ab_reply answers something you consumed. A reply is matched by topic and tag.`,
+      `ab_consume takes the next message from your inbox, ab_reply answers one you received. ` +
+      `A message you answer must be answered with ab_reply — your own output never reaches the peer. ` +
+      `A reply is matched by topic and tag. The face registers this name at start and stops being reachable if the daemon restarts; restart it with the daemon.`,
   },
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 
-server.setRequestHandler(CallToolRequestSchema, async (req) => {
-  const args = (req.params.arguments ?? {}) as Record<string, string>;
+server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
+  const args = (req.params.arguments ?? {}) as Record<string, unknown>;
   try {
     switch (req.params.name) {
       case "ab_ls": {
-        const records = await bus.ls(args.kind);
+        const records = await bus.ls(maybe(args, "kind"));
         return text(
           records.length === 0
             ? "nothing is registered"
@@ -99,26 +113,41 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         );
       }
       case "ab_send": {
-        const e = await bus.send({ to: args.to, body: args.text, topic: args.topic, tag: args.tag });
-        return text(`sent ${e.message_id} to ${e.to}`);
+        const topic = maybe(args, "topic"), tag = maybe(args, "tag");
+        const e = await bus.send({ to: need(args, "to"), body: need(args, "text"), topic, tag });
+        // The topic and tag come back because they are what a reply is
+        // matched on (docs/04-messaging.md#request-and-reply).
+        const how = [topic && `topic ${topic}`, tag && `tag ${tag}`].filter(Boolean).join(", ");
+        return text(`the bus accepted ${e.message_id} for ${e.to}${how ? ` (${how})` : ""}`);
       }
       case "ab_consume": {
-        const e = await bus.consume({ topic: args.topic, tag: args.tag, wait: args.wait ?? "5s" });
+        // Push holds this inbox's one unfiltered read, so an unfiltered
+        // consume would only collide with it. A filtered one is still served,
+        // ahead of the loop (docs/04-messaging.md#one-reader-per-inbox).
+        if (pushing && !args.topic && !args.tag) {
+          return text(`push is on for ${bus.name}: messages arrive on their own. Pass topic and tag to wait for one reply.`, true);
+        }
+        const e = await bus.consume(
+          { topic: maybe(args, "topic"), tag: maybe(args, "tag"), wait: maybe(args, "wait") ?? "5s" },
+          extra.signal,
+        );
         if (!e) return text("nothing waiting");
         remember(e);
         return text(describe(e));
       }
       case "ab_reply": {
-        const original = consumed.get(args.message_id);
+        const id = need(args, "message_id"), body = need(args, "text");
+        const original = consumed.get(id);
         if (!original) {
           return text(
-            `message ${args.message_id} is not one this session consumed — use ab_send with the sender's name`,
+            `no reply context for ${id}: this session did not consume it, or it aged out of the last ${REMEMBER}. ` +
+              `Use ab_send with the original sender, topic and tag — a reply is matched on all three.`,
             true,
           );
         }
         const e = await bus.send({
           to: original.from,
-          body: args.text,
+          body,
           topic: original.topic,
           tag: original.tag,
         });
@@ -128,10 +157,26 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         return text(`unknown tool ${req.params.name}`, true);
     }
   } catch (err) {
+    if (err instanceof BadArgs) return text(String(err.message), true);
     const msg = err instanceof BusError ? `bus said ${err.status}: ${err.message}` : String(err);
     return text(msg, true);
   }
 });
+
+// The low-level Server does not enforce the schema it advertises, so a
+// missing required argument would otherwise become an empty body on the wire.
+function need(args: Record<string, unknown>, key: string): string {
+  const v = args[key];
+  if (typeof v !== "string" || v.trim() === "") throw new BadArgs(`${key} is required and must be a non-empty string`);
+  return v;
+}
+function maybe(args: Record<string, unknown>, key: string): string | undefined {
+  const v = args[key];
+  if (v === undefined || v === null || v === "") return undefined;
+  if (typeof v !== "string") throw new BadArgs(`${key} must be a string`);
+  return v;
+}
+class BadArgs extends Error {}
 
 function text(body: string, isError = false) {
   return { content: [{ type: "text" as const, text: body }], ...(isError ? { isError } : {}) };
@@ -153,3 +198,40 @@ await bus.register({
 });
 
 await server.connect(new StdioServerTransport());
+
+// Push: the session receives instead of polling. Two modes, one loop
+// (push.ts); off is the default and everything above still works.
+let push: Push | undefined;
+
+if (mode === "claude") {
+  // The Claude Code channel contract: one notification, content plus string
+  // metadata. The session needs --dangerously-load-development-channels.
+  push = startPush(bus, async (e) => {
+    remember(e);
+    await server.notification({
+      method: "notifications/claude/channel",
+      params: {
+        content: `Message from agent-bus peer ${e.from}:\n\n${e.body}`,
+        meta: {
+          message_id: e.message_id,
+          from: e.from,
+          ...(e.topic ? { topic: e.topic } : {}),
+          ...(e.tag ? { tag: e.tag } : {}),
+          at: e.at,
+        },
+      },
+    });
+  }, log);
+} else if (mode === "codex") {
+  const codex = new Codex(process.env.AGENT_BUS_CWD ?? process.cwd(), log);
+  await codex.start();
+  push = startPush(bus, async (e) => {
+    remember(e);
+    const how = await codex.deliver(`${describe(e)}\n\nReply with the ab_reply tool.`, e.message_id);
+    log(`delivered ${e.message_id} by ${how}`);
+  }, log);
+  process.on("exit", () => codex.stop());
+} else if (mode !== "off" && mode !== "") {
+  log(`AGENT_BUS_PUSH=${mode} is not a mode; use claude, codex or off`);
+}
+if (push) log(`push mode ${mode} is reading ${bus.name}`);

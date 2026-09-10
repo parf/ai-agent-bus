@@ -34,11 +34,12 @@ export class Bus {
     }
   }
 
-  async #call(method: string, path: string, body?: unknown): Promise<any> {
+  async #call(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<any> {
     const overTCP = this.#addr.startsWith("http://");
     const url = (overTCP ? this.#addr.replace(/\/$/, "") : "http://localhost") + path;
     const res = await fetch(url, {
       method,
+      ...(signal ? { signal } : {}),
       ...(overTCP ? {} : { unix: this.#addr }),
       headers: {
         "X-Agent-Bus-User": this.name,
@@ -48,6 +49,7 @@ export class Bus {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     if (res.status === 204) return null; // nothing arrived before the deadline
+
     const text = await res.text();
     if (!res.ok) throw new BusError(res.status, text.trim() || res.statusText);
     return text ? JSON.parse(text) : null;
@@ -61,14 +63,26 @@ export class Bus {
     return this.#call("GET", "/ls" + (kind ? `?kind=${encodeURIComponent(kind)}` : ""));
   }
 
-  send(msg: { to: string; body: string; topic?: string; tag?: string }): Promise<Envelope> {
-    return this.#call("POST", "/send", msg);
+  // A send that fails after the request left is not a send that did not
+  // happen. The daemon does not deduplicate, so the caller is told the
+  // outcome is unknown rather than invited to resend
+  // (docs/12-stages.md#poc: no persistence, no retries).
+  async send(msg: { to: string; body: string; topic?: string; tag?: string }): Promise<Envelope> {
+    try {
+      return await this.#call("POST", "/send", msg);
+    } catch (err) {
+      if (err instanceof BusError) throw err; // the daemon answered: it did not accept
+      throw new Error(`delivery outcome unknown, do not automatically resend: ${err}`);
+    }
   }
 
-  consume(opts: { topic?: string; tag?: string; wait?: string } = {}): Promise<Envelope | null> {
+  consume(
+    opts: { topic?: string; tag?: string; wait?: string } = {},
+    signal?: AbortSignal,
+  ): Promise<Envelope | null> {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries(opts)) if (v) q.set(k, v);
-    return this.#call("GET", "/consume" + (q.size ? `?${q}` : ""));
+    return this.#call("GET", "/consume" + (q.size ? `?${q}` : ""), undefined, signal);
   }
 }
 
