@@ -76,6 +76,18 @@ async function run(c: Case): Promise<Codex> {
 
 try {
   {
+    // The face is Codex's MCP server, so it starts before the session has a
+    // thread. Choosing one at start would pick the wrong one.
+    scenario = {};
+    seen.length = 0;
+    const codex = new Codex(CWD, quiet, url);
+    await codex.start();
+    check("start does not choose a thread", !seen.includes("thread/list") && !codex.thread, seen.join(","));
+    await codex.deliver("hello", "m0");
+    check("the first message chooses it", seen.includes("thread/list") && !!codex.thread, seen.join(","));
+    codex.stop();
+  }
+  {
     // A resumed thread that is already mid-turn must be steered, not raced.
     const codex = await run({ resumeActive: true });
     const how = await codex.deliver("hello", "m1");

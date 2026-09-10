@@ -79,7 +79,11 @@ export class Codex {
     return !!this.#url;
   }
 
-  async start(): Promise<string> {
+  // Connect and handshake only. The thread is chosen at the first delivery,
+  // not here: this face is Codex's own MCP server, so it starts *before* the
+  // session has a thread, and picking one now would pick the wrong one — our
+  // own, headless, instead of the one the person is typing in.
+  async start(): Promise<void> {
     this.#wire = this.#url ? await this.#connect(this.#url) : this.#spawn();
 
     await this.#request("initialize", {
@@ -96,7 +100,18 @@ export class Codex {
       },
     });
     this.#notify("initialized");
+    this.#log(
+      `codex: attached to ${this.#url ? `the shared app-server ${this.#url}` : "its own app-server"}` +
+        `; the thread for ${this.#cwd} is chosen at the first message`,
+    );
+  }
 
+  // Newest thread for this directory, or a fresh one. Chosen once and kept:
+  // following a person who opens a *new* session in the same directory would
+  // need V1's re-selection machinery; PoC says restart the face
+  // (Plans/PoC/DONE.md: B).
+  async #ensureThread(): Promise<void> {
+    if (this.#thread) return;
     const listed = await this.#request<{ data?: Thread[] }>("thread/list", {
       cwd: this.#cwd,
       limit: 100,
@@ -111,21 +126,16 @@ export class Codex {
       : await this.#request<{ thread: Thread }>("thread/start", { cwd: this.#cwd });
     this.#setThread(res.thread);
     this.#log(
-      `codex: ${found ? "resumed" : "started"} thread ${this.#thread} in ${this.#cwd}` +
-        `${this.#url ? ` on the shared server ${this.#url}` : " on its own app-server"}` +
-        `${this.#activeTurn ? `, turn ${this.#activeTurn} already running` : ""}`,
+      `codex: ${found ? "attached to the session's thread" : "no session here yet, started a thread"} ` +
+        `${this.#thread} in ${this.#cwd}${this.#activeTurn ? `, turn ${this.#activeTurn} already running` : ""}`,
     );
-    // The thread is fixed for this adapter's life. Following a person who
-    // starts a *new* session in the same directory would need V1's
-    // re-selection; PoC says restart the face instead
-    // (Plans/PoC/DONE.md: B).
-    return this.#thread!;
   }
 
   // Put text in front of the session: steer the turn it is running, or start
   // one. `id` becomes clientUserMessageId so the message is identifiable.
   async deliver(text: string, id: string): Promise<"turn/steer" | "turn/start"> {
-    if (!this.#thread) throw new Error("codex: not started");
+    await this.#ensureThread();
+    if (!this.#thread) throw new Error("codex: no thread");
     const common = {
       threadId: this.#thread,
       clientUserMessageId: `agent-bus:${id}`,

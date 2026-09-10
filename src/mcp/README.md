@@ -83,9 +83,12 @@ Without `AGENT_BUS_CODEX_WS` the face still works and says so in its log: it
 drives its own App Server and answers in a headless thread. That is a
 different demo, not the one wave B is for.
 
-The thread is chosen once, at start. Following a person who opens a *new*
-session in the same directory would need V1's re-selection machinery; here,
-restart the face.
+The thread is chosen at the **first message**, not at startup: the face is
+Codex's own MCP server, so it starts before the session has a thread, and
+choosing one then would pick its own headless thread instead of the one the
+person is typing in. After that it is fixed — following someone who opens a
+*new* session in the same directory would need V1's re-selection machinery;
+here, restart the face.
 
 ## Push and the one reader
 
