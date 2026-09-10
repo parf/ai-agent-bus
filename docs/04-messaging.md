@@ -58,11 +58,18 @@ the notifier, or the reverse.
 names both, and the daemon decides once, for every face: a **registered
 topic named on its own** is an inbox to read; anything else, or anything with
 a tag beside it, filters the caller's own inbox. A reply always carries a
-tag, which is what keeps the two apart.
+tag, which is what keeps the two apart. A **name-shaped topic that is
+registered nowhere is refused** — `jobs@srv1` when the topic is `jobs@srv-1`
+is a typo, and reading it as a filter would answer with a silent timeout.
 
 The filter is what keeps [request and reply](#request-and-reply) honest next to
 a live session — the wait is still an ordinary `consume`, and every client
-language gets it for free.
+language gets it for free. It is a **priority, not a lease**: the filter wins
+only while its wait is outstanding, and each wait ends at one message, so
+between the `ack` and the wait that follows it an unfiltered reader on the
+same inbox can take the reply. Two processes reading one inbox is already
+outside the rule above; a caller that needs the guarantee uses a name of its
+own.
 
 **`consume` is at-most-once**: the message is handed over and gone. A reader
 that dies between taking a message and acting on it loses that message, and
@@ -81,7 +88,8 @@ Every message carries:
 | **`tag`** | the sender's label for this message |
 
 A asks B three questions with three tags; B's answers carry the same tags, so A
-matches them.
+matches them. **A tag is unique to its exchange** — that is what makes the
+match sound, and why `call` generates one rather than reusing a label.
 
 ## Receipts
 
@@ -93,7 +101,9 @@ Optional, and **both emitted by the receiver** — the service, not the bus:
 | **`done`** | the service **finished processing** it |
 
 Both are ordinary messages to the sender's queue (or its `reply-to`), carrying
-the original `message_id`, topic and tag. Neither is required; a sender that
+the original `message_id`, topic and tag. The field is a **closed set** — one
+of those two words — because a caller tells an answer from a receipt by
+reading it, and a third value would read as an answer. Neither is required; a sender that
 wants them asks. A **reply carries the answer** and says nothing by itself
 about either — though a service that replies has plainly finished, which is
 why a request/reply exchange can skip `done`.

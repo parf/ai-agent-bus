@@ -15,7 +15,7 @@ where it is better** — simplicity breaks the tie, and complexity is paid for
 by a case V1 actually hit, not by V1 having it:
 [README § V1 is the bar](README.md#v1-is-the-bar).
 
-**Next step**: D.1 — the SSH token.
+**Next step**: the owner's call on what MVP contains ([stages](../../docs/12-stages.md)) — the PoC is met.
 
 ## Blockers
 
@@ -77,13 +77,16 @@ file, started with one command, answers a `call` from another shell.
 
 | ID | Task |
 |---|---|
-| D.1 | `static-token` over SSH as a forced command: a script that prints the token file the daemon already reads at start |
-| D.2 | the recipe — three terminals, commands to type — plus a scripted smoke over two `agent-bus` CLIs and the hello-world script service |
-| D.3 | run every criterion in [stages § PoC](../../docs/12-stages.md#poc) |
+| D.1 | ✅ _Done → [DONE.md](DONE.md): D_ — `src/static-token`, the forced command; the daemon needed no change |
+| D.2 | ✅ _Done → [DONE.md](DONE.md): D_ — [`src/README.md`](../../src/README.md); running it as written found the `start` inbox bug |
+| D.3 | ✅ _Done → [DONE.md](DONE.md): D_ — every criterion walked, each with a check |
 
 **Done when**: the smoke script exits 0, `stages § PoC` is true as written, and
 each component with a V1 counterpart has its comparison written down — what we
 took, what we skipped, why.
+
+✅ **Met.** `src/smoke.sh` is green, and every criterion is walked in
+[DONE.md](DONE.md): D.
 Running it needs Go, bun and **both agent CLIs logged in** — not a bare host.
 
 Driving two interactive sessions headless is a test harness, not a PoC task:

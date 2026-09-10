@@ -95,6 +95,33 @@ Code at `/rd/service/agent-bus/`, normative design at
 `/rd/vhosts/realty/Plans/PRF-25/`. The PoC may be smaller than V1 — it may not
 be worse at what it does.
 
+## Mutation first, then belief
+
+A green check is evidence of nothing until it has been seen to fail. The
+hollow ones keep the same few shapes, and every one of these has actually
+been found here:
+
+| Shape | The check that had it |
+|---|---|
+| taking the sender's word for a delivery | `ab_reply` said it replied; the routing was nonsense |
+| counting nothing | a doubled delivery passed a check that only looked at the last one |
+| grepping output that is non-empty either way | `$(cmd; echo -n nothing)` contains *nothing* whatever `cmd` did |
+| grepping a word the success answer also contains | a refused receipt and an accepted one both say `receipt` |
+| signalling the wrong process | `f() { ...; } &` backgrounds a subshell, so the service never got the signal |
+
+So: **for every fix, break it again and watch the check go red.** The harness
+that does it for a batch of fixes is a loop over copies of `src/` with one
+edit each, running `src/smoke.sh` in every copy; it is worth rewriting per
+review round rather than keeping, because the mutations are the interesting
+part and they are never the same twice.
+
+Two traps in the harness itself, both met: a copy that cannot bind its port
+because an earlier run left a daemon behind fails *for the wrong reason* and
+looks like a caught mutation; and a mutation that makes the whole run slow —
+breaking the stop signal leaves every service waiting out its poll — hits the
+timeout, which is not the same as the check failing. When either happens, run
+that one check on its own against both builds.
+
 ## Working rules
 
 - Task IDs are stable and never renumbered; use them in commits.

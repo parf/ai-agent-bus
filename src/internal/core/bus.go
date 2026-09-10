@@ -24,6 +24,7 @@ var (
 	ErrTwoReads = errors.New("inbox already has a reader")
 	ErrBadName  = errors.New("bad name")
 	ErrNotYet   = errors.New("pub/sub topics arrive at MVP")
+	ErrReceipt  = errors.New(`a receipt is "ack" or "done"`)
 )
 
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.
@@ -142,6 +143,11 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// ACL, so PoC stores the mode and says so. See docs/12-stages.md#poc.
 	if rec.Kind == protocol.KindTopic && rec.Mode == protocol.ModePubSub {
 		return protocol.Envelope{}, ErrNotYet
+	}
+	// Receipts are a closed set: a caller decides whether a message is an
+	// answer by looking at this field, so a third value would read as one.
+	if e.Receipt != "" && e.Receipt != protocol.ReceiptAck && e.Receipt != protocol.ReceiptDone {
+		return protocol.Envelope{}, fmt.Errorf("%w, not %q", ErrReceipt, e.Receipt)
 	}
 	e.To, e.From = to, from
 	e.ID = newID()

@@ -181,7 +181,7 @@ systemctl enable --now agent-busd      # or whatever your host uses
 
 # nothing to do for local use — the socket supplies username + token
 # for a REMOTE bus you need exactly those two; get the token one of two ways:
-export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@<node> static-token)   # over SSH
+export AGENT_BUS_TOKEN=$(ssh agent-bus@<node> static-token)   # over SSH
 sudo -u agent-bus register parf@github                             # on the box
 agent-bus keygen                       # an Ed25519 key for a long-running agent of its own
 

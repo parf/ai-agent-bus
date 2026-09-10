@@ -21,8 +21,12 @@ Both paths need you to already have access to the machine.
 
 | Path | Command | For |
 |---|---|---|
-| over SSH | `export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@<node> static-token)` | anyone with SSH to the node; sshd authenticates you with the key you already have, behind a forced command |
+| over SSH | `export AGENT_BUS_TOKEN=$(ssh agent-bus@<node> static-token)` | anyone with SSH to the node; sshd authenticates you with the key you already have, behind a forced command |
 | on the box | `sudo -u agent-bus register <username>` | server access, no SSH key on the bus |
+
+The forced command is [`src/static-token`](../src/static-token): it prints the
+token file the daemon reads at start and refuses every other request. Setting
+it up is one `authorized_keys` line per person, given in that script's header.
 
 ## Token lifetime
 

@@ -35,6 +35,13 @@ type Record struct {
 	At    time.Time `json:"at"`
 }
 
+// Receipt values. A closed set: anything else is not a receipt.
+// See docs/04-messaging.md#receipts.
+const (
+	ReceiptAck  = "ack"
+	ReceiptDone = "done"
+)
+
 // Topic kinds. A queue topic is an inbox with a name; pub/sub is MVP, and
 // PoC stores the mode rather than inventing a second meaning of subscription.
 // See docs/12-stages.md#poc.

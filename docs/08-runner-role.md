@@ -60,7 +60,7 @@ answers from the script's output — no adapter code, no library, no knowledge o
 the bus inside the script.
 
 ```sh
-agent-bus start hello --algo=args ./hello-world.sh --descr "greets you"
+agent-bus start hello@srv1 --algo=args ./hello-world.sh --descr "greets you"
 cat service.json | agent-bus start -5       # same fields as JSON, five at a time
 ```
 
@@ -68,8 +68,8 @@ cat service.json | agent-bus start -5       # same fields as JSON, five at a tim
 
 | | The message arrives as | The reply is |
 |---|---|---|
-| **`--algo=std`** | the body on **stdin** | whatever it writes to **stdout** |
-| **`--algo=args`** | the body as **`$1`** | the same |
+| **`--algo=std`** | the whole **envelope as JSON on stdin**, one line | whatever it writes to **stdout** |
+| **`--algo=args`** | the body as **`$1`**, nothing on stdin | the same |
 
 Both forms also get the envelope in the environment — sender, topic, tag,
 `message_id` — so a script that cares can route on it, and one that does not
@@ -81,16 +81,24 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 | exit non-zero | no reply, logged with stderr. Nothing retries it |
 | one process per message | no state between messages |
 | `-N` | how many script processes may run **at once**; default 1, so a script that is not safe to run twice does not have to be |
-| registered while it runs | the description is what `ls` and the MCP catalog show; exit unregisters it |
+| the script is one argument | it is a shell command line, so quote it if it has arguments of its own: `"./greet.sh --loud"` |
+| registered at start | the description is what `ls` and the MCP catalog show. Nothing unregisters it — PoC has no `stop`, and the registry is memory that a restart clears |
 
 `-N` does not mean N services or N inboxes. **The `start` process is the one
 reader of that inbox** ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox));
 it hands messages to a pool of at most N script processes, and none of them
 knows the bus exists. One name, one queue, N hands.
 
-This is the runner's shell adapter with the supervision taken out. Restart
-policy, sandboxing and `stop`/`logs` are the runner proper — a script service
-in PoC is a foreground process you stop with Ctrl-C.
+**Stopping is graceful and nothing more.** Ctrl-C or `SIGTERM` ends the wait
+for the next message and takes no more; the scripts already running are waited
+for, however long they take. Killing them, timeouts and restart are
+supervision, and that is the runner proper — a script service in PoC is a
+foreground process, and this is the runner's shell adapter with the
+supervision taken out.
+
+Because a message is taken from the daemon only when a script process is free
+to run it, a service that dies loses only the work already in flight; the rest
+is still queued for whatever reads that inbox next.
 
 ## Supervises itself
 

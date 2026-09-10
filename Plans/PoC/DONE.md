@@ -281,9 +281,90 @@ caller waits and times out, which is honest about work that did not happen.
 The script never sees the bus: `args` hands it the body as `$1`, `std` hands
 it the envelope on stdin, and both get the envelope in the environment.
 
-The bound is taken **before** the goroutine starts, so with all N busy nothing
-is consumed — at-most-once means a message taken and dropped is a message
-lost.
-
 **Not done in C, on purpose**: pub/sub fan-out, TTL, `done`, `reply-to`,
 deadlines, supervision, sandboxing, restart.
+
+### C — what the review changed
+
+Codex reviewed C against a pinned copy and ran probes rather than reading;
+five of its findings were real, and one of them my own three-terminal
+walk-through hit an hour later. What was wrong, and what it is now:
+
+| Was | Now |
+|---|---|
+| `start` registered `<name>` but read the inbox of whatever `AGENT_BUS_NAME` launched it — invisible while the two are the same, which is all the smoke ever did | the process **becomes the service**: it reads and answers as the name it registered, and the launcher stays its owner |
+| "the bound is taken before the goroutine, so with all N busy nothing is consumed" — untrue: the slot was taken *after* the consume, so one extra message was always held in the process | the slot is taken **before** the consume. A service that dies loses only what its scripts were running |
+| `SIGTERM` was checked between messages, so a service sat in a 55s consume and then ran the next one anyway | the signal cancels the consume; nothing new is taken, and the running scripts are waited for |
+| `call` re-registered its caller on every call, overwriting kind, description and owner | it states the record **only if it has none** |
+| `call` validated `--wait` after sending — a typo answered "bad --wait" for work already accepted | everything that can be refused is refused before anything is sent |
+| a mistyped topic name quietly became a filter on your own inbox and timed out | a name-shaped topic registered nowhere is **refused** |
+| any string was a receipt | `ack` or `done`, checked in core |
+
+And three in the smoke itself, all found by breaking the fixes again rather
+than by reading: `ab … &` backgrounds a *shell function*, so the signal in the
+new stop check went to a subshell while the service ran on (`abx` execs, so
+`$!` is the service); "nothing came back" was written as
+`$(cmd; echo -n nothing)`, which says *nothing* whatever `cmd` did; and the
+refused receipt was checked by grepping a word the accepted answer also
+contains. Each fix has a check, and every check was watched failing —
+[plan § mutation first, then belief](README.md#mutation-first-then-belief).
+
+## D — close the stage
+
+**D.1 — the token over SSH.** [`src/static-token`](../../src/static-token) is
+the forced command, and it is mostly comment because there is nothing to
+invent: sshd has already authenticated the caller against a key they own, so
+the script prints the file `agent-busd` made on first run and refuses
+anything else. Setup is one `authorized_keys` line, given in the script's
+own header
+([access § getting a token](../../docs/02-access.md#getting-a-token)).
+
+The daemon needed no change for it — `loadToken` already created and read
+that file — which is the point: the token path is a file, not a protocol.
+
+While writing it the docs and the code turned out to disagree on the variable
+name (`AGENT_BUS_USER_TOKEN` in two documents, `AGENT_BUS_TOKEN` everywhere in
+the code). The code's name won: it is the third of the same triad as
+`AGENT_BUS_NAME` and `AGENT_BUS_ADDR`.
+
+**D.2 — the recipe.** [`src/README.md`](../../src/README.md) — build, check,
+and the three terminals: the daemon, a service (by hand or as a shell
+script), and a caller. Running it as written is what caught the `start`
+inbox bug the same hour Codex reported it.
+
+**D.3 — every criterion in [stages § PoC](../../docs/12-stages.md#poc).**
+Walked one by one; the evidence is a named check in `src/smoke.sh` — 60 of
+them now — unless the row says otherwise.
+
+| Criterion | |
+|---|---|
+| daemon on a unix socket **and** HTTP | both listeners answer `status` |
+| Go daemon and CLI, TypeScript MCP face on bun | `go test -race ./...`, three bun harnesses |
+| one master token, no per-service anything | a wrong token is 401 on either listener |
+| tokens issued over SSH | D.1, with the forced command's refusals checked |
+| no encryption, no sessions | plaintext by construction; the daemon refuses a non-loopback `-addr` |
+| basic request/reply with `ack` | a service acks, then answers; the caller gets the answer, not the receipt |
+| a script is a service, `-N` at a time, both algos | `echo "Hello $1"` answers a call; `std` gets the envelope on stdin and in the environment |
+| basic MCP face: list, send, consume | its own harness over stdio, driving the server exactly as a client does |
+| install: the built binary, no npm | ⚠️ true for the daemon and CLI. The MCP face is TypeScript by decision, so it needs bun and one dependency — `bun install`, never npm ([modules § languages](../../docs/10-modules.md#languages)) |
+| setup: a pubkey behind the forced command | D.1 |
+| storage in memory | there is no other kind here |
+| loopback or an SSH tunnel only | the daemon exits rather than bind a public interface |
+| the eleven verbs | all eleven, `--follow` included, each with a check |
+| `consume --topic` reads a queue topic | and with a tag beside it filters your own inbox — one message in each, so the check can tell |
+
+**Works at the end of PoC**, the seven statements:
+
+| | |
+|---|---|
+| a Claude Code session talks to a Codex session and back, by name | ✅ live, by hand, both directions — [the live run](#the-live-run) |
+| a publisher emits to a topic without being a registered service | ✅ `drive-by@srv1` has no record |
+| a consumer reads that topic, including what was sent while it was down | ✅ published first, consumed after |
+| register something; another party finds it by name and calls it | ✅ `ls` then `call` |
+| an agent asks the MCP face what it can use, and can send and consume | ✅ `ab_ls`, `ab_send`, `ab_consume`, `ab_reply` |
+| a service acks and answers; the caller blocks and gets the right one back, matched by topic + tag | ✅ and the reply is checked field by field at the peer, not by the sender's word |
+| `echo "Hello $1"` in a file is a service, found by another party | ✅ started with one command, found through `ls`, answers a `call` |
+
+**What is not true, and is meant not to be**: bodies are plaintext, so *the
+bus never reads payloads* is a claim MVP earns, not this stage
+([stages § PoC](../../docs/12-stages.md#poc)).

@@ -1,0 +1,34 @@
+#!/bin/sh
+# The SSH forced command behind `ssh agent-bus@<node> static-token`. It prints
+# the master token and does nothing else: sshd has already authenticated the
+# caller against a key they own, so our whole side of it is this file.
+# See docs/02-access.md#getting-a-token.
+#
+# In ~agent-bus/.ssh/authorized_keys, one line per person:
+#
+#   command="/opt/agent-bus/static-token",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA... someone@somewhere
+#
+# The file is the same one agent-busd reads at start and creates on first run,
+# so there is nothing to issue and nothing to keep in step.
+set -eu
+
+TOKEN_FILE=${AGENT_BUS_TOKEN_FILE:-$HOME/.config/agent-bus/token}
+
+# A forced command runs regardless of what the client asked for, and gets the
+# request in SSH_ORIGINAL_COMMAND. Reading it lets a mistyped command say so
+# instead of quietly handing out the token.
+case "${SSH_ORIGINAL_COMMAND:-static-token}" in
+	static-token | "") ;;
+	*)
+		echo "this account offers one command: static-token" >&2
+		exit 64
+		;;
+esac
+
+if [ ! -r "$TOKEN_FILE" ]; then
+	echo "no token at $TOKEN_FILE — start agent-busd once to create it" >&2
+	exit 69
+fi
+
+# The token is the whole output, so `$(...)` around the ssh call is enough.
+cat "$TOKEN_FILE"

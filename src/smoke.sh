@@ -1,6 +1,6 @@
 #!/bin/bash
-# Wave A, B and C acceptance — Plans/PoC/TODO.md. Builds, runs a daemon on loopback and
-# a private socket, exercises the six verbs, exits non-zero on any failure.
+# Wave A, B, C and D acceptance — Plans/PoC/TODO.md. Builds, runs a daemon on loopback and
+# a private socket, exercises the eleven verbs, exits non-zero on any failure.
 set -u
 cd "$(dirname "$0")"
 D=$(mktemp -d); DPID=""
@@ -17,11 +17,19 @@ DPID=$!
 for _ in $(seq 1 50); do [ -S "$D/bus.sock" ] && break; sleep 0.1; done
 TOKEN=$(cat "$D/token")
 ab() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$1 "$D/agent-bus" "${@:2}"; }
+# The same, for `&`: exec so that $! is the binary. Backgrounding the function
+# instead makes $! a subshell, and a signal sent to it leaves the service
+# running — which is how a check that a service stops passed without one.
+abx() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$1 exec "$D/agent-bus" "${@:2}"; }
 pass=0; fail=0
 has() { if echo "$2" | grep -q -- "$3"; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: [$2] lacks [$3]"; fail=$((fail+1)); fi; }
 ok_exit()   { if [ "$2" -eq 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: exit $2"; fail=$((fail+1)); fi; }
 bad_exit()  { if [ "$2" -ne 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: expected failure, got exit 0"; fail=$((fail+1)); fi; }
+# "nothing came back" needs its own check: `$(cmd; echo -n nothing)` contains
+# the word whatever cmd did, which is how two checks here passed hollow.
+is_empty()  { if [ -z "$2" ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: got [$2]"; fail=$((fail+1)); fi; }
 code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" "http://unix$3"; }
+post_code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" -d "$4" "http://unix$3"; }
 
 echo "== status on both listeners"
 has "unix socket" "$(ab parf@localhost status)" '"services"'
@@ -121,11 +129,35 @@ ab drive-by@srv1 publish --topic jobs@srv1 "sweep the floor" >/dev/null
 has "a consumer that was down still finds it" "$(ab reader@srv1 consume --topic jobs@srv1 --wait 5s)" 'sweep the floor'
 ab owner@srv1 topic create news@srv1 --kind pubsub >/dev/null
 has "publishing to a pub/sub topic answers MVP" "$(ab drive-by@srv1 publish --topic news@srv1 hello 2>&1)" 'MVP'
-has "a topic filter is still a filter when a tag is given" "$(ab caller@srv1 consume --topic jobs@srv1 --tag none --wait 1s; echo -n empty)" 'empty'
+# Reading a topic and filtering your own inbox are different inboxes, so the
+# check needs a message in each: asserting "nothing came back" passed happily
+# with the rule mutated to read the topic in both cases.
+ab someone@srv1 send caller@srv1 --topic jobs@srv1 --tag mine "PRIVATE" >/dev/null
+ab drive-by@srv1 publish --topic jobs@srv1 "TOPIC" >/dev/null
+has "a topic plus a tag filters my own inbox" "$(ab caller@srv1 consume --topic jobs@srv1 --tag mine --wait 3s)" 'PRIVATE'
+has "a topic alone reads the topic" "$(ab caller@srv1 consume --topic jobs@srv1 --wait 3s)" 'TOPIC'
+out=$(ab caller@srv1 consume --topic jobz@srv1 --wait 1s 2>&1); rc=$?
+bad_exit "a mistyped topic name is an error, not a silent filter" $rc
+has "and says which name" "$out" 'no such topic: jobz@srv1'
+
+echo "== a call does not damage what it calls from"
+ab keeper@srv1 register keeper@srv1 --kind generic --descr "KEEP ME" >/dev/null
+ab keeper@srv1 call svc@srv1 --wait 1s "nobody is listening" >/dev/null 2>&1
+has "the caller's own record survives its call" "$(ab keeper@srv1 ls)" 'KEEP ME'
+ab unheard@srv1 register unheard@srv1 --kind generic >/dev/null
+out=$(ab caller@srv1 call unheard@srv1 --wait 5q "typo" 2>&1); rc=$?
+bad_exit "a bad --wait is refused" $rc
+is_empty "and refused before the message is sent" "$(ab unheard@srv1 consume --wait 1s)"
+# The status code, not the body: the accepted envelope echoes the field back,
+# so grepping for "receipt" passed with the check for it removed.
+has "a third receipt value is refused" \
+  "$(post_code caller@srv1 "$TOKEN" /send '{"to":"svc@srv1","receipt":"maybe","body":"x"}')" '400'
+has "and the two real ones are not" \
+  "$(post_code caller@srv1 "$TOKEN" /send '{"to":"svc@srv1","receipt":"done","re":"0","body":"x"}')" '200'
 
 echo "== a shell script is a service"
 printf '#!/bin/sh\necho "Hello $1"\n' > "$D/hello-world.sh"; chmod +x "$D/hello-world.sh"
-ab hello@srv1 start hello@srv1 --algo args "$D/hello-world.sh" --descr "greets you" >"$D/start.log" 2>&1 &
+abx hello@srv1 start hello@srv1 --algo args "$D/hello-world.sh" --descr "greets you" >"$D/start.log" 2>&1 &
 HPID=$!
 for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'greets you' && break; sleep 0.2; done
 has "the script is registered and discoverable" "$(ab asker@srv1 ls)" 'greets you'
@@ -139,12 +171,81 @@ case "$envelope" in *payload*) got=yes ;; *) got=no ;; esac
 echo "stdin=$got topic=$AGENT_BUS_TOPIC from=$AGENT_BUS_FROM"
 SH
 chmod +x "$D/std.sh"
-ab std@srv1 start std@srv1 --algo std "$D/std.sh" -2 --descr "reads the envelope" >>"$D/start.log" 2>&1 &
+abx std@srv1 start std@srv1 --algo std "$D/std.sh" -2 --descr "reads the envelope" >>"$D/start.log" 2>&1 &
 SPID2=$!
 for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'reads the envelope' && break; sleep 0.2; done
 has "std gets the envelope on stdin and in the environment" \
   "$(ab greeter@srv1 call std@srv1 --topic t9 --wait 15s payload)" 'stdin=yes topic=t9 from=greeter@srv1'
 kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
+
+# The JSON form is what docs/08-runner-role.md promises for a service kept in
+# a file; `-3` beside it still means three at a time.
+echo "{\"name\":\"json@srv1\",\"algo\":\"args\",\"script\":\"$D/hello-world.sh\",\"descr\":\"from a file\"}" \
+  | abx launcher@srv1 start -3 >>"$D/start.log" 2>&1 &
+JPID=$!
+for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'from a file' && break; sleep 0.2; done
+has "a service described as JSON on stdin" "$(ab greeter@srv1 call json@srv1 --wait 15s again)" 'Hello again'
+kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
+has "a script and its arguments must be one quoted word" \
+  "$(ab x@srv1 start x@srv1 --algo args ./greet.sh loudly 2>&1)" 'one script'
+
+echo "== a service is the inbox it registered, and stops when told"
+printf '#!/bin/sh\nsleep 3\necho "did $1"\n' > "$D/slow.sh"; chmod +x "$D/slow.sh"
+abx launcher@srv1 start slow@srv1 --algo args "$D/slow.sh" -1 --descr "slowly" >>"$D/start.log" 2>&1 &
+LPID=$!
+for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'slowly' && break; sleep 0.2; done
+ab caller@srv1 send slow@srv1 --topic w --tag 1 one >/dev/null
+ab caller@srv1 send slow@srv1 --topic w --tag 2 two >/dev/null
+sleep 1
+kill -9 $LPID 2>/dev/null; wait $LPID 2>/dev/null
+# The service read slow@srv1, not launcher@srv1, or the first message would
+# still be here; and with its one worker busy it left the second on the
+# daemon, where killing it cannot lose it.
+has "it read the inbox it registered, not the one that launched it" \
+  "$(ab slow@srv1 consume --wait 3s)" 'two'
+is_empty "and took only what it had a worker for" "$(ab slow@srv1 consume --wait 1s)"
+
+printf '#!/bin/sh\necho "ran $1"\n' > "$D/quick.sh"; chmod +x "$D/quick.sh"
+abx launcher@srv1 start stopper@srv1 --algo args "$D/quick.sh" --descr "stops" >>"$D/start.log" 2>&1 &
+TPID=$!
+for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'stops' && break; sleep 0.2; done
+kill -TERM $TPID 2>/dev/null
+for _ in $(seq 1 50); do kill -0 $TPID 2>/dev/null || break; sleep 0.1; done
+if kill -0 $TPID 2>/dev/null; then
+  echo "  FAIL a stopped service leaves its consume"; fail=$((fail+1)); kill -9 $TPID 2>/dev/null
+else
+  echo "  ok   a stopped service leaves its consume"; pass=$((pass+1))
+fi
+wait $TPID 2>/dev/null
+ab caller@srv1 send stopper@srv1 --topic w --tag 3 "after the stop" >/dev/null
+sleep 1
+has "and runs nothing after it stopped" "$(ab stopper@srv1 consume --wait 2s)" 'after the stop'
+
+echo "== the last two of the eleven verbs, and the one refusal the daemon owes us"
+ab follower@srv1 register follower@srv1 --kind agent >/dev/null
+# --follow keeps reading until it is stopped: that is the verb, so the check
+# has to be the one to stop it.
+abx follower@srv1 consume --follow --wait 5s >"$D/follow.out" 2>&1 &
+FPID=$!
+sleep 0.3
+ab someone@srv1 send follower@srv1 "first" >/dev/null
+ab someone@srv1 send follower@srv1 "second" >/dev/null
+for _ in $(seq 1 50); do grep -q second "$D/follow.out" && break; sleep 0.2; done
+kill $FPID 2>/dev/null; wait $FPID 2>/dev/null
+has "--follow keeps reading" "$(cat "$D/follow.out")" 'first'
+has "--follow reads the next one too" "$(cat "$D/follow.out")" 'second'
+out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-file "$D/token" 2>&1); rc=$?
+bad_exit "the daemon refuses a public interface" $rc
+has "and says why" "$out" 'not loopback'
+
+echo "== the token an SSH forced command hands out"
+has "static-token prints the file the daemon created" \
+  "$(AGENT_BUS_TOKEN_FILE=$D/token ./static-token)" "$TOKEN"
+out=$(SSH_ORIGINAL_COMMAND='cat /etc/passwd' AGENT_BUS_TOKEN_FILE=$D/token ./static-token 2>&1); rc=$?
+bad_exit "it refuses any other command" $rc
+has "and says why" "$out" 'one command'
+out=$(AGENT_BUS_TOKEN_FILE=$D/absent ./static-token 2>&1); rc=$?
+bad_exit "a missing token file is an error, not an empty token" $rc
 
 echo "== the MCP face"
 # bun is not optional: the MCP face and both push modes are the PoC

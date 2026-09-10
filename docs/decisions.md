@@ -97,6 +97,13 @@ All 2026-09-09 unless noted.
 | `protocol` is the layer the client libraries reimplement, and depends on nothing | [modules § the rule](10-modules.md#the-rule) |
 | No external broker; `agent-busd` is the broker | [overview § goal](00-overview.md#goal) |
 | V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core — nothing to design | — |
+| A registered topic named alone is an inbox to read; with a tag it is a filter — one rule for every face | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| A name-shaped topic that is registered nowhere is refused, not read as a filter | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| The filter is a priority, not a lease: it holds only while its wait is outstanding | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| A caller states its own record before it calls, and only if it has none | [messaging § request and reply](04-messaging.md#request-and-reply) |
+| A receipt is a closed set of two words | [messaging § receipts](04-messaging.md#receipts) |
+| A script service is the name it registered — it reads and answers as that name | [runner § script services](08-runner-role.md#script-services) |
+| A script service takes a message only when a worker is free; stopping waits for the running ones | [runner § script services](08-runner-role.md#script-services) |
 
 ## Open
 
@@ -131,8 +138,6 @@ All 2026-09-09 unless noted.
 | Principal id is GitHub's numeric id | the name is the identity; the id is only a re-check comparison — [identity § names](01-identity.md#names) |
 | GitHub is *the* identity source, and the reason public services work | a provider is an alternative to typing the record — [identity § registration](01-identity.md#registration) |
 | Overflow: drop oldest | two modes, `ring` and `strict` — [messaging § overflow](04-messaging.md#overflow) |
-| A registered topic named alone is an inbox to read; with a tag it is a filter | one rule for every face — [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
-| A caller states its own record before it calls | an answer needs an address — [messaging § request and reply](04-messaging.md#request-and-reply) |
 | Audience with AUTH off is a per-service `user: token` map | the two ACL layers — [identity § acl](01-identity.md#acl) |
 | LDAP/AD in scope | deferred — [future](future/ldap-ad.md) |
 | NATS · Redis Streams · AUTH-signed JWT keys | dropped; kept in `legacy/` for history |

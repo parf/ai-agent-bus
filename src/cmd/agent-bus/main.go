@@ -131,13 +131,31 @@ func callVerb(args []string) error {
 	if tag == "" {
 		tag = newTag() // unique, so nothing else answers this wait
 	}
+	// Everything that can be refused is refused before anything is sent: once
+	// the message is accepted the work may already be happening, and a
+	// validation error after that reads as "nothing happened".
+	deadline := 30 * time.Second
+	if v := flags["wait"]; v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return fmt.Errorf("bad --wait: %v", err)
+		}
+		if d <= 0 {
+			return fmt.Errorf("--wait must be positive, not %s", d)
+		}
+		deadline = d
+	}
 	// A caller that wants an answer needs an address for it to arrive at.
 	// Registration is a record you state (docs/01-identity.md#registration),
-	// and this is the caller stating it.
-	if err := postQuiet("/register", protocol.Record{
-		Name: os.Getenv("AGENT_BUS_NAME"), Kind: "agent",
-	}); err != nil {
-		return fmt.Errorf("could not register as %s: %w", os.Getenv("AGENT_BUS_NAME"), err)
+	// and this is the caller stating it — but only if it has none, since
+	// re-stating it here would overwrite a description its owner meant.
+	me := os.Getenv("AGENT_BUS_NAME")
+	if known, err := registered(me); err != nil {
+		return err
+	} else if !known {
+		if err := postQuiet("/register", protocol.Record{Name: me, Kind: "agent"}); err != nil {
+			return fmt.Errorf("could not register as %s: %w", me, err)
+		}
 	}
 	sent, code, err := call("POST", "/send", nil, protocol.Envelope{
 		To: pos[0], Topic: topic, Tag: tag, Body: strings.Join(pos[1:], " "),
@@ -149,14 +167,6 @@ func callVerb(args []string) error {
 		return fmt.Errorf("%s", strings.TrimSpace(string(sent)))
 	}
 
-	deadline := 30 * time.Second
-	if v := flags["wait"]; v != "" {
-		d, err := time.ParseDuration(v)
-		if err != nil {
-			return fmt.Errorf("bad --wait: %v", err)
-		}
-		deadline = d
-	}
 	until := time.Now().Add(deadline)
 	q := url.Values{"topic": {topic}, "tag": {tag}}
 	for {
@@ -164,7 +174,8 @@ func callVerb(args []string) error {
 		if left <= 0 {
 			return fmt.Errorf("no answer within %s (the message was accepted; do not resend it)", deadline)
 		}
-		q.Set("wait", left.Round(time.Second).String())
+		q.Set("wait", left.String()) // not rounded: rounding the last half
+		//                              second down to 0s spins on the daemon
 		body, code, err := call("GET", "/consume", q, nil)
 		if err != nil {
 			return err
@@ -293,6 +304,33 @@ func reply(args []string) error {
 	return post("/send", protocol.Envelope{To: to, Topic: topic, Tag: tag, Body: strings.Join(text, " ")})
 }
 
+// registered says whether a name already has a record. `ls` is the discovery
+// verb and PoC lists are small, so this is one GET rather than an endpoint of
+// its own.
+func registered(name string) (bool, error) {
+	body, code, err := call("GET", "/ls", nil, nil)
+	if err != nil {
+		return false, err
+	}
+	if code >= 400 {
+		return false, fmt.Errorf("%s", strings.TrimSpace(string(body)))
+	}
+	var recs []protocol.Record
+	if err := json.Unmarshal(body, &recs); err != nil {
+		return false, err
+	}
+	want, err := protocol.ParseName(name)
+	if err != nil {
+		return false, err
+	}
+	for _, r := range recs {
+		if r.Name == want.String() {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func newTag() string {
 	var b [6]byte
 	rand.Read(b[:])
@@ -302,6 +340,12 @@ func newTag() string {
 // ---- talking to the daemon -------------------------------------------------
 
 func call(method, path string, q url.Values, body any) ([]byte, int, error) {
+	return callCtx(context.Background(), method, path, q, body)
+}
+
+// callCtx is the same with a deadline the caller owns: `start` gives it the
+// signal context so a long consume ends when the service is asked to stop.
+func callCtx(ctx context.Context, method, path string, q url.Values, body any) ([]byte, int, error) {
 	name := os.Getenv("AGENT_BUS_NAME")
 	token := os.Getenv("AGENT_BUS_TOKEN")
 	if name == "" || token == "" {
@@ -320,7 +364,7 @@ func call(method, path string, q url.Values, body any) ([]byte, int, error) {
 	if len(q) > 0 {
 		u += "?" + q.Encode()
 	}
-	req, err := http.NewRequest(method, u, buf)
+	req, err := http.NewRequestWithContext(ctx, method, u, buf)
 	if err != nil {
 		return nil, 0, err
 	}

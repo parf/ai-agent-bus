@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/core"
@@ -90,7 +91,7 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 	in.From = caller.String()
 	e, err := s.bus.Send(in)
 	switch {
-	case errors.Is(err, core.ErrBadName):
+	case errors.Is(err, core.ErrBadName), errors.Is(err, core.ErrReceipt):
 		fail(w, http.StatusBadRequest, err.Error())
 		return
 	case errors.Is(err, core.ErrUnknown):
@@ -124,8 +125,16 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 	filtered := topic != "" || tag != ""
 	inbox := caller.String()
 	if topic != "" && tag == "" {
-		if rec, ok := s.bus.Lookup(topic); ok && rec.Kind == protocol.KindTopic {
+		rec, known := s.bus.Lookup(topic)
+		switch {
+		case known && rec.Kind == protocol.KindTopic:
 			inbox, topic, filtered = rec.Name, "", false
+		case strings.Contains(topic, "@"):
+			// A topic filter is a label (`deploy-42`); a topic *name* is a
+			// name (`jobs@srv1`). Saying the second and meaning the first is
+			// a typo, and answering it with a silent timeout hides it.
+			fail(w, http.StatusNotFound, "no such topic: "+topic)
+			return
 		}
 	}
 
