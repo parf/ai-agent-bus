@@ -64,7 +64,7 @@ wins.
 | setup | `setup` |
 | identity | `keygen`, `register` |
 | registry | `register`, `topic create` |
-| messaging | `send`, `publish`, `consume` |
+| messaging | `send`, `call`, `publish`, `consume`, `ack`, `reply` |
 | runner | `start`, `stop`, `ls`, `logs` |
 | AUTH admin | `auth sign`, `auth admin` |
 | over SSH | `static-token`, `bundle show\|history`, `user list`, `service list`, `status`, `replica-sync` |

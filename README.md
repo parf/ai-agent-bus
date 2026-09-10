@@ -193,6 +193,7 @@ agent-bus topic create build-jobs  --kind queue --ttl 1h --bound 1000
 
 # talk
 agent-bus send     fixer@srv1 --topic deploy-42 --tag q1 "run the migration?"   # known receiver
+agent-bus call     fixer@srv1 --topic deploy-42 --tag q2 "is it done?"           # wait for the reply
 agent-bus publish  --topic alerts.prod "disk 91% on db3"                        # whoever consumes it
 agent-bus consume                                                                # read my own queue
 

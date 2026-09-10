@@ -13,6 +13,7 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
 | Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
 | Processes | one | supervisor + children | AUTH and billing children |
+| Services | request/reply with `ack` | deadlines, `done`, `reply-to`, many instances | calls across chained buses, billed |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
 | Install | built binary | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
 
@@ -29,6 +30,7 @@ to be true.
 | identity | **one master token per user**, reaching every service — no per-service anything ([identity § acl](01-identity.md#acl)) |
 | tokens | issued **over SSH** — `ssh agent-bus@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
 | encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
+| services | **basic request/reply** ([messaging § request and reply](04-messaging.md#request-and-reply)): a service consumes its inbox, `ack`s, does the work and replies; a caller sends and waits for that reply |
 | mcp | **basic MCP face** — list what is registered, send, consume. Unfiltered: the master token sees everything ([discovery § faces](05-discovery.md#faces)) |
 | install | run the built binary. **No npm** |
 | setup | one thing only: the user's pubkey in the `agent-bus` account's `authorized_keys` behind that forced command |
@@ -41,12 +43,15 @@ to be true.
 | `agent-bus register <name> [--addr …]` | put a service or agent in the registry |
 | `agent-bus ls [--kind …]` | what is registered — discovery, human-readable |
 | `agent-bus send <name> [--topic] [--tag]` | one message to one receiver |
+| `agent-bus call <name> [--topic] [--tag]` | send and wait for the reply |
 | `agent-bus publish --topic <t>` | one message to a topic |
 | `agent-bus consume [--follow]` | read my own queue |
+| `agent-bus ack <message-id>` | receipt: got it ([messaging § receipts](04-messaging.md#receipts)) |
+| `agent-bus reply <message-id>` | answer it — routed back by topic + tag |
 | `agent-bus topic create <t> --kind queue\|pubsub` | a topic to publish into |
 | `agent-bus status` | is the daemon up, who is connected |
 
-Seven verbs. Everything else (`keygen`, `auth *`, `start`/`stop`/`logs`) waits.
+Ten verbs. Everything else (`keygen`, `auth *`, `start`/`stop`/`logs`) waits.
 
 **Works at the end of PoC**
 
@@ -57,6 +62,8 @@ Seven verbs. Everything else (`keygen`, `auth *`, `start`/`stop`/`logs`) waits.
   finds it by name and calls it.
 - An agent asks the **MCP face** "what can I use?" and can send and consume
   through it.
+- A **service** takes a request, acknowledges it, and answers; the caller
+  blocks on the answer and gets the right one back, matched by topic + tag.
 
 The **push adapters** — Claude Code Channels and the Codex App Server
 ([runner § adapters](08-runner-role.md#adapters)) — are what let a live session
@@ -85,6 +92,7 @@ a shared host.
 | encryption | AEAD sessions; bodies end to end ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | access | service ACL, then master ACL; a service may refuse master ([identity § acl](01-identity.md#acl)) |
 | messaging | TTL, bound, `ring`/`strict`, receipts ([messaging](04-messaging.md)) |
+| services | calls grow up: `done` as well as `ack`, caller deadlines, `reply-to` a third party, several instances behind one name, per-service call stats ([messaging](04-messaging.md)) |
 | storage | SQLite store, Parquet dump and reload ([setup § storage](09-setup.md#storage)) |
 | faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a basic dashboard ([discovery § faces](05-discovery.md#faces)) |
 | runner | supervise and sandbox children ([runner role](08-runner-role.md)) |
@@ -112,6 +120,7 @@ client libraries in other languages.
 | policy | groups with `& \| !`, service-defined roles, delegation ([identity](01-identity.md)) |
 | admin | SSH forced commands, audit log ([AUTH role § SSH admin](06-auth-role.md#ssh-admin)) |
 | federation | chaining to an upstream; peer registry sync through git ([overview § chaining](00-overview.md#chaining)) |
+| calls | a call reaches a service on the **upstream** bus the same way it reaches a local one, carrying on-behalf-of, counted by billing; long answers stream ([overview § chaining](00-overview.md#chaining)) |
 | observability | health-checker, stats, Prometheus export ([discovery](05-discovery.md)) |
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
 | billing | optional role, RADIUS, paid public API ([billing role](07-billing-role.md)) |

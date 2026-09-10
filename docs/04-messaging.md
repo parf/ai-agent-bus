@@ -23,6 +23,22 @@ unless the TTL expires or the queue fills first. Choose both sensibly.
 received a publish, but the API answers "are there subscribers on this topic,
 and who?" to anyone whose access allows the lookup.
 
+## Request and reply
+
+A service call is not a third verb. It is a **`send` whose reply comes back on
+the same topic + tag**, and the caller waits for it:
+
+| Side | Does |
+|---|---|
+| caller | `send`, then wait on its own queue for a message with that topic + tag |
+| service | `consume` its inbox, optionally `ack`, do the work, `reply` |
+| deadline | the caller's, and the message's TTL is what stops a late answer arriving |
+
+The bus adds nothing here — matching is the topic + tag it already carries, the
+wait is an ordinary `consume`, and a caller that does not want to wait simply
+does not. A service may answer twice (`ack` now, result later) or hand the
+answer to a third party with `reply-to`.
+
 ## Message fields
 
 Every message carries:

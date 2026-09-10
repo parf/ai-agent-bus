@@ -63,7 +63,9 @@ All 2026-09-09 unless noted.
 | Sandboxing on by default, backend chosen by environment | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | Minimal setup: install, `agent-bus setup`, start the service | [setup § install](09-setup.md#install) |
 | Development goes PoC → MVP → Release 1, each ending in something that works end to end | [stages](12-stages.md) |
-| PoC: sockets + HTTP, one master token per user issued over SSH, seven CLI verbs, a basic MCP face, no npm | [stages § PoC](12-stages.md#poc) |
+| PoC: sockets + HTTP, one master token per user issued over SSH, ten CLI verbs, a basic MCP face, no npm | [stages § PoC](12-stages.md#poc) |
+| A service call is a `send` whose reply comes back on the same topic and tag; the bus adds no call machinery | [messaging § request and reply](04-messaging.md#request-and-reply) |
+| PoC includes basic service support: consume, `ack`, reply, and a caller that waits | [stages § PoC](12-stages.md#poc) |
 | PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](12-stages.md#poc) |
 | The Channels and App Server adapters are ported from V1, not designed again | [runner § adapters](08-runner-role.md#adapters) |
 | Go first, bun/NPM later; client libs Go, PHP, Rust, JS, Python | [setup § install](09-setup.md#install) |
