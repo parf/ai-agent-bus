@@ -63,7 +63,9 @@ All 2026-09-09 unless noted.
 | Sandboxing on by default, backend chosen by environment | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | Minimal setup: install, `agent-bus setup`, start the service | [setup § install](09-setup.md#install) |
 | Development goes PoC → MVP → Release 1, each ending in something that works end to end | [stages](12-stages.md) |
-| PoC: sockets + HTTP, one master token per user, seven CLI verbs, no encryption, no npm | [stages § PoC](12-stages.md#poc) |
+| PoC: sockets + HTTP, one master token per user issued over SSH, seven CLI verbs, a basic MCP face, no npm | [stages § PoC](12-stages.md#poc) |
+| PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](12-stages.md#poc) |
+| The Channels and App Server adapters are ported from V1, not designed again | [runner § adapters](08-runner-role.md#adapters) |
 | Go first, bun/NPM later; client libs Go, PHP, Rust, JS, Python | [setup § install](09-setup.md#install) |
 | Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](10-modules.md#external-tools) |
 | HTTP is a first-class citizen and always the built-in client, never a subprocess — unless the caller is a script | [modules § HTTP is built in](10-modules.md#http-is-built-in) |
@@ -97,8 +99,6 @@ All 2026-09-09 unless noted.
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
-| Whether PoC has no encrypted sessions at all, or only unencrypted tokens at rest | owner | [stages § PoC](12-stages.md#poc) |
-| Whether PoC needs the push adapters, or pull-only through an MCP inbox | owner | [stages § PoC](12-stages.md#poc) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 
 ## Superseded

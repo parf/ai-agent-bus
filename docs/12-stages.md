@@ -7,12 +7,13 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 
 | | PoC | MVP | Release 1 |
 |---|---|---|---|
-| Identity | one master token | `user@realm` + token, per-user sockets | groups, roles, delegation |
+| Identity | one master token, issued over SSH | `user@realm` + token, per-user sockets | groups, roles, delegation |
 | Registration | none — the token is everything | manual + GitHub | AUTH bundle, LDAP/AD if wanted |
-| Encryption | **off** | AEAD sessions, bodies end to end | — |
+| Encryption | **none** | AEAD sessions, bodies end to end | — |
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
 | Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
 | Processes | one | supervisor + children | AUTH and billing children |
+| Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
 | Install | built binary | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
 
 ## PoC
@@ -26,8 +27,11 @@ to be true.
 |---|---|
 | daemon | one process, listening on a **unix socket and HTTP** |
 | identity | **one master token per user**, reaching every service — no per-service anything ([identity § acl](01-identity.md#acl)) |
-| encryption | **none.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
+| tokens | issued **over SSH** — `ssh agent-bus@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
+| encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
+| mcp | **basic MCP face** — list what is registered, send, consume. Unfiltered: the master token sees everything ([discovery § faces](05-discovery.md#faces)) |
 | install | run the built binary. **No npm** |
+| setup | one thing only: the user's pubkey in the `agent-bus` account's `authorized_keys` behind that forced command |
 | storage | memory. A restart loses everything, and that is fine here |
 
 **CLI — the basic set**
@@ -51,14 +55,20 @@ Seven verbs. Everything else (`keygen`, `auth *`, `start`/`stop`/`logs`) waits.
 - A **consumer** reads that topic, including messages sent while it was down.
 - **Service publishing and discovery**: register something, another party
   finds it by name and calls it.
+- An agent asks the **MCP face** "what can I use?" and can send and consume
+  through it.
 
-The largest single piece is the pair of **push adapters** — Claude Code
-Channels and the Codex App Server
-([runner § adapters](08-runner-role.md#adapters)) — because a live session has
-to *receive*, not poll. Everything else in PoC is small next to this.
+The **push adapters** — Claude Code Channels and the Codex App Server
+([runner § adapters](08-runner-role.md#adapters)) — are what let a live session
+*receive* instead of poll. **Both already exist in V1** (`/rd/service/agent-bus/`);
+PoC ports them onto the new daemon rather than designing them again.
 
 **Deliberately absent**: encryption, AUTH, per-service ACLs, persistence,
-sandboxing, the dashboard, the MCP face, npm.
+sandboxing, the dashboard, generated docs and catalog filtering, npm.
+
+Note what plaintext costs: in PoC the daemon, its logs and anyone on the host
+can read message bodies, so *"the bus never reads payloads"* is not yet true.
+It becomes true at MVP, with AEAD sessions.
 
 ## MVP
 
@@ -76,7 +86,7 @@ a shared host.
 | access | service ACL, then master ACL; a service may refuse master ([identity § acl](01-identity.md#acl)) |
 | messaging | TTL, bound, `ring`/`strict`, receipts ([messaging](04-messaging.md)) |
 | storage | SQLite store, Parquet dump and reload ([setup § storage](09-setup.md#storage)) |
-| faces | MCP with generated docs, audience-filtered; a basic dashboard ([discovery § faces](05-discovery.md#faces)) |
+| faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a basic dashboard ([discovery § faces](05-discovery.md#faces)) |
 | runner | supervise and sandbox children ([runner role](08-runner-role.md)) |
 | processes | the supervisor/children split ([processes](11-processes.md)) |
 | install | `npm install -g` + `agent-bus setup` ([setup](09-setup.md)) |
@@ -115,12 +125,3 @@ client libraries in other languages.
 - A laptop bus chains to it: local first, upstream for the rest.
 - A stranger with a GitHub key enrols in a public service, and with billing on
   is charged for it.
-
-❓ **Encryption in PoC** — read here as *no encrypted sessions at all*, bodies
-plaintext. If it meant only that tokens are not encrypted at rest, PoC grows
-an AEAD session. *Settled by:* owner.
-
-❓ **Push adapters in PoC** — "claude-cli talks to codex-cli" needs a live
-session to receive, which is the Channels and App Server adapters. Pull-only
-through an MCP inbox would be a smaller PoC and a weaker demonstration.
-*Settled by:* owner.

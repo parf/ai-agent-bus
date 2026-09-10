@@ -33,14 +33,16 @@ Children come in a few shapes; each gets the same bus face.
 | shell processes (stdin/stdout) | request/response or stream services |
 | ad-hoc spawn/control | the runner's own API to start/stop things on demand |
 
-**Agent runtimes get one push adapter each**, borrowed from V1's notifiers:
-each runtime takes a message differently, so each gets its own adapter that
-reads the session's queue and pushes into the *running* session.
+**Agent runtimes get one push adapter each**: each runtime takes a message
+differently, so each gets its own adapter that reads the session's queue and
+pushes into the *running* session. **Claude Code and Codex are already
+implemented in V1** — those two are ported, not designed again; the status
+column below says which exist.
 
 | Runtime | Push path | Status |
 |---|---|---|
-| Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool | yes |
-| Codex | App Server over a private unix socket — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart | yes |
+| Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool | in V1, port it |
+| Codex | App Server over a private unix socket — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart | in V1, port it |
 | OpenCode (Z.AI) | ❓ to be found — the owner has an account. *Settled by:* one spike | maybe |
 | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
 
