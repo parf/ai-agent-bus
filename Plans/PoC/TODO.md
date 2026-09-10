@@ -41,8 +41,8 @@ what can sink this PoC, and a shell cannot show either.
 | B.0 | ✅ _Done → [DONE.md](DONE.md): B.0_ — bun drives `codex app-server` over stdio NDJSON; no WebSocket, no `ws`, one runtime |
 | B.1 | ✅ _Done → [DONE.md](DONE.md): B_ — `src/mcp/` on bun, four tools, each one `fetch` |
 | B.2 | ✅ _Done → [DONE.md](DONE.md): B_ — registers `AGENT_BUS_NAME` at start |
-| B.3 | ⚠️ _Done → [DONE.md](DONE.md): B_ — both modes built and covered by smokes of their own. **Codex push proven into a live interactive TUI**, reply and all. Claude push proven only in the smoke |
-| B.4 | ✅ _Done → [DONE.md](DONE.md): B.4_ — plugin manifest, `.mcp.json` fallback, Codex config; the name is derived when unset |
+| B.3 | ✅ _Done → [DONE.md](DONE.md): B_ — both modes built, covered by smokes, and **both proven into live interactive sessions** |
+| B.4 | ⚠️ _Done → [DONE.md](DONE.md): B.4_ — plugin manifest, `.mcp.json` fallback, Codex config; the name is derived when unset. **A plugin-provided server cannot be a channel source**, so Claude push needs the `--mcp-config` form |
 | B.5 | ⚠️ _Done → [DONE.md](DONE.md): B.5_ — `/ab:ls` and `/ab:send`. The SessionStart hook was dropped: the face already registers itself |
 | B.4 | loaded into Claude as a **plugin** `ab` (`claude plugin init ab` scaffolds locally and auto-loads; its `plugin.json` declares the MCP server) and into Codex via `~/.codex/config.toml`, with the App Server started beside the Codex session and its socket path passed in | Codex without the MCP server can only answer from a shell; without the socket, nothing can push into it. `--mcp-config` is the fallback if the plugin path costs anything |
 | B.5 | if the plugin carries its weight: `/ab:send`, `/ab:ls` as commands, and a SessionStart hook that registers `<name>@<host>` — which is B.2 done by the runtime | plugin commands and skills use the colon namespace; **MCP tools cannot** ([glossary](../../docs/glossary.md)) |
@@ -52,11 +52,10 @@ live. The proof is the **correlated reply** — a transport ack says nothing
 about whether the model acted
 ([runner § adapters](../../docs/08-runner-role.md#adapters)).
 
-⚠️ **Half met.** A **live interactive Codex TUI** takes a bus message and
-answers it, correlated on topic and tag
-([DONE.md](DONE.md): the live run — Codex). The Claude side is proven only in
-the smoke; an interactive Claude session has not yet been driven end to end.
-Recipe: [`../../src/mcp/README.md`](../../src/mcp/README.md).
+✅ **Met.** A live interactive Claude session asked a live interactive Codex
+session a question over the bus and got the answer back, matched on topic and
+tag ([DONE.md](DONE.md): the live run). Recipe:
+[`../../src/mcp/README.md`](../../src/mcp/README.md).
 
 ### C — the rest of the verbs
 

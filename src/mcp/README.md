@@ -31,17 +31,27 @@ daemon.**
 
 ## Loading it
 
-**Claude Code, as a plugin.** `.claude-plugin/plugin.json` declares the server
-with `AGENT_BUS_PUSH=claude`, so a message arrives in the session instead of
-waiting to be polled. Channels are still a development feature, so the session
-also needs the flag:
+**Claude Code, for push.** Channels are still a development feature, and the
+server has to be named on the command line:
 
-```
-claude --dangerously-load-development-channels server:agent-bus
+```sh
+claude --mcp-config claude-mcp.json \
+  --dangerously-load-development-channels server:agent-bus
 ```
 
-**Claude Code, without the plugin.** `--mcp-config .mcp.json` from this
-directory. Same four tools, no push: `ab_consume` is how messages arrive.
+where `claude-mcp.json` declares `agent-bus` with `AGENT_BUS_PUSH=claude`.
+Two traps, both silent:
+
+- **`--strict-mcp-config` breaks it.** The flag then has no server to bind to
+  and messages are consumed but never surface. The warning it prints —
+  *no MCP server configured with that name* — is the only sign.
+- **A plugin-provided server cannot be a channel source.** Neither
+  `server:agent-bus` nor `server:plugin:ab:agent-bus` resolves. The plugin is
+  how the *tools* load; the channel needs this form.
+
+**Claude Code, as a plugin.** `.claude-plugin/plugin.json` declares the
+server, so `claude --plugin-dir <this dir>` gives the session the four tools
+and `/ab:ls`, `/ab:send`. No push — `ab_consume` is how messages arrive.
 
 **Codex**, in `~/.codex/config.toml`:
 

@@ -172,6 +172,38 @@ channels. Zero configuration beyond the token. Verified: a session started with
 no `AGENT_BUS_NAME` registered as
 `claude-code.home-parf-src-ai-agent-bus-src-mcp@parf.us`.
 
+## The live run
+
+**Wave B is met.** A live interactive **Claude Code** session asked a live
+interactive **Codex** session a question over the V2 bus and got the answer
+back, matched on topic and tag. Claude's side:
+
+```
+● codex.session@parf.us replied: 23
+```
+
+Codex's side, the same exchange:
+
+```
+Name one prime number between 20 and 30. Answer with just the number.
+Answer by calling ab_send with to: "claude.session@parf.us", topic: "c2c", tag: "x1", …
+• Called agent-bus.ab_send({"to":"claude.session@parf.us","topic":"c2c","tag":"x1","text":"23"})
+  └ the bus accepted 01dc484f817cbd33 for claude.session@parf.us (topic c2c, tag x1)
+```
+
+Driven under tmux — two real TUIs, no harness pretending to be one. Each half
+was proven on its own first: a peer asked each session a question and got a
+correlated reply.
+
+**The Claude half** needed only what the design already said: `--mcp-config`
+plus `--dangerously-load-development-channels server:agent-bus`, the same
+invocation V1 uses, and the `claude/channel` capability declared. Two things
+that do **not** work: `--strict-mcp-config` alongside the channels flag, and
+loading the face **as a plugin** — a plugin-provided MCP server is not
+resolvable as a channel source under either `server:agent-bus` or
+`server:plugin:ab:agent-bus`. The plugin is still how the *tools* load; the
+channel needs the `--mcp-config` form.
+
 ## The live run — Codex
 
 **Done.** A bus message reached a **live interactive Codex TUI** and came back
@@ -197,14 +229,10 @@ first, and each is now either fixed or written down:
 the reply. `on-request` is the default, and the reviewer is always the person
 in the TUI.
 
-❓ **One headless run did not surface the channel message.** With the
-capability declared and the MCP server connected, a `claude -p` session
-registered and the push loop took the message off the daemon — and the model
-never saw a channel message. That is **one observed run, not a proven limit**:
-it does not establish that channels are unavailable headless, only that this
-attempt did not deliver. Either way the harness cannot stand in for the live
-criterion, which the plan already checks by hand. *Settled by:* one
-interactive run.
+**The earlier headless failure is explained.** A `claude -p` run took the
+message off the daemon and never surfaced it. The cause was not headless mode:
+it was `--strict-mcp-config`, which silently leaves the channels flag with no
+server to bind to. The same invocation without it works interactively.
 
 ## B.5 — the plugin's own commands
 
