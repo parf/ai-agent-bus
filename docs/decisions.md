@@ -101,6 +101,7 @@ All 2026-09-09 unless noted.
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
+| Whether billing ships in Release 1 or moves to `future/` | owner | [stages § Release 1](12-stages.md#release-1) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 
 ## Superseded

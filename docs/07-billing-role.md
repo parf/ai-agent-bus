@@ -1,5 +1,8 @@
 # Billing role
 
+**Release 1 at the earliest, and possibly `future/`** — nothing else waits on
+it ([stages § Release 1](12-stages.md#release-1)).
+
 Optional child process of `agent-busd` (`billing: on`). Minimal by intent: the
 bus counts, RADIUS holds the balance, a payment provider holds the money.
 Together they make agent-bus a **paid public API platform** — a stranger

@@ -140,7 +140,8 @@ role you gave strangers. Google, LinkedIn and Facebook sign-in come later. Sessi
 encrypted end to end without TLS or certificates. **Closed** enrolment queues newcomers
 for your approval instead.
 
-Turn on **billing** and the same bus is a paid API platform: a user **registers**,
+Turn on **billing** — the last thing on the roadmap, and the first that may
+slip — and the same bus is a paid API platform: a user **registers**,
 **pays** and **uses your services** through one API. Each service names its price — a
 flat fee or a cost per call; the bus counts and denies when the balance is gone. The
 payment gateway is just another service on the bus; a web site with a checkout page is

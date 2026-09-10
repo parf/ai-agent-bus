@@ -12,8 +12,8 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Encryption | **none** | AEAD sessions, bodies end to end | — |
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
 | Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
-| Processes | one | supervisor + children | AUTH and billing children |
-| Services | request/reply with `ack` | deadlines, `done`, `reply-to`, many instances | calls across chained buses, billed |
+| Processes | one | supervisor + children | AUTH child; billing only if it ships |
+| Services | request/reply with `ack` | deadlines, `done`, `reply-to`, many instances | calls across chained buses |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
 | Install | built binary | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
 
@@ -120,10 +120,10 @@ client libraries in other languages.
 | policy | groups with `& \| !`, service-defined roles, delegation ([identity](01-identity.md)) |
 | admin | SSH forced commands, audit log ([AUTH role § SSH admin](06-auth-role.md#ssh-admin)) |
 | federation | chaining to an upstream; peer registry sync through git ([overview § chaining](00-overview.md#chaining)) |
-| calls | a call reaches a service on the **upstream** bus the same way it reaches a local one, carrying on-behalf-of, counted by billing; long answers stream ([overview § chaining](00-overview.md#chaining)) |
+| calls | a call reaches a service on the **upstream** bus the same way it reaches a local one, carrying on-behalf-of; long answers stream ([overview § chaining](00-overview.md#chaining)) |
 | observability | health-checker, stats, Prometheus export ([discovery](05-discovery.md)) |
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
-| billing | optional role, RADIUS, paid public API ([billing role](07-billing-role.md)) |
+| billing | **last in the stage, and the first thing to drop.** Nothing else waits on it — the design is written ([billing role](07-billing-role.md)), so it can ship in Release 1 or move to `future/` without touching anything |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified ([modules](10-modules.md)) |
 | operations | zero-downtime reload, packaging |
 
@@ -132,5 +132,10 @@ client libraries in other languages.
 - A company bus with central identities and groups, two AUTH replicas, and no
   service holding its own user list.
 - A laptop bus chains to it: local first, upstream for the rest.
-- A stranger with a GitHub key enrols in a public service, and with billing on
-  is charged for it.
+- A stranger with a GitHub key enrols in a public service — and is charged for
+  it, if billing shipped.
+
+❓ **Billing in Release 1, or deferred** — nothing in the bus depends on it and
+it is the one role that needs a RADIUS server and a payment provider to be
+worth anything. Release 1 is the earliest it could ship; `future/` is the
+honest place for it if Release 1 is already heavy. *Settled by:* owner.
