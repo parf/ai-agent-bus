@@ -41,7 +41,7 @@ what can sink this PoC, and a shell cannot show either.
 | B.0 | ✅ _Done → [DONE.md](DONE.md): B.0_ — bun drives `codex app-server` over stdio NDJSON; no WebSocket, no `ws`, one runtime |
 | B.1 | ✅ _Done → [DONE.md](DONE.md): B_ — `src/mcp/` on bun, four tools, each one `fetch` |
 | B.2 | ✅ _Done → [DONE.md](DONE.md): B_ — registers `AGENT_BUS_NAME` at start |
-| B.3 | ⚠️ _Done → [DONE.md](DONE.md): B_ — both modes built and covered by smokes of their own, the Codex one against a fake App Server. **Neither push proven into a live interactive session**: channels did not surface in a headless Claude, and steering a real TUI was not attempted. Both are the by-hand criterion |
+| B.3 | ⚠️ _Done → [DONE.md](DONE.md): B_ — both modes built and covered by smokes of their own, the Codex one against a fake App Server. **Neither push proven into a live interactive session**: one headless Claude run did not surface the channel message, and steering a real TUI was not attempted. Both are the by-hand criterion |
 | B.4 | ✅ _Done → [DONE.md](DONE.md): B.4_ — plugin manifest, `.mcp.json` fallback, Codex config; the name is derived when unset |
 | B.5 | ⚠️ _Done → [DONE.md](DONE.md): B.5_ — `/ab:ls` and `/ab:send`. The SessionStart hook was dropped: the face already registers itself |
 | B.4 | loaded into Claude as a **plugin** `ab` (`claude plugin init ab` scaffolds locally and auto-loads; its `plugin.json` declares the MCP server) and into Codex via `~/.codex/config.toml`, with the App Server started beside the Codex session and its socket path passed in | Codex without the MCP server can only answer from a shell; without the socket, nothing can push into it. `--mcp-config` is the fallback if the plugin path costs anything |

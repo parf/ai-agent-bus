@@ -172,12 +172,13 @@ channels. Zero configuration beyond the token. Verified: a session started with
 no `AGENT_BUS_NAME` registered as
 `claude-code.home-parf-src-ai-agent-bus-src-mcp@parf.us`.
 
-❓ **Channel push into a headless session did not surface.** With the
-capability declared and the MCP server connected, a `claude -p` run registered,
-the push loop took the message off the daemon — and the model never saw a
-channel message. Channels appear to be an interactive-session path. This costs
-nothing in the plan, which already says the live criterion is checked by hand,
-but it does mean **the headless harness cannot prove it**. *Settled by:* one
+❓ **One headless run did not surface the channel message.** With the
+capability declared and the MCP server connected, a `claude -p` session
+registered and the push loop took the message off the daemon — and the model
+never saw a channel message. That is **one observed run, not a proven limit**:
+it does not establish that channels are unavailable headless, only that this
+attempt did not deliver. Either way the harness cannot stand in for the live
+criterion, which the plan already checks by hand. *Settled by:* one
 interactive run.
 
 ## B.5 — the plugin's own commands
