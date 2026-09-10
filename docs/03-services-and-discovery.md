@@ -188,8 +188,8 @@ Minimal by intent: the bus counts, someone else holds the money.
 | Aspect | Rule |
 |---|---|
 | Price | declared by the **service** in its record: **flat** (a fee for access) or **per call** (the service sets the cost) |
-| Balance | lives in a **remote balance service** (❓ RADIUS or other, `00` Open); the bus asks *"may this principal call this service?"* the way it asks AUTH *"who is this?"* — once, cached, refreshed per epoch |
+| Balance | lives in a **RADIUS** server on **our own network** — the bus talks to it the way it talks to AUTH: *"may this principal call this service?"* once, cached, refreshed per epoch; accounting records go the same way. RADIUS is never exposed to the public side; the bus is the only client |
 | Usage | the bus records every billable call per (principal, service) and reports it to the balance service; the dashboard shows the same counts it already keeps |
-| Denied | the balance service says no → the call is refused with a clear error, like a missing role |
+| Denied | **no balance = call denied**, with a clear error, like a missing role |
 | What is billable | what the bus can see — a message and its size. Bodies are encrypted, so per-method pricing needs the method name in the envelope (open) |
 | Money | never in the bus: no prices in currency units beyond what the service declares, no payments, no invoices — accounting only |
