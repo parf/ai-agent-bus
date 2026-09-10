@@ -4,7 +4,7 @@
 
 | Mode | `access_key` | Expiry | AUTH role | Identity |
 |---|---|---|---|---|
-| **static** | pre-shared token in both configs | never | not needed | the token itself |
+| **static** | pre-shared token in both configs, or issued over SSH | config: never · SSH-issued: until `agent-busd` restarts or the principal refreshes | not needed | the token itself |
 | **pairwise** | `HKDF(X25519(my_priv, their_pub), "pairwise" \| sorted(fp_a, fp_b))` | never | not needed | Ed25519 key |
 | **derived** | `HKDF(master_secret, "ak" \| user \| service \| epoch)`, `epoch = floor(now/3600)` | 60 min | yes, once per epoch | Ed25519 key |
 
@@ -18,7 +18,9 @@
   with a forced command (same mechanism as admin access below), so sshd
   authenticates you with the key you already have and the daemon hands back a
   token bound to that principal. No password, nothing to copy by hand; a
-  script on another host does the same against `agent-bus@<node>`.
+  script on another host does the same against `agent-bus@<node>`. Such a
+  token **lives until `agent-busd` restarts or you ask for a fresh one** — it is
+  kept in the daemon's memory, not in a file; re-run the line and carry on.
 - **Pairwise** is the standalone mode for key-holding parties and a path that
   works with AUTH down.
 - **Derived** keys are deterministic → every AUTH replica computes the same
