@@ -31,7 +31,8 @@ registration cannot land in one inbox while a send goes to another.
 
 | | |
 |---|---|
-| charset | **`a-z 0-9 . _ -`**, both halves, starting alphanumeric; 64 each |
+| charset | **`a-z 0-9 . _ -`**, both halves, starting alphanumeric |
+| length | **64 characters for the whole name**, `@` included — a name is an identifier, not a payload |
 | ASCII only | a name spellable two ways in Unicode is a name two people can be tricked by |
 | dots | allowed on both sides — a realm is often a host (`om.parf.dev`), and a local part may be dotted (`slack.reader`) |
 

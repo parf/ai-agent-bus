@@ -18,8 +18,12 @@ import (
 // happened to capitalise it.
 //
 // Both halves are [a-z0-9._-], starting alphanumeric: one charset, and a realm
-// can be a host — parf@om.parf.dev.
-var partRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
+// can be a host — parf@om.parf.dev. The whole name is at most MaxName.
+var partRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
+
+// MaxName bounds a canonical name, `user@realm` and the @ included. A name is
+// an identifier, not a payload: it is logged, indexed and shown in a list.
+const MaxName = 64
 
 // Name is one half of the two parameters every call carries.
 type Name struct {
@@ -48,7 +52,11 @@ func ParseName(s string) (Name, error) {
 	if !partRe.MatchString(realm) {
 		return Name{}, fmt.Errorf("bad realm in %q: a-z 0-9 . _ - only, starting alphanumeric", s)
 	}
-	return Name{Local: local, Realm: realm}, nil
+	n := Name{Local: local, Realm: realm}
+	if len(n.String()) > MaxName {
+		return Name{}, fmt.Errorf("name %q is %d characters: at most %d", s, len(n.String()), MaxName)
+	}
+	return n, nil
 }
 
 func isASCII(s string) bool {

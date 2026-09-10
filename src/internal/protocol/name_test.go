@@ -1,6 +1,9 @@
 package protocol
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseNameCanonicalises(t *testing.T) {
 	// trim, lower-case, ASCII only — one name has one spelling.
@@ -27,6 +30,22 @@ func TestDotsAreAllowedOnBothSides(t *testing.T) {
 		if err != nil || n.String() != want {
 			t.Fatalf("%q: got %q, %v", in, n, err)
 		}
+	}
+}
+
+// The whole name is bounded, not each half: user@realm and the @ included.
+func TestNameLengthIsBounded(t *testing.T) {
+	fits := strings.Repeat("a", MaxName-len("@srv1")) + "@srv1"
+	if n, err := ParseName(fits); err != nil || len(n.String()) != MaxName {
+		t.Fatalf("a %d-character name should fit: %v", MaxName, err)
+	}
+	if _, err := ParseName(strings.Repeat("a", MaxName) + "@srv1"); err == nil {
+		t.Fatal("a name longer than the bound was accepted")
+	}
+	// Halves that each fit but together do not.
+	long := strings.Repeat("a", 40) + "@" + strings.Repeat("b", 40)
+	if _, err := ParseName(long); err == nil {
+		t.Fatal("two 40-character halves make an 81-character name; it was accepted")
 	}
 }
 

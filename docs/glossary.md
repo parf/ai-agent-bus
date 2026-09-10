@@ -28,7 +28,7 @@ wins.
 | **principal** | any user, service or instance with an identity | [identity § principals](01-identity.md#principals) |
 | **`user@realm`** | how every principal is written; realm = host · provider · team | [identity § names](01-identity.md#names) |
 | **realm** | who vouches for a name | [identity § names](01-identity.md#names) |
-| **canonical name** | `trim(lower(name))`, ASCII `a-z 0-9 . _ -` — the one spelling everything compares and routes on | [identity § names](01-identity.md#names) |
+| **canonical name** | `trim(lower(name))`, ASCII `a-z 0-9 . _ -`, ≤64 chars — the one spelling everything compares and routes on | [identity § names](01-identity.md#names) |
 | **token** | the second of the two parameters every call carries; persisted, previous one kept | [access § token lifetime](02-access.md#token-lifetime) |
 | **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](01-identity.md#acl) |
 | **`allow: *`** | anyone who can authenticate | [identity § acl](01-identity.md#acl) |
