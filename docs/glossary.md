@@ -39,7 +39,7 @@ wins.
 | **topic** | a registered record; kind `queue` or `pub/sub` | [services § topics](03-services-and-topics.md#topics) |
 | **inbox** | the implicit queue topic every agent owns | [messaging § inbox queues](04-messaging.md#inbox-queues) |
 | **`message_id` · topic · tag** | the three fields on every message | [messaging § message fields](04-messaging.md#message-fields) |
-| **ack / done** | the two optional receipts | [messaging § receipts](04-messaging.md#receipts) |
+| **ack / done** | the two optional receipts, both emitted by the receiver: `ack` = got it, `done` = finished processing | [messaging § receipts](04-messaging.md#receipts) |
 | **ring / strict** | the two overflow modes | [messaging § overflow](04-messaging.md#overflow) |
 | **envelope** | everything the bus can see; bodies are not in it | [messaging § envelope](04-messaging.md#envelope) |
 | **static · pairwise · derived** | the three key modes | [access § key modes](02-access.md#key-modes) |

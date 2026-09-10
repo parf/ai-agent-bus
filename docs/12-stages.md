@@ -30,7 +30,7 @@ to be true.
 | identity | **one master token per user**, reaching every service — no per-service anything ([identity § acl](01-identity.md#acl)) |
 | tokens | issued **over SSH** — `ssh agent-bus@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
 | encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
-| services | **basic request/reply** ([messaging § request and reply](04-messaging.md#request-and-reply)): a service consumes its inbox, `ack`s, does the work and replies; a caller sends and waits for that reply |
+| services | **basic request/reply** ([messaging § request and reply](04-messaging.md#request-and-reply)): a service consumes its inbox, `ack`s it (got it), does the work and replies; a caller sends and waits for that reply. The reply stands in for `done`, which comes at MVP |
 | mcp | **basic MCP face** — list what is registered, send, consume. Unfiltered: the master token sees everything ([discovery § faces](05-discovery.md#faces)) |
 | install | run the built binary. **No npm** |
 | setup | one thing only: the user's pubkey in the `agent-bus` account's `authorized_keys` behind that forced command |
@@ -92,7 +92,7 @@ a shared host.
 | encryption | AEAD sessions; bodies end to end ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | access | service ACL, then master ACL; a service may refuse master ([identity § acl](01-identity.md#acl)) |
 | messaging | TTL, bound, `ring`/`strict`, receipts ([messaging](04-messaging.md)) |
-| services | calls grow up: `done` as well as `ack`, caller deadlines, `reply-to` a third party, several instances behind one name, per-service call stats ([messaging](04-messaging.md)) |
+| services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several instances behind one name, per-service call stats ([messaging](04-messaging.md)) |
 | storage | SQLite store, Parquet dump and reload ([setup § storage](09-setup.md#storage)) |
 | faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a basic dashboard ([discovery § faces](05-discovery.md#faces)) |
 | runner | supervise and sandbox children ([runner role](08-runner-role.md)) |

@@ -31,7 +31,7 @@ the same topic + tag**, and the caller waits for it:
 | Side | Does |
 |---|---|
 | caller | `send`, then wait on its own queue for a message with that topic + tag |
-| service | `consume` its inbox, optionally `ack`, do the work, `reply` |
+| service | `consume` its inbox, optionally `ack` (got it), do the work, `reply` — and `done` if the sender asked for it |
 | deadline | the caller's, and the message's TTL is what stops a late answer arriving |
 
 The bus adds nothing here — matching is the topic + tag it already carries, the
@@ -54,10 +54,18 @@ matches them.
 
 ## Receipts
 
-Optional. A receiver may answer with **`ack`** (received) and later **`done`**
-(processed). Both are ordinary messages to the sender's queue (or its
-`reply-to`), carrying the original `message_id`, topic and tag. Neither is
-required; a sender that wants them asks.
+Optional, and **both emitted by the receiver** — the service, not the bus:
+
+| Receipt | Means |
+|---|---|
+| **`ack`** | the service **got** the message |
+| **`done`** | the service **finished processing** it |
+
+Both are ordinary messages to the sender's queue (or its `reply-to`), carrying
+the original `message_id`, topic and tag. Neither is required; a sender that
+wants them asks. A **reply carries the answer** and says nothing by itself
+about either — though a service that replies has plainly finished, which is
+why a request/reply exchange can skip `done`.
 
 ## Message TTL
 
