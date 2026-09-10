@@ -75,7 +75,10 @@ Claims only; the mechanism lives in the doc each one links to.
   generations in git ([AUTH role § bundle](06-auth-role.md#bundle)). *Registry
   data* is live in `agent-busd`, snapshotted to git
   ([identity § ownership](01-identity.md#ownership)). *Live state* — health,
-  stats, instances, queue contents — is neither signed nor snapshotted.
+  stats, instances, queue contents — is neither signed nor snapshotted, but it
+  is *durable*: queues and stats dump to Parquet, and tokens are saved so a
+  reloaded queue can still be decrypted
+  ([access § token lifetime](02-access.md#token-lifetime)).
 - **Policy lives in AUTH; services only interpret**, never decide.
 - **Two independent controls**: SSH decides *who may administer*; a signature
   decides *which config is real*.
@@ -130,7 +133,8 @@ falls through. Applies to identities, ACL/roles, service and topic lookups.
 - **Provider records are pinned at enrolment** and re-checked only on request:
   a key deleted upstream stays valid until someone asks.
 - **Static tokens, pairwise keys and local files** have no central revocation
-  or audit.
+  or audit — and a local token does not expire by default, so it is revoked by
+  deleting it, not by waiting.
 - **Stats are memory**, dumped with the queues: a crash loses the last interval.
 - **`master_secret` and the offline signing key are the roots of trust**; every
   AUTH replica holds `master_secret`, so a compromised replica mints keys.

@@ -28,6 +28,7 @@ All 2026-09-09 unless noted.
 | Sealed private config, opt-in, daemon cannot read it | [identity § sealed private config](01-identity.md#sealed-private-config) |
 | A call carries exactly two parameters, `user@realm` + token | [access § two parameters](02-access.md#two-parameters) |
 | Two ways to get a token: over SSH, or `register` on the box; both need machine access | [access § getting a token](02-access.md#getting-a-token) |
+| Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
 | The socket hides the two fields, it does not replace them; one host, many users | [access § local socket](02-access.md#local-socket) |
 | Socket layout, ownership and the one capability it needs | [access § local socket](02-access.md#local-socket) |
 | Three key modes: static, pairwise, derived | [access § key modes](02-access.md#key-modes) |
@@ -72,14 +73,13 @@ All 2026-09-09 unless noted.
 |---|---|---|
 | Process layout — how many children, what is shared | owner review | [runner § supervises itself](08-runner-role.md#supervises-itself) |
 | Static sessions are not end-to-end against the daemon | owner | [access § encrypted sessions](02-access.md#encrypted-sessions) |
-| A restart invalidates every token but keeps the queues | owner | [access § getting a token](02-access.md#getting-a-token) |
 | Per-method pricing needs the method name in the envelope | owner | [billing role](07-billing-role.md) |
 | A newcomer with no balance cannot reach `pay` | owner | [billing role](07-billing-role.md) |
 | Direct talk bypasses billing | owner | [billing role](07-billing-role.md) |
 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](06-auth-role.md#ssh-admin) |
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](03-services-and-topics.md#registry-sync) |
 | With AUTH off, who filters the MCP catalog? | owner | [discovery § audience](05-discovery.md#audience) |
-| What actually lives in SQLite | owner | [setup § storage](09-setup.md#storage) |
+| What else lives in SQLite | owner | [setup § storage](09-setup.md#storage) |
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 
@@ -87,6 +87,7 @@ All 2026-09-09 unless noted.
 
 | Was | Now |
 |---|---|
+| A token lives in daemon memory and dies with a restart | tokens are saved, and the previous one is kept — otherwise a reloaded queue is undecryptable ciphertext — [access § token lifetime](02-access.md#token-lifetime) |
 | The token is the whole identity in "minimal mode" | a call always carries two parameters; the socket supplies them locally — [access § two parameters](02-access.md#two-parameters) |
 | Local access needs no credential at all | the socket hides the credentials, it does not remove them — [access § local socket](02-access.md#local-socket) |
 | Socket in each user's `/run/user/<uid>/` | the daemon's own directory, one socket per user — [access § local socket](02-access.md#local-socket) |

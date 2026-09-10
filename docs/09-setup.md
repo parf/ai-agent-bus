@@ -47,8 +47,12 @@ snapshots — backup and peer sync
 Queues and stats are memory, dumped to Parquet
 ([messaging § durability](04-messaging.md#durability)).
 
-❓ **What actually lives in SQLite** — AUTH data is git, the registry is live
-records, queues and stats are Parquet. *Settled by:* owner.
+**Tokens are durable** and belong in the store — they must survive a restart or
+a reloaded queue cannot be decrypted
+([access § token lifetime](02-access.md#token-lifetime)).
+
+❓ **What else lives in SQLite** — AUTH data is git, the registry is live
+records, queues and stats are Parquet, tokens are durable. *Settled by:* owner.
 
 ## Reload
 

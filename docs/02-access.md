@@ -18,11 +18,23 @@ Both paths need you to already have access to the machine.
 | over SSH | `export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@<node> static-token)` | anyone with SSH to the node; sshd authenticates you with the key you already have, behind a forced command |
 | on the box | `sudo -u agent-bus register <username>` | server access, no SSH key on the bus |
 
-A token **lives until `agent-busd` restarts or you ask for a fresh one** — it
-is kept in the daemon's memory, not in a file. Re-run the line and carry on.
+## Token lifetime
 
-❓ A restart keeps the queues ([messaging § durability](04-messaging.md#durability))
-but invalidates every token at once. Deliberate? *Settled by:* owner.
+**Tokens are persisted, and the previous one is kept.**
+
+| Rule | Why |
+|---|---|
+| A token **survives a restart** — it is saved, not held in memory | a token is the `access_key` a session key derives from ([encrypted sessions](#encrypted-sessions)). Queues survive a restart too ([messaging § durability](04-messaging.md#durability)), so if the token did not, the reloaded backlog would be ciphertext nobody can read |
+| The **previous token is kept alongside the current one** | a refresh must not strand messages already queued under the old one. Two are accepted; the one before that is dropped |
+| **Local default: never expires** | there is nothing to rotate against — the socket's owner is the identity, and the OS already gates it |
+| Other sources expire by policy | a remote token lives until refreshed or revoked unless the node sets a shorter life |
+
+The two-token window is the same idea as accepting the current *and previous*
+epoch for derived keys (see [key modes](#key-modes)): a credential change must
+never break traffic that is already in flight.
+
+Re-running either command above issues a fresh token and demotes the current
+one to previous.
 
 ## Local socket
 
@@ -67,7 +79,7 @@ exist for principals that hold a key.
 
 | Mode | `access_key` | Expiry | AUTH role | Identity |
 |---|---|---|---|---|
-| **static** | the token above, or pre-shared in both configs | issued: until `agent-busd` restarts or the principal refreshes · config: never | not needed | `user@realm` + the token |
+| **static** | the token above, or pre-shared in both configs | by policy; local default never — see [token lifetime](#token-lifetime) | not needed | `user@realm` + the token |
 | **pairwise** | `HKDF(X25519(my_priv, their_pub), "pairwise" \| sorted(fp_a, fp_b))` | never | not needed | Ed25519 key |
 | **derived** | `HKDF(master_secret, "ak" \| user \| service \| epoch)`, `epoch = floor(now/3600)` | 60 min | yes, once per epoch | Ed25519 key |
 

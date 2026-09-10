@@ -79,6 +79,11 @@ without it a crash loses everything since start.
 
 A *consumer* being down is fine — its queue holds messages until TTL or bound.
 
+Bodies in a reloaded queue are still encrypted, so the credential they were
+encrypted under has to outlive the restart as well — which is why tokens are
+persisted and the previous one is kept
+([access § token lifetime](02-access.md#token-lifetime)).
+
 ## Envelope
 
 **Bodies are opaque to the bus.** A message body is encrypted for its receiver
