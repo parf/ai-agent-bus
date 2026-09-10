@@ -16,12 +16,14 @@ and linked from everywhere else.
 | 04 | [messaging](04-messaging.md) | queues · message fields · receipts · TTL · verbs · overflow · durability · the envelope |
 | 05 | [discovery](05-discovery.md) | faces · audience · health · stats · dashboard · debug mode |
 | 06 | [AUTH role](06-auth-role.md) | the bundle · signed generations · topology · `master_secret` · SSH admin |
-| 07 | [billing role](07-billing-role.md) | price · RADIUS · usage · denial · the pay service |
 | 08 | [runner role](08-runner-role.md) | supervision · adapters · sandboxing · in-process queue |
 | 09 | [setup](09-setup.md) | install · `agent-bus setup` · local users · storage · reload |
 | 10 | [modules](10-modules.md) | layers · module boundaries · which dependency is swappable · languages · external tools |
 | 11 | [processes](11-processes.md) | the supervisor and its children · privilege per process · what is shared |
 | 12 | [stages](12-stages.md) | PoC, MVP, Release 1 — what gets built when, and what counts as done |
+
+07 was the billing role; it is deferred and lives in
+[future/billing.md](future/billing.md). Numbers are stable, so the gap stays.
 
 Also: [glossary](glossary.md) — every name and term, one line each ·
 [decisions](decisions.md) — what is settled, open and superseded ·
@@ -79,8 +81,8 @@ Claims only; the mechanism lives in the doc each one links to.
   field map ([modules § external tools](10-modules.md#external-tools)).
 - **Public services are a goal, not an exception.** Open enrolment for anyone
   with a provider key; closed services queue newcomers for approval. Encrypted
-  sessions without TLS or PKI are what make this safe to expose. With billing
-  on it is a paid public API platform ([billing role](07-billing-role.md)).
+  sessions without TLS or PKI are what make this safe to expose. A paid public
+  API platform is designed and deferred ([future/billing.md](future/billing.md)).
 - **Bodies are end-to-end encrypted**: only sender and receiver read them; the
   bus sees the envelope ([messaging § envelope](04-messaging.md#envelope)).
 - **AUTH is on the hot path once** per (user, service, epoch).
@@ -104,7 +106,7 @@ and every child gets the narrowest privilege its task needs.
 
 | Always | Optional |
 |---|---|
-| supervisor · bus · runner | web (on by default) · auth (`auth: on`) · billing (`billing: on`) · health |
+| supervisor · bus · runner | web (on by default) · auth (`auth: on`) · health · billing when it ships |
 
 Who may do what, and what is shared between them, is
 [processes and privileges](11-processes.md). Faces of the bus are API, MCP and

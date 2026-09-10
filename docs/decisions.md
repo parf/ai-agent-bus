@@ -57,8 +57,8 @@ All 2026-09-09 unless noted.
 | Bundle in git over SSH; gaps resolved newer-generation-wins; master/slave | [AUTH role § topology](06-auth-role.md#topology) |
 | `master_secret` is an out-of-band file | [AUTH role § where it runs](06-auth-role.md#where-it-runs) |
 | Admin keys live in the bundle; root on the box is the break-glass | [AUTH role § SSH admin](06-auth-role.md#ssh-admin) |
-| Minimal billing as an optional role: RADIUS balance, flat or per-call, no balance = denied | [billing role](07-billing-role.md) |
-| Paid public API platform; the payment gateway is an ordinary bus service | [billing role](07-billing-role.md) |
+| Minimal billing as an optional role: RADIUS balance, flat or per-call, no balance = denied | [future/billing.md](future/billing.md) |
+| Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](future/billing.md) |
 | One push adapter per agent runtime; ChatGPT pull-only | [runner § adapters](08-runner-role.md#adapters) |
 | Sandboxing on by default, backend chosen by environment | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | Minimal setup: install, `agent-bus setup`, start the service | [setup § install](09-setup.md#install) |
@@ -68,6 +68,10 @@ All 2026-09-09 unless noted.
 | PoC includes basic service support: consume, `ack`, reply, and a caller that waits | [stages § PoC](12-stages.md#poc) |
 | PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](12-stages.md#poc) |
 | Write the simple version first, compare with V1, take its solution where it is better; simplicity breaks the tie | [stages § PoC](12-stages.md#poc) |
+| V2 code lives in this repo, in `src/` beside `docs/` | [stages § PoC](12-stages.md#poc) |
+| `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| The daemon keeps no reply state; a client replies from what it consumed, and `reply` is sugar over the routing fields | [messaging § reply routing](04-messaging.md#reply-routing) |
+| Billing is deferred out of every stage, design intact | [future/billing.md](future/billing.md) |
 | An inbox has exactly one reader; a waiter filters by topic and tag and the daemon serves the match | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | A PoC daemon binds loopback or an SSH tunnel, never a public interface | [stages § PoC](12-stages.md#poc) |
 | A queue topic is an inbox with a name, read by `consume --topic` | [stages § PoC](12-stages.md#poc) |
@@ -97,9 +101,9 @@ All 2026-09-09 unless noted.
 | ❓ | Settled by | Where |
 |---|---|---|
 | Static sessions are not end-to-end against the daemon | owner | [access § encrypted sessions](02-access.md#encrypted-sessions) |
-| Per-method pricing needs the method name in the envelope | owner | [billing role](07-billing-role.md) |
-| A newcomer with no balance cannot reach `pay` | owner | [billing role](07-billing-role.md) |
-| Direct talk bypasses billing | owner | [billing role](07-billing-role.md) |
+| Per-method pricing needs the method name in the envelope | owner | [future/billing.md](future/billing.md) |
+| A newcomer with no balance cannot reach `pay` | owner | [future/billing.md](future/billing.md) |
+| Direct talk bypasses billing | owner | [future/billing.md](future/billing.md) |
 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](06-auth-role.md#ssh-admin) |
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](03-services-and-topics.md#registry-sync) |
 | With AUTH off, who filters the MCP catalog? | owner | [discovery § audience](05-discovery.md#audience) |
@@ -108,9 +112,6 @@ All 2026-09-09 unless noted.
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
-| Whether `consume` is at-most-once or reserves until acknowledged | owner | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
-| What `reply <message-id>` resolves against once the message is consumed | owner | [messaging § reply routing](04-messaging.md#reply-routing) |
-| Whether billing ships in Release 1 or moves to `future/` | owner | [stages § Release 1](12-stages.md#release-1) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 
 ## Superseded

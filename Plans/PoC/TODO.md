@@ -17,14 +17,9 @@ by a case V1 actually hit, not by V1 having it:
 
 ## Blockers
 
-| | Blocks | Proposed | Settled by |
-|---|---|---|---|
-| ❓ Where V2 code lives | A.1 | this repo, one `src/` tree beside `docs/` | owner |
-
-Two design questions are open in [decisions](../../docs/decisions.md) and
-each has a PoC default, so neither stops work: what `consume` does to a
-message (at-most-once) and what `reply <id>` resolves against (a bounded map
-of recently consumed envelopes).
+None. Code lives in this repo, in `src/` beside `docs/`; `consume` is
+at-most-once; the daemon keeps no reply state and a client replies from the
+envelope it consumed ([decisions](../../docs/decisions.md)).
 
 ## Waves
 
@@ -34,7 +29,7 @@ One wave, one deliverable; review and commit at the end of each.
 
 | ID | Task | Notes |
 |---|---|---|
-| A.1 | registry and inboxes in memory, envelope and `user@realm` / `name@host` parsing | layout from [modules § modules](../../docs/10-modules.md#modules); records from [services and topics](../../docs/03-services-and-topics.md) |
+| A.1 | `src/` tree, then registry and inboxes in memory, envelope and `user@realm` / `name@host` parsing | layout from [modules § modules](../../docs/10-modules.md#modules); records from [services and topics](../../docs/03-services-and-topics.md) |
 | A.2 | one process, both listeners, the `agent-bus` binary. **Every client carries a name and a token**: the daemon reads its token from a file at start, the CLI reads name, token and address from env | the name is the inbox it owns and the sender a reply returns to ([access § two parameters](../../docs/02-access.md#two-parameters)) — a client with only a token can send and never be answered |
 | A.3 | `status`, `register`, `ls`, `send`, `consume` (with the **topic + tag filter**), `reply` | `reply` is a `send` to the sender with topic + tag copied — it belongs here, not in a face ([modules § languages](../../docs/10-modules.md#languages)). `status` first: it is the first thing that runs |
 

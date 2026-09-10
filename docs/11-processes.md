@@ -27,11 +27,11 @@ can move to a different process without changing which layer it belongs to.
 | **runner** | spawns, sandboxes and supervises *user* children ([runner role](08-runner-role.md)) | fork/exec, and whatever a sandbox backend needs | the store, queues, bodies |
 | **web** | the dashboard ([discovery § dashboard](05-discovery.md#dashboard)) | a read-only view of stats; **cgroup-limited** (CPU / memory / pids) so it can never starve the bus | any write path, bodies |
 | **auth** | identities, keys, groups, roles ([AUTH role](06-auth-role.md)) | **alone holds `master_secret`**; its own unix socket | a network listener, the queues |
-| **billing** | balance and accounting ([billing role](07-billing-role.md)) | the only process that talks to RADIUS | bodies, money |
 | **health** | probes generic services ([discovery § health checker](05-discovery.md#health-checker)) | outbound network | the store, queues |
 
 Defaults: supervisor, bus and runner always; web on and may be turned off;
-auth `auth: on`; billing `billing: on`; health optional.
+auth `auth: on`; health optional. Billing is deferred
+([future/billing.md](future/billing.md)); when it ships it is another child.
 
 ## Why the runner is its own process
 
@@ -60,7 +60,6 @@ Nothing but file descriptors and unix sockets, both explicit.
 |---|---|
 | supervisor → any child | inherited listener fds, config, a control socket |
 | bus ↔ auth | unix socket, one question per session start ([identity § resolved at login](01-identity.md#resolved-at-login)) |
-| bus ↔ billing | unix socket, one question per (principal, service, epoch) |
 | bus ↔ runner | unix socket: register child, report health, start/stop |
 | web → bus | read-only stats query |
 

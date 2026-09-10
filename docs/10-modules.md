@@ -15,7 +15,7 @@ world.**
 | Layer | Contains | May depend on | Touches the outside world |
 |---|---|---|---|
 | **protocol** | the envelope, encoding, handshake framing, name and address parsing | nothing | no |
-| **ports** | the interfaces core needs — a store, a directory, a balance, a sandbox, a clock | protocol | no |
+| **ports** | the interfaces core needs — a store, a directory, a sandbox, a clock | protocol | no |
 | **core** | the domain: registry, queues, sessions, ACL resolution, accounting, supervision | protocol, ports | no |
 | **adapters** | one implementation per port | protocol, ports | **yes — and nothing else does** |
 | **faces** | API, MCP, WEB, CLI — translate a request from outside into a core call | protocol, core | yes (inbound only) |
@@ -43,16 +43,13 @@ Consequences worth stating, because they are the point:
 | `session` | core | handshake, key derivation, AEAD, key confirmation | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | `tokens` | core | issue, persist, current + previous, expiry policy | [access § token lifetime](02-access.md#token-lifetime) |
 | `runner` | core | supervision, restart policy, child lifecycle | [runner role](08-runner-role.md) |
-| `billing` | core | usage accounting, allow/deny | [billing role](07-billing-role.md) |
 | `store` | **port** | everything that persists in the database | [setup § storage](09-setup.md#storage) |
 | `directory` | **port** | fetch a name and public keys for a login | [identity § registration](01-identity.md#registration) |
-| `balance` | **port** | may this principal call this service; record usage | [billing role](07-billing-role.md) |
 | `sandbox` | **port** | confine a child process | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | `dump` | **port** | snapshot and reload in-memory state | [messaging § durability](04-messaging.md#durability) |
 | `vcs` | **port** | push and pull the git repo | [AUTH role § topology](06-auth-role.md#topology) |
 | `store/sqlite`, `store/postgres` | adapter | the one place SQL is written | |
 | `directory/github` | adapter | the built-in HTTP client | |
-| `balance/radius` | adapter | shells out to the standard client | |
 | `sandbox/systemd`, `sandbox/bwrap`, `sandbox/unshare` | adapter | one per backend, chosen by environment | |
 | `dump/parquet` | adapter | the Parquet writer and loader | |
 | `vcs/git` | adapter | shells out to `git` | |
@@ -119,7 +116,6 @@ script adapter uses `curl`, because that is what a script has.
 | seal private config to a key | `age` | `store` |
 | query a directory | `ldapsearch` | `directory/ldap` ([future](future/ldap-ad.md)) |
 | push and pull the repo | `git` | `vcs/git` |
-| ask for a balance | the standard RADIUS client | `balance/radius` |
 | confine a child | `systemd-run` · `bwrap` · `unshare` | `sandbox/*` |
 | authenticate an admin or issue a token | `sshd` with a forced command | — |
 

@@ -12,7 +12,7 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Encryption | **none** | AEAD sessions, bodies end to end | — |
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
 | Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
-| Processes | one | supervisor + children | AUTH child; billing only if it ships |
+| Processes | one | supervisor + children | AUTH child |
 | Services | request/reply with `ack`; queue topics | pub/sub; deadlines, `done`, `reply-to`, many instances | calls across chained buses |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
 | Install | built Go binary; Node runs the faces | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
@@ -49,7 +49,7 @@ to be true.
 | `agent-bus publish --topic <t>` | one message to a topic |
 | `agent-bus consume [--follow]` | read my own queue |
 | `agent-bus ack <message-id>` | receipt: got it ([messaging § receipts](04-messaging.md#receipts)) |
-| `agent-bus reply <message-id>` | answer it — routed back by topic + tag |
+| `agent-bus reply <message-id>` | answer something this client consumed — routed back by topic + tag ([messaging § reply routing](04-messaging.md#reply-routing)) |
 | `agent-bus topic create <t> --kind queue\|pubsub` | a topic to publish into |
 | `agent-bus status` | is the daemon up, who is connected |
 
@@ -139,7 +139,6 @@ client libraries in other languages.
 | calls | a call reaches a service on the **upstream** bus the same way it reaches a local one, carrying on-behalf-of; long answers stream ([overview § chaining](00-overview.md#chaining)) |
 | observability | health-checker, stats, Prometheus export ([discovery](05-discovery.md)) |
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
-| billing | **last in the stage, and the first thing to drop.** Nothing else waits on it — the design is written ([billing role](07-billing-role.md)), so it can ship in Release 1 or move to `future/` without touching anything |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified ([modules](10-modules.md)) |
 | operations | zero-downtime reload, packaging |
 
@@ -148,10 +147,7 @@ client libraries in other languages.
 - A company bus with central identities and groups, two AUTH replicas, and no
   service holding its own user list.
 - A laptop bus chains to it: local first, upstream for the rest.
-- A stranger with a GitHub key enrols in a public service — and is charged for
-  it, if billing shipped.
+- A stranger with a GitHub key enrols in a public service.
 
-❓ **Billing in Release 1, or deferred** — nothing in the bus depends on it and
-it is the one role that needs a RADIUS server and a payment provider to be
-worth anything. Release 1 is the earliest it could ship; `future/` is the
-honest place for it if Release 1 is already heavy. *Settled by:* owner.
+Billing is **not in any stage**: it is designed and deferred
+([future/billing.md](future/billing.md)).

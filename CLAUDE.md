@@ -7,8 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Design documentation for **agent-bus** — a single daemon (`agent-busd`) that is
 registry, broker, MCP server and dashboard for AI agents, bots and services.
 
-**There is no code.** No build, no tests, no lint, no dependencies — the repo is
-`README.md` and `docs/*.md` only. V1 (NATS JetStream) is implemented elsewhere:
+**No code yet — but it lands here.** V2 is built in `src/` in this repo,
+beside `docs/` and `Plans/`; until wave A starts, the repo is `README.md`,
+`docs/*.md` and `Plans/`. V1 (NATS JetStream) is implemented elsewhere:
 code at `/rd/service/agent-bus/` (`README.md`, `HOWTO.md`), normative design at
 `/rd/vhosts/realty/Plans/PRF-25/`. Read those, not Linear, when a V1 fact is
 needed. This repo designs V2. Work here is editing Markdown, and the only
@@ -25,7 +26,7 @@ it first rather than duplicating the index here. Beyond the numbered docs:
 | `docs/decisions.md` | index of settled / open / superseded decisions — rows link, they never state the rule |
 | `docs/12-stages.md` | PoC / MVP / Release 1 — check which stage a feature belongs to before designing it in |
 | `Plans/PoC/` | the **active plan** — `README.md` is the PoC's own knowledge, `TODO.md` the waves and acceptance. Follows the Plans HOWTO (`/rd/vhosts/realty/Plans/README.md`): knowledge, active work and decisions stay in separate files |
-| `docs/future/` | designed but deferred; not part of the current scope |
+| `docs/future/` | designed but deferred; not part of the current scope — LDAP/AD, billing |
 | `legacy/` | history only, not spec — never cite it, never update it |
 
 On **decisions**, the doc that `docs/decisions.md` links to wins. When two docs

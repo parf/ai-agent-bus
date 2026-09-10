@@ -56,12 +56,11 @@ The filter is what keeps [request and reply](#request-and-reply) honest next to
 a live session — the wait is still an ordinary `consume`, and every client
 language gets it for free.
 
-❓ **What `consume` does to a message** — the two honest options are
-*at-most-once* (handed over and gone; a crash between reading and delivering
-loses it) and *reserved until acknowledged* (returned to the queue if the
-reader disconnects). `ack` today is an optional business receipt, not a
-dequeue contract, so this has to be said out loud. PoC default: at-most-once,
-with the loss documented. *Settled by:* owner.
+**`consume` is at-most-once**: the message is handed over and gone. A reader
+that dies between taking a message and acting on it loses that message, and
+that is the accepted cost — it keeps `ack` an optional business receipt rather
+than a dequeue contract, and keeps the daemon from tracking in-flight state
+for every reader.
 
 ## Message fields
 
@@ -102,12 +101,15 @@ nobody should answer late sets one.
 To the sender's queue with the same topic + tag — unless the request sets
 `reply-to: {service, topic, tag}`.
 
-❓ **What `reply <message-id>` resolves against** — a consumed message is gone,
-so nothing can turn its id back into sender, topic and tag. Either the daemon
-keeps a bounded map of **recently consumed envelopes** per inbox (it may hold
-envelopes; it may not hold bodies) or `reply` is sugar over `--to --topic
---tag`. PoC default: the bounded envelope map, because the CLI verb is fixed.
-Not a client-side store of original messages. *Settled by:* owner.
+**The daemon keeps no reply state.** A reply is an ordinary `send` carrying
+the routing fields, and `reply <message-id>` is sugar: the client that
+consumed the message still has its envelope, so it fills in receiver, topic and
+tag itself. The daemon stays simple — nothing to bound, expire or reconcile —
+and the rule that a consumed message is gone stays true.
+
+The consequence is worth stating: **you can only `reply` to something you
+consumed in that process**. Since an inbox has exactly one reader, that is the
+same process anyway.
 
 ## Push and pull
 
