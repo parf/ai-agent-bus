@@ -70,6 +70,8 @@ All 2026-09-09 unless noted.
 | The Channels and App Server adapters are written fresh against the V2 daemon; V1 supplies the shape, not the code | [stages § PoC](12-stages.md#poc) |
 | An inbox has exactly one reader, which dispatches to waiters and pushes the rest | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | A PoC daemon binds loopback or an SSH tunnel, never a public interface | [stages § PoC](12-stages.md#poc) |
+| Both listeners speak HTTP and JSON; `consume` long-polls | [messaging § push and pull](04-messaging.md#push-and-pull) |
+| The TypeScript packages are built and tested by bun and run on Node — one runtime | [modules § languages](10-modules.md#languages) |
 | Go for protocol, core and the CLI; bun for the MCP face and the push adapters; client libs Go, PHP, Rust, JS, Python | [modules § languages](10-modules.md#languages) |
 | No verb exists only in a face: every CLI and MCP operation is first a core API | [modules § languages](10-modules.md#languages) |
 | Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](10-modules.md#external-tools) |
@@ -105,6 +107,8 @@ All 2026-09-09 unless noted.
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
 | Whether `consume` is at-most-once or reserves until acknowledged | owner | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| What `reply <message-id>` resolves against once the message is consumed | owner | [messaging § reply routing](04-messaging.md#reply-routing) |
+| How a consumer names a topic, and who is subscribed with AUTH off | owner | [stages § PoC](12-stages.md#poc) |
 | Whether billing ships in Release 1 or moves to `future/` | owner | [stages § Release 1](12-stages.md#release-1) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 
@@ -112,7 +116,7 @@ All 2026-09-09 unless noted.
 
 | Was | Now |
 |---|---|
-| Go first, a bun/NPM build later | Go inside, bun for the MCP face and adapters — V1 already split that way and those pieces port as they are — [modules § languages](10-modules.md#languages) |
+| Go first, a bun/NPM build later | Go inside, TypeScript for the MCP face and adapters — built by bun, run on Node — [modules § languages](10-modules.md#languages) |
 | The runner is part of the core | its own process — it is the one component that execs code it did not write — [processes](11-processes.md) |
 | A token lives in daemon memory and dies with a restart | tokens are saved, and the previous one is kept — otherwise a reloaded queue is undecryptable ciphertext — [access § token lifetime](02-access.md#token-lifetime) |
 | The token is the whole identity in "minimal mode" | a call always carries two parameters; the socket supplies them locally — [access § two parameters](02-access.md#two-parameters) |

@@ -35,14 +35,14 @@ Children come in a few shapes; each gets the same bus face.
 
 **Agent runtimes get one push adapter each**: each runtime takes a message
 differently, so each gets its own adapter that reads the session's queue and
-pushes into the *running* session. **Claude Code and Codex are already
-implemented in V1** — those two are ported, not designed again; the status
-column below says which exist.
+pushes into the *running* session. V1 implements Claude Code and Codex, which
+is why the status column says those paths are proven — but V1's adapters are
+read for their shape, not carried over ([stages § PoC](12-stages.md#poc)).
 
 | Runtime | Push path | Status |
 |---|---|---|
-| Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool | in V1, port it |
-| Codex | App Server over a private unix socket — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart | in V1, port it |
+| Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool | proven in V1 |
+| Codex | App Server over a private unix socket — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart | proven in V1 |
 | OpenCode (Z.AI) | ❓ to be found — the owner has an account. *Settled by:* one spike | maybe |
 | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
 

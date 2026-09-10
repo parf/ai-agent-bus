@@ -20,21 +20,22 @@ adding anything here.
 ## Target shape
 
 ```
-  claude session ──[ agent-bus mcp + channel push (bun) ]──┐
-                                                           ├─→ agent-busd (Go)
-  codex session  ──[ agent-bus mcp (bun) ]─────────────────┤    socket + HTTP
-                   [ codex push (Node)   ]─────────────────┘
+  claude session ──[ agent-bus mcp, channel push ]──┐
+                                                    ├─→ agent-busd (Go)
+  codex session  ──[ agent-bus mcp, app-server push ]┘    socket + HTTP
 ```
 
-One package per session, not one per job: V1's `notifier-claude` is already an
-MCP server that also pushes, and process placement is a runtime choice, not a
-layer boundary ([modules § languages](../../docs/10-modules.md#languages)).
+**One TypeScript package, two push modes, one process per session.** V1's
+`notifier-claude` is already an MCP server that also pushes, so this is its
+shape, not a new idea; process placement is a runtime choice, not a layer
+boundary ([modules § languages](../../docs/10-modules.md#languages)). Whether
+Codex's MCP process can reach the App Server socket is the first spike — if it
+cannot, the push mode becomes its own process and nothing else changes.
 
 | Part | Language | Source |
 |---|---|---|
 | `protocol`, `core`, `api` face, `cli` | Go | **new**; V1's protocol carries keys, trust and `event_hash` we do not have — take the identifier rules only |
-| `mcp` face + Claude push | TypeScript, built by bun | **new**; V1 `notifier-claude` shows the shape — an MCP server that also pushes |
-| Codex push | TypeScript, built by bun, **run on Node** | **new**; takes `app-server.ts` from V1 and nothing else |
+| `mcp` face + both push modes | TypeScript, built and tested by bun, **run on Node** | **new**; V1 `notifier-claude` shows the shape, and `app-server.ts` is the one file copied. V1 runs Claude's on bun and Codex's on Node — we do not inherit that split |
 
 Why the split: [modules § languages](../../docs/10-modules.md#languages).
 
@@ -49,15 +50,15 @@ These are the ones a shortcut would quietly break.
 | A **reply matches on topic + tag**; the bus adds no call machinery | [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
 | **`ack` = got it, `done` = finished**, both emitted by the receiver | [messaging § receipts](../../docs/04-messaging.md#receipts) |
 | **Dependencies point inward**; only adapters touch the outside world, and no verb exists only in a face | [modules § the rule](../../docs/10-modules.md#the-rule) |
-| **An inbox has one reader**, which dispatches to waiters and pushes the rest | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
+| **An inbox has one reader**; a waiter filters by topic + tag and the daemon serves the match | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
 | **A transport ack is not "the model acted"** — only a correlated reply is | [runner § adapters](../../docs/08-runner-role.md#adapters) |
 | **No external broker.** The daemon is the broker | [overview](../../docs/00-overview.md) |
 
 ## What PoC deliberately does not have
 
-Encryption (bodies are plaintext, so the daemon *can* read them — that stops
-being true at MVP), AUTH, per-service ACL, persistence, sandboxing, the
-dashboard, generated docs, catalog filtering, npm.
+The list lives in [stages § PoC](../../docs/12-stages.md#poc). The one
+consequence worth repeating: bodies are plaintext, so the daemon *can* read
+them, and "the bus never reads payloads" only becomes true at MVP.
 
 One master token per user reaches every service, and it is issued over SSH
 because sshd does the authentication for free

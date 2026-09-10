@@ -27,7 +27,7 @@ to be true.
 | | |
 |---|---|
 | daemon | one process, listening on a **unix socket and HTTP** |
-| language | daemon and CLI in **Go**; the MCP face and adapters in **TypeScript**, built by bun — the Codex adapter *runs* on Node ([modules § languages](10-modules.md#languages)) |
+| language | daemon and CLI in **Go**; the MCP face and adapters in **TypeScript**, built and tested by bun, **run on Node** ([modules § languages](10-modules.md#languages)) |
 | identity | **one master token per user**, reaching every service — no per-service anything ([identity § acl](01-identity.md#acl)) |
 | tokens | issued **over SSH** — `ssh agent-bus@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
 | encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
@@ -51,6 +51,12 @@ to be true.
 | `agent-bus ack <message-id>` | receipt: got it ([messaging § receipts](04-messaging.md#receipts)) |
 | `agent-bus reply <message-id>` | answer it — routed back by topic + tag |
 | `agent-bus topic create <t> --kind queue\|pubsub` | a topic to publish into |
+
+❓ **How a consumer names a topic** — `consume` reads *your own queue*, and a
+pub/sub topic reaches "every current subscriber", but with AUTH off nothing
+says who is subscribed and no verb subscribes. Queue topics have a criterion
+below; pub/sub has none. PoC default: the kind is stored, publish to a pub/sub
+topic answers *not in PoC*. *Settled by:* owner.
 | `agent-bus status` | is the daemon up, who is connected |
 
 Ten verbs. Everything else (`keygen`, `auth *`, `start`/`stop`/`logs`) waits.
@@ -69,8 +75,10 @@ Ten verbs. Everything else (`keygen`, `auth *`, `start`/`stop`/`logs`) waits.
 
 The **push adapters** — Claude Code Channels and the Codex App Server
 ([runner § adapters](08-runner-role.md#adapters)) — are what let a live session
-*receive* instead of poll. **Both already exist in V1** (`/rd/service/agent-bus/`);
-PoC ports them onto the new daemon rather than designing them again.
+*receive* instead of poll. V1 has both, and they are **prior art, not code we
+inherit**: they carry the signed wires, journals and delivery observations
+JetStream needed and V2 does not. PoC writes small ones fresh and copies a
+single file, the App Server's JSON-RPC client.
 
 **Deliberately absent**: encryption, AUTH, per-service ACLs, persistence,
 sandboxing, the dashboard, generated docs and catalog filtering, npm.

@@ -49,8 +49,12 @@ the notifier, or the reverse.
 | Rule | Why |
 |---|---|
 | one process per principal holds the inbox | anything else is a race nobody can debug |
-| it dispatches: a message matching a waiting topic + tag goes to that waiter, the rest are pushed | this is what makes `call` safe next to a live session |
-| a second reader is refused, not silently queued behind the first | a silent second reader looks like message loss |
+| a second unfiltered `consume` is **refused**, not queued behind the first | a silent second reader looks exactly like message loss |
+| a waiter passes a **topic + tag filter** to `consume`, and the daemon hands it a match ahead of the unfiltered reader | the match happens where the message already is: no dispatcher in a client, and no local protocol between a Go CLI and a TypeScript session process |
+
+The filter is what keeps [request and reply](#request-and-reply) honest next to
+a live session — the wait is still an ordinary `consume`, and every client
+language gets it for free.
 
 ❓ **What `consume` does to a message** — the two honest options are
 *at-most-once* (handed over and gone; a crash between reading and delivering
@@ -97,6 +101,13 @@ nobody should answer late sets one.
 
 To the sender's queue with the same topic + tag — unless the request sets
 `reply-to: {service, topic, tag}`.
+
+❓ **What `reply <message-id>` resolves against** — a consumed message is gone,
+so nothing can turn its id back into sender, topic and tag. Either the daemon
+keeps a bounded map of **recently consumed envelopes** per inbox (it may hold
+envelopes; it may not hold bodies) or `reply` is sugar over `--to --topic
+--tag`. PoC default: the bounded envelope map, because the CLI verb is fixed.
+Not a client-side store of original messages. *Settled by:* owner.
 
 ## Push and pull
 
