@@ -163,6 +163,8 @@ Settled with the owner; each is written into the doc named.
 - **`encryption: off` per service** (service config): plaintext bodies, visible to bus/debug/logs; for development; shown on the registry record → `02`
 - **Minimal setup**: `npm`/`pnpm install -g`, then `agent-bus setup` (creates the `agent-bus` user, takes your pubkey — local file or fetched from GitHub by username — writes config), then start the service (systemd or whatever the host has) → `04`
 - **Public services are first-class**: open enrolment for anyone with a GitHub key, closed = approval queue; this is the reason for GitHub identity → `00`, `01`
+- **`allow: *`** in an ACL = anyone who can authenticate (e.g. every GitHub user); how a sign-up service opens to the world → `01`
+- **More identity sources later**: Google, LinkedIn, Facebook — account proves who, bus issues the key; not designed → `01`
 - **Token from your SSH key**: `export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost static-token)`; setup puts the pubkey into `agent-bus`'s `authorized_keys` with a forced command, the daemon returns a token bound to that principal, valid until the daemon restarts or the principal refreshes → `02`, `04`
 
 ## Open

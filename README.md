@@ -108,10 +108,10 @@ team and company buses **chain**: local first, upstream for the rest.
 
 ### Run a public service
 
-This is why identities come from GitHub. Publish a service with **open** enrolment and
-any developer on the internet can join it: they claim `github:<login>`, the bus fetches
+This is why identities come from GitHub. Publish a service with `allow: *` and any
+developer on the internet can join it: they claim `github:<login>`, the bus fetches
 their public keys once, they prove possession, and they are in — with whatever default
-role you gave strangers. Sessions are encrypted end to end without TLS or certificates.
+role you gave strangers. Google, LinkedIn and Facebook sign-in come later. Sessions are encrypted end to end without TLS or certificates.
 **Closed** enrolment queues newcomers for your approval instead. Same daemon, same
 mechanics as your laptop bus.
 

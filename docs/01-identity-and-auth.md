@@ -14,8 +14,8 @@ by someone else) have no identity of their own.
 The `agent-bus` CLI creates the key or takes the token, and joins the bus with it.
 
 - Ids are namespaced: `github:<numeric id>`, `ldap:<entryUUID>`, `svc:<name>`,
-  `static:<name>`. One human may hold several principals; a grouping "person"
-  record is deferred.
+  `static:<name>`; later `google:`, `linkedin:`, `facebook:` and the like. One
+  human may hold several principals; a grouping "person" record is deferred.
 - **Ed25519 only** (pairwise needs Ed25519→X25519). RSA/ECDSA keys are filtered
   at fetch time and the user is told which were skipped.
 - Key directories supply public keys only — they never authenticate.
@@ -34,6 +34,9 @@ The `agent-bus` CLI creates the key or takes the token, and joins the bus with i
     token (5 000 req/h) + ETag.
 - **LDAP** (OpenSSH-LPK `sshPublicKey`, plus `displayName`, `mail`,
   `jpegPhoto`); stable id = `entryUUID`, not `uid`. Same principal record.
+- **Later: Google, LinkedIn, Facebook** and other sign-in providers. They hold
+  no SSH keys, so the account proves *who*, and the bus issues the Ed25519 key
+  at enrolment. Same principal record, own namespace. Not designed yet.
 - **Self-service enrolment**: most developers already have an SSH key on
   GitHub, so a service may let anyone claim `github:<login>` on first contact —
   one-time fetch, prove possession → principal with a default role. Per-service
@@ -42,7 +45,10 @@ The `agent-bus` CLI creates the key or takes the token, and joins the bus with i
 ## Groups, ACL, roles
 
 - **Groups** compose from groups with `& | !` (`eng & !contractors`).
-- **ACL** — *who may access*: an expression over users and groups.
+- **ACL** — *who may access*: an expression over users and groups. **`allow: *`**
+  means *anyone who can authenticate* — every GitHub user, for instance. That
+  is how a sign-up service opens itself to the world: `allow: *`, minimal role,
+  and the newcomer's first request is the enrolment.
 - **Roles** — *what they may do*: service-defined strings (`admin`,
   `read-only`, …), assigned with the same expression pattern to users or
   groups. AUTH stores and resolves; it never interprets.
