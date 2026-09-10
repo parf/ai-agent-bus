@@ -13,7 +13,7 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
 | Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
 | Processes | one | supervisor + children | AUTH child; billing only if it ships |
-| Services | request/reply with `ack` | deadlines, `done`, `reply-to`, many instances | calls across chained buses |
+| Services | request/reply with `ack`; queue topics | pub/sub; deadlines, `done`, `reply-to`, many instances | calls across chained buses |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
 | Install | built Go binary; Node runs the faces | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
 
@@ -55,12 +55,15 @@ to be true.
 
 Ten verbs. Everything else (`keygen`, `auth *`, `start`/`stop`/`logs`) waits.
 
-❓ **How a consumer names a topic** — `consume` reads *your own queue*, and a
-pub/sub topic reaches "every current subscriber", but with AUTH off nothing
-says who is subscribed and no verb subscribes. PoC default: **a queue topic is
-an inbox with a name**, so `consume --topic <t>` reads it — an option, not an
-eleventh verb — and publish to a pub/sub topic answers *not in PoC*.
-*Settled by:* owner.
+**A queue topic is an inbox with a name**, so `consume --topic <t>` reads it —
+an option, not an eleventh verb.
+
+**Pub/sub is MVP.** Not because fan-out is hard — it is a copy to every current
+reader, keeping nothing — but because *subscriber* is undefined without an ACL:
+the design subscribes through the `consume:<glob>` capability, and PoC has no
+capabilities. PoC stores `--kind pubsub` on the record and answers *MVP* on
+publish, rather than inventing a second meaning of subscription that would have
+to be unpicked later.
 
 **Works at the end of PoC**
 
@@ -102,7 +105,7 @@ a shared host.
 | tokens | persisted, previous kept, local never expires ([access § token lifetime](02-access.md#token-lifetime)) |
 | encryption | AEAD sessions; bodies end to end ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | access | service ACL, then master ACL; a service may refuse master ([identity § acl](01-identity.md#acl)) |
-| messaging | TTL, bound, `ring`/`strict`, receipts ([messaging](04-messaging.md)) |
+| messaging | TTL, bound, `ring`/`strict`, receipts, and **pub/sub topics** — a subscription is a `consume:<glob>` capability, which exists once there is an ACL ([messaging](04-messaging.md)) |
 | services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several instances behind one name, per-service call stats ([messaging](04-messaging.md)) |
 | storage | SQLite store, Parquet dump and reload ([setup § storage](09-setup.md#storage)) |
 | faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a basic dashboard ([discovery § faces](05-discovery.md#faces)) |

@@ -19,11 +19,10 @@ Nothing here is a port. V1 is prior art we read, and one file we copy —
 |---|---|---|---|
 | ❓ Where V2 code lives | A.1 | this repo, one `src/` tree beside `docs/` | owner |
 
-Three design questions are open in [decisions](../../docs/decisions.md) and
-each has a PoC default, so none of them stops work: what `consume` does to a
-message (at-most-once), what `reply <id>` resolves against (a bounded map of
-recently consumed envelopes), and how a consumer names a topic (pub/sub
-answers *not in PoC*).
+Two design questions are open in [decisions](../../docs/decisions.md) and
+each has a PoC default, so neither stops work: what `consume` does to a
+message (at-most-once) and what `reply <id>` resolves against (a bounded map
+of recently consumed envelopes).
 
 ## Waves
 
@@ -64,7 +63,7 @@ about whether the model acted
 | ID | Task | Notes |
 |---|---|---|
 | C.1 | `call`, `ack` | `call` = send, then the A.3 filter. The daemon serves it, so no client dispatcher ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)) |
-| C.2 | `topic create`, `publish`, and `consume --topic <t>` | a queue topic is an inbox with a name, so `--topic` reads it; `--kind pubsub` is stored and publish to it answers *not in PoC* ([stages § PoC](../../docs/12-stages.md#poc)) |
+| C.2 | `topic create`, `publish`, and `consume --topic <t>` | queue kind only: a queue topic is an inbox with a name. `--kind pubsub` is stored and publish to it answers *MVP* ([stages § PoC](../../docs/12-stages.md#poc)) |
 
 **Done when**: one shell calls a service another registered and gets the reply;
 a publisher with no service record emits to a queue topic, and a consumer that

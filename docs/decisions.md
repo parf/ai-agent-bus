@@ -70,6 +70,8 @@ All 2026-09-09 unless noted.
 | The Channels and App Server adapters are written fresh against the V2 daemon; V1 supplies the shape, not the code | [stages § PoC](12-stages.md#poc) |
 | An inbox has exactly one reader; a waiter filters by topic and tag and the daemon serves the match | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | A PoC daemon binds loopback or an SSH tunnel, never a public interface | [stages § PoC](12-stages.md#poc) |
+| A queue topic is an inbox with a name, read by `consume --topic` | [stages § PoC](12-stages.md#poc) |
+| Pub/sub waits for MVP: fan-out is cheap, but a subscription is an ACL capability and PoC has no ACL | [stages § PoC](12-stages.md#poc) |
 | Both listeners speak HTTP and JSON; `consume` long-polls | [messaging § push and pull](04-messaging.md#push-and-pull) |
 | The TypeScript packages are built and tested by bun and run on Node — one runtime | [modules § languages](10-modules.md#languages) |
 | Go for protocol, core and the CLI; TypeScript for the MCP face and the push adapters; client libs Go, PHP, Rust, JS, Python | [modules § languages](10-modules.md#languages) |
@@ -108,7 +110,6 @@ All 2026-09-09 unless noted.
 | Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
 | Whether `consume` is at-most-once or reserves until acknowledged | owner | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | What `reply <message-id>` resolves against once the message is consumed | owner | [messaging § reply routing](04-messaging.md#reply-routing) |
-| How a consumer names a topic, and who is subscribed with AUTH off | owner | [stages § PoC](12-stages.md#poc) |
 | Whether billing ships in Release 1 or moves to `future/` | owner | [stages § Release 1](12-stages.md#release-1) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 
