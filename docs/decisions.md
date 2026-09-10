@@ -64,6 +64,10 @@ All 2026-09-09 unless noted.
 | Minimal setup: install, `agent-bus setup`, start the service | [setup § install](09-setup.md#install) |
 | Go first, bun/NPM later; client libs Go, PHP, Rust, JS, Python | [setup § install](09-setup.md#install) |
 | Thin glue to external systems: shell out to the standard client | [overview § principles](00-overview.md#principles) |
+| Modular by layer: protocol, ports, core, adapters, faces; dependencies point inward | [modules § the rule](10-modules.md#the-rule) |
+| Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](10-modules.md#the-rule) |
+| Only adapters touch the outside world; thin glue is an adapter-layer rule | [modules § where thin glue lands](10-modules.md#where-thin-glue-lands) |
+| `protocol` is the layer the client libraries reimplement, and depends on nothing | [modules § the rule](10-modules.md#the-rule) |
 | No external broker; `agent-busd` is the broker | [overview § goal](00-overview.md#goal) |
 | V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core — nothing to design | — |
 
@@ -82,6 +86,7 @@ All 2026-09-09 unless noted.
 | What else lives in SQLite | owner | [setup § storage](09-setup.md#storage) |
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
+| How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 
 ## Superseded
 

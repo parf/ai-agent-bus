@@ -75,6 +75,10 @@ disagree, fix the stale one.
 Getting these wrong produces drift that is easy to miss. Stated as rules, with
 the mechanism behind the link:
 
+- **Modular by layer**: protocol → ports → core, with adapters and faces
+  outside. Dependencies point inward; core never imports an adapter; every
+  external dependency (database, directory, sandbox, dump, git) sits behind a
+  port so it can be replaced by writing one adapter — `docs/10-modules.md`.
 - **No external broker.** `agent-busd` *is* the broker; point-to-point plus
   bounded in-memory queues. Never reintroduce one; if a single flow needs
   durability, give that one flow a WAL.

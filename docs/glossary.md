@@ -49,8 +49,11 @@ wins.
 | **chaining / upstream** | query up, never replicate | [overview § chaining](00-overview.md#chaining) |
 | **audience** | who may see and use a service or topic | [discovery § audience](05-discovery.md#audience) |
 | **debug mode** | admin-only message trace on one service | [discovery § debug mode](05-discovery.md#debug-mode) |
-| **adapter** | per-runtime push path into a live agent session | [runner § adapters](08-runner-role.md#adapters) |
+| **adapter** (runtime) | per-runtime push path into a live agent session | [runner § adapters](08-runner-role.md#adapters) |
 | **thin glue** | shell out to the standard client, don't link a library | [overview § principles](00-overview.md#principles) |
+| **port** | an interface core depends on; the seam a dependency is swapped at | [modules § the rule](10-modules.md#the-rule) |
+| **adapter** (layer) | the one implementation of a port; the only layer allowed outside I/O | [modules § the rule](10-modules.md#the-rule) |
+| **face** | an entry point — API, MCP, WEB, CLI — with no domain logic | [modules § the rule](10-modules.md#the-rule) |
 
 ## CLI verbs
 

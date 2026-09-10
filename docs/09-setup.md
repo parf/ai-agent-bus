@@ -36,8 +36,9 @@ plus `auth: on` make it an AUTH replica ([AUTH role](06-auth-role.md)).
 
 ## Storage
 
-SQLite by default (single file, zero ops); MySQL/PostgreSQL optional behind one
-thin store layer.
+SQLite by default (single file, zero ops); MySQL/PostgreSQL optional behind
+the `store` port — swapping one for another is a single adapter
+([modules](10-modules.md)).
 
 The git repo (over SSH) holds signed AUTH bundles — authority
 ([AUTH role § bundle](06-auth-role.md#bundle)) — and unsigned registry

@@ -18,6 +18,7 @@ and linked from everywhere else.
 | 07 | [billing role](07-billing-role.md) | price · RADIUS · usage · denial · the pay service |
 | 08 | [runner role](08-runner-role.md) | supervision · adapters · sandboxing · in-process queue |
 | 09 | [setup](09-setup.md) | install · `agent-bus setup` · local users · storage · reload |
+| 10 | [modules](10-modules.md) | layers · module boundaries · which dependency is swappable |
 
 Also: [glossary](glossary.md) — every name and term, one line each ·
 [decisions](decisions.md) — what is settled, open and superseded ·
@@ -53,6 +54,10 @@ Claims only; the mechanism lives in the doc each one links to.
   ([identity § registration](01-identity.md#registration)).
 - **ACL is service first, then master**
   ([identity § acl](01-identity.md#acl)).
+- **Modular by layer.** Dependencies point inward and only adapters touch the
+  outside world, so anything external — the database, a directory, the sandbox
+  backend — sits behind a port and is replaced without touching the rest
+  ([modules](10-modules.md)).
 - **One binary, one unit, one config dir, one CLI, one git repo.** `agent-busd`
   supervises its own roles as child processes with the same machinery it uses
   for any child ([runner § supervises itself](08-runner-role.md#supervises-itself)).
