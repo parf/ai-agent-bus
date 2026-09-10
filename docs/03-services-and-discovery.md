@@ -180,3 +180,16 @@ by it. Namespacing follows services (`team/alerts`); local shadows upstream.
   **debug mode**, which keeps a trace of that service's messages; admins only.
   Bodies in the trace are ciphertext — unless the service has switched
   encryption off in its config (`02`), the usual pairing while developing.
+
+## Billing (optional role, `billing: on`)
+
+Minimal by intent: the bus counts, someone else holds the money.
+
+| Aspect | Rule |
+|---|---|
+| Price | declared by the **service** in its record: **flat** (a fee for access) or **per call** (the service sets the cost) |
+| Balance | lives in a **remote balance service** (❓ RADIUS or other, `00` Open); the bus asks *"may this principal call this service?"* the way it asks AUTH *"who is this?"* — once, cached, refreshed per epoch |
+| Usage | the bus records every billable call per (principal, service) and reports it to the balance service; the dashboard shows the same counts it already keeps |
+| Denied | the balance service says no → the call is refused with a clear error, like a missing role |
+| What is billable | what the bus can see — a message and its size. Bodies are encrypted, so per-method pricing needs the method name in the envelope (open) |
+| Money | never in the bus: no prices in currency units beyond what the service declares, no payments, no invoices — accounting only |

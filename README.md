@@ -113,7 +113,9 @@ developer on the internet can join it: they claim `github:<login>`, the bus fetc
 their public keys once, they prove possession, and they are in — with whatever default
 role you gave strangers. Google, LinkedIn and Facebook sign-in come later. Sessions are encrypted end to end without TLS or certificates.
 **Closed** enrolment queues newcomers for your approval instead. Same daemon, same
-mechanics as your laptop bus.
+mechanics as your laptop bus. Turn on **billing** and a service can charge for itself —
+a flat fee or a price per call — with the balance kept by a service of yours; the bus
+only counts.
 
 ### Supervise and sandbox agents
 

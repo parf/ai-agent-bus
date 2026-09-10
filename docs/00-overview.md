@@ -65,6 +65,7 @@ parties a shared secret once, then gets out of the way.
 | **AUTH child** | identities, keys, groups, ACLs, roles, sealed private configs; **alone holds `master_secret`** and the signed bundle; core talks to it over a unix socket (sshd/Postfix-style privilege separation) | **off** — `auth: on` |
 | health-checker | module of discovery; probes generic services per their hints | optional |
 | stats | module of discovery; in-memory ring buffers feeding WEB and exporters | optional |
+| **billing** | checks a caller's balance with a remote balance service, records usage per (principal, service), reports it back; the bus never touches money | **off** — `billing: on` |
 
 Nodes with `auth: on` are the AUTH replicas (run 2+). A laptop node never holds
 `master_secret`. How many children there are beyond WEB and AUTH, and what is
@@ -165,6 +166,7 @@ Settled with the owner; each is written into the doc named.
 - **Public services are first-class**: open enrolment for anyone with a GitHub key, closed = approval queue; this is the reason for GitHub identity → `00`, `01`
 - **`allow: *`** in an ACL = anyone who can authenticate (e.g. every GitHub user); how a sign-up service opens to the world → `01`
 - **More identity sources later**: Google, LinkedIn, Facebook — account proves who, bus issues the key; not designed → `01`
+- **Minimal billing as an optional role**: remote balance service (❓ RADIUS or other), usage tracked per (principal, service); a service prices itself either **flat** or **per call** → `00`, `03`
 - **Token from your SSH key**: `export AGENT_BUS_USER_TOKEN=$(ssh agent-bus@localhost static-token)`; setup puts the pubkey into `agent-bus`'s `authorized_keys` with a forced command, the daemon returns a token bound to that principal, valid until the daemon restarts or the principal refreshes → `02`, `04`
 
 ## Open
@@ -172,3 +174,7 @@ Settled with the owner; each is written into the doc named.
 1. ❓ **Process layout** — how many child processes beyond WEB and AUTH, and
    what is shared between core and children (store, queues, sockets, memory)
    vs. isolated. *Settled by:* owner review.
+2. ❓ **Billing backend** — RADIUS (accounting is what it was built for) or
+   something of our own; and whether per-call pricing may vary by method, which
+   needs the method name in the envelope since bodies are encrypted.
+   *Settled by:* owner.
