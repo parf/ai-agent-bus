@@ -19,7 +19,7 @@ and linked from everywhere else.
 | 07 | [billing role](07-billing-role.md) | price · RADIUS · usage · denial · the pay service |
 | 08 | [runner role](08-runner-role.md) | supervision · adapters · sandboxing · in-process queue |
 | 09 | [setup](09-setup.md) | install · `agent-bus setup` · local users · storage · reload |
-| 10 | [modules](10-modules.md) | layers · module boundaries · which dependency is swappable |
+| 10 | [modules](10-modules.md) | layers · module boundaries · which dependency is swappable · languages · external tools |
 | 11 | [processes](11-processes.md) | the supervisor and its children · privilege per process · what is shared |
 | 12 | [stages](12-stages.md) | PoC, MVP, Release 1 — what gets built when, and what counts as done |
 

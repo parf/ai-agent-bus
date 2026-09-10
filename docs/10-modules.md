@@ -62,6 +62,29 @@ Which process a module ends up in is a **runtime** boundary, not a layer:
 see [processes](11-processes.md). Each process is still built from the layers
 above, and a module can move between processes without changing layer.
 
+## Languages
+
+**Go inside, and a face may be written in something else.** A face only
+translates an outside request into a core call, so it is allowed to be its own
+process in another language, speaking the protocol over a socket like any
+other client.
+
+| Part | Language | Why |
+|---|---|---|
+| protocol, ports, core, adapters | **Go** | one static binary, no runtime; peer credentials on a unix socket, privilege-dropped children and passed fds are stdlib, not FFI ([processes](11-processes.md)) |
+| `cli` face | **Go** | it ships with the daemon, and the same core is already linked |
+| `mcp` face, the push adapters | **bun / TypeScript** | both already exist in that shape in V1 and are ported, not rewritten ([stages § PoC](12-stages.md#poc)) |
+| client libraries | Go, PHP, Rust, JS, Python | each reimplements `protocol` and nothing below it |
+
+Two rules hold this together:
+
+- **No verb exists only in a face.** Every CLI or MCP operation is first a
+  public core API; a face that does routing, signing or retry of its own has
+  taken work that belongs inward.
+- **A face in another language is a client, not a shortcut inward.** It gets
+  no privilege the protocol does not give it, and it is supervised like any
+  other child ([processes](11-processes.md)).
+
 ## External tools
 
 **Do not reinvent the wheel.** Nothing here is ours if something standard

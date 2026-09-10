@@ -8,11 +8,12 @@
 | `agent-bus setup` | creates the **`agent-bus` system user**, asks the two questions below, writes the config. **No keys.** |
 | start the service | `systemd` where present (`agent-busd.service`), otherwise whatever the host has; the runner supervises the rest |
 
-Implementation: **Go** first (`agent-busd`, `agent-bus`); a bun/NPM build
-later. Client libraries: Go, PHP, Rust, JS, Python.
+`agent-busd` and the CLI are Go; the MCP face and the push adapters are bun —
+[modules § languages](10-modules.md#languages).
 
-❓ The install line is npm while the first build is Go — one of the two is
-wrong for the first release. *Settled by:* owner.
+❓ **How a Go binary is installed by npm** — PoC runs the built binary and MVP
+says `npm install -g`, so the package has to carry or fetch a per-platform
+binary. *Settled by:* owner, when MVP packaging is real.
 
 ## Local users
 

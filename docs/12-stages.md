@@ -15,7 +15,7 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Processes | one | supervisor + children | AUTH child; billing only if it ships |
 | Services | request/reply with `ack` | deadlines, `done`, `reply-to`, many instances | calls across chained buses |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
-| Install | built binary | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
+| Install | built Go binary, bun for the faces | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
 
 ## PoC
 
@@ -27,6 +27,7 @@ to be true.
 | | |
 |---|---|
 | daemon | one process, listening on a **unix socket and HTTP** |
+| language | daemon and CLI in **Go**; the MCP face and both adapters stay **bun**, ported from V1 ([modules § languages](10-modules.md#languages)) |
 | identity | **one master token per user**, reaching every service — no per-service anything ([identity § acl](01-identity.md#acl)) |
 | tokens | issued **over SSH** — `ssh agent-bus@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
 | encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
