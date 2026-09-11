@@ -44,7 +44,7 @@ wins.
 | **`template/instance-name@host`** | a service configured from a template; `service@host` when there is no separate template | [identity § names](01-identity.md#names) |
 | **`service-template`** | the verb that configures a template into a service, and reads that configuration back | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | **`protocol`** | on a record: how to call it. Unset = an ordinary bus service, send to the name; `/etc/services` names suggested, never checked | [services § how to call it](03-services-and-topics.md#how-to-call-it) |
-| **`reading` · `queued`** | live state on an answer, never stored: is anything serving this name, and how much is waiting | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
+| **`reading` · `queued` · `in` · `out`** | live state on an answer, never stored: is anything serving this name, how much is waiting, and how much has arrived and been taken since the daemon started | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | **topic** | a registered record; kind `queue` or `pub/sub` | [services § topics](03-services-and-topics.md#topics) |
 | **inbox** | the implicit queue topic every agent owns | [messaging § inbox queues](04-messaging.md#inbox-queues) |
 | **`message_id` · topic · tag** | the three fields on every message | [messaging § message fields](04-messaging.md#message-fields) |

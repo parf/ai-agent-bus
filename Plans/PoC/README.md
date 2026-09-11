@@ -171,9 +171,10 @@ been found here:
 | counting nothing | a doubled delivery passed a check that only looked at the last one |
 | grepping output that is non-empty either way | `$(cmd; echo -n nothing)` contains *nothing* whatever `cmd` did |
 | grepping a word the success answer also contains | a refused receipt and an accepted one both say `receipt` |
+| exercising a different path than the one it names | a *waiting reader* check whose inbox still held a message never blocked, so it measured the queued path twice |
 | signalling the wrong process | `f() { ...; } &` backgrounds a subshell, so the service never got the signal |
 
-**Naming a shape does not remove it.** Two more checks were still asserting
+**Naming a shape does not remove it.** Three more checks were still asserting
 their own `echo` long after that row was written — the sweep for repeats is
 part of the fix, not a later tidy.
 

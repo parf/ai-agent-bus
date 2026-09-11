@@ -50,6 +50,9 @@ delta() { # label expected before after
   if [ "$(( $4 - $3 ))" -eq "$2" ]; then echo "  ok   $1"; pass=$((pass+1));
   else echo "  FAIL $1: expected +$2, got $3 -> $4"; fail=$((fail+1)); fi
 }
+# Per-service counters ride on the record a listing returns, not on the
+# daemon-wide status, and omitempty means an absent field reads as zero.
+svc() { local n; n=$(ab parf@localhost ls "$1" | sed -n "s/.*\"$2\":\([0-9]*\).*/\1/p"); echo "${n:-0}"; }
 # Section timing, so "slow" is a measurement and not a hunch.
 sec_name=""; sec_t0=0
 sec() {
@@ -499,10 +502,41 @@ is_empty "a registration cannot claim a reader it does not have" \
   "$(post_body owner@srv1 /register '{"name":"probe@srv1","kind":"agent","reading":true,"queued":77}' | grep -o '"reading":true\|"queued":77')"
 is_empty "and the claim does not survive into a listing" \
   "$(ab nobody@srv1 ls probe@srv1 | grep -o '"reading":true')"
+is_empty "a registration cannot claim a call count" \
+  "$(post_body owner@srv1 /register '{"name":"probe3@srv1","in":99,"out":99}' | grep -o '"in":99\|"out":99')"
 is_empty "a registration cannot claim a configuration digest" \
   "$(post_body owner@srv1 /register '{"name":"probe2@srv1","config_sha":"forged"}' | grep -o forged)"
 has "an unknown topic mode is refused by the daemon, not only the CLI" \
   "$(post_code owner@srv1 $TOKEN /register '{"name":"modey@srv1","kind":"topic","mode":"garbage"}')" '400'
+
+sec "per-service call counters"
+# A drained queue and one nobody ever wrote to both read as empty; these tell
+# them apart. The control service proves the counters are the service's own
+# and not a daemon-wide total copied onto every record.
+ab owner@srv1 register counted@srv1 >/dev/null
+ab owner@srv1 register control@srv1 >/dev/null
+cin=$(svc counted@srv1 in); cout=$(svc counted@srv1 out)
+kin=$(svc control@srv1 in); kout=$(svc control@srv1 out)
+ab caller@srv1 send counted@srv1 --topic cnt --tag 1 "one" >/dev/null
+ab caller@srv1 send counted@srv1 --topic cnt --tag 2 "two" >/dev/null
+delta "a listing counts what arrived for a service" 2 "$cin" "$(svc counted@srv1 in)"
+delta "and nothing handed over while the queue still holds them" 0 "$cout" "$(svc counted@srv1 out)"
+ab counted@srv1 consume --wait 2s >/dev/null
+delta "consuming counts one out" 1 "$cout" "$(svc counted@srv1 out)"
+delta "and does not count it in a second time" 2 "$cin" "$(svc counted@srv1 in)"
+delta "a service nobody wrote to counts nothing in" 0 "$kin" "$(svc control@srv1 in)"
+delta "nor anything out" 0 "$kout" "$(svc control@srv1 out)"
+# The inbox has to be *empty* for the next leg, or the reader takes the
+# leftover off the queue and never blocks — which is the queued path again,
+# and it passed the straight-through mutants until this drain was added.
+ab counted@srv1 consume --wait 2s >/dev/null
+has "and the inbox is empty before a reader blocks on it" "$(svc counted@srv1 queued)" '^0$'
+ab counted@srv1 consume --wait 5s >/dev/null 2>&1 & LPID=$!
+sleep 0.3
+ab caller@srv1 send counted@srv1 --topic cnt --tag 3 "straight through" >/dev/null
+wait $LPID 2>/dev/null
+delta "a message handed to a waiting reader counts in" 3 "$cin" "$(svc counted@srv1 in)"
+delta "and out, without ever sitting in the queue" 3 "$cout" "$(svc counted@srv1 out)"
 
 sec "consuming as a name nobody registered is refused, not answered with silence"
 has "the daemon says register it first" \

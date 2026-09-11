@@ -112,6 +112,8 @@ type Record struct {
 	// See docs/05-discovery.md#what-a-listing-answers.
 	Reading bool `json:"reading,omitempty"` // a read on its inbox is outstanding now
 	Queued  int  `json:"queued,omitempty"`  // messages waiting in it
+	In      int  `json:"in,omitempty"`      // accepted for it since the daemon started
+	Out     int  `json:"out,omitempty"`     // handed to a reader of it since then
 }
 
 // Public is what a record looks like to anyone but the service itself: the

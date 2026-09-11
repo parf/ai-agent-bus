@@ -71,7 +71,7 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 | A.3 | TTL per message, bounded by the topic's | needs the topic to carry a TTL and a bound at all ([services § topics](../../docs/03-services-and-topics.md#topics)); the queue bound is one constant today |
 | A.4 | ✅ _done_ — `reply-to`, refused at accept when the address is not registered; the CLI, runner and face all read the route off the envelope ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)) |
 | A.5 | several workers behind one name | competing consumers already work — 500 messages to 8 readers, none twice, none lost. What is missing is N readers **blocking** on an empty inbox; **blocked** on the ❓ above |
-| A.6 | per-service call stats | counted in memory; a listing may show them, a caller may never state them ([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)) |
+| A.6 | ✅ _done_ — `in` and `out` per name, counted in memory, attached to a listing and cleared off anything a caller states ([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)) |
 
 **Done when**, and what breaking it must do:
 
@@ -87,7 +87,9 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 - N workers idle on an **empty** inbox all receive work as it arrives — a
   prefilled queue passes without that, which is how the first draft of this
   criterion passed on PoC code;
-- `ls` shows a service's call count, and deleting A.6 turns that check red.
+- `ls` shows a service's **own** call count: a known increment on one service
+  and an unchanged control beside it, so a constant zero or a daemon-wide
+  total copied onto every record fails.
 
 **Cut costs**: A.2 and A.4's third-party routing are the droppable pair. The
 accept-time reply check is not: it is the difference between a refusal and a

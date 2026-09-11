@@ -26,12 +26,17 @@ So a caller reading a listing needs two more things than a name:
 | **`protocol`** | how to call it, when that is not through the bus ([services § how to call it](03-services-and-topics.md#how-to-call-it)) | an ordinary bus service: send to the name |
 | **`reading`** | a read on its inbox is outstanding *now* — something is serving it | registered, but nobody is home |
 | **`queued`** | how many messages are waiting in it | none are |
+| **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, since the daemon started | none have |
 
-`reading` and `queued` are **live state, not registry data** — attached to an
+`reading`, `queued`, `in` and `out` are **live state, not registry data** — attached to an
 answer on its way out and never stored, so nothing in the registry depends on
 who happened to be connected ([overview § principles](00-overview.md#principles)). They are the difference between
 *"this name exists"* and *"a call would reach someone"*, which is the question
 a caller is actually asking.
+
+An inbox that was drained and one nobody ever wrote to both read as empty.
+`in` and `out` are what tell them apart, and they are per name: a busy bus
+does not make a quiet service look busy.
 
 **A false negative is possible and harmless**: between one long poll and the
 next a live service shows `reading: false` for as long as it takes to ask

@@ -62,6 +62,7 @@ All 2026-09-09 unless noted.
 | Two overflow modes, declared per record | [messaging § overflow](04-messaging.md#overflow) |
 | Graceful restart dumps queues and stats to Parquet; optional periodic dump | [messaging § durability](04-messaging.md#durability) |
 | No message kinds and no receiver policy in the bus | [messaging § envelope](04-messaging.md#envelope) |
+| Call counts are per service, live state like `reading` and `queued` | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | Dashboard shows services, topics and call counts — envelopes only | [discovery § dashboard](05-discovery.md#dashboard) |
 | Admin-only debug trace per service | [discovery § debug mode](05-discovery.md#debug-mode) |
 | AUTH merged into `agent-busd` as an optional role; WEB child cgroup-limited | [overview § roles](00-overview.md#roles) |

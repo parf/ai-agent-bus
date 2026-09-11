@@ -57,6 +57,12 @@ type waiter struct {
 }
 
 type inbox struct {
+	// What has been through it, since the daemon started. Observed, like
+	// the rest of the live state: counted here and attached on the way out,
+	// never taken from a caller. A queue that is drained and one nobody
+	// ever wrote to both read as empty, and these tell them apart.
+	in, out int
+
 	queue   []protocol.Envelope
 	waiters []*waiter
 }
@@ -129,7 +135,7 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 		return protocol.Record{}, fmt.Errorf("%w, not %d", ErrBound, r.Bound)
 	}
 	r.Config, r.ConfigSHA = nil, ""
-	r.Reading, r.Queued = false, 0
+	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
 	if old, known := b.records[name]; known {
 		r.Config = old.Config
 		r.Owner = old.Owner
@@ -250,12 +256,12 @@ func (b *Bus) Lookup(name string) (protocol.Record, bool) {
 // written back, so nothing in the registry depends on who happened to be
 // connected. Caller holds the lock.
 func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
-	r.Reading, r.Queued = false, 0
+	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
 	in, ok := b.inboxes[name]
 	if !ok {
 		return r
 	}
-	r.Queued = len(in.queue)
+	r.Queued, r.In, r.Out = len(in.queue), in.in, in.out
 	for _, w := range in.waiters {
 		if !w.filtered {
 			r.Reading = true
@@ -384,6 +390,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 				continue
 			}
 			in.waiters = drop(in.waiters, i)
+			in.in, in.out = in.in+1, in.out+1 // straight through: in and out at once
 			w.ch <- e
 			return e, nil
 		}
@@ -409,6 +416,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 		b.dropped++ // a real loss, so `status` reports it
 	}
 	in.queue = append(in.queue, e)
+	in.in++
 	return e, nil
 }
 
@@ -487,6 +495,7 @@ func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered boo
 	for i, e := range in.queue {
 		if !filtered || (e.Topic == topic && e.Tag == tag) {
 			in.queue = take(in.queue, i)
+			in.out++
 			b.mu.Unlock()
 			return e, nil
 		}
