@@ -1,6 +1,8 @@
 package protocol
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"time"
 )
@@ -41,9 +43,40 @@ type Record struct {
 	// Config is what a service template was configured with. It is opaque:
 	// the bus checks that it is JSON and never reads inside, so no field of
 	// it means anything here — no server, user, mailbox or credential is
-	// looked for. It is never included in a listing.
+	// looked for. It leaves the daemon for one caller only, the service it
+	// belongs to; every other answer carries ConfigSHA in its place.
 	// See docs/03-services-and-topics.md#configuring-a-template.
 	Config json.RawMessage `json:"config,omitempty"`
+
+	// ConfigSHA is what a query gets instead: enough to see that a service
+	// is configured, that a write landed, and that two are the same, without
+	// handing the configuration to anyone.
+	ConfigSHA string `json:"config_sha,omitempty"`
+}
+
+// Public is what a record looks like to anyone but the service itself: the
+// configuration replaced by a digest of it. Every answer that carries a
+// record goes through here — a listing, a lookup, a registration and the
+// answer to configuring one — because leaving it out has already been the
+// same omission twice.
+//
+// The digest is what makes a query useful without exposing anything: an owner
+// who cannot read a configuration back can still see that one is there, that
+// a write landed, and that two services hold the same one.
+//
+// It is over the bytes AS STORED, which the bus has already compacted, so
+// reformatting a configuration file does not look like changing it — and
+// `sha256sum cfg.json` will not match one that has whitespace in it. Being a
+// digest of the bytes, a SHORT, GUESSABLE configuration is recoverable by
+// trying candidates; the answer to that is sealing, not a longer hash.
+// See docs/03-services-and-topics.md#configuring-a-template.
+func (r Record) Public() Record {
+	if len(r.Config) > 0 {
+		sum := sha256.Sum256(r.Config)
+		r.ConfigSHA = hex.EncodeToString(sum[:])
+		r.Config = nil
+	}
+	return r
 }
 
 // Receipt values. A closed set: anything else is not a receipt.

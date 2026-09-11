@@ -73,7 +73,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 	// A configuration has one write path, and this is not it.
 	in.Config = nil
 	rec, err := s.bus.Register(in)
-	reply(w, public(rec), err)
+	reply(w, rec.Public(), err)
 }
 
 // configure stores a service's configuration. The body carries the name and
@@ -88,7 +88,7 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 		return
 	}
 	rec, err := s.bus.Configure(in.Name, caller.String(), in.Config)
-	reply(w, public(rec), err)
+	reply(w, rec.Public(), err)
 }
 
 // config hands one back. A listing never carries a configuration, so this is
@@ -109,16 +109,6 @@ func (s *Server) config(w http.ResponseWriter, r *http.Request, caller protocol.
 	w.Write([]byte{'\n'})
 }
 
-// public is what a record looks like to anyone: everything but its
-// configuration. There is exactly one route to a configuration
-// (docs/03-services-and-topics.md#configuring-a-template), and every answer
-// carrying a record goes through here — leaving it out is the same omission
-// twice now, once on register and once on configure.
-func public(r protocol.Record) protocol.Record {
-	r.Config = nil
-	return r
-}
-
 // lookup answers about one name. A caller asking "am I registered?" would
 // otherwise pull the whole registry down to find out: List plus its JSON is
 // milliseconds and megabytes at ten thousand records, while this is a map
@@ -130,7 +120,7 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, _ protocol.Name)
 		fail(w, http.StatusNotFound, "no such name: "+name)
 		return
 	}
-	ok(w, public(rec))
+	ok(w, rec.Public())
 }
 
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
@@ -209,6 +199,7 @@ var codes = []struct {
 	{core.ErrConfig, http.StatusBadRequest},
 	{core.ErrReceipt, http.StatusBadRequest},
 	{core.ErrNotOwner, http.StatusForbidden},
+	{core.ErrPrivate, http.StatusForbidden},
 	{core.ErrUnknown, http.StatusNotFound},
 	{core.ErrFull, http.StatusServiceUnavailable},
 	{core.ErrNotYet, http.StatusNotImplemented},

@@ -32,6 +32,7 @@ var (
 	ErrOverflow = errors.New("overflow is strict or ring")
 	ErrConfig   = errors.New("a configuration is JSON")
 	ErrNotOwner = errors.New("that record belongs to someone else")
+	ErrPrivate  = errors.New("a configuration is private to the service it belongs to")
 )
 
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.
@@ -136,6 +137,14 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		// which would make "is it configured?" unanswerable.
 		return protocol.Record{}, fmt.Errorf("%w, and null is the absence of one", ErrConfig)
 	}
+	// Store one spelling. The digest a query gets is over what is stored
+	// (protocol.Record.Public), so reformatting a configuration file must not
+	// look like changing it.
+	var canonical bytes.Buffer
+	if err := json.Compact(&canonical, cfg); err != nil {
+		return protocol.Record{}, fmt.Errorf("%w: %s", ErrConfig, err)
+	}
+	cfg = canonical.Bytes()
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	r, known := b.records[n]
@@ -144,6 +153,8 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		// second way to describe a service, only a way to give it config.
 		r = protocol.Record{Name: n, Kind: "generic", Owner: who, Full: protocol.OverflowStrict}
 	} else if r.Owner != who && n != who {
+		// Writing is the owner's, and the service's own. Reading is neither:
+		// see Config.
 		return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, n, r.Owner)
 	}
 	r.Config = cfg
@@ -153,8 +164,12 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	return r, nil
 }
 
-// Config reads one back, for the service itself or whoever owns it. It is not
-// part of a listing, so this is the only way to it.
+// Config reads one back — for the service itself and nobody else, its owner
+// included. Setup data goes in and is used; it does not come back out to be
+// looked at. An owner configures a service and is told that it worked
+// (Configure answers without the configuration), which is all an owner needs.
+//
+// It is not part of any listing either, so there is no other way to one.
 func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 	n, err := canon(name)
 	if err != nil {
@@ -170,8 +185,8 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 	if !known {
 		return nil, fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
-	if r.Owner != who && n != who {
-		return nil, fmt.Errorf("%w: %s is %s's", ErrNotOwner, n, r.Owner)
+	if n != who {
+		return nil, fmt.Errorf("%w: only %s may read it", ErrPrivate, n)
 	}
 	return r.Config, nil
 }
@@ -195,10 +210,9 @@ func (b *Bus) List(kind string) []protocol.Record {
 	out := make([]protocol.Record, 0, len(b.records))
 	for _, r := range b.records {
 		if kind == "" || r.Kind == kind {
-			// A listing is public to every caller; a configuration is not.
-			// See docs/03-services-and-topics.md#configuring-a-template.
-			r.Config = nil
-			out = append(out, r)
+			// A listing is public to every caller; a configuration is not,
+			// and a digest of it is what a query gets instead.
+			out = append(out, r.Public())
 		}
 	}
 	return out

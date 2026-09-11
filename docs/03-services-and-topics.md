@@ -102,7 +102,8 @@ verb does it, and reads it back:
 | `agent-bus service-template <template/instance@host> '{"k":"v"}'` | the same, inline |
 | `agent-bus service-template <template/instance@host>` | print that configuration |
 
-The direction is decided by whether a configuration was handed to it. The verb
+The direction is decided by whether a configuration was handed to it, and
+setting one answers with its digest rather than with what was set. The verb
 is **one hyphenated word** so that it stays a single verb in every face,
 including as an MCP tool name
 ([glossary § names that are enforced](glossary.md#names-that-are-enforced)).
@@ -116,10 +117,19 @@ the same way; the template prefix is not what makes one configurable.
 |---|---|
 | the configuration | **arbitrary JSON, stored opaque.** The only check is that it *is* JSON — the same "stored raw, shape-checked only" rule the MCP method info follows. Nothing looks for a server, a user, a mailbox or a credential |
 | who may write it | its **owner, or the service itself**. Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so a service restarting keeps what it was configured with |
-| who may read it | the same two |
-| where it is **not** | a listing. `ls` never carries a configuration, so this verb is the only route to one |
+| who may read it | **the service, and nobody else — its owner included.** Setup data goes in and is used; it does not come back out to be looked at |
+| what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record — the listing, the lookup, and the answer to setting one. Enough to see that a service is configured, that a write landed, and that two hold the same configuration |
+| where the bytes are **not** | anywhere else. No listing carries them, and the one read is the service's own |
 | nothing to store | refused: no configuration at all, something that is not JSON, and `null` — which would read back exactly like never having been configured |
 | an empty *value* | kept. `{}`, `[]`, `""`, `0` and `false` are configurations; the bus does not judge what is inside |
+
+The bus stores **one spelling**: the bytes are compacted, so reformatting a
+configuration file is not a change and does not move the digest. That also
+means `sha256sum cfg.json` matches only if the file is already compact.
+
+A digest of a **short, guessable** configuration can be recovered by trying
+candidates. That is inherent in publishing a digest at all; sealing is the
+answer, not a longer hash.
 
 ⚠️ **Plaintext in the registry, and only as private as the daemon.** Sealing is
 designed but not built
@@ -130,9 +140,8 @@ when the daemon restarts, and the owner check is a caller-name guard, not
 security — in PoC one master token reaches everything and any holder may claim
 any name ([stages § PoC](12-stages.md#poc)).
 
-**A service fetches its own configuration; nothing injects it.** There is no
-automatic delivery — a service reads it the same way anything else does, with
-the same verb under its own name:
+**A service fetches its own configuration; nothing injects it** — and it is
+the only one that can, so this runs as the service, not as its owner:
 
 ```sh
 cfg=$(agent-bus service-template "$AGENT_BUS_NAME")

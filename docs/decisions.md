@@ -43,6 +43,7 @@ All 2026-09-09 unless noted.
 | Config is arbitrary and separate from the name; nothing is parsed out of an address | [services § service and template](03-services-and-topics.md#service-and-template) |
 | One verb configures a template and reads that configuration back | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | What a configuration is, who may write it, and where it never appears | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
+| A configuration is private to its service; a query gets a digest of it | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | MCP tool info stored raw, shape-checked | [services § service and template](03-services-and-topics.md#service-and-template) |
 | Destructive methods are a hint in the description, enforced by nobody | [services § service and template](03-services-and-topics.md#service-and-template) |
 | Topics are first-class records; kind, TTL, bound, overflow declared at creation | [services § topics](03-services-and-topics.md#topics) |

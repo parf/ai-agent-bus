@@ -70,3 +70,44 @@ func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 		t.Fatalf("ls handed out the configuration: %s", w.Body.String())
 	}
 }
+
+// Setup data goes in and is used; it does not come back out to be looked at.
+// The owner who set it cannot read it either — only the service can.
+func TestAConfigurationIsPrivateToItsService(t *testing.T) {
+	bus := core.New()
+	s := New(bus, "tok")
+	h := s.Handler()
+	do := func(method, path, user, body string) *httptest.ResponseRecorder {
+		var r *http.Request
+		if body == "" {
+			r = httptest.NewRequest(method, path, nil)
+		} else {
+			r = httptest.NewRequest(method, path, strings.NewReader(body))
+		}
+		r.Header.Set(HeaderUser, user)
+		r.Header.Set(HeaderToken, "tok")
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+	if w := do("POST", "/configure", "owner@h", `{"name":"mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
+		t.Fatalf("configure: %d %s", w.Code, w.Body.String())
+	}
+	for _, who := range []string{"owner@h", "nosy@h"} {
+		w := do("GET", "/config?name=mail/parf@h", who, "")
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("%s read it: %d %s", who, w.Code, w.Body.String())
+		}
+		if strings.Contains(w.Body.String(), "FIXTURE") {
+			t.Fatalf("the refusal to %s carried the configuration: %s", who, w.Body.String())
+		}
+	}
+	w := do("GET", "/config?name=mail/parf@h", "mail/parf@h", "")
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "FIXTURE") {
+		t.Fatalf("the service could not read its own: %d %s", w.Code, w.Body.String())
+	}
+	// The owner can still SET one; it just never comes back.
+	if w := do("POST", "/configure", "owner@h", `{"name":"mail/parf@h","config":{"password":"SECOND"}}`); w.Code != 200 {
+		t.Fatalf("the owner lost the right to configure: %d %s", w.Code, w.Body.String())
+	}
+}

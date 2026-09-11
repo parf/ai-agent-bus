@@ -319,27 +319,45 @@ echo "== configuring a service template produces a configured service"
 # The configuration is arbitrary JSON and stays opaque; the one thing that
 # matters to the bus is that it never shows up where it should not.
 echo '{"model":"opus","depth":3}' | ab owner@srv1 service-template code-review/cfg@rdvp - >/dev/null
-has "the configuration comes back as it went in" \
-  "$(ab owner@srv1 service-template code-review/cfg@rdvp)" '{"model":"opus","depth":3}'
+has "the configuration comes back as it went in, to the service" \
+  "$(ab code-review/cfg@rdvp service-template code-review/cfg@rdvp)" '{"model":"opus","depth":3}'
+has "but not to the owner who set it" \
+  "$(ab owner@srv1 service-template code-review/cfg@rdvp 2>&1)" 'private to the service'
+has "and that is a refusal, not a failure of ours" \
+  "$(code owner@srv1 $TOKEN "/config?name=code-review/cfg@rdvp")" '403'
+
 is_empty "a listing never carries it" \
   "$(ab owner@srv1 ls | grep -o '"config":[^,}]*')"
 is_empty "and neither does the answer to setting one" \
   "$(echo '{"secret":"x"}' | ab owner@srv1 service-template echoes@srv1 - | grep -o '"config":[^,}]*')"
+# What a query gets instead: enough to see that a write landed and that two
+# are the same, without handing anyone the configuration.
+sha=$(echo '{"secret":"x"}' | ab owner@srv1 service-template digested@srv1 - | grep -o '"config_sha":"[a-f0-9]*"')
+has "setting one answers with its digest" "$sha" '"config_sha":"'
+has "and a query carries the same digest" "$(ab nobody@srv1 ls)" "$sha"
+has "the digest is sha256 of the stored bytes" "$sha" "$(printf '%s' '{"secret":"x"}' | sha256sum | cut -d' ' -f1)"
+has "reformatting is not a change" \
+  "$(printf '{ "secret" : "x" }' | ab owner@srv1 service-template reformatted@srv1 - | grep -o '"config_sha":"[a-f0-9]*"')" "$sha"
+has "a different configuration is a different digest" \
+  "$(if [ "$(echo '{"secret":"y"}' | ab owner@srv1 service-template other@srv1 - | grep -o '"config_sha":"[a-f0-9]*"')" != "$sha" ]; then echo differs; fi)" 'differs'
+is_empty "an unconfigured service has no digest at all" \
+  "$(ab owner@srv1 register plain@srv1 | grep -o '"config_sha":[^,}]*')"
 # A send is refused unless the receiver has a record, so this proves the
 # record was created — the inbox itself is made lazily by the send either way.
 has "configuring creates the service, so it can be sent to" \
   "$(ab sender@srv1 send code-review/cfg@rdvp "it exists" >/dev/null; ab code-review/cfg@rdvp consume --wait 2s)" 'it exists'
-has "the service may read its own configuration" \
-  "$(ab code-review/cfg@rdvp service-template code-review/cfg@rdvp)" '"model":"opus"'
-has "a stranger may not read it" \
-  "$(ab nosy@srv1 service-template code-review/cfg@rdvp 2>&1)" 'belongs to someone else'
+
+has "a stranger may not read it either" \
+  "$(ab nosy@srv1 service-template code-review/cfg@rdvp 2>&1)" 'private to the service'
 # The text alone would still read right if every refusal collapsed to a 500.
 has "and is refused as forbidden, not as our own fault" \
   "$(code nosy@srv1 $TOKEN "/config?name=code-review/cfg@rdvp")" '403'
+
 has "and may not overwrite it" \
   "$(ab nosy@srv1 service-template code-review/cfg@rdvp '{"model":"theirs"}' 2>&1)" 'belongs to someone else'
 has "the owner's configuration survived that" \
-  "$(ab owner@srv1 service-template code-review/cfg@rdvp)" '"model":"opus"'
+  "$(ab code-review/cfg@rdvp service-template code-review/cfg@rdvp)" '"model":"opus"'
+
 has "a configuration that is not JSON is refused" \
   "$(ab owner@srv1 service-template code-review/cfg@rdvp 'not json' 2>&1)" 'a configuration is JSON'
 # The CLI refuses that one before it leaves; the daemon has to refuse it too,
@@ -348,34 +366,42 @@ has "and the daemon refuses an empty one on its own" \
   "$(post_code owner@srv1 $TOKEN /configure '{"name":"code-review/cfg@rdvp"}')" '400'
 has "null is not a configuration either" \
   "$(ab owner@srv1 service-template code-review/cfg@rdvp null 2>&1)" 'null is the absence of one'
+
 # A service registers itself on every start. That must refresh its
 # description without destroying what it was configured with, and without
 # handing the record to whoever registered last.
 ab code-review/cfg@rdvp register code-review/cfg@rdvp --kind agent --descr "refreshed" >/dev/null
 has "a re-registration keeps the configuration" \
-  "$(ab owner@srv1 service-template code-review/cfg@rdvp)" '"model":"opus"'
+  "$(ab code-review/cfg@rdvp service-template code-review/cfg@rdvp)" '"model":"opus"'
+
 has "and still refreshes the description" \
   "$(ab owner@srv1 ls)" '"descr":"refreshed"'
 ab thief@srv1 register code-review/cfg@rdvp --kind agent >/dev/null
+# Ownership is observable through a WRITE: nobody can read a configuration
+# but the service, so a read cannot tell us who owns the record.
 has "and does not hand the record to whoever registered last" \
-  "$(ab thief@srv1 service-template code-review/cfg@rdvp 2>&1)" 'belongs to someone else'
+  "$(ab thief@srv1 service-template code-review/cfg@rdvp '{"mine":"now"}' 2>&1)" 'belongs to someone else'
 has "a registration may not smuggle a configuration in" \
-  "$(post_code thief@srv1 $TOKEN /register '{"name":"code-review/cfg@rdvp","config":{"evil":true}}' >/dev/null; ab owner@srv1 service-template code-review/cfg@rdvp)" '"model":"opus"'
+  "$(post_code thief@srv1 $TOKEN /register '{"name":"code-review/cfg@rdvp","config":{"evil":true}}' >/dev/null; ab code-review/cfg@rdvp service-template code-review/cfg@rdvp)" '"model":"opus"'
+
 # On a name that does not exist yet there is no old configuration to keep, so
 # this is the only shape that proves register drops the field rather than
 # being saved by the preservation rule.
 post_code smuggler@srv1 $TOKEN /register '{"name":"fresh@srv1","config":{"evil":true}}' >/dev/null
 has "not even onto a name that is new" \
-  "$(ab smuggler@srv1 service-template fresh@srv1)" 'null'
+  "$(ab fresh@srv1 service-template fresh@srv1)" 'null'
+
 # The service itself is as entitled to configure as its owner: otherwise the
 # order of "register" and "configure" decides whether either works. The record
 # has to be owned by SOMEONE ELSE for this to test anything.
 ab keeper@srv1 service-template theirs@srv1 '{"by":"keeper"}' >/dev/null
 has "a service may configure itself, on a record it does not own" \
-  "$(ab theirs@srv1 service-template theirs@srv1 '{"by":"itself"}' >/dev/null 2>&1; ab keeper@srv1 service-template theirs@srv1)" '"by":"itself"'
+  "$(ab theirs@srv1 service-template theirs@srv1 '{"by":"itself"}' >/dev/null 2>&1; ab theirs@srv1 service-template theirs@srv1)" '"by":"itself"'
+
 # Reading must work where it is actually used: a script, with no terminal.
 has "a read works with no terminal on stdin" \
-  "$(ab owner@srv1 service-template code-review/cfg@rdvp </dev/null)" '"depth":3'
+  "$(ab code-review/cfg@rdvp service-template code-review/cfg@rdvp </dev/null)" '"depth":3'
+
 
 echo "== a full queue: refuse by default, drop the oldest if asked"
 ab owner@srv1 register sink@srv1 --kind generic >/dev/null

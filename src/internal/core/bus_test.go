@@ -403,3 +403,23 @@ func TestServedWaitersAreReleased(t *testing.T) {
 		}
 	}
 }
+
+// The bus stores one spelling of a configuration, so reformatting a file does
+// not look like changing it: the digest a query gets is over what is stored.
+func TestAConfigurationIsStoredCompacted(t *testing.T) {
+	b := New()
+	spaced, err := b.Configure("svc@h", "svc@h", []byte("{ \"k\" : \"v\" }\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(spaced.Config); got != `{"k":"v"}` {
+		t.Fatalf("stored %q", got)
+	}
+	compact, err := b.Configure("other@h", "other@h", []byte(`{"k":"v"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a, c := spaced.Public().ConfigSHA, compact.Public().ConfigSHA; a != c {
+		t.Fatalf("whitespace changed the digest:\n%s\n%s", a, c)
+	}
+}
