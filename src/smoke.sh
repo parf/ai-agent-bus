@@ -209,6 +209,44 @@ kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
 has "a script and its arguments must be one quoted word" \
   "$(ab x@srv1 start x@srv1 --algo args ./greet.sh loudly 2>&1)" 'one script'
 
+echo "== reply-to: the answer goes where the request said, and a dead route is refused now"
+ab owner@srv1 register worker@srv1 --kind generic --descr "does work" >/dev/null
+ab owner@srv1 register third@srv1 --kind agent >/dev/null
+ab caller@srv1 send worker@srv1 --topic rt --tag 1 --reply-to third@srv1 "work for someone else" >/dev/null
+wid=$(ab worker@srv1 consume --wait 5s | sed -n 's/.*"message_id":"\([^"]*\)".*/\1/p')
+ab worker@srv1 reply "$wid" "here is the answer" >/dev/null
+has "the third party gets the answer" \
+  "$(ab third@srv1 consume --topic rt --tag 1 --wait 5s)" 'here is the answer'
+# The other half: the answer must NOT also go back to the caller. Checking
+# only that the third party received it passes with the reply broadcast.
+is_empty "and the caller does not" "$(ab caller@srv1 consume --topic rt --tag 1 --wait 1s)"
+
+# Refused when the request is accepted, not discovered when the answer
+# bounces — the whole point of the rule.
+out=$(ab caller@srv1 send worker@srv1 --topic rt --tag 2 --reply-to ghost@nowhere "nobody can hear the answer" 2>&1); rc=$?
+has "a dead reply address is refused at accept" "$out" 'no such reply address'
+bad_exit "and the send exits non-zero" $rc
+is_empty "and nothing was queued for the worker" "$(ab worker@srv1 consume --topic rt --tag 2 --wait 1s)"
+
+# Fire-and-forget asks for nothing back, so it stays open to a sender that
+# owns no queue. A check that only refuses is a check that refuses too much.
+ok_exit "a send from an unregistered sender still works" \
+  "$(ab nobody@srv1 send worker@srv1 --topic rt --tag 3 "no answer wanted" >/dev/null 2>&1; echo $?)"
+has "and it arrives" "$(ab worker@srv1 consume --topic rt --tag 3 --wait 5s)" 'no answer wanted'
+
+# A script service answers the same way: the runner reads the route off the
+# envelope, so receipts and the answer all go to the third party.
+abx launcher@srv1 start relay@srv1 --algo args "$D/hello-world.sh" --descr "relays" >>"$D/start.log" 2>&1 &
+RPID=$!
+for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'relays' && break; sleep 0.2; done
+ab caller@srv1 send relay@srv1 --topic rt4 --tag 1 --reply-to third@srv1 "via a script" >/dev/null
+has "a script service acks to the third party" \
+  "$(ab third@srv1 consume --topic rt4 --tag 1 --wait 15s)" '"receipt":"ack"'
+has "and answers it there" \
+  "$(ab third@srv1 consume --topic rt4 --tag 1 --wait 15s)" 'Hello via a script'
+is_empty "and the caller hears nothing" "$(ab caller@srv1 consume --topic rt4 --tag 1 --wait 1s)"
+kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
+
 echo "== a service is the inbox it registered, and stops when told"
 printf '#!/bin/sh\nsleep 3\necho "did $1"\n' > "$D/slow.sh"; chmod +x "$D/slow.sh"
 abx launcher@srv1 start slow@srv1 --algo args "$D/slow.sh" -1 --descr "slowly" >>"$D/start.log" 2>&1 &

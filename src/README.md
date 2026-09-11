@@ -12,7 +12,7 @@ against [Plans/PoC/TODO.md](../Plans/PoC/TODO.md).
 | `internal/api` | the HTTP face: a request in, a core call out |
 | `mcp/` | the MCP face and both push adapters, on bun — [mcp/README.md](mcp/README.md) |
 | `static-token` | the SSH forced command that hands out the token ([access § getting a token](../docs/02-access.md#getting-a-token)) |
-| `smoke.sh` | every acceptance criterion of every wave, in one script |
+| `smoke.sh` | every acceptance criterion of every wave, in one script; `--slow` runs the lot |
 
 Layering is the design's: protocol → core → api, faces outside, nothing
 pointing back in ([modules](../docs/10-modules.md)).
@@ -21,7 +21,8 @@ pointing back in ([modules](../docs/10-modules.md)).
 
 ```sh
 go test -race ./...
-./smoke.sh            # builds both binaries, runs a throwaway daemon, exits 0 or not
+./smoke.sh            # fast: everything under a second, for the edit-run loop
+./smoke.sh --slow     # all of it, plus the race detector — what a change is measured against
 ```
 
 `smoke.sh` needs `bun` for the MCP half. It uses a temporary socket and token

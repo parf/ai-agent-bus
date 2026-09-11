@@ -196,9 +196,16 @@ func next(ctx context.Context, q url.Values) (protocol.Envelope, []byte, bool, e
 // `done` exists for; a script that answers skips it, because a reply has
 // plainly finished. See docs/04-messaging.md#receipts.
 func handle(svc service, e protocol.Envelope) {
+	// Receipts and the answer all go where the request said they should,
+	// which is the sender unless it named a third party.
+	// See docs/04-messaging.md#reply-routing.
+	back, topic, tag := e.From, e.Topic, e.Tag
+	if e.ReplyTo != nil {
+		back, topic, tag = e.ReplyTo.Service, e.ReplyTo.Topic, e.ReplyTo.Tag
+	}
 	say := func(kind string) {
 		if err := postQuiet("/send", protocol.Envelope{
-			To: e.From, Topic: e.Topic, Tag: e.Tag, Receipt: kind, Re: e.ID,
+			To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID,
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: could not %s %s: %v\n", svc.Name, kind, e.ID, err)
 		}
@@ -237,7 +244,7 @@ func handle(svc service, e protocol.Envelope) {
 		return
 	}
 	if err := postQuiet("/send", protocol.Envelope{
-		To: e.From, Topic: e.Topic, Tag: e.Tag, Body: answer,
+		To: back, Topic: topic, Tag: tag, Body: answer,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not answer %s: %v\n", svc.Name, e.ID, err)
 	}

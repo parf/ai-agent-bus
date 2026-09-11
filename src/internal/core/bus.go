@@ -326,6 +326,19 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	if rec.Kind == protocol.KindTopic && rec.Mode == protocol.ModePubSub {
 		return protocol.Envelope{}, fmt.Errorf("%s is a pub/sub topic: %w", to, ErrNotYet)
 	}
+	// An answer that cannot be routed is the requester's problem to hear
+	// about now. Registered, not live: the name owns a queue whether or not
+	// anything is reading it. See docs/04-messaging.md#reply-routing.
+	if e.ReplyTo != nil {
+		back, err := canon(e.ReplyTo.Service)
+		if err != nil {
+			return protocol.Envelope{}, fmt.Errorf("reply-to: %w", err)
+		}
+		if _, known := b.records[back]; !known {
+			return protocol.Envelope{}, fmt.Errorf("no such reply address: %s (%w)", back, ErrUnknown)
+		}
+		e.ReplyTo = &protocol.ReplyTo{Service: back, Topic: e.ReplyTo.Topic, Tag: e.ReplyTo.Tag}
+	}
 	// Receipts are a closed set: a caller decides whether a message is an
 	// answer by looking at this field, so a third value would read as one.
 	if e.Receipt != "" && e.Receipt != protocol.ReceiptAck && e.Receipt != protocol.ReceiptDone {

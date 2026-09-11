@@ -30,7 +30,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
                             [--protocol p]  how to call it; unset = this bus
   agent-bus ls [<name>] [--kind k]
-  agent-bus send <to> [--topic t] [--tag g] <text>
+  agent-bus send <to> [--topic t] [--tag g] [--reply-to name] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
   agent-bus consume [--topic t] [--tag g] [--wait 30s] [--follow]
   agent-bus ack <message-id>
@@ -128,10 +128,16 @@ func send(args []string) error {
 	if len(pos) < 2 {
 		return fmt.Errorf("send wants <to> and text")
 	}
-	return post("/send", protocol.Envelope{
+	e := protocol.Envelope{
 		To: pos[0], Topic: flags["topic"], Tag: flags["tag"],
 		Body: strings.Join(pos[1:], " "),
-	})
+	}
+	// --reply-to keeps the exchange's topic and tag unless told otherwise:
+	// the third party matches the answer the same way the sender would.
+	if back := flags["reply-to"]; back != "" {
+		e.ReplyTo = &protocol.ReplyTo{Service: back, Topic: e.Topic, Tag: e.Tag}
+	}
+	return post("/send", e)
 }
 
 // call is send plus the wait for its answer. There is no third verb on the
@@ -509,11 +515,27 @@ func show(body []byte, code int, err error) error {
 // fields, never the body. One file per message, so two filtered consumes
 // running at once cannot overwrite each other.
 
+// replyContext is where an answer goes, resolved once when the message is
+// consumed. A request may point its answer at a third party, and the client
+// that replies is the only thing that still holds the envelope — so the
+// route is worked out here, not guessed later.
+// See docs/04-messaging.md#reply-routing.
 type replyContext struct {
 	ID    string `json:"message_id"`
 	From  string `json:"from"`
 	Topic string `json:"topic,omitempty"`
 	Tag   string `json:"tag,omitempty"`
+}
+
+// route is where a reply to this message belongs: the sender, unless the
+// request named somewhere else.
+func route(e protocol.Envelope) replyContext {
+	c := replyContext{ID: e.ID, From: e.From, Topic: e.Topic, Tag: e.Tag}
+	if e.ReplyTo != nil {
+		c.From = e.ReplyTo.Service
+		c.Topic, c.Tag = e.ReplyTo.Topic, e.ReplyTo.Tag
+	}
+	return c
 }
 
 const (
@@ -540,7 +562,7 @@ func remember(e protocol.Envelope) {
 		warn("cannot keep reply context: %v", err)
 		return
 	}
-	b, err := json.Marshal(replyContext{ID: e.ID, From: e.From, Topic: e.Topic, Tag: e.Tag})
+	b, err := json.Marshal(route(e))
 	if err != nil {
 		warn("cannot keep reply context: %v", err)
 		return

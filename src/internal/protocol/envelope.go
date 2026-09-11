@@ -25,6 +25,24 @@ type Envelope struct {
 	// See docs/04-messaging.md#receipts.
 	Receipt string `json:"receipt,omitempty"` // "", "ack" or "done"
 	Re      string `json:"re,omitempty"`      // the message_id this is about
+
+	// ReplyTo sends the answer somewhere other than back to the sender. The
+	// default route needs no field — the sender's own name with this topic
+	// and tag — so this is set only when the answer belongs to a third
+	// party. Its service must be REGISTERED when the request is accepted:
+	// an answer that cannot be routed is a fact the requester should learn
+	// now, not when it bounces.
+	// See docs/04-messaging.md#reply-routing.
+	ReplyTo *ReplyTo `json:"reply_to,omitempty"`
+}
+
+// ReplyTo is a route, not a promise: registered says the name owns a queue,
+// never that anything is reading it.
+// See docs/04-messaging.md#reply-routing.
+type ReplyTo struct {
+	Service string `json:"service"`
+	Topic   string `json:"topic,omitempty"`
+	Tag     string `json:"tag,omitempty"`
 }
 
 // Record is a registered service, agent or topic. Registering is pushing a

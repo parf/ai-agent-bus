@@ -125,6 +125,22 @@ try {
     receipt?.receipt === "done" && receipt?.re === choreId && receipt?.from === me,
     JSON.stringify(receipt),
   );
+  // The face is a client like any other: when a request names a third party,
+  // ab_reply must answer there and not to whoever asked.
+  {
+    const third = `${peerName.split("@")[0]}.third@${peerName.split("@")[1]}`;
+    const bystander = new Bus({ ...process.env, AGENT_BUS_NAME: third });
+    await bystander.register({ name: third, kind: "agent" });
+    await peer.send({ to: me, body: "answer elsewhere", topic: "t-rt", tag: "g5", reply_to: { service: third, topic: "t-rt", tag: "g5" } } as any);
+    const chore = await call("ab_consume", { topic: "t-rt", tag: "g5", wait: "5s" });
+    const rtId = chore.text.match(/id ([0-9a-f]+)/)?.[1] ?? "";
+    await call("ab_reply", { message_id: rtId, text: "sent to the third party" });
+    const atThird = await bystander.consume({ topic: "t-rt", tag: "g5", wait: "5s" });
+    check("ab_reply answers the third party the request named", atThird?.body === "sent to the third party", JSON.stringify(atThird));
+    const atAsker = await peer.consume({ topic: "t-rt", tag: "g5", wait: "1s" });
+    check("and not the asker", atAsker === null, JSON.stringify(atAsker));
+  }
+
   // Same for the face: a filtered wait must end on the done, not run out its
   // deadline. The tool description promises exactly this.
   {

@@ -25,8 +25,13 @@ const log = (s: string) => process.stderr.write(`agent-bus: ${s}\n`);
 type ReplyTo = { from: string; topic?: string; tag?: string };
 const consumed = new Map<string, ReplyTo>();
 const REMEMBER = 200;
+// Where an answer to this message belongs: the sender, unless the request
+// named a third party (docs/04-messaging.md#reply-routing).
 function remember(e: Envelope) {
-  consumed.set(e.message_id, { from: e.from, topic: e.topic, tag: e.tag });
+  const r = e.reply_to;
+  consumed.set(e.message_id, r
+    ? { from: r.service, topic: r.topic, tag: r.tag }
+    : { from: e.from, topic: e.topic, tag: e.tag });
   if (consumed.size > REMEMBER) consumed.delete(consumed.keys().next().value!);
 }
 
