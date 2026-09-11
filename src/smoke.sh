@@ -333,6 +333,9 @@ has "the service may read its own configuration" \
   "$(ab code-review/cfg@rdvp service-template code-review/cfg@rdvp)" '"model":"opus"'
 has "a stranger may not read it" \
   "$(ab nosy@srv1 service-template code-review/cfg@rdvp 2>&1)" 'belongs to someone else'
+# The text alone would still read right if every refusal collapsed to a 500.
+has "and is refused as forbidden, not as our own fault" \
+  "$(code nosy@srv1 $TOKEN "/config?name=code-review/cfg@rdvp")" '403'
 has "and may not overwrite it" \
   "$(ab nosy@srv1 service-template code-review/cfg@rdvp '{"model":"theirs"}' 2>&1)" 'belongs to someone else'
 has "the owner's configuration survived that" \
@@ -387,6 +390,8 @@ for i in $(seq 0 1000); do ab flood@srv1 send sink@srv1 "msg-$i" >/dev/null 2>&1
 out=$(ab flood@srv1 send sink@srv1 "one too many" 2>&1); rc=$?
 bad_exit "strict refuses the send rather than lose a message" $rc
 has "and names the queue that is full" "$out" 'queue is full: sink@srv1'
+has "and says the receiver cannot take it, not that we broke" \
+  "$(post_code flood@srv1 $TOKEN /send '{"to":"sink@srv1","body":"one more"}')" '503'
 has "nothing was dropped" "$(ab asker@srv1 status)" '"dropped":0'
 for i in $(seq 0 1000); do ab flood@srv1 send ringy@srv1 "msg-$i" >/dev/null 2>&1; done
 has "ring keeps taking, and the oldest is what went" "$(ab ringy@srv1 consume --wait 2s)" 'msg-1"'

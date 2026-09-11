@@ -208,10 +208,22 @@ func (b *Bus) List(kind string) []protocol.Record {
 // vacated slot pointing at the envelope, so a drained inbox goes on holding
 // every body it ever handed out; clearing the tail is what actually frees
 // them. One place to get this right, because it is one line to forget.
+//
+// The backing array is kept — reusing a zeroed allocation is the point — but
+// nothing dead stays reachable through it.
 func take(q []protocol.Envelope, i int) []protocol.Envelope {
 	copy(q[i:], q[i+1:])
 	q[len(q)-1] = protocol.Envelope{}
 	return q[:len(q)-1]
+}
+
+// drop removes one waiter, and releases it for the same reason take does: a
+// dead waiter holds a channel, and a slot that still points at it keeps that
+// channel alive for as long as the inbox exists.
+func drop(ws []*waiter, i int) []*waiter {
+	copy(ws[i:], ws[i+1:])
+	ws[len(ws)-1] = nil
+	return ws[:len(ws)-1]
 }
 
 // ensure creates the inbox for a name. Every registered principal has one;
@@ -240,13 +252,13 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	defer b.mu.Unlock()
 	rec, known := b.records[to]
 	if !known {
-		return protocol.Envelope{}, ErrUnknown
+		return protocol.Envelope{}, fmt.Errorf("no such receiver: %s (%w)", to, ErrUnknown)
 	}
 	// A queue topic is an inbox with a name, so publishing to one is an
 	// ordinary send. Fan-out is not: a subscriber is undefined without an
 	// ACL, so PoC stores the mode and says so. See docs/12-stages.md#poc.
 	if rec.Kind == protocol.KindTopic && rec.Mode == protocol.ModePubSub {
-		return protocol.Envelope{}, ErrNotYet
+		return protocol.Envelope{}, fmt.Errorf("%s is a pub/sub topic: %w", to, ErrNotYet)
 	}
 	// Receipts are a closed set: a caller decides whether a message is an
 	// answer by looking at this field, so a third value would read as one.
@@ -270,7 +282,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 			if w.filtered && (w.topic != e.Topic || w.tag != e.Tag) {
 				continue
 			}
-			in.waiters = append(in.waiters[:i], in.waiters[i+1:]...)
+			in.waiters = drop(in.waiters, i)
 			w.ch <- e
 			return e, nil
 		}
@@ -348,7 +360,7 @@ func (b *Bus) settle(name string, w *waiter) (protocol.Envelope, bool) {
 	in := b.ensure(name)
 	for i, x := range in.waiters {
 		if x == w {
-			in.waiters = append(in.waiters[:i], in.waiters[i+1:]...)
+			in.waiters = drop(in.waiters, i)
 			break
 		}
 	}

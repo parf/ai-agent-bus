@@ -73,15 +73,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 	// A configuration has one write path, and this is not it.
 	in.Config = nil
 	rec, err := s.bus.Register(in)
-	if errors.Is(err, core.ErrBadName) || errors.Is(err, core.ErrOverflow) {
-		fail(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	ok(w, public(rec))
+	reply(w, public(rec), err)
 }
 
 // configure stores a service's configuration. The body carries the name and
@@ -96,38 +88,15 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 		return
 	}
 	rec, err := s.bus.Configure(in.Name, caller.String(), in.Config)
-	switch {
-	case errors.Is(err, core.ErrBadName), errors.Is(err, core.ErrConfig):
-		fail(w, http.StatusBadRequest, err.Error())
-		return
-	case errors.Is(err, core.ErrNotOwner):
-		fail(w, http.StatusForbidden, err.Error())
-		return
-	}
-	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	ok(w, public(rec))
+	reply(w, public(rec), err)
 }
 
 // config hands one back. A listing never carries a configuration, so this is
 // the only route to it, and it is the owner's or the service's own.
 func (s *Server) config(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	cfg, err := s.bus.Config(r.URL.Query().Get("name"), caller.String())
-	switch {
-	case errors.Is(err, core.ErrBadName):
-		fail(w, http.StatusBadRequest, err.Error())
-		return
-	case errors.Is(err, core.ErrUnknown):
-		fail(w, http.StatusNotFound, err.Error())
-		return
-	case errors.Is(err, core.ErrNotOwner):
-		fail(w, http.StatusForbidden, err.Error())
-		return
-	}
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		reply(w, nil, err)
 		return
 	}
 	if len(cfg) == 0 {
@@ -175,25 +144,7 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 	}
 	in.From = caller.String()
 	e, err := s.bus.Send(in)
-	switch {
-	case errors.Is(err, core.ErrBadName), errors.Is(err, core.ErrReceipt):
-		fail(w, http.StatusBadRequest, err.Error())
-		return
-	case errors.Is(err, core.ErrUnknown):
-		fail(w, http.StatusNotFound, "no such receiver: "+in.To)
-		return
-	case errors.Is(err, core.ErrFull):
-		fail(w, http.StatusServiceUnavailable, err.Error())
-		return
-	case errors.Is(err, core.ErrNotYet):
-		fail(w, http.StatusNotImplemented, in.To+" is a pub/sub topic: "+err.Error())
-		return
-	}
-	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	ok(w, e)
+	reply(w, e, err)
 }
 
 // consume long-polls an inbox. Which one, and whether it is filtered, is
@@ -244,6 +195,39 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 	default:
 		ok(w, e)
 	}
+}
+
+// codes is the one place a refusal becomes a status. A handler that decides
+// this for itself is a handler that will disagree with the next one, and the
+// message belongs to whoever knew what went wrong — core, not here.
+var codes = []struct {
+	err  error
+	code int
+}{
+	{core.ErrBadName, http.StatusBadRequest},
+	{core.ErrOverflow, http.StatusBadRequest},
+	{core.ErrConfig, http.StatusBadRequest},
+	{core.ErrReceipt, http.StatusBadRequest},
+	{core.ErrNotOwner, http.StatusForbidden},
+	{core.ErrUnknown, http.StatusNotFound},
+	{core.ErrFull, http.StatusServiceUnavailable},
+	{core.ErrNotYet, http.StatusNotImplemented},
+}
+
+// reply answers with v, or with the status this error maps to. An error no
+// row claims is ours, not the caller's, so it is a 500.
+func reply(w http.ResponseWriter, v any, err error) {
+	if err == nil {
+		ok(w, v)
+		return
+	}
+	for _, c := range codes {
+		if errors.Is(err, c.err) {
+			fail(w, c.code, err.Error())
+			return
+		}
+	}
+	fail(w, http.StatusInternalServerError, err.Error())
 }
 
 func read(w http.ResponseWriter, r *http.Request, v any) bool {

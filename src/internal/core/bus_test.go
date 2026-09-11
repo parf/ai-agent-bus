@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -148,7 +149,7 @@ func TestSecondUnfilteredReaderRefused(t *testing.T) {
 
 func TestSendToUnknownName(t *testing.T) {
 	b := newBusWith(t, "peer@h")
-	if _, err := b.Send(protocol.Envelope{From: "peer@h", To: "ghost@h"}); err != ErrUnknown {
+	if _, err := b.Send(protocol.Envelope{From: "peer@h", To: "ghost@h"}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("want ErrUnknown, got %v", err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "peer@h", To: "no-realm"}); err == nil {
@@ -227,41 +228,178 @@ func mustRegister(t *testing.T, b *Bus, r protocol.Record) {
 	}
 }
 
-// A drained inbox must not go on holding what it handed out. Shortening a
-// slice leaves the vacated slot pointing at the envelope, so the bodies of
-// every consumed message stayed reachable from an empty queue.
-func TestConsumedMessagesAreReleased(t *testing.T) {
-	b := New()
-	if _, err := b.Register(protocol.Record{Name: "sink@h", Owner: "sink@h"}); err != nil {
-		t.Fatal(err)
-	}
-	const n = 200
-	for i := 0; i < n; i++ {
-		if _, err := b.Send(protocol.Envelope{
-			To: "sink@h", From: "s@h", Tag: fmt.Sprint(i), Body: fmt.Sprintf("body-%d", i),
-		}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// Consume from the back, which is the order that leaves the most behind.
-	for i := n - 1; i >= 0; i-- {
-		if _, err := b.Consume(context.Background(), "sink@h", "", fmt.Sprint(i), true); err != nil {
-			t.Fatal(err)
-		}
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	q := b.inboxes["sink@h"].queue
-	if len(q) != 0 {
-		t.Fatalf("queue is not empty: %d", len(q))
-	}
+// Nothing dead stays reachable through a queue or a waiter list. Shortening
+// a slice leaves the vacated slot pointing at what was removed, so a drained
+// inbox went on holding every body it handed out, and a served waiter's
+// channel stayed rooted. The backing array is deliberately kept; only the
+// contents of the slots past len must be gone.
+//
+// Bodies are large here on purpose: this is about what memory is held.
+func bigBody(i int) string { return fmt.Sprintf("%d-%s", i, strings.Repeat("x", 4096)) }
+
+func heldEnvelopes(q []protocol.Envelope) int {
 	held := 0
 	for _, e := range q[:cap(q)] {
 		if e.Body != "" || e.ID != "" {
 			held++
 		}
 	}
-	if held != 0 {
-		t.Fatalf("an empty queue still holds %d consumed envelopes", held)
+	return held
+}
+
+func TestConsumedMessagesAreReleased(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		order func(n int) []int // the tags to consume, in order
+	}{
+		{"fifo", func(n int) []int {
+			out := make([]int, n)
+			for i := range out {
+				out[i] = i
+			}
+			return out
+		}},
+		{"back to front", func(n int) []int {
+			out := make([]int, n)
+			for i := range out {
+				out[i] = n - 1 - i
+			}
+			return out
+		}},
+		{"middle first", func(n int) []int {
+			out := []int{n / 2, n - 1, 0}
+			for i := 0; i < n; i++ {
+				if i != n/2 && i != n-1 && i != 0 {
+					out = append(out, i)
+				}
+			}
+			return out
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b := New()
+			if _, err := b.Register(protocol.Record{Name: "sink@h", Owner: "sink@h"}); err != nil {
+				t.Fatal(err)
+			}
+			const n = 100
+			for i := 0; i < n; i++ {
+				if _, err := b.Send(protocol.Envelope{
+					To: "sink@h", From: "s@h", Tag: fmt.Sprint(i), Body: bigBody(i),
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, tag := range tc.order(n) {
+				if _, err := b.Consume(context.Background(), "sink@h", "", fmt.Sprint(tag), true); err != nil {
+					t.Fatalf("tag %d: %v", tag, err)
+				}
+			}
+			b.mu.Lock()
+			defer b.mu.Unlock()
+			q := b.inboxes["sink@h"].queue
+			if len(q) != 0 {
+				t.Fatalf("queue is not empty: %d", len(q))
+			}
+			if held := heldEnvelopes(q); held != 0 {
+				t.Fatalf("a drained inbox still holds %d consumed envelopes", held)
+			}
+		})
+	}
+}
+
+// What a ring drops is dropped, not kept in the slack behind the queue.
+func TestRingDropsAreReleased(t *testing.T) {
+	b := New()
+	if _, err := b.Register(protocol.Record{
+		Name: "ringy@h", Owner: "ringy@h", Full: protocol.OverflowRing,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < maxQueue+50; i++ {
+		if _, err := b.Send(protocol.Envelope{To: "ringy@h", From: "s@h", Body: bigBody(i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b.mu.Lock()
+	q := b.inboxes["ringy@h"].queue
+	if len(q) != maxQueue {
+		b.mu.Unlock()
+		t.Fatalf("queue holds %d, want %d", len(q), maxQueue)
+	}
+	// The queue has stopped growing, so this is the backing array the drops
+	// will happen in. Taking it now is the only way to see the slots a
+	// head-advancing `q = q[1:]` would leave behind its own start.
+	base := q[:cap(q)]
+	b.mu.Unlock()
+
+	const dropped = 50
+	for i := 0; i < dropped; i++ {
+		if _, err := b.Send(protocol.Envelope{To: "ringy@h", From: "s@h", Body: bigBody(9000 + i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	q = b.inboxes["ringy@h"].queue
+	if len(q) != maxQueue {
+		t.Fatalf("after the drops the queue holds %d, want %d", len(q), maxQueue)
+	}
+	// A full ring does not grow, so the only thing that can move the head is
+	// dropping by re-slicing — and everything the head marches past stays
+	// reachable through the array for as long as the inbox lives.
+	if &base[0] != &q[0] {
+		t.Fatal("the queue head moved: dropped messages are left behind it")
+	}
+	live := map[string]bool{}
+	for _, e := range q {
+		live[e.Body] = true
+	}
+	for i, e := range base {
+		if e.Body != "" && !live[e.Body] {
+			t.Fatalf("slot %d still holds a dropped message", i)
+		}
+	}
+	if q[0].Body == "" {
+		t.Fatal("a live message was cleared")
+	}
+}
+
+// A waiter that has been served or has given up must not stay reachable.
+func TestServedWaitersAreReleased(t *testing.T) {
+	b := New()
+	if _, err := b.Register(protocol.Record{Name: "w@h", Owner: "w@h"}); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, err := b.Consume(context.Background(), "w@h", "t", "g", true); err != nil {
+			t.Error(err)
+		}
+	}()
+	for i := 0; i < 200; i++ {
+		b.mu.Lock()
+		n := len(b.inboxes["w@h"].waiters)
+		b.mu.Unlock()
+		if n == 1 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if _, err := b.Send(protocol.Envelope{To: "w@h", From: "s@h", Topic: "t", Tag: "g", Body: "hi"}); err != nil {
+		t.Fatal(err)
+	}
+	<-done
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	ws := b.inboxes["w@h"].waiters
+	if len(ws) != 0 {
+		t.Fatalf("%d waiters left", len(ws))
+	}
+	for _, w := range ws[:cap(ws)] {
+		if w != nil {
+			t.Fatal("a served waiter is still reachable behind the list")
+		}
 	}
 }
