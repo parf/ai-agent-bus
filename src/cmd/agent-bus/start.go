@@ -51,8 +51,16 @@ func start(args []string) error {
 	}
 	// From here on this process *is* the service: it reads the service's
 	// inbox and answers from it, not from whatever name launched it.
-	// The record above keeps the launcher as its owner.
+	// The record above keeps the launcher as its owner, which is exactly
+	// what lets it collect the service's own credential — a name is bound
+	// to its token, so switching names means switching both.
+	// See docs/02-access.md#two-parameters.
+	tok, err := tokenFor(svc.Name)
+	if err != nil {
+		return err
+	}
 	os.Setenv("AGENT_BUS_NAME", svc.Name)
+	os.Setenv("AGENT_BUS_TOKEN", tok)
 	fmt.Fprintf(os.Stderr, "%s is %s (%s, %d at a time); ctrl-c to stop\n",
 		svc.Name, svc.Script, svc.Algo, svc.Instances)
 	return serve(svc)

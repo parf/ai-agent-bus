@@ -12,9 +12,19 @@ const me = process.env.PUSH_NAME!;         // the pushed session
 const peer = new Bus();                    // AGENT_BUS_NAME is the peer here
 const peerName = peer.name;
 
+// The pushed session is a second principal, so it needs a second token; the
+// owner is who may hand one out. See docs/02-access.md#getting-a-token.
+const owner = new Bus({
+  ...process.env,
+  AGENT_BUS_NAME: process.env.AGENT_BUS_OWNER,
+  AGENT_BUS_TOKEN: process.env.AGENT_BUS_OWNER_TOKEN,
+});
+const myToken = await owner.token(me);
+const asMe = { ...process.env, AGENT_BUS_NAME: me, AGENT_BUS_TOKEN: myToken, AGENT_BUS_PUSH: "claude" };
+
 const proc = Bun.spawn(["bun", "run", "server.ts"], {
   stdin: "pipe", stdout: "pipe", stderr: "pipe",
-  env: { ...process.env, AGENT_BUS_NAME: me, AGENT_BUS_PUSH: "claude" },
+  env: asMe,
   cwd: import.meta.dir,
 });
 
@@ -122,7 +132,7 @@ try {
   {
     const other = Bun.spawn(["bun", "run", "server.ts"], {
       stdin: "pipe", stdout: "pipe", stderr: "pipe",
-      env: { ...process.env, AGENT_BUS_NAME: me, AGENT_BUS_PUSH: "claude" },
+      env: asMe,
       cwd: import.meta.dir,
     });
     const otherPending = new Pending();

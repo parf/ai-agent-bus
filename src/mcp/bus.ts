@@ -41,12 +41,29 @@ export class Bus {
   readonly name: string;
   readonly #token: string;
   readonly #addr: string;
+  readonly #env: Record<string, string | undefined>;
 
   constructor(env = process.env) {
     this.name = (env.AGENT_BUS_NAME || defaultName(env)).trim().toLowerCase();
     this.#token = env.AGENT_BUS_TOKEN ?? "";
     this.#addr = env.AGENT_BUS_ADDR ?? defaultSocket(env);
+    this.#env = env;
     if (!this.#token) throw new Error("set AGENT_BUS_TOKEN");
+  }
+
+  /** A principal's credential, asked for with this one's. The daemon allows
+   *  it for a name you own, or for anyone if you are the daemon's owner.
+   *  See docs/02-access.md#getting-a-token. */
+  async token(name: string): Promise<string> {
+    const got = await this.#call("POST", "/token", { name });
+    return got.token;
+  }
+
+  /** A client for another principal. A name is bound to its token, so
+   *  becoming somebody else means getting their credential too — which is
+   *  exactly what a caller cannot do without being allowed to. */
+  async as(name: string): Promise<Bus> {
+    return new Bus({ ...this.#env, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: await this.token(name) });
   }
 
   async #call(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<any> {

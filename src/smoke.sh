@@ -24,15 +24,26 @@ PORT=${PORT:-7911}
 go build -o "$D/agent-busd" ./cmd/agent-busd || exit 1
 go build -o "$D/agent-bus"  ./cmd/agent-bus  || exit 1
 
-"$D/agent-busd" -addr 127.0.0.1:$PORT -socket "$D/bus.sock" -token-file "$D/token" >"$D/daemon.log" 2>&1 &
+# The daemon belongs to a principal, and that is who may hand out a
+# credential for a name nobody owns yet. Stated rather than taken from the
+# account running the suite, so the checks read the same everywhere.
+OWNER=parf@localhost
+"$D/agent-busd" -addr 127.0.0.1:$PORT -socket "$D/bus.sock" -token-file "$D/token" -owner "$OWNER" >"$D/daemon.log" 2>&1 &
 DPID=$!
 for _ in $(seq 1 50); do [ -S "$D/bus.sock" ] && break; sleep 0.1; done
-TOKEN=$(cat "$D/token")
-ab() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$1 "$D/agent-bus" "${@:2}"; }
+# One line per principal, `name token`: the owner's is what the daemon wrote
+# at start, and every other name gets one from it on first use.
+TOKEN=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/token")
+tok() {
+  local f="$D/tok.$(printf '%s' "$1" | tr '/@.' '___')"
+  [ -s "$f" ] || AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER     "$D/agent-bus" token "$1" >"$f" 2>/dev/null
+  cat "$f" 2>/dev/null
+}
+ab() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 "$D/agent-bus" "${@:2}"; }
 # The same, for `&`: exec so that $! is the binary. Backgrounding the function
 # instead makes $! a subshell, and a signal sent to it leaves the service
 # running — which is how a check that a service stops passed without one.
-abx() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$1 exec "$D/agent-bus" "${@:2}"; }
+abx() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 exec "$D/agent-bus" "${@:2}"; }
 pass=0; fail=0; skipped=0
 # Anything that takes more than a second is opt-in: the default run is the
 # one a person waits for, and the full run is what a change is measured
@@ -68,7 +79,7 @@ bad_exit()  { if [ "$2" -ne 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else e
 # the word whatever cmd did, which is how two checks here passed hollow.
 is_empty()  { if [ -z "$2" ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: got [$2]"; fail=$((fail+1)); fi; }
 code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" "http://unix$3"; }
-post_body() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $TOKEN" -d "$3" "http://unix$2"; }
+post_body() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $(tok "$1")" -d "$3" "http://unix$2"; }
 post_code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" -d "$4" "http://unix$3"; }
 
 sec "the Go checks"
@@ -94,6 +105,77 @@ has "401 for a wrong token" "$(code parf@localhost nope /status)" '401'
 out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=parf "$D/agent-bus" status 2>&1); rc=$?
 bad_exit "a name without a realm is refused" $rc
 has "401 for a realm-less name" "$(code parf "$TOKEN" /status)" '401'
+
+sec "a name is checked against the credential it arrived with"
+# The forgery to catch is a whole request made under the wrong name, not a
+# `from` field rewritten inside one: the face already did the second and it
+# stopped nothing. See docs/02-access.md#two-parameters.
+alice=$(tok alice@srv1); bob=$(tok bob@srv1)
+has "a token that backs one name is refused under another" \
+  "$(code alice@srv1 "$bob" /status)" '403'
+has "and the refusal names whose token it is" \
+  "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: alice@srv1" -H "X-Agent-Bus-Token: $bob" "http://unix/status")" 'belongs to bob@srv1'
+has "which is a different answer from a token nobody holds" \
+  "$(code alice@srv1 not-a-token /status)" '401'
+has "the check guards a consume too" "$(code alice@srv1 "$bob" "/consume?wait=0s")" '403'
+has "and a send" \
+  "$(post_code alice@srv1 "$bob" /send '{"to":"bob@srv1","body":"x"}')" '403'
+has "and a registration" \
+  "$(post_code alice@srv1 "$bob" /register '{"name":"alice@srv1"}')" '403'
+has "while the right pair is served" "$(code alice@srv1 "$alice" /status)" '200'
+
+sec "who may ask for whose credential"
+has "a principal may get its own" \
+  "$(post_code alice@srv1 "$alice" /token '{"name":"alice@srv1"}')" '200'
+has "but not somebody else's" \
+  "$(post_code alice@srv1 "$alice" /token '{"name":"bob@srv1"}')" '403'
+ab alice@srv1 register alice-svc@srv1 --descr "hers" >/dev/null
+has "and may get one for a service it owns" \
+  "$(post_code alice@srv1 "$alice" /token '{"name":"alice-svc@srv1"}')" '200'
+has "while somebody else may not" \
+  "$(post_code bob@srv1 "$bob" /token '{"name":"alice-svc@srv1"}')" '403'
+has "the daemon's owner may ask for any name" \
+  "$(post_code $OWNER "$TOKEN" /token '{"name":"nobody-owns-this@srv1"}')" '200'
+again=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus" token alice@srv1 2>&1)
+if [ "$again" = "$alice" ]; then echo "  ok   asking twice is a read, not a rotation"; pass=$((pass+1));
+else echo "  FAIL asking twice is a read, not a rotation: [$again]"; fail=$((fail+1)); fi
+# Every principal is in the file, not just the owner's: a second daemon
+# reading it hands the same credentials back, which is what "tokens are
+# durable" has to mean once there is more than one.
+cp "$D/token" "$D/token2"
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/bus2.sock" -token-file "$D/token2" -owner "$OWNER" >"$D/daemon2.log" 2>&1 &
+RPID=$!
+for _ in $(seq 1 50); do [ -S "$D/bus2.sock" ] && break; sleep 0.1; done
+has "a restart keeps every principal, not only the owner's" \
+  "$(AGENT_BUS_ADDR=$D/bus2.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus" status)" '"up"'
+has "and still refuses the wrong name with it" \
+  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus2.sock" -H "X-Agent-Bus-User: bob@srv1" -H "X-Agent-Bus-Token: $alice" "http://unix/status")" '403'
+kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
+# A credential that could not be written down is one a restart forgets, so
+# it is not handed out either: the daemon says so instead.
+mkdir -p "$D/ro" && cp "$D/token" "$D/ro/token"
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/ro.sock" -token-file "$D/ro/token" -owner "$OWNER" >"$D/daemon3.log" 2>&1 &
+OPID=$!
+for _ in $(seq 1 50); do [ -S "$D/ro.sock" ] && break; sleep 0.1; done
+chmod 0500 "$D/ro"
+out=$(AGENT_BUS_ADDR=$D/ro.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token unsaveable@srv1 2>&1); rc=$?
+bad_exit "a credential the store could not keep is not handed out" $rc
+is_empty "and nothing that looks like one is printed" "$(printf '%s' "$out" | grep -o '^[0-9a-f]\{48\}$')"
+chmod 0700 "$D/ro"
+has "while the same ask succeeds once the store can be written" \
+  "$(AGENT_BUS_ADDR=$D/ro.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token unsaveable@srv1)" '^[0-9a-f]\{48\}$'
+kill $OPID 2>/dev/null; wait $OPID 2>/dev/null
+# `start` runs until it is stopped, so this check leans on the refusal to end
+# it. Under a mutant that allows it, it ran until the harness's own timeout
+# and took the whole batch with it — hence the bound, and hence 124 counting
+# as a failure of the check rather than the refusal it was looking for.
+out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$bob AGENT_BUS_NAME=bob@srv1 timeout 5 "$D/agent-bus" start alice-svc@srv1 --algo args /bin/echo 2>&1); rc=$?
+if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
+  echo "  ok   and starting a service you do not own is refused"; pass=$((pass+1))
+else
+  echo "  FAIL and starting a service you do not own is refused: exit $rc"; fail=$((fail+1))
+fi
+has "because the runner has to become it, and cannot" "$out" 'does not own'
 
 sec "register and ls"
 ab fixer@srv1 register fixer@srv1 --kind agent --descr "fixes things" >/dev/null
@@ -215,9 +297,9 @@ if slow; then
   # The status code, not the body: the accepted envelope echoes the field back,
   # so grepping for "receipt" passed with the check for it removed.
   has "a third receipt value is refused" \
-    "$(post_code caller@srv1 "$TOKEN" /send '{"to":"svc@srv1","receipt":"maybe","body":"x"}')" '400'
+    "$(post_code caller@srv1 "$(tok caller@srv1)" /send '{"to":"svc@srv1","receipt":"maybe","body":"x"}')" '400'
   has "and the two real ones are not" \
-    "$(post_code caller@srv1 "$TOKEN" /send '{"to":"svc@srv1","receipt":"done","re":"0","body":"x"}')" '200'
+    "$(post_code caller@srv1 "$(tok caller@srv1)" /send '{"to":"svc@srv1","receipt":"done","re":"0","body":"x"}')" '200'
 
 else skipped=$((skipped+1)); fi
 sec "a shell script is a service"
@@ -315,7 +397,7 @@ if slow; then
   # register it, let nothing run, and the work is still there when something
   # with that name turns up. This is the property V1's ephemeral channels did
   # not have — a dead channel took its results with it.
-  ab owner@srv1 register absent@srv1 --kind generic --descr "never started" >/dev/null
+  ab launcher@srv1 register absent@srv1 --kind generic --descr "never started" >/dev/null
   ab caller@srv1 send absent@srv1 --topic w --tag 9 "waiting for whoever shows up" >/dev/null
   abx launcher@srv1 start absent@srv1 --algo args "$D/hello-world.sh" --descr "turned up late" >>"$D/start.log" 2>&1 &
   APID=$!
@@ -335,7 +417,7 @@ if slow; then
   # was finished and there was no way to hear it. A script that *answers* must
   # not also send one — a reply has plainly finished.
   printf '#!/bin/sh\ntrue\n' > "$D/silent.sh"; chmod +x "$D/silent.sh"
-  ab owner@srv1 register quiet@srv1 --kind generic >/dev/null
+  ab launcher@srv1 register quiet@srv1 --kind generic >/dev/null
   abx launcher@srv1 start quiet@srv1 --algo args "$D/silent.sh" --descr "says nothing" >>"$D/start.log" 2>&1 &
   QPID=$!
   for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'says nothing' && break; sleep 0.2; done
@@ -359,7 +441,7 @@ if slow; then
 
   # A service that answers skips `done`: the check is that the message after the
   # ack is the answer, so an unconditional `done` turns it red.
-  ab owner@srv1 register loud@srv1 --kind generic >/dev/null
+  ab launcher@srv1 register loud@srv1 --kind generic >/dev/null
   abx launcher@srv1 start loud@srv1 --algo args "$D/hello-world.sh" --descr "answers" >>"$D/start.log" 2>&1 &
   LPID=$!
   for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'answers' && break; sleep 0.2; done
@@ -463,9 +545,9 @@ has "and the realm is a host, not a path" \
 
 sec "one name, one answer"
 has "lookup answers about a single name" \
-  "$(ab owner@srv1 register looked@srv1 --descr "here" >/dev/null; curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: owner@srv1" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/lookup?name=looked@srv1")" '"descr":"here"'
+  "$(ab owner@srv1 register looked@srv1 --descr "here" >/dev/null; curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: owner@srv1" -H "X-Agent-Bus-Token: $(tok owner@srv1)" "http://unix/lookup?name=looked@srv1")" '"descr":"here"'
 has "and says so when there is none" \
-  "$(code owner@srv1 $TOKEN "/lookup?name=absent-entirely@srv1")" '404'
+  "$(code owner@srv1 "$(tok owner@srv1)" "/lookup?name=absent-entirely@srv1")" '404'
 # The caller's own record is checked with this, not by pulling the registry.
 echo '{"s":1}' | ab owner@srv1 service-template looked@srv1 - >/dev/null
 is_empty "a lookup never carries a configuration" \
@@ -507,7 +589,7 @@ is_empty "a registration cannot claim a call count" \
 is_empty "a registration cannot claim a configuration digest" \
   "$(post_body owner@srv1 /register '{"name":"probe2@srv1","config_sha":"forged"}' | grep -o forged)"
 has "an unknown topic mode is refused by the daemon, not only the CLI" \
-  "$(post_code owner@srv1 $TOKEN /register '{"name":"modey@srv1","kind":"topic","mode":"garbage"}')" '400'
+  "$(post_code owner@srv1 "$(tok owner@srv1)" /register '{"name":"modey@srv1","kind":"topic","mode":"garbage"}')" '400'
 
 sec "per-service call counters"
 # A drained queue and one nobody ever wrote to both read as empty; these tell
@@ -540,9 +622,9 @@ delta "and out, without ever sitting in the queue" 3 "$cout" "$(svc counted@srv1
 
 sec "consuming as a name nobody registered is refused, not answered with silence"
 has "the daemon says register it first" \
-  "$(code ghost@srv1 $TOKEN "/consume?wait=0s")" '404'
+  "$(code ghost@srv1 "$(tok ghost@srv1)" "/consume?wait=0s")" '404'
 has "while a registered name with an empty inbox is 204" \
-  "$(ab quiet@srv1 register quiet@srv1 >/dev/null; code quiet@srv1 $TOKEN "/consume?wait=0s")" '204'
+  "$(ab quiet@srv1 register quiet@srv1 >/dev/null; code quiet@srv1 "$(tok quiet@srv1)" "/consume?wait=0s")" '204'
 
 if slow; then
   sec "a listing says whether a call would reach anyone"
@@ -583,7 +665,7 @@ has "the configuration comes back as it went in, to the service" \
 has "but not to the owner who set it" \
   "$(ab owner@srv1 service-template code-review/cfg@rdvp 2>&1)" 'private to the service'
 has "and that is a refusal, not a failure of ours" \
-  "$(code owner@srv1 $TOKEN "/config?name=code-review/cfg@rdvp")" '403'
+  "$(code owner@srv1 "$(tok owner@srv1)" "/config?name=code-review/cfg@rdvp")" '403'
 
 is_empty "a listing never carries it" \
   "$(ab owner@srv1 ls | grep -o '"config":[^,}]*')"
@@ -610,7 +692,7 @@ has "a stranger may not read it either" \
   "$(ab nosy@srv1 service-template code-review/cfg@rdvp 2>&1)" 'private to the service'
 # The text alone would still read right if every refusal collapsed to a 500.
 has "and is refused as forbidden, not as our own fault" \
-  "$(code nosy@srv1 $TOKEN "/config?name=code-review/cfg@rdvp")" '403'
+  "$(code nosy@srv1 "$(tok nosy@srv1)" "/config?name=code-review/cfg@rdvp")" '403'
 
 has "and may not overwrite it" \
   "$(ab nosy@srv1 service-template code-review/cfg@rdvp '{"model":"theirs"}' 2>&1)" 'belongs to someone else'
@@ -622,7 +704,7 @@ has "a configuration that is not JSON is refused" \
 # The CLI refuses that one before it leaves; the daemon has to refuse it too,
 # and the shape that reaches it is a body carrying no configuration at all.
 has "and the daemon refuses an empty one on its own" \
-  "$(post_code owner@srv1 $TOKEN /configure '{"name":"code-review/cfg@rdvp"}')" '400'
+  "$(post_code owner@srv1 "$(tok owner@srv1)" /configure '{"name":"code-review/cfg@rdvp"}')" '400'
 has "null is not a configuration either" \
   "$(ab owner@srv1 service-template code-review/cfg@rdvp null 2>&1)" 'null is the absence of one'
 
@@ -641,12 +723,12 @@ ab thief@srv1 register code-review/cfg@rdvp --kind agent >/dev/null
 has "and does not hand the record to whoever registered last" \
   "$(ab thief@srv1 service-template code-review/cfg@rdvp '{"mine":"now"}' 2>&1)" 'belongs to someone else'
 has "a registration may not smuggle a configuration in" \
-  "$(post_code thief@srv1 $TOKEN /register '{"name":"code-review/cfg@rdvp","config":{"evil":true}}' >/dev/null; ab code-review/cfg@rdvp service-template code-review/cfg@rdvp)" '"model":"opus"'
+  "$(post_code thief@srv1 "$(tok thief@srv1)" /register '{"name":"code-review/cfg@rdvp","config":{"evil":true}}' >/dev/null; ab code-review/cfg@rdvp service-template code-review/cfg@rdvp)" '"model":"opus"'
 
 # On a name that does not exist yet there is no old configuration to keep, so
 # this is the only shape that proves register drops the field rather than
 # being saved by the preservation rule.
-post_code smuggler@srv1 $TOKEN /register '{"name":"fresh@srv1","config":{"evil":true}}' >/dev/null
+post_code smuggler@srv1 "$(tok smuggler@srv1)" /register '{"name":"fresh@srv1","config":{"evil":true}}' >/dev/null
 has "not even onto a name that is new" \
   "$(ab fresh@srv1 service-template fresh@srv1)" 'null'
 
@@ -725,7 +807,7 @@ if slow; then
   bad_exit "strict refuses the send rather than lose a message" $rc
   has "and names the queue that is full" "$out" 'queue is full: sink@srv1'
   has "and says the receiver cannot take it, not that we broke" \
-    "$(post_code flood@srv1 $TOKEN /send '{"to":"sink@srv1","body":"one more"}')" '503'
+    "$(post_code flood@srv1 "$(tok flood@srv1)" /send '{"to":"sink@srv1","body":"one more"}')" '503'
   delta "strict dropped nothing" 0 "$d0" "$(count dropped)"
   d1=$(count dropped)
   for i in $(seq 0 1000); do ab flood@srv1 send ringy@srv1 "msg-$i" >/dev/null 2>&1; done
@@ -743,7 +825,7 @@ bun -e "Bun.serve({port:$((PORT+3)),async fetch(r){const u=new URL(r.url);
   return new Response('{}');}})" >/dev/null 2>&1 &
 MPID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+3))/ls" && break; sleep 0.2; done
-out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+3)) AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=impatient@srv1 \
+out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+3)) AGENT_BUS_TOKEN=$(tok impatient@srv1) AGENT_BUS_NAME=impatient@srv1 \
       timeout 5 "$D/agent-bus" call slow@srv1 --wait 500ms "are you there?" 2>&1); rc=$?
 kill $MPID 2>/dev/null; wait $MPID 2>/dev/null
 if [ "$rc" -eq 124 ]; then
@@ -757,19 +839,29 @@ sec "the token an SSH forced command hands out"
 # Not "contains the token": a debug line printed before it passed that, and
 # $(ssh … static-token) would then hold a credential that does not work. The
 # proof is the captured value authenticating against the daemon.
-issued=$(AGENT_BUS_TOKEN_FILE=$D/token ./static-token); rc=$?
+mine=$(tok over-ssh@srv1)
+issued=$(AGENT_BUS_TOKEN_FILE=$D/token ./static-token over-ssh@srv1); rc=$?
 ok_exit "static-token succeeds" $rc
-if [ "$issued" = "$TOKEN" ]; then echo "  ok   it prints the token and nothing else"; pass=$((pass+1));
-else echo "  FAIL it prints the token and nothing else: [$issued]"; fail=$((fail+1)); fi
+if [ "$issued" = "$mine" ]; then echo "  ok   it prints that principal's token and nothing else"; pass=$((pass+1));
+else echo "  FAIL it prints that principal's token and nothing else: [$issued]"; fail=$((fail+1)); fi
 has "the token it hands out authenticates" \
   "$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$issued AGENT_BUS_NAME=over-ssh@srv1 "$D/agent-bus" status)" '"up"'
+# The principal is in the forced command, so the key a person holds picks
+# the line. Asking for a name it was not given is the forgery this stops.
+if [ "$issued" = "$TOKEN" ]; then echo "  FAIL it handed out the owner's token instead"; fail=$((fail+1));
+else echo "  ok   and it is not the owner's"; pass=$((pass+1)); fi
+out=$(AGENT_BUS_TOKEN_FILE=$D/token ./static-token 2>&1); rc=$?
+bad_exit "without a principal it hands out nothing" $rc
+has "and says the forced command must name one" "$out" 'authorized_keys'
+out=$(AGENT_BUS_TOKEN_FILE=$D/token ./static-token nobody@nowhere 2>&1); rc=$?
+bad_exit "a principal with no token is an error, not a blank one" $rc
 printf '   \n' > "$D/blank-token"
-out=$(AGENT_BUS_TOKEN_FILE=$D/blank-token ./static-token 2>&1); rc=$?
+out=$(AGENT_BUS_TOKEN_FILE=$D/blank-token ./static-token over-ssh@srv1 2>&1); rc=$?
 bad_exit "an empty token file is refused, not handed out as an empty token" $rc
-out=$(SSH_ORIGINAL_COMMAND='cat /etc/passwd' AGENT_BUS_TOKEN_FILE=$D/token ./static-token 2>&1); rc=$?
+out=$(SSH_ORIGINAL_COMMAND='cat /etc/passwd' AGENT_BUS_TOKEN_FILE=$D/token ./static-token over-ssh@srv1 2>&1); rc=$?
 bad_exit "it refuses any other command" $rc
 has "and says why" "$out" 'one command'
-out=$(AGENT_BUS_TOKEN_FILE=$D/absent ./static-token 2>&1); rc=$?
+out=$(AGENT_BUS_TOKEN_FILE=$D/absent ./static-token over-ssh@srv1 2>&1); rc=$?
 bad_exit "a missing token file is an error, not an empty token" $rc
 
 if slow; then
@@ -789,13 +881,17 @@ if slow; then
     ok_exit "rpc unit tests" $rc
 
     # each harness runs its own peer in-process, so there is no start-order race
-    out=$(cd mcp && timeout 120 env AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN \
+    out=$(cd mcp && timeout 120 env AGENT_BUS_ADDR=$D/bus.sock \
+          AGENT_BUS_OWNER=$OWNER AGENT_BUS_OWNER_TOKEN=$TOKEN \
+          AGENT_BUS_TOKEN=$(tok mcp.session@srv1) \
           AGENT_BUS_NAME=mcp.session@srv1 SMOKE_PEER=peer@srv1 bun run smoke.ts 2>&1)
     rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "mcp smoke" $rc
 
-    out=$(cd mcp && timeout 120 env AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN \
+    out=$(cd mcp && timeout 120 env AGENT_BUS_ADDR=$D/bus.sock \
+          AGENT_BUS_OWNER=$OWNER AGENT_BUS_OWNER_TOKEN=$TOKEN \
+          AGENT_BUS_TOKEN=$(tok pusher@srv1) \
           AGENT_BUS_NAME=pusher@srv1 PUSH_NAME=push.session@srv1 bun run smoke-push.ts 2>&1)
     rc=$?
     echo "$out" | sed 's/^/  /'

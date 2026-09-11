@@ -172,6 +172,7 @@ been found here:
 | grepping output that is non-empty either way | `$(cmd; echo -n nothing)` contains *nothing* whatever `cmd` did |
 | grepping a word the success answer also contains | a refused receipt and an accepted one both say `receipt` |
 | exercising a different path than the one it names | a *waiting reader* check whose inbox still held a message never blocked, so it measured the queued path twice |
+| leaning on the refusal to end the command | `start` exits when it is refused and runs forever when it is not, so removing the refusal hung the check instead of failing it — bound anything whose success does not return |
 | signalling the wrong process | `f() { ...; } &` backgrounds a subshell, so the service never got the signal |
 
 **Naming a shape does not remove it.** Three more checks were still asserting
@@ -190,7 +191,7 @@ Four traps in the harness itself, all met:
 | Trap | Why it lies |
 |---|---|
 | a copy that cannot bind its port, because an earlier run left a daemon behind | it fails *for the wrong reason* and looks like a caught mutation |
-| a mutation that makes the whole run slow — breaking the stop signal leaves every service waiting out its poll | it hits the timeout, which is not the same as the check failing |
+| a mutation that makes the whole run slow — breaking the stop signal leaves every service waiting out its poll | it hits the timeout, which is not the same as the check failing — and an unguarded timeout takes the rest of the batch with it, so catch it per mutant |
 | **a mutation that does not compile** | the suite exits before a single check runs, so there are no failures to see — and "no failure" reads as *green*, the exact opposite of the truth |
 | a mutation that compiles but fails `go vet` — `x = x` is the easy one to write | the suite runs vet first, so it stops there; same inversion as the line above, from code that is legal Go |
 

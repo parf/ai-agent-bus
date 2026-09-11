@@ -21,10 +21,14 @@ from the account at the other end, remotely from the token's principal. So a
 name on the wire is not a claim: **you cannot be somebody else**, and every
 `from`, every owner and every ACL subject means what it says.
 
-⚠️ **PoC does not check it.** One token reaches everything and any holder may
-claim any name ([stages § PoC](12-stages.md#poc)); the face overwrites a
-stated `from` with the caller's name, which stops forgery inside one request
-and nothing more. MVP is where the check lands.
+**Remotely, the credential is the token's principal.** A token backs exactly
+one name; a request that states a different one is refused as *that token
+belongs to somebody else*, which is a different answer from a bad token and
+the one that makes the refusal readable.
+
+⚠️ **Locally the socket is still the daemon's own.** One socket at mode `600`
+proves *an* account, not *which* — the per-user sockets that make it
+per-person are the remaining half ([local socket](#local-socket)).
 
 ## Getting a token
 
@@ -38,6 +42,19 @@ Both paths need you to already have access to the machine.
 The forced command is [`src/static-token`](../src/static-token): it prints the
 token file the daemon reads at start and refuses every other request. Setting
 it up is one `authorized_keys` line per person, given in that script's header.
+
+**Who may ask for whose.** The daemon's owner — the principal it was started
+for — may get a credential for any name. Anyone else may get one only for a
+name they own ([identity § ownership](01-identity.md#ownership)), which is
+what lets a runner collect the credential for a script service it started
+without letting it collect anybody else's.
+
+⚠️ **Claiming a name nobody holds is a way to become it.** Publishing is open
+to any authenticated principal and ownership is first-come
+([identity § ownership](01-identity.md#ownership)), so until enrolment says
+which names are people's, registering an unheld name and then asking for its
+credential makes you it. Enrolment
+([identity § registration](01-identity.md#registration)) is what closes this.
 
 **`token` gets a credential; `register` states a record.** They were one word
 and two unrelated jobs — one hands out the thing you authenticate with, the

@@ -182,8 +182,9 @@ designed but not built
 its stage is [stages § release 1](12-stages.md#release-1). Until then: a
 configuration is readable by anyone who can read the daemon's state, it is lost
 when the daemon restarts, and the owner check is a caller-name guard, not
-security — in PoC one master token reaches everything and any holder may claim
-any name ([stages § PoC](12-stages.md#poc)).
+security — the caller's name is now real
+([access § two parameters](02-access.md#two-parameters)), but registering over
+a name nobody owns is still not checked.
 
 **A service fetches its own configuration; nothing injects it** — and it is
 the only one that can, so this runs as the service, not as its owner:

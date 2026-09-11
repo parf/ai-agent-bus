@@ -4,8 +4,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,27 +12,36 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 func main() {
 	var (
 		addr   = flag.String("addr", env("AGENT_BUS_ADDR", "127.0.0.1:7777"), "TCP listen address — loopback only in PoC")
 		sock   = flag.String("socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
-		tokenF = flag.String("token-file", env("AGENT_BUS_TOKEN_FILE", defaultTokenFile()), "master token file; created if absent")
+		tokenF = flag.String("token-file", env("AGENT_BUS_TOKEN_FILE", defaultTokenFile()), "token store; created if absent")
+		owner  = flag.String("owner", env("AGENT_BUS_OWNER", defaultOwner()), "the principal this daemon belongs to")
 	)
 	flag.Parse()
 
-	token, err := loadToken(*tokenF)
+	tokens, err := auth.Load(*tokenF, *owner)
 	if err != nil {
 		log.Fatalf("token: %v", err)
 	}
-	handler := api.New(core.New(), token).Handler()
+	me, err := protocol.ParseName(*owner)
+	if err != nil {
+		log.Fatalf("owner: %v", err)
+	}
+	handler := api.New(core.New(), tokens, me.String()).Handler()
 
 	// Plaintext bodies and a master token: loopback or an SSH tunnel, never a
 	// public interface. See docs/12-stages.md#poc.
@@ -74,7 +81,7 @@ func main() {
 	}
 	go serve(tcp)
 	go serve(unix)
-	log.Printf("agent-busd on http://%s and %s (token %s)", *addr, *sock, *tokenF)
+	log.Printf("agent-busd on http://%s and %s for %s (tokens %s)", *addr, *sock, me, *tokenF)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -120,38 +127,28 @@ func loopbackOnly(addr string) error {
 	return nil
 }
 
-// loadToken reads the master token, creating one on first run. The same file
-// is what `static-token` over SSH will hand out. See docs/02-access.md.
-func loadToken(path string) (string, error) {
-	b, err := os.ReadFile(path)
-	if err == nil {
-		if t := string(trim(b)); t != "" {
-			return t, nil
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return "", err
-	}
-	var raw [24]byte
-	rand.Read(raw[:])
-	token := hex.EncodeToString(raw[:])
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return "", err
-	}
-	return token, os.WriteFile(path, []byte(token+"\n"), 0o600)
-}
-
-func trim(b []byte) []byte {
-	for len(b) > 0 && (b[len(b)-1] == '\n' || b[len(b)-1] == ' ' || b[len(b)-1] == '\t') {
-		b = b[:len(b)-1]
-	}
-	return b
-}
-
 func env(k, def string) string {
 	if v := os.Getenv(k); v != "" {
 		return v
 	}
 	return def
+}
+
+// defaultOwner is the account running the daemon, vouched for by this host —
+// the `user@host` form in docs/01-identity.md#names.
+func defaultOwner() string {
+	who := "agent-bus"
+	if u, err := user.Current(); err == nil && u.Username != "" {
+		who = u.Username
+	}
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		host = "localhost"
+	}
+	if i := strings.IndexByte(host, '.'); i > 0 {
+		host = host[:i]
+	}
+	return who + "@" + host
 }
 
 func defaultTokenFile() string {

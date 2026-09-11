@@ -1,18 +1,28 @@
 #!/bin/sh
 # The SSH forced command behind `ssh agent-bus@<node> static-token`. It prints
-# the master token and does nothing else: sshd has already authenticated the
-# caller against a key they own, so our whole side of it is this file.
+# one principal's token and does nothing else: sshd has already authenticated
+# the caller against a key they own, and the key says which principal that is.
 # See docs/02-access.md#getting-a-token.
 #
-# In ~agent-bus/.ssh/authorized_keys, one line per person:
+# In ~agent-bus/.ssh/authorized_keys, one line per person, naming them:
 #
-#   command="/opt/agent-bus/static-token",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA... someone@somewhere
+#   command="/opt/agent-bus/static-token parf@github",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA... someone@somewhere
+#
+# The principal is in the forced command and not in anything the client sends,
+# which is what stops one person asking for another's credential: the key they
+# hold selects the line, and they cannot choose a different one.
 #
 # The file is the same one agent-busd reads at start and creates on first run,
 # so there is nothing to issue and nothing to keep in step.
 set -eu
 
 TOKEN_FILE=${AGENT_BUS_TOKEN_FILE:-$HOME/.config/agent-bus/token}
+
+principal=${1:-}
+if [ -z "$principal" ]; then
+	echo "no principal: name one in the authorized_keys forced command" >&2
+	exit 64
+fi
 
 # A forced command runs regardless of what the client asked for, and gets the
 # request in SSH_ORIGINAL_COMMAND. Reading it lets a mistyped command say so
@@ -30,12 +40,15 @@ if [ ! -r "$TOKEN_FILE" ]; then
 	exit 69
 fi
 
-# The token is the whole output, so `$(...)` around the ssh call is enough —
-# which is also why an empty file must fail here rather than hand back an
-# empty string that looks like a credential.
-token=$(cat "$TOKEN_FILE")
+# One line per principal, `name token`. An absent line is not an empty token:
+# nobody has issued one for this name yet, and saying so beats handing back a
+# blank string that looks like a credential.
+token=$(awk -v n="$principal" '$1 == n { print $2; found = 1 } END { exit !found }' "$TOKEN_FILE") || {
+	echo "no token for $principal in $TOKEN_FILE — issue one with: agent-bus token $principal" >&2
+	exit 69
+}
 if [ -z "$(printf '%s' "$token" | tr -d '[:space:]')" ]; then
-	echo "the token at $TOKEN_FILE is empty" >&2
+	echo "the token for $principal in $TOKEN_FILE is empty" >&2
 	exit 69
 fi
 printf '%s\n' "$token"

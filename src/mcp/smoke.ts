@@ -76,7 +76,14 @@ try {
   check("registered itself on start", ls.text.includes(me), ls.text);
 
   const peerName = process.env.SMOKE_PEER!;
-  const peer = new Bus({ ...process.env, AGENT_BUS_NAME: peerName });
+  // The harness mints the credentials it needs as the daemon's owner: a name
+  // is bound to its token now, so a second principal is a second token.
+  const owner = new Bus({
+    ...process.env,
+    AGENT_BUS_NAME: process.env.AGENT_BUS_OWNER,
+    AGENT_BUS_TOKEN: process.env.AGENT_BUS_OWNER_TOKEN,
+  });
+  const peer = await owner.as(peerName);
   await peer.register({ name: peerName, kind: "agent" });
 
   const sent = await call("ab_send", { to: peerName, text: "ping from mcp", topic: "t1", tag: "g1" });
@@ -129,7 +136,7 @@ try {
   // ab_reply must answer there and not to whoever asked.
   {
     const third = `${peerName.split("@")[0]}.third@${peerName.split("@")[1]}`;
-    const bystander = new Bus({ ...process.env, AGENT_BUS_NAME: third });
+    const bystander = await owner.as(third);
     await bystander.register({ name: third, kind: "agent" });
     await peer.send({ to: me, body: "answer elsewhere", topic: "t-rt", tag: "g5", reply_to: { service: third, topic: "t-rt", tag: "g5" } } as any);
     const chore = await call("ab_consume", { topic: "t-rt", tag: "g5", wait: "5s" });

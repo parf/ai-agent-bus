@@ -83,6 +83,7 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 | `-N` | how many script processes may run **at once**; default 1, so a script that is not safe to run twice does not have to be |
 | the script is one argument | it is a shell command line, so quote it if it has arguments of its own: `"./greet.sh --loud"` |
 | registered at start | the description is what `ls` and the MCP catalog show. Nothing unregisters it — PoC has no `stop`, and the registry is memory that a restart clears |
+| started by its owner | the process *becomes* the service, so it needs that name's credential, and only the name's owner may have one ([access § getting a token](02-access.md#getting-a-token)). Starting somebody else's service is refused, not silently run under your own name |
 
 `-N` does not mean N services or N inboxes. **The `start` process is the one
 reader of that inbox** ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox));

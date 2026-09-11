@@ -3,23 +3,43 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
 )
+
+// serverFor builds a daemon owned by the first name, and hands back the
+// credential each principal authenticates with. A name is bound to its token
+// now, so a test cannot state one without the other — which is the point.
+func serverFor(t *testing.T, bus *core.Bus, owner string) (*Server, func(string) string) {
+	t.Helper()
+	tokens, err := auth.Load(filepath.Join(t.TempDir(), "tokens"), owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return New(bus, tokens, owner), func(name string) string {
+		tok, err := tokens.Issue(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tok
+	}
+}
 
 // Two readers of one configuration must not race on the stored bytes: the
 // handler used to append a newline into their spare capacity.
 func TestConcurrentConfigReads(t *testing.T) {
 	bus := core.New()
-	s := New(bus, "tok")
+	s, tok := serverFor(t, bus, "svc@h")
 	h := s.Handler()
 	set := httptest.NewRequest("POST", "/configure",
 		strings.NewReader(`{"name":"svc@h","config":{"a":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`))
 	set.Header.Set(HeaderUser, "svc@h")
-	set.Header.Set(HeaderToken, "tok")
+	set.Header.Set(HeaderToken, tok("svc@h"))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, set)
 	if w.Code != 200 {
@@ -32,7 +52,7 @@ func TestConcurrentConfigReads(t *testing.T) {
 			defer wg.Done()
 			r := httptest.NewRequest(http.MethodGet, "/config?name=svc@h", nil)
 			r.Header.Set(HeaderUser, "svc@h")
-			r.Header.Set(HeaderToken, "tok")
+			r.Header.Set(HeaderToken, tok("svc@h"))
 			h.ServeHTTP(httptest.NewRecorder(), r)
 		}()
 	}
@@ -43,12 +63,12 @@ func TestConcurrentConfigReads(t *testing.T) {
 // carries it. This escaped once on register and once on configure.
 func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 	bus := core.New()
-	s := New(bus, "tok")
+	s, tok := serverFor(t, bus, "svc@h")
 	h := s.Handler()
 	post := func(path, user, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest("POST", path, strings.NewReader(body))
 		r.Header.Set(HeaderUser, user)
-		r.Header.Set(HeaderToken, "tok")
+		r.Header.Set(HeaderToken, tok(user))
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		return w
@@ -63,7 +83,7 @@ func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 	}
 	r := httptest.NewRequest("GET", "/ls", nil)
 	r.Header.Set(HeaderUser, "other@h")
-	r.Header.Set(HeaderToken, "tok")
+	r.Header.Set(HeaderToken, tok("other@h"))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	if strings.Contains(w.Body.String(), "FIXTURE") {
@@ -75,7 +95,7 @@ func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 // The owner who set it cannot read it either — only the service can.
 func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 	bus := core.New()
-	s := New(bus, "tok")
+	s, tok := serverFor(t, bus, "svc@h")
 	h := s.Handler()
 	do := func(method, path, user, body string) *httptest.ResponseRecorder {
 		var r *http.Request
@@ -85,7 +105,7 @@ func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 			r = httptest.NewRequest(method, path, strings.NewReader(body))
 		}
 		r.Header.Set(HeaderUser, user)
-		r.Header.Set(HeaderToken, "tok")
+		r.Header.Set(HeaderToken, tok(user))
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		return w

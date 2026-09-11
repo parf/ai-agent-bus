@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -36,11 +37,17 @@ func DefaultSocket() string {
 const maxWait = 60 * time.Second
 
 type Server struct {
-	bus   *core.Bus
-	token string
+	bus    *core.Bus
+	tokens *auth.Tokens
+	// The principal this daemon belongs to. It is the one that may hand out
+	// a credential for a name nobody owns yet — everyone else is limited to
+	// names they own. See docs/02-access.md#getting-a-token.
+	owner string
 }
 
-func New(bus *core.Bus, token string) *Server { return &Server{bus: bus, token: token} }
+func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
+	return &Server{bus: bus, tokens: tokens, owner: owner}
+}
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -52,11 +59,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /config", s.auth(s.config))
 	mux.HandleFunc("POST /send", s.auth(s.send))
 	mux.HandleFunc("GET /consume", s.auth(s.consume))
+	mux.HandleFunc("POST /token", s.auth(s.token))
 	return mux
 }
 
-// auth checks the two parameters. In PoC one master token per user reaches
-// every service, so this is a string compare and no ACL at all.
+// auth checks the two parameters, and checks them against each other: the
+// name is bound to the credential it arrived with, so a caller cannot be
+// somebody else. See docs/02-access.md#two-parameters.
 func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name, err := protocol.ParseName(r.Header.Get(HeaderUser))
@@ -64,12 +73,51 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 			fail(w, http.StatusUnauthorized, "bad or missing "+HeaderUser)
 			return
 		}
-		if r.Header.Get(HeaderToken) != s.token {
+		who, known := s.tokens.Principal(r.Header.Get(HeaderToken))
+		if !known {
 			fail(w, http.StatusUnauthorized, "bad token")
+			return
+		}
+		// Authenticated, and asking to be read as someone else. That is a
+		// different answer from "no token": saying so is what makes the
+		// refusal debuggable instead of looking like a bad credential.
+		if who != name.String() {
+			fail(w, http.StatusForbidden, "that token belongs to "+who+", not "+name.String())
 			return
 		}
 		next(w, r, name)
 	}
+}
+
+// token hands out a principal's credential. The daemon's owner may ask for
+// any name; anyone else only for a name they already own, which is how a
+// runner gets the credential for a script service it started.
+// See docs/02-access.md#getting-a-token.
+func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	var in struct {
+		Name string `json:"name"`
+	}
+	if !read(w, r, &in) {
+		return
+	}
+	want, err := protocol.ParseName(in.Name)
+	if err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if caller.String() != s.owner && caller.String() != want.String() {
+		rec, known := s.bus.Lookup(want.String())
+		if !known || rec.Owner != caller.String() {
+			fail(w, http.StatusForbidden, caller.String()+" does not own "+want.String())
+			return
+		}
+	}
+	tok, err := s.tokens.Issue(want.String())
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]string{"name": want.String(), "token": tok})
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request, _ protocol.Name) {

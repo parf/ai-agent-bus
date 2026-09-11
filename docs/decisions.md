@@ -32,6 +32,8 @@ All 2026-09-09 unless noted.
 | A call carries exactly two parameters, `user@realm` + token | [access § two parameters](02-access.md#two-parameters) |
 | Two ways to get a token: over SSH, or `token` on the box; both need machine access | [access § getting a token](02-access.md#getting-a-token) |
 | `token` is the credential verb, `register` the registry one | [access § getting a token](02-access.md#getting-a-token) |
+| A token backs one principal: a request stating another name is refused, and told so | [access § two parameters](02-access.md#two-parameters) |
+| The daemon's owner may get a credential for any name; anyone else only for one they own | [access § getting a token](02-access.md#getting-a-token) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
 | The socket hides the two fields, it does not replace them; one host, many users | [access § local socket](02-access.md#local-socket) |
 | Socket layout, ownership and the one capability it needs | [access § local socket](02-access.md#local-socket) |
@@ -127,6 +129,7 @@ All 2026-09-09 unless noted.
 | A request that expects a reply must name a registered reply address; registered is not live | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | A send to a name with no record is refused, never accepted and dropped later | [messaging § verbs](04-messaging.md#verbs) |
 | `--wait` is the caller's deadline and bounds the HTTP exchange, not only the daemon's wait | [messaging § request and reply](04-messaging.md#request-and-reply) |
+| A script service is started by its owner: becoming a name needs that name's credential | [runner § script services](08-runner-role.md#script-services) |
 | A script service is the name it registered — it reads and answers as that name | [runner § script services](08-runner-role.md#script-services) |
 | A script service takes a message only when a worker is free; stopping waits for the running ones | [runner § script services](08-runner-role.md#script-services) |
 | What a caller does when a receipt arrives | [messaging § receipts](04-messaging.md#receipts) |
@@ -180,5 +183,6 @@ All 2026-09-09 unless noted.
 | `ring` is the default mode | `strict` is: a queue that loses work silently is worse than one that fails visibly — [messaging § overflow](04-messaging.md#overflow) |
 | Audience with AUTH off is a per-service `user: token` map | the two ACL layers — [identity § acl](01-identity.md#acl) |
 | `register` both issues a credential and states a registry record | `token` issues the credential; `register` only states a record — [access § getting a token](02-access.md#getting-a-token) |
+| One token reaches every name, and the face overwriting `from` is the only guard | a token backs one principal and the daemon checks the name against it — [access § two parameters](02-access.md#two-parameters) |
 | LDAP/AD in scope | deferred — [future](future/ldap-ad.md) |
 | NATS · Redis Streams · AUTH-signed JWT keys | dropped; kept in `legacy/` for history |

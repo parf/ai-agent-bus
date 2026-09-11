@@ -28,6 +28,7 @@ import (
 const usage = `agent-bus — talk to agent-busd
 
   agent-bus status
+  agent-bus token <name>              print that principal's token
   agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to call it; unset = this bus
@@ -62,6 +63,8 @@ func main() {
 		err = get("/status", nil)
 	case "register":
 		err = register(rest)
+	case "token":
+		err = tokenVerb(rest)
 	case "ls":
 		err = ls(rest)
 	case "send":
@@ -92,6 +95,42 @@ func main() {
 	if err != nil {
 		die("%v", err)
 	}
+}
+
+// tokenFor asks the daemon for a principal's credential. The caller must own
+// the name or be the daemon's owner; the refusal says which.
+func tokenFor(name string) (string, error) {
+	out, code, err := call("POST", "/token", nil, map[string]string{"name": name})
+	if err != nil {
+		return "", err
+	}
+	if code >= 400 {
+		return "", fmt.Errorf("%s", strings.TrimSpace(string(out)))
+	}
+	var got struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil || got.Token == "" {
+		return "", fmt.Errorf("no token in the answer: %s", strings.TrimSpace(string(out)))
+	}
+	return got.Token, nil
+}
+
+// tokenVerb gets a principal's credential and prints it alone, so
+// `AGENT_BUS_TOKEN=$(agent-bus token me@host)` is the whole setup. Asking
+// twice is a read, not a rotation.
+// See docs/02-access.md#getting-a-token.
+func tokenVerb(args []string) error {
+	pos, _ := split(args)
+	if len(pos) != 1 {
+		return fmt.Errorf("token wants one name")
+	}
+	tok, err := tokenFor(pos[0])
+	if err != nil {
+		return err
+	}
+	fmt.Println(tok)
+	return nil
 }
 
 func register(args []string) error {

@@ -64,7 +64,7 @@ GitHub account can walk up, prove the key is theirs, and use it.
   Setup maps each local account to a bus username; the daemon gives each one a
   socket of its own and reads the username and token off it. To reach a
   *remote* bus you need those same two values: get the token with
-  `ssh agent-bus@<node> static-token`, or `sudo -u agent-bus register <user>`
+  `ssh agent-bus@<node> static-token`, or `sudo -u agent-bus agent-bus token <user>`
   on the box. One daemon serves everyone on a host and knows who is calling, so
   services open to some users and not others. Central AUTH is an optional role
   of the same daemon.
@@ -187,7 +187,7 @@ systemctl enable --now agent-busd      # or whatever your host uses
 # nothing to do for local use — the socket supplies username + token
 # for a REMOTE bus you need exactly those two; get the token one of two ways:
 export AGENT_BUS_TOKEN=$(ssh agent-bus@<node> static-token)   # over SSH
-sudo -u agent-bus register parf@github                             # on the box
+sudo -u agent-bus agent-bus token parf@github                 # on the box
 agent-bus keygen                       # an Ed25519 key for a long-running agent of its own
 
 # describe something that already exists
