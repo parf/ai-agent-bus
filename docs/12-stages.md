@@ -45,7 +45,7 @@ to be true.
 | Verb | Does |
 |---|---|
 | `agent-bus register <name> [--addr …]` | put a service or agent in the registry |
-| `agent-bus ls [--kind …]` | what is registered — discovery, human-readable |
+| `agent-bus ls [<name>] [--kind …]` | what is registered, or one service — discovery, human-readable |
 | `agent-bus send <name> [--topic] [--tag]` | one message to one receiver |
 | `agent-bus call <name> [--topic] [--tag]` | send and wait for the reply |
 | `agent-bus publish --topic <t>` | one message to a topic |

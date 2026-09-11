@@ -118,10 +118,30 @@ the same way; the template prefix is not what makes one configurable.
 | the configuration | **arbitrary JSON, stored opaque.** The only check is that it *is* JSON — the same "stored raw, shape-checked only" rule the MCP method info follows. Nothing looks for a server, a user, a mailbox or a credential |
 | who may write it | its **owner, or the service itself**. Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so a service restarting keeps what it was configured with |
 | who may read it | **the service, and nobody else — its owner included.** Setup data goes in and is used; it does not come back out to be looked at |
-| what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record — the listing, the lookup, and the answer to setting one. Enough to see that a service is configured, that a write landed, and that two hold the same configuration |
+| what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record — the whole listing, a query for one service (`agent-bus ls <name>`), and the answer to setting one ([why a digest at all](#why-a-digest-at-all)) |
 | where the bytes are **not** | anywhere else. No listing carries them, and the one read is the service's own |
 | nothing to store | refused: no configuration at all, something that is not JSON, and `null` — which would read back exactly like never having been configured |
 | an empty *value* | kept. `{}`, `[]`, `""`, `0` and `false` are configurations; the bus does not judge what is inside |
+
+### Why a digest at all
+
+**So that anything watching can tell whether a service's setup has been
+changed by someone, without ever being shown it.** A configuration cannot be
+read back — not even by its owner — so the only other way to answer "is this
+still what I set?" would be to hand out the secrets to compare. The digest
+answers it without them:
+
+| Asking | How |
+|---|---|
+| is this service configured? | a `config_sha` is there, or it is not |
+| did my write land? | setting one answers with its digest; compare it to the next query |
+| has someone changed it since? | the digest moved |
+| do these two services hold the same setup? | the digests match |
+| is this host's copy the one I shipped? | compare digests across hosts |
+
+Whoever is watching needs no access to the configuration and gets none. A
+monitor, a peer, a deploy check or the owner can all hold the digest they
+expect and notice the day it differs.
 
 The bus stores **one spelling**: the bytes are compacted, so reformatting a
 configuration file is not a change and does not move the digest. That also

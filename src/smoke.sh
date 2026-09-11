@@ -313,7 +313,18 @@ has "and says so when there is none" \
 # The caller's own record is checked with this, not by pulling the registry.
 echo '{"s":1}' | ab owner@srv1 service-template looked@srv1 - >/dev/null
 is_empty "a lookup never carries a configuration" \
-  "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: owner@srv1" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/lookup?name=looked@srv1" | grep -o '"config":[^,}]*')"
+  "$(ab owner@srv1 ls looked@srv1 | grep -o '"config":[^,}]*')"
+# Querying one service is how you check its setup without being able to read
+# it, so the digest has to be there — for anyone, not only its owner.
+has "but a query for one service carries its digest" \
+  "$(ab nobody@srv1 ls looked@srv1)" '"config_sha":"'
+has "and it is the same digest the whole listing gives" \
+  "$(ab nobody@srv1 ls looked@srv1 | grep -o '"config_sha":"[a-f0-9]*"')" \
+  "$(ab nobody@srv1 ls | grep -o '"name":"looked@srv1"[^}]*' | grep -o '"config_sha":"[a-f0-9]*"')"
+has "asking about one name answers about one name" \
+  "$(ab owner@srv1 ls looked@srv1 | grep -o '"name":' | wc -l)" '1'
+has "and says so when there is no such service" \
+  "$(ab owner@srv1 ls absent-entirely@srv1 2>&1)" 'no such name'
 
 echo "== configuring a service template produces a configured service"
 # The configuration is arbitrary JSON and stays opaque; the one thing that

@@ -38,6 +38,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus publish --topic <name> <text>
   agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
   agent-bus start                     (the same, as JSON on stdin)
+  agent-bus ls [<name>]                       the registry, or one service
   agent-bus service-template <name> -         configure it, JSON on stdin
   agent-bus service-template <name> '{"k":1}' the same, inline
   agent-bus service-template <name>           print that configuration
@@ -97,9 +98,21 @@ func register(args []string) error {
 	})
 }
 
+// ls lists the registry, or answers about one name when given one. Asking
+// about a single service does not pull the whole registry down for it, and
+// what comes back carries the digest of that service's configuration rather
+// than the configuration itself.
+// See docs/03-services-and-topics.md#configuring-a-template.
 func ls(args []string) error {
-	_, flags := split(args)
+	pos, flags := split(args)
+	if len(pos) > 1 {
+		return fmt.Errorf("ls takes one name, or none")
+	}
 	q := url.Values{}
+	if len(pos) == 1 {
+		q.Set("name", pos[0])
+		return get("/lookup", q)
+	}
 	if k := flags["kind"]; k != "" {
 		q.Set("kind", k)
 	}
