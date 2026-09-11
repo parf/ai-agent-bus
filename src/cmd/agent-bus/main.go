@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -574,21 +573,7 @@ func socketPath() string {
 // and a fresh Transport each time would leak idle connections.
 // See docs/decisions.md.
 var transport = sync.OnceValues(func() (*http.Client, string) {
-	addr := os.Getenv("AGENT_BUS_ADDR")
-	if addr == "" {
-		addr = api.DefaultSocket()
-	}
-	client := &http.Client{Timeout: 2 * time.Minute}
-	if strings.HasPrefix(addr, "http://") {
-		return client, strings.TrimSuffix(addr, "/")
-	}
-	client.Transport = &http.Transport{
-		IdleConnTimeout: 90 * time.Second,
-		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return (&net.Dialer{}).DialContext(ctx, "unix", addr)
-		},
-	}
-	return client, "http://unix"
+	return api.Dial(os.Getenv("AGENT_BUS_ADDR"))
 })
 
 func get(path string, q url.Values) error { return show(call("GET", path, q, nil)) }

@@ -23,6 +23,7 @@ PORT=${PORT:-7911}
 
 go build -o "$D/agent-busd" ./cmd/agent-busd || exit 1
 go build -o "$D/agent-bus"  ./cmd/agent-bus  || exit 1
+go build -o "$D/agent-bus-web" ./cmd/agent-bus-web || exit 1
 
 # The daemon belongs to a principal, and that is who may hand out a
 # credential for a name nobody owns yet. Stated rather than taken from the
@@ -102,7 +103,7 @@ sec "the layers hold"
 is_empty "core never imports an adapter" \
   "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump)')"
 is_empty "nor does a face" \
-  "$(go list -deps ./internal/api ./cmd/agent-bus | grep -E 'internal/(store|dump)')"
+  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-web | grep -E 'internal/(store|dump)')"
 is_empty "and a port names no outside world of its own" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -E '^(os|net|net/http|os/exec|database/sql)$')"
 has "while the process that assembles them holds the ones that persist" \
@@ -975,6 +976,28 @@ bad_exit "it refuses any other command" $rc
 has "and says why" "$out" 'one command'
 out=$(AGENT_BUS_TOKEN_FILE=$D/absent ./static-token over-ssh@srv1 2>&1); rc=$?
 bad_exit "a missing token file is an error, not an empty token" $rc
+
+sec "the dashboard shows envelopes and no bodies"
+# A separate process that speaks the API, because that is what it is in the
+# design — see docs/05-discovery.md#dashboard.
+SECRET="lemon-curd-9f3a"
+ab parf@localhost register board-svc@srv1 --descr "watched by the board" >/dev/null
+MSG=$(ab parf@localhost send board-svc@srv1 "$SECRET" | sed -n 's/.*"message_id":"\([0-9a-f]*\)".*/\1/p')
+FEED=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $OWNER" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/recent")
+has "the daemon remembers the envelope it routed" "$FEED" "$MSG"
+has "and who it was between" "$FEED" '"to":"board-svc@srv1"'
+is_empty "and never the body" "$(printf '%s' "$FEED" | grep -o "$SECRET")"
+has "the feed is the owner's until it can be filtered per caller" \
+  "$(code alice@srv1 "$alice" /recent)" '403'
+AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
+  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) >"$D/web.log" 2>&1 &
+WPID=$!
+for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+9))/" && break; sleep 0.1; done
+PAGE=$(curl -s "http://127.0.0.1:$((PORT+9))/")
+has "the dashboard renders the envelope" "$PAGE" "$MSG"
+has "and the record it was for" "$PAGE" 'watched by the board'
+is_empty "and no body reaches the page" "$(printf '%s' "$PAGE" | grep -o "$SECRET")"
+kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
 
 sec "a restart is not a loss"
 # Its own daemon, its own store and its own dump: the point of this section

@@ -97,6 +97,14 @@ It shows the envelope and nothing else
 ([messaging § envelope](04-messaging.md#envelope)): no message bodies, here or
 anywhere.
 
+⚠️ What the MVP ships is the envelope half: a bounded feed of what the bus has
+routed lately, read by a separate `agent-bus-web` process over the API. Bodies
+are struck out **in the bus**, where the feed is written — so no reader has to
+be trusted to leave them alone. The feed is the daemon owner's until it can be
+filtered per caller ([audience](#audience)); call counts by minute or hour, and
+the cgroup limit the design gives the child
+([processes § the processes](11-processes.md#the-processes)), are not built.
+
 ## Exports
 
 Prometheus `/metrics` first (Grafana reads it); OTLP / StatsD secondary.

@@ -72,6 +72,7 @@ All 2026-09-09 unless noted.
 | No message kinds and no receiver policy in the bus | [messaging § envelope](04-messaging.md#envelope) |
 | Call counts are per service, live state like `reading` and `queued` | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | Dashboard shows services, topics and call counts — envelopes only | [discovery § dashboard](05-discovery.md#dashboard) |
+| The bus keeps a bounded feed of routed envelopes, body struck out where it is written | [discovery § dashboard](05-discovery.md#dashboard) |
 | Admin-only debug trace per service | [discovery § debug mode](05-discovery.md#debug-mode) |
 | AUTH merged into `agent-busd` as an optional role; WEB child cgroup-limited | [overview § roles](00-overview.md#roles) |
 | Bundle in git over SSH; gaps resolved newer-generation-wins; master/slave | [AUTH role § topology](06-auth-role.md#topology) |

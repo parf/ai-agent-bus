@@ -232,7 +232,7 @@ That is a product decision, not a technical one.
 |---|---|---|
 | F.1 | catalog filtered per caller ([discovery § faces](../../docs/05-discovery.md#faces)) | needs C, and needs the filtering ❓ answered; an unfiltered catalog is an ACL leak |
 | F.2 | generated docs | **blocked**: nothing on a record carries method information, and the shape is the ❓ in [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
-| F.3 | a basic dashboard | envelopes only, never bodies; it is a child process in the design ([processes § the processes](../../docs/11-processes.md#the-processes)), so it speaks the API from the start rather than being rebuilt at G |
+| F.3 | ✅ _done_ — `agent-bus-web`, a separate process speaking the API, rendering the records and a bounded feed of routed envelopes ([discovery § dashboard](../../docs/05-discovery.md#dashboard)). Bodies are struck out in the bus, not in the page. Nothing starts it yet and it is not cgroup-limited — both are G.1's |
 
 **Done when**, and what breaking it must do:
 

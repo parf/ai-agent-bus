@@ -77,6 +77,9 @@ type Bus struct {
 	// small and a message that was asked to be forgotten are different
 	// problems, and one counter cannot tell an operator which it has.
 	expired int
+	// What the bus has seen lately, bodies struck out — the dashboard's
+	// only source. See docs/05-discovery.md#dashboard.
+	recent []protocol.Envelope
 }
 
 func New() *Bus {
@@ -403,6 +406,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 			}
 			in.waiters = drop(in.waiters, i)
 			in.in, in.out = in.in+1, in.out+1 // straight through: in and out at once
+			b.note(e)
 			w.ch <- e
 			return e, nil
 		}
@@ -429,6 +433,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	in.queue = append(in.queue, e)
 	in.in++
+	b.note(e)
 	return e, nil
 }
 

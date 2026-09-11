@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,6 +18,27 @@ import (
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
+
+// Dial is how every client reaches the daemon: HTTP over a unix socket or
+// over loopback, the same protocol on both. One place, because the CLI and
+// the dashboard are two processes that must agree about it.
+// See docs/02-access.md#local-socket.
+func Dial(addr string) (*http.Client, string) {
+	if addr == "" {
+		addr = DefaultSocket()
+	}
+	client := &http.Client{Timeout: 2 * time.Minute}
+	if strings.HasPrefix(addr, "http://") {
+		return client, strings.TrimSuffix(addr, "/")
+	}
+	client.Transport = &http.Transport{
+		IdleConnTimeout: 90 * time.Second,
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "unix", addr)
+		},
+	}
+	return client, "http://unix"
+}
 
 // The two parameters every call carries, on the wire.
 // See docs/02-access.md#two-parameters.
@@ -86,6 +108,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /register", g(s.register))
 	mux.HandleFunc("GET /ls", g(s.ls))
 	mux.HandleFunc("GET /lookup", g(s.lookup))
+	mux.HandleFunc("GET /recent", g(s.recent))
 	mux.HandleFunc("POST /configure", g(s.configure))
 	mux.HandleFunc("GET /config", g(s.config))
 	mux.HandleFunc("POST /send", g(s.send))
@@ -244,6 +267,19 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, _ protocol.Name)
 		return
 	}
 	ok(w, rec)
+}
+
+// recent is who has been talking to whom, for the dashboard. Bodies never
+// reach it — they are struck out where the ring is written, not here.
+// The owner only: an unfiltered feed of every envelope is exactly the leak
+// an audience filter exists to stop, and that filter is not built yet.
+// See docs/05-discovery.md#dashboard.
+func (s *Server) recent(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	if caller.String() != s.owner {
+		fail(w, http.StatusForbidden, "the feed of envelopes is "+s.owner+"'s until it can be filtered per caller")
+		return
+	}
+	ok(w, s.bus.Recent())
 }
 
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
