@@ -91,7 +91,7 @@ message that bounces later.
 
 | ID | Task | Notes |
 |---|---|---|
-| B.1 | principals ([identity § names](../../docs/01-identity.md#names)) | the name is the identity |
+| B.1 | principals ([identity § names](../../docs/01-identity.md#names)) | the name is the identity, and the daemon checks it against the credential rather than taking it ([access § two parameters](../../docs/02-access.md#two-parameters)) — the ⚠️ there is B's to retire |
 | B.2 | per-user sockets ([access § local socket](../../docs/02-access.md#local-socket)) | needs the capability that only the supervisor may hold ([processes § why the supervisor holds CAP_CHOWN](../../docs/11-processes.md#why-the-supervisor-holds-cap_chown)) — so B.2 pulls the minimal supervisor-and-fd-handoff out of G.1, or declares a temporary violation it must retire |
 | B.3 | tokens issued, rotated and durable ([access § token lifetime](../../docs/02-access.md#token-lifetime)) | *previous kept* has nothing to keep until something issues a second one |
 | B.4 | the store behind a port ([modules § the rule](../../docs/10-modules.md#the-rule)) | core never imports it; **what goes in it is a blocker**, and tokens are the part the design already requires durable ([setup § storage](../../docs/09-setup.md#storage)) |
@@ -104,9 +104,11 @@ message that bounces later.
 
 **Done when**, and what breaking it must do:
 
-- a request on Alice's socket that *claims* to be Bob is refused, or is
-  attributed to Alice — removing the binding turns it red. "A token survives a
-  restart" is **not** the check: the PoC already passes that;
+- a request on Alice's socket that *claims* to be Bob is refused, and so is a
+  remote one whose token belongs to someone else — removing the binding turns
+  both red. The face overwriting `from` inside one request does not pass this:
+  the forgery to catch is a whole request made under the wrong name. "A token
+  survives a restart" is **not** a check either — the PoC already passes it;
 - issue, rotate, restart: the current and the previous token both work, the one
   before that is refused;
 - Alice cannot re-register Bob's name, and cannot change its address while it
@@ -128,6 +130,7 @@ the stage has no meaning.
 |---|---|---|
 | C.1 | service ACL, consulted first ([identity § acl](../../docs/01-identity.md#acl)) | **blocked**: where the daemon reads it from is the filtering ❓ — it cannot be the opaque configuration it is forbidden to read |
 | C.2 | master ACL, and a service may refuse it | the refusal is the point; a master that cannot be refused is not an ACL |
+| C.4 | every write goes through the layers | a send, a publish and a registration are checked like a read ([identity § acl](../../docs/01-identity.md#acl)) |
 | C.3 | pub/sub topics | a subscription is a capability that only exists once there is an ACL; **what a subscriber is, and where a copy goes,** is undesigned — a pull-model fan-out has to name both before this is a task |
 
 **Done when**, and what breaking it must do:
@@ -138,7 +141,11 @@ the stage has no meaning.
   status — not a 404 and not a 204. Rejecting every master request passes a
   weaker check and must not pass this one;
 - a subscriber holding a capability for one topic receives it and not another,
-  and removing the authorization check — not the filter — turns it red.
+  and removing the authorization check — not the filter — turns it red;
+- a principal a service will not show is also refused when it **sends** to
+  that service, publishes to its topic, or registers over its name — one check
+  per write verb, each falsified on its own, because a single shared guard
+  passes the whole set while any one path is still open.
 
 **Cut costs**: none. This is the *safely* in the purpose, and pub/sub has been
 waiting on it since the PoC.

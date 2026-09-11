@@ -15,6 +15,8 @@ All 2026-09-09 unless noted.
 | Decision | Where |
 |---|---|
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](01-identity.md#names) |
+| A name is checked against the credential it arrived with, never taken on trust | [access § two parameters](02-access.md#two-parameters) |
+| Writing goes through the ACL like reading; no verb is a side door | [identity § acl](01-identity.md#acl) |
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](01-identity.md#registration) |
 | MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](01-identity.md#registration) · [future](future/ldap-ad.md) |
 | Self-service enrolment: open (auto, minimal role) or closed (approval queue) | [identity § registration](01-identity.md#registration) |
