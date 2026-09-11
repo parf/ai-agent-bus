@@ -82,8 +82,9 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 | one process per message | no state between messages |
 | `-N` | how many script processes may run **at once**; default 1, so a script that is not safe to run twice does not have to be |
 | the script is one argument | it is a shell command line, so quote it if it has arguments of its own: `"./greet.sh --loud"` |
-| registered at start | the description is what `ls` and the MCP catalog show. Nothing unregisters it — PoC has no `stop`, and the registry is memory that a restart clears |
+| registered at start | the description is what `ls` and the MCP catalog show. **`stop` does not unregister it**: the name still owns its queue and messages still wait in it, which is the whole point of a name-owned inbox ([messaging § inbox queues](04-messaging.md#inbox-queues)). What changes is that nothing is reading it |
 | started by its owner | the process *becomes* the service, so it needs that name's credential, and only the name's owner may have one ([access § getting a token](02-access.md#getting-a-token)). Starting somebody else's service is refused, not silently run under your own name |
+| one work directory | the one place it writes, and its working directory. Per service, so two services cannot tread on each other |
 
 `-N` does not mean N services or N inboxes. **The `start` process is the one
 reader of that inbox** ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox));
@@ -92,10 +93,24 @@ knows the bus exists. One name, one queue, N hands.
 
 **Stopping is graceful and nothing more.** Ctrl-C or `SIGTERM` ends the wait
 for the next message and takes no more; the scripts already running are waited
-for, however long they take. Killing them, timeouts and restart are
-supervision, and that is the runner proper — a script service in PoC is a
-foreground process, and this is the runner's shell adapter with the
-supervision taken out.
+for, however long they take. Timeouts and restart are supervision, and that is
+the runner proper — a script service is a foreground process, and this is the
+runner's shell adapter with the supervision taken out.
+
+### Stopping it, and reading what it said
+
+The daemon does not know **where** a script service runs: the registry holds a
+description of it, not a handle to it. So a running service leaves a note of
+itself in **its owner's own state directory**, and the two verbs read that.
+Which is also what makes *only whoever started it may stop it* true with no
+check in it — nobody else can see the file.
+
+| | |
+|---|---|
+| `agent-bus stop <name>` | `SIGTERM`, and then it **waits**. Stopping is graceful, so the verb does not report a stop that has not finished, and it ends one service without touching its siblings |
+| `agent-bus logs <name> [--lines N] [--follow]` | what that service and its scripts wrote. The log outlives the run on purpose: what a run said is most wanted once the run has ended |
+| a note with no process behind it | is cleared, not reported as a running service — a service killed outright leaves its note behind |
+| starting a name that is already running here | is refused, and says so. Two readers of one inbox is the mistake ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)), and a worker pool asks for that on purpose instead |
 
 Because a message is taken from the daemon only when a script process is free
 to run it, a service that dies loses only the work already in flight; the rest

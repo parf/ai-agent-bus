@@ -46,6 +46,8 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus subscribe <topic>     receive a copy of everything published there
   agent-bus unsubscribe <topic>
   agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
+  agent-bus stop <name>
+  agent-bus logs <name> [--lines 50] [--follow]
   agent-bus start                     (the same, as JSON on stdin)
   agent-bus service-template <name> -         configure it, JSON on stdin
   agent-bus service-template <name> '{"k":1}' the same, inline
@@ -93,6 +95,10 @@ func main() {
 		err = subscribe(rest, false)
 	case "start":
 		err = start(rest)
+	case "stop":
+		err = stopVerb(rest)
+	case "logs":
+		err = logsVerb(rest)
 	case "enrol", "enroll":
 		err = enrol(rest)
 	case "reply":

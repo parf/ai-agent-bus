@@ -21,6 +21,11 @@ trap cleanup EXIT
 # and four times that under -race. Keep Go's cache where it was.
 export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 export XDG_CACHE_HOME=$D/cache
+# A running script service leaves its note, its log and its work directory
+# here (docs/08-runner-role.md#stopping-it-and-reading-what-it-said). Private
+# to the run, or two runs would see each other's services as already running
+# — which is exactly what the mutation harness does, twenty at a time.
+export XDG_STATE_HOME=$D/state
 # A run owns PORT..PORT+11, so two of them need bases twelve apart — closer
 # and the second finds the first's daemon, which reads as "bad token".
 PORT=${PORT:-7911}
@@ -60,6 +65,10 @@ ab() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 
 # instead makes $! a subshell, and a signal sent to it leaves the service
 # running — which is how a check that a service stops passed without one.
 abx() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 exec "$D/agent-bus" "${@:2}"; }
+# Like ab, but bounded. For a verb whose REFUSAL is the point: a mutation that
+# turns the refusal into a foreground service otherwise blocks the whole run,
+# and a batch that times out loses every mutant after it.
+abt() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 timeout 10 "$D/agent-bus" "${@:2}"; }
 pass=0; fail=0; skipped=0
 # Anything that takes more than a second is opt-in: the default run is the
 # one a person waits for, and the full run is what a change is measured
@@ -733,6 +742,74 @@ if slow; then
   has "and the service says it dropped it rather than failing quietly" \
     "$(cat "$D/start.log")" 'after its caller gave up'
   kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
+
+else skipped=$((skipped+1)); fi
+if slow; then
+  sec "a script service has one work directory, and leaves a note"
+  # Asked through the bus like any other call, so what is checked is the
+  # process the runner actually started, not one this file started for it.
+  printf '#!/bin/sh\ncase "$1" in\n  write-here) touch ./inside && echo inside-ok ;;\n  env)        echo "from=$AGENT_BUS_FROM work=$AGENT_BUS_WORK" ;;\nesac\n' > "$D/confined.sh"; chmod +x "$D/confined.sh"
+  note() { [ -s "$D/state/agent-bus/services/$1.json" ]; }
+  waitnote() { for _ in $(seq 1 100); do note "$1" && return 0; sleep 0.1; done; return 1; }
+
+  ab launcher@srv1 register confined@srv1 --kind generic >/dev/null
+  abx launcher@srv1 start confined@srv1 --algo args "$D/confined.sh" --descr "confined" >>"$D/sbx.log" 2>&1 &
+  CFPID=$!
+  waitnote confined@srv1 || echo "  WARNING: confined@srv1 never left a note"
+  has "the service says where it may write" "$(cat "$D/sbx.log")" 'work .*/work/confined@srv1'
+  has "a script may write in its work directory" \
+    "$(ab caller@srv1 call confined@srv1 --wait 20s write-here)" 'inside-ok'
+  has "and finds that directory in its environment" \
+    "$(ab caller@srv1 call confined@srv1 --wait 20s env)" 'work=.*/work/confined@srv1'
+  out=$(ab launcher@srv1 start confined@srv1 --algo args "$D/quick.sh" 2>&1); rc=$?
+  bad_exit "starting a name already running here is refused" $rc
+  has "and says which process holds it" "$out" 'already running here as pid'
+  # Left running on purpose: the stop section needs a sibling as its control,
+  # or a stop that took the whole account with it would pass every check.
+  LOPID=$CFPID
+
+  sec "stop ends one service and leaves its siblings"
+  ab launcher@srv1 register twin@srv1 --kind generic >/dev/null
+  abx launcher@srv1 start twin@srv1 --algo args "$D/quick.sh" --descr "a twin" >>"$D/twin.log" 2>&1 &
+  TWPID=$!
+  waitnote twin@srv1 || echo "  WARNING: twin@srv1 never left a note"
+  out=$(ab launcher@srv1 stop twin@srv1 2>&1); rc=$?
+  ok_exit "stop exits 0" $rc
+  has "and says which service it stopped" "$out" 'twin@srv1 stopped'
+  is_empty "the process is gone when stop returns, not merely signalled" \
+    "$(kill -0 $TWPID 2>/dev/null && echo still-there)"
+  # The sibling is the control: one name is one process here, and a stop that
+  # took the whole account with it would pass every check above.
+  has "while the one beside it is still running" \
+    "$(kill -0 $LOPID 2>/dev/null && echo yes)" 'yes'
+  # Stopping is not unregistering: the name still owns its queue, which is
+  # the whole point of a name-owned inbox.
+  has "a stopped service is still registered" "$(ab asker@srv1 ls twin@srv1)" 'a twin'
+  ab caller@srv1 send twin@srv1 "after the stop" >/dev/null
+  has "and messages still wait in its queue" "$(ab twin@srv1 consume --wait 3s)" 'after the stop'
+  has "logs shows what it wrote, after it has stopped" \
+    "$(ab launcher@srv1 logs twin@srv1)" 'twin@srv1 is'
+  has "and --lines bounds it" \
+    "$(ab launcher@srv1 logs twin@srv1 --lines 1 | wc -l | tr -d ' ')" '^1$'
+  out=$(ab launcher@srv1 stop twin@srv1 2>&1); rc=$?
+  bad_exit "stopping something that is not running is an error" $rc
+  has "and says so rather than pretending" "$out" 'not running from this account'
+  out=$(ab launcher@srv1 logs never-ran@srv1 2>&1); rc=$?
+  bad_exit "and so is asking for a log nothing wrote" $rc
+  # A service killed outright leaves its note behind. A note is not a running
+  # service — the process is the thing — so the stale one is reported as gone
+  # and cleared, not offered as something to stop.
+  ab launcher@srv1 register killed@srv1 --kind generic >/dev/null
+  abx launcher@srv1 start killed@srv1 --algo args "$D/quick.sh" --descr "killed outright" >/dev/null 2>&1 &
+  KLPID=$!
+  waitnote killed@srv1 || echo "  WARNING: killed@srv1 never left a note"
+  kill -9 $KLPID 2>/dev/null; wait $KLPID 2>/dev/null
+  out=$(abt launcher@srv1 stop killed@srv1 2>&1); rc=$?
+  bad_exit "a note with no process behind it is not a running service" $rc
+  has "and says the note outlived the process" "$out" 'left a note but no process'
+  ok_exit "and the stale note is cleared rather than left to mislead" \
+    "$(test ! -e "$D/state/agent-bus/services/killed@srv1.json"; echo $?)"
+  kill $LOPID 2>/dev/null; wait $LOPID 2>/dev/null
 
 else skipped=$((skipped+1)); fi
 sec "the last two of the eleven verbs, and the one refusal the daemon owes us"

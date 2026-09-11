@@ -2,20 +2,25 @@
 //
 // The script never sees the bus: this process is the inbox's one reader, it
 // spawns the script per message, and the script's stdout is the reply. That
-// is the whole contract — no sandbox, no supervision, no restart, which is
-// what makes it a PoC feature rather than the runner
-// (docs/08-runner-role.md#script-services).
+// is the whole contract (docs/08-runner-role.md#script-services).
+//
+// What it adds to the PoC's version is a handle: each service has one work
+// directory it may write to, and leaves a note that `stop` and `logs` read
+// (service.go). Supervision — timeouts, restart with backoff — is still the
+// runner proper.
 package main
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,6 +38,11 @@ type service struct {
 	Script    string `json:"script"`    // the program to run
 	Descr     string `json:"descr"`     // what ls and the MCP catalog show
 	Instances int    `json:"instances"` // how many may run at once
+
+	// Worked out at start rather than stated: the one directory it may write
+	// to, and where its output goes.
+	work string
+	say  io.Writer
 }
 
 const (
@@ -44,6 +54,13 @@ func start(args []string) error {
 	svc, err := describe(args)
 	if err != nil {
 		return err
+	}
+	// Two readers of one inbox is the mistake the rule exists for
+	// (docs/04-messaging.md#one-reader-per-inbox), and a second `start` of
+	// the same name here is exactly that — said plainly rather than left to
+	// surface as a refused consume a second later.
+	if r, err := alive(svc.Name); err == nil {
+		return fmt.Errorf("%s is already running here as pid %d; stop it first", r.Name, r.PID)
 	}
 	if err := postQuiet("/register", protocol.Record{
 		Name: svc.Name, Kind: "generic", Addr: svc.Script, Descr: svc.Descr,
@@ -62,9 +79,40 @@ func start(args []string) error {
 	}
 	os.Setenv("AGENT_BUS_NAME", svc.Name)
 	os.Setenv("AGENT_BUS_TOKEN", tok)
-	fmt.Fprintf(os.Stderr, "%s is %s (%s, %d at a time); ctrl-c to stop\n",
-		svc.Name, svc.Script, svc.Algo, svc.Instances)
+
+	svc.work = workPath(svc.Name)
+	if err := os.MkdirAll(svc.work, 0o700); err != nil {
+		return fmt.Errorf("no work directory for %s: %w", svc.Name, err)
+	}
+	log, err := openLog(svc.Name)
+	if err != nil {
+		return err
+	}
+	defer log.Close()
+	// Both, because the person who started it is watching the terminal and
+	// whoever runs `logs` later is not.
+	svc.say = io.MultiWriter(os.Stderr, log)
+	fmt.Fprintf(svc.say, "%s is %s (%s, %d at a time, work %s); ctrl-c to stop\n",
+		svc.Name, svc.Script, svc.Algo, svc.Instances, svc.work)
+
+	r := running{
+		Name: svc.Name, PID: os.Getpid(), Script: svc.Script,
+		Log: logPath(svc.Name), Started: time.Now(),
+	}
+	if err := r.note(); err != nil {
+		return fmt.Errorf("could not leave a note for stop and logs: %w", err)
+	}
+	defer os.Remove(notePath(svc.Name))
 	return serve(svc)
+}
+
+// openLog is where the service and its scripts write. Append, because a
+// service restarted by hand should not throw away what the last run said.
+func openLog(name string) (*os.File, error) {
+	if err := os.MkdirAll(filepath.Dir(logPath(name)), 0o700); err != nil {
+		return nil, err
+	}
+	return os.OpenFile(logPath(name), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 }
 
 // describe reads the service either from the command line or, with no name
@@ -148,7 +196,7 @@ func serve(svc service) error {
 		select {
 		case slots <- struct{}{}:
 		case <-ctx.Done():
-			fmt.Fprintf(os.Stderr, "%s: stopping\n", svc.Name)
+			fmt.Fprintf(svc.say, "%s: stopping\n", svc.Name)
 			return nil
 		}
 
@@ -159,7 +207,7 @@ func serve(svc service) error {
 				continue // nothing arrived before the deadline
 			}
 			if ctx.Err() != nil {
-				fmt.Fprintf(os.Stderr, "%s: stopping\n", svc.Name)
+				fmt.Fprintf(svc.say, "%s: stopping\n", svc.Name)
 				return nil
 			}
 			return err
@@ -213,7 +261,7 @@ func handle(svc service, e protocol.Envelope) {
 	// an ack for a request that will never be run says the opposite of the
 	// truth. See docs/04-messaging.md#request-and-reply.
 	if e.TooLate(time.Now()) {
-		fmt.Fprintf(os.Stderr, "%s: %s arrived after its caller gave up at %s; not run\n",
+		fmt.Fprintf(svc.say, "%s: %s arrived after its caller gave up at %s; not run\n",
 			svc.Name, e.ID, e.Deadline.Format(time.RFC3339))
 		return
 	}
@@ -225,32 +273,37 @@ func handle(svc service, e protocol.Envelope) {
 		if err := postQuiet("/send", protocol.Envelope{
 			To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID,
 		}); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: could not %s %s: %v\n", svc.Name, kind, e.ID, err)
+			fmt.Fprintf(svc.say, "%s: could not %s %s: %v\n", svc.Name, kind, e.ID, err)
 		}
 	}
 	// ack first: the service has the message, whatever happens next.
 	say(protocol.ReceiptAck)
 
-	cmd := exec.Command("sh", "-c", svc.Script)
+	argv := []string{"sh", "-c", svc.Script}
 	if svc.Algo == algoArgs {
-		cmd = exec.Command("sh", "-c", svc.Script+` "$@"`, "sh", e.Body)
-	} else {
-		cmd.Stdin = strings.NewReader(string(mustJSON(e)) + "\n")
+		argv = []string{"sh", "-c", svc.Script + ` "$@"`, "sh", e.Body}
 	}
 	// The envelope is in the environment either way, so a script can route on
-	// it without parsing anything.
-	cmd.Env = append(os.Environ(),
-		"AGENT_BUS_MESSAGE_ID="+e.ID,
-		"AGENT_BUS_FROM="+e.From,
-		"AGENT_BUS_TO="+e.To,
-		"AGENT_BUS_TOPIC="+e.Topic,
-		"AGENT_BUS_TAG="+e.Tag,
-	)
-	cmd.Stderr = os.Stderr
+	// it without parsing anything, and so is the work directory it owns.
+	env := []string{
+		"AGENT_BUS_MESSAGE_ID=" + e.ID,
+		"AGENT_BUS_FROM=" + e.From,
+		"AGENT_BUS_TO=" + e.To,
+		"AGENT_BUS_TOPIC=" + e.Topic,
+		"AGENT_BUS_TAG=" + e.Tag,
+		"AGENT_BUS_WORK=" + svc.work,
+	}
+	cmd := exec.Command(argv[0], argv[1:]...)
+	if svc.Algo != algoArgs {
+		cmd.Stdin = strings.NewReader(string(mustJSON(e)) + "\n")
+	}
+	cmd.Dir = svc.work
+	cmd.Env = append(os.Environ(), env...)
+	cmd.Stderr = svc.say
 
 	out, err := cmd.Output()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s exited badly for %s: %v\n", svc.Name, svc.Script, e.ID, err)
+		fmt.Fprintf(svc.say, "%s: %s exited badly for %s: %v\n", svc.Name, svc.Script, e.ID, err)
 		return
 	}
 	// Nothing printed is not an empty answer: a script that only does
@@ -264,7 +317,7 @@ func handle(svc service, e protocol.Envelope) {
 	if err := postQuiet("/send", protocol.Envelope{
 		To: back, Topic: topic, Tag: tag, Body: answer,
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: could not answer %s: %v\n", svc.Name, e.ID, err)
+		fmt.Fprintf(svc.say, "%s: could not answer %s: %v\n", svc.Name, e.ID, err)
 	}
 }
 

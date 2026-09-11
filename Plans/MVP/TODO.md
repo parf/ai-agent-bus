@@ -287,7 +287,7 @@ owner's view served to a stranger, which is what the dashboard does today.
 |---|---|---|
 | G.1 | ✅ _done_ — one binary, two roles: the supervisor opens every listener, chowns the per-user ones and hands the fds down; the bus serves them and holds the store ([processes § how a child is started](../../docs/11-processes.md#how-a-child-is-started)). A dead child is restarted onto the same sockets — the socket file is the same inode after a restart and a different one when it is genuinely remade, which is how that check was falsified, no mutation being able to express it — and a supervisor killed outright takes its children with it. The dashboard is a child under `-web`. ⚠️ *runner, auth and health are still design, and a child's empty capability set can only be read on a host that has one to lose* |
 | G.2 | the runner supervises and sandboxes ([runner § sandboxing](../../docs/08-runner-role.md#sandboxing)) | ⚠️ *proposed cut*: one backend plus off, where the design selects among several. Needs the owner before it is built |
-| G.3 | `stop` and `logs` | deferred out of the PoC explicitly *with the runner* ([stages § PoC](../../docs/12-stages.md#poc)) |
+| G.3 | `stop` and `logs` ([runner § stopping it](../../docs/08-runner-role.md#stopping-it-and-reading-what-it-said)) | a running service leaves a note in its owner's own state directory, which is what makes "only whoever started it may stop it" true with no check in it |
 
 **Done when**, and what breaking it must do:
 
@@ -297,7 +297,17 @@ owner's view served to a stranger, which is what the dashboard does today.
   with no capability at all, so both sets read as empty either way*;
 - a sandboxed child that tries to write outside its work directory, or to open
   a network socket, **fails**; loosening the profile turns it red;
-- a killed child comes back, and `stop` ends it without killing its siblings.
+- `stop` ends one service and **leaves its siblings running**, waits for it
+  rather than reporting a stop that has not happened, and does **not**
+  unregister the name — messages sent afterwards still wait in its queue;
+- `logs` shows what a service wrote **after it has stopped**, which is when it
+  is wanted; and a second `start` of a name already running here is refused.
+
+⚠️ *"A killed child comes back" belongs to G.1 and is met there*: the
+supervisor restarts the bus onto the same sockets. A script service has no
+long-lived child to restart — its scripts are one process per message — so
+restart-with-backoff for user children stays the runner proper's, and is not
+claimed here.
 
 **Cut costs**: the largest single cut available. A one-process MVP is
 defensible if the ACL is real; the split is what keeps a compromise of one
