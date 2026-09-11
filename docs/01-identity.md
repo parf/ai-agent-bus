@@ -149,6 +149,10 @@ group) mapped to access and an optional role.
 - **Master ACL replaces per-service setup.** Without it every service needs its
   own list and its own tokens; with it an operator is configured once.
 
+- **No verb is a side door.** Writing goes through the same two layers as
+  reading: a send, a publish, a registration and a consume are all subject to
+  them, so a principal that may not see a service cannot enqueue to it either.
+
 The user who ran setup gets the **`agent-bus-admin`** role in the master ACL:
 users and groups, service ACL, and service install / start / stop / reload
 ([runner](08-runner-role.md)). Owners still own their service *definitions* and
