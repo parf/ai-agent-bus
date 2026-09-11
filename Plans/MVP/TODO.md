@@ -286,6 +286,7 @@ H.4–H.6 are the split the owner asked for
 | H.4 | `agent-bus-setup` as its own program: the same work, root-only, printing the `sudo` line rather than failing flat ([setup § the five programs](../../docs/09-setup.md#the-five-programs)) |
 | H.5 | `agent-bus-admin`: what edits the account's own files — users, keys, ACL — re-running itself under `sudo -u agent-bus` when it is not that account, and the forced command behind an **operator's** key ([AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin)) |
 | H.6 | `agent-bus-token`: the forced command behind everybody else's key, and the only thing an ordinary user reaches over SSH. It replaces the `static-token` stand-in, and the CLI's `token` verb goes with it ([setup § the five programs](../../docs/09-setup.md#the-five-programs)) |
+| H.7 | a token for a signed challenge, so a host without sshd can still hand one out ([access § getting a token](../../docs/02-access.md#getting-a-token)). The verifier and the challenge already exist — enrolment is the same question asked about a realm (D.3), so this is the second caller of it, not a second mechanism |
 
 **Done when**, and what breaking it must do:
 

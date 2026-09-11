@@ -33,14 +33,23 @@ somebody.
 
 ## Getting a token
 
-Both paths need you to already have access to the machine.
+The first two need you to already have access to the machine; the third
+needs only the key.
 
 | Path | Command | For |
 |---|---|---|
 | over SSH | `export AGENT_BUS_TOKEN=$(ssh agent-bus@<node> token <user@realm>)` | anyone with SSH to the node; sshd authenticates you with the key you already have |
 | on the box | `agent-bus-token <user@realm>` | server access, no SSH key on the bus |
+| with a key | `agent-bus-token <user@realm> --key <ed25519>` | **no sshd anywhere** — the daemon sets the challenge and the key answers it |
 
-**One program either way**, `agent-bus-token`, and it is the *only* thing an
+**Not every host runs sshd**, so the key path does not go through one: the
+daemon hands out a nonce, the holder signs it, and a signature that checks
+against a key the realm publishes is worth a token. That is the same challenge
+the bus already uses to let somebody into a vouched realm
+([identity § proving possession](01-identity.md#proving-possession)) — one
+mechanism, two things asked of it.
+
+**One program every way**, `agent-bus-token`, and it is the *only* thing an
 ordinary user reaches over SSH — the forced command behind their key, where an
 operator's key has the admin program instead
 ([setup § the five programs](09-setup.md#the-five-programs)). Today it is the
