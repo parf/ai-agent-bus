@@ -47,6 +47,8 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus service-template <name> -         configure it, JSON on stdin
   agent-bus service-template <name> '{"k":1}' the same, inline
   agent-bus service-template <name>           print that configuration
+  agent-bus setup [--owner u@r] [--user account=u@r] [--addr a]
+                  [--dry-run] [--print-unit]   install the service account and the unit
 
 Environment: AGENT_BUS_NAME (user@realm), AGENT_BUS_TOKEN, AGENT_BUS_ADDR.
 On your own socket the first two are supplied for you and can be left unset.`
@@ -85,6 +87,8 @@ func main() {
 		err = publish(rest)
 	case "start":
 		err = start(rest)
+	case "setup":
+		err = setup(rest)
 	case "reply":
 		err = reply(rest)
 	case "help", "-h", "--help":

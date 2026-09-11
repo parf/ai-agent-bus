@@ -268,13 +268,14 @@ role from being a compromise of the host.
 
 ### H — somebody else installs it
 
-**Blocked** on the packaging ❓ above.
+⚠️ H.1 is **blocked** on the packaging ❓ above. H.2 and H.3 do not depend on
+how the binary arrives, and are built.
 
 | ID | Task |
 |---|---|
-| H.1 | the package ([setup § install](../../docs/09-setup.md#install)) |
-| H.2 | `agent-bus setup` creates the service account and starts the daemon as it ([setup § the service account](../../docs/09-setup.md#the-service-account)) — never as the invoking user, never as root |
-| H.3 | the unit: the account, its home, the one declarative capability, and restart |
+| H.1 | the package ([setup § install](../../docs/09-setup.md#install)) — **still blocked** on the packaging ❓ |
+| H.2 | ✅ _built_ — `agent-bus setup` creates the account, writes the unit and starts the daemon as it; it refuses without root rather than half-installing, and `--dry-run` / `--print-unit` need nothing ([setup § the service account](../../docs/09-setup.md#the-service-account)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
+| H.3 | ✅ _done_ — the account, its home, the one declarative capability and restart, all in the unit and each falsified on its own |
 
 **Done when**, and what breaking it must do:
 

@@ -86,6 +86,22 @@ home, a store or a dump.
 The per-user sockets are **not** under it: they belong in the host's runtime
 directory, which a reboot clears ([access § local socket](02-access.md#local-socket)).
 
+The unit `setup` writes is `/etc/systemd/system/agent-busd.service`, and it is
+the whole privileged arrangement in one file:
+
+| The unit says | So that |
+|---|---|
+| `User=agent-bus` | the daemon is never root and never the installer — the check reads the *running* process, so a developer's hand-started one fails it |
+| `WorkingDirectory` and `StateDirectory` are the home | the store and the dumps land where the account can keep them, and nowhere else |
+| `RuntimeDirectory=agent-bus`, mode 0711 | the sockets are outside every home and a reboot clears them ([access § local socket](02-access.md#local-socket)) |
+| `Restart=on-failure` | a daemon that dies comes back |
+| `AmbientCapabilities=CAP_CHOWN` with a bounding set of exactly that | the one capability is given, not taken, and no second one can be picked up ([processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown)) |
+
+`setup` needs root once, for the account and the unit, and refuses rather than
+half-installing without it. `--dry-run` names the steps and `--print-unit`
+prints the unit; neither needs anything. The installer's own account is given a
+socket without being asked for — they are a user of the bus like anyone else.
+
 ## Config locations
 
 `/etc/agent-bus/` · `~/.config/agent-bus/` · unit `agent-busd.service`.

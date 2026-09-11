@@ -977,6 +977,32 @@ has "and says why" "$out" 'one command'
 out=$(AGENT_BUS_TOKEN_FILE=$D/absent ./static-token over-ssh@srv1 2>&1); rc=$?
 bad_exit "a missing token file is an error, not an empty token" $rc
 
+sec "setup installs a service account, and it is not the installer"
+# The privileged step cannot run here, so what is checked is everything it
+# would write: an install that puts the daemon under the installer's own
+# account is the failure this wave exists to prevent.
+# See docs/09-setup.md#the-service-account.
+UNIT=$("$D/agent-bus" setup --print-unit --owner "$OWNER" --exec /usr/local/bin/agent-busd)
+has "the unit runs the daemon as an account of its own" "$UNIT" '^User=agent-bus$'
+is_empty "never as root" "$(printf '%s' "$UNIT" | grep -x 'User=root')"
+is_empty "and never as whoever ran setup" "$(printf '%s' "$UNIT" | grep -x "User=$(id -un)")"
+has "the store lives under that account's home" "$UNIT" 'token-file /var/lib/agent-bus/token'
+has "and so does the dump" "$UNIT" 'dump-file /var/lib/agent-bus/dump.json'
+has "it comes back after it dies" "$UNIT" '^Restart='
+has "it is given one capability, not root" "$UNIT" '^AmbientCapabilities=CAP_CHOWN$'
+has "and cannot pick up a second" "$UNIT" '^CapabilityBoundingSet=CAP_CHOWN$'
+has "the installer still gets a socket of their own" "$UNIT" "[-]user $(id -un)=$OWNER"
+out=$("$D/agent-bus" setup --owner "$OWNER" 2>&1); rc=$?
+bad_exit "setup without root refuses rather than half-installing" $rc
+has "and says that step is the only one that needs it" "$out" 'Nothing after this step'
+out=$("$D/agent-bus" setup --dry-run --owner "$OWNER" 2>&1); rc=$?
+ok_exit "a dry run needs nothing and says what it would do" $rc
+has "naming the account" "$out" 'would create the system account agent-bus'
+has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
+has "and the start" "$out" 'would reload systemd'
+out=$("$D/agent-bus" setup --print-unit --owner parf 2>&1); rc=$?
+bad_exit "an owner without a realm is refused before anything is written" $rc
+
 sec "the dashboard shows envelopes and no bodies"
 # A separate process that speaks the API, because that is what it is in the
 # design — see docs/05-discovery.md#dashboard.

@@ -47,6 +47,14 @@ const (
 	HeaderToken = "X-Agent-Bus-Token"
 )
 
+// SystemRuntimeDir is where a daemon installed for the whole host keeps its
+// sockets: outside anyone's home, and cleared by a reboot.
+// See docs/02-access.md#local-socket.
+const SystemRuntimeDir = "/run/agent-bus"
+
+// SystemSocket is that daemon's shared listener, beside the per-account ones.
+func SystemSocket() string { return filepath.Join(SystemRuntimeDir, "bus.sock") }
+
 // DefaultSocket is where the daemon listens and the CLI looks, in one place
 // because the two binaries have to agree — see docs/02-access.md#local-socket.
 func DefaultSocket() string {

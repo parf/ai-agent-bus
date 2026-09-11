@@ -16,6 +16,7 @@ All 2026-09-09 unless noted.
 |---|---|
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](01-identity.md#names) |
 | Setup installs the separate-user arrangement, and where that account lives | [setup § the service account](09-setup.md#the-service-account) |
+| The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the service account](09-setup.md#the-service-account) |
 | A name is checked, not taken on trust | [access § two parameters](02-access.md#two-parameters) |
 | Writing is subject to the ACL, like reading | [identity § acl](01-identity.md#acl) |
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](01-identity.md#registration) |

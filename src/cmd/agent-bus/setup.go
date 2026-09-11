@@ -1,0 +1,198 @@
+// `agent-bus setup` installs the separate-user arrangement: an account that
+// owns nothing but the bus, a home under /var/lib, and a unit that starts the
+// daemon as that account. It is the one privileged step, run once — nothing
+// after it needs root, and the daemon never has it.
+// See docs/09-setup.md#the-service-account.
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"os/user"
+	"path/filepath"
+	"strings"
+
+	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/protocol"
+)
+
+// Where the install puts things. Stated here because setup is the only thing
+// that writes them; the daemon is told on its command line.
+// See docs/09-setup.md#the-service-account.
+const (
+	svcAccount = "agent-bus"
+	svcHome    = "/var/lib/agent-bus"
+	unitPath   = "/etc/systemd/system/agent-busd.service"
+)
+
+type list []string
+
+func (l *list) String() string     { return strings.Join(*l, ",") }
+func (l *list) Set(v string) error { *l = append(*l, v); return nil }
+
+func setup(args []string) error {
+	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
+	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: `user@realm`")
+	addr := fs.String("addr", "127.0.0.1:7777", "the daemon's loopback `address`")
+	exe := fs.String("exec", "", "`path` to agent-busd; defaults to the one beside this binary")
+	printUnit := fs.Bool("print-unit", false, "write the unit to stdout and change nothing")
+	dry := fs.Bool("dry-run", false, "say what would be done and change nothing")
+	var users list
+	fs.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	me, err := protocol.ParseName(*owner)
+	if err != nil {
+		return fmt.Errorf("--owner: %w", err)
+	}
+	// The installer is a user of the bus like anyone else, and the one who
+	// will hold admin — so their account gets a socket without being asked
+	// for. See docs/09-setup.md#local-users.
+	if who := invoker(); who != "" {
+		users = append(list{who + "=" + me.String()}, users...)
+	}
+	if *exe == "" {
+		self, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		*exe = filepath.Join(filepath.Dir(self), "agent-busd")
+	}
+	unit := unitFor(*exe, *addr, me.String(), users)
+	if *printUnit {
+		fmt.Print(unit)
+		return nil
+	}
+	steps := []string{
+		fmt.Sprintf("create the system account %s with home %s", svcAccount, svcHome),
+		fmt.Sprintf("make %s the account's own, 0750", svcHome),
+		fmt.Sprintf("write %s", unitPath),
+		"reload systemd and start agent-busd",
+	}
+	if *dry {
+		for _, s := range steps {
+			fmt.Println("would " + s)
+		}
+		return nil
+	}
+	// Refused rather than half-done: the account and the unit are both root's
+	// to write, and a setup that created neither is easier to recover from
+	// than one that created one.
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("setup needs root once, to %s and %s — try sudo.\n"+
+			"Nothing after this step does: the daemon runs as %s.\n"+
+			"Use --dry-run to see the steps, or --print-unit for the unit alone",
+			steps[0], steps[2], svcAccount)
+	}
+	if _, err := user.Lookup(svcAccount); err != nil {
+		if err := run("useradd", "--system", "--home-dir", svcHome, "--create-home",
+			"--shell", "/usr/sbin/nologin", svcAccount); err != nil {
+			return err
+		}
+	}
+	if err := os.MkdirAll(svcHome, 0o750); err != nil {
+		return err
+	}
+	if err := run("chown", "-R", svcAccount+":"+svcAccount, svcHome); err != nil {
+		return err
+	}
+	if err := os.Chmod(svcHome, 0o750); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(unitPath), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(unitPath, []byte(unit), 0o644); err != nil {
+		return err
+	}
+	if err := run("systemctl", "daemon-reload"); err != nil {
+		return err
+	}
+	if err := run("systemctl", "enable", "--now", "agent-busd"); err != nil {
+		return err
+	}
+	fmt.Printf("agent-busd runs as %s, owned by %s, state in %s\n", svcAccount, me, svcHome)
+	return nil
+}
+
+// unitFor is the unit, and the only place its values are written down.
+// See docs/09-setup.md#the-service-account.
+func unitFor(exe, addr, owner string, users list) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, `[Unit]
+Description=agent-bus: registry, broker and MCP server for agents
+After=network.target
+
+[Service]
+Type=simple
+# The account, never root and never whoever ran setup.
+User=%[1]s
+Group=%[1]s
+WorkingDirectory=%[2]s
+StateDirectory=%[5]s
+RuntimeDirectory=%[5]s
+# 0711: everyone walks through to their own socket, nobody reads the rest.
+RuntimeDirectoryMode=0711
+ExecStart=%[3]s -addr %[4]s -socket %[6]s -token-file %[2]s/token -dump-file %[2]s/dump.json -owner %[7]s`,
+		svcAccount, svcHome, exe, addr, filepath.Base(api.SystemRuntimeDir), api.SystemSocket(), owner)
+	for _, u := range users {
+		fmt.Fprintf(&b, " -user %s", u)
+	}
+	fmt.Fprintf(&b, `
+Restart=on-failure
+RestartSec=2
+# One capability, declared rather than taken: a per-account socket has to be
+# handed to its account. It belongs to the supervisor, and sits here only
+# until there is one — docs/11-processes.md#why-the-supervisor-holds-cap_chown
+AmbientCapabilities=CAP_CHOWN
+CapabilityBoundingSet=CAP_CHOWN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=%s
+
+[Install]
+WantedBy=multi-user.target
+`, svcHome)
+	return b.String()
+}
+
+// invoker is the account that asked for the install, which is not the one
+// running the command when that is sudo.
+func invoker() string {
+	if u := os.Getenv("SUDO_USER"); u != "" {
+		return u
+	}
+	if u, err := user.Current(); err == nil {
+		return u.Username
+	}
+	return ""
+}
+
+func defaultInstaller() string {
+	who := invoker()
+	if who == "" {
+		return ""
+	}
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		host = "localhost"
+	}
+	if i := strings.IndexByte(host, '.'); i > 0 {
+		host = host[:i]
+	}
+	return who + "@" + host
+}
+
+func run(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	return nil
+}
