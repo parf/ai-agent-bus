@@ -16,6 +16,7 @@ type Case = {
   steer?: { code: number; message: string };  // reject turn/steer this way
   resumeActive?: boolean;                     // resume reports a running turn
   listActive?: boolean;                       // thread/list's thread is mid-turn
+  idleAfterSteer?: boolean;                   // the turn ends as the steer is refused
 };
 
 let scenario: Case = {};
@@ -45,7 +46,12 @@ const server = Bun.serve({
         case "thread/start":
           return reply({ thread: { id: "thread-1", cwd: CWD, turns: [] } });
         case "turn/steer":
-          if (scenario.steer) return fail(scenario.steer);
+          if (scenario.steer) {
+            // The turn finished between the resume and the steer — which is
+            // the only state in which refusing one then starting one is right.
+            if (scenario.idleAfterSteer) scenario.resumeActive = false;
+            return fail(scenario.steer);
+          }
           return reply({ turnId: "turn-steered" });
         case "turn/start":
           return reply({ turn: { id: "turn-new" } });
@@ -126,14 +132,19 @@ try {
     codex.stop();
   }
   {
-    // Same rejection, but the refresh says the turn is over: now start.
-    scenario = { listActive: true, steer: { code: -32602, message: "invalid params" } };
-    seen.length = 0;
-    const codex = new Codex(CWD, quiet, url);
-    await codex.start();
-    scenario = { ...scenario, resumeActive: false };
+    // Same rejection, but the refresh says the turn is over: now start. The
+    // steer must actually be attempted and refused — asserted, because the
+    // first version of this check reached turn/start without ever steering.
+    const codex = await run({
+      resumeActive: true, idleAfterSteer: true,
+      steer: { code: -32602, message: "invalid params" },
+    });
     const how = await codex.deliver("hello", "m5");
-    check("a rejected steer starts a turn once the server says none is running", how === "turn/start", `${how}; saw ${seen.join(",")}`);
+    check(
+      "a rejected steer starts a turn once the server says none is running",
+      how === "turn/start" && seen.includes("turn/steer"),
+      `${how}; saw ${seen.join(",")}`,
+    );
     codex.stop();
   }
   {

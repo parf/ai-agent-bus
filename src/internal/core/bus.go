@@ -257,6 +257,12 @@ func (b *Bus) List(kind string) []protocol.Record {
 //
 // The backing array is kept — reusing a zeroed allocation is the point — but
 // nothing dead stays reachable through it.
+//
+// Taking from the head by stepping past it instead of shifting was measured
+// and rejected: it wins past a backlog of ~300 and on a full ring (2443 ns
+// to 733), loses below that, and allocates 330-520 B on every message where
+// this allocates none. New garbage per message is the worse trade inside a
+// component that is 2.6% of the daemon's CPU.
 func take(q []protocol.Envelope, i int) []protocol.Envelope {
 	copy(q[i:], q[i+1:])
 	q[len(q)-1] = protocol.Envelope{}

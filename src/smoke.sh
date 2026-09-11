@@ -518,6 +518,14 @@ if ! command -v bun >/dev/null 2>&1; then
   echo "  FAIL bun is not installed; the MCP face cannot be checked"
   fail=$((fail + 1))
 else
+  # The shared JSON-RPC plumbing, driven directly: the harnesses below only
+  # ever have one request in flight and never split a line across chunks, so
+  # they leave most of rpc.ts unwatched (mcp/rpc.test.ts says why).
+  out=$(cd mcp && timeout 60 bun test rpc.test.ts 2>&1)
+  rc=$?
+  echo "$out" | sed 's/^/  /'
+  ok_exit "rpc unit tests" $rc
+
   # each harness runs its own peer in-process, so there is no start-order race
   out=$(cd mcp && timeout 120 env AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN \
         AGENT_BUS_NAME=mcp.session@srv1 SMOKE_PEER=peer@srv1 bun run smoke.ts 2>&1)

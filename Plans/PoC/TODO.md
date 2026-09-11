@@ -97,6 +97,13 @@ message silently. ✅ _Done → [DONE.md](DONE.md): after the stage closed_ — 
 receiver declares `--overflow`, `strict` refuses loudly by default, `ring`
 counts what it drops. Sent to Codex for review.
 
+Then two more pieces on the owner's word, each reviewed the same way:
+
+| | |
+|---|---|
+| names and configuration | a service is a **configured** thing, so `template/instance@host` joins `service@host`, and `service-template` configures one. The configuration is private — only the service reads it, and every other answer carries `config_sha` instead ([services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template)) |
+| review rounds | docs then code, three passes, Codex and Fable each time; findings reproduced before they are accepted |
+
 ## Out of PoC
 
 What is absent is listed once, in

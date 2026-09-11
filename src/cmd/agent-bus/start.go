@@ -143,7 +143,7 @@ func serve(svc service) error {
 			return nil
 		}
 
-		e, got, err := next(ctx, q)
+		e, _, got, err := next(ctx, q)
 		if err != nil || !got {
 			<-slots
 			if err == nil {
@@ -165,22 +165,26 @@ func serve(svc service) error {
 	}
 }
 
-// next is one long poll: an envelope, or nothing if the wait ran out.
-func next(ctx context.Context, q url.Values) (protocol.Envelope, bool, error) {
+// next is the one consume: long-poll, tell "nothing arrived" apart from a
+// refusal, and decode. Every reader here goes through it — the service loop,
+// the `consume` verb and the wait inside `call` — so "no message" cannot come
+// to mean three things. The raw body comes back too, because a reader that
+// prints is printing what the daemon said, not a re-encoding of it.
+func next(ctx context.Context, q url.Values) (protocol.Envelope, []byte, bool, error) {
 	var e protocol.Envelope
 	body, code, err := callCtx(ctx, "GET", "/consume", q, nil)
 	switch {
 	case err != nil:
-		return e, false, err
+		return e, nil, false, err
 	case code == http.StatusNoContent:
-		return e, false, nil
+		return e, nil, false, nil
 	case code >= 400:
-		return e, false, fmt.Errorf("%s", strings.TrimSpace(string(body)))
+		return e, nil, false, fmt.Errorf("%s", strings.TrimSpace(string(body)))
 	}
 	if err := json.Unmarshal(body, &e); err != nil {
-		return e, false, fmt.Errorf("the daemon sent something that is not an envelope: %w", err)
+		return e, body, false, fmt.Errorf("the daemon sent something that is not an envelope: %w", err)
 	}
-	return e, true, nil
+	return e, body, true, nil
 }
 
 // handle runs the script once and answers with what it printed. A non-zero

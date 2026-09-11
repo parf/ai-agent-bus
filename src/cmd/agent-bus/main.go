@@ -39,7 +39,6 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus publish --topic <name> <text>
   agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
   agent-bus start                     (the same, as JSON on stdin)
-  agent-bus ls [<name>]                       the registry, or one service
   agent-bus service-template <name> -         configure it, JSON on stdin
   agent-bus service-template <name> '{"k":1}' the same, inline
   agent-bus service-template <name>           print that configuration
@@ -95,7 +94,7 @@ func register(args []string) error {
 	}
 	return post("/register", protocol.Record{
 		Name: pos[0], Kind: flags["kind"], Addr: flags["addr"], Descr: flags["descr"],
-		Full: flags["overflow"],
+		Full: flags["overflow"], Proto: flags["protocol"],
 	})
 }
 
@@ -204,21 +203,17 @@ func callVerb(args []string) error {
 		}
 		q.Set("wait", left.String()) // not rounded: rounding the last half
 		//                              second down to 0s spins on the daemon
-		body, code, err := callCtx(ctx, "GET", "/consume", q, nil)
+		e, body, got, err := next(ctx, q)
 		if err != nil {
 			if ctx.Err() != nil {
 				return tooLate
 			}
 			return err
 		}
-		if code == http.StatusNoContent {
+		if !got {
 			continue
 		}
-		if code >= 400 {
-			return fmt.Errorf("%s", strings.TrimSpace(string(body)))
-		}
-		var e protocol.Envelope
-		if err := json.Unmarshal(body, &e); err == nil && e.Receipt != "" {
+		if e.Receipt != "" {
 			fmt.Fprintf(os.Stderr, "%s from %s\n", e.Receipt, e.From)
 			continue // a receipt is not the answer
 		}
@@ -330,26 +325,21 @@ func consume(args []string) error {
 			q.Set(k, v)
 		}
 	}
+	_, follow := flags["follow"]
 	for {
-		body, code, err := call("GET", "/consume", q, nil)
+		e, body, got, err := next(context.Background(), q)
 		if err != nil {
 			return err
 		}
-		if code == http.StatusNoContent {
-			if _, follow := flags["follow"]; follow {
+		if !got {
+			if follow {
 				continue // long poll again
 			}
 			return nil
 		}
-		if code >= 400 {
-			return fmt.Errorf("%s", strings.TrimSpace(string(body)))
-		}
-		var e protocol.Envelope
-		if err := json.Unmarshal(body, &e); err == nil {
-			remember(e) // the client keeps the reply context, not the daemon
-		}
+		remember(e) // the client keeps the reply context, not the daemon
 		os.Stdout.Write(body)
-		if _, follow := flags["follow"]; !follow {
+		if !follow {
 			return nil
 		}
 	}

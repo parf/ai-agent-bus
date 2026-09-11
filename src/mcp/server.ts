@@ -7,7 +7,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { Bus, BusError, type Envelope } from "./bus.ts";
+import { Bus, BusError, type Envelope, type Record_ } from "./bus.ts";
 import { startPush, type Push } from "./push.ts";
 import { Codex } from "./codex.ts";
 
@@ -263,7 +263,6 @@ function shutDown(why: string): void {
 server.onclose = () => shutDown("the client closed the connection");
 for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => { shutDown(sig); process.exit(0); });
 process.on("exit", () => shutDown("exit"));
-
 
 if (mode === "claude") {
   // The Claude Code channel contract: one notification, content plus string
