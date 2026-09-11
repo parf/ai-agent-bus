@@ -69,6 +69,8 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 		return
 	}
 	in.Owner = caller.String()
+	// A configuration has one write path, and this is not it.
+	in.Config = nil
 	rec, err := s.bus.Register(in)
 	if errors.Is(err, core.ErrBadName) || errors.Is(err, core.ErrOverflow) {
 		fail(w, http.StatusBadRequest, err.Error())

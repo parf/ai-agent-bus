@@ -331,6 +331,33 @@ has "a configuration that is not JSON is refused" \
 # and the shape that reaches it is a body carrying no configuration at all.
 has "and the daemon refuses an empty one on its own" \
   "$(post_code owner@srv1 $TOKEN /configure '{"name":"code-review/cfg@rdvp"}')" '400'
+has "null is not a configuration either" \
+  "$(ab owner@srv1 service-template code-review/cfg@rdvp null 2>&1)" 'null is the absence of one'
+# A service registers itself on every start. That must refresh its
+# description without destroying what it was configured with, and without
+# handing the record to whoever registered last.
+ab code-review/cfg@rdvp register code-review/cfg@rdvp --kind agent --descr "refreshed" >/dev/null
+has "a re-registration keeps the configuration" \
+  "$(ab owner@srv1 service-template code-review/cfg@rdvp)" '"model":"opus"'
+has "and still refreshes the description" \
+  "$(ab owner@srv1 ls)" '"descr":"refreshed"'
+ab thief@srv1 register code-review/cfg@rdvp --kind agent >/dev/null
+has "and does not hand the record to whoever registered last" \
+  "$(ab thief@srv1 service-template code-review/cfg@rdvp 2>&1)" 'belongs to someone else'
+has "a registration may not smuggle a configuration in" \
+  "$(post_code thief@srv1 $TOKEN /register '{"name":"code-review/cfg@rdvp","config":{"evil":true}}' >/dev/null; ab owner@srv1 service-template code-review/cfg@rdvp)" '"model":"opus"'
+# On a name that does not exist yet there is no old configuration to keep, so
+# this is the only shape that proves register drops the field rather than
+# being saved by the preservation rule.
+post_code smuggler@srv1 $TOKEN /register '{"name":"fresh@srv1","config":{"evil":true}}' >/dev/null
+has "not even onto a name that is new" \
+  "$(ab smuggler@srv1 service-template fresh@srv1)" 'null'
+# The service itself is as entitled to configure as its owner: otherwise the
+# order of "register" and "configure" decides whether either works. The record
+# has to be owned by SOMEONE ELSE for this to test anything.
+ab keeper@srv1 service-template theirs@srv1 '{"by":"keeper"}' >/dev/null
+has "a service may configure itself, on a record it does not own" \
+  "$(ab theirs@srv1 service-template theirs@srv1 '{"by":"itself"}' >/dev/null 2>&1; ab keeper@srv1 service-template theirs@srv1)" '"by":"itself"'
 # Reading must work where it is actually used: a script, with no terminal.
 has "a read works with no terminal on stdin" \
   "$(ab owner@srv1 service-template code-review/cfg@rdvp </dev/null)" '"depth":3'

@@ -4,6 +4,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -91,6 +92,14 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	// Registering refreshes a description. It is not a way to take a record
+	// over or to throw its configuration away: a service registers itself on
+	// every start, and that must not destroy what it was configured with.
+	// See docs/03-services-and-topics.md#configuring-a-template.
+	if old, known := b.records[name]; known {
+		r.Config = old.Config
+		r.Owner = old.Owner
+	}
 	r.Name = name
 	r.At = time.Now()
 	b.records[name] = r
@@ -122,6 +131,11 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	if !json.Valid(cfg) {
 		return protocol.Record{}, fmt.Errorf("%w, and this is not", ErrConfig)
 	}
+	if string(bytes.TrimSpace(cfg)) == "null" {
+		// null is JSON, but it reads back identically to never-configured,
+		// which would make "is it configured?" unanswerable.
+		return protocol.Record{}, fmt.Errorf("%w, and null is the absence of one", ErrConfig)
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	r, known := b.records[n]
@@ -129,7 +143,7 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		// Same defaults a bare registration gets: configuring is not a
 		// second way to describe a service, only a way to give it config.
 		r = protocol.Record{Name: n, Kind: "generic", Owner: who, Full: protocol.OverflowStrict}
-	} else if r.Owner != who {
+	} else if r.Owner != who && n != who {
 		return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, n, r.Owner)
 	}
 	r.Config = cfg
