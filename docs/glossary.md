@@ -31,7 +31,7 @@ wins.
 | **principal** | any user or service with an identity | [identity § principals](01-identity.md#principals) |
 | **`user@realm`** | how every principal is written; realm = host · provider · team. A service may prefix a template | [identity § names](01-identity.md#names) |
 | **realm** | who vouches for a name | [identity § names](01-identity.md#names) |
-| **canonical name** | `trim(lower(name))`, ASCII `a-z 0-9 . _ -`, ≤64 chars — the one spelling everything compares and routes on | [identity § names](01-identity.md#names) |
+| **canonical name** | the one spelling everything compares and routes on: lower-case, ASCII, trimmed per component, within the bound | [identity § names](01-identity.md#names) |
 | **token** | the second of the two parameters every call carries; persisted, previous one kept | [access § token lifetime](02-access.md#token-lifetime) |
 | **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](01-identity.md#acl) |
 | **`allow: *`** | anyone who can authenticate | [identity § acl](01-identity.md#acl) |
@@ -41,7 +41,7 @@ wins.
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](03-services-and-topics.md#service-kinds) |
 | **service template** | the *unconfigured* capability; does not run, has no address | [services § service and template](03-services-and-topics.md#service-and-template) |
 | **service** | **always configured**: a template + its config + where it runs. Never say "service" for an unconfigured template | [services § service and template](03-services-and-topics.md#service-and-template) |
-| **`template/instance-name@host`** | a service configured from a template; `service@host` when it is its own template | [identity § names](01-identity.md#names) |
+| **`template/instance-name@host`** | a service configured from a template; `service@host` when there is no separate template | [identity § names](01-identity.md#names) |
 | **topic** | a registered record; kind `queue` or `pub/sub` | [services § topics](03-services-and-topics.md#topics) |
 | **inbox** | the implicit queue topic every agent owns | [messaging § inbox queues](04-messaging.md#inbox-queues) |
 | **`message_id` · topic · tag** | the three fields on every message | [messaging § message fields](04-messaging.md#message-fields) |

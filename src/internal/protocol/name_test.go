@@ -200,3 +200,83 @@ func TestHostKeepsTheNarrowCharset(t *testing.T) {
 		t.Fatalf("%+v", n)
 	}
 }
+
+// The forbidden punctuation, component by component: a name is an identifier,
+// and "? = %" in one would have to survive a URL, a log line and a filename.
+func TestForbiddenPunctuationInEveryComponent(t *testing.T) {
+	for _, in := range []string{
+		"pa?rf@host", "pa=rf@host", "pa%rf@host", // instance name
+		"parf@ho?st", "parf@ho=st", "parf@ho%st", // host
+		"cr?/claude@host", "cr=/claude@host", "cr%/claude@host", // template
+		"parf@com?fi.com@host", // inside an address-shaped instance name
+	} {
+		if n, err := ParseName(in); err == nil {
+			t.Fatalf("%q was accepted as %q", in, n)
+		}
+	}
+}
+
+// Exactly at the bound and exactly over it, on the longest shape we have: a
+// template, an embedded "@" and both separators all counted.
+func TestBoundIsExactWithTemplateAndEmbeddedAt(t *testing.T) {
+	// "cr/" + local + "@" + "h" — local carries the embedded "@".
+	build := func(total int) string {
+		fixed := len("cr/") + len("@h")
+		local := strings.Repeat("a", total-fixed-len("@b")) + "@b"
+		return "cr/" + local + "@h"
+	}
+	at := build(MaxName)
+	if len(at) != MaxName {
+		t.Fatalf("test is wrong: built %d characters", len(at))
+	}
+	n, err := ParseName(at)
+	if err != nil {
+		t.Fatalf("a name of exactly %d characters was refused: %v", MaxName, err)
+	}
+	if n.String() != at {
+		t.Fatalf("round trip at the bound: %q", n.String())
+	}
+	over := build(MaxName + 1)
+	if len(over) != MaxName+1 {
+		t.Fatalf("test is wrong: built %d characters", len(over))
+	}
+	if _, err := ParseName(over); err == nil {
+		t.Fatalf("a name of %d characters was accepted", MaxName+1)
+	}
+}
+
+// Plus-addressing is supported in the instance name, on the owner's word.
+// "+" is one character added on purpose; it is not email syntax, and it stays
+// out of the template and the host.
+func TestPlusAddressingInTheInstanceName(t *testing.T) {
+	n, err := ParseName("mail-sender/parf+alerts@comfi.com@host")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n.Template != "mail-sender" || n.Local != "parf+alerts@comfi.com" || n.Realm != "host" {
+		t.Fatalf("%+v", n)
+	}
+	if n.String() != "mail-sender/parf+alerts@comfi.com@host" {
+		t.Fatalf("round trip: %q", n.String())
+	}
+	for _, in := range []string{
+		"mail+er/claude@host",  // not in the template
+		"parf@comfi.com@ho+st", // not in the host
+		"+parf@host",           // still must start alphanumeric
+	} {
+		if got, err := ParseName(in); err == nil {
+			t.Fatalf("%q was accepted as %q", in, got)
+		}
+	}
+}
+
+// Canonicalisation trims each component, not just the whole string.
+func TestEachComponentIsTrimmed(t *testing.T) {
+	n, err := ParseName("  mail-sender / parf@comfi.com @ host ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n.String() != "mail-sender/parf@comfi.com@host" {
+		t.Fatalf("got %q", n.String())
+	}
+}

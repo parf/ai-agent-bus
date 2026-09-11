@@ -8,17 +8,18 @@ import (
 	"strings"
 )
 
-// A principal is user@realm; a service is [template/]name@host. All parts are
-// the same shape, and the name is the identity — never a provider's numeric
-// id. See docs/01-identity.md#names.
+// A principal is user@realm; a service is [template/]name@host. The name is
+// the identity — never a provider's numeric id. See docs/01-identity.md#names.
 //
-// Every name is canonicalised as trim, lower-case, ASCII only. Two spellings
-// of one name are one name, so a registration and a send cannot land in
-// different inboxes, and nothing depends on how a shell or a config file
-// happened to capitalise it.
+// Every name is canonicalised as lower-case and ASCII only, trimmed as a whole
+// and again per component, so "mail-sender / parf@comfi.com @ host" is the one
+// name mail-sender/parf@comfi.com@host. Two spellings of one name are one
+// name, so a registration and a send cannot land in different inboxes, and
+// nothing depends on how a shell or a config file happened to capitalise it.
 //
-// Every part is [a-z0-9._-], starting alphanumeric: one charset, and a realm
-// can be a host — parf@om.parf.dev. The whole name is at most MaxName.
+// The template and the realm are [a-z0-9._-], starting alphanumeric — a realm
+// can be a host, parf@om.parf.dev. The instance name is wider; see localRe.
+// The whole name is at most MaxName.
 //
 // The optional template part says which service template this service was
 // configured from — code-review/claude-2@rdvp. It is part of the identity and
@@ -32,10 +33,18 @@ var partRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 // wider charset. The bus never reads meaning out of it: it is a name, not a
 // mailbox it parses. See docs/03-services-and-topics.md#service-and-template.
 //
-// It is ordinary parts joined by single "@", not a free-for-all: "parf@" and
-// "parf@@x" are typos, and a name with a dangling separator is one intent with
-// two spellings.
-var localRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*(@[a-z0-9][a-z0-9._-]*)*$`)
+// It is ordinary components joined by single "@", not a free-for-all: empty
+// @-separated components are not allowed, so "parf@" and "parf@@x" are
+// refused. That is a deliberately narrow contract, not a canonicalisation
+// necessity — nothing can infer from an opaque name that "parf@@host" was
+// meant to be "parf@host", so this refuses the typo rather than guessing.
+//
+// The components also take "+", so plus-addressing works:
+// mail-sender/parf+alerts@comfi.com@host. That is one deliberate character,
+// added on the owner's word — not email syntax. Anything a mailbox grammar
+// allows beyond this charset is still refused, and widening it again is a
+// decision to take on purpose rather than by adopting RFC 5322.
+var localRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._+-]*(@[a-z0-9][a-z0-9._+-]*)*$`)
 
 // MaxName bounds a canonical name, `user@realm` and the @ included. A name is
 // an identifier, not a payload: it is logged, indexed and shown in a list.
@@ -80,7 +89,7 @@ func ParseName(s string) (Name, error) {
 		}
 	}
 	if !localRe.MatchString(local) {
-		return Name{}, fmt.Errorf("bad name %q: a-z 0-9 . _ - @ only, starting alphanumeric", s)
+		return Name{}, fmt.Errorf("bad name %q: a-z 0-9 . _ - + @ only, starting alphanumeric", s)
 	}
 	if !partRe.MatchString(realm) {
 		return Name{}, fmt.Errorf("bad realm in %q: a-z 0-9 . _ - only, starting alphanumeric", s)

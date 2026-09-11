@@ -56,7 +56,7 @@ it runs. Never call an unconfigured template a service.
 
 | | |
 |---|---|
-| `service@host` | the service is its own template — nothing was configured from anything |
+| `service@host` | a standalone configured service: there is no separate template to name |
 | `template/instance-name@host` | configured from a template: `imap-mail-reader/billing@rdvp`, `code-review/claude-2@rdvp` |
 
 The name is stable across restarts, and is also the address and the inbox
@@ -67,7 +67,7 @@ share a prefix and nothing else — two records, two inboxes, two configs.
 **Config is arbitrary and separate from identity.** The name says which
 template and which instance; it never *declares* what the instance was pointed
 at. Naming an instance after the thing it reads is fine and often clearest —
-`mail-sender/parf@comfi.com@host` is a legal name
+`mail-sender/parf+alerts@comfi.com@host` is a legal name
 ([identity § names](01-identity.md#names)) — but that is a human convention,
 not a field: nothing parses a name for server, user, mailbox or credentials,
 and there is no fixed config schema. `imap-mail-reader/parf@rdvp` with the

@@ -282,7 +282,7 @@ has "and is addressable by its whole name" \
 is_empty "the sibling's inbox is its own, not the template's" \
   "$(ab code-review/claude@rdvp consume --wait 200ms 2>/dev/null)"
 has "a name may not hold two slashes" \
-  "$(ab owner@srv1 register a/b/c@rdvp 2>&1)" 'a-z 0-9 . _ - @ only'
+  "$(ab owner@srv1 register a/b/c@rdvp 2>&1)" 'a-z 0-9 . _ - + @ only'
 # Only the template part is wrong here: the instance name and the realm are
 # both fine, so nothing but the template's own check can refuse it.
 has "a bad template part is refused on its own" \
@@ -297,6 +297,11 @@ has "and routes on the whole name, host split off last" \
   "$(ab mail-sender/parf@comfi.com@host consume --wait 2s)" 'read this one'
 has "a dangling at-sign is a typo, not a name" \
   "$(ab owner@srv1 register parf@@host 2>&1)" 'bad name'
+ab owner@srv1 register mail-sender/parf+alerts@comfi.com@host --kind agent >/dev/null
+has "plus-addressing is a legal instance name" \
+  "$(ab owner@srv1 ls)" '"name":"mail-sender/parf+alerts@comfi.com@host"'
+has "but the host does not take a plus" \
+  "$(ab owner@srv1 register parf@ho+st 2>&1)" 'bad realm'
 has "and the realm is a host, not a path" \
   "$(ab owner@srv1 register code-review/claude@rd/vp 2>&1)" 'bad realm'
 

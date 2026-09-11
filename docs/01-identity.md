@@ -28,7 +28,7 @@ it was configured from:
 
 | Form | Is | Example |
 |---|---|---|
-| `service@host` | a service that is its own template | `claude@rdvp` |
+| `service@host` | a standalone service, with no separate template | `claude@rdvp` |
 | `template/instance-name@host` | a service configured from a template | `imap-mail-reader/billing@rdvp` |
 
 **The host is whatever follows the last `@`.** An instance name may itself be
@@ -42,15 +42,19 @@ template part is **optional and part of the identity**, not a lookup: two
 services from one template are two names, two inboxes, two configs
 ([services § service and template](03-services-and-topics.md#service-and-template)).
 
-**One name has one spelling: `trim(lower(name))`.** Case and surrounding space
-are noise, so they go before anything compares, stores or routes on a name —
-`PARF@Localhost` and ` parf@localhost ` are the same principal, and a
-registration cannot land in one inbox while a send goes to another.
+**One name has one spelling: lower-case, and trimmed — the whole name *and
+each component*.** Case and surrounding space are noise, so they go before
+anything compares, stores or routes on a name: `PARF@Localhost` and
+` parf@localhost ` are the same principal, `mail-sender / parf@comfi.com @
+host` is `mail-sender/parf@comfi.com@host`, and a registration cannot land in
+one inbox while a send goes to another. Space *inside* a component is not
+trimmed away — it is a bad character, and the name is refused.
 
 | | |
 |---|---|
-| charset | **`a-z 0-9 . _ -`**, every part, starting alphanumeric. The **instance name** may also join parts with `@` |
-| at-signs | the **last** one splits off the host. Earlier ones sit inside the instance name, single and between parts — `parf@` and `parf@@x` are typos, not names |
+| charset | **`a-z 0-9 . _ -`**, every component, starting alphanumeric |
+| the instance name | wider: also **`+`** and **`@`**, so `parf+alerts@comfi.com` is a name. The template and the host take neither |
+| at-signs | the **last** one splits off the host. Earlier ones sit inside the instance name, joining non-empty components — `parf@` and `parf@@x` are refused |
 | length | **64 characters for the whole name**, `@` and any `/` included — a name is an identifier, not a payload |
 | ASCII only | a name spellable two ways in Unicode is a name two people can be tricked by |
 | dots | allowed in every part — a realm is often a host (`om.parf.dev`), and a local part may be dotted (`slack.reader`) |

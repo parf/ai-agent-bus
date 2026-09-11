@@ -37,7 +37,7 @@ All 2026-09-09 unless noted.
 | Wire is JSON, msgpack optional | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](02-access.md#key-confirmation) |
 | A service name is its address and its inbox: `service@host`, or `template/instance-name@host` | [identity § names](01-identity.md#names) |
-| The host is what follows the **last** `@`; an instance name may be an address | [identity § names](01-identity.md#names) |
+| The host is what follows the **last** `@`; an instance name may be an address, `+` included | [identity § names](01-identity.md#names) |
 | One service on many hosts, and scatter-gather over them, is Release 1 | [stages § release 1](12-stages.md#release-1) |
 | A service is always configured; the unconfigured capability is a service template | [services § service and template](03-services-and-topics.md#service-and-template) |
 | Config is arbitrary and separate from the name; nothing is parsed out of an address | [services § service and template](03-services-and-topics.md#service-and-template) |
