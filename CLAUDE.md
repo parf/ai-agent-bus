@@ -116,7 +116,8 @@ the mechanism behind the link:
 - **Chaining queries upstream; it never replicates it.** Peers sync registry
   via git, newer record wins per entry.
 - **Ed25519 everywhere a key exists**; no passwords, no client secrets, no
-  TLS/PKI.
+  TLS/PKI *between bus citizens*. The dashboard is the exception, because a
+  browser has no other way — `docs/05-discovery.md#where-it-listens`.
 - **Do not reinvent the wheel**, in this order: the language's built-in, then
   the system's tool (`ssh-keygen`, `ldapsearch`, `git`, `age`, `systemd-run`,
   `sshd`) behind a port in an adapter, then a well-known library for the

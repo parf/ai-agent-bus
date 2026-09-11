@@ -70,7 +70,9 @@ Claims only; the mechanism lives in the doc each one links to.
 - **One binary, one unit, one config dir, one CLI, one git repo** — many
   processes out of that one binary ([processes](11-processes.md)).
 - **Ed25519 wherever there is a key**; no passwords, no client secrets, no
-  TLS/PKI.
+  TLS/PKI — between bus citizens. A browser is the exception, and only the
+  dashboard faces one
+  ([discovery § where it listens](05-discovery.md#where-it-listens)).
 - **Do not reinvent the wheel.** Prefer the language's built-in, then the
   system's tool (`ssh-keygen`, `ldapsearch`, `git`, `age`, `systemd-run`,
   `sshd`), then a well-known library — and never our own crypto or protocol
