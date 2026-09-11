@@ -69,9 +69,11 @@ claim; the link owns the rule.
 Unchanged from the PoC, and it earned its place —
 [PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief):
 
-- `go vet`, `go test -race` and `src/smoke.sh` green. The first two run
-  *inside* smoke.sh, because a harness that does not run them is blind to
-  everything they cover — which happened.
+- **`src/smoke.sh --slow` green.** It runs `go vet` and `go test -race`
+  itself, because a harness that does not run them is blind to everything
+  they cover — which happened. The bare `./smoke.sh` is the fast subset for
+  the edit-run loop; it skips every check that costs over a second, so it is
+  a signal, not a proof, and it says so when it finishes.
 - **Every fix is broken again and watched turning a named check red.** Three
   PoC checks passed for reasons unrelated to what they claimed; mutation is
   what found them. Two of this plan's first-draft criteria passed on PoC code

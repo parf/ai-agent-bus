@@ -175,7 +175,8 @@ been found here:
 
 So: **for every fix, break it again and watch the check go red.** The harness
 that does it for a batch of fixes is a loop over copies of `src/` with one
-edit each, running `src/smoke.sh` in every copy; it is worth rewriting per
+edit each, running `src/smoke.sh --slow` in every copy — a check that did not
+run caught nothing — and it is worth rewriting per
 review round rather than keeping, because the mutations are the interesting
 part and they are never the same twice.
 

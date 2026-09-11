@@ -1,11 +1,23 @@
 #!/bin/bash
-# Wave A, B, C and D acceptance — Plans/PoC/TODO.md. Builds, runs a daemon on loopback and
-# a private socket, exercises the eleven verbs, exits non-zero on any failure.
+# Acceptance for the built stages. Builds, runs a daemon on loopback and a
+# private socket, exercises the verbs, exits non-zero on any failure.
+#
+#   ./smoke.sh          the fast run: everything that costs under a second
+#   ./smoke.sh --slow    all of it, including the race detector
+#
+# The fast run is for the edit-run loop. **A change is measured against
+# --slow**, and so is every mutation: a check that did not run caught
+# nothing (Plans/PoC/README.md#mutation-first-then-belief).
 set -u
 cd "$(dirname "$0")"
 D=$(mktemp -d); DPID=""
 cleanup() { [ -n "$DPID" ] && kill "$DPID" 2>/dev/null; rm -rf "$D"; }
 trap cleanup EXIT
+# The CLI keeps its reply context under XDG_CACHE_HOME, and this run wants a
+# private one. Go's build cache lives there too by default, so redirecting it
+# made every run recompile the world — 2.7s of "go vet" that is 0.1s warm,
+# and four times that under -race. Keep Go's cache where it was.
+export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 export XDG_CACHE_HOME=$D/cache
 PORT=${PORT:-7911}
 
@@ -21,7 +33,23 @@ ab() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$1 "$D/a
 # instead makes $! a subshell, and a signal sent to it leaves the service
 # running — which is how a check that a service stops passed without one.
 abx() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$1 exec "$D/agent-bus" "${@:2}"; }
-pass=0; fail=0
+pass=0; fail=0; skipped=0
+# Anything that takes more than a second is opt-in: the default run is the
+# one a person waits for, and the full run is what a change is measured
+# against. `SLOW=1` (or --slow) runs everything, and the mutation harness
+# always does — a mutant that survives because its check was skipped is the
+# worst kind of green (Plans/PoC/README.md#mutation-first-then-belief).
+SLOW=${SLOW:-0}
+[ "${1:-}" = "--slow" ] && SLOW=1
+slow() { [ "$SLOW" = 1 ]; }
+# Section timing, so "slow" is a measurement and not a hunch.
+sec_name=""; sec_t0=0
+sec() {
+  local now; now=$(date +%s%3N)
+  [ -n "$sec_name" ] && printf '%6s %s\n' "$((now-sec_t0))" "$sec_name" >> "$D/timing"
+  sec_name=$1; sec_t0=$now
+  echo "== $1"
+}
 has() { if echo "$2" | grep -q -- "$3"; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: [$2] lacks [$3]"; fail=$((fail+1)); fi; }
 ok_exit()   { if [ "$2" -eq 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: exit $2"; fail=$((fail+1)); fi; }
 bad_exit()  { if [ "$2" -ne 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: expected failure, got exit 0"; fail=$((fail+1)); fi; }
@@ -32,21 +60,23 @@ code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "
 post_body() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $TOKEN" -d "$3" "http://unix$2"; }
 post_code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" -d "$4" "http://unix$3"; }
 
-echo "== the Go checks"
+sec "the Go checks"
 # Run here, not only by hand: this script is what a change is measured
 # against, and a mutation of anything the unit tests cover was invisible to
 # it while they lived outside. CLAUDE.md asks for all three to be green.
-for c in "vet:go vet ./..." "race:go test -race ./..."; do
+checks=("vet:go vet ./..." "test:go test ./...")
+slow && checks=("vet:go vet ./..." "race:go test -race ./...")
+for c in "${checks[@]}"; do
   out=$(eval "${c#*:}" 2>&1); rc=$?
   ok_exit "go ${c%%:*}" $rc
   [ $rc -eq 0 ] || echo "$out" | tail -15 | sed 's/^/    /'
 done
 
-echo "== status on both listeners"
+sec "status on both listeners"
 has "unix socket" "$(ab parf@localhost status)" '"services"'
 has "loopback tcp" "$(AGENT_BUS_ADDR=http://127.0.0.1:$PORT AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=parf@localhost "$D/agent-bus" status)" '"up"'
 
-echo "== the two parameters are checked"
+sec "the two parameters are checked"
 out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=nope AGENT_BUS_NAME=parf@localhost "$D/agent-bus" status 2>&1); rc=$?
 has "wrong token says so" "$out" 'bad token'; bad_exit "wrong token exits non-zero" $rc
 has "401 for a wrong token" "$(code parf@localhost nope /status)" '401'
@@ -54,12 +84,12 @@ out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=parf "$D/
 bad_exit "a name without a realm is refused" $rc
 has "401 for a realm-less name" "$(code parf "$TOKEN" /status)" '401'
 
-echo "== register and ls"
+sec "register and ls"
 ab fixer@srv1 register fixer@srv1 --kind agent --descr "fixes things" >/dev/null
 ab asker@srv1 register asker@srv1 --kind agent >/dev/null
 has "ls shows the description" "$(ab asker@srv1 ls)" 'fixes things'
 
-echo "== send, then reply matched by topic and tag"
+sec "send, then reply matched by topic and tag"
 ab fixer@srv1 consume --wait 10s > "$D/got.json" & CPID=$!
 sleep 0.3
 ab asker@srv1 send fixer@srv1 --topic deploy-42 --tag q1 "run the migration?" >/dev/null
@@ -72,7 +102,7 @@ REPLY=$(ab asker@srv1 consume --topic deploy-42 --tag q1 --wait 5s)
 has "reply came back" "$REPLY" 'yes, running it'
 has "reply keeps the tag" "$REPLY" '"tag":"q1"'
 
-echo "== a filtered waiter is served ahead of the unfiltered reader"
+sec "a filtered waiter is served ahead of the unfiltered reader"
 ab fixer@srv1 consume --wait 6s > "$D/reader.json" 2>/dev/null & UPID=$!
 sleep 0.3
 ab fixer@srv1 consume --topic prio --tag p1 --wait 6s > "$D/waiter.json" 2>/dev/null & FPID=$!
@@ -89,35 +119,37 @@ ab asker@srv1 send fixer@srv1 --topic other --tag x "for the reader" >/dev/null
 wait $UPID 2>/dev/null
 has "the unfiltered reader got the other one" "$(cat "$D/reader.json")" 'for the reader'
 
-echo "== a message sent while nobody is reading waits"
+sec "a message sent while nobody is reading waits"
 ab asker@srv1 send fixer@srv1 --topic later --tag t1 "queued while down" >/dev/null
 sleep 0.2
 has "backlog arrives later" "$(ab fixer@srv1 consume --wait 5s)" 'queued while down'
 
-echo "== one reader per inbox"
-ab fixer@srv1 consume --wait 2s >/dev/null 2>&1 & RPID=$!
-sleep 0.3
-has "second unfiltered read refused" "$(ab fixer@srv1 consume --wait 1s 2>&1)" 'already has a reader'
-out=$(ab fixer@srv1 consume --topic x --tag y --wait 1s 2>&1); rc=$?
-ok_exit "filtered waiter allowed beside it" $rc
-kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
-sleep 2   # the backgrounded client outlives its subshell; let its poll expire
+if slow; then
+  sec "one reader per inbox"
+  ab fixer@srv1 consume --wait 2s >/dev/null 2>&1 & RPID=$!
+  sleep 0.3
+  has "second unfiltered read refused" "$(ab fixer@srv1 consume --wait 1s 2>&1)" 'already has a reader'
+  out=$(ab fixer@srv1 consume --topic x --tag y --wait 1s 2>&1); rc=$?
+  ok_exit "filtered waiter allowed beside it" $rc
+  kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
+  sleep 2   # the backgrounded client outlives its subshell; let its poll expire
 
-echo "== unknown receiver"
+else skipped=$((skipped+1)); fi
+sec "unknown receiver"
 out=$(ab asker@srv1 send ghost@nowhere hi 2>&1); rc=$?
 has "says no such receiver" "$out" 'no such receiver'; bad_exit "and exits non-zero" $rc
 
-echo "== a name that is not a name"
+sec "a name that is not a name"
 bad_exit "register without a realm" "$(ab asker@srv1 register no-realm >/dev/null 2>&1; echo $?)"
 
-echo "== one name, however it is spelled: trim, lower-case, ASCII"
+sec "one name, however it is spelled: trim, lower-case, ASCII"
 ab pad@srv1 register '  PAD@Srv1  ' --kind agent >/dev/null
 has "ls shows the canonical form" "$(ab asker@srv1 ls)" '"name":"pad@srv1"'
 ab asker@srv1 send ' Pad@SRV1 ' --topic pad --tag p "padded name" >/dev/null
 has "a padded, upper-case send reaches it" "$(ab pad@srv1 consume --topic pad --tag p --wait 3s)" 'padded name'
 bad_exit "a non-ASCII name is refused" "$(ab asker@srv1 register 'pärf@srv1' >/dev/null 2>&1; echo $?)"
 
-echo "== call and ack: a service answers, and says it got the message first"
+sec "call and ack: a service answers, and says it got the message first"
 ab svc@srv1 register svc@srv1 --kind generic --descr "answers calls" >/dev/null
 (
   msg=$(ab svc@srv1 consume --wait 10s)
@@ -133,7 +165,7 @@ has "call gets the answer, not the receipt" "$out" 'the answer is 42'
 has "the ack was seen and reported" "$(cat "$D/call.err")" 'ack from svc@srv1'
 has "a call to nobody fails" "$(ab caller@srv1 call ghost@nowhere --wait 2s hi 2>&1)" 'no such receiver'
 
-echo "== topics: a publisher with no service record, a consumer that was down"
+sec "topics: a publisher with no service record, a consumer that was down"
 ab owner@srv1 topic create jobs@srv1 --descr "work queue" >/dev/null
 has "the topic is in ls" "$(ab owner@srv1 ls --kind topic)" 'jobs@srv1'
 ab drive-by@srv1 publish --topic jobs@srv1 "sweep the floor" >/dev/null
@@ -151,31 +183,33 @@ out=$(ab caller@srv1 consume --topic jobz@srv1 --wait 1s 2>&1); rc=$?
 bad_exit "a mistyped topic name is an error, not a silent filter" $rc
 has "and says which name" "$out" 'no such topic: jobz@srv1'
 
-echo "== a call does not damage what it calls from"
-ab keeper@srv1 register keeper@srv1 --kind generic --addr host:1234 --descr "KEEP ME" >/dev/null
-# the whole record, not a word from it: kind, addr, description, owner and the
-# timestamp all change if the caller re-states itself.
-record() { ab keeper@srv1 ls | grep -o '{[^}]*"name":"keeper@srv1"[^}]*}'; }
-before=$(record)
-ab keeper@srv1 call svc@srv1 --wait 1s "nobody is listening" >/dev/null 2>&1
-after=$(record)
-if [ -n "$before" ] && [ "$before" = "$after" ]; then
-  echo "  ok   the caller's own record survives its call"; pass=$((pass+1))
-else
-  echo "  FAIL the caller's own record survives its call: [$before] became [$after]"; fail=$((fail+1))
-fi
-ab unheard@srv1 register unheard@srv1 --kind generic >/dev/null
-out=$(ab caller@srv1 call unheard@srv1 --wait 5q "typo" 2>&1); rc=$?
-bad_exit "a bad --wait is refused" $rc
-is_empty "and refused before the message is sent" "$(ab unheard@srv1 consume --wait 1s)"
-# The status code, not the body: the accepted envelope echoes the field back,
-# so grepping for "receipt" passed with the check for it removed.
-has "a third receipt value is refused" \
-  "$(post_code caller@srv1 "$TOKEN" /send '{"to":"svc@srv1","receipt":"maybe","body":"x"}')" '400'
-has "and the two real ones are not" \
-  "$(post_code caller@srv1 "$TOKEN" /send '{"to":"svc@srv1","receipt":"done","re":"0","body":"x"}')" '200'
+if slow; then
+  sec "a call does not damage what it calls from"
+  ab keeper@srv1 register keeper@srv1 --kind generic --addr host:1234 --descr "KEEP ME" >/dev/null
+  # the whole record, not a word from it: kind, addr, description, owner and the
+  # timestamp all change if the caller re-states itself.
+  record() { ab keeper@srv1 ls | grep -o '{[^}]*"name":"keeper@srv1"[^}]*}'; }
+  before=$(record)
+  ab keeper@srv1 call svc@srv1 --wait 1s "nobody is listening" >/dev/null 2>&1
+  after=$(record)
+  if [ -n "$before" ] && [ "$before" = "$after" ]; then
+    echo "  ok   the caller's own record survives its call"; pass=$((pass+1))
+  else
+    echo "  FAIL the caller's own record survives its call: [$before] became [$after]"; fail=$((fail+1))
+  fi
+  ab unheard@srv1 register unheard@srv1 --kind generic >/dev/null
+  out=$(ab caller@srv1 call unheard@srv1 --wait 5q "typo" 2>&1); rc=$?
+  bad_exit "a bad --wait is refused" $rc
+  is_empty "and refused before the message is sent" "$(ab unheard@srv1 consume --wait 1s)"
+  # The status code, not the body: the accepted envelope echoes the field back,
+  # so grepping for "receipt" passed with the check for it removed.
+  has "a third receipt value is refused" \
+    "$(post_code caller@srv1 "$TOKEN" /send '{"to":"svc@srv1","receipt":"maybe","body":"x"}')" '400'
+  has "and the two real ones are not" \
+    "$(post_code caller@srv1 "$TOKEN" /send '{"to":"svc@srv1","receipt":"done","re":"0","body":"x"}')" '200'
 
-echo "== a shell script is a service"
+else skipped=$((skipped+1)); fi
+sec "a shell script is a service"
 printf '#!/bin/sh\necho "Hello $1"\n' > "$D/hello-world.sh"; chmod +x "$D/hello-world.sh"
 abx hello@srv1 start hello@srv1 --algo args "$D/hello-world.sh" --descr "greets you" >"$D/start.log" 2>&1 &
 HPID=$!
@@ -209,152 +243,158 @@ kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
 has "a script and its arguments must be one quoted word" \
   "$(ab x@srv1 start x@srv1 --algo args ./greet.sh loudly 2>&1)" 'one script'
 
-echo "== reply-to: the answer goes where the request said, and a dead route is refused now"
-ab owner@srv1 register worker@srv1 --kind generic --descr "does work" >/dev/null
-ab owner@srv1 register third@srv1 --kind agent >/dev/null
-ab caller@srv1 send worker@srv1 --topic rt --tag 1 --reply-to third@srv1 "work for someone else" >/dev/null
-wid=$(ab worker@srv1 consume --wait 5s | sed -n 's/.*"message_id":"\([^"]*\)".*/\1/p')
-ab worker@srv1 reply "$wid" "here is the answer" >/dev/null
-has "the third party gets the answer" \
-  "$(ab third@srv1 consume --topic rt --tag 1 --wait 5s)" 'here is the answer'
-# The other half: the answer must NOT also go back to the caller. Checking
-# only that the third party received it passes with the reply broadcast.
-is_empty "and the caller does not" "$(ab caller@srv1 consume --topic rt --tag 1 --wait 1s)"
+if slow; then
+  sec "reply-to: the answer goes where the request said, and a dead route is refused now"
+  ab owner@srv1 register worker@srv1 --kind generic --descr "does work" >/dev/null
+  ab owner@srv1 register third@srv1 --kind agent >/dev/null
+  ab caller@srv1 send worker@srv1 --topic rt --tag 1 --reply-to third@srv1 "work for someone else" >/dev/null
+  wid=$(ab worker@srv1 consume --wait 5s | sed -n 's/.*"message_id":"\([^"]*\)".*/\1/p')
+  ab worker@srv1 reply "$wid" "here is the answer" >/dev/null
+  has "the third party gets the answer" \
+    "$(ab third@srv1 consume --topic rt --tag 1 --wait 5s)" 'here is the answer'
+  # The other half: the answer must NOT also go back to the caller. Checking
+  # only that the third party received it passes with the reply broadcast.
+  is_empty "and the caller does not" "$(ab caller@srv1 consume --topic rt --tag 1 --wait 1s)"
 
-# Refused when the request is accepted, not discovered when the answer
-# bounces — the whole point of the rule.
-out=$(ab caller@srv1 send worker@srv1 --topic rt --tag 2 --reply-to ghost@nowhere "nobody can hear the answer" 2>&1); rc=$?
-has "a dead reply address is refused at accept" "$out" 'no such reply address'
-bad_exit "and the send exits non-zero" $rc
-is_empty "and nothing was queued for the worker" "$(ab worker@srv1 consume --topic rt --tag 2 --wait 1s)"
+  # Refused when the request is accepted, not discovered when the answer
+  # bounces — the whole point of the rule.
+  out=$(ab caller@srv1 send worker@srv1 --topic rt --tag 2 --reply-to ghost@nowhere "nobody can hear the answer" 2>&1); rc=$?
+  has "a dead reply address is refused at accept" "$out" 'no such reply address'
+  bad_exit "and the send exits non-zero" $rc
+  is_empty "and nothing was queued for the worker" "$(ab worker@srv1 consume --topic rt --tag 2 --wait 1s)"
 
-# Fire-and-forget asks for nothing back, so it stays open to a sender that
-# owns no queue. A check that only refuses is a check that refuses too much.
-ok_exit "a send from an unregistered sender still works" \
-  "$(ab nobody@srv1 send worker@srv1 --topic rt --tag 3 "no answer wanted" >/dev/null 2>&1; echo $?)"
-has "and it arrives" "$(ab worker@srv1 consume --topic rt --tag 3 --wait 5s)" 'no answer wanted'
+  # Fire-and-forget asks for nothing back, so it stays open to a sender that
+  # owns no queue. A check that only refuses is a check that refuses too much.
+  ok_exit "a send from an unregistered sender still works" \
+    "$(ab nobody@srv1 send worker@srv1 --topic rt --tag 3 "no answer wanted" >/dev/null 2>&1; echo $?)"
+  has "and it arrives" "$(ab worker@srv1 consume --topic rt --tag 3 --wait 5s)" 'no answer wanted'
 
-# A script service answers the same way: the runner reads the route off the
-# envelope, so receipts and the answer all go to the third party.
-abx launcher@srv1 start relay@srv1 --algo args "$D/hello-world.sh" --descr "relays" >>"$D/start.log" 2>&1 &
-RPID=$!
-for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'relays' && break; sleep 0.2; done
-ab caller@srv1 send relay@srv1 --topic rt4 --tag 1 --reply-to third@srv1 "via a script" >/dev/null
-has "a script service acks to the third party" \
-  "$(ab third@srv1 consume --topic rt4 --tag 1 --wait 15s)" '"receipt":"ack"'
-has "and answers it there" \
-  "$(ab third@srv1 consume --topic rt4 --tag 1 --wait 15s)" 'Hello via a script'
-is_empty "and the caller hears nothing" "$(ab caller@srv1 consume --topic rt4 --tag 1 --wait 1s)"
-kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
+  # A script service answers the same way: the runner reads the route off the
+  # envelope, so receipts and the answer all go to the third party.
+  abx launcher@srv1 start relay@srv1 --algo args "$D/hello-world.sh" --descr "relays" >>"$D/start.log" 2>&1 &
+  RPID=$!
+  for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'relays' && break; sleep 0.2; done
+  ab caller@srv1 send relay@srv1 --topic rt4 --tag 1 --reply-to third@srv1 "via a script" >/dev/null
+  has "a script service acks to the third party" \
+    "$(ab third@srv1 consume --topic rt4 --tag 1 --wait 15s)" '"receipt":"ack"'
+  has "and answers it there" \
+    "$(ab third@srv1 consume --topic rt4 --tag 1 --wait 15s)" 'Hello via a script'
+  is_empty "and the caller hears nothing" "$(ab caller@srv1 consume --topic rt4 --tag 1 --wait 1s)"
+  kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
 
-echo "== a service is the inbox it registered, and stops when told"
-printf '#!/bin/sh\nsleep 3\necho "did $1"\n' > "$D/slow.sh"; chmod +x "$D/slow.sh"
-abx launcher@srv1 start slow@srv1 --algo args "$D/slow.sh" -1 --descr "slowly" >>"$D/start.log" 2>&1 &
-LPID=$!
-for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'slowly' && break; sleep 0.2; done
-ab caller@srv1 send slow@srv1 --topic w --tag 1 one >/dev/null
-ab caller@srv1 send slow@srv1 --topic w --tag 2 two >/dev/null
-sleep 1
-kill -9 $LPID 2>/dev/null; wait $LPID 2>/dev/null
-# The service read slow@srv1, not launcher@srv1, or the first message would
-# still be here; and with its one worker busy it left the second on the
-# daemon, where killing it cannot lose it.
-has "it read the inbox it registered, not the one that launched it" \
-  "$(ab slow@srv1 consume --wait 3s)" 'two'
-is_empty "and took only what it had a worker for" "$(ab slow@srv1 consume --wait 1s)"
+else skipped=$((skipped+1)); fi
+if slow; then
+  sec "a service is the inbox it registered, and stops when told"
+  printf '#!/bin/sh\nsleep 3\necho "did $1"\n' > "$D/slow.sh"; chmod +x "$D/slow.sh"
+  abx launcher@srv1 start slow@srv1 --algo args "$D/slow.sh" -1 --descr "slowly" >>"$D/start.log" 2>&1 &
+  LPID=$!
+  for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'slowly' && break; sleep 0.2; done
+  ab caller@srv1 send slow@srv1 --topic w --tag 1 one >/dev/null
+  ab caller@srv1 send slow@srv1 --topic w --tag 2 two >/dev/null
+  sleep 1
+  kill -9 $LPID 2>/dev/null; wait $LPID 2>/dev/null
+  # The service read slow@srv1, not launcher@srv1, or the first message would
+  # still be here; and with its one worker busy it left the second on the
+  # daemon, where killing it cannot lose it.
+  has "it read the inbox it registered, not the one that launched it" \
+    "$(ab slow@srv1 consume --wait 3s)" 'two'
+  is_empty "and took only what it had a worker for" "$(ab slow@srv1 consume --wait 1s)"
 
-# A service's inbox belongs to its name, not to the process that reads it:
-# register it, let nothing run, and the work is still there when something
-# with that name turns up. This is the property V1's ephemeral channels did
-# not have — a dead channel took its results with it.
-ab owner@srv1 register absent@srv1 --kind generic --descr "never started" >/dev/null
-ab caller@srv1 send absent@srv1 --topic w --tag 9 "waiting for whoever shows up" >/dev/null
-abx launcher@srv1 start absent@srv1 --algo args "$D/hello-world.sh" --descr "turned up late" >>"$D/start.log" 2>&1 &
-APID=$!
-# The ack comes first and is the sender's answer to "picked up, or lost?" —
-# the question V1 needed a delivery journal for.
-has "the late service acks the message it found waiting" \
-  "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" '"receipt":"ack"'
-has "and answers it" \
-  "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" 'Hello waiting for whoever shows up'
-kill $APID 2>/dev/null; wait $APID 2>/dev/null
+  # A service's inbox belongs to its name, not to the process that reads it:
+  # register it, let nothing run, and the work is still there when something
+  # with that name turns up. This is the property V1's ephemeral channels did
+  # not have — a dead channel took its results with it.
+  ab owner@srv1 register absent@srv1 --kind generic --descr "never started" >/dev/null
+  ab caller@srv1 send absent@srv1 --topic w --tag 9 "waiting for whoever shows up" >/dev/null
+  abx launcher@srv1 start absent@srv1 --algo args "$D/hello-world.sh" --descr "turned up late" >>"$D/start.log" 2>&1 &
+  APID=$!
+  # The ack comes first and is the sender's answer to "picked up, or lost?" —
+  # the question V1 needed a delivery journal for.
+  has "the late service acks the message it found waiting" \
+    "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" '"receipt":"ack"'
+  has "and answers it" \
+    "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" 'Hello waiting for whoever shows up'
+  kill $APID 2>/dev/null; wait $APID 2>/dev/null
 
-echo "== done: a script that finishes without an answer says so"
-# The gap `done` exists for. A script that succeeds and prints nothing used to
-# leave the caller with an ack and then silence until its deadline: the work
-# was finished and there was no way to hear it. A script that *answers* must
-# not also send one — a reply has plainly finished.
-printf '#!/bin/sh\ntrue\n' > "$D/silent.sh"; chmod +x "$D/silent.sh"
-ab owner@srv1 register quiet@srv1 --kind generic >/dev/null
-abx launcher@srv1 start quiet@srv1 --algo args "$D/silent.sh" --descr "says nothing" >>"$D/start.log" 2>&1 &
-QPID=$!
-for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'says nothing' && break; sleep 0.2; done
-ab caller@srv1 send quiet@srv1 --topic dn --tag 1 "do it quietly" >/dev/null
-has "the silent service acks first" \
-  "$(ab caller@srv1 consume --topic dn --tag 1 --wait 15s)" '"receipt":"ack"'
-has "and then says it finished" \
-  "$(ab caller@srv1 consume --topic dn --tag 1 --wait 15s)" '"receipt":"done"'
-# The point of `done`, and the thing the first cut of this wave did not do:
-# a caller blocked on the answer stops when the work finishes with nothing to
-# return, instead of spending its whole deadline. Timing IS the check — the
-# margin is wide enough not to be a timing test.
-t0=$(date +%s)
-out=$(ab caller@srv1 call quiet@srv1 --topic dn5 --tag 1 --wait 20s "quietly again" 2>&1); rc=$?
-t1=$(date +%s)
-has "a call ends on done, saying which outcome it was" "$out" 'finished and sent no answer'
-bad_exit "and does not pretend it got an answer" $rc
-if [ $((t1-t0)) -lt 8 ]; then echo "  ok   and returns on the receipt, not at the deadline"; pass=$((pass+1));
-else echo "  FAIL and returns on the receipt, not at the deadline: waited $((t1-t0))s of 20s"; fail=$((fail+1)); fi
-kill $QPID 2>/dev/null; wait $QPID 2>/dev/null
+else skipped=$((skipped+1)); fi
+if slow; then
+  sec "done: a script that finishes without an answer says so"
+  # The gap `done` exists for. A script that succeeds and prints nothing used to
+  # leave the caller with an ack and then silence until its deadline: the work
+  # was finished and there was no way to hear it. A script that *answers* must
+  # not also send one — a reply has plainly finished.
+  printf '#!/bin/sh\ntrue\n' > "$D/silent.sh"; chmod +x "$D/silent.sh"
+  ab owner@srv1 register quiet@srv1 --kind generic >/dev/null
+  abx launcher@srv1 start quiet@srv1 --algo args "$D/silent.sh" --descr "says nothing" >>"$D/start.log" 2>&1 &
+  QPID=$!
+  for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'says nothing' && break; sleep 0.2; done
+  ab caller@srv1 send quiet@srv1 --topic dn --tag 1 "do it quietly" >/dev/null
+  has "the silent service acks first" \
+    "$(ab caller@srv1 consume --topic dn --tag 1 --wait 15s)" '"receipt":"ack"'
+  has "and then says it finished" \
+    "$(ab caller@srv1 consume --topic dn --tag 1 --wait 15s)" '"receipt":"done"'
+  # The point of `done`, and the thing the first cut of this wave did not do:
+  # a caller blocked on the answer stops when the work finishes with nothing to
+  # return, instead of spending its whole deadline. Timing IS the check — the
+  # margin is wide enough not to be a timing test.
+  t0=$(date +%s)
+  out=$(ab caller@srv1 call quiet@srv1 --topic dn5 --tag 1 --wait 20s "quietly again" 2>&1); rc=$?
+  t1=$(date +%s)
+  has "a call ends on done, saying which outcome it was" "$out" 'finished and sent no answer'
+  bad_exit "and does not pretend it got an answer" $rc
+  if [ $((t1-t0)) -lt 8 ]; then echo "  ok   and returns on the receipt, not at the deadline"; pass=$((pass+1));
+  else echo "  FAIL and returns on the receipt, not at the deadline: waited $((t1-t0))s of 20s"; fail=$((fail+1)); fi
+  kill $QPID 2>/dev/null; wait $QPID 2>/dev/null
 
-# A service that answers skips `done`: the check is that the message after the
-# ack is the answer, so an unconditional `done` turns it red.
-ab owner@srv1 register loud@srv1 --kind generic >/dev/null
-abx launcher@srv1 start loud@srv1 --algo args "$D/hello-world.sh" --descr "answers" >>"$D/start.log" 2>&1 &
-LPID=$!
-for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'answers' && break; sleep 0.2; done
-ab caller@srv1 send loud@srv1 --topic dn3 --tag 1 "out loud" >/dev/null
-ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s >/dev/null
-has "a service that answers sends no done" \
-  "$(ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s)" 'Hello out loud'
-kill $LPID 2>/dev/null; wait $LPID 2>/dev/null
+  # A service that answers skips `done`: the check is that the message after the
+  # ack is the answer, so an unconditional `done` turns it red.
+  ab owner@srv1 register loud@srv1 --kind generic >/dev/null
+  abx launcher@srv1 start loud@srv1 --algo args "$D/hello-world.sh" --descr "answers" >>"$D/start.log" 2>&1 &
+  LPID=$!
+  for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'answers' && break; sleep 0.2; done
+  ab caller@srv1 send loud@srv1 --topic dn3 --tag 1 "out loud" >/dev/null
+  ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s >/dev/null
+  has "a service that answers sends no done" \
+    "$(ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s)" 'Hello out loud'
+  kill $LPID 2>/dev/null; wait $LPID 2>/dev/null
 
-# The verb itself: one function serves both receipts, so `done` must reach the
-# sender exactly as `ack` does.
-ab owner@srv1 register handy@srv1 --kind generic >/dev/null
-ab caller@srv1 send handy@srv1 --topic dn4 --tag 1 "by hand" >/dev/null
-hid=$(ab handy@srv1 consume --wait 5s | sed -n 's/.*"message_id":"\([^"]*\)".*/\1/p')
-ab handy@srv1 done "$hid" >/dev/null
-has "the done verb sends a done receipt" \
-  "$(ab caller@srv1 consume --topic dn4 --tag 1 --wait 5s)" '"receipt":"done"'
-# The exit code alone passed with the guard deleted: an unremembered id then
-# sends to an empty receiver and the DAEMON refuses it. Which end refused has
-# to be in the check, or it is not checking this end.
-has "done refuses an id this client never consumed" \
-  "$(ab handy@srv1 done 0000 2>&1)" 'not one this client consumed'
-bad_exit "and exits non-zero" \
-  "$(ab handy@srv1 done 0000 >/dev/null 2>&1; echo $?)"
+  # The verb itself: one function serves both receipts, so `done` must reach the
+  # sender exactly as `ack` does.
+  ab owner@srv1 register handy@srv1 --kind generic >/dev/null
+  ab caller@srv1 send handy@srv1 --topic dn4 --tag 1 "by hand" >/dev/null
+  hid=$(ab handy@srv1 consume --wait 5s | sed -n 's/.*"message_id":"\([^"]*\)".*/\1/p')
+  ab handy@srv1 done "$hid" >/dev/null
+  has "the done verb sends a done receipt" \
+    "$(ab caller@srv1 consume --topic dn4 --tag 1 --wait 5s)" '"receipt":"done"'
+  # The exit code alone passed with the guard deleted: an unremembered id then
+  # sends to an empty receiver and the DAEMON refuses it. Which end refused has
+  # to be in the check, or it is not checking this end.
+  has "done refuses an id this client never consumed" \
+    "$(ab handy@srv1 done 0000 2>&1)" 'not one this client consumed'
+  bad_exit "and exits non-zero" \
+    "$(ab handy@srv1 done 0000 >/dev/null 2>&1; echo $?)"
 
-printf '#!/bin/sh\necho "ran $1"\n' > "$D/quick.sh"; chmod +x "$D/quick.sh"
-abx launcher@srv1 start stopper@srv1 --algo args "$D/quick.sh" --descr "stops" >>"$D/start.log" 2>&1 &
-TPID=$!
-for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'stops' && break; sleep 0.2; done
-# registered is not the same as waiting: signal it once the daemon says the
-# consume is actually outstanding, or the check can pass on a race.
-for _ in $(seq 1 50); do ab asker@srv1 status | grep -q '"waiting":[1-9]' && break; sleep 0.2; done
-kill -TERM $TPID 2>/dev/null
-for _ in $(seq 1 50); do kill -0 $TPID 2>/dev/null || break; sleep 0.1; done
-if kill -0 $TPID 2>/dev/null; then
-  echo "  FAIL a stopped service leaves its consume"; fail=$((fail+1)); kill -9 $TPID 2>/dev/null
-  wait $TPID 2>/dev/null
-else
-  wait $TPID; ok_exit "a stopped service leaves its consume, exit 0" $?
-fi
-ab caller@srv1 send stopper@srv1 --topic w --tag 3 "after the stop" >/dev/null
-sleep 1
-has "and runs nothing after it stopped" "$(ab stopper@srv1 consume --wait 2s)" 'after the stop'
+  printf '#!/bin/sh\necho "ran $1"\n' > "$D/quick.sh"; chmod +x "$D/quick.sh"
+  abx launcher@srv1 start stopper@srv1 --algo args "$D/quick.sh" --descr "stops" >>"$D/start.log" 2>&1 &
+  TPID=$!
+  for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'stops' && break; sleep 0.2; done
+  # registered is not the same as waiting: signal it once the daemon says the
+  # consume is actually outstanding, or the check can pass on a race.
+  for _ in $(seq 1 50); do ab asker@srv1 status | grep -q '"waiting":[1-9]' && break; sleep 0.2; done
+  kill -TERM $TPID 2>/dev/null
+  for _ in $(seq 1 50); do kill -0 $TPID 2>/dev/null || break; sleep 0.1; done
+  if kill -0 $TPID 2>/dev/null; then
+    echo "  FAIL a stopped service leaves its consume"; fail=$((fail+1)); kill -9 $TPID 2>/dev/null
+    wait $TPID 2>/dev/null
+  else
+    wait $TPID; ok_exit "a stopped service leaves its consume, exit 0" $?
+  fi
+  ab caller@srv1 send stopper@srv1 --topic w --tag 3 "after the stop" >/dev/null
+  sleep 1
+  has "and runs nothing after it stopped" "$(ab stopper@srv1 consume --wait 2s)" 'after the stop'
 
-echo "== the last two of the eleven verbs, and the one refusal the daemon owes us"
+else skipped=$((skipped+1)); fi
+sec "the last two of the eleven verbs, and the one refusal the daemon owes us"
 ab follower@srv1 register follower@srv1 --kind agent >/dev/null
 # --follow keeps reading until it is stopped: that is the verb, so the check
 # has to be the one to stop it.
@@ -371,7 +411,7 @@ out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
 
-echo "== a service is service@host, or template/instance-name@host"
+sec "a service is service@host, or template/instance-name@host"
 # The template part is part of the identity, so it has to survive the whole
 # trip: registration, the registry listing, a send and a consume. A "/" in a
 # query parameter is where this breaks if anything hand-builds a URL.
@@ -410,7 +450,7 @@ has "but the host does not take a plus" \
 has "and the realm is a host, not a path" \
   "$(ab owner@srv1 register code-review/claude@rd/vp 2>&1)" 'bad realm'
 
-echo "== one name, one answer"
+sec "one name, one answer"
 has "lookup answers about a single name" \
   "$(ab owner@srv1 register looked@srv1 --descr "here" >/dev/null; curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: owner@srv1" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/lookup?name=looked@srv1")" '"descr":"here"'
 has "and says so when there is none" \
@@ -431,7 +471,7 @@ has "asking about one name answers about one name" \
 has "and says so when there is no such service" \
   "$(ab owner@srv1 ls absent-entirely@srv1 2>&1)" 'no such name'
 
-echo "== no token, no serve"
+sec "no token, no serve"
 # Stated as a rule, not sampled: every route the daemon exposes, refused
 # three ways. A route added later without auth fails here.
 for route in "GET /status" "POST /register" "GET /ls" "GET /lookup?name=x@h" \
@@ -446,7 +486,7 @@ for route in "GET /status" "POST /register" "GET /ls" "GET /lookup?name=x@h" \
   has "$m $path is not served without a token" "$none/$wrong/$noname" '401/401/401'
 done
 
-echo "== a caller states a record, never what the daemon observes"
+sec "a caller states a record, never what the daemon observes"
 has "a registration cannot claim a reader it does not have" \
   "$(post_body owner@srv1 /register '{"name":"probe@srv1","kind":"agent","reading":true,"queued":77}' | grep -o '"reading":true\|"queued":77'; echo -n ok)" 'ok'
 is_empty "and the claim does not survive into a listing" \
@@ -456,41 +496,43 @@ has "a registration cannot claim a configuration digest" \
 has "an unknown topic mode is refused by the daemon, not only the CLI" \
   "$(post_code owner@srv1 $TOKEN /register '{"name":"modey@srv1","kind":"topic","mode":"garbage"}')" '400'
 
-echo "== consuming as a name nobody registered is refused, not answered with silence"
+sec "consuming as a name nobody registered is refused, not answered with silence"
 has "the daemon says register it first" \
   "$(code ghost@srv1 $TOKEN "/consume?wait=0s")" '404'
 has "while a registered name with an empty inbox is 204" \
   "$(ab quiet@srv1 register quiet@srv1 >/dev/null; code quiet@srv1 $TOKEN "/consume?wait=0s")" '204'
 
-echo "== a listing says whether a call would reach anyone"
-# Being in the registry and being callable are different facts: "there is a
-# MySQL on db1:3306" registers fine and nothing on this bus answers for it.
-ab owner@srv1 register db.main@srv1 --protocol mysql --addr db1:3306 --descr "the main database" >/dev/null
-has "a registration can say how to call it" "$(ab nobody@srv1 ls db.main@srv1)" '"protocol":"mysql"'
-# Asserted on the record itself, not on an empty grep: an is_empty that a
-# failed query also satisfies is a check that passes with the daemon down.
-ab owner@srv1 register plain.svc@srv1 >/dev/null
-has "and an ordinary bus service says nothing, because there is nothing to say" \
-  "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"name":"plain.svc@srv1"\|"protocol":')" '"name":"plain.svc@srv1"'
-is_empty "so no protocol comes back for it" \
-  "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"protocol":[^,}]*')"
-has "a registered name nobody serves is not shown as read" \
-  "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":[a-z]*\|"name":"plain.svc@srv1"')" '"name":"plain.svc@srv1"'
-is_empty "and reading is absent rather than false" \
-  "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":true')"
-# And with a reader attached, the same query says so — this is the whole
-# difference between "registered" and "callable right now".
-ab reader@srv1 register reader@srv1 >/dev/null
-ab reader@srv1 consume --wait 6s >/dev/null 2>&1 &
-reader_pid=$!
-sleep 1
-has "a name something is reading says so" "$(ab nobody@srv1 ls reader@srv1)" '"reading":true'
-ab nobody@srv1 send reader@srv1 "wake up" >/dev/null
-wait $reader_pid
-has "and the depth of what is waiting is visible" \
-  "$(ab nobody@srv1 send plain.svc@srv1 "one" >/dev/null; ab nobody@srv1 ls plain.svc@srv1)" '"queued":1'
+if slow; then
+  sec "a listing says whether a call would reach anyone"
+  # Being in the registry and being callable are different facts: "there is a
+  # MySQL on db1:3306" registers fine and nothing on this bus answers for it.
+  ab owner@srv1 register db.main@srv1 --protocol mysql --addr db1:3306 --descr "the main database" >/dev/null
+  has "a registration can say how to call it" "$(ab nobody@srv1 ls db.main@srv1)" '"protocol":"mysql"'
+  # Asserted on the record itself, not on an empty grep: an is_empty that a
+  # failed query also satisfies is a check that passes with the daemon down.
+  ab owner@srv1 register plain.svc@srv1 >/dev/null
+  has "and an ordinary bus service says nothing, because there is nothing to say" \
+    "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"name":"plain.svc@srv1"\|"protocol":')" '"name":"plain.svc@srv1"'
+  is_empty "so no protocol comes back for it" \
+    "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"protocol":[^,}]*')"
+  has "a registered name nobody serves is not shown as read" \
+    "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":[a-z]*\|"name":"plain.svc@srv1"')" '"name":"plain.svc@srv1"'
+  is_empty "and reading is absent rather than false" \
+    "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":true')"
+  # And with a reader attached, the same query says so — this is the whole
+  # difference between "registered" and "callable right now".
+  ab reader@srv1 register reader@srv1 >/dev/null
+  ab reader@srv1 consume --wait 6s >/dev/null 2>&1 &
+  reader_pid=$!
+  sleep 1
+  has "a name something is reading says so" "$(ab nobody@srv1 ls reader@srv1)" '"reading":true'
+  ab nobody@srv1 send reader@srv1 "wake up" >/dev/null
+  wait $reader_pid
+  has "and the depth of what is waiting is visible" \
+    "$(ab nobody@srv1 send plain.svc@srv1 "one" >/dev/null; ab nobody@srv1 ls plain.svc@srv1)" '"queued":1'
 
-echo "== configuring a service template produces a configured service"
+else skipped=$((skipped+1)); fi
+sec "configuring a service template produces a configured service"
 # The configuration is arbitrary JSON and stays opaque; the one thing that
 # matters to the bus is that it never shows up where it should not.
 echo '{"model":"opus","depth":3}' | ab owner@srv1 service-template code-review/cfg@rdvp - >/dev/null
@@ -578,27 +620,29 @@ has "a read works with no terminal on stdin" \
   "$(ab code-review/cfg@rdvp service-template code-review/cfg@rdvp </dev/null)" '"depth":3'
 
 
-echo "== a full queue: refuse by default, drop the oldest if asked"
-ab owner@srv1 register sink@srv1 --kind generic >/dev/null
-ab owner@srv1 register ringy@srv1 --kind generic --overflow ring >/dev/null
-has "a record says what a full queue does, and refuses by default" \
-  "$(ab owner@srv1 ls | grep -o '{[^}]*"name":"sink@srv1"[^}]*}')" '"overflow":"strict"'
-has "an overflow mode that is neither is refused" \
-  "$(ab owner@srv1 register bad@srv1 --overflow maybe 2>&1)" 'overflow is strict or ring'
-# 1001 into a queue bounded at 1000, twice: strict must refuse the last one,
-# ring must swallow it and lose the first.
-for i in $(seq 0 1000); do ab flood@srv1 send sink@srv1 "msg-$i" >/dev/null 2>&1; done
-out=$(ab flood@srv1 send sink@srv1 "one too many" 2>&1); rc=$?
-bad_exit "strict refuses the send rather than lose a message" $rc
-has "and names the queue that is full" "$out" 'queue is full: sink@srv1'
-has "and says the receiver cannot take it, not that we broke" \
-  "$(post_code flood@srv1 $TOKEN /send '{"to":"sink@srv1","body":"one more"}')" '503'
-has "nothing was dropped" "$(ab asker@srv1 status)" '"dropped":0'
-for i in $(seq 0 1000); do ab flood@srv1 send ringy@srv1 "msg-$i" >/dev/null 2>&1; done
-has "ring keeps taking, and the oldest is what went" "$(ab ringy@srv1 consume --wait 2s)" 'msg-1"'
-has "and the loss is counted, not silent" "$(ab asker@srv1 status)" '"dropped":1'
+if slow; then
+  sec "a full queue: refuse by default, drop the oldest if asked"
+  ab owner@srv1 register sink@srv1 --kind generic >/dev/null
+  ab owner@srv1 register ringy@srv1 --kind generic --overflow ring >/dev/null
+  has "a record says what a full queue does, and refuses by default" \
+    "$(ab owner@srv1 ls | grep -o '{[^}]*"name":"sink@srv1"[^}]*}')" '"overflow":"strict"'
+  has "an overflow mode that is neither is refused" \
+    "$(ab owner@srv1 register bad@srv1 --overflow maybe 2>&1)" 'overflow is strict or ring'
+  # 1001 into a queue bounded at 1000, twice: strict must refuse the last one,
+  # ring must swallow it and lose the first.
+  for i in $(seq 0 1000); do ab flood@srv1 send sink@srv1 "msg-$i" >/dev/null 2>&1; done
+  out=$(ab flood@srv1 send sink@srv1 "one too many" 2>&1); rc=$?
+  bad_exit "strict refuses the send rather than lose a message" $rc
+  has "and names the queue that is full" "$out" 'queue is full: sink@srv1'
+  has "and says the receiver cannot take it, not that we broke" \
+    "$(post_code flood@srv1 $TOKEN /send '{"to":"sink@srv1","body":"one more"}')" '503'
+  has "nothing was dropped" "$(ab asker@srv1 status)" '"dropped":0'
+  for i in $(seq 0 1000); do ab flood@srv1 send ringy@srv1 "msg-$i" >/dev/null 2>&1; done
+  has "ring keeps taking, and the oldest is what went" "$(ab ringy@srv1 consume --wait 2s)" 'msg-1"'
+  has "and the loss is counted, not silent" "$(ab asker@srv1 status)" '"dropped":1'
 
-echo "== --wait is the caller's deadline, not just the daemon's"
+else skipped=$((skipped+1)); fi
+sec "--wait is the caller's deadline, not just the daemon's"
 # Against a bus that answers everything but stalls the consume: the wait the
 # daemon is asked for cannot bound a transfer that never finishes, so the
 # deadline has to be on the client's own request.
@@ -618,7 +662,7 @@ else
 fi
 has "and says the message was accepted" "$out" 'do not resend'
 
-echo "== the token an SSH forced command hands out"
+sec "the token an SSH forced command hands out"
 # Not "contains the token": a debug line printed before it passed that, and
 # $(ssh … static-token) would then hold a credential that does not work. The
 # proof is the captured value authenticating against the daemon.
@@ -637,38 +681,47 @@ has "and says why" "$out" 'one command'
 out=$(AGENT_BUS_TOKEN_FILE=$D/absent ./static-token 2>&1); rc=$?
 bad_exit "a missing token file is an error, not an empty token" $rc
 
-echo "== the MCP face"
-# bun is not optional: the MCP face and both push modes are the PoC
-# (docs/12-stages.md#poc), so a host without it fails rather than passing green.
-if ! command -v bun >/dev/null 2>&1; then
-  echo "  FAIL bun is not installed; the MCP face cannot be checked"
-  fail=$((fail + 1))
-else
-  # The shared JSON-RPC plumbing, driven directly: the harnesses below only
-  # ever have one request in flight and never split a line across chunks, so
-  # they leave most of rpc.ts unwatched (mcp/rpc.test.ts says why).
-  out=$(cd mcp && timeout 60 bun test rpc.test.ts 2>&1)
-  rc=$?
-  echo "$out" | sed 's/^/  /'
-  ok_exit "rpc unit tests" $rc
+if slow; then
+  sec "the MCP face"
+  # bun is not optional: the MCP face and both push modes are the PoC
+  # (docs/12-stages.md#poc), so a host without it fails rather than passing green.
+  if ! command -v bun >/dev/null 2>&1; then
+    echo "  FAIL bun is not installed; the MCP face cannot be checked"
+    fail=$((fail + 1))
+  else
+    # The shared JSON-RPC plumbing, driven directly: the harnesses below only
+    # ever have one request in flight and never split a line across chunks, so
+    # they leave most of rpc.ts unwatched (mcp/rpc.test.ts says why).
+    out=$(cd mcp && timeout 60 bun test rpc.test.ts 2>&1)
+    rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "rpc unit tests" $rc
 
-  # each harness runs its own peer in-process, so there is no start-order race
-  out=$(cd mcp && timeout 120 env AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN \
-        AGENT_BUS_NAME=mcp.session@srv1 SMOKE_PEER=peer@srv1 bun run smoke.ts 2>&1)
-  rc=$?
-  echo "$out" | sed 's/^/  /'
-  ok_exit "mcp smoke" $rc
+    # each harness runs its own peer in-process, so there is no start-order race
+    out=$(cd mcp && timeout 120 env AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN \
+          AGENT_BUS_NAME=mcp.session@srv1 SMOKE_PEER=peer@srv1 bun run smoke.ts 2>&1)
+    rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "mcp smoke" $rc
 
-  out=$(cd mcp && timeout 120 env AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN \
-        AGENT_BUS_NAME=pusher@srv1 PUSH_NAME=push.session@srv1 bun run smoke-push.ts 2>&1)
-  rc=$?
-  echo "$out" | sed 's/^/  /'
-  ok_exit "claude push smoke" $rc
+    out=$(cd mcp && timeout 120 env AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN \
+          AGENT_BUS_NAME=pusher@srv1 PUSH_NAME=push.session@srv1 bun run smoke-push.ts 2>&1)
+    rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "claude push smoke" $rc
 
-  out=$(cd mcp && timeout 120 bun run smoke-codex.ts 2>&1)
-  rc=$?
-  echo "$out" | sed 's/^/  /'
-  ok_exit "codex adapter smoke" $rc
+    out=$(cd mcp && timeout 120 bun run smoke-codex.ts 2>&1)
+    rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "codex adapter smoke" $rc
+  fi
+
+else skipped=$((skipped+1)); fi
+sec "end"
+echo; echo "passed $pass, failed $fail"
+if [ "$skipped" -gt 0 ]; then
+  echo "SKIPPED $skipped slow sections and the race detector — this is NOT a full run."
+  echo "         run ./smoke.sh --slow before believing a change."
 fi
-
-echo; echo "passed $pass, failed $fail"; [ $fail -eq 0 ]
+echo; echo "slowest sections (ms):"; sort -rn "$D/timing" | head -14 | sed 's/^/  /'
+[ $fail -eq 0 ]

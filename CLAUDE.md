@@ -9,8 +9,9 @@ server and dashboard for AI agents, bots and services. Design docs, and the
 code they describe.
 
 **The PoC is built, in `src/`**, beside `docs/` and `Plans/`; everything past
-it is still design. Code changes need `go test -race ./...`, `go vet ./...`
-and `src/smoke.sh` green, and a check is not believed until it has been
+it is still design. Code changes need **`src/smoke.sh --slow`** green — it runs
+`go vet` and `go test -race` itself; the bare `./smoke.sh` is a fast subset for
+the edit-run loop and is not proof. A check is not believed until it has been
 watched failing with its fix broken. V1 (NATS JetStream) is implemented
 elsewhere:
 code at `/rd/service/agent-bus/` (`README.md`, `HOWTO.md`), normative design at
