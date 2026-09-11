@@ -77,7 +77,7 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 
 | Rule | |
 |---|---|
-| exit 0 | stdout is the reply; empty stdout means no reply |
+| exit 0 | stdout is the reply; **empty stdout is `done`** — the work finished with nothing to return, and the caller hears that instead of waiting ([messaging § receipts](04-messaging.md#receipts)) |
 | exit non-zero | no reply, logged with stderr. Nothing retries it |
 | one process per message | no state between messages |
 | `-N` | how many script processes may run **at once**; default 1, so a script that is not safe to run twice does not have to be |

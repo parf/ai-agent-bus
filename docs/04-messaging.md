@@ -55,6 +55,11 @@ wait is an ordinary `consume`, and a caller that does not want to wait simply
 does not. A service may answer twice (`ack` now, result later) or hand the
 answer to a third party with `reply-to`.
 
+❓ **Does the caller's deadline travel with the request?** A service that
+cannot see it cannot give up early, and two parties time out independently
+today. Carrying it is a field on the wire. *Settled by:* the owner, with the
+MVP.
+
 ## One reader per inbox
 
 **An inbox has exactly one reader.** A session runs a push adapter, an MCP
@@ -154,6 +159,14 @@ And **no receipt means unknown** — the request, the work or the receipt may
 be late or lost — never proof of loss. Receipts remove a layer of guessing,
 not the uncertainty itself.
 
+**`done` ends a caller's wait.** A service that replies has plainly finished,
+so it sends no `done`; therefore a `done` that does arrive says *finished, and
+no answer is coming*. A caller blocked on the answer stops there rather than
+sitting out its deadline for something that will never be sent — and says
+which of the two happened, because "finished with nothing to return" and "no
+answer in time" are different outcomes. `ack` ends nothing: it says the work
+started, not that it stopped.
+
 Both are ordinary messages to the sender's queue (or its `reply-to`), carrying
 the original `message_id`, topic and tag. The field is a **closed set** — one
 of those two words — because a caller tells an answer from a receipt by
@@ -207,6 +220,13 @@ context has one owner either way.
 **push** address and `agent-busd` delivers to it. Agent sessions are pushed
 through a per-runtime adapter — see
 [runner § adapters](08-runner-role.md#adapters).
+
+❓ **What a subscriber is, and where a fan-out copy goes.** A subscription is
+the `consume:<glob>` capability ([stages § MVP](12-stages.md#mvp)), but a pull
+model still has to say whether a subscriber is an outstanding read or a
+principal holding the capability, and whether a copy lands in each
+subscriber's inbox — in which case the fan-out does not keep nothing, and each
+inbox's overflow applies. *Settled by:* the owner, with the MVP.
 
 ## Overflow
 
