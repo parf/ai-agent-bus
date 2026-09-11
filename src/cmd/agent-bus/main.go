@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -33,6 +34,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
   agent-bus consume [--topic t] [--tag g] [--wait 30s] [--follow]
   agent-bus ack <message-id>
+  agent-bus done <message-id>
   agent-bus reply <message-id> <text>
   agent-bus reply --to <name> [--topic t] [--tag g] <text>
   agent-bus topic create <name> [--kind queue|pubsub] [--descr d] [--overflow ring|strict]
@@ -66,7 +68,9 @@ func main() {
 	case "consume":
 		err = consume(rest)
 	case "ack":
-		err = ack(rest)
+		err = receipt(protocol.ReceiptAck, rest)
+	case "done":
+		err = receipt(protocol.ReceiptDone, rest)
 	case "topic":
 		err = topic(rest)
 	case "service-template":
@@ -194,6 +198,7 @@ func callVerb(args []string) error {
 	ctx, cancel := context.WithDeadline(context.Background(), until)
 	defer cancel()
 	tooLate := fmt.Errorf("no answer within %s (the message was accepted; do not resend it)", deadline)
+	errFinished := errors.New("the service finished and sent no answer (not a timeout; do not resend it)")
 
 	q := url.Values{"topic": {topic}, "tag": {tag}}
 	for {
@@ -215,27 +220,35 @@ func callVerb(args []string) error {
 		}
 		if e.Receipt != "" {
 			fmt.Fprintf(os.Stderr, "%s from %s\n", e.Receipt, e.From)
-			continue // a receipt is not the answer
+			// A receipt is not the answer — but `done` says no answer is
+			// coming, so waiting on past it only spends the deadline.
+			// See docs/04-messaging.md#receipts.
+			if e.Receipt == protocol.ReceiptDone {
+				return errFinished
+			}
+			continue
 		}
 		os.Stdout.Write(body)
 		return nil
 	}
 }
 
-// ack says "got it" back to whoever sent the message: an ordinary message on
-// the same topic and tag, naming the one it is about.
+// receipt says something back about a message this client consumed: `ack`
+// got it, `done` finished it. Both are ordinary messages on the same topic
+// and tag, naming the one they are about, so one function serves both verbs
+// and the closed set stays closed by construction.
 // See docs/04-messaging.md#receipts.
-func ack(args []string) error {
+func receipt(kind string, args []string) error {
 	pos, _ := split(args)
 	if len(pos) != 1 {
-		return fmt.Errorf("ack wants one message-id")
+		return fmt.Errorf("%s wants one message-id", kind)
 	}
 	c, found := recall(pos[0])
 	if !found {
 		return fmt.Errorf("message %s is not one this client consumed", pos[0])
 	}
 	return post("/send", protocol.Envelope{
-		To: c.From, Topic: c.Topic, Tag: c.Tag, Receipt: "ack", Re: c.ID,
+		To: c.From, Topic: c.Topic, Tag: c.Tag, Receipt: kind, Re: c.ID,
 	})
 }
 

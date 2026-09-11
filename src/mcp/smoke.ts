@@ -68,7 +68,8 @@ try {
 
   const list = await request("tools/list");
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
-  check("four ab_ tools", JSON.stringify(names) === JSON.stringify(["ab_consume", "ab_ls", "ab_reply", "ab_send"]), names.join(","));
+  const expected = ["ab_consume", "ab_ls", "ab_receipt", "ab_reply", "ab_send"];
+  check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
 
   const me = process.env.AGENT_BUS_NAME!;
   const ls = await call("ab_ls");
@@ -109,6 +110,48 @@ try {
 
   const bogus = await call("ab_reply", { message_id: "deadbeef", text: "x" });
   check("ab_reply refuses an id it did not consume", bogus.isError, bogus.text);
+
+  // A face that can only answer cannot say "finished, nothing to send back".
+  // Checking what the tool *said* is not enough: the peer is what proves the
+  // receipt was routed and carried the right kind.
+  await peer.send({ to: me, body: "work with no answer", topic: "t-done", tag: "g3" });
+  const chore = await call("ab_consume", { topic: "t-done", tag: "g3", wait: "5s" });
+  const choreId = chore.text.match(/id ([0-9a-f]+)/)?.[1] ?? "";
+  const said = await call("ab_receipt", { message_id: choreId, kind: "done" });
+  check("ab_receipt reports the done it sent", !said.isError && said.text.includes("done"), said.text);
+  const receipt = await peer.consume({ topic: "t-done", tag: "g3", wait: "5s" });
+  check(
+    "the peer gets a done, not an answer",
+    receipt?.receipt === "done" && receipt?.re === choreId && receipt?.from === me,
+    JSON.stringify(receipt),
+  );
+  // Same for the face: a filtered wait must end on the done, not run out its
+  // deadline. The tool description promises exactly this.
+  {
+    setTimeout(() => {
+      void peer.send({ to: me, body: "", topic: "t-fin", tag: "g4", receipt: "done", re: "whatever" } as any);
+    }, 400);
+    const t0 = Date.now();
+    const fin = await call("ab_consume", { topic: "t-fin", tag: "g4", wait: "8s" });
+    const took = Date.now() - t0;
+    check("a filtered wait ends on done, not at the deadline", took < 4000, `waited ${took} ms of 8s`);
+    check(
+      "and does not tell the model an answer is still coming",
+      fin.text.includes("sent no answer") && !fin.text.includes("still to come"),
+      fin.text.slice(0, 200),
+    );
+  }
+
+  // A refusal is never reported as silence: the daemon owns the closed set,
+  // and the face's job is to hand its words to the model rather than swallow
+  // them into a cheerful success.
+  const notAReceipt = await call("ab_receipt", { message_id: choreId, kind: "maybe" });
+  check(
+    "a refused receipt reaches the model in the daemon's words",
+    // the daemon's words arrive JSON-escaped, so match the sentence, not the quoting
+    notAReceipt.isError && notAReceipt.text.includes("a receipt is") && notAReceipt.text.includes("maybe"),
+    notAReceipt.text,
+  );
 
   // A receipt is not an answer. The CLI has always known this; the face did
   // not, and handed the model an ack with an empty body while the answer

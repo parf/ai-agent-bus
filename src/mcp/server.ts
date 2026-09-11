@@ -30,6 +30,12 @@ function remember(e: Envelope) {
   if (consumed.size > REMEMBER) consumed.delete(consumed.keys().next().value!);
 }
 
+// Both ab_reply and ab_receipt need the envelope this session consumed, and
+// both fail the same way without it.
+const noContext = (id: string) =>
+  `no reply context for ${id}: this session did not consume it, or it aged out of the last ${REMEMBER}. ` +
+  `Use ab_send with the original sender, topic and tag — a reply is matched on all three.`;
+
 const tools = [
   {
     name: "ab_ls",
@@ -83,6 +89,20 @@ const tools = [
         text: { type: "string" },
       },
       required: ["message_id", "text"],
+    },
+  },
+  {
+    name: "ab_receipt",
+    description:
+      "Tell the sender of a message this session consumed what became of it: 'ack' that you have it, 'done' that you finished. " +
+      "Neither is an answer — send the answer with ab_reply. Use 'done' when the work produced no answer to send, so the asker stops waiting instead of timing out.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        message_id: { type: "string" },
+        kind: { type: "string", enum: ["ack", "done"], description: "ack = got it, done = finished it" },
+      },
+      required: ["message_id", "kind"],
     },
   },
 ] as const;
@@ -156,19 +176,16 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
           const e = await bus.consume({ topic, tag, wait: `${left}ms` }, extra.signal);
           if (!e) return text("nothing waiting");
           remember(e);
-          if (!e.receipt || !(topic || tag)) return text(describe(e));
+          // `done` says no answer is coming, so a filtered wait ends on it
+          // rather than spending the rest of the deadline
+          // (docs/04-messaging.md#receipts).
+          if (!e.receipt || e.receipt === "done" || !(topic || tag)) return text(describe(e));
         }
       }
       case "ab_reply": {
         const id = need(args, "message_id"), body = need(args, "text");
         const original = consumed.get(id);
-        if (!original) {
-          return text(
-            `no reply context for ${id}: this session did not consume it, or it aged out of the last ${REMEMBER}. ` +
-              `Use ab_send with the original sender, topic and tag — a reply is matched on all three.`,
-            true,
-          );
-        }
+        if (!original) return text(noContext(id), true);
         const e = await bus.send({
           to: original.from,
           body,
@@ -176,6 +193,24 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
           tag: original.tag,
         });
         return text(`replied to ${original.from} as ${e.message_id}`);
+      }
+      case "ab_receipt": {
+        // The closed set has one home, and it is the daemon
+        // (docs/04-messaging.md#receipts). Checking it again here would be a
+        // second place to edit, and the refusal it sends back is the better
+        // answer anyway — what matters is that the face does not swallow it.
+        const id = need(args, "message_id"), kind = need(args, "kind");
+        const original = consumed.get(id);
+        if (!original) return text(noContext(id), true);
+        await bus.send({
+          to: original.from,
+          body: "",
+          topic: original.topic,
+          tag: original.tag,
+          receipt: kind,
+          re: id,
+        });
+        return text(`told ${original.from} ${kind} for ${id}`);
       }
       default:
         return text(`unknown tool ${req.params.name}`, true);
@@ -229,7 +264,13 @@ function describe(e: Envelope): string {
   // A receipt carries no body: saying so beats handing over a blank one,
   // which reads as an empty answer (docs/04-messaging.md#receipts).
   if (e.receipt) {
-    return `${head}\n\nreceipt: ${e.receipt} — ${e.from} ${e.receipt === "ack" ? "received" : "finished"} ${e.re ?? "your message"}. Not an answer; the answer is still to come.`;
+    const what = e.re ?? "your message";
+    // The two say opposite things about what happens next, and telling the
+    // model "the answer is still to come" after a `done` is a lie that costs
+    // it a pointless wait (docs/04-messaging.md#receipts).
+    return e.receipt === "done"
+      ? `${head}\n\nreceipt: done — ${e.from} finished ${what} and sent no answer. Nothing further is coming; do not wait for it.`
+      : `${head}\n\nreceipt: ack — ${e.from} received ${what}. Not an answer; the answer is still to come.`;
   }
   return `${head}\n\n${e.body}`;
 }

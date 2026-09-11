@@ -190,13 +190,21 @@ func next(ctx context.Context, q url.Values) (protocol.Envelope, []byte, bool, e
 // handle runs the script once and answers with what it printed. A non-zero
 // exit sends no reply — the caller waits and times out. That says the script
 // failed, not that it did nothing: it may have got half way first.
+//
+// A script that succeeds and prints nothing sends `done` instead. Without it
+// the caller has an `ack` and then silence forever, which is the one case
+// `done` exists for; a script that answers skips it, because a reply has
+// plainly finished. See docs/04-messaging.md#receipts.
 func handle(svc service, e protocol.Envelope) {
-	// ack first: the service has the message, whatever happens next.
-	if err := postQuiet("/send", protocol.Envelope{
-		To: e.From, Topic: e.Topic, Tag: e.Tag, Receipt: protocol.ReceiptAck, Re: e.ID,
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: could not ack %s: %v\n", svc.Name, e.ID, err)
+	say := func(kind string) {
+		if err := postQuiet("/send", protocol.Envelope{
+			To: e.From, Topic: e.Topic, Tag: e.Tag, Receipt: kind, Re: e.ID,
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: could not %s %s: %v\n", svc.Name, kind, e.ID, err)
+		}
 	}
+	// ack first: the service has the message, whatever happens next.
+	say(protocol.ReceiptAck)
 
 	cmd := exec.Command("sh", "-c", svc.Script)
 	if svc.Algo == algoArgs {
@@ -221,9 +229,11 @@ func handle(svc service, e protocol.Envelope) {
 		return
 	}
 	// Nothing printed is not an empty answer: a script that only does
-	// something says so by staying quiet, and the ack already went back.
+	// something says so by staying quiet — and `done` is how the caller
+	// hears that it finished rather than waiting out its deadline.
 	answer := strings.TrimRight(string(out), "\n")
 	if answer == "" {
+		say(protocol.ReceiptDone)
 		return
 	}
 	if err := postQuiet("/send", protocol.Envelope{

@@ -241,6 +241,62 @@ has "and answers it" \
   "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" 'Hello waiting for whoever shows up'
 kill $APID 2>/dev/null; wait $APID 2>/dev/null
 
+echo "== done: a script that finishes without an answer says so"
+# The gap `done` exists for. A script that succeeds and prints nothing used to
+# leave the caller with an ack and then silence until its deadline: the work
+# was finished and there was no way to hear it. A script that *answers* must
+# not also send one — a reply has plainly finished.
+printf '#!/bin/sh\ntrue\n' > "$D/silent.sh"; chmod +x "$D/silent.sh"
+ab owner@srv1 register quiet@srv1 --kind generic >/dev/null
+abx launcher@srv1 start quiet@srv1 --algo args "$D/silent.sh" --descr "says nothing" >>"$D/start.log" 2>&1 &
+QPID=$!
+for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'says nothing' && break; sleep 0.2; done
+ab caller@srv1 send quiet@srv1 --topic dn --tag 1 "do it quietly" >/dev/null
+has "the silent service acks first" \
+  "$(ab caller@srv1 consume --topic dn --tag 1 --wait 15s)" '"receipt":"ack"'
+has "and then says it finished" \
+  "$(ab caller@srv1 consume --topic dn --tag 1 --wait 15s)" '"receipt":"done"'
+# The point of `done`, and the thing the first cut of this wave did not do:
+# a caller blocked on the answer stops when the work finishes with nothing to
+# return, instead of spending its whole deadline. Timing IS the check — the
+# margin is wide enough not to be a timing test.
+t0=$(date +%s)
+out=$(ab caller@srv1 call quiet@srv1 --topic dn5 --tag 1 --wait 20s "quietly again" 2>&1); rc=$?
+t1=$(date +%s)
+has "a call ends on done, saying which outcome it was" "$out" 'finished and sent no answer'
+bad_exit "and does not pretend it got an answer" $rc
+if [ $((t1-t0)) -lt 8 ]; then echo "  ok   and returns on the receipt, not at the deadline"; pass=$((pass+1));
+else echo "  FAIL and returns on the receipt, not at the deadline: waited $((t1-t0))s of 20s"; fail=$((fail+1)); fi
+kill $QPID 2>/dev/null; wait $QPID 2>/dev/null
+
+# A service that answers skips `done`: the check is that the message after the
+# ack is the answer, so an unconditional `done` turns it red.
+ab owner@srv1 register loud@srv1 --kind generic >/dev/null
+abx launcher@srv1 start loud@srv1 --algo args "$D/hello-world.sh" --descr "answers" >>"$D/start.log" 2>&1 &
+LPID=$!
+for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'answers' && break; sleep 0.2; done
+ab caller@srv1 send loud@srv1 --topic dn3 --tag 1 "out loud" >/dev/null
+ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s >/dev/null
+has "a service that answers sends no done" \
+  "$(ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s)" 'Hello out loud'
+kill $LPID 2>/dev/null; wait $LPID 2>/dev/null
+
+# The verb itself: one function serves both receipts, so `done` must reach the
+# sender exactly as `ack` does.
+ab owner@srv1 register handy@srv1 --kind generic >/dev/null
+ab caller@srv1 send handy@srv1 --topic dn4 --tag 1 "by hand" >/dev/null
+hid=$(ab handy@srv1 consume --wait 5s | sed -n 's/.*"message_id":"\([^"]*\)".*/\1/p')
+ab handy@srv1 done "$hid" >/dev/null
+has "the done verb sends a done receipt" \
+  "$(ab caller@srv1 consume --topic dn4 --tag 1 --wait 5s)" '"receipt":"done"'
+# The exit code alone passed with the guard deleted: an unremembered id then
+# sends to an empty receiver and the DAEMON refuses it. Which end refused has
+# to be in the check, or it is not checking this end.
+has "done refuses an id this client never consumed" \
+  "$(ab handy@srv1 done 0000 2>&1)" 'not one this client consumed'
+bad_exit "and exits non-zero" \
+  "$(ab handy@srv1 done 0000 >/dev/null 2>&1; echo $?)"
+
 printf '#!/bin/sh\necho "ran $1"\n' > "$D/quick.sh"; chmod +x "$D/quick.sh"
 abx launcher@srv1 start stopper@srv1 --algo args "$D/quick.sh" --descr "stops" >>"$D/start.log" 2>&1 &
 TPID=$!
