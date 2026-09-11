@@ -197,6 +197,11 @@ unspecified** — it is not reloaded, restarted or notified, so it sees a change
 only if it reads again. *Settled by:* the owner, when the runner supervises
 services ([runner](08-runner-role.md)).
 
+❓ **Nothing on a record carries method information**, so there is nothing for
+a generated catalog to generate from ([discovery § faces](05-discovery.md#faces)).
+What shape that takes is a data model. *Settled by:* the owner, when the MVP
+faces are built.
+
 ## Topics
 
 A topic is registered like a service and is **first-class** in the same
