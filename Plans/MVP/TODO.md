@@ -38,7 +38,7 @@ Two more were raised by this plan and are now indexed with the rest:
 
 | Gates | ❓ | Where it is settled |
 |---|---|---|
-| A.5 | whether several workers behind one name revises the one-reader rule | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
+| A.5 | whether several readers may block on one inbox at once | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
 | D.1, D.2 | how a queued body is decrypted by a receiver that was not present when it was sent | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
 
 ⚠️ **The owner check is a caller-name guard, not security** — and registering
@@ -67,7 +67,7 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 | A.2 | the deadline travels to the service | today it is the caller's alone ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)); a service that cannot see it cannot give up early. ❗ a wire field — owner's call |
 | A.3 | TTL per message, bounded by the topic's | needs the topic to carry a TTL and a bound at all ([services § topics](../../docs/03-services-and-topics.md#topics)); the queue bound is one constant today |
 | A.4 | `reply-to`, and the reply address checked at accept | the rule is settled and assigned to this stage ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)); fire-and-forget stays open to unregistered senders |
-| A.5 | several workers behind one name | **blocked** on the ❓ above. If it is the existing pool, the work is G.2's supervision and A.5 is empty |
+| A.5 | several workers behind one name | competing consumers already work — 500 messages to 8 readers, none twice, none lost. What is missing is N readers **blocking** on an empty inbox; **blocked** on the ❓ above |
 | A.6 | per-service call stats | counted in memory; a listing may show them, a caller may never state them ([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)) |
 
 **Done when**, and what breaking it must do:
@@ -81,6 +81,9 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 - a message expires and is counted in a **TTL-specific** counter with no ring
   overflow in play — sharing the ring's counter would let a ring drop pass it;
 - a topic whose TTL is shorter than a message's bounds the message;
+- N workers idle on an **empty** inbox all receive work as it arrives — a
+  prefilled queue passes without that, which is how the first draft of this
+  criterion passed on PoC code;
 - `ls` shows a service's call count, and deleting A.6 turns that check red.
 
 **Cut costs**: A.2 and A.4's third-party routing are the droppable pair. The

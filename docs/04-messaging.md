@@ -85,15 +85,17 @@ while the wait is outstanding, and a wait ends at one message. A receipt is a
 message, so between the `ack` and the wait that follows it the unfiltered
 reader can take the reply.
 
-❓ **Does "several workers behind one name" revise this rule?**
-[stages § MVP](12-stages.md#mvp) lists it, and the design's existing answer is
-one reader with a pool of script processes behind it
-([runner § script services](08-runner-role.md#script-services)). If N
-independent readers are meant instead, the rule above is being revised, and the
-revision has to say how a deliberate worker is told from the accidental second
-reader it exists to catch. [services § topics](03-services-and-topics.md#topics)
-already describes a queue topic as having competing consumers, so the two
-documents disagree today. *Settled by:* the owner, with the MVP.
+❓ **May several readers block on one inbox at once?** Competing consumers
+already work: while there is a backlog, N readers take turns and no message
+goes to two of them — the rule bites only on an **empty** inbox, where one
+reader waits and the rest are refused. That is the steady state of a worker
+pool, so [stages § MVP](12-stages.md#mvp)'s *several workers behind one name*
+needs it. The rule's reason is an *accidental* second reader inside one
+session, not a deliberate pool, so what a revision must supply is how the
+daemon tells the two apart. Note
+[services § topics](03-services-and-topics.md#topics) already describes a
+queue topic as having competing consumers. *Settled by:* the owner, with the
+MVP.
 
 ❓ **Should reading an inbox and filtering one be different options?**
 `--topic` means both, told apart by a tag and by what is registered, so a

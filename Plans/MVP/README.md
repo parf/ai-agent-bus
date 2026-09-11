@@ -50,9 +50,10 @@ claim; the link owns the rule.
 - **A refusal is never reported as silence** ([messaging § verbs](../../docs/04-messaging.md#verbs)).
 - **`consume` is at-most-once** and the daemon keeps no reply state
   ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)).
-- **An inbox has exactly one reader**
-  ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)) —
-  a settled rule that one line of the MVP scope appears to contradict; see
+- **No message reaches two readers**, and competing consumers take turns
+  ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)).
+  What that section additionally restricts is *blocked* reads on an empty
+  inbox — one at a time — which is the part the MVP scope pushes on; see
   [TODO § blockers](TODO.md#blockers).
 - **Names** ([identity § names](../../docs/01-identity.md#names)).
 
