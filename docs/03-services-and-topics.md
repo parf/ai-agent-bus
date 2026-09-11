@@ -180,11 +180,12 @@ answer, not a longer hash.
 designed but not built
 ([identity § sealed private config](01-identity.md#sealed-private-config)), and
 its stage is [stages § release 1](12-stages.md#release-1). Until then: a
-configuration is readable by anyone who can read the daemon's state, it is lost
-when the daemon restarts, and the owner check is a caller-name guard, not
-security — the caller's name is now real
-([access § two parameters](02-access.md#two-parameters)), but registering over
-a name nobody owns is still not checked.
+configuration is readable by anyone who can read the daemon's state, and it is
+lost when the daemon restarts. The owner check itself is real now — the
+caller's name is checked against its credential
+([access § two parameters](02-access.md#two-parameters)) and a record is only
+its owner's to change ([identity § ownership](01-identity.md#ownership)) —
+but *claiming* a name nobody holds is still open to anyone.
 
 **A service fetches its own configuration; nothing injects it** — and it is
 the only one that can, so this runs as the service, not as its owner:

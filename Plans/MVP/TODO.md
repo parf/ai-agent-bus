@@ -109,7 +109,7 @@ message that bounces later.
 | B.4 | the store behind a port ([modules § the rule](../../docs/10-modules.md#the-rule)) | core never imports it; **what goes in it is a blocker**, and tokens are the part the design already requires durable ([setup § storage](../../docs/09-setup.md#storage)) |
 | B.5 | ✅ _done_ — the principal is an argument of the forced command, so the key a person holds picks the line and they cannot ask for another ([access § getting a token](../../docs/02-access.md#getting-a-token)) |
 | B.6 | ✅ _done_ — both clients carry a name **and its own token**; the runner swaps both when it becomes the service, and the MCP face can mint one for a name it may have |
-| B.7 | the owner check becomes a check | registration over someone else's name is refused ([identity § ownership](../../docs/01-identity.md#ownership)); the ⚠️ in [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) goes in the same commit |
+| B.7 | ✅ _done_ — re-registering somebody else's record is refused, and told whose it is; the record itself may still refresh its own ([identity § ownership](../../docs/01-identity.md#ownership)). Claiming an unheld name stays open — that half is B.8's |
 | B.8 | enrolment: manual, then GitHub with possession proved | fetching a public key is not authentication ([identity § registration](../../docs/01-identity.md#registration)). Where the proof step sits relative to the `directory` port ([modules § modules](../../docs/10-modules.md#modules)) needs an owning edit before it is built — it is more than fetching |
 | B.9 | ✅ _done_ — every name in the suite has its own credential, minted from the owner on first use; there is no shared token left to bypass with |
 | B.10 | ✅ _settled_ — `token` is the credential verb, `register` the registry one ([access § getting a token](../../docs/02-access.md#getting-a-token)); B.1 and B.5 build it |
@@ -126,7 +126,8 @@ message that bounces later.
 - issue, rotate, restart: the current and the previous token both work, the one
   before that is refused;
 - Alice cannot re-register Bob's name, and cannot change its address while it
-  still reads as Bob's — this fails today, verified;
+  still reads as Bob's — and a service refreshing its **own** record still
+  works, or every service breaks on its second start;
 - an enrolment with a key the account does not hold is refused, and an enrolled
   principal keeps working with the provider unreachable;
 - `smoke.sh` runs with two principals and its own sockets, and a mutation that

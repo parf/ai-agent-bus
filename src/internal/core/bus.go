@@ -136,7 +136,19 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	}
 	r.Config, r.ConfigSHA = nil, ""
 	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
+	// Publishing a name is open to anyone; changing one that exists belongs
+	// to its owner, and to the record itself — a service registering on
+	// every start is not a stranger to its own name, and it is the only
+	// other principal that could hold that name's credential.
+	// Keeping the stored owner while letting the rest be overwritten was a
+	// caller-name guard, not a check: it left the name with the right owner
+	// and somebody else's address.
+	// See docs/01-identity.md#ownership.
 	if old, known := b.records[name]; known {
+		caller := r.Owner // the face puts the caller here, not a claim
+		if old.Owner != "" && caller != old.Owner && caller != name {
+			return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, name, old.Owner)
+		}
 		r.Config = old.Config
 		r.Owner = old.Owner
 	}

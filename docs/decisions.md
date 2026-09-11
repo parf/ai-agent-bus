@@ -27,6 +27,7 @@ All 2026-09-09 unless noted.
 | The setup user gets `agent-bus-admin` | [identity § acl](01-identity.md#acl) |
 | Delegation: A authenticates, adds an on-behalf-of claim | [identity § delegation](01-identity.md#delegation) |
 | Publish a service or topic: any authenticated principal; change: owner or owner group | [identity § ownership](01-identity.md#ownership) |
+| Changing a record is the owner's, and the record's own; publishing a new name stays open | [identity § ownership](01-identity.md#ownership) |
 | Registry records are writer-signed where a key exists; static-token writes are unsigned | [identity § ownership](01-identity.md#ownership) |
 | Sealed private config, opt-in, daemon cannot read it | [identity § sealed private config](01-identity.md#sealed-private-config) |
 | A call carries exactly two parameters, `user@realm` + token | [access § two parameters](02-access.md#two-parameters) |

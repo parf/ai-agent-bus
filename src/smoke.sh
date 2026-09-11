@@ -175,7 +175,22 @@ if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
 else
   echo "  FAIL and starting a service you do not own is refused: exit $rc"; fail=$((fail+1))
 fi
-has "because the runner has to become it, and cannot" "$out" 'does not own'
+has "because the record is not his to take over" "$out" 'belongs to someone else'
+
+sec "a record belongs to whoever published it"
+# Publishing is open; changing is not. See docs/01-identity.md#ownership.
+ab owner@srv1 register owned@srv1 --descr "mine" --addr first:1 >/dev/null
+out=$(ab thief2@srv1 register owned@srv1 --descr "stolen" --addr second:2 2>&1); rc=$?
+bad_exit "somebody else cannot re-register it" $rc
+has "and is told whose it is" "$out" "owned@srv1 is owner@srv1's"
+has "the address it stated did not land" "$(ab nobody2@srv1 ls owned@srv1)" 'first:1'
+has "nor the description" "$(ab nobody2@srv1 ls owned@srv1)" '"descr":"mine"'
+has "its owner may still change it" \
+  "$(ab owner@srv1 register owned@srv1 --descr "mine" --addr third:3 >/dev/null; ab nobody2@srv1 ls owned@srv1)" 'third:3'
+has "and the record itself may refresh its own, as a service does on every start" \
+  "$(ab owned@srv1 register owned@srv1 --descr "self" --addr third:3 >/dev/null; ab nobody2@srv1 ls owned@srv1)" '"descr":"self"'
+has "while publishing a name nobody holds stays open to anyone" \
+  "$(ab stranger2@srv1 register brand-new@srv1 --descr "open" >/dev/null; ab nobody2@srv1 ls brand-new@srv1)" '"descr":"open"'
 
 sec "register and ls"
 ab fixer@srv1 register fixer@srv1 --kind agent --descr "fixes things" >/dev/null

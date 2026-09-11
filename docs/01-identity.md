@@ -192,7 +192,10 @@ it: `parf@github` → fetch once → pin. Modes: file only · AUTH only · both
 ## Ownership
 
 - **Publish** a new service or topic: any authenticated principal.
-- **Change / delete**: **owner or owner group** only.
+- **Change / delete**: **owner or owner group** only — and the record itself:
+  a service re-registering on every start is not a stranger to its own name,
+  and it is the only other principal that can hold that name's credential
+  ([access § getting a token](02-access.md#getting-a-token)).
 - Owner is an expression. Tiers: `owner` (all, incl. ACL and owners) and
   `maintainer` (definition only). Owners use org groups but cannot create
   groups or grant beyond their own service. Personal services are owned by
