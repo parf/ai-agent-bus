@@ -101,13 +101,13 @@ done
 # empty. See docs/10-modules.md#the-rule.
 sec "the layers hold"
 is_empty "core never imports an adapter" \
-  "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump)')"
+  "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump|directory|signature)')"
 is_empty "nor does a face" \
-  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-web | grep -E 'internal/(store|dump)')"
+  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-web | grep -E 'internal/(store|dump|directory|signature)')"
 is_empty "and a port names no outside world of its own" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -E '^(os|net|net/http|os/exec|database/sql)$')"
 has "while the process that assembles them holds the ones that persist" \
-  "$(go list -deps ./cmd/agent-busd | grep -E 'internal/(store|dump)' | tr '\n' ' ')" 'internal/dump/jsonfile .*internal/store/file'
+  "$(go list -deps ./cmd/agent-busd | grep -E 'internal/(store|dump|directory|signature)' | tr '\n' ' ')" 'internal/directory/file .*internal/directory/github .*internal/dump/jsonfile .*internal/signature/sshkeygen .*internal/store/file'
 has "and core is what asks for it" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/auth 2>&1)" 'internal/ports'
 
