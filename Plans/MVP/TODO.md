@@ -275,7 +275,7 @@ role from being a compromise of the host.
 ### H — somebody else installs it
 
 ⚠️ H.1 is **blocked** on the packaging ❓ above. The rest do not depend on how
-the binaries arrive and are built, except **H.5**, the admin program
+the binaries arrive, and are built
 ([setup § the five programs](../../docs/09-setup.md#the-five-programs)).
 
 | ID | Task |
@@ -284,7 +284,7 @@ the binaries arrive and are built, except **H.5**, the admin program
 | H.2 | ✅ _done_, and now H.4's program — it creates the account, writes the unit and starts the daemon as it, refusing without root rather than half-installing; `--dry-run` / `--print-unit` need nothing ([setup § the service account](../../docs/09-setup.md#the-service-account)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
 | H.3 | ✅ _done_ — the account, its home, the one declarative capability and restart, all in the unit and each falsified on its own |
 | H.4 | ✅ _done_ — `agent-bus-setup` is its own program, root-only, and prints the `sudo` line rather than failing flat ([setup § the five programs](../../docs/09-setup.md#the-five-programs)) |
-| H.5 | `agent-bus-admin`: what edits the account's own files — users, keys, ACL — re-running itself under `sudo -u agent-bus` when it is not that account, and the forced command behind an **operator's** key ([AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin)) |
+| H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin)). It re-runs itself under `sudo -u agent-bus` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the five programs](../../docs/09-setup.md#the-five-programs)* |
 | H.6 | ✅ _done_ — `agent-bus-token` prints a credential and nothing else. Under SSH the authorized_keys line is the entitlement and `$SSH_ORIGINAL_COMMAND` is the request, so a key may only ask for the name its line names. The CLI's `token` verb went with it |
 | H.7 | ✅ _done_ — `--key` proves the name against what the realm publishes and gets a credential with no credential to start from ([access § getting a token](../../docs/02-access.md#getting-a-token)). It is enrolment's own challenge with a second caller; the one change the daemon needed was to stop asking `/enrol` for a credential, which was a circle ([identity § proving possession](../../docs/01-identity.md#proving-possession)) |
 

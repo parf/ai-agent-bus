@@ -44,6 +44,7 @@ func setup() error {
 	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: `user@realm`")
 	addr := fs.String("addr", "127.0.0.1:7777", "the daemon's loopback `address`")
 	exe := fs.String("exec", "", "`path` to agent-busd; defaults to the one beside this binary")
+	keyF := fs.String("key", "", "the installer's public `key`, to be the first user; defaults to their id_ed25519.pub")
 	printUnit := fs.Bool("print-unit", false, "write the unit to stdout and change nothing")
 	dry := fs.Bool("dry-run", false, "say what would be done and change nothing")
 	var users list
@@ -71,11 +72,17 @@ func setup() error {
 		fmt.Print(unit)
 		return nil
 	}
+	if *keyF == "" {
+		*keyF = installerKey()
+	}
 	steps := []string{
 		fmt.Sprintf("create the system account %s with home %s", svcAccount, svcHome),
 		fmt.Sprintf("make %s the account's own, 0750", svcHome),
 		fmt.Sprintf("write %s", unitPath),
 		"reload systemd and start agent-busd",
+	}
+	if *keyF != "" {
+		steps = append(steps, fmt.Sprintf("make %s the first user, from %s", me, *keyF))
 	}
 	if *dry {
 		for _, s := range steps {
@@ -119,8 +126,41 @@ func setup() error {
 	if err := run("systemctl", "enable", "--now", "agent-busd"); err != nil {
 		return err
 	}
+	// The first user is the installer, and adding one is the admin program's
+	// job — setup does not learn a second way to do it.
+	// See docs/09-setup.md#the-five-programs.
+	if *keyF != "" {
+		self, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		if err := run(filepath.Join(filepath.Dir(self), "agent-bus-admin"),
+			"user", "add", me.String(), *keyF, "--admin"); err != nil {
+			return err
+		}
+	}
 	fmt.Printf("agent-busd runs as %s, owned by %s, state in %s\n", svcAccount, me, svcHome)
 	return nil
+}
+
+// installerKey is the public half the person running this already has. A
+// missing one is not a failure: they can add it later, and the step says so.
+func installerKey() string {
+	who := invoker()
+	if who == "" {
+		return ""
+	}
+	u, err := user.Lookup(who)
+	if err != nil || u.HomeDir == "" {
+		return ""
+	}
+	for _, k := range []string{"id_ed25519.pub", "id_ecdsa.pub", "id_rsa.pub"} {
+		p := filepath.Join(u.HomeDir, ".ssh", k)
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
 }
 
 // unitFor is the unit, and the only place its values are written down.

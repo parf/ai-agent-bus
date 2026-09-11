@@ -20,6 +20,7 @@ All 2026-09-09 unless noted.
 | Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the five programs](09-setup.md#the-five-programs) |
 | A token can be had by signing a challenge, because not every host runs sshd | [access § getting a token](02-access.md#getting-a-token) |
 | Enrolment is the one route with no credential on it, because it is where one comes from | [identity § proving possession](01-identity.md#proving-possession) |
+| A user is a line in `authorized_keys`, written by one program, never a format of ours | [setup § the five programs](09-setup.md#the-five-programs) |
 | The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the service account](09-setup.md#the-service-account) |
 | A name is checked, not taken on trust | [access § two parameters](02-access.md#two-parameters) |
 | Writing is subject to the ACL, like reading | [identity § acl](01-identity.md#acl) |
@@ -168,6 +169,7 @@ All 2026-09-09 unless noted.
 | What a subscriber is, and where a fan-out copy goes | owner, with the MVP | [messaging § push and pull](04-messaging.md#push-and-pull) |
 | What carries a service's method information | owner, with the MVP faces | [services § service and template](03-services-and-topics.md#service-and-template) |
 | What else lives in SQLite | owner | [setup § storage](09-setup.md#storage) |
+| Where the ACL and the user-to-account map are edited | owner | [setup § the five programs](09-setup.md#the-five-programs) |
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |

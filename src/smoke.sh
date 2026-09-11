@@ -30,6 +30,7 @@ go build -o "$D/agent-bus"  ./cmd/agent-bus  || exit 1
 go build -o "$D/agent-bus-web" ./cmd/agent-bus-web || exit 1
 go build -o "$D/agent-bus-setup" ./cmd/agent-bus-setup || exit 1
 go build -o "$D/agent-bus-token" ./cmd/agent-bus-token || exit 1
+go build -o "$D/agent-bus-admin" ./cmd/agent-bus-admin || exit 1
 
 # The daemon belongs to a principal, and that is who may hand out a
 # credential for a name nobody owns yet. Stated rather than taken from the
@@ -117,7 +118,7 @@ sec "the layers hold"
 is_empty "core never imports an adapter" \
   "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump|directory|signature)')"
 is_empty "nor does a face" \
-  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-web ./cmd/agent-bus-setup ./cmd/agent-bus-token | grep -E 'internal/(store|dump|directory|signature)')"
+  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-web ./cmd/agent-bus-setup ./cmd/agent-bus-token ./cmd/agent-bus-admin | grep -E 'internal/(store|dump|directory|signature)')"
 is_empty "and a port names no outside world of its own" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -E '^(os|net|net/http|os/exec|database/sql)$')"
 has "while the process that assembles them holds the ones that persist" \
@@ -1153,8 +1154,42 @@ ok_exit "a dry run needs nothing and says what it would do" $rc
 has "naming the account" "$out" 'would create the system account agent-bus'
 has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
 has "and the start" "$out" 'would reload systemd'
+has "and hands the first user to the program that owns that file" "$out" "would make $OWNER the first user"
 out=$("$D/agent-bus-setup" --print-unit --owner parf 2>&1); rc=$?
 bad_exit "an owner without a realm is refused before anything is written" $rc
+
+sec "the admin program owns what the account owns"
+# Everything an operator does to the account's files, and nothing a user
+# needs. The home is stated, so this edits a directory of its own rather than
+# a real install. See docs/09-setup.md#the-five-programs.
+mkdir -p "$D/adm"
+ssh-keygen -q -t ed25519 -N '' -f "$D/adm/user" >/dev/null
+ssh-keygen -q -t ed25519 -N '' -f "$D/adm/boss" >/dev/null
+adm() { AGENT_BUS_HOME=$D/adm "$D/agent-bus-admin" "$@"; }
+adm user add plain@srv1 "$D/adm/user.pub" >/dev/null
+adm user add chief@srv1 "$D/adm/boss.pub" --admin >/dev/null
+KEYS="$D/adm/.ssh/authorized_keys"
+has "a user's key reaches the token program and nothing else" \
+  "$(grep plain@srv1 "$KEYS")" 'command="[^"]*agent-bus-token plain@srv1"'
+has "an operator's reaches the admin one" \
+  "$(grep chief@srv1 "$KEYS")" 'command="[^"]*agent-bus-admin chief@srv1"'
+has "and neither reaches a shell" "$(grep -c '^restrict,' "$KEYS")" '^2$'
+has "the file is the account's alone" "$(stat -c %a "$KEYS")" '^600$'
+has "and so is the directory sshd insists on" "$(stat -c %a "$(dirname "$KEYS")")" '^700$'
+has "listing says who is there and what they reach" "$(adm user list)" 'chief@srv1.*agent-bus-admin'
+adm user add plain@srv1 "$D/adm/boss.pub" >/dev/null
+has "adding a name again replaces its key rather than adding a second" \
+  "$(grep -c plain@srv1 "$KEYS")" '^1$'
+adm user remove plain@srv1 >/dev/null
+is_empty "removing takes the line away" "$(grep plain@srv1 "$KEYS")"
+out=$(adm user remove plain@srv1 2>&1); rc=$?
+bad_exit "and removing somebody who is not there says so" $rc
+out=$(adm user add oops@srv1 "$D/adm/user" 2>&1); rc=$?
+bad_exit "a private key offered by mistake is refused" $rc
+has "and named as what it is" "$out" 'is not a public key'
+has "the operator still has a key of their own" "$(adm user list)" 'chief@srv1'
+out=$(adm sudo-make-me-a-sandwich 2>&1); rc=$?
+bad_exit "a verb it does not have is refused, not guessed at" $rc
 
 sec "the dashboard shows envelopes and no bodies"
 # A separate process that speaks the API, because that is what it is in the

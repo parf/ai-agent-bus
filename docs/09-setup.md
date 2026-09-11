@@ -9,7 +9,7 @@ user needs is neither.
 | Program | Runs as | What it is for |
 |---|---|---|
 | `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the `agent-bus` account and its home, chowns it, writes and enables the unit, then hands over to `agent-bus-admin` for the first user |
-| `agent-bus-admin` | the **`agent-bus` account**; re-runs itself under `sudo -u agent-bus` when it is not | everything that edits what lives in the home — users, keys, ACL — and tells the daemon to re-read it. **Not for ordinary users** |
+| `agent-bus-admin` | the **`agent-bus` account**; re-runs itself under `sudo -u agent-bus` when it is not | everything that edits what lives in the home — `user add`, `user list`, `user remove` today — plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
 | `agent-busd` | the **`agent-bus` account**, started by the unit | the daemon: a supervisor and its children ([processes](11-processes.md)) |
@@ -34,13 +34,18 @@ Administering a node from across the network and from its own console are
 likewise one program: `ssh agent-bus@<host> <args>` and
 `sudo -u agent-bus agent-bus-admin <args>` are the same thing.
 
+❓ **Editing the ACL and the user-to-account map** needs somewhere to edit
+them: today both are the daemon's command line, written once by the unit
+([the service account](#the-service-account)). A file the daemon re-reads is a
+shape nobody has asked for yet. *Settled by:* owner.
+
 ## Install
 
 | Step | What happens |
 |---|---|
 | `npm install -g agent-bus` (or `pnpm`) | one package brings all five ([the five programs](#the-five-programs)) |
 | `sudo agent-bus-setup` | creates the **`agent-bus` system user**, asks the two questions below, writes the config and the unit, and starts it. **No keys.** |
-| the first user | `agent-bus-setup` calls `agent-bus-admin` to make one, which is what puts a key in that account's `authorized_keys` |
+| the first user | `agent-bus-setup` calls `agent-bus-admin` with the installer's own public key, which is what puts a line in that account's `authorized_keys`. It does not learn a second way to write that file |
 
 `agent-busd` and the CLI are Go; the MCP face and the push adapters are bun —
 [modules § languages](10-modules.md#languages).
