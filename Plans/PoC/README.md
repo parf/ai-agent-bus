@@ -173,6 +173,10 @@ been found here:
 | grepping a word the success answer also contains | a refused receipt and an accepted one both say `receipt` |
 | signalling the wrong process | `f() { ...; } &` backgrounds a subshell, so the service never got the signal |
 
+**Naming a shape does not remove it.** Two more checks were still asserting
+their own `echo` long after that row was written — the sweep for repeats is
+part of the fix, not a later tidy.
+
 So: **for every fix, break it again and watch the check go red.** The harness
 that does it for a batch of fixes is a loop over copies of `src/` with one
 edit each, running `src/smoke.sh --slow` in every copy — a check that did not
@@ -180,17 +184,18 @@ run caught nothing — and it is worth rewriting per
 review round rather than keeping, because the mutations are the interesting
 part and they are never the same twice.
 
-Three traps in the harness itself, all met:
+Four traps in the harness itself, all met:
 
 | Trap | Why it lies |
 |---|---|
 | a copy that cannot bind its port, because an earlier run left a daemon behind | it fails *for the wrong reason* and looks like a caught mutation |
 | a mutation that makes the whole run slow — breaking the stop signal leaves every service waiting out its poll | it hits the timeout, which is not the same as the check failing |
 | **a mutation that does not compile** | the suite exits before a single check runs, so there are no failures to see — and "no failure" reads as *green*, the exact opposite of the truth |
+| a mutation that compiles but fails `go vet` — `x = x` is the easy one to write | the suite runs vet first, so it stops there; same inversion as the line above, from code that is legal Go |
 
-The last one inverts the answer rather than muddying it, so the harness has to
+The last two invert the answer rather than muddying it, so the harness has to
 assert that the run *produced checks at all* before reading which of them
-failed. When any of the three happens, run that one check on its own against
+failed. When any of the four happens, run that one check on its own against
 both builds.
 
 ## Working rules

@@ -495,12 +495,12 @@ for route in "GET /status" "POST /register" "GET /ls" "GET /lookup?name=x@h" \
 done
 
 sec "a caller states a record, never what the daemon observes"
-has "a registration cannot claim a reader it does not have" \
-  "$(post_body owner@srv1 /register '{"name":"probe@srv1","kind":"agent","reading":true,"queued":77}' | grep -o '"reading":true\|"queued":77'; echo -n ok)" 'ok'
+is_empty "a registration cannot claim a reader it does not have" \
+  "$(post_body owner@srv1 /register '{"name":"probe@srv1","kind":"agent","reading":true,"queued":77}' | grep -o '"reading":true\|"queued":77')"
 is_empty "and the claim does not survive into a listing" \
   "$(ab nobody@srv1 ls probe@srv1 | grep -o '"reading":true')"
-has "a registration cannot claim a configuration digest" \
-  "$(post_body owner@srv1 /register '{"name":"probe2@srv1","config_sha":"forged"}' | grep -o forged; echo -n ok)" 'ok'
+is_empty "a registration cannot claim a configuration digest" \
+  "$(post_body owner@srv1 /register '{"name":"probe2@srv1","config_sha":"forged"}' | grep -o forged)"
 has "an unknown topic mode is refused by the daemon, not only the CLI" \
   "$(post_code owner@srv1 $TOKEN /register '{"name":"modey@srv1","kind":"topic","mode":"garbage"}')" '400'
 
