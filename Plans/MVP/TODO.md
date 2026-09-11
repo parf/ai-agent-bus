@@ -237,6 +237,9 @@ That is a product decision, not a technical one.
 |---|---|---|
 | F.1 | ✅ _done_ — the daemon filters, so `ab_ls` and `/ls` answer two principals differently, and each answer matches what that principal may actually send to. The face adds nothing: it asks, like every other client |
 | F.2 | generated docs | **blocked**: nothing on a record carries method information, and the shape is the ❓ in [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
+| F.4 | the dashboard's rules | the anonymous page answers what the bus would answer a caller it cannot name; no page renders a credential; no JavaScript, CDN or external asset; the child writes nothing of its own ([discovery § rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)) |
+| F.5 | signing in | the two parameters the caller already has, a session the **bus** holds, a browser carrying only its id — and the child giving up the owner's socket, because a web child with the owner's authority is a credential mint ([discovery § signing in](../../docs/05-discovery.md#signing-in)) |
+| F.6 | the views the MVP owes | registry, stuck inboxes, exchanges, my names, loss by name, refusals, node, people. Each row in [discovery § what it shows](../../docs/05-discovery.md#what-it-shows) names what the daemon must start keeping — that is the work, not the page |
 | F.3 | ✅ _done_ — `agent-bus-web`, a separate process speaking the API, rendering the records and a bounded feed of routed envelopes ([discovery § dashboard](../../docs/05-discovery.md#dashboard)). Bodies are struck out in the bus, not in the page. It serves HTTPS on its own hostname with a certificate anyone can fetch ([discovery § where it listens](../../docs/05-discovery.md#where-it-listens)). Nothing starts it yet and it is not cgroup-limited — both are G.1's |
 
 **Done when**, and what breaking it must do:
@@ -246,9 +249,26 @@ That is a product decision, not a technical one.
 - a tool's generated documentation changes when the record it is generated
   from changes — deleting F.2 must turn a check red, which "the catalogs
   differ" does not;
-- the dashboard renders a live envelope and no body.
+- the dashboard renders a live envelope and no body;
+- an anonymous visitor gets the form and nothing else — putting back the
+  uptime, the service count or an operator's name turns a named check red,
+  because each of them is what the check is for;
+- **a page never carries a token**: what is on the screen is a fingerprint,
+  and offering that fingerprint as a credential is refused;
+- a web child **restarted mid-session logs nobody out** — a session map
+  inside the child passes every other check and fails this one, which is why
+  it is the criterion;
+- a **stuck** inbox is listed ahead of a healthy one, with a backlog that
+  *has* a reader beside it as the control — sorting by depth alone passes
+  without the reader half;
+- two principals open the same URL and get different pages, each matching
+  what they may actually call.
 
-**Cut costs**: F.3 is cheap to drop, F.2 with it. F.1 is not, once C exists.
+**Cut costs**: F.6's views drop one at a time, and stuck inboxes is the one
+worth keeping — it is the view an incident needs. F.4 does not drop: its rules
+are what keep the dashboard from being the node's weakest door. F.5 does not
+drop either once F.6 exists, because a view with no signed-in caller is the
+owner's view served to a stranger, which is what the dashboard does today.
 
 ### G — least privilege
 

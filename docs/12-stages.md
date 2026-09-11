@@ -118,7 +118,7 @@ a shared host.
 | messaging | TTL, `reply-to`, and **pub/sub topics** — a subscription is a `consume:<glob>` capability, which exists once there is an ACL ([messaging](04-messaging.md)) |
 | services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several workers behind one name, per-service call stats ([messaging](04-messaging.md)) |
 | storage | SQLite store, Parquet dump and reload ([setup § storage](09-setup.md#storage)) |
-| faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a basic dashboard ([discovery § faces](05-discovery.md#faces)) |
+| faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a dashboard people sign in to, showing the registry, stuck inboxes, exchanges, losses and refusals ([discovery § what it shows](05-discovery.md#what-it-shows)) |
 | runner | supervise and sandbox children ([runner role](08-runner-role.md)) |
 | processes | the supervisor/children split ([processes](11-processes.md)) |
 | install | `npm install -g` + `sudo agent-bus-setup`, and the five programs it brings ([setup § the five programs](09-setup.md#the-five-programs)) |
@@ -129,9 +129,14 @@ a shared host.
 - The bus restarts without losing queued messages.
 - An agent asks the MCP face "what can I use?" and gets a filtered catalog.
 - A child registered under the runner is supervised, sandboxed and reachable.
+- A person signs in to the dashboard with the credential they already have and
+  sees the bus as they may see it — and a stranger sees only how to get one.
 
 **Deliberately absent**: AUTH role, groups, chaining, peer sync, billing,
-client libraries in other languages.
+client libraries in other languages. The dashboard's groups, health, load
+graphs, child liveness and record origin go with them — each waits on the
+thing that would make it true rather than on the page
+([discovery § what it shows](05-discovery.md#what-it-shows)).
 
 ## Release 1
 

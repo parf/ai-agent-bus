@@ -82,6 +82,24 @@ grouping "person" record is deferred.
 
 That is the whole thing. It needs no directory, no network and no provider.
 
+**"Optional details" is three fields** — person name, email and avatar URL —
+because those are what GitHub already fills in, so they cost nothing at
+enrolment and a dashboard has something to render
+([discovery § what it shows](05-discovery.md#what-it-shows)). They are
+description, never enforcement, and the principal writes its own.
+
+Two things that look like fields of the same kind and are not:
+
+| Looks like a field | Is |
+|---|---|
+| **status: active / inactive / banned** | an access decision. Rendered from something nobody enforces it is a lie — the page says *banned* while the token still works. It belongs where enforcement is: `revoked_users` in the bundle ([AUTH role § consistency window](06-auth-role.md#consistency-window)) |
+| **role** | service-defined and never interpreted here ([groups and roles](#groups-and-roles)). What can honestly be shown is **access**: master or not, owner of what, member of which group |
+
+Phone numbers and IM handles are contact routes nothing on the bus uses —
+nothing routes on them, nothing checks them, and holding them makes the record
+worth protecting for reasons that have nothing to do with the bus. Later, if
+an organisation asks.
+
 **MVP is this plus GitHub** — nothing else. GitHub is an *alternative to typing
 the record*: it fills the same fields from a login the person already has,
 which is the only reason open public enrolment is practical (a stranger
@@ -157,7 +175,11 @@ with it unreachable, which is the pinning promised above.
 ## Groups and roles
 
 - **Groups** compose from groups with `& | !` (`eng & !contractors`). They
-  exist only with the AUTH role on.
+  exist only with the AUTH role on. ⚠️ A group that arrives before AUTH does
+  is a **flat named set** — a list of principals, a record like any other,
+  expanded in the one place `allow` is already checked ([acl](#acl)). The
+  expression engine comes with AUTH and not before: `& | !` on the
+  authorization path is where a precedence bug grants silently.
 - **Roles** — *what a principal may do*: service-defined strings (`admin`,
   `read-only`, …), assigned with the same expression pattern as groups. AUTH
   stores and resolves; it never interprets.

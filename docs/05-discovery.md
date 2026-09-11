@@ -92,24 +92,79 @@ of it, if periodic dumping is off.
 
 ## Dashboard
 
-The WEB child shows the **list of services and topics** with their
-descriptions, who is up, and **call counts grouped by minute or hour** —
-straight from the ring buffers, no external TSDB, audience-filtered. API
-`/stats/<dimension>/<id>`.
+The WEB child is a **read-only view of what the bus already answers**. It holds
+nothing and adds nothing: every page is an API call made **as the person
+looking**, so the audience rules decide what a page shows and the face has
+nothing of its own to filter ([audience](#audience)).
 
 It shows the envelope and nothing else
 ([messaging § envelope](04-messaging.md#envelope)): no message bodies, here or
 anywhere.
 
-⚠️ What the MVP ships is the envelope half: a bounded feed of what the bus has
-routed lately, read by a separate `agent-bus-web` process over the API. Bodies
-are struck out **in the bus**, where the feed is written — so no reader has to
-be trusted to leave them alone. The feed is **master's** ([identity § acl](01-identity.md#acl)):
-it is a view of the node rather than of any one service, so the per-service
-layer has nothing to say about it. The records beside it are filtered per
-caller like any listing. Call counts by minute or hour, and the cgroup limit
-the design gives the child
-([processes § the processes](11-processes.md#the-processes)), are not built.
+⚠️ What the MVP ships today is the envelope half: a bounded feed of what the
+bus has routed lately, read by a separate `agent-bus-web` process over the
+API. Bodies are struck out **in the bus**, where the feed is written — so no
+reader has to be trusted to leave them alone. The records beside it are
+filtered per caller like any listing. Everything in
+[what it shows](#what-it-shows) below it is design.
+
+### Rules it is built to
+
+| Rule | Why |
+|---|---|
+| **The anonymous page shows what the bus would answer a caller it cannot name: nothing.** A title, the sign-in form, and how to get a token | Nothing on the page can know whether it is exposed — the hostname is public DNS and the bind address is a flag. Uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. `GET /healthz`, 200 with an empty body, is the whole public signal |
+| **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
+| **No JavaScript, no CDN, no external asset** | A signed-in master is looking at the node's whole envelope feed, and the first `<script src=…>` added for a chart inherits that. Graphs are inline SVG or nothing; an avatar is served from this node, never hotlinked, or every page view tells the provider who is looking |
+| **The web child writes nothing of its own.** A form posts *as the person*, never as the child | It is the least trusted process and the design gives it no write path ([processes § the processes](11-processes.md#the-processes)). Sign in and sign out are the only two in the MVP; what an owner does to a misbehaving service, the page tells them to run |
+| **A wrong name and a wrong credential get one message** | The API tells them apart deliberately ([access § two parameters](02-access.md#two-parameters)), and on an open form that difference is an oracle for which names exist |
+
+### Signing in
+
+A person signs in with **the two parameters** — their name and their token
+([access § two parameters](02-access.md#two-parameters)). There is no third
+kind of credential and no password anywhere.
+
+The part worth stating is where the session lives: **in the bus**, which is
+the process that holds state ([processes § what is shared](11-processes.md#what-is-shared)).
+The child forwards the pair once, the bus answers with an expiring session id,
+and from then on the browser carries that id and nothing else.
+
+| | |
+|---|---|
+| the cookie | the session id alone — `HttpOnly`, `Secure`, `SameSite=Strict`, idle timeout. Never the token, never in a URL |
+| a restart | logs nobody out, because the child was holding nothing. A session map inside it would be a second store, of the worst possible contents: every signed-in person's live credential in the one child that is restarted with backoff |
+| what the child holds | nothing. It stops reaching the bus over the owner's socket the moment people sign in — a web child with the owner's authority is a credential mint ([access § getting a token](02-access.md#getting-a-token)) |
+| enrolling | not here. The proof is a signature made by the host's own `ssh-keygen` ([identity § proving possession](01-identity.md#proving-possession)) and a page with no JavaScript cannot make one, so what the dashboard does for a stranger is print the command |
+
+### What it shows
+
+Staged, because most of it needs the daemon to keep something it does not keep
+yet — and that is the cost, not the page. The MVP rows are the ones that make
+the bus debuggable by the people sharing it.
+
+| View | Stage | What the daemon must start keeping |
+|---|---|---|
+| the sign-in page and the token help | MVP | — |
+| **registry**, as this caller may see it: kind, owner, protocol, description, `reading`/`queued`/`in`/`out`, the configuration's digest | MVP | — it is `/ls` |
+| **stuck inboxes** — a backlog with nobody reading, oldest first, marked when the queue is at its bound. The one view an incident actually needs | MVP | the age of the oldest waiting message, per record |
+| **exchanges** — the envelope feed grouped by topic and tag, so a request, its `ack`, its reply and its `done` are one row, and an answer past its deadline is marked late | MVP | the feed filtered per caller, instead of master-only |
+| **my names** — what I hold a credential for, its fingerprint, when it was issued and last used, and how to rotate it | MVP | when a credential was issued, and when it was last used |
+| **loss by name** — what each inbox dropped to overflow and what expired in it | MVP | the two counters per inbox, where today they are per daemon |
+| **refusals** — how many calls were refused and why: bad credential, wrong name for it, ACL, unknown receiver, second reader, full queue | MVP | one counter per kind, and a short per-caller list on that person's own page |
+| **node** — its name, uptime, the registry's totals, and whether the last stop was clean | MVP | the unclean-restart fact on `status`, which is logged today |
+| **people** — who holds a credential: name, person name, avatar, master or not, what they own | MVP | the credential store answering *which names*, and the person fields ([identity § registration](01-identity.md#registration)) |
+| **groups** and who is in them | Release 1 | groups themselves ([identity § groups and roles](01-identity.md#groups-and-roles)) |
+| **health** — up, down, and how long since the last probe | Release 1 | the health child ([health checker](#health-checker)) |
+| **load** — calls per minute and per hour, per name and for the node | Release 1 | the ring buffers in [stats](#stats). Inline SVG; `/metrics` ([exports](#exports)) is what a real graphing stack reads |
+| **children** — bus, runner, web, auth: alive, restarted how often | Release 1 | the supervisor reporting into the bus. Until then that answer is `agent-bus status` and the page says nothing about it |
+| **origin** — which node a record came from | Release 1 | chained registries ([overview § chaining](00-overview.md#chaining)) |
+| phone and IM handles; one person record joining `parf@github` and `parf@realmo` | Future | — |
+
+A **load graph is the one thing here that cannot be faked cheaply**: the
+daemon holds counters since start and no history at all, so a graph is the
+ring buffers or it is a line that silently restarts at zero after a crash.
+Numbers now, graphs at Release 1 — and never a time-series database
+([stats](#stats)).
 
 ### Where it listens
 
