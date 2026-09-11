@@ -31,6 +31,16 @@ is_empty()  { if [ -z "$2" ]; then echo "  ok   $1"; pass=$((pass+1)); else echo
 code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" "http://unix$3"; }
 post_code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" -d "$4" "http://unix$3"; }
 
+echo "== the Go checks"
+# Run here, not only by hand: this script is what a change is measured
+# against, and a mutation of anything the unit tests cover was invisible to
+# it while they lived outside. CLAUDE.md asks for all three to be green.
+for c in "vet:go vet ./..." "race:go test -race ./..."; do
+  out=$(eval "${c#*:}" 2>&1); rc=$?
+  ok_exit "go ${c%%:*}" $rc
+  [ $rc -eq 0 ] || echo "$out" | tail -15 | sed 's/^/    /'
+done
+
 echo "== status on both listeners"
 has "unix socket" "$(ab parf@localhost status)" '"services"'
 has "loopback tcp" "$(AGENT_BUS_ADDR=http://127.0.0.1:$PORT AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=parf@localhost "$D/agent-bus" status)" '"up"'
