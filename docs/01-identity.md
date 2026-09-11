@@ -132,17 +132,24 @@ group) mapped to access and an optional role.
 
 | Layer | Lives in | Says |
 |---|---|---|
-| **service ACL** | the service's own config | `service: => users, groups (+ roles)` — who may see and use *this* service |
+| **service ACL** | the service's own **record** | `allow` — who may see and use *this* service |
 | **master ACL** | `agent-busd` | `user => role`, `group => role` — holders reach **every** service on the node, with no per-service entry and no per-service token |
 
-- **The service is asked first.** Its own config decides, and if it answers,
+**The record, not the configuration.** A service's configuration is private to
+it and the daemon will not read it
+([services § configuring a template](03-services-and-topics.md#configuring-a-template)),
+so a layer the daemon enforces cannot live there. The record is what the
+service already states, the daemon already holds, and its owner already
+controls — so `allow` is a field on it, stated like any other.
+
+- **The service is asked first.** Its own record decides, and if it answers,
   that is the answer.
-- **A service may refuse master access** — one flag in its own config, and
+- **A service may refuse master access** — one flag on its own record, and
   master holders are treated like anyone else. The service, not the node, has
   the last word on itself.
 - **`*:` is the wildcard entry**: `*: => users | groups` applies to every
   service with no entry of its own.
-- **`allow: *`** inside a service means *anyone who can authenticate* — every
+- **`allow: *`** on a service means *anyone who can authenticate* — every
   GitHub user, for instance. That is how a sign-up service opens itself to the
   world: `allow: *`, minimal role, and the newcomer's first request is the
   enrolment.

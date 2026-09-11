@@ -192,8 +192,8 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 		return
 	}
 	if caller.String() != s.owner && caller.String() != want.String() {
-		rec, known := s.bus.Lookup(want.String())
-		if !known || rec.Owner != caller.String() {
+		owner, known := s.bus.OwnerOf(want.String())
+		if !known || owner != caller.String() {
 			fail(w, http.StatusForbidden, caller.String()+" does not own "+want.String())
 			return
 		}
@@ -267,9 +267,9 @@ func (s *Server) config(w http.ResponseWriter, r *http.Request, caller protocol.
 // otherwise pull the whole registry down to find out: List plus its JSON is
 // milliseconds and megabytes at ten thousand records, while this is a map
 // read. See docs/03-services-and-topics.md.
-func (s *Server) lookup(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
+func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	name := r.URL.Query().Get("name")
-	rec, known := s.bus.Lookup(name)
+	rec, known := s.bus.Lookup(caller.String(), name)
 	if !known {
 		fail(w, http.StatusNotFound, "no such name: "+name)
 		return
@@ -290,8 +290,8 @@ func (s *Server) recent(w http.ResponseWriter, r *http.Request, caller protocol.
 	ok(w, s.bus.Recent())
 }
 
-func (s *Server) ls(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
-	ok(w, s.bus.List(r.URL.Query().Get("kind")))
+func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	ok(w, s.bus.List(caller.String(), r.URL.Query().Get("kind")))
 }
 
 func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
@@ -321,7 +321,7 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 	filtered := topic != "" || tag != ""
 	inbox := caller.String()
 	if topic != "" && tag == "" {
-		rec, known := s.bus.Lookup(topic)
+		rec, known := s.bus.Lookup(caller.String(), topic)
 		switch {
 		case known && rec.Kind == protocol.KindTopic:
 			inbox, topic, filtered = rec.Name, "", false
@@ -372,6 +372,7 @@ var codes = []struct {
 	{core.ErrBound, http.StatusBadRequest},
 	{core.ErrNotOwner, http.StatusForbidden},
 	{core.ErrPrivate, http.StatusForbidden},
+	{core.ErrNotAllow, http.StatusForbidden},
 	{core.ErrUnknown, http.StatusNotFound},
 	{core.ErrFull, http.StatusServiceUnavailable},
 	{core.ErrTwoReads, http.StatusConflict},

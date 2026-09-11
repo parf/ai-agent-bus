@@ -36,7 +36,9 @@ func main() {
 		dumpF  = flag.String("dump-file", env("AGENT_BUS_DUMP_FILE", defaultDumpFile()), "where the queues and stats are snapshotted")
 		every  = flag.Duration("dump-every", time.Minute, "how often to snapshot while running; 0 turns the periodic dumper off")
 		users  accounts
+		hold   masters
 	)
+	flag.Var(&hold, "master", "a principal that reaches every service which has not refused it: `user@realm`; repeatable")
 	flag.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
 	flag.Parse()
 
@@ -70,6 +72,9 @@ func main() {
 		}
 	}
 	save(false)
+	// The daemon's owner holds master without being listed: they installed
+	// it, and the setup user is the admin. See docs/01-identity.md#acl.
+	bus.Masters(append([]string{me.String()}, hold...))
 	face := api.New(bus, tokens, me.String())
 
 	// Plaintext bodies and a master token: loopback or an SSH tunnel, never a
@@ -317,6 +322,13 @@ func defaultOwner() string {
 	}
 	return who + "@" + host
 }
+
+// masters is a repeatable flag, and nothing more: who holds the master ACL
+// is the daemon's own configuration. See docs/01-identity.md#acl.
+type masters []string
+
+func (m *masters) String() string     { return strings.Join(*m, ",") }
+func (m *masters) Set(v string) error { *m = append(*m, v); return nil }
 
 func defaultDumpFile() string {
 	home, _ := os.UserHomeDir()

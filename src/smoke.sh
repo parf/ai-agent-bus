@@ -977,6 +977,53 @@ has "and says why" "$out" 'one command'
 out=$(AGENT_BUS_TOKEN_FILE=$D/absent ./static-token over-ssh@srv1 2>&1); rc=$?
 bad_exit "a missing token file is an error, not an empty token" $rc
 
+sec "who may reach what: the service answers first, then master"
+# Two services alike in everything but the one flag, so what is being
+# measured is the policy and not the request.
+# See docs/01-identity.md#acl.
+ab acl-owner@srv1 register open-svc@srv1 --descr "takes master" --allow acl-owner@srv1 >/dev/null
+ab acl-owner@srv1 register shut-svc@srv1 --descr "refuses master" --allow acl-owner@srv1 --no-master >/dev/null
+ab acl-owner@srv1 register any-svc@srv1 --descr "open to all" --allow '*' >/dev/null
+has "the daemon's owner holds master, so it reaches a service that takes it" \
+  "$(post_code $OWNER "$TOKEN" /send '{"to":"open-svc@srv1","body":"by master"}')" '200'
+has "and is refused by the one that refuses it" \
+  "$(post_code $OWNER "$TOKEN" /send '{"to":"shut-svc@srv1","body":"by master"}')" '403'
+has "with a refusal of its own, not a 404" \
+  "$(post_body $OWNER /send '{"to":"shut-svc@srv1","body":"by master"}')" 'may not send to'
+has "a principal on neither list is refused by both" \
+  "$(post_code alice@srv1 "$alice" /send '{"to":"open-svc@srv1","body":"by nobody"}')" '403'
+has "and by the second as well" \
+  "$(post_code alice@srv1 "$alice" /send '{"to":"shut-svc@srv1","body":"by nobody"}')" '403'
+has "while the owner of both still reaches them" \
+  "$(post_code acl-owner@srv1 "$(tok acl-owner@srv1)" /send '{"to":"shut-svc@srv1","body":"mine"}')" '200'
+has "and allow * means anyone who can authenticate" \
+  "$(post_code alice@srv1 "$alice" /send '{"to":"any-svc@srv1","body":"by anyone"}')" '200'
+# A record is always its owner's and its own, list or no list: a service
+# that could not reach what it registered would not survive its own start.
+ab acl-owner@srv1 register terse-svc@srv1 --descr "lists somebody else" --allow alice@srv1 >/dev/null
+has "an owner reaches its own service without being on its list" \
+  "$(post_code acl-owner@srv1 "$(tok acl-owner@srv1)" /send '{"to":"terse-svc@srv1","body":"mine"}')" '200'
+has "and the service sees itself in its own listing" \
+  "$(ab terse-svc@srv1 ls)" 'lists somebody else'
+is_empty "while a stranger sees neither" \
+  "$(ab bob@srv1 ls | grep -o 'lists somebody else')"
+# Seeing and using are the same question, so a service you may not use is
+# not in your listing and does not answer a lookup either.
+is_empty "a service that will not have you is not in your listing" \
+  "$(ab alice@srv1 ls | grep -o 'refuses master')"
+has "though it is in its owner's" "$(ab acl-owner@srv1 ls)" 'refuses master'
+has "and a lookup of it says no such name" \
+  "$(code alice@srv1 "$alice" "/lookup?name=shut-svc@srv1")" '404'
+has "while its owner gets the record" \
+  "$(code acl-owner@srv1 "$(tok acl-owner@srv1)" "/lookup?name=shut-svc@srv1")" '200'
+# One check per write verb: a shared guard passes the whole set while any
+# one path is still open.
+ab acl-owner@srv1 topic create shut-topic@srv1 --descr "not yours" --allow acl-owner@srv1 >/dev/null
+has "publishing to a topic that will not have you is refused" \
+  "$(post_code alice@srv1 "$alice" /send '{"to":"shut-topic@srv1","topic":"anything","body":"by nobody"}')" '403'
+has "and so is registering over its name" \
+  "$(post_code alice@srv1 "$alice" /register '{"name":"shut-svc@srv1","kind":"generic"}')" '403'
+
 sec "setup installs a service account, and it is not the installer"
 # The privileged step cannot run here, so what is checked is everything it
 # would write: an install that puts the daemon under the installer's own

@@ -419,7 +419,7 @@ func TestAConfigurationIsStoredCompacted(t *testing.T) {
 	if got := string(stored); got != `{"k":"v"}` {
 		t.Fatalf("stored %q", got)
 	}
-	spaced, _ := b.Lookup("svc@h")
+	spaced, _ := b.Lookup("svc@h", "svc@h")
 	compact, err := b.Configure("other@h", "other@h", []byte(`{"k":"v"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -465,7 +465,7 @@ func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 	if _, err := b.Configure("svc@h", "svc@h", []byte(`{"k":"v"}`)); err != nil {
 		t.Fatal(err)
 	}
-	real, known := b.Lookup("svc@h")
+	real, known := b.Lookup("svc@h", "svc@h")
 	if !known {
 		t.Fatal("the configured service is not registered")
 	}
@@ -505,14 +505,14 @@ func TestARegistrationCannotClaimLiveState(t *testing.T) {
 	if rec.Reading || rec.Queued != 0 {
 		t.Fatalf("the registration answer carried live state: reading=%v queued=%d", rec.Reading, rec.Queued)
 	}
-	got, ok := b.Lookup("probe@h")
+	got, ok := b.Lookup("probe@h", "probe@h")
 	if !ok {
 		t.Fatal("not registered")
 	}
 	if got.Reading {
 		t.Fatal("a stored reading=true survived into a lookup, with nobody reading")
 	}
-	for _, r := range b.List("") {
+	for _, r := range b.List("probe@h", "") {
 		if r.Name == "probe@h" && r.Reading {
 			t.Fatal("a stored reading=true survived into a listing")
 		}

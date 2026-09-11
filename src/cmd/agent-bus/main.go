@@ -29,6 +29,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus status
   agent-bus token <name> [--rotate]   print that principal's token
   agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
+                            [--allow a@b,c@d | --allow '*'] [--no-master]  who may see and use it
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to call it; unset = this bus
   agent-bus ls [<name>] [--kind k]
@@ -153,6 +154,7 @@ func register(args []string) error {
 		Name: pos[0], Kind: flags["kind"], Addr: flags["addr"], Descr: flags["descr"],
 		Full: flags["overflow"], Proto: flags["protocol"],
 		TTL: flags["ttl"], Bound: n,
+		Allow: allow(flags), NoMaster: has(flags, "no-master"),
 	})
 }
 
@@ -393,6 +395,7 @@ func topic(args []string) error {
 	return post("/register", protocol.Record{
 		Name: pos[0], Kind: protocol.KindTopic, Mode: mode, Descr: flags["descr"],
 		Full: flags["overflow"], TTL: flags["ttl"], Bound: n,
+		Allow: allow(flags), NoMaster: has(flags, "no-master"),
 	})
 }
 
@@ -722,6 +725,29 @@ func warn(format string, a ...any) {
 
 // split separates positional args from --flags. A flag with no value (--follow)
 // is recorded as present and empty.
+// Flags that are on or off. Without this the word after one is taken as its
+// value, and `--follow consume` reads as follow="consume".
+var onOff = map[string]bool{"follow": true, "no-master": true}
+
+// allow is the service ACL as stated on the command line: a comma-separated
+// list, `*` for anyone who can authenticate, absent for no answer of its own.
+// See docs/01-identity.md#acl.
+func allow(flags map[string]string) []string {
+	v, ok := flags["allow"]
+	if !ok || strings.TrimSpace(v) == "" {
+		return nil
+	}
+	var out []string
+	for _, s := range strings.Split(v, ",") {
+		if s = strings.TrimSpace(s); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func has(flags map[string]string, k string) bool { _, ok := flags[k]; return ok }
+
 func split(args []string) ([]string, map[string]string) {
 	pos := []string{}
 	flags := map[string]string{}
@@ -735,7 +761,7 @@ func split(args []string) ([]string, map[string]string) {
 		switch {
 		case hasEq:
 			flags[k] = v
-		case i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") && k != "follow":
+		case i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") && !onOff[k]:
 			flags[k] = args[i+1]
 			i++
 		default:

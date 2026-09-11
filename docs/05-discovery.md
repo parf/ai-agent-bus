@@ -65,8 +65,12 @@ Audience is answered by the two ACL layers — service first, then master; see
 [identity § acl](01-identity.md#acl) for the rules. Groups exist only with the
 AUTH role on.
 
-❓ **With AUTH off the daemon does not hold the services' local mapping files**,
-yet it is the MCP face that filters the catalog. Who filters? *Settled by:* owner.
+**The daemon filters, because it holds the record.** With AUTH off there are
+no mapping files to consult: the service ACL is a field on the record
+([identity § acl](01-identity.md#acl)), which the daemon already has, so the
+answer is worked out in core and every face — catalog, listing, send — gets
+the same one. A face that filtered for itself would be a face that could be
+asked a different way.
 
 ## Health checker
 

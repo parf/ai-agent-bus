@@ -36,6 +36,7 @@ var (
 	ErrBound    = errors.New("a bound is a positive number of messages")
 	ErrNotOwner = errors.New("that record belongs to someone else")
 	ErrPrivate  = errors.New("a configuration is private to the service it belongs to")
+	ErrNotAllow = errors.New("not on that service's allow list")
 )
 
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.
@@ -80,6 +81,8 @@ type Bus struct {
 	// What the bus has seen lately, bodies struck out — the dashboard's
 	// only source. See docs/05-discovery.md#dashboard.
 	recent []protocol.Envelope
+	// Who holds the master ACL. See docs/01-identity.md#acl.
+	masters map[string]bool
 }
 
 func New() *Bus {
@@ -249,7 +252,7 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 
 // Lookup answers what a name is, so a face can tell a topic from a filter
 // without guessing. See docs/03-services-and-topics.md.
-func (b *Bus) Lookup(name string) (protocol.Record, bool) {
+func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 	n, err := canon(name)
 	if err != nil {
 		return protocol.Record{}, false
@@ -257,10 +260,27 @@ func (b *Bus) Lookup(name string) (protocol.Record, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	r, ok := b.records[n]
-	if ok {
-		r = b.withLiveness(n, r.Public())
+	// A name you may not see does not exist as far as you are concerned:
+	// hiding it and refusing it are different answers, and discovery is the
+	// half that hides. See docs/01-identity.md#acl.
+	if !ok || !b.may(caller, r) {
+		return protocol.Record{}, false
 	}
-	return r, ok
+	return b.withLiveness(n, r.Public()), true
+}
+
+// OwnerOf is the ownership question on its own, because it is not a discovery
+// one: who may be given a name's credential must not depend on who may see it
+// (docs/02-access.md#getting-a-token).
+func (b *Bus) OwnerOf(name string) (string, bool) {
+	n, err := canon(name)
+	if err != nil {
+		return "", false
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	r, ok := b.records[n]
+	return r.Owner, ok
 }
 
 // withLiveness answers the question a listing is really asked: not "does
@@ -286,16 +306,21 @@ func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 	return r
 }
 
-func (b *Bus) List(kind string) []protocol.Record {
+func (b *Bus) List(caller, kind string) []protocol.Record {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	out := make([]protocol.Record, 0, len(b.records))
 	for _, r := range b.records {
-		if kind == "" || r.Kind == kind {
-			// A listing is public to every caller; a configuration is not,
-			// and a digest of it is what a query gets instead.
-			out = append(out, b.withLiveness(r.Name, r.Public()))
+		if kind != "" && r.Kind != kind {
+			continue
 		}
+		// Two things are held back: what the caller may not see at all,
+		// and the configuration, which is nobody's but the service's — a
+		// digest of it is what a query gets instead.
+		if !b.may(caller, r) {
+			continue
+		}
+		out = append(out, b.withLiveness(r.Name, r.Public()))
 	}
 	return out
 }
@@ -355,6 +380,12 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	rec, known := b.records[to]
 	if !known {
 		return protocol.Envelope{}, fmt.Errorf("no such receiver: %s (%w)", to, ErrUnknown)
+	}
+	// Writing goes through the same two layers as reading: a principal that
+	// may not see a service may not enqueue to it either, and is told so
+	// rather than left to wonder. See docs/01-identity.md#acl.
+	if !b.may(from, rec) {
+		return protocol.Envelope{}, fmt.Errorf("%s may not send to %s: %w", from, to, ErrNotAllow)
 	}
 	// A queue topic is an inbox with a name, so publishing to one is an
 	// ordinary send. Fan-out is not: a subscriber is undefined without an

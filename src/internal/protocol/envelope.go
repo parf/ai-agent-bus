@@ -90,6 +90,16 @@ type Record struct {
 	Owner string    `json:"owner"`
 	At    time.Time `json:"at"`
 
+	// Allow is the service ACL: who may see and use this. It is a field on
+	// the record, not something inside Config, because the daemon enforces
+	// it and will not read a private configuration. `*` means anyone who
+	// can authenticate; empty means the service gives no answer and the
+	// master layer decides. NoMaster is the one flag that takes the last
+	// word back from the node.
+	// See docs/01-identity.md#acl.
+	Allow    []string `json:"allow,omitempty"`
+	NoMaster bool     `json:"no_master,omitempty"`
+
 	// Config is what a service template was configured with. It is opaque:
 	// the bus checks that it is JSON and never reads inside, so no field of
 	// it means anything here — no server, user, mailbox or credential is

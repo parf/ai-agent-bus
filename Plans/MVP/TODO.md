@@ -21,7 +21,6 @@ question in the table below, not on work:
 
 | Waiting on | Would unblock |
 |---|---|
-| who filters, with AUTH off | C entire, then F.1 |
 | whether D's own claim is reachable in the MVP's key mode | D entire, then E.2's last half |
 | where the proof step sits relative to the `directory` port | B.8, and with it the name-claiming hole B.1 sharpened |
 | which process owns the store handle | G.1, and the declared chown violation it retires |
@@ -38,7 +37,6 @@ wave stands on it.
 | Gates | ❓ | Where it is settled |
 |---|---|---|
 | the whole stage | what MVP contains | [stages § MVP](../../docs/12-stages.md#mvp) |
-| C, F.1 | who filters, with AUTH off | [discovery § audience](../../docs/05-discovery.md#audience) |
 | D | static sessions are not end-to-end against the daemon — so D's own claim may be unreachable in the MVP's key mode | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
 | the rest of E | what else lives in SQLite | [setup § storage](../../docs/09-setup.md#storage) |
 | H | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../docs/09-setup.md#install) |
@@ -160,10 +158,10 @@ the stage has no meaning.
 
 | ID | Task | Notes |
 |---|---|---|
-| C.1 | service ACL, consulted first ([identity § acl](../../docs/01-identity.md#acl)) | **blocked**: where the daemon reads it from is the filtering ❓ — it cannot be the opaque configuration it is forbidden to read |
-| C.2 | master ACL, and a service may refuse it | the refusal is the point; a master that cannot be refused is not an ACL |
-| C.4 | every write goes through the layers | a send, a publish and a registration are checked like a read ([identity § acl](../../docs/01-identity.md#acl)) |
-| C.3 | pub/sub topics | a subscription is a capability that only exists once there is an ACL; **blocked** on the ❓ in [messaging § push and pull](../../docs/04-messaging.md#push-and-pull) |
+| C.1 | ✅ _done_ — `allow` is a field on the record, so the daemon holds what it enforces and never reads a private configuration ([identity § acl](../../docs/01-identity.md#acl)). Seeing and using are one question: a listing hides what a lookup denies |
+| C.2 | ✅ _done_ — the daemon's owner holds master without being listed, `--master` adds others, and `--no-master` takes the last word back. Master refused everywhere would pass a weaker check and is falsified on its own |
+| C.4 | ✅ _done_ — send, publish and register are each refused for a principal the service will not show, each check falsified alone, and the refusal is its own status |
+| C.3 | pub/sub topics | the ACL it was waiting for now exists; **still blocked** on what a subscriber is, in [messaging § push and pull](../../docs/04-messaging.md#push-and-pull) |
 
 **Done when**, and what breaking it must do:
 

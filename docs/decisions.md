@@ -23,7 +23,8 @@ All 2026-09-09 unless noted.
 | MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](01-identity.md#registration) · [future](future/ldap-ad.md) |
 | Self-service enrolment: open (auto, minimal role) or closed (approval queue) | [identity § registration](01-identity.md#registration) |
 | More identity sources later: Google, LinkedIn, Facebook — not designed | [identity § registration](01-identity.md#registration) |
-| ACL is two layers: service config first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](01-identity.md#acl) |
+| ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](01-identity.md#acl) |
+| The daemon filters, because it holds the record — not a face | [discovery § audience](05-discovery.md#audience) |
 | `allow: *` means anyone who can authenticate | [identity § acl](01-identity.md#acl) |
 | The setup user gets `agent-bus-admin` | [identity § acl](01-identity.md#acl) |
 | Delegation: A authenticates, adds an on-behalf-of claim | [identity § delegation](01-identity.md#delegation) |
@@ -153,7 +154,6 @@ All 2026-09-09 unless noted.
 | Direct talk bypasses billing | owner | [future/billing.md](future/billing.md) |
 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](06-auth-role.md#ssh-admin) |
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](03-services-and-topics.md#registry-sync) |
-| With AUTH off, who filters the MCP catalog? | owner | [discovery § audience](05-discovery.md#audience) |
 | Whether several readers may block on one inbox at once | owner, with the MVP | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Whether the caller's deadline travels with the request | owner, with the MVP | [messaging § request and reply](04-messaging.md#request-and-reply) |
@@ -189,6 +189,7 @@ All 2026-09-09 unless noted.
 | Overflow: drop oldest | two modes, `ring` and `strict` — [messaging § overflow](04-messaging.md#overflow) |
 | `ring` is the default mode | `strict` is: a queue that loses work silently is worse than one that fails visibly — [messaging § overflow](04-messaging.md#overflow) |
 | Audience with AUTH off is a per-service `user: token` map | the two ACL layers — [identity § acl](01-identity.md#acl) |
+| The service ACL lives in the service's own configuration | the record: the daemon will not read a private configuration, so a layer it enforces cannot live there — [identity § acl](01-identity.md#acl) |
 | `register` both issues a credential and states a registry record | `token` issues the credential; `register` only states a record — [access § getting a token](02-access.md#getting-a-token) |
 | One token reaches every name, and the face overwriting `from` is the only guard | a token backs one principal and the daemon checks the name against it — [access § two parameters](02-access.md#two-parameters) |
 | LDAP/AD in scope | deferred — [future](future/ldap-ad.md) |
