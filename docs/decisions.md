@@ -83,6 +83,8 @@ All 2026-09-09 unless noted.
 | The bus keeps a bounded feed of routed envelopes, body struck out where it is written | [discovery § dashboard](05-discovery.md#dashboard) |
 | The dashboard has a real hostname and a real certificate, from a public source | [discovery § where it listens](05-discovery.md#where-it-listens) |
 | Admin-only debug trace per service | [discovery § debug mode](05-discovery.md#debug-mode) |
+| The bus holds the store, and the supervisor holds nothing durable | [processes § what is shared](11-processes.md#what-is-shared) |
+| One binary, the role from the environment; the supervisor opens every listener and hands it down | [processes § how a child is started](11-processes.md#how-a-child-is-started) |
 | AUTH merged into `agent-busd` as an optional role; WEB child cgroup-limited | [overview § roles](00-overview.md#roles) |
 | Bundle in git over SSH; gaps resolved newer-generation-wins; master/slave | [AUTH role § topology](06-auth-role.md#topology) |
 | `master_secret` is an out-of-band file | [AUTH role § where it runs](06-auth-role.md#where-it-runs) |
@@ -168,7 +170,6 @@ All 2026-09-09 unless noted.
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
-| Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 | What happens to a running service when its configuration changes | owner | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](00-overview.md#chaining) |

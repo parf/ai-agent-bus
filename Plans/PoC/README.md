@@ -174,6 +174,7 @@ been found here:
 | exercising a different path than the one it names | a *waiting reader* check whose inbox still held a message never blocked, so it measured the queued path twice |
 | leaning on the refusal to end the command | `start` exits when it is refused and runs forever when it is not, so removing the refusal hung the check instead of failing it — bound anything whose success does not return |
 | signalling the wrong process | `f() { ...; } &` backgrounds a subshell, so the service never got the signal |
+| asking a dead process what it left behind | an orphan is reparented to init the moment its parent dies, so `pgrep -P <that parent>` is empty however badly it left — take the pids *before* the kill |
 
 **Naming a shape does not remove it.** Three more checks were still asserting
 their own `echo` long after that row was written — the sweep for repeats is
@@ -186,7 +187,7 @@ run caught nothing — and it is worth rewriting per
 review round rather than keeping, because the mutations are the interesting
 part and they are never the same twice.
 
-Four traps in the harness itself, all met:
+Seven traps in the harness itself, all met:
 
 | Trap | Why it lies |
 |---|---|
@@ -194,11 +195,15 @@ Four traps in the harness itself, all met:
 | a mutation that makes the whole run slow — breaking the stop signal leaves every service waiting out its poll | it hits the timeout, which is not the same as the check failing — and an unguarded timeout takes the rest of the batch with it, so catch it per mutant |
 | **a mutation that does not compile** | the suite exits before a single check runs, so there are no failures to see — and "no failure" reads as *green*, the exact opposite of the truth |
 | a mutation that compiles but fails `go vet` — `x = x` is the easy one to write | the suite runs vet first, so it stops there; same inversion as the line above, from code that is legal Go |
+| mutants spaced closer than the ports one run uses | a mutant that deliberately leaks a process lands on the next mutant's ports, and that one fails for a reason that has nothing to do with it |
+| a mutation the daemon cannot start with | it compiles and it vets, and then the suite exits at its first gate with no check having run — the same inversion, from a change that looks harmless. A check only that mutation could falsify has to be falsified by hand instead |
+| editing `src/` while the batch is running | each mutant copies the tree when its turn comes, so the later ones are mutating code the earlier ones never saw — and a pattern that moved is reported as *not found* |
 
-The last two invert the answer rather than muddying it, so the harness has to
-assert that the run *produced checks at all* before reading which of them
-failed. When any of the four happens, run that one check on its own against
-both builds.
+A mutant that does not build, one that fails `go vet`, and one the daemon
+cannot start with all invert the answer rather than muddying it, so the
+harness has to assert that the run *produced checks at all* before reading
+which of them failed. When any of the seven happens, run that one check on its
+own against both builds.
 
 ## Working rules
 

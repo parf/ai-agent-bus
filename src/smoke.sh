@@ -35,7 +35,15 @@ go build -o "$D/agent-bus-web" ./cmd/agent-bus-web || exit 1
 OWNER=parf@localhost
 "$D/agent-busd" -addr 127.0.0.1:$PORT -socket "$D/bus.sock" -token-file "$D/token" -owner "$OWNER" -dump-file "$D/dump.json" -dump-every 0 >"$D/daemon.log" 2>&1 &
 DPID=$!
-for _ in $(seq 1 50); do [ -S "$D/bus.sock" ] && break; sleep 0.1; done
+# Wait for an answer, not for the socket: the supervisor binds it before the
+# bus that serves it exists, so the file appearing means nothing yet.
+# Any answer at all will do — a refusal is the bus answering. An unserved
+# socket gives nothing back, because the connection waits in the backlog.
+ready() { for _ in $(seq 1 100); do
+  [ -n "$(curl -s --max-time 1 --unix-socket "$1" http://unix/status 2>/dev/null)" ] && return 0
+  sleep 0.1
+done; return 1; }
+ready "$D/bus.sock" || { echo "daemon did not start"; cat "$D/daemon.log"; exit 1; }
 # One line per principal, `name token`: the owner's is what the daemon wrote
 # at start, and every other name gets one from it on first use.
 TOKEN=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/token")
@@ -156,7 +164,7 @@ if id -u nobody >/dev/null 2>&1; then
   "$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/multi/bus.sock" -token-file "$D/token" \
     -owner "$OWNER" -user "nobody=nemo@srv1" -dump-file "$D/multi/dump.json" -dump-every 0 >"$D/multi.log" 2>&1 &
   MPID2=$!
-  for _ in $(seq 1 50); do [ -S "$D/multi/user-nobody.sock" ] && break; sleep 0.1; done
+  ready "$D/multi/user-nobody.sock" || echo "  WARNING: $D/multi/user-nobody.sock never answered"
   has "a second account gets a socket of its own" "$([ -S "$D/multi/user-nobody.sock" ] && echo yes)" 'yes'
   has "and is a different principal on it" \
     "$(curl -s --unix-socket "$D/multi/user-nobody.sock" "http://unix/status")" '"you":"nemo@srv1"'
@@ -230,7 +238,7 @@ cp "$D/token" "$D/token2"
 mkdir -p "$D/r2"
 "$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/r2/bus.sock" -token-file "$D/token2" -owner "$OWNER" -dump-file "$D/r2/dump.json" -dump-every 0 >"$D/daemon2.log" 2>&1 &
 RPID=$!
-for _ in $(seq 1 50); do [ -S "$D/r2/bus.sock" ] && break; sleep 0.1; done
+ready "$D/r2/bus.sock" || echo "  WARNING: $D/r2/bus.sock never answered"
 has "a restart keeps both of a rotated principal's tokens" \
   "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/r2/bus.sock" -H "X-Agent-Bus-User: rotor@srv1" -H "X-Agent-Bus-Token: $second" "http://unix/status")" '200'
 has "and still refuses the one it dropped" \
@@ -247,7 +255,7 @@ has "the credential file is that account's alone" "$(stat -c %a "$D/token")" '^6
 mkdir -p "$D/old" && printf 'poc-era-bare-token\n' > "$D/old/token"
 "$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/old/bus.sock" -token-file "$D/old/token" -owner "$OWNER" -dump-file "$D/old/dump.json" -dump-every 0 >"$D/daemon4.log" 2>&1 &
 BPID=$!
-for _ in $(seq 1 50); do [ -S "$D/old/bus.sock" ] && break; sleep 0.1; done
+ready "$D/old/bus.sock" || echo "  WARNING: $D/old/bus.sock never answered"
 oldsock() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/old/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: poc-era-bare-token" "http://unix/status"; }
 has "a bare token from the PoC is read as the owner's" "$(oldsock "$OWNER")" '200'
 has "and as nobody else's" "$(oldsock bob@srv1)" '403'
@@ -258,7 +266,7 @@ mkdir -p "$D/ro" && cp "$D/token" "$D/ro/token"
 mkdir -p "$D/ro-run"
 "$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/ro-run/bus.sock" -token-file "$D/ro/token" -owner "$OWNER" -dump-file "$D/ro-run/dump.json" -dump-every 0 >"$D/daemon3.log" 2>&1 &
 OPID=$!
-for _ in $(seq 1 50); do [ -S "$D/ro-run/bus.sock" ] && break; sleep 0.1; done
+ready "$D/ro-run/bus.sock" || echo "  WARNING: $D/ro-run/bus.sock never answered"
 chmod 0500 "$D/ro"
 out=$(AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token unsaveable@srv1 2>&1); rc=$?
 bad_exit "a credential the store could not keep is not handed out" $rc
@@ -992,7 +1000,7 @@ printf 'squatter %s\n' "$(cat "$D/enr/mine.pub")" >> "$D/enr/keys"
 "$D/agent-busd" -addr 127.0.0.1:$((PORT+10)) -socket "$D/enr/bus.sock" -token-file "$D/enr/token" \
   -owner "$OWNER" -dump-file "$D/enr/dump.json" -dump-every 0 -directory "vouched=$D/enr/keys" >"$D/enr/daemon.log" 2>&1 &
 EPID=$!
-for _ in $(seq 1 50); do [ -S "$D/enr/bus.sock" ] && break; sleep 0.1; done
+ready "$D/enr/bus.sock" || echo "  WARNING: $D/enr/bus.sock never answered"
 ETOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/enr/token")
 eab() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
 # A fourth argument is a body, and a body is what makes it a POST: passing an
@@ -1183,7 +1191,7 @@ dur_up() {
   "$D/agent-busd" -addr 127.0.0.1:$((PORT+8)) -socket "$D/dur/bus.sock" -token-file "$D/dur/token" \
     -owner "$OWNER" -dump-file "$D/dur/dump.json" -dump-every 0 >"$D/dur/$1.log" 2>&1 &
   DUR=$!
-  for _ in $(seq 1 50); do [ -S "$D/dur/bus.sock" ] && break; sleep 0.1; done
+  ready "$D/dur/bus.sock" || echo "  WARNING: $D/dur/bus.sock never answered"
   DTOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/dur/token")
   KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" token keeper@srv1 2>/dev/null)
 }
@@ -1223,12 +1231,15 @@ has "and both reads are still counted" "$(dsvc out)" '^2$'
 # SIGKILL: no dump is written, so the snapshot on disk is the one the start
 # wrote, and its own flag is what says the run ended badly.
 dab send keeper@srv1 "lost with the process" >/dev/null
-kill -9 "$DUR" 2>/dev/null; wait "$DUR" 2>/dev/null
-
-dur_up fourth
-has "after an ungraceful kill the next start says so" \
-  "$(cat "$D/dur/fourth.log")" 'did not stop cleanly'
-has "and says from when it is missing traffic" "$(cat "$D/dur/fourth.log")" 'anything queued after'
+# The bus is the process that holds the state, so the bus is what dies here.
+# By parent pid, never by a pattern: a pattern matches whatever else is on
+# the host, up to and including whoever is running this.
+kill -9 "$(pgrep -P "$DUR" | head -1)" 2>/dev/null
+ready "$D/dur/bus.sock" || echo "  WARNING: the bus never came back"
+has "a bus that dies is started again" "$(cat "$D/dur/third.log")" 'restarting in'
+has "and the start that follows says the last one ended badly" \
+  "$(cat "$D/dur/third.log")" 'did not stop cleanly'
+has "and says from when it is missing traffic" "$(cat "$D/dur/third.log")" 'anything queued after'
 is_empty "the message that died with the process is not invented back" \
   "$(dkeep consume --wait 0s 2>&1)"
 dur_down -TERM
@@ -1247,6 +1258,68 @@ if slow; then
   is_empty "and it is the only one left" "$(dkeep consume --wait 0s 2>&1)"
   dur_down -TERM
 fi
+
+sec "the supervisor holds the sockets, and the bus serves them"
+# One binary, two roles. The process that may chown a socket never serves a
+# request; the process that serves is handed listeners that already exist and
+# could not make one. See docs/11-processes.md#the-rule.
+mkdir -p "$D/sup"
+AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) AGENT_BUS_WEB_CERT=$D/sup/no-cert AGENT_BUS_WEB_KEY=$D/sup/no-cert \
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" -token-file "$D/sup/token" \
+  -owner "$OWNER" -dump-file "$D/sup/dump.json" -dump-every 0 -web >"$D/sup/log" 2>&1 &
+SUP=$!
+ready "$D/sup/bus.sock" || echo "  WARNING: $D/sup/bus.sock never answered"
+# By parent pid throughout: a pattern would match anything else on the host.
+has "the daemon is a supervisor and its children" "$(pgrep -P "$SUP" | wc -l)" '^2$'
+has "and the dashboard is one of them, not something it embeds" \
+  "$(ps -o comm= -p $(pgrep -P "$SUP" | tr '\n' ',' | sed 's/,$//') | tr '\n' ' ')" 'agent-bus-web'
+WEBPID=$(pgrep -P "$SUP" -x agent-bus-web)
+is_empty "the dashboard carries no token: its socket says who it is" \
+  "$(tr '\0' '\n' < /proc/$WEBPID/environ | grep AGENT_BUS_TOKEN)"
+AGENT_BUS_ADDR=$D/sup/user-$ACCOUNT.sock "$D/agent-bus" register sup-svc@srv1 \
+  --descr "seen through the supervisor" >/dev/null
+for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+12))/" && break; sleep 0.1; done
+has "and what it shows came from the bus on the other end of that socket" \
+  "$(curl -s "http://127.0.0.1:$((PORT+12))/")" 'seen through the supervisor'
+BUSPID=$(pgrep -P "$SUP" -x agent-busd)
+INODE=$(stat -c %i "$D/sup/user-$ACCOUNT.sock")
+kill -9 "$BUSPID" 2>/dev/null
+ready "$D/sup/bus.sock" || echo "  WARNING: the bus never came back"
+has "a bus that dies is replaced, and the supervisor is untouched" \
+  "$(ps -o pid= -p "$SUP" | tr -d ' ')" "^$SUP\$"
+NEWBUS=$(pgrep -P "$SUP" -x agent-busd)
+has "and it is a different process than the one that died" \
+  "$([ -n "$NEWBUS" ] && [ "$NEWBUS" != "$BUSPID" ] && echo yes)" 'yes'
+has "while the socket is the same file, because the fd was handed over" \
+  "$(stat -c %i "$D/sup/user-$ACCOUNT.sock")" "^$INODE\$"
+# Ask after the pids themselves, not after the supervisor's children: an
+# orphan is reparented to init the moment its parent dies, so "it has no
+# children" is true of a dead process however badly it left.
+KIDS=$(pgrep -P "$SUP" | tr '\n' ' ')
+kill -TERM "$SUP" 2>/dev/null; wait "$SUP" 2>/dev/null
+gone() { for _ in $(seq 1 40); do [ -z "$(ps -o pid= -p $1 2>/dev/null)" ] && break; sleep 0.1; done
+  ps -o pid= -p $1 2>/dev/null; }
+is_empty "stopping the supervisor stops the children" "$(gone "$KIDS")"
+# Asked, not killed: only a bus that was told to stop writes a clean dump, so
+# this is where a stop that was not passed on shows up.
+has "and asks them, so the bus writes what it holds on the way out" \
+  "$(cat "$D/sup/dump.json")" '"Clean":true'
+is_empty "and takes the sockets it made with it" "$(ls "$D/sup/"*.sock 2>/dev/null)"
+# A supervisor that is killed outright cannot tidy up, so the kernel does it:
+# an orphaned bus would keep the listeners and the next start would find the
+# address in use.
+AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) AGENT_BUS_WEB_CERT=$D/sup/no-cert AGENT_BUS_WEB_KEY=$D/sup/no-cert \
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" -token-file "$D/sup/token" \
+  -owner "$OWNER" -dump-file "$D/sup/dump.json" -dump-every 0 >"$D/sup/log2" 2>&1 &
+SUP2=$!
+ready "$D/sup/bus.sock" || echo "  WARNING: $D/sup/bus.sock never answered the second time"
+KIDS2=$(pgrep -P "$SUP2" | tr '\n' ' ')
+kill -9 "$SUP2" 2>/dev/null; wait "$SUP2" 2>/dev/null
+LEFT=$(gone "$KIDS2")
+is_empty "a supervisor killed outright leaves no bus behind" "$LEFT"
+# A build that does leave one must not leave it for the next run, holding a
+# port. By the pids taken above, never by a pattern.
+[ -n "$LEFT" ] && kill -9 $LEFT 2>/dev/null
 
 if slow; then
   sec "the MCP face"

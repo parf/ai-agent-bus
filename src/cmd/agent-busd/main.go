@@ -1,200 +1,61 @@
-// agent-busd: one process, two listeners, everything in memory.
-// PoC scope: docs/12-stages.md#poc.
+// agent-busd: a supervisor that owns the listeners, and a bus child that
+// serves them. One binary; the role comes from the environment, because a
+// second binary would be a second thing to install for no gain.
+// See docs/11-processes.md#the-rule.
 package main
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net"
-	"net/http"
 	"os"
-	"os/signal"
 	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
-	"github.com/parf/ai-agent-bus/internal/auth"
-	"github.com/parf/ai-agent-bus/internal/core"
-	dirfile "github.com/parf/ai-agent-bus/internal/directory/file"
-	"github.com/parf/ai-agent-bus/internal/directory/github"
-	"github.com/parf/ai-agent-bus/internal/dump/jsonfile"
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
-	"github.com/parf/ai-agent-bus/internal/signature/sshkeygen"
-	"github.com/parf/ai-agent-bus/internal/store/file"
 )
 
+// What the supervisor tells a child it is, and which listener is which fd.
+// Both are read once at start and never again.
+const (
+	roleEnv = "AGENT_BUS_ROLE"
+	fdsEnv  = "AGENT_BUS_FDS"
+	roleBus = "bus"
+)
+
+type config struct {
+	addr, sock, tokenF, owner, dumpF string
+	every                            time.Duration
+	users                            accounts
+	hold, vouch                      masters
+	web                              bool
+}
+
 func main() {
-	var (
-		addr   = flag.String("addr", env("AGENT_BUS_ADDR", "127.0.0.1:7777"), "TCP listen address — loopback only in PoC")
-		sock   = flag.String("socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
-		tokenF = flag.String("token-file", env("AGENT_BUS_TOKEN_FILE", defaultTokenFile()), "token store; created if absent")
-		owner  = flag.String("owner", env("AGENT_BUS_OWNER", defaultOwner()), "the principal this daemon belongs to")
-		dumpF  = flag.String("dump-file", env("AGENT_BUS_DUMP_FILE", defaultDumpFile()), "where the queues and stats are snapshotted")
-		every  = flag.Duration("dump-every", time.Minute, "how often to snapshot while running; 0 turns the periodic dumper off")
-		users  accounts
-		hold   masters
-		vouch  masters
-	)
-	flag.Var(&vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
-	flag.Var(&hold, "master", "a principal that reaches every service which has not refused it: `user@realm`; repeatable")
-	flag.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
+	var c config
+	flag.StringVar(&c.addr, "addr", env("AGENT_BUS_ADDR", "127.0.0.1:7777"), "TCP listen address — loopback only in PoC")
+	flag.StringVar(&c.sock, "socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
+	flag.StringVar(&c.tokenF, "token-file", env("AGENT_BUS_TOKEN_FILE", defaultTokenFile()), "token store; created if absent")
+	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", defaultOwner()), "the principal this daemon belongs to")
+	flag.StringVar(&c.dumpF, "dump-file", env("AGENT_BUS_DUMP_FILE", defaultDumpFile()), "where the queues and stats are snapshotted")
+	flag.DurationVar(&c.every, "dump-every", time.Minute, "how often to snapshot while running; 0 turns the periodic dumper off")
+	flag.BoolVar(&c.web, "web", false, "run the dashboard as a child too (docs/05-discovery.md#dashboard)")
+	flag.Var(&c.vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
+	flag.Var(&c.hold, "master", "a principal that reaches every service which has not refused it: `user@realm`; repeatable")
+	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
 	flag.Parse()
 
-	tokens, err := auth.Load(file.NewTokens(*tokenF), *owner)
-	if err != nil {
-		log.Fatalf("token: %v", err)
+	if os.Getenv(roleEnv) == roleBus {
+		runBus(c)
+		return
 	}
-	me, err := protocol.ParseName(*owner)
-	if err != nil {
-		log.Fatalf("owner: %v", err)
-	}
-	// Queues, stats and the registry are memory; the snapshot is what a
-	// restart reads back. See docs/04-messaging.md#durability.
-	bus, snap := core.New(), jsonfile.New(*dumpF)
-	if s, found, err := snap.Load(); err != nil {
-		log.Fatalf("dump %s: %v", *dumpF, err)
-	} else if found {
-		if !s.Clean {
-			log.Printf("WARNING: the last run did not stop cleanly; anything queued after %s is gone",
-				s.At.Format(time.RFC3339))
-		}
-		bus.Restore(s)
-	}
-	// Written straight away and not clean: the next start needs to tell a
-	// first one from one that follows a death, and only a file on disk can.
-	save := func(clean bool) {
-		s := bus.Snapshot()
-		s.Clean = clean
-		if err := snap.Save(s); err != nil {
-			log.Printf("dump: %v", err)
-		}
-	}
-	save(false)
-	// The daemon's owner holds master without being listed: they installed
-	// it, and the setup user is the admin. See docs/01-identity.md#acl.
-	bus.Masters(append([]string{me.String()}, hold...))
-	// A realm somebody vouches for can only be entered by proving you hold
-	// a key it publishes. Realms nobody vouches for stay open, as they were.
-	// See docs/01-identity.md#registration.
-	dirs := map[string]ports.Directory{}
-	for _, v := range vouch {
-		realm, what, ok := strings.Cut(v, "=")
-		if !ok || realm == "" || what == "" {
-			log.Fatalf("--directory wants realm=github or realm=/path/to/keys, not %q", v)
-		}
-		if what == "github" {
-			dirs[realm] = github.New()
-		} else {
-			dirs[realm] = dirfile.New(what)
-		}
-	}
-	bus.Directories(dirs, sshkeygen.New())
-	face := api.New(bus, tokens, me.String())
-
-	// Plaintext bodies and a master token: loopback or an SSH tunnel, never a
-	// public interface. See docs/12-stages.md#poc.
-	if err := loopbackOnly(*addr); err != nil {
-		log.Fatal(err)
-	}
-	tcp, err := net.Listen("tcp", *addr)
-	if err != nil {
-		log.Fatalf("listen %s: %v", *addr, err)
-	}
-	// 0711: it holds one socket per account, so everyone must be able to
-	// walk through it to their own. Nobody can list it, and each socket is
-	// 0600 to its owner. See docs/02-access.md#local-socket.
-	if err := os.MkdirAll(filepath.Dir(*sock), 0o711); err != nil {
-		log.Fatalf("socket dir: %v", err)
-	}
-	if err := os.Chmod(filepath.Dir(*sock), 0o711); err != nil {
-		log.Fatalf("socket dir: %v", err)
-	}
-	if err := clearStaleSocket(*sock); err != nil {
-		log.Fatal(err)
-	}
-	unix, err := net.Listen("unix", *sock)
-	if err != nil {
-		log.Fatalf("listen %s: %v", *sock, err)
-	}
-	// The socket is the credential's hiding place, so the mode is not advice.
-	if err := os.Chmod(*sock, 0o600); err != nil {
-		log.Fatalf("chmod %s: %v", *sock, err)
-	}
-
-	var srvs []*http.Server
-	serve := func(l net.Listener, h http.Handler) {
-		srv := &http.Server{
-			Handler: h,
-			// Long-poll consume holds a request open, so there is no write
-			// deadline; the header and idle deadlines cost nothing.
-			ReadHeaderTimeout: 10 * time.Second,
-			IdleTimeout:       2 * time.Minute,
-		}
-		srvs = append(srvs, srv)
-		go func() {
-			if err := srv.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				log.Fatalf("serve %s: %v", l.Addr(), err)
-			}
-		}()
-	}
-	shared := face.Handler()
-	serve(tcp, shared)
-	serve(unix, shared)
-
-	// One socket per local account, so the daemon knows who is calling with
-	// nothing for anyone to configure. The account running the daemon is a
-	// user of it like any other, so it gets one without being asked for.
-	// See docs/02-access.md#local-socket.
-	users.add(ownerAccount(), me)
-	mine := []string{*sock}
-	for _, u := range users.list() {
-		path := filepath.Join(filepath.Dir(*sock), "user-"+u.account+".sock")
-		l, err := u.listen(path)
-		if err != nil {
-			log.Fatalf("socket for %s: %v", u.account, err)
-		}
-		mine = append(mine, path)
-		serve(l, face.HandlerFor(u.name))
-	}
-	log.Printf("agent-busd on http://%s and %s for %s, %d user sockets (tokens %s)",
-		*addr, *sock, me, len(users.list()), *tokenF)
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	// The periodic dumper bounds what an untimely death costs to one
-	// interval; without it a crash loses everything since start.
-	if *every > 0 {
-		tick := time.NewTicker(*every)
-		defer tick.Stop()
-		go func() {
-			for range tick.C {
-				save(false)
-			}
-		}()
-	}
-	<-stop
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	for _, srv := range srvs {
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("shutdown: %v", err)
-		}
-	}
-	// After the listeners are closed, so nothing arrives between the
-	// snapshot and the last reply. See docs/04-messaging.md#durability.
-	save(true)
-	for _, p := range mine {
-		os.Remove(p)
-	}
-	log.Print("stopped")
+	runSupervisor(c)
 }
 
 // accounts is the local account -> principal mapping setup writes down.
@@ -260,9 +121,9 @@ func (a *accounts) add2(x account) {
 func (a *accounts) list() []account { return a.all }
 
 // listen opens one account's socket: theirs to reach, nobody else's to read.
-// The chown needs CAP_CHOWN, which by the design belongs to a supervisor
-// this daemon does not have yet (docs/11-processes.md); until it does, a
-// failure here is said out loud rather than left to look like it worked.
+// The chown needs CAP_CHOWN, which is the supervisor's and no child's
+// (docs/11-processes.md#why-the-supervisor-holds-cap_chown); where it is
+// missing the failure is said out loud rather than left to look like it worked.
 func (a account) listen(path string) (net.Listener, error) {
 	if err := clearStaleSocket(path); err != nil {
 		return nil, err

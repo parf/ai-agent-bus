@@ -254,7 +254,7 @@ That is a product decision, not a technical one.
 
 | ID | Task | Notes |
 |---|---|---|
-| G.1 | supervisor and children ([processes § the rule](../../docs/11-processes.md#the-rule)) | B.2 may have taken the first slice already |
+| G.1 | ✅ _done_ — one binary, two roles: the supervisor opens every listener, chowns the per-user ones and hands the fds down; the bus serves them and holds the store ([processes § how a child is started](../../docs/11-processes.md#how-a-child-is-started)). A dead child is restarted onto the same sockets — the socket file is the same inode after a restart and a different one when it is genuinely remade, which is how that check was falsified, no mutation being able to express it — and a supervisor killed outright takes its children with it. The dashboard is a child under `-web`. ⚠️ *runner, auth and health are still design, and a child's empty capability set can only be read on a host that has one to lose* |
 | G.2 | the runner supervises and sandboxes ([runner § sandboxing](../../docs/08-runner-role.md#sandboxing)) | ⚠️ *proposed cut*: one backend plus off, where the design selects among several. Needs the owner before it is built |
 | G.3 | `stop` and `logs` | deferred out of the PoC explicitly *with the runner* ([stages § PoC](../../docs/12-stages.md#poc)) |
 
@@ -262,7 +262,8 @@ That is a product decision, not a technical one.
 
 - the bus process's effective capabilities are empty and the supervisor's hold
   exactly the one it needs — read from the running processes, not from the
-  unit file;
+  unit file. ⚠️ *only observable under the unit: the suite runs as an account
+  with no capability at all, so both sets read as empty either way*;
 - a sandboxed child that tries to write outside its work directory, or to open
   a network socket, **fails**; loosening the profile turns it red;
 - a killed child comes back, and `stop` ends it without killing its siblings.

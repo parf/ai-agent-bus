@@ -52,10 +52,17 @@ supervisor — which does nothing else — means **no long-running child ever ho
 it**: sockets are created and chowned at start and on reload, the fds are
 passed down, and the bus that serves traffic has no capability at all.
 
-⚠️ **Today `agent-busd` is one process and chowns its own sockets.** There is
-no supervisor yet, so the separation above is a design and not a fact; where
-the capability is missing the daemon says so and leaves the socket as its own.
-Splitting the processes retires this.
+The set that survives `exec` is the **ambient** one, so the supervisor clears
+it on the thread it forks from: its own permitted set is untouched — it can
+still chown a socket on reload — and a child starts with no capability at all.
+Where the capability is missing altogether the supervisor says so and leaves
+the socket as its own.
+
+⚠️ **The split is real for supervisor, bus and web; runner, auth and health
+are still design.** That a child's effective set is empty can be read from
+`/proc` on a host where the daemon actually holds `CAP_CHOWN` — under the unit
+([setup § the service account](09-setup.md#the-service-account)) — and not on
+one where nothing had it to begin with.
 
 ## What is shared
 
@@ -71,6 +78,23 @@ Nothing but file descriptors and unix sockets, both explicit.
 No child reads another's memory, and no two processes hold the store open for
 writing.
 
-❓ **Which process owns the store handle** — the bus writes the registry, but
-tokens and AUTH data have different lifetimes and readers. One writer with the
-others asking it, or a store adapter per process? *Settled by:* owner.
+**The bus holds the store**, and it is the only process that does. The
+supervisor keeps no handle to anything durable — that is what makes it the
+process with the least to go wrong — and a child that wants something durable
+asks the process that owns it.
+
+## How a child is started
+
+One binary. The supervisor opens every listener before any child exists, so a
+child cannot make one and does not need the capability to.
+
+| | |
+|---|---|
+| `AGENT_BUS_ROLE=bus` | which role this process is. Absent means supervisor |
+| `AGENT_BUS_FDS` | what arrives at fd 3 upwards, in order: `tcp`, `shared`, `user:<principal>` — the whole contract between the two |
+| `-web` | the dashboard runs as a child too ([discovery § where it listens](05-discovery.md#where-it-listens)), reaching the bus over its owner's socket, so it holds no token |
+
+A child that dies is restarted with backoff, and the listeners are passed to
+the replacement — the socket a client holds is the same file across a restart.
+A supervisor that is killed outright takes its children with it
+(`PR_SET_PDEATHSIG`), so nothing orphaned keeps a port.
