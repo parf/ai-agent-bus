@@ -139,6 +139,21 @@ has "the daemon's owner may ask for any name" \
 again=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus" token alice@srv1 2>&1)
 if [ "$again" = "$alice" ]; then echo "  ok   asking twice is a read, not a rotation"; pass=$((pass+1));
 else echo "  FAIL asking twice is a read, not a rotation: [$again]"; fail=$((fail+1)); fi
+# Rotation: two are accepted, the one before them is not. A refresh that
+# stranded traffic already queued under the old token would be worse than
+# no rotation at all. See docs/02-access.md#token-lifetime.
+ab owner@srv1 register rotor@srv1 >/dev/null
+first=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus" token rotor@srv1)
+second=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus" token rotor@srv1 --rotate)
+third=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus" token rotor@srv1 --rotate)
+if [ -n "$second" ] && [ "$second" != "$first" ] && [ "$third" != "$second" ]; then
+  echo "  ok   --rotate hands out a new token each time"; pass=$((pass+1))
+else
+  echo "  FAIL --rotate hands out a new token each time: [$first/$second/$third]"; fail=$((fail+1))
+fi
+has "the current one works" "$(code rotor@srv1 "$third" /status)" '200'
+has "and the one before it, so queued traffic is not stranded" "$(code rotor@srv1 "$second" /status)" '200'
+has "but the one before that is refused" "$(code rotor@srv1 "$first" /status)" '401'
 # Every principal is in the file, not just the owner's: a second daemon
 # reading it hands the same credentials back, which is what "tokens are
 # durable" has to mean once there is more than one.
@@ -146,6 +161,10 @@ cp "$D/token" "$D/token2"
 "$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/bus2.sock" -token-file "$D/token2" -owner "$OWNER" >"$D/daemon2.log" 2>&1 &
 RPID=$!
 for _ in $(seq 1 50); do [ -S "$D/bus2.sock" ] && break; sleep 0.1; done
+has "a restart keeps both of a rotated principal's tokens" \
+  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus2.sock" -H "X-Agent-Bus-User: rotor@srv1" -H "X-Agent-Bus-Token: $second" "http://unix/status")" '200'
+has "and still refuses the one it dropped" \
+  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus2.sock" -H "X-Agent-Bus-User: rotor@srv1" -H "X-Agent-Bus-Token: $first" "http://unix/status")" '401'
 has "a restart keeps every principal, not only the owner's" \
   "$(AGENT_BUS_ADDR=$D/bus2.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus" status)" '"up"'
 has "and still refuses the wrong name with it" \

@@ -77,8 +77,9 @@ epoch for derived keys (see [key modes](#key-modes)): a credential change must
 never break traffic that is already in flight.
 
 Re-running either command above **retrieves the same token** — it is a read,
-not a rotation. Issuing a fresh one and demoting the current to previous is the
-design for rotation; nothing implements it yet.
+not a rotation. Rotation is asked for: `agent-bus token <user@realm> --rotate`
+issues a fresh one and demotes the current to previous. Both then
+authenticate; the one before them stops.
 
 ## Local socket
 

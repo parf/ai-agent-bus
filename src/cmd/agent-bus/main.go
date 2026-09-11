@@ -28,7 +28,7 @@ import (
 const usage = `agent-bus — talk to agent-busd
 
   agent-bus status
-  agent-bus token <name>              print that principal's token
+  agent-bus token <name> [--rotate]   print that principal's token
   agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to call it; unset = this bus
@@ -99,8 +99,10 @@ func main() {
 
 // tokenFor asks the daemon for a principal's credential. The caller must own
 // the name or be the daemon's owner; the refusal says which.
-func tokenFor(name string) (string, error) {
-	out, code, err := call("POST", "/token", nil, map[string]string{"name": name})
+func tokenFor(name string) (string, error) { return getToken(name, false) }
+
+func getToken(name string, rotate bool) (string, error) {
+	out, code, err := call("POST", "/token", nil, map[string]any{"name": name, "rotate": rotate})
 	if err != nil {
 		return "", err
 	}
@@ -118,14 +120,15 @@ func tokenFor(name string) (string, error) {
 
 // tokenVerb gets a principal's credential and prints it alone, so
 // `AGENT_BUS_TOKEN=$(agent-bus token me@host)` is the whole setup. Asking
-// twice is a read, not a rotation.
+// twice is a read; `--rotate` is how you ask for a new one.
 // See docs/02-access.md#getting-a-token.
 func tokenVerb(args []string) error {
-	pos, _ := split(args)
+	pos, flags := split(args)
 	if len(pos) != 1 {
 		return fmt.Errorf("token wants one name")
 	}
-	tok, err := tokenFor(pos[0])
+	_, rotate := flags["rotate"]
+	tok, err := getToken(pos[0], rotate)
 	if err != nil {
 		return err
 	}

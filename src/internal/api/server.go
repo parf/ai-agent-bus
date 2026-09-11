@@ -89,13 +89,14 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 	}
 }
 
-// token hands out a principal's credential. The daemon's owner may ask for
-// any name; anyone else only for a name they already own, which is how a
-// runner gets the credential for a script service it started.
+// token hands out a principal's credential, or rotates it. The daemon's
+// owner may ask for any name; anyone else only for a name they already own,
+// which is how a runner gets the credential for a script service it started.
 // See docs/02-access.md#getting-a-token.
 func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {
-		Name string `json:"name"`
+		Name   string `json:"name"`
+		Rotate bool   `json:"rotate,omitempty"`
 	}
 	if !read(w, r, &in) {
 		return
@@ -112,7 +113,11 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 			return
 		}
 	}
-	tok, err := s.tokens.Issue(want.String())
+	issue := s.tokens.Issue
+	if in.Rotate {
+		issue = s.tokens.Rotate
+	}
+	tok, err := issue(want.String())
 	if err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
