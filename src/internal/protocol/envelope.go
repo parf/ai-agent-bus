@@ -45,6 +45,27 @@ type Envelope struct {
 	// at accept from the two TTLs. Absolute, so the queue compares rather
 	// than parses — the sender states a duration, the bus keeps a moment.
 	Expires time.Time `json:"expires,omitempty"`
+
+	// Wait is how long the caller will wait for an answer, and Deadline is
+	// the moment that lands on, worked out at accept the way Expires is.
+	// It travels so that a service can see the answer is already too late
+	// and not do the work at all.
+	//
+	// It is the CALLER's, which is what makes it a second pair rather than
+	// a spelling of the TTL: the receiver's queue bounds a TTL and does not
+	// bound this, and the bus never acts on it — a message whose caller has
+	// gone is still delivered, because only the service knows whether the
+	// work is worth doing for somebody else.
+	// See docs/04-messaging.md#request-and-reply.
+	Wait     string    `json:"wait,omitempty"`
+	Deadline time.Time `json:"deadline,omitempty"`
+}
+
+// TooLate says the caller has stopped waiting. No deadline means no answer
+// was promised by any moment, which is not the same as a deadline that has
+// passed — so a message without one is never too late.
+func (e Envelope) TooLate(now time.Time) bool {
+	return !e.Deadline.IsZero() && now.After(e.Deadline)
 }
 
 // ReplyTo is a route, not a promise: registered says the name owns a queue,

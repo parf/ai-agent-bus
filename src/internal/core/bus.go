@@ -34,6 +34,7 @@ var (
 	ErrMode     = errors.New("a topic mode is queue or pubsub")
 	ErrConfig   = errors.New("a configuration is JSON")
 	ErrTTL      = errors.New("a ttl is a duration, like 30s")
+	ErrWait     = errors.New("a wait is a duration, like 30s")
 	ErrBound    = errors.New("a bound is a positive number of messages")
 	ErrNotOwner = errors.New("that record belongs to someone else")
 	ErrPrivate  = errors.New("a configuration is private to the service it belongs to")
@@ -442,8 +443,23 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	if err != nil {
 		return protocol.Envelope{}, err
 	}
+	e.Expires = time.Time{}
 	if d > 0 {
 		e.Expires = e.At.Add(d)
+	}
+	// The caller's deadline travels with the request. The bus works out the
+	// moment, like Expires, so both ends read one clock — and then does
+	// nothing with it: giving up early is the service's call, not the
+	// transport's. A caller may not state the moment itself, for the same
+	// reason it may not state its own name.
+	// See docs/04-messaging.md#request-and-reply.
+	e.Deadline = time.Time{}
+	if e.Wait != "" {
+		w, err := time.ParseDuration(e.Wait)
+		if err != nil || w <= 0 {
+			return protocol.Envelope{}, fmt.Errorf("%w, not %q", ErrWait, e.Wait)
+		}
+		e.Deadline = e.At.Add(w)
 	}
 	in := b.ensure(to)
 

@@ -48,17 +48,32 @@ the same topic + tag**, and the caller waits for it:
 |---|---|
 | caller | **states its own record** if it has none — an answer needs an address to arrive at ([identity § registration](01-identity.md#registration)) — then `send` and wait on its own queue for a message with that topic + tag. A plain `send` does **not** require this: a sender's name is checked for shape, not for registration, so fire-and-forget works from anyone and an answer to an unregistered sender is refused as *no such name*. Wanting a reply is what makes the record necessary |
 | service | `consume` its inbox, optionally `ack` (got it), do the work, `reply` — and `done` if the sender asked for it |
-| deadline | the caller's, and the message's TTL is what stops a late answer arriving |
+| deadline | the caller's, and it **travels with the request** so the service can give up early — see below. The message's TTL is a different bound, and is what stops a late answer arriving |
 
 The bus adds nothing here — matching is the topic + tag it already carries, the
 wait is an ordinary `consume`, and a caller that does not want to wait simply
 does not. A service may answer twice (`ack` now, result later) or hand the
 answer to a third party with `reply-to`.
 
-❓ **Does the caller's deadline travel with the request?** A service that
-cannot see it cannot give up early, and two parties time out independently
-today. Carrying it is a field on the wire. *Settled by:* the owner, with the
-MVP.
+**The caller's deadline travels.** A request states how long its caller will
+wait, and the bus turns that into a moment on the envelope the service
+consumes. A service that sees the moment already past **does not do the
+work**: nobody is waiting for it. Without the field the two parties time out
+independently and the work is done for a caller who has gone.
+
+It is a second pair beside the TTL, not a spelling of it, and the difference
+is what each one belongs to:
+
+| | Belongs to | Bounded by the queue | The bus acts on it |
+|---|---|---|---|
+| **TTL** ([message ttl](#message-ttl)) | the message | yes — the receiver owns its retention | yes: it stops delivering |
+| **deadline** | the caller | no — it is not the receiver's to shorten | no: it only carries it |
+
+So a message whose caller has gone is **still delivered**. Only the service
+knows whether the work is worth doing for somebody else — a third party on
+`reply-to`, a cache, an audit — and the bus does not guess. What the bus does
+guarantee is that the moment is its own: the caller states a **duration** and
+never an instant, so the service is not reading the caller's clock.
 
 ## One reader per inbox
 

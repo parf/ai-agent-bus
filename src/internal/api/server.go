@@ -423,6 +423,7 @@ var codes = []struct {
 	{core.ErrConfig, http.StatusBadRequest},
 	{core.ErrReceipt, http.StatusBadRequest},
 	{core.ErrTTL, http.StatusBadRequest},
+	{core.ErrWait, http.StatusBadRequest},
 	{core.ErrBound, http.StatusBadRequest},
 	{core.ErrNotOwner, http.StatusForbidden},
 	{core.ErrPrivate, http.StatusForbidden},

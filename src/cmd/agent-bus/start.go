@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -207,6 +208,15 @@ func handle(svc service, e protocol.Envelope) {
 	// Receipts and the answer all go where the request said they should,
 	// which is the sender unless it named a third party.
 	// See docs/04-messaging.md#reply-routing.
+	// Nobody is waiting any more, so the work is not worth doing — that is
+	// the whole reason the deadline travels. Checked before the ack, because
+	// an ack for a request that will never be run says the opposite of the
+	// truth. See docs/04-messaging.md#request-and-reply.
+	if e.TooLate(time.Now()) {
+		fmt.Fprintf(os.Stderr, "%s: %s arrived after its caller gave up at %s; not run\n",
+			svc.Name, e.ID, e.Deadline.Format(time.RFC3339))
+		return
+	}
 	back, topic, tag := e.From, e.Topic, e.Tag
 	if e.ReplyTo != nil {
 		back, topic, tag = e.ReplyTo.Service, e.ReplyTo.Topic, e.ReplyTo.Tag

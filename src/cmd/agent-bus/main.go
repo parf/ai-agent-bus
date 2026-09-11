@@ -223,8 +223,11 @@ func callVerb(args []string) error {
 			return fmt.Errorf("could not register as %s: %w", me, err)
 		}
 	}
+	// The wait goes with the request, so the service can see the answer is
+	// already too late and skip the work (docs/04-messaging.md#request-and-reply).
 	sent, code, err := call("POST", "/send", nil, protocol.Envelope{
 		To: pos[0], Topic: topic, Tag: tag, Body: strings.Join(pos[1:], " "),
+		Wait: deadline.String(),
 	})
 	if err != nil {
 		return err

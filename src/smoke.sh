@@ -614,6 +614,26 @@ if slow; then
   sleep 1
   has "and runs nothing after it stopped" "$(ab stopper@srv1 consume --wait 2s)" 'after the stop'
 
+  # What the deadline is FOR: a service handed work nobody is waiting for any
+  # more does not do it. Both messages are queued before the service starts,
+  # so the only difference between them is the deadline — a runner that
+  # ignores it runs both, and a queue TTL cannot be what stops the stale one
+  # because neither message has one.
+  ab launcher@srv1 register judge@srv1 --kind generic >/dev/null
+  post_body caller@srv1 /send '{"to":"judge@srv1","topic":"lt","tag":"stale","wait":"1s","body":"stale"}' >/dev/null
+  post_body caller@srv1 /send '{"to":"judge@srv1","topic":"lt","tag":"fresh","wait":"60s","body":"fresh"}' >/dev/null
+  sleep 1.2
+  abx launcher@srv1 start judge@srv1 --algo args "$D/quick.sh" --descr "reads deadlines" >>"$D/start.log" 2>&1 &
+  JPID=$!
+  ab caller@srv1 consume --topic lt --tag fresh --wait 15s >/dev/null   # the ack
+  has "a request still inside its deadline is run" \
+    "$(ab caller@srv1 consume --topic lt --tag fresh --wait 15s)" 'ran fresh'
+  is_empty "and one whose caller gave up gets no ack and no answer" \
+    "$(ab caller@srv1 consume --topic lt --tag stale --wait 2s)"
+  has "and the service says it dropped it rather than failing quietly" \
+    "$(cat "$D/start.log")" 'after its caller gave up'
+  kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
+
 else skipped=$((skipped+1)); fi
 sec "the last two of the eleven verbs, and the one refusal the daemon owes us"
 ab follower@srv1 register follower@srv1 --kind agent >/dev/null
@@ -962,6 +982,51 @@ else
   echo "  ok   a stalled consume ends at --wait"; pass=$((pass+1))
 fi
 has "and says the message was accepted" "$out" 'do not resend'
+
+sec "the caller's deadline travels to the service"
+# The wait belongs to the CALLER, so a service can see the answer is already
+# too late and not do the work. The moment is the daemon's: a caller states a
+# duration and never an instant, the same way it may not state its own name.
+ab owner@srv1 register clockwatch@srv1 --kind generic >/dev/null
+# A zero time is still a field, so "it has a deadline" is not the check — the
+# year is. Matching the key alone passed with the stamping deleted.
+has "a send states a wait and gets the moment it lands on" \
+  "$(post_body caller@srv1 /send '{"to":"clockwatch@srv1","topic":"dl","tag":"1","wait":"30s","body":"in time"}')" '"deadline":"20'
+has "and the service reads it off the envelope it consumed" \
+  "$(ab clockwatch@srv1 consume --wait 5s)" '"deadline":"20'
+has "a send with no wait carries no moment" \
+  "$(post_body caller@srv1 /send '{"to":"clockwatch@srv1","topic":"dl","tag":"9","body":"whenever"}')" '"deadline":"0001-'
+has "and a caller cannot state the moment itself" \
+  "$(post_body caller@srv1 /send '{"to":"clockwatch@srv1","topic":"dl","tag":"2","deadline":"2099-01-01T00:00:00Z","body":"claimed"}')" '"deadline":"0001-'
+ab clockwatch@srv1 consume --wait 5s >/dev/null
+ab clockwatch@srv1 consume --wait 5s >/dev/null
+has "a wait that is not a duration is refused" \
+  "$(post_body caller@srv1 /send '{"to":"clockwatch@srv1","wait":"soon","body":"no"}')" 'a wait is a duration'
+has "and so is one that ran out before it was sent" \
+  "$(post_body caller@srv1 /send '{"to":"clockwatch@srv1","wait":"-5s","body":"no"}')" 'a wait is a duration'
+# The CLI's own `call` is the caller that waits, so if it does not put its
+# --wait on the wire the field travels for nobody.
+ab clockwatch@srv1 register clockwatch@srv1 >/dev/null 2>&1
+abx asker2@srv1 call clockwatch@srv1 --topic dl --tag cli --wait 9s "how long have I got" >/dev/null 2>&1 &
+CLIPID=$!
+has "the CLI's own call carries its --wait" \
+  "$(ab clockwatch@srv1 consume --wait 5s)" '"deadline":"20'
+kill $CLIPID 2>/dev/null; wait $CLIPID 2>/dev/null
+# A deadline is not a TTL. The queue bounds a TTL and does not bound this, and
+# the bus never acts on it: a message whose caller has gone is still delivered,
+# because only the service knows whether the work is worth doing for anyone
+# else. Losing that distinction is what makes this its own field.
+post_body caller@srv1 /send '{"to":"clockwatch@srv1","topic":"dl","tag":"3","wait":"1s","body":"long gone"}' >/dev/null
+sleep 1.2
+has "a message past its deadline is still delivered, the judgement being the service's" \
+  "$(ab clockwatch@srv1 consume --wait 5s)" 'long gone'
+# And the TTL is still the receiver's, untouched by the caller's deadline: a
+# generous wait does not keep a message the queue was told to drop.
+ab owner@srv1 register brief@srv1 --kind generic --ttl 300ms >/dev/null
+post_body caller@srv1 /send '{"to":"brief@srv1","wait":"60s","body":"kept briefly"}' >/dev/null
+sleep 0.6
+is_empty "while a long wait does not extend what the queue keeps" \
+  "$(ab brief@srv1 consume --wait 1s)"
 
 sec "the token an SSH forced command hands out"
 # Not "contains the token": a debug line printed before it passed that, and
