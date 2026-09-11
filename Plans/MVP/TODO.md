@@ -14,10 +14,20 @@ design carried out; V1 is legacy and is not consulted for it. What does still
 hold is that nothing is believed until it has been watched failing
 ([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)).
 
-**Next step**: wave B is down to B.8, and that one needs an owning edit before
-it is built. A.1, A.3, A.4 and A.6 are done; A.2 and A.5 wait on two ❓ below
-that only the owner closes. Which process owns the store handle stops mattering
-to B once there is one process — it is G's to answer.
+**Next step**: the owner's. Everything in this plan that does not stand on an
+open decision is built — A.1, A.3, A.4, A.6; all of B but B.8; E; F.3; H.2 and
+H.3. What is left is one blocked item per wave, and each is waiting on a
+question in the table below, not on work:
+
+| Waiting on | Would unblock |
+|---|---|
+| who filters, with AUTH off | C entire, then F.1 |
+| whether D's own claim is reachable in the MVP's key mode | D entire, then E.2's last half |
+| where the proof step sits relative to the `directory` port | B.8, and with it the name-claiming hole B.1 sharpened |
+| which process owns the store handle | G.1, and the declared chown violation it retires |
+| the ⚠️ proposed cut in G.2 | G.2, then G.3 |
+| npm install vs Go-first | H.1 |
+| the two ❓ raised by wave A | A.2 and A.5 |
 
 ## Blockers
 
