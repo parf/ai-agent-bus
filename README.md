@@ -181,14 +181,13 @@ Illustrative only; the exact verbs are part of the design work.
 
 ```sh
 # install and set up
-npm install -g agent-bus               # daemon + CLI (pnpm works too)
-agent-bus setup                        # asks: local account + bus username. no keys
-systemctl enable --now agent-busd      # or whatever your host uses
+npm install -g agent-bus               # five programs (pnpm works too)
+sudo agent-bus-setup                   # makes the account, writes the unit, starts it
 
 # nothing to do for local use — the socket supplies username + token
 # for a REMOTE bus you need exactly those two; get the token one of two ways:
-export AGENT_BUS_TOKEN=$(ssh agent-bus@<node> static-token)   # over SSH
-sudo -u agent-bus agent-bus token parf@github                 # on the box
+export AGENT_BUS_TOKEN=$(ssh agent-bus@<node> token parf@github)   # over SSH
+agent-bus-token parf@github                                       # the same program, locally
 agent-bus keygen                       # an Ed25519 key for a long-running agent of its own
 
 # describe something that already exists

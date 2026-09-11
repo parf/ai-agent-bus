@@ -16,6 +16,8 @@ All 2026-09-09 unless noted.
 |---|---|
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](01-identity.md#names) |
 | Setup installs the separate-user arrangement, and where that account lives | [setup § the service account](09-setup.md#the-service-account) |
+| Five programs, split by the privilege each needs and no finer | [setup § the five programs](09-setup.md#the-five-programs) |
+| Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the five programs](09-setup.md#the-five-programs) |
 | The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the service account](09-setup.md#the-service-account) |
 | A name is checked, not taken on trust | [access § two parameters](02-access.md#two-parameters) |
 | Writing is subject to the ACL, like reading | [identity § acl](01-identity.md#acl) |
@@ -30,7 +32,6 @@ All 2026-09-09 unless noted.
 | A realm with a directory behind it is enrolled into, never registered into | [identity § proving possession](01-identity.md#proving-possession) |
 | An enrolled record is owned by the name itself, and the proof hands out its credential | [identity § proving possession](01-identity.md#proving-possession) |
 | `allow: *` means anyone who can authenticate | [identity § acl](01-identity.md#acl) |
-| The setup user gets `agent-bus-admin` | [identity § acl](01-identity.md#acl) |
 | Delegation: A authenticates, adds an on-behalf-of claim | [identity § delegation](01-identity.md#delegation) |
 | Publish a service or topic: any authenticated principal; change: owner or owner group | [identity § ownership](01-identity.md#ownership) |
 | Changing a record is the owner's, and the record's own; publishing a new name stays open | [identity § ownership](01-identity.md#ownership) |
@@ -89,7 +90,6 @@ All 2026-09-09 unless noted.
 | Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](future/billing.md) |
 | One push adapter per agent runtime; ChatGPT pull-only | [runner § adapters](08-runner-role.md#adapters) |
 | Sandboxing on by default, backend chosen by environment | [runner § sandboxing](08-runner-role.md#sandboxing) |
-| Minimal setup: install, `agent-bus setup`, start the service | [setup § install](09-setup.md#install) |
 | Development goes PoC → MVP → Release 1, each ending in something that works end to end | [stages](12-stages.md) |
 | PoC: sockets + HTTP, one master token issued over SSH, a small set of CLI verbs, a basic MCP face, no npm | [stages § PoC](12-stages.md#poc) |
 | A service call is a `send` whose reply comes back on the same topic and tag; the bus adds no call machinery | [messaging § request and reply](04-messaging.md#request-and-reply) |
@@ -177,6 +177,8 @@ All 2026-09-09 unless noted.
 
 | Was | Now |
 |---|---|
+| The setup user gets the `agent-bus-admin` role | they hold master, and the name is the operator's program instead — [setup § the five programs](09-setup.md#the-five-programs) |
+| Minimal setup: install, `agent-bus setup`, start the service | `sudo agent-bus-setup` does all three, and is its own program — [setup § install](09-setup.md#install) |
 | Go first, a bun/NPM build later | Go inside, TypeScript for the MCP face and adapters — built by bun, run on Node — [modules § languages](10-modules.md#languages) |
 | TypeScript runs on Node because bun's WebSocket fails on a unix socket | bun, reaching the App Server over stdio instead — the WebSocket was the only thing that needed Node — [modules § languages](10-modules.md#languages) |
 | Only stdio reaches the Codex App Server; the WebSocket is not needed | both are used — a loopback WebSocket to a shared app-server, stdio to a spawned one. Only a WebSocket over a *unix socket* is out — [runner § adapters](08-runner-role.md#adapters) |

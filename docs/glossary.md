@@ -9,7 +9,9 @@ wins.
 | Name | Is | Never |
 |---|---|---|
 | `agent-busd` | *the* daemon (`sshd`/`dockerd` convention) | not "the server", not `agentbusd` |
-| `agent-bus` | the CLI | — |
+| `agent-bus` | the CLI any user runs | — |
+| `agent-bus-setup` | the root-only installer | not `agent-bus setup`, which was a verb |
+| `agent-bus-token` | what hands a user a credential, locally or as their forced command over SSH | not an admin program |
 | `agent-bus` | the keyword everywhere else: `/etc/agent-bus/`, `~/.config/agent-bus/`, the `agent-bus` system user, `agent-busd.service` | — |
 | `ab_` | **MCP tool prefix only** (`ab_list_services`, `ab_call`) | never in CLI, config or prose. Underscore, not `ab:` — a client exposes a tool as `mcp__<server>__<tool>` (and a plugin's as `mcp__plugin_<plugin>_<server>__<tool>`), and model tool names must match `[a-zA-Z0-9_-]{1,64}`, so a colon does not survive the trip; `:` also already means a capability (`publish:<glob>`) |
 | `ab:` | the **plugin** namespace, if we ship a Claude Code plugin named `ab` | slash commands, skills and agents only — `/ab:send`, never a tool name |
@@ -35,7 +37,7 @@ wins.
 | **token** | the second of the two parameters every call carries; persisted, previous one kept | [access § token lifetime](02-access.md#token-lifetime) |
 | **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](01-identity.md#acl) |
 | **`allow: *`** | anyone who can authenticate | [identity § acl](01-identity.md#acl) |
-| **`agent-bus-admin`** | the master-ACL role the setup user gets | [identity § acl](01-identity.md#acl) |
+| **`agent-bus-admin`** | the program that edits what the `agent-bus` account owns — *not* a role; the setup user simply holds master | [setup § the five programs](09-setup.md#the-five-programs) |
 | **role** | service-defined string saying what a principal may do | [identity § groups and roles](01-identity.md#groups-and-roles) |
 | **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](01-identity.md#delegation) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](03-services-and-topics.md#service-kinds) |
@@ -70,7 +72,6 @@ wins.
 
 | Group | Verbs |
 |---|---|
-| setup | `setup` |
 | identity | `keygen`, `register` |
 | registry | `register`, `topic create`, `ls`, `service-template`, `status` |
 | messaging | `send`, `call`, `publish`, `consume`, `ack`, `reply` |

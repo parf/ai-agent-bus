@@ -273,20 +273,28 @@ role from being a compromise of the host.
 
 ### H — somebody else installs it
 
-⚠️ H.1 is **blocked** on the packaging ❓ above. H.2 and H.3 do not depend on
-how the binary arrives, and are built.
+⚠️ H.1 is **blocked** on the packaging ❓ above. The rest do not depend on how
+the binaries arrive: H.3 is done, H.2's work exists in the wrong program, and
+H.4–H.6 are the split the owner asked for
+([setup § the five programs](../../docs/09-setup.md#the-five-programs)).
 
 | ID | Task |
 |---|---|
 | H.1 | the package ([setup § install](../../docs/09-setup.md#install)) — **still blocked** on the packaging ❓ |
-| H.2 | ✅ _built_ — `agent-bus setup` creates the account, writes the unit and starts the daemon as it; it refuses without root rather than half-installing, and `--dry-run` / `--print-unit` need nothing ([setup § the service account](../../docs/09-setup.md#the-service-account)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
+| H.2 | ⚠️ _built as a verb, and it is no longer one_ — the installer creates the account, writes the unit and starts the daemon as it; it refuses without root rather than half-installing, and `--dry-run` / `--print-unit` need nothing ([setup § the service account](../../docs/09-setup.md#the-service-account)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below**. It has to move out of the CLI into `agent-bus-setup` — H.4 |
 | H.3 | ✅ _done_ — the account, its home, the one declarative capability and restart, all in the unit and each falsified on its own |
+| H.4 | `agent-bus-setup` as its own program: the same work, root-only, printing the `sudo` line rather than failing flat ([setup § the five programs](../../docs/09-setup.md#the-five-programs)) |
+| H.5 | `agent-bus-admin`: what edits the account's own files — users, keys, ACL — re-running itself under `sudo -u agent-bus` when it is not that account, and the forced command behind an **operator's** key ([AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin)) |
+| H.6 | `agent-bus-token`: the forced command behind everybody else's key, and the only thing an ordinary user reaches over SSH. It replaces the `static-token` stand-in, and the CLI's `token` verb goes with it ([setup § the five programs](../../docs/09-setup.md#the-five-programs)) |
 
 **Done when**, and what breaking it must do:
 
 - a person who has not read this repo installs it on a fresh host and calls a
   service, following only the generated instructions — **checked by hand,
   once**, like the PoC's live criterion;
+- each of the five programs refuses the privilege it is not for, and says
+  which line to run instead — a root-only installer run as a user, an admin
+  run as somebody else;
 - the running daemon's uid is the service account's and not the installer's,
   its home is where the docs say, and its store and dumps are under that home
   — read from the running process, so starting it by hand as a developer

@@ -17,7 +17,7 @@ and linked from everywhere else.
 | 05 | [discovery](05-discovery.md) | faces · audience · health · stats · dashboard · debug mode |
 | 06 | [AUTH role](06-auth-role.md) | the bundle · signed generations · topology · `master_secret` · SSH admin |
 | 08 | [runner role](08-runner-role.md) | supervision · adapters · sandboxing · in-process queue |
-| 09 | [setup](09-setup.md) | install · `agent-bus setup` · local users · storage · reload |
+| 09 | [setup](09-setup.md) | the five programs · install · local users · storage · reload |
 | 10 | [modules](10-modules.md) | layers · module boundaries · which dependency is swappable · languages · external tools |
 | 11 | [processes](11-processes.md) | the supervisor and its children · privilege per process · what is shared |
 | 12 | [stages](12-stages.md) | PoC, MVP, Release 1 — what gets built when, and what counts as done |
@@ -67,8 +67,11 @@ Claims only; the mechanism lives in the doc each one links to.
   outside world, so anything external — the database, a directory, the sandbox
   backend — sits behind a port and is replaced without touching the rest
   ([modules](10-modules.md)).
-- **One binary, one unit, one config dir, one CLI, one git repo** — many
-  processes out of that one binary ([processes](11-processes.md)).
+- **Five programs, one unit, one config dir, one git repo** — split by the
+  privilege each needs and no finer
+  ([setup § the five programs](09-setup.md#the-five-programs)), and the daemon
+  is a single binary that becomes many processes
+  ([processes](11-processes.md)).
 - **Ed25519 wherever there is a key**; no passwords, no client secrets, no
   TLS/PKI — between bus citizens. A browser is the exception, and only the
   dashboard faces one

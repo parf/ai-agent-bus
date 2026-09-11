@@ -1,12 +1,46 @@
 # Setup and operation
 
+## The five programs
+
+Privilege is what separates them, and nothing else does: root is needed once
+and never again, the account's own files are the admin's, and what an ordinary
+user needs is neither.
+
+| Program | Runs as | What it is for |
+|---|---|---|
+| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the `agent-bus` account and its home, chowns it, writes and enables the unit, then hands over to `agent-bus-admin` for the first user |
+| `agent-bus-admin` | the **`agent-bus` account**; re-runs itself under `sudo -u agent-bus` when it is not | everything that edits what lives in the home — users, keys, ACL — and tells the daemon to re-read it. **Not for ordinary users** |
+| `agent-bus-token` | **any user** | hands out a credential, and does nothing else. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
+| `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
+| `agent-busd` | the **`agent-bus` account**, started by the unit | the daemon: a supervisor and its children ([processes](11-processes.md)) |
+
+**Reaching a node over SSH runs one of these, never a shell.** Every key lives
+in the `agent-bus` account's `authorized_keys` behind a forced command, and
+which command is what separates an operator from everybody else
+([AUTH role § SSH admin](06-auth-role.md#ssh-admin)):
+
+| The line says | What that key reaches |
+|---|---|
+| `command="…/agent-bus-token"` | `token <name>`, and nothing else |
+| `command="…/agent-bus-admin <admin>"` | the admin grammar, **and the same `token <name>`** |
+
+**`ssh agent-bus@<host> token <name>` answers the same however the key is
+listed.** An operator's line is a superset, not a different path: the token
+half is one piece of code both programs call, so nobody has two ways to get a
+credential. What an operator's line adds is verbs — and a user who only ever
+needs a token never reaches the admin program at all.
+
+Administering a node from across the network and from its own console are
+likewise one program: `ssh agent-bus@<host> <args>` and
+`sudo -u agent-bus agent-bus-admin <args>` are the same thing.
+
 ## Install
 
 | Step | What happens |
 |---|---|
-| `npm install -g agent-bus` (or `pnpm`) | one package brings `agent-busd` and the `agent-bus` CLI |
-| `agent-bus setup` | creates the **`agent-bus` system user**, asks the two questions below, writes the config. **No keys.** |
-| start the service | `systemd` where present (`agent-busd.service`), otherwise whatever the host has; the runner supervises the rest |
+| `npm install -g agent-bus` (or `pnpm`) | one package brings all five ([the five programs](#the-five-programs)) |
+| `sudo agent-bus-setup` | creates the **`agent-bus` system user**, asks the two questions below, writes the config and the unit, and starts it. **No keys.** |
+| the first user | `agent-bus-setup` calls `agent-bus-admin` to make one, which is what puts a key in that account's `authorized_keys` |
 
 `agent-busd` and the CLI are Go; the MCP face and the push adapters are bun —
 [modules § languages](10-modules.md#languages).
@@ -31,8 +65,7 @@ on every request.
 
 Result: a bus with AUTH off that **serves every user on the host at once**, so
 service ACLs apply per user with nothing for anyone to configure. The person
-who ran setup gets **`agent-bus-admin`** in the master ACL
-([identity § acl](01-identity.md#acl)). The same three steps on a team node
+who ran setup **holds master** ([identity § acl](01-identity.md#acl)). The same three steps on a team node
 plus `auth: on` make it an AUTH replica ([AUTH role](06-auth-role.md)).
 
 ## Storage
@@ -68,10 +101,11 @@ Zero-downtime reload for `agent-busd` itself via socket inheritance
 
 ## The service account
 
-**`agent-bus setup` installs the separate-user arrangement**, not the
+**`agent-bus-setup` installs the separate-user arrangement**, not the
 personal one — the two are [runner § who it runs as](08-runner-role.md#who-it-runs-as),
-and an install that serves more than its installer has to be the first. Setup
-creates the account; nothing runs as root at any point.
+and an install that serves more than its installer has to be the first. It is
+the one program that needs root, and it needs it once; nothing the daemon does
+afterwards runs as root.
 
 Its home is **`/var/lib/agent-bus`** — state a program writes, which is what
 `/var/lib` is for and what every other daemon account on a host uses. `/usr`
@@ -86,8 +120,8 @@ home, a store or a dump.
 The per-user sockets are **not** under it: they belong in the host's runtime
 directory, which a reboot clears ([access § local socket](02-access.md#local-socket)).
 
-The unit `setup` writes is `/etc/systemd/system/agent-busd.service`, and it is
-the whole privileged arrangement in one file:
+The unit it writes is `/etc/systemd/system/agent-busd.service`, and it is the
+whole privileged arrangement in one file:
 
 | The unit says | So that |
 |---|---|
@@ -97,10 +131,10 @@ the whole privileged arrangement in one file:
 | `Restart=on-failure` | a daemon that dies comes back |
 | `AmbientCapabilities=CAP_CHOWN` with a bounding set of exactly that | the one capability is given, not taken, and no second one can be picked up ([processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown)) |
 
-`setup` needs root once, for the account and the unit, and refuses rather than
-half-installing without it. `--dry-run` names the steps and `--print-unit`
-prints the unit; neither needs anything. The installer's own account is given a
-socket without being asked for — they are a user of the bus like anyone else.
+It refuses rather than half-installing without root, and says which `sudo`
+line to run. `--dry-run` names the steps and `--print-unit` prints the unit;
+neither needs anything. The installer's own account is given a socket without
+being asked for — they are a user of the bus like anyone else.
 
 ## Config locations
 

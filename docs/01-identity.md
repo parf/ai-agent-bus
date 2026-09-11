@@ -188,9 +188,10 @@ controls — so `allow` is a field on it, stated like any other.
   reading: a send, a publish, a registration and a consume are all subject to
   them, so a principal that may not see a service cannot enqueue to it either.
 
-The user who ran setup gets the **`agent-bus-admin`** role in the master ACL:
-users and groups, service ACL, and service install / start / stop / reload
-([runner](08-runner-role.md)). Owners still own their service *definitions* and
+The user who ran setup **holds master**: users and groups, service ACL, and
+service install / start / stop / reload ([runner](08-runner-role.md)). The
+name `agent-bus-admin` belongs to the program an operator runs, not to a role
+([setup § the five programs](09-setup.md#the-five-programs)). Owners still own their service *definitions* and
 run services without an admin; admin is the escalation path and the node
 operator, not a required participant.
 

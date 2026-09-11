@@ -16,7 +16,7 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Processes | one | supervisor + children | AUTH child |
 | Services | request/reply with `ack`; queue topics; scripts as services; a template configured into a service; a record says how to call it and whether anyone is serving it | pub/sub; deadlines, `done`, `reply-to`, several workers behind one name; the runner supervises and sandboxes | calls across chained buses; one service on many hosts, scatter-gather |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
-| Install | built Go binary; bun runs the faces | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
+| Install | built Go binary; bun runs the faces | `npm install` + `sudo agent-bus-setup` | packaged, zero-downtime reload |
 
 ## PoC
 
@@ -121,7 +121,7 @@ a shared host.
 | faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a basic dashboard ([discovery § faces](05-discovery.md#faces)) |
 | runner | supervise and sandbox children ([runner role](08-runner-role.md)) |
 | processes | the supervisor/children split ([processes](11-processes.md)) |
-| install | `npm install -g` + `agent-bus setup` ([setup](09-setup.md)) |
+| install | `npm install -g` + `sudo agent-bus-setup`, and the five programs it brings ([setup § the five programs](09-setup.md#the-five-programs)) |
 
 **Works at the end of MVP**
 

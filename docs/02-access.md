@@ -37,12 +37,16 @@ Both paths need you to already have access to the machine.
 
 | Path | Command | For |
 |---|---|---|
-| over SSH | `export AGENT_BUS_TOKEN=$(ssh agent-bus@<node> static-token)` | anyone with SSH to the node; sshd authenticates you with the key you already have, behind a forced command |
-| on the box | `sudo -u agent-bus agent-bus token <user@realm>` | server access, no SSH key on the bus |
+| over SSH | `export AGENT_BUS_TOKEN=$(ssh agent-bus@<node> token <user@realm>)` | anyone with SSH to the node; sshd authenticates you with the key you already have |
+| on the box | `agent-bus-token <user@realm>` | server access, no SSH key on the bus |
 
-The forced command is [`src/static-token`](../src/static-token): it prints the
-token file the daemon reads at start and refuses every other request. Setting
-it up is one `authorized_keys` line per person, given in that script's header.
+**One program either way**, `agent-bus-token`, and it is the *only* thing an
+ordinary user reaches over SSH — the forced command behind their key, where an
+operator's key has the admin program instead
+([setup § the five programs](09-setup.md#the-five-programs)). Today it is the
+stand-in [`src/static-token`](../src/static-token): it prints the token file
+the daemon reads at start and refuses every other request. Setting it up is
+one `authorized_keys` line per person, given in that script's header.
 
 **Who may ask for whose.** The daemon's owner — the principal it was started
 for — may get a credential for any name. Anyone else may get one only for a

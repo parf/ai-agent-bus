@@ -74,15 +74,22 @@ immediate effect on *new* sessions; live sessions are not torn down.
 
 `agent-busd` runs as the dedicated `agent-bus` user: nologin shell, no sudo,
 home 0700. Admins SSH in with their own keys; identity is bound to the key; the
-forced command talks to the AUTH child.
+forced command is **`agent-bus-admin`**, the same program an operator runs on
+the console ([setup § the five programs](09-setup.md#the-five-programs)), so
+there is one grammar and one set of rules rather than two.
 
-- `authorized_keys`: `restrict,command="/…/agent-bus auth admin <admin-name>" ssh-ed25519 …`
-  (optionally `from=`). Regenerated from the bundle's admin keys each generation.
+- `authorized_keys` holds **every** user's key, each behind the forced command
+  its holder is entitled to: `restrict,command="/…/agent-bus-admin <admin-name>"`
+  for an operator, `restrict,command="/…/agent-bus-token"` for everybody else
+  (optionally `from=`). Regenerated from the bundle each generation. The
+  `token` verb is the same either way
+  ([setup § the five programs](09-setup.md#the-five-programs)) — an operator's
+  line adds verbs, it does not change that one.
 - `sshd_config`: `Match User agent-bus` → `ForceCommand`, `PermitTTY no`,
   `AllowTcpForwarding no`, `AllowAgentForwarding no`, `X11Forwarding no`,
   `PermitUserEnvironment no`, `PasswordAuthentication no`;
   `ExposeAuthInfo yes` to log the key fingerprint.
-- `agent-bus auth admin` parses `$SSH_ORIGINAL_COMMAND` against a fixed verb
+- `agent-bus-admin` parses `$SSH_ORIGINAL_COMMAND` against a fixed verb
   grammar (`bundle show|history`, `user list`, `service list`, `status`,
   `replica-sync`, `static-token`); a bundle arriving on stdin is still verified
   (signature + gen) — SSH gates *who may talk*, the signature gates *what
@@ -93,6 +100,6 @@ forced command talks to the AUTH child.
 - Test the lockdown: `ssh agent-bus@host bash`, `-L`, `-A`, `-t` must all fail.
 
 ❓ **`authorized_keys` is regenerated from the bundle each generation**, which
-would drop the key `agent-bus setup` installed for issuing tokens
+would drop the key `agent-bus-setup` installed for issuing tokens
 ([access § getting a token](02-access.md#getting-a-token)) the moment AUTH is
 switched on. *Settled by:* owner.
