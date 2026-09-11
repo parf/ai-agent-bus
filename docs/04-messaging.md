@@ -177,9 +177,15 @@ why a request/reply exchange can skip `done`.
 
 ## Message TTL
 
-Optional, and shorter than the topic's. When it expires undelivered the message
-is dropped from the queue and counted, never handed to a consumer. A question
-nobody should answer late sets one.
+Optional, and shorter than the topic's — asking for longer is not an error,
+it simply is not kept that long, because the receiver owns its retention the
+same way it owns its [overflow](#overflow). When it expires undelivered the
+message is dropped from the queue and **counted apart from overflow**, never
+handed to a consumer. A question nobody should answer late sets one.
+
+Two counters, because they are two problems: a queue too small for its
+traffic, and a message nobody wanted by the time it arrived. One number
+cannot tell an operator which they have.
 
 ## Reply routing
 

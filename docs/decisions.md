@@ -129,6 +129,7 @@ All 2026-09-09 unless noted.
 | A script service takes a message only when a worker is free; stopping waits for the running ones | [runner § script services](08-runner-role.md#script-services) |
 | What a caller does when a receipt arrives | [messaging § receipts](04-messaging.md#receipts) |
 | What a script that prints nothing sends back | [runner § script services](08-runner-role.md#script-services) |
+| Expiry is counted apart from overflow | [messaging § message TTL](04-messaging.md#message-ttl) |
 
 ## Open
 
