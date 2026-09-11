@@ -5,7 +5,8 @@ One daemon gives you a registry, message queues, an MCP server and a dashboard.
 
 ![Agents Bus — connecting agents](docs/img/agent-bus.png)
 
-🚧 **Design phase.** Nothing here is implemented yet; the commands below show the
+**Design first, and a working PoC.** The PoC is built and green in
+[`src/`](src/); everything past it is still design, and the commands below show the
 intended shape. A first version (V1) runs in production on a message broker and is
 being replaced by this design. See [Status](#status).
 
@@ -44,7 +45,8 @@ GitHub account can walk up, prove the key is theirs, and use it.
 
 - Every participant is **`name@realm`** — `parf@localhost`, `parf@om.parf.dev`,
   `parf@github` (the identity provider vouches), `parf@realmo` (a team on the
-  AUTH server). Services and instances use the same shape.
+  AUTH server). Services use the same shape, optionally prefixed by the service
+  template they were configured from.
 - **A call carries two things: username and token.** Nothing else. On your own
   host you handle neither — you talk to the daemon over a socket that is yours
   alone, and it fills both in for you
@@ -164,7 +166,8 @@ once consumed they are gone. Prometheus export for Grafana if you want history.
 ## What it is not
 
 - **Not a durable queue.** Queues live in memory and are saved to a Parquet file on a
-  graceful restart (optionally every minute), so a crash loses at most a minute. Each
+  graceful restart; with periodic dumping on, a crash loses at most one interval, and
+  without it everything since the last graceful restart. Each
   queue has a TTL and a size; on overflow it either drops its oldest message or refuses
   new ones — the receiving record chooses. If one flow needs more, give that one a WAL.
 - **Not a workflow engine.** It routes messages; what to do with them is the agent's job.
@@ -186,20 +189,23 @@ sudo -u agent-bus register parf@github                             # on the box
 agent-bus keygen                       # an Ed25519 key for a long-running agent of its own
 
 # describe something that already exists
-agent-bus register mysql-prod --kind generic --addr host:3306
+agent-bus register mysql-prod@srv1 --kind generic --addr host:3306
 
 # create a topic (registered like a service: token to create, owner to change)
-agent-bus topic create alerts.prod --kind pubsub
-agent-bus topic create build-jobs  --kind queue --ttl 1h --bound 1000
+agent-bus topic create alerts.prod@srv1 --kind pubsub
+agent-bus topic create build-jobs@srv1  --kind queue --ttl 1h --bound 1000
+
+# configure a service template into a service of its own
+cat cfg.json | agent-bus service-template imap-mail-reader/billing@srv1 -
 
 # talk
 agent-bus send     fixer@srv1 --topic deploy-42 --tag q1 "run the migration?"   # known receiver
 agent-bus call     fixer@srv1 --topic deploy-42 --tag q2 "is it done?"           # wait for the reply
-agent-bus publish  --topic alerts.prod "disk 91% on db3"                        # whoever consumes it
+agent-bus publish  --topic alerts.prod@srv1 "disk 91% on db3"                   # whoever consumes it
 agent-bus consume                                                                # read my own queue
 
 # supervise a child under the runner
-agent-bus start my-mcp-server --sandbox default
+agent-bus start my-mcp-server@srv1 --sandbox default
 agent-bus ls · agent-bus logs my-mcp-server · agent-bus stop my-mcp-server
 ```
 
@@ -243,7 +249,7 @@ document owns what.
 |---|---|
 | Design docs | ✅ decisions of 2026-09-09 recorded; open items listed in [decisions](docs/decisions.md) |
 | Plan | [Plans/PoC/](Plans/PoC/TODO.md) — waves, blockers and what counts as done |
-| Code | 🚧 none yet. Build order is [PoC → MVP → Release 1](docs/12-stages.md); Go inside, bun for the MCP face and the push adapters; client libs for Go, PHP, Rust, JS, Python |
+| Code | [`src/`](src/) — the PoC is complete, with a smoke suite. Build order is [PoC → MVP → Release 1](docs/12-stages.md); Go inside, bun for the MCP face and the push adapters; client libs for Go, PHP, Rust, JS, Python |
 | V1 | runs in production on a broker |
 
 ## Conventions

@@ -22,7 +22,7 @@ directory.
 
 **Not in the payload**: service and topic definitions, ownership (those are
 live records, [services § service and template](03-services-and-topics.md#service-and-template)),
-instance health/stats, queues, sealed private configs, `master_secret`.
+service health/stats, queues, sealed private configs, `master_secret`.
 
 Enforced by replicas **and** services: valid signature; `gen > current`
 (identical gen + hash = no-op). Gaps (`prev_gen != current`): **newer

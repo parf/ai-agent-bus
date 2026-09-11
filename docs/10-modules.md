@@ -70,14 +70,19 @@ other client.
 |---|---|---|
 | protocol, ports, core, adapters | **Go** | one static binary, no runtime; peer credentials on a unix socket, privilege-dropped children and passed fds are stdlib, not FFI ([processes](11-processes.md)) |
 | `cli` face | **Go** | it ships with the daemon, and the same core is already linked |
-| `mcp` face, the push adapters | **TypeScript on bun** | one runtime. The one thing that ever forced Node — a WebSocket over a unix socket, where bun substitutes its native WebSocket for `ws` and fails — turned out to be avoidable: `codex app-server` speaks newline-delimited JSON-RPC on **stdio**, which bun drives with a spawn and a flush (measured, [Plans/PoC/DONE.md](../Plans/PoC/DONE.md)) |
+| `mcp` face, the push adapters | **TypeScript on bun** | one runtime. The one thing that ever forced Node — a WebSocket over a *unix socket*, where bun substitutes its native WebSocket for `ws` and fails — turned out to be avoidable. Only that shape is out: bun's built-in WebSocket reaches a shared app-server over loopback, and a spawned one speaks NDJSON on stdio ([runner § adapters](08-runner-role.md#adapters)) |
 | client libraries | Go, PHP, Rust, JS, Python | each reimplements `protocol` and nothing below it |
 
 Two rules hold this together:
 
 - **No verb exists only in a face.** Every CLI or MCP operation is first a
   public core API; a face that does routing, signing or retry of its own has
-  taken work that belongs inward.
+  taken work that belongs inward. What a face *may* do is compose those
+  operations and hold context the daemon deliberately does not: `call` is a
+  `send` plus a filtered `consume`, and `reply` resolves its address from
+  what the client consumed, because the daemon keeps no exchange state
+  ([messaging § reply routing](04-messaging.md#reply-routing)). Authority over
+  the registry and the queues is core's; sequencing is not.
 - **A face in another language is a client, not a shortcut inward.** It gets
   no privilege the protocol does not give it, and it is supervised like any
   other child ([processes](11-processes.md)).

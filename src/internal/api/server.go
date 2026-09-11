@@ -107,6 +107,9 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	// The caller just sent it, and echoing it would make this a second route
+	// to a configuration. There is one.
+	rec.Config = nil
 	ok(w, rec)
 }
 

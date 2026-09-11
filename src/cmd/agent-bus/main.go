@@ -38,8 +38,9 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus publish --topic <name> <text>
   agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
   agent-bus start                     (the same, as JSON on stdin)
-  agent-bus service-template <template/instance@host> -    configure it, JSON on stdin
-  agent-bus service-template <template/instance@host>      print that configuration
+  agent-bus service-template <name> -         configure it, JSON on stdin
+  agent-bus service-template <name> '{"k":1}' the same, inline
+  agent-bus service-template <name>           print that configuration
 
 Environment: AGENT_BUS_NAME (user@realm), AGENT_BUS_TOKEN, AGENT_BUS_ADDR.`
 

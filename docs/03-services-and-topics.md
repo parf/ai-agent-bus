@@ -23,8 +23,10 @@ Two axes: reachable or not, and who owns the record.
 - **Identity is required** for agents, consumers and publishers — see
   [access § two parameters](02-access.md#two-parameters). Only generic records
   have none.
-- Publisher/consumer are **capabilities on a principal** (`publish:<glob>`,
-  `consume:<glob>`), not service objects.
+- Publisher/consumer name **capabilities on a principal** (`publish:<glob>`,
+  `consume:<glob>`), not separate objects. They appear in the table above
+  because a record says which a principal behaves as, not because they are a
+  third kind of thing.
 - generic vs agent differ only in record owner and health mode → same record
   type with a `kind` (when models are designed).
 
@@ -52,7 +54,10 @@ does nothing else with it — a hint from the service, enforced by nobody but th
 receiver. A template does not run, holds no config and has **no address**.
 
 A **service is always configured**: a template, its private config, and a place
-it runs. Never call an unconfigured template a service.
+it runs. Never call an unconfigured template a service. "Configured" is about
+*existing as an instantiated thing* — a place to run and an identity; a
+`service-template` configuration blob is optional on top
+([configuring a template](#configuring-a-template)).
 
 | | |
 |---|---|
@@ -65,7 +70,7 @@ The name is stable across restarts, and is also the address and the inbox
 share a prefix and nothing else — two records, two inboxes, two configs.
 
 **Config is arbitrary and separate from identity.** The name says which
-template and which instance; it never *declares* what the instance was pointed
+template and which instance; it never *declares* what the service was pointed
 at. Naming an instance after the thing it reads is fine and often clearest —
 `mail-sender/parf+alerts@comfi.com@host` is a legal name
 ([identity § names](01-identity.md#names)) — but that is a human convention,
@@ -98,31 +103,44 @@ verb does it, and reads it back:
 | `agent-bus service-template <template/instance@host>` | print that configuration |
 
 The direction is decided by whether a configuration was handed to it. The verb
-is **one hyphenated word** so that it stays a single verb in every face: an
-MCP tool name is `[a-zA-Z0-9_-]{1,64}`, and a two-word verb has no spelling
-there.
+is **one hyphenated word** so that it stays a single verb in every face,
+including as an MCP tool name
+([glossary § names that are enforced](glossary.md#names-that-are-enforced)).
 
 The service is created if it does not exist, with the defaults a bare
 registration gets — configuring is not a second way to describe a service,
-only the way to give it one.
+only the way to give it one. A standalone `service@host` takes a configuration
+the same way; the template prefix is not what makes one configurable.
 
 | | |
 |---|---|
 | the configuration | **arbitrary JSON, stored opaque.** The only check is that it *is* JSON — the same "stored raw, shape-checked only" rule the MCP method info follows. Nothing looks for a server, a user, a mailbox or a credential |
-| who may write it | its **owner**. Unlike a registration, a configuration is not something any caller may overwrite |
-| who may read it | its owner, or the service itself |
+| who may write it | its **owner, or the service itself**. Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so a service restarting keeps what it was configured with |
+| who may read it | the same two |
 | where it is **not** | a listing. `ls` never carries a configuration, so this verb is the only route to one |
-| empty | refused: configuring with nothing to configure is a mistake, not a reset |
+| nothing to store | refused: no configuration at all, something that is not JSON, and `null` — which would read back exactly like never having been configured |
+| an empty *value* | kept. `{}`, `[]`, `""`, `0` and `false` are configurations; the bus does not judge what is inside |
 
-⚠️ It is **plaintext in the registry**. Sealed private config is the MVP answer
-and is designed already
-([identity § sealed private config](01-identity.md#sealed-private-config));
-until it lands, treat a configuration as readable by whoever can read the
-daemon's state.
+⚠️ **Plaintext in the registry, and only as private as the daemon.** Sealing is
+designed but not built
+([identity § sealed private config](01-identity.md#sealed-private-config)), and
+its stage is [stages § release 1](12-stages.md#release-1). Until then: a
+configuration is readable by anyone who can read the daemon's state, it is lost
+when the daemon restarts, and the owner check is a caller-name guard, not
+security — in PoC one master token reaches everything and any holder may claim
+any name ([stages § PoC](12-stages.md#poc)).
+
+**A service fetches its own configuration; nothing injects it.** There is no
+automatic delivery — a service reads it the same way anything else does, with
+the same verb under its own name:
+
+```sh
+cfg=$(agent-bus service-template "$AGENT_BUS_NAME")
+```
 
 ❓ **What happens to a running service when its configuration changes is
-unspecified** — it is not reloaded, restarted or notified, and it reads its
-configuration at start. *Settled by:* the owner, when the runner supervises
+unspecified** — it is not reloaded, restarted or notified, so it sees a change
+only if it reads again. *Settled by:* the owner, when the runner supervises
 services ([runner](08-runner-role.md)).
 
 ## Topics
@@ -150,7 +168,8 @@ A topic **declares its kind, TTL, bound and overflow mode at creation**:
 
 Inboxes are implicit queue topics created on an agent's first start and owned
 by it ([messaging § inbox queues](04-messaging.md#inbox-queues)). Namespacing
-follows services (`team/alerts`); local shadows upstream.
+follows services; local shadows upstream — and which separator a namespace uses
+is open ([overview § chaining](00-overview.md#chaining)).
 
 ## Registry sync
 

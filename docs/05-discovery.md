@@ -50,7 +50,8 @@ are the stats for generic services; queue depth and rates for topics.
 
 Kept in memory — ring buffers, last N hours, fixed resolution — and dumped with
 the queues ([messaging § durability](04-messaging.md#durability)), so a
-graceful restart keeps the window and a crash loses at most the last interval.
+graceful restart keeps the window, and a crash loses the last interval — or all
+of it, if periodic dumping is off.
 
 ## Dashboard
 

@@ -19,7 +19,7 @@ the whole difference from an ephemeral channel.
 
 | Verb | Target | Lands in | Allowed if |
 |---|---|---|---|
-| **`send`** | a known receiver, `unique-name@host` | exactly that queue | you may talk to that principal |
+| **`send`** | a known receiver, `service@host` | exactly that queue | you may talk to that principal |
 | **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([services and topics § topics](03-services-and-topics.md#topics)) | you hold `publish:<glob>` |
 
 **A message is addressed to a name, and a name that is registered nowhere is
@@ -166,10 +166,10 @@ name-owned queues ([inbox queues](#inbox-queues)). A plain `send` or
 `publish` stays open to unregistered senders: fire-and-forget asks for
 nothing back.
 
-❓ **PoC does not enforce this**: `call` registers its caller, and a `send`
-from an unregistered name is accepted with the reply refused later as *no
-such name*. The contract above is MVP's, and `reply-to` arrives with it.
-*Settled by:* the owner — settled as the rule, not yet as code.
+⚠️ **PoC does not enforce this.** `call` registers its caller, and a `send`
+from an unregistered name is accepted with the reply refused later as *no such
+name*. The rule above is settled; it is MVP that implements it, along with
+`reply-to` ([stages § PoC](12-stages.md#poc)).
 
 **The daemon keeps no reply state.** A reply is an ordinary `send` carrying
 the routing fields, and `reply <message-id>` is sugar: the client that
@@ -177,9 +177,12 @@ consumed the message still has its envelope, so it fills in receiver, topic and
 tag itself. The daemon stays simple — nothing to bound, expire or reconcile —
 and the rule that a consumed message is gone stays true.
 
-The consequence is worth stating: **you can only `reply` to something you
-consumed in that process**. Since an inbox has exactly one reader, that is the
-same process anyway.
+The consequence is worth stating: **you can only `reply` from a client that
+holds the routing context of what was consumed** — the receiver, topic and
+tag. Whether that is one process is up to the client: the MCP face keeps it in
+memory, and the CLI writes it where its next invocation finds it, so `consume`
+and `reply` work as two commands. Since an inbox has exactly one reader, the
+context has one owner either way.
 
 ## Push and pull
 

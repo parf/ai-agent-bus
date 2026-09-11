@@ -313,6 +313,8 @@ has "the configuration comes back as it went in" \
   "$(ab owner@srv1 service-template code-review/cfg@rdvp)" '{"model":"opus","depth":3}'
 is_empty "a listing never carries it" \
   "$(ab owner@srv1 ls | grep -o '"config":[^,}]*')"
+is_empty "and neither does the answer to setting one" \
+  "$(echo '{"secret":"x"}' | ab owner@srv1 service-template echoes@srv1 - | grep -o '"config":[^,}]*')"
 # A send is refused unless the receiver has a record, so this proves the
 # record was created — the inbox itself is made lazily by the send either way.
 has "configuring creates the service, so it can be sent to" \

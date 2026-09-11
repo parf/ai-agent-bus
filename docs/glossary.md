@@ -21,7 +21,7 @@ wins.
 | service discovery | registration | registration is one operation on discovery |
 | personal / shared | user-scoped/system, bound/unbound, single-/multi-tenant | shared is the default |
 | realm | domain, provider, tenant | the right-hand side of `user@realm` |
-| service template | service, service kind, service type | a **service** is always configured; the template is the unconfigured capability |
+| service template | service, service type | a **service** is always configured; the template is the unconfigured capability. *Record* kind (generic · agent · topic) is a different axis and keeps its name |
 | service | instance, service instance | "instance" was the old word for the configured thing — that is now just a service |
 
 ## Terms
@@ -70,8 +70,8 @@ wins.
 |---|---|
 | setup | `setup` |
 | identity | `keygen`, `register` |
-| registry | `register`, `topic create` |
+| registry | `register`, `topic create`, `ls`, `service-template`, `status` |
 | messaging | `send`, `call`, `publish`, `consume`, `ack`, `reply` |
-| runner | `start`, `stop`, `ls`, `logs` |
+| runner | `start`, `stop`, `logs` |
 | AUTH admin | `auth sign`, `auth admin` |
-| over SSH | `static-token`, `bundle show\|history`, `user list`, `service list`, `status`, `replica-sync` |
+| over SSH | `static-token`, `bundle show\|history`, `user list`, `service list`, `replica-sync` |

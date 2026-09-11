@@ -4,16 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-Design documentation for **agent-bus** — a single daemon (`agent-busd`) that is
-registry, broker, MCP server and dashboard for AI agents, bots and services.
+**agent-bus** — a single daemon (`agent-busd`) that is registry, broker, MCP
+server and dashboard for AI agents, bots and services. Design docs, and the
+code they describe.
 
-**No code yet — but it lands here.** V2 is built in `src/` in this repo,
-beside `docs/` and `Plans/`; until wave A starts, the repo is `README.md`,
-`docs/*.md` and `Plans/`. V1 (NATS JetStream) is implemented elsewhere:
+**The PoC is built, in `src/`**, beside `docs/` and `Plans/`; everything past
+it is still design. Code changes need `go test -race ./...`, `go vet ./...`
+and `src/smoke.sh` green, and a check is not believed until it has been
+watched failing with its fix broken. V1 (NATS JetStream) is implemented
+elsewhere:
 code at `/rd/service/agent-bus/` (`README.md`, `HOWTO.md`), normative design at
 `/rd/vhosts/realty/Plans/PRF-25/`. Read those, not Linear, when a V1 fact is
-needed. This repo designs V2. Work here is editing Markdown, and the only
-tooling is git.
+needed. This repo designs V2 and builds it.
 
 ## Document map
 

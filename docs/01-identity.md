@@ -31,8 +31,8 @@ it was configured from:
 | `service@host` | a standalone service, with no separate template | `claude@rdvp` |
 | `template/instance-name@host` | a service configured from a template | `imap-mail-reader/billing@rdvp` |
 
-**The host is whatever follows the last `@`.** An instance name may itself be
-an address — the thing that reads a mailbox is reasonably named after it — so
+**The host is whatever follows the last `@`.** The local part — an instance
+name, or a user — may itself be an address — the thing that reads a mailbox is reasonably named after it — so
 `mail-sender/parf@comfi.com@host` is template `mail-sender`, instance
 `parf@comfi.com`, host `host`. The bus reads **no meaning** out of it: it is a
 name it routes on, never a mailbox it parses.
@@ -53,7 +53,7 @@ trimmed away — it is a bad character, and the name is refused.
 | | |
 |---|---|
 | charset | **`a-z 0-9 . _ -`**, every component, starting alphanumeric |
-| the instance name | wider: also **`+`** and **`@`**, so `parf+alerts@comfi.com` is a name. The template and the host take neither |
+| the local part | wider: also **`+`** and **`@`**, so `parf+alerts@comfi.com` is one — whether it names a service instance or a user. The template and the host take neither |
 | at-signs | the **last** one splits off the host. Earlier ones sit inside the instance name, joining non-empty components — `parf@` and `parf@@x` are refused |
 | length | **64 characters for the whole name**, `@` and any `/` included — a name is an identifier, not a payload |
 | ASCII only | a name spellable two ways in Unicode is a name two people can be tricked by |

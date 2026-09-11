@@ -1,7 +1,7 @@
 # Overview
 
-Status: design, main ideas only · no data models yet (deferred by owner) · no code
-yet — the build order is [stages](12-stages.md)
+Status: design, main ideas only · no data models yet (deferred by owner) · the PoC
+is built in [`src/`](../src/); everything past it is design — [stages](12-stages.md)
 
 Start here, then read in order. Each document **owns** its subject: values —
 paths, commands, field lists, mode names — are stated once, where they belong,
@@ -124,6 +124,13 @@ falls through. Applies to identities, ACL/roles, service and topic lookups.
   generations — a middle hop can fail to forward, not forge.
 - Local shadows upstream by design; writes warn when they shadow.
 - Namespaced ids (`team/ci`, `company/mail`, `team/alerts`) avoid collisions.
+
+❓ **A namespace and a service template both want the `/`.** A name holds at
+most one, and it already means *template* / *instance*
+([identity § names](01-identity.md#names)), so `team/ci@host` parses as
+template `team`. Either a chaining namespace *is* the template part, or
+chaining needs a separator of its own. *Settled by:* the owner, when chaining
+is designed.
 - Upstream answers are cached under the usual epoch/gen rules; unreachable
   upstream = "cached or unresolved", never a wrong answer.
 - `master_secret` does not span levels → cross-level access uses pairwise keys

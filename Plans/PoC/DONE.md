@@ -277,7 +277,8 @@ topic answers *MVP* rather than inventing a second meaning of subscription.
 <script> [-N]`, or the same as JSON on stdin. The `start` process is the
 inbox's **one reader**; it acks, spawns the script per message up to `-N` at
 once, and sends what the script printed. A non-zero exit means no reply — the
-caller waits and times out, which is honest about work that did not happen.
+caller waits and times out. That says the *answer* did not arrive, not that
+nothing happened: a script may fail after its side effects.
 The script never sees the bus: `args` hands it the body as `$1`, `std` hands
 it the envelope on stdin, and both get the envelope in the environment.
 

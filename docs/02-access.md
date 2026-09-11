@@ -12,8 +12,8 @@ on — no token, no access — and the AUTH role is not required for any of it.
 **A client that is not on the socket supplies both.** The token comes from the
 environment or a file; the **name comes from the same place**, and it is not
 decoration — it is the inbox this process owns, the sender a reply comes back
-to, and what another principal addresses. A process with a token and no name
-can send and never be answered.
+to, and what another principal addresses. A call carries both, and one without
+a name is refused.
 
 ## Getting a token
 
@@ -43,8 +43,9 @@ The two-token window is the same idea as accepting the current *and previous*
 epoch for derived keys (see [key modes](#key-modes)): a credential change must
 never break traffic that is already in flight.
 
-Re-running either command above issues a fresh token and demotes the current
-one to previous.
+Re-running either command above **retrieves the same token** — it is a read,
+not a rotation. Issuing a fresh one and demoting the current to previous is the
+design for rotation; nothing implements it yet.
 
 ## Local socket
 

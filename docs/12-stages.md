@@ -8,12 +8,13 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | | PoC | MVP | Release 1 |
 |---|---|---|---|
 | Identity | one master token, issued over SSH | `user@realm` + token, per-user sockets | groups, roles, delegation |
-| Registration | none — the token is everything | manual + GitHub | AUTH bundle, LDAP/AD if wanted |
+| Identity enrolment | none — the token is everything | manual + GitHub | AUTH bundle, LDAP/AD if wanted |
+| Queues | bounded, and a record says whether a full one refuses or rings ([messaging § overflow](04-messaging.md#overflow)) | TTL, `reply-to` | — |
 | Encryption | **none** | AEAD sessions, bodies end to end | — |
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
 | Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
 | Processes | one | supervisor + children | AUTH child |
-| Services | request/reply with `ack`; queue topics; scripts as services | pub/sub; deadlines, `done`, `reply-to`, several workers behind one name; the runner supervises and sandboxes | calls across chained buses; one service on many hosts, scatter-gather |
+| Services | request/reply with `ack`; queue topics; scripts as services; a template configured into a service | pub/sub; deadlines, `done`, `reply-to`, several workers behind one name; the runner supervises and sandboxes | calls across chained buses; one service on many hosts, scatter-gather |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
 | Install | built Go binary; bun runs the faces | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
 
@@ -32,7 +33,7 @@ to be true.
 | tokens | issued **over SSH** — `ssh agent-bus@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
 | encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | services | **basic request/reply** ([messaging § request and reply](04-messaging.md#request-and-reply)): a service consumes its inbox, `ack`s it (got it), does the work and replies; a caller sends and waits for that reply. The reply stands in for `done`, which comes at MVP |
-| services from scripts | `agent-bus start <name> --algo=std|args <script> [-N]` — a shell script becomes a service, `-N` of them running at once, no bus code inside it ([runner § script services](08-runner-role.md#script-services)) |
+| services from scripts | `agent-bus start <name> --algo=std\|args <script> [-N]` — a shell script becomes a service, `-N` of them running at once, no bus code inside it ([runner § script services](08-runner-role.md#script-services)) |
 | mcp | **basic MCP face** — list what is registered, send, consume. Unfiltered: the master token sees everything ([discovery § faces](05-discovery.md#faces)) |
 | install | run the built binary. **No npm** |
 | setup | one thing only: the user's pubkey in the `agent-bus` account's `authorized_keys` behind that forced command |
@@ -54,12 +55,13 @@ to be true.
 | `agent-bus topic create <t> --kind queue\|pubsub` | a topic to publish into |
 | `agent-bus start <name> --algo=std\|args <script> [-N]` | publish a shell script as a service, `-N` at a time ([runner § script services](08-runner-role.md#script-services)) |
 | `agent-bus status` | is the daemon up, who is connected |
+| `agent-bus service-template <template/instance@host> [-]` | configure a template into a service, or print that configuration ([services § configuring a template](03-services-and-topics.md#configuring-a-template)) |
 
-Eleven verbs. Everything else (`keygen`, `auth *`, `stop`/`logs`) waits —
+Everything else (`keygen`, `auth *`, `stop`/`logs`) waits —
 `start` is here without supervision, sandboxing or restart.
 
 **A queue topic is an inbox with a name**, so `consume --topic <t>` reads it —
-an option, not an eleventh verb.
+an option, not a verb of its own.
 
 **Pub/sub is MVP.** Not because fan-out is hard — it is a copy to every current
 reader, keeping nothing — but because *subscriber* is undefined without an ACL:
@@ -113,8 +115,8 @@ a shared host.
 | tokens | persisted, previous kept, local never expires ([access § token lifetime](02-access.md#token-lifetime)) |
 | encryption | AEAD sessions; bodies end to end ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | access | service ACL, then master ACL; a service may refuse master ([identity § acl](01-identity.md#acl)) |
-| messaging | TTL, bound, `ring`/`strict`, receipts, and **pub/sub topics** — a subscription is a `consume:<glob>` capability, which exists once there is an ACL ([messaging](04-messaging.md)) |
-| services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several instances behind one name, per-service call stats ([messaging](04-messaging.md)) |
+| messaging | TTL, `reply-to`, and **pub/sub topics** — a subscription is a `consume:<glob>` capability, which exists once there is an ACL ([messaging](04-messaging.md)) |
+| services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several workers behind one name, per-service call stats ([messaging](04-messaging.md)) |
 | storage | SQLite store, Parquet dump and reload ([setup § storage](09-setup.md#storage)) |
 | faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a basic dashboard ([discovery § faces](05-discovery.md#faces)) |
 | runner | supervise and sandbox children ([runner role](08-runner-role.md)) |

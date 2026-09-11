@@ -66,8 +66,9 @@ The list lives in [stages § PoC](../../docs/12-stages.md#poc). The one
 consequence worth repeating: bodies are plaintext, so the daemon *can* read
 them, and "the bus never reads payloads" only becomes true at MVP.
 
-One master token per user reaches every service, and it is issued over SSH
-because sshd does the authentication for free
+**One master token reaches every service**, and any holder may claim any
+name — PoC checks the token, not who a caller says it is. It is issued over
+SSH because sshd does the authentication for free
 ([access § getting a token](../../docs/02-access.md#getting-a-token)).
 
 ## V1 is the bar
@@ -142,8 +143,10 @@ nothing if it flatters itself:
   from an unregistered name succeeds and a reply to it fails with *no such
   name* — fire-and-forget is deliberately allowed, so a caller that wants an
   answer registers first, which is what `call` does.
-- A registered inbox nobody drains accepts messages forever. Registration
-  proves an address, never a reader.
+- Registration proves an address, never a reader. A registered inbox nobody
+  drains keeps accepting only while it has room — after that the default is to
+  refuse the send ([messaging § overflow](../../docs/04-messaging.md#overflow)),
+  which is the point: the sender is told.
 - `ack` means **received**, not started or finished — our own script services
   ack before running the script. **No ack means unknown**, not proven loss.
   Receipts are better than a journal because they come from the only party
