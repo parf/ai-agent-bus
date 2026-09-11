@@ -85,6 +85,16 @@ while the wait is outstanding, and a wait ends at one message. A receipt is a
 message, so between the `ack` and the wait that follows it the unfiltered
 reader can take the reply.
 
+❓ **Does "several workers behind one name" revise this rule?**
+[stages § MVP](12-stages.md#mvp) lists it, and the design's existing answer is
+one reader with a pool of script processes behind it
+([runner § script services](08-runner-role.md#script-services)). If N
+independent readers are meant instead, the rule above is being revised, and the
+revision has to say how a deliberate worker is told from the accidental second
+reader it exists to catch. [services § topics](03-services-and-topics.md#topics)
+already describes a queue topic as having competing consumers, so the two
+documents disagree today. *Settled by:* the owner, with the MVP.
+
 ❓ **Should reading an inbox and filtering one be different options?**
 `--topic` means both, told apart by a tag and by what is registered, so a
 mistyped topic name depends on registry state to be caught at all. An

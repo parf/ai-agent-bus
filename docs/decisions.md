@@ -136,6 +136,8 @@ All 2026-09-09 unless noted.
 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](06-auth-role.md#ssh-admin) |
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](03-services-and-topics.md#registry-sync) |
 | With AUTH off, who filters the MCP catalog? | owner | [discovery § audience](05-discovery.md#audience) |
+| Whether several workers behind one name revises the one-reader rule | owner, with the MVP | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | What else lives in SQLite | owner | [setup § storage](09-setup.md#storage) |
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |

@@ -139,6 +139,14 @@ read the body; on the local socket it holds the token outright. True end-to-end
 needs pairwise or derived keys. Document the exception, or reserve end-to-end
 for those two modes? *Settled by:* owner.
 
+❓ **A queued body outlives the session that encrypted it.** The handshake
+above is live between two endpoints, but an inbox belongs to a name and waits
+for a reader that may not exist yet
+([messaging § inbox queues](04-messaging.md#inbox-queues)), and a dump reloads
+a backlog into a restarted daemon
+([messaging § durability](04-messaging.md#durability)). So a stored body needs
+a key derivable without the sender present. *Settled by:* owner, with the MVP.
+
 ## Key confirmation
 
 The first AEAD message after the handshake is the check: if it fails to
