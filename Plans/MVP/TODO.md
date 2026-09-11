@@ -109,7 +109,7 @@ message that bounces later.
 | B.7 | the owner check becomes a check | registration over someone else's name is refused ([identity § ownership](../../docs/01-identity.md#ownership)); the ⚠️ in [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) goes in the same commit |
 | B.8 | enrolment: manual, then GitHub with possession proved | fetching a public key is not authentication ([identity § registration](../../docs/01-identity.md#registration)). Where the proof step sits relative to the `directory` port ([modules § modules](../../docs/10-modules.md#modules)) needs an owning edit before it is built — it is more than fetching |
 | B.9 | `smoke.sh` gets two principals | one token for every participant is the bypass this wave removes |
-| B.10 | `register` means one thing | the verb issues a token in [access § getting a token](../../docs/02-access.md#getting-a-token) and states a record in [services](../../docs/03-services-and-topics.md#service-and-template) |
+| B.10 | ✅ _settled_ — `token` is the credential verb, `register` the registry one ([access § getting a token](../../docs/02-access.md#getting-a-token)); B.1 and B.5 build it |
 
 **Done when**, and what breaking it must do:
 

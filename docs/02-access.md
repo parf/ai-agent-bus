@@ -33,11 +33,16 @@ Both paths need you to already have access to the machine.
 | Path | Command | For |
 |---|---|---|
 | over SSH | `export AGENT_BUS_TOKEN=$(ssh agent-bus@<node> static-token)` | anyone with SSH to the node; sshd authenticates you with the key you already have, behind a forced command |
-| on the box | `sudo -u agent-bus register <username>` | server access, no SSH key on the bus |
+| on the box | `sudo -u agent-bus agent-bus token <user@realm>` | server access, no SSH key on the bus |
 
 The forced command is [`src/static-token`](../src/static-token): it prints the
 token file the daemon reads at start and refuses every other request. Setting
 it up is one `authorized_keys` line per person, given in that script's header.
+
+**`token` gets a credential; `register` states a record.** They were one word
+and two unrelated jobs — one hands out the thing you authenticate with, the
+other says a service exists ([services § service and
+template](03-services-and-topics.md#service-and-template)).
 
 ## Token lifetime
 

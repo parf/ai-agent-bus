@@ -30,7 +30,8 @@ All 2026-09-09 unless noted.
 | Registry records are writer-signed where a key exists; static-token writes are unsigned | [identity § ownership](01-identity.md#ownership) |
 | Sealed private config, opt-in, daemon cannot read it | [identity § sealed private config](01-identity.md#sealed-private-config) |
 | A call carries exactly two parameters, `user@realm` + token | [access § two parameters](02-access.md#two-parameters) |
-| Two ways to get a token: over SSH, or `register` on the box; both need machine access | [access § getting a token](02-access.md#getting-a-token) |
+| Two ways to get a token: over SSH, or `token` on the box; both need machine access | [access § getting a token](02-access.md#getting-a-token) |
+| `token` is the credential verb, `register` the registry one | [access § getting a token](02-access.md#getting-a-token) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
 | The socket hides the two fields, it does not replace them; one host, many users | [access § local socket](02-access.md#local-socket) |
 | Socket layout, ownership and the one capability it needs | [access § local socket](02-access.md#local-socket) |
@@ -178,5 +179,6 @@ All 2026-09-09 unless noted.
 | Overflow: drop oldest | two modes, `ring` and `strict` — [messaging § overflow](04-messaging.md#overflow) |
 | `ring` is the default mode | `strict` is: a queue that loses work silently is worse than one that fails visibly — [messaging § overflow](04-messaging.md#overflow) |
 | Audience with AUTH off is a per-service `user: token` map | the two ACL layers — [identity § acl](01-identity.md#acl) |
+| `register` both issues a credential and states a registry record | `token` issues the credential; `register` only states a record — [access § getting a token](02-access.md#getting-a-token) |
 | LDAP/AD in scope | deferred — [future](future/ldap-ad.md) |
 | NATS · Redis Streams · AUTH-signed JWT keys | dropped; kept in `legacy/` for history |
