@@ -22,6 +22,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/dump/jsonfile"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/file"
 )
@@ -32,6 +33,8 @@ func main() {
 		sock   = flag.String("socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
 		tokenF = flag.String("token-file", env("AGENT_BUS_TOKEN_FILE", defaultTokenFile()), "token store; created if absent")
 		owner  = flag.String("owner", env("AGENT_BUS_OWNER", defaultOwner()), "the principal this daemon belongs to")
+		dumpF  = flag.String("dump-file", env("AGENT_BUS_DUMP_FILE", defaultDumpFile()), "where the queues and stats are snapshotted")
+		every  = flag.Duration("dump-every", time.Minute, "how often to snapshot while running; 0 turns the periodic dumper off")
 		users  accounts
 	)
 	flag.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
@@ -45,7 +48,29 @@ func main() {
 	if err != nil {
 		log.Fatalf("owner: %v", err)
 	}
-	face := api.New(core.New(), tokens, me.String())
+	// Queues, stats and the registry are memory; the snapshot is what a
+	// restart reads back. See docs/04-messaging.md#durability.
+	bus, snap := core.New(), jsonfile.New(*dumpF)
+	if s, found, err := snap.Load(); err != nil {
+		log.Fatalf("dump %s: %v", *dumpF, err)
+	} else if found {
+		if !s.Clean {
+			log.Printf("WARNING: the last run did not stop cleanly; anything queued after %s is gone",
+				s.At.Format(time.RFC3339))
+		}
+		bus.Restore(s)
+	}
+	// Written straight away and not clean: the next start needs to tell a
+	// first one from one that follows a death, and only a file on disk can.
+	save := func(clean bool) {
+		s := bus.Snapshot()
+		s.Clean = clean
+		if err := snap.Save(s); err != nil {
+			log.Printf("dump: %v", err)
+		}
+	}
+	save(false)
+	face := api.New(bus, tokens, me.String())
 
 	// Plaintext bodies and a master token: loopback or an SSH tunnel, never a
 	// public interface. See docs/12-stages.md#poc.
@@ -117,6 +142,17 @@ func main() {
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	// The periodic dumper bounds what an untimely death costs to one
+	// interval; without it a crash loses everything since start.
+	if *every > 0 {
+		tick := time.NewTicker(*every)
+		defer tick.Stop()
+		go func() {
+			for range tick.C {
+				save(false)
+			}
+		}()
+	}
 	<-stop
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -125,6 +161,9 @@ func main() {
 			log.Printf("shutdown: %v", err)
 		}
 	}
+	// After the listeners are closed, so nothing arrives between the
+	// snapshot and the last reply. See docs/04-messaging.md#durability.
+	save(true)
 	for _, p := range mine {
 		os.Remove(p)
 	}
@@ -277,6 +316,11 @@ func defaultOwner() string {
 		host = host[:i]
 	}
 	return who + "@" + host
+}
+
+func defaultDumpFile() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".local", "state", "agent-bus", "dump.json")
 }
 
 func defaultTokenFile() string {

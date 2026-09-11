@@ -30,7 +30,7 @@ wave stands on it.
 | the whole stage | what MVP contains | [stages § MVP](../../docs/12-stages.md#mvp) |
 | C, F.1 | who filters, with AUTH off | [discovery § audience](../../docs/05-discovery.md#audience) |
 | D | static sessions are not end-to-end against the daemon — so D's own claim may be unreachable in the MVP's key mode | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
-| E | what else lives in SQLite | [setup § storage](../../docs/09-setup.md#storage) |
+| the rest of E | what else lives in SQLite | [setup § storage](../../docs/09-setup.md#storage) |
 | H | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../docs/09-setup.md#install) |
 | G | which process owns the store handle | [processes § what is shared](../../docs/11-processes.md#what-is-shared) |
 | A, the CLI | whether reading an inbox and filtering one become separate options | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
@@ -208,15 +208,17 @@ too.
 
 | ID | Task | Notes |
 |---|---|---|
-| E.1 | dump on graceful stop ([messaging § durability](../../docs/04-messaging.md#durability)) | the format is behind the `dump` port, so it is an adapter, not the wave |
-| E.2 | reload, and the backlog still decrypts | which is why this follows D |
-| E.3 | stats come back too | A.6's counters are state a restart currently loses |
+| E.1 | ✅ _done_ — the snapshot is written at start, on a graceful stop and, if asked, once a minute; a start that follows an unclean stop says so and from when ([messaging § durability](../../docs/04-messaging.md#durability)). JSON behind the `dump` port; Parquet is an adapter, not the wave |
+| E.2 | ⚠️ _reload is done_ — records, backlog and counters come back, a drained queue stays drained, and a message past its moment is not delivered late. **Whether the backlog still decrypts is D's**, and unanswerable until D is |
+| E.3 | ✅ _done_ — the per-inbox `in`/`out` counters and the daemon's `dropped`/`expired` survive a restart; uptime does not, because it is this run's |
 
 **Done when**, and what breaking it must do:
 
 - stop, start, **drain**, stop, start: nothing is delivered twice, so a stale
   snapshot that resurrects consumed messages turns it red;
-- a message that expires while the daemon is down is never delivered;
+- a message that expires while the daemon is down is never delivered —
+  delivery is what decides that, not the reload, so the check earns its place
+  by guarding what the snapshot writes down rather than a second expiry rule;
 - stats survive, and deleting E.3 turns a named check red;
 - after an ungraceful kill, the **next start says** what it lost, at a named
   place — "says so" with no reporter is satisfied by silence.

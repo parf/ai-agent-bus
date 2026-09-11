@@ -262,6 +262,21 @@ encrypted under has to outlive the restart as well — which is why tokens are
 persisted and the previous one is kept
 ([access § token lifetime](02-access.md#token-lifetime)).
 
+**Registry records travel in the same snapshot.** An inbox reloaded without
+the record it belongs to is a backlog nobody may read; the git snapshot is
+backup and peer sync ([services § registry sync](03-services-and-topics.md#registry-sync)),
+not the local reload path.
+
+**A start that follows an unclean stop says so**, and from when traffic is
+missing: the snapshot carries whether the run that wrote it was ending. Expiry
+is not re-checked on reload — a message carries the moment it stops being
+worth delivering, and delivery is the one place that decides
+([message ttl](#message-ttl)).
+
+⚠️ The MVP writes the snapshot as a JSON file behind the `dump` port
+([modules § modules](10-modules.md#modules)). Parquet is one more adapter and
+no change anywhere inward.
+
 ## Envelope
 
 **Bodies are opaque to the bus.** A message body is encrypted for its receiver

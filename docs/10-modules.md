@@ -52,7 +52,7 @@ Consequences worth stating, because they are the point:
 | `store/file`, `store/memory` | adapter | credentials in a text file, which is what the MVP ships, and the same in memory for a test | |
 | `directory/github` | adapter | the built-in HTTP client | |
 | `sandbox/systemd`, `sandbox/bwrap`, `sandbox/unshare` | adapter | one per backend, chosen by environment | |
-| `dump/parquet` | adapter | the Parquet writer and loader | |
+| `dump/parquet`, `dump/jsonfile` | adapter | the Parquet writer and loader, and the JSON one the MVP ships | |
 | `vcs/git` | adapter | shells out to `git` | |
 | `api`, `mcp`, `web`, `cli` | face | one entry point each, no domain logic | [discovery § faces](05-discovery.md#faces) |
 

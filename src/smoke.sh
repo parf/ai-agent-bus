@@ -28,7 +28,7 @@ go build -o "$D/agent-bus"  ./cmd/agent-bus  || exit 1
 # credential for a name nobody owns yet. Stated rather than taken from the
 # account running the suite, so the checks read the same everywhere.
 OWNER=parf@localhost
-"$D/agent-busd" -addr 127.0.0.1:$PORT -socket "$D/bus.sock" -token-file "$D/token" -owner "$OWNER" >"$D/daemon.log" 2>&1 &
+"$D/agent-busd" -addr 127.0.0.1:$PORT -socket "$D/bus.sock" -token-file "$D/token" -owner "$OWNER" -dump-file "$D/dump.json" -dump-every 0 >"$D/daemon.log" 2>&1 &
 DPID=$!
 for _ in $(seq 1 50); do [ -S "$D/bus.sock" ] && break; sleep 0.1; done
 # One line per principal, `name token`: the owner's is what the daemon wrote
@@ -100,13 +100,13 @@ done
 # empty. See docs/10-modules.md#the-rule.
 sec "the layers hold"
 is_empty "core never imports an adapter" \
-  "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep 'internal/store')"
+  "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump)')"
 is_empty "nor does a face" \
-  "$(go list -deps ./internal/api ./cmd/agent-bus | grep 'internal/store')"
-is_empty "and a port declares, it does not depend" \
-  "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -v 'internal/protocol')"
-has "while the process that assembles them holds the one that persists" \
-  "$(go list -deps ./cmd/agent-busd | grep 'internal/store')" 'internal/store/file'
+  "$(go list -deps ./internal/api ./cmd/agent-bus | grep -E 'internal/(store|dump)')"
+is_empty "and a port names no outside world of its own" \
+  "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -E '^(os|net|net/http|os/exec|database/sql)$')"
+has "while the process that assembles them holds the ones that persist" \
+  "$(go list -deps ./cmd/agent-busd | grep -E 'internal/(store|dump)' | tr '\n' ' ')" 'internal/dump/jsonfile .*internal/store/file'
 has "and core is what asks for it" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/auth 2>&1)" 'internal/ports'
 
@@ -149,7 +149,7 @@ has "while stating your own name on it is fine" \
 if id -u nobody >/dev/null 2>&1; then
   mkdir -p "$D/multi"
   "$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/multi/bus.sock" -token-file "$D/token" \
-    -owner "$OWNER" -user "nobody=nemo@srv1" >"$D/multi.log" 2>&1 &
+    -owner "$OWNER" -user "nobody=nemo@srv1" -dump-file "$D/multi/dump.json" -dump-every 0 >"$D/multi.log" 2>&1 &
   MPID2=$!
   for _ in $(seq 1 50); do [ -S "$D/multi/user-nobody.sock" ] && break; sleep 0.1; done
   has "a second account gets a socket of its own" "$([ -S "$D/multi/user-nobody.sock" ] && echo yes)" 'yes'
@@ -223,7 +223,7 @@ has "but the one before that is refused" "$(code rotor@srv1 "$first" /status)" '
 # durable" has to mean once there is more than one.
 cp "$D/token" "$D/token2"
 mkdir -p "$D/r2"
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/r2/bus.sock" -token-file "$D/token2" -owner "$OWNER" >"$D/daemon2.log" 2>&1 &
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/r2/bus.sock" -token-file "$D/token2" -owner "$OWNER" -dump-file "$D/r2/dump.json" -dump-every 0 >"$D/daemon2.log" 2>&1 &
 RPID=$!
 for _ in $(seq 1 50); do [ -S "$D/r2/bus.sock" ] && break; sleep 0.1; done
 has "a restart keeps both of a rotated principal's tokens" \
@@ -240,7 +240,7 @@ has "the credential file is that account's alone" "$(stat -c %a "$D/token")" '^6
 # A file holding one bare token is what the PoC wrote, and a host that
 # upgrades must not lose the daemon's own credential to the new format.
 mkdir -p "$D/old" && printf 'poc-era-bare-token\n' > "$D/old/token"
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/old/bus.sock" -token-file "$D/old/token" -owner "$OWNER" >"$D/daemon4.log" 2>&1 &
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/old/bus.sock" -token-file "$D/old/token" -owner "$OWNER" -dump-file "$D/old/dump.json" -dump-every 0 >"$D/daemon4.log" 2>&1 &
 BPID=$!
 for _ in $(seq 1 50); do [ -S "$D/old/bus.sock" ] && break; sleep 0.1; done
 oldsock() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/old/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: poc-era-bare-token" "http://unix/status"; }
@@ -251,7 +251,7 @@ kill $BPID 2>/dev/null; wait $BPID 2>/dev/null
 # it is not handed out either: the daemon says so instead.
 mkdir -p "$D/ro" && cp "$D/token" "$D/ro/token"
 mkdir -p "$D/ro-run"
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/ro-run/bus.sock" -token-file "$D/ro/token" -owner "$OWNER" >"$D/daemon3.log" 2>&1 &
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/ro-run/bus.sock" -token-file "$D/ro/token" -owner "$OWNER" -dump-file "$D/ro-run/dump.json" -dump-every 0 >"$D/daemon3.log" 2>&1 &
 OPID=$!
 for _ in $(seq 1 50); do [ -S "$D/ro-run/bus.sock" ] && break; sleep 0.1; done
 chmod 0500 "$D/ro"
@@ -612,7 +612,7 @@ for _ in $(seq 1 50); do grep -q second "$D/follow.out" && break; sleep 0.2; don
 kill $FPID 2>/dev/null; wait $FPID 2>/dev/null
 has "--follow keeps reading" "$(cat "$D/follow.out")" 'first'
 has "--follow reads the next one too" "$(cat "$D/follow.out")" 'second'
-out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-file "$D/token" 2>&1); rc=$?
+out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-file "$D/token" -dump-file "$D/public.dump" -dump-every 0 2>&1); rc=$?
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
 
@@ -975,6 +975,81 @@ bad_exit "it refuses any other command" $rc
 has "and says why" "$out" 'one command'
 out=$(AGENT_BUS_TOKEN_FILE=$D/absent ./static-token over-ssh@srv1 2>&1); rc=$?
 bad_exit "a missing token file is an error, not an empty token" $rc
+
+sec "a restart is not a loss"
+# Its own daemon, its own store and its own dump: the point of this section
+# is what a stop and a start do to memory, which needs a process nothing
+# else is using. See docs/04-messaging.md#durability.
+mkdir -p "$D/dur"
+DUR=""
+dur_up() {
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+8)) -socket "$D/dur/bus.sock" -token-file "$D/dur/token" \
+    -owner "$OWNER" -dump-file "$D/dur/dump.json" -dump-every 0 >"$D/dur/$1.log" 2>&1 &
+  DUR=$!
+  for _ in $(seq 1 50); do [ -S "$D/dur/bus.sock" ] && break; sleep 0.1; done
+  DTOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/dur/token")
+  KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" token keeper@srv1 2>/dev/null)
+}
+dur_down() { kill "$1" "$DUR" 2>/dev/null; wait "$DUR" 2>/dev/null; }
+dab() { AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
+# Reading an inbox is the inbox's own business, so the drain runs as keeper
+# and not as the owner: an error from the wrong name would read as an empty
+# queue to every check below.
+dkeep() { AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$KTOK AGENT_BUS_NAME=keeper@srv1 "$D/agent-bus" "$@"; }
+dsvc() { local n; n=$(dab ls keeper@srv1 | sed -n "s/.*\"$1\":\([0-9]*\).*/\1/p"); echo "${n:-0}"; }
+
+dur_up first
+is_empty "a first start has nothing to say about a previous one" \
+  "$(grep 'did not stop cleanly' "$D/dur/first.log")"
+dab register keeper@srv1 --descr "keeps things" >/dev/null
+KTOK=$(dab token keeper@srv1)
+dab send keeper@srv1 "before the restart" >/dev/null
+dab send keeper@srv1 "also before it" >/dev/null
+has "a reader took the first of them" "$(dkeep consume --wait 0s)" 'before the restart'
+dur_down -TERM
+
+dur_up second
+has "the registry is back after a graceful stop" "$(dab ls keeper@srv1)" 'keeps things'
+# Counters are the other half of the state: a queue that was drained and one
+# nobody ever wrote to read the same without them.
+has "the counters come back too, not just the messages" "$(dsvc in)" '^2$'
+has "and a read is remembered as a read" "$(dsvc out)" '^1$'
+has "and so is the message nobody had taken" "$(dkeep consume --wait 0s)" 'also before it'
+dur_down -TERM
+
+dur_up third
+out=$(dkeep consume --wait 0s 2>&1); rc=$?
+is_empty "a drained queue stays drained — nothing is delivered twice" "$out"
+ok_exit "and an empty queue is an answer, not an error" $rc
+has "while the record that owned it is still there" "$(dab ls keeper@srv1)" 'keeps things'
+has "and both reads are still counted" "$(dsvc out)" '^2$'
+# SIGKILL: no dump is written, so the snapshot on disk is the one the start
+# wrote, and its own flag is what says the run ended badly.
+dab send keeper@srv1 "lost with the process" >/dev/null
+kill -9 "$DUR" 2>/dev/null; wait "$DUR" 2>/dev/null
+
+dur_up fourth
+has "after an ungraceful kill the next start says so" \
+  "$(cat "$D/dur/fourth.log")" 'did not stop cleanly'
+has "and says from when it is missing traffic" "$(cat "$D/dur/fourth.log")" 'anything queued after'
+is_empty "the message that died with the process is not invented back" \
+  "$(dkeep consume --wait 0s 2>&1)"
+dur_down -TERM
+
+if slow; then
+  # A message whose moment passed while the daemon was down is not worth
+  # delivering late, and the reload is where that is decided.
+  dur_up fifth
+  dab send keeper@srv1 --ttl 2s "too late by the time you read this" >/dev/null
+  dab send keeper@srv1 "still worth having" >/dev/null
+  dur_down -TERM
+  sleep 3
+  dur_up sixth
+  has "a message that outlived its ttl while down is not delivered" \
+    "$(dkeep consume --wait 0s)" 'still worth having'
+  is_empty "and it is the only one left" "$(dkeep consume --wait 0s 2>&1)"
+  dur_down -TERM
+fi
 
 if slow; then
   sec "the MCP face"

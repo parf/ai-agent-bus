@@ -38,6 +38,8 @@ All 2026-09-09 unless noted.
 | One socket per local account supplies both parameters; `status` says which name it used | [access § local socket](02-access.md#local-socket) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
 | Credentials persist behind the store port, in a text file until the database is chosen | [setup § storage](09-setup.md#storage) |
+| The restart snapshot carries the registry too, and is JSON until Parquet is written | [messaging § durability](04-messaging.md#durability) |
+| A start that follows an unclean stop says so, and from when it is missing traffic | [messaging § durability](04-messaging.md#durability) |
 | The socket hides the two fields, it does not replace them; one host, many users | [access § local socket](02-access.md#local-socket) |
 | Socket layout, ownership and the one capability it needs | [access § local socket](02-access.md#local-socket) |
 | Three key modes: static, pairwise, derived | [access § key modes](02-access.md#key-modes) |
