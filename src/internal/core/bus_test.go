@@ -408,13 +408,18 @@ func TestServedWaitersAreReleased(t *testing.T) {
 // not look like changing it: the digest a query gets is over what is stored.
 func TestAConfigurationIsStoredCompacted(t *testing.T) {
 	b := New()
-	spaced, err := b.Configure("svc@h", "svc@h", []byte("{ \"k\" : \"v\" }\n"))
+	if _, err := b.Configure("svc@h", "svc@h", []byte("{ \"k\" : \"v\" }\n")); err != nil {
+		t.Fatal(err)
+	}
+	// Read it back the one way there is: Configure answers without it.
+	stored, err := b.Config("svc@h", "svc@h")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := string(spaced.Config); got != `{"k":"v"}` {
+	if got := string(stored); got != `{"k":"v"}` {
 		t.Fatalf("stored %q", got)
 	}
+	spaced, _ := b.Lookup("svc@h")
 	compact, err := b.Configure("other@h", "other@h", []byte(`{"k":"v"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -486,5 +491,96 @@ func TestConsumingFromAnUnregisteredNameIsRefused(t *testing.T) {
 	b.mu.Unlock()
 	if n != 0 {
 		t.Fatalf("the refused read left %d inboxes behind", n)
+	}
+}
+
+// Live state is what the daemon observes, so a caller stating it is claiming
+// a reader it does not have — the same shape as a forged digest.
+func TestARegistrationCannotClaimLiveState(t *testing.T) {
+	b := New()
+	rec, err := b.Register(protocol.Record{Name: "probe@h", Kind: "agent", Owner: "o@h", Reading: true, Queued: 77})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.Reading || rec.Queued != 0 {
+		t.Fatalf("the registration answer carried live state: reading=%v queued=%d", rec.Reading, rec.Queued)
+	}
+	got, ok := b.Lookup("probe@h")
+	if !ok {
+		t.Fatal("not registered")
+	}
+	if got.Reading {
+		t.Fatal("a stored reading=true survived into a lookup, with nobody reading")
+	}
+	for _, r := range b.List("") {
+		if r.Name == "probe@h" && r.Reading {
+			t.Fatal("a stored reading=true survived into a listing")
+		}
+	}
+}
+
+// A topic mode the daemon does not know reads as a queue, which is the one
+// thing a caller asking for pub/sub does not want.
+func TestAnUnknownTopicModeIsRefused(t *testing.T) {
+	b := New()
+	if _, err := b.Register(protocol.Record{Name: "t@h", Kind: protocol.KindTopic, Mode: "garbage", Owner: "o@h"}); !errors.Is(err, ErrMode) {
+		t.Fatalf("err = %v, want ErrMode", err)
+	}
+	for _, ok := range []string{protocol.ModeQueue, protocol.ModePubSub, ""} {
+		if _, err := b.Register(protocol.Record{Name: "t" + ok + "@h", Kind: protocol.KindTopic, Mode: ok, Owner: "o@h"}); err != nil {
+			t.Fatalf("mode %q refused: %v", ok, err)
+		}
+	}
+}
+
+// withLiveness is the second half of the rule that live state is observed,
+// never stored: whatever a record arrives holding, what leaves carries what
+// the daemon sees. Register already refuses to store either field, so the
+// clearing here is unreachable through the API — which is exactly why it is
+// tested directly. A mutation of it survived the whole acceptance suite.
+func TestLivenessIsAssignedNotMerged(t *testing.T) {
+	b := New()
+	if _, err := b.Register(protocol.Record{Name: "svc@h", Kind: "agent", Owner: "svc@h"}); err != nil {
+		t.Fatal(err)
+	}
+	dirty := protocol.Record{Name: "svc@h", Reading: true, Queued: 77}
+	look := func(name string, r protocol.Record) protocol.Record {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		return b.withLiveness(name, r)
+	}
+
+	if got := look("svc@h", dirty); got.Reading || got.Queued != 0 {
+		t.Fatalf("an idle empty inbox answered reading=%v queued=%d", got.Reading, got.Queued)
+	}
+	if got := look("no-inbox@h", dirty); got.Reading || got.Queued != 0 {
+		t.Fatalf("a name with no inbox answered reading=%v queued=%d", got.Reading, got.Queued)
+	}
+
+	// A waiting unfiltered reader is reported, and only while it waits.
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = b.Consume(context.Background(), "svc@h", "", "", false) }()
+	for deadline := time.Now().Add(2 * time.Second); !look("svc@h", protocol.Record{}).Reading; {
+		if time.Now().After(deadline) {
+			t.Fatal("a waiting unfiltered reader was never reported")
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "x@h", To: "svc@h", Body: "go"}); err != nil {
+		t.Fatal(err)
+	}
+	<-done
+	if got := look("svc@h", dirty); got.Reading {
+		t.Fatal("the reader is gone and is still reported")
+	}
+
+	// A backlog is counted, not merely cleared.
+	for i := 0; i < 3; i++ {
+		if _, err := b.Send(protocol.Envelope{From: "x@h", To: "svc@h", Body: "q"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := look("svc@h", protocol.Record{}); got.Queued != 3 {
+		t.Fatalf("three queued messages reported as %d", got.Queued)
 	}
 }

@@ -29,6 +29,7 @@ bad_exit()  { if [ "$2" -ne 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else e
 # the word whatever cmd did, which is how two checks here passed hollow.
 is_empty()  { if [ -z "$2" ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: got [$2]"; fail=$((fail+1)); fi; }
 code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" "http://unix$3"; }
+post_body() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $TOKEN" -d "$3" "http://unix$2"; }
 post_code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" -d "$4" "http://unix$3"; }
 
 echo "== the Go checks"
@@ -335,6 +336,37 @@ has "asking about one name answers about one name" \
   "$(ab owner@srv1 ls looked@srv1 | grep -o '"name":' | wc -l)" '1'
 has "and says so when there is no such service" \
   "$(ab owner@srv1 ls absent-entirely@srv1 2>&1)" 'no such name'
+
+echo "== no token, no serve"
+# Stated as a rule, not sampled: every route the daemon exposes, refused
+# three ways. A route added later without auth fails here.
+for route in "GET /status" "POST /register" "GET /ls" "GET /lookup?name=x@h" \
+             "POST /configure" "GET /config?name=x@h" "POST /send" "GET /consume?wait=0s"; do
+  m=${route%% *}; path=${route#* }
+  none=$(curl -s -o /dev/null -w '%{http_code}' -X "$m" --unix-socket "$D/bus.sock" \
+         -H "X-Agent-Bus-User: owner@srv1" -d '{}' "http://unix$path")
+  wrong=$(curl -s -o /dev/null -w '%{http_code}' -X "$m" --unix-socket "$D/bus.sock" \
+          -H "X-Agent-Bus-User: owner@srv1" -H "X-Agent-Bus-Token: not-the-token" -d '{}' "http://unix$path")
+  noname=$(curl -s -o /dev/null -w '%{http_code}' -X "$m" --unix-socket "$D/bus.sock" \
+           -H "X-Agent-Bus-Token: $TOKEN" -d '{}' "http://unix$path")
+  has "$m $path is not served without a token" "$none/$wrong/$noname" '401/401/401'
+done
+
+echo "== a caller states a record, never what the daemon observes"
+has "a registration cannot claim a reader it does not have" \
+  "$(post_body owner@srv1 /register '{"name":"probe@srv1","kind":"agent","reading":true,"queued":77}' | grep -o '"reading":true\|"queued":77'; echo -n ok)" 'ok'
+is_empty "and the claim does not survive into a listing" \
+  "$(ab nobody@srv1 ls probe@srv1 | grep -o '"reading":true')"
+has "a registration cannot claim a configuration digest" \
+  "$(post_body owner@srv1 /register '{"name":"probe2@srv1","config_sha":"forged"}' | grep -o forged; echo -n ok)" 'ok'
+has "an unknown topic mode is refused by the daemon, not only the CLI" \
+  "$(post_code owner@srv1 $TOKEN /register '{"name":"modey@srv1","kind":"topic","mode":"garbage"}')" '400'
+
+echo "== consuming as a name nobody registered is refused, not answered with silence"
+has "the daemon says register it first" \
+  "$(code ghost@srv1 $TOKEN "/consume?wait=0s")" '404'
+has "while a registered name with an empty inbox is 204" \
+  "$(ab quiet@srv1 register quiet@srv1 >/dev/null; code quiet@srv1 $TOKEN "/consume?wait=0s")" '204'
 
 echo "== a listing says whether a call would reach anyone"
 # Being in the registry and being callable are different facts: "there is a

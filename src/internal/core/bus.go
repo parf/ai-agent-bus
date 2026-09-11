@@ -30,6 +30,7 @@ var (
 	ErrReceipt  = errors.New(`a receipt is "ack" or "done"`)
 	ErrFull     = errors.New("the receiver's queue is full")
 	ErrOverflow = errors.New("overflow is strict or ring")
+	ErrMode     = errors.New("a topic mode is queue or pubsub")
 	ErrConfig   = errors.New("a configuration is JSON")
 	ErrNotOwner = errors.New("that record belongs to someone else")
 	ErrPrivate  = errors.New("a configuration is private to the service it belongs to")
@@ -91,6 +92,12 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	if r.Full != protocol.OverflowStrict && r.Full != protocol.OverflowRing {
 		return protocol.Record{}, fmt.Errorf("%w, not %q", ErrOverflow, r.Full)
 	}
+	// A mode the daemon does not know reads as a queue, which is the mode a
+	// caller asking for pub/sub least wants. Refused here, like overflow,
+	// rather than only in the CLI.
+	if r.Mode != "" && r.Mode != protocol.ModeQueue && r.Mode != protocol.ModePubSub {
+		return protocol.Record{}, fmt.Errorf("%w, not %q", ErrMode, r.Mode)
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	// Registering refreshes a description. It is not a way to take a record
@@ -103,7 +110,11 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	// derived from them (protocol.Record.Public), so accepting one from a
 	// caller would let anyone claim any setup — which is exactly what the
 	// digest exists to detect.
+	// The same applies to the live fields: they are what the daemon
+	// observes, attached to an answer on the way out, so a caller stating
+	// them would be claiming a reader it does not have.
 	r.Config, r.ConfigSHA = nil, ""
+	r.Reading, r.Queued = false, 0
 	if old, known := b.records[name]; known {
 		r.Config = old.Config
 		r.Owner = old.Owner
@@ -112,7 +123,9 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	r.At = time.Now()
 	b.records[name] = r
 	b.ensure(name)
-	return r, nil
+	// Public here, not in the face: the configuration is core's to guard,
+	// and an answer that forgot to redact has already got out twice.
+	return r.Public(), nil
 }
 
 // Configure attaches a configuration to a service, creating the service if it
@@ -168,7 +181,7 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	r.At = time.Now()
 	b.records[n] = r
 	b.ensure(n)
-	return r, nil
+	return r.Public(), nil
 }
 
 // Config reads one back — for the service itself and nobody else, its owner
@@ -209,7 +222,7 @@ func (b *Bus) Lookup(name string) (protocol.Record, bool) {
 	defer b.mu.Unlock()
 	r, ok := b.records[n]
 	if ok {
-		r = b.withLiveness(n, r)
+		r = b.withLiveness(n, r.Public())
 	}
 	return r, ok
 }
@@ -222,6 +235,7 @@ func (b *Bus) Lookup(name string) (protocol.Record, bool) {
 // written back, so nothing in the registry depends on who happened to be
 // connected. Caller holds the lock.
 func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
+	r.Reading, r.Queued = false, 0
 	in, ok := b.inboxes[name]
 	if !ok {
 		return r

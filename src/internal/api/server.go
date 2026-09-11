@@ -83,7 +83,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 	}
 	in.Owner = caller.String()
 	rec, err := s.bus.Register(in)
-	reply(w, rec.Public(), err)
+	reply(w, rec, err)
 }
 
 // configure stores a service's configuration. The body carries the name and
@@ -98,7 +98,7 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 		return
 	}
 	rec, err := s.bus.Configure(in.Name, caller.String(), in.Config)
-	reply(w, rec.Public(), err)
+	reply(w, rec, err)
 }
 
 // config hands one back. A listing never carries a configuration, so this is
@@ -130,7 +130,7 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, _ protocol.Name)
 		fail(w, http.StatusNotFound, "no such name: "+name)
 		return
 	}
-	ok(w, rec.Public())
+	ok(w, rec)
 }
 
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
@@ -187,14 +187,16 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 	defer cancel()
 
 	e, err := s.bus.Consume(ctx, inbox, topic, tag, filtered)
-	switch {
-	case errors.Is(err, core.ErrTwoReads):
-		fail(w, http.StatusConflict, "this inbox already has a reader")
-	case err != nil:
-		w.WriteHeader(http.StatusNoContent) // nothing arrived in time
-	default:
-		ok(w, e)
+	// Only the deadline running out means "nothing arrived", and it is the
+	// error itself that says so — not whether ctx happens to be expired,
+	// which it always is once wait=0s. Every other refusal is a real answer
+	// the caller has to hear: turning an unknown name into 204 told a
+	// reader to keep polling an inbox that will never exist.
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		w.WriteHeader(http.StatusNoContent)
+		return
 	}
+	reply(w, e, err)
 }
 
 // codes is the one place a refusal becomes a status. A handler that decides
@@ -206,12 +208,14 @@ var codes = []struct {
 }{
 	{core.ErrBadName, http.StatusBadRequest},
 	{core.ErrOverflow, http.StatusBadRequest},
+	{core.ErrMode, http.StatusBadRequest},
 	{core.ErrConfig, http.StatusBadRequest},
 	{core.ErrReceipt, http.StatusBadRequest},
 	{core.ErrNotOwner, http.StatusForbidden},
 	{core.ErrPrivate, http.StatusForbidden},
 	{core.ErrUnknown, http.StatusNotFound},
 	{core.ErrFull, http.StatusServiceUnavailable},
+	{core.ErrTwoReads, http.StatusConflict},
 	{core.ErrNotYet, http.StatusNotImplemented},
 }
 
