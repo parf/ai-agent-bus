@@ -61,6 +61,26 @@ records, queues and stats are Parquet, tokens are durable. *Settled by:* owner.
 Zero-downtime reload for `agent-busd` itself via socket inheritance
 (`cloudflare/tableflip`-style); 2× RAM during the overlap.
 
+## The service account
+
+**`agent-bus setup` installs the separate-user arrangement**, not the
+personal one — the two are [runner § who it runs as](08-runner-role.md#who-it-runs-as),
+and an install that serves more than its installer has to be the first. Setup
+creates the account; nothing runs as root at any point.
+
+Its home is **`/var/lib/agent-bus`** — state a program writes, which is what
+`/var/lib` is for and what every other daemon account on a host uses. `/usr`
+is read-only shareable program data, so `/usr/lib/agent-bus` cannot hold a
+home, a store or a dump.
+
+| Under it | Holds |
+|---|---|
+| the store | tokens and whatever else is decided ([storage](#storage)) |
+| the dumps | queues and stats across a restart ([messaging § durability](04-messaging.md#durability)) |
+
+The per-user sockets are **not** under it: they belong in the host's runtime
+directory, which a reboot clears ([access § local socket](02-access.md#local-socket)).
+
 ## Config locations
 
 `/etc/agent-bus/` · `~/.config/agent-bus/` · unit `agent-busd.service`.
