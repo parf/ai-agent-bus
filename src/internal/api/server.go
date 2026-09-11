@@ -122,7 +122,14 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /send", g(s.send))
 	mux.HandleFunc("GET /consume", g(s.consume))
 	mux.HandleFunc("POST /token", g(s.token))
-	mux.HandleFunc("POST /enrol", g(s.enrol))
+	// Enrolment is the one route with no credential on it, because it is
+	// where a credential comes from — requiring one would be a circle. It is
+	// safe for the same reason: the signature *is* the credential, and only a
+	// realm somebody vouches for can be enrolled into at all.
+	// See docs/01-identity.md#proving-possession.
+	mux.HandleFunc("POST /enrol", func(w http.ResponseWriter, r *http.Request) {
+		s.enrol(w, r, protocol.Name{})
+	})
 	return mux
 }
 

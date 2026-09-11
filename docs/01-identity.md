@@ -140,6 +140,16 @@ enrolled into. Otherwise the first caller to ask for `someone@github` would
 become them, which is exactly the hole enrolment exists to close. Realms nobody
 vouches for stay open, and there the claim is still first-come.
 
+**The exchange carries no credential**, and it is the only thing on the bus
+that does not: it is where a credential comes from, so wanting one first would
+be a circle. What makes that safe is that the signature *is* the credential,
+and only a realm somebody vouches for can be entered this way — everything
+else on the API still refuses a caller it cannot name.
+
+The same two steps answer a second question: a name that is already enrolled
+can ask for its credential again the same way, which is how a host with no
+sshd hands one out ([access § getting a token](02-access.md#getting-a-token)).
+
 An unanswered challenge expires; an answered one is spent. Once the record
 exists the provider is out of the picture — an enrolled principal keeps working
 with it unreachable, which is the pinning promised above.

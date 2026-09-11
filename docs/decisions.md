@@ -19,6 +19,7 @@ All 2026-09-09 unless noted.
 | Five programs, split by the privilege each needs and no finer | [setup § the five programs](09-setup.md#the-five-programs) |
 | Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the five programs](09-setup.md#the-five-programs) |
 | A token can be had by signing a challenge, because not every host runs sshd | [access § getting a token](02-access.md#getting-a-token) |
+| Enrolment is the one route with no credential on it, because it is where one comes from | [identity § proving possession](01-identity.md#proving-possession) |
 | The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the service account](09-setup.md#the-service-account) |
 | A name is checked, not taken on trust | [access § two parameters](02-access.md#two-parameters) |
 | Writing is subject to the ACL, like reading | [identity § acl](01-identity.md#acl) |

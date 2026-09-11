@@ -1034,6 +1034,13 @@ has "somebody else cannot register over an enrolled name" \
   "$(ecode $OWNER "$ETOK" /register '{"name":"newbie@vouched","kind":"generic"}')" '403'
 has "nor be handed its credential" \
   "$(ecode alice@srv1 "$(eab token alice@srv1 2>/dev/null)" /token '{"name":"newbie@vouched"}')" '403'
+# Enrolment is where a credential comes from, so it cannot want one first.
+# See docs/01-identity.md#proving-possession.
+has "a newcomer with no credential at all is still challenged" \
+  "$(curl -s --unix-socket "$D/enr/bus.sock" -d '{"name":"squatter@vouched"}' http://unix/enrol)" '"nonce"'
+has "while everything else still wants one" \
+  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/enr/bus.sock" http://unix/status)" '401'
+
 # A provider is an alternative to typing the record, not a dependency.
 rm -f "$D/enr/keys"
 has "an enrolled principal keeps working with the directory gone" \
