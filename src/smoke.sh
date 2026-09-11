@@ -967,6 +967,8 @@ is_empty "a registration cannot claim a call count" \
   "$(post_body owner@srv1 /register '{"name":"probe3@srv1","in":99,"out":99}' | grep -o '"in":99\|"out":99')"
 is_empty "a registration cannot claim loss it did not suffer" \
   "$(post_body owner@srv1 /register '{"name":"probe4@srv1","dropped":42,"expired":42}' | grep -o '"dropped":42\|"expired":42')"
+is_empty "nor an age for a queue it has not got" \
+  "$(post_body owner@srv1 /register '{"name":"probe5@srv1","oldest":"99h"}' | grep -o 99h)"
 is_empty "a registration cannot claim a configuration digest" \
   "$(post_body owner@srv1 /register '{"name":"probe2@srv1","config_sha":"forged"}' | grep -o forged)"
 has "an unknown topic mode is refused by the daemon, not only the CLI" \
@@ -1126,6 +1128,29 @@ has "a read works with no terminal on stdin" \
 
 
 if slow; then
+  sec "a backlog says how long its oldest message has been waiting"
+  # A count alone cannot tell a busy queue from a stalled one. The age of
+  # the head is what does (docs/05-discovery.md#what-it-shows).
+  ab owner@srv1 register stalled@srv1 --kind generic >/dev/null
+  is_empty "an inbox nobody wrote to has no oldest message" \
+    "$(ab owner@srv1 ls stalled@srv1 | grep -o '"oldest"')"
+  ab caller@srv1 send stalled@srv1 --topic old --tag 1 "sat here a while" >/dev/null
+  sleep 3
+  # A second, much younger message: with only one in the queue the newest IS
+  # the oldest, and an age taken from the wrong end reads the same.
+  ab caller@srv1 send stalled@srv1 --topic old --tag 2 "only just arrived" >/dev/null
+  has "one with a backlog says how long the HEAD has waited" \
+    "$(ab owner@srv1 ls stalled@srv1)" '"oldest":"[3-9]s"'
+  # Drained, not merely read once: an age that outlives its queue would make
+  # every emptied inbox look stuck for ever.
+  ab stalled@srv1 consume --topic old --tag 1 --wait 3s >/dev/null
+  ab stalled@srv1 consume --topic old --tag 2 --wait 3s >/dev/null
+  drained=$(ab owner@srv1 ls stalled@srv1)
+  # Answered, not merely silent: an is_empty check below would pass just as
+  # well if `ls` had failed outright.
+  has "the record is still answered once its queue drains" "$drained" 'stalled@srv1'
+  is_empty "and stops saying how old its head is" "$(echo "$drained" | grep -o '"oldest"')"
+
   sec "ttl: a message outlives its worth, and nothing else is counted as that"
   ab owner@srv1 register keeper@srv1 --kind generic --ttl 1h >/dev/null
   # The control that matters most: a TTL must not throw the message away

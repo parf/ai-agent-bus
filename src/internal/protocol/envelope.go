@@ -157,6 +157,10 @@ type Record struct {
 	// something is losing work, and not which name to go and look at.
 	Dropped int `json:"dropped,omitempty"` // lost to its overflow since then
 	Expired int `json:"expired,omitempty"` // outlived their TTL in it since then
+	// How long the message at the head of its queue has been waiting. A
+	// backlog nobody reads is what an incident looks like, and a count alone
+	// cannot say whether that queue is busy or stalled.
+	Oldest string `json:"oldest,omitempty"`
 }
 
 // Public is what a record looks like to anyone but the service itself: the

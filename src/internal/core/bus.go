@@ -168,7 +168,7 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 	}
 	r.Config, r.ConfigSHA, r.Subs = nil, "", nil
 	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
-	r.Dropped, r.Expired = 0, 0
+	r.Dropped, r.Expired, r.Oldest = 0, 0, ""
 	// Publishing a name is open to anyone; changing one that exists belongs
 	// to its owner, and to the record itself — a service registering on
 	// every start is not a stranger to its own name, and it is the only
@@ -320,13 +320,18 @@ func (b *Bus) OwnerOf(name string) (string, bool) {
 // connected. Caller holds the lock.
 func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
-	r.Dropped, r.Expired = 0, 0
+	r.Dropped, r.Expired, r.Oldest = 0, 0, ""
 	in, ok := b.inboxes[name]
 	if !ok {
 		return r
 	}
 	r.Queued, r.In, r.Out = len(in.queue), in.in, in.out
 	r.Dropped, r.Expired = in.dropped, in.expired
+	if len(in.queue) > 0 {
+		// The head is the oldest: a queue is appended to and read from the
+		// front (docs/04-messaging.md#inbox-queues).
+		r.Oldest = time.Since(in.queue[0].At).Round(time.Second).String()
+	}
 	for _, w := range in.waiters {
 		if !w.filtered {
 			r.Reading = true

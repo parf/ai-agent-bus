@@ -314,10 +314,10 @@ func TestAnAnswerNeverCarriesLivenessItWasHandedIn(t *testing.T) {
 	mustRegister(t, b, protocol.Record{Name: "claimer@srv", Owner: "claimer@srv"})
 	got := b.withLiveness("claimer@srv", protocol.Record{
 		Name: "claimer@srv", Reading: true, Queued: 9, In: 9, Out: 9,
-		Dropped: 9, Expired: 9,
+		Dropped: 9, Expired: 9, Oldest: "99h",
 	})
 	if got.Reading || got.Queued != 0 || got.In != 0 || got.Out != 0 ||
-		got.Dropped != 0 || got.Expired != 0 {
+		got.Dropped != 0 || got.Expired != 0 || got.Oldest != "" {
 		t.Fatalf("liveness came back from the caller, not from the inbox: %+v", got)
 	}
 }

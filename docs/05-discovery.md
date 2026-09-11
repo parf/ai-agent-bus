@@ -28,6 +28,7 @@ So a caller reading a listing needs two more things than a name:
 | **`queued`** | how many messages are waiting in it | none are |
 | **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, since the daemon started | none have |
 | **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, since then ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
+| **`oldest`** | how long the message at the head of its queue has been waiting | its queue is empty |
 
 All of these are **live state, not registry data** — attached to an
 answer on its way out and never stored, so nothing in the registry depends on
@@ -41,7 +42,9 @@ does not make a quiet service look busy.
 
 **Loss is per inbox, and the node's total is the sum of them.** A node-wide
 count says that something is losing work and not which name to go and look
-at. That is what the dashboard's loss-by-name view is
+at; and a queue that is long because it is busy and one that is long because
+nobody is reading it are the same number until `oldest` separates them. That
+pair is what the dashboard's stuck-inboxes and loss-by-name views are
 ([what it shows](#what-it-shows)), and a restart puts each back on the inbox
 that suffered it rather than on a total.
 
@@ -153,7 +156,7 @@ the bus debuggable by the people sharing it.
 |---|---|---|
 | the sign-in page and the token help | MVP | — |
 | **registry**, as this caller may see it: kind, owner, protocol, description, `reading`/`queued`/`in`/`out`, the configuration's digest | MVP | — it is `/ls` |
-| **stuck inboxes** — a backlog with nobody reading, oldest first, marked when the queue is at its bound. The one view an incident actually needs | MVP | the age of the oldest waiting message, per record |
+| **stuck inboxes** — a backlog with nobody reading, oldest first, marked when the queue is at its bound. The one view an incident actually needs | MVP | — `oldest` and `reading` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **exchanges** — the envelope feed grouped by topic and tag, so a request, its `ack`, its reply and its `done` are one row, and an answer past its deadline is marked late | MVP | the feed filtered per caller, instead of master-only |
 | **my names** — what I hold a credential for, its fingerprint, when it was issued and last used, and how to rotate it | MVP | when a credential was issued, and when it was last used |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | MVP | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
