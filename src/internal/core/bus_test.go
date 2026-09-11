@@ -423,3 +423,53 @@ func TestAConfigurationIsStoredCompacted(t *testing.T) {
 		t.Fatalf("whitespace changed the digest:\n%s\n%s", a, c)
 	}
 }
+
+// A digest a caller made up is worse than no digest: the whole point of it is
+// that someone holding a service's setup can tell whether it still matches
+// (docs/03-services-and-topics.md#why-a-digest-at-all).
+func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
+	b := New()
+	rec, err := b.Register(protocol.Record{
+		Name: "plain@h", Kind: "generic", Owner: "parf@srv1",
+		Config: []byte(`{"smuggled":true}`), ConfigSHA: "forged-by-the-caller",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.ConfigSHA != "" || rec.Config != nil {
+		t.Fatalf("registration carried a configuration in: sha=%q config=%s", rec.ConfigSHA, rec.Config)
+	}
+	if pub := rec.Public(); pub.ConfigSHA != "" {
+		t.Fatalf("an unconfigured service answers with a digest: %q", pub.ConfigSHA)
+	}
+
+	// And configuring it for real produces one that is actually derived.
+	cfg, err := b.Configure("plain@h", "parf@srv1", []byte(`{"k":"v"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Public().ConfigSHA == "forged-by-the-caller" || cfg.Public().ConfigSHA == "" {
+		t.Fatalf("digest is %q", cfg.Public().ConfigSHA)
+	}
+}
+
+// Re-registering must not let a caller replace the digest of a configuration
+// it cannot read.
+func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
+	b := New()
+	if _, err := b.Configure("svc@h", "svc@h", []byte(`{"k":"v"}`)); err != nil {
+		t.Fatal(err)
+	}
+	real, known := b.Lookup("svc@h")
+	if !known {
+		t.Fatal("the configured service is not registered")
+	}
+	again, err := b.Register(protocol.Record{Name: "svc@h", Kind: "generic", Owner: "svc@h", ConfigSHA: "forged"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := again.Public().ConfigSHA; got != real.Public().ConfigSHA {
+		t.Fatalf("re-registration changed the digest to %q", got)
+	}
+}
+

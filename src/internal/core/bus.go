@@ -97,6 +97,13 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	// over or to throw its configuration away: a service registers itself on
 	// every start, and that must not destroy what it was configured with.
 	// See docs/03-services-and-topics.md#configuring-a-template.
+	//
+	// A registration also never carries either half of a configuration:
+	// the bytes have one write path and this is not it, and the digest is
+	// derived from them (protocol.Record.Public), so accepting one from a
+	// caller would let anyone claim any setup — which is exactly what the
+	// digest exists to detect.
+	r.Config, r.ConfigSHA = nil, ""
 	if old, known := b.records[name]; known {
 		r.Config = old.Config
 		r.Owner = old.Owner

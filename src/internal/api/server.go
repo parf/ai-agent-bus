@@ -70,8 +70,6 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 		return
 	}
 	in.Owner = caller.String()
-	// A configuration has one write path, and this is not it.
-	in.Config = nil
 	rec, err := s.bus.Register(in)
 	reply(w, rec.Public(), err)
 }
