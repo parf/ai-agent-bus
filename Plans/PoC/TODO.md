@@ -90,6 +90,13 @@ Running it needs Go, bun and **both agent CLIs logged in** — not a bare host.
 Driving two interactive sessions headless is a test harness, not a PoC task:
 the live criterion is checked by hand, once, and the script covers the rest.
 
+## After the stage closed
+
+One bug was worth reopening for, on the owner's word: a full queue lost a
+message silently. ✅ _Done → [DONE.md](DONE.md): after the stage closed_ — the
+receiver declares `--overflow`, `strict` refuses loudly by default, `ring`
+counts what it drops. Sent to Codex for review.
+
 ## Out of PoC
 
 What is absent is listed once, in

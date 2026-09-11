@@ -379,6 +379,29 @@ Its two suggested strengthenings are in as well: the caller's record is
 compared whole rather than grepped for a word, and the stop check waits until
 the daemon reports an outstanding consume and then asserts exit 0.
 
+## After the stage closed — a full queue is never silent
+
+Reopened narrowly, on the owner's word, for one bug the review turned up:
+**1001 sends into a 1000-bound queue dropped message "0" and said nothing**.
+Silence is the failure V1 taught us to hate, so the fix is about noise, not
+capacity.
+
+| | |
+|---|---|
+| who decides | the **receiver**, on its own record — `--overflow` on `register` and `topic create`, stored as `overflow` |
+| default | `strict`: the send is **refused**, 503, and the error names the queue that is full |
+| the other mode | `ring`: the oldest is dropped **and counted** — `status` carries `dropped` |
+| what is gone | a loss with no trace. Either the sender is told now, or the count says it happened |
+
+The owner's call, asked and answered: overflow now, reject-new as the default,
+and the reply-address contract stays MVP wording. V1's `discard: new` was the
+better answer and we took it
+([messaging § overflow](../../docs/04-messaging.md#overflow)).
+
+Mutation-verified, as the rule requires: the default flipped back to `ring`,
+the strict refusal disabled, and the counter dropped — each turns a named
+check red on its own.
+
 **What is not true, and is meant not to be**: bodies are plaintext, so *the
 bus never reads payloads* is a claim MVP earns, not this stage
 ([stages § PoC](../../docs/12-stages.md#poc)).
