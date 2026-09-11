@@ -81,6 +81,7 @@ All 2026-09-09 unless noted.
 | Graceful restart dumps queues and stats to Parquet; optional periodic dump | [messaging § durability](04-messaging.md#durability) |
 | No message kinds and no receiver policy in the bus | [messaging § envelope](04-messaging.md#envelope) |
 | Call counts are per service, live state like `reading` and `queued` | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
+| Loss is counted per inbox; the node's total is the sum of them | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | Dashboard shows services, topics and call counts — envelopes only | [discovery § dashboard](05-discovery.md#dashboard) |
 | The bus keeps a bounded feed of routed envelopes, body struck out where it is written | [discovery § dashboard](05-discovery.md#dashboard) |
 | The dashboard has a real hostname and a real certificate, from a public source | [discovery § where it listens](05-discovery.md#where-it-listens) |

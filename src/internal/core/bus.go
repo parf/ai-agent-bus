@@ -69,6 +69,9 @@ type inbox struct {
 	// never taken from a caller. A queue that is drained and one nobody
 	// ever wrote to both read as empty, and these tell them apart.
 	in, out int
+	// Its own loss, not the daemon's. A total says something is losing
+	// work; only a per-inbox count says which name to go and look at.
+	dropped, expired int
 
 	queue   []protocol.Envelope
 	waiters []*waiter
@@ -79,11 +82,6 @@ type Bus struct {
 	records map[string]protocol.Record
 	inboxes map[string]*inbox
 	started time.Time
-	dropped int // messages the ring threw away, since start
-	// Expiry is counted apart from overflow on purpose: a queue that is too
-	// small and a message that was asked to be forgotten are different
-	// problems, and one counter cannot tell an operator which it has.
-	expired int
 	// What the bus has seen lately, bodies struck out — the dashboard's
 	// only source. See docs/05-discovery.md#dashboard.
 	recent []protocol.Envelope
@@ -170,6 +168,7 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 	}
 	r.Config, r.ConfigSHA, r.Subs = nil, "", nil
 	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
+	r.Dropped, r.Expired = 0, 0
 	// Publishing a name is open to anyone; changing one that exists belongs
 	// to its owner, and to the record itself — a service registering on
 	// every start is not a stranger to its own name, and it is the only
@@ -321,11 +320,13 @@ func (b *Bus) OwnerOf(name string) (string, bool) {
 // connected. Caller holds the lock.
 func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
+	r.Dropped, r.Expired = 0, 0
 	in, ok := b.inboxes[name]
 	if !ok {
 		return r
 	}
 	r.Queued, r.In, r.Out = len(in.queue), in.in, in.out
+	r.Dropped, r.Expired = in.dropped, in.expired
 	for _, w := range in.waiters {
 		if !w.filtered {
 			r.Reading = true
@@ -513,7 +514,7 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 			return fmt.Errorf("%w: %s holds %d", ErrFull, rec.Name, len(in.queue))
 		}
 		in.queue = take(in.queue, 0)
-		b.dropped++ // a real loss, so `status` reports it
+		in.dropped++ // a real loss, so `status` and `ls` report it
 	}
 	in.queue = append(in.queue, e)
 	in.in++
@@ -542,7 +543,9 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		c := e
 		c.To = s
 		if err := b.deliver(sub, b.ensure(s), c); err != nil {
-			b.dropped++
+			// The copy that would not fit is the SUBSCRIBER's loss: its
+			// bound refused it, and its page is where that has to show.
+			b.ensure(s).dropped++
 		}
 	}
 	return e, nil
@@ -634,7 +637,7 @@ func (b *Bus) prune(in *inbox, now time.Time) {
 	kept := in.queue[:0]
 	for _, e := range in.queue {
 		if !e.Expires.IsZero() && now.After(e.Expires) {
-			b.expired++
+			in.expired++
 			continue
 		}
 		kept = append(kept, e)
@@ -744,12 +747,14 @@ func (b *Bus) Status() Status {
 	s := Status{
 		Up:       time.Since(b.started).Round(time.Second).String(),
 		Services: len(b.records),
-		Dropped:  b.dropped,
-		Expired:  b.expired,
 	}
+	// Summed, not counted a second time: the node's total has one home, and
+	// it is the inboxes that lost the work.
 	for _, in := range b.inboxes {
 		s.Queued += len(in.queue)
 		s.Waiting += len(in.waiters)
+		s.Dropped += in.dropped
+		s.Expired += in.expired
 	}
 	return s
 }

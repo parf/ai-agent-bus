@@ -466,6 +466,13 @@ has "and the subscriber with room gets both" \
   "$(ab sub-a@srv1 consume --wait 5s; ab sub-a@srv1 consume --wait 5s)" 'does not fit'
 has "while the copy that would not fit is counted as a loss" \
   "$(ab parf@localhost status)" '"dropped":[1-9]'
+# And against the SUBSCRIBER, whose own bound refused it — not against the
+# topic, which keeps nothing and so can lose nothing. The node total rises
+# wherever it is charged, which is exactly why it cannot be the check.
+has "and it is the subscriber's loss, its bound having refused it" \
+  "$(ab owner@srv1 ls full-sub@srv1)" '"dropped":[1-9]'
+is_empty "not the topic's, which keeps nothing to lose" \
+  "$(ab owner@srv1 ls news@srv1 | grep -o '"dropped":')"
 
 sec "unknown receiver"
 out=$(ab asker@srv1 send ghost@nowhere hi 2>&1); rc=$?
@@ -958,6 +965,8 @@ is_empty "and the claim does not survive into a listing" \
   "$(ab nobody@srv1 ls probe@srv1 | grep -o '"reading":true')"
 is_empty "a registration cannot claim a call count" \
   "$(post_body owner@srv1 /register '{"name":"probe3@srv1","in":99,"out":99}' | grep -o '"in":99\|"out":99')"
+is_empty "a registration cannot claim loss it did not suffer" \
+  "$(post_body owner@srv1 /register '{"name":"probe4@srv1","dropped":42,"expired":42}' | grep -o '"dropped":42\|"expired":42')"
 is_empty "a registration cannot claim a configuration digest" \
   "$(post_body owner@srv1 /register '{"name":"probe2@srv1","config_sha":"forged"}' | grep -o forged)"
 has "an unknown topic mode is refused by the daemon, not only the CLI" \
@@ -1149,6 +1158,16 @@ if slow; then
   for i in 1 2 3 4; do ab caller@srv1 send ring.small@srv1 --topic tt --tag r "m$i" >/dev/null; done
   delta "a ring drop is counted as dropped" 2 "$d0" "$(count dropped)"
   delta "and not as expired" 0 "$e2" "$(count expired)"
+  # And against the NAME that lost it. A node total says something is
+  # losing work; it cannot say which inbox to go and look at.
+  has "the inbox that dropped them says so itself" \
+    "$(ab owner@srv1 ls ring.small@srv1)" '"dropped":2'
+  is_empty "while one that lost nothing says nothing" \
+    "$(ab owner@srv1 ls keeper@srv1 | grep -o '"dropped":')"
+  has "and expiry is the expired inbox's own, not the ring's" \
+    "$(ab owner@srv1 ls keeper@srv1)" '"expired":[1-9]'
+  is_empty "which the ring did not suffer" \
+    "$(ab owner@srv1 ls ring.small@srv1 | grep -o '"expired":')"
 
   # The bound is the record's, not one number for the whole daemon.
   ab owner@srv1 register tiny@srv1 --kind generic --bound 1 >/dev/null
@@ -1609,15 +1628,28 @@ is_empty "the message that died with the process is not invented back" \
   "$(dkeep consume --wait 0s 2>&1)"
 dur_down -TERM
 
+# Loss is state like the counters: a restart puts it back on the inbox that
+# suffered it, and the node total is the sum of those rather than a second
+# copy that could disagree.
+dur_up fourth
+dab register lossy@srv1 --overflow ring --bound 1 >/dev/null
+dab send lossy@srv1 "first" >/dev/null; dab send lossy@srv1 "second" >/dev/null
+has "an inbox that dropped something says so" "$(dab ls lossy@srv1)" '"dropped":1'
+dur_down -TERM
+dur_up fifth
+has "and still says so after a restart" "$(dab ls lossy@srv1)" '"dropped":1'
+has "while the node total is the sum of its inboxes" "$(dab status)" '"dropped":1'
+dur_down -TERM
+
 if slow; then
   # A message whose moment passed while the daemon was down is not worth
   # delivering late, and the reload is where that is decided.
-  dur_up fifth
+  dur_up sixth
   dab send keeper@srv1 --ttl 2s "too late by the time you read this" >/dev/null
   dab send keeper@srv1 "still worth having" >/dev/null
   dur_down -TERM
   sleep 3
-  dur_up sixth
+  dur_up seventh
   has "a message that outlived its ttl while down is not delivered" \
     "$(dkeep consume --wait 0s)" 'still worth having'
   is_empty "and it is the only one left" "$(dkeep consume --wait 0s 2>&1)"

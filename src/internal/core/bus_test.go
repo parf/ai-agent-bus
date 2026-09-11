@@ -305,6 +305,23 @@ func TestASubscriptionSurvivesTheTopicBeingRestated(t *testing.T) {
 	}
 }
 
+// Every answer that carries liveness is built here, and it is the one place
+// that could hand a caller's own claim back to them as though the daemon had
+// observed it. Register cleans a stated record on the way in; this is the
+// other end of the same rule, and without it the guard has no check.
+func TestAnAnswerNeverCarriesLivenessItWasHandedIn(t *testing.T) {
+	b := New()
+	mustRegister(t, b, protocol.Record{Name: "claimer@srv", Owner: "claimer@srv"})
+	got := b.withLiveness("claimer@srv", protocol.Record{
+		Name: "claimer@srv", Reading: true, Queued: 9, In: 9, Out: 9,
+		Dropped: 9, Expired: 9,
+	})
+	if got.Reading || got.Queued != 0 || got.In != 0 || got.Out != 0 ||
+		got.Dropped != 0 || got.Expired != 0 {
+		t.Fatalf("liveness came back from the caller, not from the inbox: %+v", got)
+	}
+}
+
 // A receipt rides the same topic and tag as the message it is about, so the
 // caller's filtered wait sees it. See docs/04-messaging.md#receipts.
 func TestAReceiptReachesTheCallersFilteredWait(t *testing.T) {

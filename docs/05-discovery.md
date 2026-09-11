@@ -27,8 +27,9 @@ So a caller reading a listing needs two more things than a name:
 | **`reading`** | a read on its inbox is outstanding *now* — something is serving it | registered, but nobody is home |
 | **`queued`** | how many messages are waiting in it | none are |
 | **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, since the daemon started | none have |
+| **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, since then ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
 
-`reading`, `queued`, `in` and `out` are **live state, not registry data** — attached to an
+All of these are **live state, not registry data** — attached to an
 answer on its way out and never stored, so nothing in the registry depends on
 who happened to be connected ([overview § principles](00-overview.md#principles)). They are the difference between
 *"this name exists"* and *"a call would reach someone"*, which is the question
@@ -37,6 +38,12 @@ a caller is actually asking.
 An inbox that was drained and one nobody ever wrote to both read as empty.
 `in` and `out` are what tell them apart, and they are per name: a busy bus
 does not make a quiet service look busy.
+
+**Loss is per inbox, and the node's total is the sum of them.** A node-wide
+count says that something is losing work and not which name to go and look
+at. That is what the dashboard's loss-by-name view is
+([what it shows](#what-it-shows)), and a restart puts each back on the inbox
+that suffered it rather than on a total.
 
 **A false negative is possible and harmless**: between one long poll and the
 next a live service shows `reading: false` for as long as it takes to ask
@@ -149,7 +156,7 @@ the bus debuggable by the people sharing it.
 | **stuck inboxes** — a backlog with nobody reading, oldest first, marked when the queue is at its bound. The one view an incident actually needs | MVP | the age of the oldest waiting message, per record |
 | **exchanges** — the envelope feed grouped by topic and tag, so a request, its `ack`, its reply and its `done` are one row, and an answer past its deadline is marked late | MVP | the feed filtered per caller, instead of master-only |
 | **my names** — what I hold a credential for, its fingerprint, when it was issued and last used, and how to rotate it | MVP | when a credential was issued, and when it was last used |
-| **loss by name** — what each inbox dropped to overflow and what expired in it | MVP | the two counters per inbox, where today they are per daemon |
+| **loss by name** — what each inbox dropped to overflow and what expired in it | MVP | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **refusals** — how many calls were refused and why: bad credential, wrong name for it, ACL, unknown receiver, second reader, full queue | MVP | one counter per kind, and a short per-caller list on that person's own page |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | MVP | the unclean-restart fact on `status`, which is logged today |
 | **people** — who holds a credential: name, person name, avatar, master or not, what they own | MVP | the credential store answering *which names*, and the person fields ([identity § registration](01-identity.md#registration)) |

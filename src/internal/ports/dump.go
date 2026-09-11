@@ -14,9 +14,12 @@ import (
 // and one nobody ever wrote to read the same without them
 // (docs/05-discovery.md#live-state).
 type Queue struct {
-	Name     string
-	In, Out  int
-	Messages []protocol.Envelope
+	Name    string
+	In, Out int
+	// Loss belongs to the inbox that suffered it, so a restart puts it back
+	// where it happened rather than on a node-wide total.
+	Dropped, Expired int
+	Messages         []protocol.Envelope
 }
 
 // Snapshot is the daemon's memory at a moment. Registry records travel with
@@ -28,8 +31,6 @@ type Snapshot struct {
 	Clean   bool // written by a graceful stop; false means the run was still going
 	Records []protocol.Record
 	Queues  []Queue
-	Dropped int
-	Expired int
 }
 
 // Dump snapshots in-memory state and reads it back.

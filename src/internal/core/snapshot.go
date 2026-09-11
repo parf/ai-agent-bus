@@ -13,7 +13,7 @@ import (
 func (b *Bus) Snapshot() ports.Snapshot {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	s := ports.Snapshot{At: time.Now(), Dropped: b.dropped, Expired: b.expired}
+	s := ports.Snapshot{At: time.Now()}
 	for _, r := range b.records {
 		s.Records = append(s.Records, r)
 	}
@@ -25,6 +25,7 @@ func (b *Bus) Snapshot() ports.Snapshot {
 		}
 		s.Queues = append(s.Queues, ports.Queue{
 			Name: name, In: in.in, Out: in.out,
+			Dropped: in.dropped, Expired: in.expired,
 			Messages: append([]protocol.Envelope(nil), in.queue...),
 		})
 	}
@@ -38,13 +39,13 @@ func (b *Bus) Snapshot() ports.Snapshot {
 func (b *Bus) Restore(s ports.Snapshot) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.dropped, b.expired = s.Dropped, s.Expired
 	for _, r := range s.Records {
 		b.records[r.Name] = r
 	}
 	for _, q := range s.Queues {
 		in := b.ensure(q.Name)
 		in.in, in.out = q.In, q.Out
+		in.dropped, in.expired = q.Dropped, q.Expired
 		in.queue = append(in.queue, q.Messages...)
 	}
 }
