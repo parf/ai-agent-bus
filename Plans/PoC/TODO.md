@@ -15,7 +15,7 @@ where it is better** — simplicity breaks the tie, and complexity is paid for
 by a case V1 actually hit, not by V1 having it:
 [README § V1 is the bar](README.md#v1-is-the-bar).
 
-**Next step**: the owner's call on what MVP contains ([stages](../../docs/12-stages.md)) — the PoC is met.
+**Next step**: none here — the PoC is met. The active plan is [Plans/MVP](../MVP/TODO.md).
 
 ## Blockers
 
