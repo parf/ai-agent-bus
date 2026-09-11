@@ -42,6 +42,14 @@ pass=0; fail=0; skipped=0
 SLOW=${SLOW:-0}
 [ "${1:-}" = "--slow" ] && SLOW=1
 slow() { [ "$SLOW" = 1 ]; }
+# Counters are cumulative since the daemon started, so a check on one has to
+# be a delta. Asserting the absolute value worked only while this section
+# happened to run first, and broke the moment another one dropped a message.
+count() { ab parf@localhost status | sed -n "s/.*\"$1\":\([0-9]*\).*/\1/p"; }
+delta() { # label expected before after
+  if [ "$(( $4 - $3 ))" -eq "$2" ]; then echo "  ok   $1"; pass=$((pass+1));
+  else echo "  FAIL $1: expected +$2, got $3 -> $4"; fail=$((fail+1)); fi
+}
 # Section timing, so "slow" is a measurement and not a hunch.
 sec_name=""; sec_t0=0
 sec() {
@@ -621,6 +629,53 @@ has "a read works with no terminal on stdin" \
 
 
 if slow; then
+  sec "ttl: a message outlives its worth, and nothing else is counted as that"
+  ab owner@srv1 register keeper@srv1 --kind generic --ttl 1h >/dev/null
+  # The control that matters most: a TTL must not throw the message away
+  # early. A check that only proves disappearance passes when everything
+  # expires immediately.
+  ab caller@srv1 send keeper@srv1 --topic tt --tag 1 --ttl 30s "still worth reading" >/dev/null
+  has "a message inside its ttl is delivered" \
+    "$(ab keeper@srv1 consume --topic tt --tag 1 --wait 2s)" 'still worth reading'
+
+  e0=$(count expired)
+  ab caller@srv1 send keeper@srv1 --topic tt --tag 2 --ttl 300ms "too late to matter" >/dev/null
+  sleep 1
+  is_empty "a message past its ttl is never handed over" "$(ab keeper@srv1 consume --topic tt --tag 2 --wait 1s)"
+  delta "and it is counted as expired" 1 "$e0" "$(count expired)"
+
+  # The queue's TTL bounds the sender's: asking for longer does not get it.
+  ab owner@srv1 register brief@srv1 --kind generic --ttl 300ms >/dev/null
+  ab caller@srv1 send brief@srv1 --topic tt --tag 3 --ttl 1h "asked for an hour" >/dev/null
+  sleep 1
+  is_empty "a queue's ttl bounds a longer one on the message" "$(ab brief@srv1 consume --topic tt --tag 3 --wait 1s)"
+  # and the other direction still works: shorter on the message wins
+  ab caller@srv1 send keeper@srv1 --topic tt --tag 4 --ttl 300ms "shorter than the queue" >/dev/null
+  sleep 1
+  is_empty "and a shorter one on the message wins over the queue's" "$(ab keeper@srv1 consume --topic tt --tag 4 --wait 1s)"
+
+  # Two counters, two problems. One that counted both could not tell an
+  # operator whether the queue is too small or the message too old.
+  d0=$(count dropped); e2=$(count expired)
+  ab owner@srv1 register ring.small@srv1 --kind generic --overflow ring --bound 2 >/dev/null
+  for i in 1 2 3 4; do ab caller@srv1 send ring.small@srv1 --topic tt --tag r "m$i" >/dev/null; done
+  delta "a ring drop is counted as dropped" 2 "$d0" "$(count dropped)"
+  delta "and not as expired" 0 "$e2" "$(count expired)"
+
+  # The bound is the record's, not one number for the whole daemon.
+  ab owner@srv1 register tiny@srv1 --kind generic --bound 1 >/dev/null
+  ab caller@srv1 send tiny@srv1 --topic tt --tag s "first" >/dev/null
+  out=$(ab caller@srv1 send tiny@srv1 --topic tt --tag s "second" 2>&1); rc=$?
+  has "a record's own bound refuses the one past it" "$out" 'queue is full'
+  bad_exit "and says so to the sender" $rc
+
+  has "a ttl that is not a duration is refused" \
+    "$(ab owner@srv1 register bad.ttl@srv1 --ttl soon 2>&1)" 'ttl is a duration'
+  has "a bound that is not a count is refused" \
+    "$(ab owner@srv1 register bad.bound@srv1 --bound plenty 2>&1)" 'positive number'
+else skipped=$((skipped+1)); fi
+
+if slow; then
   sec "a full queue: refuse by default, drop the oldest if asked"
   ab owner@srv1 register sink@srv1 --kind generic >/dev/null
   ab owner@srv1 register ringy@srv1 --kind generic --overflow ring >/dev/null
@@ -630,16 +685,18 @@ if slow; then
     "$(ab owner@srv1 register bad@srv1 --overflow maybe 2>&1)" 'overflow is strict or ring'
   # 1001 into a queue bounded at 1000, twice: strict must refuse the last one,
   # ring must swallow it and lose the first.
+  d0=$(count dropped)
   for i in $(seq 0 1000); do ab flood@srv1 send sink@srv1 "msg-$i" >/dev/null 2>&1; done
   out=$(ab flood@srv1 send sink@srv1 "one too many" 2>&1); rc=$?
   bad_exit "strict refuses the send rather than lose a message" $rc
   has "and names the queue that is full" "$out" 'queue is full: sink@srv1'
   has "and says the receiver cannot take it, not that we broke" \
     "$(post_code flood@srv1 $TOKEN /send '{"to":"sink@srv1","body":"one more"}')" '503'
-  has "nothing was dropped" "$(ab asker@srv1 status)" '"dropped":0'
+  delta "strict dropped nothing" 0 "$d0" "$(count dropped)"
+  d1=$(count dropped)
   for i in $(seq 0 1000); do ab flood@srv1 send ringy@srv1 "msg-$i" >/dev/null 2>&1; done
   has "ring keeps taking, and the oldest is what went" "$(ab ringy@srv1 consume --wait 2s)" 'msg-1"'
-  has "and the loss is counted, not silent" "$(ab asker@srv1 status)" '"dropped":1'
+  delta "and the loss is counted, not silent" 1 "$d1" "$(count dropped)"
 
 else skipped=$((skipped+1)); fi
 sec "--wait is the caller's deadline, not just the daemon's"

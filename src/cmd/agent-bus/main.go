@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,9 +29,10 @@ const usage = `agent-bus — talk to agent-busd
 
   agent-bus status
   agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
+                            [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to call it; unset = this bus
   agent-bus ls [<name>] [--kind k]
-  agent-bus send <to> [--topic t] [--tag g] [--reply-to name] <text>
+  agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
   agent-bus consume [--topic t] [--tag g] [--wait 30s] [--follow]
   agent-bus ack <message-id>
@@ -38,6 +40,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus reply <message-id> <text>
   agent-bus reply --to <name> [--topic t] [--tag g] <text>
   agent-bus topic create <name> [--kind queue|pubsub] [--descr d] [--overflow ring|strict]
+                                [--ttl 1h] [--bound 1000]
   agent-bus publish --topic <name> <text>
   agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
   agent-bus start                     (the same, as JSON on stdin)
@@ -96,9 +99,14 @@ func register(args []string) error {
 	if len(pos) != 1 {
 		return fmt.Errorf("register wants one name")
 	}
+	n, err := bound(flags)
+	if err != nil {
+		return err
+	}
 	return post("/register", protocol.Record{
 		Name: pos[0], Kind: flags["kind"], Addr: flags["addr"], Descr: flags["descr"],
 		Full: flags["overflow"], Proto: flags["protocol"],
+		TTL: flags["ttl"], Bound: n,
 	})
 }
 
@@ -130,7 +138,7 @@ func send(args []string) error {
 	}
 	e := protocol.Envelope{
 		To: pos[0], Topic: flags["topic"], Tag: flags["tag"],
-		Body: strings.Join(pos[1:], " "),
+		Body: strings.Join(pos[1:], " "), TTL: flags["ttl"],
 	}
 	// --reply-to keeps the exchange's topic and tag unless told otherwise:
 	// the third party matches the answer the same way the sender would.
@@ -258,6 +266,20 @@ func receipt(kind string, args []string) error {
 	})
 }
 
+// bound reads --bound, which is a count of messages and not a duration: the
+// two flags sit next to each other and a typo in either should say which.
+func bound(flags map[string]string) (int, error) {
+	v := flags["bound"]
+	if v == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return 0, fmt.Errorf("a bound is a positive number of messages, not %q", v)
+	}
+	return n, nil
+}
+
 // A topic is a record like any other; `topic create` is the sugar that says
 // so. See docs/03-services-and-topics.md.
 // serviceTemplate configures a service template into a configured service,
@@ -318,9 +340,13 @@ func topic(args []string) error {
 	if mode != protocol.ModeQueue && mode != protocol.ModePubSub {
 		return fmt.Errorf("a topic is %s or %s", protocol.ModeQueue, protocol.ModePubSub)
 	}
+	n, err := bound(flags)
+	if err != nil {
+		return err
+	}
 	return post("/register", protocol.Record{
 		Name: pos[0], Kind: protocol.KindTopic, Mode: mode, Descr: flags["descr"],
-		Full: flags["overflow"],
+		Full: flags["overflow"], TTL: flags["ttl"], Bound: n,
 	})
 }
 

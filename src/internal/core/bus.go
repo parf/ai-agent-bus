@@ -32,6 +32,8 @@ var (
 	ErrOverflow = errors.New("overflow is strict or ring")
 	ErrMode     = errors.New("a topic mode is queue or pubsub")
 	ErrConfig   = errors.New("a configuration is JSON")
+	ErrTTL      = errors.New("a ttl is a duration, like 30s")
+	ErrBound    = errors.New("a bound is a positive number of messages")
 	ErrNotOwner = errors.New("that record belongs to someone else")
 	ErrPrivate  = errors.New("a configuration is private to the service it belongs to")
 )
@@ -65,6 +67,10 @@ type Bus struct {
 	inboxes map[string]*inbox
 	started time.Time
 	dropped int // messages the ring threw away, since start
+	// Expiry is counted apart from overflow on purpose: a queue that is too
+	// small and a message that was asked to be forgotten are different
+	// problems, and one counter cannot tell an operator which it has.
+	expired int
 }
 
 func New() *Bus {
@@ -113,6 +119,15 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	// The same applies to the live fields: they are what the daemon
 	// observes, attached to an answer on the way out, so a caller stating
 	// them would be claiming a reader it does not have.
+	if r.TTL != "" {
+		d, err := time.ParseDuration(r.TTL)
+		if err != nil || d <= 0 {
+			return protocol.Record{}, fmt.Errorf("%w, not %q", ErrTTL, r.TTL)
+		}
+	}
+	if r.Bound < 0 {
+		return protocol.Record{}, fmt.Errorf("%w, not %d", ErrBound, r.Bound)
+	}
 	r.Config, r.ConfigSHA = nil, ""
 	r.Reading, r.Queued = false, 0
 	if old, known := b.records[name]; known {
@@ -347,6 +362,13 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	e.To, e.From = to, from
 	e.ID = newID()
 	e.At = time.Now()
+	d, err := life(rec.TTL, e.TTL)
+	if err != nil {
+		return protocol.Envelope{}, err
+	}
+	if d > 0 {
+		e.Expires = e.At.Add(d)
+	}
 	in := b.ensure(to)
 
 	// A waiter that asked for this topic and tag is served ahead of the
@@ -370,7 +392,16 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// the receiver's record says which. Refusing is the default because
 	// losing a job silently is worse than failing visibly; a ring is for the
 	// streams where the newest matters most (docs/04-messaging.md#overflow).
-	if len(in.queue) >= maxQueue {
+	bound := rec.Bound
+	if bound == 0 {
+		bound = maxQueue
+	}
+	if len(in.queue) >= bound {
+		// What has already expired is not fullness: count it as expiry and
+		// see whether there is room after all.
+		b.prune(in, e.At)
+	}
+	if len(in.queue) >= bound {
 		if rec.Full != protocol.OverflowRing {
 			return protocol.Envelope{}, fmt.Errorf("%w: %s holds %d", ErrFull, to, len(in.queue))
 		}
@@ -379,6 +410,55 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	in.queue = append(in.queue, e)
 	return e, nil
+}
+
+// life is how long this message is worth delivering: what the sender asked
+// for, never more than what the receiver's queue allows. Either may be
+// unset; unset on both means it waits until consumed.
+// See docs/04-messaging.md#message-ttl.
+func life(queue, msg string) (time.Duration, error) {
+	var q, m time.Duration
+	var err error
+	if queue != "" {
+		q, _ = time.ParseDuration(queue) // validated at Register
+	}
+	if msg != "" {
+		if m, err = time.ParseDuration(msg); err != nil || m <= 0 {
+			return 0, fmt.Errorf("%w, not %q", ErrTTL, msg)
+		}
+	}
+	switch {
+	case m == 0:
+		return q, nil
+	case q == 0 || m < q:
+		return m, nil
+	default:
+		// Asking for longer than the queue keeps is not an error — the queue
+		// simply does not keep it that long. The receiver owns its retention
+		// the same way it owns its overflow.
+		return q, nil
+	}
+}
+
+// prune drops what has outlived its moment, counting it apart from overflow.
+// It runs where the queue is already being walked, so the hot path pays for
+// nothing it was not already doing.
+func (b *Bus) prune(in *inbox, now time.Time) {
+	if len(in.queue) == 0 {
+		return
+	}
+	kept := in.queue[:0]
+	for _, e := range in.queue {
+		if !e.Expires.IsZero() && now.After(e.Expires) {
+			b.expired++
+			continue
+		}
+		kept = append(kept, e)
+	}
+	for i := len(kept); i < len(in.queue); i++ {
+		in.queue[i] = protocol.Envelope{}
+	}
+	in.queue = kept
 }
 
 // Consume takes one message, at-most-once: it is handed over and gone.
@@ -400,6 +480,9 @@ func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered boo
 		return protocol.Envelope{}, fmt.Errorf("no inbox for %s: register it first (%w)", name, ErrUnknown)
 	}
 	in := b.ensure(name)
+	// Never handed to a consumer: the check is here, where the message would
+	// otherwise be handed over. See docs/04-messaging.md#message-ttl.
+	b.prune(in, time.Now())
 
 	for i, e := range in.queue {
 		if !filtered || (e.Topic == topic && e.Tag == tag) {
@@ -460,6 +543,7 @@ type Status struct {
 	Queued   int    `json:"queued"`
 	Waiting  int    `json:"waiting"`
 	Dropped  int    `json:"dropped"` // lost to overflow since start
+	Expired  int    `json:"expired"` // outlived their TTL since start
 }
 
 func (b *Bus) Status() Status {
@@ -469,6 +553,7 @@ func (b *Bus) Status() Status {
 		Up:       time.Since(b.started).Round(time.Second).String(),
 		Services: len(b.records),
 		Dropped:  b.dropped,
+		Expired:  b.expired,
 	}
 	for _, in := range b.inboxes {
 		s.Queued += len(in.queue)

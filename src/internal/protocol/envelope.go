@@ -34,6 +34,17 @@ type Envelope struct {
 	// now, not when it bounces.
 	// See docs/04-messaging.md#reply-routing.
 	ReplyTo *ReplyTo `json:"reply_to,omitempty"`
+
+	// TTL is how long this message is worth delivering, stated by the
+	// sender; the receiver's queue bounds it. A question nobody should
+	// answer late sets one.
+	// See docs/04-messaging.md#message-ttl.
+	TTL string `json:"ttl,omitempty"`
+
+	// Expires is when the daemon will stop delivering it, worked out once
+	// at accept from the two TTLs. Absolute, so the queue compares rather
+	// than parses — the sender states a duration, the bus keeps a moment.
+	Expires time.Time `json:"expires,omitempty"`
 }
 
 // ReplyTo is a route, not a promise: registered says the name owns a queue,
@@ -64,9 +75,18 @@ type Record struct {
 	// See docs/03-services-and-topics.md#how-to-call-it.
 	Proto string `json:"protocol,omitempty"`
 
-	Descr string    `json:"descr,omitempty"`    // what ls and the MCP catalog show
-	Mode  string    `json:"mode,omitempty"`     // topics only: queue or pubsub
-	Full  string    `json:"overflow,omitempty"` // ring or strict; strict if unset
+	Descr string `json:"descr,omitempty"`    // what ls and the MCP catalog show
+	Mode  string `json:"mode,omitempty"`     // topics only: queue or pubsub
+	Full  string `json:"overflow,omitempty"` // ring or strict; strict if unset
+
+	// TTL and Bound are the queue's, declared on the record like overflow:
+	// how long anything in it is worth keeping, and how much of it there
+	// may be. Both unset take the daemon's defaults. A message may ask for
+	// less than TTL and never for more.
+	// See docs/03-services-and-topics.md#topics.
+	TTL   string `json:"ttl,omitempty"`
+	Bound int    `json:"bound,omitempty"`
+
 	Owner string    `json:"owner"`
 	At    time.Time `json:"at"`
 
