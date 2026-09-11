@@ -14,8 +14,8 @@ design carried out; V1 is legacy and is not consulted for it. What does still
 hold is that nothing is believed until it has been watched failing
 ([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)).
 
-**Next step**: the owner's answers to the blockers below. Wave A can start
-without them; every other wave is gated by at least one.
+**Next step**: A.4 — the reply address checked at accept. A.1 is done; A.2,
+A.5 and every wave after A are gated by a blocker below.
 
 ## Blockers
 
@@ -66,7 +66,7 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 
 | ID | Task | Notes |
 |---|---|---|
-| A.1 | a `done` verb and a sender that asks for one | the value is already a receipt the daemon takes ([messaging § receipts](../../docs/04-messaging.md#receipts)); what is missing is the face and the asking |
+| A.1 | ✅ _done_ — a `done` verb, an `ab_receipt` tool, the runner emitting one on silent success, and a caller's wait ending on it ([messaging § receipts](../../docs/04-messaging.md#receipts)) |
 | A.2 | the deadline travels to the service | **blocked**: whether it does is the ❓ in [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
 | A.3 | TTL per message, bounded by the topic's | needs the topic to carry a TTL and a bound at all ([services § topics](../../docs/03-services-and-topics.md#topics)); the queue bound is one constant today |
 | A.4 | `reply-to`, and the reply address checked at accept | the rule is settled and assigned to this stage ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)); fire-and-forget stays open to unregistered senders |
