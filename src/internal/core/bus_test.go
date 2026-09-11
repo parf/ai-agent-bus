@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -223,5 +224,44 @@ func mustRegister(t *testing.T, b *Bus, r protocol.Record) {
 	t.Helper()
 	if _, err := b.Register(r); err != nil {
 		t.Fatalf("register %s: %v", r.Name, err)
+	}
+}
+
+// A drained inbox must not go on holding what it handed out. Shortening a
+// slice leaves the vacated slot pointing at the envelope, so the bodies of
+// every consumed message stayed reachable from an empty queue.
+func TestConsumedMessagesAreReleased(t *testing.T) {
+	b := New()
+	if _, err := b.Register(protocol.Record{Name: "sink@h", Owner: "sink@h"}); err != nil {
+		t.Fatal(err)
+	}
+	const n = 200
+	for i := 0; i < n; i++ {
+		if _, err := b.Send(protocol.Envelope{
+			To: "sink@h", From: "s@h", Tag: fmt.Sprint(i), Body: fmt.Sprintf("body-%d", i),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Consume from the back, which is the order that leaves the most behind.
+	for i := n - 1; i >= 0; i-- {
+		if _, err := b.Consume(context.Background(), "sink@h", "", fmt.Sprint(i), true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	q := b.inboxes["sink@h"].queue
+	if len(q) != 0 {
+		t.Fatalf("queue is not empty: %d", len(q))
+	}
+	held := 0
+	for _, e := range q[:cap(q)] {
+		if e.Body != "" || e.ID != "" {
+			held++
+		}
+	}
+	if held != 0 {
+		t.Fatalf("an empty queue still holds %d consumed envelopes", held)
 	}
 }

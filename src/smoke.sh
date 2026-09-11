@@ -305,6 +305,16 @@ has "but the host does not take a plus" \
 has "and the realm is a host, not a path" \
   "$(ab owner@srv1 register code-review/claude@rd/vp 2>&1)" 'bad realm'
 
+echo "== one name, one answer"
+has "lookup answers about a single name" \
+  "$(ab owner@srv1 register looked@srv1 --descr "here" >/dev/null; curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: owner@srv1" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/lookup?name=looked@srv1")" '"descr":"here"'
+has "and says so when there is none" \
+  "$(code owner@srv1 $TOKEN "/lookup?name=absent-entirely@srv1")" '404'
+# The caller's own record is checked with this, not by pulling the registry.
+echo '{"s":1}' | ab owner@srv1 service-template looked@srv1 - >/dev/null
+is_empty "a lookup never carries a configuration" \
+  "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: owner@srv1" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/lookup?name=looked@srv1" | grep -o '"config":[^,}]*')"
+
 echo "== configuring a service template produces a configured service"
 # The configuration is arbitrary JSON and stays opaque; the one thing that
 # matters to the bus is that it never shows up where it should not.

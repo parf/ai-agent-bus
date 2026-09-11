@@ -204,6 +204,16 @@ func (b *Bus) List(kind string) []protocol.Record {
 	return out
 }
 
+// take removes one message and releases it. Shortening a slice leaves the
+// vacated slot pointing at the envelope, so a drained inbox goes on holding
+// every body it ever handed out; clearing the tail is what actually frees
+// them. One place to get this right, because it is one line to forget.
+func take(q []protocol.Envelope, i int) []protocol.Envelope {
+	copy(q[i:], q[i+1:])
+	q[len(q)-1] = protocol.Envelope{}
+	return q[:len(q)-1]
+}
+
 // ensure creates the inbox for a name. Every registered principal has one;
 // the address outlives the process, so a message can arrive while it is down.
 func (b *Bus) ensure(name string) *inbox {
@@ -273,7 +283,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 		if rec.Full != protocol.OverflowRing {
 			return protocol.Envelope{}, fmt.Errorf("%w: %s holds %d", ErrFull, to, len(in.queue))
 		}
-		in.queue = in.queue[1:]
+		in.queue = take(in.queue, 0)
 		b.dropped++ // a real loss, so `status` reports it
 	}
 	in.queue = append(in.queue, e)
@@ -294,7 +304,7 @@ func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered boo
 
 	for i, e := range in.queue {
 		if !filtered || (e.Topic == topic && e.Tag == tag) {
-			in.queue = append(in.queue[:i], in.queue[i+1:]...)
+			in.queue = take(in.queue, i)
 			b.mu.Unlock()
 			return e, nil
 		}

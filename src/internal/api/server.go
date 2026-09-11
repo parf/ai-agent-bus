@@ -35,6 +35,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /status", s.auth(s.status))
 	mux.HandleFunc("POST /register", s.auth(s.register))
 	mux.HandleFunc("GET /ls", s.auth(s.ls))
+	mux.HandleFunc("GET /lookup", s.auth(s.lookup))
 	mux.HandleFunc("POST /configure", s.auth(s.configure))
 	mux.HandleFunc("GET /config", s.auth(s.config))
 	mux.HandleFunc("POST /send", s.auth(s.send))
@@ -80,7 +81,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	ok(w, rec)
+	ok(w, public(rec))
 }
 
 // configure stores a service's configuration. The body carries the name and
@@ -107,10 +108,7 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	// The caller just sent it, and echoing it would make this a second route
-	// to a configuration. There is one.
-	rec.Config = nil
-	ok(w, rec)
+	ok(w, public(rec))
 }
 
 // config hands one back. A listing never carries a configuration, so this is
@@ -136,7 +134,34 @@ func (s *Server) config(w http.ResponseWriter, r *http.Request, caller protocol.
 		cfg = json.RawMessage("null")
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(append(cfg, '\n'))
+	// cfg is the stored bytes; append() would write the newline into their
+	// spare capacity, which two concurrent readers then race on.
+	w.Write(cfg)
+	w.Write([]byte{'\n'})
+}
+
+// public is what a record looks like to anyone: everything but its
+// configuration. There is exactly one route to a configuration
+// (docs/03-services-and-topics.md#configuring-a-template), and every answer
+// carrying a record goes through here — leaving it out is the same omission
+// twice now, once on register and once on configure.
+func public(r protocol.Record) protocol.Record {
+	r.Config = nil
+	return r
+}
+
+// lookup answers about one name. A caller asking "am I registered?" would
+// otherwise pull the whole registry down to find out: List plus its JSON is
+// milliseconds and megabytes at ten thousand records, while this is a map
+// read. See docs/03-services-and-topics.md.
+func (s *Server) lookup(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
+	name := r.URL.Query().Get("name")
+	rec, known := s.bus.Lookup(name)
+	if !known {
+		fail(w, http.StatusNotFound, "no such name: "+name)
+		return
+	}
+	ok(w, public(rec))
 }
 
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, _ protocol.Name) {

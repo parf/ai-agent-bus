@@ -369,27 +369,21 @@ func reply(args []string) error {
 // verb and PoC lists are small, so this is one GET rather than an endpoint of
 // its own.
 func registered(name string) (bool, error) {
-	body, code, err := call("GET", "/ls", nil, nil)
-	if err != nil {
+	if _, err := protocol.ParseName(name); err != nil {
 		return false, err
 	}
-	if code >= 400 {
+	q := url.Values{}
+	q.Set("name", name)
+	body, code, err := call("GET", "/lookup", q, nil)
+	switch {
+	case err != nil:
+		return false, err
+	case code == http.StatusNotFound:
+		return false, nil
+	case code >= 400:
 		return false, fmt.Errorf("%s", strings.TrimSpace(string(body)))
 	}
-	var recs []protocol.Record
-	if err := json.Unmarshal(body, &recs); err != nil {
-		return false, err
-	}
-	want, err := protocol.ParseName(name)
-	if err != nil {
-		return false, err
-	}
-	for _, r := range recs {
-		if r.Name == want.String() {
-			return true, nil
-		}
-	}
-	return false, nil
+	return true, nil
 }
 
 func newTag() string {
@@ -505,7 +499,14 @@ type replyContext struct {
 	Tag   string `json:"tag,omitempty"`
 }
 
-const replyContextTTL = 24 * time.Hour
+const (
+	replyContextTTL = 24 * time.Hour
+	// sweepEvery bounds how often the directory scan runs. A context lives a
+	// day, so an hour of slack costs nothing and keeps the scan off the
+	// per-message path.
+	sweepEvery  = time.Hour
+	sweptMarker = ".swept"
+)
 
 func stateDir() string {
 	dir := os.Getenv("XDG_CACHE_HOME")
@@ -544,13 +545,26 @@ func recall(id string) (replyContext, bool) {
 }
 
 // sweep drops contexts older than a day, so the directory does not grow
-// forever. Cheap enough to do on write.
+// forever. It reads the whole directory, which is not cheap — measured at
+// 17ms and 5MB over 10,000 contexts — so it must not run per message. A
+// marker file's mtime is the schedule, and every short-lived invocation
+// shares it: the per-message cost becomes one stat.
 func sweep(dir string) {
+	marker := filepath.Join(dir, sweptMarker)
+	if info, err := os.Stat(marker); err == nil && time.Since(info.ModTime()) < sweepEvery {
+		return
+	}
+	if err := os.WriteFile(marker, nil, 0o600); err != nil {
+		return // unwritable: skip rather than sweep on every message
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
 	}
 	for _, e := range entries {
+		if e.Name() == sweptMarker {
+			continue
+		}
 		if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > replyContextTTL {
 			os.Remove(filepath.Join(dir, e.Name()))
 		}
@@ -558,9 +572,9 @@ func sweep(dir string) {
 }
 
 // safe keeps a name or id from escaping the cache directory.
-func safe(s string) string {
-	return strings.NewReplacer("/", "_", "\\", "_", "..", "_", "@", "-at-", " ", "_").Replace(s)
-}
+var unsafe = strings.NewReplacer("/", "_", "\\", "_", "..", "_", "@", "-at-", " ", "_")
+
+func safe(s string) string { return unsafe.Replace(s) }
 
 func warn(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, "agent-bus: "+format+"\n", a...)
