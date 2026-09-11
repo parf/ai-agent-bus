@@ -86,11 +86,44 @@ Release 1, with its how-to
 ([stages § release 1](12-stages.md#release-1)). Until then each is addressed on
 its own, and a template prefix is a shared name, not a group.
 
-❓ **Configuring a template into a service has no call yet.** The concept is
-settled — configuring a template produces one configured service with its own
-inbox — but the spelling (CLI, MCP and API), where config is stored and what
-happens to a running service when its config changes are all unspecified.
-*Settled by:* the owner choosing an interface.
+## Configuring a template
+
+Configuring a service template **is** what produces a configured service. One
+verb does it, and reads it back:
+
+| | |
+|---|---|
+| `cat cfg.json \| agent-bus service-template <template/instance@host> -` | configure it, JSON on stdin |
+| `agent-bus service-template <template/instance@host> '{"k":"v"}'` | the same, inline |
+| `agent-bus service-template <template/instance@host>` | print that configuration |
+
+The direction is decided by whether a configuration was handed to it. The verb
+is **one hyphenated word** so that it stays a single verb in every face: an
+MCP tool name is `[a-zA-Z0-9_-]{1,64}`, and a two-word verb has no spelling
+there.
+
+The service is created if it does not exist, with the defaults a bare
+registration gets — configuring is not a second way to describe a service,
+only the way to give it one.
+
+| | |
+|---|---|
+| the configuration | **arbitrary JSON, stored opaque.** The only check is that it *is* JSON — the same "stored raw, shape-checked only" rule the MCP method info follows. Nothing looks for a server, a user, a mailbox or a credential |
+| who may write it | its **owner**. Unlike a registration, a configuration is not something any caller may overwrite |
+| who may read it | its owner, or the service itself |
+| where it is **not** | a listing. `ls` never carries a configuration, so this verb is the only route to one |
+| empty | refused: configuring with nothing to configure is a mistake, not a reset |
+
+⚠️ It is **plaintext in the registry**. Sealed private config is the MVP answer
+and is designed already
+([identity § sealed private config](01-identity.md#sealed-private-config));
+until it lands, treat a configuration as readable by whoever can read the
+daemon's state.
+
+❓ **What happens to a running service when its configuration changes is
+unspecified** — it is not reloaded, restarted or notified, and it reads its
+configuration at start. *Settled by:* the owner, when the runner supervises
+services ([runner](08-runner-role.md)).
 
 ## Topics
 

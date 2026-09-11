@@ -38,6 +38,8 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus publish --topic <name> <text>
   agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
   agent-bus start                     (the same, as JSON on stdin)
+  agent-bus service-template <template/instance@host> -    configure it, JSON on stdin
+  agent-bus service-template <template/instance@host>      print that configuration
 
 Environment: AGENT_BUS_NAME (user@realm), AGENT_BUS_TOKEN, AGENT_BUS_ADDR.`
 
@@ -65,6 +67,8 @@ func main() {
 		err = ack(rest)
 	case "topic":
 		err = topic(rest)
+	case "service-template":
+		err = serviceTemplate(rest)
 	case "publish":
 		err = publish(rest)
 	case "start":
@@ -227,6 +231,49 @@ func ack(args []string) error {
 
 // A topic is a record like any other; `topic create` is the sugar that says
 // so. See docs/03-services-and-topics.md.
+// serviceTemplate configures a service template into a configured service,
+// and reads that configuration back. One verb, because the direction is
+// obvious from whether a configuration was handed to it — and a hyphenated
+// single word, because a two-word verb has no spelling in the MCP face,
+// where a tool name is `[a-zA-Z0-9_-]{1,64}`.
+//
+// The configuration is arbitrary JSON and stays opaque: nothing here or in
+// the daemon looks inside it.
+// See docs/03-services-and-topics.md#configuring-a-template.
+func serviceTemplate(args []string) error {
+	pos, _ := split(args)
+	if len(pos) == 0 || len(pos) > 2 {
+		return fmt.Errorf("service-template wants a name, and a configuration to set one:\n" +
+			"  cat cfg.json | agent-bus service-template <template/instance@host> -\n" +
+			"  agent-bus service-template <template/instance@host> '{\"k\":\"v\"}'\n" +
+			"  agent-bus service-template <template/instance@host>")
+	}
+	name := pos[0]
+	if len(pos) == 1 {
+		// No configuration named: print the one that is there. There is no
+		// guard here against forgetting the "-" — stdin is not a terminal in
+		// a script, in CI, or in the service reading its own config at
+		// start, which is most of the times this is called.
+		q := url.Values{}
+		q.Set("name", name)
+		return get("/config", q)
+	}
+	raw := []byte(pos[1])
+	if pos[1] == "-" {
+		var err error
+		if raw, err = io.ReadAll(os.Stdin); err != nil {
+			return fmt.Errorf("reading the configuration from stdin: %w", err)
+		}
+	}
+	if !json.Valid(raw) {
+		return fmt.Errorf("a configuration is JSON, and this is not")
+	}
+	return post("/configure", struct {
+		Name   string          `json:"name"`
+		Config json.RawMessage `json:"config"`
+	}{name, json.RawMessage(raw)})
+}
+
 func topic(args []string) error {
 	if len(args) == 0 || args[0] != "create" {
 		return fmt.Errorf("the only topic verb is: topic create <name> [--kind queue|pubsub]")

@@ -42,6 +42,7 @@ wins.
 | **service template** | the *unconfigured* capability; does not run, has no address | [services § service and template](03-services-and-topics.md#service-and-template) |
 | **service** | **always configured**: a template + its config + where it runs. Never say "service" for an unconfigured template | [services § service and template](03-services-and-topics.md#service-and-template) |
 | **`template/instance-name@host`** | a service configured from a template; `service@host` when there is no separate template | [identity § names](01-identity.md#names) |
+| **`service-template`** | the verb that configures a template into a service, and reads that configuration back | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | **topic** | a registered record; kind `queue` or `pub/sub` | [services § topics](03-services-and-topics.md#topics) |
 | **inbox** | the implicit queue topic every agent owns | [messaging § inbox queues](04-messaging.md#inbox-queues) |
 | **`message_id` · topic · tag** | the three fields on every message | [messaging § message fields](04-messaging.md#message-fields) |

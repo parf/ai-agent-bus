@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -28,6 +29,8 @@ var (
 	ErrReceipt  = errors.New(`a receipt is "ack" or "done"`)
 	ErrFull     = errors.New("the receiver's queue is full")
 	ErrOverflow = errors.New("overflow is strict or ring")
+	ErrConfig   = errors.New("a configuration is JSON")
+	ErrNotOwner = errors.New("that record belongs to someone else")
 )
 
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.
@@ -95,6 +98,70 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	return r, nil
 }
 
+// Configure attaches a configuration to a service, creating the service if it
+// does not exist yet: configuring a service template is what produces a
+// configured service, and a service has an inbox from the moment it exists.
+//
+// The configuration is opaque. The only thing checked is that it is JSON —
+// the same "stored raw, shape-checked only" rule the MCP method info follows
+// — so nothing here looks for a server, a user, a mailbox or a credential.
+//
+// A configuration is the one field that can hold a secret, so unlike a
+// registration it is not something any caller may overwrite: an existing
+// record belongs to its owner. See
+// docs/03-services-and-topics.md#configuring-a-template.
+func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Record, error) {
+	n, err := canon(name)
+	if err != nil {
+		return protocol.Record{}, err
+	}
+	who, err := canon(caller)
+	if err != nil {
+		return protocol.Record{}, err
+	}
+	if !json.Valid(cfg) {
+		return protocol.Record{}, fmt.Errorf("%w, and this is not", ErrConfig)
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	r, known := b.records[n]
+	if !known {
+		// Same defaults a bare registration gets: configuring is not a
+		// second way to describe a service, only a way to give it config.
+		r = protocol.Record{Name: n, Kind: "generic", Owner: who, Full: protocol.OverflowStrict}
+	} else if r.Owner != who {
+		return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, n, r.Owner)
+	}
+	r.Config = cfg
+	r.At = time.Now()
+	b.records[n] = r
+	b.ensure(n)
+	return r, nil
+}
+
+// Config reads one back, for the service itself or whoever owns it. It is not
+// part of a listing, so this is the only way to it.
+func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
+	n, err := canon(name)
+	if err != nil {
+		return nil, err
+	}
+	who, err := canon(caller)
+	if err != nil {
+		return nil, err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	r, known := b.records[n]
+	if !known {
+		return nil, fmt.Errorf("%w: %s", ErrUnknown, n)
+	}
+	if r.Owner != who && n != who {
+		return nil, fmt.Errorf("%w: %s is %s's", ErrNotOwner, n, r.Owner)
+	}
+	return r.Config, nil
+}
+
 // Lookup answers what a name is, so a face can tell a topic from a filter
 // without guessing. See docs/03-services-and-topics.md.
 func (b *Bus) Lookup(name string) (protocol.Record, bool) {
@@ -114,6 +181,9 @@ func (b *Bus) List(kind string) []protocol.Record {
 	out := make([]protocol.Record, 0, len(b.records))
 	for _, r := range b.records {
 		if kind == "" || r.Kind == kind {
+			// A listing is public to every caller; a configuration is not.
+			// See docs/03-services-and-topics.md#configuring-a-template.
+			r.Config = nil
 			out = append(out, r)
 		}
 	}

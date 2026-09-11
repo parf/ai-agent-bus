@@ -305,6 +305,36 @@ has "but the host does not take a plus" \
 has "and the realm is a host, not a path" \
   "$(ab owner@srv1 register code-review/claude@rd/vp 2>&1)" 'bad realm'
 
+echo "== configuring a service template produces a configured service"
+# The configuration is arbitrary JSON and stays opaque; the one thing that
+# matters to the bus is that it never shows up where it should not.
+echo '{"model":"opus","depth":3}' | ab owner@srv1 service-template code-review/cfg@rdvp - >/dev/null
+has "the configuration comes back as it went in" \
+  "$(ab owner@srv1 service-template code-review/cfg@rdvp)" '{"model":"opus","depth":3}'
+is_empty "a listing never carries it" \
+  "$(ab owner@srv1 ls | grep -o '"config":[^,}]*')"
+# A send is refused unless the receiver has a record, so this proves the
+# record was created — the inbox itself is made lazily by the send either way.
+has "configuring creates the service, so it can be sent to" \
+  "$(ab sender@srv1 send code-review/cfg@rdvp "it exists" >/dev/null; ab code-review/cfg@rdvp consume --wait 2s)" 'it exists'
+has "the service may read its own configuration" \
+  "$(ab code-review/cfg@rdvp service-template code-review/cfg@rdvp)" '"model":"opus"'
+has "a stranger may not read it" \
+  "$(ab nosy@srv1 service-template code-review/cfg@rdvp 2>&1)" 'belongs to someone else'
+has "and may not overwrite it" \
+  "$(ab nosy@srv1 service-template code-review/cfg@rdvp '{"model":"theirs"}' 2>&1)" 'belongs to someone else'
+has "the owner's configuration survived that" \
+  "$(ab owner@srv1 service-template code-review/cfg@rdvp)" '"model":"opus"'
+has "a configuration that is not JSON is refused" \
+  "$(ab owner@srv1 service-template code-review/cfg@rdvp 'not json' 2>&1)" 'a configuration is JSON'
+# The CLI refuses that one before it leaves; the daemon has to refuse it too,
+# and the shape that reaches it is a body carrying no configuration at all.
+has "and the daemon refuses an empty one on its own" \
+  "$(post_code owner@srv1 $TOKEN /configure '{"name":"code-review/cfg@rdvp"}')" '400'
+# Reading must work where it is actually used: a script, with no terminal.
+has "a read works with no terminal on stdin" \
+  "$(ab owner@srv1 service-template code-review/cfg@rdvp </dev/null)" '"depth":3'
+
 echo "== a full queue: refuse by default, drop the oldest if asked"
 ab owner@srv1 register sink@srv1 --kind generic >/dev/null
 ab owner@srv1 register ringy@srv1 --kind generic --overflow ring >/dev/null

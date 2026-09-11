@@ -35,6 +35,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /status", s.auth(s.status))
 	mux.HandleFunc("POST /register", s.auth(s.register))
 	mux.HandleFunc("GET /ls", s.auth(s.ls))
+	mux.HandleFunc("POST /configure", s.auth(s.configure))
+	mux.HandleFunc("GET /config", s.auth(s.config))
 	mux.HandleFunc("POST /send", s.auth(s.send))
 	mux.HandleFunc("GET /consume", s.auth(s.consume))
 	return mux
@@ -77,6 +79,59 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 		return
 	}
 	ok(w, rec)
+}
+
+// configure stores a service's configuration. The body carries the name and
+// the configuration itself, which stays opaque all the way down: it is only
+// checked for being JSON. See docs/03-services-and-topics.md#configuring-a-template.
+func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	var in struct {
+		Name   string          `json:"name"`
+		Config json.RawMessage `json:"config"`
+	}
+	if !read(w, r, &in) {
+		return
+	}
+	rec, err := s.bus.Configure(in.Name, caller.String(), in.Config)
+	switch {
+	case errors.Is(err, core.ErrBadName), errors.Is(err, core.ErrConfig):
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	case errors.Is(err, core.ErrNotOwner):
+		fail(w, http.StatusForbidden, err.Error())
+		return
+	}
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, rec)
+}
+
+// config hands one back. A listing never carries a configuration, so this is
+// the only route to it, and it is the owner's or the service's own.
+func (s *Server) config(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	cfg, err := s.bus.Config(r.URL.Query().Get("name"), caller.String())
+	switch {
+	case errors.Is(err, core.ErrBadName):
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	case errors.Is(err, core.ErrUnknown):
+		fail(w, http.StatusNotFound, err.Error())
+		return
+	case errors.Is(err, core.ErrNotOwner):
+		fail(w, http.StatusForbidden, err.Error())
+		return
+	}
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if len(cfg) == 0 {
+		cfg = json.RawMessage("null")
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(append(cfg, '\n'))
 }
 
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, _ protocol.Name) {

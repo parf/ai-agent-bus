@@ -1,6 +1,9 @@
 package protocol
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Envelope is what the bus reads, counts and routes. The body is carried but
 // not interpreted; from MVP it is ciphertext. See docs/04-messaging.md.
@@ -34,6 +37,13 @@ type Record struct {
 	Full  string    `json:"overflow,omitempty"` // ring or strict; strict if unset
 	Owner string    `json:"owner"`
 	At    time.Time `json:"at"`
+
+	// Config is what a service template was configured with. It is opaque:
+	// the bus checks that it is JSON and never reads inside, so no field of
+	// it means anything here — no server, user, mailbox or credential is
+	// looked for. It is never included in a listing.
+	// See docs/03-services-and-topics.md#configuring-a-template.
+	Config json.RawMessage `json:"config,omitempty"`
 }
 
 // Receipt values. A closed set: anything else is not a receipt.

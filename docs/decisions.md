@@ -41,6 +41,8 @@ All 2026-09-09 unless noted.
 | One service on many hosts, and scatter-gather over them, is Release 1 | [stages § release 1](12-stages.md#release-1) |
 | A service is always configured; the unconfigured capability is a service template | [services § service and template](03-services-and-topics.md#service-and-template) |
 | Config is arbitrary and separate from the name; nothing is parsed out of an address | [services § service and template](03-services-and-topics.md#service-and-template) |
+| `service-template` is the one verb: a configuration in sets it, none reads it back | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
+| A configuration is opaque JSON on the record, owner-written, never in a listing | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | MCP tool info stored raw, shape-checked | [services § service and template](03-services-and-topics.md#service-and-template) |
 | Destructive methods are a hint in the description, enforced by nobody | [services § service and template](03-services-and-topics.md#service-and-template) |
 | Topics are first-class records; kind, TTL, bound, overflow declared at creation | [services § topics](03-services-and-topics.md#topics) |
@@ -132,7 +134,7 @@ All 2026-09-09 unless noted.
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
-| Configuring a template into a service has no call, store or reload rule | owner | [services § service and template](03-services-and-topics.md#service-and-template) |
+| What happens to a running service when its configuration changes | owner | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | Whether reading an inbox and filtering one become separate options | owner, with the MVP CLI | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 
 ## Superseded
