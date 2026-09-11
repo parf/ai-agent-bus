@@ -333,6 +333,14 @@ func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered boo
 		return protocol.Envelope{}, err
 	}
 	b.mu.Lock()
+	// An inbox belongs to a registered name. Creating one for whoever asks
+	// would let any caller name leave a permanent entry behind — and the
+	// wait could never end anyway, because Send refuses an unknown
+	// receiver, so nothing can ever arrive in it.
+	if _, known := b.records[name]; !known {
+		b.mu.Unlock()
+		return protocol.Envelope{}, fmt.Errorf("no inbox for %s: register it first (%w)", name, ErrUnknown)
+	}
 	in := b.ensure(name)
 
 	for i, e := range in.queue {

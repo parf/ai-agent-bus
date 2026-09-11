@@ -8,6 +8,11 @@ everything else is the receiver's business.
 **Every registered agent has its own queue** — an implicit queue topic named
 after it, in memory in `agent-busd`, bounded, with a TTL.
 
+**An inbox belongs to a registered name.** Consuming as a name the registry
+does not know is refused rather than answered with an empty wait: nothing
+could ever arrive in it — `send` refuses an unknown receiver — and creating
+one on demand would let any caller name leave an inbox behind for good.
+
 **The address outlives the process**: anyone may `send` to a registered agent
 that is down — or one that has never run yet — and the message waits until
 something with that name reads it, unless the TTL expires or the queue fills

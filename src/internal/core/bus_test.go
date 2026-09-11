@@ -473,3 +473,18 @@ func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 	}
 }
 
+// An inbox for any name that ever asked is unbounded growth from the outside:
+// every distinct caller leaves one behind, and none of them can ever receive
+// anything, because Send refuses an unknown receiver.
+func TestConsumingFromAnUnregisteredNameIsRefused(t *testing.T) {
+	b := New()
+	if _, err := b.Consume(context.Background(), "ghost@nowhere", "", "", false); !errors.Is(err, ErrUnknown) {
+		t.Fatalf("err = %v, want ErrUnknown", err)
+	}
+	b.mu.Lock()
+	n := len(b.inboxes)
+	b.mu.Unlock()
+	if n != 0 {
+		t.Fatalf("the refused read left %d inboxes behind", n)
+	}
+}
