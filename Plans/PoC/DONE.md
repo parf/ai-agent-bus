@@ -406,3 +406,53 @@ check red on its own.
 **What is not true, and is meant not to be**: bodies are plaintext, so *the
 bus never reads payloads* is a claim MVP earns, not this stage
 ([stages § PoC](../../docs/12-stages.md#poc)).
+
+## After the stage closed — naming, configuration, and three review rounds
+
+Two more pieces on the owner's word, then the code was reviewed three times
+by Codex and by Fable, findings reproduced before any was accepted.
+
+**A service is a configured thing.** `template/instance-name@host` joins
+`service@host`, the host is whatever follows the **last** `@`, and the
+instance name takes `+` so `mail-sender/parf+alerts@comfi.com@host` is one
+name ([identity § names](../../docs/01-identity.md#names)). The
+`service-template` verb configures one and reads it back.
+
+**A configuration is private.** Only the service reads its own bytes — its
+owner included. Every other answer carries `config_sha` instead, which is
+what lets a monitor, a peer or a deploy check hold the digest it knew and
+see whether a setup changed, without the secrets ever leaving the daemon
+([services § why a digest at all](../../docs/03-services-and-topics.md#why-a-digest-at-all)).
+
+**Discovery answers what you can call**, not only what exists: a record says
+how to call it, and a query says whether anything is serving that name
+([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)).
+
+### What the reviews changed
+
+| | |
+|---|---|
+| the digest was forgeable | `POST /register` cleared the configuration and kept a caller-supplied `config_sha`, which defeats the only thing the digest is for. Both reviewers found it independently |
+| live state was storable | the same mistake one commit later, on the fields this stage added: a caller could claim `reading: true` for ever |
+| a refusal was silence | core refused a consume from an unregistered name and the face turned it into 204, so a poll loop was never told to register. Reported fixed a round before it actually was |
+| a receipt doubled a deadline | the MCP face asked again for the whole wait instead of what was left: 2s became 3.5s |
+| a receipt read as an answer | the face had no receipt field at all, so an `ack` reached a model as an empty answer while the real one stayed queued |
+| the face spoke for a dead push | `ab_consume` was gated on the mode it started in, not on the adapter still running |
+| an inbox for any name | every caller name that ever read left one behind, and nothing could ever arrive in it |
+| names parsed 5x faster | two regexps out, byte loops in, allocation-free; proven equivalent over 600k generated strings |
+
+### What the reviews cost, and what that taught
+
+Three of our own checks turned out to be **hollow** — they passed for reasons
+unrelated to what they claimed, including one that reached `turn/start`
+without the steer it was named for. Two survivors of a mutation round were
+not test gaps at all: **`smoke.sh` never ran `go test`**, so every Go unit
+test was invisible to the harness that was supposed to be judging them. It
+runs `go vet` and `go test -race` first now.
+
+The charset was **sampled, not pinned**: three punctuation marks were tried,
+and a parser widened to accept `~` passed. It is checked exhaustively now,
+every ASCII byte in five positions.
+
+Mutation-verified throughout, as the rule requires — every fix broken again
+and watched turning a named check red.
