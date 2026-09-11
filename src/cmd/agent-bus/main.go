@@ -27,7 +27,6 @@ import (
 const usage = `agent-bus — talk to agent-busd
 
   agent-bus status
-  agent-bus token <name> [--rotate]   print that principal's token
   agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
                             [--allow a@b,c@d | --allow '*'] [--no-master]  who may see and use it
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
@@ -50,11 +49,10 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus service-template <name>           print that configuration
   agent-bus enrol <user@realm> [--key ~/.ssh/id_ed25519]
                             prove you hold a key that realm publishes for you
-  agent-bus setup [--owner u@r] [--user account=u@r] [--addr a]
-                  [--dry-run] [--print-unit]   install the service account and the unit
 
 Environment: AGENT_BUS_NAME (user@realm), AGENT_BUS_TOKEN, AGENT_BUS_ADDR.
-On your own socket the first two are supplied for you and can be left unset.`
+On your own socket the first two are supplied for you and can be left unset.
+A credential comes from agent-bus-token, which is its own program.`
 
 func main() {
 	args := os.Args[1:]
@@ -68,8 +66,6 @@ func main() {
 		err = get("/status", nil)
 	case "register":
 		err = register(rest)
-	case "token":
-		err = tokenVerb(rest)
 	case "ls":
 		err = ls(rest)
 	case "send":
@@ -90,8 +86,6 @@ func main() {
 		err = publish(rest)
 	case "start":
 		err = start(rest)
-	case "setup":
-		err = setup(rest)
 	case "enrol", "enroll":
 		err = enrol(rest)
 	case "reply":
@@ -106,12 +100,12 @@ func main() {
 	}
 }
 
-// tokenFor asks the daemon for a principal's credential. The caller must own
+// tokenFor asks the daemon for a principal's credential — `start` needs one
+// for the service it is about to run. Anyone asking for their own runs
+// agent-bus-token (docs/09-setup.md#the-five-programs). The caller must own
 // the name or be the daemon's owner; the refusal says which.
-func tokenFor(name string) (string, error) { return getToken(name, false) }
-
-func getToken(name string, rotate bool) (string, error) {
-	out, code, err := call("POST", "/token", nil, map[string]any{"name": name, "rotate": rotate})
+func tokenFor(name string) (string, error) {
+	out, code, err := call("POST", "/token", nil, map[string]any{"name": name, "rotate": false})
 	if err != nil {
 		return "", err
 	}
@@ -125,24 +119,6 @@ func getToken(name string, rotate bool) (string, error) {
 		return "", fmt.Errorf("no token in the answer: %s", strings.TrimSpace(string(out)))
 	}
 	return got.Token, nil
-}
-
-// tokenVerb gets a principal's credential and prints it alone, so
-// `AGENT_BUS_TOKEN=$(agent-bus token me@host)` is the whole setup. Asking
-// twice is a read; `--rotate` is how you ask for a new one.
-// See docs/02-access.md#getting-a-token.
-func tokenVerb(args []string) error {
-	pos, flags := split(args)
-	if len(pos) != 1 {
-		return fmt.Errorf("token wants one name")
-	}
-	_, rotate := flags["rotate"]
-	tok, err := getToken(pos[0], rotate)
-	if err != nil {
-		return err
-	}
-	fmt.Println(tok)
-	return nil
 }
 
 func register(args []string) error {

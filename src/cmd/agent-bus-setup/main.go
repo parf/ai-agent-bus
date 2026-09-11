@@ -1,8 +1,8 @@
-// `agent-bus setup` installs the separate-user arrangement: an account that
+// agent-bus-setup installs the separate-user arrangement: an account that
 // owns nothing but the bus, a home under /var/lib, and a unit that starts the
-// daemon as that account. It is the one privileged step, run once — nothing
-// after it needs root, and the daemon never has it.
-// See docs/09-setup.md#the-service-account.
+// daemon as that account. It is the one program that wants root, it wants it
+// once, and nothing after it does — the daemon never has it.
+// See docs/09-setup.md#the-five-programs.
 package main
 
 import (
@@ -32,8 +32,15 @@ type list []string
 func (l *list) String() string     { return strings.Join(*l, ",") }
 func (l *list) Set(v string) error { *l = append(*l, v); return nil }
 
-func setup(args []string) error {
-	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
+func main() {
+	if err := setup(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func setup() error {
+	fs := flag.CommandLine
 	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: `user@realm`")
 	addr := fs.String("addr", "127.0.0.1:7777", "the daemon's loopback `address`")
 	exe := fs.String("exec", "", "`path` to agent-busd; defaults to the one beside this binary")
@@ -41,9 +48,7 @@ func setup(args []string) error {
 	dry := fs.Bool("dry-run", false, "say what would be done and change nothing")
 	var users list
 	fs.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+	fs.Parse(os.Args[1:])
 	me, err := protocol.ParseName(*owner)
 	if err != nil {
 		return fmt.Errorf("--owner: %w", err)
@@ -82,10 +87,10 @@ func setup(args []string) error {
 	// to write, and a setup that created neither is easier to recover from
 	// than one that created one.
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("setup needs root once, to %s and %s — try sudo.\n"+
+		return fmt.Errorf("this needs root once, to %s and %s. Run:\n\n    sudo %s\n\n"+
 			"Nothing after this step does: the daemon runs as %s.\n"+
 			"Use --dry-run to see the steps, or --print-unit for the unit alone",
-			steps[0], steps[2], svcAccount)
+			steps[0], steps[2], strings.Join(os.Args, " "), svcAccount)
 	}
 	if _, err := user.Lookup(svcAccount); err != nil {
 		if err := run("useradd", "--system", "--home-dir", svcHome, "--create-home",
@@ -145,8 +150,8 @@ ExecStart=%[3]s -addr %[4]s -socket %[6]s -token-file %[2]s/token -dump-file %[2
 Restart=on-failure
 RestartSec=2
 # One capability, declared rather than taken: a per-account socket has to be
-# handed to its account. It belongs to the supervisor, and sits here only
-# until there is one — docs/11-processes.md#why-the-supervisor-holds-cap_chown
+# handed to its account. The supervisor keeps it and no child inherits it —
+# docs/11-processes.md#why-the-supervisor-holds-cap_chown
 AmbientCapabilities=CAP_CHOWN
 CapabilityBoundingSet=CAP_CHOWN
 NoNewPrivileges=yes

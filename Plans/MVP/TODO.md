@@ -275,19 +275,18 @@ role from being a compromise of the host.
 ### H — somebody else installs it
 
 ⚠️ H.1 is **blocked** on the packaging ❓ above. The rest do not depend on how
-the binaries arrive: H.3 is done, H.2's work exists in the wrong program, and
-H.4–H.6 are the split the owner asked for
+the binaries arrive and are built, except **H.5**, the admin program
 ([setup § the five programs](../../docs/09-setup.md#the-five-programs)).
 
 | ID | Task |
 |---|---|
 | H.1 | the package ([setup § install](../../docs/09-setup.md#install)) — **still blocked** on the packaging ❓ |
-| H.2 | ⚠️ _built as a verb, and it is no longer one_ — the installer creates the account, writes the unit and starts the daemon as it; it refuses without root rather than half-installing, and `--dry-run` / `--print-unit` need nothing ([setup § the service account](../../docs/09-setup.md#the-service-account)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below**. It has to move out of the CLI into `agent-bus-setup` — H.4 |
+| H.2 | ✅ _done_, and now H.4's program — it creates the account, writes the unit and starts the daemon as it, refusing without root rather than half-installing; `--dry-run` / `--print-unit` need nothing ([setup § the service account](../../docs/09-setup.md#the-service-account)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
 | H.3 | ✅ _done_ — the account, its home, the one declarative capability and restart, all in the unit and each falsified on its own |
-| H.4 | `agent-bus-setup` as its own program: the same work, root-only, printing the `sudo` line rather than failing flat ([setup § the five programs](../../docs/09-setup.md#the-five-programs)) |
+| H.4 | ✅ _done_ — `agent-bus-setup` is its own program, root-only, and prints the `sudo` line rather than failing flat ([setup § the five programs](../../docs/09-setup.md#the-five-programs)) |
 | H.5 | `agent-bus-admin`: what edits the account's own files — users, keys, ACL — re-running itself under `sudo -u agent-bus` when it is not that account, and the forced command behind an **operator's** key ([AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin)) |
-| H.6 | `agent-bus-token`: the forced command behind everybody else's key, and the only thing an ordinary user reaches over SSH. It replaces the `static-token` stand-in, and the CLI's `token` verb goes with it ([setup § the five programs](../../docs/09-setup.md#the-five-programs)) |
-| H.7 | a token for a signed challenge, so a host without sshd can still hand one out ([access § getting a token](../../docs/02-access.md#getting-a-token)). The verifier and the challenge already exist — enrolment is the same question asked about a realm (D.3), so this is the second caller of it, not a second mechanism |
+| H.6 | ✅ _done_ — `agent-bus-token` prints a credential and nothing else. Under SSH the authorized_keys line is the entitlement and `$SSH_ORIGINAL_COMMAND` is the request, so a key may only ask for the name its line names. The CLI's `token` verb went with it |
+| H.7 | ✅ _done_ — `--key` proves the name against what the realm publishes and gets a credential with no credential to start from ([access § getting a token](../../docs/02-access.md#getting-a-token)). It is enrolment's own challenge with a second caller; the one change the daemon needed was to stop asking `/enrol` for a credential, which was a circle ([identity § proving possession](../../docs/01-identity.md#proving-possession)) |
 
 **Done when**, and what breaking it must do:
 

@@ -28,6 +28,8 @@ PORT=${PORT:-7911}
 go build -o "$D/agent-busd" ./cmd/agent-busd || exit 1
 go build -o "$D/agent-bus"  ./cmd/agent-bus  || exit 1
 go build -o "$D/agent-bus-web" ./cmd/agent-bus-web || exit 1
+go build -o "$D/agent-bus-setup" ./cmd/agent-bus-setup || exit 1
+go build -o "$D/agent-bus-token" ./cmd/agent-bus-token || exit 1
 
 # The daemon belongs to a principal, and that is who may hand out a
 # credential for a name nobody owns yet. Stated rather than taken from the
@@ -49,7 +51,7 @@ ready "$D/bus.sock" || { echo "daemon did not start"; cat "$D/daemon.log"; exit 
 TOKEN=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/token")
 tok() {
   local f="$D/tok.$(printf '%s' "$1" | tr '/@.' '___')"
-  [ -s "$f" ] || AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER     "$D/agent-bus" token "$1" >"$f" 2>/dev/null
+  [ -s "$f" ] || AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER     "$D/agent-bus-token" "$1" >"$f" 2>/dev/null
   cat "$f" 2>/dev/null
 }
 ab() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 "$D/agent-bus" "${@:2}"; }
@@ -115,7 +117,7 @@ sec "the layers hold"
 is_empty "core never imports an adapter" \
   "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump|directory|signature)')"
 is_empty "nor does a face" \
-  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-web | grep -E 'internal/(store|dump|directory|signature)')"
+  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-web ./cmd/agent-bus-setup ./cmd/agent-bus-token | grep -E 'internal/(store|dump|directory|signature)')"
 is_empty "and a port names no outside world of its own" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -E '^(os|net|net/http|os/exec|database/sql)$')"
 has "while the process that assembles them holds the ones that persist" \
@@ -213,16 +215,16 @@ has "while somebody else may not" \
   "$(post_code bob@srv1 "$bob" /token '{"name":"alice-svc@srv1"}')" '403'
 has "the daemon's owner may ask for any name" \
   "$(post_code $OWNER "$TOKEN" /token '{"name":"nobody-owns-this@srv1"}')" '200'
-again=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus" token alice@srv1 2>&1)
+again=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus-token" alice@srv1 2>&1)
 if [ "$again" = "$alice" ]; then echo "  ok   asking twice is a read, not a rotation"; pass=$((pass+1));
 else echo "  FAIL asking twice is a read, not a rotation: [$again]"; fail=$((fail+1)); fi
 # Rotation: two are accepted, the one before them is not. A refresh that
 # stranded traffic already queued under the old token would be worse than
 # no rotation at all. See docs/02-access.md#token-lifetime.
 ab owner@srv1 register rotor@srv1 >/dev/null
-first=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus" token rotor@srv1)
-second=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus" token rotor@srv1 --rotate)
-third=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus" token rotor@srv1 --rotate)
+first=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus-token" rotor@srv1)
+second=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus-token" rotor@srv1 --rotate)
+third=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus-token" rotor@srv1 --rotate)
 if [ -n "$second" ] && [ "$second" != "$first" ] && [ "$third" != "$second" ]; then
   echo "  ok   --rotate hands out a new token each time"; pass=$((pass+1))
 else
@@ -268,12 +270,12 @@ mkdir -p "$D/ro-run"
 OPID=$!
 ready "$D/ro-run/bus.sock" || echo "  WARNING: $D/ro-run/bus.sock never answered"
 chmod 0500 "$D/ro"
-out=$(AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token unsaveable@srv1 2>&1); rc=$?
+out=$(AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" unsaveable@srv1 2>&1); rc=$?
 bad_exit "a credential the store could not keep is not handed out" $rc
 is_empty "and nothing that looks like one is printed" "$(printf '%s' "$out" | grep -o '^[0-9a-f]\{48\}$')"
 chmod 0700 "$D/ro"
 has "while the same ask succeeds once the store can be written" \
-  "$(AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token unsaveable@srv1)" '^[0-9a-f]\{48\}$'
+  "$(AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" unsaveable@srv1)" '^[0-9a-f]\{48\}$'
 kill $OPID 2>/dev/null; wait $OPID 2>/dev/null
 # `start` runs until it is stopped, so this check leans on the refusal to end
 # it. Under a mutant that allows it, it ran until the harness's own timeout
@@ -1003,6 +1005,7 @@ EPID=$!
 ready "$D/enr/bus.sock" || echo "  WARNING: $D/enr/bus.sock never answered"
 ETOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/enr/token")
 eab() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
+etok() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$@"; }
 # A fourth argument is a body, and a body is what makes it a POST: passing an
 # empty one turned every GET here into a 405 that read as a refusal.
 ecode() {
@@ -1033,13 +1036,41 @@ has "which authenticates as that name" \
 has "somebody else cannot register over an enrolled name" \
   "$(ecode $OWNER "$ETOK" /register '{"name":"newbie@vouched","kind":"generic"}')" '403'
 has "nor be handed its credential" \
-  "$(ecode alice@srv1 "$(eab token alice@srv1 2>/dev/null)" /token '{"name":"newbie@vouched"}')" '403'
+  "$(ecode alice@srv1 "$(etok alice@srv1 2>/dev/null)" /token '{"name":"newbie@vouched"}')" '403'
 # Enrolment is where a credential comes from, so it cannot want one first.
 # See docs/01-identity.md#proving-possession.
 has "a newcomer with no credential at all is still challenged" \
   "$(curl -s --unix-socket "$D/enr/bus.sock" -d '{"name":"squatter@vouched"}' http://unix/enrol)" '"nonce"'
 has "while everything else still wants one" \
   "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/enr/bus.sock" http://unix/status)" '401'
+
+# agent-bus-token is the program an ordinary user runs, and the only one they
+# reach over SSH. See docs/09-setup.md#the-five-programs.
+TOK1=$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1)
+has "the token program prints a credential and nothing else" "$TOK1" '^[0-9a-f]\{48\}$'
+has "and asking twice is a read, not a rotation" \
+  "$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1)" "^$TOK1\$"
+is_empty "while --rotate hands out a new one" \
+  "$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1 --rotate | grep -x "$TOK1")"
+# The point of the key path: nothing to present, and no sshd in it anywhere.
+KTOK=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+10)) "$D/agent-bus-token" squatter@vouched --key "$D/enr/mine" 2>&1)
+has "a key is credential enough where the realm publishes it" "$KTOK" '^[0-9a-f]\{48\}$'
+has "and that credential is that name's" "$(ecode squatter@vouched "$KTOK" /status)" '200'
+out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+10)) "$D/agent-bus-token" newbie@vouched --key "$D/enr/theirs" 2>&1); rc=$?
+bad_exit "a key the realm does not publish for that name gets nothing" $rc
+# Over SSH the line is the entitlement and the request is what was typed.
+out=$(SSH_ORIGINAL_COMMAND="token $OWNER" AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK \
+  "$D/agent-bus-token" alice@srv1 2>&1); rc=$?
+bad_exit "a key may only ask for the name its line names" $rc
+has "and is told which name that is" "$out" 'may ask for alice@srv1'
+# Against a reading taken now: --rotate above moved it.
+NOW=$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1)
+has "while asking for that one is answered" \
+  "$(SSH_ORIGINAL_COMMAND="token alice@srv1" AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK \
+     "$D/agent-bus-token" alice@srv1)" "^$NOW\$"
+has "and a line that names nobody serves what was asked for" \
+  "$(SSH_ORIGINAL_COMMAND="token alice@srv1" AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK \
+     "$D/agent-bus-token")" "^$NOW\$"
 
 # A provider is an alternative to typing the record, not a dependency.
 rm -f "$D/enr/keys"
@@ -1096,12 +1127,12 @@ has "publishing to a topic that will not have you is refused" \
 has "and so is registering over its name" \
   "$(post_code alice@srv1 "$alice" /register '{"name":"shut-svc@srv1","kind":"generic"}')" '403'
 
-sec "setup installs a service account, and it is not the installer"
+sec "the installer makes a service account, and it is not the installer's"
 # The privileged step cannot run here, so what is checked is everything it
 # would write: an install that puts the daemon under the installer's own
 # account is the failure this wave exists to prevent.
 # See docs/09-setup.md#the-service-account.
-UNIT=$("$D/agent-bus" setup --print-unit --owner "$OWNER" --exec /usr/local/bin/agent-busd)
+UNIT=$("$D/agent-bus-setup" --print-unit --owner "$OWNER" --exec /usr/local/bin/agent-busd)
 has "the unit runs the daemon as an account of its own" "$UNIT" '^User=agent-bus$'
 is_empty "never as root" "$(printf '%s' "$UNIT" | grep -x 'User=root')"
 is_empty "and never as whoever ran setup" "$(printf '%s' "$UNIT" | grep -x "User=$(id -un)")"
@@ -1111,15 +1142,18 @@ has "it comes back after it dies" "$UNIT" '^Restart='
 has "it is given one capability, not root" "$UNIT" '^AmbientCapabilities=CAP_CHOWN$'
 has "and cannot pick up a second" "$UNIT" '^CapabilityBoundingSet=CAP_CHOWN$'
 has "the installer still gets a socket of their own" "$UNIT" "[-]user $(id -un)=$OWNER"
-out=$("$D/agent-bus" setup --owner "$OWNER" 2>&1); rc=$?
+out=$("$D/agent-bus-setup" --owner "$OWNER" 2>&1); rc=$?
 bad_exit "setup without root refuses rather than half-installing" $rc
+is_empty "and does not try the first step before finding that out" \
+  "$(printf '%s' "$out" | grep -i useradd)"
 has "and says that step is the only one that needs it" "$out" 'Nothing after this step'
-out=$("$D/agent-bus" setup --dry-run --owner "$OWNER" 2>&1); rc=$?
+has "and says the line to run instead of just refusing" "$out" 'sudo .*agent-bus-setup'
+out=$("$D/agent-bus-setup" --dry-run --owner "$OWNER" 2>&1); rc=$?
 ok_exit "a dry run needs nothing and says what it would do" $rc
 has "naming the account" "$out" 'would create the system account agent-bus'
 has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
 has "and the start" "$out" 'would reload systemd'
-out=$("$D/agent-bus" setup --print-unit --owner parf 2>&1); rc=$?
+out=$("$D/agent-bus-setup" --print-unit --owner parf 2>&1); rc=$?
 bad_exit "an owner without a realm is refused before anything is written" $rc
 
 sec "the dashboard shows envelopes and no bodies"
@@ -1200,7 +1234,7 @@ dur_up() {
   DUR=$!
   ready "$D/dur/bus.sock" || echo "  WARNING: $D/dur/bus.sock never answered"
   DTOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/dur/token")
-  KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" token keeper@srv1 2>/dev/null)
+  KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" keeper@srv1 2>/dev/null)
 }
 dur_down() { kill "$1" "$DUR" 2>/dev/null; wait "$DUR" 2>/dev/null; }
 dab() { AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
@@ -1214,7 +1248,7 @@ dur_up first
 is_empty "a first start has nothing to say about a previous one" \
   "$(grep 'did not stop cleanly' "$D/dur/first.log")"
 dab register keeper@srv1 --descr "keeps things" >/dev/null
-KTOK=$(dab token keeper@srv1)
+KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" keeper@srv1)
 dab send keeper@srv1 "before the restart" >/dev/null
 dab send keeper@srv1 "also before it" >/dev/null
 has "a reader took the first of them" "$(dkeep consume --wait 0s)" 'before the restart'
