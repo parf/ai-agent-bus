@@ -14,8 +14,8 @@ design carried out; V1 is legacy and is not consulted for it. What does still
 hold is that nothing is believed until it has been watched failing
 ([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)).
 
-**Next step**: A.4 — the reply address checked at accept. A.1 is done; A.2,
-A.5 and every wave after A are gated by a blocker below.
+**Next step**: A.3 — TTL. A.1 and A.4 are done; A.2, A.5 and every wave
+after A are gated by a blocker below.
 
 ## Blockers
 
@@ -69,7 +69,7 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 | A.1 | ✅ _done_ — a `done` verb, an `ab_receipt` tool, the runner emitting one on silent success, and a caller's wait ending on it ([messaging § receipts](../../docs/04-messaging.md#receipts)) |
 | A.2 | the deadline travels to the service | **blocked**: whether it does is the ❓ in [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
 | A.3 | TTL per message, bounded by the topic's | needs the topic to carry a TTL and a bound at all ([services § topics](../../docs/03-services-and-topics.md#topics)); the queue bound is one constant today |
-| A.4 | `reply-to`, and the reply address checked at accept | the rule is settled and assigned to this stage ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)); fire-and-forget stays open to unregistered senders |
+| A.4 | ✅ _done_ — `reply-to`, refused at accept when the address is not registered; the CLI, runner and face all read the route off the envelope ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)) |
 | A.5 | several workers behind one name | competing consumers already work — 500 messages to 8 readers, none twice, none lost. What is missing is N readers **blocking** on an empty inbox; **blocked** on the ❓ above |
 | A.6 | per-service call stats | counted in memory; a listing may show them, a caller may never state them ([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)) |
 
