@@ -122,6 +122,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /send", g(s.send))
 	mux.HandleFunc("GET /consume", g(s.consume))
 	mux.HandleFunc("POST /token", g(s.token))
+	mux.HandleFunc("POST /enrol", g(s.enrol))
 	return mux
 }
 
@@ -277,6 +278,52 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.
 	ok(w, rec)
 }
 
+// enrol is both halves of it: with no signature it hands back the nonce to
+// sign, with one it checks the answer. Two calls because the bus has to be
+// the one that says what gets signed — a challenge the caller chose proves
+// nothing. See docs/01-identity.md#registration.
+func (s *Server) enrol(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
+	var in struct {
+		Name      string `json:"name"`
+		Nonce     string `json:"nonce"`
+		Signature string `json:"signature"`
+	}
+	if !read(w, r, &in) {
+		return
+	}
+	if in.Signature == "" {
+		nonce, err := s.bus.Challenge(in.Name)
+		if err != nil {
+			reply(w, nil, err)
+			return
+		}
+		ok(w, struct {
+			Name      string `json:"name"`
+			Nonce     string `json:"nonce"`
+			Namespace string `json:"namespace"`
+		}{in.Name, nonce, protocol.SigNamespace})
+		return
+	}
+	rec, err := s.bus.Enrol(in.Nonce, in.Signature)
+	if err != nil {
+		reply(w, nil, err)
+		return
+	}
+	// The credential comes with it: being enrolled and being able to speak
+	// as the name are the same thing, and the proof that was just checked is
+	// what a token would otherwise be asked for.
+	// See docs/02-access.md#getting-a-token.
+	token, err := s.tokens.Issue(rec.Name)
+	if err != nil {
+		reply(w, nil, err)
+		return
+	}
+	ok(w, struct {
+		protocol.Record
+		Token string `json:"token"`
+	}{rec, token})
+}
+
 // recent is who has been talking to whom, for the dashboard. Bodies never
 // reach it — they are struck out where the ring is written, not here.
 // Master holders only: it is a view of the node rather than of any one
@@ -373,6 +420,7 @@ var codes = []struct {
 	{core.ErrNotOwner, http.StatusForbidden},
 	{core.ErrPrivate, http.StatusForbidden},
 	{core.ErrNotAllow, http.StatusForbidden},
+	{core.ErrEnrol, http.StatusForbidden},
 	{core.ErrUnknown, http.StatusNotFound},
 	{core.ErrFull, http.StatusServiceUnavailable},
 	{core.ErrTwoReads, http.StatusConflict},

@@ -48,6 +48,8 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus service-template <name> -         configure it, JSON on stdin
   agent-bus service-template <name> '{"k":1}' the same, inline
   agent-bus service-template <name>           print that configuration
+  agent-bus enrol <user@realm> [--key ~/.ssh/id_ed25519]
+                            prove you hold a key that realm publishes for you
   agent-bus setup [--owner u@r] [--user account=u@r] [--addr a]
                   [--dry-run] [--print-unit]   install the service account and the unit
 
@@ -90,6 +92,8 @@ func main() {
 		err = start(rest)
 	case "setup":
 		err = setup(rest)
+	case "enrol", "enroll":
+		err = enrol(rest)
 	case "reply":
 		err = reply(rest)
 	case "help", "-h", "--help":

@@ -22,8 +22,12 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	dirfile "github.com/parf/ai-agent-bus/internal/directory/file"
+	"github.com/parf/ai-agent-bus/internal/directory/github"
 	"github.com/parf/ai-agent-bus/internal/dump/jsonfile"
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/signature/sshkeygen"
 	"github.com/parf/ai-agent-bus/internal/store/file"
 )
 
@@ -37,7 +41,9 @@ func main() {
 		every  = flag.Duration("dump-every", time.Minute, "how often to snapshot while running; 0 turns the periodic dumper off")
 		users  accounts
 		hold   masters
+		vouch  masters
 	)
+	flag.Var(&vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
 	flag.Var(&hold, "master", "a principal that reaches every service which has not refused it: `user@realm`; repeatable")
 	flag.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
 	flag.Parse()
@@ -75,6 +81,22 @@ func main() {
 	// The daemon's owner holds master without being listed: they installed
 	// it, and the setup user is the admin. See docs/01-identity.md#acl.
 	bus.Masters(append([]string{me.String()}, hold...))
+	// A realm somebody vouches for can only be entered by proving you hold
+	// a key it publishes. Realms nobody vouches for stay open, as they were.
+	// See docs/01-identity.md#registration.
+	dirs := map[string]ports.Directory{}
+	for _, v := range vouch {
+		realm, what, ok := strings.Cut(v, "=")
+		if !ok || realm == "" || what == "" {
+			log.Fatalf("--directory wants realm=github or realm=/path/to/keys, not %q", v)
+		}
+		if what == "github" {
+			dirs[realm] = github.New()
+		} else {
+			dirs[realm] = dirfile.New(what)
+		}
+	}
+	bus.Directories(dirs, sshkeygen.New())
 	face := api.New(bus, tokens, me.String())
 
 	// Plaintext bodies and a master token: loopback or an SSH tunnel, never a

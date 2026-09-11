@@ -44,13 +44,15 @@ Consequences worth stating, because they are the point:
 | `tokens` | core | issue, persist, current + previous, expiry policy | [access § token lifetime](02-access.md#token-lifetime) |
 | `runner` | core | supervision, restart policy, child lifecycle | [runner role](08-runner-role.md) |
 | `store` | **port** | everything that persists in the database | [setup § storage](09-setup.md#storage) |
-| `directory` | **port** | fetch a name and public keys for a login | [identity § registration](01-identity.md#registration) |
+| `directory` | **port** | fetch the public keys a login publishes — a lookup, never a proof | [identity § registration](01-identity.md#registration) |
+| `signature` | **port** | say whether a message was signed by the holder of one of those keys | [identity § proving possession](01-identity.md#proving-possession) |
 | `sandbox` | **port** | confine a child process | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | `dump` | **port** | snapshot and reload in-memory state | [messaging § durability](04-messaging.md#durability) |
 | `vcs` | **port** | push and pull the git repo | [AUTH role § topology](06-auth-role.md#topology) |
 | `store/sqlite`, `store/postgres` | adapter | the one place SQL is written | |
 | `store/file`, `store/memory` | adapter | credentials in a text file, which is what the MVP ships, and the same in memory for a test | |
-| `directory/github` | adapter | the built-in HTTP client | |
+| `directory/github`, `directory/file` | adapter | the built-in HTTP client, and a keys file for manual enrolment | |
+| `signature/sshkeygen` | adapter | shells out to `ssh-keygen -Y`; no crypto of ours | |
 | `sandbox/systemd`, `sandbox/bwrap`, `sandbox/unshare` | adapter | one per backend, chosen by environment | |
 | `dump/parquet`, `dump/jsonfile` | adapter | the Parquet writer and loader, and the JSON one the MVP ships | |
 | `vcs/git` | adapter | shells out to `git` | |

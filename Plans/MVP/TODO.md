@@ -21,7 +21,6 @@ question in the table below, not on work:
 
 | Waiting on | Would unblock |
 |---|---|
-| where the proof step sits relative to the `directory` port | B.8, and with it the name-claiming hole B.1 sharpened |
 | which process owns the store handle | G.1, and the declared chown violation it retires |
 | the ⚠️ proposed cut in G.2 | G.2, then G.3 |
 | npm install vs Go-first | H.1 |
@@ -52,15 +51,13 @@ Five more were raised by this plan and are now indexed with the rest:
 | D.1, D.2, *Release 1* | how a queued body is decrypted by a receiver that was not present when it was sent | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
 | F.2 | what carries a service's method information | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
 
-⚠️ **The owner check is a caller-name guard, not security** — and registering
-over a name nobody owns is not checked at all
-([identity § ownership](../../docs/01-identity.md#ownership)). Since B.1 that
-second half is sharper, not milder: a record's owner may get its credential,
-so claiming an unheld name is a way to become it
-([access § getting a token](../../docs/02-access.md#getting-a-token)). B.7 and
-B.8 own it, and the ⚠️ in
-[services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template)
-is B's to retire.
+⚠️ **The owner check is a caller-name guard, not security.** B.7 closed
+re-registering somebody else's record and B.8 closed claiming a name in a realm
+a directory vouches for. What stays open is a realm nobody vouches for: there
+ownership is first-come, and a claimed name's credential follows
+([access § getting a token](../../docs/02-access.md#getting-a-token)). That is
+a property of the host, not a gap in the wave — a local realm is as open as the
+accounts on the machine.
 
 ## Waves
 
@@ -117,7 +114,7 @@ message that bounces later.
 | B.5 | ✅ _done_ — the principal is an argument of the forced command, so the key a person holds picks the line and they cannot ask for another ([access § getting a token](../../docs/02-access.md#getting-a-token)) |
 | B.6 | ✅ _done_ — both clients carry a name **and its own token**; the runner swaps both when it becomes the service, and the MCP face can mint one for a name it may have |
 | B.7 | ✅ _done_ — re-registering somebody else's record is refused, and told whose it is; the record itself may still refresh its own ([identity § ownership](../../docs/01-identity.md#ownership)). Claiming an unheld name stays open — that half is B.8's |
-| B.8 | enrolment: manual, then GitHub with possession proved | fetching a public key is not authentication ([identity § registration](../../docs/01-identity.md#registration)). Where the proof step sits relative to the `directory` port ([modules § modules](../../docs/10-modules.md#modules)) needs an owning edit before it is built — it is more than fetching |
+| B.8 | ✅ _done_ — the `directory` port fetches and nothing else; the proof is a step of its own, verified with the host's `ssh-keygen` ([identity § proving possession](../../docs/01-identity.md#proving-possession)). A vouched realm can only be enrolled into, and the record is its own owner — which is the half of the name-claiming hole that could be closed. Manual (a keys file) and GitHub are two adapters |
 | B.9 | ✅ _done_ — every name in the suite has its own credential, minted from the owner on first use; there is no shared token left to bypass with |
 | B.10 | ✅ _settled_ — `token` is the credential verb, `register` the registry one ([access § getting a token](../../docs/02-access.md#getting-a-token)); B.1 and B.5 build it |
 

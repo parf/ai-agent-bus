@@ -141,3 +141,10 @@ func isASCII(s string) bool {
 	}
 	return true
 }
+
+// SigNamespace is what an enrolment signature is made for. It keeps a
+// signature made for this bus from being usable anywhere else that verifies
+// sshsig, and the other way round — it is on the wire, so it belongs here
+// rather than in whatever tool checks it.
+// See docs/01-identity.md#registration.
+const SigNamespace = "agent-bus"

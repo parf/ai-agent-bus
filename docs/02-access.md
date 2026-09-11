@@ -50,12 +50,14 @@ name they own ([identity § ownership](01-identity.md#ownership)), which is
 what lets a runner collect the credential for a script service it started
 without letting it collect anybody else's.
 
-⚠️ **Claiming a name nobody holds is a way to become it.** Publishing is open
-to any authenticated principal and ownership is first-come
-([identity § ownership](01-identity.md#ownership)), so until enrolment says
-which names are people's, registering an unheld name and then asking for its
-credential makes you it. Enrolment
-([identity § registration](01-identity.md#registration)) is what closes this.
+⚠️ **In a realm nobody vouches for, claiming a name is still a way to become
+it.** Publishing is open to any authenticated principal and ownership is
+first-come ([identity § ownership](01-identity.md#ownership)), so registering
+an unheld name and then asking for its credential makes you it. A realm with a
+directory behind it is closed to this — it can only be enrolled into, and the
+record that results is its own owner
+([identity § proving possession](01-identity.md#proving-possession)). Realms
+without one are as open as the host they are on.
 
 **`token` gets a credential; `register` states a record.** They were one word
 and two unrelated jobs — one hands out the thing you authenticate with, the

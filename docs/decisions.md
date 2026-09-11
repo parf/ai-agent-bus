@@ -26,6 +26,9 @@ All 2026-09-09 unless noted.
 | ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](01-identity.md#acl) |
 | The daemon filters, because it holds the record — not a face | [discovery § audience](05-discovery.md#audience) |
 | The MVP does not claim bodies are end to end; the bus is trusted on its own host | [access § encrypted sessions](02-access.md#encrypted-sessions) |
+| Possession is proved in a step of its own; the `directory` port only fetches | [identity § proving possession](01-identity.md#proving-possession) |
+| A realm with a directory behind it is enrolled into, never registered into | [identity § proving possession](01-identity.md#proving-possession) |
+| An enrolled record is owned by the name itself, and the proof hands out its credential | [identity § proving possession](01-identity.md#proving-possession) |
 | `allow: *` means anyone who can authenticate | [identity § acl](01-identity.md#acl) |
 | The setup user gets `agent-bus-admin` | [identity § acl](01-identity.md#acl) |
 | Delegation: A authenticates, adds an on-behalf-of claim | [identity § delegation](01-identity.md#delegation) |

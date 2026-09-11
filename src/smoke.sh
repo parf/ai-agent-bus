@@ -977,6 +977,59 @@ has "and says why" "$out" 'one command'
 out=$(AGENT_BUS_TOKEN_FILE=$D/absent ./static-token over-ssh@srv1 2>&1); rc=$?
 bad_exit "a missing token file is an error, not an empty token" $rc
 
+sec "enrolment: a key you hold, not a key you name"
+# Its own daemon, because a vouched realm changes what registering means.
+# See docs/01-identity.md#registration.
+mkdir -p "$D/enr"
+ssh-keygen -q -t ed25519 -N '' -f "$D/enr/mine" >/dev/null
+ssh-keygen -q -t ed25519 -N '' -f "$D/enr/theirs" >/dev/null
+printf 'newbie %s\n' "$(cat "$D/enr/mine.pub")" > "$D/enr/keys"
+printf 'squatter %s\n' "$(cat "$D/enr/mine.pub")" >> "$D/enr/keys"
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+10)) -socket "$D/enr/bus.sock" -token-file "$D/enr/token" \
+  -owner "$OWNER" -dump-file "$D/enr/dump.json" -dump-every 0 -directory "vouched=$D/enr/keys" >"$D/enr/daemon.log" 2>&1 &
+EPID=$!
+for _ in $(seq 1 50); do [ -S "$D/enr/bus.sock" ] && break; sleep 0.1; done
+ETOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/enr/token")
+eab() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
+# A fourth argument is a body, and a body is what makes it a POST: passing an
+# empty one turned every GET here into a 405 that read as a refusal.
+ecode() {
+  if [ $# -lt 4 ]; then
+    curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/enr/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" "http://unix$3"
+  else
+    curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/enr/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: $2" -d "$4" "http://unix$3"
+  fi
+}
+
+out=$(eab register newbie@vouched 2>&1); rc=$?
+bad_exit "a name in a vouched realm cannot simply be registered" $rc
+has "and says it is enrolled instead" "$out" 'enrolled, not registered'
+out=$(eab enrol nobody@vouched --key "$D/enr/mine" 2>&1); rc=$?
+bad_exit "a login the realm publishes nothing for is not even challenged" $rc
+has "and is told that, not left to fail at the signature" "$out" 'publishes no keys'
+out=$(eab enrol newbie@vouched --key "$D/enr/theirs" 2>&1); rc=$?
+bad_exit "enrolling with a key the realm does not publish for you is refused" $rc
+has "and the refusal is the verifier's own words" "$out" 'Could not verify signature'
+is_empty "nothing was registered by the attempt" "$(eab ls newbie@vouched 2>/dev/null | grep -o '"name"')"
+out=$(eab enrol newbie@vouched --key "$D/enr/mine" 2>&1); rc=$?
+ok_exit "enrolling with the key it does publish succeeds" $rc
+has "the record it writes is its own owner's" "$out" '"owner":"newbie@vouched"'
+has "and the credential comes with the proof" "$out" '"token":"[0-9a-f]\{48\}"'
+NEWTOK=$(printf '%s' "$out" | sed -n 's/.*"token":"\([0-9a-f]*\)".*/\1/p')
+has "which authenticates as that name" \
+  "$(ecode newbie@vouched "$NEWTOK" /status)" '200'
+has "somebody else cannot register over an enrolled name" \
+  "$(ecode $OWNER "$ETOK" /register '{"name":"newbie@vouched","kind":"generic"}')" '403'
+has "nor be handed its credential" \
+  "$(ecode alice@srv1 "$(eab token alice@srv1 2>/dev/null)" /token '{"name":"newbie@vouched"}')" '403'
+# A provider is an alternative to typing the record, not a dependency.
+rm -f "$D/enr/keys"
+has "an enrolled principal keeps working with the directory gone" \
+  "$(ecode newbie@vouched "$NEWTOK" /status)" '200'
+out=$(eab enrol squatter@vouched --key "$D/enr/mine" 2>&1); rc=$?
+bad_exit "while nobody new can enrol while it is gone" $rc
+kill $EPID 2>/dev/null; wait $EPID 2>/dev/null
+
 sec "who may reach what: the service answers first, then master"
 # Two services alike in everything but the one flag, so what is being
 # measured is the policy and not the request.

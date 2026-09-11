@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -37,6 +38,7 @@ var (
 	ErrNotOwner = errors.New("that record belongs to someone else")
 	ErrPrivate  = errors.New("a configuration is private to the service it belongs to")
 	ErrNotAllow = errors.New("not on that service's allow list")
+	ErrEnrol    = errors.New("enrolment")
 )
 
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.
@@ -83,6 +85,11 @@ type Bus struct {
 	recent []protocol.Envelope
 	// Who holds the master ACL. See docs/01-identity.md#acl.
 	masters map[string]bool
+	// Which realms are backed by a directory, what verifies a signature,
+	// and the challenges outstanding. See docs/01-identity.md#registration.
+	dirs    map[string]ports.Directory
+	sigs    ports.Signatures
+	pending map[string]challenge
 }
 
 func New() *Bus {
@@ -93,7 +100,12 @@ func New() *Bus {
 	}
 }
 
-func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
+// Register states a record. A name in a realm a directory backs cannot be
+// created this way — it has to be enrolled, or the first caller to ask for a
+// name would become it. See docs/01-identity.md#registration.
+func (b *Bus) Register(r protocol.Record) (protocol.Record, error) { return b.register(r, false) }
+
+func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error) {
 	name, err := canon(r.Name)
 	if err != nil {
 		return protocol.Record{}, err
@@ -118,6 +130,18 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	// A realm somebody else vouches for is not a realm anyone may write
+	// into. Refusing a *new* name there is what turns "the owner of a record
+	// may have its credential" from a hole into a rule: you become the name
+	// by proving you hold its key, not by asking first.
+	// See docs/01-identity.md#registration.
+	if _, known := b.records[name]; !known && !enrolled {
+		if n, err := protocol.ParseName(name); err == nil {
+			if _, backed := b.dirs[n.Realm]; backed {
+				return protocol.Record{}, fmt.Errorf("%w: %s is vouched for, so it is enrolled, not registered", ErrEnrol, n.Realm)
+			}
+		}
+	}
 	// Registering refreshes a description. It is not a way to take a record
 	// over or to throw its configuration away: a service registers itself on
 	// every start, and that must not destroy what it was configured with.

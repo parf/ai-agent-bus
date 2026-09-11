@@ -116,6 +116,34 @@ re-check** of a user's access.
   no SSH keys, so the account proves *who* and the bus issues the Ed25519 key
   at enrolment. Same record, own realm. Not designed.
 
+### Proving possession
+
+**Fetching a key is not authentication**, so the proof is a step of its own and
+the `directory` port stays a lookup — one function, so that every future
+provider is a fetch to write and not a protocol to get right
+([modules § modules](10-modules.md#modules)).
+
+| Step | |
+|---|---|
+| 1 | the newcomer claims `<login>@<realm>` |
+| 2 | the bus looks the login up, **keeps the keys it found**, and answers with a nonce — what is checked later is what was published when the question was asked |
+| 3 | the newcomer signs the nonce with the private half, using the host's own `ssh-keygen`; nothing but that tool touches a private key |
+| 4 | the bus verifies against the kept keys, writes the record **owned by the name itself**, and hands back its credential |
+
+The record being its own owner is what makes this worth doing: nobody else may
+re-register over it ([ownership](#ownership)) and nobody else may be handed its
+credential ([access § getting a token](02-access.md#getting-a-token)), so the
+name is the key-holder's and stays that way.
+
+**A realm with a directory behind it cannot be registered into at all** — only
+enrolled into. Otherwise the first caller to ask for `someone@github` would
+become them, which is exactly the hole enrolment exists to close. Realms nobody
+vouches for stay open, and there the claim is still first-come.
+
+An unanswered challenge expires; an answered one is spent. Once the record
+exists the provider is out of the picture — an enrolled principal keeps working
+with it unreachable, which is the pinning promised above.
+
 ## Groups and roles
 
 - **Groups** compose from groups with `& | !` (`eng & !contractors`). They
