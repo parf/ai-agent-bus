@@ -1060,7 +1060,7 @@ FEED=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $OWNER" -H "X-A
 has "the daemon remembers the envelope it routed" "$FEED" "$MSG"
 has "and who it was between" "$FEED" '"to":"board-svc@srv1"'
 is_empty "and never the body" "$(printf '%s' "$FEED" | grep -o "$SECRET")"
-has "the feed is the owner's until it can be filtered per caller" \
+has "the feed is the node's, so only master reads it" \
   "$(code alice@srv1 "$alice" /recent)" '403'
 AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
   "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) >"$D/web.log" 2>&1 &

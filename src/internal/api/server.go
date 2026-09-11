@@ -279,12 +279,12 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.
 
 // recent is who has been talking to whom, for the dashboard. Bodies never
 // reach it — they are struck out where the ring is written, not here.
-// The owner only: an unfiltered feed of every envelope is exactly the leak
-// an audience filter exists to stop, and that filter is not built yet.
+// Master holders only: it is a view of the node rather than of any one
+// service, so the per-service layer has nothing to say about it.
 // See docs/05-discovery.md#dashboard.
 func (s *Server) recent(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	if caller.String() != s.owner {
-		fail(w, http.StatusForbidden, "the feed of envelopes is "+s.owner+"'s until it can be filtered per caller")
+	if !s.bus.IsMaster(caller.String()) {
+		fail(w, http.StatusForbidden, "the feed of envelopes is the node's, and master's to read")
 		return
 	}
 	ok(w, s.bus.Recent())

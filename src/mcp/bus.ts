@@ -22,6 +22,10 @@ export type Envelope = {
 };
 
 export type Record_ = { name: string; kind: string; addr?: string; descr?: string; owner: string;
+  // Who may see and use it. A listing already leaves out what its caller may
+  // not, so this is what a record says about itself, not a filter to apply
+  // here (docs/01-identity.md#acl).
+  allow?: string[]; no_master?: boolean;
   // How to call it, and whether anything is actually serving it. A registry
   // entry says a name exists; these say whether a call through the bus will
   // reach anyone (docs/05-discovery.md#what-a-listing-answers).
@@ -87,7 +91,7 @@ export class Bus {
     return text ? JSON.parse(text) : null;
   }
 
-  register(rec: { name: string; kind?: string; addr?: string; descr?: string }): Promise<Record_> {
+  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; no_master?: boolean }): Promise<Record_> {
     return this.#call("POST", "/register", rec);
   }
 

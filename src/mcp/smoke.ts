@@ -86,6 +86,19 @@ try {
   const peer = await owner.as(peerName);
   await peer.register({ name: peerName, kind: "agent" });
 
+  // The catalog is per caller, because the daemon is what filters and the
+  // face only asks. Two principals, one registry, different answers — and
+  // each one matching what that principal may actually call.
+  // See docs/05-discovery.md#audience.
+  const hidden = "peers-only@srv1";
+  await peer.register({ name: hidden, kind: "generic", descr: "for the peer alone", allow: [peerName] });
+  const mine = await call("ab_ls");
+  check("the catalog leaves out what its caller may not use", !mine.text.includes(hidden), mine.text);
+  const theirs = await peer.ls();
+  check("while the principal it is for sees it", theirs.some((r) => r.name === hidden), JSON.stringify(theirs.map((r) => r.name)));
+  const refused = await call("ab_send", { to: hidden, text: "not for me" });
+  check("and the catalog matches what a send would do", refused.isError, refused.text);
+
   const sent = await call("ab_send", { to: peerName, text: "ping from mcp", topic: "t1", tag: "g1" });
   check("ab_send", !sent.isError && sent.text.includes(peerName), sent.text);
 

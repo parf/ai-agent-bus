@@ -104,9 +104,11 @@ anywhere.
 ⚠️ What the MVP ships is the envelope half: a bounded feed of what the bus has
 routed lately, read by a separate `agent-bus-web` process over the API. Bodies
 are struck out **in the bus**, where the feed is written — so no reader has to
-be trusted to leave them alone. The feed is the daemon owner's until it can be
-filtered per caller ([audience](#audience)); call counts by minute or hour, and
-the cgroup limit the design gives the child
+be trusted to leave them alone. The feed is **master's** ([identity § acl](01-identity.md#acl)):
+it is a view of the node rather than of any one service, so the per-service
+layer has nothing to say about it. The records beside it are filtered per
+caller like any listing. Call counts by minute or hour, and the cgroup limit
+the design gives the child
 ([processes § the processes](11-processes.md#the-processes)), are not built.
 
 ## Exports
