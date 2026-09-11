@@ -34,6 +34,20 @@ func DefaultSocket() string {
 	return filepath.Join(os.TempDir(), fmt.Sprintf("agent-bus-%d.sock", os.Getuid()))
 }
 
+// UserSocket is one account's own socket in the daemon's socket directory.
+// The name carries the account so that a person, a script and the daemon all
+// work it out the same way. See docs/02-access.md#local-socket.
+func UserSocket(dir, account string) string {
+	return filepath.Join(dir, "user-"+account+".sock")
+}
+
+// IsUserSocket says whether a path is one of those, which is how a client
+// knows the two parameters will be supplied for it.
+func IsUserSocket(path string) bool {
+	base := filepath.Base(path)
+	return strings.HasPrefix(base, "user-") && strings.HasSuffix(base, ".sock")
+}
+
 const maxWait = 60 * time.Second
 
 type Server struct {
@@ -49,17 +63,34 @@ func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
 	return &Server{bus: bus, tokens: tokens, owner: owner}
 }
 
-func (s *Server) Handler() http.Handler {
+// guard turns a handler that needs a caller into one that does not, by
+// working out who the caller is. There are two: the credential on the
+// request, and the socket it arrived on.
+type guard func(func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc
+
+// Handler serves the listeners anyone can reach, where a request carries its
+// own two parameters.
+func (s *Server) Handler() http.Handler { return s.routes(s.auth) }
+
+// HandlerFor serves one account's own socket. The socket supplies the two
+// parameters instead of the caller — it does not replace them, so a request
+// that states a *different* name is refused exactly as it would be from
+// anywhere else. See docs/02-access.md#local-socket.
+func (s *Server) HandlerFor(principal protocol.Name) http.Handler {
+	return s.routes(s.onSocket(principal))
+}
+
+func (s *Server) routes(g guard) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /status", s.auth(s.status))
-	mux.HandleFunc("POST /register", s.auth(s.register))
-	mux.HandleFunc("GET /ls", s.auth(s.ls))
-	mux.HandleFunc("GET /lookup", s.auth(s.lookup))
-	mux.HandleFunc("POST /configure", s.auth(s.configure))
-	mux.HandleFunc("GET /config", s.auth(s.config))
-	mux.HandleFunc("POST /send", s.auth(s.send))
-	mux.HandleFunc("GET /consume", s.auth(s.consume))
-	mux.HandleFunc("POST /token", s.auth(s.token))
+	mux.HandleFunc("GET /status", g(s.status))
+	mux.HandleFunc("POST /register", g(s.register))
+	mux.HandleFunc("GET /ls", g(s.ls))
+	mux.HandleFunc("GET /lookup", g(s.lookup))
+	mux.HandleFunc("POST /configure", g(s.configure))
+	mux.HandleFunc("GET /config", g(s.config))
+	mux.HandleFunc("POST /send", g(s.send))
+	mux.HandleFunc("GET /consume", g(s.consume))
+	mux.HandleFunc("POST /token", g(s.token))
 	return mux
 }
 
@@ -86,6 +117,29 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 			return
 		}
 		next(w, r, name)
+	}
+}
+
+// onSocket is the local path: the account at the other end is known from
+// which socket the connection arrived on, so nothing has to be sent and
+// there is nothing to set up. A name may still be stated — and had better
+// be the right one.
+func (s *Server) onSocket(me protocol.Name) guard {
+	return func(next func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if stated := r.Header.Get(HeaderUser); stated != "" {
+				name, err := protocol.ParseName(stated)
+				if err != nil {
+					fail(w, http.StatusUnauthorized, "bad "+HeaderUser)
+					return
+				}
+				if name.String() != me.String() {
+					fail(w, http.StatusForbidden, "this socket is "+me.String()+"'s, not "+name.String())
+					return
+				}
+			}
+			next(w, r, me)
+		}
 	}
 }
 
@@ -125,8 +179,14 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 	ok(w, map[string]string{"name": want.String(), "token": tok})
 }
 
-func (s *Server) status(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
-	ok(w, s.bus.Status())
+// status also answers "who am I" — the one question a caller on its own
+// socket cannot answer for itself, because it never stated a name.
+// See docs/02-access.md#local-socket.
+func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	ok(w, struct {
+		core.Status
+		You string `json:"you"`
+	}{s.bus.Status(), caller.String()})
 }
 
 func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protocol.Name) {

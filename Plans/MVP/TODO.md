@@ -104,7 +104,7 @@ message that bounces later.
 | ID | Task | Notes |
 |---|---|---|
 | B.1 | ✅ _done_ — a token backs one principal and the daemon refuses a request that states another, saying whose token it is ([access § two parameters](../../docs/02-access.md#two-parameters)). The socket half of that ⚠️ is B.2's |
-| B.2 | per-user sockets ([access § local socket](../../docs/02-access.md#local-socket)) | needs the capability that only the supervisor may hold ([processes § why the supervisor holds CAP_CHOWN](../../docs/11-processes.md#why-the-supervisor-holds-cap_chown)) — so B.2 pulls the minimal supervisor-and-fd-handoff out of G.1, or declares a temporary violation it must retire |
+| B.2 | ✅ _done_ — one socket per mapped account, supplying both parameters; a name stated on somebody else's socket is refused ([access § local socket](../../docs/02-access.md#local-socket)). It takes the declared-violation route: the daemon chowns its own sockets and says so when it cannot, and G.1 retires that ([processes § why the supervisor holds CAP_CHOWN](../../docs/11-processes.md#why-the-supervisor-holds-cap_chown)) |
 | B.3 | ✅ _done_ — issued, rotated and durable: `--rotate` demotes the current token to previous, both authenticate, the one before them stops, and a restart keeps the pair ([access § token lifetime](../../docs/02-access.md#token-lifetime)) |
 | B.4 | the store behind a port ([modules § the rule](../../docs/10-modules.md#the-rule)) | core never imports it; **what goes in it is a blocker**, and tokens are the part the design already requires durable ([setup § storage](../../docs/09-setup.md#storage)) |
 | B.5 | ✅ _done_ — the principal is an argument of the forced command, so the key a person holds picks the line and they cannot ask for another ([access § getting a token](../../docs/02-access.md#getting-a-token)) |
@@ -134,7 +134,10 @@ message that bounces later.
   makes any route accept the wrong principal turns a named check red.
 
 The chown itself cannot be exercised unprivileged; that one check is a
-privileged run, declared as such.
+privileged run, declared as such. What **is** checked unprivileged is
+everything the chown is for: two accounts, two sockets, two principals,
+neither able to speak as the other — and that a chown which did not land is
+said out loud instead of leaving a socket that looks like somebody else's.
 
 **Cut costs**: GitHub (B.8) is the only droppable line. Without B.1–B.7 and B.9
 the stage has no meaning.

@@ -35,6 +35,7 @@ All 2026-09-09 unless noted.
 | `token` is the credential verb, `register` the registry one | [access § getting a token](02-access.md#getting-a-token) |
 | A token backs one principal: a request stating another name is refused, and told so | [access § two parameters](02-access.md#two-parameters) |
 | The daemon's owner may get a credential for any name; anyone else only for one they own | [access § getting a token](02-access.md#getting-a-token) |
+| One socket per local account supplies both parameters; `status` says which name it used | [access § local socket](02-access.md#local-socket) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
 | The socket hides the two fields, it does not replace them; one host, many users | [access § local socket](02-access.md#local-socket) |
 | Socket layout, ownership and the one capability it needs | [access § local socket](02-access.md#local-socket) |

@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -30,7 +31,9 @@ func main() {
 		sock   = flag.String("socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
 		tokenF = flag.String("token-file", env("AGENT_BUS_TOKEN_FILE", defaultTokenFile()), "token store; created if absent")
 		owner  = flag.String("owner", env("AGENT_BUS_OWNER", defaultOwner()), "the principal this daemon belongs to")
+		users  accounts
 	)
+	flag.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
 	flag.Parse()
 
 	tokens, err := auth.Load(*tokenF, *owner)
@@ -41,7 +44,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("owner: %v", err)
 	}
-	handler := api.New(core.New(), tokens, me.String()).Handler()
+	face := api.New(core.New(), tokens, me.String())
 
 	// Plaintext bodies and a master token: loopback or an SSH tunnel, never a
 	// public interface. See docs/12-stages.md#poc.
@@ -52,7 +55,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("listen %s: %v", *addr, err)
 	}
-	if err := os.MkdirAll(filepath.Dir(*sock), 0o700); err != nil {
+	// 0711: it holds one socket per account, so everyone must be able to
+	// walk through it to their own. Nobody can list it, and each socket is
+	// 0600 to its owner. See docs/02-access.md#local-socket.
+	if err := os.MkdirAll(filepath.Dir(*sock), 0o711); err != nil {
+		log.Fatalf("socket dir: %v", err)
+	}
+	if err := os.Chmod(filepath.Dir(*sock), 0o711); err != nil {
 		log.Fatalf("socket dir: %v", err)
 	}
 	if err := clearStaleSocket(*sock); err != nil {
@@ -67,32 +76,150 @@ func main() {
 		log.Fatalf("chmod %s: %v", *sock, err)
 	}
 
-	srv := &http.Server{
-		Handler: handler,
-		// Long-poll consume holds a request open, so there is no write
-		// deadline; the header and idle deadlines cost nothing.
-		ReadHeaderTimeout: 10 * time.Second,
-		IdleTimeout:       2 * time.Minute,
-	}
-	serve := func(l net.Listener) {
-		if err := srv.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("serve %s: %v", l.Addr(), err)
+	var srvs []*http.Server
+	serve := func(l net.Listener, h http.Handler) {
+		srv := &http.Server{
+			Handler: h,
+			// Long-poll consume holds a request open, so there is no write
+			// deadline; the header and idle deadlines cost nothing.
+			ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout:       2 * time.Minute,
 		}
+		srvs = append(srvs, srv)
+		go func() {
+			if err := srv.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Fatalf("serve %s: %v", l.Addr(), err)
+			}
+		}()
 	}
-	go serve(tcp)
-	go serve(unix)
-	log.Printf("agent-busd on http://%s and %s for %s (tokens %s)", *addr, *sock, me, *tokenF)
+	shared := face.Handler()
+	serve(tcp, shared)
+	serve(unix, shared)
+
+	// One socket per local account, so the daemon knows who is calling with
+	// nothing for anyone to configure. The account running the daemon is a
+	// user of it like any other, so it gets one without being asked for.
+	// See docs/02-access.md#local-socket.
+	users.add(ownerAccount(), me)
+	mine := []string{*sock}
+	for _, u := range users.list() {
+		path := filepath.Join(filepath.Dir(*sock), "user-"+u.account+".sock")
+		l, err := u.listen(path)
+		if err != nil {
+			log.Fatalf("socket for %s: %v", u.account, err)
+		}
+		mine = append(mine, path)
+		serve(l, face.HandlerFor(u.name))
+	}
+	log.Printf("agent-busd on http://%s and %s for %s, %d user sockets (tokens %s)",
+		*addr, *sock, me, len(users.list()), *tokenF)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("shutdown: %v", err)
+	for _, srv := range srvs {
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("shutdown: %v", err)
+		}
 	}
-	os.Remove(*sock)
+	for _, p := range mine {
+		os.Remove(p)
+	}
 	log.Print("stopped")
+}
+
+// accounts is the local account -> principal mapping setup writes down.
+// See docs/09-setup.md#local-users.
+type accounts struct {
+	seen map[string]bool
+	all  []account
+}
+
+type account struct {
+	account string
+	name    protocol.Name
+	uid     int
+}
+
+func (a *accounts) String() string { return fmt.Sprintf("%d accounts", len(a.all)) }
+
+func (a *accounts) Set(v string) error {
+	who, principal, ok := strings.Cut(v, "=")
+	if !ok || who == "" || principal == "" {
+		return fmt.Errorf("want account=user@realm, got %q", v)
+	}
+	name, err := protocol.ParseName(principal)
+	if err != nil {
+		return err
+	}
+	u, err := user.Lookup(who)
+	if err != nil {
+		return fmt.Errorf("no local account %q: %w", who, err)
+	}
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return fmt.Errorf("uid of %q: %w", who, err)
+	}
+	a.add2(account{account: who, name: name, uid: uid})
+	return nil
+}
+
+// add is Set for a mapping the daemon already knows is good.
+func (a *accounts) add(who string, name protocol.Name) {
+	uid := os.Getuid()
+	if u, err := user.Lookup(who); err == nil {
+		if n, err := strconv.Atoi(u.Uid); err == nil {
+			uid = n
+		}
+	}
+	a.add2(account{account: who, name: name, uid: uid})
+}
+
+// add2 keeps the first mapping for an account: a later one would move
+// somebody's socket out from under them.
+func (a *accounts) add2(x account) {
+	if a.seen == nil {
+		a.seen = map[string]bool{}
+	}
+	if a.seen[x.account] {
+		return
+	}
+	a.seen[x.account] = true
+	a.all = append(a.all, x)
+}
+
+func (a *accounts) list() []account { return a.all }
+
+// listen opens one account's socket: theirs to reach, nobody else's to read.
+// The chown needs CAP_CHOWN, which by the design belongs to a supervisor
+// this daemon does not have yet (docs/11-processes.md); until it does, a
+// failure here is said out loud rather than left to look like it worked.
+func (a account) listen(path string) (net.Listener, error) {
+	if err := clearStaleSocket(path); err != nil {
+		return nil, err
+	}
+	l, err := net.Listen("unix", path)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return nil, err
+	}
+	if err := os.Chown(path, a.uid, -1); err != nil && os.Getuid() != a.uid {
+		log.Printf("WARNING: %s stays this account's, not %s's: %v — it needs CAP_CHOWN",
+			path, a.account, err)
+	}
+	return l, nil
+}
+
+// ownerAccount is the local account the daemon runs as.
+func ownerAccount() string {
+	if u, err := user.Current(); err == nil && u.Username != "" {
+		return u.Username
+	}
+	return "agent-bus"
 }
 
 // clearStaleSocket removes a leftover socket, and refuses to touch anything

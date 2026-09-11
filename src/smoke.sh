@@ -106,6 +106,54 @@ out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=parf "$D/
 bad_exit "a name without a realm is refused" $rc
 has "401 for a realm-less name" "$(code parf "$TOKEN" /status)" '401'
 
+sec "your own socket supplies both parameters"
+# Nothing to set up locally: the daemon knows the account at the other end
+# from which socket it arrived on. See docs/02-access.md#local-socket.
+ACCOUNT=$(id -un)
+MINE=$D/user-$ACCOUNT.sock
+has "the daemon opened one for the account it runs as" "$([ -S "$MINE" ] && echo yes)" 'yes'
+has "and it is that account's alone" "$(stat -c %a "$MINE")" '^600$'
+has "a call with no name and no token is served" \
+  "$(env -u AGENT_BUS_NAME -u AGENT_BUS_TOKEN AGENT_BUS_ADDR=$MINE "$D/agent-bus" status)" '"up"'
+has "and the daemon says whose call it was" \
+  "$(env -u AGENT_BUS_NAME -u AGENT_BUS_TOKEN AGENT_BUS_ADDR=$MINE "$D/agent-bus" status)" "\"you\":\"$OWNER\""
+has "a write lands under the socket's principal, not under nobody" \
+  "$(env -u AGENT_BUS_NAME -u AGENT_BUS_TOKEN AGENT_BUS_ADDR=$MINE "$D/agent-bus" register sock-made@srv1 --descr "from the socket" >/dev/null; ab nobody2@srv1 ls sock-made@srv1)" "\"owner\":\"$OWNER\""
+# The socket hides the two parameters; it does not replace them. Stating
+# somebody else's name on it is the same forgery as stating it remotely.
+has "claiming another name on it is refused" \
+  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$MINE" -H "X-Agent-Bus-User: bob@srv1" "http://unix/status")" '403'
+has "and the refusal says whose socket it is" \
+  "$(curl -s --unix-socket "$MINE" -H "X-Agent-Bus-User: bob@srv1" "http://unix/status")" "this socket is $OWNER's"
+has "while stating your own name on it is fine" \
+  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$MINE" -H "X-Agent-Bus-User: $OWNER" "http://unix/status")" '200'
+# One daemon, many people. A second mapped account gets a socket of its own
+# and is a different principal on it — which is the whole point of the
+# arrangement, and is not provable with one socket.
+if id -u nobody >/dev/null 2>&1; then
+  mkdir -p "$D/multi"
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/multi/bus.sock" -token-file "$D/token" \
+    -owner "$OWNER" -user "nobody=nemo@srv1" >"$D/multi.log" 2>&1 &
+  MPID2=$!
+  for _ in $(seq 1 50); do [ -S "$D/multi/user-nobody.sock" ] && break; sleep 0.1; done
+  has "a second account gets a socket of its own" "$([ -S "$D/multi/user-nobody.sock" ] && echo yes)" 'yes'
+  has "and is a different principal on it" \
+    "$(curl -s --unix-socket "$D/multi/user-nobody.sock" "http://unix/status")" '"you":"nemo@srv1"'
+  has "while the owner's socket in the same directory is still the owner" \
+    "$(curl -s --unix-socket "$D/multi/user-$ACCOUNT.sock" "http://unix/status")" "\"you\":\"$OWNER\""
+  has "and neither may speak as the other" \
+    "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/multi/user-nobody.sock" -H "X-Agent-Bus-User: $OWNER" "http://unix/status")" '403'
+  # Unprivileged, the chown cannot land, and the daemon has to say so rather
+  # than leave a socket that looks like somebody else's and is not.
+  has "it says out loud when it could not hand the socket over" "$(cat "$D/multi.log")" 'CAP_CHOWN'
+  kill $MPID2 2>/dev/null; wait $MPID2 2>/dev/null
+else
+  skipped=$((skipped+1))
+fi
+has "the shared socket still wants both" \
+  "$(env -u AGENT_BUS_NAME -u AGENT_BUS_TOKEN AGENT_BUS_ADDR=$D/bus.sock "$D/agent-bus" status 2>&1)" 'AGENT_BUS_TOKEN'
+has "and the directory is walk-through only, not readable" "$(stat -c %a "$D")" '^711$'
+
 sec "a name is checked against the credential it arrived with"
 # The forgery to catch is a whole request made under the wrong name, not a
 # `from` field rewritten inside one: the face already did the second and it
@@ -158,31 +206,33 @@ has "but the one before that is refused" "$(code rotor@srv1 "$first" /status)" '
 # reading it hands the same credentials back, which is what "tokens are
 # durable" has to mean once there is more than one.
 cp "$D/token" "$D/token2"
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/bus2.sock" -token-file "$D/token2" -owner "$OWNER" >"$D/daemon2.log" 2>&1 &
+mkdir -p "$D/r2"
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/r2/bus.sock" -token-file "$D/token2" -owner "$OWNER" >"$D/daemon2.log" 2>&1 &
 RPID=$!
-for _ in $(seq 1 50); do [ -S "$D/bus2.sock" ] && break; sleep 0.1; done
+for _ in $(seq 1 50); do [ -S "$D/r2/bus.sock" ] && break; sleep 0.1; done
 has "a restart keeps both of a rotated principal's tokens" \
-  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus2.sock" -H "X-Agent-Bus-User: rotor@srv1" -H "X-Agent-Bus-Token: $second" "http://unix/status")" '200'
+  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/r2/bus.sock" -H "X-Agent-Bus-User: rotor@srv1" -H "X-Agent-Bus-Token: $second" "http://unix/status")" '200'
 has "and still refuses the one it dropped" \
-  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus2.sock" -H "X-Agent-Bus-User: rotor@srv1" -H "X-Agent-Bus-Token: $first" "http://unix/status")" '401'
+  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/r2/bus.sock" -H "X-Agent-Bus-User: rotor@srv1" -H "X-Agent-Bus-Token: $first" "http://unix/status")" '401'
 has "a restart keeps every principal, not only the owner's" \
-  "$(AGENT_BUS_ADDR=$D/bus2.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus" status)" '"up"'
+  "$(AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus" status)" '"up"'
 has "and still refuses the wrong name with it" \
-  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus2.sock" -H "X-Agent-Bus-User: bob@srv1" -H "X-Agent-Bus-Token: $alice" "http://unix/status")" '403'
+  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/r2/bus.sock" -H "X-Agent-Bus-User: bob@srv1" -H "X-Agent-Bus-Token: $alice" "http://unix/status")" '403'
 kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
 # A credential that could not be written down is one a restart forgets, so
 # it is not handed out either: the daemon says so instead.
 mkdir -p "$D/ro" && cp "$D/token" "$D/ro/token"
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/ro.sock" -token-file "$D/ro/token" -owner "$OWNER" >"$D/daemon3.log" 2>&1 &
+mkdir -p "$D/ro-run"
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/ro-run/bus.sock" -token-file "$D/ro/token" -owner "$OWNER" >"$D/daemon3.log" 2>&1 &
 OPID=$!
-for _ in $(seq 1 50); do [ -S "$D/ro.sock" ] && break; sleep 0.1; done
+for _ in $(seq 1 50); do [ -S "$D/ro-run/bus.sock" ] && break; sleep 0.1; done
 chmod 0500 "$D/ro"
-out=$(AGENT_BUS_ADDR=$D/ro.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token unsaveable@srv1 2>&1); rc=$?
+out=$(AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token unsaveable@srv1 2>&1); rc=$?
 bad_exit "a credential the store could not keep is not handed out" $rc
 is_empty "and nothing that looks like one is printed" "$(printf '%s' "$out" | grep -o '^[0-9a-f]\{48\}$')"
 chmod 0700 "$D/ro"
 has "while the same ask succeeds once the store can be written" \
-  "$(AGENT_BUS_ADDR=$D/ro.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token unsaveable@srv1)" '^[0-9a-f]\{48\}$'
+  "$(AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token unsaveable@srv1)" '^[0-9a-f]\{48\}$'
 kill $OPID 2>/dev/null; wait $OPID 2>/dev/null
 # `start` runs until it is stopped, so this check leans on the refusal to end
 # it. Under a mutant that allows it, it ran until the harness's own timeout

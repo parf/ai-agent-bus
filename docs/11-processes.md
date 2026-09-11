@@ -52,6 +52,11 @@ supervisor — which does nothing else — means **no long-running child ever ho
 it**: sockets are created and chowned at start and on reload, the fds are
 passed down, and the bus that serves traffic has no capability at all.
 
+⚠️ **Today `agent-busd` is one process and chowns its own sockets.** There is
+no supervisor yet, so the separation above is a design and not a fact; where
+the capability is missing the daemon says so and leaves the socket as its own.
+Splitting the processes retires this.
+
 ## What is shared
 
 Nothing but file descriptors and unix sockets, both explicit.

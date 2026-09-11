@@ -49,7 +49,8 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus service-template <name> '{"k":1}' the same, inline
   agent-bus service-template <name>           print that configuration
 
-Environment: AGENT_BUS_NAME (user@realm), AGENT_BUS_TOKEN, AGENT_BUS_ADDR.`
+Environment: AGENT_BUS_NAME (user@realm), AGENT_BUS_TOKEN, AGENT_BUS_ADDR.
+On your own socket the first two are supplied for you and can be left unset.`
 
 func main() {
 	args := os.Args[1:]
@@ -229,7 +230,7 @@ func callVerb(args []string) error {
 	// Registration is a record you state (docs/01-identity.md#registration),
 	// and this is the caller stating it — but only if it has none, since
 	// re-stating it here would overwrite a description its owner meant.
-	me := os.Getenv("AGENT_BUS_NAME")
+	me := whoami()
 	if known, err := registered(me); err != nil {
 		return err
 	} else if !known {
@@ -492,9 +493,12 @@ func call(method, path string, q url.Values, body any) ([]byte, int, error) {
 // callCtx is the same with a deadline the caller owns: `start` gives it the
 // signal context so a long consume ends when the service is asked to stop.
 func callCtx(ctx context.Context, method, path string, q url.Values, body any) ([]byte, int, error) {
+	// On your own socket there is nothing to set: the daemon knows the
+	// account at the other end and supplies both parameters. Everywhere
+	// else they have to be sent. See docs/02-access.md#local-socket.
 	name := os.Getenv("AGENT_BUS_NAME")
 	token := os.Getenv("AGENT_BUS_TOKEN")
-	if name == "" || token == "" {
+	if (name == "" || token == "") && !onOwnSocket() {
 		return nil, 0, fmt.Errorf("set AGENT_BUS_NAME (user@realm) and AGENT_BUS_TOKEN")
 	}
 	var buf io.Reader
@@ -514,8 +518,12 @@ func callCtx(ctx context.Context, method, path string, q url.Values, body any) (
 	if err != nil {
 		return nil, 0, err
 	}
-	req.Header.Set(api.HeaderUser, name)
-	req.Header.Set(api.HeaderToken, token)
+	if name != "" {
+		req.Header.Set(api.HeaderUser, name)
+	}
+	if token != "" {
+		req.Header.Set(api.HeaderToken, token)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -525,6 +533,40 @@ func callCtx(ctx context.Context, method, path string, q url.Values, body any) (
 	defer resp.Body.Close()
 	out, err := io.ReadAll(resp.Body)
 	return out, resp.StatusCode, err
+}
+
+// whoami is this client's name: what was stated, or what the daemon says
+// when the socket supplied it instead. Asked once — it cannot change under
+// a running command. See docs/02-access.md#local-socket.
+var whoami = sync.OnceValue(func() string {
+	if n := os.Getenv("AGENT_BUS_NAME"); n != "" {
+		return n
+	}
+	out, code, err := call("GET", "/status", nil, nil)
+	if err != nil || code >= 400 {
+		return ""
+	}
+	var got struct {
+		You string `json:"you"`
+	}
+	json.Unmarshal(out, &got)
+	return got.You
+})
+
+// onOwnSocket says whether we are talking over a socket the daemon opened
+// for this account, which is the one place the two parameters come for free.
+func onOwnSocket() bool {
+	// Judged from the address, not from transport's base URL: that is
+	// "http://localhost" over a unix socket too.
+	addr := socketPath()
+	return !strings.HasPrefix(addr, "http://") && api.IsUserSocket(addr)
+}
+
+func socketPath() string {
+	if a := os.Getenv("AGENT_BUS_ADDR"); a != "" {
+		return a
+	}
+	return api.DefaultSocket()
 }
 
 // transport speaks HTTP over either a unix socket or loopback TCP: same
@@ -621,7 +663,7 @@ func stateDir() string {
 		home, _ := os.UserHomeDir()
 		dir = filepath.Join(home, ".cache")
 	}
-	return filepath.Join(dir, "agent-bus", safe(os.Getenv("AGENT_BUS_NAME")))
+	return filepath.Join(dir, "agent-bus", safe(whoami()))
 }
 
 func remember(e protocol.Envelope) {

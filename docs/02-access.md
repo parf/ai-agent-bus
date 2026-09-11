@@ -26,9 +26,10 @@ one name; a request that states a different one is refused as *that token
 belongs to somebody else*, which is a different answer from a bad token and
 the one that makes the refusal readable.
 
-⚠️ **Locally the socket is still the daemon's own.** One socket at mode `600`
-proves *an* account, not *which* — the per-user sockets that make it
-per-person are the remaining half ([local socket](#local-socket)).
+**Locally it is the account at the other end**, known from which socket the
+connection arrived on ([local socket](#local-socket)) — so a name stated
+there is checked the same way, and a caller that states nothing is still
+somebody.
 
 ## Getting a token
 
@@ -90,11 +91,17 @@ On the daemon's own host the two fields are supplied for you.
 | Path | `/run/agent-bus/user-<account>.sock` |
 | Owner | `chown <account>` — the local account it belongs to |
 | Mode | `chmod 600` — that account and nobody else |
+| The directory | `chmod 711` — everyone walks through it to their own socket, nobody reads what else is there |
 
 `agent-busd` creates `/run/agent-bus/` itself, so nothing is written into
 anyone else's home or runtime directory. It knows the username and the token
 from *which socket a connection arrived on* and hands them to the rest of the
-system as if the client had sent them.
+system as if the client had sent them. The account running the daemon gets
+one like everybody else — it is a user of the bus too.
+
+**A client on its own socket never states a name**, so it may not know one:
+`status` answers with the name the daemon is using for the caller, which is
+how a verb that needs its own identity gets it.
 
 **The socket hides the two fields; it does not replace them.** Same mechanism
 as remote — which is why one daemon can serve **many users on a host** and know
