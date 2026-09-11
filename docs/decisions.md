@@ -15,8 +15,9 @@ All 2026-09-09 unless noted.
 | Decision | Where |
 |---|---|
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](01-identity.md#names) |
-| A name is checked against the credential it arrived with, never taken on trust | [access § two parameters](02-access.md#two-parameters) |
-| Writing goes through the ACL like reading; no verb is a side door | [identity § acl](01-identity.md#acl) |
+| Setup installs the separate-user arrangement, and where that account lives | [setup § the service account](09-setup.md#the-service-account) |
+| A name is checked, not taken on trust | [access § two parameters](02-access.md#two-parameters) |
+| Writing is subject to the ACL, like reading | [identity § acl](01-identity.md#acl) |
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](01-identity.md#registration) |
 | MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](01-identity.md#registration) · [future](future/ldap-ad.md) |
 | Self-service enrolment: open (auto, minimal role) or closed (approval queue) | [identity § registration](01-identity.md#registration) |
@@ -126,6 +127,8 @@ All 2026-09-09 unless noted.
 | `--wait` is the caller's deadline and bounds the HTTP exchange, not only the daemon's wait | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | A script service is the name it registered — it reads and answers as that name | [runner § script services](08-runner-role.md#script-services) |
 | A script service takes a message only when a worker is free; stopping waits for the running ones | [runner § script services](08-runner-role.md#script-services) |
+| What a caller does when a receipt arrives | [messaging § receipts](04-messaging.md#receipts) |
+| What a script that prints nothing sends back | [runner § script services](08-runner-role.md#script-services) |
 
 ## Open
 
@@ -140,6 +143,9 @@ All 2026-09-09 unless noted.
 | With AUTH off, who filters the MCP catalog? | owner | [discovery § audience](05-discovery.md#audience) |
 | Whether several readers may block on one inbox at once | owner, with the MVP | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](02-access.md#encrypted-sessions) |
+| Whether the caller's deadline travels with the request | owner, with the MVP | [messaging § request and reply](04-messaging.md#request-and-reply) |
+| What a subscriber is, and where a fan-out copy goes | owner, with the MVP | [messaging § push and pull](04-messaging.md#push-and-pull) |
+| What carries a service's method information | owner, with the MVP faces | [services § service and template](03-services-and-topics.md#service-and-template) |
 | What else lives in SQLite | owner | [setup § storage](09-setup.md#storage) |
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
