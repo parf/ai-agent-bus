@@ -14,8 +14,9 @@ design carried out; V1 is legacy and is not consulted for it. What does still
 hold is that nothing is believed until it has been watched failing
 ([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)).
 
-**Next step**: A.3 — TTL. A.1 and A.4 are done; A.2, A.5 and every wave
-after A are gated by a blocker below.
+**Next step**: wave B. A.1, A.3, A.4 and A.6 are done; A.2 and A.5 wait on
+two ❓ below that only the owner closes, and B has a blocker of its own —
+which process owns the store handle — that B.4 and B.2 run into.
 
 ## Blockers
 
