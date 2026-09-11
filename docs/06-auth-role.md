@@ -21,7 +21,7 @@ for rotation. Nothing in it is secret — the pubkeys came from a public
 directory.
 
 **Not in the payload**: service and topic definitions, ownership (those are
-live records, [services § service and instance](03-services-and-topics.md#service-and-instance)),
+live records, [services § service and template](03-services-and-topics.md#service-and-template)),
 instance health/stats, queues, sealed private configs, `master_secret`.
 
 Enforced by replicas **and** services: valid signature; `gen > current`

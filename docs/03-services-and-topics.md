@@ -34,7 +34,7 @@ Default is **shared**.
 
 - **personal** — runs *as* a specific user with their account (mail-reader, a
   Claude session joined via `claude --channel`). Owner = the user; default
-  audience = the user; lifecycle follows the user; usually one instance;
+  audience = the user; lifecycle follows the user; usually one of them;
   typically on the user's own machine. Key: the user's (ephemeral sessions) or
   its own (recommended for anything long-running — narrower, individually
   revocable). When it calls another service, *it is the user calling* — no
@@ -42,23 +42,55 @@ Default is **shared**.
 - **shared** — runs as a service principal for many; explicit ACL; long-lived;
   health-checked.
 
-## Service and instance
+## Service and template
 
-A **service** is the kind: description, declared roles, health hints, optional
-MCP method info (stored **raw**, shape-checked only; docs generated from it).
-The description may mark individual methods as **destructive**; the MCP face
-passes the mark through to the calling agent and does nothing else with it — a
-hint from the service, enforced by nobody but the receiver.
+A **service template** is the *unconfigured* capability — description, declared
+roles, health hints, optional MCP method info (stored **raw**, shape-checked
+only; docs generated from it). The description may mark individual methods as
+**destructive**; the MCP face passes the mark through to the calling agent and
+does nothing else with it — a hint from the service, enforced by nobody but the
+receiver. A template does not run, holds no config and has **no address**.
 
-An **instance** is service + private config + a place it runs, identified as
-**`unique-name@host`** — stable across restarts, and also its address; the same
-`name@realm` shape users have ([identity § names](01-identity.md#names)).
-Private config stays with the instance by default, optionally sealed in
-`agent-busd` ([identity § sealed private config](01-identity.md#sealed-private-config)).
+A **service is always configured**: a template, its private config, and a place
+it runs. Never call an unconfigured template a service.
 
-Instances register, heartbeat, vanish. Definitions are **live records** changed
+| | |
+|---|---|
+| `service@host` | the service is its own template — nothing was configured from anything |
+| `template/instance-name@host` | configured from a template: `imap-mail-reader/billing@rdvp`, `code-review/claude-2@rdvp` |
+
+The name is stable across restarts, and is also the address and the inbox
+([identity § names](01-identity.md#names)). Two services from one template are
+**two services**: `code-review/claude@rdvp` and `code-review/claude-2@rdvp`
+share a prefix and nothing else — two records, two inboxes, two configs.
+
+**Config is arbitrary and separate from identity.** The name says which
+template and which instance; it never *declares* what the instance was pointed
+at. Naming an instance after the thing it reads is fine and often clearest —
+`mail-sender/parf@comfi.com@host` is a legal name
+([identity § names](01-identity.md#names)) — but that is a human convention,
+not a field: nothing parses a name for server, user, mailbox or credentials,
+and there is no fixed config schema. `imap-mail-reader/parf@rdvp` with the
+mailbox in its config is equally correct. Private config stays with the service by default, optionally
+sealed in `agent-busd`
+([identity § sealed private config](01-identity.md#sealed-private-config)).
+
+Services register, heartbeat, vanish. Definitions are **live records** changed
 by owners under [identity § ownership](01-identity.md#ownership), signed by the
 writer when it has a key.
+
+**One service on many hosts is deferred.** A template may be configured on
+several hosts — `code-review/claude@rdvp` and `code-review/claude@srv2` — but
+addressing them *as one* and gathering their answers (scatter-gather) is
+Release 1, with its how-to
+([stages § release 1](12-stages.md#release-1)). Until then each is addressed on
+its own, and a template prefix is a shared name, not a group.
+
+❓ **Configuring a template into a service has no call yet.** The concept is
+settled — configuring a template produces one configured service with its own
+inbox — but the spelling (CLI, MCP and API), where config is stored and what
+happens to a running service when its config changes are all unspecified.
+*Settled by:* the owner choosing an interface.
 
 ## Topics
 

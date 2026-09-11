@@ -13,7 +13,7 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
 | Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
 | Processes | one | supervisor + children | AUTH child |
-| Services | request/reply with `ack`; queue topics; scripts as services | pub/sub; deadlines, `done`, `reply-to`, many instances; the runner supervises and sandboxes | calls across chained buses |
+| Services | request/reply with `ack`; queue topics; scripts as services | pub/sub; deadlines, `done`, `reply-to`, several workers behind one name; the runner supervises and sandboxes | calls across chained buses; one service on many hosts, scatter-gather |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
 | Install | built Go binary; bun runs the faces | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
 
@@ -147,6 +147,7 @@ client libraries in other languages.
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified ([modules](10-modules.md)) |
 | operations | zero-downtime reload, packaging |
+| fan-out | **one service on many hosts**: several services sharing a template, addressed together, and the scatter-gather that needs — plus the how-to. Deferred here on the owner's word; the PoC and MVP address one service at a time ([services § service and template](03-services-and-topics.md#service-and-template)) |
 
 **Works at the end of Release 1**
 

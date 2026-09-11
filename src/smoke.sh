@@ -266,6 +266,40 @@ out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
 
+echo "== a service is service@host, or template/instance-name@host"
+# The template part is part of the identity, so it has to survive the whole
+# trip: registration, the registry listing, a send and a consume. A "/" in a
+# query parameter is where this breaks if anything hand-builds a URL.
+ab owner@srv1 register code-review/claude@rdvp --kind agent >/dev/null
+ab owner@srv1 register code-review/claude-2@rdvp --kind agent >/dev/null
+has "a template-prefixed service registers" \
+  "$(ab owner@srv1 ls)" '"name":"code-review/claude@rdvp"'
+ab sender@srv1 send code-review/claude-2@rdvp "for the second one" >/dev/null
+has "and is addressable by its whole name" \
+  "$(ab code-review/claude-2@rdvp consume --wait 2s)" 'for the second one'
+# Two services from one template are two inboxes, not one queue shared by
+# prefix: the first must still be empty.
+is_empty "the sibling's inbox is its own, not the template's" \
+  "$(ab code-review/claude@rdvp consume --wait 200ms 2>/dev/null)"
+has "a name may not hold two slashes" \
+  "$(ab owner@srv1 register a/b/c@rdvp 2>&1)" 'a-z 0-9 . _ - @ only'
+# Only the template part is wrong here: the instance name and the realm are
+# both fine, so nothing but the template's own check can refuse it.
+has "a bad template part is refused on its own" \
+  "$(ab owner@srv1 register -nope/claude@rdvp 2>&1)" 'bad template'
+# The host is the LAST "@" part, so an instance may be named after the address
+# it reads. This is the shape that breaks anything splitting on the first "@".
+ab owner@srv1 register mail-sender/parf@comfi.com@host --kind agent >/dev/null
+has "an instance name may be an address" \
+  "$(ab owner@srv1 ls)" '"name":"mail-sender/parf@comfi.com@host"'
+ab sender@srv1 send mail-sender/parf@comfi.com@host "read this one" >/dev/null
+has "and routes on the whole name, host split off last" \
+  "$(ab mail-sender/parf@comfi.com@host consume --wait 2s)" 'read this one'
+has "a dangling at-sign is a typo, not a name" \
+  "$(ab owner@srv1 register parf@@host 2>&1)" 'bad name'
+has "and the realm is a host, not a path" \
+  "$(ab owner@srv1 register code-review/claude@rd/vp 2>&1)" 'bad realm'
+
 echo "== a full queue: refuse by default, drop the oldest if asked"
 ab owner@srv1 register sink@srv1 --kind generic >/dev/null
 ab owner@srv1 register ringy@srv1 --kind generic --overflow ring >/dev/null

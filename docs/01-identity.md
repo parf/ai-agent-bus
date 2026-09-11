@@ -5,9 +5,12 @@ Who is on the bus, and what they may do. How they prove it is
 
 ## Principals
 
-Every **user**, **service** and **instance** is a *principal* — agents,
-consumers and publishers included. Only *generic* records (a description pushed
-by someone else) have no identity of their own.
+Every **user** and **service** is a *principal* — agents, consumers and
+publishers included. A service is always a configured one
+([services § service and template](03-services-and-topics.md#service-and-template));
+an unconfigured template is not a principal, because it does not run and has no
+address. Only *generic* records (a description pushed by someone else) have no
+identity of their own.
 
 ## Names
 
@@ -20,9 +23,24 @@ name*:
 | `user@provider` | an identity provider | the provider — name and public key | `parf@github` |
 | `user@team` | a team, a group on the AUTH server | AUTH | `parf@realmo` |
 
-Same shape as a service address
-([services § service and instance](03-services-and-topics.md#service-and-instance))
-— one syntax for everything on the bus, three sources of authority behind it.
+A **service** is written the same way, and may prefix the **service template**
+it was configured from:
+
+| Form | Is | Example |
+|---|---|---|
+| `service@host` | a service that is its own template | `claude@rdvp` |
+| `template/instance-name@host` | a service configured from a template | `imap-mail-reader/billing@rdvp` |
+
+**The host is whatever follows the last `@`.** An instance name may itself be
+an address — the thing that reads a mailbox is reasonably named after it — so
+`mail-sender/parf@comfi.com@host` is template `mail-sender`, instance
+`parf@comfi.com`, host `host`. The bus reads **no meaning** out of it: it is a
+name it routes on, never a mailbox it parses.
+
+One syntax for everything on the bus, three sources of authority behind it. The
+template part is **optional and part of the identity**, not a lookup: two
+services from one template are two names, two inboxes, two configs
+([services § service and template](03-services-and-topics.md#service-and-template)).
 
 **One name has one spelling: `trim(lower(name))`.** Case and surrounding space
 are noise, so they go before anything compares, stores or routes on a name —
@@ -31,10 +49,12 @@ registration cannot land in one inbox while a send goes to another.
 
 | | |
 |---|---|
-| charset | **`a-z 0-9 . _ -`**, both halves, starting alphanumeric |
-| length | **64 characters for the whole name**, `@` included — a name is an identifier, not a payload |
+| charset | **`a-z 0-9 . _ -`**, every part, starting alphanumeric. The **instance name** may also join parts with `@` |
+| at-signs | the **last** one splits off the host. Earlier ones sit inside the instance name, single and between parts — `parf@` and `parf@@x` are typos, not names |
+| length | **64 characters for the whole name**, `@` and any `/` included — a name is an identifier, not a payload |
 | ASCII only | a name spellable two ways in Unicode is a name two people can be tricked by |
-| dots | allowed on both sides — a realm is often a host (`om.parf.dev`), and a local part may be dotted (`slack.reader`) |
+| dots | allowed in every part — a realm is often a host (`om.parf.dev`), and a local part may be dotted (`slack.reader`) |
+| slashes | **at most one**, and only between template and instance name. A realm never holds one, and never an `@`: a realm is a host, not a path |
 
 **The name is the identity.** Provider numeric ids are stored, never used as
 ids: they are what a re-check compares against. If a name stops resolving to
@@ -176,10 +196,10 @@ it: `parf@github` → fetch once → pin. Modes: file only · AUTH only · both
 
 ## Sealed private config
 
-An instance may store its private config (e.g. IMAP credentials) in
-`agent-busd`, **sealed to the instance's own key** (age-style box). The daemon
-holds opaque bytes + owner + instance id and cannot read them. Boot = key +
+A service may store its private config (e.g. IMAP credentials) in
+`agent-busd`, **sealed to the service's own key** (age-style box). The daemon
+holds opaque bytes + owner + service name and cannot read them. Boot = key +
 binary → config comes back. Versioned, owner-pushed, not bundle data; does not
-need the AUTH role. Multi-instance sharing = encrypt to each key or share a
+need the AUTH role. Sharing across services = encrypt to each key or share a
 key. A local file remains the default; this is opt-in for portability and
 recovery.

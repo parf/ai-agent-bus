@@ -36,9 +36,13 @@ All 2026-09-09 unless noted.
 | Bodies end-to-end encrypted; `encryption: off` per service for development | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Wire is JSON, msgpack optional | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](02-access.md#key-confirmation) |
-| Instance id = address = `unique-name@host` | [services § service and instance](03-services-and-topics.md#service-and-instance) |
-| MCP tool info stored raw, shape-checked | [services § service and instance](03-services-and-topics.md#service-and-instance) |
-| Destructive methods are a hint in the description, enforced by nobody | [services § service and instance](03-services-and-topics.md#service-and-instance) |
+| A service name is its address and its inbox: `service@host`, or `template/instance-name@host` | [identity § names](01-identity.md#names) |
+| The host is what follows the **last** `@`; an instance name may be an address | [identity § names](01-identity.md#names) |
+| One service on many hosts, and scatter-gather over them, is Release 1 | [stages § release 1](12-stages.md#release-1) |
+| A service is always configured; the unconfigured capability is a service template | [services § service and template](03-services-and-topics.md#service-and-template) |
+| Config is arbitrary and separate from the name; nothing is parsed out of an address | [services § service and template](03-services-and-topics.md#service-and-template) |
+| MCP tool info stored raw, shape-checked | [services § service and template](03-services-and-topics.md#service-and-template) |
+| Destructive methods are a hint in the description, enforced by nobody | [services § service and template](03-services-and-topics.md#service-and-template) |
 | Topics are first-class records; kind, TTL, bound, overflow declared at creation | [services § topics](03-services-and-topics.md#topics) |
 | Peer registry sync is git push/pull on start; newer record wins per entry | [services § registry sync](03-services-and-topics.md#registry-sync) |
 | Chaining queries an upstream, never replicates it | [overview § chaining](00-overview.md#chaining) |
@@ -128,6 +132,7 @@ All 2026-09-09 unless noted.
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
+| Configuring a template into a service has no call, store or reload rule | owner | [services § service and template](03-services-and-topics.md#service-and-template) |
 | Whether reading an inbox and filtering one become separate options | owner, with the MVP CLI | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 
 ## Superseded
@@ -139,6 +144,8 @@ All 2026-09-09 unless noted.
 | The runner is part of the core | its own process — it is the one component that execs code it did not write — [processes](11-processes.md) |
 | A token lives in daemon memory and dies with a restart | tokens are saved, and the previous one is kept — otherwise a reloaded queue is undecryptable ciphertext — [access § token lifetime](02-access.md#token-lifetime) |
 | The token is the whole identity in "minimal mode" | a call always carries two parameters; the socket supplies them locally — [access § two parameters](02-access.md#two-parameters) |
+| A name never holds a slash: a name is not a path | one slash is allowed, between service template and instance name — the realm still never holds one — [identity § names](01-identity.md#names) |
+| "Service" = the kind, "instance" = a running copy of it | "service" means the **configured** thing; the kind is a **service template** — [services § service and template](03-services-and-topics.md#service-and-template) |
 | Local access needs no credential at all | the socket hides the credentials, it does not remove them — [access § local socket](02-access.md#local-socket) |
 | Socket in each user's `/run/user/<uid>/` | the daemon's own directory, one socket per user — [access § local socket](02-access.md#local-socket) |
 | Setup takes local username + gh-username | local account + bus username; the username carries its realm — [setup § local users](09-setup.md#local-users) |

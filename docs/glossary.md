@@ -21,13 +21,15 @@ wins.
 | service discovery | registration | registration is one operation on discovery |
 | personal / shared | user-scoped/system, bound/unbound, single-/multi-tenant | shared is the default |
 | realm | domain, provider, tenant | the right-hand side of `user@realm` |
+| service template | service, service kind, service type | a **service** is always configured; the template is the unconfigured capability |
+| service | instance, service instance | "instance" was the old word for the configured thing — that is now just a service |
 
 ## Terms
 
 | Term | One line | Defined in |
 |---|---|---|
-| **principal** | any user, service or instance with an identity | [identity § principals](01-identity.md#principals) |
-| **`user@realm`** | how every principal is written; realm = host · provider · team | [identity § names](01-identity.md#names) |
+| **principal** | any user or service with an identity | [identity § principals](01-identity.md#principals) |
+| **`user@realm`** | how every principal is written; realm = host · provider · team. A service may prefix a template | [identity § names](01-identity.md#names) |
 | **realm** | who vouches for a name | [identity § names](01-identity.md#names) |
 | **canonical name** | `trim(lower(name))`, ASCII `a-z 0-9 . _ -`, ≤64 chars — the one spelling everything compares and routes on | [identity § names](01-identity.md#names) |
 | **token** | the second of the two parameters every call carries; persisted, previous one kept | [access § token lifetime](02-access.md#token-lifetime) |
@@ -37,7 +39,9 @@ wins.
 | **role** | service-defined string saying what a principal may do | [identity § groups and roles](01-identity.md#groups-and-roles) |
 | **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](01-identity.md#delegation) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](03-services-and-topics.md#service-kinds) |
-| **service vs instance** | the kind vs a running copy, `unique-name@host` | [services § service and instance](03-services-and-topics.md#service-and-instance) |
+| **service template** | the *unconfigured* capability; does not run, has no address | [services § service and template](03-services-and-topics.md#service-and-template) |
+| **service** | **always configured**: a template + its config + where it runs. Never say "service" for an unconfigured template | [services § service and template](03-services-and-topics.md#service-and-template) |
+| **`template/instance-name@host`** | a service configured from a template; `service@host` when it is its own template | [identity § names](01-identity.md#names) |
 | **topic** | a registered record; kind `queue` or `pub/sub` | [services § topics](03-services-and-topics.md#topics) |
 | **inbox** | the implicit queue topic every agent owns | [messaging § inbox queues](04-messaging.md#inbox-queues) |
 | **`message_id` · topic · tag** | the three fields on every message | [messaging § message fields](04-messaging.md#message-fields) |

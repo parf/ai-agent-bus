@@ -12,7 +12,7 @@ and linked from everywhere else.
 | 00 | this file | goal · principles · the roles table · chaining · trade-offs |
 | 01 | [identity](01-identity.md) | principals · `user@realm` · registration · groups, roles, ACL · delegation · ownership · sealed config |
 | 02 | [access](02-access.md) | the two parameters · tokens · the local socket · key modes · encrypted sessions |
-| 03 | [services and topics](03-services-and-topics.md) | service kinds · personal/shared · instances · topic records · registry sync |
+| 03 | [services and topics](03-services-and-topics.md) | service kinds · personal/shared · templates and services · topic records · registry sync |
 | 04 | [messaging](04-messaging.md) | queues · message fields · receipts · TTL · verbs · overflow · durability · the envelope |
 | 05 | [discovery](05-discovery.md) | faces · audience · health · stats · dashboard · debug mode |
 | 06 | [AUTH role](06-auth-role.md) | the bundle · signed generations · topology · `master_secret` · SSH admin |
@@ -90,7 +90,7 @@ Claims only; the mechanism lives in the doc each one links to.
   generations in git ([AUTH role § bundle](06-auth-role.md#bundle)). *Registry
   data* is live in `agent-busd`, snapshotted to git
   ([identity § ownership](01-identity.md#ownership)). *Live state* — health,
-  stats, instances, queue contents — is neither signed nor snapshotted, but it
+  stats, running services, queue contents — is neither signed nor snapshotted, but it
   is *durable*: queues and stats dump to Parquet, and tokens are saved so a
   reloaded queue can still be decrypted
   ([access § token lifetime](02-access.md#token-lifetime)).

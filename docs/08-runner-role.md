@@ -14,8 +14,8 @@ runner runs user children.
 
 - **Supervise** — spawn, restart with backoff, stop, reload, log capture, exit
   codes.
-- **Represent** — registers each child as an **instance**
-  ([services § service and instance](03-services-and-topics.md#service-and-instance)),
+- **Represent** — registers each child as a **service**
+  ([services § service and template](03-services-and-topics.md#service-and-template)),
   heartbeats and reports stats for it, holds and injects the child's identity
   and private config. Children need not know the bus exists.
 - **Is itself an agent** — self-registers, self-reports, has its own key, and
