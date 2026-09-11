@@ -166,7 +166,7 @@ once consumed they are gone. Prometheus export for Grafana if you want history.
 - **Not a durable queue.** Queues live in memory and are saved to a Parquet file on a
   graceful restart (optionally every minute), so a crash loses at most a minute. Each
   queue has a TTL and a size; on overflow it either drops its oldest message or refuses
-  new ones — the topic chooses. If one flow needs more, give that one a WAL.
+  new ones — the receiving record chooses. If one flow needs more, give that one a WAL.
 - **Not a workflow engine.** It routes messages; what to do with them is the agent's job.
 
 ## Intended CLI shape

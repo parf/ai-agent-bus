@@ -48,7 +48,7 @@ All 2026-09-09 unless noted.
 | Optional receipts: `ack` and `done` | [messaging § receipts](04-messaging.md#receipts) |
 | Optional TTL per message; expired is dropped and counted | [messaging § message TTL](04-messaging.md#message-ttl) |
 | Consumers pull by default, may register a push address | [messaging § push and pull](04-messaging.md#push-and-pull) |
-| Two overflow modes per topic: `ring` (default) and `strict` | [messaging § overflow](04-messaging.md#overflow) |
+| Two overflow modes per record: `strict` (default) and `ring` | [messaging § overflow](04-messaging.md#overflow) |
 | Graceful restart dumps queues and stats to Parquet; optional periodic dump | [messaging § durability](04-messaging.md#durability) |
 | No message kinds and no receiver policy in the bus | [messaging § envelope](04-messaging.md#envelope) |
 | Dashboard shows services, topics and call counts — envelopes only | [discovery § dashboard](05-discovery.md#dashboard) |
@@ -104,6 +104,8 @@ All 2026-09-09 unless noted.
 | A receipt is a closed set of two words | [messaging § receipts](04-messaging.md#receipts) |
 | The receipts answer "picked up, or lost?", so the bus keeps no delivery journal | [messaging § receipts](04-messaging.md#receipts) |
 | A queue belongs to a name, never to a connection or session | [messaging § inbox queues](04-messaging.md#inbox-queues) |
+| Overflow is declared on the receiver's record, and refusing the send is the default | [messaging § overflow](04-messaging.md#overflow) |
+| A request that expects a reply must name a registered reply address; registered is not live | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | A send to a name with no record is refused, never accepted and dropped later | [messaging § verbs](04-messaging.md#verbs) |
 | `--wait` is the caller's deadline and bounds the HTTP exchange, not only the daemon's wait | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | A script service is the name it registered — it reads and answers as that name | [runner § script services](08-runner-role.md#script-services) |
@@ -143,6 +145,7 @@ All 2026-09-09 unless noted.
 | Principal id is GitHub's numeric id | the name is the identity; the id is only a re-check comparison — [identity § names](01-identity.md#names) |
 | GitHub is *the* identity source, and the reason public services work | a provider is an alternative to typing the record — [identity § registration](01-identity.md#registration) |
 | Overflow: drop oldest | two modes, `ring` and `strict` — [messaging § overflow](04-messaging.md#overflow) |
+| `ring` is the default mode | `strict` is: a queue that loses work silently is worse than one that fails visibly — [messaging § overflow](04-messaging.md#overflow) |
 | Audience with AUTH off is a per-service `user: token` map | the two ACL layers — [identity § acl](01-identity.md#acl) |
 | LDAP/AD in scope | deferred — [future](future/ldap-ad.md) |
 | NATS · Redis Streams · AUTH-signed JWT keys | dropped; kept in `legacy/` for history |

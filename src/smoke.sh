@@ -266,12 +266,22 @@ out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
 
-echo "== a full queue loses the oldest, and says how many"
+echo "== a full queue: refuse by default, drop the oldest if asked"
 ab owner@srv1 register sink@srv1 --kind generic >/dev/null
-# 1001 into a queue bounded at 1000: the first is gone. That is the ring
-# policy, not a bug — the bug would be losing it without a trace.
+ab owner@srv1 register ringy@srv1 --kind generic --overflow ring >/dev/null
+has "a record says what a full queue does, and refuses by default" \
+  "$(ab owner@srv1 ls | grep -o '{[^}]*"name":"sink@srv1"[^}]*}')" '"overflow":"strict"'
+has "an overflow mode that is neither is refused" \
+  "$(ab owner@srv1 register bad@srv1 --overflow maybe 2>&1)" 'overflow is strict or ring'
+# 1001 into a queue bounded at 1000, twice: strict must refuse the last one,
+# ring must swallow it and lose the first.
 for i in $(seq 0 1000); do ab flood@srv1 send sink@srv1 "msg-$i" >/dev/null 2>&1; done
-has "the oldest is the one that went" "$(ab sink@srv1 consume --wait 2s)" 'msg-1"'
+out=$(ab flood@srv1 send sink@srv1 "one too many" 2>&1); rc=$?
+bad_exit "strict refuses the send rather than lose a message" $rc
+has "and names the queue that is full" "$out" 'queue is full: sink@srv1'
+has "nothing was dropped" "$(ab asker@srv1 status)" '"dropped":0'
+for i in $(seq 0 1000); do ab flood@srv1 send ringy@srv1 "msg-$i" >/dev/null 2>&1; done
+has "ring keeps taking, and the oldest is what went" "$(ab ringy@srv1 consume --wait 2s)" 'msg-1"'
 has "and the loss is counted, not silent" "$(ab asker@srv1 status)" '"dropped":1'
 
 echo "== --wait is the caller's deadline, not just the daemon's"

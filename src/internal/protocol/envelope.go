@@ -27,10 +27,11 @@ type Envelope struct {
 // See docs/03-services-and-topics.md.
 type Record struct {
 	Name  string    `json:"name"`
-	Kind  string    `json:"kind"`            // generic, agent, topic
-	Addr  string    `json:"addr,omitempty"`  // host:port, a path, a URL
-	Descr string    `json:"descr,omitempty"` // what ls and the MCP catalog show
-	Mode  string    `json:"mode,omitempty"`  // topics only: queue or pubsub
+	Kind  string    `json:"kind"`               // generic, agent, topic
+	Addr  string    `json:"addr,omitempty"`     // host:port, a path, a URL
+	Descr string    `json:"descr,omitempty"`    // what ls and the MCP catalog show
+	Mode  string    `json:"mode,omitempty"`     // topics only: queue or pubsub
+	Full  string    `json:"overflow,omitempty"` // ring or strict; strict if unset
 	Owner string    `json:"owner"`
 	At    time.Time `json:"at"`
 }
@@ -40,6 +41,13 @@ type Record struct {
 const (
 	ReceiptAck  = "ack"
 	ReceiptDone = "done"
+)
+
+// What a full queue does, declared per record, inboxes included.
+// See docs/04-messaging.md#overflow.
+const (
+	OverflowStrict = "strict" // refuse the send, and say so
+	OverflowRing   = "ring"   // drop the oldest to make room
 )
 
 // Topic kinds. A queue topic is an inbox with a name; pub/sub is MVP, and

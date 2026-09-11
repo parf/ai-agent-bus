@@ -16,7 +16,8 @@ import (
 )
 
 // PoC bounds. A queue that grows without limit is a memory leak with a
-// friendly name; overflow drops the oldest (ring) — see docs/04-messaging.md.
+// friendly name. What happens at the bound is the receiver's choice, and it
+// refuses unless it asked for a ring — see docs/04-messaging.md#overflow.
 const maxQueue = 1000
 
 var (
@@ -25,6 +26,8 @@ var (
 	ErrBadName  = errors.New("bad name")
 	ErrNotYet   = errors.New("pub/sub topics arrive at MVP")
 	ErrReceipt  = errors.New(`a receipt is "ack" or "done"`)
+	ErrFull     = errors.New("the receiver's queue is full")
+	ErrOverflow = errors.New("overflow is strict or ring")
 )
 
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.
@@ -76,6 +79,12 @@ func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	}
 	if r.Kind == "" {
 		r.Kind = "generic"
+	}
+	if r.Full == "" {
+		r.Full = protocol.OverflowStrict
+	}
+	if r.Full != protocol.OverflowStrict && r.Full != protocol.OverflowRing {
+		return protocol.Record{}, fmt.Errorf("%w, not %q", ErrOverflow, r.Full)
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -172,15 +181,18 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 			return e, nil
 		}
 	}
-	in.queue = append(in.queue, e)
-	if len(in.queue) > maxQueue {
-		// Ring: the oldest goes. Dropping is a real loss, so it is counted
-		// and `status` shows it — a queue that silently forgets looks exactly
-		// like one nobody sent to. Refusing the new message instead is the
-		// other mode, and it is MVP's (docs/04-messaging.md#overflow).
+	// A full queue either refuses the new message or forgets the oldest, and
+	// the receiver's record says which. Refusing is the default because
+	// losing a job silently is worse than failing visibly; a ring is for the
+	// streams where the newest matters most (docs/04-messaging.md#overflow).
+	if len(in.queue) >= maxQueue {
+		if rec.Full != protocol.OverflowRing {
+			return protocol.Envelope{}, fmt.Errorf("%w: %s holds %d", ErrFull, to, len(in.queue))
+		}
 		in.queue = in.queue[1:]
-		b.dropped++
+		b.dropped++ // a real loss, so `status` reports it
 	}
+	in.queue = append(in.queue, e)
 	return e, nil
 }
 

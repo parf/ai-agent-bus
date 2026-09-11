@@ -68,7 +68,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 	}
 	in.Owner = caller.String()
 	rec, err := s.bus.Register(in)
-	if errors.Is(err, core.ErrBadName) {
+	if errors.Is(err, core.ErrBadName) || errors.Is(err, core.ErrOverflow) {
 		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -96,6 +96,9 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 		return
 	case errors.Is(err, core.ErrUnknown):
 		fail(w, http.StatusNotFound, "no such receiver: "+in.To)
+		return
+	case errors.Is(err, core.ErrFull):
+		fail(w, http.StatusServiceUnavailable, err.Error())
 		return
 	case errors.Is(err, core.ErrNotYet):
 		fail(w, http.StatusNotImplemented, in.To+" is a pub/sub topic: "+err.Error())

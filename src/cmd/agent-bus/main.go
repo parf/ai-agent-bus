@@ -26,7 +26,7 @@ import (
 const usage = `agent-bus — talk to agent-busd
 
   agent-bus status
-  agent-bus register <name> [--kind k] [--addr a] [--descr d]
+  agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
   agent-bus ls [--kind k]
   agent-bus send <to> [--topic t] [--tag g] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
@@ -34,7 +34,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus ack <message-id>
   agent-bus reply <message-id> <text>
   agent-bus reply --to <name> [--topic t] [--tag g] <text>
-  agent-bus topic create <name> [--kind queue|pubsub] [--descr d]
+  agent-bus topic create <name> [--kind queue|pubsub] [--descr d] [--overflow ring|strict]
   agent-bus publish --topic <name> <text>
   agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
   agent-bus start                     (the same, as JSON on stdin)
@@ -88,6 +88,7 @@ func register(args []string) error {
 	}
 	return post("/register", protocol.Record{
 		Name: pos[0], Kind: flags["kind"], Addr: flags["addr"], Descr: flags["descr"],
+		Full: flags["overflow"],
 	})
 }
 
@@ -243,6 +244,7 @@ func topic(args []string) error {
 	}
 	return post("/register", protocol.Record{
 		Name: pos[0], Kind: protocol.KindTopic, Mode: mode, Descr: flags["descr"],
+		Full: flags["overflow"],
 	})
 }
 

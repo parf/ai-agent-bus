@@ -156,6 +156,21 @@ nobody should answer late sets one.
 To the sender's queue with the same topic + tag — unless the request sets
 `reply-to: {service, topic, tag}`.
 
+**A request that expects a reply needs a reply address that exists.** The
+route is the requester's own name plus the exchange's topic and tag, or an
+explicit `reply-to` naming another; either way the destination is a
+**registered name**, checked when the request is accepted rather than
+discovered when the answer bounces. Registered is not the same as *live* —
+the name owns a queue and its reader may be offline, which is the point of
+name-owned queues ([inbox queues](#inbox-queues)). A plain `send` or
+`publish` stays open to unregistered senders: fire-and-forget asks for
+nothing back.
+
+❓ **PoC does not enforce this**: `call` registers its caller, and a `send`
+from an unregistered name is accepted with the reply refused later as *no
+such name*. The contract above is MVP's, and `reply-to` arrives with it.
+*Settled by:* the owner — settled as the rule, not yet as code.
+
 **The daemon keeps no reply state.** A reply is an ordinary `send` carrying
 the routing fields, and `reply <message-id>` is sugar: the client that
 consumed the message still has its envelope, so it fills in receiver, topic and
@@ -179,8 +194,13 @@ Declared per topic at creation, inboxes included:
 
 | Mode | Full queue | For |
 |---|---|---|
-| **ring** (default) | drop the **oldest**, count it in stats | alerts, telemetry — newest matters most |
-| **strict** | **reject the send/publish** with an error to the producer | jobs, commands — losing one silently is worse than failing loudly |
+| **strict** (default) | **reject the send/publish** with an error to the producer | anything that is work: losing one silently is worse than failing loudly, so this is what you get unless you ask otherwise |
+| **ring** | drop the **oldest**, and count it in stats | alerts, telemetry, progress — the newest matters most and a gap is not a bug |
+
+Declared on the record, so it is a property of the **receiver**, not of the
+sender or the message: whoever owns the queue decides what its fullness
+means. The count of what a ring has dropped is in `status`, because a queue
+that forgets silently looks exactly like one nobody sent to.
 
 ## Durability
 

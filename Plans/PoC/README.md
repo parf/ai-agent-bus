@@ -125,12 +125,15 @@ reviewer corrected it against V1's own source; what follows is what survived.
 | "three registries" | three **commands** over one registry |
 | "a JSON payload file every time" | the wrapper takes inline JSON or stdin; it was the low-level verb that wanted a file |
 
-**And where V1 is better than our PoC:** its bound **refuses** the new message
-(`discard: new`, per subject) where our queue drops the oldest. Two modes are
-already the design ([messaging § overflow](../../docs/04-messaging.md#overflow));
-PoC implements the lossy one, which is why `status` now counts what the ring
-threw away — a queue that forgets silently looks exactly like one nobody sent
-to.
+**Where V1 was better than our PoC, and we took its answer:** its bound
+**refuses** the new message (`discard: new`, per subject) where ours dropped
+the oldest without a word. Both modes were already the design
+([messaging § overflow](../../docs/04-messaging.md#overflow)) and PoC had
+implemented only the lossy one, as the default. Now the receiver's record
+says which it wants, **refusing is the default**, and a ring counts what it
+threw away in `status` — a queue that forgets silently looks exactly like one
+nobody sent to. That is V1 paying for itself: the case was real, so the
+complexity is earned.
 
 **Honesty about V2's own guarantees**, since a design document is worth
 nothing if it flatters itself:
