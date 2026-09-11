@@ -41,7 +41,7 @@ the same topic + tag**, and the caller waits for it:
 
 | Side | Does |
 |---|---|
-| caller | **states its own record** if it has none — an answer needs an address to arrive at ([identity § registration](01-identity.md#registration)) — then `send` and wait on its own queue for a message with that topic + tag |
+| caller | **states its own record** if it has none — an answer needs an address to arrive at ([identity § registration](01-identity.md#registration)) — then `send` and wait on its own queue for a message with that topic + tag. A plain `send` does **not** require this: a sender's name is checked for shape, not for registration, so fire-and-forget works from anyone and an answer to an unregistered sender is refused as *no such name*. Wanting a reply is what makes the record necessary |
 | service | `consume` its inbox, optionally `ack` (got it), do the work, `reply` — and `done` if the sender asked for it |
 | deadline | the caller's, and the message's TTL is what stops a late answer arriving |
 
@@ -123,11 +123,19 @@ Optional, and **both emitted by the receiver** — the service, not the bus:
 | **`ack`** | the service **got** the message |
 | **`done`** | the service **finished processing** it |
 
-Together they are what a sender actually wants to know — **`ack`: picked up,
-not lost. `done`: the work finished** — and both can only come from the
-receiver, because nothing else knows. This is why no delivery journal is kept
-anywhere in the bus: a transport can report that it accepted bytes, which is
-not the question.
+Together they are what a sender actually wants to know — **`ack`: received.
+`done`: the work finished** — and both can only come from the receiver,
+because nothing else knows. That is why the bus keeps no delivery journal of
+its own: an observation made anywhere but the receiver is about the
+transport, and a correlated message from the receiver is both simpler and
+worth more.
+
+Read them for exactly what they say. `ack` means the message reached the
+receiver, **not** that the work started: a script service acks before it runs
+the script ([runner § script services](08-runner-role.md#script-services)).
+And **no receipt means unknown** — the request, the work or the receipt may
+be late or lost — never proof of loss. Receipts remove a layer of guessing,
+not the uncertainty itself.
 
 Both are ordinary messages to the sender's queue (or its `reply-to`), carrying
 the original `message_id`, topic and tag. The field is a **closed set** — one

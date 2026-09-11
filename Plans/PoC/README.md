@@ -20,23 +20,28 @@ adding anything here.
 ## Target shape
 
 ```
-  claude session ──[ agent-bus mcp, channel push ]──┐
-                                                    ├─→ agent-busd (Go)
-  codex session  ──[ agent-bus mcp, app-server push ]┘    socket + HTTP
-                     └─ codex app-server proxy (stdio)
+  claude session ──[ agent-bus mcp + channel push, one process ]──┐
+                                                                  ├─→ agent-busd (Go)
+  codex session  ──[ agent-bus mcp (push off) ]───────────────────┘    socket + HTTP
+       └─ codex app-server on ws://127.0.0.1:PORT ←─[ pusher, same name ]
 ```
 
-**One TypeScript package, two push modes, one process per session.** V1's
-`notifier-claude` is already an MCP server that also pushes, so this is its
-shape, not a new idea; process placement is a runtime choice, not a layer
-boundary ([modules § languages](../../docs/10-modules.md#languages)). Whether
-Codex's MCP process can reach the App Server socket is the first spike — if it
-cannot, the push mode becomes its own process and nothing else changes.
+**One TypeScript package, two push modes** — and they land differently,
+which the spike settled rather than guessed:
+
+| | |
+|---|---|
+| Claude | **one process**: the MCP server pushes into its own session through a channel, exactly V1's `notifier-claude` shape |
+| Codex | **two processes, one `AGENT_BUS_NAME`**: the MCP server inside the session with push off, and a pusher beside it holding the App Server connection. A session cannot push into itself through its own stdio |
+
+Process placement is a runtime choice, not a layer boundary
+([modules § languages](../../docs/10-modules.md#languages)); the recipe for
+both is [`../../src/mcp/README.md`](../../src/mcp/README.md).
 
 | Part | Language | Source |
 |---|---|---|
 | `protocol`, `core`, `api` face, `cli` | Go | **new**; V1's protocol carries keys, trust and `event_hash` we do not have — take the identifier rules only |
-| `mcp` face + both push modes | **TypeScript on bun** | **new**, all of it. V1 runs Claude's on bun and Codex's on Node — the WebSocket forced that, and the stdio proxy removes it |
+| `mcp` face + both push modes | **TypeScript on bun** | **new**, all of it. V1 runs Claude's on bun and Codex's on Node because bun's WebSocket could not do a unix socket; bun reaches the App Server over `ws://` instead, so one runtime does both |
 
 Why the split: [modules § languages](../../docs/10-modules.md#languages).
 
@@ -97,45 +102,56 @@ be worse at what it does.
 
 ## What V1 cost us, first hand
 
-We have not only read V1 — we **used** it all through this PoC to talk to the
+We did not only read V1 — we **used** it all through this PoC to talk to the
 reviewer, and lost a message to it. That is the strongest evidence available
-for what V2 is for, so it is written down as it happened, not as an opinion.
+for what V2 is for. The first draft of this section overstated it, and the
+reviewer corrected it against V1's own source; what follows is what survived.
 
 | What happened on V1 | Why | What V2 does instead |
 |---|---|---|
-| A review answer was accepted and **never delivered**: it was addressed to `agent-pub`, the *label* the sender had put in `from_channel`, and nothing consumes that name. `delivery: null`, no error, found an hour later by asking | a sender-chosen label is not an address, and the bus cannot tell the difference | **the name is the address.** A send to a name with no record is refused at `send` ([messaging § verbs](../../docs/04-messaging.md#verbs)); a reply goes to the `from` of an envelope, which is an inbox by construction |
-| `accepted: true` came back anyway, and whether anything arrived lived in a second place — `agent-bus event status --event-hash …`, where `delivery` may be `null` for a message in flight, one that failed, or one evicted from a retention window | acceptance and delivery are separate journals, so the honest answer needs two queries and still cannot distinguish three states | **one state.** `send` queues into the receiver's inbox or fails; the envelope comes back. Whether a *model acted* is the receiver's own `ack` or reply, never the transport's ([receipts](../../docs/04-messaging.md#receipts)) |
-| Sending one sentence took six flags and a JSON payload file: `--to-user`, `--channel`, `--from-channel`, `--source`, `--type`, `--payload-file` | channel, user, session, source and event type are five namespaces that all have to agree | `agent-bus send <name> "text"`. Two identity parameters, supplied by the socket locally ([access § two parameters](../../docs/02-access.md#two-parameters)) |
-| Finding a peer meant three overlapping commands — `channel list`, `channel connected`, `agent-sessions` — whose answers differ in durable registration, live lease and named session | registration, liveness and naming are three registries | `agent-bus ls`: one registry, one record per name |
-| `agent-bus help` answers `config_invalid: unknown command "help"`, and there are two binaries at two paths, one of which refuses to run without a credentials file | the CLI is a thin shell over a config loader that runs first | one binary, and `help` prints the verbs |
-| **Channels are ephemeral: the channel dies and the results die with it** — work sent to a session that ends is never seen by anyone, ever | the address is the *connection*, so it cannot outlive the process holding it | **every registered name owns a queue, and the address outlives the process** ([messaging § inbox queues](../../docs/04-messaging.md#inbox-queues)). Send to a service that has never run and the work waits; the process that turns up later under that name gets it. Checked: a message sent to `absent@srv1` before anything started is acked and answered when a service finally appears |
+| A review answer was **accepted and never delivered**: it went to `agent-pub`, the label the sender's tool had defaulted `from_channel` to, and no session consumes that name. `delivery: null`, no error, found an hour later by asking | the reply route is a field the sender fills in, and a wrong one is indistinguishable from a right one until nothing happens | **the name is the address**, and a send to a name with no record is refused at `send` ([messaging § verbs](../../docs/04-messaging.md#verbs)). Not a cure by itself — see the honesty note below |
+| Sending needed the whole envelope spelled out — `--to-user`, `--channel`, `--from-channel`, `--source`, `--type`, payload — on the low-level command | channel, user, session, source and event type are five fields that must agree, and the low-level verb exposes all of them | `agent-bus send <name> "text"`. Two identity parameters, supplied by the socket locally ([access § two parameters](../../docs/02-access.md#two-parameters)) |
+| Finding a peer took three overlapping commands — `channel list`, `channel connected`, `agent-sessions` — answering in durable registration, live lease and named session | one registry, three views, and no single "who can I talk to?" | `agent-bus ls`: one registry, one record per name |
+| `agent-bus help` answers `config_invalid: unknown command "help"` | no top-level help dispatch, so the argument parser rejects it like a bad config | one binary, and `help` prints the verbs |
 
-**Liveness is not the answer to "did anyone get it?" — the receipt is.**
-V1 knows who is *connected* (`channel connected`: owner, host, pid, lease),
-and V2 designs the same thing for later
-([discovery § health checker](../../docs/05-discovery.md#health-checker)) —
-but knowing a session was alive a second ago does not say your message was
-picked up. **`ack` does**, and **`done`** says the work finished
-([messaging § receipts](../../docs/04-messaging.md#receipts)): both come from
-the receiver, which is the only party that knows. A journal in the transport
-can say a byte stream was accepted and nothing more. So the sender's question
-— *picked up, or lost?* — is answered end to end by a message, and it is
-answered even when the receiver starts long after the send.
+**Where the first draft was wrong, corrected against V1's source:**
 
-What liveness would still buy is knowing **before** sending, and a dashboard
-that can show a queue nobody is draining. That is MVP's, measured against
-V1's lease.
+| I wrote | Actually |
+|---|---|
+| "channels are ephemeral — the channel dies and the results die with it" | **V1's channel inboxes are durable.** `CHANNEL_EVENTS` is a file-backed work-queue stream, `max_age: 0`, read by *named durable* consumers with explicit ack; closing a session releases the ownership lease, not the inbox. V1 *also* has a separate ephemeral request/reply path, and that is the one whose lifetime makes a late result unrecoverable |
+| "acceptance and delivery live in separate journals, so the honest answer needs two queries" | one `event status` returns the event **and** the latest delivery observation. The cost is that you must ask *after* sending, not that it takes two calls |
+| "a transport journal can only say it accepted bytes" | V1's observations come from the **runtime adapter** — turn started, turn completed — not from the transport. They still do not prove the work was done correctly, which is the real argument for a correlated business reply |
+| "`delivery: null` means in flight or failed or evicted" | it means **no retained observation**; a recorded failure normally *has* a `delivery.failed`. The ambiguity of an absent one is a fair complaint, a silent failure is not |
+| "three registries" | three **commands** over one registry |
+| "a JSON payload file every time" | the wrapper takes inline JSON or stdin; it was the low-level verb that wanted a file |
 
-**How far "forever" goes in PoC:** as long as the daemon lives. The registry
-and the queues are memory, and a restart clears both — the design already
-dumps them to Parquet and reloads
-([messaging § durability](../../docs/04-messaging.md#durability)), and PoC
-leaves that out on purpose ([stages § PoC](../../docs/12-stages.md#poc)).
+**And where V1 is better than our PoC:** its bound **refuses** the new message
+(`discard: new`, per subject) where our queue drops the oldest. Two modes are
+already the design ([messaging § overflow](../../docs/04-messaging.md#overflow));
+PoC implements the lossy one, which is why `status` now counts what the ring
+threw away — a queue that forgets silently looks exactly like one nobody sent
+to.
 
-The lesson under all of it: **every one of those failures was silent.** The
-rule V2 keeps is not "fewer features" but *refuse early and out loud* — an
-unknown name, a mistyped topic, a third receipt value, an empty token file
-are all errors at the point of the call, not discoveries later.
+**Honesty about V2's own guarantees**, since a design document is worth
+nothing if it flatters itself:
+
+- A **sender's** name is checked for syntax, not for registration. Sending
+  from an unregistered name succeeds and a reply to it fails with *no such
+  name* — fire-and-forget is deliberately allowed, so a caller that wants an
+  answer registers first, which is what `call` does.
+- A registered inbox nobody drains accepts messages forever. Registration
+  proves an address, never a reader.
+- `ack` means **received**, not started or finished — our own script services
+  ack before running the script. **No ack means unknown**, not proven loss.
+  Receipts are better than a journal because they come from the only party
+  that knows, not because they remove uncertainty.
+- "Kept forever" means **while the daemon lives, and until dequeue or
+  overflow.** Memory only, a restart clears it, and the Parquet dump that
+  fixes that is MVP's ([messaging § durability](../../docs/04-messaging.md#durability)).
+
+The through-line that does hold: V2's case is **simpler naming, routing and
+operator workflow, with deliberately smaller semantics** — not that V1 lacked
+durable name-owned queues. It did not.
 
 ## Mutation first, then belief
 

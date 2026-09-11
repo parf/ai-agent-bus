@@ -67,10 +67,12 @@ export AGENT_BUS_NAME=echo@$(hostname -s)
 
 …or let a shell script be the service, which is the same thing without the
 typing ([runner § script services](../docs/08-runner-role.md#script-services)).
-`start` takes the service's name itself, so this shell needs no name of its
-own:
+This shell still needs a name — it registers the service before becoming it,
+and that registration is a call like any other — but the name it registers
+under is the *owner*, not the service:
 
 ```sh
+export AGENT_BUS_NAME=launcher@$(hostname -s)
 echo 'echo "Hello $1"' > hello-world.sh && chmod +x hello-world.sh
 ./agent-bus start hello@$(hostname -s) --algo args ./hello-world.sh -4 --descr "greets you"
 ```

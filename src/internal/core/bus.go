@@ -55,6 +55,7 @@ type Bus struct {
 	records map[string]protocol.Record
 	inboxes map[string]*inbox
 	started time.Time
+	dropped int // messages the ring threw away, since start
 }
 
 func New() *Bus {
@@ -173,7 +174,12 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	in.queue = append(in.queue, e)
 	if len(in.queue) > maxQueue {
-		in.queue = in.queue[1:] // ring: the oldest goes
+		// Ring: the oldest goes. Dropping is a real loss, so it is counted
+		// and `status` shows it — a queue that silently forgets looks exactly
+		// like one nobody sent to. Refusing the new message instead is the
+		// other mode, and it is MVP's (docs/04-messaging.md#overflow).
+		in.queue = in.queue[1:]
+		b.dropped++
 	}
 	return e, nil
 }
@@ -248,12 +254,17 @@ type Status struct {
 	Services int    `json:"services"`
 	Queued   int    `json:"queued"`
 	Waiting  int    `json:"waiting"`
+	Dropped  int    `json:"dropped"` // lost to overflow since start
 }
 
 func (b *Bus) Status() Status {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	s := Status{Up: time.Since(b.started).Round(time.Second).String(), Services: len(b.records)}
+	s := Status{
+		Up:       time.Since(b.started).Round(time.Second).String(),
+		Services: len(b.records),
+		Dropped:  b.dropped,
+	}
 	for _, in := range b.inboxes {
 		s.Queued += len(in.queue)
 		s.Waiting += len(in.waiters)

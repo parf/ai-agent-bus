@@ -266,6 +266,14 @@ out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
 
+echo "== a full queue loses the oldest, and says how many"
+ab owner@srv1 register sink@srv1 --kind generic >/dev/null
+# 1001 into a queue bounded at 1000: the first is gone. That is the ring
+# policy, not a bug — the bug would be losing it without a trace.
+for i in $(seq 0 1000); do ab flood@srv1 send sink@srv1 "msg-$i" >/dev/null 2>&1; done
+has "the oldest is the one that went" "$(ab sink@srv1 consume --wait 2s)" 'msg-1"'
+has "and the loss is counted, not silent" "$(ab asker@srv1 status)" '"dropped":1'
+
 echo "== --wait is the caller's deadline, not just the daemon's"
 # Against a bus that answers everything but stalls the consume: the wait the
 # daemon is asked for cannot bound a transfer that never finishes, so the
