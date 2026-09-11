@@ -33,7 +33,7 @@ func BenchmarkSendConsume(b *testing.B) {
 				if _, err := bus.Send(protocol.Envelope{From: "src@h", To: "sink@h", Body: "x"}); err != nil {
 					b.Fatal(err)
 				}
-				if _, err := bus.Consume(context.Background(), "sink@h", "", "", false); err != nil {
+				if _, err := bus.Consume(context.Background(), "sink@h", "", "", false, false); err != nil {
 					b.Fatal(err)
 				}
 			}

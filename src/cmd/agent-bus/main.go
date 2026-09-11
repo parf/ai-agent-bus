@@ -34,7 +34,8 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus ls [<name>] [--kind k]
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
-  agent-bus consume [--topic t] [--tag g] [--wait 30s] [--follow]
+  agent-bus consume [--topic t] [--tag g] [--wait 30s] [--follow] [--share]
+                            --share: one of several workers behind this name
   agent-bus ack <message-id>
   agent-bus done <message-id>
   agent-bus reply <message-id> <text>
@@ -402,6 +403,11 @@ func consume(args []string) error {
 			q.Set(k, v)
 		}
 	}
+	// One of a pool, so a second reader waiting on the same empty inbox is
+	// meant rather than a mistake (docs/04-messaging.md#one-reader-per-inbox).
+	if has(flags, "share") {
+		q.Set("share", "1")
+	}
 	_, follow := flags["follow"]
 	for {
 		e, body, got, err := next(context.Background(), q)
@@ -710,7 +716,7 @@ func warn(format string, a ...any) {
 // is recorded as present and empty.
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
-var onOff = map[string]bool{"follow": true, "no-master": true}
+var onOff = map[string]bool{"follow": true, "no-master": true, "share": true}
 
 // allow is the service ACL as stated on the command line: a comma-separated
 // list, `*` for anyone who can authenticate, absent for no answer of its own.

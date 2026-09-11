@@ -367,6 +367,10 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 //   - otherwise `topic` and `tag` **filter the caller's own inbox** — the
 //     wait a reply is collected on (docs/04-messaging.md#request-and-reply).
 //
+// `share` says this reader is one of a pool, which is the only thing that
+// lets a second unfiltered read wait beside it
+// (docs/04-messaging.md#one-reader-per-inbox).
+//
 // A tag is what makes the second case: a reply always carries one, and a
 // topic never doubles as a name when a tag is present.
 func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
@@ -397,7 +401,7 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 	ctx, cancel := context.WithTimeout(r.Context(), wait)
 	defer cancel()
 
-	e, err := s.bus.Consume(ctx, inbox, topic, tag, filtered)
+	e, err := s.bus.Consume(ctx, inbox, topic, tag, filtered, q.Has("share"))
 	// Only the deadline running out means "nothing arrived", and it is the
 	// error itself that says so — not whether ctx happens to be expired,
 	// which it always is once wait=0s. Every other refusal is a real answer

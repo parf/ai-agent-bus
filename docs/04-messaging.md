@@ -84,7 +84,7 @@ the notifier, or the reverse.
 
 | Rule | Why |
 |---|---|
-| **one outstanding unfiltered read** at a time — a second is **refused**, not queued behind the first | a silent second reader looks exactly like message loss |
+| **one outstanding unfiltered read** at a time — a second is **refused**, not queued behind the first, unless both asked to share ([several readers](#several-readers-may-wait-when-they-say-so)) | a silent second reader looks exactly like message loss |
 | by convention, one *designated* process does that reading for a principal | the bus enforces the outstanding read, not process ownership; claiming otherwise would need a lease nobody wants in a PoC |
 | a waiter passes a **topic + tag filter** to `consume`, and the daemon hands it a match ahead of the unfiltered reader | the match happens where the message already is: no dispatcher in a client, and no local protocol between a Go CLI and a TypeScript session process |
 
@@ -105,17 +105,19 @@ while the wait is outstanding, and a wait ends at one message. A receipt is a
 message, so between the `ack` and the wait that follows it the unfiltered
 reader can take the reply.
 
-❓ **May several readers block on one inbox at once?** Competing consumers
-already work: while there is a backlog, N readers take turns and no message
-goes to two of them — the rule bites only on an **empty** inbox, where one
-reader waits and the rest are refused. That is the steady state of a worker
-pool, so [stages § MVP](12-stages.md#mvp)'s *several workers behind one name*
-needs it. The rule's reason is an *accidental* second reader inside one
-session, not a deliberate pool, so what a revision must supply is how the
-daemon tells the two apart. Note
-[services § topics](03-services-and-topics.md#topics) already describes a
-queue topic as having competing consumers. *Settled by:* the owner, with the
-MVP.
+### Several readers may wait, when they say so
+
+The rule above exists for an *accidental* second reader, and a worker pool is
+not one — so **the pool says so**. A reader that asks to **share** the inbox
+is one of several, and any number of those may block on one empty inbox at
+once; the first message wakes one of them.
+
+| | |
+|---|---|
+| how the daemon tells the two apart | it is asked. A pool passes one word; an accident cannot pass it by accident |
+| a reader that does not ask | keeps the whole old guarantee, **in both directions**: it is refused beside a pool, and a pool member is refused beside it. Wanting the inbox to yourself is still something you get |
+| what this does not change | competing consumers, which already worked — while there is a backlog, N readers take turns and no message goes to two of them ([services § topics](03-services-and-topics.md#topics)). What sharing adds is the **empty** inbox, which is a pool's steady state |
+| what it deliberately is not | a lease, a group or a registration. Nothing is remembered between reads, so a worker that dies leaves nothing behind to clean up |
 
 ❓ **Should reading an inbox and filtering one be different options?**
 `--topic` means both, told apart by a tag and by what is registered, so a

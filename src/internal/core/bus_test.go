@@ -33,7 +33,7 @@ func TestFilteredWaiterBeatsEarlierUnfilteredReader(t *testing.T) {
 
 	unfiltered := make(chan protocol.Envelope, 1)
 	go func() {
-		e, err := b.Consume(ctx, "svc@h", "", "", false)
+		e, err := b.Consume(ctx, "svc@h", "", "", false, false)
 		if err == nil {
 			unfiltered <- e
 		}
@@ -42,7 +42,7 @@ func TestFilteredWaiterBeatsEarlierUnfilteredReader(t *testing.T) {
 
 	filtered := make(chan protocol.Envelope, 1)
 	go func() {
-		e, err := b.Consume(ctx, "svc@h", "t", "g", true)
+		e, err := b.Consume(ctx, "svc@h", "t", "g", true, false)
 		if err == nil {
 			filtered <- e
 		}
@@ -76,7 +76,7 @@ func TestCancelDoesNotSwallowAMessage(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if e, err := b.Consume(ctx, "svc@h", "", "", false); err == nil {
+			if e, err := b.Consume(ctx, "svc@h", "", "", false, false); err == nil {
 				got <- e
 			}
 		}()
@@ -93,7 +93,7 @@ func TestCancelDoesNotSwallowAMessage(t *testing.T) {
 		default:
 			// not delivered, so it must still be waiting in the queue
 			read, cancel2 := context.WithTimeout(context.Background(), time.Second)
-			e, err := b.Consume(read, "svc@h", "", "", false)
+			e, err := b.Consume(read, "svc@h", "", "", false, false)
 			cancel2()
 			if err != nil || e.Body != "keepme" {
 				t.Fatalf("iteration %d: message lost between cancel and send (err %v)", i, err)
@@ -118,7 +118,7 @@ func TestNamesAreCanonical(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	e, err := b.Consume(ctx, "svc@h", "", "", false)
+	e, err := b.Consume(ctx, "svc@h", "", "", false, false)
 	if err != nil || e.Body != "hi" {
 		t.Fatalf("consume: %v %q", err, e.Body)
 	}
@@ -132,18 +132,76 @@ func TestSecondUnfilteredReaderRefused(t *testing.T) {
 	b := newBusWith(t, "svc@h")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	go b.Consume(ctx, "svc@h", "", "", false)
+	go b.Consume(ctx, "svc@h", "", "", false, false)
 	waitForWaiters(t, b, "svc@h", 1)
 
-	if _, err := b.Consume(ctx, "svc@h", "", "", false); err != ErrTwoReads {
+	if _, err := b.Consume(ctx, "svc@h", "", "", false, false); err != ErrTwoReads {
 		t.Fatalf("want ErrTwoReads, got %v", err)
 	}
 	done := make(chan error, 1)
-	go func() { _, err := b.Consume(ctx, "svc@h", "t", "g", true); done <- err }()
+	go func() { _, err := b.Consume(ctx, "svc@h", "t", "g", true, false); done <- err }()
 	waitForWaiters(t, b, "svc@h", 2)
 	cancel()
 	if err := <-done; err == ErrTwoReads {
 		t.Fatal("a filtered waiter must be allowed alongside the reader")
+	}
+}
+
+// A pool says so, and then any number of them may block on one empty inbox.
+// Each gets one message and no message goes to two — under -race, because
+// the handoff is where a second reader would otherwise take a message twice.
+// See docs/04-messaging.md#one-reader-per-inbox.
+func TestSharingReadersEachTakeOneFromAnEmptyInbox(t *testing.T) {
+	b := newBusWith(t, "pool@h", "sender@h")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	const workers = 4
+	got := make(chan string, workers)
+	errs := make(chan error, workers)
+	for range workers {
+		go func() {
+			e, err := b.Consume(ctx, "pool@h", "", "", false, true)
+			if err != nil {
+				errs <- err
+				return
+			}
+			got <- e.Body
+		}()
+	}
+	waitForWaiters(t, b, "pool@h", workers)
+	for i := range workers {
+		if _, err := b.Send(protocol.Envelope{From: "sender@h", To: "pool@h", Body: fmt.Sprint(i)}); err != nil {
+			t.Fatalf("send %d: %v", i, err)
+		}
+	}
+	seen := map[string]bool{}
+	for range workers {
+		select {
+		case err := <-errs:
+			t.Fatalf("a sharing reader was refused: %v", err)
+		case body := <-got:
+			if seen[body] {
+				t.Fatalf("%q went to two readers", body)
+			}
+			seen[body] = true
+		case <-ctx.Done():
+			t.Fatalf("only %d of %d workers were served", len(seen), workers)
+		}
+	}
+}
+
+// Sharing is both readers' word: one that wants the inbox to itself still
+// gets the old refusal, whichever of the two arrived first.
+func TestSharingIsRefusedBesideAReaderThatWantsTheInboxToItself(t *testing.T) {
+	for _, first := range []bool{false, true} {
+		b := newBusWith(t, "svc@h")
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		go b.Consume(ctx, "svc@h", "", "", false, first)
+		waitForWaiters(t, b, "svc@h", 1)
+		if _, err := b.Consume(ctx, "svc@h", "", "", false, !first); err != ErrTwoReads {
+			t.Fatalf("sharing=%v then %v: want ErrTwoReads, got %v", first, !first, err)
+		}
+		cancel()
 	}
 }
 
@@ -182,7 +240,7 @@ func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	e, err := b.Consume(ctx, "jobs@srv", "", "", false)
+	e, err := b.Consume(ctx, "jobs@srv", "", "", false, false)
 	if err != nil || e.Body != "work" {
 		t.Fatalf("reading the topic afterwards: %v %+v", err, e)
 	}
@@ -212,7 +270,7 @@ func TestAReceiptReachesTheCallersFilteredWait(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	e, err := b.Consume(ctx, "caller@srv", "call", "t1", true)
+	e, err := b.Consume(ctx, "caller@srv", "call", "t1", true, false)
 	if err != nil {
 		t.Fatalf("consume: %v", err)
 	}
@@ -290,7 +348,7 @@ func TestConsumedMessagesAreReleased(t *testing.T) {
 				}
 			}
 			for _, tag := range tc.order(n) {
-				if _, err := b.Consume(context.Background(), "sink@h", "", fmt.Sprint(tag), true); err != nil {
+				if _, err := b.Consume(context.Background(), "sink@h", "", fmt.Sprint(tag), true, false); err != nil {
 					t.Fatalf("tag %d: %v", tag, err)
 				}
 			}
@@ -374,7 +432,7 @@ func TestServedWaitersAreReleased(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		if _, err := b.Consume(context.Background(), "w@h", "t", "g", true); err != nil {
+		if _, err := b.Consume(context.Background(), "w@h", "t", "g", true, false); err != nil {
 			t.Error(err)
 		}
 	}()
@@ -483,7 +541,7 @@ func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 // anything, because Send refuses an unknown receiver.
 func TestConsumingFromAnUnregisteredNameIsRefused(t *testing.T) {
 	b := New()
-	if _, err := b.Consume(context.Background(), "ghost@nowhere", "", "", false); !errors.Is(err, ErrUnknown) {
+	if _, err := b.Consume(context.Background(), "ghost@nowhere", "", "", false, false); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("err = %v, want ErrUnknown", err)
 	}
 	b.mu.Lock()
@@ -559,7 +617,7 @@ func TestLivenessIsAssignedNotMerged(t *testing.T) {
 
 	// A waiting unfiltered reader is reported, and only while it waits.
 	done := make(chan struct{})
-	go func() { defer close(done); _, _ = b.Consume(context.Background(), "svc@h", "", "", false) }()
+	go func() { defer close(done); _, _ = b.Consume(context.Background(), "svc@h", "", "", false, false) }()
 	for deadline := time.Now().Add(2 * time.Second); !look("svc@h", protocol.Record{}).Reading; {
 		if time.Now().After(deadline) {
 			t.Fatal("a waiting unfiltered reader was never reported")

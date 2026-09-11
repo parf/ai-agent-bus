@@ -352,8 +352,39 @@ if slow; then
   has "second unfiltered read refused" "$(ab fixer@srv1 consume --wait 1s 2>&1)" 'already has a reader'
   out=$(ab fixer@srv1 consume --topic x --tag y --wait 1s 2>&1); rc=$?
   ok_exit "filtered waiter allowed beside it" $rc
+  # A pool is the exception, and asking is what makes it one. Either side
+  # declining keeps the refusal: a reader that wants the inbox to itself
+  # still gets it, which is the rule this replaces, not removes.
+  has "a sharing reader beside one that wants the inbox to itself is refused too" \
+    "$(ab fixer@srv1 consume --share --wait 1s 2>&1)" 'already has a reader'
   kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
   sleep 2   # the backgrounded client outlives its subshell; let its poll expire
+
+  sec "several workers behind one name"
+  # Competing consumers on a BACKLOG already worked. The rule bit on an
+  # EMPTY inbox, which is the steady state of a worker pool: the readers
+  # block first and the work arrives afterwards. Prefilling the queue is how
+  # the first draft of this criterion passed on PoC code, so nothing is sent
+  # until all three are provably blocked.
+  ab owner@srv1 register pool@srv1 --kind generic >/dev/null
+  waiting() { ab parf@localhost status | sed -n 's/.*"waiting":\([0-9]*\).*/\1/p'; }
+  base=$(waiting)
+  for i in 1 2 3; do
+    abx pool@srv1 consume --share --wait 15s >"$D/pool.$i" 2>&1 &
+    eval "P$i=\$!"
+  done
+  for _ in $(seq 1 100); do [ "$(( $(waiting) - base ))" -ge 3 ] && break; sleep 0.1; done
+  blocked=$(( $(waiting) - base ))
+  if [ "$blocked" -ge 3 ]; then echo "  ok   three workers wait on one empty inbox at once"; pass=$((pass+1));
+  else echo "  FAIL three workers wait on one empty inbox at once: only $blocked blocked"; fail=$((fail+1)); fi
+  for i in 1 2 3; do ab sender@srv1 send pool@srv1 "job-$i" >/dev/null; done
+  wait $P1 $P2 $P3 2>/dev/null
+  got=$(cat "$D"/pool.[123] | grep -o 'job-[123]' | sort | tr '\n' ' ')
+  has "and the work reaches all three as it arrives" "$got" 'job-1 job-2 job-3'
+  is_empty "with none of them refused as a second reader" \
+    "$(grep -l 'already has a reader' "$D"/pool.[123] 2>/dev/null)"
+  is_empty "and no job handed to two of them" \
+    "$(cat "$D"/pool.[123] | grep -o 'job-[123]' | sort | uniq -d)"
 
 else skipped=$((skipped+1)); fi
 sec "unknown receiver"

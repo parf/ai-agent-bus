@@ -25,7 +25,7 @@ const maxQueue = 1000
 
 var (
 	ErrUnknown  = errors.New("no such name")
-	ErrTwoReads = errors.New("inbox already has a reader")
+	ErrTwoReads = errors.New("inbox already has a reader, and neither asked to share it")
 	ErrBadName  = errors.New("bad name")
 	ErrNotYet   = errors.New("pub/sub topics arrive at MVP")
 	ErrReceipt  = errors.New(`a receipt is "ack" or "done"`)
@@ -54,9 +54,13 @@ func canon(s string) (string, error) {
 
 // waiter is one blocked consume. A filtered waiter takes only the message it
 // is waiting for; the unfiltered reader takes anything else.
+//
+// share is how the daemon tells a worker pool from an accidental second
+// reader: a pool says so. See docs/04-messaging.md#one-reader-per-inbox.
 type waiter struct {
 	topic, tag string
 	filtered   bool
+	share      bool
 	ch         chan protocol.Envelope
 }
 
@@ -559,9 +563,10 @@ func (b *Bus) prune(in *inbox, now time.Time) {
 
 // Consume takes one message, at-most-once: it is handed over and gone.
 // A filter waits for one topic+tag; an unfiltered read takes the next of
-// anything, and there may be only one of those at a time.
+// anything, and there may be only one of those at a time unless the readers
+// asked to share the inbox.
 // See docs/04-messaging.md#one-reader-per-inbox.
-func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered bool) (protocol.Envelope, error) {
+func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered, share bool) (protocol.Envelope, error) {
 	name, err := canon(name)
 	if err != nil {
 		return protocol.Envelope{}, err
@@ -588,15 +593,21 @@ func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered boo
 			return e, nil
 		}
 	}
+	// Two unfiltered readers are a pool when they both said so, and a bug
+	// otherwise — a session's CLI reading the queue its push adapter is
+	// reading. Asking is what tells the daemon which it has, and it costs a
+	// worker one word. Either side declining keeps the old refusal: a reader
+	// that wants the inbox to itself still gets it.
+	// See docs/04-messaging.md#one-reader-per-inbox.
 	if !filtered {
 		for _, w := range in.waiters {
-			if !w.filtered {
+			if !w.filtered && !(share && w.share) {
 				b.mu.Unlock()
 				return protocol.Envelope{}, ErrTwoReads
 			}
 		}
 	}
-	w := &waiter{topic: topic, tag: tag, filtered: filtered, ch: make(chan protocol.Envelope, 1)}
+	w := &waiter{topic: topic, tag: tag, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1)}
 	in.waiters = append(in.waiters, w)
 	b.mu.Unlock()
 

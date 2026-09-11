@@ -94,7 +94,6 @@ All 2026-09-09 unless noted.
 | Minimal billing as an optional role: RADIUS balance, flat or per-call, no balance = denied | [future/billing.md](future/billing.md) |
 | Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](future/billing.md) |
 | One push adapter per agent runtime; ChatGPT pull-only | [runner § adapters](08-runner-role.md#adapters) |
-| Sandboxing on by default, backend chosen by environment | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | Development goes PoC → MVP → Release 1, each ending in something that works end to end | [stages](12-stages.md) |
 | PoC: sockets + HTTP, one master token issued over SSH, a small set of CLI verbs, a basic MCP face, no npm | [stages § PoC](12-stages.md#poc) |
 | A service call is a `send` whose reply comes back on the same topic and tag; the bus adds no call machinery | [messaging § request and reply](04-messaging.md#request-and-reply) |
@@ -139,7 +138,9 @@ All 2026-09-09 unless noted.
 | A registered topic named alone is an inbox to read; with a tag it is a filter — one rule for every face | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | A name-shaped topic that is registered nowhere is refused, not read as a filter | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | The filter is a priority, not a lease: it holds only while its wait is outstanding | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| Sandboxing on by default, backend chosen by environment | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | A caller states its own record before it calls, and only if it has none | [messaging § request and reply](04-messaging.md#request-and-reply) |
+| Several readers may wait on one empty inbox when each asks to share it | [messaging § several readers may wait](04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | A receipt is a closed set of two words | [messaging § receipts](04-messaging.md#receipts) |
 | The receipts answer "picked up, or lost?", so the bus keeps no delivery journal | [messaging § receipts](04-messaging.md#receipts) |
 | A queue belongs to a name, never to a connection or session | [messaging § inbox queues](04-messaging.md#inbox-queues) |
@@ -173,9 +174,8 @@ All 2026-09-09 unless noted.
 | Direct talk bypasses billing | owner | [future/billing.md](future/billing.md) |
 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](06-auth-role.md#ssh-admin) |
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](03-services-and-topics.md#registry-sync) |
-| Whether several readers may block on one inbox at once | owner, with the MVP | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
-| How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | What a subscriber is, and where a fan-out copy goes | owner, with the MVP | [messaging § push and pull](04-messaging.md#push-and-pull) |
+| How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | What carries a service's method information | owner, with the MVP faces | [services § service and template](03-services-and-topics.md#service-and-template) |
 | What else lives in SQLite | owner | [setup § storage](09-setup.md#storage) |
 | Where the ACL and the user-to-account map are edited | owner | [setup § the five programs](09-setup.md#the-five-programs) |

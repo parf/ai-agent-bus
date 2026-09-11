@@ -75,10 +75,10 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 | ID | Task | Notes |
 |---|---|---|
 | A.1 | ✅ _done_ — a `done` verb, an `ab_receipt` tool, the runner emitting one on silent success, and a caller's wait ending on it ([messaging § receipts](../../docs/04-messaging.md#receipts)) |
-| A.2 | the deadline travels to the service | **blocked**: whether it does is the ❓ in [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
+| A.2 | ✅ _done_ — a request carries how long its caller will wait, the bus turns that into a moment, and a service that sees it already past does not do the work ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)). It is a second pair beside the TTL and not a spelling of it: the queue bounds a TTL and not this, and the bus carries this and acts on the TTL |
 | A.3 | ✅ _done_ — a record carries `--ttl` and `--bound`, a message carries its own `--ttl`, and the record's bounds it: asking for longer than the queue keeps does not get it, and a shorter one on the message still wins ([services § topics](../../docs/03-services-and-topics.md#topics)). Neither is a daemon-wide constant any more |
 | A.4 | ✅ _done_ — `reply-to`, refused at accept when the address is not registered; the CLI, runner and face all read the route off the envelope ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)) |
-| A.5 | several workers behind one name | competing consumers already work — 500 messages to 8 readers, none twice, none lost. What is missing is N readers **blocking** on an empty inbox; **blocked** on the ❓ above |
+| A.5 | ✅ _done_ — a reader that asks to **share** the inbox is one of a pool, and any number of those may block on an empty one; a reader that does not ask keeps the old refusal in both directions ([messaging § several readers may wait](../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so)). Asking is how the daemon tells a pool from a session's accidental second reader, and it remembers nothing between reads |
 | A.6 | ✅ _done_ — `in` and `out` per name, counted in memory, attached to a listing and cleared off anything a caller states ([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)) |
 
 **Done when**, and what breaking it must do:
@@ -94,7 +94,12 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 - a topic whose TTL is shorter than a message's bounds the message;
 - N workers idle on an **empty** inbox all receive work as it arrives — a
   prefilled queue passes without that, which is how the first draft of this
-  criterion passed on PoC code;
+  criterion passed on PoC code, so nothing is sent until all of them are
+  provably blocked. And **one side asking is not enough**: a reader that wants
+  the inbox to itself is still refused a pool, and refused *by* one;
+- a service is handed work whose caller has gone and **does not run it**,
+  with a live request beside it as the control and neither carrying a queue
+  TTL — so the deadline, and not expiry, is what made the difference;
 - `ls` shows a service's **own** call count: a known increment on one service
   and an unchanged control beside it, so a constant zero or a daemon-wide
   total copied onto every record fails.
