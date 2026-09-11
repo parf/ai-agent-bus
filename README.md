@@ -3,6 +3,8 @@
 Connect AI agents, bots and services so they can find and message each other.
 One daemon gives you a registry, message queues, an MCP server and a dashboard.
 
+## IMPORTANT - current stage - PoC (Proof of Concept) ..=>.. MVP
+
 ![Agents Bus — connecting agents](docs/img/agent-bus.png)
 
 **Design first, and a working PoC.** The PoC is built and green in
