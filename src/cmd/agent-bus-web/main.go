@@ -9,13 +9,17 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
@@ -23,8 +27,21 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
+// Where the dashboard is meant to be reached. `*.localhost.direct` resolves
+// to 127.0.0.1 in public DNS, so a browser gets a real hostname and a real
+// certificate without an /etc/hosts line and without a warning — and nothing
+// leaves the machine.
+// See docs/05-discovery.md#dashboard.
+const (
+	Host      = "agent-bus.localhost.direct"
+	httpsPort = "443"
+	altPort   = "8443" // where it lands when 443 is not ours to bind
+)
+
 func main() {
-	addr := flag.String("addr", env("AGENT_BUS_WEB_ADDR", "127.0.0.1:7878"), "where the dashboard listens — loopback only")
+	addr := flag.String("addr", env("AGENT_BUS_WEB_ADDR", Host+":"+httpsPort), "where the dashboard listens")
+	certF := flag.String("cert", env("AGENT_BUS_WEB_CERT", defaultCert(".crt")), "TLS certificate; without it the dashboard is plain HTTP on loopback")
+	keyF := flag.String("key", env("AGENT_BUS_WEB_KEY", defaultCert(".key")), "the certificate's private key")
 	flag.Parse()
 
 	client, base := api.Dial(os.Getenv("AGENT_BUS_ADDR"))
@@ -50,9 +67,60 @@ func main() {
 			log.Printf("render: %v", err)
 		}
 	})
-	log.Printf("agent-bus-web on http://%s", *addr)
-	srv := &http.Server{Addr: *addr, Handler: nil, ReadHeaderTimeout: 10 * time.Second}
-	log.Fatal(srv.ListenAndServe())
+	tls := have(*certF) && have(*keyF)
+	if !tls {
+		// Never silently: a dashboard on plain HTTP is a different thing
+		// from one on HTTPS, and the person running it should know which
+		// they have. The public hostname is given up with the certificate —
+		// it is only worth having because the certificate matches it — but
+		// an address somebody asked for out loud is still honoured.
+		if *addr == Host+":"+httpsPort {
+			*addr = "127.0.0.1:7878"
+		}
+		log.Printf("no certificate at %s — plain HTTP. See docs/05-discovery.md#dashboard for where to get one", *certF)
+	}
+	l, err := listen(*addr, tls)
+	if err != nil {
+		log.Fatal(err)
+	}
+	srv := &http.Server{Handler: nil, ReadHeaderTimeout: 10 * time.Second}
+	scheme := "http"
+	if tls {
+		scheme = "https"
+	}
+	log.Printf("agent-bus-web on %s://%s", scheme, l.Addr())
+	if tls {
+		log.Fatal(srv.ServeTLS(l, *certF, *keyF))
+	}
+	log.Fatal(srv.Serve(l))
+}
+
+// listen binds addr, and falls back off port 443 rather than dying on it:
+// binding a low port needs a capability the dashboard has no other use for,
+// and a child that will not start is worse than one on a port it announces.
+func listen(addr string, tls bool) (net.Listener, error) {
+	l, err := net.Listen("tcp", addr)
+	if err == nil || !tls || !errors.Is(err, syscall.EACCES) {
+		return l, err
+	}
+	host, port, _ := net.SplitHostPort(addr)
+	if port != httpsPort {
+		return nil, err
+	}
+	log.Printf("port %s needs CAP_NET_BIND_SERVICE, which this has not got — using %s instead", httpsPort, altPort)
+	return net.Listen("tcp", net.JoinHostPort(host, altPort))
+}
+
+func have(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// defaultCert is beside the daemon's other state, because that is where an
+// install puts what the account owns (docs/09-setup.md#the-service-account).
+func defaultCert(ext string) string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".local", "state", "agent-bus", Host+ext)
 }
 
 type view struct {

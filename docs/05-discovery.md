@@ -111,6 +111,32 @@ caller like any listing. Call counts by minute or hour, and the cgroup limit
 the design gives the child
 ([processes § the processes](11-processes.md#the-processes)), are not built.
 
+### Where it listens
+
+The dashboard is **`https://agent-bus.localhost.direct`**. That name, and every
+name under `*.localhost.direct`, resolves to `127.0.0.1` in public DNS, so a
+developer host needs no `/etc/hosts` line and a browser still gets a real
+hostname and a real certificate.
+
+| It wants | Default |
+|---|---|
+| the certificate and its key | `~/.local/state/agent-bus/agent-bus.localhost.direct.crt` and `.key`, overridable with `-cert` / `-key` |
+| the port | 443, falling back to 8443 when the process has no `CAP_NET_BIND_SERVICE` |
+| no certificate at all | plain HTTP on `127.0.0.1:7878`, announced in the log |
+
+The pair comes from <https://get.localhost.direct/>, which publishes two
+bundles for the same names:
+
+| Bundle | Good until | Costs |
+|---|---|---|
+| `localhost.direct.SS.zip` — self-signed (zip password `localhost`) | 2034-11-17 | trusting it once, per OS or browser |
+| `localhost.direct.OP.zip` — signed by a public CA | **expired 2025-02-17** | nothing, but no browser accepts it |
+
+So the working answer today is the self-signed bundle. **A `.key` never goes
+into a repository or anywhere else public** — that is the publisher's own
+condition, and a leaked key is revoked; the repo's `.gitignore` refuses the
+extension rather than trusting anyone to remember.
+
 ## Exports
 
 Prometheus `/metrics` first (Grafana reads it); OTLP / StatsD secondary.

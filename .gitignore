@@ -4,3 +4,9 @@ tmp/
 /src/mcp/node_modules/
 /src/*.test
 /src/**/*.test
+
+# A TLS private key is never ours to publish, and localhost.direct's is
+# revoked the moment one appears in a repo (docs/05-discovery.md#dashboard).
+*.key
+*.crt
+*.pem

@@ -237,7 +237,7 @@ That is a product decision, not a technical one.
 |---|---|---|
 | F.1 | ✅ _done_ — the daemon filters, so `ab_ls` and `/ls` answer two principals differently, and each answer matches what that principal may actually send to. The face adds nothing: it asks, like every other client |
 | F.2 | generated docs | **blocked**: nothing on a record carries method information, and the shape is the ❓ in [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
-| F.3 | ✅ _done_ — `agent-bus-web`, a separate process speaking the API, rendering the records and a bounded feed of routed envelopes ([discovery § dashboard](../../docs/05-discovery.md#dashboard)). Bodies are struck out in the bus, not in the page. Nothing starts it yet and it is not cgroup-limited — both are G.1's |
+| F.3 | ✅ _done_ — `agent-bus-web`, a separate process speaking the API, rendering the records and a bounded feed of routed envelopes ([discovery § dashboard](../../docs/05-discovery.md#dashboard)). Bodies are struck out in the bus, not in the page. It serves HTTPS on its own hostname with a certificate anyone can fetch ([discovery § where it listens](../../docs/05-discovery.md#where-it-listens)). Nothing starts it yet and it is not cgroup-limited — both are G.1's |
 
 **Done when**, and what breaking it must do:
 

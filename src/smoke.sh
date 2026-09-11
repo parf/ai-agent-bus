@@ -11,7 +11,9 @@
 set -u
 cd "$(dirname "$0")"
 D=$(mktemp -d); DPID=""
-cleanup() { [ -n "$DPID" ] && kill "$DPID" 2>/dev/null; rm -rf "$D"; }
+# Wait for it: a daemon dumps on the way out, and a dump written while the
+# directory is being removed leaves the directory behind.
+cleanup() { [ -n "$DPID" ] && { kill "$DPID" 2>/dev/null; wait "$DPID" 2>/dev/null; }; rm -rf "$D"; }
 trap cleanup EXIT
 # The CLI keeps its reply context under XDG_CACHE_HOME, and this run wants a
 # private one. Go's build cache lives there too by default, so redirecting it
@@ -19,6 +21,8 @@ trap cleanup EXIT
 # and four times that under -race. Keep Go's cache where it was.
 export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 export XDG_CACHE_HOME=$D/cache
+# A run owns PORT..PORT+11, so two of them need bases twelve apart — closer
+# and the second finds the first's daemon, which reads as "bad token".
 PORT=${PORT:-7911}
 
 go build -o "$D/agent-busd" ./cmd/agent-busd || exit 1
@@ -1116,7 +1120,7 @@ is_empty "and never the body" "$(printf '%s' "$FEED" | grep -o "$SECRET")"
 has "the feed is the node's, so only master reads it" \
   "$(code alice@srv1 "$alice" /recent)" '403'
 AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
-  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) >"$D/web.log" 2>&1 &
+  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) -cert "$D/no-cert" -key "$D/no-cert" >"$D/web.log" 2>&1 &
 WPID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+9))/" && break; sleep 0.1; done
 PAGE=$(curl -s "http://127.0.0.1:$((PORT+9))/")
@@ -1124,6 +1128,50 @@ has "the dashboard renders the envelope" "$PAGE" "$MSG"
 has "and the record it was for" "$PAGE" 'watched by the board'
 is_empty "and no body reaches the page" "$(printf '%s' "$PAGE" | grep -o "$SECRET")"
 kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
+# A browser wants a hostname and a certificate. *.localhost.direct is public
+# DNS pointing at 127.0.0.1, so both are real and nothing leaves the machine.
+# The suite makes its own pair rather than fetching anyone's — which costs
+# about a second, so this half is opt-in.
+# See docs/05-discovery.md#dashboard.
+if slow; then
+mkdir -p "$D/tls"
+openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=agent-bus.localhost.direct" \
+  -addext "subjectAltName=DNS:agent-bus.localhost.direct" \
+  -keyout "$D/tls/key" -out "$D/tls/crt" >/dev/null 2>&1
+AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
+  "$D/agent-bus-web" -addr "agent-bus.localhost.direct:$((PORT+11))" -cert "$D/tls/crt" -key "$D/tls/key" >"$D/webtls.log" 2>&1 &
+WTPID=$!
+for _ in $(seq 1 50); do curl -sk -o /dev/null "https://agent-bus.localhost.direct:$((PORT+11))/" && break; sleep 0.1; done
+TLSPAGE=$(curl -sS --cacert "$D/tls/crt" "https://agent-bus.localhost.direct:$((PORT+11))/" 2>&1)
+# curl verifies the chain and the hostname against that file alone — no -k —
+# so an answer at all is the certificate being the one it was handed.
+has "the dashboard answers https on its own hostname" "$TLSPAGE" "$MSG"
+is_empty "with no body there either" "$(printf '%s' "$TLSPAGE" | grep -o "$SECRET")"
+has "it says which scheme it came up on" "$(cat "$D/webtls.log")" 'https://'
+kill $WTPID 2>/dev/null; wait $WTPID 2>/dev/null
+# 443 is not an ordinary account's to bind, and a child that will not start is
+# worse than one on a port it announces. Run as root this would simply get 443
+# and the check would say so.
+AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
+  "$D/agent-bus-web" -addr "agent-bus.localhost.direct:443" -cert "$D/tls/crt" -key "$D/tls/key" >"$D/web443.log" 2>&1 &
+W4PID=$!
+for _ in $(seq 1 50); do curl -sk -o /dev/null "https://agent-bus.localhost.direct:8443/" && break; sleep 0.1; done
+has "a dashboard that may not bind 443 comes up on 8443" \
+  "$(curl -sS --cacert "$D/tls/crt" "https://agent-bus.localhost.direct:8443/" 2>&1)" "$MSG"
+has "and says what it has not got" "$(cat "$D/web443.log")" 'CAP_NET_BIND_SERVICE'
+kill $W4PID 2>/dev/null; wait $W4PID 2>/dev/null
+# Only 443 has somewhere to go. Any other port was asked for on purpose.
+has "and any other port it may not bind is an error, not a quiet move" \
+  "$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
+     timeout 2 "$D/agent-bus-web" -addr 127.0.0.1:80 -cert "$D/tls/crt" -key "$D/tls/key" 2>&1)" \
+  'permission denied'
+# Without a pair it is plain HTTP on loopback, and says so rather than
+# looking like the secure thing.
+out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
+  timeout 2 "$D/agent-bus-web" -cert "$D/tls/absent" -key "$D/tls/absent" 2>&1)
+has "with no certificate it says so" "$out" 'no certificate at' 
+has "and does not pretend to be https" "$out" 'http://127.0.0.1:7878'
+fi
 
 sec "a restart is not a loss"
 # Its own daemon, its own store and its own dump: the point of this section
