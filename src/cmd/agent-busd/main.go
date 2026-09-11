@@ -23,6 +23,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/store/file"
 )
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 	flag.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
 	flag.Parse()
 
-	tokens, err := auth.Load(*tokenF, *owner)
+	tokens, err := auth.Load(file.NewTokens(*tokenF), *owner)
 	if err != nil {
 		log.Fatalf("token: %v", err)
 	}

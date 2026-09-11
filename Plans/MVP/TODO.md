@@ -14,9 +14,10 @@ design carried out; V1 is legacy and is not consulted for it. What does still
 hold is that nothing is believed until it has been watched failing
 ([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)).
 
-**Next step**: wave B. A.1, A.3, A.4 and A.6 are done; A.2 and A.5 wait on
-two ❓ below that only the owner closes, and B has a blocker of its own —
-which process owns the store handle — that B.4 and B.2 run into.
+**Next step**: wave B is down to B.8, and that one needs an owning edit before
+it is built. A.1, A.3, A.4 and A.6 are done; A.2 and A.5 wait on two ❓ below
+that only the owner closes. Which process owns the store handle stops mattering
+to B once there is one process — it is G's to answer.
 
 ## Blockers
 
@@ -29,9 +30,9 @@ wave stands on it.
 | the whole stage | what MVP contains | [stages § MVP](../../docs/12-stages.md#mvp) |
 | C, F.1 | who filters, with AUTH off | [discovery § audience](../../docs/05-discovery.md#audience) |
 | D | static sessions are not end-to-end against the daemon — so D's own claim may be unreachable in the MVP's key mode | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
-| B.4, E | what else lives in SQLite | [setup § storage](../../docs/09-setup.md#storage) |
+| E | what else lives in SQLite | [setup § storage](../../docs/09-setup.md#storage) |
 | H | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../docs/09-setup.md#install) |
-| B, G | which process owns the store handle | [processes § what is shared](../../docs/11-processes.md#what-is-shared) |
+| G | which process owns the store handle | [processes § what is shared](../../docs/11-processes.md#what-is-shared) |
 | A, the CLI | whether reading an inbox and filtering one become separate options | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
 | G | what happens to a running service when its configuration changes | [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) |
 
@@ -106,7 +107,7 @@ message that bounces later.
 | B.1 | ✅ _done_ — a token backs one principal and the daemon refuses a request that states another, saying whose token it is ([access § two parameters](../../docs/02-access.md#two-parameters)). The socket half of that ⚠️ is B.2's |
 | B.2 | ✅ _done_ — one socket per mapped account, supplying both parameters; a name stated on somebody else's socket is refused ([access § local socket](../../docs/02-access.md#local-socket)). It takes the declared-violation route: the daemon chowns its own sockets and says so when it cannot, and G.1 retires that ([processes § why the supervisor holds CAP_CHOWN](../../docs/11-processes.md#why-the-supervisor-holds-cap_chown)) |
 | B.3 | ✅ _done_ — issued, rotated and durable: `--rotate` demotes the current token to previous, both authenticate, the one before them stops, and a restart keeps the pair ([access § token lifetime](../../docs/02-access.md#token-lifetime)) |
-| B.4 | the store behind a port ([modules § the rule](../../docs/10-modules.md#the-rule)) | core never imports it; **what goes in it is a blocker**, and tokens are the part the design already requires durable ([setup § storage](../../docs/09-setup.md#storage)) |
+| B.4 | ✅ _done_ — credentials sit behind the `store` port with a text-file adapter, and the layer rule is checked both ways: nothing inward names an adapter, and the process that assembles them does ([modules § the rule](../../docs/10-modules.md#the-rule)). What *else* the store holds is still the blocker ([setup § storage](../../docs/09-setup.md#storage)) |
 | B.5 | ✅ _done_ — the principal is an argument of the forced command, so the key a person holds picks the line and they cannot ask for another ([access § getting a token](../../docs/02-access.md#getting-a-token)) |
 | B.6 | ✅ _done_ — both clients carry a name **and its own token**; the runner swaps both when it becomes the service, and the MCP face can mint one for a name it may have |
 | B.7 | ✅ _done_ — re-registering somebody else's record is refused, and told whose it is; the record itself may still refresh its own ([identity § ownership](../../docs/01-identity.md#ownership)). Claiming an unheld name stays open — that half is B.8's |
@@ -131,7 +132,10 @@ message that bounces later.
 - an enrolment with a key the account does not hold is refused, and an enrolled
   principal keeps working with the provider unreachable;
 - `smoke.sh` runs with two principals and its own sockets, and a mutation that
-  makes any route accept the wrong principal turns a named check red.
+  makes any route accept the wrong principal turns a named check red;
+- nothing inward names an adapter, **and** the process that assembles them
+  does — a rule that only forbids is satisfied by an empty seam, so the
+  positive half is part of the criterion.
 
 The chown itself cannot be exercised unprivileged; that one check is a
 privileged run, declared as such. What **is** checked unprivileged is

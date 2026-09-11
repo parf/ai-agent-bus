@@ -9,11 +9,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -25,47 +23,39 @@ type held struct {
 	current, previous string
 }
 
-// Tokens is the whole credential store. The file behind it is one line per
-// principal — `name current [previous]` — because that is all there is to
-// keep and it stays readable to the account that owns it.
+// Tokens is the whole credential store, in memory over a store port: what
+// it is kept in is an adapter's business, and swapping a file for a database
+// does not reach this file (docs/10-modules.md#the-rule).
 type Tokens struct {
-	mu   sync.RWMutex
-	path string
-	who  map[string]string // token -> principal, current and previous alike
-	tok  map[string]held   // principal -> what it holds
+	mu    sync.RWMutex
+	store ports.TokenStore
+	who   map[string]string // token -> principal, current and previous alike
+	tok   map[string]held   // principal -> what it holds
 }
 
-// Load reads the store, creating a token for owner on first run. A file
-// holding a single bare token is the one the PoC wrote: it is the owner's,
-// and saying so is cheaper than asking anyone to migrate by hand.
-func Load(path, owner string) (*Tokens, error) {
+// Load reads the store, creating a token for owner on first run. A nameless
+// credential is the bare token the PoC wrote: it is the owner's, and saying
+// so is cheaper than asking anyone to migrate by hand.
+func Load(store ports.TokenStore, owner string) (*Tokens, error) {
 	me, err := protocol.ParseName(owner)
 	if err != nil {
 		return nil, fmt.Errorf("owner: %w", err)
 	}
-	t := &Tokens{path: path, who: map[string]string{}, tok: map[string]held{}}
-	b, err := os.ReadFile(path)
-	if err != nil && !os.IsNotExist(err) {
+	t := &Tokens{store: store, who: map[string]string{}, tok: map[string]held{}}
+	creds, err := store.Load()
+	if err != nil {
 		return nil, err
 	}
-	for _, line := range strings.Split(string(b), "\n") {
-		f := strings.Fields(line)
-		switch len(f) {
-		case 0:
-			continue
-		case 1:
-			t.keep(me.String(), held{current: f[0]})
-		default:
-			n, err := protocol.ParseName(f[0])
+	for _, c := range creds {
+		name := me.String()
+		if c.Name != "" {
+			n, err := protocol.ParseName(c.Name)
 			if err != nil {
-				return nil, fmt.Errorf("%s: %w", path, err)
+				return nil, fmt.Errorf("credential store: %w", err)
 			}
-			h := held{current: f[1]}
-			if len(f) > 2 {
-				h.previous = f[2]
-			}
-			t.keep(n.String(), h)
+			name = n.String()
 		}
+		t.keep(name, held{current: c.Current, previous: c.Previous})
 	}
 	if _, has := t.tok[me.String()]; has {
 		return t, nil
@@ -158,23 +148,13 @@ func (t *Tokens) keep(name string, h held) {
 	}
 }
 
-// save rewrites the whole file through a temporary one: a half-written store
-// is a set of principals who can no longer authenticate.
+// save hands the whole set to the store. Writing all of it every time is
+// what keeps the port this small — there is no update, only the current
+// truth.
 func (t *Tokens) save() error {
-	var b strings.Builder
+	creds := make([]ports.Credential, 0, len(t.tok))
 	for name, h := range t.tok {
-		fmt.Fprintf(&b, "%s %s", name, h.current)
-		if h.previous != "" {
-			fmt.Fprintf(&b, " %s", h.previous)
-		}
-		b.WriteByte('\n')
+		creds = append(creds, ports.Credential{Name: name, Current: h.current, Previous: h.previous})
 	}
-	if err := os.MkdirAll(filepath.Dir(t.path), 0o700); err != nil {
-		return err
-	}
-	tmp := t.path + ".new"
-	if err := os.WriteFile(tmp, []byte(b.String()), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, t.path)
+	return t.store.Save(creds)
 }

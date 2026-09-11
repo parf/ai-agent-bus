@@ -49,6 +49,7 @@ Consequences worth stating, because they are the point:
 | `dump` | **port** | snapshot and reload in-memory state | [messaging § durability](04-messaging.md#durability) |
 | `vcs` | **port** | push and pull the git repo | [AUTH role § topology](06-auth-role.md#topology) |
 | `store/sqlite`, `store/postgres` | adapter | the one place SQL is written | |
+| `store/file`, `store/memory` | adapter | credentials in a text file, which is what the MVP ships, and the same in memory for a test | |
 | `directory/github` | adapter | the built-in HTTP client | |
 | `sandbox/systemd`, `sandbox/bwrap`, `sandbox/unshare` | adapter | one per backend, chosen by environment | |
 | `dump/parquet` | adapter | the Parquet writer and loader | |

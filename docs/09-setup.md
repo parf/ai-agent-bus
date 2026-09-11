@@ -53,6 +53,11 @@ Queues and stats are memory, dumped to Parquet
 a reloaded queue cannot be decrypted
 ([access § token lifetime](02-access.md#token-lifetime)).
 
+⚠️ Credentials are so far the *only* durable thing, and the MVP keeps them in a
+text file — one line per principal, mode 0600 — behind the same port
+([modules § modules](10-modules.md#modules)). A database is one more adapter
+and no change anywhere inward, which is what the port is for.
+
 ❓ **What else lives in SQLite** — AUTH data is git, the registry is live
 records, queues and stats are Parquet, tokens are durable. *Settled by:* owner.
 

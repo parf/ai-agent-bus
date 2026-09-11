@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
 // The whole handler path, which is where the daemon's time actually goes:
@@ -22,11 +22,11 @@ func BenchmarkSendAndConsume(b *testing.B) {
 	}
 	// Two principals, because a token now backs one name: the benchmark
 	// pays the lookup the real path pays.
-	path := filepath.Join(b.TempDir(), "tokens")
-	if err := os.WriteFile(path, []byte("src@h src-tok\nsink@h sink-tok\n"), 0o600); err != nil {
-		b.Fatal(err)
-	}
-	tokens, err := auth.Load(path, "src@h")
+	store := memory.NewTokens(
+		ports.Credential{Name: "src@h", Current: "src-tok"},
+		ports.Credential{Name: "sink@h", Current: "sink-tok"},
+	)
+	tokens, err := auth.Load(store, "src@h")
 	if err != nil {
 		b.Fatal(err)
 	}

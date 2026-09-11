@@ -94,6 +94,22 @@ for c in "${checks[@]}"; do
   [ $rc -eq 0 ] || echo "$out" | tail -15 | sed 's/^/    /'
 done
 
+# A layer rule nobody checks is a comment. These are the two directions that
+# matter: nothing inward may name an adapter, and the adapter must actually
+# be reached from somewhere, or the first check passes because the seam is
+# empty. See docs/10-modules.md#the-rule.
+sec "the layers hold"
+is_empty "core never imports an adapter" \
+  "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep 'internal/store')"
+is_empty "nor does a face" \
+  "$(go list -deps ./internal/api ./cmd/agent-bus | grep 'internal/store')"
+is_empty "and a port declares, it does not depend" \
+  "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -v 'internal/protocol')"
+has "while the process that assembles them holds the one that persists" \
+  "$(go list -deps ./cmd/agent-busd | grep 'internal/store')" 'internal/store/file'
+has "and core is what asks for it" \
+  "$(go list -f '{{join .Imports "\n"}}' ./internal/auth 2>&1)" 'internal/ports'
+
 sec "status on both listeners"
 has "unix socket" "$(ab parf@localhost status)" '"services"'
 has "loopback tcp" "$(AGENT_BUS_ADDR=http://127.0.0.1:$PORT AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=parf@localhost "$D/agent-bus" status)" '"up"'
@@ -219,6 +235,18 @@ has "a restart keeps every principal, not only the owner's" \
 has "and still refuses the wrong name with it" \
   "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/r2/bus.sock" -H "X-Agent-Bus-User: bob@srv1" -H "X-Agent-Bus-Token: $alice" "http://unix/status")" '403'
 kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
+# What the store keeps, it keeps to itself. See docs/09-setup.md#storage.
+has "the credential file is that account's alone" "$(stat -c %a "$D/token")" '^600$'
+# A file holding one bare token is what the PoC wrote, and a host that
+# upgrades must not lose the daemon's own credential to the new format.
+mkdir -p "$D/old" && printf 'poc-era-bare-token\n' > "$D/old/token"
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/old/bus.sock" -token-file "$D/old/token" -owner "$OWNER" >"$D/daemon4.log" 2>&1 &
+BPID=$!
+for _ in $(seq 1 50); do [ -S "$D/old/bus.sock" ] && break; sleep 0.1; done
+oldsock() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/old/bus.sock" -H "X-Agent-Bus-User: $1" -H "X-Agent-Bus-Token: poc-era-bare-token" "http://unix/status"; }
+has "a bare token from the PoC is read as the owner's" "$(oldsock "$OWNER")" '200'
+has "and as nobody else's" "$(oldsock bob@srv1)" '403'
+kill $BPID 2>/dev/null; wait $BPID 2>/dev/null
 # A credential that could not be written down is one a restart forgets, so
 # it is not handed out either: the daemon says so instead.
 mkdir -p "$D/ro" && cp "$D/token" "$D/ro/token"

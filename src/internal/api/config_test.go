@@ -3,13 +3,13 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
 // serverFor builds a daemon owned by the first name, and hands back the
@@ -17,7 +17,7 @@ import (
 // now, so a test cannot state one without the other — which is the point.
 func serverFor(t *testing.T, bus *core.Bus, owner string) (*Server, func(string) string) {
 	t.Helper()
-	tokens, err := auth.Load(filepath.Join(t.TempDir(), "tokens"), owner)
+	tokens, err := auth.Load(memory.NewTokens(), owner)
 	if err != nil {
 		t.Fatal(err)
 	}
