@@ -14,17 +14,18 @@ design carried out; V1 is legacy and is not consulted for it. What does still
 hold is that nothing is believed until it has been watched failing
 ([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)).
 
-**Next step**: the owner's. Everything in this plan that does not stand on an
-open decision is built — A.1, A.3, A.4, A.6; all of B but B.8; E; F.3; H.2 and
-H.3. What is left is one blocked item per wave, and each is waiting on a
-question in the table below, not on work:
+**Next step**: **F.2 and H.1**, and both are the owner's — nothing else in
+this plan is waiting on anything but work. Every decision the plan stood on
+has been taken: the caller's deadline travels (A.2), a pool may share an
+inbox (A.5), a subscriber is a registered name (C.3), and the sandbox is one
+backend plus off (G.2). What is left:
 
-| Waiting on | Would unblock |
+| | |
 |---|---|
-| which process owns the store handle | G.1, and the declared chown violation it retires |
-| the ⚠️ proposed cut in G.2 | G.2, then G.3 |
-| npm install vs Go-first | H.1 |
-| the two ❓ raised by wave A | A.2 and A.5 |
+| **built** | A, B, C, E, F.1, F.3, G, H.2–H.7 |
+| **blocked on the owner** | F.2 — nothing on a record carries method information; H.1 — npm install or Go first |
+| **unblocked and unbuilt** | F.4–F.6, the dashboard the review settled ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)). Most of the work is in the daemon keeping what a view needs, not in the page |
+| **struck** | D, to [Plans/V1](../V1/TODO.md) — the MVP's key mode cannot carry the end-to-end claim |
 
 ## Blockers
 
@@ -36,20 +37,22 @@ wave stands on it.
 |---|---|---|
 | the whole stage | what MVP contains | [stages § MVP](../../docs/12-stages.md#mvp) |
 | the rest of E | what else lives in SQLite | [setup § storage](../../docs/09-setup.md#storage) |
-| H | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../docs/09-setup.md#install) |
-| G | which process owns the store handle | [processes § what is shared](../../docs/11-processes.md#what-is-shared) |
-| A, the CLI | whether reading an inbox and filtering one become separate options | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
+| H.1 | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../docs/09-setup.md#install) |
+| F.2 | what carries a service's method information | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
+| F.4–F.6 | where the ACL and the user-to-account map are edited — the dashboard shows them and `agent-bus-admin` writes them | [setup § the five programs](../../docs/09-setup.md#the-five-programs) |
+| the CLI | whether reading an inbox and filtering one become separate options | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
 | G | what happens to a running service when its configuration changes | [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) |
 
-Five more were raised by this plan and are now indexed with the rest:
+Five were raised by this plan; four are settled and the fifth went to V1
+with wave D:
 
-| Gates | ❓ | Where it is settled |
+| Raised for | ❓ | Settled as |
 |---|---|---|
-| A.2 | whether the caller's deadline travels with the request | [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
-| A.5 | whether several readers may block on one inbox at once | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
-| C.3 | what a subscriber is, and where a fan-out copy goes | [messaging § push and pull](../../docs/04-messaging.md#push-and-pull) |
-| D.1, D.2, *Release 1* | how a queued body is decrypted by a receiver that was not present when it was sent | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
-| F.2 | what carries a service's method information | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
+| A.2 | whether the caller's deadline travels | it does, and it is not a TTL — [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
+| A.5 | whether several readers may block on one inbox | when each asks to share it — [messaging § several readers may wait](../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so) |
+| C.3 | what a subscriber is, and where a copy goes | a registered name, and its own inbox — [messaging § subscribers](../../docs/04-messaging.md#subscribers) |
+| G.2 | how many sandbox backends | one, plus off — [runner § sandboxing](../../docs/08-runner-role.md#sandboxing) |
+| D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/V1](../V1/TODO.md)'s — [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
 
 ⚠️ **The owner check is a caller-name guard, not security.** B.7 closed
 re-registering somebody else's record and B.8 closed claiming a name in a realm
@@ -286,7 +289,7 @@ owner's view served to a stranger, which is what the dashboard does today.
 | ID | Task | Notes |
 |---|---|---|
 | G.1 | ✅ _done_ — one binary, two roles: the supervisor opens every listener, chowns the per-user ones and hands the fds down; the bus serves them and holds the store ([processes § how a child is started](../../docs/11-processes.md#how-a-child-is-started)). A dead child is restarted onto the same sockets — the socket file is the same inode after a restart and a different one when it is genuinely remade, which is how that check was falsified, no mutation being able to express it — and a supervisor killed outright takes its children with it. The dashboard is a child under `-web`. ⚠️ *runner, auth and health are still design, and a child's empty capability set can only be read on a host that has one to lose* |
-| G.2 | the runner supervises and sandboxes ([runner § sandboxing](../../docs/08-runner-role.md#sandboxing)) | ⚠️ *proposed cut*: one backend plus off, where the design selects among several. Needs the owner before it is built |
+| G.2 | the runner sandboxes ([runner § sandboxing](../../docs/08-runner-role.md#sandboxing)) | the cut is taken: **one backend and off**. `systemd-run --user`, behind a `sandbox` port so a second backend is one adapter and not a redesign |
 | G.3 | `stop` and `logs` ([runner § stopping it](../../docs/08-runner-role.md#stopping-it-and-reading-what-it-said)) | a running service leaves a note in its owner's own state directory, which is what makes "only whoever started it may stop it" true with no check in it |
 
 **Done when**, and what breaking it must do:
@@ -296,7 +299,12 @@ owner's view served to a stranger, which is what the dashboard does today.
   unit file. ⚠️ *only observable under the unit: the suite runs as an account
   with no capability at all, so both sets read as empty either way*;
 - a sandboxed child that tries to write outside its work directory, or to open
-  a network socket, **fails**; loosening the profile turns it red;
+  a network socket, **fails** — and writing *inside* it succeeds beside it, or
+  a child that cannot run at all passes the whole set. Loosening either
+  property turns exactly one of them red;
+- the service **says which sandbox it got**, so running unconfined is never a
+  silence, and asking for one where the host cannot is an error rather than a
+  quiet downgrade;
 - `stop` ends one service and **leaves its siblings running**, waits for it
   rather than reporting a stop that has not happened, and does **not**
   unregister the name — messages sent afterwards still wait in its queue;

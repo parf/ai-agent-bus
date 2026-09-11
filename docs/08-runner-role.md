@@ -84,7 +84,8 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 | the script is one argument | it is a shell command line, so quote it if it has arguments of its own: `"./greet.sh --loud"` |
 | registered at start | the description is what `ls` and the MCP catalog show. **`stop` does not unregister it**: the name still owns its queue and messages still wait in it, which is the whole point of a name-owned inbox ([messaging § inbox queues](04-messaging.md#inbox-queues)). What changes is that nothing is reading it |
 | started by its owner | the process *becomes* the service, so it needs that name's credential, and only the name's owner may have one ([access § getting a token](02-access.md#getting-a-token)). Starting somebody else's service is refused, not silently run under your own name |
-| one work directory | the one place it writes, and its working directory. Per service, so two services cannot tread on each other |
+| one work directory | the one place a sandboxed script may write, and its working directory. Per service, so two services cannot tread on each other ([sandboxing](#sandboxing)) |
+| `--sandbox on\|off` | on wherever the host can, and the service says at start which it got — an unsandboxed service is never a silence |
 
 `-N` does not mean N services or N inboxes. **The `start` process is the one
 reader of that inbox** ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox));
@@ -138,20 +139,46 @@ limits, no special cases. The list and the privilege each one gets are in
 On by default, per child: a **profile** attached to each, with a sane default
 unless the owner opts out.
 
-| Layer | Tool | Gives |
+**One backend, and off.** `systemd-run --user` is it — it gives cgroups and
+the `Protect*` / `Private*` set declaratively, on every host that has systemd,
+with no privilege of its own. A second backend is one adapter behind the same
+port ([modules § the rule](10-modules.md#the-rule)) the day somebody runs
+this where systemd is not, and until then it is surface with nothing behind
+it. The candidates, so the choice is a record and not a memory:
+
+| Tool | Gives | Why not now |
 |---|---|---|
-| Resource limits | cgroups (via systemd or direct) | CPU / memory / pids / io caps |
-| Isolation | `systemd-run` (when systemd present) | cgroups + `Protect*` / `Private*` / seccomp / caps, declarative |
-| Isolation, rootless | `bubblewrap` | user namespaces, minimal rootfs, only declared paths; no root, no systemd |
-| Bare primitive | `unshare` | fallback; runner does the setup itself |
-| Alternative | firejail | more features, weaker security history — lowest on the list |
+| **`systemd-run`** | cgroups + `Protect*` / `Private*` / seccomp / caps, declarative | — it is the one |
+| `bubblewrap` | user namespaces, minimal rootfs, only declared paths; no systemd needed | the adapter to write when a host has no systemd |
+| `unshare` | the bare primitive; the runner would do the setup itself | everything `bwrap` already did correctly |
+| firejail | more features | weaker security history |
 
-Backend by environment: systemd → `systemd-run`; no systemd or unprivileged →
-`bwrap`; otherwise raw `unshare`; `off` allowed explicitly.
+`--user` has one consequence worth writing down: a transient user scope needs
+that account's own systemd manager to be running. A person starting a service
+in their own session has one. The **service account does not**, having no
+login, until `loginctl enable-linger agent-bus` is run — so the day the runner
+starts children as `agent-bus`, that is a setup step
+([setup § the service account](09-setup.md#the-service-account)) and not a
+mystery about why the sandbox says `off`.
 
-Default profile: private `/tmp`, read-only system, only the child's work dir
-writable, no network unless declared, pids/memory cap, no new privileges. A
-child's registration declares what it needs (network, paths, sockets); the
+**Off is a setting, not an absence.** Where `systemd-run` cannot run the
+runner says so at start and carries on unsandboxed — never silently, because
+a sandbox that quietly did nothing is worse than none. Asking for it
+explicitly where it is unavailable is an error instead.
+
+Default profile — **nothing writable but the work directory, and no network**:
+
+| Property | |
+|---|---|
+| `ProtectSystem=strict` | the whole filesystem read-only |
+| `ProtectHome=read-only` | home readable, so a script that lives there still runs |
+| `PrivateTmp=yes` | its own `/tmp` |
+| `ReadWritePaths` / `BindPaths` the work dir | the one place it may write, and its working directory. Bound in, so it is reachable even when it is under the private `/tmp` |
+| `BindReadOnlyPaths` the script's own directory | the same problem from the other side: a private `/tmp` hides the script too |
+| `PrivateNetwork=yes` | unless the service declares it needs one |
+| `NoNewPrivileges=yes`, `TasksMax`, `MemoryMax` | no escalation, and a bound on what it can spend |
+
+A child's registration declares what it needs (network, paths, sockets); the
 runner grants exactly that.
 
 ## In process queue

@@ -4,10 +4,10 @@
 // spawns the script per message, and the script's stdout is the reply. That
 // is the whole contract (docs/08-runner-role.md#script-services).
 //
-// What it adds to the PoC's version is a handle: each service has one work
-// directory it may write to, and leaves a note that `stop` and `logs` read
-// (service.go). Supervision — timeouts, restart with backoff — is still the
-// runner proper.
+// What it adds to the PoC's version is confinement and a handle: each script
+// runs sandboxed, with one work directory it may write to, and the running
+// service leaves a note that `stop` and `logs` read (service.go).
+// Supervision — timeouts, restart with backoff — is still the runner proper.
 package main
 
 import (
@@ -27,7 +27,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/sandbox"
 )
 
 // A service description, from flags or from JSON on stdin. The two forms
@@ -38,10 +40,15 @@ type service struct {
 	Script    string `json:"script"`    // the program to run
 	Descr     string `json:"descr"`     // what ls and the MCP catalog show
 	Instances int    `json:"instances"` // how many may run at once
+	Sandbox   string `json:"sandbox"`   // on, off, or unset for whatever the host can do
+	Network   bool   `json:"network"`   // a script that needs one says so; off otherwise
 
-	// Worked out at start rather than stated: the one directory it may write
-	// to, and where its output goes.
+	// Worked out at start rather than stated: how the script is confined,
+	// the one directory it may write to, what it must still be able to read,
+	// and where its output goes.
+	box  ports.Sandbox
 	work string
+	read []string
 	say  io.Writer
 }
 
@@ -84,6 +91,7 @@ func start(args []string) error {
 	if err := os.MkdirAll(svc.work, 0o700); err != nil {
 		return fmt.Errorf("no work directory for %s: %w", svc.Name, err)
 	}
+	svc.read = scriptDir(svc.Script)
 	log, err := openLog(svc.Name)
 	if err != nil {
 		return err
@@ -92,12 +100,15 @@ func start(args []string) error {
 	// Both, because the person who started it is watching the terminal and
 	// whoever runs `logs` later is not.
 	svc.say = io.MultiWriter(os.Stderr, log)
-	fmt.Fprintf(svc.say, "%s is %s (%s, %d at a time, work %s); ctrl-c to stop\n",
-		svc.Name, svc.Script, svc.Algo, svc.Instances, svc.work)
+	if svc.box, err = sandbox.Pick(svc.Sandbox); err != nil {
+		return err
+	}
+	fmt.Fprintf(svc.say, "%s is %s (%s, %d at a time, sandbox %s, work %s); ctrl-c to stop\n",
+		svc.Name, svc.Script, svc.Algo, svc.Instances, svc.box.Name(), svc.work)
 
 	r := running{
 		Name: svc.Name, PID: os.Getpid(), Script: svc.Script,
-		Log: logPath(svc.Name), Started: time.Now(),
+		Sandbox: svc.box.Name(), Log: logPath(svc.Name), Started: time.Now(),
 	}
 	if err := r.note(); err != nil {
 		return fmt.Errorf("could not leave a note for stop and logs: %w", err)
@@ -113,6 +124,25 @@ func openLog(name string) (*os.File, error) {
 		return nil, err
 	}
 	return os.OpenFile(logPath(name), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+}
+
+// scriptDir is the directory the script itself lives in, which a private
+// /tmp would otherwise hide from the child along with everything else there.
+// The script is a shell command line, so the program is its first word, and
+// something that is not a path (a bare `echo`) has no directory to keep.
+func scriptDir(script string) []string {
+	fields := strings.Fields(script)
+	if len(fields) == 0 {
+		return nil
+	}
+	p, err := filepath.Abs(fields[0])
+	if err != nil {
+		return nil
+	}
+	if _, err := os.Stat(p); err != nil {
+		return nil
+	}
+	return []string{filepath.Dir(p)}
 }
 
 // describe reads the service either from the command line or, with no name
@@ -167,6 +197,13 @@ func describe(args []string) (service, error) {
 	}
 	if svc.Instances <= 0 {
 		svc.Instances = 1
+	}
+	// Overridden by the flag the same way -N overrides the JSON form.
+	if v := flags["sandbox"]; v != "" {
+		svc.Sandbox = v
+	}
+	if has(flags, "network") {
+		svc.Network = true
 	}
 	return svc, nil
 }
@@ -284,7 +321,9 @@ func handle(svc service, e protocol.Envelope) {
 		argv = []string{"sh", "-c", svc.Script + ` "$@"`, "sh", e.Body}
 	}
 	// The envelope is in the environment either way, so a script can route on
-	// it without parsing anything, and so is the work directory it owns.
+	// it without parsing anything — and it is STATED rather than exported,
+	// because a sandboxed child starts from the manager's environment and
+	// inherits nothing of ours (docs/08-runner-role.md#sandboxing).
 	env := []string{
 		"AGENT_BUS_MESSAGE_ID=" + e.ID,
 		"AGENT_BUS_FROM=" + e.From,
@@ -293,7 +332,10 @@ func handle(svc service, e protocol.Envelope) {
 		"AGENT_BUS_TAG=" + e.Tag,
 		"AGENT_BUS_WORK=" + svc.work,
 	}
-	cmd := exec.Command(argv[0], argv[1:]...)
+	line := svc.box.Wrap(ports.Job{
+		Argv: argv, Work: svc.work, Read: svc.read, Env: env, Net: svc.Network,
+	})
+	cmd := exec.Command(line[0], line[1:]...)
 	if svc.Algo != algoArgs {
 		cmd.Stdin = strings.NewReader(string(mustJSON(e)) + "\n")
 	}

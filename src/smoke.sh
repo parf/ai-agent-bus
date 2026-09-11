@@ -745,28 +745,75 @@ if slow; then
 
 else skipped=$((skipped+1)); fi
 if slow; then
-  sec "a script service has one work directory, and leaves a note"
-  # Asked through the bus like any other call, so what is checked is the
-  # process the runner actually started, not one this file started for it.
-  printf '#!/bin/sh\ncase "$1" in\n  write-here) touch ./inside && echo inside-ok ;;\n  env)        echo "from=$AGENT_BUS_FROM work=$AGENT_BUS_WORK" ;;\nesac\n' > "$D/confined.sh"; chmod +x "$D/confined.sh"
+  sec "a script service is confined, and can be stopped and read"
+  # One script, three questions, asked through the bus like any other call —
+  # so what is checked is the confinement of the process the runner actually
+  # started, not of one this file started for the occasion.
+  # The script lives in a directory that is NOT a parent of the work
+  # directory. Sharing one parent made the script's own read-only bind carry
+  # the work directory in with it, and "the work directory is bound in" then
+  # held whether it was bound or merely listed as writable.
+  mkdir -p "$D/bin"
+  printf '#!/bin/sh\ncase "$1" in\n  write-here) touch ./inside && echo inside-ok ;;\n  write-out)  touch /etc/nope 2>&1 | head -1 ;;\n  net)        curl -s -m 2 -o /dev/null "http://127.0.0.1:'"$PORT"'/status" && echo reached || echo no-net ;;\n  env)        echo "from=$AGENT_BUS_FROM work=$AGENT_BUS_WORK" ;;\nesac\n' > "$D/bin/confined.sh"; chmod +x "$D/bin/confined.sh"
   note() { [ -s "$D/state/agent-bus/services/$1.json" ]; }
   waitnote() { for _ in $(seq 1 100); do note "$1" && return 0; sleep 0.1; done; return 1; }
 
   ab launcher@srv1 register confined@srv1 --kind generic >/dev/null
-  abx launcher@srv1 start confined@srv1 --algo args "$D/confined.sh" --descr "confined" >>"$D/sbx.log" 2>&1 &
+  abx launcher@srv1 start confined@srv1 --algo args "$D/bin/confined.sh" --descr "confined" >>"$D/sbx.log" 2>&1 &
   CFPID=$!
   waitnote confined@srv1 || echo "  WARNING: confined@srv1 never left a note"
-  has "the service says where it may write" "$(cat "$D/sbx.log")" 'work .*/work/confined@srv1'
-  has "a script may write in its work directory" \
-    "$(ab caller@srv1 call confined@srv1 --wait 20s write-here)" 'inside-ok'
-  has "and finds that directory in its environment" \
-    "$(ab caller@srv1 call confined@srv1 --wait 20s env)" 'work=.*/work/confined@srv1'
-  out=$(ab launcher@srv1 start confined@srv1 --algo args "$D/quick.sh" 2>&1); rc=$?
+  has "the service says which sandbox it got" "$(cat "$D/sbx.log")" 'sandbox '
+  has "and where it may write" "$(cat "$D/sbx.log")" 'work .*/work/confined@srv1'
+  # The HOST decides whether these run, not the service under test. Asking the
+  # log whether it was sandboxed would let "confine nothing" skip its own
+  # checks and survive, which is the guarded-block shape of a hollow check.
+  if systemd-run --user --pipe --collect --quiet /bin/true >/dev/null 2>&1; then
+    has "a host that can sandbox gives the service one" "$(cat "$D/sbx.log")" 'sandbox systemd-run'
+    # Writing INSIDE has to pass beside the two refusals, or a child that
+    # cannot run at all passes the whole set.
+    has "a sandboxed script may write in its work directory" \
+      "$(ab caller@srv1 call confined@srv1 --wait 20s write-here)" 'inside-ok'
+    # And in THE work directory, not merely in one of that name inside its
+    # own private /tmp: a write the host cannot see afterwards is a work
+    # directory the service does not really have.
+    ok_exit "and the file is there on the host afterwards" \
+      "$(test -e "$D/state/agent-bus/work/confined@srv1/inside"; echo $?)"
+    has "and may not write outside it" \
+      "$(ab caller@srv1 call confined@srv1 --wait 20s write-out)" 'Read-only file system'
+    has "and has no network unless it asked for one" \
+      "$(ab caller@srv1 call confined@srv1 --wait 20s net)" 'no-net'
+    # A confined child starts from the manager's environment and inherits
+    # nothing of the runner's, so the envelope has to be stated or a script
+    # that routes on it silently sees empty strings.
+    has "and still finds the envelope in its environment" \
+      "$(ab caller@srv1 call confined@srv1 --wait 20s env)" 'from=caller@srv1'
+    has "and its own work directory" \
+      "$(ab caller@srv1 call confined@srv1 --wait 20s env)" 'work=.*/work/confined@srv1'
+    ab launcher@srv1 register netty@srv1 --kind generic >/dev/null
+    abx launcher@srv1 start netty@srv1 --algo args "$D/bin/confined.sh" --network --descr "networked" >>"$D/net.log" 2>&1 &
+    NTPID=$!
+    waitnote netty@srv1 || echo "  WARNING: netty@srv1 never left a note"
+    has "while one that did has one" \
+      "$(ab caller@srv1 call netty@srv1 --wait 20s net)" 'reached'
+    kill $NTPID 2>/dev/null; wait $NTPID 2>/dev/null
+  else
+    echo "  WARNING: this host has no sandbox; the confinement checks are skipped"
+    skipped=$((skipped+1))
+  fi
+  kill $CFPID 2>/dev/null; wait $CFPID 2>/dev/null
+  # Off is a setting, and asking for one the host cannot give is an error
+  # rather than a quiet downgrade.
+  ab launcher@srv1 register loose@srv1 --kind generic >/dev/null
+  abx launcher@srv1 start loose@srv1 --algo args "$D/quick.sh" --sandbox off --descr "loose" >>"$D/loose.log" 2>&1 &
+  LOPID=$!
+  waitnote loose@srv1 || echo "  WARNING: loose@srv1 never left a note"
+  has "a service asked to run unconfined says so out loud" "$(cat "$D/loose.log")" 'sandbox off'
+  out=$(abt launcher@srv1 start loose@srv1 --algo args "$D/quick.sh" 2>&1); rc=$?
   bad_exit "starting a name already running here is refused" $rc
   has "and says which process holds it" "$out" 'already running here as pid'
-  # Left running on purpose: the stop section needs a sibling as its control,
-  # or a stop that took the whole account with it would pass every check.
-  LOPID=$CFPID
+  out=$(abt launcher@srv1 start askew@srv1 --algo args "$D/quick.sh" --sandbox maybe 2>&1); rc=$?
+  bad_exit "a sandbox setting that is neither on nor off is refused" $rc
+  has "and says which two settings there are" "$out" 'sandbox is on or off'
 
   sec "stop ends one service and leaves its siblings"
   ab launcher@srv1 register twin@srv1 --kind generic >/dev/null

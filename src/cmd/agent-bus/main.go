@@ -46,6 +46,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus subscribe <topic>     receive a copy of everything published there
   agent-bus unsubscribe <topic>
   agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
+                         [--sandbox on|off] [--network]  confined, and no network unless asked
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]
   agent-bus start                     (the same, as JSON on stdin)
@@ -739,7 +740,7 @@ func warn(format string, a ...any) {
 // is recorded as present and empty.
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
-var onOff = map[string]bool{"follow": true, "no-master": true, "share": true}
+var onOff = map[string]bool{"follow": true, "no-master": true, "share": true, "network": true}
 
 // allow is the service ACL as stated on the command line: a comma-separated
 // list, `*` for anyone who can authenticate, absent for no answer of its own.

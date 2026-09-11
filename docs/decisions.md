@@ -138,7 +138,8 @@ All 2026-09-09 unless noted.
 | A registered topic named alone is an inbox to read; with a tag it is a filter — one rule for every face | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | A name-shaped topic that is registered nowhere is refused, not read as a filter | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | The filter is a priority, not a lease: it holds only while its wait is outstanding | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
-| Sandboxing on by default, backend chosen by environment | [runner § sandboxing](08-runner-role.md#sandboxing) |
+| Sandboxing on by default; one backend and off, the rest an adapter when a host needs one | [runner § sandboxing](08-runner-role.md#sandboxing) |
+| Where a sandbox cannot run the runner says so and carries on; asking for it there is an error | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | A running script service leaves a note in its owner's state directory, which is what `stop` and `logs` read | [runner § stopping it](08-runner-role.md#stopping-it-and-reading-what-it-said) |
 | `stop` does not unregister: the name keeps its queue, and nothing is reading it | [runner § stopping it](08-runner-role.md#stopping-it-and-reading-what-it-said) |
 | A caller states its own record before it calls, and only if it has none | [messaging § request and reply](04-messaging.md#request-and-reply) |
@@ -211,6 +212,7 @@ All 2026-09-09 unless noted.
 | Principal id is GitHub's numeric id | the name is the identity; the id is only a re-check comparison — [identity § names](01-identity.md#names) |
 | GitHub is *the* identity source, and the reason public services work | a provider is an alternative to typing the record — [identity § registration](01-identity.md#registration) |
 | Overflow: drop oldest | two modes, `ring` and `strict` — [messaging § overflow](04-messaging.md#overflow) |
+| The sandbox backend is chosen by environment: systemd-run, else bwrap, else unshare | one backend and off; the others are an adapter each, written when a host needs one — [runner § sandboxing](08-runner-role.md#sandboxing) |
 | `ring` is the default mode | `strict` is: a queue that loses work silently is worse than one that fails visibly — [messaging § overflow](04-messaging.md#overflow) |
 | Audience with AUTH off is a per-service `user: token` map | the two ACL layers — [identity § acl](01-identity.md#acl) |
 | The service ACL lives in the service's own configuration | the record: the daemon will not read a private configuration, so a layer it enforces cannot live there — [identity § acl](01-identity.md#acl) |

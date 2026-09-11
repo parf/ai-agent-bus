@@ -24,6 +24,7 @@ type running struct {
 	Name    string    `json:"name"`
 	PID     int       `json:"pid"`
 	Script  string    `json:"script"`
+	Sandbox string    `json:"sandbox"`
 	Log     string    `json:"log"`
 	Started time.Time `json:"started"`
 }

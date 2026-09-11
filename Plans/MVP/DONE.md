@@ -35,9 +35,11 @@ those are the checks a suite cannot find by passing:
 | A check that only matched `"deadline"` passed with the stamping **deleted** | a zero time is still a field. The year is the check. |
 | A subscribe refused for the **wrong reason** | `subscribe jobs@srv1` was refused because `jobs@srv1` did not exist yet, not because it is a queue topic; the topic is now created first, and the refusal names its mode. |
 | "A caller cannot state its own subscribers" was true **only on a restate** | the stored subscribers were copied back over the stated ones, hiding the fact that a brand-new record kept them. |
+| A stale note — a service **killed outright** — was never checked at all | nothing said that a note with no process behind it is cleared rather than offered as something to stop, and the mutation that reported it as running broke nothing. |
+| A confined script writing in its **work directory** passed with the directory **not bound in** | the script and the work directory shared a parent, so the script's own read-only bind carried the work directory in with it and the property held whether it was bound or merely listed as writable. The script now lives outside that parent, and the check also looks for the file on the host afterwards. |
 | Two of the plan's own **first-draft criteria** passed on PoC code | before a line of MVP work existed; both were rewritten. |
 
-## Eight harness traps
+## Nine harness traps
 
 Recorded in [PoC README](../PoC/README.md) as they were found, because each
 one made a batch lie: port spacing between concurrent runs, editing `src/`
@@ -51,3 +53,11 @@ The eighth is the harness reading only lines that **start with** `FAIL`: a
 `t.Fatalf` line does not, so a claim held by a Go test alone cannot be named
 as a mutant's expected check and reads as uncaught. Such a mutant names
 `go race` and is watched failing by hand on its own assertion.
+
+The ninth cost five mutants: a mutation that turns a **refusal into a
+foreground service** hangs the check waiting on it, the suite hits the
+harness's 900-second limit, and the `TimeoutExpired` used to escape and end
+the whole batch. A refusal is now asked through a bounded `ab`, and the
+harness reports a hung mutant and carries on. With the bound, `timeout`'s own
+non-zero exit satisfies an exit-code check, so such a check has to assert the
+**message** as well.
