@@ -161,7 +161,7 @@ the bus debuggable by the people sharing it.
 | **my names** — what I hold a credential for, its fingerprint, when it was issued and last used, and how to rotate it | MVP | when a credential was issued, and when it was last used |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | MVP | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **refusals** — how many calls were refused and why: bad credential, wrong name for it, ACL, unknown receiver, second reader, full queue | MVP | one counter per kind, and a short per-caller list on that person's own page |
-| **node** — its name, uptime, the registry's totals, and whether the last stop was clean | MVP | the unclean-restart fact on `status`, which is logged today |
+| **node** — its name, uptime, the registry's totals, and whether the last stop was clean | MVP | — `status` carries the unclean-restart fact |
 | **people** — who holds a credential: name, person name, avatar, master or not, what they own | MVP | the credential store answering *which names*, and the person fields ([identity § registration](01-identity.md#registration)) |
 | **groups** and who is in them | Release 1 | groups themselves ([identity § groups and roles](01-identity.md#groups-and-roles)) |
 | **health** — up, down, and how long since the last probe | Release 1 | the health child ([health checker](#health-checker)) |

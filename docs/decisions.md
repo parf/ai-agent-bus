@@ -83,6 +83,7 @@ All 2026-09-09 unless noted.
 | Call counts are per service, live state like `reading` and `queued` | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | Loss is counted per inbox; the node's total is the sum of them | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | A backlog reports the age of its oldest waiting message | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
+| An unclean restart is a fact on `status`, not only a line in the log | [discovery § what it shows](05-discovery.md#what-it-shows) |
 | Dashboard shows services, topics and call counts — envelopes only | [discovery § dashboard](05-discovery.md#dashboard) |
 | The bus keeps a bounded feed of routed envelopes, body struck out where it is written | [discovery § dashboard](05-discovery.md#dashboard) |
 | The dashboard has a real hostname and a real certificate, from a public source | [discovery § where it listens](05-discovery.md#where-it-listens) |

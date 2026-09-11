@@ -80,6 +80,10 @@ type inbox struct {
 type Bus struct {
 	mu      sync.Mutex
 	records map[string]protocol.Record
+	// Whether the snapshot this run read back was written by a graceful
+	// stop. Logged once at start is not enough: whoever comes to look at a
+	// gap in the work arrives long after the log line scrolled away.
+	unclean bool
 	inboxes map[string]*inbox
 	started time.Time
 	// What the bus has seen lately, bodies struck out — the dashboard's
@@ -744,6 +748,9 @@ type Status struct {
 	Waiting  int    `json:"waiting"`
 	Dropped  int    `json:"dropped"` // lost to overflow since start
 	Expired  int    `json:"expired"` // outlived their TTL since start
+	// Absent unless it has something to say: a first start has no previous
+	// stop to have been clean or otherwise.
+	Unclean bool `json:"unclean,omitempty"` // the last run did not stop cleanly
 }
 
 func (b *Bus) Status() Status {
@@ -761,6 +768,7 @@ func (b *Bus) Status() Status {
 		s.Dropped += in.dropped
 		s.Expired += in.expired
 	}
+	s.Unclean = b.unclean
 	return s
 }
 

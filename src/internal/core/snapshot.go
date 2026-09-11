@@ -39,6 +39,7 @@ func (b *Bus) Snapshot() ports.Snapshot {
 func (b *Bus) Restore(s ports.Snapshot) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.unclean = !s.Clean
 	for _, r := range s.Records {
 		b.records[r.Name] = r
 	}

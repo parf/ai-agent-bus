@@ -1624,6 +1624,8 @@ dur_down -TERM
 
 dur_up second
 has "the registry is back after a graceful stop" "$(dab ls keeper@srv1)" 'keeps things'
+is_empty "and status says nothing about a stop that was clean" \
+  "$(dab status | grep -o unclean)"
 # Counters are the other half of the state: a queue that was drained and one
 # nobody ever wrote to read the same without them.
 has "the counters come back too, not just the messages" "$(dsvc in)" '^2$'
@@ -1649,6 +1651,9 @@ has "a bus that dies is started again" "$(cat "$D/dur/third.log")" 'restarting i
 has "and the start that follows says the last one ended badly" \
   "$(cat "$D/dur/third.log")" 'did not stop cleanly'
 has "and says from when it is missing traffic" "$(cat "$D/dur/third.log")" 'anything queued after'
+# Logged once at start is not enough: whoever comes to look at a gap in the
+# work arrives long after that line scrolled away.
+has "and status still says so, not only the log" "$(dab status)" '"unclean":true'
 is_empty "the message that died with the process is not invented back" \
   "$(dkeep consume --wait 0s 2>&1)"
 dur_down -TERM

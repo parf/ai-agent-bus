@@ -24,7 +24,7 @@ backend plus off (G.2). What is left:
 |---|---|
 | **built** | A, B, C, E, F.1, F.3, G, H.2–H.7 |
 | **blocked on the owner** | F.2 — nothing on a record carries method information; H.1 — npm install or Go first |
-| **unblocked and unbuilt** | F.4–F.6, the dashboard the review settled ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)). Most of the work is in the daemon keeping what a view needs, not in the page |
+| **unblocked, in progress** | F.4–F.6, the dashboard the review settled ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)). Most of the work is in the daemon keeping what a view needs, not in the page — and it now keeps what four of the eight views need. Exchanges, my names, refusals and people are still unbuilt, and so is every page |
 | **struck** | D, to [Plans/V1](../V1/TODO.md) — the MVP's key mode cannot carry the end-to-end claim |
 
 ## Blockers
@@ -253,7 +253,7 @@ That is a product decision, not a technical one.
 | F.2 | generated docs | **blocked**: nothing on a record carries method information, and the shape is the ❓ in [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
 | F.4 | the dashboard's rules | the anonymous page answers what the bus would answer a caller it cannot name; no page renders a credential; no JavaScript, CDN or external asset; the child writes nothing of its own ([discovery § rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)) |
 | F.5 | signing in | the two parameters the caller already has, a session the **bus** holds, a browser carrying only its id — and the child giving up the owner's socket, because a web child with the owner's authority is a credential mint ([discovery § signing in](../../docs/05-discovery.md#signing-in)) |
-| F.6 | the views the MVP owes | registry, stuck inboxes, exchanges, my names, loss by name, refusals, node, people. Each row in [discovery § what it shows](../../docs/05-discovery.md#what-it-shows) names what the daemon must start keeping — that is the work, not the page |
+| F.6 | the views the MVP owes | registry, stuck inboxes, exchanges, my names, loss by name, refusals, node, people. Each row in [discovery § what it shows](../../docs/05-discovery.md#what-it-shows) names what the daemon must start keeping — that is the work, not the page. ⚠️ *the daemon now keeps what four of them need*: registry was already `/ls`, and stuck inboxes, loss by name and node are fed by `oldest`, per-inbox `dropped`/`expired` and the unclean-restart fact ([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)). Exchanges, my names, refusals and people are still unbuilt, and so is every page |
 | F.3 | ✅ _done_ — `agent-bus-web`, a separate process speaking the API, rendering the records and a bounded feed of routed envelopes ([discovery § dashboard](../../docs/05-discovery.md#dashboard)). Bodies are struck out in the bus, not in the page. It serves HTTPS on its own hostname with a certificate anyone can fetch ([discovery § where it listens](../../docs/05-discovery.md#where-it-listens)). Nothing starts it yet and it is not cgroup-limited — both are G.1's |
 
 **Done when**, and what breaking it must do:
