@@ -81,7 +81,7 @@ export class Bus {
   // happen. The daemon does not deduplicate, so the caller is told the
   // outcome is unknown rather than invited to resend
   // (docs/12-stages.md#poc: no persistence, no retries).
-  async send(msg: { to: string; body: string; topic?: string; tag?: string }): Promise<Envelope> {
+  async send(msg: { to: string; body: string; topic?: string; tag?: string; receipt?: string; re?: string }): Promise<Envelope> {
     try {
       return await this.#call("POST", "/send", msg);
     } catch (err) {

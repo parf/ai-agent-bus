@@ -73,7 +73,8 @@ const tools = [
   {
     name: "ab_reply",
     description:
-      "Answer a message this session consumed or was pushed, by its id. This is the only way to answer: writing the reply in your own output leaves it in this session and the asker never sees it. " +
+      "Answer a message this session consumed, by its id. Writing the reply in your own output leaves it in this session and the asker never sees it. " +
+      "A pushed message says which tool answers it: a Codex push arrives from a sidecar whose reply context this process does not hold, and spells out an ab_send instead. " +
       "Routing comes from the original — sender, topic and tag — so the asker can match it.",
     inputSchema: {
       type: "object",
@@ -99,7 +100,7 @@ const server = new Server(
     instructions:
       `You are ${bus.name} on the agent bus. ab_ls finds other participants, ab_send messages one, ` +
       `ab_consume takes the next message from your inbox, ab_reply answers one you received. ` +
-      `A message you answer must be answered with ab_reply — your own output never reaches the peer. ` +
+      `Your own output never reaches the peer: answer with the tool the message says to use — ab_reply for one you took with ab_consume, and a pushed delivery spells out its own call. ` +
       `A reply is matched by topic and tag. The face registers this name at start and stops being reachable if the daemon restarts; restart it with the daemon.`,
   },
 );
@@ -130,16 +131,27 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         // Push holds this inbox's one unfiltered read, so an unfiltered
         // consume would only collide with it. A filtered one is still served,
         // ahead of the loop (docs/04-messaging.md#one-reader-per-inbox).
-        if (pushing && !args.topic && !args.tag) {
+        // While a push adapter is actually reading, yes. Once it has given
+        // up — a 409 from a second reader, or a delivery the runtime
+        // refused — saying "messages arrive on their own" is false, and it
+        // would leave the inbox unread until a restart. `push` is still
+        // undefined during the startup window the comment above guards.
+        if (pushing && (push?.running() ?? true) && !args.topic && !args.tag) {
           return text(`push is on for ${bus.name}: messages arrive on their own. Pass topic and tag to wait for one reply.`, true);
         }
-        const e = await bus.consume(
-          { topic: maybe(args, "topic"), tag: maybe(args, "tag"), wait: maybe(args, "wait") ?? "5s" },
-          extra.signal,
-        );
-        if (!e) return text("nothing waiting");
-        remember(e);
-        return text(describe(e));
+        const topic = maybe(args, "topic"), tag = maybe(args, "tag");
+        const wait = maybe(args, "wait") ?? "5s";
+        // A receipt is a message, so it ends a wait — but it is not the
+        // answer the caller asked for. A filtered read asks again with what
+        // is left of its deadline, exactly as `call` does
+        // (docs/04-messaging.md#receipts).
+        const deadline = Date.now() + seconds(wait) * 1000;
+        for (;;) {
+          const e = await bus.consume({ topic, tag, wait }, extra.signal);
+          if (!e) return text("nothing waiting");
+          remember(e);
+          if (!e.receipt || !(topic || tag) || Date.now() >= deadline) return text(describe(e));
+        }
       }
       case "ab_reply": {
         const id = need(args, "message_id"), body = need(args, "text");
