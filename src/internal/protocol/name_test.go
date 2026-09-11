@@ -216,6 +216,52 @@ func TestForbiddenPunctuationInEveryComponent(t *testing.T) {
 	}
 }
 
+// The charset is a contract, so it is checked as one: every ASCII byte, in
+// every component, accepted exactly when the rule says so. Sampling three
+// punctuation marks is not the same thing — a parser that let "~" through
+// passed the sample above and was caught only by this
+// (docs/01-identity.md#names).
+func TestTheCharsetIsExhaustive(t *testing.T) {
+	alnum := func(c byte) bool { return c >= 'a' && c <= 'z' || c >= '0' && c <= '9' }
+	// What each component takes after its first character.
+	tail := func(c byte, plus bool) bool {
+		return alnum(c) || c == '.' || c == '_' || c == '-' || (plus && c == '+')
+	}
+	for i := 0; i < 128; i++ {
+		c := byte(i)
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f' {
+			continue // trimmed, not part of the charset question
+		}
+		lower := c
+		if c >= 'A' && c <= 'Z' {
+			lower = c + 32 // canonicalised before the charset is applied
+		}
+		for _, tc := range []struct {
+			what string
+			name string
+			want bool
+		}{
+			// "@" and "/" are separators, so they are not charset questions
+			// in the positions where they would split the name instead.
+			{"instance name", "aa" + string(c) + "aa@host", tail(lower, true) || c == '@'},
+			// "@" inside the host is not a charset question: it just moves
+			// the last-"@" split, and the name is read differently.
+			{"host", "parf@aa" + string(c) + "aa", tail(lower, false) || c == '@'},
+			{"template", "aa" + string(c) + "aa/claude@host", tail(lower, false)},
+			{"first character of the instance name", string(c) + "aa@host", alnum(lower)},
+			{"first character of the host", "parf@" + string(c) + "aa", alnum(lower)},
+		} {
+			if c == '/' && tc.what != "host" {
+				continue // a second "/" is its own rule, tested elsewhere
+			}
+			_, err := ParseName(tc.name)
+			if got := err == nil; got != tc.want {
+				t.Fatalf("%s: %q accepted=%v, want %v", tc.what, tc.name, got, tc.want)
+			}
+		}
+	}
+}
+
 // Exactly at the bound and exactly over it, on the longest shape we have: a
 // template, an embedded "@" and both separators all counted.
 func TestBoundIsExactWithTemplateAndEmbeddedAt(t *testing.T) {
@@ -278,5 +324,18 @@ func TestEachComponentIsTrimmed(t *testing.T) {
 	}
 	if n.String() != "mail-sender/parf@comfi.com@host" {
 		t.Fatalf("got %q", n.String())
+	}
+}
+
+func BenchmarkParseName(b *testing.B) {
+	for _, in := range []string{"svc@h", "mail-sender/parf+alerts@comfi.com@srv1"} {
+		b.Run(in, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				if _, err := ParseName(in); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }

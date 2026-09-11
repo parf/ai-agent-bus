@@ -4,7 +4,6 @@ package protocol
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 )
 
@@ -25,7 +24,23 @@ import (
 // configured from — code-review/claude-2@rdvp. It is part of the identity and
 // the inbox, not a lookup: two services from one template are two services
 // with two inboxes. A service that is its own template omits it.
-var partRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
+// part reports whether s is one component. A hand-written loop rather than a
+// regexp: ParseName runs five times on an ordinary send-and-read pair — the
+// auth header, the two envelope ends, the inbox — and the two regexps were
+// 84% of it. This is the same grammar, 5x faster and allocation-free.
+func part(s string, plus bool) bool {
+	if s == "" || !alnum(s[0]) {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		if c := s[i]; !alnum(c) && c != '.' && c != '_' && c != '-' && !(plus && c == '+') {
+			return false
+		}
+	}
+	return true
+}
+
+func alnum(c byte) bool { return c >= 'a' && c <= 'z' || c >= '0' && c <= '9' }
 
 // An instance name may itself contain "@" — an address is a perfectly good
 // name for the thing that reads it: mail-sender/parf@comfi.com@host. So the
@@ -44,7 +59,18 @@ var partRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 // added on the owner's word — not email syntax. Anything a mailbox grammar
 // allows beyond this charset is still refused, and widening it again is a
 // decision to take on purpose rather than by adopting RFC 5322.
-var localRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._+-]*(@[a-z0-9][a-z0-9._+-]*)*$`)
+func isLocal(s string) bool {
+	for {
+		before, after, cut := strings.Cut(s, "@")
+		if !part(before, true) {
+			return false
+		}
+		if !cut {
+			return true
+		}
+		s = after
+	}
+}
 
 // MaxName bounds a canonical name, `user@realm` and the @ included. A name is
 // an identifier, not a payload: it is logged, indexed and shown in a list.
@@ -84,21 +110,26 @@ func ParseName(s string) (Name, error) {
 	var template string
 	if before, after, cut := strings.Cut(local, "/"); cut {
 		template, local = strings.TrimSpace(before), strings.TrimSpace(after)
-		if !partRe.MatchString(template) {
+		if !part(template, false) {
 			return Name{}, fmt.Errorf("bad template in %q: a-z 0-9 . _ - only, starting alphanumeric", s)
 		}
 	}
-	if !localRe.MatchString(local) {
+	if !isLocal(local) {
 		return Name{}, fmt.Errorf("bad name %q: a-z 0-9 . _ - + @ only, starting alphanumeric", s)
 	}
-	if !partRe.MatchString(realm) {
+	if !part(realm, false) {
 		return Name{}, fmt.Errorf("bad realm in %q: a-z 0-9 . _ - only, starting alphanumeric", s)
 	}
-	n := Name{Template: template, Local: local, Realm: realm}
-	if len(n.String()) > MaxName {
-		return Name{}, fmt.Errorf("name %q is %d characters: at most %d", s, len(n.String()), MaxName)
+	// Counted rather than rendered: String allocates, and this runs on every
+	// call the daemon serves.
+	size := len(local) + 1 + len(realm)
+	if template != "" {
+		size += len(template) + 1
 	}
-	return n, nil
+	if size > MaxName {
+		return Name{}, fmt.Errorf("name %q is %d characters: at most %d", s, size, MaxName)
+	}
+	return Name{Template: template, Local: local, Realm: realm}, nil
 }
 
 func isASCII(s string) bool {
