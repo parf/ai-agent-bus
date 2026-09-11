@@ -426,8 +426,12 @@ has "and the topic no longer names it" "$(ab owner@srv1 ls news@srv1)" '"subs":\
 out=$(ab nobody-here@srv1 subscribe news@srv1 2>&1); rc=$?
 bad_exit "subscribing as a name nobody registered is refused" $rc
 has "and says to register it first" "$out" 'so its copies have somewhere to land'
-out=$(ab sub-a@srv1 subscribe jobs@srv1 2>&1); rc=$?
+# A queue topic that EXISTS, so the refusal is about its mode and not about
+# the name being unknown.
+ab owner@srv1 topic create work@srv1 --descr "a queue topic" >/dev/null
+out=$(ab sub-a@srv1 subscribe work@srv1 2>&1); rc=$?
 bad_exit "and a queue topic is not something to subscribe to" $rc
+has "refused for its mode, not for being unknown" "$out" 'only a pubsub topic has subscribers'
 # The ACL is the capability here, and it is asked at PUBLISH, not only at
 # subscribe: access taken away has to stop the copies, or subscribing would
 # be a way to go on reading a topic that stopped allowing you.

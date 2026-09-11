@@ -297,6 +297,12 @@ func TestASubscriptionSurvivesTheTopicBeingRestated(t *testing.T) {
 	if len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
 		t.Fatalf("a stated subscriber was taken: %v", r.Subs)
 	}
+	// Nor on a name nobody registered before, where there is no stored
+	// record to restore over it.
+	mustRegister(t, b, protocol.Record{Name: "fresh@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv", Subs: []string{"intruder@srv"}})
+	if r, _ := b.Lookup("a@srv", "fresh@srv"); len(r.Subs) != 0 {
+		t.Fatalf("a stated subscriber was taken on a new topic: %v", r.Subs)
+	}
 }
 
 // A receipt rides the same topic and tag as the message it is about, so the

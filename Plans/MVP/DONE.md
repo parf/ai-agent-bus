@@ -33,9 +33,11 @@ those are the checks a suite cannot find by passing:
 | A tampered signature check was **too weak** | trailing bytes after an armored `ssh-keygen` signature are ignored, so appending one changed nothing; truncation is the mutation that bites. |
 | A socket's **inode across a restart** could not be expressed as a mutation | falsified by hand instead, and recorded as such rather than left implied. |
 | A check that only matched `"deadline"` passed with the stamping **deleted** | a zero time is still a field. The year is the check. |
+| A subscribe refused for the **wrong reason** | `subscribe jobs@srv1` was refused because `jobs@srv1` did not exist yet, not because it is a queue topic; the topic is now created first, and the refusal names its mode. |
+| "A caller cannot state its own subscribers" was true **only on a restate** | the stored subscribers were copied back over the stated ones, hiding the fact that a brand-new record kept them. |
 | Two of the plan's own **first-draft criteria** passed on PoC code | before a line of MVP work existed; both were rewritten. |
 
-## Seven harness traps
+## Eight harness traps
 
 Recorded in [PoC README](../PoC/README.md) as they were found, because each
 one made a batch lie: port spacing between concurrent runs, editing `src/`
@@ -44,3 +46,8 @@ that does not compile, a `--slow` section skipped in the fast run, a
 heuristic matching `"bad token"` instead of `"address already in use"`, and a
 suite leaving its temporary directory behind because a shutdown dump raced
 `rm -rf`.
+
+The eighth is the harness reading only lines that **start with** `FAIL`: a
+`t.Fatalf` line does not, so a claim held by a Go test alone cannot be named
+as a mutant's expected check and reads as uncaught. Such a mutant names
+`go race` and is watched failing by hand on its own assertion.

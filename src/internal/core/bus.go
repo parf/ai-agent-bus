@@ -571,7 +571,7 @@ func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) 
 		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
 	if r.Kind != protocol.KindTopic || r.Mode != protocol.ModePubSub {
-		return protocol.Record{}, fmt.Errorf("%w: %s is not one", ErrMode, n)
+		return protocol.Record{}, fmt.Errorf("%w: only a pubsub topic has subscribers, and %s is not one", ErrMode, n)
 	}
 	if _, me := b.records[who]; !me {
 		return protocol.Record{}, fmt.Errorf("%w: register %s first, so its copies have somewhere to land", ErrUnknown, who)
