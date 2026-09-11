@@ -15,6 +15,17 @@ decoration — it is the inbox this process owns, the sender a reply comes back
 to, and what another principal addresses. A call carries both, and one without
 a name is refused.
 
+**The name is checked, not taken.** The daemon binds it to the credential it
+arrived with and refuses one that credential does not back — on the socket
+from the account at the other end, remotely from the token's principal. So a
+name on the wire is not a claim: **you cannot be somebody else**, and every
+`from`, every owner and every ACL subject means what it says.
+
+⚠️ **PoC does not check it.** One token reaches everything and any holder may
+claim any name ([stages § PoC](12-stages.md#poc)); the face overwrites a
+stated `from` with the caller's name, which stops forgery inside one request
+and nothing more. MVP is where the check lands.
+
 ## Getting a token
 
 Both paths need you to already have access to the machine.
