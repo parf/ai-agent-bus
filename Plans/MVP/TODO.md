@@ -8,14 +8,14 @@ only what is being built now.
 **Objective**: the MVP as scoped in [stages § MVP](../../docs/12-stages.md#mvp) —
 somebody other than the author installs it and uses it safely on a shared host.
 
-The PoC's rule still holds: **write the small version first, then compare with
-V1 and take its solution where it is better**
-([PoC README § V1 is the bar](../PoC/README.md#v1-is-the-bar)). And nothing is
-believed until it has been watched failing
+**V1 is not the bar here.** It was, for the PoC, where writing a push adapter
+from scratch had prior art worth measuring against. This stage is our own
+design carried out; V1 is legacy and is not consulted for it. What does still
+hold is that nothing is believed until it has been watched failing
 ([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)).
 
 **Next step**: the owner's answers to the blockers below. Wave A can start
-without them; C, D, F and H cannot finish without them.
+without them; every other wave is gated by at least one.
 
 ## Blockers
 
@@ -25,7 +25,7 @@ wave stands on it.
 
 | Gates | ❓ | Where it is settled |
 |---|---|---|
-| the whole stage | what MVP contains | [stages](../../docs/12-stages.md) |
+| the whole stage | what MVP contains | [stages § MVP](../../docs/12-stages.md#mvp) |
 | C, F.1 | who filters, with AUTH off | [discovery § audience](../../docs/05-discovery.md#audience) |
 | D | static sessions are not end-to-end against the daemon — so D's own claim may be unreachable in the MVP's key mode | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
 | B.4, E | what else lives in SQLite | [setup § storage](../../docs/09-setup.md#storage) |
@@ -34,12 +34,15 @@ wave stands on it.
 | A, the CLI | whether reading an inbox and filtering one become separate options | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
 | G | what happens to a running service when its configuration changes | [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) |
 
-Two more were raised by this plan and are now indexed with the rest:
+Five more were raised by this plan and are now indexed with the rest:
 
 | Gates | ❓ | Where it is settled |
 |---|---|---|
+| A.2 | whether the caller's deadline travels with the request | [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
 | A.5 | whether several readers may block on one inbox at once | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
+| C.3 | what a subscriber is, and where a fan-out copy goes | [messaging § push and pull](../../docs/04-messaging.md#push-and-pull) |
 | D.1, D.2 | how a queued body is decrypted by a receiver that was not present when it was sent | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
+| F.2 | what carries a service's method information | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
 
 ⚠️ **The owner check is a caller-name guard, not security** — and registering
 over a name nobody owns is not checked at all
@@ -64,7 +67,7 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 | ID | Task | Notes |
 |---|---|---|
 | A.1 | a `done` verb and a sender that asks for one | the value is already a receipt the daemon takes ([messaging § receipts](../../docs/04-messaging.md#receipts)); what is missing is the face and the asking |
-| A.2 | the deadline travels to the service | today it is the caller's alone ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)); a service that cannot see it cannot give up early. ❗ a wire field — owner's call |
+| A.2 | the deadline travels to the service | **blocked**: whether it does is the ❓ in [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
 | A.3 | TTL per message, bounded by the topic's | needs the topic to carry a TTL and a bound at all ([services § topics](../../docs/03-services-and-topics.md#topics)); the queue bound is one constant today |
 | A.4 | `reply-to`, and the reply address checked at accept | the rule is settled and assigned to this stage ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)); fire-and-forget stays open to unregistered senders |
 | A.5 | several workers behind one name | competing consumers already work — 500 messages to 8 readers, none twice, none lost. What is missing is N readers **blocking** on an empty inbox; **blocked** on the ❓ above |
@@ -101,7 +104,7 @@ message that bounces later.
 | B.5 | `src/static-token` maps an SSH key to a principal | it hands out one shared token today, and its forced command selects no one |
 | B.6 | both clients carry a principal | the Go CLI and `src/mcp/` send credentials explicitly, over the socket too; per-user sockets do not reach them for free ([modules § languages](../../docs/10-modules.md#languages)) |
 | B.7 | the owner check becomes a check | registration over someone else's name is refused ([identity § ownership](../../docs/01-identity.md#ownership)); the ⚠️ in [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) goes in the same commit |
-| B.8 | enrolment: manual, then GitHub with possession proved | fetching a public key is not authentication ([identity § registration](../../docs/01-identity.md#registration)); the proof runs behind the `directory` port, so a fake adapter can test it offline |
+| B.8 | enrolment: manual, then GitHub with possession proved | fetching a public key is not authentication ([identity § registration](../../docs/01-identity.md#registration)). Where the proof step sits relative to the `directory` port ([modules § modules](../../docs/10-modules.md#modules)) needs an owning edit before it is built — it is more than fetching |
 | B.9 | `smoke.sh` gets two principals | one token for every participant is the bypass this wave removes |
 | B.10 | `register` means one thing | the verb issues a token in [access § getting a token](../../docs/02-access.md#getting-a-token) and states a record in [services](../../docs/03-services-and-topics.md#service-and-template) |
 
@@ -134,7 +137,7 @@ the stage has no meaning.
 | C.1 | service ACL, consulted first ([identity § acl](../../docs/01-identity.md#acl)) | **blocked**: where the daemon reads it from is the filtering ❓ — it cannot be the opaque configuration it is forbidden to read |
 | C.2 | master ACL, and a service may refuse it | the refusal is the point; a master that cannot be refused is not an ACL |
 | C.4 | every write goes through the layers | a send, a publish and a registration are checked like a read ([identity § acl](../../docs/01-identity.md#acl)) |
-| C.3 | pub/sub topics | a subscription is a capability that only exists once there is an ACL; **what a subscriber is, and where a copy goes,** is undesigned — a pull-model fan-out has to name both before this is a task |
+| C.3 | pub/sub topics | a subscription is a capability that only exists once there is an ACL; **blocked** on the ❓ in [messaging § push and pull](../../docs/04-messaging.md#push-and-pull) |
 
 **Done when**, and what breaking it must do:
 
@@ -210,7 +213,7 @@ That is a product decision, not a technical one.
 | ID | Task | Notes |
 |---|---|---|
 | F.1 | catalog filtered per caller ([discovery § faces](../../docs/05-discovery.md#faces)) | needs C, and needs the filtering ❓ answered; an unfiltered catalog is an ACL leak |
-| F.2 | generated docs | **needs a record to generate from** — nothing on a record carries method information today, and inventing that shape is the owner's call |
+| F.2 | generated docs | **blocked**: nothing on a record carries method information, and the shape is the ❓ in [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
 | F.3 | a basic dashboard | envelopes only, never bodies; it is a child process in the design ([processes § the processes](../../docs/11-processes.md#the-processes)), so it speaks the API from the start rather than being rebuilt at G |
 
 **Done when**, and what breaking it must do:
@@ -229,7 +232,7 @@ That is a product decision, not a technical one.
 | ID | Task | Notes |
 |---|---|---|
 | G.1 | supervisor and children ([processes § the rule](../../docs/11-processes.md#the-rule)) | B.2 may have taken the first slice already |
-| G.2 | the runner supervises and sandboxes ([runner role](../../docs/08-runner-role.md#sandboxing)) | **one** backend plus off; the rest is Release-1 breadth |
+| G.2 | the runner supervises and sandboxes ([runner § sandboxing](../../docs/08-runner-role.md#sandboxing)) | ⚠️ *proposed cut*: one backend plus off, where the design selects among several. Needs the owner before it is built |
 | G.3 | `stop` and `logs` | deferred out of the PoC explicitly *with the runner* ([stages § PoC](../../docs/12-stages.md#poc)) |
 
 **Done when**, and what breaking it must do:
@@ -252,12 +255,23 @@ role from being a compromise of the host.
 | ID | Task |
 |---|---|
 | H.1 | the package ([setup § install](../../docs/09-setup.md#install)) |
-| H.2 | `agent-bus setup` — one command from nothing to a running, authenticated bus, including the system user and the capability the unit needs |
+| H.2 | `agent-bus setup` creates the service account and starts the daemon as it ([setup § the service account](../../docs/09-setup.md#the-service-account)) — never as the invoking user, never as root |
+| H.3 | the unit: the account, its home, the one declarative capability, and restart |
 
-**Done when**: a person who has not read this repo installs it on a fresh host
-and calls a service, following only the generated instructions. This one is
-**checked by hand, once**, like the PoC's live criterion — there is no harness
-for a stranger.
+**Done when**, and what breaking it must do:
+
+- a person who has not read this repo installs it on a fresh host and calls a
+  service, following only the generated instructions — **checked by hand,
+  once**, like the PoC's live criterion;
+- the running daemon's uid is the service account's and not the installer's,
+  its home is where the docs say, and its store and dumps are under that home
+  — read from the running process, so starting it by hand as a developer
+  fails the check.
+
+**The last one is a stage gate, not just H's**: every wave from B onward is
+about two people on one host, and a daemon running as whoever built it is not
+that. Waves B–G may develop against a hand-started daemon, but the stage is
+not done until the answer comes from the account.
 
 **Cut costs**: none, and it is last only because it packages what comes before.
 The stage is named for this line.

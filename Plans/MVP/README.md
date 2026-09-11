@@ -15,6 +15,12 @@ host.** That sentence decides every argument in this stage: if a change does
 not move one of *install*, *other people*, *shared*, or *safely*, it belongs
 to Release 1.
 
+**It runs as its own account.** `agent-bus` owns the daemon, homed where a
+daemon's state belongs ([setup § the service account](../../docs/09-setup.md#the-service-account));
+nothing runs as the person who installed it and nothing runs as root. A bus
+that only works when its author starts it has not met *install*, *shared* or
+*safely* — so this is a gate on the stage, not a line item in its last wave.
+
 The PoC was allowed to be thrown away. The MVP is not — it is the first thing
 with users, so a wire format or a stored shape that lands here is one we have
 to live with or migrate.
@@ -33,6 +39,7 @@ own.
 | memory only | a durable store and a queue dump ([setup § storage](../../docs/09-setup.md#storage)) | a restart that loses the backlog is not something to hand someone |
 | one process | supervisor and children ([processes § the rule](../../docs/11-processes.md#the-rule)) | *safely*, on a host that is not yours alone |
 | run the binary | packaged and set up ([setup § install](../../docs/09-setup.md#install)) | *install* |
+| runs as whoever built it | runs as its own account ([setup § the service account](../../docs/09-setup.md#the-service-account)) | *shared* — a developer's daemon is not an installation |
 
 ## Invariants this stage must not break
 
@@ -78,13 +85,16 @@ Unchanged from the PoC, and it earned its place —
 
 ## The cut this stage wants
 
-[stages](../../docs/12-stages.md) says MVP is *proposed* and wants the
-owner's cut, and that cut is itself an indexed open decision
+[stages § MVP](../../docs/12-stages.md#mvp) says MVP is *proposed* and wants
+the owner's cut, and that cut is itself an indexed open decision
 ([decisions](../../docs/decisions.md)). So [TODO.md](TODO.md) plans the whole
 documented scope in dependency order and says at each wave what dropping it
 would cost.
 
-The smallest dependency-closed set is **A–D plus H** — everything else is a
-usable bus that nobody else can install. **G is the largest single cut
-available**; E and F.3 are the cheapest. F.1 stops being optional the moment
-C ships, because an unfiltered catalog is an ACL leak.
+The smallest **dependency-closed** set is A–D, **F.1**, **H**, and the slice of
+G.1 that B.2 needs — not A–D alone, because a catalog left unfiltered after C
+is an ACL leak, and per-user sockets need the capability only a supervisor may
+hold. Everything else is a usable bus that nobody else can install.
+
+**The rest of G is the largest single cut available**; E and F.3 are the
+cheapest.
