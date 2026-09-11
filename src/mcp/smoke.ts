@@ -118,6 +118,17 @@ try {
   const answered = await call("ab_consume", { topic: "t-receipt", tag: "g1", wait: "5s" });
   check("a filtered ab_consume returns the answer, not the ack", answered.text.includes("the actual answer"), answered.text.slice(0, 160));
 
+  // Asking again after a receipt must use what is LEFT of the deadline. It
+  // asked for the whole wait again, so a caller who said 2s waited 3.5s;
+  // the margin here is wide enough not to be a timing test.
+  {
+    setTimeout(() => { void peer.send({ to: me, body: "", topic: "t-late", tag: "g2", receipt: "ack", re: "x" } as any); }, 800);
+    const t0 = Date.now();
+    await call("ab_consume", { topic: "t-late", tag: "g2", wait: "2s" });
+    const took = Date.now() - t0;
+    check("a receipt does not extend the caller's deadline", took < 2600, `asked 2s, returned after ${took} ms`);
+  }
+
   const badSend = await call("ab_send", { to: "ghost@nowhere", text: "x" });
   check("a send to nobody is an error, not a lie", badSend.isError && badSend.text.includes("404"), badSend.text);
 

@@ -147,10 +147,16 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         // (docs/04-messaging.md#receipts).
         const deadline = Date.now() + seconds(wait) * 1000;
         for (;;) {
-          const e = await bus.consume({ topic, tag, wait }, extra.signal);
+          // What is LEFT of the deadline, not the whole of it again: asking
+          // for the full wait after a receipt made the worst case twice what
+          // the caller asked for. Sent in ms so the daemon's ParseDuration
+          // reads exactly what this computed, whatever the caller spelled.
+          const left = deadline - Date.now();
+          if (left <= 0) return text("nothing waiting");
+          const e = await bus.consume({ topic, tag, wait: `${left}ms` }, extra.signal);
           if (!e) return text("nothing waiting");
           remember(e);
-          if (!e.receipt || !(topic || tag) || Date.now() >= deadline) return text(describe(e));
+          if (!e.receipt || !(topic || tag)) return text(describe(e));
         }
       }
       case "ab_reply": {
@@ -207,7 +213,9 @@ function text(body: string, isError = false) {
 function catalogue(r: Record_): string {
   const notes = [
     r.protocol ? `speaks ${r.protocol}${r.addr ? ` at ${r.addr}` : ""} — call it yourself, not through the bus` : undefined,
-    r.reading ? "a reader is attached" : "nobody is reading it right now",
+    // Whether anyone reads its inbox says nothing about a record the bus
+    // does not serve, so it is left out rather than reported as absent.
+    r.protocol ? undefined : r.reading ? "a reader is attached" : "nobody is reading it right now",
     r.queued ? `${r.queued} queued` : undefined,
     r.config_sha ? `configured (${r.config_sha.slice(0, 12)})` : undefined,
   ].filter(Boolean);
@@ -226,12 +234,16 @@ function describe(e: Envelope): string {
   return `${head}\n\n${e.body}`;
 }
 
-// "30s" / "500ms" / "2m" as seconds, the same spellings the CLI takes.
+// "30s" / "500ms" / "2m" as seconds. A bare number is NOT a duration to Go's
+// ParseDuration, and the daemon silently falls back to its own default when
+// it cannot parse one — so anything this cannot read is left to the daemon
+// to decide rather than guessed at differently here.
+const MAX_WAIT = 60; // the daemon's cap; asking for more is not an error there
 function seconds(s: string): number {
-  const m = /^(\d+(?:\.\d+)?)(ms|s|m)?$/.exec(s.trim());
-  if (!m) return 5;
+  const m = /^(\d+(?:\.\d+)?)(ms|s|m)$/.exec(s.trim());
+  if (!m) return MAX_WAIT;
   const n = Number(m[1]);
-  return m[2] === "ms" ? n / 1000 : m[2] === "m" ? n * 60 : n;
+  return Math.min(m[2] === "ms" ? n / 1000 : m[2] === "m" ? n * 60 : n, MAX_WAIT);
 }
 
 // Registering on start is what makes "find each other by name" possible: the
