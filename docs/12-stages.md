@@ -14,7 +14,7 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
 | Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
 | Processes | one | supervisor + children | AUTH child |
-| Services | request/reply with `ack`; queue topics; scripts as services; a template configured into a service | pub/sub; deadlines, `done`, `reply-to`, several workers behind one name; the runner supervises and sandboxes | calls across chained buses; one service on many hosts, scatter-gather |
+| Services | request/reply with `ack`; queue topics; scripts as services; a template configured into a service; a record says how to call it and whether anyone is serving it | pub/sub; deadlines, `done`, `reply-to`, several workers behind one name; the runner supervises and sandboxes | calls across chained buses; one service on many hosts, scatter-gather |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
 | Install | built Go binary; bun runs the faces | `npm install` + `agent-bus setup` | packaged, zero-downtime reload |
 
@@ -44,8 +44,8 @@ to be true.
 
 | Verb | Does |
 |---|---|
-| `agent-bus register <name> [--addr …]` | put a service or agent in the registry |
-| `agent-bus ls [<name>] [--kind …]` | what is registered, or one service — discovery, human-readable |
+| `agent-bus register <name> [--addr …] [--protocol …]` | put a service or agent in the registry; `--protocol` says how to call it when that is not through the bus ([services § how to call it](03-services-and-topics.md#how-to-call-it)) |
+| `agent-bus ls [<name>] [--kind …]` | what is registered, or one service — and whether anything is actually serving it ([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)) |
 | `agent-bus send <name> [--topic] [--tag]` | one message to one receiver |
 | `agent-bus call <name> [--topic] [--tag]` | send and wait for the reply |
 | `agent-bus publish --topic <t>` | one message to a topic |

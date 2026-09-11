@@ -96,6 +96,9 @@ All 2026-09-09 unless noted.
 | Plumbing written a third time becomes one small internal module, preferred over a dependency | [modules § our own small module](10-modules.md#our-own-small-module) |
 | A registration never carries a configuration or its digest; the digest is derived | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | An inbox belongs to a registered name: consuming as an unregistered one is refused | [messaging § inbox queues](04-messaging.md#inbox-queues) |
+| A registration says how to call it; no protocol means an ordinary bus service | [services § how to call it](03-services-and-topics.md#how-to-call-it) |
+| `/etc/services` is the suggested protocol vocabulary and is never enforced | [services § how to call it](03-services-and-topics.md#how-to-call-it) |
+| A query says whether anything is serving a name, as live state that is never stored | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | Modular by layer: protocol, ports, core, adapters, faces; dependencies point inward | [modules § the rule](10-modules.md#the-rule) |
 | Process layout follows systemd: a supervisor that holds nothing, plus small single-task children | [processes § the rule](11-processes.md#the-rule) |
 | Each child gets the narrowest privilege its task needs, declared not acquired | [processes § the processes](11-processes.md#the-processes) |

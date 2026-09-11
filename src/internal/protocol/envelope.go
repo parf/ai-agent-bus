@@ -31,9 +31,21 @@ type Envelope struct {
 // description; the thing itself need not know the bus exists.
 // See docs/03-services-and-topics.md.
 type Record struct {
-	Name  string    `json:"name"`
-	Kind  string    `json:"kind"`               // generic, agent, topic
-	Addr  string    `json:"addr,omitempty"`     // host:port, a path, a URL
+	Name string `json:"name"`
+	Kind string `json:"kind"`           // generic, agent, topic
+	Addr string `json:"addr,omitempty"` // host:port, a path, a URL
+
+	// Proto says HOW to call this, where Addr says where. Empty is the
+	// answer for almost everything: no protocol means an ordinary agent-bus
+	// service — send to its name and the daemon delivers to its inbox.
+	// Anything else names a protocol the *caller* speaks directly, and the
+	// bus only passes the word along: it is a hint in the registry, not
+	// something the daemon implements or checks. /etc/services is the
+	// suggested vocabulary and cannot be more than that — it is outdated
+	// and incomplete, and much of what gets registered here is not in it.
+	// See docs/03-services-and-topics.md#how-to-call-it.
+	Proto string `json:"protocol,omitempty"`
+
 	Descr string    `json:"descr,omitempty"`    // what ls and the MCP catalog show
 	Mode  string    `json:"mode,omitempty"`     // topics only: queue or pubsub
 	Full  string    `json:"overflow,omitempty"` // ring or strict; strict if unset
@@ -52,6 +64,16 @@ type Record struct {
 	// is configured, that a write landed, and that two are the same, without
 	// handing the configuration to anyone.
 	ConfigSHA string `json:"config_sha,omitempty"`
+
+	// Live state, filled in on the way out of a query and never stored:
+	// a registry record says a name exists, and these two say whether
+	// anything is actually serving it. A registration is only a
+	// description — "there is a MySQL on host:port" registers fine and
+	// nothing on this bus answers for it — so "is it in the registry?" and
+	// "can I call it through the daemon?" are different questions.
+	// See docs/05-discovery.md#what-a-listing-answers.
+	Reading bool `json:"reading,omitempty"` // a read on its inbox is outstanding now
+	Queued  int  `json:"queued,omitempty"`  // messages waiting in it
 }
 
 // Public is what a record looks like to anyone but the service itself: the

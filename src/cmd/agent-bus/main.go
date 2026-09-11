@@ -27,7 +27,8 @@ const usage = `agent-bus — talk to agent-busd
 
   agent-bus status
   agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
-  agent-bus ls [--kind k]
+                            [--protocol p]  how to call it; unset = this bus
+  agent-bus ls [<name>] [--kind k]
   agent-bus send <to> [--topic t] [--tag g] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
   agent-bus consume [--topic t] [--tag g] [--wait 30s] [--follow]

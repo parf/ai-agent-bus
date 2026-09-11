@@ -208,7 +208,32 @@ func (b *Bus) Lookup(name string) (protocol.Record, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	r, ok := b.records[n]
+	if ok {
+		r = b.withLiveness(n, r)
+	}
 	return r, ok
+}
+
+// withLiveness answers the question a listing is really asked: not "does
+// this name exist" but "is anything serving it". The daemon knows exactly —
+// an inbox with a read outstanding has something on the other end.
+//
+// Held state, not stored state: it is attached on the way out and never
+// written back, so nothing in the registry depends on who happened to be
+// connected. Caller holds the lock.
+func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
+	in, ok := b.inboxes[name]
+	if !ok {
+		return r
+	}
+	r.Queued = len(in.queue)
+	for _, w := range in.waiters {
+		if !w.filtered {
+			r.Reading = true
+			break
+		}
+	}
+	return r
 }
 
 func (b *Bus) List(kind string) []protocol.Record {
@@ -219,7 +244,7 @@ func (b *Bus) List(kind string) []protocol.Record {
 		if kind == "" || r.Kind == kind {
 			// A listing is public to every caller; a configuration is not,
 			// and a digest of it is what a query gets instead.
-			out = append(out, r.Public())
+			out = append(out, b.withLiveness(r.Name, r.Public()))
 		}
 	}
 	return out

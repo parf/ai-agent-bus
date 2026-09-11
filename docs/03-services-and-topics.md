@@ -30,6 +30,31 @@ Two axes: reachable or not, and who owns the record.
 - generic vs agent differ only in record owner and health mode → same record
   type with a `kind` (when models are designed).
 
+## How to call it
+
+A registration says **where** something is (`addr`); it also says **how** to
+talk to it, and the interesting case is that almost nothing needs to.
+
+| `protocol` | Means |
+|---|---|
+| **unset** | an ordinary agent-bus service: send to its name and the daemon delivers to its inbox ([messaging § inbox queues](04-messaging.md#inbox-queues)). This is the default because it is the common case |
+| anything else | **the caller speaks it directly**, at `addr`. `mysql`, `https`, `amqp` — the bus passes the word along and does nothing with it |
+
+**`/etc/services` is the suggested vocabulary, and only a suggestion.** Use
+the name from it where there is one, so two people registering the same kind
+of thing write the same word. It is not a checked set and cannot become one:
+the file is outdated and incomplete — half of what anyone registers here
+(`mcp`, `grpc`, an in-house protocol) is not in it, and refusing those would
+make the field useless to the people who need it most.
+
+The value is **stored raw and never interpreted** — the same rule the MCP
+method info and a configuration follow. The daemon does not implement a
+second protocol, does not proxy, and does not refuse a send to a record that
+names one: a runner or gateway may well be reading that inbox on the thing's
+behalf ([runner § adapters](08-runner-role.md#adapters)). It is a fact in the
+registry for whoever is choosing what to call
+([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)).
+
 ## Personal and shared
 
 Default is **shared**.

@@ -12,6 +12,34 @@ How participants find each other, and what a human or an agent can see.
   connect, unix-socket ping, command, interval, timeout. Unix-socket services
   are first-class (`unix:/path`).
 
+## What a listing answers
+
+**Being in the registry and being callable are different facts.** "There is a
+MySQL on `db1:3306`" is a complete registration ([services § service
+kinds](03-services-and-topics.md#service-kinds)) and nothing on this bus
+answers for it; a service template is registered and deliberately does not run
+([services § service and template](03-services-and-topics.md#service-and-template)).
+So a caller reading a listing needs two more things than a name:
+
+| Field | Says | Absent means |
+|---|---|---|
+| **`protocol`** | how to call it, when that is not through the bus ([services § how to call it](03-services-and-topics.md#how-to-call-it)) | an ordinary bus service: send to the name |
+| **`reading`** | a read on its inbox is outstanding *now* — something is serving it | registered, but nobody is home |
+| **`queued`** | how many messages are waiting in it | none are |
+
+`reading` and `queued` are **live state, not registry data** — attached to an
+answer on its way out and never stored, so nothing in the registry depends on
+who happened to be connected ([overview § principles](00-overview.md#principles)). They are the difference between
+*"this name exists"* and *"a call would reach someone"*, which is the question
+a caller is actually asking.
+
+**A false negative is possible and harmless**: between one long poll and the
+next a live service shows `reading: false` for as long as it takes to ask
+again. Nothing is lost by calling it anyway — the address outlives the process
+and the queue waits ([messaging § inbox
+queues](04-messaging.md#inbox-queues)) — so this is a hint for choosing, never
+a gate on sending.
+
 ## Faces
 
 | Face | For | Does |

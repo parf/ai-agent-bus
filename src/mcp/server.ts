@@ -115,7 +115,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         return text(
           records.length === 0
             ? "nothing is registered"
-            : records.map((r) => `${r.name}  [${r.kind}]  ${r.descr ?? ""}`.trimEnd()).join("\n"),
+            : records.map(catalogue).join("\n"),
         );
       }
       case "ab_send": {
@@ -188,11 +188,38 @@ function text(body: string, isError = false) {
   return { content: [{ type: "text" as const, text: body }], ...(isError ? { isError } : {}) };
 }
 
+// What a caller needs to decide whether to call it: what it is, how to reach
+// it, and whether anyone is there. A record with no protocol is an ordinary
+// bus service — send to the name; anything else the caller speaks itself, at
+// the address given (docs/05-discovery.md#what-a-listing-answers).
+function catalogue(r: Record_): string {
+  const notes = [
+    r.protocol ? `speaks ${r.protocol}${r.addr ? ` at ${r.addr}` : ""} — call it yourself, not through the bus` : undefined,
+    r.reading ? "a reader is attached" : "nobody is reading it right now",
+    r.queued ? `${r.queued} queued` : undefined,
+    r.config_sha ? `configured (${r.config_sha.slice(0, 12)})` : undefined,
+  ].filter(Boolean);
+  return `${r.name}  [${r.kind}]  ${r.descr ?? ""}`.trimEnd() + `\n    ${notes.join(" · ")}`;
+}
+
 function describe(e: Envelope): string {
   const head = [`from ${e.from}`, e.topic && `topic ${e.topic}`, e.tag && `tag ${e.tag}`, `id ${e.message_id}`]
     .filter(Boolean)
     .join(" · ");
+  // A receipt carries no body: saying so beats handing over a blank one,
+  // which reads as an empty answer (docs/04-messaging.md#receipts).
+  if (e.receipt) {
+    return `${head}\n\nreceipt: ${e.receipt} — ${e.from} ${e.receipt === "ack" ? "received" : "finished"} ${e.re ?? "your message"}. Not an answer; the answer is still to come.`;
+  }
   return `${head}\n\n${e.body}`;
+}
+
+// "30s" / "500ms" / "2m" as seconds, the same spellings the CLI takes.
+function seconds(s: string): number {
+  const m = /^(\d+(?:\.\d+)?)(ms|s|m)?$/.exec(s.trim());
+  if (!m) return 5;
+  const n = Number(m[1]);
+  return m[2] === "ms" ? n / 1000 : m[2] === "m" ? n * 60 : n;
 }
 
 // Registering on start is what makes "find each other by name" possible: the

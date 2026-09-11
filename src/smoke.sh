@@ -326,6 +326,34 @@ has "asking about one name answers about one name" \
 has "and says so when there is no such service" \
   "$(ab owner@srv1 ls absent-entirely@srv1 2>&1)" 'no such name'
 
+echo "== a listing says whether a call would reach anyone"
+# Being in the registry and being callable are different facts: "there is a
+# MySQL on db1:3306" registers fine and nothing on this bus answers for it.
+ab owner@srv1 register db.main@srv1 --protocol mysql --addr db1:3306 --descr "the main database" >/dev/null
+has "a registration can say how to call it" "$(ab nobody@srv1 ls db.main@srv1)" '"protocol":"mysql"'
+# Asserted on the record itself, not on an empty grep: an is_empty that a
+# failed query also satisfies is a check that passes with the daemon down.
+ab owner@srv1 register plain.svc@srv1 >/dev/null
+has "and an ordinary bus service says nothing, because there is nothing to say" \
+  "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"name":"plain.svc@srv1"\|"protocol":')" '"name":"plain.svc@srv1"'
+is_empty "so no protocol comes back for it" \
+  "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"protocol":[^,}]*')"
+has "a registered name nobody serves is not shown as read" \
+  "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":[a-z]*\|"name":"plain.svc@srv1"')" '"name":"plain.svc@srv1"'
+is_empty "and reading is absent rather than false" \
+  "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":true')"
+# And with a reader attached, the same query says so — this is the whole
+# difference between "registered" and "callable right now".
+ab reader@srv1 register reader@srv1 >/dev/null
+ab reader@srv1 consume --wait 6s >/dev/null 2>&1 &
+reader_pid=$!
+sleep 1
+has "a name something is reading says so" "$(ab nobody@srv1 ls reader@srv1)" '"reading":true'
+ab nobody@srv1 send reader@srv1 "wake up" >/dev/null
+wait $reader_pid
+has "and the depth of what is waiting is visible" \
+  "$(ab nobody@srv1 send plain.svc@srv1 "one" >/dev/null; ab nobody@srv1 ls plain.svc@srv1)" '"queued":1'
+
 echo "== configuring a service template produces a configured service"
 # The configuration is arbitrary JSON and stays opaque; the one thing that
 # matters to the bus is that it never shows up where it should not.

@@ -12,9 +12,23 @@ export type Envelope = {
   tag?: string;
   body: string;
   at: string;
+  // A receipt is an ordinary message that says "got it" or "finished", not
+  // an answer — a face that cannot tell the two apart hands a model an empty
+  // body and leaves the real answer queued
+  // (docs/04-messaging.md#receipts).
+  receipt?: "ack" | "done";
+  re?: string;
 };
 
-export type Record_ = { name: string; kind: string; addr?: string; descr?: string; owner: string };
+export type Record_ = { name: string; kind: string; addr?: string; descr?: string; owner: string;
+  // How to call it, and whether anything is actually serving it. A registry
+  // entry says a name exists; these say whether a call through the bus will
+  // reach anyone (docs/05-discovery.md#what-a-listing-answers).
+  protocol?: string; reading?: boolean; queued?: number;
+  // The digest of a configuration, never the configuration itself: it is
+  // how a caller sees that a service is configured, and that its setup
+  // still matches the one it knew (docs/03-services-and-topics.md#why-a-digest-at-all).
+  config_sha?: string };
 
 export class BusError extends Error {
   constructor(readonly status: number, message: string) {
