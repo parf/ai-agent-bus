@@ -1,0 +1,46 @@
+# DONE — MVP
+
+What this stage has finished, wave by wave, and what each one proved. The
+active plan is [TODO.md](TODO.md); the stage's stable knowledge is
+[README.md](README.md).
+
+Everything below was accepted the same way
+([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)):
+`src/smoke.sh --slow` green, and every rule broken again and watched turning a
+**named** check red.
+
+| Wave | Result |
+|---|---|
+| **A — calls grow up** | `done` beside `ack`, a caller's wait ending on it; `reply-to` a third party refused at accept when the address is unregistered; TTL and bound on the record instead of daemon-wide constants; the caller's deadline travelling to the service; several workers sharing one inbox; per-service `in`/`out` counters on a listing. |
+| **B — it is many people's** | A token backs one principal and a request that states another is refused. One socket per mapped account, supplying both parameters. Tokens issued, rotated and persisted, with the previous one still good. Credentials behind the `store` port. The principal is an argument of the SSH forced command. Enrolment proves possession with the host's own `ssh-keygen`. The suite gave every name its own credential, so there is no shared token left to bypass with. |
+| **C — who may reach what** | `allow` is a field on the record, so the daemon enforces what it holds and never reads a private configuration. Master is the node's layer and a service may refuse it. Every write verb goes through both layers, each falsified alone. Pub/sub: one copy per subscriber, into the subscriber's own inbox. |
+| **E — a restart is not a loss** | A JSON snapshot behind the `dump` port, written at start, on a graceful stop and optionally once a minute; records, backlog and counters all come back, a drained queue stays drained, and a start after an unclean stop says so and from when. |
+| **F — the faces grow up** | The daemon filters, so two principals get different catalogs and each matches what they may actually call. `agent-bus-web` renders records and a bounded feed of envelopes over HTTPS on its own hostname, bodies struck out in the bus rather than in the page. |
+| **G — least privilege** | One binary, two roles: a supervisor that opens every listener, chowns the per-user ones and hands the fds down, and a bus that serves them and holds the store. A dead child is started again onto the same sockets; a supervisor killed outright takes its children with it. |
+| **H — somebody else installs it** | Five programs split by privilege. `agent-bus-setup` is root-only and prints the `sudo` line rather than half-installing; the unit carries the account, its home, one declarative capability and restart. `agent-bus-admin` writes the account's `authorized_keys`, one forced command per key. `agent-bus-token` prints a credential and nothing else, and `--key` gets one with no credential to start from. |
+
+## What the reviews and the mutants caught
+
+The value is in the ones that were **green for the wrong reason**, because
+those are the checks a suite cannot find by passing:
+
+| | |
+|---|---|
+| Two checks asked a **dead process** what it left behind | `pgrep -P <dead pid>` is always empty — orphans reparent to init — so "no bus is left behind" passed with a bus left behind. Pids are captured before the kill now, and required non-empty. |
+| "A different bus pid" passed **with no bus at all** | an absent process is trivially a different one. |
+| A stop that was not passed on **still ended the children** | the 6-second kill fallback did it, so the graceful path was never exercised. The check now reads what the bus wrote on the way out. |
+| An installer run as the wrong user **still exited non-zero** | because `useradd` failed afterwards. The check now requires it to refuse *before* the first step. |
+| A tampered signature check was **too weak** | trailing bytes after an armored `ssh-keygen` signature are ignored, so appending one changed nothing; truncation is the mutation that bites. |
+| A socket's **inode across a restart** could not be expressed as a mutation | falsified by hand instead, and recorded as such rather than left implied. |
+| A check that only matched `"deadline"` passed with the stamping **deleted** | a zero time is still a field. The year is the check. |
+| Two of the plan's own **first-draft criteria** passed on PoC code | before a line of MVP work existed; both were rewritten. |
+
+## Seven harness traps
+
+Recorded in [PoC README](../PoC/README.md) as they were found, because each
+one made a batch lie: port spacing between concurrent runs, editing `src/`
+while a batch is copying it, a mutation the daemon cannot start with, a mutant
+that does not compile, a `--slow` section skipped in the fast run, a
+heuristic matching `"bad token"` instead of `"address already in use"`, and a
+suite leaving its temporary directory behind because a shutdown dump raced
+`rm -rf`.

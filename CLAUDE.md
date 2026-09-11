@@ -28,8 +28,9 @@ it first rather than duplicating the index here. Beyond the numbered docs:
 | `docs/glossary.md` | **normative for naming.** Every name and term, one line each. Check a name here before inventing one |
 | `docs/decisions.md` | index of settled / open / superseded decisions — rows link, they never state the rule |
 | `docs/12-stages.md` | PoC / MVP / Release 1 — check which stage a feature belongs to before designing it in |
-| `Plans/MVP/` | the **active plan** — `README.md` is the stage's own knowledge, `TODO.md` the waves and acceptance. Follows the Plans HOWTO (`/rd/vhosts/realty/Plans/README.md`): knowledge, active work and decisions stay in separate files |
+| `Plans/MVP/` | the **active plan** — `README.md` is the stage's own knowledge, `TODO.md` the waves and acceptance, `DONE.md` what is finished and what the mutants caught. Follows the Plans HOWTO (`/rd/vhosts/realty/Plans/README.md`): knowledge, active work and decisions stay in separate files |
 | `Plans/PoC/` | the finished stage — same shape, kept for its knowledge and its completion log |
+| `Plans/V1/` | the **next** stage, not started — same shape. "V1" there means [stages § release 1](docs/12-stages.md#release-1), **not** the NATS legacy this file calls V1 |
 | `docs/future/` | designed but deferred; not part of the current scope — LDAP/AD, billing |
 | `legacy/` | history only, not spec — never cite it, never update it |
 
@@ -54,7 +55,7 @@ disagree, fix the stale one.
   `README.md` or this file, prefix `docs/`. Link text is *short doc name §
   section*. Headings used as targets are plain words — no backticks or
   punctuation, so the anchor stays predictable — and are not renamed casually.
-- **The plan is not a design doc.** `Plans/PoC/` holds objective, waves,
+- **The plan is not a design doc.** A stage directory holds objective, waves,
   blockers and acceptance criteria; anything a developer must know to work
   correctly belongs in `docs/`, and a decision taken while planning lands in
   `docs/decisions.md` like any other.
