@@ -93,6 +93,7 @@ All 2026-09-09 unless noted.
 | Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](10-modules.md#external-tools) |
 | HTTP is a first-class citizen and always the built-in client, never a subprocess — unless the caller is a script | [modules § HTTP is built in](10-modules.md#http-is-built-in) |
 | The per-message hot path stays in-process: a well-known library, never our own primitives | [modules § the hot path](10-modules.md#the-hot-path) |
+| Plumbing written a third time becomes one small internal module, preferred over a dependency | [modules § our own small module](10-modules.md#our-own-small-module) |
 | Modular by layer: protocol, ports, core, adapters, faces; dependencies point inward | [modules § the rule](10-modules.md#the-rule) |
 | Process layout follows systemd: a supervisor that holds nothing, plus small single-task children | [processes § the rule](11-processes.md#the-rule) |
 | Each child gets the narrowest privilege its task needs, declared not acquired | [processes § the processes](11-processes.md#the-processes) |

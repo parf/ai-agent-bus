@@ -27,6 +27,7 @@
 
 import { resolve } from "node:path";
 
+import { Pending, drain, lines } from "./rpc.ts";
 // The only MCP server this face will approve a tool call for: its own.
 const MCP_SERVER_NAME = "agent-bus";
 
@@ -56,8 +57,7 @@ type Wire = {
 export class Codex {
   #wire?: Wire;
   #proc?: ReturnType<typeof Bun.spawn>;
-  #next = 1;
-  #pending = new Map<number, { ok: (v: any) => void; fail: (e: Error) => void; timer: Timer }>();
+  #pending = new Pending();
   #thread?: string;
   #activeTurn?: string;
   // Bumped by every notification that changes the active turn, so a slow RPC
@@ -186,11 +186,7 @@ export class Codex {
   stop(): void {
     if (this.#closed) return;
     this.#closed = true;
-    for (const p of this.#pending.values()) {
-      clearTimeout(p.timer);
-      p.fail(new Error("codex: closed"));
-    }
-    this.#pending.clear();
+    this.#pending.failAll("codex: closed");
     this.#wire?.close();
     this.#proc?.kill();
   }
@@ -222,21 +218,11 @@ export class Codex {
   }
 
   #request<T = any>(method: string, params?: unknown, timeoutMs = 30_000): Promise<T> {
-    const id = this.#next++;
-    const line = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
-    return new Promise<T>((ok, fail) => {
-      const timer = setTimeout(() => {
-        this.#pending.delete(id);
-        fail(new Error(`codex: ${method} timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-      // Registered before the write, so a fast answer cannot arrive first.
-      this.#pending.set(id, { ok, fail, timer });
-      this.#write(line).catch((e) => {
-        clearTimeout(timer);
-        this.#pending.delete(id);
-        fail(e);
-      });
-    });
+    return this.#pending.request(
+      (id) => this.#write(JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n"),
+      timeoutMs,
+      () => new Error(`codex: ${method} timed out after ${timeoutMs}ms`),
+    ) as Promise<T>;
   }
 
   #notify(method: string, params?: unknown): void {
@@ -293,17 +279,7 @@ export class Codex {
 
   async #readLines(stream: ReadableStream<Uint8Array>): Promise<void> {
     try {
-      const decoder = new TextDecoder();
-      let buf = "";
-      for await (const chunk of stream) {
-        buf += decoder.decode(chunk, { stream: true });
-        let nl: number;
-        while ((nl = buf.indexOf("\n")) >= 0) {
-          const line = buf.slice(0, nl).trim();
-          buf = buf.slice(nl + 1);
-          if (line) this.#dispatch(line);
-        }
-      }
+      for await (const line of lines(stream)) this.#dispatch(line);
       this.#gone("the app-server exited");
     } catch (err) {
       this.#gone(`the app-server connection failed: ${err}`);
@@ -312,11 +288,10 @@ export class Codex {
 
   async #drainStderr(stream: ReadableStream<Uint8Array>): Promise<void> {
     try {
-      const decoder = new TextDecoder();
-      for await (const chunk of stream) {
-        const s = decoder.decode(chunk).trim();
-        if (s) this.#log(`codex stderr: ${s}`);
-      }
+      await drain(stream, (s) => {
+        const line = s.trim();
+        if (line) this.#log(`codex stderr: ${line}`);
+      });
     } catch { /* the process is gone; #gone has already been said */ }
   }
 
@@ -325,11 +300,7 @@ export class Codex {
     if (this.#closed) return;
     this.#closed = true;
     this.#log(`codex: ${why}`);
-    for (const [id, p] of this.#pending) {
-      clearTimeout(p.timer);
-      p.fail(new Error(`codex: ${why}`));
-      this.#pending.delete(id);
-    }
+    this.#pending.failAll(`codex: ${why}`);
   }
 
   #dispatch(line: string): void {
@@ -341,12 +312,11 @@ export class Codex {
       return;
     }
     if (msg.id !== undefined && (msg.result !== undefined || msg.error)) {
-      const p = typeof msg.id === "number" ? this.#pending.get(msg.id) : undefined;
-      if (!p) return;
-      clearTimeout(p.timer);
-      this.#pending.delete(msg.id as number);
-      if (msg.error) p.fail(new AppServerError(msg.error.code, msg.error.message));
-      else p.ok(msg.result);
+      this.#pending.settle(
+        msg.id,
+        msg.error ? new AppServerError(msg.error.code, msg.error.message) : null,
+        msg.result,
+      );
       return;
     }
     // A message with both an id and a method is a *request*: the server is
@@ -361,8 +331,9 @@ export class Codex {
   // A turn started by a bus message has no human at the keyboard, so the
   // App Server asks *us* to approve what the session wants to do. Approving
   // in general would be handing a remote peer the user's permissions. The
-  // one thing this face will approve is **the bus's own reply tool**: the
-  // peer asked a question, and answering it is what the turn is for.
+  // one thing this face will approve is **a tool call into the agent-bus MCP
+  // server itself** — answering the peer is what the turn is for, and that
+  // answer is an ab_ call.
   // Everything else is declined and shows up in the session as such.
   #serverRequest(id: number | string, method: string, params: unknown): void {
     if (method !== "mcpServer/elicitation/request") {

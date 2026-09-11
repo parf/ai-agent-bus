@@ -6,6 +6,7 @@
 // the by-hand criterion (Plans/PoC/TODO.md: B).
 
 import { Bus } from "./bus.ts";
+import { Pending, drain, lines } from "./rpc.ts";
 
 const me = process.env.PUSH_NAME!;         // the pushed session
 const peer = new Bus();                    // AGENT_BUS_NAME is the peer here
@@ -20,13 +21,9 @@ const proc = Bun.spawn(["bun", "run", "server.ts"], {
 // Drained from the start: reading it only in the failure path turns a hang
 // into a permanent hang.
 let stderr = "";
-const draining = (async () => {
-  const dec = new TextDecoder();
-  for await (const chunk of proc.stderr) stderr += dec.decode(chunk, { stream: true });
-})().catch(() => {});
+const draining = drain(proc.stderr, (s) => { stderr += s; }).catch(() => "");
 
-let next = 1;
-const pending = new Map<number, { ok: (v: any) => void; fail: (e: Error) => void }>();
+const pending = new Pending();
 const channelled: any[] = [];
 let onChannel: (() => void) | undefined;
 
@@ -35,44 +32,23 @@ async function send(msg: unknown) {
   await proc.stdin.flush();
 }
 function request(method: string, params?: unknown): Promise<any> {
-  const id = next++;
-  return new Promise<any>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      pending.delete(id);
-      reject(new Error(`timeout on ${method}`));
-    }, 20_000);
-    pending.set(id, {
-      ok: (v) => { clearTimeout(timer); resolve(v); },
-      fail: (e) => { clearTimeout(timer); reject(e); },
-    });
-    send({ jsonrpc: "2.0", id, method, ...(params ? { params } : {}) }).catch((e) => {
-      clearTimeout(timer);
-      pending.delete(id);
-      reject(e);
-    });
-  });
+  return pending.request(
+    (id) => send({ jsonrpc: "2.0", id, method, ...(params ? { params } : {}) }),
+    20_000,
+    () => new Error(`timeout on ${method}`),
+  );
 }
 (async () => {
-  const dec = new TextDecoder();
-  let buf = "";
-  for await (const chunk of proc.stdout) {
-    buf += dec.decode(chunk, { stream: true });
-    let i;
-    while ((i = buf.indexOf("\n")) >= 0) {
-      const line = buf.slice(0, i).trim();
-      buf = buf.slice(i + 1);
-      if (!line) continue;
-      const msg = JSON.parse(line);
-      if (msg.method === "notifications/claude/channel") {
-        channelled.push(msg.params);
-        onChannel?.();
-      } else if (msg.id !== undefined) {
-        pending.get(msg.id)?.ok(msg);
-        pending.delete(msg.id);
-      }
+  for await (const line of lines(proc.stdout)) {
+    const msg = JSON.parse(line);
+    if (msg.method === "notifications/claude/channel") {
+      channelled.push(msg.params);
+      onChannel?.();
+    } else if (msg.id !== undefined) {
+      pending.settle(msg.id, null, msg);
     }
   }
-  for (const [id, p] of pending) { p.fail(new Error("server exited")); pending.delete(id); }
+  pending.failAll("server exited");
 })().catch(() => {});
 
 // Waits for the nth notification (1-based), so a check can assert how many
@@ -139,6 +115,50 @@ try {
       channelled[1].meta.message_id === second.message_id,
     `${channelled.length} notifications: ${channelled.map((c) => c.meta.message_id).join(", ")}`,
   );
+  // A push adapter that has given up must stop speaking for the inbox. A
+  // second face on the same name loses the unfiltered read to the first
+  // (409), so its push loop stops — and after that "messages arrive on
+  // their own" is a lie that leaves the inbox unread until a restart.
+  {
+    const other = Bun.spawn(["bun", "run", "server.ts"], {
+      stdin: "pipe", stdout: "pipe", stderr: "pipe",
+      env: { ...process.env, AGENT_BUS_NAME: me, AGENT_BUS_PUSH: "claude" },
+      cwd: import.meta.dir,
+    });
+    const otherPending = new Pending();
+    const otherErr: string[] = [];
+    drain(other.stderr, (s) => otherErr.push(s)).catch(() => {});
+    (async () => {
+      for await (const line of lines(other.stdout)) {
+        const msg = JSON.parse(line);
+        if (msg.id !== undefined) otherPending.settle(msg.id, null, msg);
+      }
+      otherPending.failAll("second server exited");
+    })().catch(() => {});
+    const ask = (method: string, params?: unknown) =>
+      otherPending.request(
+        async (id) => {
+          other.stdin.write(JSON.stringify({ jsonrpc: "2.0", id, method, ...(params ? { params } : {}) }) + "\n");
+          await other.stdin.flush();
+        },
+        20_000,
+        () => new Error(`timeout on ${method}`),
+      );
+    await ask("initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "smoke", version: "0" } });
+    other.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
+    await other.stdin.flush();
+    // Give its push loop time to lose the read and stop.
+    await Bun.sleep(2000);
+    const res = await ask("tools/call", { name: "ab_consume", arguments: { wait: "1s" } });
+    const said = res?.result?.content?.[0]?.text ?? JSON.stringify(res);
+    check(
+      "a face whose push has stopped no longer claims messages arrive on their own",
+      !said.includes("messages arrive on their own"),
+      `${said.slice(0, 160)}${otherErr.join("").includes("push") ? "" : " (no push line on stderr)"}`,
+    );
+    other.kill();
+    await Promise.race([other.exited, Bun.sleep(2000)]);
+  }
 } catch (e) {
   check("no exception", false, String(e));
 } finally {

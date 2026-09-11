@@ -99,6 +99,21 @@ already does it. Three ways to satisfy that, in order of preference:
 | 3 | **a well-known library**, in-process | neither fits and it is on the hot path |
 | — | **never** our own crypto or protocol primitives | — |
 
+### Our own small module
+
+A fourth case sits beside those three, and it is not a wheel: **code that is
+ours, written a third time**. A line reader over a byte stream and the map
+that matches a JSON-RPC answer to the request waiting for it existed in three
+files here before they became one module. The preference is explicit —
+**a small internal module beats a dependency** for plumbing this size.
+
+| Bar | |
+|---|---|
+| three copies | two is a coincidence; the third is a shape |
+| no standard equivalent worth the dependency | rule 1 and rule 3 are asked first, and win when they answer |
+| narrow | it knows nothing its callers disagree about, and reads in one screen |
+| never crypto, never a wire format | the row above is not relaxed by this one |
+
 ### HTTP is built in
 
 **Web requests are a first-class citizen of this design, not glue.** Generic

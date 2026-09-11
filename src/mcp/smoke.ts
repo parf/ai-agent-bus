@@ -9,6 +9,7 @@
 
 import { Bus } from "./bus.ts";
 
+import { Pending, drain, lines } from "./rpc.ts";
 const proc = Bun.spawn(["bun", "run", "server.ts"], {
   stdin: "pipe", stdout: "pipe", stderr: "pipe",
   env: { ...process.env },
@@ -18,52 +19,27 @@ const proc = Bun.spawn(["bun", "run", "server.ts"], {
 // stderr is drained from the start: a harness that only reads it in the
 // failure path waits forever on a server that has not exited.
 let stderr = "";
-const draining = (async () => {
-  const dec = new TextDecoder();
-  for await (const chunk of proc.stderr) stderr += dec.decode(chunk, { stream: true });
-})();
+const draining = drain(proc.stderr, (s) => { stderr += s; }).catch(() => "");
 
-let next = 1;
-const pending = new Map<number, { ok: (v: any) => void; fail: (e: Error) => void }>();
+const pending = new Pending();
 async function send(msg: unknown) {
   proc.stdin.write(JSON.stringify(msg) + "\n");
   await proc.stdin.flush();
 }
 function request(method: string, params?: unknown): Promise<any> {
-  const id = next++;
-  return new Promise<any>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      pending.delete(id);
-      reject(new Error(`timeout on ${method}`));
-    }, 20_000);
-    pending.set(id, {
-      ok: (v) => { clearTimeout(timer); resolve(v); },
-      fail: (e) => { clearTimeout(timer); reject(e); },
-    });
-    send({ jsonrpc: "2.0", id, method, ...(params ? { params } : {}) }).catch((e) => {
-      clearTimeout(timer);
-      pending.delete(id);
-      reject(e);
-    });
-  });
+  return pending.request(
+    (id) => send({ jsonrpc: "2.0", id, method, ...(params ? { params } : {}) }),
+    20_000,
+    () => new Error(`timeout on ${method}`),
+  );
 }
 const reading = (async () => {
-  const dec = new TextDecoder();
-  let buf = "";
-  for await (const chunk of proc.stdout) {
-    buf += dec.decode(chunk, { stream: true });
-    let i;
-    while ((i = buf.indexOf("\n")) >= 0) {
-      const line = buf.slice(0, i).trim();
-      buf = buf.slice(i + 1);
-      if (!line) continue;
-      const msg = JSON.parse(line);
-      if (msg.id !== undefined) pending.get(msg.id)?.ok(msg);
-      if (msg.id !== undefined) pending.delete(msg.id);
-    }
+  for await (const line of lines(proc.stdout)) {
+    const msg = JSON.parse(line);
+    if (msg.id !== undefined) pending.settle(msg.id, null, msg);
   }
   // The server is gone; nothing in flight will be answered.
-  for (const [id, p] of pending) { p.fail(new Error("server exited")); pending.delete(id); }
+  pending.failAll("server exited");
 })().catch(() => {});
 
 let pass = 0, fail = 0;
@@ -134,12 +110,20 @@ try {
   const bogus = await call("ab_reply", { message_id: "deadbeef", text: "x" });
   check("ab_reply refuses an id it did not consume", bogus.isError, bogus.text);
 
+  // A receipt is not an answer. The CLI has always known this; the face did
+  // not, and handed the model an ack with an empty body while the answer
+  // stayed queued (docs/04-messaging.md#receipts).
+  await peer.send({ to: me, body: "", topic: "t-receipt", tag: "g1", receipt: "ack", re: "deadbeef" });
+  await peer.send({ to: me, body: "the actual answer", topic: "t-receipt", tag: "g1" });
+  const answered = await call("ab_consume", { topic: "t-receipt", tag: "g1", wait: "5s" });
+  check("a filtered ab_consume returns the answer, not the ack", answered.text.includes("the actual answer"), answered.text.slice(0, 160));
+
   const badSend = await call("ab_send", { to: "ghost@nowhere", text: "x" });
   check("a send to nobody is an error, not a lie", badSend.isError && badSend.text.includes("404"), badSend.text);
 
   // A cancelled long poll must let go of the inbox. Without the abort signal
   // the wait ran on, took the next message and threw the answer away.
-  const cancelled = next++;
+  const cancelled = pending.reserve();
   await send({ jsonrpc: "2.0", id: cancelled, method: "tools/call", params: { name: "ab_consume", arguments: { wait: "20s" } } });
   await Bun.sleep(400);
   await send({ jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: cancelled, reason: "smoke" } });
