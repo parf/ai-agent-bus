@@ -117,6 +117,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /ls", g(s.ls))
 	mux.HandleFunc("GET /lookup", g(s.lookup))
 	mux.HandleFunc("GET /recent", g(s.recent))
+	mux.HandleFunc("POST /subscribe", g(s.subscribe))
 	mux.HandleFunc("POST /configure", g(s.configure))
 	mux.HandleFunc("GET /config", g(s.config))
 	mux.HandleFunc("POST /send", g(s.send))
@@ -226,6 +227,22 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.
 		core.Status
 		You string `json:"you"`
 	}{s.bus.Status(), caller.String()})
+}
+
+// subscribe puts the caller on a pub/sub topic, or takes it off. The caller
+// is the subscriber — there is no third name here, because a subscription
+// puts messages in somebody's inbox and only they may ask for that.
+// See docs/04-messaging.md#push-and-pull.
+func (s *Server) subscribe(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	var in struct {
+		Topic string `json:"topic"`
+		Off   bool   `json:"off,omitempty"`
+	}
+	if !read(w, r, &in) {
+		return
+	}
+	rec, err := s.bus.Subscribe(caller.String(), in.Topic, !in.Off)
+	reply(w, rec, err)
 }
 
 func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
@@ -436,7 +453,6 @@ var codes = []struct {
 	{core.ErrUnknown, http.StatusNotFound},
 	{core.ErrFull, http.StatusServiceUnavailable},
 	{core.ErrTwoReads, http.StatusConflict},
-	{core.ErrNotYet, http.StatusNotImplemented},
 }
 
 // reply answers with v, or with the status this error maps to. An error no

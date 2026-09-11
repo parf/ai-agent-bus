@@ -27,7 +27,6 @@ var (
 	ErrUnknown  = errors.New("no such name")
 	ErrTwoReads = errors.New("inbox already has a reader, and neither asked to share it")
 	ErrBadName  = errors.New("bad name")
-	ErrNotYet   = errors.New("pub/sub topics arrive at MVP")
 	ErrReceipt  = errors.New(`a receipt is "ack" or "done"`)
 	ErrFull     = errors.New("the receiver's queue is full")
 	ErrOverflow = errors.New("overflow is strict or ring")
@@ -169,7 +168,7 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 	if r.Bound < 0 {
 		return protocol.Record{}, fmt.Errorf("%w, not %d", ErrBound, r.Bound)
 	}
-	r.Config, r.ConfigSHA = nil, ""
+	r.Config, r.ConfigSHA, r.Subs = nil, "", nil
 	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
 	// Publishing a name is open to anyone; changing one that exists belongs
 	// to its owner, and to the record itself — a service registering on
@@ -186,6 +185,7 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 		}
 		r.Config = old.Config
 		r.Owner = old.Owner
+		r.Subs = old.Subs
 	}
 	r.Name = name
 	r.At = time.Now()
@@ -416,12 +416,6 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	if !b.may(from, rec) {
 		return protocol.Envelope{}, fmt.Errorf("%s may not send to %s: %w", from, to, ErrNotAllow)
 	}
-	// A queue topic is an inbox with a name, so publishing to one is an
-	// ordinary send. Fan-out is not: a subscriber is undefined without an
-	// ACL, so PoC stores the mode and says so. See docs/12-stages.md#poc.
-	if rec.Kind == protocol.KindTopic && rec.Mode == protocol.ModePubSub {
-		return protocol.Envelope{}, fmt.Errorf("%s is a pub/sub topic: %w", to, ErrNotYet)
-	}
 	// An answer that cannot be routed is the requester's problem to hear
 	// about now. Registered, not live: the name owns a queue whether or not
 	// anything is reading it. See docs/04-messaging.md#reply-routing.
@@ -465,8 +459,24 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 		}
 		e.Deadline = e.At.Add(w)
 	}
-	in := b.ensure(to)
+	// A queue topic is an inbox with a name, so publishing to one is an
+	// ordinary send. A pub/sub topic keeps nothing of its own instead.
+	if rec.Kind == protocol.KindTopic && rec.Mode == protocol.ModePubSub {
+		return b.fanout(rec, e)
+	}
+	if err := b.deliver(rec, b.ensure(to), e); err != nil {
+		return protocol.Envelope{}, err
+	}
+	b.note(e)
+	return e, nil
+}
 
+// deliver puts one envelope into one inbox: into a waiter if one is there,
+// into the queue otherwise, and into neither if the queue is full and its
+// record said strict. It is the only door into an inbox, so a fan-out copy
+// obeys the receiver's bound and overflow exactly as a send does.
+// Caller holds the lock.
+func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error {
 	// A waiter that asked for this topic and tag is served ahead of the
 	// unfiltered reader — otherwise a `call` loses its reply to whichever
 	// reader happened to block first.
@@ -481,9 +491,8 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 			}
 			in.waiters = drop(in.waiters, i)
 			in.in, in.out = in.in+1, in.out+1 // straight through: in and out at once
-			b.note(e)
 			w.ch <- e
-			return e, nil
+			return nil
 		}
 	}
 	// A full queue either refuses the new message or forgets the oldest, and
@@ -501,15 +510,90 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	if len(in.queue) >= bound {
 		if rec.Full != protocol.OverflowRing {
-			return protocol.Envelope{}, fmt.Errorf("%w: %s holds %d", ErrFull, to, len(in.queue))
+			return fmt.Errorf("%w: %s holds %d", ErrFull, rec.Name, len(in.queue))
 		}
 		in.queue = take(in.queue, 0)
 		b.dropped++ // a real loss, so `status` reports it
 	}
 	in.queue = append(in.queue, e)
 	in.in++
+	return nil
+}
+
+// fanout is what a pub/sub topic does instead of holding a queue: one copy
+// into each subscriber's own inbox, where that subscriber's bound, overflow,
+// TTL and reader apply. The topic itself keeps nothing.
+//
+// One subscriber cannot stop the topic: a copy that will not fit is counted
+// as a drop and the others still go. A publisher a stopped reader can block
+// is a queue, and a queue topic is what that caller wanted.
+// Caller holds the lock.
+func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envelope, error) {
+	b.ensure(topic.Name).in++ // publications accepted; none is kept
 	b.note(e)
+	for _, s := range topic.Subs {
+		sub, known := b.records[s]
+		// Asked again at every publish, not only at subscribe: access taken
+		// away has to stop the copies, or subscribing would be a way to go
+		// on reading a topic that stopped allowing you.
+		if !known || !b.may(s, topic) {
+			continue
+		}
+		c := e
+		c.To = s
+		if err := b.deliver(sub, b.ensure(s), c); err != nil {
+			b.dropped++
+		}
+	}
 	return e, nil
+}
+
+// Subscribe puts a name on a pub/sub topic, or takes it off. A subscription
+// is a record and lives on the topic, so it travels in the snapshot and
+// outlives a restart — and the copies land in the subscriber's own inbox,
+// which is why the subscriber has to be registered first.
+// See docs/04-messaging.md#push-and-pull.
+func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) {
+	who, err := canon(caller)
+	if err != nil {
+		return protocol.Record{}, err
+	}
+	n, err := canon(topic)
+	if err != nil {
+		return protocol.Record{}, err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	r, known := b.records[n]
+	// A topic you may not see does not exist as far as you are concerned,
+	// exactly as a lookup answers. See docs/01-identity.md#acl.
+	if !known || !b.may(who, r) {
+		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
+	}
+	if r.Kind != protocol.KindTopic || r.Mode != protocol.ModePubSub {
+		return protocol.Record{}, fmt.Errorf("%w: %s is not one", ErrMode, n)
+	}
+	if _, me := b.records[who]; !me {
+		return protocol.Record{}, fmt.Errorf("%w: register %s first, so its copies have somewhere to land", ErrUnknown, who)
+	}
+	r.Subs = drop1(r.Subs, who)
+	if on {
+		r.Subs = append(r.Subs, who)
+	}
+	b.records[n] = r
+	return b.withLiveness(n, r.Public()), nil
+}
+
+// drop1 returns the list without s, in a slice of its own: the stored record
+// shares its backing array with whatever a query already handed out.
+func drop1(list []string, s string) []string {
+	out := list[:0:0]
+	for _, x := range list {
+		if x != s {
+			out = append(out, x)
+		}
+	}
+	return out
 }
 
 // life is how long this message is worth delivering: what the sender asked

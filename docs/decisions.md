@@ -144,6 +144,9 @@ All 2026-09-09 unless noted.
 | A receipt is a closed set of two words | [messaging § receipts](04-messaging.md#receipts) |
 | The receipts answer "picked up, or lost?", so the bus keeps no delivery journal | [messaging § receipts](04-messaging.md#receipts) |
 | A queue belongs to a name, never to a connection or session | [messaging § inbox queues](04-messaging.md#inbox-queues) |
+| A subscriber is a registered name, and a fan-out copy lands in its own inbox | [messaging § subscribers](04-messaging.md#subscribers) |
+| A subscription is a record on the topic, so it outlives a restart | [messaging § subscribers](04-messaging.md#subscribers) |
+| One subscriber that will not read cannot stop a topic; its lost copy is a drop | [messaging § subscribers](04-messaging.md#subscribers) |
 | A full queue refuses by default, and a drop is counted | [messaging § overflow](04-messaging.md#overflow) |
 | A request that expects a reply must name a registered reply address; registered is not live | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | A send to a name with no record is refused, never accepted and dropped later | [messaging § verbs](04-messaging.md#verbs) |
@@ -174,7 +177,6 @@ All 2026-09-09 unless noted.
 | Direct talk bypasses billing | owner | [future/billing.md](future/billing.md) |
 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](06-auth-role.md#ssh-admin) |
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](03-services-and-topics.md#registry-sync) |
-| What a subscriber is, and where a fan-out copy goes | owner, with the MVP | [messaging § push and pull](04-messaging.md#push-and-pull) |
 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | What carries a service's method information | owner, with the MVP faces | [services § service and template](03-services-and-topics.md#service-and-template) |
 | What else lives in SQLite | owner | [setup § storage](09-setup.md#storage) |

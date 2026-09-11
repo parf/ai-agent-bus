@@ -212,7 +212,7 @@ registry. Two kinds — the Redis model:
 | Kind | Delivery | Retention | No subscribers at publish time | Redis analogue |
 |---|---|---|---|---|
 | **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded; overflow per mode | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
-| **pub/sub** | a **copy** to every current subscriber | none | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
+| **pub/sub** | a **copy** to every subscriber, into that subscriber's own inbox ([messaging § subscribers](04-messaging.md#subscribers)) | none of its own — each copy is kept by the inbox it is in | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
 
 A topic **declares its kind, TTL, bound and overflow mode at creation**:
 
@@ -222,7 +222,7 @@ A topic **declares its kind, TTL, bound and overflow mode at creation**:
 | Change / delete | owner or owner group ([identity § ownership](01-identity.md#ownership)) |
 | Record | name, kind, TTL, bound, overflow, owner, description, audience |
 | Visibility | registry and MCP catalog, audience-filtered ([discovery § audience](05-discovery.md#audience)) |
-| Access | `publish:<glob>` / `consume:<glob>` on principals |
+| Access | `publish:<glob>` / `consume:<glob>` on principals. Today that is the record's `allow`, asked of a publisher when it publishes and of a subscriber both when it subscribes and at every publish ([messaging § subscribers](04-messaging.md#subscribers)) |
 | Signature | signed by the writing principal **when it has a key**; a static-token write is unsigned — the token authenticated it. Nodes verify signatures where present before accepting or syncing |
 | Storage | live record in `agent-busd`, snapshotted to git; messages are in memory, see [messaging § durability](04-messaging.md#durability) |
 | Stats | depth, in/out rate, drops, subscriber count — on the dashboard like a service |

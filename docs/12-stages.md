@@ -63,12 +63,13 @@ Everything else (`keygen`, `auth *`, `stop`/`logs`) waits —
 **A queue topic is an inbox with a name**, so `consume --topic <t>` reads it —
 an option, not a verb of its own.
 
-**Pub/sub is MVP.** Not because fan-out is hard — it is a copy to every current
-reader, keeping nothing — but because *subscriber* is undefined without an ACL:
-the design subscribes through the `consume:<glob>` capability, and PoC has no
-capabilities. PoC stores `--kind pubsub` on the record and answers *MVP* on
-publish, rather than inventing a second meaning of subscription that would have
-to be unpicked later.
+**Pub/sub is MVP.** Not because fan-out is hard, but because *subscriber* is
+undefined without an ACL: the design subscribes through the `consume:<glob>`
+capability, and PoC has no capabilities. PoC stores `--kind pubsub` on the
+record and answers *MVP* on publish, rather than inventing a second meaning of
+subscription that would have to be unpicked later. MVP settles it — a
+subscriber is a registered name and the copy lands in its own inbox
+([messaging § subscribers](04-messaging.md#subscribers)).
 
 **Works at the end of PoC**
 

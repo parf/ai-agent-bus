@@ -387,6 +387,73 @@ if slow; then
     "$(cat "$D"/pool.[123] | grep -o 'job-[123]' | sort | uniq -d)"
 
 else skipped=$((skipped+1)); fi
+sec "pub/sub: a copy per subscriber, in the subscriber's own inbox"
+ab owner@srv1 topic create news@srv1 --kind pubsub --descr "broadcast" >/dev/null
+ab owner@srv1 register sub-a@srv1 --kind agent >/dev/null
+ab owner@srv1 register sub-b@srv1 --kind agent >/dev/null
+ab sub-a@srv1 subscribe news@srv1 >/dev/null
+ab sub-b@srv1 subscribe news@srv1 >/dev/null
+has "the topic says who subscribed" "$(ab owner@srv1 ls news@srv1)" '"subs":\["sub-a@srv1","sub-b@srv1"\]'
+ab drive-by@srv1 publish --topic news@srv1 "to everyone" >/dev/null
+# Both, not one: a fan-out that hands the message to whoever reads first is a
+# queue topic, and that is the mode this is NOT.
+has "one subscriber gets a copy" "$(ab sub-a@srv1 consume --wait 5s)" 'to everyone'
+has "and so does the other, of the same publication" "$(ab sub-b@srv1 consume --wait 5s)" 'to everyone'
+# The copy is addressed to the subscriber: it is in an inbox, and an inbox
+# belongs to a name (docs/04-messaging.md#inbox-queues).
+ab drive-by@srv1 publish --topic news@srv1 "addressed" >/dev/null
+has "and the copy is addressed to the subscriber, not to the topic" \
+  "$(ab sub-a@srv1 consume --wait 5s)" '"to":"sub-a@srv1"'
+ab sub-b@srv1 consume --wait 5s >/dev/null
+# The topic keeps nothing of its own — that is the whole difference from a
+# queue topic, and "queued" on its record is where it would show.
+is_empty "while the topic itself keeps nothing" \
+  "$(ab owner@srv1 ls news@srv1 | grep -o '"queued":[1-9][0-9]*')"
+has "though its publications are counted" "$(ab owner@srv1 ls news@srv1)" '"in":2'
+# Nobody listening is not an error, and is not a message kept for later.
+ab owner@srv1 topic create void@srv1 --kind pubsub >/dev/null
+ok_exit "a publish with no subscribers is accepted" \
+  "$(ab drive-by@srv1 publish --topic void@srv1 "into the void" >/dev/null 2>&1; echo $?)"
+is_empty "and kept for nobody" "$(ab owner@srv1 ls void@srv1 | grep -o '"queued":[1-9][0-9]*')"
+# Leaving stops the copies, and is not the same as never having joined.
+ab sub-b@srv1 unsubscribe news@srv1 >/dev/null
+ab drive-by@srv1 publish --topic news@srv1 "second round" >/dev/null
+has "a subscriber that stayed still gets it" "$(ab sub-a@srv1 consume --wait 5s)" 'second round'
+is_empty "and one that left gets nothing" "$(ab sub-b@srv1 consume --wait 1s)"
+has "and the topic no longer names it" "$(ab owner@srv1 ls news@srv1)" '"subs":\["sub-a@srv1"\]'
+# A subscriber has to own an inbox for the copy to land in, so it is a
+# registered name like any receiver.
+out=$(ab nobody-here@srv1 subscribe news@srv1 2>&1); rc=$?
+bad_exit "subscribing as a name nobody registered is refused" $rc
+has "and says to register it first" "$out" 'so its copies have somewhere to land'
+out=$(ab sub-a@srv1 subscribe jobs@srv1 2>&1); rc=$?
+bad_exit "and a queue topic is not something to subscribe to" $rc
+# The ACL is the capability here, and it is asked at PUBLISH, not only at
+# subscribe: access taken away has to stop the copies, or subscribing would
+# be a way to go on reading a topic that stopped allowing you.
+ab owner@srv1 topic create members@srv1 --kind pubsub --allow sub-a@srv1 >/dev/null
+out=$(ab sub-b@srv1 subscribe members@srv1 2>&1); rc=$?
+bad_exit "subscribing to a topic you may not see is refused" $rc
+ab sub-a@srv1 subscribe members@srv1 >/dev/null
+ab owner@srv1 publish --topic members@srv1 "members only" >/dev/null
+has "while the one it allows receives it" "$(ab sub-a@srv1 consume --wait 5s)" 'members only'
+ab owner@srv1 topic create members@srv1 --kind pubsub --allow owner@srv1 >/dev/null
+has "the subscription survives the record being restated" "$(ab owner@srv1 ls members@srv1)" '"subs":\["sub-a@srv1"\]'
+ab owner@srv1 publish --topic members@srv1 "still a member?" >/dev/null
+is_empty "but a subscriber no longer allowed gets no more copies" \
+  "$(ab sub-a@srv1 consume --wait 1s)"
+# One subscriber cannot hold the topic hostage: its own bound applies to its
+# own copy, and the others still get theirs.
+ab owner@srv1 register full-sub@srv1 --kind generic --bound 1 >/dev/null
+ab full-sub@srv1 subscribe news@srv1 >/dev/null
+ab drive-by@srv1 publish --topic news@srv1 "fills it" >/dev/null
+ok_exit "a publish a full subscriber cannot take still succeeds" \
+  "$(ab drive-by@srv1 publish --topic news@srv1 "does not fit" >/dev/null 2>&1; echo $?)"
+has "and the subscriber with room gets both" \
+  "$(ab sub-a@srv1 consume --wait 5s; ab sub-a@srv1 consume --wait 5s)" 'does not fit'
+has "while the copy that would not fit is counted as a loss" \
+  "$(ab parf@localhost status)" '"dropped":[1-9]'
+
 sec "unknown receiver"
 out=$(ab asker@srv1 send ghost@nowhere hi 2>&1); rc=$?
 has "says no such receiver" "$out" 'no such receiver'; bad_exit "and exits non-zero" $rc
@@ -422,8 +489,6 @@ ab owner@srv1 topic create jobs@srv1 --descr "work queue" >/dev/null
 has "the topic is in ls" "$(ab owner@srv1 ls --kind topic)" 'jobs@srv1'
 ab drive-by@srv1 publish --topic jobs@srv1 "sweep the floor" >/dev/null
 has "a consumer that was down still finds it" "$(ab reader@srv1 consume --topic jobs@srv1 --wait 5s)" 'sweep the floor'
-ab owner@srv1 topic create news@srv1 --kind pubsub >/dev/null
-has "publishing to a pub/sub topic answers MVP" "$(ab drive-by@srv1 publish --topic news@srv1 hello 2>&1)" 'MVP'
 # Reading a topic and filtering your own inbox are different inboxes, so the
 # check needs a message in each: asserting "nothing came back" passed happily
 # with the rule mutated to read the topic in both cases.

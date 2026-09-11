@@ -246,15 +246,56 @@ func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
 	}
 }
 
-// Fan-out is MVP, and PoC says so instead of inventing a second meaning of
-// subscription. See docs/12-stages.md#poc.
-func TestPublishingToAPubSubTopicSaysMVP(t *testing.T) {
+// A copy each, into each subscriber's own inbox — and the topic keeps none
+// of it. See docs/04-messaging.md#subscribers.
+func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 	b := New()
 	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
 	mustRegister(t, b, protocol.Record{Name: "pub@srv", Owner: "pub@srv"})
-	_, err := b.Send(protocol.Envelope{From: "pub@srv", To: "news@srv", Body: "x"})
-	if !errors.Is(err, ErrNotYet) {
-		t.Fatalf("want ErrNotYet, got %v", err)
+	for _, s := range []string{"one@srv", "two@srv"} {
+		mustRegister(t, b, protocol.Record{Name: s, Owner: s})
+		if _, err := b.Subscribe(s, "news@srv", true); err != nil {
+			t.Fatalf("subscribe %s: %v", s, err)
+		}
+	}
+	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "news@srv", Body: "x"}); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	for _, s := range []string{"one@srv", "two@srv"} {
+		e, err := b.Consume(ctx, s, "", "", false, false)
+		if err != nil {
+			t.Fatalf("%s got nothing: %v", s, err)
+		}
+		if e.Body != "x" || e.To != s {
+			t.Fatalf("%s got %+v, want body x addressed to it", s, e)
+		}
+	}
+	if r, ok := b.Lookup("a@srv", "news@srv"); !ok || r.Queued != 0 {
+		t.Fatalf("the topic kept %d of its own", r.Queued)
+	}
+}
+
+// A subscription is the topic's record, so restating the record must not
+// throw it away — a service registers itself on every start.
+func TestASubscriptionSurvivesTheTopicBeingRestated(t *testing.T) {
+	b := New()
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "one@srv", Owner: "one@srv"})
+	if _, err := b.Subscribe("one@srv", "news@srv", true); err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv", Descr: "again"})
+	r, ok := b.Lookup("a@srv", "news@srv")
+	if !ok || len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
+		t.Fatalf("subscribers after a restate: %v", r.Subs)
+	}
+	// And a caller cannot claim one by stating it.
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv", Subs: []string{"intruder@srv"}})
+	r, _ = b.Lookup("a@srv", "news@srv")
+	if len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
+		t.Fatalf("a stated subscriber was taken: %v", r.Subs)
 	}
 }
 

@@ -121,6 +121,14 @@ type Record struct {
 	Allow    []string `json:"allow,omitempty"`
 	NoMaster bool     `json:"no_master,omitempty"`
 
+	// Subs is who receives a copy of what is published to a pub/sub topic.
+	// A subscription is a record, so it lives here rather than in a
+	// connection: it survives a restart with the rest of the registry, and
+	// a subscriber that is down keeps its backlog in its own inbox.
+	// Written by Subscribe alone — a registration never carries it.
+	// See docs/04-messaging.md#push-and-pull.
+	Subs []string `json:"subs,omitempty"`
+
 	// Config is what a service template was configured with. It is opaque:
 	// the bus checks that it is JSON and never reads inside, so no field of
 	// it means anything here — no server, user, mailbox or credential is

@@ -161,7 +161,7 @@ the stage has no meaning.
 | C.1 | ✅ _done_ — `allow` is a field on the record, so the daemon holds what it enforces and never reads a private configuration ([identity § acl](../../docs/01-identity.md#acl)). Seeing and using are one question: a listing hides what a lookup denies |
 | C.2 | ✅ _done_ — the daemon's owner holds master without being listed, `--master` adds others, and `--no-master` takes the last word back. Master refused everywhere would pass a weaker check and is falsified on its own |
 | C.4 | ✅ _done_ — send, publish and register are each refused for a principal the service will not show, each check falsified alone, and the refusal is its own status |
-| C.3 | pub/sub topics | the ACL it was waiting for now exists; **still blocked** on what a subscriber is, in [messaging § push and pull](../../docs/04-messaging.md#push-and-pull) |
+| C.3 | ✅ _done_ — a subscriber is a **registered name** and a publication is one copy into each subscriber's own inbox, so the topic keeps nothing and each copy obeys the subscriber's own bound, overflow and TTL ([messaging § subscribers](../../docs/04-messaging.md#subscribers)). The subscription is a record on the topic, so it survives a restart and a restatement; the ACL is asked again at **every publish**, and one subscriber that will not read cannot stop the topic |
 
 **Done when**, and what breaking it must do:
 
@@ -171,7 +171,13 @@ the stage has no meaning.
   status — not a 404 and not a 204. Rejecting every master request passes a
   weaker check and must not pass this one;
 - a subscriber holding a capability for one topic receives it and not another,
-  and removing the authorization check — not the filter — turns it red;
+  and removing the authorization check — not the filter — turns it red. The
+  check is asked **again at every publish**, so taking a subscriber off the
+  allow list stops its copies without touching its subscription — a check
+  only at subscribe passes the first half and none of the second;
+- a publication reaches **both** subscribers, which a fan-out that hands the
+  message to whichever reads first does not, and the topic's own queue stays
+  empty — that is the whole difference from a queue topic;
 - a principal a service will not show is also refused when it **sends** to
   that service, publishes to its topic, or registers over its name — one check
   per write verb, each falsified on its own, because a single shared guard

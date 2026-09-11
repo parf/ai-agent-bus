@@ -43,6 +43,8 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus topic create <name> [--kind queue|pubsub] [--descr d] [--overflow ring|strict]
                                 [--ttl 1h] [--bound 1000]
   agent-bus publish --topic <name> <text>
+  agent-bus subscribe <topic>     receive a copy of everything published there
+  agent-bus unsubscribe <topic>
   agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
   agent-bus start                     (the same, as JSON on stdin)
   agent-bus service-template <name> -         configure it, JSON on stdin
@@ -85,6 +87,10 @@ func main() {
 		err = serviceTemplate(rest)
 	case "publish":
 		err = publish(rest)
+	case "subscribe":
+		err = subscribe(rest, true)
+	case "unsubscribe":
+		err = subscribe(rest, false)
 	case "start":
 		err = start(rest)
 	case "enrol", "enroll":
@@ -393,6 +399,17 @@ func publish(args []string) error {
 	return post("/send", protocol.Envelope{
 		To: flags["topic"], Topic: flags["topic"], Body: strings.Join(pos, " "),
 	})
+}
+
+// subscribe joins a pub/sub topic, or leaves it. The copies land in the
+// caller's own inbox, so there is no name to pass — you subscribe yourself.
+// See docs/04-messaging.md#push-and-pull.
+func subscribe(args []string, on bool) error {
+	pos, _ := split(args)
+	if len(pos) != 1 {
+		return fmt.Errorf("subscribe wants one topic")
+	}
+	return post("/subscribe", map[string]any{"topic": pos[0], "off": !on})
 }
 
 func consume(args []string) error {

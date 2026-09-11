@@ -244,12 +244,25 @@ context has one owner either way.
 through a per-runtime adapter — see
 [runner § adapters](08-runner-role.md#adapters).
 
-❓ **What a subscriber is, and where a fan-out copy goes.** A subscription is
-the `consume:<glob>` capability ([stages § MVP](12-stages.md#mvp)), but a pull
-model still has to say whether a subscriber is an outstanding read or a
-principal holding the capability, and whether a copy lands in each
-subscriber's inbox — in which case the fan-out does not keep nothing, and each
-inbox's overflow applies. *Settled by:* the owner, with the MVP.
+### Subscribers
+
+**A subscriber is a registered name, and a copy lands in its own inbox.** So
+publishing to a pub/sub topic is one copy per subscriber, and the topic itself
+keeps nothing — the copies are kept, by the inboxes they are in.
+
+Subscribing is a **record on the topic**, not an outstanding read: it survives
+a restart with the rest of the registry ([durability](#durability)), and a
+subscriber that is down keeps its backlog exactly like any other name
+([inbox queues](#inbox-queues)). That is the whole reason to put the copy in
+an inbox rather than hand it to whoever is connected.
+
+| | |
+|---|---|
+| who may subscribe | anyone the topic's ACL lets see it ([identity § acl](01-identity.md#acl)) — and you subscribe **yourself**, because it is your inbox the copies land in |
+| and must be registered | the copy needs somewhere to go, and an inbox belongs to a registered name |
+| asked again at **every publish** | access taken away stops the copies. Checking only at subscribe would make a subscription a way to go on reading a topic that stopped allowing you |
+| whose bound, TTL and overflow apply | the **subscriber's**, because the copy is in the subscriber's inbox |
+| a subscriber that will not read | loses its own copies and **stops nothing**: the publish still succeeds for everyone else, and the copy that would not fit is counted as a drop ([overflow](#overflow)). A publisher one stopped reader can block is a queue topic, which is the other mode and is what that caller wanted |
 
 ## Overflow
 
