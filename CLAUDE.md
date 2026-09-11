@@ -124,8 +124,11 @@ the mechanism behind the link:
   **HTTP is always built in**, never a subprocess: web requests are
   first-class here and every language ships a client. A script may use `curl`
   — `docs/10-modules.md`.
-- **Bodies are end-to-end encrypted**; the bus and its dashboard see envelopes
-  only. Don't write anything implying the bus reads payloads.
+- **Bodies are end-to-end encrypted from Release 1.** The MVP's key mode cannot
+  carry that claim — the daemon issues the token a session key would derive
+  from — so the stage runs with the bus trusted on its own host
+  (`docs/02-access.md#encrypted-sessions`). What holds in every stage: the bus
+  and its dashboard see **envelopes only**.
 - **Queues and stats are memory**, dumped to Parquet on graceful restart. A
   consumer being down is fine — its queue waits.
 

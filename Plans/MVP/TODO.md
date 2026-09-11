@@ -21,7 +21,6 @@ question in the table below, not on work:
 
 | Waiting on | Would unblock |
 |---|---|
-| whether D's own claim is reachable in the MVP's key mode | D entire, then E.2's last half |
 | where the proof step sits relative to the `directory` port | B.8, and with it the name-claiming hole B.1 sharpened |
 | which process owns the store handle | G.1, and the declared chown violation it retires |
 | the ⚠️ proposed cut in G.2 | G.2, then G.3 |
@@ -37,7 +36,6 @@ wave stands on it.
 | Gates | ❓ | Where it is settled |
 |---|---|---|
 | the whole stage | what MVP contains | [stages § MVP](../../docs/12-stages.md#mvp) |
-| D | static sessions are not end-to-end against the daemon — so D's own claim may be unreachable in the MVP's key mode | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
 | the rest of E | what else lives in SQLite | [setup § storage](../../docs/09-setup.md#storage) |
 | H | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../docs/09-setup.md#install) |
 | G | which process owns the store handle | [processes § what is shared](../../docs/11-processes.md#what-is-shared) |
@@ -51,7 +49,7 @@ Five more were raised by this plan and are now indexed with the rest:
 | A.2 | whether the caller's deadline travels with the request | [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
 | A.5 | whether several readers may block on one inbox at once | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
 | C.3 | what a subscriber is, and where a fan-out copy goes | [messaging § push and pull](../../docs/04-messaging.md#push-and-pull) |
-| D.1, D.2 | how a queued body is decrypted by a receiver that was not present when it was sent | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
+| D.1, D.2, *Release 1* | how a queued body is decrypted by a receiver that was not present when it was sent | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
 | F.2 | what carries a service's method information | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
 
 ⚠️ **The owner check is a caller-name guard, not security** — and registering
@@ -182,13 +180,15 @@ waiting on it since the PoC.
 
 ### D — the bus stops reading payloads
 
-**Blocked** on whether the sentence is reachable at all: in the MVP's key mode
-the daemon issues the token and holds it on the local socket
+🚫 **Cut from this stage.** The sentence is not reachable in the MVP's key
+mode: the daemon issues the token and holds it on the local socket
 ([access § key modes](../../docs/02-access.md#key-modes),
-[access § encrypted sessions](../../docs/02-access.md#encrypted-sessions)).
-If it is not reachable, the honest outcome is pairwise keys pulled into B — or
-the sentence struck from the docs. Deciding that is cheaper than building
-twice.
+[access § encrypted sessions](../../docs/02-access.md#encrypted-sessions)), so
+AEAD over it would pass every check but the one that matters. The docs now say
+the bus is trusted on its own host and end to end is Release 1's, on the
+pairwise or derived keys that make it true
+([stages § release 1](../../docs/12-stages.md#release-1)). Nothing below is
+built, and the rows stay as the shape Release 1 inherits.
 
 | ID | Task | Notes |
 |---|---|---|
@@ -217,7 +217,7 @@ too.
 | ID | Task | Notes |
 |---|---|---|
 | E.1 | ✅ _done_ — the snapshot is written at start, on a graceful stop and, if asked, once a minute; a start that follows an unclean stop says so and from when ([messaging § durability](../../docs/04-messaging.md#durability)). JSON behind the `dump` port; Parquet is an adapter, not the wave |
-| E.2 | ⚠️ _reload is done_ — records, backlog and counters come back, a drained queue stays drained, and a message past its moment is not delivered late. **Whether the backlog still decrypts is D's**, and unanswerable until D is |
+| E.2 | ✅ _done_ — records, backlog and counters come back, a drained queue stays drained, and a message past its moment is not delivered late. The half about decrypting went with D |
 | E.3 | ✅ _done_ — the per-inbox `in`/`out` counters and the daemon's `dropped`/`expired` survive a restart; uptime does not, because it is this run's |
 
 **Done when**, and what breaking it must do:

@@ -141,8 +141,9 @@ This is what GitHub is recommended for. Publish a service with `allow: *` and an
 developer on the internet can join it: they claim `<login>@github`, the bus fetches
 their public keys once, they prove possession, and they are in — with whatever default
 role you gave strangers. Google, LinkedIn and Facebook sign-in come later. Sessions are
-encrypted end to end without TLS or certificates. **Closed** enrolment queues newcomers
-for your approval instead.
+encrypted without TLS or certificates — end to end from Release 1, where the keys make
+that true ([access § encrypted sessions](docs/02-access.md#encrypted-sessions)).
+**Closed** enrolment queues newcomers for your approval instead.
 
 **Billing is designed and deferred** ([future/billing.md](docs/future/billing.md)) —
 when it ships, the same bus is a paid API platform: a user **registers**,

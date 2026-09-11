@@ -25,6 +25,7 @@ All 2026-09-09 unless noted.
 | More identity sources later: Google, LinkedIn, Facebook — not designed | [identity § registration](01-identity.md#registration) |
 | ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](01-identity.md#acl) |
 | The daemon filters, because it holds the record — not a face | [discovery § audience](05-discovery.md#audience) |
+| The MVP does not claim bodies are end to end; the bus is trusted on its own host | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | `allow: *` means anyone who can authenticate | [identity § acl](01-identity.md#acl) |
 | The setup user gets `agent-bus-admin` | [identity § acl](01-identity.md#acl) |
 | Delegation: A authenticates, adds an on-behalf-of claim | [identity § delegation](01-identity.md#delegation) |
@@ -148,7 +149,6 @@ All 2026-09-09 unless noted.
 
 | ❓ | Settled by | Where |
 |---|---|---|
-| Static sessions are not end-to-end against the daemon | owner | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Per-method pricing needs the method name in the envelope | owner | [future/billing.md](future/billing.md) |
 | A newcomer with no balance cannot reach `pay` | owner | [future/billing.md](future/billing.md) |
 | Direct talk bypasses billing | owner | [future/billing.md](future/billing.md) |
@@ -190,6 +190,7 @@ All 2026-09-09 unless noted.
 | `ring` is the default mode | `strict` is: a queue that loses work silently is worse than one that fails visibly — [messaging § overflow](04-messaging.md#overflow) |
 | Audience with AUTH off is a per-service `user: token` map | the two ACL layers — [identity § acl](01-identity.md#acl) |
 | The service ACL lives in the service's own configuration | the record: the daemon will not read a private configuration, so a layer it enforces cannot live there — [identity § acl](01-identity.md#acl) |
+| The MVP encrypts bodies end to end | struck: the daemon issues the key they would derive from — Release 1, on pairwise or derived keys — [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | `register` both issues a credential and states a registry record | `token` issues the credential; `register` only states a record — [access § getting a token](02-access.md#getting-a-token) |
 | One token reaches every name, and the face overwriting `from` is the only guard | a token backs one principal and the daemon checks the name against it — [access § two parameters](02-access.md#two-parameters) |
 | LDAP/AD in scope | deferred — [future](future/ldap-ad.md) |

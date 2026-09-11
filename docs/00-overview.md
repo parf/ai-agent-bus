@@ -83,8 +83,12 @@ Claims only; the mechanism lives in the doc each one links to.
   with a provider key; closed services queue newcomers for approval. Encrypted
   sessions without TLS or PKI are what make this safe to expose. A paid public
   API platform is designed and deferred ([future/billing.md](future/billing.md)).
-- **Bodies are end-to-end encrypted**: only sender and receiver read them; the
-  bus sees the envelope ([messaging § envelope](04-messaging.md#envelope)).
+- **Bodies are end-to-end encrypted** from Release 1: only sender and receiver
+  read them, and the bus sees the envelope
+  ([messaging § envelope](04-messaging.md#envelope)). The MVP's key mode cannot
+  carry that claim, so it is not made there
+  ([access § encrypted sessions](02-access.md#encrypted-sessions)) — the bus
+  still reads nothing but envelopes, it is simply trusted not to.
 - **AUTH is on the hot path once** per (user, service, epoch).
 - **Two kinds of data.** *AUTH data* changes a few times a week → offline-signed
   generations in git ([AUTH role § bundle](06-auth-role.md#bundle)). *Registry

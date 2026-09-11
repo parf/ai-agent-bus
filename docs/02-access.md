@@ -160,9 +160,11 @@ server does its one-time AUTH lookup in between if the principal is unknown.
 (XChaCha20-Poly1305 or AES-256-GCM), per-message counter in associated data for
 replay protection. Never use `access_key` raw as the cipher key.
 
-- **End to end, through the bus.** The session is between sender and receiver,
-  not between either of them and `agent-busd`: a queued body is ciphertext the
-  daemon stores and forwards ([messaging § envelope](04-messaging.md#envelope)).
+- **End to end, through the bus** — in the modes where it is true. The session
+  is between sender and receiver, not between either of them and `agent-busd`:
+  a queued body is ciphertext the daemon stores and forwards
+  ([messaging § envelope](04-messaging.md#envelope)). ⚠️ Not in the static-token
+  mode, and not in the MVP — see below.
 - **Opt-out per service.** A service may turn body encryption **off** in its
   own config (`encryption: off`): messages travel in plaintext and the bus, its
   debug trace and its logs can then show them. For development; the flag is
@@ -174,11 +176,18 @@ replay protection. Never use `access_key` raw as the cipher key.
   key exposes recorded sessions.
 - Payload encoding: JSON; msgpack as an optional negotiated binary form.
 
-❓ **A static session is not end-to-end against the daemon.** The token *is* the
-`access_key` and `agent-busd` issued it, so it can derive the session key and
-read the body; on the local socket it holds the token outright. True end-to-end
-needs pairwise or derived keys. Document the exception, or reserve end-to-end
-for those two modes? *Settled by:* owner.
+**A static session is not end-to-end against the daemon, so the MVP does not
+claim it is.** The token *is* the `access_key` and `agent-busd` issued it, so
+it can derive the session key and read the body; on the local socket it holds
+the token outright. Rather than ship a claim the code contradicts, the MVP
+runs with body encryption off and **the bus trusted on its own host**; end to
+end waits for pairwise or derived keys ([key modes](#key-modes)) and is a
+Release 1 line ([stages § release 1](12-stages.md#release-1)).
+
+What does *not* change: the bus reads envelopes, and its dashboard shows
+nothing else ([discovery § dashboard](05-discovery.md#dashboard)). "The bus
+cannot read a body" was the claim that had to go; "the bus has no reason to"
+is still how it is built.
 
 ❓ **A queued body outlives the session that encrypted it.** The handshake
 above is live between two endpoints, but an inbox belongs to a name and waits

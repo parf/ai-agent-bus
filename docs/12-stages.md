@@ -113,7 +113,7 @@ a shared host.
 | identity | `user@realm` + token, per-user sockets ([access](02-access.md)) |
 | registration | manual record + GitHub ([identity § registration](01-identity.md#registration)) |
 | tokens | persisted, previous kept, local never expires ([access § token lifetime](02-access.md#token-lifetime)) |
-| encryption | AEAD sessions; bodies end to end ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
+| encryption | 🚫 *struck* — the daemon issues the token a session key derives from, so end to end against it is not reachable in this stage's key mode; the bus is trusted on its own host ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | access | service ACL, then master ACL; a service may refuse master ([identity § acl](01-identity.md#acl)) |
 | messaging | TTL, `reply-to`, and **pub/sub topics** — a subscription is a `consume:<glob>` capability, which exists once there is an ACL ([messaging](04-messaging.md)) |
 | services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several workers behind one name, per-service call stats ([messaging](04-messaging.md)) |
@@ -126,8 +126,7 @@ a shared host.
 **Works at the end of MVP**
 
 - Several users share one host, each seeing only the services they may.
-- The bus restarts without losing queued messages, and the backlog still
-  decrypts.
+- The bus restarts without losing queued messages.
 - An agent asks the MCP face "what can I use?" and gets a filtered catalog.
 - A child registered under the runner is supervised, sandboxed and reachable.
 
@@ -147,6 +146,7 @@ client libraries in other languages.
 | calls | a call reaches a service on the **upstream** bus the same way it reaches a local one, carrying on-behalf-of; long answers stream ([overview § chaining](00-overview.md#chaining)) |
 | observability | health-checker, stats, Prometheus export ([discovery](05-discovery.md)) |
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
+| encryption | AEAD sessions and bodies end to end, on the pairwise or derived keys that make the claim true ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified ([modules](10-modules.md)) |
 | operations | zero-downtime reload, packaging |
 | fan-out | **one service on many hosts**: several services sharing a template, addressed together, and the scatter-gather that needs — plus the how-to. Deferred here on the owner's word; the PoC and MVP address one service at a time ([services § service and template](03-services-and-topics.md#service-and-template)) |
