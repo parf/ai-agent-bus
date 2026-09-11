@@ -141,9 +141,18 @@ bad_exit "a mistyped topic name is an error, not a silent filter" $rc
 has "and says which name" "$out" 'no such topic: jobz@srv1'
 
 echo "== a call does not damage what it calls from"
-ab keeper@srv1 register keeper@srv1 --kind generic --descr "KEEP ME" >/dev/null
+ab keeper@srv1 register keeper@srv1 --kind generic --addr host:1234 --descr "KEEP ME" >/dev/null
+# the whole record, not a word from it: kind, addr, description, owner and the
+# timestamp all change if the caller re-states itself.
+record() { ab keeper@srv1 ls | grep -o '{[^}]*"name":"keeper@srv1"[^}]*}'; }
+before=$(record)
 ab keeper@srv1 call svc@srv1 --wait 1s "nobody is listening" >/dev/null 2>&1
-has "the caller's own record survives its call" "$(ab keeper@srv1 ls)" 'KEEP ME'
+after=$(record)
+if [ -n "$before" ] && [ "$before" = "$after" ]; then
+  echo "  ok   the caller's own record survives its call"; pass=$((pass+1))
+else
+  echo "  FAIL the caller's own record survives its call: [$before] became [$after]"; fail=$((fail+1))
+fi
 ab unheard@srv1 register unheard@srv1 --kind generic >/dev/null
 out=$(ab caller@srv1 call unheard@srv1 --wait 5q "typo" 2>&1); rc=$?
 bad_exit "a bad --wait is refused" $rc
@@ -205,18 +214,37 @@ has "it read the inbox it registered, not the one that launched it" \
   "$(ab slow@srv1 consume --wait 3s)" 'two'
 is_empty "and took only what it had a worker for" "$(ab slow@srv1 consume --wait 1s)"
 
+# A service's inbox belongs to its name, not to the process that reads it:
+# register it, let nothing run, and the work is still there when something
+# with that name turns up. This is the property V1's ephemeral channels did
+# not have — a dead channel took its results with it.
+ab owner@srv1 register absent@srv1 --kind generic --descr "never started" >/dev/null
+ab caller@srv1 send absent@srv1 --topic w --tag 9 "waiting for whoever shows up" >/dev/null
+abx launcher@srv1 start absent@srv1 --algo args "$D/hello-world.sh" --descr "turned up late" >>"$D/start.log" 2>&1 &
+APID=$!
+# The ack comes first and is the sender's answer to "picked up, or lost?" —
+# the question V1 needed a delivery journal for.
+has "the late service acks the message it found waiting" \
+  "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" '"receipt":"ack"'
+has "and answers it" \
+  "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" 'Hello waiting for whoever shows up'
+kill $APID 2>/dev/null; wait $APID 2>/dev/null
+
 printf '#!/bin/sh\necho "ran $1"\n' > "$D/quick.sh"; chmod +x "$D/quick.sh"
 abx launcher@srv1 start stopper@srv1 --algo args "$D/quick.sh" --descr "stops" >>"$D/start.log" 2>&1 &
 TPID=$!
 for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'stops' && break; sleep 0.2; done
+# registered is not the same as waiting: signal it once the daemon says the
+# consume is actually outstanding, or the check can pass on a race.
+for _ in $(seq 1 50); do ab asker@srv1 status | grep -q '"waiting":[1-9]' && break; sleep 0.2; done
 kill -TERM $TPID 2>/dev/null
 for _ in $(seq 1 50); do kill -0 $TPID 2>/dev/null || break; sleep 0.1; done
 if kill -0 $TPID 2>/dev/null; then
   echo "  FAIL a stopped service leaves its consume"; fail=$((fail+1)); kill -9 $TPID 2>/dev/null
+  wait $TPID 2>/dev/null
 else
-  echo "  ok   a stopped service leaves its consume"; pass=$((pass+1))
+  wait $TPID; ok_exit "a stopped service leaves its consume, exit 0" $?
 fi
-wait $TPID 2>/dev/null
 ab caller@srv1 send stopper@srv1 --topic w --tag 3 "after the stop" >/dev/null
 sleep 1
 has "and runs nothing after it stopped" "$(ab stopper@srv1 consume --wait 2s)" 'after the stop'
@@ -238,9 +266,39 @@ out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
 
+echo "== --wait is the caller's deadline, not just the daemon's"
+# Against a bus that answers everything but stalls the consume: the wait the
+# daemon is asked for cannot bound a transfer that never finishes, so the
+# deadline has to be on the client's own request.
+bun -e "Bun.serve({port:$((PORT+3)),async fetch(r){const u=new URL(r.url);
+  if(u.pathname==='/consume'){await Bun.sleep(30000);return new Response('{}');}
+  if(u.pathname==='/ls')return new Response('[]');
+  return new Response('{}');}})" >/dev/null 2>&1 &
+MPID=$!
+for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+3))/ls" && break; sleep 0.2; done
+out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+3)) AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=impatient@srv1 \
+      timeout 5 "$D/agent-bus" call slow@srv1 --wait 500ms "are you there?" 2>&1); rc=$?
+kill $MPID 2>/dev/null; wait $MPID 2>/dev/null
+if [ "$rc" -eq 124 ]; then
+  echo "  FAIL a stalled consume ends at --wait: it ran past the deadline"; fail=$((fail+1))
+else
+  echo "  ok   a stalled consume ends at --wait"; pass=$((pass+1))
+fi
+has "and says the message was accepted" "$out" 'do not resend'
+
 echo "== the token an SSH forced command hands out"
-has "static-token prints the file the daemon created" \
-  "$(AGENT_BUS_TOKEN_FILE=$D/token ./static-token)" "$TOKEN"
+# Not "contains the token": a debug line printed before it passed that, and
+# $(ssh … static-token) would then hold a credential that does not work. The
+# proof is the captured value authenticating against the daemon.
+issued=$(AGENT_BUS_TOKEN_FILE=$D/token ./static-token); rc=$?
+ok_exit "static-token succeeds" $rc
+if [ "$issued" = "$TOKEN" ]; then echo "  ok   it prints the token and nothing else"; pass=$((pass+1));
+else echo "  FAIL it prints the token and nothing else: [$issued]"; fail=$((fail+1)); fi
+has "the token it hands out authenticates" \
+  "$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$issued AGENT_BUS_NAME=over-ssh@srv1 "$D/agent-bus" status)" '"up"'
+printf '   \n' > "$D/blank-token"
+out=$(AGENT_BUS_TOKEN_FILE=$D/blank-token ./static-token 2>&1); rc=$?
+bad_exit "an empty token file is refused, not handed out as an empty token" $rc
 out=$(SSH_ORIGINAL_COMMAND='cat /etc/passwd' AGENT_BUS_TOKEN_FILE=$D/token ./static-token 2>&1); rc=$?
 bad_exit "it refuses any other command" $rc
 has "and says why" "$out" 'one command'

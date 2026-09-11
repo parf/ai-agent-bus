@@ -341,7 +341,7 @@ them now — unless the row says otherwise.
 | daemon on a unix socket **and** HTTP | both listeners answer `status` |
 | Go daemon and CLI, TypeScript MCP face on bun | `go test -race ./...`, three bun harnesses |
 | one master token, no per-service anything | a wrong token is 401 on either listener |
-| tokens issued over SSH | D.1, with the forced command's refusals checked |
+| tokens issued over SSH | D.1 — and once for real, over a throwaway `sshd` on 127.0.0.1 with the `authorized_keys` line from the script's header: `ssh … static-token` returned the token, `ssh … 'cat /etc/passwd'` returned exit 64 and *this account offers one command*. The smoke checks the script itself; nothing in it needs sshd |
 | no encryption, no sessions | plaintext by construction; the daemon refuses a non-loopback `-addr` |
 | basic request/reply with `ack` | a service acks, then answers; the caller gets the answer, not the receipt |
 | a script is a service, `-N` at a time, both algos | `echo "Hello $1"` answers a call; `std` gets the envelope on stdin and in the environment |
@@ -364,6 +364,20 @@ them now — unless the row says otherwise.
 | an agent asks the MCP face what it can use, and can send and consume | ✅ `ab_ls`, `ab_send`, `ab_consume`, `ab_reply` |
 | a service acks and answers; the caller blocks and gets the right one back, matched by topic + tag | ✅ and the reply is checked field by field at the peer, not by the sender's word |
 | `echo "Hello $1"` in a file is a service, found by another party | ✅ started with one command, found through `ls`, answers a `call` |
+
+**Reviewed by Codex against the pinned commit**, which confirmed the wave C
+fixes with its own probes and found four more:
+
+| | |
+|---|---|
+| the **manual** service recipe could not work: the shell that answers kept its own name, so `consume` read the wrong inbox | the answering shell takes the service's name; the recipe also builds the binaries it then calls, and reads the token after the daemon's first run. Run as written, by hand |
+| `static-token`'s check asked whether the output **contained** the token — a debug line printed before it kept the smoke green, while `$(ssh … static-token)` would hold an unusable credential | equality, a separate exit check, and the issued token is used to authenticate against the daemon |
+| an **empty** token file was success: exit 0 and nothing on stdout | empty or whitespace is exit 69, like a missing one. The helper still never invents a token |
+| `--wait` bounded the daemon's wait but not the exchange, so a slow transfer ran to the client's generic timeout | `context.WithDeadline` on the consume, through the `callCtx` the stop fix added |
+
+Its two suggested strengthenings are in as well: the caller's record is
+compared whole rather than grepped for a word, and the stop check waits until
+the daemon reports an outstanding consume and then asserts exit 0.
 
 **What is not true, and is meant not to be**: bodies are plaintext, so *the
 bus never reads payloads* is a claim MVP earns, not this stage

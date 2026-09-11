@@ -33,53 +33,65 @@ A check here is not believed until it has been seen to fail —
 
 ## Three terminals
 
-The PoC by hand. Every shell needs a name and the token — the file the daemon
-makes on first run; the CLI finds the socket by itself, and
-`AGENT_BUS_ADDR` is for a bus on another host.
+The PoC by hand. Build the two binaries first — nothing installs them:
 
 ```sh
-export AGENT_BUS_NAME=$USER@$(hostname -s)
+go build -o agent-bus ./cmd/agent-bus && go build -o agent-busd ./cmd/agent-busd
+```
+
+**1 — the daemon.** It writes the token file on first run, so it goes first:
+
+```sh
+./agent-busd
+```
+
+The other two shells each need the token and **a name of their own** — the
+name is the inbox, so two shells sharing one would read each other's messages
+([messaging § one reader per inbox](../docs/04-messaging.md#one-reader-per-inbox)).
+The CLI finds the socket by itself; `AGENT_BUS_ADDR` is for a bus on another
+host.
+
+```sh
 export AGENT_BUS_TOKEN=$(cat ~/.config/agent-bus/token)
 ```
 
-**1 — the daemon.**
+**2 — a service.** A service *is* a name, so the shell that answers takes it:
 
 ```sh
-go run ./cmd/agent-busd
-```
-
-**2 — a service.** Either answer by hand:
-
-```sh
-agent-bus register echo@$(hostname -s) --kind generic --descr "answers"
-agent-bus consume --wait 5m          # prints the envelope, with its message_id
-agent-bus ack   <message-id>         # got it
-agent-bus reply <message-id> "42"    # the answer
+export AGENT_BUS_NAME=echo@$(hostname -s)
+./agent-bus register echo@$(hostname -s) --kind generic --descr "answers"
+./agent-bus consume --wait 5m          # prints the envelope, with its message_id
+./agent-bus ack   <message-id>         # got it
+./agent-bus reply <message-id> "42"    # the answer
 ```
 
 …or let a shell script be the service, which is the same thing without the
-typing ([runner § script services](../docs/08-runner-role.md#script-services)):
+typing ([runner § script services](../docs/08-runner-role.md#script-services)).
+`start` takes the service's name itself, so this shell needs no name of its
+own:
 
 ```sh
 echo 'echo "Hello $1"' > hello-world.sh && chmod +x hello-world.sh
-agent-bus start hello@$(hostname -s) --algo args ./hello-world.sh -4 --descr "greets you"
+./agent-bus start hello@$(hostname -s) --algo args ./hello-world.sh -4 --descr "greets you"
 ```
 
-**3 — the caller**, with a name of its own:
+**3 — the caller**, with a name of its own, calling whichever of the two you
+started:
 
 ```sh
 export AGENT_BUS_NAME=caller@$(hostname -s)
-agent-bus ls                                     # find it
-agent-bus call hello@$(hostname -s) world        # → Hello world
+./agent-bus ls                                        # find it
+./agent-bus call echo@$(hostname -s)  "what is 6 times 7?"   # answered by hand, above
+./agent-bus call hello@$(hostname -s) world                  # → Hello world
 ```
 
 Topics need no service at either end — a publisher that is nobody, and a
 consumer that was not running when it was sent:
 
 ```sh
-agent-bus topic create jobs@$(hostname -s) --descr "work queue"
-agent-bus publish --topic jobs@$(hostname -s) "sweep the floor"
-agent-bus consume --topic jobs@$(hostname -s)    # later, from anywhere
+./agent-bus topic create jobs@$(hostname -s) --descr "work queue"
+./agent-bus publish --topic jobs@$(hostname -s) "sweep the floor"
+./agent-bus consume --topic jobs@$(hostname -s)    # later, from anywhere
 ```
 
 ## Two agents

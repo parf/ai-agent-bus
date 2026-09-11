@@ -113,12 +113,13 @@ func send(args []string) error {
 
 // call is send plus the wait for its answer. There is no third verb on the
 // wire and no dispatcher here: the daemon serves a filtered consume ahead of
-// the unfiltered reader, so the reply finds this caller
-// (docs/04-messaging.md#request-and-reply).
+// the unfiltered reader (docs/04-messaging.md#request-and-reply).
 //
-// A receipt is an ordinary message on the same topic and tag, so the wait
-// reports it and keeps waiting for the answer
-// (docs/04-messaging.md#receipts).
+// That priority holds only while a wait is outstanding, and a receipt is an
+// ordinary message that ends one — the wait reports it and asks again. So on
+// an inbox a push adapter also reads, the answer can go to that reader
+// instead: call from a name of its own when the answer matters
+// (docs/04-messaging.md#one-reader-per-inbox).
 func callVerb(args []string) error {
 	pos, flags := split(args)
 	if len(pos) < 2 {
@@ -167,17 +168,27 @@ func callVerb(args []string) error {
 		return fmt.Errorf("%s", strings.TrimSpace(string(sent)))
 	}
 
+	// --wait is the caller's deadline, so it bounds the HTTP exchange too, not
+	// only the wait the daemon is asked for: a slow or hung transfer would
+	// otherwise run on to the client's generic timeout.
 	until := time.Now().Add(deadline)
+	ctx, cancel := context.WithDeadline(context.Background(), until)
+	defer cancel()
+	tooLate := fmt.Errorf("no answer within %s (the message was accepted; do not resend it)", deadline)
+
 	q := url.Values{"topic": {topic}, "tag": {tag}}
 	for {
 		left := time.Until(until)
 		if left <= 0 {
-			return fmt.Errorf("no answer within %s (the message was accepted; do not resend it)", deadline)
+			return tooLate
 		}
 		q.Set("wait", left.String()) // not rounded: rounding the last half
 		//                              second down to 0s spins on the daemon
-		body, code, err := call("GET", "/consume", q, nil)
+		body, code, err := callCtx(ctx, "GET", "/consume", q, nil)
 		if err != nil {
+			if ctx.Err() != nil {
+				return tooLate
+			}
 			return err
 		}
 		if code == http.StatusNoContent {

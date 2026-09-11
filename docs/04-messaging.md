@@ -9,8 +9,11 @@ everything else is the receiver's business.
 after it, in memory in `agent-busd`, bounded, with a TTL.
 
 **The address outlives the process**: anyone may `send` to a registered agent
-that is down; the message waits and is picked up when the agent comes back —
-unless the TTL expires or the queue fills first. Choose both sensibly.
+that is down — or one that has never run yet — and the message waits until
+something with that name reads it, unless the TTL expires or the queue fills
+first. Choose both sensibly. A queue belongs to a **name**, never to a
+connection or a session, so nothing is lost because a reader died: that is
+the whole difference from an ephemeral channel.
 
 ## Verbs
 
@@ -18,6 +21,14 @@ unless the TTL expires or the queue fills first. Choose both sensibly.
 |---|---|---|---|
 | **`send`** | a known receiver, `unique-name@host` | exactly that queue | you may talk to that principal |
 | **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([services and topics § topics](03-services-and-topics.md#topics)) | you hold `publish:<glob>` |
+
+**A message is addressed to a name, and a name that is registered nowhere is
+refused at `send`** — there is no label to send to and nothing accepts on
+behalf of an address that does not exist. Accepting something undeliverable
+and reporting the truth later is the failure mode this rules out: what comes
+back from `send` is the whole delivery story, and whether anyone *acted* is
+the receiver's own `ack` or reply, never the transport's
+([receipts](#receipts)).
 
 `consume` reads your own queue in both cases. Delivery does not report who
 received a publish, but the API answers "are there subscribers on this topic,
@@ -62,14 +73,26 @@ tag, which is what keeps the two apart. A **name-shaped topic that is
 registered nowhere is refused** — `jobs@srv1` when the topic is `jobs@srv-1`
 is a typo, and reading it as a filter would answer with a silent timeout.
 
-The filter is what keeps [request and reply](#request-and-reply) honest next to
-a live session — the wait is still an ordinary `consume`, and every client
-language gets it for free. It is a **priority, not a lease**: the filter wins
-only while its wait is outstanding, and each wait ends at one message, so
-between the `ack` and the wait that follows it an unfiltered reader on the
-same inbox can take the reply. Two processes reading one inbox is already
-outside the rule above; a caller that needs the guarantee uses a name of its
-own.
+The filter is how a wait coexists with a live session's reader — it is an
+ordinary `consume`, so every client language gets it for free, and the daemon
+hands it its match first. It is a **priority, not a lease**: it wins only
+while the wait is outstanding, and a wait ends at one message. A receipt is a
+message, so between the `ack` and the wait that follows it the unfiltered
+reader can take the reply.
+
+❓ **Should reading an inbox and filtering one be different options?**
+`--topic` means both, told apart by a tag and by what is registered, so a
+mistyped topic name depends on registry state to be caught at all. An
+explicit selector would remove the ambiguity at the cost of one more option.
+*Settled by:* the owner, with the MVP CLI.
+
+So the guarantee is stated precisely: **filtered and unfiltered readers on
+one inbox are allowed, and a synchronous `call` on such an inbox is not
+guaranteed its own answer.** A caller that needs the answer — a CLI beside a
+pushing session, say — uses **a name of its own**, which costs one record and
+no machinery. Making the wait exclusive for the length of an exchange would
+mean a reservation in the daemon, and the daemon keeps no exchange state
+([reply routing](#reply-routing)).
 
 **`consume` is at-most-once**: the message is handed over and gone. A reader
 that dies between taking a message and acting on it loses that message, and
@@ -99,6 +122,12 @@ Optional, and **both emitted by the receiver** — the service, not the bus:
 |---|---|
 | **`ack`** | the service **got** the message |
 | **`done`** | the service **finished processing** it |
+
+Together they are what a sender actually wants to know — **`ack`: picked up,
+not lost. `done`: the work finished** — and both can only come from the
+receiver, because nothing else knows. This is why no delivery journal is kept
+anywhere in the bus: a transport can report that it accepted bytes, which is
+not the question.
 
 Both are ordinary messages to the sender's queue (or its `reply-to`), carrying
 the original `message_id`, topic and tag. The field is a **closed set** — one

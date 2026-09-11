@@ -102,6 +102,10 @@ All 2026-09-09 unless noted.
 | The filter is a priority, not a lease: it holds only while its wait is outstanding | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | A caller states its own record before it calls, and only if it has none | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | A receipt is a closed set of two words | [messaging § receipts](04-messaging.md#receipts) |
+| The receipts answer "picked up, or lost?", so the bus keeps no delivery journal | [messaging § receipts](04-messaging.md#receipts) |
+| A queue belongs to a name, never to a connection or session | [messaging § inbox queues](04-messaging.md#inbox-queues) |
+| A send to a name with no record is refused, never accepted and dropped later | [messaging § verbs](04-messaging.md#verbs) |
+| `--wait` is the caller's deadline and bounds the HTTP exchange, not only the daemon's wait | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | A script service is the name it registered — it reads and answers as that name | [runner § script services](08-runner-role.md#script-services) |
 | A script service takes a message only when a worker is free; stopping waits for the running ones | [runner § script services](08-runner-role.md#script-services) |
 
@@ -122,6 +126,7 @@ All 2026-09-09 unless noted.
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | Which process owns the store handle | owner | [processes § what is shared](11-processes.md#what-is-shared) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
+| Whether reading an inbox and filtering one become separate options | owner, with the MVP CLI | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 
 ## Superseded
 
