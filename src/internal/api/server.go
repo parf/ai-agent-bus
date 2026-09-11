@@ -21,6 +21,15 @@ const (
 	HeaderToken = "X-Agent-Bus-Token"
 )
 
+// DefaultSocket is where the daemon listens and the CLI looks, in one place
+// because the two binaries have to agree — see docs/02-access.md#local-socket.
+func DefaultSocket() string {
+	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
+		return filepath.Join(dir, "agent-bus", "bus.sock")
+	}
+	return filepath.Join(os.TempDir(), fmt.Sprintf("agent-bus-%d.sock", os.Getuid()))
+}
+
 const maxWait = 60 * time.Second
 
 type Server struct {

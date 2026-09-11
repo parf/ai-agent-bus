@@ -457,7 +457,7 @@ func callCtx(ctx context.Context, method, path string, q url.Values, body any) (
 var transport = sync.OnceValues(func() (*http.Client, string) {
 	addr := os.Getenv("AGENT_BUS_ADDR")
 	if addr == "" {
-		addr = defaultSocket()
+		addr = api.DefaultSocket()
 	}
 	client := &http.Client{Timeout: 2 * time.Minute}
 	if strings.HasPrefix(addr, "http://") {
@@ -619,13 +619,6 @@ func split(args []string) ([]string, map[string]string) {
 		}
 	}
 	return pos, flags
-}
-
-func defaultSocket() string {
-	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
-		return filepath.Join(dir, "agent-bus", "bus.sock")
-	}
-	return filepath.Join(os.TempDir(), fmt.Sprintf("agent-bus-%d.sock", os.Getuid()))
 }
 
 func die(format string, a ...any) {

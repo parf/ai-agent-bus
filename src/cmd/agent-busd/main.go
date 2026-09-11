@@ -25,7 +25,7 @@ import (
 func main() {
 	var (
 		addr   = flag.String("addr", env("AGENT_BUS_ADDR", "127.0.0.1:7777"), "TCP listen address — loopback only in PoC")
-		sock   = flag.String("socket", env("AGENT_BUS_SOCKET", defaultSocket()), "unix socket path")
+		sock   = flag.String("socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
 		tokenF = flag.String("token-file", env("AGENT_BUS_TOKEN_FILE", defaultTokenFile()), "master token file; created if absent")
 	)
 	flag.Parse()
@@ -152,13 +152,6 @@ func env(k, def string) string {
 		return v
 	}
 	return def
-}
-
-func defaultSocket() string {
-	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
-		return filepath.Join(dir, "agent-bus", "bus.sock")
-	}
-	return filepath.Join(os.TempDir(), fmt.Sprintf("agent-bus-%d.sock", os.Getuid()))
 }
 
 func defaultTokenFile() string {
