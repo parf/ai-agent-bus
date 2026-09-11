@@ -179,12 +179,18 @@ edit each, running `src/smoke.sh` in every copy; it is worth rewriting per
 review round rather than keeping, because the mutations are the interesting
 part and they are never the same twice.
 
-Two traps in the harness itself, both met: a copy that cannot bind its port
-because an earlier run left a daemon behind fails *for the wrong reason* and
-looks like a caught mutation; and a mutation that makes the whole run slow —
-breaking the stop signal leaves every service waiting out its poll — hits the
-timeout, which is not the same as the check failing. When either happens, run
-that one check on its own against both builds.
+Three traps in the harness itself, all met:
+
+| Trap | Why it lies |
+|---|---|
+| a copy that cannot bind its port, because an earlier run left a daemon behind | it fails *for the wrong reason* and looks like a caught mutation |
+| a mutation that makes the whole run slow — breaking the stop signal leaves every service waiting out its poll | it hits the timeout, which is not the same as the check failing |
+| **a mutation that does not compile** | the suite exits before a single check runs, so there are no failures to see — and "no failure" reads as *green*, the exact opposite of the truth |
+
+The last one inverts the answer rather than muddying it, so the harness has to
+assert that the run *produced checks at all* before reading which of them
+failed. When any of the three happens, run that one check on its own against
+both builds.
 
 ## Working rules
 
