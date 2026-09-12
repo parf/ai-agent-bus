@@ -20,11 +20,11 @@ step.
 - **Supervise** — spawn, restart with backoff, stop, log capture, exit codes.
   Four verbs and no more: **start, stop, restart, enable/disable** — and it is
   `start`, never `run`, the same word whether you sit in front of it or the
-  runner does it for you. There is no
-  `reload`, because for a script service there is no long-lived child to
-  signal — children are one process per message — and a graceful restart
-  already loses nothing: `stop` waits for the work in flight, messages queue in
-  the daemon meanwhile, and the next process picks them up.
+  runner does it for you. There is no `reload`, because for a script service
+  there is no long-lived child to signal — children are one process per
+  message — and a graceful restart already loses nothing: `stop` waits for the
+  work in flight, messages queue in the daemon meanwhile, and the next process
+  picks them up.
   ❓ *A long-running non-script child that can take `SIGHUP` would be the one
   reason to keep `reload`, and it would make the runner care what kind of child
   it has. Settled by: the owner.*
