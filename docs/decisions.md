@@ -10,12 +10,12 @@ moving the old row to [Superseded](#superseded).
 
 ## Settled
 
-All 2026-09-09 unless noted.
+Dated where it matters; the runner split and what it touched is 2026-09-11.
 
 | Decision | Where |
 |---|---|
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](01-identity.md#names) |
-| Setup installs the separate-user arrangement, and where that account lives | [setup § the two accounts](09-setup.md#the-two-accounts) |
+| Setup installs the separate-user arrangement, and where the accounts live | [setup § the two accounts](09-setup.md#the-two-accounts) |
 | Five programs, split by the privilege each needs and no finer | [setup § the five programs](09-setup.md#the-five-programs) |
 | Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the five programs](09-setup.md#the-five-programs) |
 | A token can be had by signing a challenge, because not every host runs sshd | [access § getting a token](02-access.md#getting-a-token) |
@@ -48,7 +48,7 @@ All 2026-09-09 unless noted.
 | One socket per local account supplies both parameters; `status` says which name it used | [access § local socket](02-access.md#local-socket) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
 | When a credential was issued is durable; when it was last used is this run's | [access § token lifetime](02-access.md#token-lifetime) |
-| A credential's issue date is durable and its last use is this run's | [access § token lifetime](02-access.md#token-lifetime) |
+| A caller may ask what credentials they hold and never anybody else's; owning a name is not holding one | [access § token lifetime](02-access.md#token-lifetime) |
 | A record that owns itself is a person, so nothing carries a separate flag saying so | [identity § ownership](01-identity.md#ownership) |
 | Credentials persist behind the store port, in a text file until the database is chosen | [setup § storage](09-setup.md#storage) |
 | The restart snapshot carries the registry too, and is JSON until Parquet is written | [messaging § durability](04-messaging.md#durability) |
@@ -140,6 +140,7 @@ All 2026-09-09 unless noted.
 | Two system accounts, one per secret domain, under one `/var/lib/agent-bus` | [setup § the two accounts](09-setup.md#the-two-accounts) |
 | ssh with a forced command is a third way the two parameters arrive, and how a remote daemon is reached | [access § the three doors](02-access.md#the-three-doors) |
 | The runner is a service on the bus; deploying on a host is its service ACL, not a second door | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
+| The runner registers as `runner@<host>`, a name like any other | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
 | `service.d` is externally controlled — usually a checkout — so no local state lives in it | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Configuration is three env layers overlaid, and the more secret one wins | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
 | `env.dist` declares the surface; a service needs an instance exactly when something is declared without a default | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
@@ -193,7 +194,6 @@ All 2026-09-09 unless noted.
 | A script service takes a message only when a worker is free; stopping waits for the running ones | [runner § script services](08-runner-role.md#script-services) |
 | What a caller does when a receipt arrives | [messaging § receipts](04-messaging.md#receipts) |
 | What a script that prints nothing sends back | [runner § script services](08-runner-role.md#script-services) |
-| How a dormant name is woken, and what the daemon has to learn to do it | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Expiry is counted apart from overflow | [messaging § message TTL](04-messaging.md#message-ttl) |
 
 ## Open
@@ -211,6 +211,8 @@ All 2026-09-09 unless noted.
 | Where the ACL and the user-to-account map are edited | owner | [setup § the five programs](09-setup.md#the-five-programs) |
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
+| How a dormant name is woken, and what the daemon has to learn to do it | owner, in Release 1 | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
+| Whether `reload` survives for a long-running child that can take `SIGHUP` | owner | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 | What happens to a running service when its configuration changes | owner | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |

@@ -93,6 +93,14 @@ The two-token window is the same idea as accepting the current *and previous*
 epoch for derived keys (see [key modes](#key-modes)): a credential change must
 never break traffic that is already in flight.
 
+**A caller may ask what they hold, and never what anybody else holds.** The
+answer is their own name plus the records they own, each with a **fingerprint
+standing in for the token** — a page that renders a credential is a page that
+leaks one ([discovery § rules it is built to](05-discovery.md#rules-it-is-built-to)).
+Owning a name is not holding a credential for it: one has to be asked for, so a
+name with none is simply absent rather than shown as empty. The fingerprint is
+keyed, so a leaked one cannot be checked against a guessed token.
+
 Re-running any of the three above **retrieves the same token** — it is a read,
 not a rotation. Rotation is asked for: `agent-bus-token <user@realm> --rotate`
 issues a fresh one and demotes the current to previous. Both then
