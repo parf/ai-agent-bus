@@ -33,7 +33,7 @@ wins.
 | Term | One line | Defined in |
 |---|---|---|
 | **principal** | any user or service with an identity | [identity § principals](01-identity.md#principals) |
-| **`user@realm`** | how every principal is written; realm = host · provider · team. A service may prefix a template | [identity § names](01-identity.md#names) |
+| **`user@realm`** | how every principal is written; realm = a name a bus answers for · provider · team. A service may prefix a template | [identity § names](01-identity.md#names) |
 | **realm** | who vouches for a name | [identity § names](01-identity.md#names) |
 | **canonical name** | the one spelling everything compares and routes on: lower-case, ASCII, trimmed per component, within the bound | [identity § names](01-identity.md#names) |
 | **token** | the one thing every call carries, and the whole identity; persisted, previous one kept | [access § token lifetime](02-access.md#token-lifetime) |
@@ -70,9 +70,9 @@ wins.
 | **`agent-busd`** · **`agent-bus-runner`** (accounts) | the two system users, one per secret domain: credentials and configurations, neither readable by the other | [setup § the two accounts](09-setup.md#the-two-accounts) |
 | **configuration** (registry) · **environment** (runner) | two things one word names: what a template was configured with, which the daemon holds and a service fetches for itself; and the env files the runner injects, which it holds and nobody reads back | [services § configuring a template](03-services-and-topics.md#configuring-a-template) · [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
 | **`--algo`** (`args` · `std` · `json` · `jsonl` · `msgpack`) | how a message reaches a script and what that implies about the process: argv, raw bytes on stdin, the envelope as JSON, or — into a child that is kept — that JSON per line, or `uint32`-framed msgpack | [runner § script services](08-runner-role.md#script-services) |
-| **pool** (`--share`) | one name served by several processes, on one host or many, all reporting to one bus; the word is the same on `consume` and on `start` |
+| **pool** (`--share`) | one name served by several processes, on one host or many, all reporting to one bus; the word is the same on `consume` and on `start` | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
 | **`on`** (listing field) | where a name's members are running, one entry each, stated by them and never checked | [discovery § where a member says it is](05-discovery.md#where-a-member-says-it-is) |
-| **pool realm** | a realm a daemon holds that is not its hostname, so a pool's name claims membership rather than a location — `image-scaler@pool1` | [identity § names](01-identity.md#names) | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
+| **pool realm** | a realm a daemon holds that is not its hostname, so a pool's name claims membership rather than a location — `image-scaler@pool1` | [identity § names](01-identity.md#names) |
 | **long-lived service** | a child started once and fed message after message, so state survives between them — the stream forms `jsonl` and `msgpack`, and the only shapes `reload` means anything to | [runner § long-lived services](08-runner-role.md#long-lived-services) |
 | **template** · **instance** | on disk: `service.d/<name>` is what a service is, `runner/<name>/<instance>` is what one is configured with | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | **bus** | the child that is the core: registry, queues, sessions, delivery | [processes](11-processes.md) |

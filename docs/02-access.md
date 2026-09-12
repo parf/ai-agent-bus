@@ -194,7 +194,7 @@ that admits you ([identity § registration](01-identity.md#registration)).
 |---|---|
 | the forced command **parses**, never prepends | the client's words arrive in `SSH_ORIGINAL_COMMAND`; concatenating them onto a command line is a shell with extra steps. It matches against a closed set of verbs or refuses |
 | `no-pty`, `no-port-forwarding`, `no-agent-forwarding`, `no-X11-forwarding` | the key admits you to a verb, not to a host |
-| many principals, one account | everyone arrives as the same unix user, so the **socket** shortcut cannot tell them apart. An ssh caller takes the stated-parameters path, with the forced command as the source of the name |
+| many principals, one account | everyone arrives as the same unix user, so the **socket** shortcut cannot tell them apart. An ssh caller takes the token path, with the forced command naming who the token is for |
 
 The cost, stated rather than left implicit: the wrapper can assert any
 principal its `authorized_keys` names. That is the same trust the local socket

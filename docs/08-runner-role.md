@@ -127,9 +127,9 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 
 | Rule | |
 |---|---|
-| exit 0 | stdout is the reply; **empty stdout is `done`** — the work finished with nothing to return, and the caller hears that instead of waiting ([messaging § receipts](04-messaging.md#receipts)) |
-| exit non-zero | no reply, logged with stderr. Nothing retries it |
-| one process per message | no state between messages. `jsonl` is the exception, and keeping state is the whole reason it exists ([long-lived services](#long-lived-services)) |
+| exit 0 | *(the one-per-message forms)* stdout is the reply; **empty stdout is `done`** — the work finished with nothing to return, and the caller hears that instead of waiting ([messaging § receipts](04-messaging.md#receipts)) |
+| exit non-zero | *(the same)* no reply, logged with stderr. Nothing retries it. For a **stream form** an exit is not an answer at all, it is the child dying ([long-lived services](#long-lived-services)) |
+| one process per message | no state between messages. The **stream forms** are the exception, and keeping state is the whole reason they exist ([long-lived services](#long-lived-services)) |
 | `-N` | how many script processes may run **at once**; default 1, so a script that is not safe to run twice does not have to be |
 | the script is one argument | it is a shell command line, so quote it if it has arguments of its own: `"./greet.sh --loud"` |
 | registered at start | the description is what `ls` and the MCP catalog show. **`stop` does not unregister it**: the name still owns its queue and messages still wait in it, which is the whole point of a name-owned inbox ([messaging § inbox queues](04-messaging.md#inbox-queues)). What changes is that nothing is reading it |
@@ -137,10 +137,12 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 | one work directory | the one place a sandboxed script may write, and its working directory. Per service, so two services cannot tread on each other ([sandboxing](#sandboxing)) |
 | `--sandbox on\|off` | off unless asked for ([sandboxing](#sandboxing)), and the service says at start which it got — an unsandboxed service is never a silence |
 
-`-N` does not mean N services or N inboxes. **The `start` process is the one
-reader of that inbox** ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox));
-it hands messages to a pool of at most N script processes, and none of them
-knows the bus exists. One name, one queue, N hands.
+`-N` does not mean N services or N inboxes. **The `start` process is the
+reader of that inbox** ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox))
+— the only one, unless it said `--share` ([one name on many
+hosts](#one-name-on-many-hosts)) — and it hands messages to a pool of at most N
+script processes, none of which knows the bus exists. One name, one queue, N
+hands.
 
 **Stopping is graceful and nothing more.** Ctrl-C or `SIGTERM` ends the wait
 for the next message and takes no more; the scripts already running are waited
@@ -170,8 +172,9 @@ is still queued for whatever reads that inbox next.
 ### One name on many hosts
 
 **`--share` makes a service one of a pool, and a pool is a name rather than a
-place.** Four image scalers on four servers all read `scaler@srv1`'s inbox and
-take turns; nothing says where a member runs, and nothing needs to. The bus has
+place.** Four image scalers on four servers all read `scaler@pool1`'s inbox and
+take turns; nothing says where a member runs, and nothing needs to — which is
+what the name has to stop saying ([the name a member registers](#the-name-a-member-registers)). The bus has
 allowed this from the start — a reader that asks to share is one of several
 ([messaging § several readers may wait when they say so](04-messaging.md#several-readers-may-wait-when-they-say-so))
 — so `start --share` passes that word through and the daemon learns nothing
@@ -249,7 +252,7 @@ needs an instance ([the three env layers](#the-three-env-layers)).
 | **state is the service's own business** | the runner promises nothing about which child handles which message, so whatever a child remembers must not belong to one caller. The first bug here will be a per-caller cache that outlives the caller |
 | **up is ready** | no readiness handshake. A child that exits before its first reply is a failed start and backs off like any other |
 | **`reload` is `SIGHUP`** | and it is the one verb that exists only for these shapes ([what the runner does](#what-the-runner-does)) |
-| **stopping is unchanged** | no further frame is written, the answer in flight is waited for however long it takes, then `SIGTERM` |
+| **stopping is unchanged** | no further frame is written and the answer in flight is waited for, then `SIGTERM` — bounded by the same deadline, because a wedged child cannot be waited out |
 | **a crash still loses only what was taken** | a message leaves the daemon only when a hand is free for it, so the rest is still queued for whatever reads that inbox next |
 
 ❓ **Several messages in flight inside one child.** One at a time needs no
@@ -313,14 +316,23 @@ nothing a host should be editing by hand. So **`git pull` a service and no
 local state moves**: every decision this host made — secrets, worker counts,
 confinement, whether it runs at all — is under `runner/`.
 
-The **directory name is the service name** on both sides, and that is what
-ties the two together: `runner/mail-reader/` configures
-`service.d/mail-reader/`. No symlink and no pointer file — a name is already
-unambiguous, and a link could not carry the run options anyway. If
+The **directory name ties the two sides together**: `runner/mail-reader/`
+configures `service.d/mail-reader/`. No symlink and no pointer file — a name is
+already unambiguous, and a link could not carry the run options anyway. If
 `config.json` named itself too they could disagree, so it does not.
 
+**It is also the default name to register, and a default is all it is.** The
+directory gives a bare name, which is completed with the local host the way any
+bare name is ([identity § names](01-identity.md#names)) — and `autostart.json`
+may state a **complete** name instead, which is then taken whole. That is the
+one thing a host must be able to override, because a pool's members sit in
+identically named directories on four machines and must register **one** name
+between them ([the name a member registers](#the-name-a-member-registers)).
+It stays the host's file rather than the author's for the usual reason: which
+pool this copy joins is not something the code knows.
+
 One service with many instances is already in the naming —
-`template/instance-name@host` ([identity § names](01-identity.md#names)) — so
+`template/instance-name@realm` ([identity § names](01-identity.md#names)) — so
 per-user instances need no new idea.
 
 ### The three env layers

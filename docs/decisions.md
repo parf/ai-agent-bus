@@ -127,6 +127,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A realm is the name a daemon answers for; a hostname is only its default, so a pool may have a realm of its own | [identity § names](01-identity.md#names) |
 | A bare name is completed with the local host as a convenience that asserts nothing; a complete name is taken whole | [identity § names](01-identity.md#names) |
 | A pool is one bus — members that report to different daemons are two queues, not one service | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
+| The directory name is the default name to register, and `autostart.json` may state a complete one instead | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | A member states its hostname at registration: stated never observed, a label never an input, one entry per member | [discovery § where a member says it is](05-discovery.md#where-a-member-says-it-is) |
 | Bundled services ship as ordinary services, and none of them may need a daemon change | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
 | No bundled service enforces access: the daemon refused the call before it arrived, which is why the tools stay small | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |

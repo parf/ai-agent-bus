@@ -14,7 +14,7 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
 | Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
 | Processes | one | supervisor + children | AUTH child |
-| Services | request/reply with `ack`; queue topics; scripts as services; a template configured into a service; a record says how to call it and whether anyone is serving it | pub/sub; deadlines, `done`, `reply-to`, several workers behind one name | calls across chained buses; one service on many hosts, scatter-gather |
+| Services | request/reply with `ack`; queue topics; scripts as services; a template configured into a service; a record says how to call it and whether anyone is serving it | pub/sub; deadlines, `done`, `reply-to`, several workers behind one name | calls across chained buses; pools across hosts; many names addressed together, scatter-gather |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
 | Install | built Go binary; bun runs the faces | `npm install` + `sudo agent-bus-setup` | packaged, zero-downtime reload |
 
@@ -160,7 +160,7 @@ thing that would make it true rather than on the page
 | credentials | **one token per principal per service**, so a service you call cannot replay your credential at another one as you — the MVP's master token is what this replaces ([access § token scope](02-access.md#token-scope)) |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified ([modules](10-modules.md)) |
 | operations | zero-downtime reload, packaging |
-| fan-out | **one service on many hosts**: several services sharing a template, addressed together, and the scatter-gather that needs — plus the how-to. Deferred here on the owner's word; the PoC and MVP address one service at a time ([services § service and template](03-services-and-topics.md#service-and-template)) |
+| fan-out | **many names addressed together**: several services sharing a template, asked at once, and the scatter-gather that needs — plus the how-to. Not the same as a **pool**, which is many processes behind *one* name and answers once ([runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts)). Deferred here on the owner's word; the PoC and MVP address one service at a time ([services § service and template](03-services-and-topics.md#service-and-template)) |
 
 **Works at the end of Release 1**
 

@@ -19,7 +19,7 @@ name*:
 
 | Form | Realm is | Vouched for by | Example |
 |---|---|---|---|
-| `user@host` | a bus | that bus's `agent-busd` | `parf@localhost`, `parf@om.parf.dev` |
+| `user@bus` | a name a daemon answers for | that daemon | `parf@localhost`, `parf@om.parf.dev` |
 | `user@provider` | an identity provider | the provider — name and public key | `parf@github` |
 | `user@team` | a team, a group on the AUTH server | AUTH | `parf@realmo` |
 
@@ -28,8 +28,8 @@ it was configured from:
 
 | Form | Is | Example |
 |---|---|---|
-| `service@host` | a standalone service, with no separate template | `claude@rdvp` |
-| `template/instance-name@host` | a service configured from a template | `imap-mail-reader/billing@rdvp` |
+| `service@realm` | a standalone service, with no separate template | `claude@rdvp` |
+| `template/instance-name@realm` | a service configured from a template | `imap-mail-reader/billing@rdvp` |
 
 **A realm is the name a daemon answers for, and a hostname is only its
 default.** A daemon may be told to hold others, and `image-scaler@pool1` is why:
@@ -58,10 +58,10 @@ what leaves the leading characters free to mean something else
 ([sigils](#sigils)), and it costs nothing a realm actually uses — a GitHub
 handle may begin with a digit, and `0xdead@github` is a name like any other.
 
-**The host is whatever follows the last `@`.** The local part — an instance
+**The realm is whatever follows the last `@`.** The local part — an instance
 name, or a user — may itself be an address — the thing that reads a mailbox is reasonably named after it — so
 `mail-sender/parf@comfi.com@host` is template `mail-sender`, instance
-`parf@comfi.com`, host `host`. The bus reads **no meaning** out of it: it is a
+`parf@comfi.com`, realm `host`. The bus reads **no meaning** out of it: it is a
 name it routes on, never a mailbox it parses.
 
 One syntax for everything on the bus, three sources of authority behind it. The

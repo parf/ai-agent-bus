@@ -23,7 +23,7 @@ settled.
 | What | Why it was cut | Where it is designed |
 |---|---|---|
 | **Bodies end to end** — wave D in full | the MVP's key mode cannot carry the claim: the daemon issues the token a session key would derive from | [Plans/MVP/TODO.md](../MVP/TODO.md#d--the-bus-stops-reading-payloads), [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
-| **One service on many hosts** — several services sharing a template, addressed together, and the scatter-gather that needs | the owner's word; the PoC and MVP address one service at a time | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
+| **Many names addressed together** — several services sharing a template, asked at once, and the scatter-gather that needs. Not a **pool**, which is many processes behind one name | the owner's word; the PoC and MVP address one service at a time | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
 | **Groups with `& \| !`, and roles** | groups exist only with the AUTH role on, and a role is service-defined and never interpreted here | [identity § groups and roles](../../docs/01-identity.md#groups-and-roles) |
 | **The dashboard's groups, health, load graphs, child liveness and record origin** | each waits on the thing that would make it true — AUTH, the health child, the ring buffers, the supervisor reporting in, chained registries — not on the page | [discovery § what it shows](../../docs/05-discovery.md#what-it-shows) |
 | **A second sandbox backend** | one backend plus off is what the MVP builds; `bwrap` is one adapter behind the same port the day a host has no systemd | [runner § sandboxing](../../docs/08-runner-role.md#sandboxing) |
