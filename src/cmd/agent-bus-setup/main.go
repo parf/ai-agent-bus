@@ -78,6 +78,11 @@ func setup() error {
 	if who := invoker(); who != "" {
 		users = append(list{who + "=" + me.String()}, users...)
 	}
+	// And so does the runner: reaching the local bus over the socket makes it
+	// a mapped local account like every other, which is the whole claim of
+	// the split made concrete — nothing about it is special to the daemon.
+	// See docs/09-setup.md#the-two-units.
+	users = append(users, runAccount+"=runner@"+me.Realm)
 	if *exe == "" {
 		self, err := os.Executable()
 		if err != nil {

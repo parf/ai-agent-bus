@@ -1588,6 +1588,10 @@ has "it comes back after it dies" "$UNIT" '^Restart='
 has "it is given one capability, not root" "$UNIT" '^AmbientCapabilities=CAP_CHOWN$'
 has "and cannot pick up a second" "$UNIT" '^CapabilityBoundingSet=CAP_CHOWN$'
 has "the installer still gets a socket of their own" "$UNIT" "[-]user $(id -un)=$OWNER"
+# The runner reaches the local bus over a socket like any other account, so
+# the daemon has to know it is one. Nothing about it is special to the daemon.
+# See docs/09-setup.md#the-two-units.
+has "and so does the runner, which is a client like anyone else" "$UNIT" "[-]user agent-bus-runner=runner@${OWNER#*@}"
 out=$("$D/agent-bus-setup" --owner "$OWNER" 2>&1); rc=$?
 bad_exit "setup without root refuses rather than half-installing" $rc
 is_empty "and does not try the first step before finding that out" \

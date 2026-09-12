@@ -141,6 +141,9 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | ssh with a forced command is a third way the two parameters arrive, and how a remote daemon is reached | [access § the three doors](02-access.md#the-three-doors) |
 | The runner is a service on the bus; deploying on a host is its service ACL, not a second door | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
 | The runner registers as `runner@<host>`, a name like any other | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
+| Two accounts, two units, started and stopped independently | [setup § the two units](09-setup.md#the-two-units) |
+| Which bus the runner serves is a setting, defaulting to the local one | [setup § the two units](09-setup.md#the-two-units) |
+| A local runner wants the local daemon and starts after it, but is not stopped with it | [setup § the two units](09-setup.md#the-two-units) |
 | `service.d` is externally controlled — usually a checkout — so no local state lives in it | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Configuration is three env layers overlaid, and the more secret one wins | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
 | `env.dist` declares the surface; a service needs an instance exactly when something is declared without a default | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |

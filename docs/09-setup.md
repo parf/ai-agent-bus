@@ -151,8 +151,13 @@ install writes under these, with no special case in between.
 The per-user sockets are **not** under any of them: they belong in the host's
 runtime directory, which a reboot clears ([access § local socket](02-access.md#local-socket)).
 
-The unit it writes is `/etc/systemd/system/agent-busd.service`, and it is the
-whole privileged arrangement in one file:
+### The two units
+
+**Two accounts, two units**, and neither is the other's child: they start
+independently, stop independently, and a host may run either alone.
+
+`/etc/systemd/system/agent-busd.service` is the whole privileged arrangement
+in one file:
 
 | The unit says | So that |
 |---|---|
@@ -162,11 +167,35 @@ whole privileged arrangement in one file:
 | `Restart=on-failure` | a daemon that dies comes back |
 | `AmbientCapabilities=CAP_CHOWN` with a bounding set of exactly that | the one capability is given, not taken, and no second one can be picked up ([processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown)) |
 
-It refuses rather than half-installing without root, and says which `sudo`
+`/etc/systemd/system/agent-bus-runner.service` is the other half, and what it
+does *not* say is most of it:
+
+| The runner's unit says | So that |
+|---|---|
+| `User=agent-bus-runner` | it is the other secret domain, and cannot read the daemon's home |
+| **which bus to use, defaulting to the local one** | the runner is a client, so the bus it serves is a setting rather than an assumption. A host with no daemon points it elsewhere and nothing else changes ([runner § where it runs](08-runner-role.md#where-it-runs)) |
+| `WorkingDirectory` is its own home, and that alone is writable | `service.d` is a checkout it only reads, and the daemon's home is not on any path it has |
+| `Restart=on-failure` | same reason, and it restarts *its own* children itself rather than leaving them to systemd |
+| **no `AmbientCapabilities`** | the one capability on this host belongs to the supervisor, and the runner is not it |
+| **against a local bus**: `Wants=agent-busd.service` and `After=` it | the two come up together and in the right order, which is what a local runner depends on. Not `Requires=`: that would stop the runner — and so every service it holds — whenever the bus is stopped, and a bus that is away is not a service that failed ([runner § where it runs](08-runner-role.md#where-it-runs)) |
+| **against a remote bus**: neither | there is nothing on this host to order against, and the unit is the same file otherwise |
+
+**The runner is a bus citizen like anyone else**, which has a consequence
+worth stating: reaching the local bus over the socket means it is a *mapped
+local account* like every other ([local users](#local-users)), so the install
+maps it and the daemon opens it a socket. Nothing about the runner is special
+to the daemon — which is the whole claim of the split, made concrete.
+
+⚠️ The runner's unit ships **with the runner**, in Release 1
+([stages § release 1](12-stages.md#release-1)) — there is no point writing a
+unit for a program that is not installed. What exists today is everything it
+will need: both accounts, the tree they own, and the runner's socket.
+
+Setup refuses rather than half-installing without root, and says which `sudo`
 line to run. `--dry-run` names the steps and `--print-unit` prints the unit;
 neither needs anything. The installer's own account is given a socket without
 being asked for — they are a user of the bus like anyone else.
 
 ## Config locations
 
-`/etc/agent-bus/` · `~/.config/agent-bus/` · unit `agent-busd.service`.
+`/etc/agent-bus/` · `~/.config/agent-bus/` · the units ([the two units](#the-two-units)).
