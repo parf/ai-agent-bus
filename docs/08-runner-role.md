@@ -88,20 +88,40 @@ cat service.json | agent-bus start -5       # same fields as JSON, five at a tim
 | **`--algo=std`** | the **body itself on stdin**, bytes, nothing wrapped around it | the same, bytes | one per message |
 | **`--algo=json`** | the whole **envelope as JSON on stdin**, one line | the same | one per message |
 | **`--algo=jsonl`** | that same line, **and the next, and the next** | one JSON line per message | **one, kept** ([long-lived services](#long-lived-services)) |
+| **`--algo=msgpack`** | `uint32` length + **msgpack**, frame after frame | `uint32` length + **msgpack** back, the same framing both ways | **one, kept** |
 
 The names are a ladder, each rung saying one thing more. `args` and `std` name
 a **channel** and claim nothing about what travels on it; `json` names the
-channel *and* the payload; `jsonl` is that payload repeated for as long as the
-process lives.
+channel *and* the payload; `jsonl` and `msgpack` are that payload repeated for
+as long as the process lives.
 
 **`std` is the binary form, and an image scaler is the whole case for it.**
 `convert - -resize 800x -` is already a service — bytes in, bytes out, nothing
 to parse and nothing to encode — where argv cannot carry a JPEG at all and a
 JSON line can only carry one base64'd, in both directions, for no one's
-benefit. It arrives with `jsonl` in [Release 1](12-stages.md#release-1); the
-MVP has `args` and `json`.
+benefit.
 
-All four forms also get the envelope in the environment — sender, topic, tag,
+**`msgpack` is the one that gives up nothing**, which is what the set was
+missing rather than something added to it:
+
+| | the envelope | a JPEG body | the process |
+|---|---|---|---|
+| `args` | in the environment only | cannot carry it | one per message |
+| `std` | in the environment only | **as bytes** | one per message |
+| `json` | in-band | base64, both ways | one per message |
+| `jsonl` | in-band | base64, both ways | **kept** |
+| **`msgpack`** | **in-band** | **as bytes** | **kept** |
+
+It is not a new encoding either — msgpack is already the envelope's negotiated
+binary form ([messaging § envelope](04-messaging.md#envelope)), arriving here
+at the child's boundary. **The length prefix is `uint32`, network order**, and
+it is what makes the form a stream: a frame that had to be alone would not need
+one, which is the same reason `jsonl` keeps its process.
+
+`args` and `json` are the MVP. `std`, `jsonl` and `msgpack` arrive in
+[Release 1](12-stages.md#release-1).
+
+All five forms also get the envelope in the environment — sender, topic, tag,
 `message_id` — so a script that cares can route on it, and one that does not
 can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 
@@ -187,26 +207,28 @@ the host is already making.
 
 ### Long-lived services
 
-**A `--algo=jsonl` child is started once and kept**, and messages arrive on its
-stdin one JSON line at a time for as long as it lives. Everything expensive to
+**A child in one of the stream forms is started once and kept** — `jsonl` or
+`msgpack` — and messages arrive on its stdin, one frame at a time, for as long
+as it lives. Everything expensive to
 build — a loaded model, an open database handle, a warm cache — survives
 between messages, which is the only reason to want this and the only thing it
 buys.
 
 The shape forces the lifetime rather than a flag declaring it: `args` cannot be
-long-lived, because argv is fixed at exec, and a process that reads a *stream*
-of messages is by construction one that stays. So there is no second setting to
+long-lived, because argv is fixed at exec; a process that reads a *stream* of
+messages is by construction one that stays; and a length prefix is only worth
+writing when another frame follows it. So there is no second setting to
 disagree with the first — the same reason `env.dist` decides whether a service
 needs an instance ([the three env layers](#the-three-env-layers)).
 
 | | |
 |---|---|
-| **one message at a time** | the runner writes a line and waits for the answering line before writing the next. Nothing has to be correlated because nothing is out of order, and `-N` keeps its meaning: N children, N hands on one inbox ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
+| **one message at a time** | the runner writes a frame and waits for the answering frame before writing the next. Nothing has to be correlated because nothing is out of order, and `-N` keeps its meaning: N children, N hands on one inbox ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | **a deadline per message, and only here** | killing a one-per-message script costs the process and nothing else. Killing a kept child throws away everything it warmed up, and there is no way past a wedged one without doing it — so the runner waits a bounded time, then kills, restarts with backoff, and logs the message that was in flight as lost |
 | **state is the service's own business** | the runner promises nothing about which child handles which message, so whatever a child remembers must not belong to one caller. The first bug here will be a per-caller cache that outlives the caller |
 | **up is ready** | no readiness handshake. A child that exits before its first reply is a failed start and backs off like any other |
-| **`reload` is `SIGHUP`** | and it is the one verb that exists only for this shape ([what the runner does](#what-the-runner-does)) |
-| **stopping is unchanged** | no further line is written, the answer in flight is waited for however long it takes, then `SIGTERM` |
+| **`reload` is `SIGHUP`** | and it is the one verb that exists only for these shapes ([what the runner does](#what-the-runner-does)) |
+| **stopping is unchanged** | no further frame is written, the answer in flight is waited for however long it takes, then `SIGTERM` |
 | **a crash still loses only what was taken** | a message leaves the daemon only when a hand is free for it, so the rest is still queued for whatever reads that inbox next |
 
 ❓ **Several messages in flight inside one child.** One at a time needs no

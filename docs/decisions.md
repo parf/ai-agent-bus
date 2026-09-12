@@ -115,10 +115,11 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](12-stages.md#poc) |
 | Write the simple version first, compare with V1, take its solution where it is better; simplicity breaks the tie | [stages § PoC](12-stages.md#poc) |
 | Names are canonical, bounded, and one spelling each | [identity § names](01-identity.md#names) |
-| A shell script is a service: `start --algo=args\|std\|json\|jsonl [-N]`, stdout is the reply, no bus code in the script | [runner § script services](08-runner-role.md#script-services) |
+| A shell script is a service: `start --algo=args\|std\|json\|jsonl\|msgpack [-N]`, stdout is the reply, no bus code in the script | [runner § script services](08-runner-role.md#script-services) |
 | A form names a channel (`args`, `std`), a channel and its payload (`json`), or that payload repeated (`jsonl`) | [runner § script services](08-runner-role.md#script-services) |
 | `std` is the body as bytes on stdin, so a binary service costs no base64 pass | [runner § script services](08-runner-role.md#script-services) |
-| A long-lived child is a framing, not a flag: `jsonl` reads a stream, so the process is kept | [runner § long-lived services](08-runner-role.md#long-lived-services) |
+| A long-lived child is a framing, not a flag: a stream form reads frame after frame, so the process is kept | [runner § long-lived services](08-runner-role.md#long-lived-services) |
+| `msgpack` is `uint32` length + msgpack both ways — the envelope in-band, a binary body as bytes, and the process kept | [runner § script services](08-runner-role.md#script-services) |
 | A kept child takes one message at a time, and needs the per-message deadline the others do not | [runner § long-lived services](08-runner-role.md#long-lived-services) |
 | `start --share` puts a service in a pool spread over any number of hosts, passing the word `consume` already has | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
 | A name is up while any pool member is, and which member answered is nobody's business | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
