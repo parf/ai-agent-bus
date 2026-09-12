@@ -130,8 +130,8 @@ type view struct {
 	NoFeed  string
 }
 
-// caller is the two parameters and somewhere to send them. Empty ones are
-// left off: on its own socket the daemon supplies both.
+// caller is a token and somewhere to send it. An empty one is left off: on
+// its own socket the daemon supplies the identity.
 // See docs/02-access.md#local-socket.
 type caller struct {
 	client *http.Client

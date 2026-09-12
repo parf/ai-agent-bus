@@ -70,7 +70,7 @@ func UserSocket(dir, account string) string {
 }
 
 // IsUserSocket says whether a path is one of those, which is how a client
-// knows the two parameters will be supplied for it.
+// knows the socket will supply its credential.
 func IsUserSocket(path string) bool {
 	base := filepath.Base(path)
 	return strings.HasPrefix(base, "user-") && strings.HasSuffix(base, ".sock")
@@ -92,18 +92,17 @@ func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
 }
 
 // guard turns a handler that needs a caller into one that does not, by
-// working out who the caller is. There are two: the credential on the
-// request, and the socket it arrived on.
+// working out who the caller is. Two ways: the token on the request, and the
+// socket it arrived on.
 type guard func(func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc
 
 // Handler serves the listeners anyone can reach, where a request carries its
-// own two parameters.
+// own token.
 func (s *Server) Handler() http.Handler { return s.routes(s.auth) }
 
-// HandlerFor serves one account's own socket. The socket supplies the two
-// parameters instead of the caller — it does not replace them, so a request
-// that states a *different* name is refused exactly as it would be from
-// anywhere else. See docs/02-access.md#local-socket.
+// HandlerFor serves one account's own socket. The socket is the credential:
+// it stands in for the token, it is not an exemption from having one.
+// See docs/02-access.md#local-socket.
 func (s *Server) HandlerFor(principal protocol.Name) http.Handler {
 	return s.routes(s.onSocket(principal))
 }

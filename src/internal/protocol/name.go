@@ -77,7 +77,7 @@ func isLocal(s string) bool {
 // an identifier, not a payload: it is logged, indexed and shown in a list.
 const MaxName = 64
 
-// Name is one half of the two parameters every call carries.
+// Name is how every principal is written.
 type Name struct {
 	Template string // service template this service was configured from, or ""
 	Local    string // user, or service name

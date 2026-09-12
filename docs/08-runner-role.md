@@ -306,7 +306,7 @@ The author and the host each own one file, and they do not overlap:
 
 | | Owned by | Says |
 |---|---|---|
-| `config.json` | the **author**, and it travels with the code | how the service starts, and what to register. The command line lives here and nowhere else |
+| `config.json` | the **author**, and it travels with the code | how the service starts, and what to register — including its **version**, which is why a service too simple to answer a `version` call still has one. The command line lives here and nowhere else |
 | `autostart.json` | the **host** | whether to start it at all, how many, and what to confine it with ([sandboxing](#sandboxing)) |
 
 So a host never restates the command, and an update to it arrives with a `git
@@ -485,12 +485,24 @@ port ([modules § the rule](10-modules.md#the-rule)) the day somebody runs
 this where systemd is not, and until then it is surface with nothing behind
 it. The candidates, so the choice is a record and not a memory:
 
-| Tool | Gives | Why not now |
+Written with the invocation that gives the property most often wanted — **a
+path the child cannot write** — because that is the one all of them can do and
+the one a reader comes here for:
+
+| Tool | A read-only view | Why not now |
 |---|---|---|
-| **`systemd-run`** | cgroups + `Protect*` / `Private*` / seccomp / caps, declarative | — it is the one |
-| `bubblewrap` | user namespaces, minimal rootfs, only declared paths; no systemd needed | the adapter to write when a host has no systemd |
-| `unshare` | the bare primitive; the runner would do the setup itself | everything `bwrap` already did correctly |
+| **`systemd-run`** | `ProtectSystem=strict` for the whole tree, `ReadOnlyPaths=` per path, `ReadWritePaths=` for the exceptions — declarative, and cgroups, seccomp and caps come with it | — it is the one |
+| `bubblewrap` | `bwrap --ro-bind /data /data … prog`: user namespaces, a minimal rootfs, and only the paths named exist at all | the fuller answer for a host with no systemd — and a package to install |
+| `unshare` | `unshare --mount --map-root-user sh -c 'mount -o remount,ro,bind /data; exec prog'`: a mount namespace of its own, no root, no package | the narrow one — a read-only view and nothing else. Which is exactly what is left to want inside a container |
 | firejail | more features | weaker security history |
+
+❓ **A container is the day a second backend was waiting for.** The image runs
+no systemd user manager ([stages § the image](12-stages.md#the-image)), so
+`systemd-run --user` cannot answer and confinement there is simply off.
+`unshare` fits that gap and nothing else does as cheaply: no package, no
+privilege, no manager, and the container is already the outer boundary, so a
+read-only path is the one property still worth having. What it costs is the
+*one backend and off* simplicity above. *Settled by:* owner, with the image.
 
 `--user` has one consequence worth writing down: a transient user scope needs
 that account's own systemd manager to be running. A person starting a service

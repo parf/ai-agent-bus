@@ -250,6 +250,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How a dormant name is woken, and what the daemon has to learn to do it | owner, in Release 1 | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](08-runner-role.md#long-lived-services) |
+| Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](08-runner-role.md#where-it-runs) |
 | How a per-service token argument is told apart from asking for a name you own | owner, with Release 1 | [access § token scope](02-access.md#token-scope) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |

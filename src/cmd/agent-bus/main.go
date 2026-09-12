@@ -567,7 +567,7 @@ var whoami = sync.OnceValue(func() string {
 })
 
 // onOwnSocket says whether we are talking over a socket the daemon opened
-// for this account, which is the one place the two parameters come for free.
+// for this account, which is the one place a token is not needed.
 func onOwnSocket() bool {
 	// Judged from the address, not from transport's base URL: that is
 	// "http://localhost" over a unix socket too.

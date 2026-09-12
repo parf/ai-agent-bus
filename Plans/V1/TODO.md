@@ -48,27 +48,13 @@ restated in any more detail than that.
 | credentials | per-principal-per-service tokens, replacing the MVP's master token |
 | **the runner** | `agent-bus-runner`: its own account, installed instances under `runner/`, write-only configuration, autostart and restart policy, on-demand start |
 | script forms | `std` bytes on stdin; `jsonl` and `msgpack`, a child kept across messages with a deadline and `reload` |
-| service pools | `start --share`: one name over many hosts, its members given a complete name in a realm the daemon holds |
+| service pools | `start --share`: one name over many hosts, its members given a complete name in a realm the daemon holds; a bare name still completed with the local host |
+| where a member is | a hostname stated as its own field at registration, answered in a listing as `on` |
+| a service's version | the record says what was registered, a `version` call what is running; a simple service declares it in `config.json` and the runner answers |
 | **the runner's page** | the dashboard drives a runner: everything it manages, separated into installed · enabled · running, the verbs on each, and installing a new instance from the browser — the first page with controls on it, and they post as the person ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)) |
 | encryption | AEAD sessions, bodies end to end |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified |
 | operations | zero-downtime reload, packaging |
-
-## Raised for this stage
-
-Not in [stages § release 1](../../docs/12-stages.md#release-1) yet, and not
-designed anywhere — the owner raised them here, and each needs a home in
-`docs/` before it can be a wave.
-
-| What | The shape it looks like | What it waits on |
-|---|---|---|
-| **A service says what version it is** | two halves of one feature, answering different questions. The **record** says what was registered; a **`version` call** asks what is actually running, and the two disagreeing is itself the signal. A service too simple to answer a call declares it in `config.json`, which travels with the code — and the runner, which already speaks the bus for a script child, answers from there, so nothing lands inside the child ([runner § what an instance is](../../docs/08-runner-role.md#what-an-instance-is)) | `version` is a **standard method**, and what carries a service's method information is an open decision ([services § service and template](../../docs/03-services-and-topics.md#service-and-template)). It also wants a home in `docs/` — the record half is the registry's, the call half is the method story's |
-
-It belongs in **this** stage because pools do: a pool is N processes answering
-one name, and that they are interchangeable is the operator's promise the bus
-cannot check ([runner § one name on many
-hosts](../../docs/08-runner-role.md#one-name-on-many-hosts)). Asking the name
-for its version and getting N answers back is the cheapest check there is.
 
 ## Blockers
 
@@ -85,3 +71,4 @@ stage is where each of them bites.
 | chaining, and service templates | a chaining namespace and a service template both want the `/` | [overview § chaining](../../docs/00-overview.md#chaining) |
 | admin | `authorized_keys` regeneration would drop the key `agent-bus-setup` installed | [AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin) |
 | the runner | whether one kept child may have several messages in flight | [runner § long-lived services](../../docs/08-runner-role.md#long-lived-services) |
+| a service's version | `version` is a **standard method**, and nothing on a record carries method information yet | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
