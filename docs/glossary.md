@@ -40,7 +40,8 @@ wins.
 | **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](01-identity.md#acl) |
 | **`allow: *`** | anyone who can authenticate | [identity § acl](01-identity.md#acl) |
 | **`agent-bus-admin`** | the program that edits what the `agent-busd` account owns — *not* a role; the setup user simply holds master | [setup § the programs](09-setup.md#the-programs) |
-| **role** | service-defined string saying what a principal may do | [identity § groups and roles](01-identity.md#groups-and-roles) |
+| **role** | service-defined string saying what a principal may do; `#admin` here, `admin` to the service | [identity § sigils](01-identity.md#sigils) |
+| **`@`** · **`#`** (ACL) | a leading `@` is a group, a leading `#` a role, and anything else is a user | [identity § sigils](01-identity.md#sigils) |
 | **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](01-identity.md#delegation) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](03-services-and-topics.md#service-kinds) |
 | **service template** | the *unconfigured* capability; does not run, has no address | [services § service and template](03-services-and-topics.md#service-and-template) |

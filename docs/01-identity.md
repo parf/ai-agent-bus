@@ -174,21 +174,64 @@ with it unreachable, which is the pinning promised above.
 
 ## Groups and roles
 
-- **Groups** compose from groups with `& | !` (`eng & !contractors`). They
+- **Groups** compose from groups with `& | !` (`@eng & !@contractors`). They
   exist only with the AUTH role on. ⚠️ A group that arrives before AUTH does
   is a **flat named set** — a list of principals, a record like any other,
   expanded in the one place `allow` is already checked ([acl](#acl)). The
   expression engine comes with AUTH and not before: `& | !` on the
   authorization path is where a precedence bug grants silently.
-- **Roles** — *what a principal may do*: service-defined strings (`admin`,
-  `read-only`, …), assigned with the same expression pattern as groups. AUTH
-  stores and resolves; it never interprets.
+- **Roles** — *what a principal may do*: service-defined strings (`#admin`,
+  `#read-only`, …), assigned with the same expression pattern as groups. AUTH
+  stores and resolves; **it never interprets** — and the one place a role goes
+  is the answer to a service asking who its caller is ([sigils](#sigils)), so
+  there is no code path here that could.
 - Access and authority stay two layers. One expression engine.
+
+## Sigils
+
+**A leading character says what kind of thing an ACL entry is**, so one list
+holds every kind and nothing needs a type field beside it.
+
+| | Is | Appears |
+|---|---|---|
+| `parf@github` | a **user** — anything that is not one of the two below | either side |
+| `@dev` | a **group** | only as an ACL subject |
+| `#admin` | a **role** | only in what is handed to a service, and `#`-stripped on the way |
+
+Each sigil disambiguates **within its own side** of an entry, which is why
+both are needed and neither is decoration:
+
+- the left side holds subjects, where a group has to be told from a user —
+  `@dev & !@contractors` reads as an expression over groups, `dev &
+  !contractors` does not say what it is combining;
+- the right side holds access *and* an optional role, where a role has to be
+  told from an access level: `parf@github => rw, #admin`.
+
+**A user is defined by exclusion** — not by an allowed first character. Names
+come from realms this design does not own, and a GitHub handle may begin with
+a digit, so any rule naming the permitted characters would reject real
+principals ([names](#names)). One rule, and nothing to revisit when a realm
+allows something new.
+
+**The `#` never leaves.** It marks a role as ours while it is stored here; the
+service asking about its caller is given `admin`, because a role is that
+service's own vocabulary and our namespace is not its business.
+
+⚠️ `#` **begins a comment** in a shell word, in YAML and in `.env`. Typed as
+`--allow #admin` it fails loudly — the flag ends up with no value — but at the
+start of a line in a config file it disappears without one. Quote it, and do
+not put a role first on a line.
+
+❓ **Whether a group is node-local or realm-scoped** — `@dev` or `@dev@company`.
+AUTH data is a bundle shared by every replica, which argues for a realm; a
+single node needs none, and groups do not exist before AUTH
+([groups and roles](#groups-and-roles)). *Settled by:* owner, with AUTH.
 
 ## ACL
 
-Two layers, tried in that order. Both use the same shape: a subject (user or
-group) mapped to access and an optional role.
+Two layers, tried in that order. Both use the same shape: a subject — a user
+or an `@group` ([sigils](#sigils)) — mapped to access and an optional
+`#role`.
 
 | Layer | Lives in | Says |
 |---|---|---|
