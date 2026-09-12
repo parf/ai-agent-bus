@@ -69,6 +69,8 @@ wins.
 | **supervisor** | the `agent-busd` process that spawns the rest and holds nothing else | [processes](11-processes.md) |
 | **`agent-busd`** · **`agent-bus-runner`** (accounts) | the two system users, one per secret domain: credentials and configurations, neither readable by the other | [setup § the two accounts](09-setup.md#the-two-accounts) |
 | **configuration** (registry) · **environment** (runner) | two things one word names: what a template was configured with, which the daemon holds and a service fetches for itself; and the env files the runner injects, which it holds and nobody reads back | [services § configuring a template](03-services-and-topics.md#configuring-a-template) · [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
+| **`--algo`** (`args` · `std` · `json` · `jsonl`) | how a message reaches a script and what that implies about the process: argv, raw bytes on stdin, the envelope as JSON, or that JSON repeated into a child that is kept | [runner § script services](08-runner-role.md#script-services) |
+| **long-lived service** | a child started once and fed message after message, so state survives between them — `--algo=jsonl`, and the only shape `reload` means anything to | [runner § long-lived services](08-runner-role.md#long-lived-services) |
 | **template** · **instance** | on disk: `service.d/<name>` is what a service is, `runner/<name>/<instance>` is what one is configured with | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | **bus** | the child that is the core: registry, queues, sessions, delivery | [processes](11-processes.md) |
 | **port** | an interface core depends on; the seam a dependency is swapped at | [modules § the rule](10-modules.md#the-rule) |
@@ -82,6 +84,6 @@ wins.
 | identity | `keygen`, `register` |
 | registry | `register`, `topic create`, `ls`, `service-template`, `status` |
 | messaging | `send`, `call`, `publish`, `consume`, `ack`, `reply` |
-| runner | `start`, `stop`, `restart`, `enable`, `disable`, `logs` — systemd's semantics; **`start`, never `run`** |
+| runner | `start`, `stop`, `restart`, `reload`, `enable`, `disable`, `logs` — systemd's semantics; **`start`, never `run`**, and `reload` only where a child is kept |
 | AUTH admin | `auth sign`, `auth admin` |
 | over SSH | `static-token`, `bundle show\|history`, `user list`, `service list`, `replica-sync` |

@@ -18,17 +18,17 @@ step.
 ## What the runner does
 
 - **Supervise** — spawn, restart with backoff, stop, log capture, exit codes.
-  Four **control** verbs and no more: **start, stop, restart, enable/disable**
-  (`logs` reads, it does not control) — and it is
+  Five **control** verbs and no more: **start, stop, restart, reload,
+  enable/disable** (`logs` reads, it does not control) — and it is
   `start`, never `run`, the same word whether you sit in front of it or the
-  runner does it for you. There is no `reload`, because for a script service
-  there is no long-lived child to signal — children are one process per
-  message — and a graceful restart already loses nothing: `stop` waits for the
-  work in flight, messages queue in the daemon meanwhile, and the next process
-  picks them up.
-  ❓ *A long-running non-script child that can take `SIGHUP` would be the one
-  reason to keep `reload`, and it would make the runner care what kind of child
-  it has. Settled by: the owner.*
+  runner does it for you. **`reload` exists for a long-lived child and nowhere
+  else** ([long-lived services](#long-lived-services)): there is something to
+  signal only when a process is kept, so on a one-process-per-message service
+  it is refused rather than quietly doing nothing. Everywhere else a graceful
+  restart already loses nothing: `stop` waits for the work in flight, messages
+  queue in the daemon meanwhile, and the next process picks them up. This is
+  the one place the runner **cares what kind of child it has**, and it is the
+  price of keeping a process alive.
 - **Represent** — registers each child as a **service**
   ([services § service and template](03-services-and-topics.md#service-and-template)),
   heartbeats and reports stats for it, holds and injects the child's identity
@@ -46,7 +46,7 @@ Children come in a few shapes; each gets the same bus face.
 |---|---|
 | MCP servers (stdio) | MCP-capable services in the registry |
 | HTTP/REST/any API | registered with health hints |
-| shell processes (stdin/stdout) | request/response or stream services |
+| shell processes (args or stdin → stdout) | request/response or stream services |
 | ad-hoc spawn/control | the runner's own API to start/stop things on demand |
 
 **Agent runtimes get one push adapter each**: each runtime takes a message
@@ -82,12 +82,26 @@ cat service.json | agent-bus start -5       # same fields as JSON, five at a tim
 
 `hello-world.sh` is `echo "Hello $1"`, and that is the whole service.
 
-| | The message arrives as | The reply is |
-|---|---|---|
-| **`--algo=std`** | the whole **envelope as JSON on stdin**, one line | whatever it writes to **stdout** |
-| **`--algo=args`** | the body as **`$1`**, nothing on stdin | the same |
+| | The message arrives as | The reply is | Processes |
+|---|---|---|---|
+| **`--algo=args`** | the body as **`$1`**, nothing on stdin | whatever it writes to **stdout**, at exit | one per message |
+| **`--algo=std`** | the **body itself on stdin**, bytes, nothing wrapped around it | the same, bytes | one per message |
+| **`--algo=json`** | the whole **envelope as JSON on stdin**, one line | the same | one per message |
+| **`--algo=jsonl`** | that same line, **and the next, and the next** | one JSON line per message | **one, kept** ([long-lived services](#long-lived-services)) |
 
-Both forms also get the envelope in the environment — sender, topic, tag,
+The names are a ladder, each rung saying one thing more. `args` and `std` name
+a **channel** and claim nothing about what travels on it; `json` names the
+channel *and* the payload; `jsonl` is that payload repeated for as long as the
+process lives.
+
+**`std` is the binary form, and an image scaler is the whole case for it.**
+`convert - -resize 800x -` is already a service — bytes in, bytes out, nothing
+to parse and nothing to encode — where argv cannot carry a JPEG at all and a
+JSON line can only carry one base64'd, in both directions, for no one's
+benefit. It arrives with `jsonl` in [Release 1](12-stages.md#release-1); the
+MVP has `args` and `json`.
+
+All four forms also get the envelope in the environment — sender, topic, tag,
 `message_id` — so a script that cares can route on it, and one that does not
 can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 
@@ -95,7 +109,7 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 |---|---|
 | exit 0 | stdout is the reply; **empty stdout is `done`** — the work finished with nothing to return, and the caller hears that instead of waiting ([messaging § receipts](04-messaging.md#receipts)) |
 | exit non-zero | no reply, logged with stderr. Nothing retries it |
-| one process per message | no state between messages |
+| one process per message | no state between messages. `jsonl` is the exception, and keeping state is the whole reason it exists ([long-lived services](#long-lived-services)) |
 | `-N` | how many script processes may run **at once**; default 1, so a script that is not safe to run twice does not have to be |
 | the script is one argument | it is a shell command line, so quote it if it has arguments of its own: `"./greet.sh --loud"` |
 | registered at start | the description is what `ls` and the MCP catalog show. **`stop` does not unregister it**: the name still owns its queue and messages still wait in it, which is the whole point of a name-owned inbox ([messaging § inbox queues](04-messaging.md#inbox-queues)). What changes is that nothing is reading it |
@@ -132,6 +146,38 @@ check in it — nobody else can see the file.
 Because a message is taken from the daemon only when a script process is free
 to run it, a service that dies loses only the work already in flight; the rest
 is still queued for whatever reads that inbox next.
+
+### Long-lived services
+
+**A `--algo=jsonl` child is started once and kept**, and messages arrive on its
+stdin one JSON line at a time for as long as it lives. Everything expensive to
+build — a loaded model, an open database handle, a warm cache — survives
+between messages, which is the only reason to want this and the only thing it
+buys.
+
+The shape forces the lifetime rather than a flag declaring it: `args` cannot be
+long-lived, because argv is fixed at exec, and a process that reads a *stream*
+of messages is by construction one that stays. So there is no second setting to
+disagree with the first — the same reason `env.dist` decides whether a service
+needs an instance ([the three env layers](#the-three-env-layers)).
+
+| | |
+|---|---|
+| **one message at a time** | the runner writes a line and waits for the answering line before writing the next. Nothing has to be correlated because nothing is out of order, and `-N` keeps its meaning: N children, N hands on one inbox ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
+| **a deadline per message, and only here** | killing a one-per-message script costs the process and nothing else. Killing a kept child throws away everything it warmed up, and there is no way past a wedged one without doing it — so the runner waits a bounded time, then kills, restarts with backoff, and logs the message that was in flight as lost |
+| **state is the service's own business** | the runner promises nothing about which child handles which message, so whatever a child remembers must not belong to one caller. The first bug here will be a per-caller cache that outlives the caller |
+| **up is ready** | no readiness handshake. A child that exits before its first reply is a failed start and backs off like any other |
+| **`reload` is `SIGHUP`** | and it is the one verb that exists only for this shape ([what the runner does](#what-the-runner-does)) |
+| **stopping is unchanged** | no further line is written, the answer in flight is waited for however long it takes, then `SIGTERM` |
+| **a crash still loses only what was taken** | a message leaves the daemon only when a hand is free for it, so the rest is still queued for whatever reads that inbox next |
+
+❓ **Several messages in flight inside one child.** One at a time needs no
+correlation; letting a child work on several would, and the envelope already
+carries what that costs — a reply matches on topic and tag
+([messaging § request and reply](04-messaging.md#request-and-reply)), so the
+child would echo the tag and replies could come back in any order. Left open
+because nothing needs it yet and adding it later breaks nothing.
+*Settled by:* owner, when a service asks for it.
 
 ## What an instance is
 

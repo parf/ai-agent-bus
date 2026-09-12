@@ -33,7 +33,7 @@ to be true.
 | tokens | issued **over SSH** — `ssh agent-busd@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
 | encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | services | **basic request/reply** ([messaging § request and reply](04-messaging.md#request-and-reply)): a service consumes its inbox, `ack`s it (got it), does the work and replies; a caller sends and waits for that reply. The reply stands in for `done`, which comes at MVP |
-| services from scripts | `agent-bus start <name> --algo=std\|args <script> [-N]` — a shell script becomes a service, `-N` of them running at once, no bus code inside it ([runner § script services](08-runner-role.md#script-services)) |
+| services from scripts | `agent-bus start <name> --algo=json\|args <script> [-N]` — a shell script becomes a service, `-N` of them running at once, no bus code inside it ([runner § script services](08-runner-role.md#script-services)) |
 | mcp | **basic MCP face** — list what is registered, send, consume. Unfiltered: the master token sees everything ([discovery § faces](05-discovery.md#faces)) |
 | install | run the built binary. **No npm** |
 | setup | one thing only: the user's pubkey in the `agent-busd` account's `authorized_keys` behind that forced command |
@@ -53,7 +53,7 @@ to be true.
 | `agent-bus ack <message-id>` | receipt: got it ([messaging § receipts](04-messaging.md#receipts)) |
 | `agent-bus reply <message-id>` | answer something this client consumed — routed back by topic + tag ([messaging § reply routing](04-messaging.md#reply-routing)) |
 | `agent-bus topic create <t> --kind queue\|pubsub` | a topic to publish into |
-| `agent-bus start <name> --algo=std\|args <script> [-N]` | publish a shell script as a service, `-N` at a time ([runner § script services](08-runner-role.md#script-services)) |
+| `agent-bus start <name> --algo=json\|args <script> [-N]` | publish a shell script as a service, `-N` at a time ([runner § script services](08-runner-role.md#script-services)) |
 | `agent-bus status` | is the daemon up, who is connected |
 | `agent-bus service-template <template/instance@host> [-]` | configure a template into a service, or print that configuration ([services § configuring a template](03-services-and-topics.md#configuring-a-template)) |
 
@@ -154,6 +154,7 @@ thing that would make it true rather than on the page
 | observability | health-checker, stats, Prometheus export ([discovery](05-discovery.md)) |
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
 | **the runner** | `agent-bus-runner` as its own account and its own program: installed instances under `runner/`, configuration it holds and never hands back, autostart and a restart policy, on-demand start — a wrapper over the MVP's `agent-bus start` ([runner role](08-runner-role.md)) |
+| script forms | **`--algo=std`**, the body as bytes on stdin, so an image scaler is a service; and **`--algo=jsonl`**, a child kept alive across messages with a deadline and `reload` ([runner § long-lived services](08-runner-role.md#long-lived-services)) |
 | encryption | AEAD sessions and bodies end to end, on the pairwise or derived keys that make the claim true ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | credentials | **one token per principal per service**, so a service you call cannot replay your credential at another one as you — the MVP's master token is what this replaces ([access § token scope](02-access.md#token-scope)) |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified ([modules](10-modules.md)) |

@@ -115,7 +115,11 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](12-stages.md#poc) |
 | Write the simple version first, compare with V1, take its solution where it is better; simplicity breaks the tie | [stages § PoC](12-stages.md#poc) |
 | Names are canonical, bounded, and one spelling each | [identity § names](01-identity.md#names) |
-| A shell script is a service: `start --algo=std\|args [-N]`, stdout is the reply, no bus code in the script | [runner § script services](08-runner-role.md#script-services) |
+| A shell script is a service: `start --algo=args\|std\|json\|jsonl [-N]`, stdout is the reply, no bus code in the script | [runner § script services](08-runner-role.md#script-services) |
+| A form names a channel (`args`, `std`), a channel and its payload (`json`), or that payload repeated (`jsonl`) | [runner § script services](08-runner-role.md#script-services) |
+| `std` is the body as bytes on stdin, so a binary service costs no base64 pass | [runner § script services](08-runner-role.md#script-services) |
+| A long-lived child is a framing, not a flag: `jsonl` reads a stream, so the process is kept | [runner § long-lived services](08-runner-role.md#long-lived-services) |
+| A kept child takes one message at a time, and needs the per-message deadline the others do not | [runner § long-lived services](08-runner-role.md#long-lived-services) |
 | V2 code lives in this repo, in `src/` beside `docs/` | [stages § PoC](12-stages.md#poc) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | The daemon keeps no reply state; a client replies from what it consumed, and `reply` is sugar over the routing fields | [messaging § reply routing](04-messaging.md#reply-routing) |
@@ -159,7 +163,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Configuration is write-only: it is never handed back | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
 | A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](08-runner-role.md#where-it-runs) |
 | A directory is the installed state; installed, enabled and running are three states with one home each | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
-| The runner has no `reload`; a graceful restart already loses nothing | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
+| `reload` is `SIGHUP` to a kept child and refused on every other shape — the one place the runner cares what kind of child it has | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | The verb is `start`, never `run` | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | The runner is `agent-bus-runner` as a program and an account, and `runner` on the bus | [glossary § names that are enforced](glossary.md#names-that-are-enforced) |
 | `CAP_CHOWN` is the supervisor's alone, so no long-running child holds a capability | [processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown) |
@@ -221,7 +225,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How a dormant name is woken, and what the daemon has to learn to do it | owner, in Release 1 | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
-| Whether `reload` survives for a long-running child that can take `SIGHUP` | owner | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
+| Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](08-runner-role.md#long-lived-services) |
 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](08-runner-role.md#where-it-runs) |
 | How a per-service token argument is told apart from asking for a name you own | owner, with Release 1 | [access § token scope](02-access.md#token-scope) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
@@ -234,6 +238,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 
 | Was | Now |
 |---|---|
+| The runner has no `reload`; there is no long-lived child to signal | long-lived services arrive in Release 1, and a kept child is exactly something to signal — [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
+| `--algo=std` is the envelope as one JSON line on stdin | `std` names the channel and claims nothing about the payload; the envelope form is `json`, and `std` is the raw body in bytes — [runner § script services](08-runner-role.md#script-services) |
 | A service's credential is handed to the runner at install | a script needs none at all and the runner asks for its own at start; a linked service carries one in its env — [runner § what the child is told](08-runner-role.md#what-the-child-is-told) |
 | The runner has an ssh door of its own, and reaching it is the right to install | it is a service on the bus, reached by a call like anything else; the service ACL decides who may deploy — [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
 | An instance directory holds the description, the config, the code and the credential | code and its declared surface are `service.d`, which is a checkout; only env files are the host's, under `runner/` — [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
