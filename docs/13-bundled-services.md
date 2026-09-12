@@ -16,7 +16,7 @@ will not.
 | | |
 |---|---|
 | **no daemon change, ever** | if a bundled service needs the bus to learn something, that is the signal to stop and design rather than to build. The catalogue is a test of the design as much as a set of tools |
-| **danger is per name, because access is** | the ACL is attached to a name ([identity § acl](01-identity.md#acl)), so anything you would grant to different people must **be** a different name. `shell@h` and `root-shell@h`; `billing-ro@db1` and `billing-rw@db1`. Never one service with a privilege flag on the call — a flag cannot be granted, only a name can |
+| **danger is per name, because access is** | the ACL is attached to a name ([identity § acl](01-identity.md#acl)), so anything you would grant to different people must **be** a different name. `shell@h` and `root-shell@h`; `billing-ro@db1` and `billing-rw@db1`. Never one service with a privilege flag on the call — a flag cannot be granted, only a name can. **Spend divides the same way**: generation and embeddings are two names because a team may be allowed one and not the other |
 | **inbound is a publisher, outbound is a call** | every *send/read* pair is two shapes, not one service with two verbs: reading Slack **publishes into a topic** and has no caller ([messaging § push and pull](04-messaging.md#push-and-pull)); sending is request/reply. One pattern for Slack, Telegram, SMS, mail and webhooks |
 | **secrets are the instance's** | a bot token or a database password is an `env` file under `runner/`, never in the checkout ([runner § the three env layers](08-runner-role.md#the-three-env-layers)). `service.d` is world-readable by construction |
 | **one template, many instances** | `slack/team-a@pool1`, `mysql/billing@db1` — configured copies of one thing, which the naming already carries ([identity § names](01-identity.md#names)) |
@@ -38,7 +38,7 @@ Every row is two services, one each way.
 | **slack** | owner | send, and read into a topic |
 | **telegram · discord · whatsapp** | owner | the same shape, one instance per account |
 | **sms** | owner | send only — there is no inbound half worth having on most carriers |
-| **mail** | proposed | IMAP in, SMTP out. The design's own running example is a mail reader ([runner § what an instance is](08-runner-role.md#what-an-instance-is)), and it is the one channel every business already has |
+| **mail** | owner | **IMAP** in, **SMTP** out. The design's own running example is a mail reader ([runner § what an instance is](08-runner-role.md#what-an-instance-is)), and it is the one channel every business already has |
 | **webhook** | proposed | an inbound URL that publishes what it receives, and an outbound that calls one. The highest-leverage entry here: with it, the next SaaS integration is configuration rather than a new service |
 
 ### Reading the box
@@ -90,8 +90,16 @@ was built for.
 
 | | From | |
 |---|---|---|
-| **model** | proposed | one name fronting an API key, so an agent or a service calls a model without ever holding the credential — which is the argument this whole design already makes about tokens ([runner § what the child is told](08-runner-role.md#what-the-child-is-told)) |
+| **openrouter** | owner | generation, one name in front of many models. The router already picks the provider, so this is **one** gateway rather than one per vendor — the same reasoning that makes `apt` an adapter inside **dnf** |
+| **voyage** | owner | embeddings and reranking — and a separate name from the one above, not a verb on it. **Spend is granted per name** like everything else here: embedding a corpus is cheap and answering with a frontier model is not, and a team may well be allowed the first and not the second |
 | **fetch** | proposed | a URL in, readable text out. What an agent reaches for more than anything else, and a pool case |
+
+Each of these holds an API key that **nothing calling it ever sees**, which is
+the argument this design already makes about its own tokens
+([runner § what the child is told](08-runner-role.md#what-the-child-is-told)).
+It is also the argument for putting them on the bus at all: one place the key
+lives, one ACL over who may spend it, and one set of counters for what was
+spent ([discovery § stats](05-discovery.md#stats)).
 
 ## What the catalogue is for
 
