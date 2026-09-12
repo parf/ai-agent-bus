@@ -41,9 +41,9 @@ member moves.
 
 **A bare name is completed with the local host, and that completion is a
 convenience with no authority in it.** `image-scaler` becomes
-`image-scaler@<host>` so that the common case is typed the short way — it
-asserts nothing about where the process sits, and it is not what makes the name
-true. **A name that arrives complete is taken whole**: nothing appends to it,
+`image-scaler@<host>` so the common case is typed short; it asserts nothing
+about where the process sits. **A name that arrives complete is taken whole**:
+nothing appends to it,
 substitutes into it, or checks a hostname against it. So a service that wants a
 realm of its own simply says one.
 
@@ -59,9 +59,9 @@ what leaves the leading characters free to mean something else
 handle may begin with a digit, and `0xdead@github` is a name like any other.
 
 **The realm is whatever follows the last `@`.** The local part — an instance
-name, or a user — may itself be an address — the thing that reads a mailbox is reasonably named after it — so
-`mail-sender/parf@comfi.com@host` is template `mail-sender`, instance
-`parf@comfi.com`, realm `host`. The bus reads **no meaning** out of it: it is a
+name, or a user — may itself be an address, since the thing that reads a
+mailbox is reasonably named after it. So `mail-sender/parf@comfi.com@srv1` is
+template `mail-sender`, instance `parf@comfi.com`, realm `srv1`. The bus reads **no meaning** out of it: it is a
 name it routes on, never a mailbox it parses.
 
 One syntax for everything on the bus, three sources of authority behind it. The
@@ -85,7 +85,7 @@ trimmed away — it is a bad character, and the name is refused.
 | length | **64 characters for the whole name**, `@` and any `/` included — a name is an identifier, not a payload |
 | ASCII only | a name spellable two ways in Unicode is a name two people can be tricked by |
 | dots | allowed in every part — a realm is often a host (`om.parf.dev`), and a local part may be dotted (`slack.reader`) |
-| slashes | **at most one**, and only between template and instance name. A realm never holds one, and never an `@`: a realm is a host, not a path |
+| slashes | **at most one**, and only between template and instance name. A realm never holds one, and never an `@`: a realm is a name, not a path |
 
 **The name is the identity.** Provider numeric ids are stored, never used as
 ids: they are what a re-check compares against. If a name stops resolving to
@@ -195,9 +195,7 @@ The same two steps answer a second question: a name that is already enrolled
 can ask for its credential again the same way, which is how a host with no
 sshd hands one out ([access § getting a token](02-access.md#getting-a-token)).
 
-An unanswered challenge expires; an answered one is spent. Once the record
-exists the provider is out of the picture — an enrolled principal keeps working
-with it unreachable, which is the pinning promised above.
+An unanswered challenge expires; an answered one is spent.
 
 ## Groups and roles
 
@@ -237,8 +235,7 @@ both are needed and neither is decoration:
 **A user starts alphanumeric**, which is what any name starts with anyway
 ([names](#names)) — so the rule is the one already there rather than a second
 one for ACLs, and an entry beginning with anything else is a group, a role, or
-nothing at all. It is deliberately not `a-z`: realms this design does not own
-choose their own names, and `0xdead@github` is a real one.
+nothing at all.
 
 **The `#` never leaves.** It marks a role as ours while it is stored here; the
 service asking about its caller is given `admin`, because a role is that
@@ -323,30 +320,30 @@ one question, signed with the service key, and cache the answer for the epoch:
 ← access: ok | denied · roles: [...] · key: <access-key> · gen: <n>
 ```
 
-## Local mapping file
-
-Every service may carry `principal → {access, roles[, static token]}`. With
-AUTH off this map **is** the service's audience and role source.
-
-**Local users need no token in it** — the daemon already knows who they are
-from the socket ([access § local socket](02-access.md#local-socket)) — so they
-appear as bare principals with access and roles.
-
-Local is consulted first, then AUTH (if on). Populated the same way AUTH does
-it: `parf@github` → fetch once → pin. Modes: file only · AUTH only · both
-(local overrides for owner, break-glass admin, peer services).
-
 ## Ownership
 
 - **Publish** a new service or topic: any authenticated principal.
-- **Change / delete**: **owner or owner group** only — and the record itself:
+- **Change / delete**: **owner or maintainer** only — and the record itself:
   a service re-registering on every start is not a stranger to its own name,
   and it is the only other principal that can hold that name's credential
   ([access § getting a token](02-access.md#getting-a-token)).
-- Owner is an expression. Tiers: `owner` (all, incl. ACL and owners) and
-  `maintainer` (definition only). Owners use org groups but cannot create
-  groups or grant beyond their own service. Personal services are owned by
-  their user.
+- **The owner is exactly one user; the maintainer is a group.** Not an
+  expression and not a tier list: *whose is this?* has to have one answer, and
+  an expression can match many people or none. One name is also one person
+  accountable for it, which a group is not.
+
+| | May change |
+|---|---|
+| **maintainer** (a group) | what the service *is* — definition, run options, enable/disable — and the ACL, **except** the owner entry |
+| **owner** (one user) | that, and ownership itself |
+
+  So granting somebody use of a service never grants them the record: the ACL
+  and this are two lists, and only the owner moves the line between them.
+  Owners use org groups but cannot create groups or grant beyond their own
+  service. Personal services are owned by their user.
+- ⚠️ **With the AUTH role off there are no maintainers**, because there are no
+  groups ([groups and roles](#groups-and-roles)) — a service has an owner and
+  nothing else, which is the whole of the required minimum's answer.
 - **A record that owns itself is somebody; one owned by another name is
   something they run.** Personal services being owned by their user is what
   makes that read: it is the whole difference the people view needs

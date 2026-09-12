@@ -41,8 +41,8 @@ is [stages § release 1](../../docs/12-stages.md#release-1) and is planned in
 
 ## What it cost the MVP
 
-Two code changes, because a decision that only reaches the docs is a decision
-the code will contradict later. Both were watched failing before they were
+Three code changes, because a decision that only reaches the docs is a decision
+the code will contradict later. Each was watched failing before it was
 believed, per [PoC § mutation first, then belief](../PoC/README.md#mutation-first-then-belief):
 
 | | |

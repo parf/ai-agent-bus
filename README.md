@@ -30,7 +30,7 @@ There is no external broker to install. `agent-busd` is the broker, the registry
 the dashboard in one binary.
 
 Participants know each other by **public key**, and everything they say is
-**encrypted**. No passwords, no certificates to manage. Registering someone is
+**encrypted** from Release 1. No passwords, no certificates to manage. Registering someone is
 just `username + name + pubkey`. Because those can equally be *fetched* from a
 GitHub login, a service can be **open to the whole world** — anyone with a
 GitHub account can walk up, prove the key is theirs, and use it.
@@ -186,8 +186,8 @@ Illustrative only; the exact verbs are part of the design work.
 npm install -g agent-bus               # every program (pnpm works too)
 sudo agent-bus-setup                   # makes the two accounts, writes the unit, starts it
 
-# nothing to do for local use — the socket supplies username + token
-# for a REMOTE bus you need exactly those two; get the token one of two ways:
+# nothing to do for local use — the socket says who you are
+# for a REMOTE bus you need a token and nothing else; two ways to get one:
 export AGENT_BUS_TOKEN=$(ssh agent-busd@<node> token)             # over SSH: the key names you
 agent-bus-token parf@github                                       # the same program, locally
 agent-bus keygen                       # an Ed25519 key for a long-running agent of its own
@@ -246,7 +246,6 @@ document owns what.
 | [glossary](docs/glossary.md) | every name and term, one line each — normative for naming |
 | [decisions](docs/decisions.md) | what is settled, open and superseded |
 | [future/](docs/future/) | designed but deferred |
-| [legacy/](legacy/original-brainstorm-sep-26.md) | not spec, kept for history |
 
 ## Status
 

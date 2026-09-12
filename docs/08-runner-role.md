@@ -51,9 +51,7 @@ Children come in a few shapes; each gets the same bus face.
 
 **Agent runtimes get one push adapter each**: each runtime takes a message
 differently, so each gets its own adapter that reads the session's queue and
-pushes into the *running* session. V1 implements Claude Code and Codex, which
-is why the status column says those paths are proven — but V1's adapters are
-read for their shape, not carried over ([stages § PoC](12-stages.md#poc)).
+pushes into the *running* session. Claude Code and Codex are proven here — `src/mcp`, run by `smoke.sh`.
 
 | Runtime | Push path | Status |
 |---|---|---|
@@ -122,8 +120,8 @@ one, which is the same reason `jsonl` keeps its process.
 [Release 1](12-stages.md#release-1).
 
 All five forms also get the envelope in the environment — sender, topic, tag,
-`message_id` — so a script that cares can route on it, and one that does not
-can ignore it ([messaging § envelope](04-messaging.md#envelope)).
+`message_id` — so a script that cares can route on it
+([messaging § envelope](04-messaging.md#envelope)).
 
 | Rule | |
 |---|---|
@@ -186,7 +184,7 @@ new. **One word, two layers, because it is one decision.**
 process has, `--share` is how many processes there are. Four hosts at `-N 4`
 is sixteen scalers on one queue.
 
-What the local refusal was protecting, and what takes its place:
+What starting a name twice on one host now means:
 
 | | |
 |---|---|
@@ -210,9 +208,9 @@ Three rules stop that, and only the last one is new:
 | **so the pool is given a complete name** | `image-scaler@pool1`, a realm that daemon is told to hold. A complete name is taken whole; only a **bare** one is completed with the local host, and that completion is a convenience carrying no authority ([identity § names](01-identity.md#names)). `@srv1` would claim a location false for three members out of four; `@pool1` claims membership, which is true for all of them and survives a member moving |
 
 So a pool needs no naming machinery of its own — its members are simply given
-the whole name, as a run option beside `-N` and `--share`. What to watch for is
-that **getting it wrong is silent**: a member that fell back to the default is a
-perfectly healthy service nobody ever calls.
+the whole name, as a run option beside `-N` and `--share`. **Getting it wrong is
+silent**: a member that fell back to the default is a healthy service nobody
+ever calls.
 
 Which is also why a member **states its hostname at registration**, in a field
 of its own: the name no longer carries one, and a listing still has to answer
@@ -225,7 +223,7 @@ description says. Two hosts serving one name with different code, or different
 will look like a flaky service, not a misconfigured one.
 
 Under the runner, sharing is a **run option like the worker count**, so it
-lives in `autostart.json` with `-N` and the confinement rather than in
+lives in `services.json` with `-N` and the confinement rather than in
 `config.json` ([what an instance is](#what-an-instance-is)). Same reasoning as
 `-N`'s default of 1: whether it is safe to run this thing twice is a decision
 the host is already making.
@@ -236,8 +234,7 @@ the host is already making.
 `msgpack` — and messages arrive on its stdin, one frame at a time, for as long
 as it lives. Everything expensive to
 build — a loaded model, an open database handle, a warm cache — survives
-between messages, which is the only reason to want this and the only thing it
-buys.
+between messages, which is the only thing it buys.
 
 The shape forces the lifetime rather than a flag declaring it: `args` cannot be
 long-lived, because argv is fixed at exec; a process that reads a *stream* of
@@ -274,15 +271,15 @@ Three states, each with exactly one home, the way systemd splits them:
 
 | State | Where it lives | Verb |
 |---|---|---|
-| **installed** | the directory | the upload that creates it |
-| **enabled** | an entry in `autostart.json`, in the runner's home ([setup § the two accounts](09-setup.md#the-two-accounts)) | `enable` / `disable` |
+| **installed** | its directory, and a row in `services.json` ([the list of what is installed](#the-list-of-what-is-installed)) | the upload that creates it |
+| **enabled** | that row's `autostart` | `enable` / `disable` |
 | **running** | neither — it is a process | `start` / `stop` |
 
 A list exists because the runner needs one: **at start it has to know what to
-bring up and how many of each**, without walking a tree, and an on-demand
-service has to be declared somewhere it is not auto-started from. A directory
-with no entry is *staged and not started* — how an instance is put in place
-before it is turned on, and what `disable` leaves behind.
+bring up and how many of each**, without walking a tree. Installed and enabled
+are separate so that an instance can be configured and kept without running —
+put in place before it is turned on, started and stopped by hand, and left
+alone by a reboot. That is what `disable` leaves behind.
 
 ❓ **On-demand start is Release 1** ([stages § release 1](12-stages.md#release-1)),
 and it is the one place the daemon learns something runner-shaped: a dormant
@@ -294,20 +291,20 @@ services in general. *Settled by:* owner, in Release 1.
 The registry still answers what exists and what is alive; the runner answers
 only what should be up.
 
-Two directories hold it between them, and that split is the point
-([setup § the two accounts](09-setup.md#the-two-accounts)):
+Two directories hold it between them, and that split is the point — modes and
+owners are in [setup § the two accounts](09-setup.md#the-two-accounts):
 
-| | Mode | Holds |
-|---|---|---|
-| `service.d/<svc>/` | 755 | what the service **is**: the code, or a symlink to the same code elsewhere, plus `config.json` and `env.dist` |
-| `runner/<svc>/<instance>/` | 700 | what this instance is **configured with**: an `env` file, and nothing else |
+| | Holds |
+|---|---|
+| `service.d/<svc>/` | what the service **is**: the code, or a symlink to the same code elsewhere, plus `config.json` and `env.dist` |
+| `runner/<svc>/<instance>/` | what this instance is **configured with**: an `env` file, and nothing else |
 
 The author and the host each own one file, and they do not overlap:
 
 | | Owned by | Says |
 |---|---|---|
-| `config.json` | the **author**, and it travels with the code | how the service starts, and what to register — including its **version**, which is why a service too simple to answer a `version` call still has one. The command line lives here and nowhere else |
-| `autostart.json` | the **host** | whether to start it at all, how many, and what to confine it with ([sandboxing](#sandboxing)) |
+| `config.json` | the **author**, and it travels with the code | how the service starts, what to register — including its **version**, which is why a service too simple to answer a `version` call still has one — and what it **depends** on. The command line lives here and nowhere else |
+| `services.json` | the **host** | every service installed here, and per service: whether to start it, how many, what to confine it with ([sandboxing](#sandboxing)), and what it comes after ([the list of what is installed](#the-list-of-what-is-installed)) |
 
 So a host never restates the command, and an update to it arrives with a `git
 pull` rather than as an edit somebody has to remember to make twice.
@@ -324,7 +321,7 @@ already unambiguous, and a link could not carry the run options anyway. If
 
 **It is also the default name to register, and a default is all it is.** The
 directory gives a bare name, which is completed with the local host the way any
-bare name is ([identity § names](01-identity.md#names)) — and `autostart.json`
+bare name is ([identity § names](01-identity.md#names)) — and `services.json`
 may state a **complete** name instead, which is then taken whole. That is the
 one thing a host must be able to override, because a pool's members sit in
 identically named directories on four machines and must register **one** name
@@ -344,14 +341,15 @@ This is the runner's half, and it is not the registry's configuration, which a
 service fetches for itself and which the daemon holds
 ([services § configuring a template](03-services-and-topics.md#configuring-a-template)):
 
-| | Mode | Carries | Wins |
-|---|---|---|---|
-| `service.d/<svc>/env.dist` | 755 | the declared surface: every variable the service wants, with a default for each one that is not secret | lowest |
-| `runner/<svc>/env` | 700 | what every instance of this service shares — the one API key they all use | middle |
-| `runner/<svc>/<inst>/env` | 700 | this instance's own | highest |
+| | Carries | Wins |
+|---|---|---|
+| `service.d/<svc>/env.dist` | the declared surface: every variable the service wants, with a default for each one that is not secret | lowest |
+| `runner/<svc>/env` | what every instance of this service shares — the one API key they all use | middle |
+| `runner/<svc>/<inst>/env` | this instance's own | highest |
 
 **The more secret it is, the more it wins.** Precedence and visibility run in
-opposite directions, which is a property a reader can check rather than a rule
+opposite directions — a property a reader can check against the modes
+([setup § the two accounts](09-setup.md#the-two-accounts)) rather than a rule
 to remember. What keeps it true: **`env.dist` may carry a default only for
 something that is not secret.** Anything secret is declared with no value —
 and that is exactly what makes it required.
@@ -368,9 +366,7 @@ Two things fall out of declaring the surface at all:
 **A script under the runner holds no credential at all.** The runner owns the
 name, does the bus talking, and hands the script a message on stdin and takes
 the answer back ([script services](#script-services)) — which is what "the
-script need not know anything" means in practice. A service that links a
-client library is the other case: it talks to the daemon itself, so it needs a
-token, and that token is a variable in its `env` like any other.
+script need not know anything" means.
 
 | | talks to the bus | holds a token |
 |---|---|---|
@@ -387,6 +383,82 @@ What a child *is* told is **what it is serving** rather than who it is:
 `topic` and `tag` reach it as environment. The set is deliberately not closed —
 it will grow when services are actually being written, and this is where it is
 recorded when it does.
+
+### The list of what is installed
+
+`services.json`, in the runner's home, is **one row per installed service** —
+not per started one. It is the inventory and the host's decisions in the same
+file, because they are the same list seen twice, and keeping them apart bought
+a second file and nothing else.
+
+| Field | Says | Written by |
+|---|---|---|
+| the name | which directory, and so which `service.d/<svc>` ([what an instance is](#what-an-instance-is)) | the install |
+| **`autostart`** | `on` · `off` · `on-demand` — at boot, never, or when first addressed | `enable` / `disable` |
+| `-N`, `--share`, confinement, a complete name | the run options, which are the host's and not the author's | the host |
+| **`depends`** | what the host adds to, or turns off in, the author's list ([what it comes after](#what-it-comes-after)) | the host |
+| **`version`**, and the **origin** when it is a checkout | what was installed: the version `config.json` claimed, and the remote and commit to fetch it again | the runner |
+| **`first-started`**, **`last-started`** | when this instance first ran here, and when it last did | the runner |
+
+**The runner keeps the derived half current** — version, origin and the two
+dates — at start, or when told to. That is the file being a record of what is
+here and not only of what was decided, and it is why a backup needs nothing
+generated to go with it.
+
+#### What it comes after
+
+**`depends` is declared by the author and overridden by the host**, the same
+two layers as the environment ([the three env layers](#the-three-env-layers)).
+What a service needs is a property of the code, so it arrives in `config.json`
+with a `git pull` and nobody restates it. What is true *here* is the host's, so
+`services.json` may add an entry, and may **turn one off** — the case that
+makes this necessary is a dependency that moved to another host, where there is
+nothing local to come after.
+
+| | Says |
+|---|---|
+| `config.json` | what this service needs, from whoever wrote it |
+| `services.json` | what this host adds, and which of the author's entries are not local any more |
+
+**It orders starts and does nothing else.** The runner brings a service up
+after the ones it still names, and a cycle is refused at load with the cycle
+named. It does not wait for readiness, because up *is* ready
+([long-lived services](#long-lived-services)), and it does not watch: whether
+anything is actually serving a name is a question the bus already answers
+([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)).
+
+**An entry that names nothing installed here is a refusal**, not a line quietly
+skipped — turning it off is how a host says *this one is remote now*, and that
+is a sentence somebody wrote rather than a silence the runner read something
+into. It is the same trap as a pool member's name ([the name a member
+registers](#the-name-a-member-registers)): a typo that is ignored leaves a
+service that starts in the wrong order and looks healthy doing it.
+
+### Backing it up
+
+**The backup is `runner/`, encrypted, and that is the whole of it.**
+`service.d` is a checkout: whatever is in it can be fetched again from where it
+came from, and `services.json` says from where. `runner/` cannot be fetched
+again — it is every decision this host made, plus the record of what is
+installed, and nothing else holds a copy.
+
+One archive, on tools that already exist ([modules § what we do shell out
+to](10-modules.md#what-we-do-shell-out-to)). Encrypted because `runner/` is the
+env files, and the env files are the API keys: an archive is the one moment a
+mode-0700 directory becomes a file somebody copies somewhere else. The key is
+the **operator's**, not the bus's — the runner holds configurations and must
+never hold a credential ([who it runs as](#who-it-runs-as)), and a backup the
+daemon's account could read would join the two secret domains the install
+exists to keep apart ([setup § the two accounts](09-setup.md#the-two-accounts)).
+
+Restoring is the archive backwards: fetch each origin at its commit, unpack
+`runner/` over it. A service whose origin is gone is a **named failure** and
+not a quieter restore — a host that comes back with four services out of five
+and says nothing is worse than one that will not come back.
+
+❓ **What a backup is driven by** — a runner verb, a bundled service, or
+neither. It is one encrypted archive either way, which is why the shape is
+settled here and the trigger is not. *Settled by:* owner, with Release 1.
 
 ## Who it runs as
 
@@ -466,17 +538,16 @@ repository it came from.
 
 ## Sandboxing
 
-**Off by default, opted into per service** in `autostart.json` — the same place
+**Off by default, opted into per service** in `services.json` — the same place
 the worker count and the rest of the non-secret run options live
 ([what an instance is](#what-an-instance-is)).
 
-It is off because the layout no longer needs it to be on. A child runs from
+It is off because nothing secret sits on a path a child uses. A child runs from
 its own `service.d` entry, which is world-readable and holds no secret by
 construction; its configuration reaches it **injected as environment before
 exec**, never as a path it could open. So nothing secret sits on any path the
-child uses, and confinement stops being the thing that makes the arrangement
-correct and becomes what it should have been all along: hardening a host asks
-for when it wants it.
+child uses, and confinement is no longer what makes the arrangement correct,
+only hardening a host asks for when it wants it.
 
 **One backend, and off.** `systemd-run --user` is it — it gives cgroups and
 the `Protect*` / `Private*` set declaratively, on every host that has systemd,

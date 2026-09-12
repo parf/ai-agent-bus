@@ -10,9 +10,9 @@ PoC is the owner's. MVP and Release 1 are proposed and want a cut.
 | Identity | one master token, issued over SSH | `user@realm` + token, per-user sockets | groups, roles, delegation |
 | Identity enrolment | none — the token is everything | manual + GitHub | AUTH bundle, LDAP/AD if wanted |
 | Queues | bounded, and a record says whether a full one refuses or rings ([messaging § overflow](04-messaging.md#overflow)) | TTL, `reply-to` | — |
-| Encryption | **none** | AEAD sessions, bodies end to end | — |
+| Encryption | **none** | 🚫 struck — the bus is trusted on its own host ([access § encrypted sessions](02-access.md#encrypted-sessions)) | AEAD sessions, bodies end to end |
 | Access control | master token reaches everything | service ACL + master ACL | expressions over groups |
-| Storage | memory only | SQLite + Parquet dumps | git snapshots, peer sync |
+| Storage | memory only | a durable store and a restart snapshot, each behind its port ([setup § storage](09-setup.md#storage)) | git snapshots, peer sync |
 | Processes | one | supervisor + children | AUTH child |
 | Services | request/reply with `ack`; queue topics; scripts as services; a template configured into a service; a record says how to call it and whether anyone is serving it | pub/sub; deadlines, `done`, `reply-to`, several workers behind one name | calls across chained buses; pools across hosts; many names addressed together, scatter-gather |
 | Faces | CLI + basic MCP | MCP with generated docs, filtered; dashboard | — |
@@ -30,7 +30,7 @@ to be true.
 | daemon | one process, listening on a **unix socket and HTTP** |
 | language | daemon and CLI in **Go**; the MCP face and adapters in **TypeScript on bun** ([modules § languages](10-modules.md#languages)) |
 | identity | **one master token**, reaching every service — no per-service anything ([identity § acl](01-identity.md#acl)). It authenticates *the host's owner*, who may use any name: PoC is single-tenant, and per-user tokens arrive with the per-user sockets at MVP |
-| tokens | issued **over SSH** — `ssh agent-busd@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
+| tokens | issued **over SSH** — `ssh agent-busd@<node> token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
 | encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | services | **basic request/reply** ([messaging § request and reply](04-messaging.md#request-and-reply)): a service consumes its inbox, `ack`s it (got it), does the work and replies; a caller sends and waits for that reply. The reply stands in for `done`, which comes at MVP |
 | services from scripts | `agent-bus start <name> --algo=json\|args <script> [-N]` — a shell script becomes a service, `-N` of them running at once, no bus code inside it ([runner § script services](08-runner-role.md#script-services)) |
@@ -55,10 +55,10 @@ to be true.
 | `agent-bus topic create <t> --kind queue\|pubsub` | a topic to publish into |
 | `agent-bus start <name> --algo=json\|args <script> [-N]` | publish a shell script as a service, `-N` at a time ([runner § script services](08-runner-role.md#script-services)) |
 | `agent-bus status` | is the daemon up, who is connected |
-| `agent-bus service-template <template/instance@host> [-]` | configure a template into a service, or print that configuration ([services § configuring a template](03-services-and-topics.md#configuring-a-template)) |
+| `agent-bus service-template <template/instance@realm> [-]` | configure a template into a service, or print that configuration ([services § configuring a template](03-services-and-topics.md#configuring-a-template)) |
 
-Everything else (`keygen`, `auth *`, `stop`/`logs`) waits —
-`start` is here without supervision, sandboxing or restart.
+Everything else (`keygen`, `auth *`) waits — `start` is here without
+supervision or restart.
 
 **A queue topic is an inbox with a name**, so `consume --topic <t>` reads it —
 an option, not a verb of its own.
@@ -98,9 +98,11 @@ the better one.
 sandboxing, restart policy, the dashboard, generated docs and catalog
 filtering, npm.
 
-Note what plaintext costs: in PoC the daemon, its logs and anyone on the host
+What plaintext costs: in PoC the daemon, its logs and anyone on the host
 can read message bodies, so *"the bus never reads payloads"* is not yet true.
-It becomes true at MVP, with AEAD sessions.
+It is not true at MVP either — that stage does not claim it ([access §
+encrypted sessions](02-access.md#encrypted-sessions)); the keys that make it
+true are Release 1.
 
 ## MVP
 
@@ -111,14 +113,14 @@ a shared host.
 
 | | |
 |---|---|
-| identity | `user@realm` + token, per-user sockets ([access](02-access.md)) |
+| identity | a token per principal, per-user sockets ([access](02-access.md)) |
 | registration | manual record + GitHub ([identity § registration](01-identity.md#registration)) |
 | tokens | persisted, previous kept, local never expires ([access § token lifetime](02-access.md#token-lifetime)) |
 | encryption | 🚫 *struck* — the daemon issues the token a session key derives from, so end to end against it is not reachable in this stage's key mode; the bus is trusted on its own host ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | access | service ACL, then master ACL; a service may refuse master ([identity § acl](01-identity.md#acl)) |
 | messaging | TTL, `reply-to`, and **pub/sub topics** — a subscription is a `consume:<glob>` capability, which exists once there is an ACL ([messaging](04-messaging.md)) |
 | services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several workers behind one name, per-service call stats ([messaging](04-messaging.md)) |
-| storage | SQLite store, Parquet dump and reload ([setup § storage](09-setup.md#storage)) |
+| storage | the store and the dump behind their ports — a text file and JSON today, a database and Parquet as adapters ([setup § storage](09-setup.md#storage), [messaging § durability](04-messaging.md#durability)) |
 | faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a dashboard people sign in to, showing the registry, stuck inboxes, exchanges, losses and refusals ([discovery § what it shows](05-discovery.md#what-it-shows)) |
 | starting services | `agent-bus start <name> … <command>` — one command line publishes a service in the foreground, confined if it asks to be. The install lays out **both accounts and the directory tree**, because that is the arrangement and it is cheap; what waits is the runner program that would use the second one ([runner role](08-runner-role.md)) |
 | processes | the supervisor/children split ([processes](11-processes.md)) |
@@ -155,6 +157,8 @@ thing that would make it true rather than on the page
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
 | **the runner** | `agent-bus-runner` as its own account and its own program: installed instances under `runner/`, configuration it holds and never hands back, autostart and a restart policy, on-demand start — a wrapper over the MVP's `agent-bus start` ([runner role](08-runner-role.md)) |
 | script forms | **`--algo=std`**, the body as bytes on stdin, so an image scaler is a service; **`--algo=jsonl`** and **`--algo=msgpack`**, a child kept alive across messages with a deadline and `reload`, the second carrying the envelope and a binary body in one frame ([runner § long-lived services](08-runner-role.md#long-lived-services)) |
+| what is installed | **`services.json`**: one row per installed service, with `autostart` (`on`/`off`/`on-demand`), the run options, `depends` for start order — the author's list, overridden per host — and the version, origin and `first-started`/`last-started` the runner keeps current ([runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed)) |
+| backup and restore | one encrypted archive of `runner/` and nothing generated beside it — `service.d` is fetched again from the origins `services.json` records ([runner § backing it up](08-runner-role.md#backing-it-up)) |
 | service pools | **`start --share`**: one name served by any number of processes on any number of hosts, passing the word `consume` already takes. The members are given a **complete name** — a realm the daemon holds, `image-scaler@pool1`, rather than each host's own; a **bare** name is still completed with the local host, as a convenience with no authority ([runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts)) |
 | where a member is | a member states its **hostname** as its own field at registration, and a listing answers it as `on` — one entry per member, stated and never checked, so a pool's name says membership and this says location ([discovery § where a member says it is](05-discovery.md#where-a-member-says-it-is)) |
 | a service's version | the record says what was registered, a **`version` call** asks what is running, and the two disagreeing is the signal. A service too simple to answer declares it in `config.json` and the runner answers from there ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
@@ -188,10 +192,11 @@ What belongs in *this* stage rather than that document:
 | what counts as done | **no entry in the catalogue needed a change to `agent-busd`.** That is the acceptance criterion, and a failure of it is a finding about the design rather than about the tool |
 | what it is not | a plugin system. Each one is a service written the ordinary way, and nothing here gives a bundled service an ability an outside one lacks |
 
-Beyond the catalogue, two things:
+Beyond the catalogue, three things:
 
 | | |
 |---|---|
+| **records that expire** | a record is `kept` or `ephemeral`, and an ephemeral one the dashboard or a bare `agent-bus start` left behind goes after weeks with nobody serving it ([services § how long a record lives](03-services-and-topics.md#how-long-a-record-lives)). Single-node until peer sync has a clock |
 | **a ready-to-use image** | Docker and Podman — one command to a bus that works, nothing to edit, and something worth calling already in it ([the image](#the-image)) |
 | **an official Claude channel** | the push adapter drives `claude --channel` from outside today ([runner § adapters](08-runner-role.md#adapters)), and every push raises a permission prompt. Fine for a demo, wrong for a service that runs unattended — so this is **asked for rather than built**, and until it lands the adapter is a thing a person watches |
 
@@ -206,7 +211,7 @@ shared but the bus.
 | | |
 |---|---|
 | **fast** | one command from nothing to a message delivered, with no file to edit. That is the acceptance criterion, and it is a time rather than a feeling |
-| **useful** | the catalogue ships **installed**, and `autostart.json` enables the reading half only — health and info. Everything that acts on the box is installed and **not enabled**, which is a state the design already has and precisely what it is for ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
+| **useful** | the catalogue ships **installed**, and `services.json` enables the reading half only — health and info. Everything that acts on the box is installed and **not enabled**, which is a state the design already has and precisely what it is for ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
 | **persistent** | `/var/lib/agent-bus` is a volume, or the registry and every token die with the container and *a token survives a restart* quietly stops being true ([access § token lifetime](02-access.md#token-lifetime)) |
 | **the door is a token** | a per-account socket maps a local account, and a container has one user — so people arrive with a token over the port and the socket serves the container's own processes ([access § the three doors](02-access.md#the-three-doors)) |
 | **sandboxing is off, and says so** | `systemd-run --user` wants a user manager a container does not have. The container is the boundary instead, and `--sandbox on` in there is an **error** rather than a quiet downgrade — which is already how it behaves ([runner § sandboxing](08-runner-role.md#sandboxing)) |

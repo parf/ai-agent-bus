@@ -31,7 +31,7 @@ it first rather than duplicating the index here. Beyond the numbered docs:
 | `Plans/MVP/` | the **active plan** — `README.md` is the stage's own knowledge, `TODO.md` the waves and acceptance, `DONE.md` what is finished and what the mutants caught. Follows the Plans HOWTO (`/rd/vhosts/realty/Plans/README.md`): knowledge, active work and decisions stay in separate files |
 | `Plans/PoC/` | the finished stage — same shape, kept for its knowledge and its completion log |
 | `Plans/V1/` | the **next** stage, not started — same shape. "V1" there means [stages § release 1](docs/12-stages.md#release-1), **not** the NATS legacy this file calls V1 |
-| `docs/future/` | designed but deferred; not part of the current scope — LDAP/AD, billing |
+| `docs/future/` | designed but deferred; not part of the current scope — LDAP/AD, billing, and `1.2-UNDECIDED.md` where a want is written down before its mechanism is chosen |
 | `legacy/` | history only, not spec — never cite it, never update it |
 
 On **decisions**, the doc that `docs/decisions.md` links to wins. When two docs
@@ -79,8 +79,9 @@ disagree, fix the stale one.
   shorthand and corrects directly — update without ceremony.
 - English (the owner reads English and Russian).
 - Glyphs follow <https://parf.dev/ai-skills/Glyphs.md>: **no glyph by default**;
-  ❓ open question (with what settles it), ❌ failure, ⛔ impossible, 🚫 cancelled,
-  ⚠️ partial, ✅ done. One glyph per cell; if most rows would carry one, none do.
+  ❓ open question (with what settles it), ⁉️ two sources contradict, ❌ failure,
+  ⛔ impossible, 🚫 cancelled, ⏸️ deferred, ⚠️ partial, ✅ done, 🎫 handed off,
+  🟤 superseded. One glyph per cell; if most rows would carry one, none do.
 
 ## Design invariants worth knowing before editing
 

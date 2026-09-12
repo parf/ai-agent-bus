@@ -77,7 +77,7 @@ Safe to hand out widely, which is why they are not in the group below.
 | **info** | owner | `ps`, and what the hardware and the OS are |
 | **logwatch** | owner | the last N lines of everything a glob matched, cleaned, and the new ones as they arrive. An adaptation of `/rd/service/tail-ring-buffer`, which exists to close exactly this loop for an agent: make a change, then see what the logs said |
 
-**`logwatch` is the one here that holds state**, and it is worth saying why. It
+**`logwatch` is the one here that holds state.** It
 keeps a bounded ring of cleaned lines from every file its globs matched,
 rescanning for new files as they appear, so a caller asks *what just happened*
 instead of finding the right file and scrolling. **The last N verbatim is the
@@ -170,13 +170,11 @@ was built for.
 **Minimal is the word that matters.** A gateway holds the key, counts, and
 passes the call through as it was made. It writes **no access control at all** —
 the daemon refused the call before it ever arrived
-([identity § acl](01-identity.md#acl)) — which is what makes minimal possible
-rather than merely desirable: the hard half was done by the bus, so what is
-left is a key and a passthrough. It does **not** normalise
+([identity § acl](01-identity.md#acl)) — which is what makes minimal possible:
+the hard half was done by the bus. It does **not** normalise
 one provider's API into another's — a caller that wants one API over many uses
 `openrouter`, which is a product that already does it, and a caller that names
-a provider wants that provider's own shape. A normalising layer here would be
-re-implementing something we can simply call.
+a provider wants that provider's own shape.
 
 Which is also why this is **not** ten programs. Most of that list speaks the
 OpenAI API, so it is one service template configured into instances that differ

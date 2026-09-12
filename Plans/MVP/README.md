@@ -21,10 +21,6 @@ nothing runs as the person who installed it and nothing runs as root. A bus
 that only works when its author starts it has not met *install*, *shared* or
 *safely* — so this is a gate on the stage, not a line item in its last wave.
 
-The PoC was allowed to be thrown away. The MVP is not — it is the first thing
-with users, so a wire format or a stored shape that lands here is one we have
-to live with or migrate.
-
 ## What changes shape from the PoC
 
 The PoC's simplifications were deliberate and are now the work. The right-hand
@@ -35,7 +31,6 @@ own.
 |---|---|---|
 | one master token, any name | principals and per-user sockets ([access § local socket](../../docs/02-access.md#local-socket)) | *other people* — two users on one host must not be each other |
 | master reaches everything | service ACL, then master ([identity § acl](../../docs/01-identity.md#acl)) | *safely* — and a service may refuse master |
-| plaintext bodies | AEAD sessions ([access § encrypted sessions](../../docs/02-access.md#encrypted-sessions)) | the claim *"the bus never reads payloads"* is meant to become true here — see the blocker that decides whether it can |
 | memory only | a durable store and a queue dump ([setup § storage](../../docs/09-setup.md#storage)) | a restart that loses the backlog is not something to hand someone |
 | one process | supervisor and children ([processes § the rule](../../docs/11-processes.md#the-rule)) | *safely*, on a host that is not yours alone |
 | run the binary | packaged and set up ([setup § install](../../docs/09-setup.md#install)) | *install* |
@@ -48,8 +43,6 @@ claim; the link owns the rule.
 
 - **A configuration is private to its service**, owner included
   ([services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template)).
-  Today the owner check is a caller-name guard; wave B is what turns it into
-  a check.
 - **No token, no serve**, on every route
   ([access § what a call carries](../../docs/02-access.md#what-a-call-carries)).
 - **A caller states a record; it never states what the daemon observes**
@@ -78,10 +71,6 @@ Unchanged from the PoC, and it earned its place —
   PoC checks passed for reasons unrelated to what they claimed; mutation is
   what found them. Two of this plan's first-draft criteria passed on PoC code
   before a line of MVP work existed, and were rewritten for that reason.
-- **The harness itself is a PoC artifact.** `src/smoke.sh` authenticates every
-  participant with one token on one socket. Wave B has to replace those
-  fixtures, or the mandatory checks quietly keep the bypass the stage exists
-  to remove.
 - A reviewer's finding is **reproduced before it is accepted**, and reported
   honestly when it is not a bug.
 

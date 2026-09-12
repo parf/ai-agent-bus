@@ -3,8 +3,8 @@
 How participants find each other, and what a human or an agent can see.
 ("Service discovery" is the name; registration is one operation on it.)
 
-- **The required minimum** is the `agent-busd` core with its registry and
-  queues, AUTH role off — auth itself is still required
+- **The required minimum** is `agent-busd` alone, AUTH role off ([overview §
+  principles](00-overview.md#principles)) — auth itself is still required
   ([access](02-access.md)).
 - **Direct talk is allowed**: if you already know where something lives, skip
   the lookup.
@@ -19,7 +19,7 @@ MySQL on `db1:3306`" is a complete registration ([services § service
 kinds](03-services-and-topics.md#service-kinds)) and nothing on this bus
 answers for it; a service template is registered and deliberately does not run
 ([services § service and template](03-services-and-topics.md#service-and-template)).
-So a caller reading a listing needs two more things than a name:
+So a caller reading a listing needs more than a name:
 
 | Field | Says | Absent means |
 |---|---|---|
@@ -135,9 +135,7 @@ bus has routed lately, read by a separate `agent-bus-web` process over the
 API. Bodies are struck out **in the bus**, where the feed is written — so no
 reader has to be trusted to leave them alone. The feed and the records beside
 it are both filtered per caller: you see the exchanges you were **party to**,
-sent or addressed to you, and master sees the node's. Master-only was the
-simpler rule and made the exchanges view impossible to show anybody but the
-operator. Everything in
+sent or addressed to you, and master sees the node's.  Everything in
 [what it shows](#what-it-shows) below it is design.
 
 ### Rules it is built to

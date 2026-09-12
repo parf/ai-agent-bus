@@ -46,8 +46,10 @@ restated in any more detail than that.
 | observability | health checker, stats, Prometheus export |
 | secrets | sealed private config |
 | credentials | per-principal-per-service tokens, replacing the MVP's master token |
-| **the runner** | `agent-bus-runner`: its own account, installed instances under `runner/`, write-only configuration, autostart and restart policy, on-demand start |
+| **the runner** | `agent-bus-runner`: its own account, installed instances under `runner/`, write-only configuration, autostart and restart policy, on-demand start, start order |
 | script forms | `std` bytes on stdin; `jsonl` and `msgpack`, a child kept across messages with a deadline and `reload` |
+| what is installed | `services.json`: every installed service, `autostart` on/off/on-demand, run options, `depends` (author's, overridden per host), and the version, origin and start dates the runner keeps |
+| backup and restore | one encrypted archive of `runner/`; `service.d` is re-fetched from the recorded origins, not backed up |
 | service pools | `start --share`: one name over many hosts, its members given a complete name in a realm the daemon holds; a bare name still completed with the local host |
 | where a member is | a hostname stated as its own field at registration, answered in a listing as `on` |
 | a service's version | the record says what was registered, a `version` call what is running; a simple service declares it in `config.json` and the runner answers |
@@ -72,3 +74,4 @@ stage is where each of them bites.
 | admin | `authorized_keys` regeneration would drop the key `agent-bus-setup` installed | [AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin) |
 | the runner | whether one kept child may have several messages in flight | [runner § long-lived services](../../docs/08-runner-role.md#long-lived-services) |
 | a service's version | `version` is a **standard method**, and nothing on a record carries method information yet | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
+| backup | whether a backup is a runner verb, a bundled service, or neither — the archive and the manifest are the same either way | [runner § backing it up](../../docs/08-runner-role.md#backing-it-up) |

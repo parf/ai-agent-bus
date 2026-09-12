@@ -86,8 +86,8 @@ it runs. Never call an unconfigured template a service. "Configured" is about
 
 | | |
 |---|---|
-| `service@host` | a standalone configured service: there is no separate template to name |
-| `template/instance-name@host` | configured from a template: `imap-mail-reader/billing@rdvp`, `code-review/claude-2@rdvp` |
+| `service@realm` | a standalone configured service: there is no separate template to name |
+| `template/instance-name@realm` | configured from a template: `imap-mail-reader/billing@rdvp`, `code-review/claude-2@rdvp` |
 
 The name is stable across restarts, and is also the address and the inbox
 ([identity § names](01-identity.md#names)). Two services from one template are
@@ -97,7 +97,7 @@ share a prefix and nothing else — two records, two inboxes, two configs.
 **Config is arbitrary and separate from identity.** The name says which
 template and which instance; it never *declares* what the service was pointed
 at. Naming an instance after the thing it reads is fine and often clearest —
-`mail-sender/parf+alerts@comfi.com@host` is a legal name
+`mail-sender/parf+alerts@comfi.com@realm` is a legal name
 ([identity § names](01-identity.md#names)) — but that is a human convention,
 not a field: nothing parses a name for server, user, mailbox or credentials,
 and there is no fixed config schema. `imap-mail-reader/parf@rdvp` with the
@@ -109,12 +109,14 @@ Services register, heartbeat, vanish. Definitions are **live records** changed
 by owners under [identity § ownership](01-identity.md#ownership), signed by the
 writer when it has a key.
 
-**One service on many hosts is deferred.** A template may be configured on
-several hosts — `code-review/claude@rdvp` and `code-review/claude@srv2` — but
-addressing them *as one* and gathering their answers (scatter-gather) is
-Release 1, with its how-to
-([stages § release 1](12-stages.md#release-1)). Until then each is addressed on
-its own, and a template prefix is a shared name, not a group.
+**Addressing many services as one is deferred.** A template may be configured
+on several hosts — `code-review/claude@rdvp` and `code-review/claude@srv2` —
+but asking them at once and gathering their answers (scatter-gather) is
+Release 1, with its how-to ([stages § release 1](12-stages.md#release-1)).
+Until then each is addressed on its own, and a template prefix is a shared
+name, not a group. One *name* served from several hosts is the other thing and
+has its own design — a pool ([runner § one name on many
+hosts](08-runner-role.md#one-name-on-many-hosts)).
 
 ## Configuring a template
 
@@ -123,9 +125,9 @@ verb does it, and reads it back:
 
 | | |
 |---|---|
-| `cat cfg.json \| agent-bus service-template <template/instance@host> -` | configure it, JSON on stdin |
-| `agent-bus service-template <template/instance@host> '{"k":"v"}'` | the same, inline |
-| `agent-bus service-template <template/instance@host>` | print that configuration |
+| `cat cfg.json \| agent-bus service-template <template/instance@realm> -` | configure it, JSON on stdin |
+| `agent-bus service-template <template/instance@realm> '{"k":"v"}'` | the same, inline |
+| `agent-bus service-template <template/instance@realm>` | print that configuration |
 
 The direction is decided by whether a configuration was handed to it, and
 setting one answers with its digest rather than with what was set. The verb
@@ -135,7 +137,7 @@ including as an MCP tool name
 
 The service is created if it does not exist, with the defaults a bare
 registration gets — configuring is not a second way to describe a service,
-only the way to give it one. A standalone `service@host` takes a configuration
+only the way to give it one. A standalone `service@realm` takes a configuration
 the same way; the template prefix is not what makes one configurable.
 
 | | |
@@ -164,7 +166,7 @@ answers it without them:
 | do these two services hold the same setup? | the digests match |
 | is this host's copy the one I shipped? | compare digests across hosts |
 
-Whoever is watching needs no access to the configuration and gets none. A
+A
 monitor, a peer, a deploy check or the owner can all hold the digest they
 expect and notice the day it differs.
 
@@ -180,8 +182,9 @@ answer, not a longer hash.
 designed but not built
 ([identity § sealed private config](01-identity.md#sealed-private-config)), and
 its stage is [stages § release 1](12-stages.md#release-1). Until then: a
-configuration is readable by anyone who can read the daemon's state, and it is
-lost when the daemon restarts. The owner check itself is real now — the
+configuration is readable by anyone who can read the daemon's state — the
+snapshot it reloads from included ([messaging §
+durability](04-messaging.md#durability)). The owner check itself is real now — the
 caller *is* their credential
 ([access § what a call carries](02-access.md#what-a-call-carries)) and a record
 is only its owner's to change ([identity § ownership](01-identity.md#ownership))
@@ -221,7 +224,7 @@ A topic **declares its kind, TTL, bound and overflow mode at creation**:
 | Aspect | Rule |
 |---|---|
 | Create | any authenticated principal |
-| Change / delete | owner or owner group ([identity § ownership](01-identity.md#ownership)) |
+| Change / delete | owner or maintainer ([identity § ownership](01-identity.md#ownership)) |
 | Record | name, kind, TTL, bound, overflow, owner, description, audience |
 | Visibility | registry and MCP catalog, audience-filtered ([discovery § audience](05-discovery.md#audience)) |
 | Access | `publish:<glob>` / `consume:<glob>` on principals. Today that is the record's `allow`, asked of a publisher when it publishes and of a subscriber both when it subscribes and at every publish ([messaging § subscribers](04-messaging.md#subscribers)) |
@@ -233,6 +236,52 @@ Inboxes are implicit queue topics created on an agent's first start and owned
 by it ([messaging § inbox queues](04-messaging.md#inbox-queues)). Namespacing
 follows services; local shadows upstream — and which separator a namespace uses
 is open ([overview § chaining](00-overview.md#chaining)).
+
+## How long a record lives
+
+**A record is `kept` or `ephemeral`, and that is a different axis from its
+kind.** Kind says what the thing is ([service kinds](#service-kinds));
+this says whether the registry is meant to hold it after nobody is using it.
+
+| | Registered by | Expires |
+|---|---|---|
+| **`kept`** | the runner, and anything that asks for it | never on its own |
+| **`ephemeral`** | `agent-bus start` and the dashboard, by default | after long inactivity — weeks, not hours |
+
+The default falls where the registrations do: the runner keeps a list of what
+is installed and means every entry to persist
+([runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed)),
+while a name that appeared because somebody ran a command is incidental until
+somebody says otherwise. A hand-started service that is meant to stay says so;
+nothing is derived from who registered it, because a derived answer and the
+runner's list would be two truths about one thing.
+
+**Nothing that is being served ever expires.** `reading` already says whether a
+read is outstanding on an inbox right now
+([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)),
+so the clock only ever considers records nobody is serving, and a rarely-called
+tool that is sitting there connected is safe. Inactivity is measured from the
+last thing that happened on the name — registered, read, or delivered to — all
+of which the daemon already counts.
+
+**A person may always delete, served or not.** The clock is restrained;
+authority is not. But deleting a served record is narrower than it looks:
+
+- The daemon **cannot stop the process**. No process the daemon starts may exec
+  at all, and the runner is a separate program under its own account, not a
+  child ([processes](11-processes.md)). Deleting forgets the record; the
+  process keeps running, blind, and sends to it refuse as *no such name*.
+- **It comes back if that process restarts**, because a service re-registers on
+  every start ([identity § ownership](01-identity.md#ownership)).
+
+So for something running, the honest order is **stop it, then delete it**, and
+delete-while-served is the escape hatch rather than the path.
+
+⚠️ **Expiry is single-node until peer sync has a clock.** Deletion has no
+representation in *newer record wins per entry* ([registry sync](#registry-sync)):
+a deleted record returns from whichever peer still holds it, and a wrong clock
+stops meaning *a stale record won* and starts meaning *a live service was
+deleted somewhere else*. The open question there gates this one.
 
 ## Registry sync
 

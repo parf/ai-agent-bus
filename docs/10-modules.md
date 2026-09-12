@@ -36,7 +36,7 @@ Consequences worth stating, because they are the point:
 
 | Module | Layer | Owns | Doc |
 |---|---|---|---|
-| `protocol` | protocol | envelope, JSON/msgpack encoding, `user@realm` and `name@host` parsing | [messaging § envelope](04-messaging.md#envelope) |
+| `protocol` | protocol | envelope, JSON/msgpack encoding, `user@realm` and `template/instance@realm` parsing | [messaging § envelope](04-messaging.md#envelope) |
 | `registry` | core | service and topic records, ownership, audience | [services and topics](03-services-and-topics.md) |
 | `queues` | core | inboxes, topics, TTL, overflow, delivery | [messaging](04-messaging.md) |
 | `identity` | core | principals, groups, roles, the two ACL layers | [identity](01-identity.md) |
@@ -134,9 +134,10 @@ script adapter uses `curl`, because that is what a script has.
 | Job | Tool | Behind |
 |---|---|---|
 | generate an Ed25519 keypair | `ssh-keygen -t ed25519` | `cli` |
-| sign / verify a challenge | `ssh-keygen -Y sign -n agent-bus`, `-Y verify` (SSHSIG) | `session` |
+| sign / verify a challenge | `ssh-keygen -Y sign -n agent-bus`, `-Y verify` (SSHSIG) | `signature/sshkeygen` |
 | sign / verify a bundle generation | the same | `vcs` |
 | seal private config to a key | `age` | `store` |
+| archive a runner's decisions, encrypted | `tar` · `zstd` · `age` | the runner ([runner § backing it up](08-runner-role.md#backing-it-up)) |
 | query a directory | `ldapsearch` | `directory/ldap` ([future](future/ldap-ad.md)) |
 | push and pull the repo | `git` | `vcs/git` |
 | confine a child | `systemd-run` · `bwrap` · `unshare` | `sandbox/*` |

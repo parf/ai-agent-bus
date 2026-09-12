@@ -312,8 +312,8 @@ contains. Each fix has a check, and every check was watched failing —
 
 ## D — close the stage
 
-**D.1 — the token over SSH.** [`src/static-token`](../../src/static-token) is
-the forced command, and it is mostly comment because there is nothing to
+**D.1 — the token over SSH.** `src/static-token` was the forced command (since
+replaced by `agent-bus-token`), and it is mostly comment because there is nothing to
 invent: sshd has already authenticated the caller against a key they own, so
 the script prints the file `agent-busd` made on first run and refuses
 anything else. Setup is one `authorized_keys` line, given in the script's

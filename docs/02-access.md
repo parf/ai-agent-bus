@@ -56,10 +56,9 @@ mechanism, two things asked of it.
 **One program every way**, `agent-bus-token`, and it is the *only* thing an
 ordinary user reaches over SSH — the forced command behind their key, where an
 operator's key has the admin program instead
-([setup § the programs](09-setup.md#the-programs)). Today it is the
-stand-in [`src/static-token`](../src/static-token): it prints the token file
-the daemon reads at start and refuses every other request. Setting it up is
-one `authorized_keys` line per person, given in that script's header.
+([setup § the programs](09-setup.md#the-programs)). Setting it up is one
+`authorized_keys` line per person, written by
+[`agent-bus-admin user add`](09-setup.md#the-programs).
 
 ## Token scope
 
@@ -82,8 +81,7 @@ MVP the answer does not depend on it yet.
 
 ❓ **How scoping meets asking for a name you own.** Today the argument names a
 *principal*, which is what lets the daemon's owner get a credential for any
-name and a runner collect one for a service it started ([who may ask for
-whose](#token-scope)). Once it names a *service*, those two readings of one
+name and a runner collect one for a service it started (below). Once it names a *service*, those two readings of one
 argument have to be told apart. *Settled by:* owner, with Release 1.
 
 **Who may ask for whose.** The daemon's owner — the principal it was started
@@ -101,9 +99,8 @@ record that results is its own owner
 ([identity § proving possession](01-identity.md#proving-possession)). Realms
 without one are as open as the host they are on.
 
-**`token` gets a credential; `register` states a record.** They were one word
-and two unrelated jobs — one hands out the thing you authenticate with, the
-other says a service exists ([services § service and
+**`token` gets a credential; `register` states a record.** Two unrelated jobs:
+one hands out the thing you authenticate with, the other says a service exists ([services § service and
 template](03-services-and-topics.md#service-and-template)).
 
 ## Token lifetime
@@ -153,8 +150,7 @@ the system as if a token had carried it. The account running the daemon gets a
 socket like everybody else — it is a user of the bus too.
 
 **A client on its own socket never states a name**, so it may not know one:
-`status` answers with the name the daemon is using for the caller, which is
-how a verb that needs its own identity gets it.
+`status` answers with it.
 
 **The socket is a credential, not an exemption from having one.** It says who
 is calling exactly as a token does — which is why one daemon can serve **many
@@ -196,7 +192,7 @@ that admits you ([identity § registration](01-identity.md#registration)).
 | `no-pty`, `no-port-forwarding`, `no-agent-forwarding`, `no-X11-forwarding` | the key admits you to a verb, not to a host |
 | many principals, one account | everyone arrives as the same unix user, so the **socket** shortcut cannot tell them apart. An ssh caller takes the token path, with the forced command naming who the token is for |
 
-The cost, stated rather than left implicit: the wrapper can assert any
+The cost: the wrapper can assert any
 principal its `authorized_keys` names. That is the same trust the local socket
 already holds, in a second place.
 
@@ -248,7 +244,7 @@ replay protection. Never use `access_key` raw as the cipher key.
 - Transport: anything direct — TCP, WebSocket, unix socket. No TLS, no PKI.
 - **No forward secrecy** (decided): no ephemeral exchange; a leaked long-term
   key exposes recorded sessions.
-- Payload encoding: JSON; msgpack as an optional negotiated binary form.
+- Payload encoding is the envelope's ([messaging § envelope](04-messaging.md#envelope)).
 
 **A static session is not end-to-end against the daemon, so the MVP does not
 claim it is.** The token *is* the `access_key` and `agent-busd` issued it, so
@@ -259,9 +255,8 @@ end waits for pairwise or derived keys ([key modes](#key-modes)) and is a
 Release 1 line ([stages § release 1](12-stages.md#release-1)).
 
 What does *not* change: the bus reads envelopes, and its dashboard shows
-nothing else ([discovery § dashboard](05-discovery.md#dashboard)). "The bus
-cannot read a body" was the claim that had to go; "the bus has no reason to"
-is still how it is built.
+nothing else ([discovery § dashboard](05-discovery.md#dashboard)). The bus has
+no reason to read a body, and is built as if it never will.
 
 ❓ **A queued body outlives the session that encrypted it.** The handshake
 above is live between two endpoints, but an inbox belongs to a name and waits

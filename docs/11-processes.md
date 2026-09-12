@@ -83,8 +83,7 @@ Nothing but file descriptors and unix sockets, both explicit.
 | bus ↔ runner | nothing implicit: the runner is a **client**, not a child, and reaches the bus the way any citizen does ([runner role](08-runner-role.md)) |
 | web → bus | read-only stats query |
 
-No child reads another's memory, and no two processes hold the store open for
-writing.
+No child reads another's memory.
 
 **The bus holds the store**, and it is the only process that does. The
 supervisor keeps no handle to anything durable — that is what makes it the

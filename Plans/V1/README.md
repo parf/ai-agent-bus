@@ -24,7 +24,7 @@ safely* decided the MVP's. The MVP put several people on **one host they all
 trust**; V1 takes away both halves — more than one host, and a host somebody
 outside the team can reach.
 
-Two consequences fall out of that and are worth stating before any wave:
+Three consequences fall out of that:
 
 - **The bus stops being trusted with bodies.** The MVP struck end-to-end
   encryption because the daemon issues the token a session key would derive

@@ -24,7 +24,7 @@ the whole difference from an ephemeral channel.
 
 | Verb | Target | Lands in | Allowed if |
 |---|---|---|---|
-| **`send`** | a known receiver, `service@host` | exactly that queue | you may talk to that principal |
+| **`send`** | a known receiver, `service@realm` | exactly that queue | you may talk to that principal |
 | **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([services § topics](03-services-and-topics.md#topics)) | you hold `publish:<glob>` |
 
 **A message is addressed to a name, and a name that is registered nowhere is
@@ -181,16 +181,15 @@ so it sends no `done`; therefore a `done` that does arrive says *finished, and
 no answer is coming*. A caller blocked on the answer stops there rather than
 sitting out its deadline for something that will never be sent — and says
 which of the two happened, because "finished with nothing to return" and "no
-answer in time" are different outcomes. `ack` ends nothing: it says the work
-started, not that it stopped.
+answer in time" are different outcomes. `ack` ends nothing: it says the message
+arrived, not that the work stopped.
 
 Both are ordinary messages to the sender's queue (or its `reply-to`), carrying
 the original `message_id`, topic and tag. The field is a **closed set** — one
 of those two words — because a caller tells an answer from a receipt by
 reading it, and a third value would read as an answer. Neither is required; a sender that
 wants them asks. A **reply carries the answer** and says nothing by itself
-about either — though a service that replies has plainly finished, which is
-why a request/reply exchange can skip `done`.
+about either.
 
 ## Message TTL
 
@@ -219,18 +218,13 @@ name-owned queues ([inbox queues](#inbox-queues)). A plain `send` or
 `publish` stays open to unregistered senders: fire-and-forget asks for
 nothing back.
 
-⚠️ **PoC does not enforce this.** `call` registers its caller, and a `send`
-from an unregistered name is accepted with the reply refused later as *no such
-name*. The rule above is settled; it is MVP that implements it, along with
-`reply-to` ([stages § PoC](12-stages.md#poc)).
-
 **The daemon keeps no reply state.** A reply is an ordinary `send` carrying
 the routing fields, and `reply <message-id>` is sugar: the client that
 consumed the message still has its envelope, so it fills in receiver, topic and
 tag itself. The daemon stays simple — nothing to bound, expire or reconcile —
 and the rule that a consumed message is gone stays true.
 
-The consequence is worth stating: **you can only `reply` from a client that
+The consequence: **you can only `reply` from a client that
 holds the routing context of what was consumed** — the receiver, topic and
 tag. Whether that is one process is up to the client: the MCP face keeps it in
 memory, and the CLI writes it where its next invocation finds it, so `consume`

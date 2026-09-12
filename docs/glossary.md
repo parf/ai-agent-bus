@@ -10,7 +10,7 @@ wins.
 |---|---|---|
 | `agent-busd` | *the* daemon (`sshd`/`dockerd` convention) | not "the server", not `agentbusd` |
 | `agent-bus` | the CLI any user runs | — |
-| `agent-bus-setup` | the root-only installer | not `agent-bus setup`, which was a verb |
+| `agent-bus-setup` | the root-only installer | not `agent-bus setup` |
 | `agent-bus-token` | what hands a user a credential, locally or as their forced command over SSH | not an admin program |
 | `agent-bus` | the keyword everywhere else: `/etc/agent-bus/`, `~/.config/agent-bus/`, `/var/lib/agent-bus/`, `agent-busd.service` | — |
 | `agent-bus-runner` | the program that keeps a set of services, and the system account it runs as | not "the runner daemon"; it is not a child of `agent-busd` |
@@ -26,7 +26,7 @@ wins.
 | personal / shared | user-scoped/system, bound/unbound, single-/multi-tenant | shared is the default |
 | realm | domain, provider, tenant | the right-hand side of `user@realm` |
 | service template | service, service type | a **service** is always configured; the template is the unconfigured capability. *Record* kind (generic · agent · topic) is a different axis and keeps its name |
-| service | instance, service instance | "instance" was the old word for the configured thing — that is now just a service |
+| service | instance, service instance | a configured thing is a **service**; *instance* survives only as the second half of a name and as the runner's per-instance directory ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
 
 ## Terms
 
@@ -46,7 +46,7 @@ wins.
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](03-services-and-topics.md#service-kinds) |
 | **service template** | the *unconfigured* capability; does not run, has no address | [services § service and template](03-services-and-topics.md#service-and-template) |
 | **service** | **always configured**: a template + its config + where it runs. Never say "service" for an unconfigured template | [services § service and template](03-services-and-topics.md#service-and-template) |
-| **`template/instance-name@host`** | a service configured from a template; `service@host` when there is no separate template | [identity § names](01-identity.md#names) |
+| **`template/instance-name@realm`** | a service configured from a template; `service@realm` when there is no separate template | [identity § names](01-identity.md#names) |
 | **`service-template`** | the verb that configures a template into a service, and reads that configuration back | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | **`protocol`** | on a record: how to call it. Unset = an ordinary bus service, send to the name; `/etc/services` names suggested, never checked | [services § how to call it](03-services-and-topics.md#how-to-call-it) |
 | **`reading` · `queued` · `in` · `out`** | live state on an answer, never stored: is anything serving this name, how much is waiting, and how much has arrived and been taken since the daemon started | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
@@ -75,6 +75,11 @@ wins.
 | **pool realm** | a realm a daemon holds that is not its hostname, so a pool's name claims membership rather than a location — `image-scaler@pool1` | [identity § names](01-identity.md#names) |
 | **long-lived service** | a child started once and fed message after message, so state survives between them — the stream forms `jsonl` and `msgpack`, and the only shapes `reload` means anything to | [runner § long-lived services](08-runner-role.md#long-lived-services) |
 | **template** · **instance** | on disk: `service.d/<name>` is what a service is, `runner/<name>/<instance>` is what one is configured with | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
+| **`services.json`** | the runner's list of everything **installed** here: per service the host's options (`autostart`, `-N`, confinement, `depends`) and what the runner records (version, origin, `first-started`, `last-started`) | [runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed) |
+| **`autostart`** (`on` · `off` · `on-demand`) | one field in that row — at boot, never, or when first addressed; `off` is installed and configured, started by hand | [runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed) |
+| **`depends`** | services this one comes after: the author's in `config.json`, added to or turned off by the host in `services.json`; ordering only, never a readiness wait | [runner § what it comes after](08-runner-role.md#what-it-comes-after) |
+| **`kept` · `ephemeral`** | whether the registry holds a record once nobody is using it; a different axis from kind, and nothing being served ever expires | [services § how long a record lives](03-services-and-topics.md#how-long-a-record-lives) |
+| **owner · maintainer** | one **user** who holds the record; a **group** that may change everything about it but ownership | [identity § ownership](01-identity.md#ownership) |
 | **bus** | the child that is the core: registry, queues, sessions, delivery | [processes](11-processes.md) |
 | **port** | an interface core depends on; the seam a dependency is swapped at | [modules § the rule](10-modules.md#the-rule) |
 | **adapter** (layer) | the one implementation of a port; the only layer allowed outside I/O | [modules § the rule](10-modules.md#the-rule) |
@@ -84,9 +89,9 @@ wins.
 
 | Group | Verbs |
 |---|---|
-| identity | `keygen`, `register` |
+| identity | `keygen`, `register`, `enrol` |
 | registry | `register`, `topic create`, `ls`, `service-template`, `status` |
-| messaging | `send`, `call`, `publish`, `consume`, `ack`, `reply` |
+| messaging | `send`, `call`, `publish`, `subscribe`, `unsubscribe`, `consume`, `ack`, `done`, `reply` |
 | runner | `start`, `stop`, `restart`, `reload`, `enable`, `disable`, `logs` — systemd's semantics; **`start`, never `run`**, and `reload` only where a child is kept |
 | AUTH admin | `auth sign`, `auth admin` |
-| over SSH | `static-token`, `bundle show\|history`, `user list`, `service list`, `replica-sync` |
+| over SSH | `token`, the admin grammar (`user add\|list\|remove`), `bundle show\|history`, `replica-sync` |

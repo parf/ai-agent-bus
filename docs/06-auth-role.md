@@ -85,13 +85,13 @@ there is one grammar and one set of rules rather than two.
   `token` verb is the same either way
   ([setup § the programs](09-setup.md#the-programs)) — an operator's
   line adds verbs, it does not change that one.
-- `sshd_config`: `Match User agent-bus` → `ForceCommand`, `PermitTTY no`,
+- `sshd_config`: `Match User agent-busd` → `ForceCommand`, `PermitTTY no`,
   `AllowTcpForwarding no`, `AllowAgentForwarding no`, `X11Forwarding no`,
   `PermitUserEnvironment no`, `PasswordAuthentication no`;
   `ExposeAuthInfo yes` to log the key fingerprint.
 - `agent-bus-admin` parses `$SSH_ORIGINAL_COMMAND` against a fixed verb
   grammar (`bundle show|history`, `user list`, `service list`, `status`,
-  `replica-sync`, `static-token`); a bundle arriving on stdin is still verified
+  `replica-sync`, `token`); a bundle arriving on stdin is still verified
   (signature + gen) — SSH gates *who may talk*, the signature gates *what
   config is real*; append-only audit log `ts admin fp verb gen result`.
 - **Break-glass is root on the box** — it can always edit `authorized_keys` or

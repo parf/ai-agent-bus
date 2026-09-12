@@ -41,12 +41,12 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | An enrolled record is owned by the name itself, and the proof hands out its credential | [identity § proving possession](01-identity.md#proving-possession) |
 | `allow: *` means anyone who can authenticate | [identity § acl](01-identity.md#acl) |
 | Delegation: A authenticates, adds an on-behalf-of claim | [identity § delegation](01-identity.md#delegation) |
-| Publish a service or topic: any authenticated principal; change: owner or owner group | [identity § ownership](01-identity.md#ownership) |
+| Publish a service or topic: any authenticated principal; change: owner or maintainer | [identity § ownership](01-identity.md#ownership) |
 | Changing a record is the owner's, and the record's own; publishing a new name stays open | [identity § ownership](01-identity.md#ownership) |
 | Registry records are writer-signed where a key exists; static-token writes are unsigned | [identity § ownership](01-identity.md#ownership) |
 | Sealed private config, opt-in, daemon cannot read it | [identity § sealed private config](01-identity.md#sealed-private-config) |
 | A call carries a token and no name — the token is the principal | [access § what a call carries](02-access.md#what-a-call-carries) |
-| Two ways to get a token: over SSH, or `token` on the box; both need machine access | [access § getting a token](02-access.md#getting-a-token) |
+| Three ways to get a token: over SSH, `token` on the box, or a key that signs a challenge | [access § getting a token](02-access.md#getting-a-token) |
 | `token` is the credential verb, `register` the registry one | [access § getting a token](02-access.md#getting-a-token) |
 | Over SSH the key names you, so a caller never states their own principal | [access § token scope](02-access.md#token-scope) |
 | MVP tokens are master, one per principal; Release 1 scopes them per service so one cannot be replayed at another | [access § token scope](02-access.md#token-scope) |
@@ -64,7 +64,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Three key modes: static, pairwise, derived | [access § key modes](02-access.md#key-modes) |
 | No forward secrecy | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Bodies end-to-end encrypted; `encryption: off` per service for development | [access § encrypted sessions](02-access.md#encrypted-sessions) |
-| Wire is JSON, msgpack optional | [access § encrypted sessions](02-access.md#encrypted-sessions) |
+| Wire is JSON, msgpack optional | [messaging § envelope](04-messaging.md#envelope) |
 | Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](02-access.md#key-confirmation) |
 | A service name is its address and its inbox | [identity § names](01-identity.md#names) |
 | Where the host is split off, and how wide an instance name may be | [identity § names](01-identity.md#names) |
@@ -127,8 +127,22 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A realm is the name a daemon answers for; a hostname is only its default, so a pool may have a realm of its own | [identity § names](01-identity.md#names) |
 | A bare name is completed with the local host as a convenience that asserts nothing; a complete name is taken whole | [identity § names](01-identity.md#names) |
 | A pool is one bus — members that report to different daemons are two queues, not one service | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
-| The directory name is the default name to register, and `autostart.json` may state a complete one instead | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
+| The directory name is the default name to register, and `services.json` may state a complete one instead | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
+| A record is `kept` or `ephemeral`; ephemeral is what `agent-bus start` and the dashboard leave behind, and it expires after weeks of inactivity | [services § how long a record lives](03-services-and-topics.md#how-long-a-record-lives) |
+| Nothing being served ever expires; a person may delete anything, served or not | [services § how long a record lives](03-services-and-topics.md#how-long-a-record-lives) |
+| Deleting a served record forgets the name and cannot stop the process, which re-registers if it restarts | [services § how long a record lives](03-services-and-topics.md#how-long-a-record-lives) |
+| One owner, exactly one user: *whose is this?* needs one answer, and an expression can match many or none | [identity § ownership](01-identity.md#ownership) |
+| The maintainer is a group and may change the ACL except its owner entry; only the owner moves ownership | [identity § ownership](01-identity.md#ownership) |
 | A member states its hostname at registration: stated never observed, a label never an input, one entry per member | [discovery § where a member says it is](05-discovery.md#where-a-member-says-it-is) |
+| A backup is `runner/` and nothing else: `service.d` is a checkout that can be fetched again | [runner § backing it up](08-runner-role.md#backing-it-up) |
+| One encrypted archive, and the key is the operator's — never the daemon's | [runner § backing it up](08-runner-role.md#backing-it-up) |
+| `services.json` lists every **installed** service, not every started one, and holds the host's options beside them | [runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed) |
+| `autostart: on \| off \| on-demand` is one field in that row, so installed and enabled stay separate states | [runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed) |
+| The runner keeps version, origin and `first-started`/`last-started` current, so a backup needs nothing generated | [runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed) |
+| `depends` orders starts and nothing else: no readiness wait, no watching, and a cycle is refused by name | [runner § what it comes after](08-runner-role.md#what-it-comes-after) |
+| `depends` is the author's in `config.json`; the host adds to it and turns entries off in `services.json` | [runner § what it comes after](08-runner-role.md#what-it-comes-after) |
+| A `depends` entry naming nothing installed here is refused: *this one is remote now* is said, never inferred | [runner § what it comes after](08-runner-role.md#what-it-comes-after) |
+| A restore that cannot reach an origin fails by name rather than coming back short and quiet | [runner § backing it up](08-runner-role.md#backing-it-up) |
 | Bundled services ship as ordinary services, and none of them may need a daemon change | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
 | No bundled service enforces access: the daemon refused the call before it arrived, which is why the tools stay small | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
 | Danger is a name, never a flag: read-only and read-write, shell and root-shell, are separate names because access is granted per name | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
@@ -183,7 +197,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | `env.dist` declares the surface; a service needs an instance exactly when something is declared without a default | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
 | A script under the runner holds no credential; a linked service holds one, as a variable in its env | [runner § what the child is told](08-runner-role.md#what-the-child-is-told) |
 | The runner may never mint a credential; it asks for one for a name it owns, like anyone else | [runner § what the child is told](08-runner-role.md#what-the-child-is-told) |
-| `config.json` owns the command line and travels with the code; `autostart.json` owns whether, how many and how confined | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
+| `config.json` owns the command line and travels with the code; `services.json` owns what is installed, whether, how many and how confined | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Configuration is write-only: it is never handed back | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
 | A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](08-runner-role.md#where-it-runs) |
 | A directory is the installed state; installed, enabled and running are three states with one home each | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
@@ -258,11 +272,14 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | What happens to a running service when its configuration changes | owner | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](00-overview.md#chaining) |
 | Whether reading an inbox and filtering one become separate options | owner, with the MVP CLI | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
+| Whether a service holds a key of its own, and where shared secrets and a locking KV live | owner, after Release 1.1 | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
 
 ## Superseded
 
 | Was | Now |
 |---|---|
+| Owner is an expression, with `owner` and `maintainer` as tiers | one owner, exactly one user, and the maintainer is a group — [identity § ownership](01-identity.md#ownership) |
+| `autostart.json` — the host's file, listing what to bring up | `services.json`, listing everything **installed** with `autostart` as one field on each row, so a configured instance can be kept and started by hand — [runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed) |
 | The runner has no `reload`; there is no long-lived child to signal | long-lived services arrive in Release 1, and a kept child is exactly something to signal — [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | `--algo=std` is the envelope as one JSON line on stdin | `std` names the channel and claims nothing about the payload; the envelope form is `json`, and `std` is the raw body in bytes — [runner § script services](08-runner-role.md#script-services) |
 | A service's credential is handed to the runner at install | a script needs none at all and the runner asks for its own at start; a linked service carries one in its env — [runner § what the child is told](08-runner-role.md#what-the-child-is-told) |

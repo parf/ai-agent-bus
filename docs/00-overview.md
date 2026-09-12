@@ -28,7 +28,8 @@ and linked from everywhere else.
 
 Also: [glossary](glossary.md) — every name and term, one line each ·
 [decisions](decisions.md) — what is settled, open and superseded ·
-[future/](future/) — designed but deferred.
+[future/](future/) — designed but deferred, including
+[1.2-UNDECIDED](future/1.2-UNDECIDED.md), wants whose mechanism is not chosen.
 
 ## Goal
 
@@ -69,7 +70,7 @@ Claims only; the mechanism lives in the doc each one links to.
   outside world, so anything external — the database, a directory, the sandbox
   backend — sits behind a port and is replaced without touching the rest
   ([modules](10-modules.md)).
-- **Five programs, one unit, one config dir, one git repo** — split by the
+- **One program per privilege, two units, one config dir, one git repo** — split by the
   privilege each needs and no finer
   ([setup § the programs](09-setup.md#the-programs)), and the daemon
   is a single binary that becomes many processes
@@ -112,8 +113,7 @@ Claims only; the mechanism lives in the doc each one links to.
 ## Roles
 
 `agent-busd` is a **supervisor plus small single-task children**, on the
-systemd model: the supervisor holds no secrets and almost no responsibility,
-and every child gets the narrowest privilege its task needs.
+systemd model ([principles](#principles)).
 
 | Always | Optional |
 |---|---|
@@ -138,7 +138,7 @@ falls through. Applies to identities, ACL/roles, service and topic lookups.
 
 ❓ **A namespace and a service template both want the `/`.** A name holds at
 most one, and it already means *template* / *instance*
-([identity § names](01-identity.md#names)), so `team/ci@host` parses as
+([identity § names](01-identity.md#names)), so `team/ci@realm` parses as
 template `team`. Either a chaining namespace *is* the template part, or
 chaining needs a separator of its own. *Settled by:* the owner, when chaining
 is designed.

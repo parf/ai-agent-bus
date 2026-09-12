@@ -4,8 +4,7 @@
 
 Privilege is what separates them, and nothing else does: root is needed once
 and never again, each account's own files are that account's, and what an
-ordinary user needs is neither. The count is deliberately not in the heading —
-it has already changed once.
+ordinary user needs is neither. The count is deliberately not in the heading.
 
 | Program | Runs as | What it is for |
 |---|---|---|
@@ -30,8 +29,7 @@ which command is what separates an operator from everybody else
 **`ssh agent-busd@<host> token <name>` answers the same however the key is
 listed.** An operator's line is a superset, not a different path: the token
 half is one piece of code both programs call, so nobody has two ways to get a
-credential. What an operator's line adds is verbs — and a user who only ever
-needs a token never reaches the admin program at all.
+credential. A user who only ever needs a token never reaches the admin program.
 
 Administering a node from across the network and from its own console are
 likewise one program: `ssh agent-busd@<host> <args>` and
@@ -94,10 +92,10 @@ Queues and stats are memory, dumped to Parquet
 a reloaded queue cannot be decrypted
 ([access § token lifetime](02-access.md#token-lifetime)).
 
-⚠️ Credentials are so far the *only* durable thing, and the MVP keeps them in a
-text file — one line per principal, mode 0600 — behind the same port
-([modules § modules](10-modules.md#modules)). A database is one more adapter
-and no change anywhere inward, which is what the port is for.
+⚠️ Credentials are the only thing in the *store* — everything else durable is
+the snapshot ([messaging § durability](04-messaging.md#durability)). The MVP
+keeps them in a text file, one line per principal, mode 0600, behind the same port
+([modules § modules](10-modules.md#modules)).
 
 ❓ **What else lives in SQLite** — AUTH data is git, the registry is live
 records, queues and stats are Parquet, tokens are durable. *Settled by:* owner.
@@ -130,7 +128,7 @@ or a dump.
 |---|---|---|---|
 | `daemon/` | 700 | **`agent-busd`** | its home: the store, the dumps, the ACL — [storage](#storage), [messaging § durability](04-messaging.md#durability) |
 | `service.d/` | 755 | `agent-bus-runner` | what each service *is*: its code or a symlink to it, `config.json`, `env.dist`. World-readable because it holds no secret, and usually a `git clone` nobody edits by hand |
-| `runner/` | 700 | **`agent-bus-runner`** | its home: `autostart.json`, and the env files, one directory per service ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
+| `runner/` | 700 | **`agent-bus-runner`** | its home: `services.json`, and the env files, one directory per service ([runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed)) |
 
 **The two are split so that updating a service touches no local state.** `git
 pull` under `service.d` and every decision this host made — secrets, worker
@@ -166,7 +164,7 @@ in one file:
 |---|---|
 | `User=agent-busd` | the daemon is never root and never the installer — the check reads the *running* process, so a developer's hand-started one fails it |
 | `WorkingDirectory` and `StateDirectory` are the home | the store and the dumps land where the account can keep them, and nowhere else |
-| `RuntimeDirectory=agent-bus`, mode 0711 | the sockets are outside every home and a reboot clears them ([access § local socket](02-access.md#local-socket)) |
+| `RuntimeDirectory=agent-bus`, at the mode the socket directory wants | the sockets are outside every home and a reboot clears them ([access § local socket](02-access.md#local-socket)) |
 | `Restart=on-failure` | a daemon that dies comes back |
 | `AmbientCapabilities=CAP_CHOWN` with a bounding set of exactly that | the one capability is given, not taken, and no second one can be picked up ([processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown)) |
 
