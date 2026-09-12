@@ -80,7 +80,9 @@ Safe to hand out widely, which is why they are not in the group below.
 **`logwatch` is the one here that holds state**, and it is worth saying why. It
 keeps a bounded ring of cleaned lines from every file its globs matched,
 rescanning for new files as they appear, so a caller asks *what just happened*
-instead of finding the right file and scrolling. That ring is state between
+instead of finding the right file and scrolling. **The last N verbatim is the
+default and a filter is asked for** — the original makes that point and it is
+worth keeping: a filter silently hides the error nobody thought to grep for. That ring is state between
 messages, which makes it a **kept child** — the same argument a warm cache makes
 ([runner § long-lived services](08-runner-role.md#long-lived-services)). It is
 also bounded by construction, so a log that floods cannot take the host, which
@@ -91,7 +93,7 @@ Three things the bus changes about it:
 
 | | |
 |---|---|
-| **new lines are published, not polled** | the original is HTTP and answers when asked. A tail is a publisher by nature, so it goes into a topic and a watcher subscribes once instead of asking every few seconds |
+| **both a poll and a feed, and the poll is the common one** | *deploy, then ask for the last N* is the usage, and **a subscription cannot answer it** — a topic carries what happens next, the ring holds what already did. So the ring is asked like any service, and the tail is *also* published into a topic for whoever wants to watch it live. Neither replaces the other |
 | **another box is another name** | the original reaches a second host over ssh, with that host written into a local env file. Here it is a call to `logwatch@srv2`, and nothing local has to know where that is |
 | **the globs are the grant** | one instance per set of sources, so `logwatch/nginx@srv1` hands over nginx errors and not `/var/log/auth.log` — danger is a name here as everywhere |
 
