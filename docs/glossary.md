@@ -38,10 +38,11 @@ wins.
 | **canonical name** | the one spelling everything compares and routes on: lower-case, ASCII, trimmed per component, within the bound | [identity § names](01-identity.md#names) |
 | **token** | the one thing every call carries, and the whole identity; persisted, previous one kept | [access § token lifetime](02-access.md#token-lifetime) |
 | **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](01-identity.md#acl) |
-| **`allow: *`** | anyone who can authenticate | [identity § acl](01-identity.md#acl) |
+| **`*`** | the term for anyone who can authenticate; `allow: *` opens a service to the world | [identity § sigils](01-identity.md#sigils) |
 | **`agent-bus-admin`** | the program that edits what the `agent-busd` account owns — *not* a role; the setup user simply holds master | [setup § the programs](09-setup.md#the-programs) |
-| **role** | service-defined string saying what a principal may do; `#admin` here, `admin` to the service | [identity § sigils](01-identity.md#sigils) |
-| **`@`** · **`#`** (ACL) | a leading `@` is a group, a leading `#` a role, and anything else is a user | [identity § sigils](01-identity.md#sigils) |
+| **role** | service-defined string saying what a principal may do, written in parentheses after the term and handed over as written | [identity § sigils](01-identity.md#sigils) |
+| **`@`** · **`#`** (ACL) | a leading `@` is a group, a leading `#` a service, and anything else is a user | [identity § sigils](01-identity.md#sigils) |
+| **`term(roles)`** | an ACL entry: the term says who, the parentheses what the service is told; omitted when there are no roles | [identity § sigils](01-identity.md#sigils) |
 | **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](01-identity.md#delegation) |
 | **service-to-service token** | one service's credential, narrowed to the service it is calling, asked for over the bus and as itself | [access § service to service](02-access.md#service-to-service) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](03-services-and-topics.md#service-kinds) |

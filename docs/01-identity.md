@@ -222,46 +222,42 @@ An unanswered challenge expires; an answered one is spent.
   expanded in the one place `allow` is already checked ([acl](#acl)). The
   expression engine comes with AUTH and not before: `& | !` on the
   authorization path is where a precedence bug grants silently.
-- **Roles** — *what a principal may do*: service-defined strings (`#admin`,
-  `#read-only`, …), assigned with the same expression pattern as groups. AUTH
-  stores and resolves; **it never interprets** — and the one place a role goes
-  is the answer to a service asking who its caller is ([sigils](#sigils)), so
-  there is no code path here that could.
+- **Roles** — *what a principal may do*: service-defined strings (`admin`,
+  `read-only`, …) written in parentheses after the term ([sigils](#sigils)),
+  assigned with the same expression pattern as groups. AUTH stores and
+  resolves; **it never interprets** — and the one place a role goes is the
+  answer to a service asking who its caller is, so there is no code path here
+  that could.
 - Access and authority stay two layers. One expression engine.
 
 ## Sigils
 
-**A leading character says what kind of thing an ACL entry is**, so one list
-holds every kind and nothing needs a type field beside it.
+**An ACL entry is a term, and the term says what kind of thing it names** — so
+one list holds every kind and nothing needs a type field beside it.
 
-| | Is | Appears |
-|---|---|---|
-| `parf@github` | a **user** — anything that is not one of the two below | either side |
-| `@dev` | a **group** | only as an ACL subject |
-| `#admin` | a **role** | only in what is handed to a service, and `#`-stripped on the way |
+| Term | Is |
+|---|---|
+| `parf@github` | a **user** — anything that is not one of the three below |
+| `@dev` | a **group** |
+| `#batcher@srv1` | a **service** ([service to service](02-access.md#service-to-service)) |
+| `*` | **anyone who can authenticate** |
 
-Each sigil disambiguates **within its own side** of an entry, which is why
-both are needed and neither is decoration:
+**Roles go in parentheses after the term, and are left out when there are
+none**: `parf@github(admin)`, `@dev(deploy, read-only)`, `*(guest)`,
+`#batcher@srv1`. A role is a service-defined string ([groups and
+roles](#groups-and-roles)) and is handed to the service exactly as written —
+it is that service's own vocabulary, not ours.
 
-- the left side holds subjects, where a group has to be told from a user —
-  `@dev & !@contractors` reads as an expression over groups, `dev &
-  !contractors` does not say what it is combining;
-- the right side holds access *and* an optional role, where a role has to be
-  told from an access level: `parf@github => rw, #admin`.
-
-**A user starts alphanumeric**, which is what any name starts with anyway
-([names](#names)) — so the rule is the one already there rather than a second
-one for ACLs, and an entry beginning with anything else is a group, a role, or
-nothing at all.
-
-**The `#` never leaves.** It marks a role as ours while it is stored here; the
-service asking about its caller is given `admin`, because a role is that
-service's own vocabulary and our namespace is not its business.
+| | |
+|---|---|
+| **being in the list is the access** | the entry grants the call; the parentheses say in what capacity. There is no second access level beside the role, because *may call* and *what the service is told* were the only two things there ever were |
+| **the sigil disambiguates subjects, and only subjects** | a group has to be told from a user and a service from both — `@dev & !@contractors` reads as an expression over groups where `dev & !contractors` does not say what it is combining. A role needs no mark: the parentheses already say what it is |
+| **a user starts alphanumeric** | which is what any name starts with anyway ([names](#names)), so this is the rule already there rather than a second one for ACLs. A term beginning with anything else is a group, a service, or nothing at all |
 
 ⚠️ `#` **begins a comment** in a shell word, in YAML and in `.env`. Typed as
-`--allow #admin` it fails loudly — the flag ends up with no value — but at the
-start of a line in a config file it disappears without one. Quote it, and do
-not put a role first on a line.
+`--allow #batcher@srv1` it fails loudly — the flag ends up with no value — but
+at the start of a line in a config file it disappears without one. Quote it,
+and do not put a service first on a line.
 
 **A group is local to one `agent-busd`**: `@dev`, never `@dev@company`. A
 group is only ever an ACL subject ([acl](#acl)), and every ACL a daemon
@@ -279,14 +275,14 @@ benefit of not giving a group a realm: there is no namespace to collide in.
 
 ## ACL
 
-Two layers, tried in that order. Both use the same shape: a subject — a user
-or an `@group` ([sigils](#sigils)) — mapped to access and an optional
-`#role`.
+Two layers, tried in that order. Both use the same shape: a term — a user, an
+`@group`, a `#service` or `*` — with its roles in parentheses when it has any
+([sigils](#sigils)).
 
 | Layer | Lives in | Says |
 |---|---|---|
 | **service ACL** | the service's own **record** | `allow` — who may see and use *this* service |
-| **master ACL** | `agent-busd` | `user => role`, `group => role` — holders reach **every** service on the node, with no per-service entry and no per-service token |
+| **master ACL** | `agent-busd` | the same terms — holders reach **every** service on the node, with no per-service entry and no per-service token |
 
 **The record, not the configuration.** A service's configuration is private to
 it and the daemon will not read it
@@ -300,12 +296,12 @@ controls — so `allow` is a field on it, stated like any other.
 - **A service may refuse master access** — one flag on its own record, and
   master holders are treated like anyone else. The service, not the node, has
   the last word on itself.
-- **`*:` is the wildcard entry**: `*: => users | groups` applies to every
-  service with no entry of its own.
-- **`allow: *`** on a service means *anyone who can authenticate* — every
-  GitHub user, for instance. That is how a sign-up service opens itself to the
-  world: `allow: *`, minimal role, and the newcomer's first request is the
-  enrolment.
+- **`*:` is the wildcard key** in the master ACL: the entry that applies to
+  every service with no entry of its own.
+- **`*` as a term is anyone who can authenticate** — every GitHub user, for
+  instance — and it takes roles like any other term. That is how a sign-up
+  service opens itself to the world: `allow: *(guest)`, and the newcomer's
+  first request is the enrolment.
 - **Master ACL replaces per-service setup.** Without it every service needs its
   own list and its own tokens; with it an operator is configured once.
 

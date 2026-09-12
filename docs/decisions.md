@@ -16,6 +16,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 |---|---|
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](01-identity.md#names) |
 | What characters a name may hold, and that it starts alphanumeric | [identity § names](01-identity.md#names) |
+| An ACL entry is `term(roles)`: `user`, `@group`, `#service` or `*`, with roles in parentheses and left out when there are none | [identity § sigils](01-identity.md#sigils) |
+| Being in the list is the access, so there is no access level beside the role | [identity § sigils](01-identity.md#sigils) |
 | Setup installs the separate-user arrangement, and where the accounts live | [setup § the two accounts](09-setup.md#the-two-accounts) |
 | One program per privilege, split no finer | [setup § the programs](09-setup.md#the-programs) |
 | Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the programs](09-setup.md#the-programs) |
@@ -32,7 +34,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](01-identity.md#acl) |
 | A sigil says what an ACL entry is: bare is a user, `@` a group, `#` a role | [identity § sigils](01-identity.md#sigils) |
 | A user starts alphanumeric, which every name does — so a sigil is free to lead | [identity § sigils](01-identity.md#sigils) |
-| A group is only ever an ACL subject; a role only ever reaches a service, `#`-stripped | [identity § sigils](01-identity.md#sigils) |
+| A group is only ever an ACL subject; a role only ever reaches a service, and as written | [identity § sigils](01-identity.md#sigils) |
 | A group is local to one daemon, because every ACL a daemon enforces is its own | [identity § sigils](01-identity.md#sigils) |
 | A group never travels: an upstream decides with its own list, so two daemons may both have `@dev` | [identity § sigils](01-identity.md#sigils) |
 | The daemon filters, because it holds the record — not a face | [discovery § audience](05-discovery.md#audience) |
@@ -291,6 +293,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 
 | Was | Now |
 |---|---|
+| `#` marks a **role**, and an entry is a subject mapped to access and an optional role — `parf@github => rw, #admin` | `#` marks a **service**, roles moved into parentheses, and the access level went away with them: being in the list *is* the access — [identity § sigils](01-identity.md#sigils) |
 | Owner is an expression, with `owner` and `maintainer` as tiers | one owner, exactly one user, and the maintainer is a group — [identity § ownership](01-identity.md#ownership) |
 | `autostart.json` — the host's file, listing what to bring up | `services.json`, listing everything **installed** with `autostart` as one field on each row, so a configured instance can be kept and started by hand — [runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed) |
 | The runner has no `reload`; there is no long-lived child to signal | long-lived services arrive in Release 1, and a kept child is exactly something to signal — [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
