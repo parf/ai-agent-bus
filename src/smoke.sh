@@ -1511,9 +1511,9 @@ sec "the installer makes a service account, and it is not the installer's"
 # The privileged step cannot run here, so what is checked is everything it
 # would write: an install that puts the daemon under the installer's own
 # account is the failure this wave exists to prevent.
-# See docs/09-setup.md#the-service-account.
+# See docs/09-setup.md#the-two-accounts.
 UNIT=$("$D/agent-bus-setup" --print-unit --owner "$OWNER" --exec /usr/local/bin/agent-busd)
-has "the unit runs the daemon as an account of its own" "$UNIT" '^User=agent-bus$'
+has "the unit runs the daemon as an account of its own" "$UNIT" '^User=agent-busd$'
 is_empty "never as root" "$(printf '%s' "$UNIT" | grep -x 'User=root')"
 is_empty "and never as whoever ran setup" "$(printf '%s' "$UNIT" | grep -x "User=$(id -un)")"
 has "the store lives under that account's home" "$UNIT" 'token-file /var/lib/agent-bus/token'
@@ -1530,7 +1530,7 @@ has "and says that step is the only one that needs it" "$out" 'Nothing after thi
 has "and says the line to run instead of just refusing" "$out" 'sudo .*agent-bus-setup'
 out=$("$D/agent-bus-setup" --dry-run --owner "$OWNER" 2>&1); rc=$?
 ok_exit "a dry run needs nothing and says what it would do" $rc
-has "naming the account" "$out" 'would create the system account agent-bus'
+has "naming the account" "$out" 'would create the system account agent-busd'
 has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
 has "and the start" "$out" 'would reload systemd'
 has "and hands the first user to the program that owns that file" "$out" "would make $OWNER the first user"

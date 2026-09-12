@@ -20,9 +20,9 @@ import (
 
 // Where the install puts things. Stated here because setup is the only thing
 // that writes them; the daemon is told on its command line.
-// See docs/09-setup.md#the-service-account.
+// See docs/09-setup.md#the-two-accounts.
 const (
-	svcAccount = "agent-bus"
+	svcAccount = "agent-busd"
 	svcHome    = "/var/lib/agent-bus"
 	unitPath   = "/etc/systemd/system/agent-busd.service"
 )
