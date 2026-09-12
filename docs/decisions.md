@@ -69,6 +69,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](02-access.md#key-confirmation) |
 | The daemon grants named locks — blocking, non-blocking, and a ttl that is the only other release — because a pool already shares exactly one authority | [messaging § shared locks](04-messaging.md#shared-locks) |
 | A set of locks is how a shared service shares countable resources: take any free one and be told which, rather than a semaphore that says only *you may* | [messaging § a set of locks](04-messaging.md#a-set-of-locks) |
+| Sets are not a second lock mechanism: a plain named lock is a member of the default set, and a declared set is the same thing plus the claim that its members are interchangeable | [messaging § a set of locks](04-messaging.md#a-set-of-locks) |
 | A service name is its address and its inbox | [identity § names](01-identity.md#names) |
 | Where the host is split off, and how wide an instance name may be | [identity § names](01-identity.md#names) |
 | One service on many hosts, and scatter-gather over them, is Release 1 | [stages § release 1](12-stages.md#release-1) |

@@ -181,6 +181,13 @@ holds one of the things.
 Everything else is unchanged — a ttl on every grant, a number that only goes
 up, and nothing kept across a restart.
 
+**From the daemon's side this is not a second mechanism.** A plain named lock
+is a member of the **default set**, and the sets above are the same thing with
+a name of their own. What a declared set adds is the one claim the default set
+cannot make: **its members are interchangeable**. That is what *take any free
+one* means, and why it is meaningless in the default set — `deploy@srv1` and
+`migrate@srv1` are both in there and are not alternatives to each other.
+
 ## Message fields
 
 Every message carries:
