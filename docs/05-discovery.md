@@ -217,15 +217,13 @@ hostname and a real certificate.
 | the port | 443, falling back to 8443 when the process has no `CAP_NET_BIND_SERVICE` |
 | no certificate at all | plain HTTP on `127.0.0.1:7878`, announced in the log |
 
-The pair comes from <https://get.localhost.direct/>, which publishes two
-bundles for the same names:
+The pair comes from <https://get.localhost.direct/>: the **self-signed
+bundle**, `localhost.direct.SS.zip`, zip password `localhost`, good until
+2034-11-17 and costing one trust decision per OS or browser. It is the only
+bundle there worth downloading — the CA-signed one beside it expired and no
+browser accepts it.
 
-| Bundle | Good until | Costs |
-|---|---|---|
-| `localhost.direct.SS.zip` — self-signed (zip password `localhost`) | 2034-11-17 | trusting it once, per OS or browser |
-| `localhost.direct.OP.zip` — signed by a public CA | **expired 2025-02-17** | nothing, but no browser accepts it |
-
-So the working answer today is the self-signed bundle. **A `.key` never goes
+**A `.key` never goes
 into a repository or anywhere else public** — that is the publisher's own
 condition, and a leaked key is revoked; the repo's `.gitignore` refuses the
 extension rather than trusting anyone to remember.
