@@ -2,11 +2,11 @@
 
 What ships in the box beyond the daemon itself: a catalogue, and the rules
 every entry in it obeys. Nothing here is a feature of `agent-busd` — each one
-is an ordinary service with a name, an inbox and an ACL, written the way this
-design tells anyone else to write one.
+is an ordinary service with a name, an inbox and an ACL the daemon enforces for
+it, written the way this design tells anyone else to write one.
 
-Proposed for **Release 1.1** ([stages § release 1.1](12-stages.md#release-11)), after the
-runner exists to keep them.
+Proposed for **Release 1.1** ([stages § release 1.1](12-stages.md#release-11)),
+after the runner exists to keep them.
 
 ## Rules they all obey
 
@@ -17,6 +17,7 @@ will not.
 |---|---|
 | **no daemon change, ever** | if a bundled service needs the bus to learn something, that is the signal to stop and design rather than to build. The catalogue is a test of the design as much as a set of tools |
 | **danger is per name, because access is** | the ACL is attached to a name ([identity § acl](01-identity.md#acl)), so anything you would grant to different people must **be** a different name. `shell@h` and `root-shell@h`; `billing-ro@db1` and `billing-rw@db1`. Never one service with a privilege flag on the call — a flag cannot be granted, only a name can. **Spend divides the same way**: generation and embeddings are two names because a team may be allowed one and not the other |
+| **none of them enforces access** | the ACL is on the record and **`agent-busd` applies it before a call is delivered** ([identity § acl](01-identity.md#acl)). A bundled service that checks who is calling is writing a second, weaker copy of something already done — and this is the single biggest reason most of these are a hundred lines rather than a project |
 | **inbound is a publisher, outbound is a call** | every *send/read* pair is two shapes, not one service with two verbs: reading Slack **publishes into a topic** and has no caller ([messaging § push and pull](04-messaging.md#push-and-pull)); sending is request/reply. One pattern for Slack, Telegram, SMS, mail and webhooks |
 | **secrets are the instance's** | a bot token or a database password is an `env` file under `runner/`, never in the checkout ([runner § the three env layers](08-runner-role.md#the-three-env-layers)). `service.d` is world-readable by construction |
 | **one template, many instances** | `slack/team-a@pool1`, `mysql/billing@db1` — configured copies of one thing, which the naming already carries ([identity § names](01-identity.md#names)) |
@@ -93,11 +94,15 @@ was built for.
 | **generation** — `openai` · `anthropic` · `google-ai` · `deepseek` · `groq` · `minimax` · `zhipu` · `bedrock` | owner | one name per provider. A caller picks the provider, so each is a name and none is hidden behind another |
 | **routing** — `openrouter` | owner | one name in front of many models, because the router already picks the provider. It is the answer for *"one API over all of them"*, and the reason nothing else here tries to be |
 | **retrieval** — `voyage` · `zeroentropyai` | owner | embeddings, reranking, search. Separate names from generation and not verbs on it: **spend is granted per name**, and embedding a corpus is cheap where answering with a frontier model is not — a team may well be allowed the first and not the second |
-| **local** — `ollama` · `llama-server` | owner | no key to keep private, so the gateway is here for the other half: one ACL over who may spend the box's GPU, and counters that say who did |
+| **local** — `ollama` · `llama-server` | owner | no key to keep private, so the gateway is here for the other half: the daemon's ACL decides who may spend the box's GPU, and the counters say who did |
 | **fetch** | proposed | a URL in, readable text out. What an agent reaches for more than anything else, and a pool case |
 
-**Minimal is the word that matters.** A gateway holds the key, applies the ACL,
-counts, and passes the call through as it was made. It does **not** normalise
+**Minimal is the word that matters.** A gateway holds the key, counts, and
+passes the call through as it was made. It writes **no access control at all** —
+the daemon refused the call before it ever arrived
+([identity § acl](01-identity.md#acl)) — which is what makes minimal possible
+rather than merely desirable: the hard half was done by the bus, so what is
+left is a key and a passthrough. It does **not** normalise
 one provider's API into another's — a caller that wants one API over many uses
 `openrouter`, which is a product that already does it, and a caller that names
 a provider wants that provider's own shape. A normalising layer here would be
@@ -119,7 +124,7 @@ the argument this design already makes about its own tokens
 ([runner § what the child is told](08-runner-role.md#what-the-child-is-told)).
 The account is one instance's `env` and nothing else's
 ([runner § the three env layers](08-runner-role.md#the-three-env-layers)): one
-place the key lives, one ACL over who may spend it, and — because **every
+place the key lives, the daemon's own ACL over who may spend it, and — because **every
 message carries a sender principal the bus verified**
 ([messaging § envelope](04-messaging.md#envelope)) — counters that say *which
 consumer* spent it rather than only how much the key did.

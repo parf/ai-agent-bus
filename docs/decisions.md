@@ -129,10 +129,11 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A pool is one bus — members that report to different daemons are two queues, not one service | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
 | A member states its hostname at registration: stated never observed, a label never an input, one entry per member | [discovery § where a member says it is](05-discovery.md#where-a-member-says-it-is) |
 | Bundled services ship as ordinary services, and none of them may need a daemon change | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
+| No bundled service enforces access: the daemon refused the call before it arrived, which is why the tools stay small | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
 | Danger is a name, never a flag: read-only and read-write, shell and root-shell, are separate names because access is granted per name | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
 | Spend divides by name too: generation and embeddings are two gateways, not one with a verb | [bundled services § for the agents themselves](13-bundled-services.md#for-the-agents-themselves) |
 | A backend is chosen by the host and is invisible; a gateway is chosen by the caller and is a name | [bundled services § for the agents themselves](13-bundled-services.md#for-the-agents-themselves) |
-| An API gateway is minimal: it holds the key, applies the ACL and counts, and never normalises one provider's API into another's | [bundled services § for the agents themselves](13-bundled-services.md#for-the-agents-themselves) |
+| An API gateway is minimal: it holds the key, counts, and never normalises one provider's API into another's — the access control was the daemon's before the call arrived | [bundled services § for the agents themselves](13-bundled-services.md#for-the-agents-themselves) |
 | Reading a channel publishes into a topic; sending is a call — one shape for Slack, SMS, mail and webhooks | [bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside) |
 | V2 code lives in this repo, in `src/` beside `docs/` | [stages § PoC](12-stages.md#poc) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
