@@ -125,7 +125,27 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **redis · kvrocks** | owner | the same shape |
 | **mongo** | owner | the same shape |
 | **kv** | owner | ours, not a gateway: memory-only or persistent, chosen per instance. The small shared state that otherwise becomes a database nobody wanted |
+| **elastic** | owner | search, and where logs go to live. `logwatch` answers about the last few minutes ([reading the box](#reading-the-box)); this answers about last month |
+| **clickhouse** | owner | analytics. Querying and ingesting are two names, as everywhere — they are rarely the same grant |
 | **object storage** | proposed | S3 and what speaks it. **files** for a disk, this for a bucket |
+
+### Other buses
+
+| | From | |
+|---|---|---|
+| **nats · kafka · rabbitmq** | owner | one instance per cluster, and the two directions are two services as everywhere here: consuming a foreign topic **publishes into a bus topic**, and sending out is **a call** |
+
+**A gateway to a broker is not a broker.** The rule is that `agent-busd` *is*
+the broker and no external one is introduced
+([overview § goal](00-overview.md#goal)) — and it is untouched by this. Nothing
+in the bus's own transport changes; what changes is that a company's existing
+Kafka becomes reachable from it, on the far side of a name, like every other
+gateway in this catalogue. The day one of these is load-bearing *inside* the
+design rather than at its edge is the day the rule was broken, and it will be
+visible as a daemon change ([rules they all obey](#rules-they-all-obey)).
+
+It is also the same shape as Slack, which is the point: a broker is another
+channel, and the catalogue already knows what to do with one.
 
 ### Media
 
