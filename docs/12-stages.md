@@ -201,15 +201,11 @@ Beyond the catalogue:
 | **an official Claude channel** | the push adapter drives `claude --channel` from outside today ([runner § adapters](08-runner-role.md#adapters)), and every push raises a permission prompt. Fine for a demo, wrong for a service that runs unattended — so this is **asked for rather than built**, and until it lands the adapter is a thing a person watches |
 | **the bus watching itself** | warnings, errors and alerts get a ring apiece and something that carries an alert to a person, both enabled without being asked for ([bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself)). The stage that ships tools is the one where *the tools stopped working* becomes a question somebody asks |
 
-❓ **Whether the daemon's own parts become services.** The dashboard, health and
-stats are supervisor children with passed fds and no token
-([processes](11-processes.md)); as bundled services instead they would get a
-name, an ACL and a host of their own for free, and the daemon would shrink to
-the bus. Against it: what you open when the bus is sick must not be something
-the bus delivers, and a child that never had a token cannot leak one. The
-catalogue's own acceptance criterion is *no change to `agent-busd`* — this asks
-the opposite question, which is why it belongs to this stage rather than to a
-document. *Settled by:* owner, after the catalogue is real.
+This stage's criterion is that nothing here changed the daemon. The opposite
+question — whether the daemon's own parts should move *out* and become services
+— waits on the catalogue being real, and is written down where the undecided
+ones are ([1.2 § whether the daemon's own parts become
+services](future/1.2-UNDECIDED.md#whether-the-daemons-own-parts-become-services)).
 
 ### The image
 

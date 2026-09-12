@@ -273,7 +273,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](00-overview.md#chaining) |
 | Whether reading an inbox and filtering one become separate options | owner, with the MVP CLI | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | Whether a service holds a key of its own, and where shared secrets and a locking KV live | owner, after Release 1.1 | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
-| Whether the daemon's own parts — dashboard, health, stats — become bundled services rather than supervisor children | owner, after the catalogue is real | [stages § release 1.1](12-stages.md#release-11) |
+| Whether the daemon's own parts — dashboard, health, stats — become bundled services rather than supervisor children | owner, once the catalogue is real | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
 
 ## Superseded
 
