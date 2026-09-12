@@ -171,5 +171,20 @@ thing that would make it true rather than on the page
 - A host runs services through the runner with no daemon on it at all, against
   a bus somewhere else.
 
+## Release 1.1
+
+*Proposed.* The stage that ships **tools**, not mechanism: by here the bus, the
+runner and the ACL are built, and what is missing is the set of services a
+company would otherwise write itself.
+
+The catalogue is [bundled services](13-bundled-services.md), which owns it.
+What belongs in *this* stage rather than that document:
+
+| | |
+|---|---|
+| why it is after Release 1 | every entry is kept by the runner, granted by a service ACL, and configured by env layers — all of which Release 1 is what builds |
+| what counts as done | **no entry in the catalogue needed a change to `agent-busd`.** That is the acceptance criterion, and a failure of it is a finding about the design rather than about the tool |
+| what it is not | a plugin system. Each one is a service written the ordinary way, and nothing here gives a bundled service an ability an outside one lacks |
+
 Billing is **not in any stage**: it is designed and deferred
 ([future/billing.md](future/billing.md)).

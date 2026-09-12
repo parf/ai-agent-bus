@@ -21,6 +21,7 @@ and linked from everywhere else.
 | 10 | [modules](10-modules.md) | layers · module boundaries · which dependency is swappable · languages · external tools |
 | 11 | [processes](11-processes.md) | the supervisor and its children · privilege per process · what is shared |
 | 12 | [stages](12-stages.md) | PoC, MVP, Release 1 — what gets built when, and what counts as done |
+| 13 | [bundled services](13-bundled-services.md) | what ships in the box beyond the daemon, and the rules every one of them obeys |
 
 07 was the billing role; it is deferred and lives in
 [future/billing.md](future/billing.md). Numbers are stable, so the gap stays.
