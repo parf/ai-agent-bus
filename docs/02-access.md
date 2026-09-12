@@ -38,7 +38,7 @@ needs only the key.
 
 | Path | Command | For |
 |---|---|---|
-| over SSH | `export AGENT_BUS_TOKEN=$(ssh agent-bus@<node> token <user@realm>)` | anyone with SSH to the node; sshd authenticates you with the key you already have |
+| over SSH | `export AGENT_BUS_TOKEN=$(ssh agent-busd@<node> token <user@realm>)` | anyone with SSH to the node; sshd authenticates you with the key you already have |
 | on the box | `agent-bus-token <user@realm>` | server access, no SSH key on the bus |
 | with a key | `agent-bus-token <user@realm> --key <ed25519>` | **no sshd anywhere** — the daemon sets the challenge and the key answers it |
 
@@ -129,17 +129,38 @@ running as root. It is held by the supervisor alone, which then passes the
 listening fds down, so no long-running child has it
 ([processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown)).
 
-## Local and remote
+## The three doors
 
-| | Local | Remote |
-|---|---|---|
-| What travels | username + token | username + token |
-| Who supplies them | the daemon, from the socket | you, from config and env |
-| To set up | nothing | get a token once |
-| Principal | `parf@github` | the same `parf@github` |
+Three ways the two fields arrive, one rule. They differ only in *who fills
+them in*, never in who you are — the same ACLs and roles apply through any of
+them.
 
-They differ only in *who fills the fields in*, never in who you are — the same
-ACLs and roles apply from either side.
+| Door | Who supplies the name | Who supplies the token | To set up |
+|---|---|---|---|
+| stated | you, from config and env | you | get a token once |
+| local socket | the socket's account mapping | the daemon | nothing |
+| **ssh** | a forced command in `authorized_keys` | the wrapper, as a trusted local asserter | a key in that account |
+
+`ssh agent-busd@host <command>` is how a **remote** daemon is reached, and
+`ssh agent-bus-runner@host <command>` is how services are installed on a host
+([runner § access to the runner](08-runner-role.md#access-to-the-runner)). The
+shape is the same in both: sshd authenticates the key, the forced command
+states the principal, and the client never gets to choose it.
+
+That is also why **no port is opened to a network and no TLS appears between
+bus citizens** — the transport is one the host already runs and already
+secures, and the same Ed25519 key that enrolment proves you hold is the one
+that admits you ([identity § registration](01-identity.md#registration)).
+
+| Worth getting right | |
+|---|---|
+| the forced command **parses**, never prepends | the client's words arrive in `SSH_ORIGINAL_COMMAND`; concatenating them onto a command line is a shell with extra steps. It matches against a closed set of verbs or refuses |
+| `no-pty`, `no-port-forwarding`, `no-agent-forwarding`, `no-X11-forwarding` | the key admits you to a verb, not to a host |
+| many principals, one account | everyone arrives as the same unix user, so the **socket** shortcut cannot tell them apart. An ssh caller takes the stated-parameters path, with the forced command as the source of the name |
+
+The cost, stated rather than left implicit: the wrapper can assert any
+principal its `authorized_keys` names. That is the same trust the local socket
+already holds, in a second place.
 
 ## Key modes
 
