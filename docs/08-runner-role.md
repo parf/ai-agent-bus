@@ -18,7 +18,8 @@ step.
 ## What the runner does
 
 - **Supervise** — spawn, restart with backoff, stop, log capture, exit codes.
-  Four verbs and no more: **start, stop, restart, enable/disable** — and it is
+  Four **control** verbs and no more: **start, stop, restart, enable/disable**
+  (`logs` reads, it does not control) — and it is
   `start`, never `run`, the same word whether you sit in front of it or the
   runner does it for you. There is no `reload`, because for a script service
   there is no long-lived child to signal — children are one process per
@@ -113,7 +114,7 @@ for, however long they take. Timeouts and restart are supervision, and that is
 the runner proper — a script service is a foreground process, and this is the
 runner's shell adapter with the supervision taken out.
 
-### Stopping it, and reading what it said
+### Stopping it and reading what it said
 
 The daemon does not know **where** a script service runs: the registry holds a
 description of it, not a handle to it. So a running service leaves a note of
@@ -272,6 +273,12 @@ host. Three arrangements, and the third is what the split buys:
 A remote daemon is reached the way anything else here is reached, over **ssh**
 ([access § the three doors](02-access.md#the-three-doors)): no port opened to
 a network, and no TLS between bus citizens.
+
+❓ **Who vouches for `runner@<edge>` when that host runs no daemon.** A
+`user@host` realm is vouched for by that host's `agent-busd`
+([identity § names](01-identity.md#names)), and an edge box has none — so the
+name it registers under is the one case the realm rule does not already
+answer. *Settled by:* owner, with the runner.
 
 **A bus that is away is not a service that failed.** When the daemon is
 unreachable the services are running perfectly well and simply cannot take

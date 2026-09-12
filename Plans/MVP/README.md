@@ -15,7 +15,7 @@ host.** That sentence decides every argument in this stage: if a change does
 not move one of *install*, *other people*, *shared*, or *safely*, it belongs
 to Release 1.
 
-**It runs as its own account.** `agent-bus` owns the daemon, homed where a
+**It runs as its own account.** `agent-busd` owns the daemon, homed where a
 daemon's state belongs ([setup § the two accounts](../../docs/09-setup.md#the-two-accounts));
 nothing runs as the person who installed it and nothing runs as root. A bus
 that only works when its author starts it has not met *install*, *shared* or

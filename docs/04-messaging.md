@@ -25,7 +25,7 @@ the whole difference from an ephemeral channel.
 | Verb | Target | Lands in | Allowed if |
 |---|---|---|---|
 | **`send`** | a known receiver, `service@host` | exactly that queue | you may talk to that principal |
-| **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([services and topics § topics](03-services-and-topics.md#topics)) | you hold `publish:<glob>` |
+| **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([services § topics](03-services-and-topics.md#topics)) | you hold `publish:<glob>` |
 
 **A message is addressed to a name, and a name that is registered nowhere is
 refused at `send`** — there is no label to send to and nothing accepts on
@@ -89,7 +89,7 @@ the notifier, or the reverse.
 | a waiter passes a **topic + tag filter** to `consume`, and the daemon hands it a match ahead of the unfiltered reader | the match happens where the message already is: no dispatcher in a client, and no local protocol between a Go CLI and a TypeScript session process |
 
 **Reading a topic is not filtering.** A queue topic is an inbox with a name
-([services and topics § topics](03-services-and-topics.md#topics)), so
+([services § topics](03-services-and-topics.md#topics)), so
 `consume` reads it as an inbox — one reader, like any other. The same option
 names both, and the daemon decides once, for every face: a **registered
 topic named on its own** is an inbox to read; anything else, or anything with
@@ -105,7 +105,7 @@ while the wait is outstanding, and a wait ends at one message. A receipt is a
 message, so between the `ack` and the wait that follows it the unfiltered
 reader can take the reply.
 
-### Several readers may wait, when they say so
+### Several readers may wait when they say so
 
 The rule above exists for an *accidental* second reader, and a worker pool is
 not one — so **the pool says so**. A reader that asks to **share** the inbox

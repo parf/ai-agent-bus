@@ -65,4 +65,4 @@ stage is where each of them bites.
 | federation | peer sync trusts unsigned records, and there is no clock authority for "newer wins" | [services § registry sync](../../docs/03-services-and-topics.md#registry-sync) |
 | chaining, and service templates | a chaining namespace and a service template both want the `/` | [overview § chaining](../../docs/00-overview.md#chaining) |
 | admin | `authorized_keys` regeneration would drop the key `agent-bus-setup` installed | [AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin) |
-| the runner | whether `reload` survives for a child that can take `SIGHUP` | [runner § the verbs](../../docs/08-runner-role.md#what-the-runner-does) |
+| the runner | whether `reload` survives for a child that can take `SIGHUP` | [runner § what the runner does](../../docs/08-runner-role.md#what-the-runner-does) |

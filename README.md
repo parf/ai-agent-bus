@@ -64,7 +64,7 @@ GitHub account can walk up, prove the key is theirs, and use it.
   Setup maps each local account to a bus username; the daemon gives each one a
   socket of its own and reads the username and token off it. To reach a
   *remote* bus you need those same two values: get the token with
-  `ssh agent-busd@<node> static-token`, or `sudo -u agent-busd agent-bus token <user>`
+  `ssh agent-busd@<node> token <user>`, or `agent-bus-token <user>`
   on the box. One daemon serves everyone on a host and knows who is calling, so
   services open to some users and not others. Central AUTH is an optional role
   of the same daemon.
@@ -185,7 +185,7 @@ Illustrative only; the exact verbs are part of the design work.
 ```sh
 # install and set up
 npm install -g agent-bus               # five programs (pnpm works too)
-sudo agent-bus-setup                   # makes the account, writes the unit, starts it
+sudo agent-bus-setup                   # makes the two accounts, writes the unit, starts it
 
 # nothing to do for local use — the socket supplies username + token
 # for a REMOTE bus you need exactly those two; get the token one of two ways:
@@ -253,8 +253,8 @@ document owns what.
 
 | Area | State |
 |---|---|
-| Design docs | ✅ decisions of 2026-09-09 recorded; open items listed in [decisions](docs/decisions.md) |
-| Plan | [Plans/PoC/](Plans/PoC/TODO.md) — waves, blockers and what counts as done |
+| Design docs | ✅ settled decisions recorded, newest the runner split; open items listed in [decisions](docs/decisions.md) |
+| Plan | [Plans/MVP/](Plans/MVP/TODO.md) — waves, blockers and what counts as done; [Plans/PoC/](Plans/PoC/TODO.md) is the finished stage |
 | Code | [`src/`](src/) — the PoC is complete, with a smoke suite. Build order is [PoC → MVP → Release 1](docs/12-stages.md); Go inside, bun for the MCP face and the push adapters; client libs for Go, PHP, Rust, JS, Python |
 | V1 | runs in production on a broker |
 

@@ -117,7 +117,7 @@ func have(path string) bool {
 }
 
 // defaultCert is beside the daemon's other state, because that is where an
-// install puts what the account owns (docs/09-setup.md#the-service-account).
+// install puts what the account owns (docs/09-setup.md#the-two-accounts).
 func defaultCert(ext string) string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".local", "state", "agent-bus", Host+ext)

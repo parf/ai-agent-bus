@@ -1,10 +1,10 @@
 #!/bin/sh
-# The SSH forced command behind `ssh agent-bus@<node> static-token`. It prints
+# The SSH forced command behind `ssh agent-busd@<node> static-token`. It prints
 # one principal's token and does nothing else: sshd has already authenticated
 # the caller against a key they own, and the key says which principal that is.
 # See docs/02-access.md#getting-a-token.
 #
-# In ~agent-bus/.ssh/authorized_keys, one line per person, naming them:
+# In ~agent-busd/.ssh/authorized_keys, one line per person, naming them:
 #
 #   command="/opt/agent-bus/static-token parf@github",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA... someone@somewhere
 #

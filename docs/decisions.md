@@ -164,10 +164,10 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The filter is a priority, not a lease: it holds only while its wait is outstanding | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | Sandboxing is off by default and opted into per service; one backend and off, the rest an adapter when a host needs one | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | Off is a setting and the default, and asking for confinement a host cannot give is an error rather than a quiet downgrade | [runner § sandboxing](08-runner-role.md#sandboxing) |
-| A running script service leaves a note in its owner's state directory, which is what `stop` and `logs` read | [runner § stopping it](08-runner-role.md#stopping-it-and-reading-what-it-said) |
-| `stop` does not unregister: the name keeps its queue, and nothing is reading it | [runner § stopping it](08-runner-role.md#stopping-it-and-reading-what-it-said) |
+| A running script service leaves a note in its owner's state directory, which is what `stop` and `logs` read | [runner § stopping it and reading what it said](08-runner-role.md#stopping-it-and-reading-what-it-said) |
+| `stop` does not unregister: the name keeps its queue, and nothing is reading it | [runner § stopping it and reading what it said](08-runner-role.md#stopping-it-and-reading-what-it-said) |
 | A caller states its own record before it calls, and only if it has none | [messaging § request and reply](04-messaging.md#request-and-reply) |
-| Several readers may wait on one empty inbox when each asks to share it | [messaging § several readers may wait](04-messaging.md#several-readers-may-wait-when-they-say-so) |
+| Several readers may wait on one empty inbox when each asks to share it | [messaging § several readers may wait when they say so](04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | A receipt is a closed set of two words | [messaging § receipts](04-messaging.md#receipts) |
 | The receipts answer "picked up, or lost?", so the bus keeps no delivery journal | [messaging § receipts](04-messaging.md#receipts) |
 | A queue belongs to a name, never to a connection or session | [messaging § inbox queues](04-messaging.md#inbox-queues) |
@@ -213,6 +213,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How a dormant name is woken, and what the daemon has to learn to do it | owner, in Release 1 | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Whether `reload` survives for a long-running child that can take `SIGHUP` | owner | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
+| Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](08-runner-role.md#where-it-runs) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 | What happens to a running service when its configuration changes | owner | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |

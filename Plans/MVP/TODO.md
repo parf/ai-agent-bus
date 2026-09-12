@@ -49,7 +49,7 @@ with wave D:
 | Raised for | ❓ | Settled as |
 |---|---|---|
 | A.2 | whether the caller's deadline travels | it does, and it is not a TTL — [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
-| A.5 | whether several readers may block on one inbox | when each asks to share it — [messaging § several readers may wait](../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so) |
+| A.5 | whether several readers may block on one inbox | when each asks to share it — [messaging § several readers may wait when they say so](../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | C.3 | what a subscriber is, and where a copy goes | a registered name, and its own inbox — [messaging § subscribers](../../docs/04-messaging.md#subscribers) |
 | G.2 | how many sandbox backends | one, plus off — [runner § sandboxing](../../docs/08-runner-role.md#sandboxing) |
 | D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/V1](../V1/TODO.md)'s — [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
@@ -81,7 +81,7 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 | A.2 | ✅ _done_ — a request carries how long its caller will wait, the bus turns that into a moment, and a service that sees it already past does not do the work ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)). It is a second pair beside the TTL and not a spelling of it: the queue bounds a TTL and not this, and the bus carries this and acts on the TTL |
 | A.3 | ✅ _done_ — a record carries `--ttl` and `--bound`, a message carries its own `--ttl`, and the record's bounds it: asking for longer than the queue keeps does not get it, and a shorter one on the message still wins ([services § topics](../../docs/03-services-and-topics.md#topics)). Neither is a daemon-wide constant any more |
 | A.4 | ✅ _done_ — `reply-to`, refused at accept when the address is not registered; the CLI, runner and face all read the route off the envelope ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)) |
-| A.5 | ✅ _done_ — a reader that asks to **share** the inbox is one of a pool, and any number of those may block on an empty one; a reader that does not ask keeps the old refusal in both directions ([messaging § several readers may wait](../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so)). Asking is how the daemon tells a pool from a session's accidental second reader, and it remembers nothing between reads |
+| A.5 | ✅ _done_ — a reader that asks to **share** the inbox is one of a pool, and any number of those may block on an empty one; a reader that does not ask keeps the old refusal in both directions ([messaging § several readers may wait when they say so](../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so)). Asking is how the daemon tells a pool from a session's accidental second reader, and it remembers nothing between reads |
 | A.6 | ✅ _done_ — `in` and `out` per name, counted in memory, attached to a listing and cleared off anything a caller states ([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)) |
 
 **Done when**, and what breaking it must do:
@@ -290,7 +290,7 @@ owner's view served to a stranger, which is what the dashboard does today.
 |---|---|---|
 | G.1 | ✅ _done_ — one binary, two roles: the supervisor opens every listener, chowns the per-user ones and hands the fds down; the bus serves them and holds the store ([processes § how a child is started](../../docs/11-processes.md#how-a-child-is-started)). A dead child is restarted onto the same sockets — the socket file is the same inode after a restart and a different one when it is genuinely remade, which is how that check was falsified, no mutation being able to express it — and a supervisor killed outright takes its children with it. The dashboard is a child under `-web`. ⚠️ *auth and health are still design, the runner is a separate program rather than a child of this set, and a child's empty capability set can only be read on a host that has one to lose* |
 | G.2 | `agent-bus start` confines a child when it asks ([runner § sandboxing](../../docs/08-runner-role.md#sandboxing)) | the cut is taken: **one backend and off**. `systemd-run --user`, behind a `sandbox` port so a second backend is one adapter and not a redesign |
-| G.3 | `stop` and `logs` ([runner § stopping it](../../docs/08-runner-role.md#stopping-it-and-reading-what-it-said)) | a running service leaves a note in its owner's own state directory, which is what makes "only whoever started it may stop it" true with no check in it |
+| G.3 | `stop` and `logs` ([runner § stopping it and reading what it said](../../docs/08-runner-role.md#stopping-it-and-reading-what-it-said)) | a running service leaves a note in its owner's own state directory, which is what makes "only whoever started it may stop it" true with no check in it |
 
 **Done when**, and what breaking it must do:
 
@@ -330,7 +330,7 @@ the binaries arrive, and are built
 | ID | Task |
 |---|---|
 | H.1 | the package ([setup § install](../../docs/09-setup.md#install)) — **still blocked** on the packaging ❓ |
-| H.2 | ✅ _done_, and now H.4's program — it creates the account, writes the unit and starts the daemon as it, refusing without root rather than half-installing; `--dry-run` / `--print-unit` need nothing ([setup § the two accounts](../../docs/09-setup.md#the-two-accounts)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
+| H.2 | ✅ _done_, and now H.4's program — it creates the two accounts and the tree they own, writes the unit and starts the daemon as one of them, refusing without root rather than half-installing; `--dry-run` / `--print-unit` need nothing ([setup § the two accounts](../../docs/09-setup.md#the-two-accounts)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
 | H.3 | ✅ _done_ — the account, its home, the one declarative capability and restart, all in the unit and each falsified on its own |
 | H.4 | ✅ _done_ — `agent-bus-setup` is its own program, root-only, and prints the `sudo` line rather than failing flat ([setup § the five programs](../../docs/09-setup.md#the-five-programs)) |
 | H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin)). It re-runs itself under `sudo -u agent-bus` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the five programs](../../docs/09-setup.md#the-five-programs)* |

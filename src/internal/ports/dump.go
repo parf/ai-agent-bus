@@ -12,7 +12,7 @@ import (
 // Queue is one inbox as it stood: what is still in it, and what has been
 // through it. The counters are part of the state — a queue that was drained
 // and one nobody ever wrote to read the same without them
-// (docs/05-discovery.md#live-state).
+// (docs/05-discovery.md#what-a-listing-answers).
 type Queue struct {
 	Name    string
 	In, Out int

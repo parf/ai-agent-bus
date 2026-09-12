@@ -20,7 +20,7 @@ import (
 )
 
 // The account and its home, which this program edits and nothing else does.
-// See docs/09-setup.md#the-service-account.
+// See docs/09-setup.md#the-two-accounts.
 const (
 	svcAccount = "agent-bus"
 	// Somewhere other than the install: a second one, or a test.

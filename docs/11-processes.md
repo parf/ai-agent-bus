@@ -52,7 +52,7 @@ It also buys a shape the child arrangement could not: the runner can run on a
 host with **no daemon at all**, against a bus somewhere else
 ([runner § where it runs](08-runner-role.md#where-it-runs)).
 
-## Why the supervisor holds `CAP_CHOWN`
+## Why the supervisor holds CAP_CHOWN
 
 Per-user sockets have to be chowned to their user, which needs the capability
 ([access § local socket](02-access.md#local-socket)). Giving it to the
