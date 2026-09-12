@@ -162,7 +162,7 @@ All 2026-09-09 unless noted.
 | A name-shaped topic that is registered nowhere is refused, not read as a filter | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | The filter is a priority, not a lease: it holds only while its wait is outstanding | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | Sandboxing is off by default and opted into per service; one backend and off, the rest an adapter when a host needs one | [runner § sandboxing](08-runner-role.md#sandboxing) |
-| Where a sandbox cannot run the runner says so and carries on; asking for it there is an error | [runner § sandboxing](08-runner-role.md#sandboxing) |
+| Off is a setting and the default, and asking for confinement a host cannot give is an error rather than a quiet downgrade | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | A running script service leaves a note in its owner's state directory, which is what `stop` and `logs` read | [runner § stopping it](08-runner-role.md#stopping-it-and-reading-what-it-said) |
 | `stop` does not unregister: the name keeps its queue, and nothing is reading it | [runner § stopping it](08-runner-role.md#stopping-it-and-reading-what-it-said) |
 | A caller states its own record before it calls, and only if it has none | [messaging § request and reply](04-messaging.md#request-and-reply) |

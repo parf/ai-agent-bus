@@ -156,9 +156,11 @@ your web site, not agent-bus. Same daemon, same mechanics as your laptop bus.
 
 The runner is its own program under its own account, not part of `agent-busd`.
 Point it at an MCP server, an HTTP API or a plain script; it spawns the
-process, restarts it with backoff, registers it, and injects its key and
-private config. Confining the child is a per-service option rather than the
-default — `systemd-run`, with a second backend the day a host has no systemd.
+process, restarts it with backoff, registers it, and gives it its private
+config as environment. A script holds no credential at all — the runner does
+the bus talking for it. Confining the child is a per-service option rather
+than the default — `systemd-run`, with a second backend the day a host has no
+systemd.
 
 ### See what is going on
 
@@ -207,8 +209,8 @@ agent-bus call     fixer@srv1 --topic deploy-42 --tag q2 "is it done?"          
 agent-bus publish  --topic alerts.prod@srv1 "disk 91% on db3"                   # whoever consumes it
 agent-bus consume                                                                # read my own queue
 
-# supervise a child under the runner
-agent-bus start my-mcp-server@srv1 --sandbox default
+# publish a script as a service, confined because it asked to be
+agent-bus start my-mcp-server@srv1 --sandbox on
 agent-bus ls · agent-bus logs my-mcp-server · agent-bus stop my-mcp-server
 ```
 
@@ -230,10 +232,11 @@ Highlights for the impatient:
   the box is the break-glass.
 - **One daemon, many small processes** — the systemd shape. A supervisor that
   holds no state and almost no privilege spawns single-task children: the bus,
-  the runner, the dashboard, and optionally AUTH, billing and health. Each gets
-  only what its job needs — AUTH alone holds the master secret, only the runner
-  may execute anything, the dashboard is cgroup-limited so it can never starve
-  the bus ([processes](docs/11-processes.md)).
+  the dashboard, and optionally AUTH, billing and health. Each gets only what
+  its job needs — AUTH alone holds the master secret, **no process the daemon
+  starts may execute anything at all**, the dashboard is cgroup-limited so it
+  can never starve the bus ([processes](docs/11-processes.md)). The runner is
+  outside this set, under its own account ([runner role](docs/08-runner-role.md)).
 
 Read `docs/` in order, starting at
 [00-overview.md](docs/00-overview.md) — it indexes the rest and says which

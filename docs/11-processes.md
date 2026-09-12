@@ -34,9 +34,11 @@ auth `auth: on`; health optional. Billing is deferred
 
 ## Nothing the daemon runs may exec
 
-The runner **executes code it did not write** — arbitrary user children, under
-a sandbox it sets up itself. Least privilege says the process that can `exec`
-should not also be the one holding everyone's queues and sessions.
+The runner **executes code it did not write** — arbitrary user children, and
+confined only where the service asked to be
+([runner § sandboxing](08-runner-role.md#sandboxing)). Least privilege says the
+process that can `exec` should not also be the one holding everyone's queues
+and sessions.
 
 The sharpest way to say that is to put the runner outside the daemon
 altogether. It is **not** a supervised child: it is its own program under its

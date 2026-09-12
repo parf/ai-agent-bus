@@ -100,7 +100,7 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 | registered at start | the description is what `ls` and the MCP catalog show. **`stop` does not unregister it**: the name still owns its queue and messages still wait in it, which is the whole point of a name-owned inbox ([messaging § inbox queues](04-messaging.md#inbox-queues)). What changes is that nothing is reading it |
 | started by its owner | the process *becomes* the service, so it needs that name's credential, and only the name's owner may have one ([access § getting a token](02-access.md#getting-a-token)). Starting somebody else's service is refused, not silently run under your own name |
 | one work directory | the one place a sandboxed script may write, and its working directory. Per service, so two services cannot tread on each other ([sandboxing](#sandboxing)) |
-| `--sandbox on\|off` | on wherever the host can, and the service says at start which it got — an unsandboxed service is never a silence |
+| `--sandbox on\|off` | off unless asked for ([sandboxing](#sandboxing)), and the service says at start which it got — an unsandboxed service is never a silence |
 
 `-N` does not mean N services or N inboxes. **The `start` process is the one
 reader of that inbox** ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox));
@@ -351,10 +351,10 @@ runner starts children as `agent-bus-runner`, that is a setup step
 ([setup § the two accounts](09-setup.md#the-two-accounts)) and not a
 mystery about why the sandbox says `off`.
 
-**Off is a setting, not an absence.** Where `systemd-run` cannot run the
-runner says so at start and carries on unsandboxed — never silently, because
-a sandbox that quietly did nothing is worse than none. Asking for it
-explicitly where it is unavailable is an error instead.
+**Off is a setting, not an absence.** It is also the default, so the common
+case says `off` and means it. Asking for confinement where the host cannot
+provide it is an **error**, never a quiet downgrade — a sandbox that silently
+did nothing is worse than none.
 
 Default profile — **nothing writable but the work directory, and no network**:
 

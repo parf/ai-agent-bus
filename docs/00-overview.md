@@ -16,8 +16,8 @@ and linked from everywhere else.
 | 04 | [messaging](04-messaging.md) | queues · message fields · receipts · TTL · verbs · overflow · durability · the envelope |
 | 05 | [discovery](05-discovery.md) | faces · audience · health · stats · dashboard · debug mode |
 | 06 | [AUTH role](06-auth-role.md) | the bundle · signed generations · topology · `master_secret` · SSH admin |
-| 08 | [runner role](08-runner-role.md) | supervision · adapters · sandboxing · in-process queue |
-| 09 | [setup](09-setup.md) | the five programs · install · local users · storage · reload |
+| 08 | [runner role](08-runner-role.md) | supervision · what an instance is, and the env layers · reaching the runner · adapters · sandboxing · in-process queue |
+| 09 | [setup](09-setup.md) | the five programs · install · local users · storage · **the two accounts and the tree they own** · reload |
 | 10 | [modules](10-modules.md) | layers · module boundaries · which dependency is swappable · languages · external tools |
 | 11 | [processes](11-processes.md) | the supervisor and its children · privilege per process · what is shared |
 | 12 | [stages](12-stages.md) | PoC, MVP, Release 1 — what gets built when, and what counts as done |
@@ -115,7 +115,7 @@ and every child gets the narrowest privilege its task needs.
 
 | Always | Optional |
 |---|---|
-| supervisor · bus · runner | web (on by default) · auth (`auth: on`) · health · billing when it ships |
+| supervisor · bus | web (on by default) · auth (`auth: on`) · health · billing when it ships. The runner is **not** among them — it is its own program under its own account ([processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec)) |
 
 Who may do what, and what is shared between them, is
 [processes and privileges](11-processes.md). Faces of the bus are API, MCP and
