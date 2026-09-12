@@ -40,12 +40,10 @@ func Dial(addr string) (*http.Client, string) {
 	return client, "http://unix"
 }
 
-// The two parameters every call carries, on the wire.
-// See docs/02-access.md#two-parameters.
-const (
-	HeaderUser  = "X-Agent-Bus-User"
-	HeaderToken = "X-Agent-Bus-Token"
-)
+// The one thing a call carries. There is no name beside it: the token backs
+// exactly one principal, so a name on the wire could only agree or be a typo.
+// See docs/02-access.md#what-a-call-carries.
+const HeaderToken = "X-Agent-Bus-Token"
 
 // SystemRuntimeDir is where a daemon installed for the whole host keeps its
 // sockets: outside anyone's home, and cleared by a reboot.
@@ -135,29 +133,23 @@ func (s *Server) routes(g guard) http.Handler {
 	return mux
 }
 
-// auth checks the two parameters, and checks them against each other: the
-// name is bound to the credential it arrived with, so a caller cannot be
-// somebody else. See docs/02-access.md#two-parameters.
+// auth reads the caller out of the token, which is the whole of it: a token
+// backs one principal, so there is nothing to cross-check and nothing on the
+// wire to be somebody else with. See docs/02-access.md#what-a-call-carries.
 func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		name, err := protocol.ParseName(r.Header.Get(HeaderUser))
-		if err != nil {
-			s.bus.Refuse("credential")
-			fail(w, http.StatusUnauthorized, "bad or missing "+HeaderUser)
-			return
-		}
 		who, known := s.tokens.Principal(r.Header.Get(HeaderToken))
 		if !known {
 			s.bus.Refuse("credential")
 			fail(w, http.StatusUnauthorized, "bad token")
 			return
 		}
-		// Authenticated, and asking to be read as someone else. That is a
-		// different answer from "no token": saying so is what makes the
-		// refusal debuggable instead of looking like a bad credential.
-		if who != name.String() {
-			s.bus.Refuse("wrong-name")
-			fail(w, http.StatusForbidden, "that token belongs to "+who+", not "+name.String())
+		// A stored principal was a name when it was issued; parsing it back is
+		// cheap and keeps every handler taking a Name rather than a string.
+		name, err := protocol.ParseName(who)
+		if err != nil {
+			s.bus.Refuse("credential")
+			fail(w, http.StatusUnauthorized, "bad token")
 			return
 		}
 		next(w, r, name)
@@ -166,24 +158,12 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 
 // onSocket is the local path: the account at the other end is known from
 // which socket the connection arrived on, so nothing has to be sent and
-// there is nothing to set up. A name may still be stated — and had better
-// be the right one.
+// there is nothing to set up. The socket is a credential of the same kind as
+// a token, not an exemption from having one.
+// See docs/02-access.md#local-socket.
 func (s *Server) onSocket(me protocol.Name) guard {
 	return func(next func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			if stated := r.Header.Get(HeaderUser); stated != "" {
-				name, err := protocol.ParseName(stated)
-				if err != nil {
-					s.bus.Refuse("credential")
-					fail(w, http.StatusUnauthorized, "bad "+HeaderUser)
-					return
-				}
-				if name.String() != me.String() {
-					s.bus.Refuse("wrong-name")
-					fail(w, http.StatusForbidden, "this socket is "+me.String()+"'s, not "+name.String())
-					return
-				}
-			}
 			next(w, r, me)
 		}
 	}

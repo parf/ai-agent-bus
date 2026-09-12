@@ -36,7 +36,7 @@ import (
 // carry the same fields so that one can be pasted from the other.
 type service struct {
 	Name      string `json:"name"`
-	Algo      string `json:"algo"`      // std: envelope on stdin · args: body as argv[1]
+	Algo      string `json:"algo"`      // json: envelope on stdin · args: body as argv[1]
 	Script    string `json:"script"`    // the program to run
 	Descr     string `json:"descr"`     // what ls and the MCP catalog show
 	Instances int    `json:"instances"` // how many may run at once
@@ -53,7 +53,11 @@ type service struct {
 }
 
 const (
-	algoStd  = "std"
+	// A form names what reaches the child, and that decides the rest. `json`
+	// is the envelope on stdin; `args` is the body as argv[1]. `std` is the
+	// raw body on stdin and the stream forms keep the process, neither of
+	// which is built yet — docs/08-runner-role.md#script-services.
+	algoJSON = "json"
 	algoArgs = "args"
 )
 
@@ -79,7 +83,7 @@ func start(args []string) error {
 	// The record above keeps the launcher as its owner, which is exactly
 	// what lets it collect the service's own credential — a name is bound
 	// to its token, so switching names means switching both.
-	// See docs/02-access.md#two-parameters.
+	// See docs/02-access.md#what-a-call-carries.
 	tok, err := tokenFor(svc.Name)
 	if err != nil {
 		return err
@@ -190,10 +194,10 @@ func describe(args []string) (service, error) {
 		return svc, fmt.Errorf("a service needs a name and a script")
 	}
 	if svc.Algo == "" {
-		svc.Algo = algoStd
+		svc.Algo = algoJSON
 	}
-	if svc.Algo != algoStd && svc.Algo != algoArgs {
-		return svc, fmt.Errorf("--algo is %s or %s", algoStd, algoArgs)
+	if svc.Algo != algoJSON && svc.Algo != algoArgs {
+		return svc, fmt.Errorf("--algo is %s or %s", algoJSON, algoArgs)
 	}
 	if svc.Instances <= 0 {
 		svc.Instances = 1

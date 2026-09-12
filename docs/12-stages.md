@@ -186,5 +186,28 @@ What belongs in *this* stage rather than that document:
 | what counts as done | **no entry in the catalogue needed a change to `agent-busd`.** That is the acceptance criterion, and a failure of it is a finding about the design rather than about the tool |
 | what it is not | a plugin system. Each one is a service written the ordinary way, and nothing here gives a bundled service an ability an outside one lacks |
 
+Beyond the catalogue, two things:
+
+| | |
+|---|---|
+| **a ready-to-use image** | Docker and Podman — one command to a bus that works, nothing to edit, and something worth calling already in it ([the image](#the-image)) |
+| **an official Claude channel** | the push adapter drives `claude --channel` from outside today ([runner § adapters](08-runner-role.md#adapters)), and every push raises a permission prompt. Fine for a demo, wrong for a service that runs unattended — so this is **asked for rather than built**, and until it lands the adapter is a thing a person watches |
+
+### The image
+
+**One image, two containers.** The daemon and the runner are two accounts
+exactly so that neither reads the other's secrets
+([setup § the two accounts](09-setup.md#the-two-accounts)); putting both in one
+container gives that up without saying so. Same image, two roles, nothing
+shared but the bus.
+
+| | |
+|---|---|
+| **fast** | one command from nothing to a message delivered, with no file to edit. That is the acceptance criterion, and it is a time rather than a feeling |
+| **useful** | the catalogue ships **installed**, and `autostart.json` enables the reading half only — health and info. Everything that acts on the box is installed and **not enabled**, which is a state the design already has and precisely what it is for ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
+| **persistent** | `/var/lib/agent-bus` is a volume, or the registry and every token die with the container and *a token survives a restart* quietly stops being true ([access § token lifetime](02-access.md#token-lifetime)) |
+| **the door is a token** | a per-account socket maps a local account, and a container has one user — so people arrive with a token over the port and the socket serves the container's own processes ([access § the three doors](02-access.md#the-three-doors)) |
+| **sandboxing is off, and says so** | `systemd-run --user` wants a user manager a container does not have. The container is the boundary instead, and `--sandbox on` in there is an **error** rather than a quiet downgrade — which is already how it behaves ([runner § sandboxing](08-runner-role.md#sandboxing)) |
+
 Billing is **not in any stage**: it is designed and deferred
 ([future/billing.md](future/billing.md)).

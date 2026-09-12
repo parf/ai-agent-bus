@@ -38,7 +38,6 @@ func TestConcurrentConfigReads(t *testing.T) {
 	h := s.Handler()
 	set := httptest.NewRequest("POST", "/configure",
 		strings.NewReader(`{"name":"svc@h","config":{"a":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`))
-	set.Header.Set(HeaderUser, "svc@h")
 	set.Header.Set(HeaderToken, tok("svc@h"))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, set)
@@ -51,7 +50,6 @@ func TestConcurrentConfigReads(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			r := httptest.NewRequest(http.MethodGet, "/config?name=svc@h", nil)
-			r.Header.Set(HeaderUser, "svc@h")
 			r.Header.Set(HeaderToken, tok("svc@h"))
 			h.ServeHTTP(httptest.NewRecorder(), r)
 		}()
@@ -67,7 +65,6 @@ func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 	h := s.Handler()
 	post := func(path, user, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest("POST", path, strings.NewReader(body))
-		r.Header.Set(HeaderUser, user)
 		r.Header.Set(HeaderToken, tok(user))
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
@@ -82,7 +79,6 @@ func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 		t.Fatalf("register handed out the configuration: %s", w.Body.String())
 	}
 	r := httptest.NewRequest("GET", "/ls", nil)
-	r.Header.Set(HeaderUser, "other@h")
 	r.Header.Set(HeaderToken, tok("other@h"))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
@@ -104,7 +100,6 @@ func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 		} else {
 			r = httptest.NewRequest(method, path, strings.NewReader(body))
 		}
-		r.Header.Set(HeaderUser, user)
 		r.Header.Set(HeaderToken, tok(user))
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)

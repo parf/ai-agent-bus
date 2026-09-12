@@ -98,8 +98,8 @@ func parse(args []string) (name string, rotate bool, key string, err error) {
 	return name, rotate, key, nil
 }
 
-// ask is the ordinary path: the socket supplies who you are, or the two
-// parameters do. See docs/02-access.md#two-parameters.
+// ask is the ordinary path: the socket says who you are, or a token you
+// already hold does. See docs/02-access.md#what-a-call-carries.
 func ask(name string, rotate bool) (string, error) {
 	out, code, err := post("/token", map[string]any{"name": name, "rotate": rotate})
 	if err != nil {
@@ -160,11 +160,8 @@ func post(path string, body any) ([]byte, int, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	// Sent when they are there. On your own socket they are not needed, and
-	// the key path does not have them yet — that is what it is for.
-	if v := os.Getenv("AGENT_BUS_NAME"); v != "" {
-		req.Header.Set(api.HeaderUser, v)
-	}
+	// Sent when it is there. On your own socket it is not needed, and the key
+	// path does not have one yet — that is what it is for.
 	if v := os.Getenv("AGENT_BUS_TOKEN"); v != "" {
 		req.Header.Set(api.HeaderToken, v)
 	}

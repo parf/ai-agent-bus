@@ -35,7 +35,6 @@ func BenchmarkSendAndConsume(b *testing.B) {
 
 	do := func(who, token, method, target string, payload []byte) {
 		r := httptest.NewRequest(method, target, bytes.NewReader(payload))
-		r.Header.Set(HeaderUser, who)
 		r.Header.Set(HeaderToken, token)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)

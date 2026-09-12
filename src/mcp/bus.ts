@@ -1,7 +1,7 @@
 import os from "node:os";
 
-// The daemon, as seen from TypeScript. Every call carries the same two
-// parameters as any other client — see docs/02-access.md#two-parameters.
+// The daemon, as seen from TypeScript. Every call carries a token and nothing
+// else, as any other client does — docs/02-access.md#what-a-call-carries.
 // HTTP+JSON over a unix socket or loopback TCP: bun's fetch speaks both.
 
 export type Envelope = {
@@ -63,9 +63,9 @@ export class Bus {
     return got.token;
   }
 
-  /** A client for another principal. A name is bound to its token, so
-   *  becoming somebody else means getting their credential too — which is
-   *  exactly what a caller cannot do without being allowed to. */
+  /** A client for another principal. The token is the identity, so becoming
+   *  somebody else means holding their credential — which is exactly what a
+   *  caller cannot do without being allowed to. */
   async as(name: string): Promise<Bus> {
     return new Bus({ ...this.#env, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: await this.token(name) });
   }
@@ -78,7 +78,6 @@ export class Bus {
       ...(signal ? { signal } : {}),
       ...(overTCP ? {} : { unix: this.#addr }),
       headers: {
-        "X-Agent-Bus-User": this.name,
         "X-Agent-Bus-Token": this.#token,
         "Content-Type": "application/json",
       },

@@ -139,6 +139,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | An upstream refusing is an answer, not a failure; no reply means the tool itself is broken | [bundled services § one contract for the set](13-bundled-services.md#one-contract-for-the-set) |
 | Extending the set is an instance or a template, never a change to the contract | [bundled services § one contract for the set](13-bundled-services.md#one-contract-for-the-set) |
 | No layer of ours between a caller and a tool: a retry or a cache is a service with its own name | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
+| The image is one image and two containers, because the two accounts are two secret domains | [stages § the image](12-stages.md#the-image) |
+| The image ships the catalogue installed and enables only the reading half, using installed-not-enabled for what it is for | [stages § the image](12-stages.md#the-image) |
 | Reading a channel publishes into a topic; sending is a call — one shape for Slack, SMS, mail and webhooks | [bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside) |
 | V2 code lives in this repo, in `src/` beside `docs/` | [stages § PoC](12-stages.md#poc) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |

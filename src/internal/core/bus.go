@@ -804,9 +804,9 @@ func (b *Bus) Owned(caller string) []string {
 }
 
 // Refuse records that a call was turned away, and for what reason. The face
-// calls it because two of the kinds — a credential that is not one, and a
-// credential for a different name — are refused before core is ever reached
-// (docs/02-access.md#two-parameters).
+// calls it because one of the kinds — a credential that is not one — is
+// refused before core is ever reached
+// (docs/02-access.md#what-a-call-carries).
 func (b *Bus) Refuse(kind string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

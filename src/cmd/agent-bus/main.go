@@ -45,7 +45,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus publish --topic <name> <text>
   agent-bus subscribe <topic>     receive a copy of everything published there
   agent-bus unsubscribe <topic>
-  agent-bus start <name> --algo=std|args <script> [-N] [--descr d]
+  agent-bus start <name> --algo=json|args <script> [-N] [--descr d]
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]
@@ -56,7 +56,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus enrol <user@realm> [--key ~/.ssh/id_ed25519]
                             prove you hold a key that realm publishes for you
 
-Environment: AGENT_BUS_NAME (user@realm), AGENT_BUS_TOKEN, AGENT_BUS_ADDR.
+Environment: AGENT_BUS_TOKEN, AGENT_BUS_ADDR.
 On your own socket the first two are supplied for you and can be left unset.
 A credential comes from agent-bus-token, which is its own program.`
 
@@ -512,13 +512,12 @@ func call(method, path string, q url.Values, body any) ([]byte, int, error) {
 // callCtx is the same with a deadline the caller owns: `start` gives it the
 // signal context so a long consume ends when the service is asked to stop.
 func callCtx(ctx context.Context, method, path string, q url.Values, body any) ([]byte, int, error) {
-	// On your own socket there is nothing to set: the daemon knows the
-	// account at the other end and supplies both parameters. Everywhere
-	// else they have to be sent. See docs/02-access.md#local-socket.
-	name := os.Getenv("AGENT_BUS_NAME")
+	// On your own socket there is nothing to set: the socket says who is
+	// calling. Everywhere else the token does, and it is the only thing sent.
+	// See docs/02-access.md#what-a-call-carries.
 	token := os.Getenv("AGENT_BUS_TOKEN")
-	if (name == "" || token == "") && !onOwnSocket() {
-		return nil, 0, fmt.Errorf("set AGENT_BUS_NAME (user@realm) and AGENT_BUS_TOKEN")
+	if token == "" && !onOwnSocket() {
+		return nil, 0, fmt.Errorf("set AGENT_BUS_TOKEN")
 	}
 	var buf io.Reader
 	if body != nil {
@@ -537,9 +536,6 @@ func callCtx(ctx context.Context, method, path string, q url.Values, body any) (
 	if err != nil {
 		return nil, 0, err
 	}
-	if name != "" {
-		req.Header.Set(api.HeaderUser, name)
-	}
 	if token != "" {
 		req.Header.Set(api.HeaderToken, token)
 	}
@@ -554,13 +550,11 @@ func callCtx(ctx context.Context, method, path string, q url.Values, body any) (
 	return out, resp.StatusCode, err
 }
 
-// whoami is this client's name: what was stated, or what the daemon says
-// when the socket supplied it instead. Asked once — it cannot change under
-// a running command. See docs/02-access.md#local-socket.
+// whoami is this client's name, and the daemon is the only one who knows it:
+// the token decides who we are, so an environment variable saying otherwise
+// would only be a second answer to disagree with. Asked once — it cannot
+// change under a running command. See docs/02-access.md#what-a-call-carries.
 var whoami = sync.OnceValue(func() string {
-	if n := os.Getenv("AGENT_BUS_NAME"); n != "" {
-		return n
-	}
 	out, code, err := call("GET", "/status", nil, nil)
 	if err != nil || code >= 400 {
 		return ""

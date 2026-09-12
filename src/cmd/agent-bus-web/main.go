@@ -45,7 +45,7 @@ func main() {
 	flag.Parse()
 
 	client, base := api.Dial(os.Getenv("AGENT_BUS_ADDR"))
-	bus := &caller{client, base, os.Getenv("AGENT_BUS_NAME"), os.Getenv("AGENT_BUS_TOKEN")}
+	bus := &caller{client, base, os.Getenv("AGENT_BUS_TOKEN")}
 
 	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		var v view
@@ -134,18 +134,15 @@ type view struct {
 // left off: on its own socket the daemon supplies both.
 // See docs/02-access.md#local-socket.
 type caller struct {
-	client      *http.Client
-	base        string
-	name, token string
+	client *http.Client
+	base   string
+	token  string
 }
 
 func (c *caller) get(path string, into any) error {
 	req, err := http.NewRequest("GET", c.base+path, nil)
 	if err != nil {
 		return err
-	}
-	if c.name != "" {
-		req.Header.Set(api.HeaderUser, c.name)
 	}
 	if c.token != "" {
 		req.Header.Set(api.HeaderToken, c.token)
