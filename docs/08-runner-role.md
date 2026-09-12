@@ -152,6 +152,13 @@ service has to be declared somewhere it is not auto-started from. A directory
 with no entry is *staged and not started* — how an instance is put in place
 before it is turned on, and what `disable` leaves behind.
 
+❓ **On-demand start is Release 1** ([stages § release 1](12-stages.md#release-1)),
+and it is the one place the daemon learns something runner-shaped: a dormant
+name needs a **wake-up procedure** configured on it, so that a message arriving
+for nobody starts the thing that serves it instead of being refused. Only a
+runner can be woken, which is why the mechanism belongs to it rather than to
+services in general. *Settled by:* owner, in Release 1.
+
 The registry still answers what exists and what is alive; the runner answers
 only what should be up.
 
