@@ -45,7 +45,7 @@ restated in any more detail than that.
 | calls | a call reaches an **upstream** service the way a local one is reached, carrying on-behalf-of; long answers stream |
 | observability | health checker, stats, Prometheus export |
 | secrets | sealed private config |
-| **the runner** | `agent-bus-runner`: its own account, installed instances under `service.d`, write-only configuration, autostart and restart policy, on-demand start |
+| **the runner** | `agent-bus-runner`: its own account, installed instances under `runner/`, write-only configuration, autostart and restart policy, on-demand start |
 | encryption | AEAD sessions, bodies end to end |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified |
 | operations | zero-downtime reload, packaging |

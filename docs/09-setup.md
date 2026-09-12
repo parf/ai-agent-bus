@@ -126,16 +126,21 @@ or a dump.
 | Directory | Mode | Owner | Holds |
 |---|---|---|---|
 | `daemon/` | 700 | **`agent-busd`** | its home: the store, the dumps, the ACL — [storage](#storage), [messaging § durability](04-messaging.md#durability) |
-| `templates/` | 755 | `agent-bus-runner` | what a service *is*. Readable by anyone because it holds no secret; an entry may be a directory with its own owner, or a symlink to code kept elsewhere |
-| `service.d/` | 700 | **`agent-bus-runner`** | its home: one directory per instance — description, config, credential ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
+| `service.d/` | 755 | `agent-bus-runner` | what each service *is*: its code or a symlink to it, `config.json`, `env.dist`. World-readable because it holds no secret, and usually a `git clone` nobody edits by hand |
+| `runner/` | 700 | **`agent-bus-runner`** | its home: `autostart.json`, and the env files, one directory per service ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
 
-**Neither account is one you log in as.** Both are nologin, and the runner
-account is reached only through its forced command
-([access § the three doors](02-access.md#the-three-doors)) — never a shell. That
-is what makes the mode on `service.d` mean something even though the children
-the runner starts share its uid: the uid is never wielded directly. Confining
-a child on top of that is a per-service option, not what makes the arrangement
-correct ([runner § sandboxing](08-runner-role.md#sandboxing)).
+**The two are split so that updating a service touches no local state.** `git
+pull` under `service.d` and every decision this host made — secrets, worker
+counts, confinement, whether it runs at all — is still sitting under `runner/`
+untouched.
+
+**Neither account is one you log in as.** Both are nologin, neither has an
+`authorized_keys`, and the runner is reached only as a service on the bus
+([runner § reaching the runner](08-runner-role.md#reaching-the-runner)) —
+never a shell, and never a second ssh door. Confining a child on top of that
+is a per-service option rather than what makes the arrangement correct, because
+no secret reaches a child as a file in the first place
+([runner § the three env layers](08-runner-role.md#the-three-env-layers)).
 
 Each directory being the account's actual `$HOME` is what removes a branch:
 the paths a personal run writes under your own home are the paths a system

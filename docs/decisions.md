@@ -48,6 +48,7 @@ All 2026-09-09 unless noted.
 | One socket per local account supplies both parameters; `status` says which name it used | [access § local socket](02-access.md#local-socket) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
 | A credential's issue date is durable and its last use is this run's | [access § token lifetime](02-access.md#token-lifetime) |
+| A record that owns itself is a person, so nothing carries a separate flag saying so | [identity § ownership](01-identity.md#ownership) |
 | Credentials persist behind the store port, in a text file until the database is chosen | [setup § storage](09-setup.md#storage) |
 | The restart snapshot carries the registry too, and is JSON until Parquet is written | [messaging § durability](04-messaging.md#durability) |
 | A start that follows an unclean stop says so, and from when it is missing traffic | [messaging § durability](04-messaging.md#durability) |
@@ -137,9 +138,12 @@ All 2026-09-09 unless noted.
 | The runner is not part of `agent-busd`: a separate program under its own account, and no process the daemon starts may exec | [processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |
 | Two system accounts, one per secret domain, under one `/var/lib/agent-bus` | [setup § the two accounts](09-setup.md#the-two-accounts) |
 | ssh with a forced command is a third way the two parameters arrive, and how a remote daemon is reached | [access § the three doors](02-access.md#the-three-doors) |
-| Reaching the runner is the right to install and configure instances on that host | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
-| A service's credential is handed to the runner at install; the runner may never mint one | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
-| Configuration is write-only: it is never handed back | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
+| The runner is a service on the bus; deploying on a host is its service ACL, not a second door | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
+| `service.d` is externally controlled — usually a checkout — so no local state lives in it | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
+| Configuration is three env layers overlaid, and the more secret one wins | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
+| `env.dist` declares the surface; a service needs an instance exactly when something is declared without a default | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
+| A service's credential is handed to the runner at install; the runner may never mint one | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
+| Configuration is write-only: it is never handed back | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
 | A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](08-runner-role.md#where-it-runs) |
 | A directory is the installed state; installed, enabled and running are three states with one home each | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | The runner has no `reload`; a graceful restart already loses nothing | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
@@ -185,6 +189,7 @@ All 2026-09-09 unless noted.
 | A script service takes a message only when a worker is free; stopping waits for the running ones | [runner § script services](08-runner-role.md#script-services) |
 | What a caller does when a receipt arrives | [messaging § receipts](04-messaging.md#receipts) |
 | What a script that prints nothing sends back | [runner § script services](08-runner-role.md#script-services) |
+| Whether an instance's credential is just one more variable in its env | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
 | Expiry is counted apart from overflow | [messaging § message TTL](04-messaging.md#message-ttl) |
 
 ## Open
@@ -212,6 +217,8 @@ All 2026-09-09 unless noted.
 
 | Was | Now |
 |---|---|
+| The runner has an ssh door of its own, and reaching it is the right to install | it is a service on the bus, reached by a call like anything else; the service ACL decides who may deploy — [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
+| An instance directory holds the description, the config, the code and the credential | code and its declared surface are `service.d`, which is a checkout; only env files are the host's, under `runner/` — [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Sandboxing is on by default, with a profile per child | off by default and opted into per service: secrets are injected as environment and never sit on a path the child can open, so confinement is hardening rather than what makes the layout correct — [runner § sandboxing](08-runner-role.md#sandboxing) |
 | The directory being there is the desired state, and there is no catalogue | it is the *installed* state; what should be **up**, and how many, is a list the runner reads at start — [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | The runner is one of the supervisor's children, and the only one that may exec | it is outside the daemon entirely, under its own account, so nothing the daemon starts execs at all — [processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |

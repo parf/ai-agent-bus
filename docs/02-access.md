@@ -141,11 +141,11 @@ them.
 | local socket | the socket's account mapping | the daemon | nothing |
 | **ssh** | a forced command in `authorized_keys` | the wrapper, as a trusted local asserter | a key in that account |
 
-`ssh agent-busd@host <command>` is how a **remote** daemon is reached, and
-`ssh agent-bus-runner@host <command>` is how services are installed on a host
-([runner § access to the runner](08-runner-role.md#access-to-the-runner)). The
-shape is the same in both: sshd authenticates the key, the forced command
-states the principal, and the client never gets to choose it.
+`ssh agent-busd@host <command>` is how a **remote** daemon is reached: sshd
+authenticates the key, the forced command states the principal, and the client
+never gets to choose it. It is the **daemon's** door and the only one — the
+runner has no ssh access at all, and is reached as a service on the bus
+([runner § reaching the runner](08-runner-role.md#reaching-the-runner)).
 
 That is also why **no port is opened to a network and no TLS appears between
 bus citizens** — the transport is one the host already runs and already

@@ -67,7 +67,7 @@ wins.
 | **thin glue** | built-in first, then the system's tool, then a library — never our own | [modules § external tools](10-modules.md#external-tools) |
 | **supervisor** | the `agent-busd` process that spawns the rest and holds nothing else | [processes](11-processes.md) |
 | **`agent-busd`** · **`agent-bus-runner`** (accounts) | the two system users, one per secret domain: credentials and configurations, neither readable by the other | [setup § the two accounts](09-setup.md#the-two-accounts) |
-| **template** · **instance** | on disk: `templates/<name>` is what a service is, `service.d/<name>` is what one is configured with | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
+| **template** · **instance** | on disk: `service.d/<name>` is what a service is, `runner/<name>/<instance>` is what one is configured with | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | **bus** | the child that is the core: registry, queues, sessions, delivery | [processes](11-processes.md) |
 | **port** | an interface core depends on; the seam a dependency is swapped at | [modules § the rule](10-modules.md#the-rule) |
 | **adapter** (layer) | the one implementation of a port; the only layer allowed outside I/O | [modules § the rule](10-modules.md#the-rule) |

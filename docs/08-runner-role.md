@@ -155,22 +155,57 @@ before it is turned on, and what `disable` leaves behind.
 The registry still answers what exists and what is alive; the runner answers
 only what should be up.
 
-| In `service.d/<name>/` | |
-|---|---|
-| the description | what to register and how to run it — the same fields `agent-bus start` already takes |
-| the config | injected into the child by environment or fd, never as a path it could read twice. Write-only ([access to the runner](#access-to-the-runner)) |
-| the code, or a link to a template | a template may be a directory with its own owner, or a symlink to where the code really lives, so the runner need not own it |
-| the credential | handed in at install; the runner does not mint it |
+Two directories hold it between them, and that split is the point
+([setup § the two accounts](09-setup.md#the-two-accounts)):
 
-The **directory name is the service name**, the way a unit file's name is. If
-the description carried one too they could disagree, so it does not.
+| | Mode | Holds |
+|---|---|---|
+| `service.d/<svc>/` | 755 | what the service **is**: the code, or a symlink to the same code elsewhere, plus `config.json` and `env.dist` |
+| `runner/<svc>/<instance>/` | 700 | what this instance is **configured with**: an `env` file, and nothing else |
 
-`templates/` is world-readable because a template is what a service *is* and
-holds no secret; `service.d/` is not, because an instance is what a service is
-*configured with* ([setup § the two accounts](09-setup.md#the-two-accounts)).
-One template with many instances is already in the naming —
+`service.d` is externally controlled — in most cases a `git clone`, and
+nothing a host should be editing by hand. So **`git pull` a service and no
+local state moves**: every decision this host made — secrets, worker counts,
+confinement, whether it runs at all — is under `runner/`.
+
+The **directory name is the service name** on both sides, and that is what
+ties the two together: `runner/mail-reader/` configures
+`service.d/mail-reader/`. No symlink and no pointer file — a name is already
+unambiguous, and a link could not carry the run options anyway. If
+`config.json` named itself too they could disagree, so it does not.
+
+One service with many instances is already in the naming —
 `template/instance-name@host` ([identity § names](01-identity.md#names)) — so
 per-user instances need no new idea.
+
+### The three env layers
+
+Configuration arrives as **environment, injected before exec** — never as a
+path the child could open. It is assembled from three files that overlay in
+one order:
+
+| | Mode | Carries | Wins |
+|---|---|---|---|
+| `service.d/<svc>/env.dist` | 755 | the declared surface: every variable the service wants, with a default for each one that is not secret | lowest |
+| `runner/<svc>/env` | 700 | what every instance of this service shares — the one API key they all use | middle |
+| `runner/<svc>/<inst>/env` | 700 | this instance's own | highest |
+
+**The more secret it is, the more it wins.** Precedence and visibility run in
+opposite directions, which is a property a reader can check rather than a rule
+to remember. What keeps it true: **`env.dist` may carry a default only for
+something that is not secret.** Anything secret is declared with no value —
+and that is exactly what makes it required.
+
+Two things fall out of declaring the surface at all:
+
+| | |
+|---|---|
+| **whether a service needs an instance** | it starts directly if `env.dist` declares nothing without a default; otherwise it needs one. Derived, so there is no second flag to disagree with |
+| **what an upload is checked against** | a declared variable still unset after the last layer is **refused** — the instance is incomplete, and starting it would fail later and worse. A variable nobody declared is **accepted and said out loud**: services grow faster than their `env.dist`, but a typo'd secret name is otherwise silent |
+
+❓ **The credential an instance registers with** is plausibly one more variable
+in its `env`, which would keep *the runner never mints one* true at no cost and
+with no special path for it. *Settled by:* owner.
 
 ## Who it runs as
 
@@ -209,19 +244,24 @@ every host at once.
 | the child died | the runner restarts it |
 | the bus is away | the client reconnects, with backoff |
 
-### Access to the runner
+### Reaching the runner
 
-**Whoever can reach the runner may install and configure instances on that
-host.** The grant is deliberately coarse — the same granularity as write
-access to a unit directory, or sudo to a service account — and it is bounded
-by the thing that matters:
+**The runner is a service on the bus**, registered as `runner`
+([glossary § names that are enforced](glossary.md#names-that-are-enforced)),
+and installing, configuring, enabling and starting are calls to it like any
+other. There is **no second ssh door and no account to be let into**: who may
+deploy on a host is the ACL on that one service
+([identity § acl](01-identity.md#acl)) — the mechanism the bus already has
+rather than a new one beside it.
 
-> runner access lets you run code on that host. It does not let you
-> impersonate a name on the bus.
+What the grant is bounded by has not changed:
+
+> deploying on a host lets you run code there. It does not let you impersonate
+> a name on the bus.
 
 An instance still has to *become* a name, and it can only become one whose
 credential it was handed. Which is why the runner is **never given the power
-to mint one** — if it could, runner access and impersonation would be the same
+to mint one** — if it could, deploy access and impersonation would be the same
 thing, and the whole split would be decorative.
 
 **Configuration is write-only.** A config goes in and is never handed back:
@@ -231,8 +271,10 @@ become root and read the file — that is the boundary, stated rather than
 worked around with a verb.
 
 The consequence worth planning for: nobody can ask the host what is deployed.
-`service.d` is a **write-only deployment target**, and the source of truth
-lives where it was installed from.
+`runner/` is a **write-only deployment target** and the source of truth lives
+where it was installed from. `service.d` is the opposite — world-readable,
+holding no secret, and usually a checkout whose source of truth is the
+repository it came from.
 
 ## Sandboxing
 
@@ -280,7 +322,7 @@ Default profile — **nothing writable but the work directory, and no network**:
 | Property | |
 |---|---|
 | `ProtectSystem=strict` | the whole filesystem read-only |
-| `ProtectHome` | `read-only` for a service published by hand, whose script usually *is* in a home. **`yes` for anything the runner starts** — its home is `service.d`, so read-only there would hand every child every other service's secrets, and the mode on the directory would be decoration |
+| `ProtectHome` | `read-only` for a service published by hand, whose script usually *is* in a home. **`yes` for anything the runner starts** — nothing it needs lives in a home, and its own secrets never reach it as a file at all ([the three env layers](#the-three-env-layers)) |
 | `PrivateTmp=yes` | its own `/tmp` |
 | `ReadWritePaths` / `BindPaths` the work dir | the one place it may write, and its working directory. Bound in, so it is reachable even when it is under the private `/tmp` |
 | `BindReadOnlyPaths` the script's own directory | the same problem from the other side: a private `/tmp` hides the script too |
