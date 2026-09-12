@@ -91,15 +91,29 @@ was built for.
 | | From | |
 |---|---|---|
 | **openrouter** | owner | generation, one name in front of many models. The router already picks the provider, so this is **one** gateway rather than one per vendor — the same reasoning that makes `apt` an adapter inside **dnf** |
+| **bedrock** | owner | generation on AWS — **beside** the router, not inside it. A different account, a different bill, and so by the rule above a different name. It also marks the line: a **backend** is chosen by the host and invisible to a caller, the way `apt` sits inside **dnf**; a **gateway** is chosen by the caller, so it is a name. One router pointed at another is a hop nobody asked for |
 | **voyage** | owner | embeddings and reranking — and a separate name from the one above, not a verb on it. **Spend is granted per name** like everything else here: embedding a corpus is cheap and answering with a frontier model is not, and a team may well be allowed the first and not the second |
 | **fetch** | proposed | a URL in, readable text out. What an agent reaches for more than anything else, and a pool case |
 
 Each of these holds an API key that **nothing calling it ever sees**, which is
 the argument this design already makes about its own tokens
 ([runner § what the child is told](08-runner-role.md#what-the-child-is-told)).
-It is also the argument for putting them on the bus at all: one place the key
-lives, one ACL over who may spend it, and one set of counters for what was
-spent ([discovery § stats](05-discovery.md#stats)).
+The account is one instance's `env` and nothing else's
+([runner § the three env layers](08-runner-role.md#the-three-env-layers)): one
+place the key lives, one ACL over who may spend it, and — because **every
+message carries a sender principal the bus verified**
+([messaging § envelope](04-messaging.md#envelope)) — counters that say *which
+consumer* spent it rather than only how much the key did.
+
+**Which is what makes them the case billing was designed for.** A gateway needs
+nothing new to be billed: the billing role records exactly the (principal,
+service) pair a gateway already sees, and asks *may this principal call this
+service* per epoch ([future § billing](future/billing.md)). Until it is turned
+on the same pair is a count and a dashboard row; after it, a cap. Splitting
+generation from embeddings **by name** rather than by verb is what makes that
+work with no new mechanism — price is declared per service, so two prices need
+two services, and the split we wanted for access turns out to be the one
+billing wanted too.
 
 ## What the catalogue is for
 

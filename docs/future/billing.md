@@ -24,7 +24,13 @@ in front of it is somebody's ordinary web site, not part of agent-bus.
 | Money | never in the core: no currency, no invoices, no card data — the `pay` service and the provider behind it own that; the core owns counting and denying |
 
 ❓ **Per-method pricing** — may a per-call price vary by method? Bodies are
-encrypted, so that needs the method name in the envelope. *Settled by:* owner.
+encrypted, so that needs the method name in the envelope. Less urgent than it
+looks: a price difference worth charging for is usually a **grant** difference
+too, and splitting it into two names prices it with the mechanism that already
+exists — generation and embeddings are two gateways for exactly that reason
+([bundled services § for the agents themselves](../13-bundled-services.md#for-the-agents-themselves)).
+What that does not cover is a price varying *within* one grant.
+*Settled by:* owner.
 
 ❓ **A newcomer with no balance cannot reach `pay`** — "no balance = call
 denied" plus "register, pay, use through the bus" needs the sign-up and payment
