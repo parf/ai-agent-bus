@@ -638,11 +638,11 @@ kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 # The default form, stated in docs/08-runner-role.md#script-services, is what
 # a service gets when it says nothing.
 abx defaulted@srv1 start defaulted@srv1 "$D/envelope.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
-DPID=$!
+NOFORMPID=$!
 for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'says no form' && break; sleep 0.2; done
 has "no form named is the json form" \
   "$(ab greeter@srv1 call defaulted@srv1 --topic t10 --wait 15s payload)" 'stdin=yes topic=t10'
-kill $DPID 2>/dev/null; wait $DPID 2>/dev/null
+kill $NOFORMPID 2>/dev/null; wait $NOFORMPID 2>/dev/null
 
 # A service can be described as JSON on stdin instead of in flags; `-3`
 # beside it still means three at a time.
@@ -1908,6 +1908,14 @@ if slow; then
   fi
 
 else skipped=$((skipped+1)); fi
+
+sec "the run stops what it started"
+# $DPID is what the exit trap kills, and this file spawns dozens of
+# short-lived things beside it. A section that reuses the name leaves the
+# daemon running, holding the port, and the *next* run is the one that fails
+# — so the last thing asked is whether the pid the trap holds is still ours.
+has "the daemon the trap will stop is the one this run started" \
+  "$(kill -0 "$DPID" 2>/dev/null && echo yes)" 'yes'
 
 sec "end"
 echo; echo "passed $pass, failed $fail"
