@@ -29,6 +29,7 @@ So a caller reading a listing needs two more things than a name:
 | **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, since the daemon started | none have |
 | **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, since then ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
 | **`oldest`** | how long the message at the head of its queue has been waiting | its queue is empty |
+| **`on`** | where its members are running — one entry per member, stated by each at registration ([where a member says it is](#where-a-member-says-it-is)) | nobody said |
 
 All of these are **live state, not registry data** — attached to an
 answer on its way out and never stored, so nothing in the registry depends on
@@ -39,6 +40,24 @@ a caller is actually asking.
 An inbox that was drained and one nobody ever wrote to both read as empty.
 `in` and `out` are what tell them apart, and they are per name: a busy bus
 does not make a quiet service look busy.
+
+### Where a member says it is
+
+**A service states its hostname at registration, as a field of its own.** It
+became necessary the moment a name stopped carrying one: a pool's realm claims
+membership rather than a location ([identity § names](01-identity.md#names)),
+which is right, and leaves *which box do I go and look at* unanswered.
+
+| | |
+|---|---|
+| **stated, never observed** | the daemon cannot see it. A unix socket has no peer host at all, and a TCP peer address is the network's opinion rather than the machine's name. So the machine says |
+| **a label, and never an input** | nothing routes, authorises or decides on it, because nothing checked it. It is for the person reading a listing at three in the morning |
+| **one entry per member, not one per name** | a pool registers one name from several places, so what is kept is a set — refreshed by the heartbeat that already says a member is alive, and gone when that member is ([health checker](#health-checker)) |
+| **not part of the identity** | the name is the identity ([identity § names](01-identity.md#names)); this is a fact about a process serving it. Keeping the two apart is the whole reason the realm stopped carrying a hostname |
+
+It is also where a **version** would go when a service can say one
+([Plans/V1](../Plans/V1/TODO.md)) — same shape, same reason: per member,
+stated, and the answer to *which of these four is the odd one out*.
 
 **Loss is per inbox, and the node's total is the sum of them.** A node-wide
 count says that something is losing work and not which name to go and look

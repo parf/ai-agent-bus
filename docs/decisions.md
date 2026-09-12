@@ -127,6 +127,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A realm is the name a daemon answers for; a hostname is only its default, so a pool may have a realm of its own | [identity § names](01-identity.md#names) |
 | A bare name is completed with the local host as a convenience that asserts nothing; a complete name is taken whole | [identity § names](01-identity.md#names) |
 | A pool is one bus — members that report to different daemons are two queues, not one service | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
+| A member states its hostname at registration: stated never observed, a label never an input, one entry per member | [discovery § where a member says it is](05-discovery.md#where-a-member-says-it-is) |
 | V2 code lives in this repo, in `src/` beside `docs/` | [stages § PoC](12-stages.md#poc) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | The daemon keeps no reply state; a client replies from what it consumed, and `reply` is sugar over the routing fields | [messaging § reply routing](04-messaging.md#reply-routing) |

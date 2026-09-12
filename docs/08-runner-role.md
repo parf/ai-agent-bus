@@ -210,6 +210,10 @@ the whole name, as a run option beside `-N` and `--share`. What to watch for is
 that **getting it wrong is silent**: a member that fell back to the default is a
 perfectly healthy service nobody ever calls.
 
+Which is also why a member **states its hostname at registration**, in a field
+of its own: the name no longer carries one, and a listing still has to answer
+*where* ([discovery § where a member says it is](05-discovery.md#where-a-member-says-it-is)).
+
 **That the members are interchangeable is the operator's promise**, and the bus
 cannot check it any more than it can check that a service does what its
 description says. Two hosts serving one name with different code, or different
