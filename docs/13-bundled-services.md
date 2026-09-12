@@ -111,14 +111,33 @@ something up beforehand is how that question goes unanswered.
 | | From | |
 |---|---|---|
 | **log** | owner | a ring per level — **warning · error · alert** — and the same lines published as they happen. `logwatch` pointed at the bus instead of at a glob |
-| **alerter** | owner | the one subscriber that turns an alert into a message somewhere a person is. It reaches the channels already in this catalogue ([people and the world outside](#people-and-the-world-outside)) rather than speaking to any of them itself |
+| **alerter** | owner | a **router**. It decides *who* to reach and *in what order*, and every actual delivery is a call to a service that already does it ([people and the world outside](#people-and-the-world-outside)) |
 
 | | |
 |---|---|
 | **one contract, not a second one** | ring for the past, topic for the future, the poll the common one — exactly what `logwatch` does and for the same reason ([reading the box](#reading-the-box)). A level is an instance of its own, so a flood of warnings cannot push the errors out of theirs |
 | **nothing new in the daemon** | the daemon already publishes its own events onto a topic — a key that does not match is written down that way today ([access § key confirmation](02-access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the service is only what **remembers** them |
-| **the alerter routes and does not judge** | what counts as an alert was decided by whoever published it. Where it goes is the instance's `env` ([runner § the three env layers](08-runner-role.md#the-three-env-layers)), so on-call and a noisy channel are two instances, which is how everything else here is granted too |
+| **the alerter delivers nothing** | it speaks no SMTP, no Telegram API, nothing. Each hop out is an ordinary call to `telegram`, `sms`, `mail` or `slack`, so a new way to reach people is a new instance of something already here and not a change to this service. An alerter that learned to send mail would be a second, worse copy of `mail` |
+| **an alert names a person, not a channel** | which is the same identity everything else uses ([identity § names](01-identity.md#names)). Turning `parf@srv1` into *telegram first, then SMS* **is** the whole job, and it is the reason this is a service rather than a rule in whoever raised the alert |
+| **the order is per person and per severity** | each principal has an ordered list of ways to reach them, and a different one per level: a warning takes the cheap channel, a page takes the one that wakes somebody. The person decides their own list, because nobody else knows which phone is on |
+| **it routes and does not judge** | the level was set by whoever published the line, and it is the level that picks the list. The alerter never re-rates a message, and never drops one for being noisy — that is the publisher's call, and silently overruling it is how an outage gets missed |
 | **a bus that is down takes the ring with it** | it is a service, and pretending otherwise would put a log inside the daemon. The journal is still the daemon's own record ([setup § the two units](09-setup.md#the-two-units)); this is for everything the bus carries, which is the part no journal sees |
+
+**Where a person's list is kept is the thing to get right.** A service
+configuration is written by *its owner, or the service itself*
+([services § configuring a template](03-services-and-topics.md#configuring-a-template)),
+and the second half is what fits: the ACL already says who may call the
+alerter, the token already says which principal is calling, so *set my own
+methods* is a call it can serve without anything new. The instance's `env`
+holds what the **host** decided — which channels exist at all — as everywhere
+else ([runner § the three env layers](08-runner-role.md#the-three-env-layers)).
+
+❓ **What the order means when a hop succeeds.** Stop at the first channel that
+accepted the message, or keep going until a **person** answers. The second is
+the one on-call actually wants and it needs an answer to come back — which the
+inbound half of every channel already carries ([rules they all
+obey](#rules-they-all-obey)), so it is a question about this service and not
+about the bus. *Settled by:* owner.
 
 ### Acting on the box
 
