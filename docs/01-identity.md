@@ -19,7 +19,7 @@ name*:
 
 | Form | Realm is | Vouched for by | Example |
 |---|---|---|---|
-| `user@host` | a specific host | that host's `agent-busd` | `parf@localhost`, `parf@om.parf.dev` |
+| `user@host` | a bus | that bus's `agent-busd` | `parf@localhost`, `parf@om.parf.dev` |
 | `user@provider` | an identity provider | the provider — name and public key | `parf@github` |
 | `user@team` | a team, a group on the AUTH server | AUTH | `parf@realmo` |
 
@@ -30,6 +30,26 @@ it was configured from:
 |---|---|---|
 | `service@host` | a standalone service, with no separate template | `claude@rdvp` |
 | `template/instance-name@host` | a service configured from a template | `imap-mail-reader/billing@rdvp` |
+
+**A realm is the name a daemon answers for, and a hostname is only its
+default.** A daemon may be told to hold others, and `image-scaler@pool1` is why:
+a service answered by processes on four hosts must be **one name**, and a name
+carrying any of those hostnames would be false for the other three
+([runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts)).
+A pool realm claims membership instead of a location, which stays true when a
+member moves.
+
+**A bare name is completed with the local host, and that completion is a
+convenience with no authority in it.** `image-scaler` becomes
+`image-scaler@<host>` so that the common case is typed the short way — it
+asserts nothing about where the process sits, and it is not what makes the name
+true. **A name that arrives complete is taken whole**: nothing appends to it,
+substitutes into it, or checks a hostname against it. So a service that wants a
+realm of its own simply says one.
+
+Everything else is unchanged — whoever vouches is still the
+daemon you are talking to, and two daemons holding one realm name is the same
+locality as two of them holding one group ([sigils](#sigils)).
 
 **Both halves are `a-z 0-9 . _ -`, and both start alphanumeric**; the local
 part may also hold `+` and `@`. Lowercase, because a name that differs only in

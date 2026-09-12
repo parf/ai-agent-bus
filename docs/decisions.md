@@ -124,6 +124,9 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | `start --share` puts a service in a pool spread over any number of hosts, passing the word `consume` already has | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
 | A name is up while any pool member is, and which member answered is nobody's business | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
 | That pool members are interchangeable is the operator's promise, not something the bus checks | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
+| A realm is the name a daemon answers for; a hostname is only its default, so a pool may have a realm of its own | [identity § names](01-identity.md#names) |
+| A bare name is completed with the local host as a convenience that asserts nothing; a complete name is taken whole | [identity § names](01-identity.md#names) |
+| A pool is one bus — members that report to different daemons are two queues, not one service | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
 | V2 code lives in this repo, in `src/` beside `docs/` | [stages § PoC](12-stages.md#poc) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | The daemon keeps no reply state; a client replies from what it consumed, and `reply` is sugar over the routing fields | [messaging § reply routing](04-messaging.md#reply-routing) |

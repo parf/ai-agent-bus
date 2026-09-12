@@ -193,6 +193,23 @@ What the local refusal was protecting, and what takes its place:
 | a reply | goes to whoever sent the message, never to the member that answered, so which one took the work is nobody's business ([messaging § reply routing](04-messaging.md#reply-routing)) |
 | what it is still not | a group, a lease or a load balancer. Nothing is remembered between reads, so a member that dies leaves nothing to clean up |
 
+#### The name a member registers
+
+Four runners left to themselves would register `image-scaler@srv1`,
+`image-scaler@srv2` and so on — four names, four inboxes, and no pool at all.
+Three rules stop that, and only the last one is new:
+
+| | |
+|---|---|
+| **a pool is one bus** | members that report to different daemons are not a pool, they are two queues with the same idea in them. So the members point their runners at the one daemon, which is the option the runner already has ([setup § the two units](09-setup.md#the-two-units)) and the edge-box arrangement ([where it runs](#where-it-runs)) |
+| **the realm is the daemon's, never the runner's host** | a runner on `srv2` reporting to the bus on `srv1` is registering into `srv1`'s realm already. Nothing about where a process sits belongs in the name it serves |
+| **so the pool is given a complete name** | `image-scaler@pool1`, a realm that daemon is told to hold. A complete name is taken whole; only a **bare** one is completed with the local host, and that completion is a convenience carrying no authority ([identity § names](01-identity.md#names)). `@srv1` would claim a location false for three members out of four; `@pool1` claims membership, which is true for all of them and survives a member moving |
+
+So a pool needs no naming machinery of its own — its members are simply given
+the whole name, as a run option beside `-N` and `--share`. What to watch for is
+that **getting it wrong is silent**: a member that fell back to the default is a
+perfectly healthy service nobody ever calls.
+
 **That the members are interchangeable is the operator's promise**, and the bus
 cannot check it any more than it can check that a service does what its
 description says. Two hosts serving one name with different code, or different
