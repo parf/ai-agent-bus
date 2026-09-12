@@ -786,6 +786,23 @@ func (b *Bus) Status() Status {
 	return s
 }
 
+// Owned lists the names this caller is answerable for: the records they own,
+// and their own name, which holds a credential whether or not anything is
+// registered under it. It is the registry half of the dashboard's my-names
+// view — the credential half is the token store's
+// (docs/05-discovery.md#what-it-shows).
+func (b *Bus) Owned(caller string) []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := []string{caller}
+	for name, r := range b.records {
+		if name != caller && r.Owner == caller {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
 // Refuse records that a call was turned away, and for what reason. The face
 // calls it because two of the kinds — a credential that is not one, and a
 // credential for a different name — are refused before core is ever reached

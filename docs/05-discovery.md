@@ -161,7 +161,7 @@ the bus debuggable by the people sharing it.
 | **registry**, as this caller may see it: kind, owner, protocol, description, `reading`/`queued`/`in`/`out`, the configuration's digest | MVP | — it is `/ls` |
 | **stuck inboxes** — a backlog with nobody reading, oldest first, marked when the queue is at its bound. The one view an incident actually needs | MVP | — `oldest` and `reading` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **exchanges** — the envelope feed grouped by topic and tag, so a request, its `ack`, its reply and its `done` are one row, and an answer past its deadline is marked late | MVP | — the feed is filtered per caller ([dashboard](#dashboard)); grouping and the late mark are the page's |
-| **my names** — what I hold a credential for, its fingerprint, when it was issued and last used, and how to rotate it | MVP | when a credential was issued, and when it was last used |
+| **my names** — what I hold a credential for, its fingerprint, when it was issued and last used, and how to rotate it | MVP | — the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)) |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | MVP | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **refusals** — how many calls were refused and why: bad credential, wrong name for it, ACL, unknown receiver, second reader, full queue | MVP | ⚠️ the counters are on `status` ([refusals](#refusals)); the short per-caller list is still to come |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | MVP | — `status` carries the unclean-restart fact |

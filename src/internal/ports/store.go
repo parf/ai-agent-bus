@@ -6,6 +6,8 @@
 // See docs/10-modules.md#the-rule.
 package ports
 
+import "time"
+
 // Credential is one principal's durable pair: the token to hand out, and the
 // one before it, which still authenticates. The store keeps them; what they
 // mean is core's business.
@@ -14,6 +16,9 @@ type Credential struct {
 	Name     string
 	Current  string
 	Previous string
+	// When this credential was minted. Durable like the token itself: a
+	// credential nobody can date is one nobody can decide to retire.
+	Issued time.Time
 }
 
 // TokenStore is the slice of the store port the design already requires

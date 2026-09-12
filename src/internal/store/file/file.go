@@ -1,5 +1,7 @@
 // Package file is the store adapter that keeps credentials in a text file:
-// one line per principal, `name current [previous]`, mode 0600. It is what
+// one line per principal, `name current [previous [issued]]`, mode 0600. A
+// principal with no previous token but a date writes `-` in its place, so
+// the fields stay positional and a line the PoC wrote still reads. It is what
 // the MVP ships while what else lives in SQLite is open
 // (docs/09-setup.md#storage) — a database is one more adapter and no change
 // anywhere else, which is the point of the port
@@ -11,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 )
@@ -38,8 +41,20 @@ func (t *Tokens) Load() ([]ports.Credential, error) {
 			out = append(out, ports.Credential{Current: f[0]})
 		case 2:
 			out = append(out, ports.Credential{Name: f[0], Current: f[1]})
-		default:
+		case 3:
 			out = append(out, ports.Credential{Name: f[0], Current: f[1], Previous: f[2]})
+		default:
+			c := ports.Credential{Name: f[0], Current: f[1], Previous: f[2]}
+			if c.Previous == "-" {
+				c.Previous = ""
+			}
+			// A date the daemon itself wrote and cannot read back means the
+			// file is not the one it left; say so rather than carry on with
+			// a credential whose other fields may be just as wrong.
+			if c.Issued, err = time.Parse(time.RFC3339Nano, f[3]); err != nil {
+				return nil, fmt.Errorf("credential file: %w", err)
+			}
+			out = append(out, c)
 		}
 	}
 	return out, nil
@@ -51,8 +66,14 @@ func (t *Tokens) Save(creds []ports.Credential) error {
 	var b strings.Builder
 	for _, c := range creds {
 		fmt.Fprintf(&b, "%s %s", c.Name, c.Current)
-		if c.Previous != "" {
-			fmt.Fprintf(&b, " %s", c.Previous)
+		switch prev := c.Previous; {
+		case !c.Issued.IsZero():
+			if prev == "" {
+				prev = "-"
+			}
+			fmt.Fprintf(&b, " %s %s", prev, c.Issued.UTC().Format(time.RFC3339Nano))
+		case prev != "":
+			fmt.Fprintf(&b, " %s", prev)
 		}
 		b.WriteByte('\n')
 	}

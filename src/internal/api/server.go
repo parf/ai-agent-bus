@@ -117,6 +117,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /ls", g(s.ls))
 	mux.HandleFunc("GET /lookup", g(s.lookup))
 	mux.HandleFunc("GET /recent", g(s.recent))
+	mux.HandleFunc("GET /names", g(s.names))
 	mux.HandleFunc("POST /subscribe", g(s.subscribe))
 	mux.HandleFunc("POST /configure", g(s.configure))
 	mux.HandleFunc("GET /config", g(s.config))
@@ -360,6 +361,14 @@ func (s *Server) enrol(w http.ResponseWriter, r *http.Request, _ protocol.Name) 
 // See docs/05-discovery.md#dashboard.
 func (s *Server) recent(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	ok(w, s.bus.Recent(caller.String()))
+}
+
+// names answers what this caller holds a credential for — their own name and
+// the records they own — each with a fingerprint rather than the credential
+// itself. Only ever your own: asking about somebody else's credentials is a
+// question with no good answer. See docs/02-access.md#token-lifetime.
+func (s *Server) names(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	ok(w, s.tokens.Holds(s.bus.Owned(caller.String())))
 }
 
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {

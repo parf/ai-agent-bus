@@ -26,7 +26,7 @@ export XDG_CACHE_HOME=$D/cache
 # to the run, or two runs would see each other's services as already running
 # — which is exactly what the mutation harness does, twenty at a time.
 export XDG_STATE_HOME=$D/state
-# A run owns PORT..PORT+11, so two of them need bases twelve apart — closer
+# A run owns PORT..PORT+14, so two of them need bases fifteen apart — closer
 # and the second finds the first's daemon, which reads as "bad token".
 PORT=${PORT:-7911}
 
@@ -473,6 +473,69 @@ has "and it is the subscriber's loss, its bound having refused it" \
   "$(ab owner@srv1 ls full-sub@srv1)" '"dropped":[1-9]'
 is_empty "not the topic's, which keeps nothing to lose" \
   "$(ab owner@srv1 ls news@srv1 | grep -o '"dropped":')"
+
+sec "a person can see what they hold a credential for, and never the credential"
+ab holder@srv1 register holder@srv1 --descr "a person" >/dev/null
+ab holder@srv1 register holder-svc@srv1 --descr "something they own" >/dev/null
+ab holder@srv1 register holder-cold@srv1 --descr "owned, never asked for" >/dev/null
+# Somebody else's name, registered here and given a credential here, so that
+# "not in mine" is checked against a name that exists and holds one. A name
+# nobody has a credential for would be dropped by the token store anyway,
+# and the check would pass whatever the registry had handed it.
+ab alice@srv1 register alice-held@srv1 --descr "hers, and it holds one" >/dev/null
+tok alice-held@srv1 >/dev/null
+# Owning a name is not holding a credential for it: one has to be asked for,
+# which is what a service's owner does before starting it.
+tok holder-svc@srv1 >/dev/null
+HTOK=$(tok holder@srv1)
+NAMES=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: holder@srv1" -H "X-Agent-Bus-Token: $HTOK" "http://unix/names")
+has "their own name is there" "$NAMES" '"name":"holder@srv1"'
+has "and a service they own, which has its own credential" "$NAMES" '"name":"holder-svc@srv1"'
+# The view answers what you hold, not what you own: a name with no credential
+# has nothing to show and is simply absent.
+is_empty "but not one they own and have never got a credential for" \
+  "$(printf '%s' "$NAMES" | grep -o 'holder-cold@srv1')"
+# The whole point of a fingerprint: it names the credential without being
+# one. A page that renders a token is a page that leaks one.
+is_empty "and the token itself is nowhere in the answer" \
+  "$(printf '%s' "$NAMES" | grep -o "$HTOK")"
+has "a fingerprint stands in for it" "$NAMES" '"fingerprint":"[0-9a-f]\{16\}"'
+has "with when it was issued" "$NAMES" '"issued":"20'
+has "and when it was last used" "$NAMES" '"used":"20'
+# Somebody else's names are not in your answer, and asking cannot be made to
+# return them: the question is always about the caller.
+is_empty "a name somebody else owns is not in mine" \
+  "$(printf '%s' "$NAMES" | grep -o 'alice-held@srv1')"
+OTHER=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: alice@srv1" -H "X-Agent-Bus-Token: $alice" "http://unix/names")
+is_empty "and mine are not in theirs" "$(printf '%s' "$OTHER" | grep -o 'holder-svc@srv1')"
+# A rotation is a new credential, so it has a new fingerprint: one that did
+# not change would say the old token still works.
+FP0=$(printf '%s' "$NAMES" | sed -n 's/.*"name":"holder@srv1","fingerprint":"\([0-9a-f]*\)".*/\1/p')
+# Straight from the rotation, not through tok(), which caches to a file and
+# would hand back the credential that has just been replaced.
+RTOK=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" holder@srv1 --rotate 2>/dev/null)
+FP1=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: holder@srv1" -H "X-Agent-Bus-Token: $RTOK" "http://unix/names" | sed -n 's/.*"name":"holder@srv1","fingerprint":"\([0-9a-f]*\)".*/\1/p')
+has "a fingerprint was read before the rotation" "$FP0" '^[0-9a-f]\{16\}$'
+has "and another after it" "$FP1" '^[0-9a-f]\{16\}$'
+is_empty "a rotated credential has a different fingerprint" \
+  "$(test "$FP0" = "$FP1" && echo same)"
+# Issued is durable, last-used is this run's (docs/02-access.md#token-lifetime).
+# A second daemon reading the same file has never seen the credential used,
+# but it must still know when it was minted.
+cp "$D/token" "$D/token3"
+mkdir -p "$D/r3"
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+14)) -socket "$D/r3/bus.sock" -token-file "$D/token3" -owner "$OWNER" -dump-file "$D/r3/dump.json" -dump-every 0 >"$D/daemon3.log" 2>&1 &
+NPID=$!
+ready "$D/r3/bus.sock" || echo "  WARNING: $D/r3/bus.sock never answered"
+has "and the issue date survives a restart" \
+  "$(curl -s --unix-socket "$D/r3/bus.sock" -H "X-Agent-Bus-User: holder@srv1" -H "X-Agent-Bus-Token: $RTOK" "http://unix/names")" '"issued":"20'
+# A principal with a date and no previous token writes a placeholder where
+# the previous one would be, so the fields stay positional. It is a hole in
+# the line, not a credential, and reading it back as one would let a single
+# character authenticate as somebody who has never rotated.
+has "and the placeholder for a missing previous is not a token" \
+  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/r3/bus.sock" -H "X-Agent-Bus-User: holder-svc@srv1" -H "X-Agent-Bus-Token: -" "http://unix/status")" '401'
+kill $NPID 2>/dev/null; wait $NPID 2>/dev/null
 
 sec "refusals are counted, and each under its own reason"
 # A bus that is quiet and one that is refusing every call look identical

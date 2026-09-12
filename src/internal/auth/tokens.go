@@ -6,10 +6,15 @@
 package auth
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -21,6 +26,13 @@ import (
 // See docs/02-access.md#token-lifetime.
 type held struct {
 	current, previous string
+	// When it was minted, and when it was last accepted. Issued is durable;
+	// used is this run's, like uptime and the envelope feed — writing the
+	// store on every authenticated call would put a disk write on the hot
+	// path to record something nobody reads more than once a day.
+	// See docs/02-access.md#token-lifetime.
+	issued time.Time
+	used   *atomic.Int64 // unix nanoseconds; zero means not yet, this run
 }
 
 // Tokens is the whole credential store, in memory over a store port: what
@@ -55,7 +67,7 @@ func Load(store ports.TokenStore, owner string) (*Tokens, error) {
 			}
 			name = n.String()
 		}
-		t.keep(name, held{current: c.Current, previous: c.Previous})
+		t.keep(name, held{current: c.Current, previous: c.Previous, issued: c.Issued})
 	}
 	if _, has := t.tok[me.String()]; has {
 		return t, nil
@@ -76,6 +88,11 @@ func (t *Tokens) Principal(token string) (string, bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	who, ok := t.who[token]
+	if ok {
+		if h := t.tok[who]; h.used != nil {
+			h.used.Store(time.Now().UnixNano())
+		}
+	}
 	return who, ok
 }
 
@@ -117,7 +134,10 @@ func (t *Tokens) mint(name string, was held) (string, error) {
 	if _, err := rand.Read(raw[:]); err != nil {
 		return "", err
 	}
-	fresh := held{current: hex.EncodeToString(raw[:]), previous: was.current}
+	fresh := held{
+		current: hex.EncodeToString(raw[:]), previous: was.current,
+		issued: time.Now(), used: &atomic.Int64{},
+	}
 	t.keep(name, fresh)
 	if err := t.save(); err != nil {
 		// A credential that was not written down is one a restart forgets,
@@ -141,11 +161,59 @@ func (t *Tokens) keep(name string, h held) {
 		delete(t.tok, name)
 		return
 	}
+	if h.used == nil {
+		h.used = &atomic.Int64{}
+	}
 	t.tok[name] = h
 	t.who[h.current] = name
 	if h.previous != "" {
 		t.who[h.previous] = name
 	}
+}
+
+// Held is what a person may be told about one of their own credentials. The
+// token itself is never in it: a page that renders a credential is a page
+// that leaks one (docs/05-discovery.md#rules-it-is-built-to).
+type Held struct {
+	Name        string    `json:"name"`
+	Fingerprint string    `json:"fingerprint"`
+	Issued      time.Time `json:"issued,omitempty"`
+	Used        time.Time `json:"used,omitempty"` // this run's; absent until it is used
+}
+
+// Fingerprint names a credential without being one. Keyed, so that a leaked
+// fingerprint cannot be checked against a guessed token — an unkeyed digest
+// of a 24-byte secret is safe by size alone, and relying on that is the kind
+// of reasoning that stops being true when the secret gets shorter.
+func fingerprint(token string) string {
+	sum := hmac.New(sha256.New, []byte("agent-bus credential fingerprint"))
+	sum.Write([]byte(token))
+	return hex.EncodeToString(sum.Sum(nil))[:16]
+}
+
+// Holds answers, for each name given, what that name's credential looks like
+// from outside. Names with no credential are simply absent — the caller asks
+// about the names it owns, and owning one does not mean holding one.
+// See docs/02-access.md#token-lifetime.
+func (t *Tokens) Holds(names []string) []Held {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	out := make([]Held, 0, len(names))
+	for _, n := range names {
+		h, has := t.tok[n]
+		if !has {
+			continue
+		}
+		held := Held{Name: n, Fingerprint: fingerprint(h.current), Issued: h.issued}
+		if h.used != nil {
+			if ns := h.used.Load(); ns > 0 {
+				held.Used = time.Unix(0, ns)
+			}
+		}
+		out = append(out, held)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
 }
 
 // save hands the whole set to the store. Writing all of it every time is
@@ -154,7 +222,9 @@ func (t *Tokens) keep(name string, h held) {
 func (t *Tokens) save() error {
 	creds := make([]ports.Credential, 0, len(t.tok))
 	for name, h := range t.tok {
-		creds = append(creds, ports.Credential{Name: name, Current: h.current, Previous: h.previous})
+		creds = append(creds, ports.Credential{
+			Name: name, Current: h.current, Previous: h.previous, Issued: h.issued,
+		})
 	}
 	return t.store.Save(creds)
 }

@@ -47,6 +47,7 @@ All 2026-09-09 unless noted.
 | The daemon's owner may get a credential for any name; anyone else only for one they own | [access § getting a token](02-access.md#getting-a-token) |
 | One socket per local account supplies both parameters; `status` says which name it used | [access § local socket](02-access.md#local-socket) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
+| When a credential was issued is durable; when it was last used is this run's | [access § token lifetime](02-access.md#token-lifetime) |
 | A credential's issue date is durable and its last use is this run's | [access § token lifetime](02-access.md#token-lifetime) |
 | A record that owns itself is a person, so nothing carries a separate flag saying so | [identity § ownership](01-identity.md#ownership) |
 | Credentials persist behind the store port, in a text file until the database is chosen | [setup § storage](09-setup.md#storage) |

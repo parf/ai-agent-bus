@@ -85,6 +85,7 @@ template](03-services-and-topics.md#service-and-template)).
 |---|---|
 | A token **survives a restart** — it is saved, not held in memory | a token is the `access_key` a session key derives from ([encrypted sessions](#encrypted-sessions)). Queues survive a restart too ([messaging § durability](04-messaging.md#durability)), so if the token did not, the reloaded backlog would be ciphertext nobody can read |
 | The **previous token is kept alongside the current one** | a refresh must not strand messages already queued under the old one. Two are accepted; the one before that is dropped |
+| **When a token was issued is kept; when it was last used is not** | the date is written down beside the token, so a credential that has been sitting unrotated for a year still says so after a restart. A *use* is not written down: recording one would put a disk write on the hot path of every authenticated call, and last-used is live state like uptime — true of this run and gone with it |
 | **Local default: never expires** | there is nothing to rotate against — the socket's owner is the identity, and the OS already gates it |
 | Other sources expire by policy | a remote token lives until refreshed or revoked unless the node sets a shorter life |
 
