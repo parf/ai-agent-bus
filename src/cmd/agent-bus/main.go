@@ -397,7 +397,8 @@ func topic(args []string) error {
 }
 
 // publish is a send to a topic. A publisher need not be a registered service
-// — it only needs a name and a token. See docs/12-stages.md#poc.
+// — a token is the whole of what it needs.
+// See docs/03-services-and-topics.md#topics.
 func publish(args []string) error {
 	pos, flags := split(args)
 	if flags["topic"] == "" || len(pos) == 0 {
@@ -477,8 +478,8 @@ func reply(args []string) error {
 }
 
 // registered says whether a name already has a record. `ls` is the discovery
-// verb and PoC lists are small, so this is one GET rather than an endpoint of
-// its own.
+// verb and lists are small, so this is one GET rather than an endpoint of its
+// own.
 func registered(name string) (bool, error) {
 	if _, err := protocol.ParseName(name); err != nil {
 		return false, err

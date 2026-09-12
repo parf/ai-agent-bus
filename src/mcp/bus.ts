@@ -100,8 +100,8 @@ export class Bus {
 
   // A send that fails after the request left is not a send that did not
   // happen. The daemon does not deduplicate, so the caller is told the
-  // outcome is unknown rather than invited to resend
-  // (docs/12-stages.md#poc: no persistence, no retries).
+  // outcome is unknown rather than invited to resend: there are no retries
+  // here, and a resend would be a second message.
   async send(msg: { to: string; body: string; topic?: string; tag?: string; receipt?: string; re?: string }): Promise<Envelope> {
     try {
       return await this.#call("POST", "/send", msg);
@@ -123,7 +123,7 @@ export class Bus {
 
 // A session that was launched by a plugin manifest cannot be told its own
 // name, so it derives one: runtime plus where it is working, which is how a
-// human refers to a session anyway. V1 names its channels the same way.
+// human refers to a session anyway. The NATS version names channels the same way.
 // The rule is docs/01-identity.md#names — a-z0-9._- either side, 64 total.
 export function defaultName(env: NodeJS.ProcessEnv = process.env): string {
   const realm = slug(env.AGENT_BUS_REALM || hostname());

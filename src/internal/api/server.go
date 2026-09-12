@@ -367,8 +367,9 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 // decided here so that every face gets the same answer:
 //
 //   - `topic` alone, naming a **registered topic** → read that topic's inbox.
-//     A queue topic is an inbox with a name (docs/12-stages.md#poc), and
-//     there is one reader of it like any other inbox.
+//     A queue topic is an inbox with a name
+//     (docs/03-services-and-topics.md#topics), and there is one reader of it
+//     like any other inbox.
 //   - otherwise `topic` and `tag` **filter the caller's own inbox** — the
 //     wait a reply is collected on (docs/04-messaging.md#request-and-reply).
 //

@@ -18,8 +18,8 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// PoC bounds. A queue that grows without limit is a memory leak with a
-// friendly name. What happens at the bound is the receiver's choice, and it
+// Bounds. A queue that grows without limit is a memory leak with a friendly
+// name. What happens at the bound is the receiver's choice, and it
 // refuses unless it asked for a ring — see docs/04-messaging.md#overflow.
 const maxQueue = 1000
 

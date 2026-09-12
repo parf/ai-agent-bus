@@ -251,7 +251,7 @@ document owns what.
 
 | Area | State |
 |---|---|
-| Design docs | ✅ settled decisions recorded, newest the runner split; open items listed in [decisions](docs/decisions.md) |
+| Design docs | ✅ settled decisions recorded; open items listed in [decisions](docs/decisions.md) |
 | Plan | [Plans/MVP/](Plans/MVP/TODO.md) — waves, blockers and what counts as done; [Plans/PoC/](Plans/PoC/TODO.md) is the finished stage |
 | Code | [`src/`](src/) — the PoC is complete, with a smoke suite. Build order is [PoC → MVP → Release 1](docs/12-stages.md); Go inside, bun for the MCP face and the push adapters; client libs for Go, PHP, Rust, JS, Python |
 | V1 | runs in production on a broker |

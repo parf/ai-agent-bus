@@ -21,8 +21,9 @@ import (
 )
 
 func runSupervisor(c config) {
-	// Plaintext bodies and a master token: loopback or an SSH tunnel, never a
-	// public interface. See docs/12-stages.md#poc.
+	// Bodies are plaintext until Release 1, so loopback or an SSH tunnel,
+	// never a public interface.
+	// See docs/02-access.md#encrypted-sessions.
 	if err := loopbackOnly(c.addr); err != nil {
 		log.Fatal(err)
 	}

@@ -4,9 +4,8 @@
 // spawns the script per message, and the script's stdout is the reply. That
 // is the whole contract (docs/08-runner-role.md#script-services).
 //
-// What it adds to the PoC's version is confinement and a handle: each script
-// gets one work directory it may write to, is confined when it asks to be,
-// and leaves a note that `stop` and `logs` read (service.go).
+// Each script gets one work directory it may write to, is confined when it
+// asks to be, and leaves a note that `stop` and `logs` read (service.go).
 // Supervision — timeouts, restart with backoff — is still the runner proper.
 package main
 

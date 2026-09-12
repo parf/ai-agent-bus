@@ -2,8 +2,7 @@
 // message reaches it as notifications/claude/channel, with enough metadata to
 // answer it. The peer here is the Bus class itself — no second process needed.
 //
-// The Codex mode cannot be smoked without a live Codex session; that one is
-// the by-hand criterion (Plans/PoC/TODO.md: B).
+// The Codex mode has its own, smoke-codex.ts, against its own App Server.
 
 import { Bus } from "./bus.ts";
 import { Pending, drain, lines } from "./rpc.ts";

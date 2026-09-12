@@ -202,9 +202,9 @@ const (
 	OverflowRing   = "ring"   // drop the oldest to make room
 )
 
-// Topic kinds. A queue topic is an inbox with a name; pub/sub is MVP, and
-// PoC stores the mode rather than inventing a second meaning of subscription.
-// See docs/12-stages.md#poc.
+// Topic kinds. A queue topic is an inbox with a name, and the mode is stored
+// rather than a second meaning of subscription being invented.
+// See docs/03-services-and-topics.md#topics.
 const (
 	KindTopic  = "topic"
 	ModeQueue  = "queue"

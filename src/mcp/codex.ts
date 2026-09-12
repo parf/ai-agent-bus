@@ -121,8 +121,7 @@ export class Codex {
 
   // Newest thread for this directory, or a fresh one. Chosen once and kept:
   // following a person who opens a *new* session in the same directory would
-  // need V1's re-selection machinery; PoC says restart the face
-  // (Plans/PoC/DONE.md: B).
+  // need re-selection machinery nobody has asked for. Restart the face.
   async #ensureThread(): Promise<void> {
     if (this.#thread) return;
     const listed = await this.#request<{ data?: Thread[] }>("thread/list", {

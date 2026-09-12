@@ -70,7 +70,8 @@ App Server** is the whole question.
 
 A `codex app-server` the face starts for itself is a *second process*. It can
 resume a thread's saved history, but steering it does not reach the session
-somebody is typing in. V1 solved this by topology (`/rd/bin/ai-codex`): one
+somebody is typing in. V1 — the NATS system at `/rd/service/agent-bus/`, and
+every mention of it on this page — solved this by topology (`/rd/bin/ai-codex`): one
 App Server, the TUI attached to it, the notifier attached to the same one.
 
 Same shape here — and for Codex it is **two processes under one name**:

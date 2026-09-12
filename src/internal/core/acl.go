@@ -31,7 +31,7 @@ func (b *Bus) may(caller string, r protocol.Record) bool {
 		return true
 	}
 	// No entry of its own is not a refusal: nothing has said no yet, and
-	// with no master ACL configured that is the open bus the PoC had.
+	// with no master ACL configured that is an open bus.
 	if len(r.Allow) == 0 {
 		return true
 	}
