@@ -639,6 +639,15 @@ has "json gets the envelope on stdin and in the environment" \
   "$(ab greeter@srv1 call envelope@srv1 --topic t9 --wait 15s payload)" 'stdin=yes topic=t9 from=greeter@srv1'
 kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 
+# The default form, stated in docs/08-runner-role.md#script-services, is what
+# a service gets when it says nothing.
+abx defaulted@srv1 start defaulted@srv1 "$D/envelope.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
+DPID=$!
+for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'says no form' && break; sleep 0.2; done
+has "no form named is the json form" \
+  "$(ab greeter@srv1 call defaulted@srv1 --topic t10 --wait 15s payload)" 'stdin=yes topic=t10'
+kill $DPID 2>/dev/null; wait $DPID 2>/dev/null
+
 # A service can be described as JSON on stdin instead of in flags; `-3`
 # beside it still means three at a time.
 echo "{\"name\":\"fromfile@srv1\",\"algo\":\"args\",\"script\":\"$D/hello-world.sh\",\"descr\":\"from a file\"}" \
@@ -1316,7 +1325,7 @@ sec "--wait is the caller's deadline, not just the daemon's"
 bun -e "Bun.serve({port:$((PORT+3)),async fetch(r){const u=new URL(r.url);
   if(u.pathname==='/consume'){await Bun.sleep(30000);return new Response('{}');}
   if(u.pathname==='/ls')return new Response('[]');
-  if(u.pathname==='/status')return new Response('{"you":"impatient@srv1"}');
+  if(u.pathname==='/status')return new Response('{\"you\":\"impatient@srv1\"}');
   return new Response('{}');}})" >/dev/null 2>&1 &
 MPID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+3))/ls" && break; sleep 0.2; done

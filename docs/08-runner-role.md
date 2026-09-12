@@ -121,12 +121,6 @@ one, which is the same reason `jsonl` keeps its process.
 `args` and `json` are the MVP. `std`, `jsonl` and `msgpack` arrive in
 [Release 1](12-stages.md#release-1).
 
-⚠️ **`std` is a renamed name, not a new one.** It meant the envelope until this
-was written, and it will mean the raw body — so it must **never** be kept as an
-alias for `json`: a script that says `--algo=std` has to be refused in between
-rather than quietly changing behaviour under it. An unknown form is already an
-error and not a default, which is what makes that safe.
-
 All five forms also get the envelope in the environment — sender, topic, tag,
 `message_id` — so a script that cares can route on it, and one that does not
 can ignore it ([messaging § envelope](04-messaging.md#envelope)).
