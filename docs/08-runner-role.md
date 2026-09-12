@@ -134,9 +134,26 @@ is still queued for whatever reads that inbox next.
 
 ## What an instance is
 
-A directory, and the directory being there **is** the desired state — no
-catalogue, no separate list of what to start. The registry already answers
-what exists and what is alive; the runner answers only what should be up.
+A directory — and the directory being there is the **installed** state, not
+the running one. It says the instance exists and is configured, and nothing
+more.
+
+Three states, each with exactly one home, the way systemd splits them:
+
+| State | Where it lives | Verb |
+|---|---|---|
+| **installed** | the directory | the upload that creates it |
+| **enabled** | an entry in `autostart.json`, in the runner's home ([setup § the two accounts](09-setup.md#the-two-accounts)) | `enable` / `disable` |
+| **running** | neither — it is a process | `start` / `stop` |
+
+A list exists because the runner needs one: **at start it has to know what to
+bring up and how many of each**, without walking a tree, and an on-demand
+service has to be declared somewhere it is not auto-started from. A directory
+with no entry is *staged and not started* — how an instance is put in place
+before it is turned on, and what `disable` leaves behind.
+
+The registry still answers what exists and what is alive; the runner answers
+only what should be up.
 
 | In `service.d/<name>/` | |
 |---|---|

@@ -140,7 +140,7 @@ All 2026-09-09 unless noted.
 | A service's credential is handed to the runner at install; the runner may never mint one | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
 | Configuration is write-only: it is never handed back | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
 | A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](08-runner-role.md#where-it-runs) |
-| An instance is a directory, and the directory being there is the desired state | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
+| A directory is the installed state; installed, enabled and running are three states with one home each | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | The runner has no `reload`; a graceful restart already loses nothing | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | The verb is `start`, never `run` | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | The runner is `agent-bus-runner` as a program and an account, and `runner` on the bus | [glossary § names that are enforced](glossary.md#names-that-are-enforced) |
@@ -211,6 +211,7 @@ All 2026-09-09 unless noted.
 
 | Was | Now |
 |---|---|
+| The directory being there is the desired state, and there is no catalogue | it is the *installed* state; what should be **up**, and how many, is a list the runner reads at start — [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | The runner is one of the supervisor's children, and the only one that may exec | it is outside the daemon entirely, under its own account, so nothing the daemon starts execs at all — [processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |
 | The daemon's system account is `agent-bus` | `agent-busd`, so the account and the CLI are not the same word — [setup § the two accounts](09-setup.md#the-two-accounts) |
 | The setup user gets the `agent-bus-admin` role | they hold master, and the name is the operator's program instead — [setup § the five programs](09-setup.md#the-five-programs) |
