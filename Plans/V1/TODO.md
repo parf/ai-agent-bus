@@ -47,6 +47,8 @@ restated in any more detail than that.
 | secrets | sealed private config |
 | credentials | per-principal-per-service tokens, replacing the MVP's master token |
 | **the runner** | `agent-bus-runner`: its own account, installed instances under `runner/`, write-only configuration, autostart and restart policy, on-demand start |
+| script forms | `std` bytes on stdin; `jsonl` and `msgpack`, a child kept across messages with a deadline and `reload` |
+| service pools | `start --share`: one name over many hosts, its members given a complete name in a realm the daemon holds |
 | **the runner's page** | the dashboard drives a runner: everything it manages, separated into installed · enabled · running, the verbs on each, and installing a new instance from the browser — the first page with controls on it, and they post as the person ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)) |
 | encryption | AEAD sessions, bodies end to end |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified |

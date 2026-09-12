@@ -115,12 +115,12 @@ message that bounces later.
 
 | ID | Task | Notes |
 |---|---|---|
-| B.1 | ✅ _done_ — a token backs one principal and the daemon refuses a request that states another, saying whose token it is ([access § what a call carries](../../docs/02-access.md#what-a-call-carries)). The socket half of that ⚠️ is B.2's |
-| B.2 | ✅ _done_ — one socket per mapped account, supplying both parameters; a name stated on somebody else's socket is refused ([access § local socket](../../docs/02-access.md#local-socket)). It takes the declared-violation route: the daemon chowns its own sockets and says so when it cannot, and G.1 retires that ([processes § why the supervisor holds CAP_CHOWN](../../docs/11-processes.md#why-the-supervisor-holds-cap_chown)) |
+| B.1 | ⚠️ _done, and since superseded_ — a token backs one principal and the daemon refuses a request that states another, saying whose token it is. That is what was built; the design has since dropped the name from the wire entirely, so what survives is *a token backs one principal* and the refusal goes ([access § what a call carries](../../docs/02-access.md#what-a-call-carries)). The code still does the old thing |
+| B.2 | ⚠️ _done, and half superseded_ — one socket per mapped account, which supplies the caller; the *name stated on somebody else's socket is refused* half goes with B.1, since no name is stated ([access § local socket](../../docs/02-access.md#local-socket)). It takes the declared-violation route: the daemon chowns its own sockets and says so when it cannot, and G.1 retires that ([processes § why the supervisor holds CAP_CHOWN](../../docs/11-processes.md#why-the-supervisor-holds-cap_chown)) |
 | B.3 | ✅ _done_ — issued, rotated and durable: `--rotate` demotes the current token to previous, both authenticate, the one before them stops, and a restart keeps the pair ([access § token lifetime](../../docs/02-access.md#token-lifetime)) |
 | B.4 | ✅ _done_ — credentials sit behind the `store` port with a text-file adapter, and the layer rule is checked both ways: nothing inward names an adapter, and the process that assembles them does ([modules § the rule](../../docs/10-modules.md#the-rule)). What *else* the store holds is still the blocker ([setup § storage](../../docs/09-setup.md#storage)) |
 | B.5 | ✅ _done_ — the principal is an argument of the forced command, so the key a person holds picks the line and they cannot ask for another ([access § getting a token](../../docs/02-access.md#getting-a-token)) |
-| B.6 | ✅ _done_ — both clients carry a name **and its own token**; the runner swaps both when it becomes the service, and the MCP face can mint one for a name it may have |
+| B.6 | ⚠️ _done, and since narrowed_ — both clients carry a name **and its own token**; the runner swaps both when it becomes the service, and the MCP face can mint one for a name it may have. Only the token is the credential now, so the name it carries beside it is for its own use ([access § what a call carries](../../docs/02-access.md#what-a-call-carries)) |
 | B.7 | ✅ _done_ — re-registering somebody else's record is refused, and told whose it is; the record itself may still refresh its own ([identity § ownership](../../docs/01-identity.md#ownership)). Claiming an unheld name stays open — that half is B.8's |
 | B.8 | ✅ _done_ — the `directory` port fetches and nothing else; the proof is a step of its own, verified with the host's `ssh-keygen` ([identity § proving possession](../../docs/01-identity.md#proving-possession)). A vouched realm can only be enrolled into, and the record is its own owner — which is the half of the name-claiming hole that could be closed. Manual (a keys file) and GitHub are two adapters |
 | B.9 | ✅ _done_ — every name in the suite has its own credential, minted from the owner on first use; there is no shared token left to bypass with |
@@ -128,13 +128,16 @@ message that bounces later.
 
 **Done when**, and what breaking it must do:
 
-- a request on Alice's socket that *claims* to be Bob is refused, and so is a
-  remote one whose token belongs to someone else — removing the binding turns
-  both red. The face overwriting `from` inside one request does not pass this:
-  the forgery to catch is a whole request made under the wrong name. "A token
-  survives a restart" is **not** a check either — the PoC already passes it,
-  though *every principal* surviving one is new and is checked.
-  ⚠️ The remote half is done; the socket half waits on B.2;
+- ⚠️ **this criterion is superseded and its checks come out with B.1.** It read:
+  *a request on Alice's socket that claims to be Bob is refused, and so is a
+  remote one whose token belongs to someone else.* No name is stated now, so
+  there is nothing to claim ([access § what a call
+  carries](../../docs/02-access.md#what-a-call-carries)); what replaces it is
+  **a token alone, with no name anywhere, acts as its principal** — and that
+  replacement has to be watched failing before it is believed, the same as
+  anything else here. "A token survives a restart" is **not** a check either —
+  the PoC already passes it, though *every principal* surviving one is new and
+  is checked;
 - issue, rotate, restart: the current and the previous token both work, the one
   before that is refused;
 - Alice cannot re-register Bob's name, and cannot change its address while it

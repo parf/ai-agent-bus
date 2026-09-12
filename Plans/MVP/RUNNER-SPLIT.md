@@ -63,7 +63,7 @@ replaced by one that does not need the rule.**
 | ❓ | Where it waits |
 |---|---|
 | how a dormant name is woken, and what the daemon has to learn to do it | [runner § what an instance is](../../docs/08-runner-role.md#what-an-instance-is) — Release 1 |
-| whether `reload` survives for a long-running child that can take `SIGHUP` | [runner § what the runner does](../../docs/08-runner-role.md#what-the-runner-does) |
+| whether one kept child may have several messages in flight | [runner § long-lived services](../../docs/08-runner-role.md#long-lived-services) — Release 1 |
 
 The environment a child is told about is **deliberately not closed** — it is
 what the child is serving rather than who it is, and it will grow when
