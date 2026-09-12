@@ -119,9 +119,8 @@ one, which is the same reason `jsonl` keeps its process.
 `args` and `json` are the MVP. `std`, `jsonl` and `msgpack` arrive in
 [Release 1](12-stages.md#release-1).
 
-All five forms also get the envelope in the environment — sender, topic, tag,
-`message_id` — so a script that cares can route on it
-([messaging § envelope](04-messaging.md#envelope)).
+All five forms also get the envelope in the environment, so a script that
+cares can route on it ([what the child is told](#what-the-child-is-told)).
 
 | Rule | |
 |---|---|
@@ -379,10 +378,11 @@ already stops it collecting anybody else's
 ([access § getting a token](02-access.md#getting-a-token)). It is never given
 the power to mint one.
 
-What a child *is* told is **what it is serving** rather than who it is:
-`topic` and `tag` reach it as environment. The set is deliberately not closed —
-it will grow when services are actually being written, and this is where it is
-recorded when it does.
+What a child *is* told is **what it is serving** rather than who it is: the
+envelope reaches it as environment — sender, `topic`, `tag`, `message_id`
+([messaging § envelope](04-messaging.md#envelope)). The set is deliberately not
+closed — it will grow when services are actually being written, and this is
+where it is recorded when it does.
 
 ### The list of what is installed
 
