@@ -169,6 +169,30 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **clickhouse** | owner | analytics. Querying and ingesting are two names, as everywhere — they are rarely the same grant |
 | **object storage** | proposed | S3 and what speaks it. **files** for a disk, this for a bucket |
 
+**What `kv` provides**, and it is **redis's shape on purpose** — proven,
+familiar, and every language already thinks in it:
+
+| | |
+|---|---|
+| **values** | `get` and `set`, with a **ttl** per key |
+| **atomics** | `incBy` (one by default), `and` · `or` · `xor`, and **`cas`** — compare-and-swap is the one that lets a caller be safe without taking a lock at all |
+| **hashes** | a hash, and a **hash of hashes** |
+| **lists** | as a queue or as a deque, each operation in a **blocking and a non-blocking** form — and the redis **pull-push**: take from one list and put it on another in one step, which is what makes a worker queue survive the worker |
+| **hash of lists** | many named lists under one key |
+
+| | |
+|---|---|
+| **blocking is why this is a service and not a file** | a lock-free `set` is something any script could do to a file it shares. Waiting on an empty list is not, and it is the whole reason a pool reaches for one of these |
+| **`cas` and `pull-push` are the two that claim work** | between them, *exactly one worker takes this item* needs no lock — which is the batcher case, and worth knowing before reaching for one ([messaging § shared locks](04-messaging.md#shared-locks)) |
+| **it is ours, so it stays small** | anything past this list is redis, and redis is already in the table above. Ours exists for the case where a dependency is not wanted, and it stops being that the moment it chases the feature list |
+
+❓ **A hash of locks.** Asked for, and the one item here that would be a
+**second lock authority**: the daemon grants named locks as of Release 1
+([messaging § shared locks](04-messaging.md#shared-locks)), and two things
+granting locks is exactly what that section argues against. Either these *are*
+the daemon's locks under a name, or the kv holds them itself and then a `kv`
+that is a **pool** cannot be correct. *Settled by:* owner.
+
 ### Other buses
 
 | | From | |

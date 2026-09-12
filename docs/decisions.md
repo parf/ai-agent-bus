@@ -157,6 +157,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | No layer of ours between a caller and a tool: a retry or a cache is a service with its own name | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
 | The alerter is a router: it delivers nothing itself, an alert names a person, and the ordered list of ways to reach them is that person's and per severity | [bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself) |
 | The alerter's order is a fallback chain that stops at the first success, where a refusal and a silence both count as not reached | [bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself) |
+| `kv` is redis-shaped on purpose — values with a ttl, atomics and `cas`, hashes, lists with blocking forms and pull-push — and stops there, because past that list is redis | [bundled services § data](13-bundled-services.md#data) |
 | The image is one image and two containers, because the two accounts are two secret domains | [stages § the image](12-stages.md#the-image) |
 | The image ships the catalogue installed and enables only the reading half, using installed-not-enabled for what it is for | [stages § the image](12-stages.md#the-image) |
 | `logwatch` keeps a bounded ring of cleaned lines per glob set, answers for the past and publishes the future, and makes the globs the grant | [bundled services § reading the box](13-bundled-services.md#reading-the-box) |
@@ -279,6 +280,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Whether a service holds a key of its own, and where shared secrets and a locking KV live | owner, after Release 1.1 | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
 | Whether the daemon's own parts — dashboard, health, stats — become bundled services rather than supervisor children | owner, once the catalogue is real | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
+| Whether `kv`'s hash of locks is the daemon's locks under a name, or a second authority | owner | [bundled services § data](13-bundled-services.md#data) |
 
 ## Superseded
 
