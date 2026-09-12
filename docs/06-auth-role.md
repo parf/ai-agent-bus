@@ -72,7 +72,7 @@ immediate effect on *new* sessions; live sessions are not torn down.
 
 ## SSH admin
 
-`agent-busd` runs as the dedicated `agent-bus` user: nologin shell, no sudo,
+`agent-busd` runs as the dedicated `agent-busd` user: nologin shell, no sudo,
 home 0700. Admins SSH in with their own keys; identity is bound to the key; the
 forced command is **`agent-bus-admin`**, the same program an operator runs on
 the console ([setup § the five programs](09-setup.md#the-five-programs)), so
@@ -97,7 +97,7 @@ there is one grammar and one set of rules rather than two.
 - **Break-glass is root on the box** — it can always edit `authorized_keys` or
   the bundle pointer by hand. No separate offline admin key.
 - Master→slave sync may itself run over SSH with a `replica-sync` forced command.
-- Test the lockdown: `ssh agent-bus@host bash`, `-L`, `-A`, `-t` must all fail.
+- Test the lockdown: `ssh agent-busd@host bash`, `-L`, `-A`, `-t` must all fail.
 
 ❓ **`authorized_keys` is regenerated from the bundle each generation**, which
 would drop the key `agent-bus-setup` installed for issuing tokens

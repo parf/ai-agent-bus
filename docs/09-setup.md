@@ -8,14 +8,14 @@ user needs is neither.
 
 | Program | Runs as | What it is for |
 |---|---|---|
-| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the `agent-bus` account and its home, chowns it, writes and enables the unit, then hands over to `agent-bus-admin` for the first user |
-| `agent-bus-admin` | the **`agent-bus` account**; re-runs itself under `sudo -u agent-bus` when it is not | everything that edits what lives in the home — `user add`, `user list`, `user remove` today — plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
+| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the **two accounts** ([the two accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the unit, then hands over to `agent-bus-admin` for the first user |
+| `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | everything that edits what lives in the home — `user add`, `user list`, `user remove` today — plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
-| `agent-busd` | the **`agent-bus` account**, started by the unit | the daemon: a supervisor and its children ([processes](11-processes.md)) |
+| `agent-busd` | the **`agent-busd` account**, started by the unit | the daemon: a supervisor and its children ([processes](11-processes.md)) |
 
 **Reaching a node over SSH runs one of these, never a shell.** Every key lives
-in the `agent-bus` account's `authorized_keys` behind a forced command, and
+in the `agent-busd` account's `authorized_keys` behind a forced command, and
 which command is what separates an operator from everybody else
 ([AUTH role § SSH admin](06-auth-role.md#ssh-admin)):
 
@@ -24,19 +24,19 @@ which command is what separates an operator from everybody else
 | `command="…/agent-bus-token"` | `token <name>`, and nothing else |
 | `command="…/agent-bus-admin <admin>"` | the admin grammar, **and the same `token <name>`** |
 
-**`ssh agent-bus@<host> token <name>` answers the same however the key is
+**`ssh agent-busd@<host> token <name>` answers the same however the key is
 listed.** An operator's line is a superset, not a different path: the token
 half is one piece of code both programs call, so nobody has two ways to get a
 credential. What an operator's line adds is verbs — and a user who only ever
 needs a token never reaches the admin program at all.
 
 Administering a node from across the network and from its own console are
-likewise one program: `ssh agent-bus@<host> <args>` and
-`sudo -u agent-bus agent-bus-admin <args>` are the same thing.
+likewise one program: `ssh agent-busd@<host> <args>` and
+`sudo -u agent-busd agent-bus-admin <args>` are the same thing.
 
 ❓ **Editing the ACL and the user-to-account map** needs somewhere to edit
 them: today both are the daemon's command line, written once by the unit
-([the service account](#the-service-account)). A file the daemon re-reads is a
+([the two accounts](#the-two-accounts)). A file the daemon re-reads is a
 shape nobody has asked for yet. *Settled by:* owner.
 
 ## Install
@@ -44,7 +44,7 @@ shape nobody has asked for yet. *Settled by:* owner.
 | Step | What happens |
 |---|---|
 | `npm install -g agent-bus` (or `pnpm`) | one package brings all five ([the five programs](#the-five-programs)) |
-| `sudo agent-bus-setup` | creates the **`agent-bus` system user**, asks the two questions below, writes the config and the unit, and starts it. **No keys.** |
+| `sudo agent-bus-setup` | creates the **two system users**, asks the two questions below, writes the config and the unit, and starts it. **No keys.** |
 | the first user | `agent-bus-setup` calls `agent-bus-admin` with the installer's own public key, which is what puts a line in that account's `authorized_keys`. It does not learn a second way to write that file |
 
 `agent-busd` and the CLI are Go; the MCP face and the push adapters are bun —
@@ -104,33 +104,52 @@ records, queues and stats are Parquet, tokens are durable. *Settled by:* owner.
 Zero-downtime reload for `agent-busd` itself via socket inheritance
 (`cloudflare/tableflip`-style); 2× RAM during the overlap.
 
-## The service account
+## The two accounts
 
 **`agent-bus-setup` installs the separate-user arrangement**, not the
 personal one — the two are [runner § who it runs as](08-runner-role.md#who-it-runs-as),
 and an install that serves more than its installer has to be the first. It is
-the one program that needs root, and it needs it once; nothing the daemon does
-afterwards runs as root.
+the one program that needs root, and it needs it once; nothing runs as root
+afterwards.
 
-Its home is **`/var/lib/agent-bus`** — state a program writes, which is what
-`/var/lib` is for and what every other daemon account on a host uses. `/usr`
-is read-only shareable program data, so `/usr/lib/agent-bus` cannot hold a
-home, a store or a dump.
+Two accounts, because there are two secret domains and neither may read the
+other's. The daemon holds every credential; the runner holds every managed
+service's configuration. Compromising one does not yield the other, and that
+is the whole argument for running the runner outside the daemon
+([processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec)).
 
-| Under it | Holds |
-|---|---|
-| the store | tokens and whatever else is decided ([storage](#storage)) |
-| the dumps | queues and stats across a restart ([messaging § durability](04-messaging.md#durability)) |
+Everything lives under **`/var/lib/agent-bus`** — state a program writes,
+which is what `/var/lib` is for and what every other daemon account uses.
+`/usr` is read-only shareable program data, so it cannot hold a home, a store
+or a dump.
 
-The per-user sockets are **not** under it: they belong in the host's runtime
-directory, which a reboot clears ([access § local socket](02-access.md#local-socket)).
+| Directory | Mode | Owner | Holds |
+|---|---|---|---|
+| `daemon/` | 700 | **`agent-busd`** | its home: the store, the dumps, the ACL — [storage](#storage), [messaging § durability](04-messaging.md#durability) |
+| `templates/` | 755 | `agent-bus-runner` | what a service *is*. Readable by anyone because it holds no secret; an entry may be a directory with its own owner, or a symlink to code kept elsewhere |
+| `service.d/` | 700 | **`agent-bus-runner`** | its home: one directory per instance — description, config, credential ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
+
+**Neither account is one you log in as.** Both are nologin, and the runner
+account is reached only through its forced command
+([access § the three doors](02-access.md#the-three-doors)) — never a shell. That
+is what makes the mode on `service.d` mean something even though the children
+the runner starts share its uid: the uid is never wielded directly, and each
+child is confined so it cannot see the directory at all
+([runner § sandboxing](08-runner-role.md#sandboxing)).
+
+Each directory being the account's actual `$HOME` is what removes a branch:
+the paths a personal run writes under your own home are the paths a system
+install writes under these, with no special case in between.
+
+The per-user sockets are **not** under any of them: they belong in the host's
+runtime directory, which a reboot clears ([access § local socket](02-access.md#local-socket)).
 
 The unit it writes is `/etc/systemd/system/agent-busd.service`, and it is the
 whole privileged arrangement in one file:
 
 | The unit says | So that |
 |---|---|
-| `User=agent-bus` | the daemon is never root and never the installer — the check reads the *running* process, so a developer's hand-started one fails it |
+| `User=agent-busd` | the daemon is never root and never the installer — the check reads the *running* process, so a developer's hand-started one fails it |
 | `WorkingDirectory` and `StateDirectory` are the home | the store and the dumps land where the account can keep them, and nowhere else |
 | `RuntimeDirectory=agent-bus`, mode 0711 | the sockets are outside every home and a reboot clears them ([access § local socket](02-access.md#local-socket)) |
 | `Restart=on-failure` | a daemon that dies comes back |

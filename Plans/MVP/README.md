@@ -16,7 +16,7 @@ not move one of *install*, *other people*, *shared*, or *safely*, it belongs
 to Release 1.
 
 **It runs as its own account.** `agent-bus` owns the daemon, homed where a
-daemon's state belongs ([setup § the service account](../../docs/09-setup.md#the-service-account));
+daemon's state belongs ([setup § the two accounts](../../docs/09-setup.md#the-two-accounts));
 nothing runs as the person who installed it and nothing runs as root. A bus
 that only works when its author starts it has not met *install*, *shared* or
 *safely* — so this is a gate on the stage, not a line item in its last wave.
@@ -39,7 +39,7 @@ own.
 | memory only | a durable store and a queue dump ([setup § storage](../../docs/09-setup.md#storage)) | a restart that loses the backlog is not something to hand someone |
 | one process | supervisor and children ([processes § the rule](../../docs/11-processes.md#the-rule)) | *safely*, on a host that is not yours alone |
 | run the binary | packaged and set up ([setup § install](../../docs/09-setup.md#install)) | *install* |
-| runs as whoever built it | runs as its own account ([setup § the service account](../../docs/09-setup.md#the-service-account)) | *shared* — a developer's daemon is not an installation |
+| runs as whoever built it | runs as its own account ([setup § the two accounts](../../docs/09-setup.md#the-two-accounts)) | *shared* — a developer's daemon is not an installation |
 
 ## Invariants this stage must not break
 
