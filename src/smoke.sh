@@ -81,7 +81,7 @@ slow() { [ "$SLOW" = 1 ]; }
 # Counters are cumulative since the daemon started, so a check on one has to
 # be a delta. Asserting the absolute value worked only while this section
 # happened to run first, and broke the moment another one dropped a message.
-count() { ab parf@localhost status | sed -n "s/.*\"$1\":\([0-9]*\).*/\1/p"; }
+count() { local n; n=$(ab parf@localhost status | sed -n "s/.*\"$1\":\([0-9]*\).*/\1/p"); echo "${n:-0}"; }
 delta() { # label expected before after
   if [ "$(( $4 - $3 ))" -eq "$2" ]; then echo "  ok   $1"; pass=$((pass+1));
   else echo "  FAIL $1: expected +$2, got $3 -> $4"; fail=$((fail+1)); fi
@@ -473,6 +473,42 @@ has "and it is the subscriber's loss, its bound having refused it" \
   "$(ab owner@srv1 ls full-sub@srv1)" '"dropped":[1-9]'
 is_empty "not the topic's, which keeps nothing to lose" \
   "$(ab owner@srv1 ls news@srv1 | grep -o '"dropped":')"
+
+sec "refusals are counted, and each under its own reason"
+# A bus that is quiet and one that is refusing every call look identical
+# from outside (docs/05-discovery.md#what-it-shows). Each kind is checked
+# separately: one counter covering them all would say "something is wrong"
+# and never which thing.
+# Measured as a DELTA each time: a cumulative counter that some earlier
+# check already moved would answer "[1-9]" whether this call was counted
+# or not.
+ab owner@srv1 register refused-by@srv1 --kind generic --allow owner@srv1 >/dev/null
+n0=$(count credential)
+code refuser@srv1 "not-a-token" /status >/dev/null 2>&1
+delta "a credential that is not one is counted as that" 1 "$n0" "$(count credential)"
+n0=$(count wrong-name)
+code owner@srv1 "$(tok caller@srv1)" /status >/dev/null 2>&1
+delta "and a credential for a different name is its own reason" 1 "$n0" "$(count wrong-name)"
+n0=$(count unknown)
+ab caller@srv1 send nobody-at-all@srv1 "into the void" >/dev/null 2>&1
+delta "an unknown receiver is counted as unknown" 1 "$n0" "$(count unknown)"
+n0=$(count acl)
+ab stranger@srv1 send refused-by@srv1 "let me in" >/dev/null 2>&1
+delta "a call the ACL refuses is counted as acl" 1 "$n0" "$(count acl)"
+n0=$(count malformed)
+ab owner@srv1 register refused-by@srv1 --overflow nonsense >/dev/null 2>&1
+delta "and what a caller simply got wrong is one reason, not many" 1 "$n0" "$(count malformed)"
+# A refusal the daemon never made is not counted, and one kind is not
+# another: without this every check above passes on a single counter that
+# every refusal increments.
+n0=$(count credential)
+ab caller@srv1 send nobody-at-all@srv1 "again" >/dev/null 2>&1
+delta "an unknown receiver is not also a bad credential" 0 "$n0" "$(count credential)"
+# A refusal is not a failure: the daemon's own faults are a 500 and are
+# deliberately not in here, or "how often am I refusing callers?" would be
+# answered by a number that includes our bugs.
+is_empty "nothing is counted under a reason that has not happened" \
+  "$(ab parf@localhost status | grep -o '"second-reader":0\|"full":0\|"enrolment":0')"
 
 sec "unknown receiver"
 out=$(ab asker@srv1 send ghost@nowhere hi 2>&1); rc=$?

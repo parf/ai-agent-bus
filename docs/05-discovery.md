@@ -160,7 +160,7 @@ the bus debuggable by the people sharing it.
 | **exchanges** — the envelope feed grouped by topic and tag, so a request, its `ack`, its reply and its `done` are one row, and an answer past its deadline is marked late | MVP | the feed filtered per caller, instead of master-only |
 | **my names** — what I hold a credential for, its fingerprint, when it was issued and last used, and how to rotate it | MVP | when a credential was issued, and when it was last used |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | MVP | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
-| **refusals** — how many calls were refused and why: bad credential, wrong name for it, ACL, unknown receiver, second reader, full queue | MVP | one counter per kind, and a short per-caller list on that person's own page |
+| **refusals** — how many calls were refused and why: bad credential, wrong name for it, ACL, unknown receiver, second reader, full queue | MVP | ⚠️ the counters are on `status` ([refusals](#refusals)); the short per-caller list is still to come |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | MVP | — `status` carries the unclean-restart fact |
 | **people** — who holds a credential: name, person name, avatar, master or not, what they own | MVP | the credential store answering *which names*, and the person fields ([identity § registration](01-identity.md#registration)) |
 | **groups** and who is in them | Release 1 | groups themselves ([identity § groups and roles](01-identity.md#groups-and-roles)) |
@@ -175,6 +175,30 @@ daemon holds counters since start and no history at all, so a graph is the
 ring buffers or it is a line that silently restarts at zero after a crash.
 Numbers now, graphs at Release 1 — and never a time-series database
 ([stats](#stats)).
+
+### Refusals
+
+A bus that is quiet and one that is refusing every call look identical from
+outside. `status` carries **how many calls were turned away and for what**,
+counted where a refusal becomes a status code so that the reason and the code
+cannot drift apart.
+
+| Reason | |
+|---|---|
+| `credential` | the token is not one, or no name came with it |
+| `wrong-name` | a good credential, used as somebody else. A different answer from no credential at all, or the refusal is not debuggable |
+| `acl` | the service, the record's owner, or a private configuration said no ([identity § acl](01-identity.md#acl)) |
+| `unknown` | no such name ([messaging § verbs](04-messaging.md#verbs)) |
+| `second-reader` | an inbox already has a reader, and neither asked to share it ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
+| `full` | the receiver's queue is at its bound and refuses rather than loses ([messaging § overflow](04-messaging.md#overflow)) |
+| `enrolment` | a challenge that did not hold ([identity § proving possession](01-identity.md#proving-possession)) |
+| `malformed` | the caller got the request wrong. One reason, not eight: *"you sent nonsense"* is a single answer however many ways there are to send it |
+
+**Only reasons that have happened appear** — a reason with a zero beside it is
+noise on every other node. And a fault of the daemon's own is a 500 and is
+**not** in here: refusing a caller and failing one are different things to be
+told about, and folding them together would answer *"how often am I refusing
+callers?"* with a number that includes our bugs.
 
 ### Where it listens
 

@@ -141,11 +141,13 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 	return func(w http.ResponseWriter, r *http.Request) {
 		name, err := protocol.ParseName(r.Header.Get(HeaderUser))
 		if err != nil {
+			s.bus.Refuse("credential")
 			fail(w, http.StatusUnauthorized, "bad or missing "+HeaderUser)
 			return
 		}
 		who, known := s.tokens.Principal(r.Header.Get(HeaderToken))
 		if !known {
+			s.bus.Refuse("credential")
 			fail(w, http.StatusUnauthorized, "bad token")
 			return
 		}
@@ -153,6 +155,7 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 		// different answer from "no token": saying so is what makes the
 		// refusal debuggable instead of looking like a bad credential.
 		if who != name.String() {
+			s.bus.Refuse("wrong-name")
 			fail(w, http.StatusForbidden, "that token belongs to "+who+", not "+name.String())
 			return
 		}
@@ -170,10 +173,12 @@ func (s *Server) onSocket(me protocol.Name) guard {
 			if stated := r.Header.Get(HeaderUser); stated != "" {
 				name, err := protocol.ParseName(stated)
 				if err != nil {
+					s.bus.Refuse("credential")
 					fail(w, http.StatusUnauthorized, "bad "+HeaderUser)
 					return
 				}
 				if name.String() != me.String() {
+					s.bus.Refuse("wrong-name")
 					fail(w, http.StatusForbidden, "this socket is "+me.String()+"'s, not "+name.String())
 					return
 				}
@@ -242,7 +247,7 @@ func (s *Server) subscribe(w http.ResponseWriter, r *http.Request, caller protoc
 		return
 	}
 	rec, err := s.bus.Subscribe(caller.String(), in.Topic, !in.Off)
-	reply(w, rec, err)
+	s.reply(w, rec, err)
 }
 
 func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
@@ -252,7 +257,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 	}
 	in.Owner = caller.String()
 	rec, err := s.bus.Register(in)
-	reply(w, rec, err)
+	s.reply(w, rec, err)
 }
 
 // configure stores a service's configuration. The body carries the name and
@@ -267,7 +272,7 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 		return
 	}
 	rec, err := s.bus.Configure(in.Name, caller.String(), in.Config)
-	reply(w, rec, err)
+	s.reply(w, rec, err)
 }
 
 // config hands one back. A listing never carries a configuration, so this is
@@ -275,7 +280,7 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 func (s *Server) config(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	cfg, err := s.bus.Config(r.URL.Query().Get("name"), caller.String())
 	if err != nil {
-		reply(w, nil, err)
+		s.reply(w, nil, err)
 		return
 	}
 	if len(cfg) == 0 {
@@ -318,7 +323,7 @@ func (s *Server) enrol(w http.ResponseWriter, r *http.Request, _ protocol.Name) 
 	if in.Signature == "" {
 		nonce, err := s.bus.Challenge(in.Name)
 		if err != nil {
-			reply(w, nil, err)
+			s.reply(w, nil, err)
 			return
 		}
 		ok(w, struct {
@@ -330,7 +335,7 @@ func (s *Server) enrol(w http.ResponseWriter, r *http.Request, _ protocol.Name) 
 	}
 	rec, err := s.bus.Enrol(in.Nonce, in.Signature)
 	if err != nil {
-		reply(w, nil, err)
+		s.reply(w, nil, err)
 		return
 	}
 	// The credential comes with it: being enrolled and being able to speak
@@ -339,7 +344,7 @@ func (s *Server) enrol(w http.ResponseWriter, r *http.Request, _ protocol.Name) 
 	// See docs/02-access.md#getting-a-token.
 	token, err := s.tokens.Issue(rec.Name)
 	if err != nil {
-		reply(w, nil, err)
+		s.reply(w, nil, err)
 		return
 	}
 	ok(w, struct {
@@ -372,7 +377,7 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 	}
 	in.From = caller.String()
 	e, err := s.bus.Send(in)
-	reply(w, e, err)
+	s.reply(w, e, err)
 }
 
 // consume long-polls an inbox. Which one, and whether it is filtered, is
@@ -428,7 +433,7 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	reply(w, e, err)
+	s.reply(w, e, err)
 }
 
 // codes is the one place a refusal becomes a status. A handler that decides
@@ -437,33 +442,41 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 var codes = []struct {
 	err  error
 	code int
+	// What `status` counts this as. The kinds are the ones the dashboard
+	// shows (docs/05-discovery.md#what-it-shows); everything a caller simply
+	// got wrong is one kind, because "you sent nonsense" is one answer
+	// however many ways there are to send it.
+	kind string
 }{
-	{core.ErrBadName, http.StatusBadRequest},
-	{core.ErrOverflow, http.StatusBadRequest},
-	{core.ErrMode, http.StatusBadRequest},
-	{core.ErrConfig, http.StatusBadRequest},
-	{core.ErrReceipt, http.StatusBadRequest},
-	{core.ErrTTL, http.StatusBadRequest},
-	{core.ErrWait, http.StatusBadRequest},
-	{core.ErrBound, http.StatusBadRequest},
-	{core.ErrNotOwner, http.StatusForbidden},
-	{core.ErrPrivate, http.StatusForbidden},
-	{core.ErrNotAllow, http.StatusForbidden},
-	{core.ErrEnrol, http.StatusForbidden},
-	{core.ErrUnknown, http.StatusNotFound},
-	{core.ErrFull, http.StatusServiceUnavailable},
-	{core.ErrTwoReads, http.StatusConflict},
+	{core.ErrBadName, http.StatusBadRequest, "malformed"},
+	{core.ErrOverflow, http.StatusBadRequest, "malformed"},
+	{core.ErrMode, http.StatusBadRequest, "malformed"},
+	{core.ErrConfig, http.StatusBadRequest, "malformed"},
+	{core.ErrReceipt, http.StatusBadRequest, "malformed"},
+	{core.ErrTTL, http.StatusBadRequest, "malformed"},
+	{core.ErrWait, http.StatusBadRequest, "malformed"},
+	{core.ErrBound, http.StatusBadRequest, "malformed"},
+	{core.ErrNotOwner, http.StatusForbidden, "acl"},
+	{core.ErrPrivate, http.StatusForbidden, "acl"},
+	{core.ErrNotAllow, http.StatusForbidden, "acl"},
+	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
+	{core.ErrUnknown, http.StatusNotFound, "unknown"},
+	{core.ErrFull, http.StatusServiceUnavailable, "full"},
+	{core.ErrTwoReads, http.StatusConflict, "second-reader"},
 }
 
 // reply answers with v, or with the status this error maps to. An error no
-// row claims is ours, not the caller's, so it is a 500.
-func reply(w http.ResponseWriter, v any, err error) {
+// row claims is ours, not the caller's, so it is a 500 — and is not counted
+// as a refusal, because refusing a caller and failing them are different
+// things to be told about.
+func (s *Server) reply(w http.ResponseWriter, v any, err error) {
 	if err == nil {
 		ok(w, v)
 		return
 	}
 	for _, c := range codes {
 		if errors.Is(err, c.err) {
+			s.bus.Refuse(c.kind)
 			fail(w, c.code, err.Error())
 			return
 		}

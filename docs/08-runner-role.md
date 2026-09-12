@@ -18,7 +18,9 @@ step.
 ## What the runner does
 
 - **Supervise** — spawn, restart with backoff, stop, log capture, exit codes.
-  Four verbs and no more: **start, stop, restart, enable/disable**. There is no
+  Four verbs and no more: **start, stop, restart, enable/disable** — and it is
+  `start`, never `run`, the same word whether you sit in front of it or the
+  runner does it for you. There is no
   `reload`, because for a script service there is no long-lived child to
   signal — children are one process per message — and a graceful restart
   already loses nothing: `stop` waits for the work in flight, messages queue in
@@ -33,8 +35,7 @@ step.
   `agent-bus start` never handles a credential at all, and a service that links
   a client library lets the library do it.
 - **Is itself an agent** — self-registers, self-reports, has its own key, and
-  is controllable over the bus (start/stop children, reload) under its owner's
-  ACL.
+  is controllable over the bus — the same verbs, under its owner's ACL.
 
 ## Adapters
 

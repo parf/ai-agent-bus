@@ -84,6 +84,7 @@ All 2026-09-09 unless noted.
 | Loss is counted per inbox; the node's total is the sum of them | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | A backlog reports the age of its oldest waiting message | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | An unclean restart is a fact on `status`, not only a line in the log | [discovery § what it shows](05-discovery.md#what-it-shows) |
+| Refusals are counted by reason, and a daemon fault is not one of them | [discovery § refusals](05-discovery.md#refusals) |
 | Dashboard shows services, topics and call counts — envelopes only | [discovery § dashboard](05-discovery.md#dashboard) |
 | The bus keeps a bounded feed of routed envelopes, body struck out where it is written | [discovery § dashboard](05-discovery.md#dashboard) |
 | The dashboard has a real hostname and a real certificate, from a public source | [discovery § where it listens](05-discovery.md#where-it-listens) |
@@ -140,6 +141,7 @@ All 2026-09-09 unless noted.
 | An instance is a directory, and the directory being there is the desired state | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](08-runner-role.md#where-it-runs) |
 | The runner has no `reload`; a graceful restart already loses nothing | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
+| The verb is `start`, never `run` | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | `CAP_CHOWN` is the supervisor's alone, so no long-running child holds a capability | [processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown) |
 | Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](10-modules.md#the-rule) |
 | Only adapters touch the outside world; calling an external tool is an adapter-layer rule | [modules § external tools](10-modules.md#external-tools) |

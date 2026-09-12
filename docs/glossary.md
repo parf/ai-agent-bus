@@ -79,6 +79,6 @@ wins.
 | identity | `keygen`, `register` |
 | registry | `register`, `topic create`, `ls`, `service-template`, `status` |
 | messaging | `send`, `call`, `publish`, `consume`, `ack`, `reply` |
-| runner | `start`, `stop`, `logs` |
+| runner | `start`, `stop`, `logs` — **`start`, never `run`** |
 | AUTH admin | `auth sign`, `auth admin` |
 | over SSH | `static-token`, `bundle show\|history`, `user list`, `service list`, `replica-sync` |

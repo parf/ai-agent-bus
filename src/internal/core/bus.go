@@ -80,6 +80,10 @@ type inbox struct {
 type Bus struct {
 	mu      sync.Mutex
 	records map[string]protocol.Record
+	// How many calls were refused, and for what. Counted because a bus that
+	// is quiet and one that is refusing everything look identical from
+	// outside — see docs/05-discovery.md#what-it-shows.
+	refused map[string]int
 	// Whether the snapshot this run read back was written by a graceful
 	// stop. Logged once at start is not enough: whoever comes to look at a
 	// gap in the work arrives long after the log line scrolled away.
@@ -101,6 +105,7 @@ type Bus struct {
 func New() *Bus {
 	return &Bus{
 		records: map[string]protocol.Record{},
+		refused: map[string]int{},
 		inboxes: map[string]*inbox{},
 		started: time.Now(),
 	}
@@ -751,6 +756,9 @@ type Status struct {
 	// Absent unless it has something to say: a first start has no previous
 	// stop to have been clean or otherwise.
 	Unclean bool `json:"unclean,omitempty"` // the last run did not stop cleanly
+	// Refusals by kind, and only the kinds that have happened. A reason
+	// with a zero beside it is noise on every other node.
+	Refused map[string]int `json:"refused,omitempty"`
 }
 
 func (b *Bus) Status() Status {
@@ -769,7 +777,23 @@ func (b *Bus) Status() Status {
 		s.Expired += in.expired
 	}
 	s.Unclean = b.unclean
+	if len(b.refused) > 0 {
+		s.Refused = make(map[string]int, len(b.refused))
+		for k, n := range b.refused {
+			s.Refused[k] = n
+		}
+	}
 	return s
+}
+
+// Refuse records that a call was turned away, and for what reason. The face
+// calls it because two of the kinds — a credential that is not one, and a
+// credential for a different name — are refused before core is ever reached
+// (docs/02-access.md#two-parameters).
+func (b *Bus) Refuse(kind string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.refused[kind]++
 }
 
 func newID() string {
