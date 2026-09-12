@@ -186,6 +186,18 @@ familiar, and every language already thinks in it:
 | **`cas` and `pull-push` are the two that claim work** | between them, *exactly one worker takes this item* needs no lock — which is the batcher case, and worth knowing before reaching for one ([messaging § shared locks](04-messaging.md#shared-locks)) |
 | **it is ours, so it stays small** | anything past this list is redis, and redis is already in the table above. Ours exists for the case where a dependency is not wanted, and it stops being that the moment it chases the feature list |
 
+**Two namespaces, and only one of them can be shared.**
+
+| | |
+|---|---|
+| **the personal one** | every service has one, without registering anything and without being granted anything. It is **not sharable** — there is no ACL on it to widen, so nothing can be given away by accident, and a service always has somewhere to put state with nobody to ask |
+| **a registered instance** | a service *or* a person registers one, with a name and an `allow` like every other record ([identity § acl](01-identity.md#acl)). This is the **only** way two principals share a key, which is what makes sharing something you can see in the registry rather than infer |
+
+| | |
+|---|---|
+| **the personal namespace belongs to the name, so a pool shares one** | members of a pool are one name ([runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts)), so they land in the same namespace — the batcher's shared list, with nothing configured and nothing granted |
+| **read · write · rw is a `#role`, not a flag** | roles are how the daemon says *what* a principal may do, already ([identity § sigils](01-identity.md#sigils)): it is stated per principal in the record, delivered with the call, and the service reads what it was handed. That is not the same as a service checking who is calling, which the rule above forbids — and it is why this does not need `kv-ro` and `kv-rw` as two names. **A flag cannot be granted; a role is nothing but a grant** |
+
 ❓ **A hash of locks.** Asked for, and the one item here that would be a
 **second lock authority**: the daemon grants named locks as of Release 1
 ([messaging § shared locks](04-messaging.md#shared-locks)), and two things
