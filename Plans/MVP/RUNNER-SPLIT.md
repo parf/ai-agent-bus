@@ -36,7 +36,7 @@ is [stages § release 1](../../docs/12-stages.md#release-1) and is planned in
 
 | | |
 |---|---|
-| MVP | one command line publishes a service in the foreground, confined if it asks to be. No second account, no installed state |
+| MVP | one command line publishes a service in the foreground, confined if it asks to be. The install lays out both accounts and the tree they own; no runner program and no installed state |
 | Release 1 | the runner as its own account and program: installed instances, write-only configuration, autostart, restart policy, on-demand start |
 
 ## What it cost the MVP
@@ -49,6 +49,7 @@ believed, per [PoC § mutation first, then belief](../PoC/README.md#mutation-fir
 |---|---|
 | the daemon's account was renamed, so the account and the CLI are no longer the same word | mutant: the old name restored — two named checks red |
 | an unset sandbox setting means off, like an explicit one, and `Pick` lost its best-effort branch | mutant: the best-effort branch restored — the named check red |
+| the installer makes **both** accounts and the three directories, each its owner's at the mode the design gives it | four mutants: the mode on each home, the world-readable one, and the second account never created — one named check red apiece |
 
 ## What was superseded
 

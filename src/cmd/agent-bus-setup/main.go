@@ -1,7 +1,7 @@
-// agent-bus-setup installs the separate-user arrangement: an account that
-// owns nothing but the bus, a home under /var/lib, and a unit that starts the
-// daemon as that account. It is the one program that wants root, it wants it
-// once, and nothing after it does — the daemon never has it.
+// agent-bus-setup installs the separate-user arrangement: two accounts that
+// own nothing but the bus, their homes under /var/lib, and a unit that starts
+// the daemon as one of them. It is the one program that wants root, it wants
+// it once, and nothing after it does — the daemon never has it.
 // See docs/09-setup.md#the-five-programs.
 package main
 
@@ -23,9 +23,27 @@ import (
 // See docs/09-setup.md#the-two-accounts.
 const (
 	svcAccount = "agent-busd"
-	svcHome    = "/var/lib/agent-bus"
+	runAccount = "agent-bus-runner"
+	stateRoot  = "/var/lib/agent-bus"
+	svcHome    = stateRoot + "/daemon"
+	svcDir     = stateRoot + "/service.d"
+	runHome    = stateRoot + "/runner"
 	unitPath   = "/etc/systemd/system/agent-busd.service"
 )
+
+// dirs is the layout, and the modes are the design rather than a default: the
+// daemon's home and the runner's are each their own account's alone, and
+// service.d is world-readable because what a service *is* holds no secret.
+// See docs/09-setup.md#the-two-accounts.
+var dirs = []struct {
+	path  string
+	owner string
+	mode  os.FileMode
+}{
+	{svcHome, svcAccount, 0o700},
+	{svcDir, runAccount, 0o755},
+	{runHome, runAccount, 0o700},
+}
 
 type list []string
 
@@ -77,10 +95,14 @@ func setup() error {
 	}
 	steps := []string{
 		fmt.Sprintf("create the system account %s with home %s", svcAccount, svcHome),
-		fmt.Sprintf("make %s the account's own, 0750", svcHome),
-		fmt.Sprintf("write %s", unitPath),
-		"reload systemd and start agent-busd",
+		fmt.Sprintf("create the system account %s with home %s", runAccount, runHome),
 	}
+	for _, d := range dirs {
+		steps = append(steps, fmt.Sprintf("make %s %s's own, %#o", d.path, d.owner, d.mode))
+	}
+	steps = append(steps,
+		fmt.Sprintf("write %s", unitPath),
+		"reload systemd and start agent-busd")
 	if *keyF != "" {
 		steps = append(steps, fmt.Sprintf("make %s the first user, from %s", me, *keyF))
 	}
@@ -97,22 +119,35 @@ func setup() error {
 		return fmt.Errorf("this needs root once, to %s and %s. Run:\n\n    sudo %s\n\n"+
 			"Nothing after this step does: the daemon runs as %s.\n"+
 			"Use --dry-run to see the steps, or --print-unit for the unit alone",
-			steps[0], steps[2], strings.Join(os.Args, " "), svcAccount)
+			steps[0], unitPath, strings.Join(os.Args, " "), svcAccount)
 	}
-	if _, err := user.Lookup(svcAccount); err != nil {
-		if err := run("useradd", "--system", "--home-dir", svcHome, "--create-home",
-			"--shell", "/usr/sbin/nologin", svcAccount); err != nil {
+	// Two accounts, because there are two secret domains and neither may read
+	// the other's. Both nologin: neither is one you log in as.
+	// See docs/09-setup.md#the-two-accounts.
+	for _, a := range []struct{ name, home string }{{svcAccount, svcHome}, {runAccount, runHome}} {
+		if _, err := user.Lookup(a.name); err == nil {
+			continue
+		}
+		if err := run("useradd", "--system", "--home-dir", a.home, "--create-home",
+			"--shell", "/usr/sbin/nologin", a.name); err != nil {
 			return err
 		}
 	}
-	if err := os.MkdirAll(svcHome, 0o750); err != nil {
+	if err := os.MkdirAll(stateRoot, 0o755); err != nil {
 		return err
 	}
-	if err := run("chown", "-R", svcAccount+":"+svcAccount, svcHome); err != nil {
-		return err
-	}
-	if err := os.Chmod(svcHome, 0o750); err != nil {
-		return err
+	for _, d := range dirs {
+		if err := os.MkdirAll(d.path, d.mode); err != nil {
+			return err
+		}
+		if err := run("chown", d.owner+":"+d.owner, d.path); err != nil {
+			return err
+		}
+		// MkdirAll honours the umask and skips a directory that already
+		// exists, so the mode is set rather than asked for.
+		if err := os.Chmod(d.path, d.mode); err != nil {
+			return err
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(unitPath), 0o755); err != nil {
 		return err
@@ -139,7 +174,8 @@ func setup() error {
 			return err
 		}
 	}
-	fmt.Printf("agent-busd runs as %s, owned by %s, state in %s\n", svcAccount, me, svcHome)
+	fmt.Printf("agent-busd runs as %s, owned by %s, state in %s; services are %s's, in %s\n",
+		svcAccount, me, svcHome, runAccount, svcDir)
 	return nil
 }
 
@@ -164,7 +200,7 @@ func installerKey() string {
 }
 
 // unitFor is the unit, and the only place its values are written down.
-// See docs/09-setup.md#the-service-account.
+// See docs/09-setup.md#the-two-accounts.
 func unitFor(exe, addr, owner string, users list) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, `[Unit]
@@ -177,7 +213,7 @@ Type=simple
 User=%[1]s
 Group=%[1]s
 WorkingDirectory=%[2]s
-StateDirectory=%[5]s
+StateDirectory=agent-bus/daemon
 RuntimeDirectory=%[5]s
 # 0711: everyone walks through to their own socket, nobody reads the rest.
 RuntimeDirectoryMode=0711

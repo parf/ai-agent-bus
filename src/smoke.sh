@@ -1579,8 +1579,11 @@ UNIT=$("$D/agent-bus-setup" --print-unit --owner "$OWNER" --exec /usr/local/bin/
 has "the unit runs the daemon as an account of its own" "$UNIT" '^User=agent-busd$'
 is_empty "never as root" "$(printf '%s' "$UNIT" | grep -x 'User=root')"
 is_empty "and never as whoever ran setup" "$(printf '%s' "$UNIT" | grep -x "User=$(id -un)")"
-has "the store lives under that account's home" "$UNIT" 'token-file /var/lib/agent-bus/token'
-has "and so does the dump" "$UNIT" 'dump-file /var/lib/agent-bus/dump.json'
+has "the store lives under that account's home" "$UNIT" 'token-file /var/lib/agent-bus/daemon/token'
+has "and so does the dump" "$UNIT" 'dump-file /var/lib/agent-bus/daemon/dump.json'
+# The daemon is confined to its own home, so the runner's is out of reach even
+# before either account's mode is consulted.
+has "and it may write there and nowhere else" "$UNIT" '^ReadWritePaths=/var/lib/agent-bus/daemon$'
 has "it comes back after it dies" "$UNIT" '^Restart='
 has "it is given one capability, not root" "$UNIT" '^AmbientCapabilities=CAP_CHOWN$'
 has "and cannot pick up a second" "$UNIT" '^CapabilityBoundingSet=CAP_CHOWN$'
@@ -1594,6 +1597,15 @@ has "and says the line to run instead of just refusing" "$out" 'sudo .*agent-bus
 out=$("$D/agent-bus-setup" --dry-run --owner "$OWNER" 2>&1); rc=$?
 ok_exit "a dry run needs nothing and says what it would do" $rc
 has "naming the account" "$out" 'would create the system account agent-busd'
+# Two accounts, because there are two secret domains and neither may read the
+# other's: credentials are the daemon's, configurations the runner's.
+# See docs/09-setup.md#the-two-accounts.
+has "and the second one, which the daemon may not read" "$out" 'would create the system account agent-bus-runner'
+has "the daemon's home is its own alone" "$out" "/var/lib/agent-bus/daemon agent-busd's own, 0700"
+has "the runner's home is its own alone" "$out" "/var/lib/agent-bus/runner agent-bus-runner's own, 0700"
+# What a service *is* holds no secret and is usually a checkout, so it is
+# readable by anyone; what a host decided about it is not.
+has "and what a service is, is readable by anyone" "$out" "/var/lib/agent-bus/service.d agent-bus-runner's own, 0755"
 has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
 has "and the start" "$out" 'would reload systemd'
 has "and hands the first user to the program that owns that file" "$out" "would make $OWNER the first user"

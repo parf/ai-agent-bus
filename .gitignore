@@ -1,5 +1,11 @@
 /src/agent-bus
 /src/agent-busd
+# The rest of the five. A tracked binary shadows the fresh build, and a stale
+# one reads as a passing result — which is exactly how it went unnoticed.
+/src/agent-bus-setup
+/src/agent-bus-admin
+/src/agent-bus-token
+/src/agent-bus-web
 tmp/
 /src/mcp/node_modules/
 /src/*.test
