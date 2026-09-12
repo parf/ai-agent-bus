@@ -27,6 +27,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](01-identity.md#registration) |
 | MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](01-identity.md#registration) · [future](future/ldap-ad.md) |
 | Self-service enrolment: open (auto, minimal role) or closed (approval queue) | [identity § registration](01-identity.md#registration) |
+| How to reach a person — ordered, per severity — is part of the person's record in the daemon, not an alerter's configuration | [identity § how to reach a person](01-identity.md#how-to-reach-a-person) |
 | More identity sources later: Google, LinkedIn, Facebook — not designed | [identity § registration](01-identity.md#registration) |
 | ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](01-identity.md#acl) |
 | A sigil says what an ACL entry is: bare is a user, `@` a group, `#` a role | [identity § sigils](01-identity.md#sigils) |
@@ -154,6 +155,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Extending the set is an instance or a template, never a change to the contract | [bundled services § one contract for the set](13-bundled-services.md#one-contract-for-the-set) |
 | No layer of ours between a caller and a tool: a retry or a cache is a service with its own name | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
 | The alerter is a router: it delivers nothing itself, an alert names a person, and the ordered list of ways to reach them is that person's and per severity | [bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself) |
+| The alerter's order is a fallback chain that stops at the first success, where a refusal and a silence both count as not reached | [bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself) |
 | The image is one image and two containers, because the two accounts are two secret domains | [stages § the image](12-stages.md#the-image) |
 | The image ships the catalogue installed and enables only the reading half, using installed-not-enabled for what it is for | [stages § the image](12-stages.md#the-image) |
 | `logwatch` keeps a bounded ring of cleaned lines per glob set, answers for the past and publishes the future, and makes the globs the grant | [bundled services § reading the box](13-bundled-services.md#reading-the-box) |

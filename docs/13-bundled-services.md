@@ -116,28 +116,31 @@ something up beforehand is how that question goes unanswered.
 | | |
 |---|---|
 | **one contract, not a second one** | ring for the past, topic for the future, the poll the common one — exactly what `logwatch` does and for the same reason ([reading the box](#reading-the-box)). A level is an instance of its own, so a flood of warnings cannot push the errors out of theirs |
-| **nothing new in the daemon** | the daemon already publishes its own events onto a topic — a key that does not match is written down that way today ([access § key confirmation](02-access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the service is only what **remembers** them |
+| **the ring needs nothing new in the daemon** | the daemon already publishes its own events onto a topic — a key that does not match is written down that way today ([access § key confirmation](02-access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the service is only what **remembers** them |
 | **the alerter delivers nothing** | it speaks no SMTP, no Telegram API, nothing. Each hop out is an ordinary call to `telegram`, `sms`, `mail` or `slack`, so a new way to reach people is a new instance of something already here and not a change to this service. An alerter that learned to send mail would be a second, worse copy of `mail` |
 | **an alert names a person, not a channel** | which is the same identity everything else uses ([identity § names](01-identity.md#names)). Turning `parf@srv1` into *telegram first, then SMS* **is** the whole job, and it is the reason this is a service rather than a rule in whoever raised the alert |
-| **the order is per person and per severity** | each principal has an ordered list of ways to reach them, and a different one per level: a warning takes the cheap channel, a page takes the one that wakes somebody. The person decides their own list, because nobody else knows which phone is on |
+| **the order is per person and per severity, and it is not the alerter's** | the list is part of the person's record in the daemon ([identity § how to reach a person](01-identity.md#how-to-reach-a-person)), because it is the person's: several alerters reach the same human, and a phone that changed has to change once |
 | **it routes and does not judge** | the level was set by whoever published the line, and it is the level that picks the list. The alerter never re-rates a message, and never drops one for being noisy — that is the publisher's call, and silently overruling it is how an outage gets missed |
 | **a bus that is down takes the ring with it** | it is a service, and pretending otherwise would put a log inside the daemon. The journal is still the daemon's own record ([setup § the two units](09-setup.md#the-two-units)); this is for everything the bus carries, which is the part no journal sees |
 
-**Where a person's list is kept is the thing to get right.** A service
-configuration is written by *its owner, or the service itself*
-([services § configuring a template](03-services-and-topics.md#configuring-a-template)),
-and the second half is what fits: the ACL already says who may call the
-alerter, the token already says which principal is calling, so *set my own
-methods* is a call it can serve without anything new. The instance's `env`
-holds what the **host** decided — which channels exist at all — as everywhere
-else ([runner § the three env layers](08-runner-role.md#the-three-env-layers)).
+**So the alerter holds nothing about people.** It reads the list from the
+record and calls the channel it names; the instance's `env` holds only what the
+**host** decided — which channels exist on this box at all
+([runner § the three env layers](08-runner-role.md#the-three-env-layers)). Two
+alerters given the same alert reach the same person the same way, because
+neither of them is where the answer is kept.
 
-❓ **What the order means when a hop succeeds.** Stop at the first channel that
-accepted the message, or keep going until a **person** answers. The second is
-the one on-call actually wants and it needs an answer to come back — which the
-inbound half of every channel already carries ([rules they all
-obey](#rules-they-all-obey)), so it is a question about this service and not
-about the bus. *Settled by:* owner.
+**The order is a fallback chain: it stops at the first success.** SMS, then
+Telegram — and Telegram only because the SMS did not go. Not a fan-out, and not
+an escalation that keeps going until somebody replies.
+
+| | |
+|---|---|
+| **what counts as a failure** | anything that is not a delivery. A channel refusing is an answer rather than a failure everywhere else in this catalogue ([one contract for the set](#one-contract-for-the-set)); here a refusal and a silence mean the same thing — this person was not reached this way — so both move to the next entry |
+| **success is *sent*, not *read*** | a delivered SMS nobody looked at ends the chain. That is the accepted cost of the simple rule, and it is what the ordering is for: the first entry should be the one that reaches you |
+
+⏸️ Waking somebody until they acknowledge is a different mechanic, and may
+arrive later rather than complicating this one now.
 
 ### Acting on the box
 

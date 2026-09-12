@@ -122,6 +122,23 @@ Two things that look like fields of the same kind and are not:
 | **status: active / inactive / banned** | an access decision. Rendered from something nobody enforces it is a lie — the page says *banned* while the token still works. It belongs where enforcement is: `revoked_users` in the bundle ([AUTH role § consistency window](06-auth-role.md#consistency-window)) |
 | **role** | service-defined and never interpreted here ([groups and roles](#groups-and-roles)). What can honestly be shown is **access**: master or not, owner of what, member of which group |
 
+### How to reach a person
+
+The record also carries **an ordered list of ways to reach this person, per
+severity** — a warning goes one way, something that has to wake them goes
+another. Each entry names a service that does the delivering
+([bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside))
+and the address that service understands.
+
+| | |
+|---|---|
+| **it is the person's, so it lives with the person** | not in an alerter's configuration. One person is reached by several alerters — one per host, one per team — and a phone that changed has to change **once**. The daemon is already where the person is |
+| **the principal writes their own** | like the other details on the record, and for a reason of its own: nobody else knows which phone is on tonight |
+| **nothing enforces it** | it is a list of preferences, not an access decision. What acts on it is the `alerter`, which is an ordinary service reading an ordinary record ([bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself)) |
+
+❓ **Who may read somebody else's.** A phone number is not an avatar, and the
+alerter needs everybody's. *Settled by:* owner, with the ACL.
+
 Phone numbers and IM handles are contact routes nothing on the bus uses —
 nothing routes on them, nothing checks them, and holding them makes the record
 worth protecting for reasons that have nothing to do with the bus. Later, if
