@@ -801,16 +801,26 @@ if slow; then
   note() { [ -s "$D/state/agent-bus/services/$1.json" ]; }
   waitnote() { for _ in $(seq 1 100); do note "$1" && return 0; sleep 0.1; done; return 1; }
 
+  # Confinement is opted into, so a start that says nothing gets none — even
+  # on a host that could have provided one
+  # (docs/08-runner-role.md#sandboxing).
+  ab launcher@srv1 register bare@srv1 --kind generic >/dev/null
+  abx launcher@srv1 start bare@srv1 --algo args "$D/quick.sh" --descr "bare" >>"$D/bare.log" 2>&1 &
+  BRPID=$!
+  waitnote bare@srv1 || echo "  WARNING: bare@srv1 never left a note"
+  has "a start that asks for no sandbox gets none" "$(cat "$D/bare.log")" 'sandbox off'
+  kill $BRPID 2>/dev/null; wait $BRPID 2>/dev/null
+
   ab launcher@srv1 register confined@srv1 --kind generic >/dev/null
-  abx launcher@srv1 start confined@srv1 --algo args "$D/bin/confined.sh" --descr "confined" >>"$D/sbx.log" 2>&1 &
-  CFPID=$!
-  waitnote confined@srv1 || echo "  WARNING: confined@srv1 never left a note"
-  has "the service says which sandbox it got" "$(cat "$D/sbx.log")" 'sandbox '
-  has "and where it may write" "$(cat "$D/sbx.log")" 'work .*/work/confined@srv1'
   # The HOST decides whether these run, not the service under test. Asking the
   # log whether it was sandboxed would let "confine nothing" skip its own
   # checks and survive, which is the guarded-block shape of a hollow check.
   if systemd-run --user --pipe --collect --quiet /bin/true >/dev/null 2>&1; then
+    abx launcher@srv1 start confined@srv1 --algo args "$D/bin/confined.sh" --sandbox on --descr "confined" >>"$D/sbx.log" 2>&1 &
+    CFPID=$!
+    waitnote confined@srv1 || echo "  WARNING: confined@srv1 never left a note"
+    has "the service says which sandbox it got" "$(cat "$D/sbx.log")" 'sandbox '
+    has "and where it may write" "$(cat "$D/sbx.log")" 'work .*/work/confined@srv1'
     has "a host that can sandbox gives the service one" "$(cat "$D/sbx.log")" 'sandbox systemd-run'
     # Writing INSIDE has to pass beside the two refusals, or a child that
     # cannot run at all passes the whole set.
@@ -839,11 +849,11 @@ if slow; then
     has "while one that did has one" \
       "$(ab caller@srv1 call netty@srv1 --wait 20s net)" 'reached'
     kill $NTPID 2>/dev/null; wait $NTPID 2>/dev/null
+    kill $CFPID 2>/dev/null; wait $CFPID 2>/dev/null
   else
     echo "  WARNING: this host has no sandbox; the confinement checks are skipped"
     skipped=$((skipped+1))
   fi
-  kill $CFPID 2>/dev/null; wait $CFPID 2>/dev/null
   # Off is a setting, and asking for one the host cannot give is an error
   # rather than a quiet downgrade.
   ab launcher@srv1 register loose@srv1 --kind generic >/dev/null

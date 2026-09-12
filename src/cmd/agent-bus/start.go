@@ -5,8 +5,8 @@
 // is the whole contract (docs/08-runner-role.md#script-services).
 //
 // What it adds to the PoC's version is confinement and a handle: each script
-// runs sandboxed, with one work directory it may write to, and the running
-// service leaves a note that `stop` and `logs` read (service.go).
+// gets one work directory it may write to, is confined when it asks to be,
+// and leaves a note that `stop` and `logs` read (service.go).
 // Supervision — timeouts, restart with backoff — is still the runner proper.
 package main
 
@@ -40,7 +40,7 @@ type service struct {
 	Script    string `json:"script"`    // the program to run
 	Descr     string `json:"descr"`     // what ls and the MCP catalog show
 	Instances int    `json:"instances"` // how many may run at once
-	Sandbox   string `json:"sandbox"`   // on, off, or unset for whatever the host can do
+	Sandbox   string `json:"sandbox"`   // on or off; unset is off — confinement is asked for
 	Network   bool   `json:"network"`   // a script that needs one says so; off otherwise
 
 	// Worked out at start rather than stated: how the script is confined,

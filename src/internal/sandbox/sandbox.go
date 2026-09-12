@@ -67,22 +67,20 @@ func (SystemdRun) Wrap(j ports.Job) []string {
 	return append(out, j.Argv...)
 }
 
-// Pick answers what this host can actually do. `off` is honoured as asked,
-// `on` is an error where nothing can provide it, and an unset want takes
-// whatever is there.
+// Pick answers what this host can actually do. Confinement is opted into, so
+// an unset want is off like an explicit one; `on` is an error where nothing
+// can provide it, rather than a quiet downgrade
+// (docs/08-runner-role.md#sandboxing).
 func Pick(want string) (ports.Sandbox, error) {
 	switch want {
-	case "off":
+	case "off", "":
 		return Off{}, nil
-	case "", "on":
+	case "on":
 	default:
 		return nil, fmt.Errorf("--sandbox is on or off, not %q", want)
 	}
 	if err := probe(); err != nil {
-		if want == "on" {
-			return nil, fmt.Errorf("this host cannot sandbox: %w", err)
-		}
-		return Off{}, nil
+		return nil, fmt.Errorf("this host cannot sandbox: %w", err)
 	}
 	return SystemdRun{}, nil
 }
