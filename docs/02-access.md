@@ -38,7 +38,7 @@ needs only the key.
 
 | Path | Command | For |
 |---|---|---|
-| over SSH | `export AGENT_BUS_TOKEN=$(ssh agent-busd@<node> token <user@realm>)` | anyone with SSH to the node; sshd authenticates you with the key you already have |
+| over SSH | `export AGENT_BUS_TOKEN=$(ssh agent-busd@<node> token)` | anyone with SSH to the node; sshd authenticates you with the key you already have, **so you do not name yourself** — the `authorized_keys` line already does ([token scope](#token-scope)) |
 | on the box | `agent-bus-token <user@realm>` | server access, no SSH key on the bus |
 | with a key | `agent-bus-token <user@realm> --key <ed25519>` | **no sshd anywhere** — the daemon sets the challenge and the key answers it |
 
@@ -56,6 +56,31 @@ operator's key has the admin program instead
 stand-in [`src/static-token`](../src/static-token): it prints the token file
 the daemon reads at start and refuses every other request. Setting it up is
 one `authorized_keys` line per person, given in that script's header.
+
+## Token scope
+
+**Over SSH you never state who you are.** sshd has authenticated the key and
+the forced command behind it names the principal, so a request naming a second
+one is refused as *this key may ask for X* — a different answer from a bad
+key, and the one that makes the refusal readable. Naming yourself is at best
+redundant and at worst an attempt to be somebody else.
+
+What the argument is *for* is the other half, and it changes by stage:
+
+| | What a token is | What that costs |
+|---|---|---|
+| **MVP** | **one master token per principal** — the same credential whatever you go on to call | a service you call can replay your token against a *different* service and be treated as you. This stage runs with the bus, and everything on its host, trusted ([encrypted sessions](#encrypted-sessions)) |
+| **Release 1** | **one token per principal per service**: `ssh agent-busd@<node> token <service>` | a credential reaches exactly one service, so a malicious service holding your token for itself cannot become you anywhere else ([stages § release 1](12-stages.md#release-1)) |
+
+The grammar is the same in both, so nothing a caller does changes when the
+stage does: ask for a token naming the service you mean to call, and in the
+MVP the answer does not depend on it yet.
+
+❓ **How scoping meets asking for a name you own.** Today the argument names a
+*principal*, which is what lets the daemon's owner get a credential for any
+name and a runner collect one for a service it started ([who may ask for
+whose](#token-scope)). Once it names a *service*, those two readings of one
+argument have to be told apart. *Settled by:* owner, with Release 1.
 
 **Who may ask for whose.** The daemon's owner — the principal it was started
 for — may get a credential for any name. Anyone else may get one only for a

@@ -44,6 +44,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Two ways to get a token: over SSH, or `token` on the box; both need machine access | [access § getting a token](02-access.md#getting-a-token) |
 | `token` is the credential verb, `register` the registry one | [access § getting a token](02-access.md#getting-a-token) |
 | A token backs one principal: a request stating another name is refused, and told so | [access § two parameters](02-access.md#two-parameters) |
+| Over SSH the key names you, so a caller never states their own principal | [access § token scope](02-access.md#token-scope) |
+| MVP tokens are master, one per principal; Release 1 scopes them per service so one cannot be replayed at another | [access § token scope](02-access.md#token-scope) |
 | The daemon's owner may get a credential for any name; anyone else only for one they own | [access § getting a token](02-access.md#getting-a-token) |
 | One socket per local account supplies both parameters; `status` says which name it used | [access § local socket](02-access.md#local-socket) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
@@ -217,6 +219,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | How a dormant name is woken, and what the daemon has to learn to do it | owner, in Release 1 | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Whether `reload` survives for a long-running child that can take `SIGHUP` | owner | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](08-runner-role.md#where-it-runs) |
+| How a per-service token argument is told apart from asking for a name you own | owner, with Release 1 | [access § token scope](02-access.md#token-scope) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 | What happens to a running service when its configuration changes | owner | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |

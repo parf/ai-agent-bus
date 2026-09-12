@@ -155,6 +155,7 @@ thing that would make it true rather than on the page
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
 | **the runner** | `agent-bus-runner` as its own account and its own program: installed instances under `runner/`, configuration it holds and never hands back, autostart and a restart policy, on-demand start — a wrapper over the MVP's `agent-bus start` ([runner role](08-runner-role.md)) |
 | encryption | AEAD sessions and bodies end to end, on the pairwise or derived keys that make the claim true ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
+| credentials | **one token per principal per service**, so a service you call cannot replay your credential at another one as you — the MVP's master token is what this replaces ([access § token scope](02-access.md#token-scope)) |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified ([modules](10-modules.md)) |
 | operations | zero-downtime reload, packaging |
 | fan-out | **one service on many hosts**: several services sharing a template, addressed together, and the scatter-gather that needs — plus the how-to. Deferred here on the owner's word; the PoC and MVP address one service at a time ([services § service and template](03-services-and-topics.md#service-and-template)) |
