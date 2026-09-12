@@ -90,10 +90,29 @@ was built for.
 
 | | From | |
 |---|---|---|
-| **openrouter** | owner | generation, one name in front of many models. The router already picks the provider, so this is **one** gateway rather than one per vendor — the same reasoning that makes `apt` an adapter inside **dnf** |
-| **bedrock** | owner | generation on AWS — **beside** the router, not inside it. A different account, a different bill, and so by the rule above a different name. It also marks the line: a **backend** is chosen by the host and invisible to a caller, the way `apt` sits inside **dnf**; a **gateway** is chosen by the caller, so it is a name. One router pointed at another is a hop nobody asked for |
-| **voyage** | owner | embeddings and reranking — and a separate name from the one above, not a verb on it. **Spend is granted per name** like everything else here: embedding a corpus is cheap and answering with a frontier model is not, and a team may well be allowed the first and not the second |
+| **generation** — `openai` · `anthropic` · `google-ai` · `deepseek` · `groq` · `minimax` · `zhipu` · `bedrock` | owner | one name per provider. A caller picks the provider, so each is a name and none is hidden behind another |
+| **routing** — `openrouter` | owner | one name in front of many models, because the router already picks the provider. It is the answer for *"one API over all of them"*, and the reason nothing else here tries to be |
+| **retrieval** — `voyage` · `zeroentropyai` | owner | embeddings, reranking, search. Separate names from generation and not verbs on it: **spend is granted per name**, and embedding a corpus is cheap where answering with a frontier model is not — a team may well be allowed the first and not the second |
+| **local** — `ollama` · `llama-server` | owner | no key to keep private, so the gateway is here for the other half: one ACL over who may spend the box's GPU, and counters that say who did |
 | **fetch** | proposed | a URL in, readable text out. What an agent reaches for more than anything else, and a pool case |
+
+**Minimal is the word that matters.** A gateway holds the key, applies the ACL,
+counts, and passes the call through as it was made. It does **not** normalise
+one provider's API into another's — a caller that wants one API over many uses
+`openrouter`, which is a product that already does it, and a caller that names
+a provider wants that provider's own shape. A normalising layer here would be
+re-implementing something we can simply call.
+
+Which is also why this is **not** ten programs. Most of that list speaks the
+OpenAI API, so it is one service template configured into instances that differ
+by a base URL and a key ([identity § names](01-identity.md#names)); code of its
+own is written only where the API genuinely differs — Anthropic, Google, Bedrock
+and the retrieval pair.
+
+**A backend is chosen by the host and is invisible; a gateway is chosen by the
+caller and is a name.** That is the line `apt`-inside-**dnf** sits on one side
+of and every row above on the other, and it is why one router pointed at
+another is a hop nobody asked for.
 
 Each of these holds an API key that **nothing calling it ever sees**, which is
 the argument this design already makes about its own tokens
