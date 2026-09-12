@@ -51,7 +51,7 @@ These are the ones a shortcut would quietly break.
 
 | Invariant | Where it is stated |
 |---|---|
-| A call carries **exactly two parameters** — `user@realm` and a token; the socket supplies them, it does not remove them, and a client off the socket supplies both itself | [access § two parameters](../../docs/02-access.md#two-parameters) |
+| A call carries **a token and nothing else** — it backs one principal, and the socket is a credential of the same kind rather than an exemption from having one. The PoC sent a name beside it; that was dropped afterwards | [access § what a call carries](../../docs/02-access.md#what-a-call-carries) |
 | **The name is the identity.** No provider numeric id is ever a principal id | [identity § names](../../docs/01-identity.md#names) |
 | A **reply matches on topic + tag**; the bus adds no call machinery | [messaging § request and reply](../../docs/04-messaging.md#request-and-reply) |
 | **`ack` = got it, `done` = finished**, both emitted by the receiver | [messaging § receipts](../../docs/04-messaging.md#receipts) |
@@ -111,7 +111,7 @@ reviewer corrected it against V1's own source; what follows is what survived.
 | What happened on V1 | Why | What V2 does instead |
 |---|---|---|
 | A review answer was **accepted and never delivered**: it went to `agent-pub`, the label the sender's tool had defaulted `from_channel` to, and no session consumes that name. `delivery: null`, no error, found an hour later by asking | the reply route is a field the sender fills in, and a wrong one is indistinguishable from a right one until nothing happens | **the name is the address**, and a send to a name with no record is refused at `send` ([messaging § verbs](../../docs/04-messaging.md#verbs)). Not a cure by itself — see the honesty note below |
-| Sending needed the whole envelope spelled out — `--to-user`, `--channel`, `--from-channel`, `--source`, `--type`, payload — on the low-level command | channel, user, session, source and event type are five fields that must agree, and the low-level verb exposes all of them | `agent-bus send <name> "text"`. Two identity parameters, supplied by the socket locally ([access § two parameters](../../docs/02-access.md#two-parameters)) |
+| Sending needed the whole envelope spelled out — `--to-user`, `--channel`, `--from-channel`, `--source`, `--type`, payload — on the low-level command | channel, user, session, source and event type are five fields that must agree, and the low-level verb exposes all of them | `agent-bus send <name> "text"`. Identity is the token, and the socket supplies even that locally ([access § what a call carries](../../docs/02-access.md#what-a-call-carries)) |
 | Finding a peer took three overlapping commands — `channel list`, `channel connected`, `agent-sessions` — answering in durable registration, live lease and named session | one registry, three views, and no single "who can I talk to?" | `agent-bus ls`: one registry, one record per name |
 | `agent-bus help` answers `config_invalid: unknown command "help"` | no top-level help dispatch, so the argument parser rejects it like a bad config | one binary, and `help` prints the verbs |
 

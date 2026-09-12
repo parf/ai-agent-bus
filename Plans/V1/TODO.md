@@ -28,7 +28,7 @@ settled.
 | **The dashboard's groups, health, load graphs, child liveness and record origin** | each waits on the thing that would make it true — AUTH, the health child, the ring buffers, the supervisor reporting in, chained registries — not on the page | [discovery § what it shows](../../docs/05-discovery.md#what-it-shows) |
 | **A second sandbox backend** | one backend plus off is what the MVP builds; `bwrap` is one adapter behind the same port the day a host has no systemd | [runner § sandboxing](../../docs/08-runner-role.md#sandboxing) |
 | **Phone numbers and IM handles on a person** | contact routes nothing on the bus uses | [identity § registration](../../docs/01-identity.md#registration) |
-| **A one-time sign-in code, and a dashboard-scoped credential** | the MVP signs in with the two parameters a person already has; narrowing what the browser holds is the next move, not the first | [discovery § signing in](../../docs/05-discovery.md#signing-in) |
+| **A one-time sign-in code, and a dashboard-scoped credential** | the MVP signs in with the token a person already has; narrowing what the browser holds is the next move, not the first | [discovery § signing in](../../docs/05-discovery.md#signing-in) |
 
 ## The stage's own scope
 

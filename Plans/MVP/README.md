@@ -51,7 +51,7 @@ claim; the link owns the rule.
   Today the owner check is a caller-name guard; wave B is what turns it into
   a check.
 - **No token, no serve**, on every route
-  ([access § two parameters](../../docs/02-access.md#two-parameters)).
+  ([access § what a call carries](../../docs/02-access.md#what-a-call-carries)).
 - **A caller states a record; it never states what the daemon observes**
   ([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)).
 - **A refusal is never reported as silence** ([messaging § verbs](../../docs/04-messaging.md#verbs)).

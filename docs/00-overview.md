@@ -11,7 +11,7 @@ and linked from everywhere else.
 |---|---|---|
 | 00 | this file | goal · principles · the roles table · chaining · trade-offs |
 | 01 | [identity](01-identity.md) | principals · `user@realm` · registration · groups, roles, ACL · delegation · ownership · sealed config |
-| 02 | [access](02-access.md) | the two parameters · tokens · the local socket · key modes · encrypted sessions |
+| 02 | [access](02-access.md) | what a call carries · tokens · the local socket · key modes · encrypted sessions |
 | 03 | [services and topics](03-services-and-topics.md) | service kinds · personal/shared · templates and services · topic records · registry sync |
 | 04 | [messaging](04-messaging.md) | queues · message fields · receipts · TTL · verbs · overflow · durability · the envelope |
 | 05 | [discovery](05-discovery.md) | faces · audience · health · stats · dashboard · debug mode |
@@ -47,10 +47,11 @@ Claims only; the mechanism lives in the doc each one links to.
 - **Minimum to run: `agent-busd` alone** — registry, in-memory queues, API,
   MCP server, dashboard, with AUTH off.
 - **Authentication is always on; the AUTH role is optional.** There is no
-  anonymous access, and a call carries only ever two parameters
-  ([access § two parameters](02-access.md#two-parameters)). Locally you handle
-  neither ([access § local socket](02-access.md#local-socket)), which is how
-  one daemon serves many users on a host and knows which is calling.
+  anonymous access, and a call carries one thing — a token, which *is* the
+  identity ([access § what a call carries](02-access.md#what-a-call-carries)).
+  Locally you handle even that one ([access § local
+  socket](02-access.md#local-socket)), which is how one daemon serves many users
+  on a host and knows which is calling.
 - **Names are `user@realm`**, one syntax with three sources of authority
   ([identity § names](01-identity.md#names)). The name is the identity;
   provider ids are only a check.

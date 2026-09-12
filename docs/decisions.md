@@ -23,7 +23,6 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Enrolment is the one route with no credential on it, because it is where one comes from | [identity § proving possession](01-identity.md#proving-possession) |
 | A user is a line in `authorized_keys`, written by one program, never a format of ours | [setup § the programs](09-setup.md#the-programs) |
 | The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the two accounts](09-setup.md#the-two-accounts) |
-| A name is checked, not taken on trust | [access § two parameters](02-access.md#two-parameters) |
 | Writing is subject to the ACL, like reading | [identity § acl](01-identity.md#acl) |
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](01-identity.md#registration) |
 | MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](01-identity.md#registration) · [future](future/ldap-ad.md) |
@@ -46,14 +45,13 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Changing a record is the owner's, and the record's own; publishing a new name stays open | [identity § ownership](01-identity.md#ownership) |
 | Registry records are writer-signed where a key exists; static-token writes are unsigned | [identity § ownership](01-identity.md#ownership) |
 | Sealed private config, opt-in, daemon cannot read it | [identity § sealed private config](01-identity.md#sealed-private-config) |
-| A call carries exactly two parameters, `user@realm` + token | [access § two parameters](02-access.md#two-parameters) |
+| A call carries a token and no name — the token is the principal | [access § what a call carries](02-access.md#what-a-call-carries) |
 | Two ways to get a token: over SSH, or `token` on the box; both need machine access | [access § getting a token](02-access.md#getting-a-token) |
 | `token` is the credential verb, `register` the registry one | [access § getting a token](02-access.md#getting-a-token) |
-| A token backs one principal: a request stating another name is refused, and told so | [access § two parameters](02-access.md#two-parameters) |
 | Over SSH the key names you, so a caller never states their own principal | [access § token scope](02-access.md#token-scope) |
 | MVP tokens are master, one per principal; Release 1 scopes them per service so one cannot be replayed at another | [access § token scope](02-access.md#token-scope) |
 | The daemon's owner may get a credential for any name; anyone else only for one they own | [access § getting a token](02-access.md#getting-a-token) |
-| One socket per local account supplies both parameters; `status` says which name it used | [access § local socket](02-access.md#local-socket) |
+| One socket per local account is a credential of its own; `status` says which name it used | [access § local socket](02-access.md#local-socket) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
 | When a credential was issued is durable; when it was last used is this run's | [access § token lifetime](02-access.md#token-lifetime) |
 | A caller may ask what credentials they hold and never anybody else's; owning a name is not holding one | [access § token lifetime](02-access.md#token-lifetime) |
@@ -61,7 +59,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Credentials persist behind the store port, in a text file until the database is chosen | [setup § storage](09-setup.md#storage) |
 | The restart snapshot carries the registry too, and is JSON until Parquet is written | [messaging § durability](04-messaging.md#durability) |
 | A start that follows an unclean stop says so, and from when it is missing traffic | [messaging § durability](04-messaging.md#durability) |
-| The socket hides the two fields, it does not replace them; one host, many users | [access § local socket](02-access.md#local-socket) |
+| The socket is a credential, not an exemption from having one; one host, many users | [access § local socket](02-access.md#local-socket) |
 | Socket layout, ownership and the one capability it needs | [access § local socket](02-access.md#local-socket) |
 | Three key modes: static, pairwise, derived | [access § key modes](02-access.md#key-modes) |
 | No forward secrecy | [access § encrypted sessions](02-access.md#encrypted-sessions) |
@@ -146,7 +144,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The supervisor owns the listening sockets and passes fds down | [processes § the rule](11-processes.md#the-rule) |
 | The runner is not part of `agent-busd`: a separate program under its own account, and no process the daemon starts may exec | [processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |
 | Two system accounts, one per secret domain, under one `/var/lib/agent-bus` | [setup § the two accounts](09-setup.md#the-two-accounts) |
-| ssh with a forced command is a third way the two parameters arrive, and how a remote daemon is reached | [access § the three doors](02-access.md#the-three-doors) |
+| ssh with a forced command is a third way a caller is named, and how a remote daemon is reached | [access § the three doors](02-access.md#the-three-doors) |
 | The runner is a service on the bus; deploying on a host is its service ACL, not a second door | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
 | The runner registers as `runner@<host>`, a name like any other | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
 | Two accounts, two units, started and stopped independently | [setup § the two units](09-setup.md#the-two-units) |
@@ -250,7 +248,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Only stdio reaches the Codex App Server; the WebSocket is not needed | both are used — a loopback WebSocket to a shared app-server, stdio to a spawned one. Only a WebSocket over a *unix socket* is out — [runner § adapters](08-runner-role.md#adapters) |
 | The runner is part of the core | its own process — it is the one component that execs code it did not write — [processes](11-processes.md) |
 | A token lives in daemon memory and dies with a restart | tokens are saved, and the previous one is kept — otherwise a reloaded queue is undecryptable ciphertext — [access § token lifetime](02-access.md#token-lifetime) |
-| The token is the whole identity in "minimal mode" | a call always carries two parameters; the socket supplies them locally — [access § two parameters](02-access.md#two-parameters) |
+| A call carries exactly two parameters, `user@realm` + token | the token alone: it already backs exactly one principal, so a name beside it is redundancy, not information — [access § what a call carries](02-access.md#what-a-call-carries) |
+| A name is checked against the credential it arrived with, and a mismatch told apart from a bad token | no name arrives to check. What that check caught was a typo in a config, not somebody trying to be somebody else — [access § what a call carries](02-access.md#what-a-call-carries) |
 | A name never holds a slash: a name is not a path | one slash is allowed, between service template and instance name — the realm still never holds one — [identity § names](01-identity.md#names) |
 | "Service" = the kind, "instance" = a running copy of it | "service" means the **configured** thing; the kind is a **service template** — [services § service and template](03-services-and-topics.md#service-and-template) |
 | Local access needs no credential at all | the socket hides the credentials, it does not remove them — [access § local socket](02-access.md#local-socket) |
@@ -265,6 +264,6 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The service ACL lives in the service's own configuration | the record: the daemon will not read a private configuration, so a layer it enforces cannot live there — [identity § acl](01-identity.md#acl) |
 | The MVP encrypts bodies end to end | struck: the daemon issues the key they would derive from — Release 1, on pairwise or derived keys — [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | `register` both issues a credential and states a registry record | `token` issues the credential; `register` only states a record — [access § getting a token](02-access.md#getting-a-token) |
-| One token reaches every name, and the face overwriting `from` is the only guard | a token backs one principal and the daemon checks the name against it — [access § two parameters](02-access.md#two-parameters) |
+| One token reaches every name, and the face overwriting `from` is the only guard | a token backs exactly one principal, and it is the only thing the daemon reads a caller out of — [access § what a call carries](02-access.md#what-a-call-carries) |
 | LDAP/AD in scope | deferred — [future](future/ldap-ad.md) |
 | NATS · Redis Streams · AUTH-signed JWT keys | dropped; kept in `legacy/` for history |

@@ -21,8 +21,8 @@ Two axes: reachable or not, and who owns the record.
   not know the bus exists. Same for an HTTP API, a unix socket, a cron host.
   Health hints are optional extras.
 - **Identity is required** for agents, consumers and publishers — see
-  [access § two parameters](02-access.md#two-parameters). Only generic records
-  have none.
+  [access § what a call carries](02-access.md#what-a-call-carries). Only generic
+  records have none.
 - Publisher/consumer name **capabilities on a principal** (`publish:<glob>`,
   `consume:<glob>`), not separate objects. They appear in the table above
   because a record says which a principal behaves as, not because they are a
@@ -182,10 +182,10 @@ designed but not built
 its stage is [stages § release 1](12-stages.md#release-1). Until then: a
 configuration is readable by anyone who can read the daemon's state, and it is
 lost when the daemon restarts. The owner check itself is real now — the
-caller's name is checked against its credential
-([access § two parameters](02-access.md#two-parameters)) and a record is only
-its owner's to change ([identity § ownership](01-identity.md#ownership)) —
-but *claiming* a name nobody holds is still open to anyone.
+caller *is* their credential
+([access § what a call carries](02-access.md#what-a-call-carries)) and a record
+is only its owner's to change ([identity § ownership](01-identity.md#ownership))
+— but *claiming* a name nobody holds is still open to anyone.
 
 **A service fetches its own configuration; nothing injects it** — and it is
 the only one that can, so this runs as the service, not as its owner. This is

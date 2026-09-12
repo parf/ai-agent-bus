@@ -129,17 +129,17 @@ operator. Everything in
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
 | **No JavaScript, no CDN, no external asset** | A signed-in master is looking at the node's whole envelope feed, and the first `<script src=…>` added for a chart inherits that. Graphs are inline SVG or nothing; an avatar is served from this node, never hotlinked, or every page view tells the provider who is looking |
 | **The web child writes nothing of its own.** A form posts *as the person*, never as the child | It is the least trusted process and the design gives it no write path ([processes § the processes](11-processes.md#the-processes)). Sign in and sign out are the only two in the MVP; what an owner does to a misbehaving service, the page tells them to run |
-| **A wrong name and a wrong credential get one message** | The API tells them apart deliberately ([access § two parameters](02-access.md#two-parameters)), and on an open form that difference is an oracle for which names exist |
+| **The form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
 
 ### Signing in
 
-A person signs in with **the two parameters** — their name and their token
-([access § two parameters](02-access.md#two-parameters)). There is no third
-kind of credential and no password anywhere.
+A person signs in with **the token they already hold**
+([access § what a call carries](02-access.md#what-a-call-carries)) — there is no
+name to type, no other kind of credential and no password anywhere.
 
 The part worth stating is where the session lives: **in the bus**, which is
 the process that holds state ([processes § what is shared](11-processes.md#what-is-shared)).
-The child forwards the pair once, the bus answers with an expiring session id,
+The child forwards it once, the bus answers with an expiring session id,
 and from then on the browser carries that id and nothing else.
 
 | | |

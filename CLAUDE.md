@@ -95,8 +95,9 @@ the mechanism behind the link:
   bounded in-memory queues. Never reintroduce one; if a single flow needs
   durability, give that one flow a WAL.
 - **Authentication is always on; the AUTH *role* is optional.** A call carries
-  exactly two parameters, and the local socket supplies them rather than
-  replacing them — `docs/02-access.md`.
+  a token and nothing else — the token *is* the principal, and a name on the
+  wire would prove nothing. The local socket is a credential of the same kind,
+  not an exemption from having one — `docs/02-access.md`.
 - **Names are `user@realm`**, and **the name is the identity**. Provider
   numeric ids are stored only as a re-check comparison; never reintroduce
   `github:<id>`-style ids as principal ids — `docs/01-identity.md`.

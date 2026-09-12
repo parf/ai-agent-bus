@@ -3,33 +3,37 @@
 How a caller gets in. This document owns the credentials, the socket and the
 session; who the caller *is* belongs to [identity](01-identity.md).
 
-## Two parameters
+## What a call carries
 
-**Every call carries exactly two things: `user@realm` and a token.** There is
-no third field on the wire and no per-service setup. Authentication is always
-on — no token, no access — and the AUTH role is not required for any of it.
+**A call carries one thing: a token.** There is no second field on the wire and
+no per-service setup. Authentication is always on — no token, no access — and
+the AUTH role is not required for any of it.
 
-**A client that is not on the socket supplies both.** The token comes from the
-environment or a file; the **name comes from the same place**, and it is not
-decoration — it is the inbox this process owns, the sender a reply comes back
-to, and what another principal addresses. A call carries both, and one without
-a name is refused.
+**The token is the identity.** It backs exactly one principal and the daemon
+reads the caller out of it, so every `from`, every owner and every ACL subject
+means what it says: **you cannot be somebody else**, because there is nothing on
+the wire to be somebody else *with*.
 
-**The name is checked, not taken.** The daemon binds it to the credential it
-arrived with and refuses one that credential does not back — on the socket
-from the account at the other end, remotely from the token's principal. So a
-name on the wire is not a claim: **you cannot be somebody else**, and every
-`from`, every owner and every ACL subject means what it says.
+**A name beside it is not asked for, because it proves nothing.** Whoever holds
+the credential is the principal. A name sent alongside can only agree — in which
+case it said nothing — or disagree, in which case it is a typo in somebody's
+config; and catching that typo is not worth a second parameter in every call,
+every client library and every deployment, forever.
 
-**Remotely, the credential is the token's principal.** A token backs exactly
-one name; a request that states a different one is refused as *that token
-belongs to somebody else*, which is a different answer from a bad token and
-the one that makes the refusal readable.
+**The name is spent once, to get the token**: `user@realm` plus a key, a socket
+or an ssh line, in exchange for a credential
+([getting a token](#getting-a-token)). From then on the credential carries it,
+and over ssh the name is not typed at all ([token scope](#token-scope)).
 
-**Locally it is the account at the other end**, known from which socket the
-connection arrived on ([local socket](#local-socket)) — so a name stated
-there is checked the same way, and a caller that states nothing is still
-somebody.
+**`AGENT_BUS_NAME` survives and authenticates nothing.** It is what a process is
+serving as — for its own use and its children's ([runner § what the child is
+told](08-runner-role.md#what-the-child-is-told)) — and the daemon does not read
+it. A client that does not know its own name asks: `status` answers with it.
+
+The one place a principal is still named on a wire is the **session handshake**
+between two peers, where the key is derived from it and the daemon is not a
+party ([encrypted sessions](#encrypted-sessions)). That is a different wire from
+this one.
 
 ## Getting a token
 
@@ -133,7 +137,7 @@ authenticate; the one before them stops.
 
 ## Local socket
 
-On the daemon's own host the two fields are supplied for you.
+On the daemon's own host there is nothing to supply at all.
 
 | | |
 |---|---|
@@ -143,19 +147,19 @@ On the daemon's own host the two fields are supplied for you.
 | The directory | `chmod 711` — everyone walks through it to their own socket, nobody reads what else is there |
 
 `agent-busd` creates `/run/agent-bus/` itself, so nothing is written into
-anyone else's home or runtime directory. It knows the username and the token
-from *which socket a connection arrived on* and hands them to the rest of the
-system as if the client had sent them. The account running the daemon gets
-one like everybody else — it is a user of the bus too.
+anyone else's home or runtime directory. It knows the caller
+from *which socket a connection arrived on* and hands that name to the rest of
+the system as if a token had carried it. The account running the daemon gets a
+socket like everybody else — it is a user of the bus too.
 
 **A client on its own socket never states a name**, so it may not know one:
 `status` answers with the name the daemon is using for the caller, which is
 how a verb that needs its own identity gets it.
 
-**The socket hides the two fields; it does not replace them.** Same mechanism
-as remote — which is why one daemon can serve **many users on a host** and know
-which is calling on every request, and why service ACLs apply per user with
-nothing for anyone to configure.
+**The socket is a credential, not an exemption from having one.** It says who
+is calling exactly as a token does — which is why one daemon can serve **many
+users on a host** and know which is calling on every request, and why service
+ACLs apply per user with nothing for anyone to configure.
 
 Chowning a socket to another account needs **`CAP_CHOWN`** and nothing more,
 granted declaratively (`AmbientCapabilities=CAP_CHOWN` under systemd), not by
@@ -165,15 +169,15 @@ listening fds down, so no long-running child has it
 
 ## The three doors
 
-Three ways the two fields arrive, one rule. They differ only in *who fills
-them in*, never in who you are — the same ACLs and roles apply through any of
+Three ways a caller is known, one rule. They differ only in *what carries the
+answer*, never in who you are — the same ACLs and roles apply through any of
 them.
 
-| Door | Who supplies the name | Who supplies the token | To set up |
-|---|---|---|---|
-| stated | you, from config and env | you | get a token once |
-| local socket | the socket's account mapping | the daemon | nothing |
-| **ssh** | a forced command in `authorized_keys` | the wrapper, as a trusted local asserter | a key in that account |
+| Door | What names the caller | To set up |
+|---|---|---|
+| stated | a token you hold, from config or env | get a token once |
+| local socket | the socket's account mapping | nothing |
+| **ssh** | a forced command in `authorized_keys`, which the wrapper asserts locally | a key in that account |
 
 `ssh agent-busd@host <command>` is how a **remote** daemon is reached: sshd
 authenticates the key, the forced command states the principal, and the client
@@ -203,7 +207,7 @@ exist for principals that hold a key.
 
 | Mode | `access_key` | Expiry | AUTH role | Identity |
 |---|---|---|---|---|
-| **static** | the token above, or pre-shared in both configs | by policy; local default never — see [token lifetime](#token-lifetime) | not needed | `user@realm` + the token |
+| **static** | the token above, or pre-shared in both configs | by policy; local default never — see [token lifetime](#token-lifetime) | not needed | the token |
 | **pairwise** | `HKDF(X25519(my_priv, their_pub), "pairwise" \| sorted(fp_a, fp_b))` | never | not needed | Ed25519 key |
 | **derived** | `HKDF(master_secret, "ak" \| user \| service \| epoch)`, `epoch = floor(now/3600)` | 60 min | yes, once per epoch | Ed25519 key |
 

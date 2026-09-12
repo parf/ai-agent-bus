@@ -1488,7 +1488,7 @@ has "while everything else still wants one" \
   "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/enr/bus.sock" http://unix/status)" '401'
 
 # agent-bus-token is the program an ordinary user runs, and the only one they
-# reach over SSH. See docs/09-setup.md#the-five-programs.
+# reach over SSH. See docs/09-setup.md#the-programs.
 TOK1=$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1)
 has "the token program prints a credential and nothing else" "$TOK1" '^[0-9a-f]\{48\}$'
 has "and asking twice is a read, not a rotation" \
@@ -1619,7 +1619,7 @@ bad_exit "an owner without a realm is refused before anything is written" $rc
 sec "the admin program owns what the account owns"
 # Everything an operator does to the account's files, and nothing a user
 # needs. The home is stated, so this edits a directory of its own rather than
-# a real install. See docs/09-setup.md#the-five-programs.
+# a real install. See docs/09-setup.md#the-programs.
 mkdir -p "$D/adm"
 ssh-keygen -q -t ed25519 -N '' -f "$D/adm/user" >/dev/null
 ssh-keygen -q -t ed25519 -N '' -f "$D/adm/boss" >/dev/null

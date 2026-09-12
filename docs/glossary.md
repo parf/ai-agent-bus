@@ -36,7 +36,7 @@ wins.
 | **`user@realm`** | how every principal is written; realm = host · provider · team. A service may prefix a template | [identity § names](01-identity.md#names) |
 | **realm** | who vouches for a name | [identity § names](01-identity.md#names) |
 | **canonical name** | the one spelling everything compares and routes on: lower-case, ASCII, trimmed per component, within the bound | [identity § names](01-identity.md#names) |
-| **token** | the second of the two parameters every call carries; persisted, previous one kept | [access § token lifetime](02-access.md#token-lifetime) |
+| **token** | the one thing every call carries, and the whole identity; persisted, previous one kept | [access § token lifetime](02-access.md#token-lifetime) |
 | **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](01-identity.md#acl) |
 | **`allow: *`** | anyone who can authenticate | [identity § acl](01-identity.md#acl) |
 | **`agent-bus-admin`** | the program that edits what the `agent-busd` account owns — *not* a role; the setup user simply holds master | [setup § the programs](09-setup.md#the-programs) |

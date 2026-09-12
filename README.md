@@ -49,9 +49,9 @@ GitHub account can walk up, prove the key is theirs, and use it.
   `parf@github` (the identity provider vouches), `parf@realmo` (a team on the
   AUTH server). Services use the same shape, optionally prefixed by the service
   template they were configured from.
-- **A call carries two things: username and token.** Nothing else. On your own
-  host you handle neither — you talk to the daemon over a socket that is yours
-  alone, and it fills both in for you
+- **A call carries one thing: a token**, and the token *is* who you are. On
+  your own host you handle not even that — you talk to the daemon over a socket
+  that is yours alone, and it knows you by it
   ([access § local socket](docs/02-access.md#local-socket)).
 - Every registered participant has its **own queue**. Send to it while it is down;
   it reads the backlog when it comes back.
@@ -62,10 +62,9 @@ GitHub account can walk up, prove the key is theirs, and use it.
   three questions to the same service come back matched to the right question.
 - **Authentication is always on — and locally there is nothing to set up.**
   Setup maps each local account to a bus username; the daemon gives each one a
-  socket of its own and reads the username and token off it. To reach a
-  *remote* bus you need those same two values: get the token with
-  `ssh agent-busd@<node> token` — the key says who you are — or `agent-bus-token <user>`
-  on the box. One daemon serves everyone on a host and knows who is calling, so
+  socket of its own and knows the username from it. To reach a *remote* bus you
+  need a token, and nothing else: get it with `ssh agent-busd@<node> token` —
+  the key says who you are — or `agent-bus-token <user>` on the box. One daemon serves everyone on a host and knows who is calling, so
   services open to some users and not others. Central AUTH is an optional role
   of the same daemon.
 
