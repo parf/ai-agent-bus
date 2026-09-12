@@ -102,6 +102,24 @@ anything else, so unit logs are an instance's configuration rather than another
 entry in this catalogue — which is also how the half you can safely hand out
 stays separate from **systemd** below: different instance, different grant.
 
+### The bus watching itself
+
+The two that are installed **and enabled** by default, because the first
+question after anything goes wrong is *what did it say*, and having to set
+something up beforehand is how that question goes unanswered.
+
+| | From | |
+|---|---|---|
+| **log** | owner | a ring per level — **warning · error · alert** — and the same lines published as they happen. `logwatch` pointed at the bus instead of at a glob |
+| **alerter** | owner | the one subscriber that turns an alert into a message somewhere a person is. It reaches the channels already in this catalogue ([people and the world outside](#people-and-the-world-outside)) rather than speaking to any of them itself |
+
+| | |
+|---|---|
+| **one contract, not a second one** | ring for the past, topic for the future, the poll the common one — exactly what `logwatch` does and for the same reason ([reading the box](#reading-the-box)). A level is an instance of its own, so a flood of warnings cannot push the errors out of theirs |
+| **nothing new in the daemon** | the daemon already publishes its own events onto a topic — a key that does not match is written down that way today ([access § key confirmation](02-access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the service is only what **remembers** them |
+| **the alerter routes and does not judge** | what counts as an alert was decided by whoever published it. Where it goes is the instance's `env` ([runner § the three env layers](08-runner-role.md#the-three-env-layers)), so on-call and a noisy channel are two instances, which is how everything else here is granted too |
+| **a bus that is down takes the ring with it** | it is a service, and pretending otherwise would put a log inside the daemon. The journal is still the daemon's own record ([setup § the two units](09-setup.md#the-two-units)); this is for everything the bus carries, which is the part no journal sees |
+
 ### Acting on the box
 
 The dangerous tier. Each is a separate name so that each is a separate grant.

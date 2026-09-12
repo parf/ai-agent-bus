@@ -192,13 +192,24 @@ What belongs in *this* stage rather than that document:
 | what counts as done | **no entry in the catalogue needed a change to `agent-busd`.** That is the acceptance criterion, and a failure of it is a finding about the design rather than about the tool |
 | what it is not | a plugin system. Each one is a service written the ordinary way, and nothing here gives a bundled service an ability an outside one lacks |
 
-Beyond the catalogue, three things:
+Beyond the catalogue:
 
 | | |
 |---|---|
 | **records that expire** | a record is `kept` or `ephemeral`, and an ephemeral one the dashboard or a bare `agent-bus start` left behind goes after weeks with nobody serving it ([services § how long a record lives](03-services-and-topics.md#how-long-a-record-lives)). Single-node until peer sync has a clock |
 | **a ready-to-use image** | Docker and Podman — one command to a bus that works, nothing to edit, and something worth calling already in it ([the image](#the-image)) |
 | **an official Claude channel** | the push adapter drives `claude --channel` from outside today ([runner § adapters](08-runner-role.md#adapters)), and every push raises a permission prompt. Fine for a demo, wrong for a service that runs unattended — so this is **asked for rather than built**, and until it lands the adapter is a thing a person watches |
+| **the bus watching itself** | warnings, errors and alerts get a ring apiece and something that carries an alert to a person, both enabled without being asked for ([bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself)). The stage that ships tools is the one where *the tools stopped working* becomes a question somebody asks |
+
+❓ **Whether the daemon's own parts become services.** The dashboard, health and
+stats are supervisor children with passed fds and no token
+([processes](11-processes.md)); as bundled services instead they would get a
+name, an ACL and a host of their own for free, and the daemon would shrink to
+the bus. Against it: what you open when the bus is sick must not be something
+the bus delivers, and a child that never had a token cannot leak one. The
+catalogue's own acceptance criterion is *no change to `agent-busd`* — this asks
+the opposite question, which is why it belongs to this stage rather than to a
+document. *Settled by:* owner, after the catalogue is real.
 
 ### The image
 
@@ -211,7 +222,7 @@ shared but the bus.
 | | |
 |---|---|
 | **fast** | one command from nothing to a message delivered, with no file to edit. That is the acceptance criterion, and it is a time rather than a feeling |
-| **useful** | the catalogue ships **installed**, and `services.json` enables the reading half only — health and info. Everything that acts on the box is installed and **not enabled**, which is a state the design already has and precisely what it is for ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
+| **useful** | the catalogue ships **installed**, and `services.json` enables the reading half only — health, info, and the pair that watches the bus. Everything that acts on the box is installed and **not enabled**, which is a state the design already has and precisely what it is for ([runner § what an instance is](08-runner-role.md#what-an-instance-is)) |
 | **persistent** | `/var/lib/agent-bus` is a volume, or the registry and every token die with the container and *a token survives a restart* quietly stops being true ([access § token lifetime](02-access.md#token-lifetime)) |
 | **the door is a token** | a per-account socket maps a local account, and a container has one user — so people arrive with a token over the port and the socket serves the container's own processes ([access § the three doors](02-access.md#the-three-doors)) |
 | **sandboxing is off, and says so** | `systemd-run --user` wants a user manager a container does not have. The container is the boundary instead, and `--sandbox on` in there is an **error** rather than a quiet downgrade — which is already how it behaves ([runner § sandboxing](08-runner-role.md#sandboxing)) |
