@@ -162,6 +162,25 @@ run one job twice.
 | **the holder is a principal** | the token says who ([access](02-access.md)), so a listing can answer *who holds this* — and the daemon watches no connection, here as everywhere. The ttl is what ends a lock, not a socket closing |
 | **it holds nothing** | a lock says who may act and stores no value. What the holders agree *about* lives wherever they keep it, which is a separate question ([1.2 § shared secrets, and a KV with locks](future/1.2-UNDECIDED.md#shared-secrets-and-a-kv-with-locks)) |
 
+### A set of locks
+
+**A set is a named group of locks, and it is how a shared service shares its
+resources.** The service owns some countable thing — four GPUs, eight browser
+sessions, the seats on a licence, a handful of outbound addresses — and
+declares a set with one lock per resource. Whoever holds one of the set's locks
+holds one of the things.
+
+| | |
+|---|---|
+| **take a named one, or take any free one** | `gpu2` when it has to be that one; *any* when it does not, and the answer says **which** was given |
+| **that answer is the point** | a counting semaphore says *you may proceed* and leaves two holders to pick the same GPU. A set says *you have `gpu2`*, which is the whole difference and the reason this is named locks rather than a number |
+| **the set is a name, so it is granted like one** | who may take from it is the ordinary ACL question ([identity § acl](01-identity.md#acl)), asked once about the set rather than per resource |
+| **empty behaves like a held lock** | `lock` waits for the first one returned, `try-lock` is refused now. Nothing new: it is the two forms above, asked of a set |
+| **and it answers how many are free** | cheap, and the number a dashboard or a queue-depth alarm wants |
+
+Everything else is unchanged — a ttl on every grant, a number that only goes
+up, and nothing kept across a restart.
+
 ## Message fields
 
 Every message carries:

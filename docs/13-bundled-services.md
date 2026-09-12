@@ -202,7 +202,10 @@ familiar, and every language already thinks in it:
 ❓ **A hash of locks.** Asked for, and the one item here that would be a
 **second lock authority**: the daemon grants named locks as of Release 1
 ([messaging § shared locks](04-messaging.md#shared-locks)), and two things
-granting locks is exactly what that section argues against. `setNX` with a ttl
+granting locks is exactly what that section argues against — and what a set of
+locks is *for* is written down there now ([messaging § a set of
+locks](04-messaging.md#a-set-of-locks)), so the question left is narrower:
+whether `kv` shows them at all, or callers ask the daemon. `setNX` with a ttl
 is already a lock in everything but name, which is why this is worth settling
 rather than leaving to whatever each caller invents. Either these *are*
 the daemon's locks under a name, or the kv holds them itself and then a `kv`

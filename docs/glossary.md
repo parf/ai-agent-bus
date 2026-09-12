@@ -45,6 +45,7 @@ wins.
 | **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](01-identity.md#delegation) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](03-services-and-topics.md#service-kinds) |
 | **`lock` · `try-lock` · `release`** | a named lock the daemon grants to one holder for a ttl; the first waits, the second does not | [messaging § shared locks](04-messaging.md#shared-locks) |
+| **lock set** | a named group of locks, one per resource a shared service owns; take any free one and be told which | [messaging § a set of locks](04-messaging.md#a-set-of-locks) |
 | **service template** | the *unconfigured* capability; does not run, has no address | [services § service and template](03-services-and-topics.md#service-and-template) |
 | **service** | **always configured**: a template + its config + where it runs. Never say "service" for an unconfigured template | [services § service and template](03-services-and-topics.md#service-and-template) |
 | **`template/instance-name@realm`** | a service configured from a template; `service@realm` when there is no separate template | [identity § names](01-identity.md#names) |
