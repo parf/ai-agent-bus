@@ -121,6 +121,12 @@ one, which is the same reason `jsonl` keeps its process.
 `args` and `json` are the MVP. `std`, `jsonl` and `msgpack` arrive in
 [Release 1](12-stages.md#release-1).
 
+⚠️ **`std` is a renamed name, not a new one.** It meant the envelope until this
+was written, and it will mean the raw body — so it must **never** be kept as an
+alias for `json`: a script that says `--algo=std` has to be refused in between
+rather than quietly changing behaviour under it. An unknown form is already an
+error and not a default, which is what makes that safe.
+
 All five forms also get the envelope in the environment — sender, topic, tag,
 `message_id` — so a script that cares can route on it, and one that does not
 can ignore it ([messaging § envelope](04-messaging.md#envelope)).
@@ -131,6 +137,7 @@ can ignore it ([messaging § envelope](04-messaging.md#envelope)).
 | exit non-zero | *(the same)* no reply, logged with stderr. Nothing retries it. For a **stream form** an exit is not an answer at all, it is the child dying ([long-lived services](#long-lived-services)) |
 | one process per message | no state between messages. The **stream forms** are the exception, and keeping state is the whole reason they exist ([long-lived services](#long-lived-services)) |
 | `-N` | how many script processes may run **at once**; default 1, so a script that is not safe to run twice does not have to be |
+| no `--algo` given | **`json`** — the envelope on stdin, which is what a script that cares about anything but the body wants |
 | the script is one argument | it is a shell command line, so quote it if it has arguments of its own: `"./greet.sh --loud"` |
 | registered at start | the description is what `ls` and the MCP catalog show. **`stop` does not unregister it**: the name still owns its queue and messages still wait in it, which is the whole point of a name-owned inbox ([messaging § inbox queues](04-messaging.md#inbox-queues)). What changes is that nothing is reading it |
 | started by its owner | the process *becomes* the service, so it needs that name's credential, and only the name's owner may have one ([access § getting a token](02-access.md#getting-a-token)). Starting somebody else's service is refused, not silently run under your own name |
