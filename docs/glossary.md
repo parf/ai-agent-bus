@@ -43,6 +43,7 @@ wins.
 | **role** | service-defined string saying what a principal may do; `#admin` here, `admin` to the service | [identity § sigils](01-identity.md#sigils) |
 | **`@`** · **`#`** (ACL) | a leading `@` is a group, a leading `#` a role, and anything else is a user | [identity § sigils](01-identity.md#sigils) |
 | **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](01-identity.md#delegation) |
+| **service-to-service token** | one service's credential, narrowed to the service it is calling, asked for over the bus and as itself | [access § service to service](02-access.md#service-to-service) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](03-services-and-topics.md#service-kinds) |
 | **`lock` · `try-lock` · `release`** | a named lock the daemon grants to one holder for a ttl; the first waits, the second does not | [messaging § shared locks](04-messaging.md#shared-locks) |
 | **lock set** | a named group of locks, one per resource a shared service owns; take any free one and be told which | [messaging § a set of locks](04-messaging.md#a-set-of-locks) |

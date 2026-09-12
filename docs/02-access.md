@@ -103,6 +103,25 @@ without one are as open as the host they are on.
 one hands out the thing you authenticate with, the other says a service exists ([services § service and
 template](03-services-and-topics.md#service-and-template)).
 
+## Service to service
+
+**A service that holds a credential may ask for one scoped to the service it
+is about to call** — over the bus, with the token it already has. No key, no
+sshd, and nobody at a keyboard. It is the same `token <service>` request as
+[token scope](#token-scope), reached from inside the bus instead of over SSH.
+
+| | |
+|---|---|
+| **it is A as A** | not delegation. **on-behalf-of** is a claim A adds when it is acting for a *person* ([identity § delegation](01-identity.md#delegation)); this is A calling B as itself, which most services calling other services are doing. The two compose and neither implies the other |
+| **asking is not access** | the target's `allow` decides the call, as it always did ([identity § acl](01-identity.md#acl)). What the narrow token buys is the other thing: a service you called cannot replay your credential somewhere else ([token scope](#token-scope)) — that is the whole reason a token is per service in the first place |
+| **it does not solve the first one** | a service still gets its *initial* credential the way it does today — the runner collects it for a service it started, or a person does. This is every hop after that, which is most of them |
+| **nothing new about the token itself** | issued, persisted, refreshed and rotated like any other ([token lifetime](#token-lifetime)) |
+
+⚠️ **A service on a host with no runner and nobody to ask is still open.** It
+is the gap that makes a key of a service's own worth considering at all
+([1.2 § why a service would want a key of its own](future/1.2-UNDECIDED.md#why-a-service-would-want-a-key-of-its-own)),
+and it is the *first* credential, never the ones after it.
+
 ## Token lifetime
 
 **Tokens are persisted, and the previous one is kept.**

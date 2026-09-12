@@ -66,6 +66,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | No forward secrecy | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Bodies end-to-end encrypted; `encryption: off` per service for development | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Wire is JSON, msgpack optional | [messaging § envelope](04-messaging.md#envelope) |
+| A service exchanges the credential it holds for one scoped to the service it is calling, as itself — which is not delegation and does not cover its first credential | [access § service to service](02-access.md#service-to-service) |
 | Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](02-access.md#key-confirmation) |
 | The daemon grants named locks — blocking, non-blocking, and a ttl that is the only other release — because a pool already shares exactly one authority | [messaging § shared locks](04-messaging.md#shared-locks) |
 | A set of locks is how a shared service shares countable resources: take any free one and be told which, rather than a semaphore that says only *you may* | [messaging § a set of locks](04-messaging.md#a-set-of-locks) |
