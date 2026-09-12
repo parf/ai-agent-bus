@@ -69,8 +69,8 @@ type inbox struct {
 	// never taken from a caller. A queue that is drained and one nobody
 	// ever wrote to both read as empty, and these tell them apart.
 	in, out int
-	// Its own loss, not the daemon's. A total says something is losing
-	// work; only a per-inbox count says which name to go and look at.
+	// Its own loss, not the daemon's, for the reason protocol.Record.Dropped
+	// gives.
 	dropped, expired int
 
 	queue   []protocol.Envelope
@@ -141,10 +141,9 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	// A realm somebody else vouches for is not a realm anyone may write
-	// into. Refusing a *new* name there is what turns "the owner of a record
-	// may have its credential" from a hole into a rule: you become the name
-	// by proving you hold its key, not by asking first.
+	// Refusing a *new* name in a vouched-for realm is what turns "the owner
+	// of a record may have its credential" from a hole into a rule: you
+	// become the name by proving you hold its key, not by asking first.
 	// See docs/01-identity.md#registration.
 	if _, known := b.records[name]; !known && !enrolled {
 		if n, err := protocol.ParseName(name); err == nil {
@@ -161,8 +160,8 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 	// A registration also never carries either half of a configuration:
 	// the bytes have one write path and this is not it, and the digest is
 	// derived from them (protocol.Record.Public), so accepting one from a
-	// caller would let anyone claim any setup — which is exactly what the
-	// digest exists to detect.
+	// caller would let anyone claim any setup — which is what the digest
+	// exists to detect.
 	// The same applies to the live fields: they are what the daemon
 	// observes, attached to an answer on the way out, so a caller stating
 	// them would be claiming a reader it does not have.
@@ -182,9 +181,6 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 	// to its owner, and to the record itself — a service registering on
 	// every start is not a stranger to its own name, and it is the only
 	// other principal that could hold that name's credential.
-	// Keeping the stored owner while letting the rest be overwritten was a
-	// caller-name guard, not a check: it left the name with the right owner
-	// and somebody else's address.
 	// See docs/01-identity.md#ownership.
 	if old, known := b.records[name]; known {
 		caller := r.Owner // the face puts the caller here, not a claim
@@ -261,11 +257,11 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 }
 
 // Config reads one back — for the service itself and nobody else, its owner
-// included. Setup data goes in and is used; it does not come back out to be
-// looked at. An owner configures a service and is told that it worked
-// (Configure answers without the configuration), which is all an owner needs.
+// included. Setup data goes in and is used, not read back. An owner is told
+// that configuring worked (Configure answers without the configuration),
+// which is all an owner needs.
 //
-// It is not part of any listing either, so there is no other way to one.
+// It is in no listing either, so there is no other way to one.
 func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 	n, err := canon(name)
 	if err != nil {

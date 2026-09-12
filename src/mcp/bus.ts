@@ -64,8 +64,8 @@ export class Bus {
   }
 
   /** A client for another principal. The token is the identity, so becoming
-   *  somebody else means holding their credential — which is exactly what a
-   *  caller cannot do without being allowed to. */
+   *  somebody else means holding their credential — which a caller cannot do
+   *  without being allowed to. */
   async as(name: string): Promise<Bus> {
     return new Bus({ ...this.#env, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: await this.token(name) });
   }

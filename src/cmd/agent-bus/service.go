@@ -84,9 +84,8 @@ func alive(name string) (running, error) {
 }
 
 // stopVerb ends one service and waits for it. Graceful is the whole
-// contract — the wait for the next message ends, no further message is
-// taken, and the scripts already running are waited for — so this waits for
-// that to finish rather than reporting a stop that has not happened.
+// contract (serve, in start.go), so this waits for it to finish rather than
+// reporting a stop that has not happened.
 // Siblings are untouched: a name names one process here.
 func stopVerb(args []string) error {
 	pos, _ := split(args)

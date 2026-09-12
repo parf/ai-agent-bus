@@ -26,7 +26,7 @@ const usage = `agent-bus-token <user@realm> [--rotate] [--key <path>]
   --rotate  ask for a new credential; without it, asking twice is a read
   --key     prove the name with a key instead of a credential you already have
 
-As a forced command in the agent-bus account's authorized_keys, the name in
+As a forced command in the agent-busd account's authorized_keys, the name in
 the line is the only one that key may ask for.`
 
 func main() {

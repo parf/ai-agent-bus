@@ -111,8 +111,7 @@ func runBus(c config) {
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	// The periodic dumper bounds what an untimely death costs to one
-	// interval; without it a crash loses everything since start.
+	// The periodic dumper bounds what an untimely death costs to one interval.
 	if c.every > 0 {
 		tick := time.NewTicker(c.every)
 		defer tick.Stop()

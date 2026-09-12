@@ -1,5 +1,5 @@
 // B.1/B.2 acceptance: drive the MCP server over stdio exactly as a client
-// does — initialize, tools/list, tools/call — and check the four tools work
+// does — initialize, tools/list, tools/call — and check the five tools work
 // against a real daemon. Run by src/smoke.sh, which starts that daemon.
 //
 // The peer on the other side is the Bus class in this process, not a

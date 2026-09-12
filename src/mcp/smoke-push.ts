@@ -112,8 +112,7 @@ try {
   const back = await peer.consume({ wait: "5s" });
   check("the reply reaches the peer with the original topic and tag", back?.body === "pong from push" && back?.topic === "p1" && back?.tag === "q1", JSON.stringify(back));
 
-  // Two distinct messages, in order, once each. Without the count a delivery
-  // run twice was completely invisible.
+  // Two distinct messages, in order, once each.
   const second = await peer.send({ to: me, body: "second message", topic: "p2", tag: "q2" });
   const note2 = await waitForChannel(2, 10_000);
   check("a second message arrives as its own notification", note2?.meta?.message_id === second.message_id, JSON.stringify(note2?.meta));

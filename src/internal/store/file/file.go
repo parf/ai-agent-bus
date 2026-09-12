@@ -1,8 +1,8 @@
 // Package file is the store adapter that keeps credentials in a text file:
 // one line per principal, `name current [previous [issued]]`, mode 0600. A
-// principal with no previous token but a date writes `-` in its place, so
-// the fields stay positional and a line the PoC wrote still reads. It is what
-// the MVP ships while what else lives in SQLite is open
+// principal with no previous token but a date writes `-` in its place, so the
+// fields stay positional. It is what the MVP ships while what else lives in
+// SQLite is open
 // (docs/09-setup.md#storage) — a database is one more adapter and no change
 // anywhere else, which is the point of the port
 // (docs/10-modules.md#the-rule).
@@ -25,9 +25,8 @@ type Tokens struct{ path string }
 // cannot report on.
 func NewTokens(path string) *Tokens { return &Tokens{path: path} }
 
-// Load reads the file. A line with a single field is the bare token the PoC
-// wrote; it comes back nameless, because whose it is is core's rule and not
-// the file's.
+// Load reads the file. Every line names its principal; a line that does not
+// is corruption, not an older format, and is refused rather than guessed at.
 func (t *Tokens) Load() ([]ports.Credential, error) {
 	b, err := os.ReadFile(t.path)
 	if err != nil && !os.IsNotExist(err) {
@@ -38,7 +37,7 @@ func (t *Tokens) Load() ([]ports.Credential, error) {
 		switch f := strings.Fields(line); len(f) {
 		case 0:
 		case 1:
-			out = append(out, ports.Credential{Current: f[0]})
+			return nil, fmt.Errorf("%s: credential line names no principal: %q", t.path, line)
 		case 2:
 			out = append(out, ports.Credential{Name: f[0], Current: f[1]})
 		case 3:

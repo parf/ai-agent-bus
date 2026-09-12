@@ -24,7 +24,7 @@ export XDG_CACHE_HOME=$D/cache
 # A running script service leaves its note, its log and its work directory
 # here (docs/08-runner-role.md#stopping-it-and-reading-what-it-said). Private
 # to the run, or two runs would see each other's services as already running
-# — which is exactly what the mutation harness does, twenty at a time.
+# — which is what the mutation harness does, twenty at a time.
 export XDG_STATE_HOME=$D/state
 # A run owns PORT..PORT+14, so two of them need bases fifteen apart — closer
 # and the second finds the first's daemon, which reads as "bad token".
@@ -71,9 +71,8 @@ abx() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1
 abt() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 timeout 10 "$D/agent-bus" "${@:2}"; }
 pass=0; fail=0; skipped=0
 # Anything that takes more than a second is opt-in: the default run is the
-# one a person waits for, and the full run is what a change is measured
-# against. `SLOW=1` (or --slow) runs everything, and the mutation harness
-# always does — a mutant that survives because its check was skipped is the
+# one a person waits for. `SLOW=1` (or --slow) runs everything, and the
+# mutation harness always does — a mutant that survives because its check was skipped is the
 # worst kind of green (Plans/PoC/README.md#mutation-first-then-belief).
 SLOW=${SLOW:-0}
 [ "${1:-}" = "--slow" ] && SLOW=1
@@ -110,9 +109,9 @@ post_body() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok "
 post_code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok "$1")" -d "$3" "http://unix$2"; }
 
 sec "the Go checks"
-# Run here, not only by hand: this script is what a change is measured
-# against, and a mutation of anything the unit tests cover was invisible to
-# it while they lived outside. CLAUDE.md asks for all three to be green.
+# Run here, not only by hand: a mutation of anything the unit tests cover was
+# invisible to this script while they lived outside. CLAUDE.md asks for all
+# three to be green.
 checks=("vet:go vet ./..." "test:go test ./...")
 slow && checks=("vet:go vet ./..." "race:go test -race ./...")
 for c in "${checks[@]}"; do
@@ -151,7 +150,7 @@ has "a token with nothing beside it is served" "$(tcode "$TOKEN" /status)" '200'
 has "and the daemon reads the caller out of it" \
   "$(env -u AGENT_BUS_NAME AGENT_BUS_ADDR=http://127.0.0.1:$PORT AGENT_BUS_TOKEN=$(tok alice@srv1) "$D/agent-bus" status)" '"you":"alice@srv1"'
 
-sec "your own socket supplies both parameters"
+sec "your own socket says who you are"
 # Nothing to set up locally: the daemon knows the account at the other end
 # from which socket it arrived on. See docs/02-access.md#local-socket.
 ACCOUNT=$(id -un)
@@ -185,7 +184,7 @@ if id -u nobody >/dev/null 2>&1; then
 else
   skipped=$((skipped+1))
 fi
-has "the shared socket still wants both" \
+has "the shared socket still wants a token" \
   "$(env -u AGENT_BUS_NAME -u AGENT_BUS_TOKEN AGENT_BUS_ADDR=$D/bus.sock "$D/agent-bus" status 2>&1)" 'AGENT_BUS_TOKEN'
 has "and the directory is walk-through only, not readable" "$(stat -c %a "$D")" '^711$'
 
@@ -516,9 +515,6 @@ sec "refusals are counted, and each under its own reason"
 # from outside (docs/05-discovery.md#what-it-shows). Each kind is checked
 # separately: one counter covering them all would say "something is wrong"
 # and never which thing.
-# Measured as a DELTA each time: a cumulative counter that some earlier
-# check already moved would answer "[1-9]" whether this call was counted
-# or not.
 ab owner@srv1 register refused-by@srv1 --kind generic --allow owner@srv1 >/dev/null
 n0=$(count credential)
 tcode not-a-token /status >/dev/null 2>&1
@@ -955,7 +951,7 @@ if slow; then
   kill $LOPID 2>/dev/null; wait $LOPID 2>/dev/null
 
 else skipped=$((skipped+1)); fi
-sec "the last two of the eleven verbs, and the one refusal the daemon owes us"
+sec "--follow, and the one refusal the daemon owes us"
 ab follower@srv1 register follower@srv1 --kind agent >/dev/null
 # --follow keeps reading until it is stopped: that is the verb, so the check
 # has to be the one to stop it.
@@ -1008,7 +1004,7 @@ has "plus-addressing is a legal instance name" \
   "$(ab owner@srv1 ls)" '"name":"mail-sender/parf+alerts@comfi.com@host"'
 has "but the host does not take a plus" \
   "$(ab owner@srv1 register parf@ho+st 2>&1)" 'bad realm'
-has "and the realm is a host, not a path" \
+has "and the realm is a name, not a path" \
   "$(ab owner@srv1 register code-review/claude@rd/vp 2>&1)" 'bad realm'
 
 sec "one name, one answer"
@@ -1113,8 +1109,7 @@ if slow; then
     "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":[a-z]*\|"name":"plain.svc@srv1"')" '"name":"plain.svc@srv1"'
   is_empty "and reading is absent rather than false" \
     "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":true')"
-  # And with a reader attached, the same query says so — this is the whole
-  # difference between "registered" and "callable right now".
+  # And with a reader attached, the same query says so.
   ab reader@srv1 register reader@srv1 >/dev/null
   ab reader@srv1 consume --wait 6s >/dev/null 2>&1 &
   reader_pid=$!
@@ -1384,35 +1379,6 @@ sleep 0.6
 is_empty "while a long wait does not extend what the queue keeps" \
   "$(ab brief@srv1 consume --wait 1s)"
 
-sec "the token an SSH forced command hands out"
-# Not "contains the token": a debug line printed before it passed that, and
-# $(ssh … static-token) would then hold a credential that does not work. The
-# proof is the captured value authenticating against the daemon.
-mine=$(tok over-ssh@srv1)
-issued=$(AGENT_BUS_TOKEN_FILE=$D/token ./static-token over-ssh@srv1); rc=$?
-ok_exit "static-token succeeds" $rc
-if [ "$issued" = "$mine" ]; then echo "  ok   it prints that principal's token and nothing else"; pass=$((pass+1));
-else echo "  FAIL it prints that principal's token and nothing else: [$issued]"; fail=$((fail+1)); fi
-has "the token it hands out authenticates" \
-  "$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$issued AGENT_BUS_NAME=over-ssh@srv1 "$D/agent-bus" status)" '"up"'
-# The principal is in the forced command, so the key a person holds picks
-# the line. Asking for a name it was not given is the forgery this stops.
-if [ "$issued" = "$TOKEN" ]; then echo "  FAIL it handed out the owner's token instead"; fail=$((fail+1));
-else echo "  ok   and it is not the owner's"; pass=$((pass+1)); fi
-out=$(AGENT_BUS_TOKEN_FILE=$D/token ./static-token 2>&1); rc=$?
-bad_exit "without a principal it hands out nothing" $rc
-has "and says the forced command must name one" "$out" 'authorized_keys'
-out=$(AGENT_BUS_TOKEN_FILE=$D/token ./static-token nobody@nowhere 2>&1); rc=$?
-bad_exit "a principal with no token is an error, not a blank one" $rc
-printf '   \n' > "$D/blank-token"
-out=$(AGENT_BUS_TOKEN_FILE=$D/blank-token ./static-token over-ssh@srv1 2>&1); rc=$?
-bad_exit "an empty token file is refused, not handed out as an empty token" $rc
-out=$(SSH_ORIGINAL_COMMAND='cat /etc/passwd' AGENT_BUS_TOKEN_FILE=$D/token ./static-token over-ssh@srv1 2>&1); rc=$?
-bad_exit "it refuses any other command" $rc
-has "and says why" "$out" 'one command'
-out=$(AGENT_BUS_TOKEN_FILE=$D/absent ./static-token over-ssh@srv1 2>&1); rc=$?
-bad_exit "a missing token file is an error, not an empty token" $rc
-
 sec "enrolment: a key you hold, not a key you name"
 # Its own daemon, because a vouched realm changes what registering means.
 # See docs/01-identity.md#registration.
@@ -1568,7 +1534,7 @@ has "it is given one capability, not root" "$UNIT" '^AmbientCapabilities=CAP_CHO
 has "and cannot pick up a second" "$UNIT" '^CapabilityBoundingSet=CAP_CHOWN$'
 has "the installer still gets a socket of their own" "$UNIT" "[-]user $(id -un)=$OWNER"
 # The runner reaches the local bus over a socket like any other account, so
-# the daemon has to know it is one. Nothing about it is special to the daemon.
+# the daemon has to know it is one.
 # See docs/09-setup.md#the-two-units.
 has "and so does the runner, which is a client like anyone else" "$UNIT" "[-]user agent-bus-runner=runner@${OWNER#*@}"
 out=$("$D/agent-bus-setup" --owner "$OWNER" 2>&1); rc=$?
@@ -1599,6 +1565,15 @@ sec "the admin program owns what the account owns"
 # Everything an operator does to the account's files, and nothing a user
 # needs. The home is stated, so this edits a directory of its own rather than
 # a real install. See docs/09-setup.md#the-programs.
+# Stating the home is what lets this run at all, and it is also what hides a
+# real install's first question: which account? Setup creates one name and
+# admin looks up another, and nothing that passes AGENT_BUS_HOME would ever
+# notice. So ask admin, with the home unset, who it expects to be.
+WANT=$("$D/agent-bus-setup" --dry-run --owner "$OWNER" 2>&1 | sed -n 's/.*would create the system account \([^ ]*\) with home .*/\1/p' | head -1)
+out=$(env -u AGENT_BUS_HOME "$D/agent-bus-admin" user list 2>&1); rc=$?
+bad_exit "with no home stated the admin program wants the account setup creates" $rc
+has "and it is that account, not one nobody creates" "$out" "no $WANT account"
+
 mkdir -p "$D/adm"
 ssh-keygen -q -t ed25519 -N '' -f "$D/adm/user" >/dev/null
 ssh-keygen -q -t ed25519 -N '' -f "$D/adm/boss" >/dev/null

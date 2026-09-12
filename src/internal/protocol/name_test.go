@@ -57,7 +57,7 @@ func TestParseNameRejects(t *testing.T) {
 		"parf@локалхост", // not ASCII
 		"pärf@host",      // not ASCII
 		"-parf@host",     // must start alphanumeric
-		"parf@host/x",    // the realm is a host, never a path
+		"parf@host/x",    // the realm is a name, never a path
 		"",
 	} {
 		if n, err := ParseName(in); err == nil {
@@ -116,7 +116,7 @@ func TestTemplateNamesRejected(t *testing.T) {
 		"code-review/@rdvp",        // no instance name
 		"code-review//claude@rdvp", // the second slash is not a name character
 		"-code-review/claude@rdvp", // must start alphanumeric
-		"code-review/claude@rd/vp", // a realm is a host, not a path
+		"code-review/claude@rd/vp", // a realm is a name, not a path
 		"a/b/c@rdvp",               // one slash, not two
 	} {
 		if n, err := ParseName(in); err == nil {

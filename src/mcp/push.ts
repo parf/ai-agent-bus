@@ -1,8 +1,8 @@
 // Push: the session stops polling and messages arrive on their own.
 //
-// One loop, two deliveries. The loop is the same either way — long-poll the
-// daemon, hand the envelope to a mode — because "how a message reaches a live
-// session" is an adapter concern and nothing above it changes
+// One loop, two deliveries — long-poll the daemon, hand the envelope to a
+// mode — because "how a message reaches a live session" is an adapter concern
+// and nothing above it changes
 // (docs/08-runner-role.md#adapters).
 //
 // The loop holds the inbox's one unfiltered read

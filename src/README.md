@@ -1,17 +1,23 @@
-# src — the PoC
+# src
 
-The code for [stages § PoC](../docs/12-stages.md#poc), built wave by wave
-against [Plans/PoC/TODO.md](../Plans/PoC/TODO.md).
+The code for [stages § MVP](../docs/12-stages.md#mvp), built wave by wave
+against [Plans/MVP/TODO.md](../Plans/MVP/TODO.md).
 
 | | |
 |---|---|
-| `cmd/agent-busd` | the daemon: unix socket and loopback TCP, one master token |
-| `cmd/agent-bus` | the CLI — the eleven verbs; `agent-bus help` lists them |
+| `cmd/agent-busd` | the daemon: unix socket and loopback TCP, one token per principal |
+| `cmd/agent-bus-setup` | the root-only installer: two accounts, the tree, the unit |
+| `cmd/agent-bus-admin` | what edits the `agent-busd` account's files |
+| `cmd/agent-bus-web` | the dashboard, a separate process speaking the API |
+| `cmd/agent-bus` | the CLI — `agent-bus help` lists every verb |
 | `internal/protocol` | names and envelopes, no behaviour |
 | `internal/core` | the registry and the queues — the only place a routing decision is made |
 | `internal/api` | the HTTP face: a request in, a core call out |
+| `internal/auth` | credentials: issue, rotate, resolve a token to its principal |
+| `internal/ports` | the interfaces core depends on — the seam every dependency is swapped at |
+| `internal/store`, `internal/dump`, `internal/directory`, `internal/signature`, `internal/sandbox` | one adapter each behind those ports |
 | `mcp/` | the MCP face and both push adapters, on bun — [mcp/README.md](mcp/README.md) |
-| `static-token` | the SSH forced command that hands out the token ([access § getting a token](../docs/02-access.md#getting-a-token)) |
+| `cmd/agent-bus-token` | the token program, and the forced command behind an ordinary user's key ([access § getting a token](../docs/02-access.md#getting-a-token)) |
 | `smoke.sh` | every acceptance criterion of every wave, in one script; `--slow` runs the lot |
 
 Layering is the design's: protocol → core → api, faces outside, nothing
@@ -34,10 +40,11 @@ A check here is not believed until it has been seen to fail —
 
 ## Three terminals
 
-The PoC by hand. Build the two binaries first — nothing installs them:
+By hand. Build the binaries first — nothing installs them:
 
 ```sh
-go build -o agent-bus ./cmd/agent-bus && go build -o agent-busd ./cmd/agent-busd
+go build -o agent-bus ./cmd/agent-bus && go build -o agent-busd ./cmd/agent-busd &&
+go build -o agent-bus-token ./cmd/agent-bus-token
 ```
 
 **1 — the daemon.** It writes the token file on first run, so it goes first:
@@ -46,20 +53,19 @@ go build -o agent-bus ./cmd/agent-bus && go build -o agent-busd ./cmd/agent-busd
 ./agent-busd
 ```
 
-The other two shells each need the token and **a name of their own** — the
-name is the inbox, so two shells sharing one would read each other's messages
+The other two shells each need **a credential of their own** — the name is the
+inbox, so two shells sharing one would read each other's messages
 ([messaging § one reader per inbox](../docs/04-messaging.md#one-reader-per-inbox)).
 The CLI finds the socket by itself; `AGENT_BUS_ADDR` is for a bus on another
 host.
 
 ```sh
-export AGENT_BUS_TOKEN=$(cat ~/.config/agent-bus/token)
+export AGENT_BUS_TOKEN=$(./agent-bus-token echo@$(hostname -s))
 ```
 
 **2 — a service.** A service *is* a name, so the shell that answers takes it:
 
 ```sh
-export AGENT_BUS_NAME=echo@$(hostname -s)
 ./agent-bus register echo@$(hostname -s) --kind generic --descr "answers"
 ./agent-bus consume --wait 5m          # prints the envelope, with its message_id
 ./agent-bus ack   <message-id>         # got it
@@ -68,21 +74,20 @@ export AGENT_BUS_NAME=echo@$(hostname -s)
 
 …or let a shell script be the service, which is the same thing without the
 typing ([runner § script services](../docs/08-runner-role.md#script-services)).
-This shell still needs a name — it registers the service before becoming it,
-and that registration is a call like any other — but the name it registers
-under is the *owner*, not the service:
+This shell still needs a credential — it registers the service before becoming
+it, and that registration is a call like any other — but the token it
+registers with is the *owner's*, not the service's:
 
 ```sh
-export AGENT_BUS_NAME=launcher@$(hostname -s)
 echo 'echo "Hello $1"' > hello-world.sh && chmod +x hello-world.sh
 ./agent-bus start hello@$(hostname -s) --algo args ./hello-world.sh -4 --descr "greets you"
 ```
 
-**3 — the caller**, with a name of its own, calling whichever of the two you
-started:
+**3 — the caller**, with a credential of its own, calling whichever of the two
+you started:
 
 ```sh
-export AGENT_BUS_NAME=caller@$(hostname -s)
+export AGENT_BUS_TOKEN=$(./agent-bus-token caller@$(hostname -s))
 ./agent-bus ls                                        # find it
 ./agent-bus call echo@$(hostname -s)  "what is 6 times 7?"   # answered by hand, above
 ./agent-bus call hello@$(hostname -s) world                  # → Hello world

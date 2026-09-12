@@ -147,7 +147,7 @@ func ownerAccount() string {
 	if u, err := user.Current(); err == nil && u.Username != "" {
 		return u.Username
 	}
-	return "agent-bus"
+	return "agent-busd"
 }
 
 // clearStaleSocket removes a leftover socket, and refuses to touch anything
@@ -192,7 +192,7 @@ func env(k, def string) string {
 // defaultOwner is the account running the daemon, vouched for by this host —
 // the `user@host` form in docs/01-identity.md#names.
 func defaultOwner() string {
-	who := "agent-bus"
+	who := "agent-busd"
 	if u, err := user.Current(); err == nil && u.Username != "" {
 		who = u.Username
 	}

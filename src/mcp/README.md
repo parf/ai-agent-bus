@@ -1,13 +1,13 @@
 # The MCP face
 
-One package, on bun. Four tools over stdio, and two ways to push into a live
+One package, on bun. Five tools over stdio, and two ways to push into a live
 session. Design: [modules § languages](../../docs/10-modules.md#languages);
-scope: [stages § PoC](../../docs/12-stages.md#poc).
+scope: [stages § MVP](../../docs/12-stages.md#mvp).
 
 | File | |
 |---|---|
 | `bus.ts` | the daemon as seen from TypeScript — HTTP+JSON over its unix socket or loopback TCP |
-| `server.ts` | the four tools, and the push wiring |
+| `server.ts` | the five tools, and the push wiring |
 | `push.ts` | the reader loop both push modes share |
 | `codex.ts` | the Codex App Server client, over a loopback WebSocket or stdio |
 | `smoke.ts`, `smoke-push.ts`, `smoke-codex.ts` | acceptance; run by [`../smoke.sh`](../smoke.sh) |
@@ -25,9 +25,9 @@ scope: [stages § PoC](../../docs/12-stages.md#poc).
 | `AGENT_BUS_CODEX_WS` | the **shared** App Server, e.g. `ws://127.0.0.1:8421`. Without it the face drives its own, which cannot reach a live session — see below |
 
 The face registers its name at start and does not re-register. A daemon
-restart therefore leaves it connected but unreachable — storage is memory
-only, so a restart loses everything anyway. **Restart the face with the
-daemon.**
+restart therefore leaves it connected but unreachable: the daemon reloads its
+snapshot, but the face's registration is not refreshed. **Restart the face
+with the daemon.**
 
 ## Loading it
 
@@ -50,7 +50,7 @@ Two traps, both silent:
   how the *tools* load; the channel needs this form.
 
 **Claude Code, as a plugin.** `.claude-plugin/plugin.json` declares the
-server, so `claude --plugin-dir <this dir>` gives the session the four tools
+server, so `claude --plugin-dir <this dir>` gives the session the five tools
 and `/ab:ls`, `/ab:send`. No push — `ab_consume` is how messages arrive.
 
 **Codex**, in `~/.codex/config.toml`:
@@ -113,8 +113,7 @@ A **loopback WebSocket**, not `unix://`: both are WebSocket listeners, and bun
 can open one over a port but not over a unix socket — which is exactly what
 put V1's Codex notifier on Node. A port removes the `ws` dependency and its
 `permessage-deflate` workaround, and the App Server binds localhost only,
-which is the PoC's exposure rule anyway
-([stages § PoC](../../docs/12-stages.md#poc)).
+which is the daemon's own rule (loopback only).
 
 Without `AGENT_BUS_CODEX_WS` the face still works and says so in its log: it
 drives its own App Server and answers in a headless thread. That is a

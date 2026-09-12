@@ -80,7 +80,7 @@ func setup() error {
 	}
 	// And so does the runner: reaching the local bus over the socket makes it
 	// a mapped local account like every other, which is the whole claim of
-	// the split made concrete — nothing about it is special to the daemon.
+	// the split made concrete.
 	// See docs/09-setup.md#the-two-units.
 	users = append(users, runAccount+"=runner@"+me.Realm)
 	if *exe == "" {

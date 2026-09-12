@@ -81,7 +81,7 @@ const MaxName = 64
 type Name struct {
 	Template string // service template this service was configured from, or ""
 	Local    string // user, or service name
-	Realm    string // host, identity provider, or team
+	Realm    string // the name a daemon answers for: a host by default, a pool, a provider
 }
 
 func (n Name) String() string {
@@ -95,7 +95,7 @@ func (n Name) String() string {
 // capitalisation, with surrounding space, and returns the one canonical form.
 // A bare "user" is not a name: the realm is what makes it addressable from
 // anywhere. The realm is whatever follows the LAST "@", and never holds a "/"
-// — a realm is a host, not a path.
+// — a realm is a name, not a path.
 func ParseName(s string) (Name, error) {
 	s = strings.TrimSpace(s)
 	if !isASCII(s) {

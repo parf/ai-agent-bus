@@ -6,7 +6,7 @@
 // typing in. V1 solved this by topology, not by cleverness
 // (`/rd/bin/ai-codex`): a launcher starts one App Server, the TUI attaches to
 // it with `--remote`, and the notifier attaches to the same one. Steering
-// then reaches the live turn because it is the same server.
+// then reaches the live turn.
 //
 // So this attaches when it is told where (`AGENT_BUS_CODEX_WS`), and spawns
 // its own only as a fallback — which is honest about being a headless thread.
@@ -17,9 +17,8 @@
 // | stdio | our own `codex app-server`, NDJSON (B.0) |
 //
 // `--listen unix://` is a WebSocket too, and bun cannot open one over a unix
-// socket — which is exactly what forced V1 onto Node. A loopback port avoids
-// it, and the App Server binds localhost only, which is the PoC's exposure
-// rule anyway (docs/12-stages.md#poc).
+// socket. A loopback port avoids it, and the App Server binds localhost only,
+// which is the daemon's own rule.
 //
 // The call sequence is V1's, minus the JetStream parts: initialize →
 // thread/list newest for this cwd → thread/resume, else thread/start → per

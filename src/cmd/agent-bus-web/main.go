@@ -58,8 +58,8 @@ func main() {
 			return
 		}
 		if err := bus.get("/recent", &v.Recent); err != nil {
-			// The feed is the owner's until it can be filtered per caller,
-			// so a dashboard run as anyone else shows the rest and says so.
+			// A caller who may not read the feed still gets the rest of
+			// the page.
 			v.NoFeed = err.Error()
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -199,5 +199,5 @@ var page = template.Must(template.New("dash").Parse(`<!doctype html>
  <td><code>{{.From}}</code><td><code>{{.To}}</code><td>{{.Topic}}<td>{{.Tag}}<td>{{.Receipt}}</tr>
 {{else}}<tr><td colspan=7 class=muted>nothing yet</tr>{{end}}</table>
 {{end}}
-<p class=muted>Envelopes only — the bus never sees a body.</p>
+<p class=muted>Envelopes only — bodies are never shown.</p>
 `))

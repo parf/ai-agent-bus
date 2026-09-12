@@ -1,4 +1,4 @@
-// agent-bus-admin is what edits the things the agent-bus account owns. It is
+// agent-bus-admin is what edits the things the agent-busd account owns. It is
 // the operator's program: an ordinary user runs agent-bus-token, which is a
 // strict subset of this one. See docs/09-setup.md#the-programs.
 //
@@ -22,12 +22,12 @@ import (
 // The account and its home, which this program edits and nothing else does.
 // See docs/09-setup.md#the-two-accounts.
 const (
-	svcAccount = "agent-bus"
+	svcAccount = "agent-busd"
 	// Somewhere other than the install: a second one, or a test.
 	homeEnv = "AGENT_BUS_HOME"
 )
 
-const usage = `agent-bus-admin — what the agent-bus account owns
+const usage = `agent-bus-admin — what the agent-busd account owns
 
   agent-bus-admin user add <user@realm> <key.pub> [--admin]
   agent-bus-admin user list
@@ -263,7 +263,7 @@ func home() string {
 	if u, err := user.Lookup(svcAccount); err == nil && u.HomeDir != "" {
 		return u.HomeDir
 	}
-	return "/var/lib/" + svcAccount
+	return "/var/lib/agent-bus/daemon"
 }
 
 func keysPath() string { return filepath.Join(home(), ".ssh", "authorized_keys") }

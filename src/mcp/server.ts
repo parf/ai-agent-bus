@@ -1,4 +1,4 @@
-// The MCP face. Four tools, each one call to the daemon and nothing else: no
+// The MCP face. Five tools, each one call to the daemon and nothing else: no
 // routing, no retry, no domain logic — see docs/10-modules.md.
 //
 // Tool names are ab_*: a client exposes them as mcp__<server>__<tool> and a

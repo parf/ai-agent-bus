@@ -244,9 +244,9 @@ func listenerFile(l net.Listener) (*os.File, error) {
 	return f.File()
 }
 
-// The ambient capability set is the one that survives exec. Clearing it costs
-// the supervisor nothing — its own permitted set is untouched, so it can still
-// chown a socket on reload — and leaves a child with no capability at all.
+// Clearing the ambient set costs the supervisor nothing — its own permitted
+// set is untouched, so it can still chown a socket on reload — and leaves a
+// child with no capability at all.
 const (
 	prCapAmbient         = 47
 	prCapAmbientClearAll = 4

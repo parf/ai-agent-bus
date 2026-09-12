@@ -352,9 +352,8 @@ func handle(svc service, e protocol.Envelope) {
 		fmt.Fprintf(svc.say, "%s: %s exited badly for %s: %v\n", svc.Name, svc.Script, e.ID, err)
 		return
 	}
-	// Nothing printed is not an empty answer: a script that only does
-	// something says so by staying quiet — and `done` is how the caller
-	// hears that it finished rather than waiting out its deadline.
+	// Nothing printed is not an empty answer but a quiet success, and `done`
+	// is how the caller hears of it (see above).
 	answer := strings.TrimRight(string(out), "\n")
 	if answer == "" {
 		say(protocol.ReceiptDone)

@@ -8,7 +8,8 @@ import (
 )
 
 // Envelope is what the bus reads, counts and routes. The body is carried but
-// not interpreted; from MVP it is ciphertext. See docs/04-messaging.md.
+// not interpreted; from Release 1 it is ciphertext.
+// See docs/02-access.md#encrypted-sessions.
 type Envelope struct {
 	ID    string    `json:"message_id"`
 	From  string    `json:"from"`
@@ -88,11 +89,11 @@ type Record struct {
 	// Proto says HOW to call this, where Addr says where. Empty is the
 	// answer for almost everything: no protocol means an ordinary agent-bus
 	// service — send to its name and the daemon delivers to its inbox.
-	// Anything else names a protocol the *caller* speaks directly, and the
-	// bus only passes the word along: it is a hint in the registry, not
-	// something the daemon implements or checks. /etc/services is the
-	// suggested vocabulary and cannot be more than that — it is outdated
-	// and incomplete, and much of what gets registered here is not in it.
+	// Anything else names a protocol the *caller* speaks directly: a hint
+	// in the registry, not something the daemon implements or checks.
+	// /etc/services is the suggested vocabulary and cannot be more than
+	// that — it is outdated and incomplete, and much of what gets
+	// registered here is not in it.
 	// See docs/03-services-and-topics.md#how-to-call-it.
 	Proto string `json:"protocol,omitempty"`
 
@@ -130,10 +131,10 @@ type Record struct {
 	Subs []string `json:"subs,omitempty"`
 
 	// Config is what a service template was configured with. It is opaque:
-	// the bus checks that it is JSON and never reads inside, so no field of
-	// it means anything here — no server, user, mailbox or credential is
-	// looked for. It leaves the daemon for one caller only, the service it
-	// belongs to; every other answer carries ConfigSHA in its place.
+	// the bus checks that it is JSON and never reads inside — no server,
+	// user, mailbox or credential is looked for. It leaves the daemon for
+	// one caller only, the service it belongs to; every other answer
+	// carries ConfigSHA in its place.
 	// See docs/03-services-and-topics.md#configuring-a-template.
 	Config json.RawMessage `json:"config,omitempty"`
 
@@ -169,9 +170,8 @@ type Record struct {
 // answer to configuring one — because leaving it out has already been the
 // same omission twice.
 //
-// The digest is what makes a query useful without exposing anything: an owner
-// who cannot read a configuration back can still see that one is there, that
-// a write landed, and that two services hold the same one.
+// The digest is what makes a query useful without exposing anything
+// (ConfigSHA says what it answers).
 //
 // It is over the bytes AS STORED, which the bus has already compacted, so
 // reformatting a configuration file does not look like changing it — and

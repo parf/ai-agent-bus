@@ -45,9 +45,7 @@ type Tokens struct {
 	tok   map[string]held   // principal -> what it holds
 }
 
-// Load reads the store, creating a token for owner on first run. A nameless
-// credential is the bare token the PoC wrote: it is the owner's, and saying
-// so is cheaper than asking anyone to migrate by hand.
+// Load reads the store, creating a token for owner on first run.
 func Load(store ports.TokenStore, owner string) (*Tokens, error) {
 	me, err := protocol.ParseName(owner)
 	if err != nil {
@@ -59,15 +57,11 @@ func Load(store ports.TokenStore, owner string) (*Tokens, error) {
 		return nil, err
 	}
 	for _, c := range creds {
-		name := me.String()
-		if c.Name != "" {
-			n, err := protocol.ParseName(c.Name)
-			if err != nil {
-				return nil, fmt.Errorf("credential store: %w", err)
-			}
-			name = n.String()
+		n, err := protocol.ParseName(c.Name)
+		if err != nil {
+			return nil, fmt.Errorf("credential store: %w", err)
 		}
-		t.keep(name, held{current: c.Current, previous: c.Previous, issued: c.Issued})
+		t.keep(n.String(), held{current: c.Current, previous: c.Previous, issued: c.Issued})
 	}
 	if _, has := t.tok[me.String()]; has {
 		return t, nil
@@ -114,8 +108,7 @@ func (t *Tokens) Issue(name string) (string, error) {
 }
 
 // Rotate issues a fresh token and demotes the current one to previous, which
-// still authenticates. Whatever was previous before is dropped: two are
-// accepted, never three.
+// still authenticates; the one before that is dropped.
 // See docs/02-access.md#token-lifetime.
 func (t *Tokens) Rotate(name string) (string, error) {
 	n, err := protocol.ParseName(name)
