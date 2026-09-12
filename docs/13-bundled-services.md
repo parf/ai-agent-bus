@@ -23,7 +23,32 @@ will not.
 | **one template, many instances** | `slack/team-a@pool1`, `mysql/billing@db1` — configured copies of one thing, which the naming already carries ([identity § names](01-identity.md#names)) |
 | **the form is part of the design** | a picture service is `--algo=std`, a database gateway is `--algo=msgpack` (binary values, the envelope in-band, and a kept process is what holds the connection), a tail is `--algo=jsonl`, a notification is `--algo=args` ([runner § script services](08-runner-role.md#script-services)) |
 | **confinement is not what makes the risky ones safe** | a shell service's whole job is to run what it is told, so sandboxing it confines the thing you asked for ([runner § sandboxing](08-runner-role.md#sandboxing)). What contains it is the ACL and the account it runs as — nothing else pretends otherwise |
+| **no layer of ours between a caller and the tool** | no retry policy, no cache, no request rewriting, no validation of what is being asked. Each of those is the caller's decision, and one made silently inside a gateway is one nobody can debug from outside. If a retry or a cache is wanted it is **a service with a name of its own**, which is this catalogue's rule for everything else too |
 | **stateless ones are the pool cases** | scaling a picture or fetching a page is work anybody can do, so it pools across hosts ([runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts)). Anything about *this box* is per host by definition: `shell@srv1` means that machine and nothing else |
+
+## One contract for the set
+
+These are many tools and should feel like one set. What makes them one is the
+**envelope, never the payload** — the same split the bus itself is built on
+([messaging § envelope](04-messaging.md#envelope)).
+
+| The same for every tool | |
+|---|---|
+| how it is addressed | a name and an inbox, `template/instance@realm` where there are several copies ([identity § names](01-identity.md#names)) |
+| who may call it | the record's ACL, applied by the daemon before delivery ([identity § acl](01-identity.md#acl)) |
+| what it needs | `env.dist`, the declared surface — which is also what makes an upload checkable and says whether an instance is required at all ([runner § the three env layers](08-runner-role.md#the-three-env-layers)) |
+| what it costs | counters per (principal, service), the same pair everywhere ([discovery § stats](05-discovery.md#stats)) |
+| what it is | the version it answers with, when that arrives ([Plans/V1](../Plans/V1/TODO.md)) |
+| **how it fails** | **an upstream refusing is an answer, not a failure.** A rate limit or a provider error comes back as the reply, as it was given; no reply is reserved for the **tool itself** being broken. Otherwise every caller learns two error channels and guesses which one it is in |
+
+| Deliberately its own | |
+|---|---|
+| the body | the bus does not read it and a gateway does not either. A caller that named a provider wanted that provider's request and that provider's answer |
+
+**Extending the set is adding an instance, not changing the contract.** A
+provider that speaks an API we already have is configuration; one that does not
+is another template obeying the same contract. Neither touches a row above,
+which is what makes the set extendable rather than merely long.
 
 ## The catalogue
 
