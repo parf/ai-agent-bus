@@ -155,6 +155,7 @@ thing that would make it true rather than on the page
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
 | **the runner** | `agent-bus-runner` as its own account and its own program: installed instances under `runner/`, configuration it holds and never hands back, autostart and a restart policy, on-demand start — a wrapper over the MVP's `agent-bus start` ([runner role](08-runner-role.md)) |
 | script forms | **`--algo=std`**, the body as bytes on stdin, so an image scaler is a service; and **`--algo=jsonl`**, a child kept alive across messages with a deadline and `reload` ([runner § long-lived services](08-runner-role.md#long-lived-services)) |
+| service pools | **`start --share`**: one name served by any number of processes on any number of hosts, passing the word `consume` already takes ([runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts)) |
 | encryption | AEAD sessions and bodies end to end, on the pairwise or derived keys that make the claim true ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | credentials | **one token per principal per service**, so a service you call cannot replay your credential at another one as you — the MVP's master token is what this replaces ([access § token scope](02-access.md#token-scope)) |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified ([modules](10-modules.md)) |

@@ -120,6 +120,9 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | `std` is the body as bytes on stdin, so a binary service costs no base64 pass | [runner § script services](08-runner-role.md#script-services) |
 | A long-lived child is a framing, not a flag: `jsonl` reads a stream, so the process is kept | [runner § long-lived services](08-runner-role.md#long-lived-services) |
 | A kept child takes one message at a time, and needs the per-message deadline the others do not | [runner § long-lived services](08-runner-role.md#long-lived-services) |
+| `start --share` puts a service in a pool spread over any number of hosts, passing the word `consume` already has | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
+| A name is up while any pool member is, and which member answered is nobody's business | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
+| That pool members are interchangeable is the operator's promise, not something the bus checks | [runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts) |
 | V2 code lives in this repo, in `src/` beside `docs/` | [stages § PoC](12-stages.md#poc) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | The daemon keeps no reply state; a client replies from what it consumed, and `reply` is sugar over the routing fields | [messaging § reply routing](04-messaging.md#reply-routing) |

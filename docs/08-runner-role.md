@@ -141,11 +141,49 @@ check in it — nobody else can see the file.
 | `agent-bus stop <name>` | `SIGTERM`, and then it **waits**. Stopping is graceful, so the verb does not report a stop that has not finished, and it ends one service without touching its siblings |
 | `agent-bus logs <name> [--lines N] [--follow]` | what that service and its scripts wrote. The log outlives the run on purpose: what a run said is most wanted once the run has ended |
 | a note with no process behind it | is cleared, not reported as a running service — a service killed outright leaves its note behind |
-| starting a name that is already running here | is refused, and says so. Two readers of one inbox is the mistake ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)), and a worker pool asks for that on purpose instead |
+| starting a name that is already running here | is refused unless it said `--share`. Two readers of one inbox is the mistake ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)); a pool is not a mistake and says so ([one name on many hosts](#one-name-on-many-hosts)) |
 
 Because a message is taken from the daemon only when a script process is free
 to run it, a service that dies loses only the work already in flight; the rest
 is still queued for whatever reads that inbox next.
+
+### One name on many hosts
+
+**`--share` makes a service one of a pool, and a pool is a name rather than a
+place.** Four image scalers on four servers all read `scaler@srv1`'s inbox and
+take turns; nothing says where a member runs, and nothing needs to. The bus has
+allowed this from the start — a reader that asks to share is one of several
+([messaging § several readers may wait when they say so](04-messaging.md#several-readers-may-wait-when-they-say-so))
+— so `start --share` passes that word through and the daemon learns nothing
+new. **One word, two layers, because it is one decision.**
+[Release 1](12-stages.md#release-1).
+
+`-N` and `--share` compose and do not overlap: `-N` is how many hands one
+process has, `--share` is how many processes there are. Four hosts at `-N 4`
+is sixteen scalers on one queue.
+
+What the local refusal was protecting, and what takes its place:
+
+| | |
+|---|---|
+| starting the name twice on one host | allowed with `--share`, refused without it — in both directions, the way the daemon already refuses a pool member beside an exclusive reader |
+| the note in the owner's state directory | one per **process**, not one per name. `stop <name>` stops this host's members, all of them, and waits for each; `logs <name>` merges what they wrote ([stopping it and reading what it said](#stopping-it-and-reading-what-it-said)) |
+| registering the name N times | an update, not a collision: one record, one owner, and every member says the same thing about it ([identity § ownership](01-identity.md#ownership)) |
+| what the registry shows | the name is up while **any** member is. A pool that is half down is a health matter, not a registry one |
+| a reply | goes to whoever sent the message, never to the member that answered, so which one took the work is nobody's business ([messaging § reply routing](04-messaging.md#reply-routing)) |
+| what it is still not | a group, a lease or a load balancer. Nothing is remembered between reads, so a member that dies leaves nothing to clean up |
+
+**That the members are interchangeable is the operator's promise**, and the bus
+cannot check it any more than it can check that a service does what its
+description says. Two hosts serving one name with different code, or different
+`--algo`, is a caller getting different answers to the same question — and it
+will look like a flaky service, not a misconfigured one.
+
+Under the runner, sharing is a **run option like the worker count**, so it
+lives in `autostart.json` with `-N` and the confinement rather than in
+`config.json` ([what an instance is](#what-an-instance-is)). Same reasoning as
+`-N`'s default of 1: whether it is safe to run this thing twice is a decision
+the host is already making.
 
 ### Long-lived services
 
