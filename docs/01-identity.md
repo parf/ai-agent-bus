@@ -31,6 +31,13 @@ it was configured from:
 | `service@host` | a standalone service, with no separate template | `claude@rdvp` |
 | `template/instance-name@host` | a service configured from a template | `imap-mail-reader/billing@rdvp` |
 
+**Both halves are `a-z 0-9 . _ -`, and both start alphanumeric**; the local
+part may also hold `+` and `@`. Lowercase, because a name that differs only in
+case is two names to a machine and one to a person. Starting alphanumeric is
+what leaves the leading characters free to mean something else
+([sigils](#sigils)), and it costs nothing a realm actually uses — a GitHub
+handle may begin with a digit, and `0xdead@github` is a name like any other.
+
 **The host is whatever follows the last `@`.** The local part — an instance
 name, or a user — may itself be an address — the thing that reads a mailbox is reasonably named after it — so
 `mail-sender/parf@comfi.com@host` is template `mail-sender`, instance
@@ -207,11 +214,11 @@ both are needed and neither is decoration:
 - the right side holds access *and* an optional role, where a role has to be
   told from an access level: `parf@github => rw, #admin`.
 
-**A user is defined by exclusion** — not by an allowed first character. Names
-come from realms this design does not own, and a GitHub handle may begin with
-a digit, so any rule naming the permitted characters would reject real
-principals ([names](#names)). One rule, and nothing to revisit when a realm
-allows something new.
+**A user starts alphanumeric**, which is what any name starts with anyway
+([names](#names)) — so the rule is the one already there rather than a second
+one for ACLs, and an entry beginning with anything else is a group, a role, or
+nothing at all. It is deliberately not `a-z`: realms this design does not own
+choose their own names, and `0xdead@github` is a real one.
 
 **The `#` never leaves.** It marks a role as ours while it is stored here; the
 service asking about its caller is given `admin`, because a role is that
@@ -222,10 +229,19 @@ service's own vocabulary and our namespace is not its business.
 start of a line in a config file it disappears without one. Quote it, and do
 not put a role first on a line.
 
-❓ **Whether a group is node-local or realm-scoped** — `@dev` or `@dev@company`.
-AUTH data is a bundle shared by every replica, which argues for a realm; a
-single node needs none, and groups do not exist before AUTH
-([groups and roles](#groups-and-roles)). *Settled by:* owner, with AUTH.
+**A group is local to one `agent-busd`**: `@dev`, never `@dev@company`. A
+group is only ever an ACL subject ([acl](#acl)), and every ACL a daemon
+enforces is its own — a record it holds, or its master list — so the daemon is
+the scope, not the host it happens to share. AUTH may say who is *in* a group,
+but the name is resolved where it is used: there is no second `@` to read, and
+nothing to disambiguate against a principal's realm.
+
+**An upstream daemon has its own groups, and we do not care.** A group never
+travels — a chained call carries the principal
+([delegation](#delegation)), and the upstream decides with its own list
+([overview § chaining](00-overview.md#chaining)). So two daemons may both have
+`@dev` and mean different people, and neither has to know. That is the whole
+benefit of not giving a group a realm: there is no namespace to collide in.
 
 ## ACL
 

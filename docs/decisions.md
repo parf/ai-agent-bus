@@ -15,6 +15,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Decision | Where |
 |---|---|
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](01-identity.md#names) |
+| What characters a name may hold, and that it starts alphanumeric | [identity § names](01-identity.md#names) |
 | Setup installs the separate-user arrangement, and where the accounts live | [setup § the two accounts](09-setup.md#the-two-accounts) |
 | One program per privilege, split no finer | [setup § the programs](09-setup.md#the-programs) |
 | Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the programs](09-setup.md#the-programs) |
@@ -30,8 +31,10 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | More identity sources later: Google, LinkedIn, Facebook — not designed | [identity § registration](01-identity.md#registration) |
 | ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](01-identity.md#acl) |
 | A sigil says what an ACL entry is: bare is a user, `@` a group, `#` a role | [identity § sigils](01-identity.md#sigils) |
-| A user is defined by exclusion, because realms this design does not own choose their own characters | [identity § sigils](01-identity.md#sigils) |
+| A user starts alphanumeric, which every name does — so a sigil is free to lead | [identity § sigils](01-identity.md#sigils) |
 | A group is only ever an ACL subject; a role only ever reaches a service, `#`-stripped | [identity § sigils](01-identity.md#sigils) |
+| A group is local to one daemon, because every ACL a daemon enforces is its own | [identity § sigils](01-identity.md#sigils) |
+| A group never travels: an upstream decides with its own list, so two daemons may both have `@dev` | [identity § sigils](01-identity.md#sigils) |
 | The daemon filters, because it holds the record — not a face | [discovery § audience](05-discovery.md#audience) |
 | The MVP does not claim bodies are end to end; the bus is trusted on its own host | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Possession is proved in a step of its own; the `directory` port only fetches | [identity § proving possession](01-identity.md#proving-possession) |
@@ -223,7 +226,6 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Whether `reload` survives for a long-running child that can take `SIGHUP` | owner | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](08-runner-role.md#where-it-runs) |
 | How a per-service token argument is told apart from asking for a name you own | owner, with Release 1 | [access § token scope](02-access.md#token-scope) |
-| Whether a group is node-local or realm-scoped | owner, with AUTH | [identity § sigils](01-identity.md#sigils) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
 | MVP and Release 1 contents | owner | [stages](12-stages.md) |
 | What happens to a running service when its configuration changes | owner | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
