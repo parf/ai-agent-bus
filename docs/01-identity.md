@@ -268,6 +268,11 @@ it: `parf@github` → fetch once → pin. Modes: file only · AUTH only · both
   `maintainer` (definition only). Owners use org groups but cannot create
   groups or grant beyond their own service. Personal services are owned by
   their user.
+- **A record that owns itself is somebody; one owned by another name is
+  something they run.** Personal services being owned by their user is what
+  makes that read: it is the whole difference the people view needs
+  ([discovery § what it shows](05-discovery.md#what-it-shows)), and it costs
+  no flag that can go stale against the owner field beside it.
 - Definitions and ownership are **live records** in `agent-busd`, not bundle
   data; a record is **signed by its writer when the writer has a key**
   (static-token writes are unsigned — the token authenticated them). Users run
