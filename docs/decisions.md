@@ -16,11 +16,11 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 |---|---|
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](01-identity.md#names) |
 | Setup installs the separate-user arrangement, and where the accounts live | [setup § the two accounts](09-setup.md#the-two-accounts) |
-| Five programs, split by the privilege each needs and no finer | [setup § the five programs](09-setup.md#the-five-programs) |
-| Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the five programs](09-setup.md#the-five-programs) |
+| One program per privilege, split no finer | [setup § the programs](09-setup.md#the-programs) |
+| Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the programs](09-setup.md#the-programs) |
 | A token can be had by signing a challenge, because not every host runs sshd | [access § getting a token](02-access.md#getting-a-token) |
 | Enrolment is the one route with no credential on it, because it is where one comes from | [identity § proving possession](01-identity.md#proving-possession) |
-| A user is a line in `authorized_keys`, written by one program, never a format of ours | [setup § the five programs](09-setup.md#the-five-programs) |
+| A user is a line in `authorized_keys`, written by one program, never a format of ours | [setup § the programs](09-setup.md#the-programs) |
 | The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the two accounts](09-setup.md#the-two-accounts) |
 | A name is checked, not taken on trust | [access § two parameters](02-access.md#two-parameters) |
 | Writing is subject to the ACL, like reading | [identity § acl](01-identity.md#acl) |
@@ -211,7 +211,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | What carries a service's method information | owner, with the MVP faces | [services § service and template](03-services-and-topics.md#service-and-template) |
 | What else lives in SQLite | owner | [setup § storage](09-setup.md#storage) |
-| Where the ACL and the user-to-account map are edited | owner | [setup § the five programs](09-setup.md#the-five-programs) |
+| Where the ACL and the user-to-account map are edited | owner | [setup § the programs](09-setup.md#the-programs) |
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
 | How a dormant name is woken, and what the daemon has to learn to do it | owner, in Release 1 | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
@@ -234,7 +234,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The directory being there is the desired state, and there is no catalogue | it is the *installed* state; what should be **up**, and how many, is a list the runner reads at start — [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | The runner is one of the supervisor's children, and the only one that may exec | it is outside the daemon entirely, under its own account, so nothing the daemon starts execs at all — [processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |
 | The daemon's system account is `agent-bus` | `agent-busd`, so the account and the CLI are not the same word — [setup § the two accounts](09-setup.md#the-two-accounts) |
-| The setup user gets the `agent-bus-admin` role | they hold master, and the name is the operator's program instead — [setup § the five programs](09-setup.md#the-five-programs) |
+| The setup user gets the `agent-bus-admin` role | they hold master, and the name is the operator's program instead — [setup § the programs](09-setup.md#the-programs) |
 | Minimal setup: install, `agent-bus setup`, start the service | `sudo agent-bus-setup` does all three, and is its own program — [setup § install](09-setup.md#install) |
 | Go first, a bun/NPM build later | Go inside, TypeScript for the MCP face and adapters — built by bun, run on Node — [modules § languages](10-modules.md#languages) |
 | TypeScript runs on Node because bun's WebSocket fails on a unix socket | bun, reaching the App Server over stdio instead — the WebSocket was the only thing that needed Node — [modules § languages](10-modules.md#languages) |

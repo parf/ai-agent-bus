@@ -116,7 +116,7 @@ func main() {
 
 // tokenFor asks the daemon for a principal's credential — `start` needs one
 // for the service it is about to run. Anyone asking for their own runs
-// agent-bus-token (docs/09-setup.md#the-five-programs). The caller must own
+// agent-bus-token (docs/09-setup.md#the-programs). The caller must own
 // the name or be the daemon's owner; the refusal says which.
 func tokenFor(name string) (string, error) {
 	out, code, err := call("POST", "/token", nil, map[string]any{"name": name, "rotate": false})

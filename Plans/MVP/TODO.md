@@ -39,7 +39,7 @@ wave stands on it.
 | the rest of E | what else lives in SQLite | [setup § storage](../../docs/09-setup.md#storage) |
 | H.1 | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../docs/09-setup.md#install) |
 | F.2 | what carries a service's method information | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
-| F.4–F.6 | where the ACL and the user-to-account map are edited — the dashboard shows them and `agent-bus-admin` writes them | [setup § the five programs](../../docs/09-setup.md#the-five-programs) |
+| F.4–F.6 | where the ACL and the user-to-account map are edited — the dashboard shows them and `agent-bus-admin` writes them | [setup § the programs](../../docs/09-setup.md#the-programs) |
 | the CLI | whether reading an inbox and filtering one become separate options | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
 | G | what happens to a running service when its configuration changes | [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) |
 
@@ -325,15 +325,15 @@ role from being a compromise of the host.
 
 ⚠️ H.1 is **blocked** on the packaging ❓ above. The rest do not depend on how
 the binaries arrive, and are built
-([setup § the five programs](../../docs/09-setup.md#the-five-programs)).
+([setup § the programs](../../docs/09-setup.md#the-programs)).
 
 | ID | Task |
 |---|---|
 | H.1 | the package ([setup § install](../../docs/09-setup.md#install)) — **still blocked** on the packaging ❓ |
 | H.2 | ✅ _done_, and now H.4's program — it creates the two accounts and the tree they own, writes the unit and starts the daemon as one of them, refusing without root rather than half-installing; `--dry-run` / `--print-unit` need nothing ([setup § the two accounts](../../docs/09-setup.md#the-two-accounts)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
 | H.3 | ✅ _done_ — the account, its home, the one declarative capability and restart, all in the unit and each falsified on its own |
-| H.4 | ✅ _done_ — `agent-bus-setup` is its own program, root-only, and prints the `sudo` line rather than failing flat ([setup § the five programs](../../docs/09-setup.md#the-five-programs)) |
-| H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin)). It re-runs itself under `sudo -u agent-bus` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the five programs](../../docs/09-setup.md#the-five-programs)* |
+| H.4 | ✅ _done_ — `agent-bus-setup` is its own program, root-only, and prints the `sudo` line rather than failing flat ([setup § the programs](../../docs/09-setup.md#the-programs)) |
+| H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin)). It re-runs itself under `sudo -u agent-bus` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the programs](../../docs/09-setup.md#the-programs)* |
 | H.6 | ✅ _done_ — `agent-bus-token` prints a credential and nothing else. Under SSH the authorized_keys line is the entitlement and `$SSH_ORIGINAL_COMMAND` is the request, so a key may only ask for the name its line names. The CLI's `token` verb went with it |
 | H.7 | ✅ _done_ — `--key` proves the name against what the realm publishes and gets a credential with no credential to start from ([access § getting a token](../../docs/02-access.md#getting-a-token)). It is enrolment's own challenge with a second caller; the one change the daemon needed was to stop asking `/enrol` for a credential, which was a circle ([identity § proving possession](../../docs/01-identity.md#proving-possession)) |
 
@@ -342,7 +342,7 @@ the binaries arrive, and are built
 - a person who has not read this repo installs it on a fresh host and calls a
   service, following only the generated instructions — **checked by hand,
   once**, like the PoC's live criterion;
-- each of the five programs refuses the privilege it is not for, and says
+- each program refuses the privilege it is not for, and says
   which line to run instead — a root-only installer run as a user, an admin
   run as somebody else;
 - the running daemon's uid is the service account's and not the installer's,

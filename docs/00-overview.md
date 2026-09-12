@@ -17,7 +17,7 @@ and linked from everywhere else.
 | 05 | [discovery](05-discovery.md) | faces · audience · health · stats · dashboard · debug mode |
 | 06 | [AUTH role](06-auth-role.md) | the bundle · signed generations · topology · `master_secret` · SSH admin |
 | 08 | [runner role](08-runner-role.md) | supervision · what an instance is, and the env layers · reaching the runner · adapters · sandboxing · in-process queue |
-| 09 | [setup](09-setup.md) | the five programs · install · local users · storage · **the two accounts and the tree they own** · reload |
+| 09 | [setup](09-setup.md) | the programs · install · local users · storage · **the two accounts and the tree they own** · reload |
 | 10 | [modules](10-modules.md) | layers · module boundaries · which dependency is swappable · languages · external tools |
 | 11 | [processes](11-processes.md) | the supervisor and its children · privilege per process · what is shared |
 | 12 | [stages](12-stages.md) | PoC, MVP, Release 1 — what gets built when, and what counts as done |
@@ -69,7 +69,7 @@ Claims only; the mechanism lives in the doc each one links to.
   ([modules](10-modules.md)).
 - **Five programs, one unit, one config dir, one git repo** — split by the
   privilege each needs and no finer
-  ([setup § the five programs](09-setup.md#the-five-programs)), and the daemon
+  ([setup § the programs](09-setup.md#the-programs)), and the daemon
   is a single binary that becomes many processes
   ([processes](11-processes.md)).
 - **Ed25519 wherever there is a key**; no passwords, no client secrets, no

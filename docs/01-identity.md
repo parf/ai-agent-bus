@@ -223,7 +223,7 @@ controls — so `allow` is a field on it, stated like any other.
 The user who ran setup **holds master**: users and groups, service ACL, and
 service install / start / stop / restart ([runner § what the runner does](08-runner-role.md#what-the-runner-does)). The
 name `agent-bus-admin` belongs to the program an operator runs, not to a role
-([setup § the five programs](09-setup.md#the-five-programs)). Owners still own their service *definitions* and
+([setup § the programs](09-setup.md#the-programs)). Owners still own their service *definitions* and
 run services without an admin; admin is the escalation path and the node
 operator, not a required participant.
 

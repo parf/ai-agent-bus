@@ -2,7 +2,7 @@
 // own nothing but the bus, their homes under /var/lib, and a unit that starts
 // the daemon as one of them. It is the one program that wants root, it wants
 // it once, and nothing after it does — the daemon never has it.
-// See docs/09-setup.md#the-five-programs.
+// See docs/09-setup.md#the-programs.
 package main
 
 import (
@@ -168,7 +168,7 @@ func setup() error {
 	}
 	// The first user is the installer, and adding one is the admin program's
 	// job — setup does not learn a second way to do it.
-	// See docs/09-setup.md#the-five-programs.
+	// See docs/09-setup.md#the-programs.
 	if *keyF != "" {
 		self, err := os.Executable()
 		if err != nil {

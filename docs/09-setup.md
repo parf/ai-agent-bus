@@ -1,10 +1,11 @@
 # Setup and operation
 
-## The five programs
+## The programs
 
 Privilege is what separates them, and nothing else does: root is needed once
-and never again, the account's own files are the admin's, and what an ordinary
-user needs is neither.
+and never again, each account's own files are that account's, and what an
+ordinary user needs is neither. The count is deliberately not in the heading —
+it has already changed once.
 
 | Program | Runs as | What it is for |
 |---|---|---|
@@ -12,7 +13,9 @@ user needs is neither.
 | `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | everything that edits what lives in the home — `user add`, `user list`, `user remove` today — plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
-| `agent-busd` | the **`agent-busd` account**, started by the unit | the daemon: a supervisor and its children ([processes](11-processes.md)) |
+| `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](11-processes.md)) |
+| `agent-bus-web` | the **`agent-busd` account**, started by the daemon as a child and cgroup-limited | the dashboard, speaking the API like any other client and holding no write path of its own ([discovery § dashboard](05-discovery.md#dashboard)) |
+| `agent-bus-runner` | the **`agent-bus-runner` account**, started by its own unit ([the two units](#the-two-units)) | keeps a host's services: installs, starts, stops and supervises them, and is reached as a service on the bus rather than by a door of its own ([runner role](08-runner-role.md)) |
 
 **Reaching a node over SSH runs one of these, never a shell.** Every key lives
 in the `agent-busd` account's `authorized_keys` behind a forced command, and
@@ -43,7 +46,7 @@ shape nobody has asked for yet. *Settled by:* owner.
 
 | Step | What happens |
 |---|---|
-| `npm install -g agent-bus` (or `pnpm`) | one package brings all five ([the five programs](#the-five-programs)) |
+| `npm install -g agent-bus` (or `pnpm`) | one package brings them all ([the programs](#the-programs)) |
 | `sudo agent-bus-setup` | creates the **two system users**, asks the two questions below, writes the config and the unit, and starts it. **No keys.** |
 | the first user | `agent-bus-setup` calls `agent-bus-admin` with the installer's own public key, which is what puts a line in that account's `authorized_keys`. It does not learn a second way to write that file |
 
@@ -136,7 +139,7 @@ untouched.
 
 **Neither account is one you log in as.** Both are nologin. Only the daemon's
 has an `authorized_keys`, and every line in it is a forced command
-([the five programs](#the-five-programs)) — never a shell. The runner has none
+([the programs](#the-programs)) — never a shell. The runner has none
 at all: it is reached as a service on the bus
 ([runner § reaching the runner](08-runner-role.md#reaching-the-runner)), so
 there is no second ssh door to lock down. Confining a child on top of that

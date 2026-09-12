@@ -1,6 +1,6 @@
 // agent-bus-admin is what edits the things the agent-bus account owns. It is
 // the operator's program: an ordinary user runs agent-bus-token, which is a
-// strict subset of this one. See docs/09-setup.md#the-five-programs.
+// strict subset of this one. See docs/09-setup.md#the-programs.
 //
 // It runs as that account or not at all — when it is somebody else it re-runs
 // itself under sudo rather than explaining how.
@@ -104,7 +104,7 @@ func beTheAccount() error {
 
 // handOver runs the smaller program for a verb they share, so there is one
 // implementation of it and an operator's line is a superset rather than a
-// second path. See docs/09-setup.md#the-five-programs.
+// second path. See docs/09-setup.md#the-programs.
 func handOver(what string, args []string) error {
 	self, err := os.Executable()
 	if err != nil {

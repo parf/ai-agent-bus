@@ -1,6 +1,6 @@
 // agent-bus-token hands out a credential and does nothing else. It is what an
 // ordinary user runs, and the forced command behind their key — the admin
-// program is neither. See docs/09-setup.md#the-five-programs.
+// program is neither. See docs/09-setup.md#the-programs.
 //
 // Three ways in, one answer: the socket says who you are, an environment pair
 // says it, or a key you hold proves it. The last one needs no sshd, which not

@@ -184,7 +184,7 @@ Illustrative only; the exact verbs are part of the design work.
 
 ```sh
 # install and set up
-npm install -g agent-bus               # five programs (pnpm works too)
+npm install -g agent-bus               # every program (pnpm works too)
 sudo agent-bus-setup                   # makes the two accounts, writes the unit, starts it
 
 # nothing to do for local use — the socket supplies username + token

@@ -52,7 +52,7 @@ mechanism, two things asked of it.
 **One program every way**, `agent-bus-token`, and it is the *only* thing an
 ordinary user reaches over SSH — the forced command behind their key, where an
 operator's key has the admin program instead
-([setup § the five programs](09-setup.md#the-five-programs)). Today it is the
+([setup § the programs](09-setup.md#the-programs)). Today it is the
 stand-in [`src/static-token`](../src/static-token): it prints the token file
 the daemon reads at start and refuses every other request. Setting it up is
 one `authorized_keys` line per person, given in that script's header.

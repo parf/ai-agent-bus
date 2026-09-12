@@ -47,7 +47,7 @@ Two consequences fall out of that and are worth stating before any wave:
 | From | Still true |
 |---|---|
 | the design | protocol → ports → core, adapters and faces outside; `cmd/` assembles ([modules § the rule](../../docs/10-modules.md#the-rule)) |
-| the MVP | five programs split by privilege ([setup § the five programs](../../docs/09-setup.md#the-five-programs)); the supervisor/bus split, and that **nothing the daemon starts may exec** ([processes § nothing the daemon runs may exec](../../docs/11-processes.md#nothing-the-daemon-runs-may-exec)) |
+| the MVP | one program per privilege ([setup § the programs](../../docs/09-setup.md#the-programs)); the supervisor/bus split, and that **nothing the daemon starts may exec** ([processes § nothing the daemon runs may exec](../../docs/11-processes.md#nothing-the-daemon-runs-may-exec)) |
 | the PoC | how work is accepted — nothing is believed until it has been watched failing ([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)) |
 
 ## How work is accepted here
