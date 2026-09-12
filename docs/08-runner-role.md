@@ -1,23 +1,37 @@
 # Runner role
 
 A pm2/php-fpm-style supervisor **plus** bus integration **plus** sandboxing:
-one supervised process hosting many children and speaking the bus on their
-behalf. Always present.
+one process hosting many children and speaking the bus on their behalf.
 
-It is **its own process**, because it is the one component that executes code
-it did not write — see
-[processes § why the runner is its own process](11-processes.md#why-the-runner-is-its-own-process).
-So there are two levels: `agent-busd`'s supervisor runs the runner, and the
-runner runs user children.
+**It is not part of `agent-busd`.** It is a separate program, running as its
+own user, that reaches the bus like any other citizen — which is what lets the
+daemon claim it never executes anything at all
+([processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec)).
+
+**And it is optional.** A service can always be published by hand with one
+command ([script services](#script-services)); the runner is a secure and
+convenient way to keep a set of them, not a second way to run one. Effectively
+it is a wrapper over a series of `agent-bus start` invocations, which is the
+property worth protecting: one mechanism, two entry points, nothing to keep in
+step.
 
 ## What the runner does
 
-- **Supervise** — spawn, restart with backoff, stop, reload, log capture, exit
-  codes.
+- **Supervise** — spawn, restart with backoff, stop, log capture, exit codes.
+  Four verbs and no more: **start, stop, restart, enable/disable**. There is no
+  `reload`, because for a script service there is no long-lived child to
+  signal — children are one process per message — and a graceful restart
+  already loses nothing: `stop` waits for the work in flight, messages queue in
+  the daemon meanwhile, and the next process picks them up.
+  ❓ *A long-running non-script child that can take `SIGHUP` would be the one
+  reason to keep `reload`, and it would make the runner care what kind of child
+  it has. Settled by: the owner.*
 - **Represent** — registers each child as a **service**
   ([services § service and template](03-services-and-topics.md#service-and-template)),
   heartbeats and reports stats for it, holds and injects the child's identity
-  and private config. Children need not know the bus exists.
+  and private config. Children need not know the bus exists — a script under
+  `agent-bus start` never handles a credential at all, and a service that links
+  a client library lets the library do it.
 - **Is itself an agent** — self-registers, self-reports, has its own key, and
   is controllable over the bus (start/stop children, reload) under its owner's
   ACL.
@@ -117,22 +131,90 @@ Because a message is taken from the daemon only when a script process is free
 to run it, a service that dies loses only the work already in flight; the rest
 is still queued for whatever reads that inbox next.
 
-## Supervises itself
+## What an instance is
 
-`agent-busd`'s own children — bus, runner, web, auth, billing, health — are
-spawned with the same machinery as any user child: same restart policy, same
-limits, no special cases. The list and the privilege each one gets are in
-[processes](11-processes.md).
+A directory, and the directory being there **is** the desired state — no
+catalogue, no separate list of what to start. The registry already answers
+what exists and what is alive; the runner answers only what should be up.
+
+| In `service.d/<name>/` | |
+|---|---|
+| the description | what to register and how to run it — the same fields `agent-bus start` already takes |
+| the config | injected into the child by environment or fd, never as a path it could read twice. Write-only ([access to the runner](#access-to-the-runner)) |
+| the code, or a link to a template | a template may be a directory with its own owner, or a symlink to where the code really lives, so the runner need not own it |
+| the credential | handed in at install; the runner does not mint it |
+
+The **directory name is the service name**, the way a unit file's name is. If
+the description carried one too they could disagree, so it does not.
+
+`templates/` is world-readable because a template is what a service *is* and
+holds no secret; `service.d/` is not, because an instance is what a service is
+*configured with* ([setup § the two accounts](09-setup.md#the-two-accounts)).
+One template with many instances is already in the naming —
+`template/instance-name@host` ([identity § names](01-identity.md#names)) — so
+per-user instances need no new idea.
 
 ## Who it runs as
 
-- **Separate user** (default for shared/server use): `agent-busd` as the
-  `agent-bus` user (or per-tenant users); children as that user or further
-  dropped. Privileged installer once; **no root at runtime**, and the only
-  capability anywhere is the supervisor's
+- **Separate user** (default for shared/server use): the daemon as
+  `agent-busd` and the runner as `agent-bus-runner`, two accounts that cannot
+  read each other's home ([setup § the two accounts](09-setup.md#the-two-accounts)).
+  Privileged installer once; **no root at runtime**, and the only capability
+  anywhere is the supervisor's
   ([processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown)).
-- **Current user** (personal use): runner and children as you. Zero setup —
-  the laptop story with the AUTH role off.
+- **Current user** (personal use): children as you, no runner at all. Zero
+  setup — the laptop story with the AUTH role off.
+
+### Where it runs
+
+The runner and the daemon are separate programs, so they need not share a
+host. Three arrangements, and the third is what the split buys:
+
+| | daemon | runner |
+|---|---|---|
+| laptop | yours, local | none — publish by hand ([script services](#script-services)) |
+| one host | local, `agent-busd` | local, `agent-bus-runner` |
+| **edge box** | **elsewhere** | local, alone — a machine that hosts services and holds no bus state |
+
+A remote daemon is reached the way anything else here is reached, over **ssh**
+([access § the three doors](02-access.md#the-three-doors)): no port opened to
+a network, and no TLS between bus citizens.
+
+**A bus that is away is not a service that failed.** When the daemon is
+unreachable the services are running perfectly well and simply cannot take
+work — so the *client* waits and reconnects, and the runner restarts nothing.
+Getting that backwards turns one restart of the bus into a restart storm on
+every host at once.
+
+| what happened | who deals with it |
+|---|---|
+| the child died | the runner restarts it |
+| the bus is away | the client reconnects, with backoff |
+
+### Access to the runner
+
+**Whoever can reach the runner may install and configure instances on that
+host.** The grant is deliberately coarse — the same granularity as write
+access to a unit directory, or sudo to a service account — and it is bounded
+by the thing that matters:
+
+> runner access lets you run code on that host. It does not let you
+> impersonate a name on the bus.
+
+An instance still has to *become* a name, and it can only become one whose
+credential it was handed. Which is why the runner is **never given the power
+to mint one** — if it could, runner access and impersonation would be the same
+thing, and the whole split would be decorative.
+
+**Configuration is write-only.** A config goes in and is never handed back:
+anyone who could print one could read every secret on the host, and the
+identity in the ssh key would buy nothing. Whoever truly needs the bytes can
+become root and read the file — that is the boundary, stated rather than
+worked around with a verb.
+
+The consequence worth planning for: nobody can ask the host what is deployed.
+`service.d` is a **write-only deployment target**, and the source of truth
+lives where it was installed from.
 
 ## Sandboxing
 
@@ -156,9 +238,9 @@ it. The candidates, so the choice is a record and not a memory:
 `--user` has one consequence worth writing down: a transient user scope needs
 that account's own systemd manager to be running. A person starting a service
 in their own session has one. The **service account does not**, having no
-login, until `loginctl enable-linger agent-bus` is run — so the day the runner
-starts children as `agent-bus`, that is a setup step
-([setup § the service account](09-setup.md#the-service-account)) and not a
+login, until `loginctl enable-linger agent-bus-runner` is run — so the day the
+runner starts children as `agent-bus-runner`, that is a setup step
+([setup § the two accounts](09-setup.md#the-two-accounts)) and not a
 mystery about why the sandbox says `off`.
 
 **Off is a setting, not an absence.** Where `systemd-run` cannot run the
@@ -171,7 +253,7 @@ Default profile — **nothing writable but the work directory, and no network**:
 | Property | |
 |---|---|
 | `ProtectSystem=strict` | the whole filesystem read-only |
-| `ProtectHome=read-only` | home readable, so a script that lives there still runs |
+| `ProtectHome` | `read-only` for a service published by hand, whose script usually *is* in a home. **`yes` for anything the runner starts** — its home is `service.d`, so read-only there would hand every child every other service's secrets, and the mode on the directory would be decoration |
 | `PrivateTmp=yes` | its own `/tmp` |
 | `ReadWritePaths` / `BindPaths` the work dir | the one place it may write, and its working directory. Bound in, so it is reachable even when it is under the private `/tmp` |
 | `BindReadOnlyPaths` the script's own directory | the same problem from the other side: a private `/tmp` hides the script too |

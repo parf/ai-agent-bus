@@ -45,6 +45,7 @@ restated in any more detail than that.
 | calls | a call reaches an **upstream** service the way a local one is reached, carrying on-behalf-of; long answers stream |
 | observability | health checker, stats, Prometheus export |
 | secrets | sealed private config |
+| **the runner** | `agent-bus-runner`: its own account, installed instances under `service.d`, write-only configuration, autostart and restart policy, on-demand start |
 | encryption | AEAD sessions, bodies end to end |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified |
 | operations | zero-downtime reload, packaging |
@@ -63,3 +64,4 @@ stage is where each of them bites.
 | federation | peer sync trusts unsigned records, and there is no clock authority for "newer wins" | [services § registry sync](../../docs/03-services-and-topics.md#registry-sync) |
 | chaining, and service templates | a chaining namespace and a service template both want the `/` | [overview § chaining](../../docs/00-overview.md#chaining) |
 | admin | `authorized_keys` regeneration would drop the key `agent-bus-setup` installed | [AUTH role § SSH admin](../../docs/06-auth-role.md#ssh-admin) |
+| the runner | whether `reload` survives for a child that can take `SIGHUP` | [runner § the verbs](../../docs/08-runner-role.md#what-the-runner-does) |

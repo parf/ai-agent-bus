@@ -107,10 +107,12 @@ the mechanism behind the link:
 - **Required minimum** is registry (services *and* topics) + queues + API +
   MCP + dashboard, AUTH off.
 - **Supervisor plus least-privilege children**, systemd-style: the supervisor
-  holds only `CAP_CHOWN` and no state; bus, runner, web, auth, billing and
-  health are separate processes, each with a declared privilege set; nothing
+  holds only `CAP_CHOWN` and no state; bus, web, auth, billing and health are
+  separate processes, each with a declared privilege set; nothing
   shared implicitly — unix sockets and passed fds only. Only auth holds
-  `master_secret`; only the runner may exec — `docs/11-processes.md`.
+  `master_secret`; **no process the daemon starts may exec at all** — the
+  runner is a separate program under its own account, not a child —
+  `docs/11-processes.md`.
 - **Two kinds of data.** AUTH data = offline-signed generations in git.
   Registry data = live records, writer-signed where a key exists, snapshotted
   to git. Live state (health, stats, queue contents) is neither.

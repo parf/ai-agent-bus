@@ -24,25 +24,31 @@ can move to a different process without changing which layer it belongs to.
 |---|---|---|---|
 | **supervisor** (`agent-busd`) | spawn, restart, stop, reload · read config · open and hand over listening sockets · report status | **`CAP_CHOWN`**, for the per-user sockets ([access § local socket](02-access.md#local-socket)) — and nothing else | `master_secret`, queues, bodies, the store |
 | **bus** | registry, topics, queues, sessions, delivery — the core | the store; inherited listener fds | `CAP_CHOWN`, the ability to exec, `master_secret` |
-| **runner** | spawns, sandboxes and supervises *user* children ([runner role](08-runner-role.md)) | fork/exec, and whatever a sandbox backend needs | the store, queues, bodies |
 | **web** | the dashboard ([discovery § dashboard](05-discovery.md#dashboard)) | a read-only view of stats; **cgroup-limited** (CPU / memory / pids) so it can never starve the bus | any write path, bodies |
 | **auth** | identities, keys, groups, roles ([AUTH role](06-auth-role.md)) | **alone holds `master_secret`**; its own unix socket | a network listener, the queues |
 | **health** | probes generic services ([discovery § health checker](05-discovery.md#health-checker)) | outbound network | the store, queues |
 
-Defaults: supervisor, bus and runner always; web on and may be turned off;
+Defaults: supervisor and bus always; web on and may be turned off;
 auth `auth: on`; health optional. Billing is deferred
 ([future/billing.md](future/billing.md)); when it ships it is another child.
 
-## Why the runner is its own process
+## Nothing the daemon runs may exec
 
-It is the one component that **executes code it did not write** — arbitrary
-user children, under a sandbox it sets up itself. Least privilege says the
-process that can `exec` should not also be the process holding everyone's
-queues and sessions. So the runner is a child like any other, and the bus
-keeps no ability to spawn.
+The runner **executes code it did not write** — arbitrary user children, under
+a sandbox it sets up itself. Least privilege says the process that can `exec`
+should not also be the one holding everyone's queues and sessions.
 
-Consequence for [runner role](08-runner-role.md): the runner supervises *user*
-children; the supervisor supervises the runner. Two levels, same machinery.
+The sharpest way to say that is to put the runner outside the daemon
+altogether. It is **not** a supervised child: it is its own program under its
+own user, reaching the bus as an ordinary citizen
+([runner role](08-runner-role.md)). So the claim is not "only one child may
+exec" but the stronger and simpler **no process `agent-busd` starts may exec
+at all** — which is a thing a reader can check rather than a policy to
+remember.
+
+It also buys a shape the child arrangement could not: the runner can run on a
+host with **no daemon at all**, against a bus somewhere else
+([runner § where it runs](08-runner-role.md#where-it-runs)).
 
 ## Why the supervisor holds `CAP_CHOWN`
 
@@ -58,10 +64,10 @@ still chown a socket on reload — and a child starts with no capability at all.
 Where the capability is missing altogether the supervisor says so and leaves
 the socket as its own.
 
-⚠️ **The split is real for supervisor, bus and web; runner, auth and health
-are still design.** That a child's effective set is empty can be read from
+⚠️ **The split is real for supervisor, bus and web; auth and health are still
+design, and the runner is its own program rather than a child of this set.** That a child's effective set is empty can be read from
 `/proc` on a host where the daemon actually holds `CAP_CHOWN` — under the unit
-([setup § the service account](09-setup.md#the-service-account)) — and not on
+([setup § the two accounts](09-setup.md#the-two-accounts)) — and not on
 one where nothing had it to begin with.
 
 ## What is shared
@@ -72,7 +78,7 @@ Nothing but file descriptors and unix sockets, both explicit.
 |---|---|
 | supervisor → any child | inherited listener fds, config, a control socket |
 | bus ↔ auth | unix socket, one question per session start ([identity § resolved at login](01-identity.md#resolved-at-login)) |
-| bus ↔ runner | unix socket: register child, report health, start/stop |
+| bus ↔ runner | nothing implicit: the runner is a **client**, not a child, and reaches the bus the way any citizen does ([runner role](08-runner-role.md)) |
 | web → bus | read-only stats query |
 
 No child reads another's memory, and no two processes hold the store open for

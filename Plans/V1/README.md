@@ -32,6 +32,11 @@ Two consequences fall out of that and are worth stating before any wave:
   V1 is where the pairwise or derived keys arrive that make it true, and
   until they do the sentence stays off the box
   ([access § encrypted sessions](../../docs/02-access.md#encrypted-sessions)).
+- **Starting a service stops being a command you sit in front of.** The MVP
+  publishes one with a single foreground command line and keeps no installed
+  state. V1 adds `agent-bus-runner` — a second account, outside the daemon,
+  that holds each instance's configuration and never hands it back, and starts
+  it on boot or on demand ([runner role](../../docs/08-runner-role.md)).
 - **Identity stops being one node's.** AUTH, groups and roles exist so that no
   service holds its own user list, and the bundle is offline-signed in git so
   that a compromised replica can serve stale config and never forge it
@@ -42,7 +47,7 @@ Two consequences fall out of that and are worth stating before any wave:
 | From | Still true |
 |---|---|
 | the design | protocol → ports → core, adapters and faces outside; `cmd/` assembles ([modules § the rule](../../docs/10-modules.md#the-rule)) |
-| the MVP | five programs split by privilege ([setup § the five programs](../../docs/09-setup.md#the-five-programs)); the supervisor/bus split ([processes](../../docs/11-processes.md)) |
+| the MVP | five programs split by privilege ([setup § the five programs](../../docs/09-setup.md#the-five-programs)); the supervisor/bus split, and that **nothing the daemon starts may exec** ([processes § nothing the daemon runs may exec](../../docs/11-processes.md#nothing-the-daemon-runs-may-exec)) |
 | the PoC | how work is accepted — nothing is believed until it has been watched failing ([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)) |
 
 ## How work is accepted here

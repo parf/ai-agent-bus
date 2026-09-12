@@ -12,7 +12,8 @@ wins.
 | `agent-bus` | the CLI any user runs | — |
 | `agent-bus-setup` | the root-only installer | not `agent-bus setup`, which was a verb |
 | `agent-bus-token` | what hands a user a credential, locally or as their forced command over SSH | not an admin program |
-| `agent-bus` | the keyword everywhere else: `/etc/agent-bus/`, `~/.config/agent-bus/`, the `agent-bus` system user, `agent-busd.service` | — |
+| `agent-bus` | the keyword everywhere else: `/etc/agent-bus/`, `~/.config/agent-bus/`, `/var/lib/agent-bus/`, `agent-busd.service` | — |
+| `agent-bus-runner` | the program that keeps a set of services, and the system account it runs as | not "the runner daemon"; it is not a child of `agent-busd` |
 | `ab_` | **MCP tool prefix only** (`ab_list_services`, `ab_call`) | never in CLI, config or prose. Underscore, not `ab:` — a client exposes a tool as `mcp__<server>__<tool>` (and a plugin's as `mcp__plugin_<plugin>_<server>__<tool>`), and model tool names must match `[a-zA-Z0-9_-]{1,64}`, so a colon does not survive the trip; `:` also already means a capability (`publish:<glob>`) |
 | `ab:` | the **plugin** namespace, if we ship a Claude Code plugin named `ab` | slash commands, skills and agents only — `/ab:send`, never a tool name |
 
@@ -37,7 +38,7 @@ wins.
 | **token** | the second of the two parameters every call carries; persisted, previous one kept | [access § token lifetime](02-access.md#token-lifetime) |
 | **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](01-identity.md#acl) |
 | **`allow: *`** | anyone who can authenticate | [identity § acl](01-identity.md#acl) |
-| **`agent-bus-admin`** | the program that edits what the `agent-bus` account owns — *not* a role; the setup user simply holds master | [setup § the five programs](09-setup.md#the-five-programs) |
+| **`agent-bus-admin`** | the program that edits what the `agent-busd` account owns — *not* a role; the setup user simply holds master | [setup § the five programs](09-setup.md#the-five-programs) |
 | **role** | service-defined string saying what a principal may do | [identity § groups and roles](01-identity.md#groups-and-roles) |
 | **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](01-identity.md#delegation) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](03-services-and-topics.md#service-kinds) |
@@ -64,6 +65,8 @@ wins.
 | **adapter** (runtime) | per-runtime push path into a live agent session | [runner § adapters](08-runner-role.md#adapters) |
 | **thin glue** | built-in first, then the system's tool, then a library — never our own | [modules § external tools](10-modules.md#external-tools) |
 | **supervisor** | the `agent-busd` process that spawns the rest and holds nothing else | [processes](11-processes.md) |
+| **`agent-busd`** · **`agent-bus-runner`** (accounts) | the two system users, one per secret domain: credentials and configurations, neither readable by the other | [setup § the two accounts](09-setup.md#the-two-accounts) |
+| **template** · **instance** | on disk: `templates/<name>` is what a service is, `service.d/<name>` is what one is configured with | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | **bus** | the child that is the core: registry, queues, sessions, delivery | [processes](11-processes.md) |
 | **port** | an interface core depends on; the seam a dependency is swapped at | [modules § the rule](10-modules.md#the-rule) |
 | **adapter** (layer) | the one implementation of a port; the only layer allowed outside I/O | [modules § the rule](10-modules.md#the-rule) |

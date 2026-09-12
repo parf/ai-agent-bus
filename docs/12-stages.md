@@ -30,13 +30,13 @@ to be true.
 | daemon | one process, listening on a **unix socket and HTTP** |
 | language | daemon and CLI in **Go**; the MCP face and adapters in **TypeScript on bun** ([modules § languages](10-modules.md#languages)) |
 | identity | **one master token**, reaching every service — no per-service anything ([identity § acl](01-identity.md#acl)). It authenticates *the host's owner*, who may use any name: PoC is single-tenant, and per-user tokens arrive with the per-user sockets at MVP |
-| tokens | issued **over SSH** — `ssh agent-bus@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
+| tokens | issued **over SSH** — `ssh agent-busd@<node> static-token` ([access § getting a token](02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
 | encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | services | **basic request/reply** ([messaging § request and reply](04-messaging.md#request-and-reply)): a service consumes its inbox, `ack`s it (got it), does the work and replies; a caller sends and waits for that reply. The reply stands in for `done`, which comes at MVP |
 | services from scripts | `agent-bus start <name> --algo=std\|args <script> [-N]` — a shell script becomes a service, `-N` of them running at once, no bus code inside it ([runner § script services](08-runner-role.md#script-services)) |
 | mcp | **basic MCP face** — list what is registered, send, consume. Unfiltered: the master token sees everything ([discovery § faces](05-discovery.md#faces)) |
 | install | run the built binary. **No npm** |
-| setup | one thing only: the user's pubkey in the `agent-bus` account's `authorized_keys` behind that forced command |
+| setup | one thing only: the user's pubkey in the `agent-busd` account's `authorized_keys` behind that forced command |
 | storage | memory. A restart loses everything, and that is fine here |
 | exposure | **loopback or an SSH tunnel only.** Plaintext bodies and a master token are acceptable in a PoC; putting them on a public interface is not |
 
@@ -120,7 +120,7 @@ a shared host.
 | services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several workers behind one name, per-service call stats ([messaging](04-messaging.md)) |
 | storage | SQLite store, Parquet dump and reload ([setup § storage](09-setup.md#storage)) |
 | faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a dashboard people sign in to, showing the registry, stuck inboxes, exchanges, losses and refusals ([discovery § what it shows](05-discovery.md#what-it-shows)) |
-| runner | supervise and sandbox children ([runner role](08-runner-role.md)) |
+| starting services | `agent-bus start <name> … <command>` — one command line publishes a service, sandboxed, in the foreground; no second account and no installed state ([runner role](08-runner-role.md)) |
 | processes | the supervisor/children split ([processes](11-processes.md)) |
 | install | `npm install -g` + `sudo agent-bus-setup`, and the five programs it brings ([setup § the five programs](09-setup.md#the-five-programs)) |
 
@@ -129,7 +129,7 @@ a shared host.
 - Several users share one host, each seeing only the services they may.
 - The bus restarts without losing queued messages.
 - An agent asks the MCP face "what can I use?" and gets a filtered catalog.
-- A child registered under the runner is supervised, sandboxed and reachable.
+- A service started with one command line is sandboxed, registered and reachable.
 - A person signs in to the dashboard with the credential they already have and
   sees the bus as they may see it — and a stranger sees only how to get one.
 
@@ -152,6 +152,7 @@ thing that would make it true rather than on the page
 | calls | a call reaches a service on the **upstream** bus the same way it reaches a local one, carrying on-behalf-of; long answers stream ([overview § chaining](00-overview.md#chaining)) |
 | observability | health-checker, stats, Prometheus export ([discovery](05-discovery.md)) |
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
+| **the runner** | `agent-bus-runner` as its own account and its own program: installed instances under `service.d`, configuration it holds and never hands back, autostart and a restart policy, on-demand start — a wrapper over the MVP's `agent-bus start` ([runner role](08-runner-role.md)) |
 | encryption | AEAD sessions and bodies end to end, on the pairwise or derived keys that make the claim true ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | clients | Go, PHP, Rust, JS, Python — gated on how `protocol` is specified ([modules](10-modules.md)) |
 | operations | zero-downtime reload, packaging |
@@ -163,6 +164,8 @@ thing that would make it true rather than on the page
   service holding its own user list.
 - A laptop bus chains to it: local first, upstream for the rest.
 - A stranger with a GitHub key enrols in a public service.
+- A host runs services through the runner with no daemon on it at all, against
+  a bus somewhere else.
 
 Billing is **not in any stage**: it is designed and deferred
 ([future/billing.md](future/billing.md)).

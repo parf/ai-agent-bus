@@ -15,13 +15,13 @@ All 2026-09-09 unless noted.
 | Decision | Where |
 |---|---|
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](01-identity.md#names) |
-| Setup installs the separate-user arrangement, and where that account lives | [setup § the service account](09-setup.md#the-service-account) |
+| Setup installs the separate-user arrangement, and where that account lives | [setup § the two accounts](09-setup.md#the-two-accounts) |
 | Five programs, split by the privilege each needs and no finer | [setup § the five programs](09-setup.md#the-five-programs) |
 | Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the five programs](09-setup.md#the-five-programs) |
 | A token can be had by signing a challenge, because not every host runs sshd | [access § getting a token](02-access.md#getting-a-token) |
 | Enrolment is the one route with no credential on it, because it is where one comes from | [identity § proving possession](01-identity.md#proving-possession) |
 | A user is a line in `authorized_keys`, written by one program, never a format of ours | [setup § the five programs](09-setup.md#the-five-programs) |
-| The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the service account](09-setup.md#the-service-account) |
+| The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the two accounts](09-setup.md#the-two-accounts) |
 | A name is checked, not taken on trust | [access § two parameters](02-access.md#two-parameters) |
 | Writing is subject to the ACL, like reading | [identity § acl](01-identity.md#acl) |
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](01-identity.md#registration) |
@@ -131,7 +131,15 @@ All 2026-09-09 unless noted.
 | Each child gets the narrowest privilege its task needs, declared not acquired | [processes § the processes](11-processes.md#the-processes) |
 | Nothing is shared implicitly — children talk over unix sockets with explicit contracts | [processes § what is shared](11-processes.md#what-is-shared) |
 | The supervisor owns the listening sockets and passes fds down | [processes § the rule](11-processes.md#the-rule) |
-| The runner is its own process: the only component that execs code it did not write | [processes § why the runner is its own process](11-processes.md#why-the-runner-is-its-own-process) |
+| The runner is not part of `agent-busd`: a separate program under its own account, and no process the daemon starts may exec | [processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |
+| Two system accounts, one per secret domain, under one `/var/lib/agent-bus` | [setup § the two accounts](09-setup.md#the-two-accounts) |
+| ssh with a forced command is a third way the two parameters arrive, and how a remote daemon is reached | [access § the three doors](02-access.md#the-three-doors) |
+| Reaching the runner is the right to install and configure instances on that host | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
+| A service's credential is handed to the runner at install; the runner may never mint one | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
+| Configuration is write-only: it is never handed back | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
+| An instance is a directory, and the directory being there is the desired state | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
+| A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](08-runner-role.md#where-it-runs) |
+| The runner has no `reload`; a graceful restart already loses nothing | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | `CAP_CHOWN` is the supervisor's alone, so no long-running child holds a capability | [processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown) |
 | Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](10-modules.md#the-rule) |
 | Only adapters touch the outside world; calling an external tool is an adapter-layer rule | [modules § external tools](10-modules.md#external-tools) |
@@ -199,6 +207,8 @@ All 2026-09-09 unless noted.
 
 | Was | Now |
 |---|---|
+| The runner is one of the supervisor's children, and the only one that may exec | it is outside the daemon entirely, under its own account, so nothing the daemon starts execs at all — [processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |
+| The daemon's system account is `agent-bus` | `agent-busd`, so the account and the CLI are not the same word — [setup § the two accounts](09-setup.md#the-two-accounts) |
 | The setup user gets the `agent-bus-admin` role | they hold master, and the name is the operator's program instead — [setup § the five programs](09-setup.md#the-five-programs) |
 | Minimal setup: install, `agent-bus setup`, start the service | `sudo agent-bus-setup` does all three, and is its own program — [setup § install](09-setup.md#install) |
 | Go first, a bun/NPM build later | Go inside, TypeScript for the MCP face and adapters — built by bun, run on Node — [modules § languages](10-modules.md#languages) |
