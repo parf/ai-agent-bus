@@ -75,7 +75,30 @@ Safe to hand out widely, which is why they are not in the group below.
 |---|---|---|
 | **health** | owner | `df`, `free`, `lsblk`, `uptime`, `who` — what an incident asks first |
 | **info** | owner | `ps`, and what the hardware and the OS are |
-| **logs** | proposed | `journalctl`, scoped to named units. Pairs with **systemd** below, and is the half you can give to people you would not give the other half to |
+| **logwatch** | owner | the last N lines of everything a glob matched, cleaned, and the new ones as they arrive. An adaptation of `/rd/service/tail-ring-buffer`, which exists to close exactly this loop for an agent: make a change, then see what the logs said |
+
+**`logwatch` is the one here that holds state**, and it is worth saying why. It
+keeps a bounded ring of cleaned lines from every file its globs matched,
+rescanning for new files as they appear, so a caller asks *what just happened*
+instead of finding the right file and scrolling. That ring is state between
+messages, which makes it a **kept child** — the same argument a warm cache makes
+([runner § long-lived services](08-runner-role.md#long-lived-services)). It is
+also bounded by construction, so a log that floods cannot take the host, which
+is the instinct the queues are already built on
+([messaging § overflow](04-messaging.md#overflow)).
+
+Three things the bus changes about it:
+
+| | |
+|---|---|
+| **new lines are published, not polled** | the original is HTTP and answers when asked. A tail is a publisher by nature, so it goes into a topic and a watcher subscribes once instead of asking every few seconds |
+| **another box is another name** | the original reaches a second host over ssh, with that host written into a local env file. Here it is a call to `logwatch@srv2`, and nothing local has to know where that is |
+| **the globs are the grant** | one instance per set of sources, so `logwatch/nginx@srv1` hands over nginx errors and not `/var/log/auth.log` — danger is a name here as everywhere |
+
+**journald is a source, not a second service.** `journalctl -f` tails like
+anything else, so unit logs are an instance's configuration rather than another
+entry in this catalogue — which is also how the half you can safely hand out
+stays separate from **systemd** below: different instance, different grant.
 
 ### Acting on the box
 

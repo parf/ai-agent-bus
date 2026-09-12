@@ -141,6 +141,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | No layer of ours between a caller and a tool: a retry or a cache is a service with its own name | [bundled services § rules they all obey](13-bundled-services.md#rules-they-all-obey) |
 | The image is one image and two containers, because the two accounts are two secret domains | [stages § the image](12-stages.md#the-image) |
 | The image ships the catalogue installed and enables only the reading half, using installed-not-enabled for what it is for | [stages § the image](12-stages.md#the-image) |
+| `logwatch` keeps a bounded ring of cleaned lines per glob set, publishes new ones, and makes the globs the grant | [bundled services § reading the box](13-bundled-services.md#reading-the-box) |
 | Reading a channel publishes into a topic; sending is a call — one shape for Slack, SMS, mail and webhooks | [bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside) |
 | V2 code lives in this repo, in `src/` beside `docs/` | [stages § PoC](12-stages.md#poc) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
