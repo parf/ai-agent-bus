@@ -188,7 +188,9 @@ its owner's to change ([identity § ownership](01-identity.md#ownership)) —
 but *claiming* a name nobody holds is still open to anyone.
 
 **A service fetches its own configuration; nothing injects it** — and it is
-the only one that can, so this runs as the service, not as its owner:
+the only one that can, so this runs as the service, not as its owner. This is
+the *registry's* configuration, not the runner's environment, which is the
+other thing that word names ([glossary § terms](glossary.md#terms)):
 
 ```sh
 cfg=$(agent-bus service-template "$AGENT_BUS_NAME")

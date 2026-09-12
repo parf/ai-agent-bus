@@ -134,10 +134,12 @@ pull` under `service.d` and every decision this host made — secrets, worker
 counts, confinement, whether it runs at all — is still sitting under `runner/`
 untouched.
 
-**Neither account is one you log in as.** Both are nologin, neither has an
-`authorized_keys`, and the runner is reached only as a service on the bus
-([runner § reaching the runner](08-runner-role.md#reaching-the-runner)) —
-never a shell, and never a second ssh door. Confining a child on top of that
+**Neither account is one you log in as.** Both are nologin. Only the daemon's
+has an `authorized_keys`, and every line in it is a forced command
+([the five programs](#the-five-programs)) — never a shell. The runner has none
+at all: it is reached as a service on the bus
+([runner § reaching the runner](08-runner-role.md#reaching-the-runner)), so
+there is no second ssh door to lock down. Confining a child on top of that
 is a per-service option rather than what makes the arrangement correct, because
 no secret reaches a child as a file in the first place
 ([runner § the three env layers](08-runner-role.md#the-three-env-layers)).
