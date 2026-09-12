@@ -169,6 +169,7 @@ the bus debuggable by the people sharing it.
 | **groups** and who is in them | Release 1 | groups themselves ([identity § groups and roles](01-identity.md#groups-and-roles)) |
 | **health** — up, down, and how long since the last probe | Release 1 | the health child ([health checker](#health-checker)) |
 | **load** — calls per minute and per hour, per name and for the node | Release 1 | the ring buffers in [stats](#stats). Inline SVG; `/metrics` ([exports](#exports)) is what a real graphing stack reads |
+| **runner** — what a `runner@<host>` manages: every service it knows, which are enabled and which are up ([runner § what an instance is](08-runner-role.md#what-an-instance-is)), with the verbs on each, and a form that installs a new instance | Release 1 | nothing new — the runner is a service and answers like one ([runner § reaching the runner](08-runner-role.md#reaching-the-runner)). Every control **posts as the person** ([rules it is built to](#rules-it-is-built-to)), so the page drives a runner it has no authority over |
 | **children** — bus, runner, web, auth: alive, restarted how often | Release 1 | the supervisor reporting into the bus. Until then that answer is `agent-bus status` and the page says nothing about it |
 | **origin** — which node a record came from | Release 1 | chained registries ([overview § chaining](00-overview.md#chaining)) |
 | phone and IM handles; one person record joining `parf@github` and `parf@realmo` | Future | — |

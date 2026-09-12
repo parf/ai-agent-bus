@@ -181,6 +181,7 @@ All 2026-09-09 unless noted.
 | The deadline is the caller's and the TTL the receiver's, so the queue bounds one and not the other | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | The dashboard's anonymous page shows what the bus would answer a caller it cannot name | [discovery § rules it is built to](05-discovery.md#rules-it-is-built-to) |
 | No page renders a credential; a fingerprint and the rotate command stand in for one | [discovery § rules it is built to](05-discovery.md#rules-it-is-built-to) |
+| The dashboard may drive a runner, because a control posts as the person and the child holds no authority of its own | [discovery § what it shows](05-discovery.md#what-it-shows) |
 | The dashboard runs with no JavaScript, no CDN and no external asset | [discovery § rules it is built to](05-discovery.md#rules-it-is-built-to) |
 | A dashboard session lives in the bus, and the browser holds only its id | [discovery § signing in](05-discovery.md#signing-in) |
 | The web child stops reaching the bus as the owner once people sign in | [discovery § signing in](05-discovery.md#signing-in) |
