@@ -175,15 +175,16 @@ familiar, and every language already thinks in it:
 | | |
 |---|---|
 | **values** | `get` and `set`, with a **ttl** per key |
+| **conditional set** | **`setNX`** — memcached's `add` — sets only if the key is **absent**, and **`setX`** — its `replace` — only if it is **present**. The first is what turns a value into a claim: whoever's `setNX` succeeded is the one who has it |
 | **atomics** | `incBy` (one by default), `and` · `or` · `xor`, and **`cas`** — compare-and-swap is the one that lets a caller be safe without taking a lock at all |
 | **hashes** | a hash, and a **hash of hashes** |
-| **lists** | as a queue or as a deque, each operation in a **blocking and a non-blocking** form — and the redis **pull-push**: take from one list and put it on another in one step, which is what makes a worker queue survive the worker |
+| **lists** | as a queue or as a deque, each operation in a **blocking and a non-blocking** form — and the redis **pull-push**, which is **atomic**: pull from `q1`, push onto `q2`, and no state in between where the item is in neither. That is what makes a worker queue survive the worker — the item sits in `q2` until it is done, and a crash leaves it there to be found |
 | **hash of lists** | many named lists under one key |
 
 | | |
 |---|---|
 | **blocking is why this is a service and not a file** | a lock-free `set` is something any script could do to a file it shares. Waiting on an empty list is not, and it is the whole reason a pool reaches for one of these |
-| **`cas` and `pull-push` are the two that claim work** | between them, *exactly one worker takes this item* needs no lock — which is the batcher case, and worth knowing before reaching for one ([messaging § shared locks](04-messaging.md#shared-locks)) |
+| **three of these claim work, and none of them is a lock** | `cas`, `setNX` and the atomic pull-push each answer *exactly one worker takes this item* on their own — which is the batcher case, and worth knowing before reaching for a lock ([messaging § shared locks](04-messaging.md#shared-locks)) |
 | **it is ours, so it stays small** | anything past this list is redis, and redis is already in the table above. Ours exists for the case where a dependency is not wanted, and it stops being that the moment it chases the feature list |
 
 **Two namespaces, and only one of them can be shared.**
@@ -201,7 +202,9 @@ familiar, and every language already thinks in it:
 ❓ **A hash of locks.** Asked for, and the one item here that would be a
 **second lock authority**: the daemon grants named locks as of Release 1
 ([messaging § shared locks](04-messaging.md#shared-locks)), and two things
-granting locks is exactly what that section argues against. Either these *are*
+granting locks is exactly what that section argues against. `setNX` with a ttl
+is already a lock in everything but name, which is why this is worth settling
+rather than leaving to whatever each caller invents. Either these *are*
 the daemon's locks under a name, or the kv holds them itself and then a `kv`
 that is a **pool** cannot be correct. *Settled by:* owner.
 
