@@ -47,6 +47,7 @@ All 2026-09-09 unless noted.
 | The daemon's owner may get a credential for any name; anyone else only for one they own | [access § getting a token](02-access.md#getting-a-token) |
 | One socket per local account supplies both parameters; `status` says which name it used | [access § local socket](02-access.md#local-socket) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
+| A credential's issue date is durable and its last use is this run's | [access § token lifetime](02-access.md#token-lifetime) |
 | Credentials persist behind the store port, in a text file until the database is chosen | [setup § storage](09-setup.md#storage) |
 | The restart snapshot carries the registry too, and is JSON until Parquet is written | [messaging § durability](04-messaging.md#durability) |
 | A start that follows an unclean stop says so, and from when it is missing traffic | [messaging § durability](04-messaging.md#durability) |
@@ -153,7 +154,7 @@ All 2026-09-09 unless noted.
 | A registered topic named alone is an inbox to read; with a tag it is a filter — one rule for every face | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | A name-shaped topic that is registered nowhere is refused, not read as a filter | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | The filter is a priority, not a lease: it holds only while its wait is outstanding | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
-| Sandboxing on by default; one backend and off, the rest an adapter when a host needs one | [runner § sandboxing](08-runner-role.md#sandboxing) |
+| Sandboxing is off by default and opted into per service; one backend and off, the rest an adapter when a host needs one | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | Where a sandbox cannot run the runner says so and carries on; asking for it there is an error | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | A running script service leaves a note in its owner's state directory, which is what `stop` and `logs` read | [runner § stopping it](08-runner-role.md#stopping-it-and-reading-what-it-said) |
 | `stop` does not unregister: the name keeps its queue, and nothing is reading it | [runner § stopping it](08-runner-role.md#stopping-it-and-reading-what-it-said) |
@@ -211,6 +212,7 @@ All 2026-09-09 unless noted.
 
 | Was | Now |
 |---|---|
+| Sandboxing is on by default, with a profile per child | off by default and opted into per service: secrets are injected as environment and never sit on a path the child can open, so confinement is hardening rather than what makes the layout correct — [runner § sandboxing](08-runner-role.md#sandboxing) |
 | The directory being there is the desired state, and there is no catalogue | it is the *installed* state; what should be **up**, and how many, is a list the runner reads at start — [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | The runner is one of the supervisor's children, and the only one that may exec | it is outside the daemon entirely, under its own account, so nothing the daemon starts execs at all — [processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |
 | The daemon's system account is `agent-bus` | `agent-busd`, so the account and the CLI are not the same word — [setup § the two accounts](09-setup.md#the-two-accounts) |

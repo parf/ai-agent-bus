@@ -236,8 +236,17 @@ lives where it was installed from.
 
 ## Sandboxing
 
-On by default, per child: a **profile** attached to each, with a sane default
-unless the owner opts out.
+**Off by default, opted into per service** in `autostart.json` — the same place
+the worker count and the rest of the non-secret run options live
+([what an instance is](#what-an-instance-is)).
+
+It is off because the layout no longer needs it to be on. A child runs from
+its own `service.d` entry, which is world-readable and holds no secret by
+construction; its configuration reaches it **injected as environment before
+exec**, never as a path it could open. So nothing secret sits on any path the
+child uses, and confinement stops being the thing that makes the arrangement
+correct and becomes what it should have been all along: hardening a host asks
+for when it wants it.
 
 **One backend, and off.** `systemd-run --user` is it — it gives cgroups and
 the `Protect*` / `Private*` set declaratively, on every host that has systemd,

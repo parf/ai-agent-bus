@@ -154,10 +154,11 @@ your web site, not agent-bus. Same daemon, same mechanics as your laptop bus.
 
 ### Supervise and sandbox agents
 
-`agent-busd` is also a runner. Point it at an MCP server, an HTTP API or a plain
-script; it spawns the process, restarts it with backoff, registers it, injects its key
-and private config, and sandboxes it by default (`systemd-run`, `bubblewrap` or
-`unshare`, chosen by environment).
+The runner is its own program under its own account, not part of `agent-busd`.
+Point it at an MCP server, an HTTP API or a plain script; it spawns the
+process, restarts it with backoff, registers it, and injects its key and
+private config. Confining the child is a per-service option rather than the
+default — `systemd-run`, with a second backend the day a host has no systemd.
 
 ### See what is going on
 

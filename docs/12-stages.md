@@ -120,7 +120,7 @@ a shared host.
 | services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several workers behind one name, per-service call stats ([messaging](04-messaging.md)) |
 | storage | SQLite store, Parquet dump and reload ([setup § storage](09-setup.md#storage)) |
 | faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a dashboard people sign in to, showing the registry, stuck inboxes, exchanges, losses and refusals ([discovery § what it shows](05-discovery.md#what-it-shows)) |
-| starting services | `agent-bus start <name> … <command>` — one command line publishes a service, sandboxed, in the foreground; no second account and no installed state ([runner role](08-runner-role.md)) |
+| starting services | `agent-bus start <name> … <command>` — one command line publishes a service in the foreground, confined if it asks to be; no second account and no installed state ([runner role](08-runner-role.md)) |
 | processes | the supervisor/children split ([processes](11-processes.md)) |
 | install | `npm install -g` + `sudo agent-bus-setup`, and the five programs it brings ([setup § the five programs](09-setup.md#the-five-programs)) |
 
@@ -129,7 +129,8 @@ a shared host.
 - Several users share one host, each seeing only the services they may.
 - The bus restarts without losing queued messages.
 - An agent asks the MCP face "what can I use?" and gets a filtered catalog.
-- A service started with one command line is sandboxed, registered and reachable.
+- A service started with one command line is registered and reachable, and is
+  confined when it asks to be.
 - A person signs in to the dashboard with the credential they already have and
   sees the bus as they may see it — and a stranger sees only how to get one.
 

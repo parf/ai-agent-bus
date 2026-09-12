@@ -133,9 +133,9 @@ or a dump.
 account is reached only through its forced command
 ([access § the three doors](02-access.md#the-three-doors)) — never a shell. That
 is what makes the mode on `service.d` mean something even though the children
-the runner starts share its uid: the uid is never wielded directly, and each
-child is confined so it cannot see the directory at all
-([runner § sandboxing](08-runner-role.md#sandboxing)).
+the runner starts share its uid: the uid is never wielded directly. Confining
+a child on top of that is a per-service option, not what makes the arrangement
+correct ([runner § sandboxing](08-runner-role.md#sandboxing)).
 
 Each directory being the account's actual `$HOME` is what removes a branch:
 the paths a personal run writes under your own home are the paths a system
