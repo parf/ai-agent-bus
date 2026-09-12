@@ -182,7 +182,7 @@ the bus debuggable by the people sharing it.
 | **exchanges** — the envelope feed grouped by topic and tag, so a request, its `ack`, its reply and its `done` are one row, and an answer past its deadline is marked late | MVP | — the feed is filtered per caller ([dashboard](#dashboard)); grouping and the late mark are the page's |
 | **my names** — what I hold a credential for, its fingerprint, when it was issued and last used, and how to rotate it | MVP | — the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)) |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | MVP | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
-| **refusals** — how many calls were refused and why: bad credential, wrong name for it, ACL, unknown receiver, second reader, full queue | MVP | ⚠️ the counters are on `status` ([refusals](#refusals)); the short per-caller list is still to come |
+| **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | MVP | ⚠️ the counters are on `status` ([refusals](#refusals)); the short per-caller list is still to come |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | MVP | — `status` carries the unclean-restart fact |
 | **people** — who holds a credential: name, person name, avatar, master or not, what they own | MVP | the credential store answering *which names*, and the person fields ([identity § registration](01-identity.md#registration)) |
 | **groups** and who is in them | Release 1 | groups themselves ([identity § groups and roles](01-identity.md#groups-and-roles)) |
@@ -208,8 +208,7 @@ cannot drift apart.
 
 | Reason | |
 |---|---|
-| `credential` | the token is not one, or no name came with it |
-| `wrong-name` | a good credential, used as somebody else. A different answer from no credential at all, or the refusal is not debuggable |
+| `credential` | the token is not one, or none came at all — the only thing a call carries ([access § what a call carries](02-access.md#what-a-call-carries)) |
 | `acl` | the service, the record's owner, or a private configuration said no ([identity § acl](01-identity.md#acl)) |
 | `unknown` | no such name ([messaging § verbs](04-messaging.md#verbs)) |
 | `second-reader` | an inbox already has a reader, and neither asked to share it ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
