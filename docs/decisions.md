@@ -67,6 +67,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Bodies end-to-end encrypted; `encryption: off` per service for development | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | Wire is JSON, msgpack optional | [messaging § envelope](04-messaging.md#envelope) |
 | Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](02-access.md#key-confirmation) |
+| The daemon grants named locks — blocking, non-blocking, and a ttl that is the only other release — because a pool already shares exactly one authority | [messaging § shared locks](04-messaging.md#shared-locks) |
 | A service name is its address and its inbox | [identity § names](01-identity.md#names) |
 | Where the host is split off, and how wide an instance name may be | [identity § names](01-identity.md#names) |
 | One service on many hosts, and scatter-gather over them, is Release 1 | [stages § release 1](12-stages.md#release-1) |

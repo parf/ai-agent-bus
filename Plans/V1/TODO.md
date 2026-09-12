@@ -44,6 +44,7 @@ restated in any more detail than that.
 | federation | chaining upstream; peer registry sync through git |
 | calls | a call reaches an **upstream** service the way a local one is reached, carrying on-behalf-of; long answers stream |
 | observability | health checker, stats, Prometheus export |
+| **locks** | named locks in the daemon: `lock` (ttl, waits), `try-lock` (does not), `release`; a grant number that only goes up, and nothing kept across a restart |
 | secrets | sealed private config |
 | credentials | per-principal-per-service tokens, replacing the MVP's master token |
 | **the runner** | `agent-bus-runner`: its own account, installed instances under `runner/`, write-only configuration, autostart and restart policy, on-demand start, start order |

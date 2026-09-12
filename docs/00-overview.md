@@ -13,7 +13,7 @@ and linked from everywhere else.
 | 01 | [identity](01-identity.md) | principals · `user@realm` · registration · groups, roles, ACL · delegation · ownership · sealed config |
 | 02 | [access](02-access.md) | what a call carries · tokens · the local socket · key modes · encrypted sessions |
 | 03 | [services and topics](03-services-and-topics.md) | service kinds · personal/shared · templates and services · topic records · registry sync |
-| 04 | [messaging](04-messaging.md) | queues · message fields · receipts · TTL · verbs · overflow · durability · the envelope |
+| 04 | [messaging](04-messaging.md) | queues · message fields · receipts · TTL · verbs · locks · overflow · durability · the envelope |
 | 05 | [discovery](05-discovery.md) | faces · audience · health · stats · dashboard · debug mode |
 | 06 | [AUTH role](06-auth-role.md) | the bundle · signed generations · topology · `master_secret` · SSH admin |
 | 08 | [runner role](08-runner-role.md) | supervision · what an instance is, and the env layers · reaching the runner · adapters · sandboxing · in-process queue |

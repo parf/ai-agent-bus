@@ -139,6 +139,29 @@ that is the accepted cost — it keeps `ack` an optional business receipt rather
 than a dequeue contract, and keeps the daemon from tracking in-flight state
 for every reader.
 
+## Shared locks
+
+**The daemon hands out named locks, and one holder has one at a time.** It is
+the same authority that already decides which reader gets a message
+([one reader per inbox](#one-reader-per-inbox)), turned on something the bus
+does not itself hold: a pool dividing a list of work, two hosts that must not
+run one job twice.
+
+| Verb | |
+|---|---|
+| **`lock`** | take *name*, for *ttl*. **Blocking**: the caller waits until it is granted or their own wait runs out |
+| **`try-lock`** | the same, **non-blocking**: granted or refused, now |
+| **`release`** | give it back before the ttl |
+
+| | |
+|---|---|
+| **why the daemon, and not a service** | a pool already shares exactly one thing — the bus it talks to ([runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts)). Anything else able to order two writers is a second authority to install and keep agreeing with, and **a lock service could not itself be a pool** without consensus: two processes behind one name would both believe they had granted it |
+| **every lock has a ttl, and it is asked for** | holders die. Without a deadline one crash wedges a pool forever, so there is no lock without one and holding it longer means asking again. A `release` is the fast path, never the only one |
+| **each grant carries a number that only goes up** | a ttl alone is not safety: a holder that stalled past its deadline still believes it holds the lock. The number is what lets whatever the lock guards refuse the older holder, and it never repeats — a daemon that restarted issues higher numbers than the run before it |
+| **it is live state, and it is not dumped** | queues and stats survive a restart ([durability](#durability)); locks must not. A lock that outlived the daemon that granted it is a claim about processes nobody watched in the meantime. **A restart releases everything**, which is the honest answer and the reason the number above exists |
+| **the holder is a principal** | the token says who ([access](02-access.md)), so a listing can answer *who holds this* — and the daemon watches no connection, here as everywhere. The ttl is what ends a lock, not a socket closing |
+| **it holds nothing** | a lock says who may act and stores no value. What the holders agree *about* lives wherever they keep it, which is a separate question ([1.2 § shared secrets, and a KV with locks](future/1.2-UNDECIDED.md#shared-secrets-and-a-kv-with-locks)) |
+
 ## Message fields
 
 Every message carries:

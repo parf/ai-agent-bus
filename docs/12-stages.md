@@ -154,6 +154,7 @@ thing that would make it true rather than on the page
 | federation | chaining to an upstream; peer registry sync through git ([overview § chaining](00-overview.md#chaining)) |
 | calls | a call reaches a service on the **upstream** bus the same way it reaches a local one, carrying on-behalf-of; long answers stream ([overview § chaining](00-overview.md#chaining)) |
 | observability | health-checker, stats, Prometheus export ([discovery](05-discovery.md)) |
+| **locks** | named locks from the daemon — `lock` with a ttl and a wait, `try-lock` without one, `release` — so a pool can divide work no queue is handing out ([messaging § shared locks](04-messaging.md#shared-locks)) |
 | secrets | sealed private config ([identity § sealed private config](01-identity.md#sealed-private-config)) |
 | **the runner** | `agent-bus-runner` as its own account and its own program: installed instances under `runner/`, configuration it holds and never hands back, autostart and a restart policy, on-demand start — a wrapper over the MVP's `agent-bus start` ([runner role](08-runner-role.md)) |
 | script forms | **`--algo=std`**, the body as bytes on stdin, so an image scaler is a service; **`--algo=jsonl`** and **`--algo=msgpack`**, a child kept alive across messages with a deadline and `reload`, the second carrying the envelope and a binary body in one frame ([runner § long-lived services](08-runner-role.md#long-lived-services)) |
