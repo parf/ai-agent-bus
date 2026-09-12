@@ -14,6 +14,7 @@ wins.
 | `agent-bus-token` | what hands a user a credential, locally or as their forced command over SSH | not an admin program |
 | `agent-bus` | the keyword everywhere else: `/etc/agent-bus/`, `~/.config/agent-bus/`, `/var/lib/agent-bus/`, `agent-busd.service` | — |
 | `agent-bus-runner` | the program that keeps a set of services, and the system account it runs as | not "the runner daemon"; it is not a child of `agent-busd` |
+| `runner` | the name it registers under on the bus, where it is reached like any other service | never `agent-bus-run` — nothing in this design says `run` |
 | `ab_` | **MCP tool prefix only** (`ab_list_services`, `ab_call`) | never in CLI, config or prose. Underscore, not `ab:` — a client exposes a tool as `mcp__<server>__<tool>` (and a plugin's as `mcp__plugin_<plugin>_<server>__<tool>`), and model tool names must match `[a-zA-Z0-9_-]{1,64}`, so a colon does not survive the trip; `:` also already means a capability (`publish:<glob>`) |
 | `ab:` | the **plugin** namespace, if we ship a Claude Code plugin named `ab` | slash commands, skills and agents only — `/ab:send`, never a tool name |
 

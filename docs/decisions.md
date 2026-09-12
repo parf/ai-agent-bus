@@ -139,10 +139,11 @@ All 2026-09-09 unless noted.
 | Reaching the runner is the right to install and configure instances on that host | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
 | A service's credential is handed to the runner at install; the runner may never mint one | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
 | Configuration is write-only: it is never handed back | [runner § access to the runner](08-runner-role.md#access-to-the-runner) |
-| An instance is a directory, and the directory being there is the desired state | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](08-runner-role.md#where-it-runs) |
+| An instance is a directory, and the directory being there is the desired state | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | The runner has no `reload`; a graceful restart already loses nothing | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | The verb is `start`, never `run` | [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
+| The runner is `agent-bus-runner` as a program and an account, and `runner` on the bus | [glossary § names that are enforced](glossary.md#names-that-are-enforced) |
 | `CAP_CHOWN` is the supervisor's alone, so no long-running child holds a capability | [processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown) |
 | Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](10-modules.md#the-rule) |
 | Only adapters touch the outside world; calling an external tool is an adapter-layer rule | [modules § external tools](10-modules.md#external-tools) |
