@@ -163,6 +163,16 @@ Two directories hold it between them, and that split is the point
 | `service.d/<svc>/` | 755 | what the service **is**: the code, or a symlink to the same code elsewhere, plus `config.json` and `env.dist` |
 | `runner/<svc>/<instance>/` | 700 | what this instance is **configured with**: an `env` file, and nothing else |
 
+The author and the host each own one file, and they do not overlap:
+
+| | Owned by | Says |
+|---|---|---|
+| `config.json` | the **author**, and it travels with the code | how the service starts, and what to register. The command line lives here and nowhere else |
+| `autostart.json` | the **host** | whether to start it at all, how many, and what to confine it with ([sandboxing](#sandboxing)) |
+
+So a host never restates the command, and an update to it arrives with a `git
+pull` rather than as an edit somebody has to remember to make twice.
+
 `service.d` is externally controlled — in most cases a `git clone`, and
 nothing a host should be editing by hand. So **`git pull` a service and no
 local state moves**: every decision this host made — secrets, worker counts,
@@ -203,9 +213,30 @@ Two things fall out of declaring the surface at all:
 | **whether a service needs an instance** | it starts directly if `env.dist` declares nothing without a default; otherwise it needs one. Derived, so there is no second flag to disagree with |
 | **what an upload is checked against** | a declared variable still unset after the last layer is **refused** — the instance is incomplete, and starting it would fail later and worse. A variable nobody declared is **accepted and said out loud**: services grow faster than their `env.dist`, but a typo'd secret name is otherwise silent |
 
-❓ **The credential an instance registers with** is plausibly one more variable
-in its `env`, which would keep *the runner never mints one* true at no cost and
-with no special path for it. *Settled by:* owner.
+### What the child is told
+
+**A script under the runner holds no credential at all.** The runner owns the
+name, does the bus talking, and hands the script a message on stdin and takes
+the answer back ([script services](#script-services)) — which is what "the
+script need not know anything" means in practice. A service that links a
+client library is the other case: it talks to the daemon itself, so it needs a
+token, and that token is a variable in its `env` like any other.
+
+| | talks to the bus | holds a token |
+|---|---|---|
+| a script under the runner | the runner, on its behalf | **no** |
+| a linked service (php, go, …) | itself, through the client library | yes — a variable in its `env` |
+
+The runner comes by the credential for a name it serves the same way anything
+else does — by asking for one for a name it owns, which is already the rule and
+already stops it collecting anybody else's
+([access § getting a token](02-access.md#getting-a-token)). It is never given
+the power to mint one.
+
+What a child *is* told is **what it is serving** rather than who it is:
+`topic` and `tag` reach it as environment. The set is deliberately not closed —
+it will grow when services are actually being written, and this is where it is
+recorded when it does.
 
 ## Who it runs as
 
@@ -246,8 +277,9 @@ every host at once.
 
 ### Reaching the runner
 
-**The runner is a service on the bus**, registered as `runner`
-([glossary § names that are enforced](glossary.md#names-that-are-enforced)),
+**The runner is a service on the bus**, registered as `runner@<host>` — a name
+like any other ([identity § names](01-identity.md#names)), so a runner on an
+edge box stays addressable from the daemon it reports to —
 and installing, configuring, enabling and starting are calls to it like any
 other. There is **no second ssh door and no account to be let into**: who may
 deploy on a host is the ACL on that one service

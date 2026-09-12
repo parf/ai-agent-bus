@@ -142,7 +142,9 @@ All 2026-09-09 unless noted.
 | `service.d` is externally controlled — usually a checkout — so no local state lives in it | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Configuration is three env layers overlaid, and the more secret one wins | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
 | `env.dist` declares the surface; a service needs an instance exactly when something is declared without a default | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
-| A service's credential is handed to the runner at install; the runner may never mint one | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
+| A script under the runner holds no credential; a linked service holds one, as a variable in its env | [runner § what the child is told](08-runner-role.md#what-the-child-is-told) |
+| The runner may never mint a credential; it asks for one for a name it owns, like anyone else | [runner § what the child is told](08-runner-role.md#what-the-child-is-told) |
+| `config.json` owns the command line and travels with the code; `autostart.json` owns whether, how many and how confined | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Configuration is write-only: it is never handed back | [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
 | A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](08-runner-role.md#where-it-runs) |
 | A directory is the installed state; installed, enabled and running are three states with one home each | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
@@ -189,7 +191,6 @@ All 2026-09-09 unless noted.
 | A script service takes a message only when a worker is free; stopping waits for the running ones | [runner § script services](08-runner-role.md#script-services) |
 | What a caller does when a receipt arrives | [messaging § receipts](04-messaging.md#receipts) |
 | What a script that prints nothing sends back | [runner § script services](08-runner-role.md#script-services) |
-| Whether an instance's credential is just one more variable in its env | [runner § the three env layers](08-runner-role.md#the-three-env-layers) |
 | Expiry is counted apart from overflow | [messaging § message TTL](04-messaging.md#message-ttl) |
 
 ## Open
@@ -217,6 +218,7 @@ All 2026-09-09 unless noted.
 
 | Was | Now |
 |---|---|
+| A service's credential is handed to the runner at install | a script needs none at all and the runner asks for its own at start; a linked service carries one in its env — [runner § what the child is told](08-runner-role.md#what-the-child-is-told) |
 | The runner has an ssh door of its own, and reaching it is the right to install | it is a service on the bus, reached by a call like anything else; the service ACL decides who may deploy — [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
 | An instance directory holds the description, the config, the code and the credential | code and its declared surface are `service.d`, which is a checkout; only env files are the host's, under `runner/` — [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Sandboxing is on by default, with a profile per child | off by default and opted into per service: secrets are injected as environment and never sit on a path the child can open, so confinement is hardening rather than what makes the layout correct — [runner § sandboxing](08-runner-role.md#sandboxing) |
