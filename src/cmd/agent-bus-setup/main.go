@@ -6,6 +6,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -174,8 +175,15 @@ func setup() error {
 		if err != nil {
 			return err
 		}
-		if err := run(filepath.Join(filepath.Dir(self), "agent-bus-admin"),
-			"user", "add", me.String(), *keyF, "--admin"); err != nil {
+		// The key is read here, by root, and handed over on stdin: the admin
+		// program runs as agent-busd, and a key sitting in a person's 0700
+		// home is precisely what that account cannot open.
+		key, err := os.ReadFile(*keyF)
+		if err != nil {
+			return err
+		}
+		if err := runIn(key, filepath.Join(filepath.Dir(self), "agent-bus-admin"),
+			"user", "add", me.String(), "-", "--admin"); err != nil {
 			return err
 		}
 	}
@@ -219,6 +227,9 @@ User=%[1]s
 Group=%[1]s
 WorkingDirectory=%[2]s
 StateDirectory=agent-bus/daemon
+# 0700, stated: systemd re-applies its own default to a StateDirectory on
+# every start, so leaving it out silently widens the home setup made 0700.
+StateDirectoryMode=0700
 RuntimeDirectory=%[5]s
 # 0711: everyone walks through to their own socket, nobody reads the rest.
 RuntimeDirectoryMode=0711
@@ -275,8 +286,15 @@ func defaultInstaller() string {
 }
 
 func run(name string, args ...string) error {
+	return runIn(nil, name, args...)
+}
+
+func runIn(stdin []byte, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	if stdin != nil {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("%s: %w", name, err)
 	}

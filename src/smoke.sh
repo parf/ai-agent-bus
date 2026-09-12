@@ -346,8 +346,8 @@ if slow; then
   # Competing consumers on a BACKLOG already worked. The rule bit on an
   # EMPTY inbox, which is the steady state of a worker pool: the readers
   # block first and the work arrives afterwards. Prefilling the queue is how
-  # the first draft of this criterion passed on PoC code, so nothing is sent
-  # until all three are provably blocked.
+  # the first draft of this criterion passed without testing anything, so
+  # nothing is sent until all three are provably blocked.
   ab owner@srv1 register pool@srv1 --kind generic >/dev/null
   waiting() { ab parf@localhost status | sed -n 's/.*"waiting":\([0-9]*\).*/\1/p'; }
   base=$(waiting)
@@ -1529,6 +1529,10 @@ has "and so does the dump" "$UNIT" 'dump-file /var/lib/agent-bus/daemon/dump.jso
 # The daemon is confined to its own home, so the runner's is out of reach even
 # before either account's mode is consulted.
 has "and it may write there and nowhere else" "$UNIT" '^ReadWritePaths=/var/lib/agent-bus/daemon$'
+# systemd owns that directory's mode once StateDirectory names it, and re-applies
+# its own default on every start. Left unstated, the 0700 setup made becomes
+# 0755 the moment the daemon first runs, which no test passing a home would see.
+has "and the mode setup made is the mode systemd keeps" "$UNIT" '^StateDirectoryMode=0700$'
 has "it comes back after it dies" "$UNIT" '^Restart='
 has "it is given one capability, not root" "$UNIT" '^AmbientCapabilities=CAP_CHOWN$'
 has "and cannot pick up a second" "$UNIT" '^CapabilityBoundingSet=CAP_CHOWN$'
@@ -1571,8 +1575,14 @@ sec "the admin program owns what the account owns"
 # notice. So ask admin, with the home unset, who it expects to be.
 WANT=$("$D/agent-bus-setup" --dry-run --owner "$OWNER" 2>&1 | sed -n 's/.*would create the system account \([^ ]*\) with home .*/\1/p' | head -1)
 out=$(env -u AGENT_BUS_HOME "$D/agent-bus-admin" user list 2>&1); rc=$?
-bad_exit "with no home stated the admin program wants the account setup creates" $rc
-has "and it is that account, not one nobody creates" "$out" "no $WANT account"
+if getent passwd "$WANT" >/dev/null; then
+  # This host has a real install, so the same question is asked the other way
+  # round: the account is there, and the program has to be looking for it.
+  ok_exit "with no home stated the admin program finds the account setup creates" $rc
+else
+  bad_exit "with no home stated the admin program wants the account setup creates" $rc
+  has "and it is that account, not one nobody creates" "$out" "no $WANT account"
+fi
 
 mkdir -p "$D/adm"
 ssh-keygen -q -t ed25519 -N '' -f "$D/adm/user" >/dev/null
@@ -1596,6 +1606,16 @@ adm user remove plain@srv1 >/dev/null
 is_empty "removing takes the line away" "$(grep plain@srv1 "$KEYS")"
 out=$(adm user remove plain@srv1 2>&1); rc=$?
 bad_exit "and removing somebody who is not there says so" $rc
+# The installer's key sits in the installer's home, and this program runs as
+# agent-busd, which may not open it. So setup reads it as root and hands the
+# bytes over; `-` is how they arrive. See docs/09-setup.md#the-programs.
+adm user add piped@srv1 - >/dev/null <"$D/adm/user.pub"
+has "a key given on stdin lands like a key given by name" \
+  "$(grep piped@srv1 "$KEYS")" 'command="[^"]*agent-bus-token piped@srv1"'
+out=$(printf 'not a key at all\n' | adm user add junk@srv1 - 2>&1); rc=$?
+bad_exit "and what arrives that way is judged the same" $rc
+has "named as the stdin it came from" "$out" 'the key on stdin is not a public key'
+adm user remove piped@srv1 >/dev/null
 out=$(adm user add oops@srv1 "$D/adm/user" 2>&1); rc=$?
 bad_exit "a private key offered by mistake is refused" $rc
 has "and named as what it is" "$out" 'is not a public key'
@@ -1850,8 +1870,8 @@ is_empty "a supervisor killed outright leaves no bus behind" "$LEFT"
 
 if slow; then
   sec "the MCP face"
-  # bun is not optional: the MCP face and both push modes are the PoC
-  # (docs/12-stages.md#poc), so a host without it fails rather than passing green.
+  # bun is not optional: the MCP face is part of the required minimum
+  # (docs/00-overview.md), so a host without it fails rather than passing green.
   if ! command -v bun >/dev/null 2>&1; then
     echo "  FAIL bun is not installed; the MCP face cannot be checked"
     fail=$((fail + 1))
@@ -1888,6 +1908,7 @@ if slow; then
   fi
 
 else skipped=$((skipped+1)); fi
+
 sec "end"
 echo; echo "passed $pass, failed $fail"
 if [ "$skipped" -gt 0 ]; then

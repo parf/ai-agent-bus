@@ -46,7 +46,7 @@ shape nobody has asked for yet. *Settled by:* owner.
 |---|---|
 | `npm install -g agent-bus` (or `pnpm`) | one package brings them all ([the programs](#the-programs)) |
 | `sudo agent-bus-setup` | creates the **two system users**, asks the two questions below, writes the config and the unit, and starts it. **No keys.** |
-| the first user | `agent-bus-setup` calls `agent-bus-admin` with the installer's own public key, which is what puts a line in that account's `authorized_keys`. It does not learn a second way to write that file |
+| the first user | `agent-bus-setup` calls `agent-bus-admin` with the installer's own public key, which is what puts a line in that account's `authorized_keys`. It does not learn a second way to write that file. Setup, which is root, **reads the key and hands the bytes over on stdin** — the admin program runs as `agent-busd`, and a key in a person's home is exactly what that account may not open |
 
 `agent-busd` and the CLI are Go; the MCP face and the push adapters are bun —
 [modules § languages](10-modules.md#languages).
@@ -163,7 +163,7 @@ in one file:
 | The unit says | So that |
 |---|---|
 | `User=agent-busd` | the daemon is never root and never the installer — the check reads the *running* process, so a developer's hand-started one fails it |
-| `WorkingDirectory` and `StateDirectory` are the home | the store and the dumps land where the account can keep them, and nowhere else |
+| `WorkingDirectory` and `StateDirectory` are the home, with `StateDirectoryMode` stated | the store and the dumps land where the account can keep them, and nowhere else — and systemd, which re-applies its own default at every start, keeps the mode setup made instead of widening it |
 | `RuntimeDirectory=agent-bus`, at the mode the socket directory wants | the sockets are outside every home and a reboot clears them ([access § local socket](02-access.md#local-socket)) |
 | `Restart=on-failure` | a daemon that dies comes back |
 | `AmbientCapabilities=CAP_CHOWN` with a bounding set of exactly that | the one capability is given, not taken, and no second one can be picked up ([processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown)) |

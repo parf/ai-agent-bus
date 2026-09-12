@@ -9,6 +9,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/user"
@@ -29,7 +30,7 @@ const (
 
 const usage = `agent-bus-admin — what the agent-busd account owns
 
-  agent-bus-admin user add <user@realm> <key.pub> [--admin]
+  agent-bus-admin user add <user@realm> <key.pub|-> [--admin]
   agent-bus-admin user list
   agent-bus-admin user remove <user@realm>
   agent-bus-admin token <user@realm> [--rotate]
@@ -131,6 +132,13 @@ func userVerb(args []string) error {
 	return fmt.Errorf("no such user verb %q\n\n%s", args[0], usage)
 }
 
+func readKey(path string) ([]byte, error) {
+	if path == "-" {
+		return io.ReadAll(os.Stdin)
+	}
+	return os.ReadFile(path)
+}
+
 func userAdd(args []string) error {
 	var name, keyFile string
 	admin := false
@@ -138,6 +146,8 @@ func userAdd(args []string) error {
 		switch {
 		case a == "--admin":
 			admin = true
+		case a == "-" && keyFile == "":
+			keyFile = a
 		case strings.HasPrefix(a, "-"):
 			return fmt.Errorf("no such option %q", a)
 		case name == "":
@@ -155,13 +165,21 @@ func userAdd(args []string) error {
 	if err != nil {
 		return err
 	}
-	raw, err := os.ReadFile(keyFile)
+	// `-` is the key on stdin, because whoever holds the file is not always
+	// whoever may open it: this program runs as agent-busd, and a key in a
+	// person's home is exactly what that account cannot read. Same spelling
+	// as `service-template <name> -`.
+	raw, err := readKey(keyFile)
 	if err != nil {
 		return err
 	}
+	from := keyFile
+	if keyFile == "-" {
+		from = "the key on stdin"
+	}
 	key := strings.TrimSpace(string(raw))
 	if !strings.HasPrefix(key, "ssh-") && !strings.HasPrefix(key, "ecdsa-") && !strings.HasPrefix(key, "sk-") {
-		return fmt.Errorf("%s is not a public key: it starts %.20q", keyFile, key)
+		return fmt.Errorf("%s is not a public key: it starts %.20q", from, key)
 	}
 	lines, err := keysFile()
 	if err != nil {
