@@ -20,16 +20,6 @@ func (b *Bus) Masters(names []string) {
 	}
 }
 
-// IsMaster says whether name holds the master ACL. The node-wide views — the
-// feed of envelopes behind the dashboard — are master's, because they are
-// about the node and not about any one service.
-// See docs/01-identity.md#acl.
-func (b *Bus) IsMaster(name string) bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.masters[name]
-}
-
 // may answers whether caller may see and use r. Caller holds the lock.
 //
 // A record is always its owner's and its own — a service that could not read

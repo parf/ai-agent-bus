@@ -20,12 +20,21 @@ func (b *Bus) note(e protocol.Envelope) {
 
 // Recent hands back what the bus has seen, newest first. It is this run's:
 // a restart starts the window again, like uptime.
-func (b *Bus) Recent() []protocol.Envelope {
+//
+// A caller sees the envelopes they were **party to** — sent or addressed to
+// them — and master sees the node's. That is what makes the dashboard's
+// exchanges view somebody's own rather than the operator's
+// (docs/05-discovery.md#what-it-shows), and it is the same rule the registry
+// answers by: what you may see, not everything there is.
+func (b *Bus) Recent(caller string) []protocol.Envelope {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	all := b.masters[caller]
 	out := make([]protocol.Envelope, 0, len(b.recent))
 	for i := len(b.recent) - 1; i >= 0; i-- {
-		out = append(out, b.recent[i])
+		if e := b.recent[i]; all || e.From == caller || e.To == caller {
+			out = append(out, e)
+		}
 	}
 	return out
 }

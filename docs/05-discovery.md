@@ -114,8 +114,11 @@ anywhere.
 ⚠️ What the MVP ships today is the envelope half: a bounded feed of what the
 bus has routed lately, read by a separate `agent-bus-web` process over the
 API. Bodies are struck out **in the bus**, where the feed is written — so no
-reader has to be trusted to leave them alone. The records beside it are
-filtered per caller like any listing. Everything in
+reader has to be trusted to leave them alone. The feed and the records beside
+it are both filtered per caller: you see the exchanges you were **party to**,
+sent or addressed to you, and master sees the node's. Master-only was the
+simpler rule and made the exchanges view impossible to show anybody but the
+operator. Everything in
 [what it shows](#what-it-shows) below it is design.
 
 ### Rules it is built to
@@ -157,7 +160,7 @@ the bus debuggable by the people sharing it.
 | the sign-in page and the token help | MVP | — |
 | **registry**, as this caller may see it: kind, owner, protocol, description, `reading`/`queued`/`in`/`out`, the configuration's digest | MVP | — it is `/ls` |
 | **stuck inboxes** — a backlog with nobody reading, oldest first, marked when the queue is at its bound. The one view an incident actually needs | MVP | — `oldest` and `reading` on the record ([what a listing answers](#what-a-listing-answers)) |
-| **exchanges** — the envelope feed grouped by topic and tag, so a request, its `ack`, its reply and its `done` are one row, and an answer past its deadline is marked late | MVP | the feed filtered per caller, instead of master-only |
+| **exchanges** — the envelope feed grouped by topic and tag, so a request, its `ack`, its reply and its `done` are one row, and an answer past its deadline is marked late | MVP | — the feed is filtered per caller ([dashboard](#dashboard)); grouping and the late mark are the page's |
 | **my names** — what I hold a credential for, its fingerprint, when it was issued and last used, and how to rotate it | MVP | when a credential was issued, and when it was last used |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | MVP | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **refusals** — how many calls were refused and why: bad credential, wrong name for it, ACL, unknown receiver, second reader, full queue | MVP | ⚠️ the counters are on `status` ([refusals](#refusals)); the short per-caller list is still to come |

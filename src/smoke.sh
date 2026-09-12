@@ -1570,8 +1570,29 @@ FEED=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $OWNER" -H "X-A
 has "the daemon remembers the envelope it routed" "$FEED" "$MSG"
 has "and who it was between" "$FEED" '"to":"board-svc@srv1"'
 is_empty "and never the body" "$(printf '%s' "$FEED" | grep -o "$SECRET")"
-has "the feed is the node's, so only master reads it" \
-  "$(code alice@srv1 "$alice" /recent)" '403'
+# The feed is each caller's own, not the operator's: what you were party to,
+# and for master the node's. Refusing everyone but master made the exchanges
+# view impossible to show anybody (docs/05-discovery.md#what-it-shows).
+ALICE_FEED=$(code alice@srv1 "$alice" /recent)
+has "a caller who is not master may read the feed" "$ALICE_FEED" '200'
+ab alice@srv1 register alice-svc@srv1 --descr "hers" >/dev/null
+ab alice@srv1 register alice@srv1 --descr "alice herself" >/dev/null
+# Party to it BOTH ways: one she sent, and one addressed to her. A feed that
+# only ever showed what you sent would pass on the first alone.
+ASENT=$(ab alice@srv1 send alice-svc@srv1 "her own traffic" | sed -n 's/.*"message_id":"\([0-9a-f]*\)".*/\1/p')
+AGOT=$(ab parf@localhost send alice@srv1 "addressed to her" | sed -n 's/.*"message_id":"\([0-9a-f]*\)".*/\1/p')
+MINE=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: alice@srv1" -H "X-Agent-Bus-Token: $alice" "http://unix/recent")
+has "and sees an exchange they were party to" "$MINE" "$ASENT"
+has "and one addressed to them, not only what they sent" "$MINE" "$AGOT"
+# The control that matters: seeing your own is worthless if you also see
+# everyone else's, which is what the master-only rule was protecting.
+is_empty "but not one between two other names" \
+  "$(printf '%s' "$MINE" | grep -o "$MSG")"
+# Master's view is the NODE's, so it has to hold an exchange master was no
+# part of — the earlier feed is all master's own traffic and would pass
+# whatever the rule became.
+NODE=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-User: $OWNER" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/recent")
+has "while master sees an exchange between two other names" "$NODE" "$ASENT"
 AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
   "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) -cert "$D/no-cert" -key "$D/no-cert" >"$D/web.log" 2>&1 &
 WPID=$!

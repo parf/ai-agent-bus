@@ -359,11 +359,7 @@ func (s *Server) enrol(w http.ResponseWriter, r *http.Request, _ protocol.Name) 
 // service, so the per-service layer has nothing to say about it.
 // See docs/05-discovery.md#dashboard.
 func (s *Server) recent(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	if !s.bus.IsMaster(caller.String()) {
-		fail(w, http.StatusForbidden, "the feed of envelopes is the node's, and master's to read")
-		return
-	}
-	ok(w, s.bus.Recent())
+	ok(w, s.bus.Recent(caller.String()))
 }
 
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {

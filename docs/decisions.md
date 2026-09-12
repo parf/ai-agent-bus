@@ -87,6 +87,7 @@ All 2026-09-09 unless noted.
 | Refusals are counted by reason, and a daemon fault is not one of them | [discovery § refusals](05-discovery.md#refusals) |
 | Dashboard shows services, topics and call counts — envelopes only | [discovery § dashboard](05-discovery.md#dashboard) |
 | The bus keeps a bounded feed of routed envelopes, body struck out where it is written | [discovery § dashboard](05-discovery.md#dashboard) |
+| The envelope feed is filtered per caller — what you were party to, and the node's for master | [discovery § dashboard](05-discovery.md#dashboard) |
 | The dashboard has a real hostname and a real certificate, from a public source | [discovery § where it listens](05-discovery.md#where-it-listens) |
 | Admin-only debug trace per service | [discovery § debug mode](05-discovery.md#debug-mode) |
 | The bus holds the store, and the supervisor holds nothing durable | [processes § what is shared](11-processes.md#what-is-shared) |
