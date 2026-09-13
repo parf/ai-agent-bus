@@ -112,7 +112,7 @@ writer when it has a key.
 **Addressing many services as one is deferred.** A template may be configured
 on several hosts — `code-review/claude@rdvp` and `code-review/claude@srv2` —
 but asking them at once and gathering their answers (scatter-gather) is
-Release 1, with its how-to ([stages § release 1](12-stages.md#release-1)).
+R1, with its how-to ([stages § R1](12-stages.md#r1)).
 Until then each is addressed on its own, and a template prefix is a shared
 name, not a group. One *name* served from several hosts is the other thing and
 has its own design — a pool ([runner § one name on many
@@ -181,7 +181,7 @@ answer, not a longer hash.
 ⚠️ **Plaintext in the registry, and only as private as the daemon.** Sealing is
 designed but not built
 ([identity § sealed private config](01-identity.md#sealed-private-config)), and
-its stage is [stages § release 1](12-stages.md#release-1). Until then: a
+its stage is [stages § R1](12-stages.md#r1). Until then: a
 configuration is readable by anyone who can read the daemon's state — the
 snapshot it reloads from included ([messaging §
 durability](04-messaging.md#durability)). The owner check itself is real now — the

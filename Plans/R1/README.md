@@ -4,13 +4,13 @@ What a developer must know to work on V1 correctly. The active plan will be
 [TODO.md](TODO.md); the stage is not started.
 
 **V1 here is the stage after the MVP** — the one
-[stages § release 1](../../docs/12-stages.md#release-1) describes. It is not
+[stages § R1](../../docs/12-stages.md#r1) describes. It is not
 the NATS JetStream system at `/rd/service/agent-bus/`, which this repo calls
 V1 as *legacy* and consults for facts, never for a bar
 ([CLAUDE.md](../../CLAUDE.md)). Where the two could be confused, the docs say
-**Release 1** and mean this one.
+**R1** and mean this one.
 
-**[stages § release 1](../../docs/12-stages.md#release-1) fixes the scope**;
+**[stages § R1](../../docs/12-stages.md#r1) fixes the scope**;
 the rest of [docs/](../../docs/00-overview.md) is the design of record and
 governs *how* anything in that scope is built. The MVP's knowledge, still
 true, is [Plans/MVP/README.md](../MVP/README.md), and what it finished is

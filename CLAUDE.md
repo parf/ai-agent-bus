@@ -27,10 +27,10 @@ it first rather than duplicating the index here. Beyond the numbered docs:
 |---|---|
 | `docs/glossary.md` | **normative for naming.** Every name and term, one line each. Check a name here before inventing one |
 | `docs/decisions.md` | index of settled / open / superseded decisions — rows link, they never state the rule |
-| `docs/12-stages.md` | PoC / MVP / Release 1 — check which stage a feature belongs to before designing it in |
+| `docs/12-stages.md` | PoC / MVP / R1 — check which stage a feature belongs to before designing it in |
 | `Plans/MVP/` | the **active plan** — `README.md` is the stage's own knowledge, `TODO.md` the waves and acceptance, `DONE.md` what is finished and what the mutants caught. Follows the Plans HOWTO (`/rd/vhosts/realty/Plans/README.md`): knowledge, active work and decisions stay in separate files |
 | `Plans/PoC/` | the finished stage — same shape, kept for its knowledge and its completion log |
-| `Plans/V1/` | the **next** stage, not started — same shape. "V1" there means [stages § release 1](docs/12-stages.md#release-1), **not** the NATS legacy this file calls V1 |
+| `Plans/R1/` | the **next** stage, not started — same shape. "V1" there means [stages § R1](docs/12-stages.md#r1), **not** the NATS legacy this file calls V1 |
 | `docs/future/` | designed but deferred; not part of the current scope — LDAP/AD, billing, and `1.2-UNDECIDED.md` where a want is written down before its mechanism is chosen |
 | `legacy/` | history only, not spec — never cite it, never update it |
 
@@ -130,7 +130,7 @@ the mechanism behind the link:
   **HTTP is always built in**, never a subprocess: web requests are
   first-class here and every language ships a client. A script may use `curl`
   — `docs/10-modules.md`.
-- **Bodies are end-to-end encrypted from Release 1.** The MVP's key mode cannot
+- **Bodies are end-to-end encrypted from R1.** The MVP's key mode cannot
   carry that claim — the daemon issues the token a session key would derive
   from — so the stage runs with the bus trusted on its own host
   (`docs/02-access.md#encrypted-sessions`). What holds in every stage: the bus

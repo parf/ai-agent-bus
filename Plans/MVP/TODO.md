@@ -22,10 +22,10 @@ backend plus off (G.2). What is left:
 
 | | |
 |---|---|
-| **built** | A, B, C, E, F.1, F.3, G, H.2–H.7 |
+| **built** | A, B, C, E, F.1, F.3–F.5, G, H.2–H.7 |
 | **blocked on the owner** | F.2 — nothing on a record carries method information; H.1 — npm install or Go first |
-| **unblocked, in progress** | F.4–F.6, the dashboard the review settled ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)). Most of the work is in the daemon keeping what a view needs, not in the page — and it now keeps what seven of the eight views need. People is still unbuilt, and so is every page |
-| **struck** | D, to [Plans/V1](../V1/TODO.md) — the MVP's key mode cannot carry the end-to-end claim |
+| **unblocked, in progress** | F.6, the views the review settled ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)). Most of the work is in the daemon keeping what a view needs, not in the page — and it now keeps what seven of the eight views need. People is still unbuilt, and so is every page past the first |
+| **struck** | D, to [Plans/R1](../R1/TODO.md) — the MVP's key mode cannot carry the end-to-end claim |
 
 ## Blockers
 
@@ -39,7 +39,7 @@ wave stands on it.
 | the rest of E | what else lives in SQLite | [setup § storage](../../docs/09-setup.md#storage) |
 | H.1 | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../docs/09-setup.md#install) |
 | F.2 | what carries a service's method information | [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
-| F.4–F.6 | where the ACL and the user-to-account map are edited — the dashboard shows them and `agent-bus-admin` writes them | [setup § the programs](../../docs/09-setup.md#the-programs) |
+| F.6 | where the ACL and the user-to-account map are edited — the dashboard shows them and `agent-bus-admin` writes them | [setup § the programs](../../docs/09-setup.md#the-programs) |
 | the CLI | whether reading an inbox and filtering one become separate options | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
 | G | what happens to a running service when its configuration changes | [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) |
 
@@ -52,7 +52,7 @@ with wave D:
 | A.5 | whether several readers may block on one inbox | when each asks to share it — [messaging § several readers may wait when they say so](../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | C.3 | what a subscriber is, and where a copy goes | a registered name, and its own inbox — [messaging § subscribers](../../docs/04-messaging.md#subscribers) |
 | G.2 | how many sandbox backends | one, plus off — [runner § sandboxing](../../docs/08-runner-role.md#sandboxing) |
-| D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/V1](../V1/TODO.md)'s — [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
+| D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/R1](../R1/TODO.md)'s — [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
 
 ⚠️ **Ownership is only as strong as enrolment.** B.7 closed
 re-registering somebody else's record and B.8 closed claiming a name in a realm
@@ -194,10 +194,10 @@ mode: the daemon issues the token and holds it on the local socket
 ([access § key modes](../../docs/02-access.md#key-modes),
 [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions)), so
 AEAD over it would pass every check but the one that matters. The docs now say
-the bus is trusted on its own host and end to end is Release 1's, on the
+the bus is trusted on its own host and end to end is R1's, on the
 pairwise or derived keys that make it true
-([stages § release 1](../../docs/12-stages.md#release-1)). Nothing below is
-built, and the rows stay as the shape Release 1 inherits.
+([stages § R1](../../docs/12-stages.md#r1)). Nothing below is
+built, and the rows stay as the shape R1 inherits.
 
 | ID | Task | Notes |
 |---|---|---|
@@ -249,8 +249,8 @@ That is a product decision, not a technical one.
 |---|---|---|
 | F.1 | ✅ _done_ — the daemon filters, so `ab_ls` and `/ls` answer two principals differently, and each answer matches what that principal may actually send to. The face adds nothing: it asks, like every other client |
 | F.2 | generated docs | **blocked**: nothing on a record carries method information, and the shape is the ❓ in [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
-| F.4 | the dashboard's rules | the anonymous page answers what the bus would answer a caller it cannot name; no page renders a credential; no JavaScript, CDN or external asset; the child writes nothing of its own ([discovery § rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)) |
-| F.5 | signing in | the token the caller already has, a session the **bus** holds, a browser carrying only its id — and the child giving up the owner's socket, because a web child with the owner's authority is a credential mint ([discovery § signing in](../../docs/05-discovery.md#signing-in)) |
+| F.4 | ✅ _done_ — the anonymous page answers what the bus would answer a caller it cannot name: a title, a form and where a credential comes from, with no uptime, no counts and no names ([discovery § rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)). `/healthz` is an empty 200, because anything that varies is something a stranger can sit and watch. No page renders a credential, nothing is fetched from anywhere, and the child writes nothing of its own |
+| F.5 | ✅ _done_ — the caller signs in with the token they already have, it is spent on a session the **bus** holds, and the browser carries only that session's id ([discovery § signing in](../../docs/05-discovery.md#signing-in)). One lookup resolves both kinds of credential, so no route checks tokens and forgets sessions. The supervisor gives the child the **shared** socket and no credential of its own: on the owner's socket every page it rendered would be the owner's, served to whoever connected |
 | F.6 | the views the MVP owes | registry, stuck inboxes, exchanges, my names, loss by name, refusals, node, people. Each row in [discovery § what it shows](../../docs/05-discovery.md#what-it-shows) names what the daemon must start keeping — that is the work, not the page. ⚠️ *the daemon now keeps what seven of them need*: registry was already `/ls`, and stuck inboxes, loss by name, node, refusals, exchanges and my names are fed by `oldest`, per-inbox `dropped`/`expired`, the unclean-restart fact ([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)), a count per reason ([discovery § refusals](../../docs/05-discovery.md#refusals)), a feed each caller may read ([discovery § dashboard](../../docs/05-discovery.md#dashboard)) and a caller's own credentials by fingerprint ([access § token lifetime](../../docs/02-access.md#token-lifetime)). People is still unbuilt, and so is every page |
 | F.3 | ✅ _done_ — `agent-bus-web`, a separate process speaking the API, rendering the records and a bounded feed of routed envelopes ([discovery § dashboard](../../docs/05-discovery.md#dashboard)). Bodies are struck out in the bus, not in the page. It serves HTTPS on its own hostname with a certificate anyone can fetch ([discovery § where it listens](../../docs/05-discovery.md#where-it-listens)). Nothing starts it yet and it is not cgroup-limited — both are G.1's |
 

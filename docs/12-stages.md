@@ -3,9 +3,9 @@
 What gets built when, and what counts as done. Each stage ends with something
 that **works end to end** — not a layer that waits for the next one.
 
-PoC is the owner's. MVP and Release 1 are proposed and want a cut.
+PoC is the owner's. MVP and R1 are proposed and want a cut.
 
-| | PoC | MVP | Release 1 |
+| | PoC | MVP | R1 |
 |---|---|---|---|
 | Identity | one master token, issued over SSH | `user@realm` + token, per-user sockets | groups, roles, delegation |
 | Identity enrolment | none — the token is everything | manual + GitHub | AUTH bundle, LDAP/AD if wanted |
@@ -102,7 +102,7 @@ What plaintext costs: in PoC the daemon, its logs and anyone on the host
 can read message bodies, so *"the bus never reads payloads"* is not yet true.
 It is not true at MVP either — that stage does not claim it ([access §
 encrypted sessions](02-access.md#encrypted-sessions)); the keys that make it
-true are Release 1.
+true are R1.
 
 ## MVP
 
@@ -142,7 +142,7 @@ graphs, child liveness and record origin go with them — each waits on the
 thing that would make it true rather than on the page
 ([discovery § what it shows](05-discovery.md#what-it-shows)).
 
-## Release 1
+## R1
 
 *Proposed.* A team or a company can run it, and it can be exposed.
 
@@ -169,7 +169,7 @@ thing that would make it true rather than on the page
 | operations | zero-downtime reload, packaging |
 | fan-out | **many names addressed together**: several services sharing a template, asked at once, and the scatter-gather that needs — plus the how-to. Not the same as a **pool**, which is many processes behind *one* name and answers once ([runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts)). Deferred here on the owner's word; the PoC and MVP address one service at a time ([services § service and template](03-services-and-topics.md#service-and-template)) |
 
-**Works at the end of Release 1**
+**Works at the end of R1**
 
 - A company bus with central identities and groups, two AUTH replicas, and no
   service holding its own user list.
@@ -178,7 +178,7 @@ thing that would make it true rather than on the page
 - A host runs services through the runner with no daemon on it at all, against
   a bus somewhere else.
 
-## Release 1.1
+## R1.1
 
 *Proposed.* The stage that ships **tools**, not mechanism: by here the bus, the
 runner and the ACL are built, and what is missing is the set of services a
@@ -189,7 +189,7 @@ What belongs in *this* stage rather than that document:
 
 | | |
 |---|---|
-| why it is after Release 1 | every entry is kept by the runner, granted by a service ACL, and configured by env layers — all of which Release 1 is what builds |
+| why it is after R1 | every entry is kept by the runner, granted by a service ACL, and configured by env layers — all of which R1 is what builds |
 | what counts as done | **no entry in the catalogue needed a change to `agent-busd`.** That is the acceptance criterion, and a failure of it is a finding about the design rather than about the tool |
 | what it is not | a plugin system. Each one is a service written the ordinary way, and nothing here gives a bundled service an ability an outside one lacks |
 

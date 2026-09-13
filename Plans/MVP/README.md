@@ -13,7 +13,7 @@ anything in that scope is built. The PoC's knowledge, still true, is
 **Somebody other than the author can install it and use it safely on a shared
 host.** That sentence decides every argument in this stage: if a change does
 not move one of *install*, *other people*, *shared*, or *safely*, it belongs
-to Release 1.
+to R1.
 
 **It runs as its own account.** `agent-busd` owns the daemon, homed where a
 daemon's state belongs ([setup § the two accounts](../../docs/09-setup.md#the-two-accounts));

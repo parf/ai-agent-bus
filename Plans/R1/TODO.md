@@ -7,7 +7,7 @@ the design is [docs/](../../docs/00-overview.md), and open questions and
 settled decisions live in [decisions](../../docs/decisions.md).
 
 **Objective**: V1 as scoped in
-[stages § release 1](../../docs/12-stages.md#release-1) — a team or a company
+[stages § R1](../../docs/12-stages.md#r1) — a team or a company
 can run it, and it can be exposed.
 
 **Next step**: the owner's. Nothing here is planned into waves yet, because
@@ -32,7 +32,7 @@ settled.
 
 ## The stage's own scope
 
-Straight from [stages § release 1](../../docs/12-stages.md#release-1), which
+Straight from [stages § R1](../../docs/12-stages.md#r1), which
 owns it — listed here so that a wave has something to be cut from, not
 restated in any more detail than that.
 
@@ -67,7 +67,7 @@ stage is where each of them bites.
 
 | Gates | ❓ | Where it is settled |
 |---|---|---|
-| the whole stage | Release 1 contents | [stages](../../docs/12-stages.md) |
+| the whole stage | R1 contents | [stages](../../docs/12-stages.md) |
 | encryption | how a queued body is decrypted by a receiver that was not present when it was sent | [access § encrypted sessions](../../docs/02-access.md#encrypted-sessions) |
 | clients | how `protocol` is specified for five client languages | [modules](../../docs/10-modules.md) |
 | federation | peer sync trusts unsigned records, and there is no clock authority for "newer wins" | [services § registry sync](../../docs/03-services-and-topics.md#registry-sync) |

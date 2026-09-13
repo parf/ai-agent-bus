@@ -43,6 +43,9 @@ type Tokens struct {
 	store ports.TokenStore
 	who   map[string]string // token -> principal, current and previous alike
 	tok   map[string]held   // principal -> what it holds
+	// Sessions are credentials too, and deliberately not in the two maps
+	// above: those are saved and these are never written down (sessions.go).
+	sess map[string]*session
 }
 
 // Load reads the store, creating a token for owner on first run.
@@ -72,9 +75,9 @@ func Load(store ports.TokenStore, owner string) (*Tokens, error) {
 	return t, nil
 }
 
-// Principal says whose token this is. An unknown token backs nobody, which is
-// not the same as backing everybody — the caller must treat false as a
-// refusal.
+// Principal says whose credential this is — a token, or a session standing
+// for the same person. An unknown one backs nobody, which is not the same as
+// backing everybody: the caller must treat false as a refusal.
 func (t *Tokens) Principal(token string) (string, bool) {
 	if token == "" {
 		return "", false
@@ -86,8 +89,11 @@ func (t *Tokens) Principal(token string) (string, bool) {
 		if h := t.tok[who]; h.used != nil {
 			h.used.Store(time.Now().UnixNano())
 		}
+		return who, true
 	}
-	return who, ok
+	// One lookup for every kind of credential, so there is no route that
+	// checks tokens and forgets sessions (docs/05-discovery.md#signing-in).
+	return t.session(token)
 }
 
 // Issue hands out name's token, making one if it has none. Asking again is a

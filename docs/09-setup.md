@@ -213,8 +213,8 @@ local account* like every other ([local users](#local-users)), so the install
 maps it and the daemon opens it a socket. Nothing about the runner is special
 to the daemon — which is the whole claim of the split, made concrete.
 
-⚠️ The runner's unit ships **with the runner**, in Release 1
-([stages § release 1](12-stages.md#release-1)) — there is no point writing a
+⚠️ The runner's unit ships **with the runner**, in R1
+([stages § R1](12-stages.md#r1)) — there is no point writing a
 unit for a program that is not installed. What exists today is everything it
 will need: both accounts, the tree they own, and the runner's socket.
 

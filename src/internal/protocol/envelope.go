@@ -8,7 +8,7 @@ import (
 )
 
 // Envelope is what the bus reads, counts and routes. The body is carried but
-// not interpreted; from Release 1 it is ciphertext.
+// not interpreted; from R1 it is ciphertext.
 // See docs/02-access.md#encrypted-sessions.
 type Envelope struct {
 	ID    string    `json:"message_id"`

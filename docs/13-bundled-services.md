@@ -5,7 +5,7 @@ every entry in it obeys. Nothing here is a feature of `agent-busd` — each one
 is an ordinary service with a name, an inbox and an ACL the daemon enforces for
 it, written the way this design tells anyone else to write one.
 
-Proposed for **Release 1.1** ([stages § release 1.1](12-stages.md#release-11)),
+Proposed for **R1.1** ([stages § R1.1](12-stages.md#r11)),
 after the runner exists to keep them.
 
 ## Rules they all obey
@@ -38,7 +38,7 @@ These are many tools and should feel like one set. What makes them one is the
 | who may call it | the record's ACL, applied by the daemon before delivery ([identity § acl](01-identity.md#acl)) |
 | what it needs | `env.dist`, the declared surface — which is also what makes an upload checkable and says whether an instance is required at all ([runner § the three env layers](08-runner-role.md#the-three-env-layers)) |
 | what it costs | counters per (principal, service), the same pair everywhere ([discovery § stats](05-discovery.md#stats)) |
-| what it is | the version it answers with, when that arrives ([Plans/V1](../Plans/V1/TODO.md)) |
+| what it is | the version it answers with, when that arrives ([Plans/R1](../Plans/R1/TODO.md)) |
 | **how it fails** | **an upstream refusing is an answer, not a failure.** A rate limit or a provider error comes back as the reply, as it was given; no reply is reserved for the **tool itself** being broken. Otherwise every caller learns two error channels and guesses which one it is in |
 
 | Deliberately its own | |
@@ -85,7 +85,7 @@ and picks. Two things it adds, and nothing else here does:
 | **a ranked guess, never a decision** | it returns `user@realm` values with a confidence, which is the shape of the question — *parf* is not an identity, and two people may answer to it. **Nothing authorises on a locator answer**: it turns human input into a name that then has to hold a token like anyone else ([identity § how to reach a person](01-identity.md#how-to-reach-a-person)) |
 | **an official name outranks everything else** | a hit on the registered `user@realm` ([identity § names](01-identity.md#names)) comes first, then the rest — a real name, a nick, one of several emails, an alias from somewhere else. Those are how people are *found*; the username is what they **are**, and a nick that happens to match somebody else's real name must not outrank the person actually called that |
 | **the asker narrows it, when they ask for that** | a request may say *rank by who I share a realm or a group with*, which is what makes `parf` mean `parf@realmo` to somebody on that team and something else elsewhere. It is a **ranking input**, not a permission: what a requester may see at all is the ordinary ACL question |
-| **one human, two names** | `parf@realmo` and `parf@github` are two principals and may be one person, which is what the record's aliases and its `GithubUser` are for ([identity § registration](01-identity.md#registration)). **A link counts only if both sides state it** — otherwise claiming somebody as an alias of mine is how I become findable as them. Nothing proves such a link before Release 1.1 is done, so until then it is a **hint offered to the asker**, never a reason to rank one answer above another |
+| **one human, two names** | `parf@realmo` and `parf@github` are two principals and may be one person, which is what the record's aliases and its `GithubUser` are for ([identity § registration](01-identity.md#registration)). **A link counts only if both sides state it** — otherwise claiming somebody as an alias of mine is how I become findable as them. Nothing proves such a link before R1.1 is done, so until then it is a **hint offered to the asker**, never a reason to rank one answer above another |
 | **`im` is its first caller** | `im` needs *this alias is that person*; the locator answers *these people might be meant*. The exact case is the locator's top answer with nothing close behind it, so one of them is not a special case of the other — but the second is where the first gets its data |
 
 ❓ **How two principals are linked into one person.** Both sides stating it is
@@ -242,7 +242,7 @@ too. *Settled by:* owner.
 | **read · write · rw is a role, not a flag** | roles are how the daemon says *what* a principal may do, already — `@team(rw)`, `parf@srv1(read)` ([identity § sigils](01-identity.md#sigils)): it is stated per principal in the record, delivered with the call, and the service reads what it was handed. That is not the same as a service checking who is calling, which the rule above forbids — and it is why this does not need `kv-ro` and `kv-rw` as two names. **A flag cannot be granted; a role is nothing but a grant** |
 
 ❓ **A hash of locks.** Asked for, and the one item here that would be a
-**second lock authority**: the daemon grants named locks as of Release 1
+**second lock authority**: the daemon grants named locks as of R1
 ([messaging § shared locks](04-messaging.md#shared-locks)), and two things
 granting locks is exactly what that section argues against — more so now that
 the store is `kvrocks`, where such a lock would be that server's rather than

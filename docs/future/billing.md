@@ -2,7 +2,7 @@
 
 **Deferred.** Nothing in the bus depends on billing, and it needs a RADIUS
 server and a payment provider before it is worth anything, so it is not
-scheduled into a stage ([stages § Release 1](../12-stages.md#release-1)). The
+scheduled into a stage ([stages § R1](../12-stages.md#r1)). The
 design is kept whole here so it does not have to be rediscovered: turning it
 on is adding a child process, not reopening the design.
 

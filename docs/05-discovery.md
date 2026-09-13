@@ -56,7 +56,7 @@ which is right, and leaves *which box do I go and look at* unanswered.
 | **not part of the identity** | the name is the identity ([identity § names](01-identity.md#names)); this is a fact about a process serving it. Keeping the two apart is the whole reason the realm stopped carrying a hostname |
 
 It is also where a **version** would go when a service can say one
-([Plans/V1](../Plans/V1/TODO.md)) — same shape, same reason: per member,
+([Plans/R1](../Plans/R1/TODO.md)) — same shape, same reason: per member,
 stated, and the answer to *which of these four is the odd one out*.
 
 **Loss is per inbox, and the node's total is the sum of them.** A node-wide
@@ -183,18 +183,18 @@ the bus debuggable by the people sharing it.
 | **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | MVP | ⚠️ the counters are on `status` ([refusals](#refusals)); the short per-caller list is still to come |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | MVP | — `status` carries the unclean-restart fact |
 | **people** — who holds a credential: name, person name, avatar, master or not, what they own | MVP | the credential store answering *which names*, and the person fields ([identity § registration](01-identity.md#registration)) |
-| **groups** and who is in them | Release 1 | groups themselves ([identity § groups and roles](01-identity.md#groups-and-roles)) |
-| **health** — up, down, and how long since the last probe | Release 1 | the health child ([health checker](#health-checker)) |
-| **load** — calls per minute and per hour, per name and for the node | Release 1 | the ring buffers in [stats](#stats). Inline SVG; `/metrics` ([exports](#exports)) is what a real graphing stack reads |
-| **runner** — what a `runner@<host>` manages: every service it knows, which are enabled and which are up ([runner § what an instance is](08-runner-role.md#what-an-instance-is)), with the verbs on each, and a form that installs a new instance | Release 1 | nothing new — the runner is a service and answers like one ([runner § reaching the runner](08-runner-role.md#reaching-the-runner)). Every control **posts as the person** ([rules it is built to](#rules-it-is-built-to)), so the page drives a runner it has no authority over |
-| **children** — bus, web, auth: alive, restarted how often. Not the runner, which the supervisor does not start and has nothing to report about | Release 1 | the supervisor reporting into the bus. Until then that answer is `agent-bus status` and the page says nothing about it |
-| **origin** — which node a record came from | Release 1 | chained registries ([overview § chaining](00-overview.md#chaining)) |
+| **groups** and who is in them | R1 | groups themselves ([identity § groups and roles](01-identity.md#groups-and-roles)) |
+| **health** — up, down, and how long since the last probe | R1 | the health child ([health checker](#health-checker)) |
+| **load** — calls per minute and per hour, per name and for the node | R1 | the ring buffers in [stats](#stats). Inline SVG; `/metrics` ([exports](#exports)) is what a real graphing stack reads |
+| **runner** — what a `runner@<host>` manages: every service it knows, which are enabled and which are up ([runner § what an instance is](08-runner-role.md#what-an-instance-is)), with the verbs on each, and a form that installs a new instance | R1 | nothing new — the runner is a service and answers like one ([runner § reaching the runner](08-runner-role.md#reaching-the-runner)). Every control **posts as the person** ([rules it is built to](#rules-it-is-built-to)), so the page drives a runner it has no authority over |
+| **children** — bus, web, auth: alive, restarted how often. Not the runner, which the supervisor does not start and has nothing to report about | R1 | the supervisor reporting into the bus. Until then that answer is `agent-bus status` and the page says nothing about it |
+| **origin** — which node a record came from | R1 | chained registries ([overview § chaining](00-overview.md#chaining)) |
 | phone and IM handles; one person record joining `parf@github` and `parf@realmo` | Future | — |
 
 A **load graph is the one thing here that cannot be faked cheaply**: the
 daemon holds counters since start and no history at all, so a graph is the
 ring buffers or it is a line that silently restarts at zero after a crash.
-Numbers now, graphs at Release 1 — and never a time-series database
+Numbers now, graphs at R1 — and never a time-series database
 ([stats](#stats)).
 
 ### Refusals

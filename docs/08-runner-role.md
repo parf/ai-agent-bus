@@ -117,7 +117,7 @@ it is what makes the form a stream: a frame that had to be alone would not need
 one, which is the same reason `jsonl` keeps its process.
 
 `args` and `json` are the MVP. `std`, `jsonl` and `msgpack` arrive in
-[Release 1](12-stages.md#release-1).
+[R1](12-stages.md#r1).
 
 All five forms also get the envelope in the environment, so a script that
 cares can route on it ([what the child is told](#what-the-child-is-told)).
@@ -177,7 +177,7 @@ allowed this from the start — a reader that asks to share is one of several
 ([messaging § several readers may wait when they say so](04-messaging.md#several-readers-may-wait-when-they-say-so))
 — so `start --share` passes that word through and the daemon learns nothing
 new. **One word, two layers, because it is one decision.**
-[Release 1](12-stages.md#release-1).
+[R1](12-stages.md#r1).
 
 `-N` and `--share` compose and do not overlap: `-N` is how many hands one
 process has, `--share` is how many processes there are. Four hosts at `-N 4`
@@ -280,12 +280,12 @@ are separate so that an instance can be configured and kept without running —
 put in place before it is turned on, started and stopped by hand, and left
 alone by a reboot. That is what `disable` leaves behind.
 
-❓ **On-demand start is Release 1** ([stages § release 1](12-stages.md#release-1)),
+❓ **On-demand start is R1** ([stages § R1](12-stages.md#r1)),
 and it is the one place the daemon learns something runner-shaped: a dormant
 name needs a **wake-up procedure** configured on it, so that a message arriving
 for nobody starts the thing that serves it instead of being refused. Only a
 runner can be woken, which is why the mechanism belongs to it rather than to
-services in general. *Settled by:* owner, in Release 1.
+services in general. *Settled by:* owner, in R1.
 
 The registry still answers what exists and what is alive; the runner answers
 only what should be up.
@@ -458,7 +458,7 @@ and says nothing is worse than one that will not come back.
 
 ❓ **What a backup is driven by** — a runner verb, a bundled service, or
 neither. It is one encrypted archive either way, which is why the shape is
-settled here and the trigger is not. *Settled by:* owner, with Release 1.
+settled here and the trigger is not. *Settled by:* owner, with R1.
 
 ## Who it runs as
 

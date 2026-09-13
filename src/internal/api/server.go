@@ -121,6 +121,8 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /send", g(s.send))
 	mux.HandleFunc("GET /consume", g(s.consume))
 	mux.HandleFunc("POST /token", g(s.token))
+	mux.HandleFunc("POST /session", g(s.session))
+	mux.HandleFunc("DELETE /session", g(s.endSession))
 	// Enrolment is the one route with no credential on it, because it is
 	// where a credential comes from — requiring one would be a circle. It is
 	// safe for the same reason: the signature *is* the credential, and only a
@@ -166,6 +168,32 @@ func (s *Server) onSocket(me protocol.Name) guard {
 			next(w, r, me)
 		}
 	}
+}
+
+// session turns the credential a person already holds into a shorter-lived
+// one for a browser. The dashboard forwards what was typed once and keeps
+// nothing of its own: the session lives here, in the process that holds state,
+// so restarting the web child logs nobody out.
+// See docs/05-discovery.md#signing-in.
+func (s *Server) session(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	id, err := s.tokens.StartSession(caller.String())
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, struct {
+		Session string `json:"session"`
+		Idle    string `json:"idle"`
+	}{id, auth.IdleLife.String()})
+}
+
+// endSession drops the credential it arrived with. Nothing checks whose it
+// was: holding it is the whole of the claim, and signing out is the holder's.
+func (s *Server) endSession(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
+	s.tokens.EndSession(r.Header.Get(HeaderToken))
+	ok(w, struct {
+		Ended bool `json:"ended"`
+	}{true})
 }
 
 // token hands out a principal's credential, or rotates it. The daemon's

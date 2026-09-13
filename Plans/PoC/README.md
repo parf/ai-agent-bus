@@ -64,8 +64,8 @@ These are the ones a shortcut would quietly break.
 
 The list lives in [stages § PoC](../../docs/12-stages.md#poc). The one
 consequence worth repeating: bodies are plaintext, so the daemon *can* read
-them, and "the bus never reads payloads" is Release 1's
-([stages § release 1](../../docs/12-stages.md#release-1)).
+them, and "the bus never reads payloads" is R1's
+([stages § R1](../../docs/12-stages.md#r1)).
 
 **One master token reaches every service**, and any holder may claim any
 name — PoC checks the token, not who a caller says it is. It is issued over

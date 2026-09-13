@@ -119,7 +119,7 @@ worth what a typed email is worth. The check that would make it real is the one
 already here — the bus sets a challenge and the holder signs it with a key that
 login publishes ([proving possession](#proving-possession)) — but pointing it
 at a record that did **not** come from GitHub is a **task for after Release
-1.1** ([stages § release 1.1](12-stages.md#release-11)).
+1.1** ([stages § R1.1](12-stages.md#r11)).
 
 So: a `GithubUser` is a **hint for a human to read**, never evidence that two
 names are one person ([bundled services § people and the world

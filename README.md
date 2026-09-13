@@ -30,7 +30,7 @@ There is no external broker to install. `agent-busd` is the broker, the registry
 the dashboard in one binary.
 
 Participants know each other by **public key**, and everything they say is
-**encrypted** from Release 1. No passwords, no certificates to manage. Registering someone is
+**encrypted** from R1. No passwords, no certificates to manage. Registering someone is
 just `username + name + pubkey`. Because those can equally be *fetched* from a
 GitHub login, a service can be **open to the whole world** — anyone with a
 GitHub account can walk up, prove the key is theirs, and use it.
@@ -140,7 +140,7 @@ This is what GitHub is recommended for. Publish a service with `allow: *` and an
 developer on the internet can join it: they claim `<login>@github`, the bus fetches
 their public keys once, they prove possession, and they are in — with whatever default
 role you gave strangers. Google, LinkedIn and Facebook sign-in come later. Sessions are
-encrypted without TLS or certificates — end to end from Release 1, where the keys make
+encrypted without TLS or certificates — end to end from R1, where the keys make
 that true ([access § encrypted sessions](docs/02-access.md#encrypted-sessions)).
 **Closed** enrolment queues newcomers for your approval instead.
 
@@ -253,7 +253,7 @@ document owns what.
 |---|---|
 | Design docs | ✅ settled decisions recorded; open items listed in [decisions](docs/decisions.md) |
 | Plan | [Plans/MVP/](Plans/MVP/TODO.md) — waves, blockers and what counts as done; [Plans/PoC/](Plans/PoC/TODO.md) is the finished stage |
-| Code | [`src/`](src/) — the PoC is complete, with a smoke suite. Build order is [PoC → MVP → Release 1](docs/12-stages.md); Go inside, bun for the MCP face and the push adapters; client libs for Go, PHP, Rust, JS, Python |
+| Code | [`src/`](src/) — the PoC is complete, with a smoke suite. Build order is [PoC → MVP → R1](docs/12-stages.md); Go inside, bun for the MCP face and the push adapters; client libs for Go, PHP, Rust, JS, Python |
 | V1 | runs in production on a broker |
 
 ## Conventions

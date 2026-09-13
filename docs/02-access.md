@@ -73,7 +73,7 @@ What the argument is *for* is the other half, and it changes by stage:
 | | What a token is | What that costs |
 |---|---|---|
 | **MVP** | **one master token per principal** — the same credential whatever you go on to call | a service you call can replay your token against a *different* service and be treated as you. This stage runs with the bus, and everything on its host, trusted ([encrypted sessions](#encrypted-sessions)) |
-| **Release 1** | **one token per principal per service**: `ssh agent-busd@<node> token <service>` | a credential reaches exactly one service, so a malicious service holding your token for itself cannot become you anywhere else ([stages § release 1](12-stages.md#release-1)) |
+| **R1** | **one token per principal per service**: `ssh agent-busd@<node> token <service>` | a credential reaches exactly one service, so a malicious service holding your token for itself cannot become you anywhere else ([stages § R1](12-stages.md#r1)) |
 
 The grammar is the same in both, so nothing a caller does changes when the
 stage does: ask for a token naming the service you mean to call, and in the
@@ -82,7 +82,7 @@ MVP the answer does not depend on it yet.
 ❓ **How scoping meets asking for a name you own.** Today the argument names a
 *principal*, which is what lets the daemon's owner get a credential for any
 name and a runner collect one for a service it started (below). Once it names a *service*, those two readings of one
-argument have to be told apart. *Settled by:* owner, with Release 1.
+argument have to be told apart. *Settled by:* owner, with R1.
 
 **Who may ask for whose.** The daemon's owner — the principal it was started
 for — may get a credential for any name. Anyone else may get one only for a
@@ -271,7 +271,7 @@ it can derive the session key and read the body; on the local socket it holds
 the token outright. Rather than ship a claim the code contradicts, the MVP
 runs with body encryption off and **the bus trusted on its own host**; end to
 end waits for pairwise or derived keys ([key modes](#key-modes)) and is a
-Release 1 line ([stages § release 1](12-stages.md#release-1)).
+R1 line ([stages § R1](12-stages.md#r1)).
 
 What does *not* change: the bus reads envelopes, and its dashboard shows
 nothing else ([discovery § dashboard](05-discovery.md#dashboard)). The bus has

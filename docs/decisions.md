@@ -29,7 +29,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](01-identity.md#registration) |
 | MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](01-identity.md#registration) · [future](future/ldap-ad.md) |
 | Self-service enrolment: open (auto, minimal role) or closed (approval queue) | [identity § registration](01-identity.md#registration) |
-| A record carries `GithubUser` — the login, on any record and not only a `@github` one — and it stays a hint rather than evidence until proving one on a foreign record is built, which is after Release 1.1 | [identity § registration](01-identity.md#registration) |
+| A record carries `GithubUser` — the login, on any record and not only a `@github` one — and it stays a hint rather than evidence until proving one on a foreign record is built, which is after R1.1 | [identity § registration](01-identity.md#registration) |
 | How to reach a person — ordered, per severity — is part of the person's record in the daemon, not an alerter's configuration | [identity § how to reach a person](01-identity.md#how-to-reach-a-person) |
 | More identity sources later: Google, LinkedIn, Facebook — not designed | [identity § registration](01-identity.md#registration) |
 | ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](01-identity.md#acl) |
@@ -53,7 +53,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Three ways to get a token: over SSH, `token` on the box, or a key that signs a challenge | [access § getting a token](02-access.md#getting-a-token) |
 | `token` is the credential verb, `register` the registry one | [access § getting a token](02-access.md#getting-a-token) |
 | Over SSH the key names you, so a caller never states their own principal | [access § token scope](02-access.md#token-scope) |
-| MVP tokens are master, one per principal; Release 1 scopes them per service so one cannot be replayed at another | [access § token scope](02-access.md#token-scope) |
+| MVP tokens are master, one per principal; R1 scopes them per service so one cannot be replayed at another | [access § token scope](02-access.md#token-scope) |
 | The daemon's owner may get a credential for any name; anyone else only for one they own | [access § getting a token](02-access.md#getting-a-token) |
 | One socket per local account is a credential of its own; `status` says which name it used | [access § local socket](02-access.md#local-socket) |
 | Tokens are persisted and the previous one is kept; local default never expires | [access § token lifetime](02-access.md#token-lifetime) |
@@ -76,7 +76,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Sets are not a second lock mechanism: a plain named lock is a member of the default set, and a declared set is the same thing plus the claim that its members are interchangeable | [messaging § a set of locks](04-messaging.md#a-set-of-locks) |
 | A service name is its address and its inbox | [identity § names](01-identity.md#names) |
 | Where the host is split off, and how wide an instance name may be | [identity § names](01-identity.md#names) |
-| One service on many hosts, and scatter-gather over them, is Release 1 | [stages § release 1](12-stages.md#release-1) |
+| One service on many hosts, and scatter-gather over them, is R1 | [stages § R1](12-stages.md#r1) |
 | A service is always configured; the unconfigured capability is a service template | [services § service and template](03-services-and-topics.md#service-and-template) |
 | Config is arbitrary and separate from the name; nothing is parsed out of an address | [services § service and template](03-services-and-topics.md#service-and-template) |
 | One verb configures a template and reads that configuration back | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
@@ -116,7 +116,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Minimal billing as an optional role: RADIUS balance, flat or per-call, no balance = denied | [future/billing.md](future/billing.md) |
 | Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](future/billing.md) |
 | One push adapter per agent runtime; ChatGPT pull-only | [runner § adapters](08-runner-role.md#adapters) |
-| Development goes PoC → MVP → Release 1, each ending in something that works end to end | [stages](12-stages.md) |
+| Development goes PoC → MVP → R1, each ending in something that works end to end | [stages](12-stages.md) |
 | PoC: sockets + HTTP, one master token issued over SSH, a small set of CLI verbs, a basic MCP face, no npm | [stages § PoC](12-stages.md#poc) |
 | A service call is a `send` whose reply comes back on the same topic and tag; the bus adds no call machinery | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | PoC includes basic service support: consume, `ack`, reply, and a caller that waits | [stages § PoC](12-stages.md#poc) |
@@ -278,17 +278,17 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Where the ACL and the user-to-account map are edited | owner | [setup § the programs](09-setup.md#the-programs) |
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
-| How a dormant name is woken, and what the daemon has to learn to do it | owner, in Release 1 | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
+| How a dormant name is woken, and what the daemon has to learn to do it | owner, in R1 | [runner § what an instance is](08-runner-role.md#what-an-instance-is) |
 | Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](08-runner-role.md#long-lived-services) |
 | Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](08-runner-role.md#sandboxing) |
 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](08-runner-role.md#where-it-runs) |
-| How a per-service token argument is told apart from asking for a name you own | owner, with Release 1 | [access § token scope](02-access.md#token-scope) |
+| How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](02-access.md#token-scope) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](10-modules.md) |
-| MVP and Release 1 contents | owner | [stages](12-stages.md) |
+| MVP and R1 contents | owner | [stages](12-stages.md) |
 | What happens to a running service when its configuration changes | owner | [services § configuring a template](03-services-and-topics.md#configuring-a-template) |
 | A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](00-overview.md#chaining) |
 | Whether reading an inbox and filtering one become separate options | owner, with the MVP CLI | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
-| Whether a service holds a key of its own, and where shared secrets and a locking KV live | owner, after Release 1.1 | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
+| Whether a service holds a key of its own, and where shared secrets and a locking KV live | owner, after R1.1 | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
 | Whether the daemon's own parts — dashboard, health, stats — become bundled services rather than supervisor children | owner, once the catalogue is real | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
 | Whether `kv`'s hash of locks is the daemon's locks under a name, or a second authority | owner | [bundled services § data](13-bundled-services.md#data) |
@@ -303,7 +303,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | `#` marks a **role**, and an entry is a subject mapped to access and an optional role — `parf@github => rw, #admin` | `#` marks a **service**, roles moved into parentheses, and the access level went away with them: being in the list *is* the access — [identity § sigils](01-identity.md#sigils) |
 | Owner is an expression, with `owner` and `maintainer` as tiers | one owner, exactly one user, and the maintainer is a group — [identity § ownership](01-identity.md#ownership) |
 | `autostart.json` — the host's file, listing what to bring up | `services.json`, listing everything **installed** with `autostart` as one field on each row, so a configured instance can be kept and started by hand — [runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed) |
-| The runner has no `reload`; there is no long-lived child to signal | long-lived services arrive in Release 1, and a kept child is exactly something to signal — [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
+| The runner has no `reload`; there is no long-lived child to signal | long-lived services arrive in R1, and a kept child is exactly something to signal — [runner § what the runner does](08-runner-role.md#what-the-runner-does) |
 | `--algo=std` is the envelope as one JSON line on stdin | `std` names the channel and claims nothing about the payload; the envelope form is `json`, and `std` is the raw body in bytes — [runner § script services](08-runner-role.md#script-services) |
 | A service's credential is handed to the runner at install | a script needs none at all and the runner asks for its own at start; a linked service carries one in its env — [runner § what the child is told](08-runner-role.md#what-the-child-is-told) |
 | The runner has an ssh door of its own, and reaching it is the right to install | it is a service on the bus, reached by a call like anything else; the service ACL decides who may deploy — [runner § reaching the runner](08-runner-role.md#reaching-the-runner) |
@@ -333,7 +333,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | `ring` is the default mode | `strict` is: a queue that loses work silently is worse than one that fails visibly — [messaging § overflow](04-messaging.md#overflow) |
 | Audience with AUTH off is a per-service `user: token` map | the two ACL layers — [identity § acl](01-identity.md#acl) |
 | The service ACL lives in the service's own configuration | the record: the daemon will not read a private configuration, so a layer it enforces cannot live there — [identity § acl](01-identity.md#acl) |
-| The MVP encrypts bodies end to end | struck: the daemon issues the key they would derive from — Release 1, on pairwise or derived keys — [access § encrypted sessions](02-access.md#encrypted-sessions) |
+| The MVP encrypts bodies end to end | struck: the daemon issues the key they would derive from — R1, on pairwise or derived keys — [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | `register` both issues a credential and states a registry record | `token` issues the credential; `register` only states a record — [access § getting a token](02-access.md#getting-a-token) |
 | One token reaches every name, and the face overwriting `from` is the only guard | a token backs exactly one principal, and it is the only thing the daemon reads a caller out of — [access § what a call carries](02-access.md#what-a-call-carries) |
 | LDAP/AD in scope | deferred — [future](future/ldap-ad.md) |

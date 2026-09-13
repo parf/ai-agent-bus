@@ -21,7 +21,7 @@ import (
 )
 
 func runSupervisor(c config) {
-	// Bodies are plaintext until Release 1, so loopback or an SSH tunnel,
+	// Bodies are plaintext until R1, so loopback or an SSH tunnel,
 	// never a public interface.
 	// See docs/02-access.md#encrypted-sessions.
 	if err := loopbackOnly(c.addr); err != nil {
@@ -97,7 +97,7 @@ func runSupervisor(c config) {
 		fds:  fds,
 	}}
 	if c.web {
-		kids = append(kids, webChild(filepath.Join(filepath.Dir(exe), "agent-bus-web"), dir, ownerAccount()))
+		kids = append(kids, webChild(filepath.Join(filepath.Dir(exe), "agent-bus-web"), c.sock))
 	}
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -118,17 +118,20 @@ func runSupervisor(c config) {
 	log.Print("stopped")
 }
 
-// webChild is the dashboard, which speaks the API like any other client and
-// reaches it over the owner's own socket — so it needs no token of its own.
-// See docs/05-discovery.md#dashboard.
-func webChild(exe, dir, acct string) *child {
+// webChild is the dashboard, which speaks the API like any other client. It
+// is given the **shared** socket and no credential: on the owner's own socket
+// every page it rendered would be the owner's, served to whoever connected,
+// and a child with the owner's authority is a credential mint. Here it can
+// say nothing until somebody signs in and lends it a session.
+// See docs/05-discovery.md#signing-in.
+func webChild(exe, shared string) *child {
 	if _, err := os.Stat(exe); err != nil {
 		log.Fatalf("web: %v — the dashboard is a separate binary beside this one", err)
 	}
 	return &child{
 		what: "web",
 		path: exe,
-		env:  []string{"AGENT_BUS_ADDR=" + filepath.Join(dir, "user-"+acct+".sock")},
+		env:  []string{"AGENT_BUS_ADDR=" + shared},
 	}
 }
 

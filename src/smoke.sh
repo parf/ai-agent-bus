@@ -1656,14 +1656,70 @@ is_empty "but not one between two other names" \
 # whatever the rule became.
 NODE=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/recent")
 has "while master sees an exchange between two other names" "$NODE" "$ASENT"
-AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
+# The child is given NO credential and the shared socket rather than the
+# owner's: on the owner's own socket every page it rendered would be the
+# owner's, served to whoever connected, and a child with the owner's
+# authority is a credential mint. See docs/05-discovery.md#signing-in.
+WEB="http://127.0.0.1:$((PORT+9))"
+AGENT_BUS_ADDR=$D/bus.sock \
   "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) -cert "$D/no-cert" -key "$D/no-cert" >"$D/web.log" 2>&1 &
 WPID=$!
-for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+9))/" && break; sleep 0.1; done
-PAGE=$(curl -s "http://127.0.0.1:$((PORT+9))/")
+for _ in $(seq 1 50); do curl -s -o /dev/null "$WEB/" && break; sleep 0.1; done
+ANON=$(curl -s "$WEB/")
+has "an anonymous visitor gets the sign-in form" "$ANON" 'name=token'
+# Each of these is exactly what the rule is for: a service count that moves
+# is a covert channel anyone who can register writes to, and an uptime is a
+# restart oracle. See docs/05-discovery.md#rules-it-is-built-to.
+is_empty "and no record, no count and no uptime" \
+  "$(printf '%s' "$ANON" | grep -oE 'watched by the board|[0-9]+ records|up [0-9]')"
+has "the whole public signal is an empty 200" \
+  "$(curl -s -o /dev/null -w '%{http_code}:%{size_download}' "$WEB/healthz")" '^200:0$'
+# One message however it failed: telling a bad credential from an unknown
+# name is an oracle for which names exist.
+has "a refused sign-in says one thing" \
+  "$(curl -s -X POST -d 'token=nope' "$WEB/signin")" 'not accepted'
+# Deliberately hostile: the child pointed at a socket that supplies the
+# identity, where an empty credential would otherwise be answered. Nothing
+# signs in, because a web child that can mint the owner is the whole thing
+# the arrangement is against. See docs/05-discovery.md#signing-in.
+AGENT_BUS_ADDR=$D/user-$ACCOUNT.sock \
+  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+14)) -cert "$D/no-cert" -key "$D/no-cert" >"$D/web-own.log" 2>&1 &
+WOPID=$!
+for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+14))/" && break; sleep 0.1; done
+OWNJAR=$D/web-own.jar; rm -f "$OWNJAR"
+curl -s -c "$OWNJAR" -o /dev/null -X POST -d 'token=' "http://127.0.0.1:$((PORT+14))/signin"
+is_empty "an empty credential signs nobody in, even on a socket that would answer" \
+  "$(grep -o agent_bus_session "$OWNJAR")"
+kill $WOPID 2>/dev/null; wait $WOPID 2>/dev/null
+JAR=$D/web.jar; rm -f "$JAR"
+has "signing in is a redirect, not a page" \
+  "$(curl -s -c "$JAR" -o /dev/null -w '%{http_code}' -X POST -d "token=$TOKEN" "$WEB/signin")" '303'
+has "and the browser carries a session" \
+  "$(awk '/agent_bus_session/{print $NF}' "$JAR")" '^[0-9a-f]\{48\}$'
+is_empty "which is never the token itself" "$(grep -o "$TOKEN" "$JAR")"
+PAGE=$(curl -s -b "$JAR" "$WEB/")
 has "the dashboard renders the envelope" "$PAGE" "$MSG"
 has "and the record it was for" "$PAGE" 'watched by the board'
 is_empty "and no body reaches the page" "$(printf '%s' "$PAGE" | grep -o "$SECRET")"
+# Two principals, one URL, different pages — and what tells them apart is a
+# record master may not see, so it is the ACL answering and not the greeting.
+OJAR=$D/web-owner.jar; rm -f "$OJAR"
+curl -s -c "$OJAR" -o /dev/null -X POST -d "token=$(tok acl-owner@srv1)" "$WEB/signin"
+has "a second principal gets their own page" "$(curl -s -b "$OJAR" "$WEB/")" 'refuses master'
+is_empty "and master's page holds what master may not see" \
+  "$(printf '%s' "$PAGE" | grep -o 'refuses master')"
+# The session lives in the bus, so the child has nothing to lose. A session
+# map inside the child passes every check above and fails this one.
+kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
+AGENT_BUS_ADDR=$D/bus.sock \
+  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) -cert "$D/no-cert" -key "$D/no-cert" >>"$D/web.log" 2>&1 &
+WPID=$!
+for _ in $(seq 1 50); do curl -s -o /dev/null "$WEB/" && break; sleep 0.1; done
+has "a web child restarted mid-session logs nobody out" \
+  "$(curl -s -b "$JAR" "$WEB/")" 'watched by the board'
+curl -s -b "$JAR" -o /dev/null -X POST "$WEB/signout"
+is_empty "and signing out ends the session" \
+  "$(curl -s -b "$JAR" "$WEB/" | grep -o 'watched by the board')"
 kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
 # A browser wants a hostname and a certificate. *.localhost.direct is public
 # DNS pointing at 127.0.0.1, so both are real and nothing leaves the machine.
@@ -1675,11 +1731,15 @@ mkdir -p "$D/tls"
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=agent-bus.localhost.direct" \
   -addext "subjectAltName=DNS:agent-bus.localhost.direct" \
   -keyout "$D/tls/key" -out "$D/tls/crt" >/dev/null 2>&1
-AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
+AGENT_BUS_ADDR=$D/bus.sock \
   "$D/agent-bus-web" -addr "agent-bus.localhost.direct:$((PORT+11))" -cert "$D/tls/crt" -key "$D/tls/key" >"$D/webtls.log" 2>&1 &
 WTPID=$!
 for _ in $(seq 1 50); do curl -sk -o /dev/null "https://agent-bus.localhost.direct:$((PORT+11))/" && break; sleep 0.1; done
-TLSPAGE=$(curl -sS --cacert "$D/tls/crt" "https://agent-bus.localhost.direct:$((PORT+11))/" 2>&1)
+TJAR=$D/tls.jar; rm -f "$TJAR"
+curl -sS --cacert "$D/tls/crt" -c "$TJAR" -o /dev/null -X POST -d "token=$TOKEN" \
+  "https://agent-bus.localhost.direct:$((PORT+11))/signin"
+has "a session cookie made over https is marked secure" "$(cat "$TJAR")" 'TRUE.*agent_bus_session'
+TLSPAGE=$(curl -sS --cacert "$D/tls/crt" -b "$TJAR" "https://agent-bus.localhost.direct:$((PORT+11))/" 2>&1)
 # curl verifies the chain and the hostname against that file alone — no -k —
 # so an answer at all is the certificate being the one it was handed.
 has "the dashboard answers https on its own hostname" "$TLSPAGE" "$MSG"
@@ -1689,22 +1749,22 @@ kill $WTPID 2>/dev/null; wait $WTPID 2>/dev/null
 # 443 is not an ordinary account's to bind, and a child that will not start is
 # worse than one on a port it announces. Run as root this would simply get 443
 # and the check would say so.
-AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
+AGENT_BUS_ADDR=$D/bus.sock \
   "$D/agent-bus-web" -addr "agent-bus.localhost.direct:443" -cert "$D/tls/crt" -key "$D/tls/key" >"$D/web443.log" 2>&1 &
 W4PID=$!
 for _ in $(seq 1 50); do curl -sk -o /dev/null "https://agent-bus.localhost.direct:8443/" && break; sleep 0.1; done
 has "a dashboard that may not bind 443 comes up on 8443" \
-  "$(curl -sS --cacert "$D/tls/crt" "https://agent-bus.localhost.direct:8443/" 2>&1)" "$MSG"
+  "$(curl -sS --cacert "$D/tls/crt" "https://agent-bus.localhost.direct:8443/" 2>&1)" 'name=token'
 has "and says what it has not got" "$(cat "$D/web443.log")" 'CAP_NET_BIND_SERVICE'
 kill $W4PID 2>/dev/null; wait $W4PID 2>/dev/null
 # Only 443 has somewhere to go. Any other port was asked for on purpose.
 has "and any other port it may not bind is an error, not a quiet move" \
-  "$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
+  "$(AGENT_BUS_ADDR=$D/bus.sock \
      timeout 2 "$D/agent-bus-web" -addr 127.0.0.1:80 -cert "$D/tls/crt" -key "$D/tls/key" 2>&1)" \
   'permission denied'
 # Without a pair it is plain HTTP on loopback, and says so rather than
 # looking like the secure thing.
-out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$TOKEN \
+out=$(AGENT_BUS_ADDR=$D/bus.sock \
   timeout 2 "$D/agent-bus-web" -cert "$D/tls/absent" -key "$D/tls/absent" 2>&1)
 has "with no certificate it says so" "$out" 'no certificate at' 
 has "and does not pretend to be https" "$out" 'http://127.0.0.1:7878'
@@ -1821,13 +1881,25 @@ has "the daemon is a supervisor and its children" "$(pgrep -P "$SUP" | wc -l)" '
 has "and the dashboard is one of them, not something it embeds" \
   "$(ps -o comm= -p $(pgrep -P "$SUP" | tr '\n' ',' | sed 's/,$//') | tr '\n' ' ')" 'agent-bus-web'
 WEBPID=$(pgrep -P "$SUP" -x agent-bus-web)
-is_empty "the dashboard carries no token: its socket says who it is" \
+is_empty "the dashboard carries no token of its own" \
   "$(tr '\0' '\n' < /proc/$WEBPID/environ | grep AGENT_BUS_TOKEN)"
+# And not the owner's socket either, which is the half a missing token does
+# not cover: on that socket it would be the owner without a credential at all.
+# See docs/05-discovery.md#signing-in.
+has "and reaches the bus over the shared socket, not the owner's" \
+  "$(tr '\0' '\n' < /proc/$WEBPID/environ | grep AGENT_BUS_ADDR)" 'AGENT_BUS_ADDR=.*/sup/bus.sock$'
 AGENT_BUS_ADDR=$D/sup/user-$ACCOUNT.sock "$D/agent-bus" register sup-svc@srv1 \
   --descr "seen through the supervisor" >/dev/null
 for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+12))/" && break; sleep 0.1; done
-has "and what it shows came from the bus on the other end of that socket" \
-  "$(curl -s "http://127.0.0.1:$((PORT+12))/")" 'seen through the supervisor'
+# The record is there and the page still will not say so: a supervised child
+# has no more authority than one started by hand.
+is_empty "so it names nobody until somebody signs in" \
+  "$(curl -s "http://127.0.0.1:$((PORT+12))/" | grep -o 'seen through the supervisor')"
+SJAR=$D/sup/jar; rm -f "$SJAR"
+curl -s -c "$SJAR" -o /dev/null -X POST -d "token=$(awk '{print $2}' "$D/sup/token" | head -1)" \
+  "http://127.0.0.1:$((PORT+12))/signin"
+has "and what a signed-in caller sees came from the bus behind it" \
+  "$(curl -s -b "$SJAR" "http://127.0.0.1:$((PORT+12))/")" 'seen through the supervisor'
 BUSPID=$(pgrep -P "$SUP" -x agent-busd)
 INODE=$(stat -c %i "$D/sup/user-$ACCOUNT.sock")
 kill -9 "$BUSPID" 2>/dev/null

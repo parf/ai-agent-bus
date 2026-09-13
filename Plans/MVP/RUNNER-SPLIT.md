@@ -31,13 +31,13 @@ were argued for.
 
 The split is **not** MVP work. What the MVP already ships is the thing the
 runner wraps ([stages § MVP](../../docs/12-stages.md#mvp)); the runner itself
-is [stages § release 1](../../docs/12-stages.md#release-1) and is planned in
-[Plans/V1](../V1/TODO.md).
+is [stages § R1](../../docs/12-stages.md#r1) and is planned in
+[Plans/R1](../R1/TODO.md).
 
 | | |
 |---|---|
 | MVP | one command line publishes a service in the foreground, confined if it asks to be. The install lays out both accounts and the tree they own; no runner program and no installed state |
-| Release 1 | the runner as its own account and program: installed instances, write-only configuration, autostart, restart policy, on-demand start |
+| R1 | the runner as its own account and program: installed instances, write-only configuration, autostart, restart policy, on-demand start |
 
 ## What it cost the MVP
 
@@ -62,8 +62,8 @@ replaced by one that does not need the rule.**
 
 | ❓ | Where it waits |
 |---|---|
-| how a dormant name is woken, and what the daemon has to learn to do it | [runner § what an instance is](../../docs/08-runner-role.md#what-an-instance-is) — Release 1 |
-| whether one kept child may have several messages in flight | [runner § long-lived services](../../docs/08-runner-role.md#long-lived-services) — Release 1 |
+| how a dormant name is woken, and what the daemon has to learn to do it | [runner § what an instance is](../../docs/08-runner-role.md#what-an-instance-is) — R1 |
+| whether one kept child may have several messages in flight | [runner § long-lived services](../../docs/08-runner-role.md#long-lived-services) — R1 |
 
 The environment a child is told about is **deliberately not closed** — it is
 what the child is serving rather than who it is, and it will grow when

@@ -20,7 +20,7 @@ and linked from everywhere else.
 | 09 | [setup](09-setup.md) | the programs · install · local users · storage · **the two accounts and the tree they own** · reload |
 | 10 | [modules](10-modules.md) | layers · module boundaries · which dependency is swappable · languages · external tools |
 | 11 | [processes](11-processes.md) | the supervisor and its children · privilege per process · what is shared |
-| 12 | [stages](12-stages.md) | PoC, MVP, Release 1 — what gets built when, and what counts as done |
+| 12 | [stages](12-stages.md) | PoC, MVP, R1 — what gets built when, and what counts as done |
 | 13 | [bundled services](13-bundled-services.md) | what ships in the box beyond the daemon, and the rules every one of them obeys |
 
 07 was the billing role; it is deferred and lives in
@@ -91,7 +91,7 @@ Claims only; the mechanism lives in the doc each one links to.
   with a provider key; closed services queue newcomers for approval. Encrypted
   sessions without TLS or PKI are what make this safe to expose. A paid public
   API platform is designed and deferred ([future/billing.md](future/billing.md)).
-- **Bodies are end-to-end encrypted** from Release 1: only sender and receiver
+- **Bodies are end-to-end encrypted** from R1: only sender and receiver
   read them, and the bus sees the envelope
   ([messaging § envelope](04-messaging.md#envelope)). The MVP's key mode cannot
   carry that claim, so it is not made there
