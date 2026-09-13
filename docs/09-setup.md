@@ -100,6 +100,22 @@ keeps them in a text file, one line per principal, mode 0600, behind the same po
 ❓ **What else lives in SQLite** — AUTH data is git, the registry is live
 records, queues and stats are Parquet, tokens are durable. *Settled by:* owner.
 
+**RocksDB is the candidate, and the owner's stated preference**, because it
+would hold the daemon's data *and* the runner's, **encrypted at rest** — one
+store instead of a token file, a dump file, a snapshot and a directory of env
+files, each protected only by its mode. It is the same engine `kv` is an
+access wrapper around ([bundled services § data](13-bundled-services.md#data)),
+which is the other half of the reason: one thing to bundle, learn and back up.
+
+What it has to not break:
+
+| | |
+|---|---|
+| **the daemon reaches it directly, never over the bus** | a daemon that fetched its own tokens by calling a service would need a token to read its tokens. It opens the store behind the `store` port, the way it opens a file today ([modules](10-modules.md)); `kv` is the **bus-facing face of the same engine**, not the path the daemon uses |
+| **two accounts stay two secret domains** | the daemon and the runner are separate accounts precisely so neither reads the other's ([the two accounts](#the-two-accounts)). One store holding both is only allowed if it is **separate namespaces under separate keys** — otherwise this quietly merges the two things the split exists to keep apart |
+| **it must not become a process the daemon has to start** | no process the daemon starts may exec at all ([processes](11-processes.md)). So either the engine is **linked in as a library** — RocksDB is one — or it is a **unit and an account of its own**, started by systemd like the daemon is. That fork is the thing to settle, and the library side costs no third account |
+| **backup follows the data** | the runner's backup is an encrypted archive of `runner/` ([runner § backing it up](08-runner-role.md#backing-it-up)); env files moving into the store moves that too, and a store is backed up by snapshotting it rather than by tar |
+
 ## Reload
 
 Zero-downtime reload for `agent-busd` itself via socket inheritance

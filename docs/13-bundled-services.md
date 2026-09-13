@@ -181,7 +181,7 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **mysql · postgres** | owner | one instance per account, granted read-only or read-write **as two names** |
 | **redis · kvrocks** | owner | the same shape |
 | **mongo** | owner | the same shape |
-| **kv** | owner | **shared, secure service state and configuration** — the small state that otherwise becomes a database nobody wanted. **The first version is an access wrapper around `kvrocks`**: the surface below is that server's own, and what this adds is who may touch which part of it |
+| **kv** | owner | **shared, secure service state and configuration** — the small state that otherwise becomes a database nobody wanted. **The first version is an access wrapper around `kvrocks`**: the surface below is that server's own, and what this adds is who may touch which part of it. The same engine is what the daemon and runner would keep their own data in, encrypted ([setup § storage](09-setup.md#storage)) — one thing to bundle rather than two |
 | **elastic** | owner | search, and where logs go to live. `logwatch` answers about the last few minutes ([reading the box](#reading-the-box)); this answers about last month |
 | **clickhouse** | owner | analytics. Querying and ingesting are two names, as everywhere — they are rarely the same grant |
 | **object storage** | proposed | S3 and what speaks it. **files** for a disk, this for a bucket |
