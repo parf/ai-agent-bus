@@ -43,7 +43,8 @@ wins.
 | **role** | service-defined string saying what a principal may do, written in parentheses after the term and handed over as written | [identity § sigils](01-identity.md#sigils) |
 | **`@`** · **`#`** (ACL) | a leading `@` is a group, a leading `#` a service, and anything else is a user | [identity § sigils](01-identity.md#sigils) |
 | **`term(roles)`** | an ACL entry: the term says who, the parentheses what the service is told; omitted when there are no roles | [identity § sigils](01-identity.md#sigils) |
-| **`GithubUser`** | the GitHub login on a record, equal to the username when the record came from GitHub; a hint until proving one is built, after R1.1 | [identity § registration](01-identity.md#registration) |
+| **`GithubUser`** | the GitHub login on a record, equal to the username when the record came from GitHub; unique across records like every other identifier | [identity § registration](01-identity.md#registration) |
+| **maintainer** (of the daemon) | who may write user records — everything below their own level and nothing at it; the owner is always one | [identity § who may write a record](01-identity.md#who-may-write-a-record) |
 | **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](01-identity.md#delegation) |
 | **service-to-service token** | one service's credential, narrowed to the service it is calling, asked for over the bus and as itself | [access § service to service](02-access.md#service-to-service) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](03-services-and-topics.md#service-kinds) |

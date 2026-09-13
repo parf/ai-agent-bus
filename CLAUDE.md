@@ -30,7 +30,7 @@ it first rather than duplicating the index here. Beyond the numbered docs:
 | `docs/12-stages.md` | PoC / MVP / R1 — check which stage a feature belongs to before designing it in |
 | `Plans/MVP/` | the **active plan** — `README.md` is the stage's own knowledge, `TODO.md` the waves and acceptance, `DONE.md` what is finished and what the mutants caught. Follows the Plans HOWTO (`/rd/vhosts/realty/Plans/README.md`): knowledge, active work and decisions stay in separate files |
 | `Plans/PoC/` | the finished stage — same shape, kept for its knowledge and its completion log |
-| `Plans/R1/` | the **next** stage, not started — same shape. **Stages are `R1`, `R1.1`, `R1.2`; the NATS system is `Legacy-V1`** — never `V1` for either |
+| `Plans/R1/` | the **next** stage, not started — same shape |
 | `docs/future/` | designed but deferred; not part of the current scope — LDAP/AD, billing, and `1.2-UNDECIDED.md` where a want is written down before its mechanism is chosen |
 | `legacy/` | history only, not spec — never cite it, never update it |
 
@@ -78,6 +78,10 @@ disagree, fix the stale one.
 - Small files, main ideas only, **tables over prose**. Terse; the owner writes
   shorthand and corrects directly — update without ceremony.
 - English (the owner reads English and Russian).
+- **Stage names are `R1`, `R1.1`, `R1.2`** — never "Release 1", and never "V1".
+  **The NATS system is `Legacy-V1`**, never "V1" either. One word for two
+  things is how `Plans/V1` came to mean the stage while the same word meant
+  the legacy everywhere else.
 - Glyphs follow <https://parf.dev/ai-skills/Glyphs.md>: **no glyph by default**;
   ❓ open question (with what settles it), ⁉️ two sources contradict, ❌ failure,
   ⛔ impossible, 🚫 cancelled, ⏸️ deferred, ⚠️ partial, ✅ done, 🎫 handed off,

@@ -113,18 +113,53 @@ grouping "person" record is deferred.
 fill. It earns its place on the records that were *not* made that way — a
 company account whose person also has a GitHub identity.
 
-⚠️ **Claimed is not proven, and until it can be proven it is only claimed.**
-Anybody may type somebody else's login into their own record, so the field is
-worth what a typed email is worth. The check that would make it real is the one
-already here — the bus sets a challenge and the holder signs it with a key that
-login publishes ([proving possession](#proving-possession)) — but pointing it
-at a record that did **not** come from GitHub is a **task for after Release
-1.1** ([stages § R1.1](12-stages.md#r11)).
+### Who may write a record
 
-So: a `GithubUser` is a **hint for a human to read**, never evidence that two
-names are one person ([bundled services § people and the world
-outside](13-bundled-services.md#people-and-the-world-outside)). Nothing ranks
-on it as though it were, and nothing authorises on it at all.
+**Only a maintainer of the daemon edits a user's fields — not the user.** That
+is what makes the fields worth trusting: a name, an email, a `GithubUser` on a
+record is a statement by whoever runs this bus, not something a person typed
+about themselves.
+
+| Who | May |
+|---|---|
+| a **maintainer** | create any user record and edit any field on it — **except on another maintainer's record, and the owner's** |
+| the **owner** | all of that, and the maintainers themselves. The owner is always a maintainer and cannot stop being one ([ownership](#ownership)) |
+| the **person** | nothing. They hold a key and a token; what the record *says* is the organisation's account of them |
+
+It is the service arrangement seen from the other end ([ownership](#ownership)):
+one owner, maintainers who may change everything below their own level and
+nothing at it. **A maintainer who could edit another maintainer's record is an
+administrator who can promote themselves** — through a key, an alias, or
+whatever the next field turns out to be — so the line is drawn at the level,
+not at the field.
+
+**Self-service enrolment is the one record nobody vouched for**, and it is
+trusted the other way: the newcomer proved possession of a key their claimed
+login publishes ([proving possession](#proving-possession)). A record is
+trustworthy because **a maintainer wrote it, or because enrolment proved it** —
+and there is no third way in.
+
+⚠️ A `GithubUser` on a record that did not come from GitHub is trusted the
+first way: a maintainer put it there. **Proving one cryptographically is a task
+for after R1.1** ([stages § R1.1](12-stages.md#r11)) and matters where nobody
+vouches — it is not what makes the field usable here.
+
+### Every identifying field is unique
+
+**No two records share an email, a phone, a `GithubUser` or an IM handle**, and
+the daemon refuses the write that would make it so. Uniqueness checked later is
+not enforced.
+
+| | |
+|---|---|
+| **why it earns the refusal** | it is what makes a lookup an *answer*. An email or a handle names exactly one person, so `im` resolves rather than guesses and `user-locator` is uncertain only about the fuzzy things — a partial name, a real name ([bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside)) |
+| **compared normalised, not literally** | `Parf@x` and `parf@x` are one email and must collide, or uniqueness is a formatting exercise. Same for a phone written two ways and a handle in two cases |
+| **the username was always this** | one name, one principal ([names](#names)). This says the rest of the identifying fields behave the way the name already does |
+
+❓ **What normalising means per field.** Case for emails and handles is
+obvious; phone formatting is not, and provider-specific rules — dots in a
+Gmail address — are a decision rather than a fact. *Settled by:* owner, with
+the MVP.
 
 That is the whole thing. It needs no directory, no network and no provider.
 
@@ -157,17 +192,17 @@ what lets a message addressed to any of those reach the right human
 | | |
 |---|---|
 | **it is the person's, so it lives with the person** | not in an alerter's configuration. One person is reached by several alerters — one per host, one per team — and a phone that changed has to change **once**. The daemon is already where the person is |
-| **the principal writes their own** | like the other details on the record, and for a reason of its own: nobody else knows which phone is on tonight |
+| **a maintainer writes it, like every other field** | ([who may write a record](#who-may-write-a-record)) — which is what makes a destination trustworthy enough to page somebody on. Somebody who wants their evening phone in there asks for it |
 | **an alias is a lookup key and never a principal** | it resolves *to* a name and the name is what travels — the same rule that keeps a provider's numeric id out of being an identity ([names](#names)). Nothing is ever authorised as `@someone` on Telegram |
 | **nothing enforces it** | it is a list of preferences, not an access decision. What acts on it is `im` and the `alerter`, ordinary services reading an ordinary record ([bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself)) |
 
-❓ **Who may read somebody else's.** A phone number is not an avatar, and the
-alerter needs everybody's. *Settled by:* owner, with the ACL.
+❓ **Who may read somebody else's.** Writing is settled — a maintainer, and
+nobody else ([who may write a record](#who-may-write-a-record)). Reading is
+not: a phone number is not an avatar, and the alerter needs everybody's.
+*Settled by:* owner, with the ACL.
 
 A record holding a phone number is worth protecting for reasons that have
-nothing to do with the bus — which is the whole of that question, and the
-reason these are the person's own to write rather than something an
-organisation collects about them.
+nothing to do with the bus, which is the whole of that question.
 
 **MVP is this plus GitHub** — nothing else. GitHub is an *alternative to typing
 the record*: it fills the same fields from a login the person already has,
