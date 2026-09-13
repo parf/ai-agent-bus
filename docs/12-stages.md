@@ -116,7 +116,7 @@ a shared host.
 | identity | a token per principal, per-user sockets ([access](02-access.md)) |
 | registration | manual record + GitHub ([identity § registration](01-identity.md#registration)) |
 | **user records** | a maintainer writes them and a person does not, which is what makes the fields trustworthy; the owner is always a maintainer and only the owner touches another one ([identity § who may write a record](01-identity.md#who-may-write-a-record)) |
-| **unique identifiers** | no two records share an email, a phone, a `GithubUser` or an IM handle, refused at the write ([identity § every identifying field is unique](01-identity.md#every-identifying-field-is-unique)) |
+| **unique identifiers** | every identifying field normalised before it is written and unique across records — email, phone, `GithubUser`, IM handle ([identity § every identifying field is unique](01-identity.md#every-identifying-field-is-unique)) |
 | tokens | persisted, previous kept, local never expires ([access § token lifetime](02-access.md#token-lifetime)) |
 | encryption | 🚫 *struck* — the daemon issues the token a session key derives from, so end to end against it is not reachable in this stage's key mode; the bus is trusted on its own host ([access § encrypted sessions](02-access.md#encrypted-sessions)) |
 | access | service ACL, then master ACL; a service may refuse master ([identity § acl](01-identity.md#acl)) |

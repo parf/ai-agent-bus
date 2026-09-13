@@ -153,13 +153,18 @@ not enforced.
 | | |
 |---|---|
 | **why it earns the refusal** | it is what makes a lookup an *answer*. An email or a handle names exactly one person, so `im` resolves rather than guesses and `user-locator` is uncertain only about the fuzzy things — a partial name, a real name ([bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside)) |
-| **compared normalised, not literally** | `Parf@x` and `parf@x` are one email and must collide, or uniqueness is a formatting exercise. Same for a phone written two ways and a handle in two cases |
-| **the username was always this** | one name, one principal ([names](#names)). This says the rest of the identifying fields behave the way the name already does |
+| **normalised before the write, not at the comparison** | what is stored is the canonical form, so uniqueness is plain equality afterwards and no two code paths can disagree about whether `Parf@x` and `parf@x` are one email. A lookup normalises its argument the same way, or a search for the form somebody typed finds nothing |
+| **so a field we cannot normalise is a field we do not support** | supporting one means knowing its canonical form. That is the price of the rule above, and it is the right way round: an identifier nobody can spell one way is not an identifier |
+| **the username was always this** | canonical, bounded, one spelling each ([names](#names)). This is that rule for the rest of the identifying fields, not a second one |
 
-❓ **What normalising means per field.** Case for emails and handles is
-obvious; phone formatting is not, and provider-specific rules — dots in a
-Gmail address — are a decision rather than a fact. *Settled by:* owner, with
-the MVP.
+The form somebody typed is not kept. The record is the organisation's account
+of a person ([who may write a record](#who-may-write-a-record)), so the
+canonical spelling is the one worth showing.
+
+❓ **What the rule is for each field.** Case for emails and handles is obvious;
+phone formatting is not, and provider-specific rules — dots in a Gmail address
+— are a decision rather than a fact. It is a list to fill in, one line per
+field, rather than an open design question. *Settled by:* owner, with the MVP.
 
 That is the whole thing. It needs no directory, no network and no provider.
 

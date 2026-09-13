@@ -32,7 +32,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A record carries `GithubUser` — the login, on any record and not only a `@github` one; proving one cryptographically is after R1.1 | [identity § registration](01-identity.md#registration) |
 | Only a maintainer writes a user's fields, never the person, and no maintainer touches another maintainer's record or the owner's | [identity § who may write a record](01-identity.md#who-may-write-a-record) |
 | A record is trustworthy because a maintainer wrote it or because enrolment proved it, and there is no third way in | [identity § who may write a record](01-identity.md#who-may-write-a-record) |
-| Every identifying field is unique across records — email, phone, `GithubUser`, IM handle — compared normalised and refused at the write | [identity § every identifying field is unique](01-identity.md#every-identifying-field-is-unique) |
+| Every identifying field is unique across records — email, phone, `GithubUser`, IM handle — normalised **before** the write, so comparison is plain equality and an unnormalisable field is one we do not support | [identity § every identifying field is unique](01-identity.md#every-identifying-field-is-unique) |
 | How to reach a person — ordered, per severity — is part of the person's record in the daemon, not an alerter's configuration | [identity § how to reach a person](01-identity.md#how-to-reach-a-person) |
 | More identity sources later: Google, LinkedIn, Facebook — not designed | [identity § registration](01-identity.md#registration) |
 | ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](01-identity.md#acl) |
@@ -298,7 +298,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Whether `kv`'s hash of locks is the daemon's locks under a name, or a second authority | owner | [bundled services § data](13-bundled-services.md#data) |
 | Whether `kv` is optional, given that it is where service configuration would live | owner | [bundled services § data](13-bundled-services.md#data) |
 | How two principals are linked as one person, given that both sides have to state it | owner | [bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside) |
-| What normalising means per identifying field — case, phone formatting, provider-specific rules | owner, with the MVP | [identity § every identifying field is unique](01-identity.md#every-identifying-field-is-unique) |
+| The normalisation rule for each identifying field — case, phone formatting, provider-specific rules | owner, with the MVP | [identity § every identifying field is unique](01-identity.md#every-identifying-field-is-unique) |
 
 ## Superseded
 
