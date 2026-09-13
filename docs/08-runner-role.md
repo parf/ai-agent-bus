@@ -55,7 +55,7 @@ pushes into the *running* session. Claude Code and Codex are proven here — `sr
 
 | Runtime | Push path | Status |
 |---|---|---|
-| Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool | proven in V1 |
+| Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool | proven in Legacy-V1 |
 | Codex | App Server — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart. **Two transports**: told where a shared app-server is, it attaches over a loopback WebSocket; told nothing, it spawns `codex app-server` and speaks newline-delimited JSON-RPC on stdio. What is ruled out is a WebSocket over a **unix socket**, which bun cannot open | both proven in the live run |
 | OpenCode (Z.AI) | ❓ to be found — the owner has an account. *Settled by:* one spike | maybe |
 | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |

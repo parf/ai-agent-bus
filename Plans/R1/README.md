@@ -1,14 +1,13 @@
-# V1 — agent-bus V2
+# R1 — agent-bus V2
 
-What a developer must know to work on V1 correctly. The active plan will be
+What a developer must know to work on R1 correctly. The active plan will be
 [TODO.md](TODO.md); the stage is not started.
 
-**V1 here is the stage after the MVP** — the one
-[stages § R1](../../docs/12-stages.md#r1) describes. It is not
-the NATS JetStream system at `/rd/service/agent-bus/`, which this repo calls
-V1 as *legacy* and consults for facts, never for a bar
-([CLAUDE.md](../../CLAUDE.md)). Where the two could be confused, the docs say
-**R1** and mean this one.
+**R1 is the stage after the MVP**, the one
+[stages § R1](../../docs/12-stages.md#r1) describes. The NATS JetStream system
+at `/rd/service/agent-bus/` is **Legacy-V1** — a different thing with a
+different name, consulted for facts and never for a bar
+([CLAUDE.md](../../CLAUDE.md)).
 
 **[stages § R1](../../docs/12-stages.md#r1) fixes the scope**;
 the rest of [docs/](../../docs/00-overview.md) is the design of record and
@@ -21,7 +20,7 @@ true, is [Plans/MVP/README.md](../MVP/README.md), and what it finished is
 **A team or a company can run it, and it can be exposed.** That sentence
 decides every argument in this stage the way *install, other people, shared,
 safely* decided the MVP's. The MVP put several people on **one host they all
-trust**; V1 takes away both halves — more than one host, and a host somebody
+trust**; R1 takes away both halves — more than one host, and a host somebody
 outside the team can reach.
 
 Three consequences fall out of that:
@@ -29,12 +28,12 @@ Three consequences fall out of that:
 - **The bus stops being trusted with bodies.** The MVP struck end-to-end
   encryption because the daemon issues the token a session key would derive
   from, so the claim could not be true ([stages § MVP](../../docs/12-stages.md#mvp)).
-  V1 is where the pairwise or derived keys arrive that make it true, and
+  R1 is where the pairwise or derived keys arrive that make it true, and
   until they do the sentence stays off the box
   ([access § encrypted sessions](../../docs/02-access.md#encrypted-sessions)).
 - **Starting a service stops being a command you sit in front of.** The MVP
   publishes one with a single foreground command line and keeps no installed
-  state. V1 adds `agent-bus-runner` — a second account, outside the daemon,
+  state. R1 adds `agent-bus-runner` — a second account, outside the daemon,
   that holds each instance's configuration and never hands it back, and starts
   it on boot or on demand ([runner role](../../docs/08-runner-role.md)).
 - **Identity stops being one node's.** AUTH, groups and roles exist so that no
@@ -78,5 +77,5 @@ Two things change with the scope, and they are the ones to get right early:
 
 **Billing** is designed and deferred to no stage at all
 ([future/billing.md](../../docs/future/billing.md)). **LDAP/AD** likewise
-([future/ldap-ad.md](../../docs/future/ldap-ad.md)). Neither becomes V1 work
+([future/ldap-ad.md](../../docs/future/ldap-ad.md)). Neither becomes R1 work
 by being written down.

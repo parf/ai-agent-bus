@@ -31,7 +31,7 @@ which the spike settled rather than guessed:
 
 | | |
 |---|---|
-| Claude | **one process**: the MCP server pushes into its own session through a channel, exactly V1's `notifier-claude` shape |
+| Claude | **one process**: the MCP server pushes into its own session through a channel, exactly Legacy-V1's `notifier-claude` shape |
 | Codex | **two processes, one `AGENT_BUS_NAME`**: the MCP server inside the session with push off, and a pusher beside it holding the App Server connection. A session cannot push into itself through its own stdio |
 
 Process placement is a runtime choice, not a layer boundary
@@ -40,8 +40,8 @@ both is [`../../src/mcp/README.md`](../../src/mcp/README.md).
 
 | Part | Language | Source |
 |---|---|---|
-| `protocol`, `core`, `api` face, `cli` | Go | **new**; V1's protocol carries keys, trust and `event_hash` we do not have — take the identifier rules only |
-| `mcp` face + both push modes | **TypeScript on bun** | **new**, all of it. V1 runs Claude's on bun and Codex's on Node because bun's WebSocket could not do a unix socket; bun reaches the App Server over `ws://` instead, so one runtime does both |
+| `protocol`, `core`, `api` face, `cli` | Go | **new**; Legacy-V1's protocol carries keys, trust and `event_hash` we do not have — take the identifier rules only |
+| `mcp` face + both push modes | **TypeScript on bun** | **new**, all of it. Legacy-V1 runs Claude's on bun and Codex's on Node because bun's WebSocket could not do a unix socket; bun reaches the App Server over `ws://` instead, so one runtime does both |
 
 Why the split: [modules § languages](../../docs/10-modules.md#languages).
 
@@ -72,21 +72,21 @@ name — PoC checks the token, not who a caller says it is. It is issued over
 SSH because sshd does the authentication for free
 ([access § getting a token](../../docs/02-access.md#getting-a-token)).
 
-## V1 is the bar
+## Legacy-V1 is the bar
 
-**Write the small version first.** V1's components are entangled with
+**Write the small version first.** Legacy-V1's components are entangled with
 JetStream's signed wires, `event_hash`, KV journals, `ADAPTER_PENDING`
 recovery, delivery observations and a PHP handoff socket — none of which V2
 has — so starting from them costs more than starting fresh.
 
-**Then compare, and take V1's solution where it is better.** It ran in
+**Then compare, and take Legacy-V1's solution where it is better.** It ran in
 production; every awkward branch in it is a case somebody actually hit. If
-V1's approach is better, use it — the code included, when it comes free of the
+Legacy-V1's approach is better, use it — the code included, when it comes free of the
 JetStream machinery.
 
 **Simplicity breaks the tie.** Complexity has to be paid for by a real case:
-*"V1 does X"* is not a reason, *"V1 does X because Y happened"* is. Skipping a
-V1 behaviour is fine; skipping it without noticing is not.
+*"Legacy-V1 does X"* is not a reason, *"Legacy-V1 does X because Y happened"* is. Skipping a
+Legacy-V1 behaviour is fine; skipping it without noticing is not.
 
 | Ours | Compare against | Look for |
 |---|---|---|
@@ -99,42 +99,43 @@ V1 behaviour is fine; skipping it without noticing is not.
 | the layer rules V2 inherited | `PRF-25/README.md` § Mandatory code layers | |
 
 Code at `/rd/service/agent-bus/`, normative design at
-`/rd/vhosts/realty/Plans/PRF-25/`. The PoC may be smaller than V1 — it may not
-be worse at what it does.
+`/rd/vhosts/realty/Plans/PRF-25/`. The PoC may be smaller than Legacy-V1 — it
+may not be worse at what it does.
 
-## What V1 cost us, first hand
+## What Legacy-V1 cost us, first hand
 
-We did not only read V1 — we **used** it all through this PoC to talk to the
-reviewer, and lost a message to it. That is the strongest evidence available
-for what V2 is for. The first draft of this section overstated it, and the
-reviewer corrected it against V1's own source; what follows is what survived.
+We did not only read Legacy-V1 — we **used** it all through this PoC to talk to
+the reviewer, and lost a message to it. That is the strongest evidence
+available for what V2 is for. The first draft of this section overstated it,
+and the reviewer corrected it against Legacy-V1's own source; what follows is
+what survived.
 
-| What happened on V1 | Why | What V2 does instead |
+| What happened on Legacy-V1 | Why | What V2 does instead |
 |---|---|---|
 | A review answer was **accepted and never delivered**: it went to `agent-pub`, the label the sender's tool had defaulted `from_channel` to, and no session consumes that name. `delivery: null`, no error, found an hour later by asking | the reply route is a field the sender fills in, and a wrong one is indistinguishable from a right one until nothing happens | **the name is the address**, and a send to a name with no record is refused at `send` ([messaging § verbs](../../docs/04-messaging.md#verbs)). Not a cure by itself — see the honesty note below |
 | Sending needed the whole envelope spelled out — `--to-user`, `--channel`, `--from-channel`, `--source`, `--type`, payload — on the low-level command | channel, user, session, source and event type are five fields that must agree, and the low-level verb exposes all of them | `agent-bus send <name> "text"`. Identity is the token, and the socket supplies even that locally ([access § what a call carries](../../docs/02-access.md#what-a-call-carries)) |
 | Finding a peer took three overlapping commands — `channel list`, `channel connected`, `agent-sessions` — answering in durable registration, live lease and named session | one registry, three views, and no single "who can I talk to?" | `agent-bus ls`: one registry, one record per name |
 | `agent-bus help` answers `config_invalid: unknown command "help"` | no top-level help dispatch, so the argument parser rejects it like a bad config | one binary, and `help` prints the verbs |
 
-**Where the first draft was wrong, corrected against V1's source:**
+**Where the first draft was wrong, corrected against Legacy-V1's source:**
 
 | I wrote | Actually |
 |---|---|
-| "channels are ephemeral — the channel dies and the results die with it" | **V1's channel inboxes are durable.** `CHANNEL_EVENTS` is a file-backed work-queue stream, `max_age: 0`, read by *named durable* consumers with explicit ack; closing a session releases the ownership lease, not the inbox. V1 *also* has a separate ephemeral request/reply path, and that is the one whose lifetime makes a late result unrecoverable |
+| "channels are ephemeral — the channel dies and the results die with it" | **Legacy-V1's channel inboxes are durable.** `CHANNEL_EVENTS` is a file-backed work-queue stream, `max_age: 0`, read by *named durable* consumers with explicit ack; closing a session releases the ownership lease, not the inbox. Legacy-V1 *also* has a separate ephemeral request/reply path, and that is the one whose lifetime makes a late result unrecoverable |
 | "acceptance and delivery live in separate journals, so the honest answer needs two queries" | one `event status` returns the event **and** the latest delivery observation. The cost is that you must ask *after* sending, not that it takes two calls |
-| "a transport journal can only say it accepted bytes" | V1's observations come from the **runtime adapter** — turn started, turn completed — not from the transport. They still do not prove the work was done correctly, which is the real argument for a correlated business reply |
+| "a transport journal can only say it accepted bytes" | Legacy-V1's observations come from the **runtime adapter** — turn started, turn completed — not from the transport. They still do not prove the work was done correctly, which is the real argument for a correlated business reply |
 | "`delivery: null` means in flight or failed or evicted" | it means **no retained observation**; a recorded failure normally *has* a `delivery.failed`. The ambiguity of an absent one is a fair complaint, a silent failure is not |
 | "three registries" | three **commands** over one registry |
 | "a JSON payload file every time" | the wrapper takes inline JSON or stdin; it was the low-level verb that wanted a file |
 
-**Where V1 was better than our PoC, and we took its answer:** its bound
+**Where Legacy-V1 was better than our PoC, and we took its answer:** its bound
 **refuses** the new message (`discard: new`, per subject) where ours dropped
 the oldest without a word. Both modes were already the design
 ([messaging § overflow](../../docs/04-messaging.md#overflow)) and PoC had
 implemented only the lossy one, as the default. Now the receiver's record
 says which it wants, **refusing is the default**, and a ring counts what it
 threw away in `status` — a queue that forgets silently looks exactly like one
-nobody sent to. That is V1 paying for itself: the case was real, so the
+nobody sent to. That is Legacy-V1 paying for itself: the case was real, so the
 complexity is earned.
 
 **Honesty about V2's own guarantees**, since a design document is worth
@@ -157,8 +158,8 @@ nothing if it flatters itself:
   fixes that is MVP's ([messaging § durability](../../docs/04-messaging.md#durability)).
 
 The through-line that does hold: V2's case is **simpler naming, routing and
-operator workflow, with deliberately smaller semantics** — not that V1 lacked
-durable name-owned queues. It did not.
+operator workflow, with deliberately smaller semantics** — not that Legacy-V1
+lacked durable name-owned queues. It did not.
 
 ## Mutation first, then belief
 
@@ -212,7 +213,7 @@ own against both builds.
 - One wave, one deliverable; commit at the end of each, push only when asked.
 - A decision taken here lands in [decisions](../../docs/decisions.md) and in
   the doc that owns it — never only in the plan.
-- **Before a task with a V1 counterpart closes**, compare the two: take V1's
+- **Before a task with a Legacy-V1 counterpart closes**, compare the two: take Legacy-V1's
   solution where it is better, and record what we skip and why. Simplicity
   wins a tie.
 - What the PoC teaches that contradicts the design is a **doc edit**, not a

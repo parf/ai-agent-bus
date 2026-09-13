@@ -9,7 +9,7 @@ One daemon gives you a registry, message queues, an MCP server and a dashboard.
 
 **Design first, and a working PoC.** The PoC is built and green in
 [`src/`](src/); everything past it is still design, and the commands below show the
-intended shape. A first version (V1) runs in production on a message broker and is
+intended shape. A first version (Legacy-V1) runs in production on a message broker and is
 being replaced by this design. See [Status](#status).
 
 ## What it is
@@ -74,7 +74,7 @@ You can build these, or something like them, in minutes once it ships.
 
 ### Watch a Slack channel and act on it
 
-The flow that runs in production today on V1. A small **slack-reader** service
+The flow that runs in production today on Legacy-V1. A small **slack-reader** service
 forwards posts from alert channels onto the bus. A Claude Code session started with
 `claude --channel` (a Claude Code channels feature, research preview) receives them,
 decides what each one is, and forwards it: noise to nowhere, "tell a human" to the
@@ -254,7 +254,7 @@ document owns what.
 | Design docs | ✅ settled decisions recorded; open items listed in [decisions](docs/decisions.md) |
 | Plan | [Plans/MVP/](Plans/MVP/TODO.md) — waves, blockers and what counts as done; [Plans/PoC/](Plans/PoC/TODO.md) is the finished stage |
 | Code | [`src/`](src/) — the PoC is complete, with a smoke suite. Build order is [PoC → MVP → R1](docs/12-stages.md); Go inside, bun for the MCP face and the push adapters; client libs for Go, PHP, Rust, JS, Python |
-| V1 | runs in production on a broker |
+| Legacy-V1 | runs in production on a broker |
 
 ## Conventions
 

@@ -87,11 +87,11 @@ subscriber is a registered name and the copy lands in its own inbox
 
 The **push adapters** — Claude Code Channels and the Codex App Server
 ([runner § adapters](08-runner-role.md#adapters)) — are what let a live session
-*receive* instead of poll. V1 has both, and they are **prior art, not code we
+*receive* instead of poll. Legacy-V1 has both, and they are **prior art, not code we
 inherit**: they carry the signed wires, journals and delivery observations
 JetStream needed and V2 does not. PoC writes its own, small, then measures
-itself against V1 — which ran in production and hit the cases a fresh
-implementation has not thought of — and takes V1's solution wherever that is
+itself against Legacy-V1 — which ran in production and hit the cases a fresh
+implementation has not thought of — and takes Legacy-V1's solution wherever that is
 the better one.
 
 **Deliberately absent**: encryption, AUTH, per-service ACLs, persistence,

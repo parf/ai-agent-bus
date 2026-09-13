@@ -100,6 +100,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Call counts are per service, live state like `reading` and `queued` | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | Loss is counted per inbox; the node's total is the sum of them | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | A backlog reports the age of its oldest waiting message | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
+| The daemon says whether a queue is at its bound, because a record that declares none takes the daemon's | [discovery § what a listing answers](05-discovery.md#what-a-listing-answers) |
 | An unclean restart is a fact on `status`, not only a line in the log | [discovery § what it shows](05-discovery.md#what-it-shows) |
 | Refusals are counted by reason, and a daemon fault is not one of them | [discovery § refusals](05-discovery.md#refusals) |
 | Dashboard shows services, topics and call counts — envelopes only | [discovery § dashboard](05-discovery.md#dashboard) |
@@ -121,7 +122,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A service call is a `send` whose reply comes back on the same topic and tag; the bus adds no call machinery | [messaging § request and reply](04-messaging.md#request-and-reply) |
 | PoC includes basic service support: consume, `ack`, reply, and a caller that waits | [stages § PoC](12-stages.md#poc) |
 | PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](12-stages.md#poc) |
-| Write the simple version first, compare with V1, take its solution where it is better; simplicity breaks the tie | [stages § PoC](12-stages.md#poc) |
+| Write the simple version first, compare with Legacy-V1, take its solution where it is better; simplicity breaks the tie | [stages § PoC](12-stages.md#poc) |
 | Names are canonical, bounded, and one spelling each | [identity § names](01-identity.md#names) |
 | A shell script is a service: `start --algo=args\|std\|json\|jsonl\|msgpack [-N]`, stdout is the reply, no bus code in the script | [runner § script services](08-runner-role.md#script-services) |
 | A form names a channel (`args`, `std`), a channel and its payload (`json`), or that payload repeated (`jsonl`) | [runner § script services](08-runner-role.md#script-services) |
@@ -225,7 +226,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Only adapters touch the outside world; calling an external tool is an adapter-layer rule | [modules § external tools](10-modules.md#external-tools) |
 | `protocol` is the layer the client libraries reimplement, and depends on nothing | [modules § the rule](10-modules.md#the-rule) |
 | No external broker; `agent-busd` is the broker | [overview § goal](00-overview.md#goal) |
-| V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core — nothing to design | — |
+| Legacy-V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core — nothing to design | — |
 | A registered topic named alone is an inbox to read; with a tag it is a filter — one rule for every face | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | A name-shaped topic that is registered nowhere is refused, not read as a filter | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |
 | The filter is a priority, not a lease: it holds only while its wait is outstanding | [messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox) |

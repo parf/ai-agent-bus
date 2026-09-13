@@ -3,7 +3,7 @@
 // **Which App Server matters more than the protocol.** Spawning our own gets
 // a JSON-RPC connection that can resume a thread's saved history — but that
 // is a second process, and steering it does not reach the session a person is
-// typing in. V1 solved this by topology, not by cleverness
+// typing in. Legacy-V1 solved this by topology, not by cleverness
 // (`/rd/bin/ai-codex`): a launcher starts one App Server, the TUI attaches to
 // it with `--remote`, and the notifier attaches to the same one. Steering
 // then reaches the live turn.
@@ -13,14 +13,14 @@
 //
 // | Transport | What it is |
 // |---|---|
-// | `ws://127.0.0.1:PORT` | the shared server. **Loopback WebSocket**, spoken by bun's built-in `WebSocket` — no dependency, and none of V1's `ws` + `permessage-deflate` |
+// | `ws://127.0.0.1:PORT` | the shared server. **Loopback WebSocket**, spoken by bun's built-in `WebSocket` — no dependency, and none of Legacy-V1's `ws` + `permessage-deflate` |
 // | stdio | our own `codex app-server`, NDJSON (B.0) |
 //
 // `--listen unix://` is a WebSocket too, and bun cannot open one over a unix
 // socket. A loopback port avoids it, and the App Server binds localhost only,
 // which is the daemon's own rule.
 //
-// The call sequence is V1's, minus the JetStream parts: initialize →
+// The call sequence is Legacy-V1's, minus the JetStream parts: initialize →
 // thread/list newest for this cwd → thread/resume, else thread/start → per
 // message turn/steer if a turn is running, else turn/start.
 
@@ -190,7 +190,7 @@ export class Codex {
   }
 
   // Ask the server what is actually running, rather than guessing from a
-  // rejection — V1's lesson, in one call.
+  // rejection — Legacy-V1's lesson, in one call.
   async #refresh(): Promise<void> {
     try {
       const r = await this.#request<{ thread: Thread }>("thread/resume", { threadId: this.#thread, ...this.#policy }, 60_000);

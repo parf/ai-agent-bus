@@ -8,9 +8,9 @@ only what is being built now.
 **Objective**: the MVP as scoped in [stages § MVP](../../docs/12-stages.md#mvp) —
 somebody other than the author installs it and uses it safely on a shared host.
 
-**V1 is not the bar here.** It was, for the PoC, where writing a push adapter
+**Legacy-V1 is not the bar here.** It was, for the PoC, where writing a push adapter
 from scratch had prior art worth measuring against. This stage is our own
-design carried out; V1 is legacy and is not consulted for it. What does still
+design carried out; Legacy-V1 is not consulted for it. What does still
 hold is that nothing is believed until it has been watched failing
 ([PoC README § mutation first, then belief](../PoC/README.md#mutation-first-then-belief)).
 
@@ -43,7 +43,7 @@ wave stands on it.
 | the CLI | whether reading an inbox and filtering one become separate options | [messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox) |
 | G | what happens to a running service when its configuration changes | [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) |
 
-Five were raised by this plan; four are settled and the fifth went to V1
+Five were raised by this plan; four are settled and the fifth went to R1
 with wave D:
 
 | Raised for | ❓ | Settled as |

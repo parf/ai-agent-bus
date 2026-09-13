@@ -70,7 +70,7 @@ App Server** is the whole question.
 
 A `codex app-server` the face starts for itself is a *second process*. It can
 resume a thread's saved history, but steering it does not reach the session
-somebody is typing in. V1 — the NATS system at `/rd/service/agent-bus/`, and
+somebody is typing in. Legacy-V1 — the NATS system at `/rd/service/agent-bus/`, and
 every mention of it on this page — solved this by topology (`/rd/bin/ai-codex`): one
 App Server, the TUI attached to it, the notifier attached to the same one.
 
@@ -83,7 +83,7 @@ Same shape here — and for Codex it is **two processes under one name**:
 
 They must **not** be the same process: the App Server starts its own MCP
 servers, so a face started that way cannot dial back into the App Server that
-is still starting it. Verified — the push loop never came up. V1 keeps the
+is still starting it. Verified — the push loop never came up. Legacy-V1 keeps the
 pusher a sidecar for the same reason.
 
 Give both the same `AGENT_BUS_NAME`: one session, one name. Only the pusher
@@ -112,7 +112,7 @@ and blocks the reply).
 
 A **loopback WebSocket**, not `unix://`: both are WebSocket listeners, and bun
 can open one over a port but not over a unix socket — which is exactly what
-put V1's Codex notifier on Node. A port removes the `ws` dependency and its
+put Legacy-V1's Codex notifier on Node. A port removes the `ws` dependency and its
 `permessage-deflate` workaround, and the App Server binds localhost only,
 which is the daemon's own rule (loopback only).
 
@@ -124,7 +124,7 @@ The thread is chosen at the **first message**, not at startup: the face is
 Codex's own MCP server, so it starts before the session has a thread, and
 choosing one then would pick its own headless thread instead of the one the
 person is typing in. After that it is fixed — following someone who opens a
-*new* session in the same directory would need V1's re-selection machinery;
+*new* session in the same directory would need Legacy-V1's re-selection machinery;
 here, restart the face.
 
 ## Push and the one reader

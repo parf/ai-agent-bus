@@ -714,14 +714,14 @@ if slow; then
 
   # A service's inbox belongs to its name, not to the process that reads it:
   # register it, let nothing run, and the work is still there when something
-  # with that name turns up. This is the property V1's ephemeral channels did
+  # with that name turns up. This is the property Legacy-V1's ephemeral channels did
   # not have — a dead channel took its results with it.
   ab launcher@srv1 register absent@srv1 --kind generic --descr "never started" >/dev/null
   ab caller@srv1 send absent@srv1 --topic w --tag 9 "waiting for whoever shows up" >/dev/null
   abx launcher@srv1 start absent@srv1 --algo args "$D/hello-world.sh" --descr "turned up late" >>"$D/start.log" 2>&1 &
   APID=$!
   # The ack comes first and is the sender's answer to "picked up, or lost?" —
-  # the question V1 needed a delivery journal for.
+  # the question Legacy-V1 needed a delivery journal for.
   has "the late service acks the message it found waiting" \
     "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" '"receipt":"ack"'
   has "and answers it" \

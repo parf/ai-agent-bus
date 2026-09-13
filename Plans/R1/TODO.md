@@ -1,4 +1,4 @@
-# TODO — V1
+# TODO — R1
 
 **Not started.** The active plan is [Plans/MVP/TODO.md](../MVP/TODO.md); this
 file exists so that work displaced from the MVP lands somewhere named rather
@@ -6,7 +6,7 @@ than in a comment. Stable knowledge for this stage is [README.md](README.md),
 the design is [docs/](../../docs/00-overview.md), and open questions and
 settled decisions live in [decisions](../../docs/decisions.md).
 
-**Objective**: V1 as scoped in
+**Objective**: R1 as scoped in
 [stages § R1](../../docs/12-stages.md#r1) — a team or a company
 can run it, and it can be exposed.
 

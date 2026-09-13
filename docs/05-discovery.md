@@ -29,6 +29,7 @@ So a caller reading a listing needs more than a name:
 | **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, since the daemon started | none have |
 | **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, since then ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
 | **`oldest`** | how long the message at the head of its queue has been waiting | its queue is empty |
+| **`at_bound`** | its queue is at the limit it is allowed, so the next message is refused or something is lost ([messaging § overflow](04-messaging.md#overflow)) | there is room. The daemon answers it because a record that declares no bound takes the daemon's, and a reader cannot know what that is |
 | **`on`** | where its members are running — one entry per member, stated by each at registration ([where a member says it is](#where-a-member-says-it-is)) | nobody said |
 
 All of these are **live state, not registry data** — attached to an

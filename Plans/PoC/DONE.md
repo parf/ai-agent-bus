@@ -3,7 +3,7 @@
 | Wave | Result |
 |---|---|
 | **A — two shells talk** | `agent-busd` on a unix socket and loopback HTTP, in-memory registry and inboxes; `agent-bus` with `status`, `register`, `ls`, `send`, `consume`, `reply`. `src/smoke.sh` is the acceptance (22 checks) and `go test -race ./...` the regressions. |
-| **A review** | Codex reviewed `c8cde3a` over the V1 bus and found two real defects; both fixed, both now covered by tests that fail against the old code. |
+| **A review** | Codex reviewed `c8cde3a` over the Legacy-V1 bus and found two real defects; both fixed, both now covered by tests that fail against the old code. |
 | **B — the live slice** | `src/mcp/` on bun: the MCP face (`ab_ls`, `ab_send`, `ab_consume`, `ab_reply`), self-registration, and both push modes. `src/smoke.sh` is 26 checks and carries two harnesses of its own — 12 for the face, 7 for Claude push. |
 | **B review** | Codex reviewed `170de8f` and reproduced four defects, two of which the smoke passed *for the wrong reason*. All fixed; every one now has a check that fails against the old code. |
 | **B.3 review** | Codex reviewed `1779e62` against a mock App Server and found the Claude blocker, the Codex **topology** mistake, and four state and lifecycle defects. All fixed. The Codex adapter now has a fake-App-Server harness of its own. |
@@ -37,7 +37,7 @@ instead of ignored, header and idle timeouts, and a bounded graceful shutdown.
 
 ## B.0 — the runtime spike
 
-**Question**: does the TypeScript side have to run on Node, as V1 does, because
+**Question**: does the TypeScript side have to run on Node, as Legacy-V1 does, because
 bun cannot speak WebSocket over a unix socket?
 
 **Answer: no. Nothing needs a WebSocket.** `codex app-server` speaks
@@ -50,12 +50,12 @@ had exchanged messages with minutes earlier.
 |---|---|
 | `codex app-server` on stdio, NDJSON | **works**, from bun |
 | the same with `Content-Length` framing | refused: *"Failed to deserialize JSONRPCMessage"* |
-| `codex app-server --listen unix://…` spoken to directly | silent — it is a **WebSocket** listener, which is exactly what bit V1 |
+| `codex app-server --listen unix://…` spoken to directly | silent — it is a **WebSocket** listener, which is exactly what bit Legacy-V1 |
 | `codex app-server proxy [--sock …]` | exits 0 with no output; its control socket is not plain JSON-RPC. Not needed, so not pursued |
 
 **Consequence**: one runtime. The push adapter spawns `codex app-server` and
 talks NDJSON, instead of attaching to a WebSocket listener a launcher had to
-start. It also removes V1's `ws` dependency and its `permessage-deflate`
+start. It also removes Legacy-V1's `ws` dependency and its `permessage-deflate`
 workaround.
 
 **Not proven here**: that `turn/steer` reaches a thread a live TUI owns. That
@@ -103,14 +103,14 @@ against a real `codex app-server`.
 B.0 could not answer it and neither could this, because testing it means
 steering a session somebody is using. It is the by-hand criterion.
 
-**B — V1 compared**
+**B — Legacy-V1 compared**
 
-| V1 | Taken | Skipped, and why |
+| Legacy-V1 | Taken | Skipped, and why |
 |---|---|---|
 | `notifier-claude/server.ts` | the notification shape (`content` + string `meta`), and saying in the instructions that a transport ack is not an answer — this bit us live, when a reply stayed in the UI | the PHP handoff socket, the `agent-bus consume channel` subprocess, the raw signed-wire store with its TTL and byte budget. All of them serve the journal; we keep routing fields and nothing else |
-| `notifier-codex/dispatcher.ts` | the call sequence, the steer-vs-start branch, tracking the active turn from `turn/started` / `turn/completed`, and falling back to `turn/start` when steer is rejected — V1 hit that and left the reason in a comment | the adapter journal, delivery events, `ADAPTER_PENDING` recovery, sandbox-policy plumbing, thread re-selection on `thread/goal/cleared`. Each is a durability contract PoC does not have |
+| `notifier-codex/dispatcher.ts` | the call sequence, the steer-vs-start branch, tracking the active turn from `turn/started` / `turn/completed`, and falling back to `turn/start` when steer is rejected — Legacy-V1 hit that and left the reason in a comment | the adapter journal, delivery events, `ADAPTER_PENDING` recovery, sandbox-policy plumbing, thread re-selection on `thread/goal/cleared`. Each is a durability contract PoC does not have |
 | `notifier-codex/app-server.ts` | nothing structural — a WebSocket client we do not need | the `ws` dependency and the `permessage-deflate` workaround, both removed by B.0 |
-| dedup by `event_hash` | nothing | V1 is at-least-once because the journal can redeliver; our `consume` is at-most-once, so there is nothing to deduplicate |
+| dedup by `event_hash` | nothing | Legacy-V1 is at-least-once because the journal can redeliver; our `consume` is at-most-once, so there is nothing to deduplicate |
 
 **B review — what Codex found**
 
@@ -139,7 +139,7 @@ how it reached states a live session will not produce on demand.
 | | Finding | Fix |
 |---|---|---|
 | BLOCKER | the server declared only `capabilities.tools`. Claude Code registers a channel listener **only** for a server that declares `experimental: {"claude/channel": {}}`, so the connection was refused outright. The raw smoke accepted any JSON notification, so it could not see this | declared in `claude` mode |
-| **topology** | the adapter spawned its **own** `codex app-server`. That is a second process: it can resume a thread's saved history, but steering it never reaches the session a person is typing in. V1 does not do this — one App Server, TUI and notifier both attached | the face attaches to a shared server given by `AGENT_BUS_CODEX_WS`, and says so in the log when it is driving its own instead |
+| **topology** | the adapter spawned its **own** `codex app-server`. That is a second process: it can resume a thread's saved history, but steering it never reaches the session a person is typing in. Legacy-V1 does not do this — one App Server, TUI and notifier both attached | the face attaches to a shared server given by `AGENT_BUS_CODEX_WS`, and says so in the log when it is driving its own instead |
 | | a rejected `turn/steer` fell through to `turn/start` for *any* error, so a timeout — where the steer may well have landed — started a second turn | only a protocol rejection, and only after the server confirms no turn is running. Overload and timeouts propagate |
 | | `thread/resume` reporting a turn already in progress was ignored, so the first message started a turn instead of steering | the active turn comes from the resume |
 | | a `turn/completed` arriving before a slow response let that response resurrect a finished turn | an epoch counter; a response that is out of date does not win |
@@ -166,8 +166,8 @@ registered, so a *pushed* reply cannot be re-read.
 | Codex | `[mcp_servers.agent-bus]` in `~/.codex/config.toml` |
 
 A plugin manifest cannot know the session's name, so the face **derives** one:
-`<runtime>.<cwd>@<host>`, trimmed to the name rule
-([identity § names](../../docs/01-identity.md#names)) — the way V1 names its
+`<runtime>.<cwd>@<host>`, trimmed to the name rule ([identity §
+names](../../docs/01-identity.md#names)) — the way Legacy-V1 names its
 channels. Zero configuration beyond the token. Verified: a session started with
 no `AGENT_BUS_NAME` registered as
 `claude-code.home-parf-src-ai-agent-bus-src-mcp@parf.us`.
@@ -197,7 +197,7 @@ correlated reply.
 
 **The Claude half** needed only what the design already said: `--mcp-config`
 plus `--dangerously-load-development-channels server:agent-bus`, the same
-invocation V1 uses, and the `claude/channel` capability declared. Two things
+invocation Legacy-V1 uses, and the `claude/channel` capability declared. Two things
 that do **not** work: `--strict-mcp-config` alongside the channels flag, and
 loading the face **as a plugin** — a plugin-provided MCP server is not
 resolvable as a channel source under either `server:agent-bus` or
@@ -220,7 +220,7 @@ first, and each is now either fixed or written down:
 | What happened | What it means |
 |---|---|
 | `thread/list` returned **nothing** for a directory whose TUI was running | a TUI has no thread until someone types into it. The pusher must pick the thread at the first *message*, and if the session has never been used it starts its own instead |
-| the face-as-MCP-server never started its push loop | the App Server starts its own MCP servers, so such a face cannot dial back into the App Server that is still starting it. **Codex needs two processes under one name** — tools inside the session, pusher beside it. This is V1's split, and now we know why |
+| the face-as-MCP-server never started its push loop | the App Server starts its own MCP servers, so such a face cannot dial back into the App Server that is still starting it. **Codex needs two processes under one name** — tools inside the session, pusher beside it. This is Legacy-V1's split, and now we know why |
 | `ab_reply` had nothing to reply to | the pusher consumed the message and the tools live in the other process. A Codex session answers with **`ab_send`**, and the pushed text carries the routing |
 | `ab_reply({"message":"42"})` — invented argument names | the pushed text now spells the call out. The model got it right immediately afterwards |
 | every tool call came back *"user rejected"* | a turn started by a bus message has no human, so the App Server asks the **client that started the turn** to approve. Blanket refusal killed the session's own reply; blanket approval would hand a remote peer the user's permissions. The pusher approves **only agent-bus's own tool calls** and declines the rest — two checks in the smoke |
@@ -384,7 +384,7 @@ the daemon reports an outstanding consume and then asserts exit 0.
 
 Reopened narrowly, on the owner's word, for one bug the review turned up:
 **1001 sends into a 1000-bound queue dropped message "0" and said nothing**.
-Silence is the failure V1 taught us to hate, so the fix is about noise, not
+Silence is the failure Legacy-V1 taught us to hate, so the fix is about noise, not
 capacity.
 
 | | |
@@ -395,9 +395,9 @@ capacity.
 | what is gone | a loss with no trace. Either the sender is told now, or the count says it happened |
 
 The owner's call, asked and answered: overflow now, reject-new as the default,
-and the reply-address contract stays MVP wording. V1's `discard: new` was the
-better answer and we took it
-([messaging § overflow](../../docs/04-messaging.md#overflow)).
+and the reply-address contract stays MVP wording. Legacy-V1's `discard: new`
+was the better answer and we took it ([messaging §
+overflow](../../docs/04-messaging.md#overflow)).
 
 Mutation-verified, as the rule requires: the default flipped back to `ring`,
 the strict refusal disabled, and the counter dropped — each turns a named

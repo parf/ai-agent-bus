@@ -10,10 +10,10 @@ now.
 a Claude Code session and a Codex session find each other and talk, through a
 Go daemon with a TypeScript MCP face.
 
-**Write the small version first, then compare with V1 and take its solution
+**Write the small version first, then compare with Legacy-V1 and take its solution
 where it is better** — simplicity breaks the tie, and complexity is paid for
-by a case V1 actually hit, not by V1 having it:
-[README § V1 is the bar](README.md#v1-is-the-bar).
+by a case Legacy-V1 actually hit, not by Legacy-V1 having it:
+[README § Legacy-V1 is the bar](README.md#legacy-v1-is-the-bar).
 
 **Next step**: none here — the PoC is met. The active plan is [Plans/MVP](../MVP/TODO.md).
 
@@ -80,7 +80,7 @@ file, started with one command, answers a `call` from another shell.
 | D.3 | ✅ _Done → [DONE.md](DONE.md): D_ — every criterion walked, each with a check |
 
 **Done when**: the smoke script exits 0, `stages § PoC` is true as written, and
-each component with a V1 counterpart has its comparison written down — what we
+each component with a Legacy-V1 counterpart has its comparison written down — what we
 took, what we skipped, why.
 
 ✅ **Met.** `src/smoke.sh` is green, and every criterion is walked in

@@ -12,11 +12,11 @@ code they describe.
 it is still design. Code changes need **`src/smoke.sh --slow`** green — it runs
 `go vet` and `go test -race` itself; the bare `./smoke.sh` is a fast subset for
 the edit-run loop and is not proof. A check is not believed until it has been
-watched failing with its fix broken. V1 (NATS JetStream) is implemented
-elsewhere:
+watched failing with its fix broken. **Legacy-V1** (NATS JetStream) is
+implemented elsewhere:
 code at `/rd/service/agent-bus/` (`README.md`, `HOWTO.md`), normative design at
-`/rd/vhosts/realty/Plans/PRF-25/`. Read those, not Linear, when a V1 fact is
-needed. This repo designs V2 and builds it.
+`/rd/vhosts/realty/Plans/PRF-25/`. Read those, not Linear, when a Legacy-V1
+fact is needed. This repo designs V2 and builds it.
 
 ## Document map
 
@@ -30,7 +30,7 @@ it first rather than duplicating the index here. Beyond the numbered docs:
 | `docs/12-stages.md` | PoC / MVP / R1 — check which stage a feature belongs to before designing it in |
 | `Plans/MVP/` | the **active plan** — `README.md` is the stage's own knowledge, `TODO.md` the waves and acceptance, `DONE.md` what is finished and what the mutants caught. Follows the Plans HOWTO (`/rd/vhosts/realty/Plans/README.md`): knowledge, active work and decisions stay in separate files |
 | `Plans/PoC/` | the finished stage — same shape, kept for its knowledge and its completion log |
-| `Plans/R1/` | the **next** stage, not started — same shape. "V1" there means [stages § R1](docs/12-stages.md#r1), **not** the NATS legacy this file calls V1 |
+| `Plans/R1/` | the **next** stage, not started — same shape. **Stages are `R1`, `R1.1`, `R1.2`; the NATS system is `Legacy-V1`** — never `V1` for either |
 | `docs/future/` | designed but deferred; not part of the current scope — LDAP/AD, billing, and `1.2-UNDECIDED.md` where a want is written down before its mechanism is chosen |
 | `legacy/` | history only, not spec — never cite it, never update it |
 

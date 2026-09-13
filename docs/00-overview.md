@@ -33,7 +33,7 @@ Also: [glossary](glossary.md) — every name and term, one line each ·
 
 ## Goal
 
-Replace V1 — an external broker plus a `user → token` map inside every service
+Replace Legacy-V1 — an external broker plus a `user → token` map inside every service
 — with **one daemon of our own, `agent-busd`**. It is the registry, the broker,
 the MCP server and the dashboard in one binary. There is no external broker to
 run. Parties that already know each other may also talk directly,
