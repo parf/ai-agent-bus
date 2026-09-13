@@ -44,7 +44,7 @@ func main() {
 		return
 	}
 	var c config
-	flag.StringVar(&c.addr, "addr", env("AGENT_BUS_ADDR", "127.0.0.1:7777"), "TCP listen address — loopback only")
+	flag.StringVar(&c.addr, "addr", env("AGENT_BUS_ADDR", "127.0.0.1:6767"), "TCP listen address — loopback only")
 	flag.StringVar(&c.sock, "socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
 	flag.StringVar(&c.tokenF, "token-file", env("AGENT_BUS_TOKEN_FILE", defaultTokenFile()), "token store; created if absent")
 	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", defaultOwner()), "the principal this daemon belongs to")

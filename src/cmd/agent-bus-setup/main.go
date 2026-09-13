@@ -65,7 +65,7 @@ func main() {
 func setup() error {
 	fs := flag.CommandLine
 	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: `user@realm`")
-	addr := fs.String("addr", "127.0.0.1:7777", "the daemon's loopback `address`")
+	addr := fs.String("addr", "127.0.0.1:6767", "the daemon's loopback `address`")
 	exe := fs.String("exec", "", "`path` to agent-busd; defaults to the one beside this binary")
 	keyF := fs.String("key", "", "the installer's public `key`, to be the first user; defaults to their id_ed25519.pub")
 	printUnit := fs.Bool("print-unit", false, "write the unit to stdout and change nothing")
