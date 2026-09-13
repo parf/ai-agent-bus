@@ -1,5 +1,7 @@
 # Plans
 
+For executive summaries and major changes between stages, see the [version comparison](VERSIONS.md#poc).
+
 ## Stages
 
 Current development is MVP. Release labels name scope, not separate program versions; [versioning](../CLAUDE.md#versioning) owns the shared version policy.
