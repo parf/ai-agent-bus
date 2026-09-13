@@ -113,14 +113,18 @@ grouping "person" record is deferred.
 fill. It earns its place on the records that were *not* made that way — a
 company account whose person also has a GitHub identity.
 
-⚠️ **Claimed is not proven.** Anybody may type somebody else's login into
-their own record, and a claimed one is worth exactly what a typed email is.
-What makes it real is the check that already exists: the bus sets a challenge
-and the holder signs it with a key that login publishes
-([proving possession](#proving-possession)). A proven `GithubUser` is evidence
-two names are one person ([bundled services § people and the world
-outside](13-bundled-services.md#people-and-the-world-outside)); a claimed one
-is a hint for a human to read.
+⚠️ **Claimed is not proven, and until it can be proven it is only claimed.**
+Anybody may type somebody else's login into their own record, so the field is
+worth what a typed email is worth. The check that would make it real is the one
+already here — the bus sets a challenge and the holder signs it with a key that
+login publishes ([proving possession](#proving-possession)) — but pointing it
+at a record that did **not** come from GitHub is a **task for after Release
+1.1** ([stages § release 1.1](12-stages.md#release-11)).
+
+So: a `GithubUser` is a **hint for a human to read**, never evidence that two
+names are one person ([bundled services § people and the world
+outside](13-bundled-services.md#people-and-the-world-outside)). Nothing ranks
+on it as though it were, and nothing authorises on it at all.
 
 That is the whole thing. It needs no directory, no network and no provider.
 
