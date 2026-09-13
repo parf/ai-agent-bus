@@ -10,6 +10,12 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import { Bus, BusError, type Envelope, type Record_ } from "./bus.ts";
 import { startPush, type Push } from "./push.ts";
 import { Codex } from "./codex.ts";
+import { version } from "./version.ts";
+
+if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv[2]!)) {
+  console.log(version);
+  process.exit(0);
+}
 
 const bus = new Bus();
 
@@ -113,7 +119,7 @@ const tools = [
 ] as const;
 
 const server = new Server(
-  { name: "agent-bus", version: "0.1.0" },
+  { name: "agent-bus", version },
   {
     capabilities: {
       tools: {},

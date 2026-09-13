@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/version"
 )
 
 // The account and its home, which this program edits and nothing else does.
@@ -36,9 +37,12 @@ const usage = `agent-bus-admin — what the agent-busd account owns
   agent-bus-admin token <user@realm> [--rotate]
 
 A key added here reaches one forced command and no shell: agent-bus-token,
-or this program with --admin. See docs/06-auth-role.md#ssh-admin.`
+or this program with --admin. See docs/09-setup.md#ssh-admin.`
 
 func main() {
+	if version.Print() {
+		return
+	}
 	if err := admin(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

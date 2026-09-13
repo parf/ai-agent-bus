@@ -18,7 +18,9 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/version"
 )
 
 // What the supervisor tells a child it is, and which listener is which fd.
@@ -38,6 +40,9 @@ type config struct {
 }
 
 func main() {
+	if version.Print() {
+		return
+	}
 	var c config
 	flag.StringVar(&c.addr, "addr", env("AGENT_BUS_ADDR", "127.0.0.1:7777"), "TCP listen address — loopback only")
 	flag.StringVar(&c.sock, "socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
@@ -55,6 +60,7 @@ func main() {
 		runBus(c)
 		return
 	}
+	defer proctitle.Start("agent-busd", "supervisor", nil)()
 	runSupervisor(c)
 }
 

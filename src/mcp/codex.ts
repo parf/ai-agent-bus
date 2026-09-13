@@ -27,6 +27,7 @@
 import { resolve } from "node:path";
 
 import { Pending, drain, lines } from "./rpc.ts";
+import { version } from "./version.ts";
 // The only MCP server this face will approve a tool call for: its own.
 const MCP_SERVER_NAME = "agent-bus";
 
@@ -100,7 +101,7 @@ export class Codex {
     this.#wire = this.#url ? await this.#connect(this.#url) : this.#spawn();
 
     await this.#request("initialize", {
-      clientInfo: { name: "agent-bus", title: "agent-bus", version: "0.1.0" },
+      clientInfo: { name: "agent-bus", title: "agent-bus", version },
       // The deltas are a token stream; only turn boundaries matter here.
       capabilities: {
         experimentalApi: false,

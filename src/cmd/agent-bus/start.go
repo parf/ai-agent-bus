@@ -23,10 +23,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
+	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/sandbox"
 )
@@ -220,6 +222,8 @@ func describe(args []string) (service, error) {
 // message is taken, and the scripts already running are waited for — however
 // long they take. There is no supervision here to do anything else.
 func serve(svc service) error {
+	var calls atomic.Uint64
+	defer proctitle.Start("agent-bus-runner", svc.Name, &calls)()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -253,6 +257,7 @@ func serve(svc service) error {
 			return err
 		}
 
+		calls.Add(1)
 		running.Add(1)
 		go func(e protocol.Envelope) {
 			defer running.Done()

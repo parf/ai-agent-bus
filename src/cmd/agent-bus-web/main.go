@@ -26,6 +26,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/version"
 )
 
 // Where the dashboard is meant to be reached. `*.localhost.direct` resolves
@@ -40,6 +41,9 @@ const (
 )
 
 func main() {
+	if version.Print() {
+		return
+	}
 	addr := flag.String("addr", env("AGENT_BUS_WEB_ADDR", Host+":"+httpsPort), "where the dashboard listens")
 	certF := flag.String("cert", env("AGENT_BUS_WEB_CERT", defaultCert(".crt")), "TLS certificate; without it the dashboard is plain HTTP on loopback")
 	keyF := flag.String("key", env("AGENT_BUS_WEB_KEY", defaultCert(".key")), "the certificate's private key")

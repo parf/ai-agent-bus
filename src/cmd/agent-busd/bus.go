@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -23,12 +24,15 @@ import (
 	"github.com/parf/ai-agent-bus/internal/directory/github"
 	"github.com/parf/ai-agent-bus/internal/dump/jsonfile"
 	"github.com/parf/ai-agent-bus/internal/ports"
+	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/signature/sshkeygen"
 	"github.com/parf/ai-agent-bus/internal/store/file"
 )
 
 func runBus(c config) {
+	var calls atomic.Uint64
+	defer proctitle.Start("agent-busd", "bus", &calls)()
 	tokens, err := auth.Load(file.NewTokens(c.tokenF), c.owner)
 	if err != nil {
 		log.Fatalf("token: %v", err)
@@ -83,7 +87,10 @@ func runBus(c config) {
 	var srvs []*http.Server
 	serve := func(l net.Listener, h http.Handler) {
 		srv := &http.Server{
-			Handler: h,
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				h.ServeHTTP(w, r)
+			}),
 			// Long-poll consume holds a request open, so there is no write
 			// deadline; the header and idle deadlines cost nothing.
 			ReadHeaderTimeout: 10 * time.Second,

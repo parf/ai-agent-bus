@@ -17,6 +17,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/version"
 )
 
 // Where the install puts things. Stated here because setup is the only thing
@@ -52,6 +53,9 @@ func (l *list) String() string     { return strings.Join(*l, ",") }
 func (l *list) Set(v string) error { *l = append(*l, v); return nil }
 
 func main() {
+	if version.Print() {
+		return
+	}
 	if err := setup(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

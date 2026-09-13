@@ -19,6 +19,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/keyproof"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/version"
 )
 
 const usage = `agent-bus-token <user@realm> [--rotate] [--key <path>]
@@ -30,6 +31,9 @@ As a forced command in the agent-busd account's authorized_keys, the name in
 the line is the only one that key may ask for.`
 
 func main() {
+	if version.Print() {
+		return
+	}
 	if err := issue(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

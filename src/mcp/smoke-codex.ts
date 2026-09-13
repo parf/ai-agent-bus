@@ -9,6 +9,7 @@
 // *shared* App Server, which is the only kind that reaches a live session.
 
 import { Codex, AppServerError } from "./codex.ts";
+import { version } from "./version.ts";
 
 const CWD = "/tmp/agent-bus-fake-codex";
 
@@ -22,6 +23,7 @@ type Case = {
 let scenario: Case = {};
 const seen: string[] = [];
 let refusal: any;
+let clientVersion: unknown;
 
 const server = Bun.serve({
   port: 0,
@@ -37,7 +39,9 @@ const server = Bun.serve({
         active ? [{ id: "turn-live", status: { type: "inProgress" } }] : [{ id: "turn-old", status: { type: "completed" } }];
 
       switch (msg.method) {
-        case "initialize": return reply({ userAgent: "fake/0" });
+        case "initialize":
+          clientVersion = msg.params?.clientInfo?.version;
+          return reply({ userAgent: "fake/0" });
         case "initialized": return;
         case "thread/list":
           return reply({ data: [{ id: "thread-1", cwd: CWD, turns: turns(!!scenario.listActive) }] });
@@ -88,6 +92,7 @@ try {
     seen.length = 0;
     const codex = new Codex(CWD, quiet, url);
     await codex.start();
+    check("Codex advertises the shared version", clientVersion === version, String(clientVersion));
     check("start does not choose a thread", !seen.includes("thread/list") && !codex.thread, seen.join(","));
     await codex.deliver("hello", "m0");
     check("the first message chooses it", seen.includes("thread/list") && !!codex.thread, seen.join(","));

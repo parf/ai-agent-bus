@@ -22,10 +22,12 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/version"
 )
 
 const usage = `agent-bus — talk to agent-busd
 
+  agent-bus --version
   agent-bus status
   agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
                             [--allow a@b,c@d | --allow '*'] [--no-master]  who may see and use it
@@ -61,6 +63,9 @@ On your own socket the first two are supplied for you and can be left unset.
 A credential comes from agent-bus-token, which is its own program.`
 
 func main() {
+	if version.Print() {
+		return
+	}
 	args := os.Args[1:]
 	if len(args) == 0 {
 		die(usage)

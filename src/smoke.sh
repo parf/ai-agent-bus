@@ -7,7 +7,7 @@
 #
 # The fast run is for the edit-run loop. **A change is measured against
 # --slow**, and so is every mutation: a check that did not run caught
-# nothing (Plans/PoC/README.md#mutation-first-then-belief).
+# nothing (Plans/done/PoC/README.md#mutation-first-then-belief).
 set -u
 cd "$(dirname "$0")"
 D=$(mktemp -d); DPID=""
@@ -30,12 +30,9 @@ export XDG_STATE_HOME=$D/state
 # and the second finds the first's daemon, which reads as "bad token".
 PORT=${PORT:-7911}
 
-go build -o "$D/agent-busd" ./cmd/agent-busd || exit 1
-go build -o "$D/agent-bus"  ./cmd/agent-bus  || exit 1
-go build -o "$D/agent-bus-web" ./cmd/agent-bus-web || exit 1
-go build -o "$D/agent-bus-setup" ./cmd/agent-bus-setup || exit 1
-go build -o "$D/agent-bus-token" ./cmd/agent-bus-token || exit 1
-go build -o "$D/agent-bus-admin" ./cmd/agent-bus-admin || exit 1
+export BUILD_STARTED=$(date +%s)
+bash ./build.sh "$D" || exit 1
+export BUILD_FINISHED=$(date +%s)
 
 # The daemon belongs to a principal, and that is who may hand out a
 # credential for a name nobody owns yet. Stated rather than taken from the
@@ -73,7 +70,7 @@ pass=0; fail=0; skipped=0
 # Anything that takes more than a second is opt-in: the default run is the
 # one a person waits for. `SLOW=1` (or --slow) runs everything, and the
 # mutation harness always does — a mutant that survives because its check was skipped is the
-# worst kind of green (Plans/PoC/README.md#mutation-first-then-belief).
+# worst kind of green (Plans/done/PoC/README.md#mutation-first-then-belief).
 SLOW=${SLOW:-0}
 [ "${1:-}" = "--slow" ] && SLOW=1
 slow() { [ "$SLOW" = 1 ]; }
@@ -142,6 +139,13 @@ has "while the process that assembles them holds the ones that persist" \
   "$(go list -deps ./cmd/agent-busd | grep -E 'internal/(store|dump|directory|signature)' | tr '\n' ' ')" 'internal/directory/file .*internal/directory/github .*internal/dump/jsonfile .*internal/signature/sshkeygen .*internal/store/file'
 has "and core is what asks for it" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/auth 2>&1)" 'internal/ports'
+
+if slow; then
+  sec "shared version and live process titles"
+  out=$(timeout 60 bash ./smoke-process.sh "$D" 2>&1); rc=$?
+  echo "$out" | sed 's/^/  /'
+  ok_exit "process version smoke" "$rc"
+else skipped=$((skipped+1)); fi
 
 sec "status on both listeners"
 has "unix socket" "$(ab parf@localhost status)" '"services"'
@@ -1581,12 +1585,22 @@ sec "the admin program owns what the account owns"
 # admin looks up another, and nothing that passes AGENT_BUS_HOME would ever
 # notice. So ask admin, with the home unset, who it expects to be.
 WANT=$("$D/agent-bus-setup" --dry-run --owner "$OWNER" 2>&1 | sed -n 's/.*would create the system account \([^ ]*\) with home .*/\1/p' | head -1)
-out=$(env -u AGENT_BUS_HOME "$D/agent-bus-admin" user list 2>&1); rc=$?
 if getent passwd "$WANT" >/dev/null; then
-  # This host has a real install, so the same question is asked the other way
-  # round: the account is there, and the program has to be looking for it.
+  # Ask which account admin selects, without making that account traverse
+  # this run's private directory or reading a live install's files.
+  mkdir -p "$D/admin-path"
+  cat >"$D/admin-path/sudo" <<'SH'
+#!/bin/sh
+printf '%s\n' "$@"
+SH
+  chmod +x "$D/admin-path/sudo"
+  out=$(env -u AGENT_BUS_HOME PATH="$D/admin-path:$PATH" "$D/agent-bus-admin" user list 2>&1); rc=$?
   ok_exit "with no home stated the admin program finds the account setup creates" $rc
+  if [ "$(id -un)" != "$WANT" ]; then
+    has "and selects that account for sudo" "$out" "^$WANT\$"
+  fi
 else
+  out=$(env -u AGENT_BUS_HOME "$D/agent-bus-admin" user list 2>&1); rc=$?
   bad_exit "with no home stated the admin program wants the account setup creates" $rc
   has "and it is that account, not one nobody creates" "$out" "no $WANT account"
 fi

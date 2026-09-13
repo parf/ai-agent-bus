@@ -8,6 +8,7 @@
 // with the routing mutated to nonsense.
 
 import { Bus } from "./bus.ts";
+import { version } from "./version.ts";
 
 import { Pending, drain, lines } from "./rpc.ts";
 const proc = Bun.spawn(["bun", "run", "server.ts"], {
@@ -61,9 +62,10 @@ try {
   const init = await request("initialize", {
     protocolVersion: "2025-06-18",
     capabilities: {},
-    clientInfo: { name: "agent-bus-smoke", version: "0.1.0" },
+    clientInfo: { name: "agent-bus-smoke", version },
   });
   check("initialize", init.result?.serverInfo?.name === "agent-bus", JSON.stringify(init).slice(0, 120));
+  check("MCP advertises the shared version", init.result?.serverInfo?.version === version, JSON.stringify(init.result?.serverInfo));
   await send({ jsonrpc: "2.0", method: "notifications/initialized" });
 
   const list = await request("tools/list");

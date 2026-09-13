@@ -5,6 +5,7 @@
 // The Codex mode has its own, smoke-codex.ts, against its own App Server.
 
 import { Bus } from "./bus.ts";
+import { version } from "./version.ts";
 import { Pending, drain, lines } from "./rpc.ts";
 
 const me = process.env.PUSH_NAME!;         // the pushed session
@@ -88,7 +89,7 @@ const call = async (name: string, args: Record<string, unknown> = {}) => {
 try {
   const init = await request("initialize", {
     protocolVersion: "2025-06-18", capabilities: {},
-    clientInfo: { name: "agent-bus-push-smoke", version: "0.1.0" },
+    clientInfo: { name: "agent-bus-push-smoke", version },
   });
   check("initialize", init.result?.serverInfo?.name === "agent-bus");
   await send({ jsonrpc: "2.0", method: "notifications/initialized" });
@@ -152,7 +153,7 @@ try {
         20_000,
         () => new Error(`timeout on ${method}`),
       );
-    await ask("initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "smoke", version: "0" } });
+    await ask("initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "smoke", version } });
     other.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
     await other.stdin.flush();
     // Give its push loop time to lose the read and stop.
