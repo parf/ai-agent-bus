@@ -6,6 +6,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
 | Versioning | [definition](../CLAUDE.md#versioning) | D1 |
 | Build information | [definition](09-setup.md#build-information) | D2 |
 | Process titles | [definition](11-processes.md#process-titles) | D3 |

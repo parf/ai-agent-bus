@@ -58,6 +58,10 @@ Read the owning section before changing a boundary:
 | Body trust and persistence | [trust boundary](docs/02-access.md#encrypted-sessions), [durability](docs/04-messaging.md#durability) |
 | Process privilege and exec | [process boundary](docs/11-processes.md#the-rule) |
 
+## Licensing
+
+The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the project's terms. Keep package license metadata aligned with it and include the license in distributions. Dependencies retain their own licenses and required notices.
+
 ## Versioning
 
 | Rule | |

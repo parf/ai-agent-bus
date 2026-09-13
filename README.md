@@ -55,3 +55,7 @@ restart persistence has the [documented loss window](docs/04-messaging.md#durabi
 | [Future](Plans/Future/README.md#topics) | Generic undecided or unassigned ideas |
 
 All local conventions live in [CLAUDE.md](CLAUDE.md#working-rules).
+
+## License
+
+[PolyForm Noncommercial](LICENSE.md#polyform-noncommercial-license-100).
