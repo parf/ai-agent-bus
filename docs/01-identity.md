@@ -105,7 +105,22 @@ grouping "person" record is deferred.
 | username | `user@realm` |
 | person name | who the human is |
 | public key | Ed25519 |
+| **`GithubUser`** | the login on GitHub, on **any** record and not only a `@github` one — it is how `parf@realmo` and a GitHub account are known to be one person, and where a key re-check goes looking |
 | optional details | email, avatar, whatever the org wants |
+
+**Enrolled from GitHub, the two are the same thing**: the name claimed is
+`<login>@github`, so `GithubUser` is that login and the field costs nothing to
+fill. It earns its place on the records that were *not* made that way — a
+company account whose person also has a GitHub identity.
+
+⚠️ **Claimed is not proven.** Anybody may type somebody else's login into
+their own record, and a claimed one is worth exactly what a typed email is.
+What makes it real is the check that already exists: the bus sets a challenge
+and the holder signs it with a key that login publishes
+([proving possession](#proving-possession)). A proven `GithubUser` is evidence
+two names are one person ([bundled services § people and the world
+outside](13-bundled-services.md#people-and-the-world-outside)); a claimed one
+is a hint for a human to read.
 
 That is the whole thing. It needs no directory, no network and no provider.
 

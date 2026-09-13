@@ -29,6 +29,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](01-identity.md#registration) |
 | MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](01-identity.md#registration) · [future](future/ldap-ad.md) |
 | Self-service enrolment: open (auto, minimal role) or closed (approval queue) | [identity § registration](01-identity.md#registration) |
+| A record carries `GithubUser` — the login, on any record and not only a `@github` one — and it is evidence of one person behind two names only when it has been proven the way enrolment proves a key | [identity § registration](01-identity.md#registration) |
 | How to reach a person — ordered, per severity — is part of the person's record in the daemon, not an alerter's configuration | [identity § how to reach a person](01-identity.md#how-to-reach-a-person) |
 | More identity sources later: Google, LinkedIn, Facebook — not designed | [identity § registration](01-identity.md#registration) |
 | ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](01-identity.md#acl) |
