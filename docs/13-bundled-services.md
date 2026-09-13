@@ -67,6 +67,7 @@ Every row is two services, one each way.
 | **mail** | owner | **IMAP** in, **SMTP** out. The design's own running example is a mail reader ([runner § what an instance is](08-runner-role.md#what-an-instance-is)), and it is the one channel every business already has |
 | **webhook** | proposed | an inbound URL that publishes what it receives, and an outbound that calls one. The highest-leverage entry here: with it, the next SaaS integration is configuration rather than a new service |
 | **im** | owner | the **router** in front of the rows above. Give it a *person* — by name, or by any alias they are known by — and it delivers to the first destination on their list that takes it |
+| **user-locator** | owner | *who is this?* — a name, a partial one, a real name, one of several emails, a nick, and back come the principals that might be meant, **each with a confidence**. It reads the daemon's own records ([identity § registration](01-identity.md#registration)) and invents no directory of its own |
 
 **`im` is the one that knows who somebody is.** Every other row speaks one
 service and takes an address that service understands; this one takes a person
@@ -76,6 +77,20 @@ and picks. Two things it adds, and nothing else here does:
 |---|---|
 | **many ids, one person** | a Telegram handle, a Slack member id, an address somebody typed out of habit — all of them resolve onto `parf@srv1`, which is the identity ([identity § how to reach a person](01-identity.md#how-to-reach-a-person)). **An alias is a lookup key and never a principal**: what travels is the name |
 | **first one wins** | the destinations are ordered and the first that takes the message ends it. Same rule as the alerter's, because it is **the same list** — the person's, in their record |
+
+**What the locator answers with, and what nobody may do with it:**
+
+| | |
+|---|---|
+| **a ranked guess, never a decision** | it returns `user@realm` values with a confidence, which is the shape of the question — *parf* is not an identity, and two people may answer to it. **Nothing authorises on a locator answer**: it turns human input into a name that then has to hold a token like anyone else ([identity § how to reach a person](01-identity.md#how-to-reach-a-person)) |
+| **an official name outranks everything else** | a hit on the registered `user@realm` ([identity § names](01-identity.md#names)) comes first, then the rest — a real name, a nick, one of several emails, an alias from somewhere else. Those are how people are *found*; the username is what they **are**, and a nick that happens to match somebody else's real name must not outrank the person actually called that |
+| **the asker narrows it, when they ask for that** | a request may say *rank by who I share a realm or a group with*, which is what makes `parf` mean `parf@realmo` to somebody on that team and something else elsewhere. It is a **ranking input**, not a permission: what a requester may see at all is the ordinary ACL question |
+| **one human, two names** | `parf@realmo` and `parf@github` are two principals and may be one person, which is what the record's aliases are for ([identity § how to reach a person](01-identity.md#how-to-reach-a-person)). **A link counts only if both sides state it** — otherwise claiming somebody as an alias of mine is how I become findable as them |
+| **`im` is its first caller** | `im` needs *this alias is that person*; the locator answers *these people might be meant*. The exact case is the locator's top answer with nothing close behind it, so one of them is not a special case of the other — but the second is where the first gets its data |
+
+❓ **How two principals are linked into one person.** Both sides stating it is
+the rule; where that statement lives and what checks it is not settled.
+*Settled by:* owner.
 
 **`im` and `alerter` are one delivery with two front doors.** The alerter is
 woken by a subscription and picks the list by severity

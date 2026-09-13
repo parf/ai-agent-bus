@@ -163,6 +163,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The alerter is a router: it delivers nothing itself, an alert names a person, and the ordered list of ways to reach them is that person's and per severity | [bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself) |
 | The alerter's order is a fallback chain that stops at the first success, where a refusal and a silence both count as not reached | [bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself) |
 | `im` routes a message to a person by name or by any alias they are known by, first destination that takes it winning — the alerter's delivery with a different front door | [bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside) |
+| `user-locator` answers who a piece of human input might mean, ranked by confidence with official names first and optionally by who is asking — and nothing authorises on its answer | [bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside) |
 | A person's record carries their aliases elsewhere; an alias is a lookup key that resolves to a name and never acts as a principal | [identity § how to reach a person](01-identity.md#how-to-reach-a-person) |
 | `kv`'s first version is an access wrapper around `kvrocks`: the surface is that server's, and what is ours is the namespace and who may reach it | [bundled services § data](13-bundled-services.md#data) |
 | Every service has a personal `kv` namespace that cannot be shared; sharing is a registered instance with an `allow`, so it is visible in the registry | [bundled services § data](13-bundled-services.md#data) |
@@ -291,6 +292,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
 | Whether `kv`'s hash of locks is the daemon's locks under a name, or a second authority | owner | [bundled services § data](13-bundled-services.md#data) |
 | Whether `kv` is optional, given that it is where service configuration would live | owner | [bundled services § data](13-bundled-services.md#data) |
+| How two principals are linked as one person, given that both sides have to state it | owner | [bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside) |
 
 ## Superseded
 
