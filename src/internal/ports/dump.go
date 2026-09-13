@@ -25,7 +25,7 @@ type Queue struct {
 // Snapshot is the daemon's memory at a moment. Registry records travel with
 // the queues: a reloaded inbox that belongs to no record is a backlog nobody
 // can read. The git snapshot is backup and peer sync, not this
-// (docs/03-services-and-topics.md#registry-sync).
+// (Plans/R1/registry.md#registry-sync).
 type Snapshot struct {
 	At      time.Time
 	Clean   bool // written by a graceful stop; false means the run was still going

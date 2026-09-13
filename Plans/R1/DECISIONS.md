@@ -1,0 +1,56 @@
+# R1 decisions
+
+## Recorded decisions
+
+Migrated 2026-09-13. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
+
+| Decision topic | Substance | Earlier rows |
+|---|---|---|
+| Sigils | [definition](identity.md#sigils) | D6, D7, D27, D28, D29, D30 |
+| Enrolment policy | [definition](access.md#enrolment-policy) | D18 |
+| Delegation | [definition](identity.md#delegation) | D37 |
+| Ownership | [definition](identity.md#ownership) | D38, D40, D133, D134, D135 |
+| Sealed private config | [definition](identity.md#sealed-private-config) | D41 |
+| Token scope | [definition](access.md#token-scope) | D46 |
+| Key modes | [definition](access.md#key-modes) | D58 |
+| Encrypted sessions | [definition](access.md#encrypted-sessions) | D59, D60 |
+| Additional script forms | [definition](runner.md#additional-script-forms) | D61, D118, D119, D121 |
+| Key confirmation | [definition](access.md#key-confirmation) | D63 |
+| Shared locks | [definition](locks.md#shared-locks) | D64 |
+| A set of locks | [definition](locks.md#a-set-of-locks) | D65, D66 |
+| Scope | [definition](README.md#scope) | D69 |
+| Registry sync | [definition](registry.md#registry-sync) | D79 |
+| Chaining | [definition](federation.md#chaining) | D80 |
+| Where it runs | [definition](auth.md#where-it-runs) | D103, D105 |
+| Topology | [definition](auth.md#topology) | D104 |
+| Ssh admin | [definition](auth.md#ssh-admin) | D106 |
+| Long lived services | [definition](runner.md#long-lived-services) | D120, D122 |
+| One name on many hosts | [definition](runner.md#one-name-on-many-hosts) | D123, D124, D125, D128 |
+| What an instance is | [definition](runner.md#what-an-instance-is) | D129, D202, D207, D210 |
+| Backing it up | [definition](runner.md#backing-it-up) | D136, D137, D144 |
+| The list of what is installed | [definition](runner.md#the-list-of-what-is-installed) | D138, D139, D140 |
+| What it comes after | [definition](runner.md#what-it-comes-after) | D141, D142, D143 |
+| Modules | [definition](modules.md#modules) | D178 |
+| Reaching the runner | [definition](runner.md#reaching-the-runner) | D197, D198, D208 |
+| Runner unit | [definition](operations.md#runner-unit) | D199, D200, D201 |
+| The three env layers | [definition](runner.md#the-three-env-layers) | D203, D204 |
+| What the child is told | [definition](runner.md#what-the-child-is-told) | D205, D206 |
+| Where it runs | [definition](runner.md#where-it-runs) | D209 |
+| What the runner does | [definition](runner.md#what-the-runner-does) | D211, D212 |
+| Who it runs as | [definition](runner.md#who-it-runs-as) | D213 |
+| Dashboard extensions | [definition](discovery.md#dashboard-extensions) | D243 |
+| Groups and roles | [definition](identity.md#groups-and-roles) | D249 |
+
+## Backup encryption choice
+
+| Date | Decision | Why | Substance |
+|---|---|---|---|
+| 2026-09-13 | User-key backup encryption | Reuse the user's existing key and an established tool; owner instruction | [runner § backing it up](runner.md#backing-it-up) |
+
+## Open
+
+Unresolved choices live in [questions](QUESTIONS.md#open-questions).
+
+## History
+
+Original wording and superseded choices are preserved in [decision history](../MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite). Original row identifiers are mapped in [migration evidence](../MVP/done/document-migration.md#decision-mapping).

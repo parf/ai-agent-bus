@@ -1,7 +1,7 @@
 # src
 
-The code for [stages § MVP](../docs/12-stages.md#mvp), built wave by wave
-against [Plans/MVP/TODO.md](../Plans/MVP/TODO.md).
+The code for [stages § MVP](../Plans/MVP/README.md#scope), built wave by wave
+against [MVP work](../Plans/MVP/TODO.md#objective).
 
 | | |
 |---|---|
@@ -16,16 +16,21 @@ against [Plans/MVP/TODO.md](../Plans/MVP/TODO.md).
 | `internal/auth` | credentials: issue, rotate, resolve a token to its principal |
 | `internal/ports` | the interfaces core depends on — the seam every dependency is swapped at |
 | `internal/store`, `internal/dump`, `internal/directory`, `internal/signature`, `internal/sandbox` | one adapter each behind those ports |
-| `mcp/` | the MCP face and both push adapters, on bun — [mcp/README.md](mcp/README.md) |
+| `mcp/` | the MCP face and both push adapters, on bun — [mcp/README.md](mcp/README.md#the-mcp-face) |
 | `cmd/agent-bus-token` | the token program, and the forced command behind an ordinary user's key ([access § getting a token](../docs/02-access.md#getting-a-token)) |
-| `smoke.sh` | every acceptance criterion of every wave, in one script; `--slow` runs the lot |
+| `smoke.sh` | automated acceptance checks; installed and manual gates remain in the MVP plan |
 
 Layering is the design's: protocol → core → api, faces outside, nothing
-pointing back in ([modules](../docs/10-modules.md)).
+pointing back in ([modules](../docs/10-modules.md#the-rule)).
 
 ## Build and check
 
+Build requirements and version output follow
+[setup § build information](../docs/09-setup.md#build-information).
+Release numbering follows [working rules § versioning](../CLAUDE.md#versioning).
+
 ```sh
+bash ./build.sh       # build every Go program with build information
 go test -race ./...
 ./smoke.sh            # fast: everything under a second, for the edit-run loop
 ./smoke.sh --slow     # all of it, plus the race detector — what a change is measured against
@@ -36,15 +41,14 @@ of its own, so it never touches a daemon you are running; `PORT=` moves its
 loopback port if the default one is taken.
 
 A check here is not believed until it has been seen to fail —
-[plan § mutation first, then belief](../Plans/PoC/README.md#mutation-first-then-belief).
+[working rules § verification](../CLAUDE.md#verification).
 
 ## Three terminals
 
 By hand. Build the binaries first — nothing installs them:
 
 ```sh
-go build -o agent-bus ./cmd/agent-bus && go build -o agent-busd ./cmd/agent-busd &&
-go build -o agent-bus-token ./cmd/agent-bus-token
+bash ./build.sh
 ```
 
 **1 — the daemon.** It writes the token file on first run, so it goes first:
@@ -106,4 +110,4 @@ consumer that was not running when it was sent:
 
 A Claude Code session and a Codex session talk over the same daemon through
 the MCP face; loading it into each, and the live recipe, are in
-[mcp/README.md](mcp/README.md).
+[mcp/README.md](mcp/README.md#the-mcp-face).

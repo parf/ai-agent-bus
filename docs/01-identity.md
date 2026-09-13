@@ -1,61 +1,30 @@
 # Identity
 
-Who is on the bus, and what they may do. How they prove it is
-[access](02-access.md).
+## Status
+
+| MVP | Scope |
+|---|---|
+| Built | Canonical names, token-backed principals, manual registration, key-possession enrolment, service ACL and ownership. |
+| Pending | Person fields, maintainer editing and identifier uniqueness; see [pending person records](#pending-person-records). |
 
 ## Principals
 
-Every **user** and **service** is a *principal* — agents, consumers and
-publishers included. A service is always a configured one
-([services § service and template](03-services-and-topics.md#service-and-template));
-an unconfigured template is not a principal, because it does not run and has no
-address. Only *generic* records (a description pushed by someone else) have no
-identity of their own.
+A principal is the name a credential authenticates. A registry record describes
+something reachable; registering a description does not prove its subject holds
+a key. A name owns an inbox independently of the process serving it.
 
 ## Names
 
-A principal is written **`$user@$realm`**. The realm says *who vouches for the
-name*:
-
-| Form | Realm is | Vouched for by | Example |
-|---|---|---|---|
-| `user@bus` | a name a daemon answers for | that daemon | `parf@localhost`, `parf@om.parf.dev` |
-| `user@provider` | an identity provider | the provider — name and public key | `parf@github` |
-| `user@team` | a team, a group on the AUTH server | AUTH | `parf@realmo` |
-
-A **service** is written the same way, and may prefix the **service template**
-it was configured from:
-
-| Form | Is | Example |
-|---|---|---|
-| `service@realm` | a standalone service, with no separate template | `claude@rdvp` |
-| `template/instance-name@realm` | a service configured from a template | `imap-mail-reader/billing@rdvp` |
-
-**A realm is the name a daemon answers for, and a hostname is only its
-default.** A daemon may be told to hold others, and `image-scaler@pool1` is why:
-a service answered by processes on four hosts must be **one name**, and a name
-carrying any of those hostnames would be false for the other three
-([runner § one name on many hosts](08-runner-role.md#one-name-on-many-hosts)).
-A pool realm claims membership instead of a location, which stays true when a
-member moves.
-
-**A bare name is completed with the local host, and that completion is a
-convenience with no authority in it.** `image-scaler` becomes
-`image-scaler@<host>` so the common case is typed short; it asserts nothing
-about where the process sits. **A name that arrives complete is taken whole**:
-nothing appends to it,
-substitutes into it, or checks a hostname against it. So a service that wants a
-realm of its own simply says one.
-
-Everything else is unchanged — whoever vouches is still the
-daemon you are talking to, and two daemons holding one realm name is the same
-locality as two of them holding one group ([sigils](#sigils)).
+Names are `user@realm`, optionally `template/instance@realm`. The realm identifies
+the namespace the daemon or a configured directory answers for; it is not proof
+of a process's physical location. A complete name is taken whole. The foreground
+runner completes a bare service name with the local hostname.
 
 **Both halves are `a-z 0-9 . _ -`, and both start alphanumeric**; the local
 part may also hold `+` and `@`. Lowercase, because a name that differs only in
 case is two names to a machine and one to a person. Starting alphanumeric is
 what leaves the leading characters free to mean something else
-([sigils](#sigils)), and it costs nothing a realm actually uses — a GitHub
+([future sigils](../Plans/R1/identity.md#sigils)), and it costs nothing a realm actually uses — a GitHub
 handle may begin with a digit, and `0xdead@github` is a name like any other.
 
 **The realm is whatever follows the last `@`.** The local part — an instance
@@ -87,161 +56,17 @@ trimmed away — it is a bad character, and the name is refused.
 | dots | allowed in every part — a realm is often a host (`om.parf.dev`), and a local part may be dotted (`slack.reader`) |
 | slashes | **at most one**, and only between template and instance name. A realm never holds one, and never an `@`: a realm is a name, not a path |
 
-**The name is the identity.** Provider numeric ids are stored, never used as
-ids: they are what a re-check compares against. If a name stops resolving to
-its stored id the **account is disabled** — a rename or a recycled login is
-locked out, not followed. Internal ids may exist if something needs one; they
-are never the name.
-
-One human may hold several principals (`parf@github`, `parf@realmo`); a
-grouping "person" record is deferred.
-
 ## Registration
 
-**The normal way to register is to state the record:**
+**Built.** Any authenticated principal may publish an unheld name in a realm
+without a directory. The caller becomes its owner. A backed realm requires
+proof of a key the directory publishes; the resulting record owns itself.
+GitHub enrolment fetches public keys, not profile details. Existing tokens
+continue working if the provider is unavailable.
 
-| Field | |
-|---|---|
-| username | `user@realm` |
-| person name | who the human is |
-| public key | Ed25519 |
-| **`GithubUser`** | the login on GitHub, on **any** record and not only a `@github` one — it is how `parf@realmo` and a GitHub account are known to be one person, and where a key re-check goes looking |
-| optional details | email, avatar, whatever the org wants |
-
-**Enrolled from GitHub, the two are the same thing**: the name claimed is
-`<login>@github`, so `GithubUser` is that login and the field costs nothing to
-fill. It earns its place on the records that were *not* made that way — a
-company account whose person also has a GitHub identity.
-
-### Who may write a record
-
-**Only a maintainer of the daemon edits a user's fields — not the user.** That
-is what makes the fields worth trusting: a name, an email, a `GithubUser` on a
-record is a statement by whoever runs this bus, not something a person typed
-about themselves.
-
-| Who | May |
-|---|---|
-| a **maintainer** | create any user record and edit any field on it — **except on another maintainer's record, and the owner's** |
-| the **owner** | all of that, and the maintainers themselves. The owner is always a maintainer and cannot stop being one ([ownership](#ownership)) |
-| the **person** | nothing. They hold a key and a token; what the record *says* is the organisation's account of them |
-
-It is the service arrangement seen from the other end ([ownership](#ownership)):
-one owner, maintainers who may change everything below their own level and
-nothing at it. **A maintainer who could edit another maintainer's record is an
-administrator who can promote themselves** — through a key, an alias, or
-whatever the next field turns out to be — so the line is drawn at the level,
-not at the field.
-
-**Self-service enrolment is the one record nobody vouched for**, and it is
-trusted the other way: the newcomer proved possession of a key their claimed
-login publishes ([proving possession](#proving-possession)). A record is
-trustworthy because **a maintainer wrote it, or because enrolment proved it** —
-and there is no third way in.
-
-⚠️ A `GithubUser` on a record that did not come from GitHub is trusted the
-first way: a maintainer put it there. **Proving one cryptographically is a task
-for after R1.1** ([stages § R1.1](12-stages.md#r11)) and matters where nobody
-vouches — it is not what makes the field usable here.
-
-### Every identifying field is unique
-
-**No two records share an email, a phone, a `GithubUser` or an IM handle**, and
-the daemon refuses the write that would make it so. Uniqueness checked later is
-not enforced.
-
-| | |
-|---|---|
-| **why it earns the refusal** | it is what makes a lookup an *answer*. An email or a handle names exactly one person, so `im` resolves rather than guesses and `user-locator` is uncertain only about the fuzzy things — a partial name, a real name ([bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside)) |
-| **normalised before the write, not at the comparison** | what is stored is the canonical form, so uniqueness is plain equality afterwards and no two code paths can disagree about whether `Parf@x` and `parf@x` are one email. A lookup normalises its argument the same way, or a search for the form somebody typed finds nothing |
-| **so a field we cannot normalise is a field we do not support** | supporting one means knowing its canonical form. That is the price of the rule above, and it is the right way round: an identifier nobody can spell one way is not an identifier |
-| **the username was always this** | canonical, bounded, one spelling each ([names](#names)). This is that rule for the rest of the identifying fields, not a second one |
-
-The form somebody typed is not kept. The record is the organisation's account
-of a person ([who may write a record](#who-may-write-a-record)), so the
-canonical spelling is the one worth showing.
-
-❓ **What the rule is for each field.** Case for emails and handles is obvious;
-phone formatting is not, and provider-specific rules — dots in a Gmail address
-— are a decision rather than a fact. It is a list to fill in, one line per
-field, rather than an open design question. *Settled by:* owner, with the MVP.
-
-That is the whole thing. It needs no directory, no network and no provider.
-
-**"Optional details" is three fields** — person name, email and avatar URL —
-because those are what GitHub already fills in, so they cost nothing at
-enrolment and a dashboard has something to render
-([discovery § what it shows](05-discovery.md#what-it-shows)). They are
-description, never enforcement, and the principal writes its own.
-
-Two things that look like fields of the same kind and are not:
-
-| Looks like a field | Is |
-|---|---|
-| **status: active / inactive / banned** | an access decision. Rendered from something nobody enforces it is a lie — the page says *banned* while the token still works. It belongs where enforcement is: `revoked_users` in the bundle ([AUTH role § consistency window](06-auth-role.md#consistency-window)) |
-| **role** | service-defined and never interpreted here ([groups and roles](#groups-and-roles)). What can honestly be shown is **access**: master or not, owner of what, member of which group |
-
-### How to reach a person
-
-The record also carries **an ordered list of ways to reach this person, per
-severity** — a warning goes one way, something that has to wake them goes
-another. Each entry names a service that does the delivering
-([bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside))
-and the address that service understands.
-
-Beside it, **the aliases this person is known by elsewhere**: a Telegram
-handle, a Slack member id, an address somebody types out of habit. They are
-what lets a message addressed to any of those reach the right human
-([bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside)).
-
-| | |
-|---|---|
-| **it is the person's, so it lives with the person** | not in an alerter's configuration. One person is reached by several alerters — one per host, one per team — and a phone that changed has to change **once**. The daemon is already where the person is |
-| **a maintainer writes it, like every other field** | ([who may write a record](#who-may-write-a-record)) — which is what makes a destination trustworthy enough to page somebody on. Somebody who wants their evening phone in there asks for it |
-| **an alias is a lookup key and never a principal** | it resolves *to* a name and the name is what travels — the same rule that keeps a provider's numeric id out of being an identity ([names](#names)). Nothing is ever authorised as `@someone` on Telegram |
-| **nothing enforces it** | it is a list of preferences, not an access decision. What acts on it is `im` and the `alerter`, ordinary services reading an ordinary record ([bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself)) |
-
-❓ **Who may read somebody else's.** Writing is settled — a maintainer, and
-nobody else ([who may write a record](#who-may-write-a-record)). Reading is
-not: a phone number is not an avatar, and the alerter needs everybody's.
-*Settled by:* owner, with the ACL.
-
-A record holding a phone number is worth protecting for reasons that have
-nothing to do with the bus, which is the whole of that question.
-
-**MVP is this plus GitHub** — nothing else. GitHub is an *alternative to typing
-the record*: it fills the same fields from a login the person already has,
-which is the only reason open public enrolment is practical (a stranger
-arrives already holding a name and a key). What it produces is an ordinary
-registration record. LDAP/AD is deferred: [future/ldap-ad.md](future/ldap-ad.md).
-
-**After enrolment a provider is out of the picture.** The record is pinned; the
-provider is never on the runtime path, never polled, and the bus works
-unchanged if it disappears. The one thing that ever goes back is a **deliberate
-re-check** of a user's access.
-
-| Source | Fills in from | Re-check compares |
-|---|---|---|
-| **direct** | you | nothing — there is no upstream to disagree with |
-| **GitHub** | `api.github.com/users/<login>` → `id`, `login`, `name`, `avatar_url`, `email` (if public); `/users/<login>/keys` → per key `id`, `key`, `created_at`, `last_used` (verified 2026-09-09). Plain-text fallback `github.com/<login>.keys` | the stored numeric `id` |
-
-- Re-checks are **explicit**, not scheduled. Nothing forces one; run them when
-  you want the assurance. Consequence: a key deleted upstream stays valid until
-  someone asks.
-- GitHub extras when you do look: `created_at` → "new key on privileged
-  principal" alert · `last_used` → stale-key pruning (e.g. ignore > 12 months)
-  · `id` → rotation vs addition. Our own `last_used` is tracked separately. If
-  ever polled: token (5 000 req/h) + ETag.
-- **Ed25519 only** (pairwise needs Ed25519→X25519). RSA/ECDSA keys are filtered
-  at fetch time and the user is told which were skipped.
-- A provider supplies public keys only — it never authenticates anyone.
-- **Self-service enrolment** is the same path run by the stranger themselves:
-  claim `<login>@github` on first contact, one-time fetch, prove possession →
-  an ordinary record with a default role. Per-service policy: **open**
-  (auto-enrol, minimal role) or **closed** (queued for admin).
-- **Later: Google, LinkedIn, Facebook** and other sign-in providers. They hold
-  no SSH keys, so the account proves *who* and the bus issues the Ed25519 key
-  at enrolment. Same record, own realm. Not designed.
+The record actually stored is defined in
+[protocol source](../src/internal/protocol/envelope.go); there is no second
+schema here.
 
 ### Proving possession
 
@@ -279,165 +104,58 @@ sshd hands one out ([access § getting a token](02-access.md#getting-a-token)).
 
 An unanswered challenge expires; an answered one is spent.
 
-## Groups and roles
+## Pending person records
 
-- **Groups** compose from groups with `& | !` (`@eng & !@contractors`). They
-  exist only with the AUTH role on. ⚠️ A group that arrives before AUTH does
-  is a **flat named set** — a list of principals, a record like any other,
-  expanded in the one place `allow` is already checked ([acl](#acl)). The
-  expression engine comes with AUTH and not before: `& | !` on the
-  authorization path is where a precedence bug grants silently.
-- **Roles** — *what a principal may do*: service-defined strings (`admin`,
-  `read-only`, …) written in parentheses after the term ([sigils](#sigils)),
-  assigned with the same expression pattern as groups. AUTH stores and
-  resolves; **it never interprets** — and the one place a role goes is the
-  answer to a service asking who its caller is, so there is no code path here
-  that could.
-- Access and authority stay two layers. One expression engine.
+These are accepted MVP requirements, **not implemented** by the current record
+or ACL code. The people view depends on them.
 
-## Sigils
+### Who may write a record
 
-**An ACL entry is a term, and the term says what kind of thing it names** — so
-one list holds every kind and nothing needs a type field beside it.
+Only a daemon maintainer edits user fields, never the person. A maintainer may
+edit below their own level, not a peer maintainer or the owner. The owner is
+always a maintainer and may edit every level. A trusted person record comes
+from maintainer vouching or successful enrolment. This pending policy must work
+before the future AUTH role; its representation is an [open MVP question](../Plans/MVP/QUESTIONS.md#open-questions).
 
-| Term | Is |
-|---|---|
-| `parf@github` | a **user** — anything that is not one of the three below |
-| `@dev` | a **group** |
-| `#batcher@srv1` | a **service** ([service to service](02-access.md#service-to-service)) |
-| `*` | **anyone who can authenticate** |
+### Profile fields
 
-**Roles go in parentheses after the term, and are left out when there are
-none**: `parf@github(admin)`, `@dev(deploy, read-only)`, `*(guest)`,
-`#batcher@srv1`. A role is a service-defined string ([groups and
-roles](#groups-and-roles)) and is handed to the service exactly as written —
-it is that service's own vocabulary, not ours.
+The person profile carries person name, email, avatar and `GithubUser`.
+The latter is the GitHub login, including on records in other realms; when
+registered from GitHub it equals the username. Collection of profile data is
+pending. Proving a cross-provider alias is [later identity work](../Plans/R1.2/QUESTIONS.md#open-questions).
 
-| | |
-|---|---|
-| **being in the list is the access** | the entry grants the call; the parentheses say in what capacity. There is no second access level beside the role, because *may call* and *what the service is told* were the only two things there ever were |
-| **the sigil disambiguates subjects, and only subjects** | a group has to be told from a user and a service from both — `@dev & !@contractors` reads as an expression over groups where `dev & !contractors` does not say what it is combining. A role needs no mark: the parentheses already say what it is |
-| **a user starts alphanumeric** | which is what any name starts with anyway ([names](#names)), so this is the rule already there rather than a second one for ACLs. A term beginning with anything else is a group, a service, or nothing at all |
+Phone and IM routes belong to [later contact routing](../Plans/R1.1/people.md#how-to-reach-a-person).
 
-⚠️ `#` **begins a comment** in a shell word, in YAML and in `.env`. Typed as
-`--allow #batcher@srv1` it fails loudly — the flag ends up with no value — but
-at the start of a line in a config file it disappears without one. Quote it,
-and do not put a service first on a line.
+### Every identifying field is unique
 
-**A group is local to one `agent-busd`**: `@dev`, never `@dev@company`. A
-group is only ever an ACL subject ([acl](#acl)), and every ACL a daemon
-enforces is its own — a record it holds, or its master list — so the daemon is
-the scope, not the host it happens to share. AUTH may say who is *in* a group,
-but the name is resolved where it is used: there is no second `@` to read, and
-nothing to disambiguate against a principal's realm.
-
-**An upstream daemon has its own groups, and we do not care.** A group never
-travels — a chained call carries the principal
-([delegation](#delegation)), and the upstream decides with its own list
-([overview § chaining](00-overview.md#chaining)). So two daemons may both have
-`@dev` and mean different people, and neither has to know. That is the whole
-benefit of not giving a group a realm: there is no namespace to collide in.
+Every supported identifying field is normalised before writing and unique
+across person records. A field with no supported normalisation is not supported.
+The [normalisation question](../Plans/MVP/QUESTIONS.md#open-questions) remains open.
+The rule extends to identifying contact fields when their owning release adds them.
 
 ## ACL
 
-Two layers, tried in that order. Both use the same shape: a term — a user, an
-`@group`, a `#service` or `*` — with its roles in parentheses when it has any
-([sigils](#sigils)).
+**Built.** Access is enforced in [core](../src/internal/core/acl.go), for every
+face. The record's owner and its own principal have access. An empty `allow`
+is open to authenticated callers; otherwise a matching principal or `*` grants
+access. Master grants access unless the record refuses master. There are no
+built group expressions or role-bearing terms.
 
-| Layer | Lives in | Says |
-|---|---|---|
-| **service ACL** | the service's own **record** | `allow` — who may see and use *this* service |
-| **master ACL** | `agent-busd` | the same terms — holders reach **every** service on the node, with no per-service entry and no per-service token |
+`allow` and the master-refusal flag are registry properties, never fields read
+from the service's private configuration. The daemon owner holds master, and
+additional masters are configured at startup. Master access does not grant
+ownership of another principal's record.
 
-**The record, not the configuration.** A service's configuration is private to
-it and the daemon will not read it
-([services § configuring a template](03-services-and-topics.md#configuring-a-template)),
-so a layer the daemon enforces cannot live there. The record is what the
-service already states, the daemon already holds, and its owner already
-controls — so `allow` is a field on it, stated like any other.
-
-- **The service is asked first.** Its own record decides, and if it answers,
-  that is the answer.
-- **A service may refuse master access** — one flag on its own record, and
-  master holders are treated like anyone else. The service, not the node, has
-  the last word on itself.
-- **`*:` is the wildcard key** in the master ACL: the entry that applies to
-  every service with no entry of its own.
-- **`*` as a term is anyone who can authenticate** — every GitHub user, for
-  instance — and it takes roles like any other term. That is how a sign-up
-  service opens itself to the world: `allow: *(guest)`, and the newcomer's
-  first request is the enrolment.
-- **Master ACL replaces per-service setup.** Without it every service needs its
-  own list and its own tokens; with it an operator is configured once.
-
-- **No verb is a side door.** Writing goes through the same two layers as
-  reading: a send, a publish, a registration and a consume are all subject to
-  them, so a principal that may not see a service cannot enqueue to it either.
-
-The user who ran setup **holds master**: users and groups, service ACL, and
-service install / start / stop / restart ([runner § what the runner does](08-runner-role.md#what-the-runner-does)). The
-name `agent-bus-admin` belongs to the program an operator runs, not to a role
-([setup § the programs](09-setup.md#the-programs)). Owners still own their service *definitions* and
-run services without an admin; admin is the escalation path and the node
-operator, not a required participant.
-
-## Delegation
-
-Service A calling B for user U authenticates as **A** and adds an
-**on-behalf-of: U** claim. B grants it only if A holds a delegation role for U
-or U's group. U's key or token never leaves U. A *personal* service calling out
-**is** the user calling — no delegation involved.
-
-## Resolved at login
-
-Services know nothing about groups or mappings. On first contact they ask AUTH
-one question, signed with the service key, and cache the answer for the epoch:
-
-```
-→ who is this user (for me)?
-← access: ok | denied · roles: [...] · key: <access-key> · gen: <n>
-```
+No writing verb bypasses its applicable access and ownership checks. Querying,
+sending and consuming are checked in the daemon; a face cannot widen access.
 
 ## Ownership
 
-- **Publish** a new service or topic: any authenticated principal.
-- **Change / delete**: **owner or maintainer** only — and the record itself:
-  a service re-registering on every start is not a stranger to its own name,
-  and it is the only other principal that can hold that name's credential
-  ([access § getting a token](02-access.md#getting-a-token)).
-- **The owner is exactly one user; the maintainer is a group.** Not an
-  expression and not a tier list: *whose is this?* has to have one answer, and
-  an expression can match many people or none. One name is also one person
-  accountable for it, which a group is not.
+**Built.** Publishing a name gives it one owner. Existing records may be changed
+by their owner or by the record's own principal. Re-registration preserves
+ownership. The same rule protects registry configuration; only the service
+itself may read that configuration back.
 
-| | May change |
-|---|---|
-| **maintainer** (a group) | what the service *is* — definition, run options, enable/disable — and the ACL, **except** the owner entry |
-| **owner** (one user) | that, and ownership itself |
-
-  So granting somebody use of a service never grants them the record: the ACL
-  and this are two lists, and only the owner moves the line between them.
-  Owners use org groups but cannot create groups or grant beyond their own
-  service. Personal services are owned by their user.
-- ⚠️ **With the AUTH role off there are no maintainers**, because there are no
-  groups ([groups and roles](#groups-and-roles)) — a service has an owner and
-  nothing else, which is the whole of the required minimum's answer.
-- **A record that owns itself is somebody; one owned by another name is
-  something they run.** Personal services being owned by their user is what
-  makes that read: it is the whole difference the people view needs
-  ([discovery § what it shows](05-discovery.md#what-it-shows)), and it costs
-  no flag that can go stale against the owner field beside it.
-- Definitions and ownership are **live records** in `agent-busd`, not bundle
-  data; a record is **signed by its writer when the writer has a key**
-  (static-token writes are unsigned — the token authenticated them). Users run
-  their own services without admin; admin's job is identities and org groups.
-
-## Sealed private config
-
-A service may store its private config (e.g. IMAP credentials) in
-`agent-busd`, **sealed to the service's own key** (age-style box). The daemon
-holds opaque bytes + owner + service name and cannot read them. Boot = key +
-binary → config comes back. Versioned, owner-pushed, not bundle data; does not
-need the AUTH role. Sharing across services = encrypt to each key or share a
-key. A local file remains the default; this is opt-in for portability and
-recovery.
+A self-owned record can identify a person for the pending people view, but it
+does not imply the profile fields are implemented. Maintainer changes to user
+records remain the [pending contract](#pending-person-records).

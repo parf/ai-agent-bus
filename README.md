@@ -1,267 +1,57 @@
 # agent-bus
 
 Connect AI agents, bots and services so they can find and message each other.
-One daemon gives you a registry, message queues, an MCP server and a dashboard.
+The Go daemon provides a registry and broker with a dashboard; the TypeScript
+MCP face and adapters run on bun.
 
-## IMPORTANT - current stage - PoC (Proof of Concept) ..=>.. MVP
-
-![Agents Bus — connecting agents](docs/img/agent-bus.png)
-
-**Design first, and a working PoC.** The PoC is built and green in
-[`src/`](src/); everything past it is still design, and the commands below show the
-intended shape. A first version (Legacy-V1) runs in production on a message broker and is
-being replaced by this design. See [Status](#status).
-
-## What it is
-
-You have things that should talk to each other: a Claude Code session, a Codex
-session, a script that reads Slack, a bot that sends SMS, a MySQL server, a cron job.
-Today each pair needs its own glue.
-
-agent-bus gives them one meeting point. A small daemon, `agent-busd`, keeps a
-**registry** of everything that joined, holds a **queue** for each of them, answers
-**"what can I use?"** over MCP with generated docs, and shows who is here and how
-busy on a **dashboard**. Topics are registered the same way as services and show up in the
-same registry. Any participant can look up another by name and send it a message.
-Anything that already has an address can be **registered by hand**: "there is a MySQL
-service called `xxx` on `host:port`" is a valid registration.
-
-There is no external broker to install. `agent-busd` is the broker, the registry and
-the dashboard in one binary.
-
-Participants know each other by **public key**, and everything they say is
-**encrypted** from R1. No passwords, no certificates to manage. Registering someone is
-just `username + name + pubkey`. Because those can equally be *fetched* from a
-GitHub login, a service can be **open to the whole world** — anyone with a
-GitHub account can walk up, prove the key is theirs, and use it.
-
-## The 60-second picture
-
-```
-                          ┌──────────────── agent-busd ────────────────┐
-  claude --channel   ───→ │ registry   queues   MCP server   dashboard │ ←───  codex session
-  slack-reader       ───→ │                                            │ ←───  sms-out bot
-  mysql "xxx" (by hand) → │  who is here · what can they do · inboxes  │ ←───  agent-bus CLI
-                          └────────────────────────────────────────────┘
-```
-
-- Every participant is **`name@realm`** — `parf@localhost`, `parf@om.parf.dev`,
-  `parf@github` (the identity provider vouches), `parf@realmo` (a team on the
-  AUTH server). Services use the same shape, optionally prefixed by the service
-  template they were configured from.
-- **A call carries one thing: a token**, and the token *is* who you are. On
-  your own host you handle not even that — you talk to the daemon over a socket
-  that is yours alone, and it knows you by it
-  ([access § local socket](docs/02-access.md#local-socket)).
-- Every registered participant has its **own queue**. Send to it while it is down;
-  it reads the backlog when it comes back.
-- **`send`** delivers to one known receiver; **`publish`** delivers to a topic. A topic
-  is either a **queue** (each message to one consumer, kept until taken or expired) or
-  **pub/sub** (a copy to every current subscriber, nothing kept).
-- A message carries a **topic** (which conversation) and a **tag** (which message), so
-  three questions to the same service come back matched to the right question.
-- **Authentication is always on — and locally there is nothing to set up.**
-  Setup maps each local account to a bus username; the daemon gives each one a
-  socket of its own and knows the username from it. To reach a *remote* bus you
-  need a token, and nothing else: get it with `ssh agent-busd@<node> token` —
-  the key says who you are — or `agent-bus-token <user>` on the box. One daemon serves everyone on a host and knows who is calling, so
-  services open to some users and not others. Central AUTH is an optional role
-  of the same daemon.
-
-## Use cases
-
-You can build these, or something like them, in minutes once it ships.
-
-### Watch a Slack channel and act on it
-
-The flow that runs in production today on Legacy-V1. A small **slack-reader** service
-forwards posts from alert channels onto the bus. A Claude Code session started with
-`claude --channel` (a Claude Code channels feature, research preview) receives them,
-decides what each one is, and forwards it: noise to nowhere, "tell a human" to the
-Slack/Telegram/SMS/email bots, "fix it" to a **fixer** session, "check it" to a
-**reviewer** session.
-
-```
-Slack channels → slack-reader → ai-claude-watch (claude --channel)
-                                   ├→ alerters  (Slack · Telegram · SMS · email)
-                                   ├→ fixer     (one long-lived session, its own queue)
-                                   └→ reviewer  (one long-lived session, its own queue)
-```
-
-The fixer is a single session with its own queue, so it processes events in order,
-keeps the history of what it already did, and never fights itself over git. The
-reviewer works the same way.
-
-### Let sessions talk to each other
-
-Claude Code and Codex sessions join the bus the same way as any agent. One session can
-ask another for a review, hand over a task, or wait for a result, addressed by name.
-
-### Make existing services discoverable to agents
-
-Register a database, an HTTP API, a unix socket or a cron host by description. Agents
-asking the MCP server "what can I use?" get a catalog **filtered to what they may see**,
-with docs generated from the registrations and tool descriptions where a service exposes
-tools. No adapter code on the service side.
-
-### Run a personal bus on your laptop
-
-Install one package, run one setup script — it asks for your local account and
-the bus username it maps to, nothing else — start the service. No key to
-generate, no token to copy. AUTH role off, no network exposure. Everything
-above works.
-
-### Share one bus between everyone on a host
-
-The same setup, more users. Each configured user gets a socket of their own, so
-the daemon knows on every request which of them is calling, and a service can
-be opened to some and not others — all without anyone handling a credential
-([access § local socket](docs/02-access.md#local-socket)). The person who ran setup is the admin:
-users and groups, service ACLs, and starting and stopping services.
-
-Access is two layers. A service lists who may use it; the node's **master ACL**
-maps a user or group to a role that reaches **every** service — so an operator
-is set up once, not per service. A service that wants the last word can refuse
-master access.
-
-### Run a team or company bus
-
-Turn on the **AUTH** role (`auth: on`, same daemon, same git repo): registering
-someone is `username + name + pubkey`, either stated outright or filled in for
-you from GitHub or LDAP/AD — which are an alternative to typing it, not a
-dependency, and are not consulted again once you are enrolled. Groups compose
-with `& | !`, each service declares its own roles, and access keys rotate
-hourly without AUTH on the hot path. Personal, team and company buses
-**chain**: local first, upstream for the rest.
-
-### Sell an API on the public internet
-
-This is what GitHub is recommended for. Publish a service with `allow: *` and any
-developer on the internet can join it: they claim `<login>@github`, the bus fetches
-their public keys once, they prove possession, and they are in — with whatever default
-role you gave strangers. Google, LinkedIn and Facebook sign-in come later. Sessions are
-encrypted without TLS or certificates — end to end from R1, where the keys make
-that true ([access § encrypted sessions](docs/02-access.md#encrypted-sessions)).
-**Closed** enrolment queues newcomers for your approval instead.
-
-**Billing is designed and deferred** ([future/billing.md](docs/future/billing.md)) —
-when it ships, the same bus is a paid API platform: a user **registers**,
-**pays** and **uses your services** through one API. Each service names its price — a
-flat fee or a cost per call; the bus counts and denies when the balance is gone. The
-payment gateway is just another service on the bus; a web site with a checkout page is
-your web site, not agent-bus. Same daemon, same mechanics as your laptop bus.
-
-### Supervise and sandbox agents
-
-The runner is its own program under its own account, not part of `agent-busd`.
-Point it at an MCP server, an HTTP API or a plain script; it spawns the
-process, restarts it with backoff, registers it, and gives it its private
-config as environment. A script holds no credential at all — the runner does
-the bus talking for it. Confining the child is a per-service option rather
-than the default — `systemd-run`, with a second backend the day a host has no
-systemd.
-
-### See what is going on
-
-The dashboard lists services and topics with their descriptions, who is up, and how
-many calls each takes per minute or hour — straight from memory. Message bodies are not
-on it, or anywhere else on the bus: they are encrypted between sender and receiver, and
-once consumed they are gone. Prometheus export for Grafana if you want history.
-
-## What it is not
-
-- **Not a durable queue.** Queues live in memory and are saved to a Parquet file on a
-  graceful restart; with periodic dumping on, a crash loses at most one interval, and
-  without it everything since the last graceful restart. Each
-  queue has a TTL and a size; on overflow it either drops its oldest message or refuses
-  new ones — the receiving record chooses. If one flow needs more, give that one a WAL.
-- **Not a workflow engine.** It routes messages; what to do with them is the agent's job.
-
-## Intended CLI shape
-
-Illustrative only; the exact verbs are part of the design work.
-
-```sh
-# install and set up
-npm install -g agent-bus               # every program (pnpm works too)
-sudo agent-bus-setup                   # makes the two accounts, writes the unit, starts it
-
-# nothing to do for local use — the socket says who you are
-# for a REMOTE bus you need a token and nothing else; two ways to get one:
-export AGENT_BUS_TOKEN=$(ssh agent-busd@<node> token)             # over SSH: the key names you
-agent-bus-token parf@github                                       # the same program, locally
-agent-bus keygen                       # an Ed25519 key for a long-running agent of its own
-
-# describe something that already exists
-agent-bus register mysql-prod@srv1 --kind generic --addr host:3306
-
-# create a topic (registered like a service: token to create, owner to change)
-agent-bus topic create alerts.prod@srv1 --kind pubsub
-agent-bus topic create build-jobs@srv1  --kind queue --ttl 1h --bound 1000
-
-# configure a service template into a service of its own
-cat cfg.json | agent-bus service-template imap-mail-reader/billing@srv1 -
-
-# talk
-agent-bus send     fixer@srv1 --topic deploy-42 --tag q1 "run the migration?"   # known receiver
-agent-bus call     fixer@srv1 --topic deploy-42 --tag q2 "is it done?"           # wait for the reply
-agent-bus publish  --topic alerts.prod@srv1 "disk 91% on db3"                   # whoever consumes it
-agent-bus consume                                                                # read my own queue
-
-# publish a script as a service, confined because it asked to be
-agent-bus start my-mcp-server@srv1 --sandbox on
-agent-bus ls · agent-bus logs my-mcp-server · agent-bus stop my-mcp-server
-```
-
-## Advanced topics
-
-Highlights for the impatient:
-
-- **Security model.** Ed25519 everywhere, no passwords, no client secrets. Sessions are
-  encrypted point-to-point with a key both sides derive; no TLS, no PKI. Kerberos-style:
-  AUTH hands out a shared secret once per hour, then gets out of the way.
-- **Three ways to be known** — static (a token), pairwise (from the two
-  parties' keys) and derived (issued by AUTH, hourly):
-  [access § key modes](docs/02-access.md#key-modes).
-- **Config as code.** AUTH data is a signed bundle in a git repo over SSH. Replicas pull
-  on start, newer generation wins, git history is the audit trail. Service definitions
-  are live records in `agent-busd`, guarded by token and ownership, signed by whoever
-  wrote them when that principal has a key.
-- **Admin over SSH only.** Forced commands, no shell, every call audit-logged. Root on
-  the box is the break-glass.
-- **One daemon, many small processes** — the systemd shape. A supervisor that
-  holds no state and almost no privilege spawns single-task children: the bus,
-  the dashboard, and optionally AUTH, billing and health. Each gets only what
-  its job needs — AUTH alone holds the master secret, **no process the daemon
-  starts may execute anything at all**, the dashboard is cgroup-limited so it
-  can never starve the bus ([processes](docs/11-processes.md)). The runner is
-  outside this set, under its own account ([runner role](docs/08-runner-role.md)).
-
-Read `docs/` in order, starting at
-[00-overview.md](docs/00-overview.md) — it indexes the rest and says which
-document owns what.
-
-| | |
-|---|---|
-| [glossary](docs/glossary.md) | every name and term, one line each — normative for naming |
-| [decisions](docs/decisions.md) | what is settled, open and superseded |
-| [future/](docs/future/) | designed but deferred |
+![Agents Bus](docs/img/agent-bus.png)
 
 ## Status
 
-| Area | State |
+**MVP is in progress.** The PoC is complete. Current documentation describes the
+whole [MVP scope](Plans/MVP/README.md#scope), with built and pending explicit.
+
+| Built | Still pending |
 |---|---|
-| Design docs | ✅ settled decisions recorded; open items listed in [decisions](docs/decisions.md) |
-| Plan | [Plans/MVP/](Plans/MVP/TODO.md) — waves, blockers and what counts as done; [Plans/PoC/](Plans/PoC/TODO.md) is the finished stage |
-| Code | [`src/`](src/) — the PoC is complete, with a smoke suite. Build order is [PoC → MVP → R1](docs/12-stages.md); Go inside, bun for the MCP face and the push adapters; client libs for Go, PHP, Rust, JS, Python |
-| Legacy-V1 | runs in production on a broker |
+| Principal credentials, local sockets and service ACL | Person profiles and maintainer editing |
+| Registry, topics, calls and restart snapshots | Generated service method information |
+| Foreground scripts, MCP and runtime adapters | Release packaging and fresh-host acceptance |
+| Signed-in dashboard and process split | People view and installed isolation verification |
 
-## Conventions
+[Current docs](docs/00-overview.md#document-ownership) own the contracts;
+[remaining work](Plans/MVP/TODO.md#objective) owns acceptance.
 
-Small files, main ideas only, tables over prose. Symbols follow
-[Glyphs](https://parf.dev/ai-skills/Glyphs.md): no glyph by default, ❓ for open questions.
+## Using it
 
-## Names
+Build and development setup are in [source instructions](src/README.md#build-and-check).
+The packaged installation is pending; [setup](docs/09-setup.md#install) describes
+what is built. A configured local account uses its assigned socket as its credential
+([access](docs/02-access.md#local-socket)).
 
-`agent-busd` is the daemon, `agent-bus` the CLI, `ab_` an MCP tool prefix only.
-The full list is in the [glossary](docs/glossary.md), which is normative.
+### CLI example
+
+On a configured bus, with permission to register these names:
+
+```sh
+agent-bus register mysql-prod@srv1 --kind generic --addr host:3306
+agent-bus topic create alerts.prod@srv1 --kind pubsub
+agent-bus topic create build-jobs@srv1 --kind queue --ttl 1h --bound 1000
+agent-bus ls
+agent-bus publish --topic alerts.prod@srv1 "disk nearly full"
+```
+
+For a script service, use the [foreground runner](docs/08-runner-role.md#script-services).
+The daemon is trusted with bodies in the MVP ([trust boundary](docs/02-access.md#encrypted-sessions));
+restart persistence has the [documented loss window](docs/04-messaging.md#durability).
+
+## Plans
+
+| Plan | Status |
+|---|---|
+| [MVP](Plans/MVP/README.md#scope) | Current development |
+| [R1](Plans/R1/README.md#scope) | Proposed distributed identity and managed services |
+| [R1.1](Plans/R1.1/README.md#scope) | Proposed tools stage |
+| [R1.2](Plans/R1.2/README.md#scope) | Unscheduled exploration after tools |
+| [Future](Plans/Future/README.md#topics) | Generic undecided or unassigned ideas |
+
+All local conventions live in [CLAUDE.md](CLAUDE.md#working-rules).

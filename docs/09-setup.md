@@ -1,5 +1,12 @@
 # Setup and operation
 
+## Status
+
+| MVP | Scope |
+|---|---|
+| Built | Installer, administration, token helper, accounts and daemon unit; stamped Go builds. |
+| Pending | Distributable package, editable ACL/account configuration and installed-host acceptance. |
+
 ## The programs
 
 Privilege is what separates them, and nothing else does: root is needed once
@@ -12,48 +19,51 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | everything that edits what lives in the home — `user add`, `user list`, `user remove` today — plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
-| `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](11-processes.md)) |
-| `agent-bus-web` | the **`agent-busd` account**, started by the daemon as a child and cgroup-limited | the dashboard, speaking the API like any other client and holding no write path of its own ([discovery § dashboard](05-discovery.md#dashboard)) |
-| `agent-bus-runner` | the **`agent-bus-runner` account**, started by its own unit ([the two units](#the-two-units)) | keeps a host's services: installs, starts, stops and supervises them, and is reached as a service on the bus rather than by a door of its own ([runner role](08-runner-role.md)) |
+| `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](11-processes.md#processes-and-privileges)) |
+| `agent-bus-web` | the **`agent-busd` account**, started by the daemon as a child | the dashboard, speaking the API like any other client and holding no write path of its own ([discovery § dashboard](05-discovery.md#dashboard)) |
 
-**Reaching a node over SSH runs one of these, never a shell.** Every key lives
-in the `agent-busd` account's `authorized_keys` behind a forced command, and
-which command is what separates an operator from everybody else
-([AUTH role § SSH admin](06-auth-role.md#ssh-admin)):
+## SSH admin
 
-| The line says | What that key reaches |
-|---|---|
-| `command="…/agent-bus-token"` | `token <name>`, and nothing else |
-| `command="…/agent-bus-admin <admin>"` | the admin grammar, **and the same `token <name>`** |
+Setup adds the installer's public key through the admin program. Each entry
+in the daemon account's `authorized_keys` is restricted to a forced command:
+`agent-bus-token <principal>` for an ordinary key, or
+`agent-bus-admin <principal>` for an operator. The entitlement is the principal
+in that entry; `SSH_ORIGINAL_COMMAND` is parsed as a request, not executed as
+shell text.
 
-**`ssh agent-busd@<host> token <name>` answers the same however the key is
-listed.** An operator's line is a superset, not a different path: the token
-half is one piece of code both programs call, so nobody has two ways to get a
-credential. A user who only ever needs a token never reaches the admin program.
-
-Administering a node from across the network and from its own console are
-likewise one program: `ssh agent-busd@<host> <args>` and
-`sudo -u agent-busd agent-bus-admin <args>` are the same thing.
-
-❓ **Editing the ACL and the user-to-account map** needs somewhere to edit
-them: today both are the daemon's command line, written once by the unit
-([the two accounts](#the-two-accounts)). A file the daemon re-reads is a
-shape nobody has asked for yet. *Settled by:* owner.
+The implemented admin verbs are `user add`, `user list`, `user remove` and
+`token`. The token operation is delegated to the token helper. Console and SSH
+use the same program. Bundle administration and regeneration of keys are not
+part of this grammar.
 
 ## Install
 
-| Step | What happens |
-|---|---|
-| `npm install -g agent-bus` (or `pnpm`) | one package brings them all ([the programs](#the-programs)) |
-| `sudo agent-bus-setup` | creates the **two system users**, asks the two questions below, writes the config and the unit, and starts it. **No keys.** |
-| the first user | `agent-bus-setup` calls `agent-bus-admin` with the installer's own public key, which is what puts a line in that account's `authorized_keys`. It does not learn a second way to write that file. Setup, which is root, **reads the key and hands the bytes over on stdin** — the admin program runs as `agent-busd`, and a key in a person's home is exactly what that account may not open |
+**Built:** build the programs, then run `sudo agent-bus-setup`. Setup creates
+the accounts and tree, writes/enables the daemon unit, and installs the first
+user's key through the admin program. Without root it refuses and prints the
+command to run. `--dry-run` and `--print-unit` are read-only and need no root.
 
-`agent-busd` and the CLI are Go; the MCP face and the push adapters are bun —
-[modules § languages](10-modules.md#languages).
+**Pending:** the intended package installation is not implemented. The package
+format and binary delivery are [MVP questions](../Plans/MVP/QUESTIONS.md#open-questions).
+A fresh-host install and the running service account must still be verified as
+[stage gates](../Plans/MVP/TODO.md#installed-stage-gate).
 
-❓ **How a Go binary is installed by npm** — PoC runs the built binary and MVP
-says `npm install -g`, so the package has to carry or fetch a per-platform
-binary. *Settled by:* owner, when MVP packaging is real.
+## Build information
+
+Building the daemon and CLI needs cgo and a C compiler for
+[processes § process titles](11-processes.md#process-titles).
+
+`src/build.sh [output-directory]` builds all Go programs with one stamp;
+the output directory is relative to `src/` and defaults to that directory.
+The build supplies `build_info` as `user@hostname YYYY-MM-DD HH:MM:SS`, using
+the builder's local time, through Go linker flags. It never rewrites source.
+Every Go program's `--version` prints the shared SemVer on the first line
+and `build_info: <stamp>` on the second; no daemon connection or privileges
+are needed.
+
+A direct `go build` reports `development (unstamped)` instead of inventing a
+build date. The interpreted MCP face reports the shared SemVer only.
+Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
 ## Local users
 
@@ -71,158 +81,53 @@ on every request.
 
 Result: a bus with AUTH off that **serves every user on the host at once**, so
 service ACLs apply per user with nothing for anyone to configure. The person
-who ran setup **holds master** ([identity § acl](01-identity.md#acl)). The same three steps on a team node
-plus `auth: on` make it an AUTH replica ([AUTH role](06-auth-role.md)).
-
+who ran setup **holds master** ([identity § acl](01-identity.md#acl)).
 ## Storage
 
-SQLite by default (single file, zero ops); MySQL/PostgreSQL optional behind
-the `store` port — swapping one for another is a single adapter
-([modules](10-modules.md)).
-
-The git repo (over SSH) holds signed AUTH bundles — authority
-([AUTH role § bundle](06-auth-role.md#bundle)) — and unsigned registry
-snapshots — backup and peer sync
-([services § registry sync](03-services-and-topics.md#registry-sync)).
-
-Queues and stats are memory, dumped to Parquet
-([messaging § durability](04-messaging.md#durability)).
-
-**Tokens are durable** and belong in the store — they must survive a restart or
-a reloaded queue cannot be decrypted
-([access § token lifetime](02-access.md#token-lifetime)).
-
-⚠️ Credentials are the only thing in the *store* — everything else durable is
-the snapshot ([messaging § durability](04-messaging.md#durability)). The MVP
-keeps them in a text file, one line per principal, mode 0600, behind the same port
-([modules § modules](10-modules.md#modules)).
-
-❓ **What else lives in SQLite** — AUTH data is git, the registry is live
-records, queues and stats are Parquet, tokens are durable. *Settled by:* owner.
-
-**RocksDB is the candidate, and the owner's stated preference**, because it
-would hold the daemon's data *and* the runner's, **encrypted at rest** — one
-store instead of a token file, a dump file, a snapshot and a directory of env
-files, each protected only by its mode. It is the same engine `kv` is an
-access wrapper around ([bundled services § data](13-bundled-services.md#data)),
-which is the other half of the reason: one thing to bundle, learn and back up.
-
-What it has to not break:
-
-| | |
+| Built store | Holds |
 |---|---|
-| **the daemon reaches it directly, never over the bus** | a daemon that fetched its own tokens by calling a service would need a token to read its tokens. It opens the store behind the `store` port, the way it opens a file today ([modules](10-modules.md)); `kv` is the **bus-facing face of the same engine**, not the path the daemon uses |
-| **two accounts stay two secret domains** | the daemon and the runner are separate accounts precisely so neither reads the other's ([the two accounts](#the-two-accounts)). One store holding both is only allowed if it is **separate namespaces under separate keys** — otherwise this quietly merges the two things the split exists to keep apart |
-| **it must not become a process the daemon has to start** | no process the daemon starts may exec at all ([processes](11-processes.md)). So either the engine is **linked in as a library** — RocksDB is one — or it is a **unit and an account of its own**, started by systemd like the daemon is. That fork is the thing to settle, and the library side costs no third account |
-| **backup follows the data** | the runner's backup is an encrypted archive of `runner/` ([runner § backing it up](08-runner-role.md#backing-it-up)); env files moving into the store moves that too, and a store is backed up by snapshotting it rather than by tar |
+| Text-file adapter, mode 0600 | Principal credentials and issued times; current and previous tokens |
+| JSON snapshot adapter | Registry, queue contents, counters and clean-stop marker |
+| Memory only | Browser sessions, outstanding readers, uptime and recent envelope feed |
 
-**And it replicates itself**, which is the third reason: a standby copy of a
-node's store is the engine's own feature, so there is no master-and-replica
-arrangement of ours to design, get wrong, or explain. What that is and is not:
-
-| | |
-|---|---|
-| **it is a copy of one node, not peer sync** | peers are separate daemons that exchange **registry records through git**, newer wins per entry ([services § registry sync](03-services-and-topics.md#registry-sync)). This is the same node's data on a second box, for taking over — two different problems that would otherwise both be called replication |
-| **it is not AUTH's replicas either** | those are **signed generations**, and a replica is trusted because the signature is, not because it was copied ([AUTH role § bundle](06-auth-role.md#bundle)). Copying cannot produce authority |
-| **and locks stay out of it** | they are live state, deliberately not persisted, and a lock that survived onto a standby would be a claim about processes that are not there ([messaging § shared locks](04-messaging.md#shared-locks)). Replication carries what is durable, which is what makes *durable* worth stating |
-
-## Reload
-
-Zero-downtime reload for `agent-busd` itself via socket inheritance
-(`cloudflare/tableflip`-style); 2× RAM during the overlap.
+The ports let a backend change without changing delivery. Database selection,
+encrypted stores and store replication remain [generic undecided work](../Plans/Future/storage.md#storage).
+Snapshot behavior is defined in [messaging § durability](04-messaging.md#durability).
 
 ## The two accounts
 
-**`agent-bus-setup` installs the separate-user arrangement**, not the
-personal one — the two are [runner § who it runs as](08-runner-role.md#who-it-runs-as),
-and an install that serves more than its installer has to be the first. It is
-the one program that needs root, and it needs it once; nothing runs as root
-afterwards.
+The installer creates both system accounts now. Only the daemon's runtime is
+installed; the second account and directories prepare a later runner.
 
-Two accounts, because there are two secret domains and neither may read the
-other's. The daemon holds every credential; the runner holds every managed
-service's configuration. Compromising one does not yield the other, and that
-is the whole argument for running the runner outside the daemon
-([processes § nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec)).
-
-Everything lives under **`/var/lib/agent-bus`** — state a program writes,
-which is what `/var/lib` is for and what every other daemon account uses.
-`/usr` is read-only shareable program data, so it cannot hold a home, a store
-or a dump.
-
-| Directory | Mode | Owner | Holds |
+| Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
 |---|---|---|---|
-| `daemon/` | 700 | **`agent-busd`** | its home: the store, the dumps, the ACL — [storage](#storage), [messaging § durability](04-messaging.md#durability) |
-| `service.d/` | 755 | `agent-bus-runner` | what each service *is*: its code or a symlink to it, `config.json`, `env.dist`. World-readable because it holds no secret, and usually a `git clone` nobody edits by hand |
-| `runner/` | 700 | **`agent-bus-runner`** | its home: `services.json`, and the env files, one directory per service ([runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed)) |
+| `daemon/` | `agent-busd` | 700 | Daemon home, credentials and snapshots |
+| `runner/` | `agent-bus-runner` | 700 | Prepared runner home; no managed instances installed |
+| `service.d/` | `agent-bus-runner` | 755 | Prepared shareable service-code directory |
 
-**The two are split so that updating a service touches no local state.** `git
-pull` under `service.d` and every decision this host made — secrets, worker
-counts, confinement, whether it runs at all — is still sitting under `runner/`
-untouched.
-
-**Neither account is one you log in as.** Both are nologin. Only the daemon's
-has an `authorized_keys`, and every line in it is a forced command
-([the programs](#the-programs)) — never a shell. The runner has none
-at all: it is reached as a service on the bus
-([runner § reaching the runner](08-runner-role.md#reaching-the-runner)), so
-there is no second ssh door to lock down. Confining a child on top of that
-is a per-service option rather than what makes the arrangement correct, because
-no secret reaches a child as a file in the first place
-([runner § the three env layers](08-runner-role.md#the-three-env-layers)).
-
-Each directory being the account's actual `$HOME` is what removes a branch:
-the paths a personal run writes under your own home are the paths a system
-install writes under these, with no special case in between.
-
-The per-user sockets are **not** under any of them: they belong in the host's
-runtime directory, which a reboot clears ([access § local socket](02-access.md#local-socket)).
+Both accounts have nologin shells. Only the daemon account receives the forced
+SSH commands. Runtime sockets live at the [access location](02-access.md#local-socket),
+not under either home.
 
 ### The two units
 
-**Two accounts, two units**, and neither is the other's child: they start
-independently, stop independently, and a host may run either alone.
+**Built:** `/etc/systemd/system/agent-busd.service`. The heading is retained
+for existing references; a second unit is not installed in the MVP.
 
-`/etc/systemd/system/agent-busd.service` is the whole privileged arrangement
-in one file:
-
-| The unit says | So that |
+| Setting | Purpose |
 |---|---|
-| `User=agent-busd` | the daemon is never root and never the installer — the check reads the *running* process, so a developer's hand-started one fails it |
-| `WorkingDirectory` and `StateDirectory` are the home, with `StateDirectoryMode` stated | the store and the dumps land where the account can keep them, and nowhere else — and systemd, which re-applies its own default at every start, keeps the mode setup made instead of widening it |
-| `RuntimeDirectory=agent-bus`, at the mode the socket directory wants | the sockets are outside every home and a reboot clears them ([access § local socket](02-access.md#local-socket)) |
-| `Restart=on-failure` | a daemon that dies comes back |
-| `AmbientCapabilities=CAP_CHOWN` with a bounding set of exactly that | the one capability is given, not taken, and no second one can be picked up ([processes § why the supervisor holds CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown)) |
+| `User=agent-busd` | Run as the service account |
+| Working/state directories and explicit state mode | Keep state under its own home |
+| `RuntimeDirectory=agent-bus` | Recreate the runtime socket directory |
+| `Restart=on-failure` | Restart a failed daemon |
+| `AmbientCapabilities=CAP_CHOWN`, bounded to that capability | Own the per-user sockets without running the daemon as root |
 
-`/etc/systemd/system/agent-bus-runner.service` is the other half, and what it
-does *not* say is most of it:
-
-| The runner's unit says | So that |
-|---|---|
-| `User=agent-bus-runner` | it is the other secret domain, and cannot read the daemon's home |
-| **which bus to use, defaulting to the local one** | the runner is a client, so the bus it serves is a setting rather than an assumption. A host with no daemon points it elsewhere and nothing else changes ([runner § where it runs](08-runner-role.md#where-it-runs)) |
-| `WorkingDirectory` is its own home, and that alone is writable | `service.d` is a checkout it only reads, and the daemon's home is not on any path it has |
-| `Restart=on-failure` | same reason, and it restarts *its own* children itself rather than leaving them to systemd |
-| **no `AmbientCapabilities`** | the one capability on this host belongs to the supervisor, and the runner is not it |
-| **against a local bus**: `Wants=agent-busd.service` and `After=` it | the two come up together and in the right order, which is what a local runner depends on. Not `Requires=`: that would stop the runner — and so every service it holds — whenever the bus is stopped, and a bus that is away is not a service that failed ([runner § where it runs](08-runner-role.md#where-it-runs)) |
-| **against a remote bus**: neither | there is nothing on this host to order against, and the unit is the same file otherwise |
-
-**The runner is a bus citizen like anyone else**, which has a consequence
-worth stating: reaching the local bus over the socket means it is a *mapped
-local account* like every other ([local users](#local-users)), so the install
-maps it and the daemon opens it a socket. Nothing about the runner is special
-to the daemon — which is the whole claim of the split, made concrete.
-
-⚠️ The runner's unit ships **with the runner**, in R1
-([stages § R1](12-stages.md#r1)) — there is no point writing a
-unit for a program that is not installed. What exists today is everything it
-will need: both accounts, the tree they own, and the runner's socket.
-
-Setup refuses rather than half-installing without root, and says which `sudo`
-line to run. `--dry-run` names the steps and `--print-unit` prints the unit;
-neither needs anything. The installer's own account is given a socket without
-being asked for — they are a user of the bus like anyone else.
+The installer also maps the prepared runner account to a local socket. The
+future runner unit is defined in [R1 operations](../Plans/R1/operations.md#runner-unit).
 
 ## Config locations
 
-`/etc/agent-bus/` · `~/.config/agent-bus/` · the units ([the two units](#the-two-units)).
+Current daemon configuration comes from command flags and environment; setup
+writes the flags into its unit. The per-program defaults are in
+[daemon source](../src/cmd/agent-busd/main.go). A general configuration-file
+format and an ACL editor are not implemented.

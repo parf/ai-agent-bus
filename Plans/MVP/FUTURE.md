@@ -1,0 +1,10 @@
+# MVP follow-up
+
+## Follow-up
+
+| Direction | Owning plan |
+|---|---|
+| Distributed identity, encryption, federation and managed services | [R1 scope](../R1/README.md#scope) |
+| Bundled tools and image | [R1.1 scope](../R1.1/README.md#scope) |
+| Later architectural exploration | [R1.2 scope](../R1.2/README.md#scope) |
+| Unassigned ideas and storage alternatives | [Future topics](../Future/README.md#topics) |

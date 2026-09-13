@@ -13,8 +13,8 @@
 - Both listeners speak the same HTTP+JSON; the CLI reaches either.
 - The two parameters are enforced: a wrong token and a name without a realm are both refused.
 - A message sent while nobody is reading waits, and arrives afterwards.
-- `reply <message-id>` works with **no reply state in the daemon** — the CLI resolves the id from the envelope it consumed ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)).
-- One reader per inbox: a second unfiltered `consume` is refused with 409, while a filtered waiter is served beside it ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)).
+- `reply <message-id>` works with **no reply state in the daemon** — the CLI resolves the id from the envelope it consumed ([messaging § reply routing](../../../docs/04-messaging.md#reply-routing)).
+- One reader per inbox: a second unfiltered `consume` is refused with 409, while a filtered waiter is served beside it ([messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox)).
 
 **What the review caught**
 
@@ -78,7 +78,7 @@ form. It registers `AGENT_BUS_NAME` at start, which is what makes "find each
 other by name" have a name.
 
 Reply context lives in the face, because the daemon keeps none
-([messaging § reply routing](../../docs/04-messaging.md#reply-routing)): the
+([messaging § reply routing](../../../docs/04-messaging.md#reply-routing)): the
 last 200 messages, **routing fields only** — sender, topic, tag. Bodies are
 unbounded and a reply needs none of one.
 
@@ -128,7 +128,7 @@ steering a session somebody is using. It is the by-hand criterion.
 **Accepted as a PoC limit, not fixed**: the face registers once at start, so a
 daemon restart leaves it connected but unreachable. Memory-only storage means
 a restart loses everything anyway
-([stages § PoC](../../docs/12-stages.md#poc)); restarting the face with the
+([stages § PoC](scope.md#poc)); restarting the face with the
 daemon is the contract, and the MCP instructions say so.
 
 **B.3 review — what Codex found**
@@ -167,7 +167,7 @@ registered, so a *pushed* reply cannot be re-read.
 
 A plugin manifest cannot know the session's name, so the face **derives** one:
 `<runtime>.<cwd>@<host>`, trimmed to the name rule ([identity §
-names](../../docs/01-identity.md#names)) — the way Legacy-V1 names its
+names](../../../docs/01-identity.md#names)) — the way Legacy-V1 names its
 channels. Zero configuration beyond the token. Verified: a session started with
 no `AGENT_BUS_NAME` registered as
 `claude-code.home-parf-src-ai-agent-bus-src-mcp@parf.us`.
@@ -237,7 +237,7 @@ server to bind to. The same invocation without it works interactively.
 ## B.5 — the plugin's own commands
 
 `/ab:ls` and `/ab:send` are in `commands/`. Colon namespace, because these are
-plugin commands and not MCP tools ([glossary](../../docs/glossary.md)).
+plugin commands and not MCP tools ([glossary](../../../docs/glossary.md#glossary)).
 
 **The SessionStart hook was dropped**: the MCP server already registers itself
 at start, so a hook doing it again is a second implementation of B.2 with
@@ -248,7 +248,7 @@ token issuance.
 
 ## C — the rest of the verbs
 
-Eleven verbs now exist ([stages § PoC](../../docs/12-stages.md#poc)), and
+Eleven verbs now exist ([stages § PoC](scope.md#poc)), and
 `src/smoke.sh` is 38 checks.
 
 **C.1 — `call` and `ack`.** `call` is `send` plus the filtered wait, with no
@@ -261,7 +261,7 @@ it is about, exactly as the design says. That means a caller's wait *sees* it,
 so `call` reports a receipt and keeps waiting for the answer.
 
 Two rules had to be settled, and both are in
-[decisions](../../docs/decisions.md):
+[decisions](../../../docs/decisions.md#mvp-decisions):
 
 | | |
 |---|---|
@@ -318,7 +318,7 @@ invent: sshd has already authenticated the caller against a key they own, so
 the script prints the file `agent-busd` made on first run and refuses
 anything else. Setup is one `authorized_keys` line, given in the script's
 own header
-([access § getting a token](../../docs/02-access.md#getting-a-token)).
+([access § getting a token](../../../docs/02-access.md#getting-a-token)).
 
 The daemon needed no change for it — `loadToken` already created and read
 that file — which is the point: the token path is a file, not a protocol.
@@ -328,12 +328,12 @@ name (`AGENT_BUS_USER_TOKEN` in two documents, `AGENT_BUS_TOKEN` everywhere in
 the code). The code's name won: it is the third of the same triad as
 `AGENT_BUS_NAME` and `AGENT_BUS_ADDR`.
 
-**D.2 — the recipe.** [`src/README.md`](../../src/README.md) — build, check,
+**D.2 — the recipe.** [`src/README.md`](../../../src/README.md#src) — build, check,
 and the three terminals: the daemon, a service (by hand or as a shell
 script), and a caller. Running it as written is what caught the `start`
 inbox bug the same hour Codex reported it.
 
-**D.3 — every criterion in [stages § PoC](../../docs/12-stages.md#poc).**
+**D.3 — every criterion in [stages § PoC](scope.md#poc).**
 Walked one by one; the evidence is a named check in `src/smoke.sh` — 60 of
 them now — unless the row says otherwise.
 
@@ -347,7 +347,7 @@ them now — unless the row says otherwise.
 | basic request/reply with `ack` | a service acks, then answers; the caller gets the answer, not the receipt |
 | a script is a service, `-N` at a time, both algos | `echo "Hello $1"` answers a call; `std` gets the envelope on stdin and in the environment |
 | basic MCP face: list, send, consume | its own harness over stdio, driving the server exactly as a client does |
-| install: the built binary, no npm | ⚠️ true for the daemon and CLI. The MCP face is TypeScript by decision, so it needs bun and one dependency — `bun install`, never npm ([modules § languages](../../docs/10-modules.md#languages)) |
+| install: the built binary, no npm | ⚠️ true for the daemon and CLI. The MCP face is TypeScript by decision, so it needs bun and one dependency — `bun install`, never npm ([modules § languages](../../../docs/10-modules.md#languages)) |
 | setup: a pubkey behind the forced command | D.1 |
 | storage in memory | there is no other kind here |
 | loopback or an SSH tunnel only | the daemon exits rather than bind a public interface |
@@ -397,7 +397,7 @@ capacity.
 The owner's call, asked and answered: overflow now, reject-new as the default,
 and the reply-address contract stays MVP wording. Legacy-V1's `discard: new`
 was the better answer and we took it ([messaging §
-overflow](../../docs/04-messaging.md#overflow)).
+overflow](../../../docs/04-messaging.md#overflow)).
 
 Mutation-verified, as the rule requires: the default flipped back to `ring`,
 the strict refusal disabled, and the counter dropped — each turns a named
@@ -405,7 +405,7 @@ check red on its own.
 
 **What is not true, and is meant not to be**: bodies are plaintext, so *the
 bus never reads payloads* is a claim MVP earns, not this stage
-([stages § PoC](../../docs/12-stages.md#poc)).
+([stages § PoC](scope.md#poc)).
 
 ## After the stage closed — naming, configuration, and three review rounds
 
@@ -415,18 +415,18 @@ by Codex and by Fable, findings reproduced before any was accepted.
 **A service is a configured thing.** `template/instance-name@host` joins
 `service@host`, the host is whatever follows the **last** `@`, and the
 instance name takes `+` so `mail-sender/parf+alerts@comfi.com@host` is one
-name ([identity § names](../../docs/01-identity.md#names)). The
+name ([identity § names](../../../docs/01-identity.md#names)). The
 `service-template` verb configures one and reads it back.
 
 **A configuration is private.** Only the service reads its own bytes — its
 owner included. Every other answer carries `config_sha` instead, which is
 what lets a monitor, a peer or a deploy check hold the digest it knew and
 see whether a setup changed, without the secrets ever leaving the daemon
-([services § why a digest at all](../../docs/03-services-and-topics.md#why-a-digest-at-all)).
+([services § why a digest at all](../../../docs/03-services-and-topics.md#why-a-digest-at-all)).
 
 **Discovery answers what you can call**, not only what exists: a record says
 how to call it, and a query says whether anything is serving that name
-([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)).
+([discovery § what a listing answers](../../../docs/05-discovery.md#what-a-listing-answers)).
 
 ### What the reviews changed
 

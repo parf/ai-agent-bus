@@ -1,146 +1,74 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+All repository conventions live here. `AGENTS.md` only points here.
 
 ## What this repo is
 
-**agent-bus** — a single daemon (`agent-busd`) that is registry, broker, MCP
-server and dashboard for AI agents, bots and services. Design docs, and the
-code they describe.
-
-**The PoC is built, in `src/`**, beside `docs/` and `Plans/`; everything past
-it is still design. Code changes need **`src/smoke.sh --slow`** green — it runs
-`go vet` and `go test -race` itself; the bare `./smoke.sh` is a fast subset for
-the edit-run loop and is not proof. A check is not believed until it has been
-watched failing with its fix broken. **Legacy-V1** (NATS JetStream) is
-implemented elsewhere:
-code at `/rd/service/agent-bus/` (`README.md`, `HOWTO.md`), normative design at
-`/rd/vhosts/realty/Plans/PRF-25/`. Read those, not Linear, when a Legacy-V1
-fact is needed. This repo designs V2 and builds it.
+agent-bus V2 connects AI agents and services through a registry, broker and faces.
+Current development is MVP; [scope and status](Plans/MVP/README.md#scope) distinguish built code from pending requirements.
+Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/realty/Plans/PRF-25/`. Read those when a legacy fact is needed; this repository builds V2.
 
 ## Document map
 
-`docs/00-overview.md` indexes the set and says which document owns what — read
-it first rather than duplicating the index here. Beyond the numbered docs:
-
-| File | Role |
+| Home | Owns |
 |---|---|
-| `docs/glossary.md` | **normative for naming.** Every name and term, one line each. Check a name here before inventing one |
-| `docs/decisions.md` | index of settled / open / superseded decisions — rows link, they never state the rule |
-| `docs/12-stages.md` | PoC / MVP / R1 — check which stage a feature belongs to before designing it in |
-| `Plans/MVP/` | the **active plan** — `README.md` is the stage's own knowledge, `TODO.md` the waves and acceptance, `DONE.md` what is finished and what the mutants caught. Follows the Plans HOWTO (`/rd/vhosts/realty/Plans/README.md`): knowledge, active work and decisions stay in separate files |
-| `Plans/PoC/` | the finished stage — same shape, kept for its knowledge and its completion log |
-| `Plans/R1/` | the **next** stage, not started — same shape |
-| `docs/future/` | designed but deferred; not part of the current scope — LDAP/AD, billing, and `1.2-UNDECIDED.md` where a want is written down before its mechanism is chosen |
-| `legacy/` | history only, not spec — never cite it, never update it |
-
-On **decisions**, the doc that `docs/decisions.md` links to wins. When two docs
-disagree, fix the stale one.
+| [Overview](docs/00-overview.md#document-ownership) | Current MVP topic ownership |
+| [Glossary](docs/glossary.md#names) | Current naming and links to definitions |
+| [Decisions](docs/decisions.md#settled) | Current decision names and links |
+| [Plans](Plans/README.md#stages) | Stage status and release scope navigation |
+| [MVP](Plans/MVP/README.md#scope) | Active stage knowledge; current contracts remain in docs |
+| [R1](Plans/R1/README.md#scope), [R1.1](Plans/R1.1/README.md#scope), [R1.2](Plans/R1.2/README.md#scope) | Future release knowledge and plans |
+| [Future](Plans/Future/README.md#topics) | Generic undecided or unassigned ideas |
+| `Plans/done/` and each plan's `done/` | Historical completion evidence, never current contracts |
+| `legacy/` | History only: never cite or update it |
 
 ## Working rules
 
-- **No data models, no schemas, no wire formats until the owner asks.** The
-  design is deliberately at the level of ideas. Do not invent tables, JSON
-  shapes or endpoint lists.
-- **Canonical home.** Every fact that carries a *value* — a path, a command, a
-  mode name, a field, a number, a list of kinds — is stated in exactly one
-  section. `docs/00-overview.md` says which.
-- **Claim vs value.** Any other doc may restate the *claim* in one sentence and
-  must link to the canonical section in the same breath. The test: *if the
-  value changed, would this line need editing?* If yes and this is not its
-  home, delete the value and keep the link. This is why a socket path once had
-  to be edited in seven places.
-- **Cross-references are section links**, never bare doc numbers. From inside
-  `docs/`, write `[access § local socket](02-access.md#local-socket)`; from
-  `README.md` or this file, prefix `docs/`. Link text is *short doc name §
-  section*. Headings used as targets are plain words — no backticks or
-  punctuation, so the anchor stays predictable — and are not renamed casually.
-- **The plan is not a design doc.** A stage directory holds objective, waves,
-  blockers and acceptance criteria; anything a developer must know to work
-  correctly belongs in `docs/`, and a decision taken while planning lands in
-  `docs/decisions.md` like any other.
-- **Every settled decision gets two edits**: the substance into the doc that
-  owns it, and one row in `docs/decisions.md` that *names* it and links. If you
-  can learn the rule from the row, the row is too long.
-- **Revising a decision** is three edits: change the doc, add a new row, move
-  the old row to `## Superseded` with what replaced it.
-- **Open items** live as a `❓` with *Settled by:* at the point in the topic doc
-  where a reader hits the gap, and are indexed in `docs/decisions.md`. Never
-  state a count of them anywhere — it drifts.
-- **Summaries** (`README.md`, this file, the overview's principles) may restate claims,
-  comparisons and consequences; they may not restate values. The one exception
-  is the README's CLI sample block.
-- Decisions in `docs/decisions.md` are closed — do not reopen without a reason
-  from the owner.
+- **No data models, schemas or wire formats until the owner asks.** Do not invent tables of fields, JSON shapes or endpoint lists during planning.
+- **Current scope.** `docs/` describes the whole MVP scope, with built and pending explicit. A pending requirement is not an implementation claim.
+- **Future scope.** Future design belongs in `Plans/<release>/README.md` or its topic files. Use `Plans/Future/` when the release or idea is undecided. Do not assign an idea to the current release merely because it was mentioned now.
+- **Canonical home.** Every value has one owning section. Any other document may restate its claim in one sentence with a section link. If changing the value would require editing the summary, remove the value. The root README CLI example block is the sole example exception.
+- **Plan lifecycle.** Follow `/rd/vhosts/realty/Plans/README.md`: README and topic files hold stable knowledge; TODO holds unfinished work, dependencies and falsifiable acceptance; DONE holds concise results; FUTURE holds follow-up; QUESTIONS holds only unresolved choices; DECISIONS holds dated decision names, brief rationale and links. Move completed task detail to `done/`, completed stages to `Plans/done/`. Never renumber task IDs.
+- **Promote on acceptance.** When future scope becomes current, move its accepted substance to the owning current doc, update built/pending status and links, and leave plan history pointing to that home. Do not maintain competing copies.
+- **Decisions need two edits.** Put substance in its owning current doc or future plan topic, and add a named link in `docs/decisions.md` for current scope or the owning plan's `DECISIONS.md` for future scope. A row names the decision; it does not restate values. Remove its resolved question at the same time.
+- **Revising decisions.** Change the substance, record the replacement, and move the old decision reference to superseded history. Do not reopen a settled decision without an owner reason; an implementation gap is pending work, not a new decision.
+- **Open choices.** The owning plan's QUESTIONS file is canonical. A topic points to the question rather than copying it. Preserve unresolved contradictions as questions; never silently pick a mechanism.
+- **Section links.** Cross-references target the defining section, with short labels. Prefer plain-word headings and stable anchors. Historical snapshots are labeled history and do not override active knowledge.
+
+## Verification
+
+Code changes require `src/smoke.sh --slow` green; it runs vet and race tests. The fast subset is edit-loop feedback only. Break each behavioral fix and watch its named check fail; reproduce review findings before accepting them. For a documentation-only change, check internal paths and anchors, scope/status consistency and question/decision migration; no version bump or runtime test rerun is required solely for prose edits.
 
 ## Writing conventions
 
-- Small files, main ideas only, **tables over prose**. Terse; the owner writes
-  shorthand and corrects directly — update without ceremony.
-- English (the owner reads English and Russian).
-- **Stage names are `R1`, `R1.1`, `R1.2`** — never "Release 1", and never "V1".
-  **The NATS system is `Legacy-V1`**, never "V1" either. One word for two
-  things is how `Plans/V1` came to mean the stage while the same word meant
-  the legacy everywhere else.
-- Glyphs follow <https://parf.dev/ai-skills/Glyphs.md>: **no glyph by default**;
-  ❓ open question (with what settles it), ⁉️ two sources contradict, ❌ failure,
-  ⛔ impossible, 🚫 cancelled, ⏸️ deferred, ⚠️ partial, ✅ done, 🎫 handed off,
-  🟤 superseded. One glyph per cell; if most rows would carry one, none do.
+- Small files, main ideas only, tables over prose; terse English.
+- Use R1, R1.1 and R1.2 for stages; Legacy-V1 for the NATS system.
+- No glyph by default. Use question, conflict, failure, blocked, cancelled, deferred, partial, done, handed-off and superseded glyphs only when they add information. One glyph per cell.
 
-## Design invariants worth knowing before editing
+## Design boundaries
 
-Getting these wrong produces drift that is easy to miss. Stated as rules, with
-the mechanism behind the link:
+Read the owning section before changing a boundary:
 
-- **Modular by layer**: protocol → ports → core, with adapters and faces
-  outside. Dependencies point inward; core never imports an adapter; every
-  external dependency (database, directory, sandbox, dump, git) sits behind a
-  port so it can be replaced by writing one adapter — `docs/10-modules.md`.
-- **No external broker.** `agent-busd` *is* the broker; point-to-point plus
-  bounded in-memory queues. Never reintroduce one; if a single flow needs
-  durability, give that one flow a WAL.
-- **Authentication is always on; the AUTH *role* is optional.** A call carries
-  a token and nothing else — the token *is* the principal, and a name on the
-  wire would prove nothing. The local socket is a credential of the same kind,
-  not an exemption from having one — `docs/02-access.md`.
-- **Names are `user@realm`**, and **the name is the identity**. Provider
-  numeric ids are stored only as a re-check comparison; never reintroduce
-  `github:<id>`-style ids as principal ids — `docs/01-identity.md`.
-- **Registration is a record you state.** A provider is an alternative to
-  typing it and is not needed after enrolment. MVP is manual + GitHub.
-- **ACL is service first, then master**, and a service may refuse master
-  access — `docs/01-identity.md`.
-- **Required minimum** is registry (services *and* topics) + queues + API +
-  MCP + dashboard, AUTH off.
-- **Supervisor plus least-privilege children**, systemd-style: the supervisor
-  holds only `CAP_CHOWN` and no state; bus, web, auth, billing and health are
-  separate processes, each with a declared privilege set; nothing
-  shared implicitly — unix sockets and passed fds only. Only auth holds
-  `master_secret`; **no process the daemon starts may exec at all** — the
-  runner is a separate program under its own account, not a child —
-  `docs/11-processes.md`.
-- **Two kinds of data.** AUTH data = offline-signed generations in git.
-  Registry data = live records, writer-signed where a key exists, snapshotted
-  to git. Live state (health, stats, queue contents) is neither.
-- **Chaining queries upstream; it never replicates it.** Peers sync registry
-  via git, newer record wins per entry.
-- **Ed25519 everywhere a key exists**; no passwords, no client secrets, no
-  TLS/PKI *between bus citizens*. The dashboard is the exception, because a
-  browser has no other way — `docs/05-discovery.md#where-it-listens`.
-- **Do not reinvent the wheel**, in this order: the language's built-in, then
-  the system's tool (`ssh-keygen`, `ldapsearch`, `git`, `age`, `systemd-run`,
-  `sshd`) behind a port in an adapter, then a well-known library for the
-  per-message hot path — and never our own crypto or protocol primitives.
-  **HTTP is always built in**, never a subprocess: web requests are
-  first-class here and every language ships a client. A script may use `curl`
-  — `docs/10-modules.md`.
-- **Bodies are end-to-end encrypted from R1.** The MVP's key mode cannot
-  carry that claim — the daemon issues the token a session key would derive
-  from — so the stage runs with the bus trusted on its own host
-  (`docs/02-access.md#encrypted-sessions`). What holds in every stage: the bus
-  and its dashboard see **envelopes only**.
-- **Queues and stats are memory**, dumped to Parquet on graceful restart. A
-  consumer being down is fine — its queue waits.
+| Boundary | Home |
+|---|---|
+| Layering and dependency choice | [modules](docs/10-modules.md#the-rule), [external tools](docs/10-modules.md#external-tools) |
+| Authentication and identity | [access](docs/02-access.md#what-a-call-carries), [names](docs/01-identity.md#names) |
+| Visibility and use | [ACL](docs/01-identity.md#acl) |
+| Private configuration | [configuration](docs/03-services-and-topics.md#configuring-a-template) |
+| Body trust and persistence | [trust boundary](docs/02-access.md#encrypted-sessions), [durability](docs/04-messaging.md#durability) |
+| Process privilege and exec | [process boundary](docs/11-processes.md#the-rule) |
+
+## Versioning
+
+| Rule | |
+|---|---|
+| Shared SemVer | Every program and face shares one `MAJOR.MINOR.PATCH`; never version the daemon, runner, CLI or MCP independently |
+| Canonical value | `src/internal/version/VERSION`, embedded by Go and read by TypeScript; no other current-version literals |
+| MVP | `0.5.x`; bump PATCH on every significant feature, and on a shipped behaviour fix. A shared change still gets one bump |
+| Later releases | Before stability, MINOR advances the release line. From major one, breaking changes bump MAJOR, compatible features MINOR, fixes PATCH; reset lower components when advancing a higher one |
+| No behaviour change | Docs, tests and refactoring alone do not require a bump |
+| Changelog | Every version bump includes a one- or two-line version summary in `CHANGELOG.md`, newest version on top. Historical release numbers belong there; never rewrite them to match the current version |
+| Build evidence | Shipped Go binaries must carry [setup § build information](docs/09-setup.md#build-information) and expose it through the version query. Use the documented build script; never ship an unstamped development build |
 
 ## Git
 
