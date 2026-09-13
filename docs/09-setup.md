@@ -116,6 +116,16 @@ What it has to not break:
 | **it must not become a process the daemon has to start** | no process the daemon starts may exec at all ([processes](11-processes.md)). So either the engine is **linked in as a library** — RocksDB is one — or it is a **unit and an account of its own**, started by systemd like the daemon is. That fork is the thing to settle, and the library side costs no third account |
 | **backup follows the data** | the runner's backup is an encrypted archive of `runner/` ([runner § backing it up](08-runner-role.md#backing-it-up)); env files moving into the store moves that too, and a store is backed up by snapshotting it rather than by tar |
 
+**And it replicates itself**, which is the third reason: a standby copy of a
+node's store is the engine's own feature, so there is no master-and-replica
+arrangement of ours to design, get wrong, or explain. What that is and is not:
+
+| | |
+|---|---|
+| **it is a copy of one node, not peer sync** | peers are separate daemons that exchange **registry records through git**, newer wins per entry ([services § registry sync](03-services-and-topics.md#registry-sync)). This is the same node's data on a second box, for taking over — two different problems that would otherwise both be called replication |
+| **it is not AUTH's replicas either** | those are **signed generations**, and a replica is trusted because the signature is, not because it was copied ([AUTH role § bundle](06-auth-role.md#bundle)). Copying cannot produce authority |
+| **and locks stay out of it** | they are live state, deliberately not persisted, and a lock that survived onto a standby would be a claim about processes that are not there ([messaging § shared locks](04-messaging.md#shared-locks)). Replication carries what is durable, which is what makes *durable* worth stating |
+
 ## Reload
 
 Zero-downtime reload for `agent-busd` itself via socket inheritance

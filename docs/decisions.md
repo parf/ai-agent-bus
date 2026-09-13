@@ -272,7 +272,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](03-services-and-topics.md#registry-sync) |
 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](02-access.md#encrypted-sessions) |
 | What carries a service's method information | owner, with the MVP faces | [services § service and template](03-services-and-topics.md#service-and-template) |
-| What else lives in the store, and whether RocksDB replaces it — holding the daemon's and the runner's data encrypted, linked in or a unit of its own | owner | [setup § storage](09-setup.md#storage) |
+| What else lives in the store, and whether RocksDB replaces it — holding the daemon's and the runner's data encrypted and replicating itself, linked in or a unit of its own | owner | [setup § storage](09-setup.md#storage) |
 | Where the ACL and the user-to-account map are edited | owner | [setup § the programs](09-setup.md#the-programs) |
 | npm install vs Go-first for the first release | owner | [setup § install](09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](08-runner-role.md#adapters) |
