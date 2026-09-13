@@ -66,6 +66,23 @@ Every row is two services, one each way.
 | **sms** | owner | send only — there is no inbound half worth having on most carriers |
 | **mail** | owner | **IMAP** in, **SMTP** out. The design's own running example is a mail reader ([runner § what an instance is](08-runner-role.md#what-an-instance-is)), and it is the one channel every business already has |
 | **webhook** | proposed | an inbound URL that publishes what it receives, and an outbound that calls one. The highest-leverage entry here: with it, the next SaaS integration is configuration rather than a new service |
+| **im** | owner | the **router** in front of the rows above. Give it a *person* — by name, or by any alias they are known by — and it delivers to the first destination on their list that takes it |
+
+**`im` is the one that knows who somebody is.** Every other row speaks one
+service and takes an address that service understands; this one takes a person
+and picks. Two things it adds, and nothing else here does:
+
+| | |
+|---|---|
+| **many ids, one person** | a Telegram handle, a Slack member id, an address somebody typed out of habit — all of them resolve onto `parf@srv1`, which is the identity ([identity § how to reach a person](01-identity.md#how-to-reach-a-person)). **An alias is a lookup key and never a principal**: what travels is the name |
+| **first one wins** | the destinations are ordered and the first that takes the message ends it. Same rule as the alerter's, because it is **the same list** — the person's, in their record |
+
+**`im` and `alerter` are one delivery with two front doors.** The alerter is
+woken by a subscription and picks the list by severity
+([the bus watching itself](#the-bus-watching-itself)); `im` is called by
+anybody holding a person. Neither keeps anything about people, both stop at
+the first success, and if a third caller of this kind appears that is the
+signal to make it one service with three ways in rather than three services.
 
 ### Reading the box
 

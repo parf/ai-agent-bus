@@ -130,19 +130,25 @@ another. Each entry names a service that does the delivering
 ([bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside))
 and the address that service understands.
 
+Beside it, **the aliases this person is known by elsewhere**: a Telegram
+handle, a Slack member id, an address somebody types out of habit. They are
+what lets a message addressed to any of those reach the right human
+([bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside)).
+
 | | |
 |---|---|
 | **it is the person's, so it lives with the person** | not in an alerter's configuration. One person is reached by several alerters — one per host, one per team — and a phone that changed has to change **once**. The daemon is already where the person is |
 | **the principal writes their own** | like the other details on the record, and for a reason of its own: nobody else knows which phone is on tonight |
-| **nothing enforces it** | it is a list of preferences, not an access decision. What acts on it is the `alerter`, which is an ordinary service reading an ordinary record ([bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself)) |
+| **an alias is a lookup key and never a principal** | it resolves *to* a name and the name is what travels — the same rule that keeps a provider's numeric id out of being an identity ([names](#names)). Nothing is ever authorised as `@someone` on Telegram |
+| **nothing enforces it** | it is a list of preferences, not an access decision. What acts on it is `im` and the `alerter`, ordinary services reading an ordinary record ([bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself)) |
 
 ❓ **Who may read somebody else's.** A phone number is not an avatar, and the
 alerter needs everybody's. *Settled by:* owner, with the ACL.
 
-Phone numbers and IM handles are contact routes nothing on the bus uses —
-nothing routes on them, nothing checks them, and holding them makes the record
-worth protecting for reasons that have nothing to do with the bus. Later, if
-an organisation asks.
+A record holding a phone number is worth protecting for reasons that have
+nothing to do with the bus — which is the whole of that question, and the
+reason these are the person's own to write rather than something an
+organisation collects about them.
 
 **MVP is this plus GitHub** — nothing else. GitHub is an *alternative to typing
 the record*: it fills the same fields from a login the person already has,
