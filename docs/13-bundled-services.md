@@ -181,13 +181,16 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **mysql · postgres** | owner | one instance per account, granted read-only or read-write **as two names** |
 | **redis · kvrocks** | owner | the same shape |
 | **mongo** | owner | the same shape |
-| **kv** | owner | ours, not a gateway: memory-only or persistent, chosen per instance. The small shared state that otherwise becomes a database nobody wanted |
+| **kv** | owner | the small shared state that otherwise becomes a database nobody wanted. **The first version is an access wrapper around `kvrocks`** — the surface below is that server's own, and what this adds is who may touch which part of it |
 | **elastic** | owner | search, and where logs go to live. `logwatch` answers about the last few minutes ([reading the box](#reading-the-box)); this answers about last month |
 | **clickhouse** | owner | analytics. Querying and ingesting are two names, as everywhere — they are rarely the same grant |
 | **object storage** | proposed | S3 and what speaks it. **files** for a disk, this for a bucket |
 
-**What `kv` provides**, and it is **redis's shape on purpose** — proven,
-familiar, and every language already thinks in it:
+**What `kv` provides** is redis's shape, and in the first version it *is*
+redis's shape: `kvrocks` speaks that protocol over RocksDB, so the whole list
+below already exists and is somebody else's to maintain
+([modules § the rule](10-modules.md#the-rule)). What is ours
+is the access model above it.
 
 | | |
 |---|---|
@@ -202,7 +205,8 @@ familiar, and every language already thinks in it:
 |---|---|
 | **blocking is why this is a service and not a file** | a lock-free `set` is something any script could do to a file it shares. Waiting on an empty list is not, and it is the whole reason a pool reaches for one of these |
 | **three of these claim work, and none of them is a lock** | `cas`, `setNX` and the atomic pull-push each answer *exactly one worker takes this item* on their own — which is the batcher case, and worth knowing before reaching for a lock ([messaging § shared locks](04-messaging.md#shared-locks)) |
-| **it is ours, so it stays small** | anything past this list is redis, and redis is already in the table above. Ours exists for the case where a dependency is not wanted, and it stops being that the moment it chases the feature list |
+| **the wrapper is the product, not a layer over one** | the rule against putting something of ours between a caller and a tool ([rules they all obey](#rules-they-all-obey)) is about silent policy — a retry, a cache, a rewrite the caller cannot see. Here the namespace **is** what the caller asked for: they address their own key space and never the server underneath, so there is no second thing being decided behind their back |
+| **and it is two names, not one** | `kvrocks` in the table above hands over a server, and this hands over a namespace inside one. A person who should have the first is not the same person who should have the second — which is how everything here is granted ([rules they all obey](#rules-they-all-obey)) |
 
 **Two namespaces, and only one of them can be shared.**
 
@@ -219,8 +223,9 @@ familiar, and every language already thinks in it:
 ❓ **A hash of locks.** Asked for, and the one item here that would be a
 **second lock authority**: the daemon grants named locks as of Release 1
 ([messaging § shared locks](04-messaging.md#shared-locks)), and two things
-granting locks is exactly what that section argues against — and what a set of
-locks is *for* is written down there now ([messaging § a set of
+granting locks is exactly what that section argues against — more so now that
+the store is `kvrocks`, where such a lock would be that server's rather than
+the bus's. What a set of locks is *for* is written down there now ([messaging § a set of
 locks](04-messaging.md#a-set-of-locks)), so the question left is narrower:
 whether `kv` shows them at all, or callers ask the daemon. `setNX` with a ttl
 is already a lock in everything but name, which is why this is worth settling

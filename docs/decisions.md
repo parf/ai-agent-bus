@@ -164,7 +164,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The alerter's order is a fallback chain that stops at the first success, where a refusal and a silence both count as not reached | [bundled services § the bus watching itself](13-bundled-services.md#the-bus-watching-itself) |
 | `im` routes a message to a person by name or by any alias they are known by, first destination that takes it winning — the alerter's delivery with a different front door | [bundled services § people and the world outside](13-bundled-services.md#people-and-the-world-outside) |
 | A person's record carries their aliases elsewhere; an alias is a lookup key that resolves to a name and never acts as a principal | [identity § how to reach a person](01-identity.md#how-to-reach-a-person) |
-| `kv` is redis-shaped on purpose — values with a ttl, conditional set, atomics and `cas`, hashes, lists with blocking forms and an atomic pull-push — and stops there, because past that list is redis | [bundled services § data](13-bundled-services.md#data) |
+| `kv`'s first version is an access wrapper around `kvrocks`: the surface is that server's, and what is ours is the namespace and who may reach it | [bundled services § data](13-bundled-services.md#data) |
 | Every service has a personal `kv` namespace that cannot be shared; sharing is a registered instance with an `allow`, so it is visible in the registry | [bundled services § data](13-bundled-services.md#data) |
 | A `kv` instance's read / write / rw is a service-defined `#role` the daemon hands over, not a flag on the call and not two names | [bundled services § data](13-bundled-services.md#data) |
 | The image is one image and two containers, because the two accounts are two secret domains | [stages § the image](12-stages.md#the-image) |
@@ -295,6 +295,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 
 | Was | Now |
 |---|---|
+| `kv` is ours and not a gateway: memory-only or persistent, chosen per instance | the first version is an access wrapper around `kvrocks` — the data structures are that server's, ours is the namespace and the ACL over it — [bundled services § data](13-bundled-services.md#data) |
 | `#` marks a **role**, and an entry is a subject mapped to access and an optional role — `parf@github => rw, #admin` | `#` marks a **service**, roles moved into parentheses, and the access level went away with them: being in the list *is* the access — [identity § sigils](01-identity.md#sigils) |
 | Owner is an expression, with `owner` and `maintainer` as tiers | one owner, exactly one user, and the maintainer is a group — [identity § ownership](01-identity.md#ownership) |
 | `autostart.json` — the host's file, listing what to bring up | `services.json`, listing everything **installed** with `autostart` as one field on each row, so a configured instance can be kept and started by hand — [runner § the list of what is installed](08-runner-role.md#the-list-of-what-is-installed) |
