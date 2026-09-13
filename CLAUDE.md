@@ -162,6 +162,22 @@ exists`). One decision per commit.
 - A commit of somebody else's may land between yours. Pull and rebase; never
   force-push.
 
+## Scratch files
+
+**Nothing throwaway enters the tracked namespace.** All of the below is in
+`.gitignore`; the point is to use it rather than to rely on it.
+
+| Where | What |
+|---|---|
+| `tmp/` | temporary data — output, logs, dumps, a file written to be read once |
+| `tmp/scripts/` | one-off scripts: a sweep, a checker, something driving a test by hand |
+| `*.local`, `*.local.*` | a throwaway that has to sit beside the thing it belongs to — `config.local.json` next to `config.json` |
+| `local/` | the same, when there are enough of them to want a directory |
+
+Do not write scratch into `/tmp` either: it is shared with every other
+process on the box, it is not cleaned up on any schedule anybody controls,
+and a name collision there is somebody else's afternoon.
+
 ## Other agent configs
 
 An OpenAI Codex config exists at `~/.codex/config.toml`. To import user-level
