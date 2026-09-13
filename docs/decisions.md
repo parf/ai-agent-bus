@@ -290,6 +290,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Whether the daemon's own parts — dashboard, health, stats — become bundled services rather than supervisor children | owner, once the catalogue is real | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [future/1.2-UNDECIDED.md](future/1.2-UNDECIDED.md) |
 | Whether `kv`'s hash of locks is the daemon's locks under a name, or a second authority | owner | [bundled services § data](13-bundled-services.md#data) |
+| Whether `kv` is optional, given that it is where service configuration would live | owner | [bundled services § data](13-bundled-services.md#data) |
 
 ## Superseded
 

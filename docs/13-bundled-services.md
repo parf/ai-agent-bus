@@ -181,7 +181,7 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **mysql · postgres** | owner | one instance per account, granted read-only or read-write **as two names** |
 | **redis · kvrocks** | owner | the same shape |
 | **mongo** | owner | the same shape |
-| **kv** | owner | the small shared state that otherwise becomes a database nobody wanted. **The first version is an access wrapper around `kvrocks`** — the surface below is that server's own, and what this adds is who may touch which part of it |
+| **kv** | owner | **shared, secure service state and configuration** — the small state that otherwise becomes a database nobody wanted. **The first version is an access wrapper around `kvrocks`**: the surface below is that server's own, and what this adds is who may touch which part of it |
 | **elastic** | owner | search, and where logs go to live. `logwatch` answers about the last few minutes ([reading the box](#reading-the-box)); this answers about last month |
 | **clickhouse** | owner | analytics. Querying and ingesting are two names, as everywhere — they are rarely the same grant |
 | **object storage** | proposed | S3 and what speaks it. **files** for a disk, this for a bucket |
@@ -207,6 +207,12 @@ is the access model above it.
 | **three of these claim work, and none of them is a lock** | `cas`, `setNX` and the atomic pull-push each answer *exactly one worker takes this item* on their own — which is the batcher case, and worth knowing before reaching for a lock ([messaging § shared locks](04-messaging.md#shared-locks)) |
 | **the wrapper is the product, not a layer over one** | the rule against putting something of ours between a caller and a tool ([rules they all obey](#rules-they-all-obey)) is about silent policy — a retry, a cache, a rewrite the caller cannot see. Here the namespace **is** what the caller asked for: they address their own key space and never the server underneath, so there is no second thing being decided behind their back |
 | **and it is two names, not one** | `kvrocks` in the table above hands over a server, and this hands over a namespace inside one. A person who should have the first is not the same person who should have the second — which is how everything here is granted ([rules they all obey](#rules-they-all-obey)) |
+
+❓ **Whether `kv` is optional.** It is not in the required minimum
+([overview § principles](00-overview.md#principles)) and the bus runs without
+it — but a store that holds services' **configuration** is a hard thing to call
+optional, because then the services that keep their config there are optional
+too. *Settled by:* owner.
 
 **Two namespaces, and only one of them can be shared.**
 
