@@ -63,27 +63,36 @@ func main() {
 	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		cred := cookie(r)
-		var v view
 		// Whose page this is comes from the bus, not from the child: the
 		// cookie is checked by being used. An expired or forged one is a
 		// visitor who is not signed in, which is the anonymous page.
-		if cred == "" || bus.get(cred, "/status", &v.Status) != nil {
+		var node struct {
+			core.Status
+			You string `json:"you"`
+		}
+		if cred == "" || bus.get(cred, "/status", &node) != nil {
 			render(w, anon, nil)
 			return
 		}
-		var me struct {
-			You string `json:"you"`
-		}
-		bus.get(cred, "/status", &me)
-		v.You = me.You
+		v := view{You: node.You, Status: node.Status, Refusals: refusals(node.Refused)}
 		if err := bus.get(cred, "/ls", &v.Records); err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		if err := bus.get(cred, "/recent", &v.Recent); err != nil {
-			// A caller who may not read the feed still gets the rest of
-			// the page.
+		// Three views off one listing, each answering a different question
+		// of the same records — and each one the caller's own, because the
+		// bus filtered the listing before it got here.
+		v.Backlogs, v.Losses = stuck(v.Records), lost(v.Records)
+		// A caller who may not read the feed, or has no credential of its
+		// own to be told about, still gets the rest of the page.
+		var feed []protocol.Envelope
+		if err := bus.get(cred, "/recent", &feed); err != nil {
 			v.NoFeed = err.Error()
+		} else {
+			v.Exchanges = exchanges(feed)
+		}
+		if err := bus.get(cred, "/names", &v.Names); err != nil {
+			v.NoNames = err.Error()
 		}
 		render(w, page, v)
 	})
@@ -183,14 +192,6 @@ func defaultCert(ext string) string {
 	return filepath.Join(home, ".local", "state", "agent-bus", Host+ext)
 }
 
-type view struct {
-	You     string
-	Status  core.Status
-	Records []protocol.Record
-	Recent  []protocol.Envelope
-	NoFeed  string
-}
-
 // cookieName carries the session and nothing else — never a token, and never
 // in a URL. See docs/05-discovery.md#signing-in.
 const cookieName = "agent_bus_session"
@@ -268,6 +269,8 @@ const head = `<!doctype html>
  th{font-weight:600;color:#555}
  code{font:13px ui-monospace,monospace}
  .muted{color:#888}
+ .warn{color:#b00}
+ h2{font-size:15px;margin:1.6rem 0 .4rem}
  .who{float:right;font-size:13px}
  input{font:13px ui-monospace,monospace;padding:.3rem;width:26rem;max-width:100%}
 </style>
@@ -289,26 +292,60 @@ var anon = template.Must(template.New("anon").Parse(head + `<h1>agent-bus</h1>
  <code>ssh agent-busd@&lt;node&gt; token</code> from anywhere your key reaches.
 `))
 
-// page is the signed-in view, refreshed by the browser.
+// page is the signed-in view, refreshed by the browser. Seven sections in the
+// order an incident wants them: what the node is doing and who it is turning
+// away, then the backlogs nobody is reading, then the traffic, and the registry
+// and the credentials last. Every one of them is what the bus answered **this
+// caller** (docs/05-discovery.md#what-it-shows).
 var page = template.Must(template.New("dash").Parse(head + `<meta http-equiv="refresh" content="5">
 <form method=post action=/signout class=who>
  <code>{{.You}}</code> <button type=submit>sign out</button></form>
 <h1>agent-bus</h1>
+
+<h2 id=node>node</h2>
 <p>up {{.Status.Up}} · {{.Status.Services}} records · {{.Status.Queued}} queued ·
  {{.Status.Waiting}} waiting · {{.Status.Dropped}} dropped · {{.Status.Expired}} expired</p>
+{{if .Status.Unclean}}<p class=warn>the last stop was not clean — what was in
+ memory at the time was not written down</p>{{end}}
+{{if .Refusals}}<p>refused:
+ {{range .Refusals}}<code>{{.Reason}}</code> {{.Count}} · {{end}}</p>
+{{else}}<p class=muted>nothing refused</p>{{end}}
 
-<h2>records</h2>
-<table><tr><th>name<th>kind<th>description<th>in<th>out<th>queued</tr>
-{{range .Records}}<tr><td><code>{{.Name}}</code><td>{{.Kind}}<td>{{.Descr}}
- <td>{{.In}}<td>{{.Out}}<td>{{.Queued}}</tr>
-{{else}}<tr><td colspan=6 class=muted>nothing registered</tr>{{end}}</table>
+<h2 id=stuck>stuck inboxes</h2>
+<table><tr><th>name<th>reader<th>queued<th>oldest<th>at bound</tr>
+{{range .Backlogs}}<tr><td><code>{{.Name}}</code><td>{{if .Reading}}reading{{else}}<b class=warn>nobody</b>{{end}}<td>{{.Queued}}<td>{{.Oldest}}<td>{{if .AtBound}}<b class=warn>full</b>{{end}}</tr>
+{{else}}<tr><td colspan=5 class=muted>every queue is empty</tr>{{end}}</table>
 
-<h2>recent envelopes</h2>
+<h2 id=exchanges>exchanges</h2>
 {{if .NoFeed}}<p class=muted>{{.NoFeed}}</p>{{else}}
-<table><tr><th>at<th>message<th>from<th>to<th>topic<th>tag<th>receipt</tr>
-{{range .Recent}}<tr><td>{{.At.Format "15:04:05"}}<td><code>{{.ID}}</code>
- <td><code>{{.From}}</code><td><code>{{.To}}</code><td>{{.Topic}}<td>{{.Tag}}<td>{{.Receipt}}</tr>
-{{else}}<tr><td colspan=7 class=muted>nothing yet</tr>{{end}}</table>
+<table><tr><th>at<th>topic<th>tag<th>from<th>to<th>messages<th>ack<th>reply<th>done<th></tr>
+{{range .Exchanges}}<tr><td>{{.At.Format "15:04:05"}}<td>{{.Topic}}<td>{{.Tag}}<td><code>{{.From}}</code><td><code>{{.To}}</code><td>{{.N}}<td>{{if .Ack}}ack{{end}}<td>{{if .Reply}}reply{{end}}<td>{{if .Done}}done{{end}}<td>{{if .Late}}<b class=warn>late</b>{{end}}</tr>
+{{else}}<tr><td colspan=10 class=muted>nothing yet</tr>{{end}}</table>
 {{end}}
+
+<h2 id=registry>registry</h2>
+<table><tr><th>name<th>kind<th>description<th>reading<th>queued<th>in<th>out<th>config</tr>
+{{range .Records}}<tr><td><code>{{.Name}}</code><td>{{.Kind}}<td>{{.Descr}}
+ <td>{{if .Reading}}yes{{end}}<td>{{.Queued}}<td>{{.In}}<td>{{.Out}}
+ <td><code class=muted>{{.ConfigSHA}}</code></tr>
+{{else}}<tr><td colspan=8 class=muted>nothing registered</tr>{{end}}</table>
+
+<h2 id=loss>loss by name</h2>
+<table><tr><th>name<th>dropped<th>expired</tr>
+{{range .Losses}}<tr><td><code>{{.Name}}</code><td>{{.Dropped}}<td>{{.Expired}}</tr>
+{{else}}<tr><td colspan=3 class=muted>nothing lost</tr>{{end}}</table>
+
+<h2 id=names>my names</h2>
+{{if .NoNames}}<p class=muted>{{.NoNames}}</p>{{else}}
+<table><tr><th>name<th>fingerprint<th>issued<th>last used</tr>
+{{range .Names}}<tr><td><code>{{.Name}}</code><td><code>{{.Fingerprint}}</code>
+ <td>{{if .Issued.IsZero}}{{else}}{{.Issued.Format "2006-01-02 15:04"}}{{end}}
+ <td>{{if .Used.IsZero}}<span class=muted>not this run</span>{{else}}{{.Used.Format "15:04:05"}}{{end}}</tr>
+{{else}}<tr><td colspan=4 class=muted>you hold no credential</tr>{{end}}</table>
+{{end}}
+<p class=muted>A fingerprint names a credential without being one. Rotate with
+ <code>agent-bus-token &lt;user@realm&gt; --rotate</code>; the one it replaces
+ keeps working until the next rotation.</p>
+
 <p class=muted>Envelopes only — bodies are never shown.</p>
 `))

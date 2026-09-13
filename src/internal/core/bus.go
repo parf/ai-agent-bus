@@ -176,7 +176,7 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 	}
 	r.Config, r.ConfigSHA, r.Subs = nil, "", nil
 	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
-	r.Dropped, r.Expired, r.Oldest = 0, 0, ""
+	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
 	// Publishing a name is open to anyone; changing one that exists belongs
 	// to its owner, and to the record itself — a service registering on
 	// every start is not a stranger to its own name, and it is the only
@@ -325,12 +325,16 @@ func (b *Bus) OwnerOf(name string) (string, bool) {
 // connected. Caller holds the lock.
 func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
-	r.Dropped, r.Expired, r.Oldest = 0, 0, ""
+	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
 	in, ok := b.inboxes[name]
 	if !ok {
 		return r
 	}
 	r.Queued, r.In, r.Out = len(in.queue), in.in, in.out
+	// Answered here rather than left to be worked out from `queued`, because
+	// a record that declares no bound takes the daemon's and a reader cannot
+	// know what that is (docs/05-discovery.md#what-a-listing-answers).
+	r.AtBound = len(in.queue) >= boundOf(r)
 	r.Dropped, r.Expired = in.dropped, in.expired
 	if len(in.queue) > 0 {
 		// The head is the oldest: a queue is appended to and read from the
@@ -344,6 +348,15 @@ func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 		}
 	}
 	return r
+}
+
+// boundOf is how many messages a record's inbox may hold: what it declared,
+// or the daemon's if it declared nothing.
+func boundOf(r protocol.Record) int {
+	if r.Bound == 0 {
+		return maxQueue
+	}
+	return r.Bound
 }
 
 func (b *Bus) List(caller, kind string) []protocol.Record {
@@ -510,10 +523,7 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 	// the receiver's record says which. Refusing is the default because
 	// losing a job silently is worse than failing visibly; a ring is for the
 	// streams where the newest matters most (docs/04-messaging.md#overflow).
-	bound := rec.Bound
-	if bound == 0 {
-		bound = maxQueue
-	}
+	bound := boundOf(rec)
 	if len(in.queue) >= bound {
 		// What has already expired is not fullness: count it as expiry and
 		// see whether there is room after all.

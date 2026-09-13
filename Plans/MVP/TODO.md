@@ -22,9 +22,9 @@ backend plus off (G.2). What is left:
 
 | | |
 |---|---|
-| **built** | A, B, C, E, F.1, F.3–F.5, G, H.2–H.7 |
+| **built** | A, B, C, E, F.1, F.3–F.5, G, H.2–H.7; F.6 but its people view |
 | **blocked on the owner** | F.2 — nothing on a record carries method information; H.1 — npm install or Go first |
-| **unblocked, in progress** | F.6, the views the review settled ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)). Most of the work is in the daemon keeping what a view needs, not in the page — and it now keeps what seven of the eight views need. People is still unbuilt, and so is every page past the first |
+| **unblocked, in progress** | F.6's last row — **people**. Seven of the eight views the review settled are built ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)); people is the one that still needs the daemon to keep something, and it is the row the ACL-editing ❓ below sits on |
 | **struck** | D, to [Plans/R1](../R1/TODO.md) — the MVP's key mode cannot carry the end-to-end claim |
 
 ## Blockers
@@ -251,7 +251,7 @@ That is a product decision, not a technical one.
 | F.2 | generated docs | **blocked**: nothing on a record carries method information, and the shape is the ❓ in [services § service and template](../../docs/03-services-and-topics.md#service-and-template) |
 | F.4 | ✅ _done_ — the anonymous page answers what the bus would answer a caller it cannot name: a title, a form and where a credential comes from, with no uptime, no counts and no names ([discovery § rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)). `/healthz` is an empty 200, because anything that varies is something a stranger can sit and watch. No page renders a credential, nothing is fetched from anywhere, and the child writes nothing of its own |
 | F.5 | ✅ _done_ — the caller signs in with the token they already have, it is spent on a session the **bus** holds, and the browser carries only that session's id ([discovery § signing in](../../docs/05-discovery.md#signing-in)). One lookup resolves both kinds of credential, so no route checks tokens and forgets sessions. The supervisor gives the child the **shared** socket and no credential of its own: on the owner's socket every page it rendered would be the owner's, served to whoever connected |
-| F.6 | the views the MVP owes | registry, stuck inboxes, exchanges, my names, loss by name, refusals, node, people. Each row in [discovery § what it shows](../../docs/05-discovery.md#what-it-shows) names what the daemon must start keeping — that is the work, not the page. ⚠️ *the daemon now keeps what seven of them need*: registry was already `/ls`, and stuck inboxes, loss by name, node, refusals, exchanges and my names are fed by `oldest`, per-inbox `dropped`/`expired`, the unclean-restart fact ([discovery § what a listing answers](../../docs/05-discovery.md#what-a-listing-answers)), a count per reason ([discovery § refusals](../../docs/05-discovery.md#refusals)), a feed each caller may read ([discovery § dashboard](../../docs/05-discovery.md#dashboard)) and a caller's own credentials by fingerprint ([access § token lifetime](../../docs/02-access.md#token-lifetime)). People is still unbuilt, and so is every page |
+| F.6 | ⚠️ _seven of eight_ — registry, stuck inboxes, exchanges, my names, loss by name, refusals and node are one signed-in page, each a reshape of what the bus already answered **that caller** ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)). Backlogs are ranked oldest first, because depth alone cannot tell a burst from an outage, and a queue at its bound is marked — the daemon answering that, since a record declaring no bound takes the daemon's. A request and its receipts are one row. **people** is what is left, and it is the one row that needs the daemon to start keeping something: the credential store answering *which names*, and the person fields |
 | F.3 | ✅ _done_ — `agent-bus-web`, a separate process speaking the API, rendering the records and a bounded feed of routed envelopes ([discovery § dashboard](../../docs/05-discovery.md#dashboard)). Bodies are struck out in the bus, not in the page. It serves HTTPS on its own hostname with a certificate anyone can fetch ([discovery § where it listens](../../docs/05-discovery.md#where-it-listens)). Nothing starts it yet and it is not cgroup-limited — both are G.1's |
 
 **Done when**, and what breaking it must do:
@@ -270,9 +270,14 @@ That is a product decision, not a technical one.
 - a web child **restarted mid-session logs nobody out** — a session map
   inside the child passes every other check and fails this one, which is why
   it is the criterion;
-- a **stuck** inbox is listed ahead of a healthy one, with a backlog that
-  *has* a reader beside it as the control — sorting by depth alone passes
-  without the reader half;
+- a **stuck** inbox is listed ahead of a healthy one: the older backlog above
+  the newer, deeper one, so ordering by depth alone turns a named check red,
+  and a service with a reader and nothing waiting is the control that says the
+  list is not every record over again. *A backlog with a live reader beside
+  it, which is how this criterion first read, cannot be built — an unfiltered
+  reader is handed the message as it arrives, so a queue only grows where
+  nobody is on the other end
+  ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox));*
 - two principals open the same URL and get different pages, each matching
   what they may actually call.
 

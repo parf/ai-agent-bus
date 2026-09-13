@@ -103,6 +103,13 @@ bad_exit()  { if [ "$2" -ne 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else e
 # the word whatever cmd did, which is how two checks here passed hollow.
 is_empty()  { if [ -z "$2" ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: got [$2]"; fail=$((fail+1)); fi; }
 code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok "$1")" "http://unix$2"; }
+# One section of a rendered page, so that a check about one view cannot be
+# satisfied by a name that also appears in another — the registry lists every
+# record, and half the views below it are subsets of that list.
+sect() { printf '%s' "$2" | sed -n "/<h2 id=$1>/,/<h2 id=[a-z]*>/p"; }
+# Which of two strings a section mentions first, by name. An order check that
+# only asked "is A present" passes however the rows are sorted.
+first_of() { printf '%s' "$1" | grep -o -e "$2" -e "$3" | head -1; }
 tbody() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $1" "http://unix$2"; }
 tcode() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $1" "http://unix$2"; }
 post_body() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok "$1")" -d "$3" "http://unix$2"; }
@@ -1698,7 +1705,7 @@ has "and the browser carries a session" \
   "$(awk '/agent_bus_session/{print $NF}' "$JAR")" '^[0-9a-f]\{48\}$'
 is_empty "which is never the token itself" "$(grep -o "$TOKEN" "$JAR")"
 PAGE=$(curl -s -b "$JAR" "$WEB/")
-has "the dashboard renders the envelope" "$PAGE" "$MSG"
+has "the dashboard renders the envelope" "$(sect exchanges "$PAGE")" 'board-svc@srv1'
 has "and the record it was for" "$PAGE" 'watched by the board'
 is_empty "and no body reaches the page" "$(printf '%s' "$PAGE" | grep -o "$SECRET")"
 # Two principals, one URL, different pages — and what tells them apart is a
@@ -1708,6 +1715,75 @@ curl -s -c "$OJAR" -o /dev/null -X POST -d "token=$(tok acl-owner@srv1)" "$WEB/s
 has "a second principal gets their own page" "$(curl -s -b "$OJAR" "$WEB/")" 'refuses master'
 is_empty "and master's page holds what master may not see" \
   "$(printf '%s' "$PAGE" | grep -o 'refuses master')"
+
+# The views the MVP owes, each a reshape of what the bus already answered
+# THIS caller: the ordering, the grouping and the late mark are the page's
+# and nothing else is. See docs/05-discovery.md#what-it-shows.
+# A backlog only ever grows where nobody is reading — an unfiltered reader
+# is handed the message as it arrives — so a service with a reader is the
+# control that says the list is not just every record over again.
+ab busy-svc@srv1 register busy-svc@srv1 --descr "somebody home" >/dev/null
+ab busy-svc@srv1 consume --wait 10s >/dev/null 2>&1 &
+busy_pid=$!
+ab parf@localhost register slow-svc@srv1 --descr "nobody home" >/dev/null
+ab parf@localhost send slow-svc@srv1 "waiting since before the rest" >/dev/null
+# At its bound, which the DAEMON answers: a record that declares none takes
+# the daemon's, and the page has no way to know what that is.
+ab parf@localhost register tight-svc@srv1 --bound 2 --descr "a small queue" >/dev/null
+ab parf@localhost send tight-svc@srv1 "one" >/dev/null
+ab parf@localhost send tight-svc@srv1 "two" >/dev/null
+# Loss against the name that suffered it, not against a node-wide total: a
+# ring keeps the newest and the oldest is gone.
+ab parf@localhost register lossy-svc@srv1 --bound 1 --overflow ring --descr "keeps the newest" >/dev/null
+ab parf@localhost send lossy-svc@srv1 "first" >/dev/null
+ab parf@localhost send lossy-svc@srv1 "second" >/dev/null
+# A request and its ack, one exchange: same topic and tag, two envelopes.
+# The asker is registered because a receipt goes back to it by name.
+ab job-caller@srv1 register job-caller@srv1 --descr "asks for work" >/dev/null
+ab work-svc@srv1 register work-svc@srv1 --descr "does the work" >/dev/null
+ab job-caller@srv1 send work-svc@srv1 --topic job --tag 77 "do it" >/dev/null
+( msg=$(ab work-svc@srv1 consume --wait 5s)
+  id=$(printf '%s' "$msg" | sed 's/.*"message_id":"\([^"]*\)".*/\1/')
+  [ -n "$id" ] && ab work-svc@srv1 ack "$id" ) >/dev/null 2>&1
+# The newer backlog is the DEEPER one, so ordering by depth puts it first and
+# ordering by age puts the stalled one first. Oldest first is the rule.
+sleep 2
+ab parf@localhost register burst-svc@srv1 --descr "a burst" >/dev/null
+for n in 1 2 3; do ab parf@localhost send burst-svc@srv1 "burst $n" >/dev/null; done
+VIEWS=$(curl -s -b "$JAR" "$WEB/")
+STUCK=$(sect stuck "$VIEWS")
+has "a backlog is listed as stuck" "$STUCK" 'slow-svc@srv1'
+is_empty "and a service with a reader and nothing waiting is not" \
+  "$(printf '%s' "$STUCK" | grep -o 'busy-svc@srv1')"
+has "and the oldest backlog is ahead of a deeper, newer one" \
+  "$(first_of "$STUCK" 'slow-svc@srv1' 'burst-svc@srv1')" 'slow-svc@srv1'
+has "a queue at its bound is marked full" \
+  "$(printf '%s' "$STUCK" | grep 'tight-svc@srv1')" 'full'
+is_empty "and one with room is not" \
+  "$(printf '%s' "$STUCK" | grep 'slow-svc@srv1' | grep -o 'full')"
+ab parf@localhost send busy-svc@srv1 "go" >/dev/null
+wait $busy_pid 2>/dev/null
+LOSS=$(sect loss "$VIEWS")
+has "loss is shown against the name that suffered it" "$LOSS" 'lossy-svc@srv1'
+is_empty "and not against a name that lost nothing" \
+  "$(printf '%s' "$LOSS" | grep -o 'slow-svc@srv1')"
+XCH=$(sect exchanges "$VIEWS")
+has "a request and its ack are one exchange, not two lines" \
+  "$(printf '%s' "$XCH" | grep 'job' | grep '77')" '>2<'
+NODE_VIEW=$(sect node "$VIEWS")
+has "a signed-in caller is told how long the node has been up" "$NODE_VIEW" 'up [0-9]'
+# Only the reasons that have happened: a reason with a zero beside it is
+# noise on every other node. See docs/05-discovery.md#refusals.
+tcode not-a-token /ls >/dev/null
+has "and what the node is refusing" "$(sect node "$(curl -s -b "$JAR" "$WEB/")")" 'credential'
+is_empty "and never a reason with a zero beside it" \
+  "$(printf '%s' "$NODE_VIEW" | grep -oE '<code>[a-z-]+</code> 0([^0-9]|$)')"
+# A fingerprint names a credential without being one, which is the whole
+# reason a page may show it. See docs/02-access.md#token-lifetime.
+FP=$(tbody "$TOKEN" /names | sed -n 's/.*"fingerprint":"\([0-9a-f]*\)".*/\1/p' | head -1)
+has "a caller's own credential is named by its fingerprint" "$(sect names "$VIEWS")" "$FP"
+is_empty "and the page carries no token anywhere on it" \
+  "$(printf '%s' "$VIEWS" | grep -o "$TOKEN")"
 # The session lives in the bus, so the child has nothing to lose. A session
 # map inside the child passes every check above and fails this one.
 kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
@@ -1742,7 +1818,8 @@ has "a session cookie made over https is marked secure" "$(cat "$TJAR")" 'TRUE.*
 TLSPAGE=$(curl -sS --cacert "$D/tls/crt" -b "$TJAR" "https://agent-bus.localhost.direct:$((PORT+11))/" 2>&1)
 # curl verifies the chain and the hostname against that file alone — no -k —
 # so an answer at all is the certificate being the one it was handed.
-has "the dashboard answers https on its own hostname" "$TLSPAGE" "$MSG"
+has "the dashboard answers https on its own hostname" \
+  "$(sect exchanges "$TLSPAGE")" 'board-svc@srv1'
 is_empty "with no body there either" "$(printf '%s' "$TLSPAGE" | grep -o "$SECRET")"
 has "it says which scheme it came up on" "$(cat "$D/webtls.log")" 'https://'
 kill $WTPID 2>/dev/null; wait $WTPID 2>/dev/null

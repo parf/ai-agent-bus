@@ -131,13 +131,16 @@ It shows the envelope and nothing else
 ([messaging § envelope](04-messaging.md#envelope)): no message bodies, here or
 anywhere.
 
-⚠️ What the MVP ships today is the envelope half: a bounded feed of what the
-bus has routed lately, read by a separate `agent-bus-web` process over the
-API. Bodies are struck out **in the bus**, where the feed is written — so no
-reader has to be trusted to leave them alone. The feed and the records beside
-it are both filtered per caller: you see the exchanges you were **party to**,
-sent or addressed to you, and master sees the node's.  Everything in
-[what it shows](#what-it-shows) below it is design.
+Bodies are struck out **in the bus**, where the feed is written — so no reader
+has to be trusted to leave them alone. The feed and the records beside it are
+both filtered per caller: you see the exchanges you were **party to**, sent or
+addressed to you, and master sees the node's.
+
+⚠️ What the MVP ships today is one signed-in page carrying every MVP row of
+[what it shows](#what-it-shows) but **people**, which waits on the credential
+store answering *which names*. The ordering, the grouping and the late mark
+are the page's; everything else on it is an answer the bus gave that caller,
+so a view cannot show more than the caller may ask for.
 
 ### Rules it is built to
 

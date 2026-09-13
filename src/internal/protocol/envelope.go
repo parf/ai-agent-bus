@@ -162,6 +162,11 @@ type Record struct {
 	// backlog nobody reads is what an incident looks like, and a count alone
 	// cannot say whether that queue is busy or stalled.
 	Oldest string `json:"oldest,omitempty"`
+	// AtBound says the queue is at the limit it is allowed, so the next
+	// message is refused or something is lost. The daemon answers it because
+	// a record that declares no bound takes the daemon's, and a reader has
+	// no way to know what that is.
+	AtBound bool `json:"at_bound,omitempty"`
 }
 
 // Public is what a record looks like to anyone but the service itself: the
