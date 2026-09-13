@@ -149,6 +149,19 @@ decision or edit, no prefixes or tags (`Topics are first-class records registere
 like services`, `Static-token principals do not sign; signatures only where a key
 exists`). One decision per commit.
 
+**Other agents are working in this repo at the same time.** So:
+
+- **Stage what you changed, by path.** `git add <paths>` — never `git add -A`,
+  `git add .` or `git commit -a`, each of which sweeps up somebody else's
+  half-finished work and commits it under your message.
+- **Never undo work you did not do.** No `git reset`, no `git checkout --`, no
+  `git stash`, no reverting, on files you did not edit. Modified or untracked
+  files you do not recognise are another worker mid-task, not mess to clean.
+- **Check `git status` before committing** and again after: anything left
+  modified that you did not touch is *correct*, and is not a thing to fix.
+- A commit of somebody else's may land between yours. Pull and rebase; never
+  force-push.
+
 ## Other agent configs
 
 An OpenAI Codex config exists at `~/.codex/config.toml`. To import user-level
