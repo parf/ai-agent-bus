@@ -181,7 +181,8 @@ The daemon's [conditional registration](01-identity.md#registration) arbitrates
 simultaneous new claims, including launchers with separate local state directories.
 
 Bind the selected identity to the runtime's actual session, consistently across
-the tools and pusher. During a launch, a title change updates only the label.
+the tools and pusher. A runtime UI title change updates only the label until
+an explicit bus rename or restart.
 On restart, `ab-claude` and `ab-codex` derive a new address if the session title
 has changed its normalized base; an explicit bus name stays fixed. Otherwise
 resume reuses the saved address, including any collision suffix. This restart
@@ -194,6 +195,31 @@ Codex supplies it through App Server thread metadata. When unavailable, the
 fallback still works. Runtime session IDs key the saved bus-name binding;
 concurrent launches do not attach to the same session. The launcher state
 and credential files are private to the launching OS account.
+
+## Explicit session rename
+
+**Built.** With an `ab-*` launcher, `ab_rename(name)` changes the runtime
+session title and bus address together. Codex and OpenCode use their own
+session APIs; Claude appends its existing title metadata. Without a name,
+the launcher reads the runtime's current title immediately.
+
+The launcher owns the transition: claim a unique address as the launching
+account, acquire its credential, update the runtime title, stop the old inbox
+reader, persist the new session binding and private environment, then read
+the new inbox. All MCP clients read that shared identity before tool calls.
+Concurrent rename and metadata refresh operations are serialized; repeated
+renames reuse the selected address. A now-unneeded collision suffix may be
+removed when the base address becomes available.
+
+The old address is removed only when idle; queued messages stay in a retained
+inbox and the tool reports it. A failed runtime rename releases the new claim
+and keeps the previous identity. An explicit `AGENT_BUS_NAME` pins the address
+and refuses this operation. Older running launchers must be restarted; their
+MCP face must not change addresses independently.
+
+The internal control listener binds loopback and requires a random credential
+kept in the private session file. It can rename only its own launcher; it does
+not accept an arbitrary principal or expose the owner's bus credential.
 
 ## Running the launchers
 

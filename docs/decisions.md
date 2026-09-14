@@ -6,6 +6,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Coordinated runtime and bus rename | [explicit session rename](08-runner-role.md#explicit-session-rename) | 2026-09-13 owner clarification |
 | Launcher terminal titles, palettes and restoration | [terminal appearance](08-runner-role.md#terminal-appearance) | 2026-09-13 owner instruction |
 | OpenCode explicit session binding | [adapters](08-runner-role.md#adapters) | 2026-09-13 installed launcher verification |
 | OpenCode user-wrapper precedence | [running the launchers](08-runner-role.md#running-the-launchers) | 2026-09-13 fish launcher verification |

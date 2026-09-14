@@ -110,6 +110,11 @@ export class Codex {
     return result.thread;
   }
 
+  async rename(title: string): Promise<void> {
+    if (!this.#thread) throw new Error("codex: no session bound yet");
+    await this.#request("thread/name/set", { threadId: this.#thread, name: title });
+  }
+
   async threadName(): Promise<string | undefined> {
     const result = await this.#request<{ thread: Thread }>("thread/read", { threadId: this.#thread });
     return result.thread.name || undefined;

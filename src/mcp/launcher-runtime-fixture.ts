@@ -8,6 +8,9 @@ const value = (flag: string) => args[args.indexOf(flag) + 1];
 const file = process.env.TEST_EVENTS!;
 const event = (kind: string, data: unknown = {}) => appendFileSync(file, JSON.stringify({ kind, data, pid: process.pid }) + "\n");
 event("argv", args);
+const savedTitle = () => process.env.TEST_TITLE_FILE && existsSync(process.env.TEST_TITLE_FILE)
+  ? readFileSync(process.env.TEST_TITLE_FILE, "utf8") : process.env.TEST_TITLE || null;
+const saveTitle = (title: string) => { if (process.env.TEST_TITLE_FILE) writeFileSync(process.env.TEST_TITLE_FILE, title); };
 if (process.env.TEST_FAIL_START && (args[0] === "app-server" || args[0] === "serve")) process.exit(7);
 
 // opencode: the server the launcher owns, and the TUI attaches to it.
@@ -16,7 +19,7 @@ if (args[0] === "serve") {
   event("permission", config.permission);
   writeFileSync(file + ".mcp", JSON.stringify(config.mcp?.["agent-bus"]));
   const id = process.env.TEST_SESSION_ID || "opencode-session";
-  const session = { id, title: process.env.TEST_TITLE || null, directory: process.cwd() };
+  const session = { id, title: savedTitle(), directory: process.cwd() };
   const expected = process.env.OPENCODE_SERVER_PASSWORD && "Basic " + Buffer.from(`opencode:${process.env.OPENCODE_SERVER_PASSWORD}`).toString("base64");
   Bun.serve({
     hostname: "127.0.0.1", port: Number(value("--port")),
@@ -40,6 +43,12 @@ if (args[0] === "serve") {
         }), { headers: { "content-type": "text/event-stream" } });
       }
       const one = url.pathname.match(/^\/session\/([^/]+)$/);
+      if (one && req.method === "PATCH") {
+        session.title = (await req.json() as any).title;
+        event("runtime-renamed", session.title);
+        saveTitle(session.title!);
+        return Response.json(session);
+      }
       if (one && req.method === "GET") return Response.json({ ...session, id: one[1] });
       if (url.pathname.endsWith("/prompt_async") && req.method === "POST") {
         writeFileSync(file + ".delivered", (await req.json() as any).parts[0].text);
@@ -59,7 +68,7 @@ if (args[0] === "serve") {
   }
   writeFileSync(file + ".mcp", JSON.stringify(config));
   const url = new URL(value("--listen")!);
-  const thread = { id: process.env.TEST_SESSION_ID || "codex-session", cwd: process.cwd(), name: process.env.TEST_TITLE || null, turns: [] };
+  const thread = { id: process.env.TEST_SESSION_ID || "codex-session", cwd: process.cwd(), name: savedTitle(), turns: [] };
   Bun.serve({ hostname: "127.0.0.1", port: Number(url.port),
     fetch(req, server) { return server.upgrade(req) ? undefined : new Response("ready"); },
     websocket: {
@@ -70,6 +79,11 @@ if (args[0] === "serve") {
         if (m.method === "thread/list") result = { data: process.env.TEST_NO_HISTORY ? [] : [thread] };
         if (m.method === "thread/loaded/list") result = { data: existsSync(file + ".tui-ready") ? [thread.id] : [] };
         if (["thread/resume", "thread/start", "thread/read"].includes(m.method)) result = { thread };
+        if (m.method === "thread/name/set") {
+          thread.name = m.params.name;
+          event("runtime-renamed", thread.name);
+          saveTitle(thread.name!);
+        }
         if (m.method === "turn/start" || m.method === "turn/steer") {
           writeFileSync(file + ".delivered", m.params.input[0].text);
           result = { turn: { id: "turn" }, turnId: "turn" };
@@ -119,6 +133,32 @@ if (args[0] === "serve") {
     await Bun.sleep(25);
   }
   event("delivered", delivered);
+  if (process.env.TEST_RENAME) {
+    if (busEnv.AGENT_BUS_CONTROL_ADDR) {
+      const denied = await fetch(busEnv.AGENT_BUS_CONTROL_ADDR + "/rename", { method: "POST", body: JSON.stringify({ name: "unauthorized" }) });
+      event("control-denied", denied.status);
+    }
+    const second = new Client({ name: "second-face", version: "1" });
+    const secondTransport = new StdioClientTransport({ command: config.command, args: config.args, env: { ...process.env, ...config.env } as Record<string, string> });
+    await second.connect(secondTransport);
+    event("mcp-pid", secondTransport.pid);
+    const renamed = await Promise.all([client, second].map(c => c.callTool({ name: "ab_rename", arguments: { name: process.env.TEST_RENAME } })));
+    for (const result of renamed) event("renamed", result);
+    const repeat = await client.callTool({ name: "ab_rename", arguments: {} });
+    event("rename-repeat", repeat);
+    await second.close();
+    const after = JSON.parse(readFileSync(config.env.AGENT_BUS_SESSION_FILE, "utf8"));
+    event("after-rename", { name: after.AGENT_BUS_NAME, label: after.AGENT_BUS_DESCR });
+    if (existsSync(file + ".delivered")) writeFileSync(file + ".delivered", "");
+    delivered = "";
+    event("sent-after-rename", await client.callTool({ name: "ab_send", arguments: { to: process.env.TEST_PEER, text: "after-rename", topic: "renamed", tag: process.env.TEST_TAG || "test" } }));
+    for (let i = 0; i < 120; i++) {
+      if (kind !== "claude" && existsSync(file + ".delivered")) delivered = readFileSync(file + ".delivered", "utf8");
+      if (delivered.includes("launcher-answer")) break;
+      await Bun.sleep(25);
+    }
+    event("rename-delivered", delivered);
+  }
   if (process.env.TEST_HOLD) await Bun.sleep(Number(process.env.TEST_HOLD));
   await client.close();
   process.exit(delivered.includes("launcher-answer") ? Number(process.env.TEST_EXIT || 0) : 9);

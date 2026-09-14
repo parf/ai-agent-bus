@@ -24,12 +24,14 @@ if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv
 
 // The launcher's private environment file keeps session credentials out of
 // command lines and the user's persistent runtime configuration.
-if (process.env.AGENT_BUS_SESSION_FILE) {
+function loadSessionEnv(): void {
+  if (!process.env.AGENT_BUS_SESSION_FILE) return;
   const env = JSON.parse(readFileSync(process.env.AGENT_BUS_SESSION_FILE, "utf8"));
-  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_DESCR", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH"]) {
+  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_DESCR", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH", "AGENT_BUS_CONTROL_ADDR", "AGENT_BUS_CONTROL_TOKEN"]) {
     if (typeof env[key] === "string") process.env[key] = env[key];
   }
 }
+loadSessionEnv();
 
 let bus = new Bus();
 
@@ -134,7 +136,7 @@ const tools = [
     name: "ab_rename",
     description:
       "Change the address this session is registered under, so peers find it by what it is working on rather than by when it started. " +
-      "With no argument it takes the session's own title, which is what the runtime's rename command sets. " +
+      "With an ab-* launcher, a supplied name renames the runtime session and bus address together; with no argument it reads the current session title. " +
       "The old address is released only when nothing is queued or waiting there; a busy one is kept and reported, so no message is lost.",
     inputSchema: {
       type: "object",
@@ -168,6 +170,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
   const args = (req.params.arguments ?? {}) as Record<string, unknown>;
   try {
+    await refreshSession();
     switch (req.params.name) {
       case "ab_ls": {
         const records = await bus.ls(maybe(args, "kind"));
@@ -251,6 +254,21 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         return text(`told ${original.from} ${kind} for ${id}`);
       }
       case "ab_rename": {
+        if (process.env.AGENT_BUS_SESSION_FILE) {
+          const address = process.env.AGENT_BUS_CONTROL_ADDR;
+          const token = process.env.AGENT_BUS_CONTROL_TOKEN;
+          if (!address || !token) return text("Restart the ab-* launcher to enable coordinated renaming; this older launcher cannot move its inbox reader. No address was changed.", true);
+          push?.stop();
+          await push?.done;
+          push = undefined;
+          try {
+            const response = await fetch(address + "/rename", {
+              method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+              body: JSON.stringify({ name: maybe(args, "name") }), signal: AbortSignal.timeout(60_000),
+            });
+            return text(await response.text(), !response.ok);
+          } finally { await refreshSession(); readInbox(); }
+        }
         const title = maybe(args, "name") ?? sessionTitle();
         // Nothing to rename from: the session has no title of its own and the
         // caller named none. Say how to get one rather than inventing it.
@@ -267,7 +285,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         try {
           // New address first: a failure here leaves the session exactly where
           // it was, which is the only safe direction to fail in.
-          await previous.register({ name: next, kind: "agent", descr: title });
+          await previous.register({ name: next, kind: "agent", descr: title }, true);
           moved = await previous.as(next);
         } catch (err) {
           readInbox();
@@ -395,7 +413,21 @@ const stopWith = (f: () => void) => alsoStop.push(f);
 // after a rename, against the new address; how to deliver never changes.
 let deliver: ((e: Envelope) => Promise<void>) | undefined;
 function readInbox(): void {
-  if (deliver) push = startPush(bus, deliver, log);
+  if (deliver && !push?.running()) push = startPush(bus, deliver, log);
+}
+
+// Every tool uses the launcher's current credential, including MCP clients
+// that were started before another client renamed the session.
+async function refreshSession(): Promise<void> {
+  if (!process.env.AGENT_BUS_SESSION_FILE) return;
+  loadSessionEnv();
+  if (process.env.AGENT_BUS_NAME === bus.name) return;
+  const next = new Bus();
+  push?.stop();
+  await push?.done;
+  push = undefined;
+  bus = next;
+  readInbox();
 }
 
 // Registering on start is what makes "find each other by name" possible: the

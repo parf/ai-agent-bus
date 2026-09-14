@@ -2159,6 +2159,12 @@ if slow; then
     rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "installed launcher smoke" $rc
+
+    out=$(timeout 120 env AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN \
+          AGENT_BUS_NAME=$OWNER LAUNCHER_BUILD=$D bun run launchers/rename-smoke.ts 2>&1)
+    rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "coordinated launcher rename" $rc
   fi
 
 else skipped=$((skipped+1)); fi

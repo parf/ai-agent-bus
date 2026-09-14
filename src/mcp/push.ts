@@ -17,7 +17,7 @@ export type Deliver = (e: Envelope) => Promise<void>;
 const WAIT = "55s"; // just under the daemon's 60s ceiling
 const BACKOFF_MS = 2_000;
 
-export type Push = { readonly running: () => boolean; stop: () => void };
+export type Push = { readonly running: () => boolean; stop: () => void; done: Promise<void> };
 
 export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void): Push {
   let stopped = false;
@@ -28,7 +28,7 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void):
     abort.abort(); // let go of the inbox now, rather than at the deadline
   };
 
-  void (async () => {
+  const done = (async () => {
     while (!stopped) {
       let e: Envelope | null = null;
       try {
@@ -64,7 +64,7 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void):
     }
   })();
 
-  return { running: () => !stopped, stop };
+  return { running: () => !stopped, stop, done };
 }
 
 export function sleep(ms: number): Promise<void> {

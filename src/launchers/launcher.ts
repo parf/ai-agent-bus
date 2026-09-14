@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Bus, BusError, defaultName } from "../mcp/bus.ts";
@@ -9,9 +9,11 @@ import { Opencode } from "../mcp/opencode.ts";
 import { sidecarMessage } from "../mcp/messages.ts";
 import { startPush, sleep, type Push } from "../mcp/push.ts";
 import { version } from "../mcp/version.ts";
-import { Bindings, claudeSessions, claudeTitle, numberedName, sameBase, type Session } from "./sessions.ts";
+import { Bindings, claudeSessions, claudeTitle, sameBase, type Session } from "./sessions.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
 import { Terminal } from "./terminal.ts";
+import { claimIdentity, releaseIdle } from "./identity.ts";
+import { serveControl } from "./control.ts";
 
 const runtime = process.argv[2];
 const args = process.argv.slice(3);
@@ -51,12 +53,14 @@ async function stop(child: Child): Promise<void> {
 let bindings: Bindings | undefined, runDir: string | undefined, codex: Codex | undefined, opencode: Opencode | undefined, push: Push | undefined;
 let poll: ReturnType<typeof setInterval> | undefined;
 let terminal: Terminal | undefined;
+let control: ReturnType<typeof serveControl> | undefined;
 let stopping = false;
 let cleanupPromise: Promise<void> | undefined;
 function cleanup(): Promise<void> {
   return cleanupPromise ??= (async () => {
   stopping = true;
   clearInterval(poll);
+  control?.stop();
   push?.stop();
   codex?.stop();
   opencode?.stop();
@@ -261,35 +265,9 @@ See docs/08-runner-role.md#smart-launchers.`);
   }
   const explicit = process.env.AGENT_BUS_NAME?.trim().toLowerCase();
   const previous = bindings.saved(session, explicit);
-  const base = explicit || defaultName({ ...process.env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: session.name || cwd }, "/");
+  let base = explicit || defaultName({ ...process.env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: session.name || cwd }, "/");
   const saved = previous && (explicit || sameBase(previous, base)) ? previous.name : undefined;
-  let records = await owner.ls();
-  const taken = new Set(records.map(r => r.name));
-  let name = saved || base, number = 1;
-  if (saved) {
-    if (!bindings.lock(`bus:${saved}`)) throw new Error("session bus identity is already launched");
-  } else {
-    while (taken.has(name) || !bindings.lock(`bus:${name}`)) {
-      name = numberedName(base, ++number);
-    }
-  }
-  let label = session.name || `${runtime}(${cwd})`;
-  const labelBase = label;
-  const labels = new Set(records.filter(r => r.name !== name && r.name !== previous?.name).map(r => r.descr));
-  for (let n = 2; labels.has(label) || !bindings.lock(`label:${label}`); n++) label = `${labelBase} #${n}`;
-  for (;;) {
-    try { await owner.register({ name, kind: "agent", descr: label }, !saved); break; }
-    catch (e) {
-      if (saved || !(e instanceof BusError) || e.status !== 412) throw e;
-      do {
-        name = numberedName(base, ++number);
-      } while (!bindings.lock(`bus:${name}`));
-      records = await owner.ls();
-      const used = new Set(records.filter(r => r.name !== previous?.name).map(r => r.descr));
-      label = labelBase;
-      for (let n = 2; used.has(label); n++) label = `${labelBase} #${n}`;
-    }
-  }
+  let { name, label } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved);
   bindings.save(session.id, name, base);
   if (previous && previous.name !== name) {
     try { await owner.unregister(previous.name); }
@@ -304,17 +282,22 @@ See docs/08-runner-role.md#smart-launchers.`);
     AGENT_BUS_DESCR: label, AGENT_BUS_PUSH: runtime === "claude" ? "claude" : "off",
     ...(addr && /^user-.*\.sock$/.test(basename(addr)) ? { AGENT_BUS_ADDR: join(dirname(addr), "bus.sock") } : {}),
   };
-  const bus = new Bus(env);
+  let bus = new Bus(env);
   if ((await bus.status()).you !== name) throw new Error("bus listener did not authenticate the session identity");
   const faceEnv: Record<string, string> = {};
   for (const key of ["AGENT_BUS_NAME", "AGENT_BUS_TOKEN", "AGENT_BUS_RUNTIME", "AGENT_BUS_DESCR", "AGENT_BUS_PUSH", "AGENT_BUS_ADDR"] as const) {
     if (env[key] !== undefined) faceEnv[key] = env[key]!;
   }
-  writeFileSync(envFile, JSON.stringify(faceEnv), { mode: 0o600 });
+  const saveEnv = () => {
+    writeFileSync(envFile + ".new", JSON.stringify(faceEnv), { mode: 0o600 });
+    renameSync(envFile + ".new", envFile);
+  };
+  saveEnv();
   const bindThread = (thread: { id: string }) => {
     if (thread.id !== session.id) {
       if (!bindings!.lock(`${runtime}:${thread.id}`)) throw new Error("runtime selected an already launched session");
       bindings!.save(thread.id, name, base);
+      session.id = thread.id;
     }
     push = startPush(bus, async e => {
       await codex!.deliver(sidecarMessage(e), e.message_id);
@@ -324,6 +307,7 @@ See docs/08-runner-role.md#smart-launchers.`);
     if (id !== session.id) {
       if (!bindings!.lock(`${runtime}:${id}`)) throw new Error("runtime selected an already launched session");
       bindings!.save(id, name, base);
+      session.id = id;
     }
     opencode!.bind(id);
     push = startPush(bus, async e => {
@@ -342,18 +326,75 @@ See docs/08-runner-role.md#smart-launchers.`);
     writeFileSync(config, JSON.stringify({ mcpServers: { "agent-bus": { command: process.execPath, args: [face], env: { AGENT_BUS_SESSION_FILE: envFile } } } }), { mode: 0o600 });
     runtimeArgs = ["--allowedTools", "mcp__agent-bus__*", "--mcp-config", config, "--dangerously-load-development-channels", "server:agent-bus", ...runtimeArgs];
   }
+  let updating = Promise.resolve();
+  const exclusive = <T>(work: () => Promise<T>): Promise<T> => {
+    const next = updating.then(work);
+    updating = next.then(() => {}, () => {});
+    return next;
+  };
+  const currentTitle = () => codex ? (codex.thread ? codex.threadName() : undefined)
+    : opencode ? opencode.title() : claudeTitle(session.file!);
+  control = serveControl(title => exclusive(async () => {
+    if (stopping) throw new Error("launcher is stopping");
+    if (explicit) throw new Error("AGENT_BUS_NAME pins this address; remove it and restart the launcher before renaming");
+    if (codex && !codex.thread) {
+      const thread = await codex.loadedThread();
+      if (!thread) throw new Error("Codex has not created its session yet; send the first message before renaming");
+      bindThread(thread);
+    }
+    const nextTitle = title?.trim() || await currentTitle();
+    if (!nextTitle) throw new Error("Rename the session first, or pass a name to ab_rename");
+    const nextBase = defaultName({ ...process.env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: nextTitle }, "/");
+    // A suffix is needed only while the base is occupied. This also lets a
+    // session shed a suffix after an old broken-rename alias is cleaned up.
+    const reuse = nextBase === base && (name === nextBase || (await owner.ls()).some(r => r.name === nextBase));
+    const claimed = await claimIdentity(owner, bindings!, nextBase, nextTitle, name, reuse ? name : undefined);
+    let moved: Bus;
+    let token: string;
+    try {
+      token = await owner.token(claimed.name);
+      moved = new Bus({ ...env, AGENT_BUS_NAME: claimed.name, AGENT_BUS_TOKEN: token });
+      if ((await moved.status()).you !== claimed.name) throw new Error("new session credential did not authenticate");
+      if (title) {
+        if (codex) await codex.rename(nextTitle);
+        else if (opencode) await opencode.rename(nextTitle);
+        else appendFileSync(session.file!, JSON.stringify({ type: "custom-title", customTitle: nextTitle }) + "\n", { mode: 0o600 });
+      }
+    } catch (e) {
+      if (claimed.name !== name) await releaseIdle(owner, claimed.name);
+      throw e;
+    }
+    const old = name;
+    push?.stop();
+    await push?.done;
+    push = undefined;
+    bus = moved;
+    name = claimed.name;
+    label = claimed.label;
+    base = nextBase;
+    session.name = nextTitle;
+    bindings!.save(session.id, name, base);
+    Object.assign(faceEnv, { AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: token, AGENT_BUS_DESCR: label });
+    saveEnv();
+    if (codex) bindThread({ id: session.id });
+    else if (opencode) bindSession(session.id);
+    terminal?.set(label);
+    const released = old === name ? "address unchanged" : await releaseIdle(owner, old);
+    return `registered as ${name} (${label}); ${released}`;
+  }));
+  Object.assign(faceEnv, control.env);
+  saveEnv();
   let refreshing = false;
   poll = setInterval(async () => {
     if (refreshing || stopping) return;
     refreshing = true;
-    try {
+    try { await exclusive(async () => {
+      if (stopping) return;
       if (codex && !codex.thread) {
         const thread = await codex.loadedThread();
         if (thread) bindThread(thread);
       }
-      const title = codex ? (codex.thread ? await codex.threadName() : undefined)
-        : opencode ? (opencode.session ? await opencode.title() : undefined)
-        : await claudeTitle(session.file!);
+      const title = await currentTitle();
       if (title && title !== session.name) {
         const used = new Set((await owner.ls()).filter(r => r.name !== name).map(r => r.descr));
         let next = title;
@@ -363,10 +404,10 @@ See docs/08-runner-role.md#smart-launchers.`);
         session.name = title;
         terminal?.set(next);
         faceEnv.AGENT_BUS_DESCR = next;
-        writeFileSync(envFile, JSON.stringify(faceEnv), { mode: 0o600 });
+        saveEnv();
       }
       if (push && !push.running()) log("bus push is inactive; restart this launcher to reconnect");
-    } catch (e) { log(`session metadata refresh failed: ${e}`); }
+    }); } catch (e) { log(`session metadata refresh failed: ${e}`); }
     finally { refreshing = false; }
   }, 2000);
   log(`${label} → ${name}; bus tools configured${codex ? "; shared App Server ready" : opencode ? `; server ready on ${remote}` : "; channel activation requested"}`);

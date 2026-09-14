@@ -88,6 +88,11 @@ export class Opencode {
     this.#session = id;
   }
 
+  async rename(title: string): Promise<void> {
+    if (!this.#session) throw new Error("opencode: no session bound yet");
+    await this.#request("PATCH", `/session/${encodeURIComponent(this.#session)}`, { title });
+  }
+
   async title(): Promise<string | undefined> {
     if (!this.#session) return undefined;
     const session = await this.#request<Session>("GET", `/session/${encodeURIComponent(this.#session)}`);

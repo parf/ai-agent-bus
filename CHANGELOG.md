@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.13 — 2026-09-13
+
+Coordinate `ab_rename` through the launcher so runtime titles, inbox readers, MCP credentials and saved session bindings move together; serialize concurrent renames and preserve the launching account’s ownership.
+
 ## 0.5.12 — 2026-09-13
 
 Give all smart launchers session-aware terminal titles with exit restoration and rotating Kitty/Konsole tab colors; keep terminal helpers internal and add OpenCode’s violet palette.

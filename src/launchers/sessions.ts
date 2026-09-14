@@ -59,6 +59,7 @@ export class Bindings {
   }
   lock(key: string): boolean {
     const path = join(this.dir, `${hash(key)}.lock`);
+    if (this.#locks.includes(path)) return true;
     try { mkdirSync(path, { mode: 0o700 }); }
     catch (e: any) { if (e.code === "EEXIST") return false; throw e; }
     this.#locks.push(path);
