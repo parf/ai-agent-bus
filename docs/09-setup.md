@@ -5,7 +5,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Installer, administration, token helper, accounts and daemon unit; stamped Go builds. |
-| Pending | Distributable package, editable ACL/account configuration and installed-host acceptance. |
+| Pending | Distributable package, editable ACL/account configuration and [installation acceptance](#installation-acceptance). |
 
 ## The programs
 
@@ -47,6 +47,26 @@ command to run. `--dry-run` and `--print-unit` are read-only and need no root.
 format and binary delivery are [MVP questions](../Plans/MVP/QUESTIONS.md#open-questions).
 A fresh-host install and the running service account must still be verified as
 [stage gates](../Plans/MVP/TODO.md#installed-stage-gate).
+
+## Installation acceptance
+
+**Required MVP, pending.** Installation includes operation of an existing node:
+an upgrade preserves credentials, registry and queued state, access policy,
+local account mappings and operator configuration. Every running component
+must use the intended release. Instructions must cover recovery from an
+interrupted upgrade and restoring a consistent set of credentials and state.
+Package format remains an [open choice](../Plans/MVP/QUESTIONS.md#open-questions).
+This requirement does not select the future runner backup mechanism.
+
+SSH onboarding is accepted through an actual sshd installation for both
+ordinary and operator keys, including the documented token command,
+entitlement enforcement and restricted access. Checking generated
+`authorized_keys` text alone is insufficient. The current nologin account
+setup and operator token delegation have [review findings](../Plans/MVP/done/release-gap-review.md#findings)
+that prevent treating source-level checks as installed success.
+
+[H.1.1 and H.5.2](../Plans/MVP/TODO.md#remaining-work) own the corresponding
+upgrade, recovery and SSH acceptance exercises.
 
 ## Build information
 

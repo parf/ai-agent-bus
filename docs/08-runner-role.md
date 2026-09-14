@@ -5,7 +5,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Script services, bounded parallel execution, graceful stop, logs, optional systemd sandbox and Claude/Codex push adapters. |
-| Pending | None in this topic. |
+| Pending | Installed [runtime sidecar isolation and recovery](#runtime-isolation-and-recovery). |
 
 ## What the runner does
 
@@ -88,6 +88,24 @@ done waits for a correlated reply, never for the ack. It never lets an incoming 
 mode — that is the adapter's policy as a receiver
 ([messaging § envelope](04-messaging.md#envelope)), not a rule of the bus.
 
+
+## Runtime isolation and recovery
+
+**Required MVP, pending acceptance.** Every shipped runtime's session-control
+endpoints must refuse other OS accounts while the intended terminal, tools
+and pusher remain usable. Loopback reachability and distinct session names
+alone do not establish that boundary. The current Codex WebSocket path needs
+an installed cross-account check; the review has not established unauthorized
+attachment. [H.9.5](../Plans/MVP/TODO.md#remaining-work) owns this verification
+and any necessary correction.
+
+After a daemon restart or sidecar failure, an open interactive session must
+resume bus delivery or clearly report that integration is inactive and how
+to recover. Recovery instructions must lead to a successful correlated
+exchange in that session. This adds no replay or exactly-once guarantee:
+[consumption](04-messaging.md#one-reader-per-inbox) and
+[snapshots](04-messaging.md#durability) retain their loss boundaries.
+[H.9.6](../Plans/MVP/TODO.md#remaining-work) owns live acceptance.
 
 ## Sandboxing
 

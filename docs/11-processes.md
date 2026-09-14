@@ -5,7 +5,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Supervisor, bus child, optional web child, inherited listeners and versioned process titles. |
-| Pending | Installed capability checks and dashboard resource confinement; see [MVP gates](../Plans/MVP/TODO.md#installed-stage-gate). |
+| Pending | Installed capability acceptance, including mutation checks; dashboard resource confinement and [credential/state isolation](#web-authority-boundary). See [MVP work](../Plans/MVP/TODO.md#remaining-work) and [installed gates](../Plans/MVP/TODO.md#installed-stage-gate). |
 
 ## The rule
 
@@ -77,6 +77,20 @@ Inherited listener descriptors and explicit API calls. The bus owns the store
 and snapshot; the supervisor does not keep a store handle. The web child gets
 the shared socket and no principal token. It forwards each visitor's credentials
 and then uses their browser session.
+
+## Web authority boundary
+
+**Required MVP, pending.** The web child must be unable to read or modify
+daemon credentials, snapshots or SSH authorization, or use mapped account
+sockets to acquire authority independently of its visitor. Normal calls use
+the shared listener and the visitor's credential or browser session.
+
+Passing only the shared socket to the child is application wiring, not OS
+confinement. The current shared service account leaves other paths accessible;
+the [installed review](../Plans/MVP/done/release-gap-review.md#findings)
+records the permissions probe. Resource limits and capability dropping do not
+establish this file and socket boundary. The implementation mechanism remains
+to be selected; [G.1.3](../Plans/MVP/TODO.md#remaining-work) owns acceptance.
 
 ## How a child is started
 

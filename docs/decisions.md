@@ -6,6 +6,11 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| MVP web credential and state boundary | [web authority](11-processes.md#web-authority-boundary) | 2026-09-13 owner-approved release review |
+| MVP runtime sidecar isolation and recovery | [runtime acceptance](08-runner-role.md#runtime-isolation-and-recovery) | 2026-09-13 owner-approved release review |
+| MVP upgrade, recovery and real SSH acceptance | [installation acceptance](09-setup.md#installation-acceptance) | 2026-09-13 owner-approved release review |
+| MVP installed browser acceptance | [browser acceptance](05-discovery.md#browser-acceptance) | 2026-09-13 owner-approved release review |
+| MVP administrative crash-recovery decision gate | [policy status](04-messaging.md#administrative-crash-recovery) | 2026-09-13 owner-approved review; Q39 remains unresolved |
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
 | Versioning | [definition](../CLAUDE.md#versioning) | D1 |
 | Build information | [definition](09-setup.md#build-information) | D2 |

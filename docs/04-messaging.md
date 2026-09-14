@@ -5,7 +5,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Inbox delivery, shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow and JSON restart snapshots. |
-| Pending | Whether inbox selection and message filtering should use separate options; [MVP questions](../Plans/MVP/QUESTIONS.md#open-questions). |
+| Pending | Inbox selection/filtering decision and [administrative crash-recovery policy](#administrative-crash-recovery); [MVP questions](../Plans/MVP/QUESTIONS.md#open-questions). |
 
 
 How principals on the bus talk. The bus delivers securely and says who sent it;
@@ -288,6 +288,20 @@ in the running daemon.
 
 Credentials use their own [store](09-setup.md#storage). Uptime and browser
 sessions describe the current process lifetime, not recovered state.
+
+## Administrative crash recovery
+
+**Current behavior:** administration changes use the restart snapshot, so a
+successful response does not establish persistence before the next snapshot.
+A reproduced bus-child crash restored access after an acknowledged ban;
+[review evidence](../Plans/MVP/done/release-gap-review.md#findings) records the
+sequence. Snapshot write failures are currently reported in the daemon log.
+
+**Required MVP decision, pending:** [Q39](../Plans/MVP/QUESTIONS.md#open-questions)
+owns the durability and recovery guarantee for acknowledged access changes.
+The review approval adds this release gate; it does not silently replace the
+existing snapshot contract or select a storage mechanism. [H.5.3](../Plans/MVP/TODO.md#remaining-work)
+must exercise crash and persistence failure under the approved policy.
 
 ## Envelope
 

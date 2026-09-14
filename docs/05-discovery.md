@@ -5,7 +5,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Filtered listings and catalog, signed-in dashboard with envelope-only views. |
-| Pending | People view and generated method documentation. Dashboard resource confinement needs installed-runtime verification. |
+| Pending | People view and generated method documentation. Installed [browser acceptance](#browser-acceptance), resource confinement and [web authority isolation](11-processes.md#web-authority-boundary) remain open. |
 
 ## What a listing answers
 
@@ -163,3 +163,13 @@ browser accepts it.
 into a repository or anywhere else public** — that is the publisher's own
 condition, and a leaked key is revoked; the repo's `.gitignore` refuses the
 extension rather than trusting anyone to remember.
+
+## Browser acceptance
+
+**Required MVP, pending installed acceptance.** Verify the dashboard in a real
+browser under its installed scheme, hostname and cookie policy. Exercise
+sign-in/out, the required controls, activity graphs and denial paths at each
+authority level. Web and bus restarts follow the [session contract](#signing-in).
+HTTP handler tests and command-line cookie jars remain useful evidence but
+do not establish this browser workflow. [F.12](../Plans/MVP/TODO.md#remaining-work)
+owns the installed exercise and mutation checks.
