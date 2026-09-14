@@ -27,10 +27,13 @@ type Queue struct {
 // can read. The git snapshot is backup and peer sync, not this
 // (Plans/R1/registry.md#registry-sync).
 type Snapshot struct {
+	Users   []protocol.User `json:",omitempty"`
 	At      time.Time
 	Clean   bool // written by a graceful stop; false means the run was still going
 	Records []protocol.Record
+	Groups  map[string][]string `json:",omitempty"`
 	Queues  []Queue
+	Retired map[string]string `json:",omitempty"` // ownership survives unregistering
 }
 
 // Dump snapshots in-memory state and reads it back.

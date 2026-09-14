@@ -48,8 +48,10 @@ func runSupervisor(c config) {
 	if err != nil {
 		log.Fatalf("listen %s: %v", c.sock, err)
 	}
-	// The socket is the credential's hiding place, so the mode is not advice.
-	if err := os.Chmod(c.sock, 0o600); err != nil {
+	// This listener authenticates every request by token. Local sessions run
+	// under other accounts; only their mapped, credential-bearing sockets
+	// are private. See docs/02-access.md#local-socket.
+	if err := os.Chmod(c.sock, 0o666); err != nil {
 		log.Fatalf("chmod %s: %v", c.sock, err)
 	}
 	me, err := protocol.ParseName(c.owner)

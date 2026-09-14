@@ -27,7 +27,10 @@ func (b *Bus) Masters(names []string) {
 // answers if it has anything to say, and only then does master apply, to
 // every service that has not refused it.
 func (b *Bus) may(caller string, r protocol.Record) bool {
-	if caller == r.Owner || caller == r.Name {
+	if !b.active(caller) {
+		return false
+	}
+	if b.manages(caller, r) {
 		return true
 	}
 	// No entry of its own is not a refusal: nothing has said no yet, and
@@ -36,7 +39,7 @@ func (b *Bus) may(caller string, r protocol.Record) bool {
 		return true
 	}
 	for _, s := range r.Allow {
-		if s == "*" || s == caller {
+		if s == "*" || s == caller || b.member(caller, s) {
 			return true
 		}
 	}

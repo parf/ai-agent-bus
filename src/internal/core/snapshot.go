@@ -13,7 +13,19 @@ import (
 func (b *Bus) Snapshot() ports.Snapshot {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	s := ports.Snapshot{At: time.Now()}
+	s := ports.Snapshot{At: time.Now(), Groups: map[string][]string{}}
+	for _, user := range b.users {
+		s.Users = append(s.Users, user)
+	}
+	for name, members := range b.groups {
+		s.Groups[name] = append([]string{}, members...)
+	}
+	if len(b.retired) != 0 {
+		s.Retired = make(map[string]string, len(b.retired))
+		for name, owner := range b.retired {
+			s.Retired[name] = owner
+		}
+	}
 	for _, r := range b.records {
 		s.Records = append(s.Records, r)
 	}
@@ -40,6 +52,15 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.unclean = !s.Clean
+	for _, user := range s.Users {
+		b.users[user.Name] = user
+	}
+	for name, members := range s.Groups {
+		b.groups[name] = append([]string{}, members...)
+	}
+	for name, owner := range s.Retired {
+		b.retired[name] = owner
+	}
 	for _, r := range s.Records {
 		b.records[r.Name] = r
 	}

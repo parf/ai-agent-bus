@@ -90,7 +90,7 @@ func start(args []string) error {
 		return err
 	}
 	os.Setenv("AGENT_BUS_NAME", svc.Name)
-	os.Setenv("AGENT_BUS_TOKEN", tok)
+	useToken(tok)
 
 	svc.work = workPath(svc.Name)
 	if err := os.MkdirAll(svc.work, 0o700); err != nil {

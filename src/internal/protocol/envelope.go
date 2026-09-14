@@ -109,8 +109,10 @@ type Record struct {
 	TTL   string `json:"ttl,omitempty"`
 	Bound int    `json:"bound,omitempty"`
 
-	Owner string    `json:"owner"`
-	At    time.Time `json:"at"`
+	Owner       string    `json:"owner"`
+	Maintainers string    `json:"maintainers,omitempty"`
+	Disabled    bool      `json:"disabled,omitempty"`
+	At          time.Time `json:"at"`
 
 	// Allow is the service ACL: who may see and use this. It is a field on
 	// the record, not something inside Config, because the daemon enforces
@@ -150,10 +152,12 @@ type Record struct {
 	// nothing on this bus answers for it — so "is it in the registry?" and
 	// "can I call it through the daemon?" are different questions.
 	// See docs/05-discovery.md#what-a-listing-answers.
-	Reading bool `json:"reading,omitempty"` // a read on its inbox is outstanding now
-	Queued  int  `json:"queued,omitempty"`  // messages waiting in it
-	In      int  `json:"in,omitempty"`      // accepted for it since the daemon started
-	Out     int  `json:"out,omitempty"`     // handed to a reader of it since then
+	CanManage   bool `json:"can_manage,omitempty"`
+	CanTransfer bool `json:"can_transfer,omitempty"`
+	Reading     bool `json:"reading,omitempty"` // a read on its inbox is outstanding now
+	Queued      int  `json:"queued,omitempty"`  // messages waiting in it
+	In          int  `json:"in,omitempty"`      // accepted for it since the daemon started
+	Out         int  `json:"out,omitempty"`     // handed to a reader of it since then
 	// Loss, per inbox rather than per daemon: a total tells an operator that
 	// something is losing work, and not which name to go and look at.
 	Dropped int `json:"dropped,omitempty"` // lost to its overflow since then

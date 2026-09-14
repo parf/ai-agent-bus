@@ -159,7 +159,11 @@ func post(path string, body any) ([]byte, int, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	client, base := api.Dial(os.Getenv("AGENT_BUS_ADDR"))
+	addr := os.Getenv("AGENT_BUS_ADDR")
+	if addr == "" {
+		addr = api.ClientSocket()
+	}
+	client, base := api.Dial(addr)
 	req, err := http.NewRequest("POST", base+path, bytes.NewReader(b))
 	if err != nil {
 		return nil, 0, err

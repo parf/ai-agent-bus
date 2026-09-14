@@ -2,8 +2,8 @@
 // of them is a **reshape of what the bus already answered this caller** — the
 // records, the feed, `status` and the caller's own credentials. Nothing here
 // asks a second question, keeps anything between requests, or works out
-// something the daemon could have been asked for: the child is a read-only
-// view and the filtering already happened in the bus (docs/05-discovery.md#dashboard).
+// something the daemon could have been asked for: these diagnostic views are read-only
+// and the filtering already happened in the bus (docs/05-discovery.md#dashboard).
 //
 // What *is* the page's is ordering, grouping and the late mark, which is
 // exactly the split the design draws.

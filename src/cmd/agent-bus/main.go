@@ -18,7 +18,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/tabwriter"
 	"time"
+	"unicode"
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -27,13 +29,16 @@ import (
 
 const usage = `agent-bus — talk to agent-busd
 
+  agent-bus [--addr <socket-path|http://host:port>] <command> ...
+
   agent-bus --version
   agent-bus status
   agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
                             [--allow a@b,c@d | --allow '*'] [--no-master]  who may see and use it
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to call it; unset = this bus
-  agent-bus ls [<name>] [--kind k]
+  agent-bus ls [<name>] [--kind k] [-h]   -h: human-readable table
+  agent-bus unregister <name>          remove an idle registry entry; does not stop a process
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
   agent-bus consume [--topic t] [--tag g] [--wait 30s] [--follow] [--share]
@@ -59,14 +64,32 @@ const usage = `agent-bus — talk to agent-busd
                             prove you hold a key that realm publishes for you
 
 Environment: AGENT_BUS_TOKEN, AGENT_BUS_ADDR.
-On your own socket the first two are supplied for you and can be left unset.
+Without --addr or AGENT_BUS_ADDR, discover your local socket automatically.
+On your own socket no token is needed.
 A credential comes from agent-bus-token, which is its own program.`
+
+var cliAddress string
 
 func main() {
 	if version.Print() {
 		return
 	}
 	args := os.Args[1:]
+	// Global options precede the verb: register --addr remains the service's
+	// advertised address, not the address of the bus being contacted.
+	if len(args) > 0 && (args[0] == "--addr" || strings.HasPrefix(args[0], "--addr=")) {
+		if args[0] == "--addr" {
+			if len(args) < 2 || strings.HasPrefix(args[1], "-") {
+				die("--addr requires a socket path or HTTP URL")
+			}
+			cliAddress, args = args[1], args[2:]
+		} else {
+			cliAddress, args = strings.TrimPrefix(args[0], "--addr="), args[1:]
+		}
+		if cliAddress == "" {
+			die("--addr requires a socket path or HTTP URL")
+		}
+	}
 	if len(args) == 0 {
 		die(usage)
 	}
@@ -77,6 +100,12 @@ func main() {
 		err = get("/status", nil)
 	case "register":
 		err = register(rest)
+	case "unregister":
+		if len(rest) != 1 {
+			err = fmt.Errorf("unregister wants one service name")
+		} else if err = postQuiet("/unregister", map[string]string{"name": rest[0]}); err == nil {
+			fmt.Printf("%s unregistered\n", rest[0])
+		}
 	case "ls":
 		err = ls(rest)
 	case "send":
@@ -163,19 +192,71 @@ func register(args []string) error {
 // than the configuration itself.
 // See docs/03-services-and-topics.md#configuring-a-template.
 func ls(args []string) error {
-	pos, flags := split(args)
+	human := false
+	filtered := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg == "-h" {
+			human = true
+		} else {
+			filtered = append(filtered, arg)
+		}
+	}
+	pos, flags := split(filtered)
 	if len(pos) > 1 {
 		return fmt.Errorf("ls takes one name, or none")
 	}
 	q := url.Values{}
+	path := "/ls"
 	if len(pos) == 1 {
 		q.Set("name", pos[0])
-		return get("/lookup", q)
+		path = "/lookup"
 	}
 	if k := flags["kind"]; k != "" {
 		q.Set("kind", k)
 	}
-	return get("/ls", q)
+	if !human {
+		return get(path, q)
+	}
+	body, code, err := call("GET", path, q, nil)
+	if err != nil || code >= 400 {
+		return show(body, code, err)
+	}
+	var records []protocol.Record
+	if len(pos) == 1 {
+		var record protocol.Record
+		err = json.Unmarshal(body, &record)
+		records = append(records, record)
+	} else {
+		err = json.Unmarshal(body, &records)
+	}
+	if err != nil {
+		return err
+	}
+	if len(records) == 0 {
+		fmt.Println("No matching records.")
+		return nil
+	}
+	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(w, "NAME\tKIND\tOWNER\tREADER\tQUEUED\tDESCRIPTION")
+	// Keep metadata in one cell, including tabs, newlines and terminal controls.
+	cell := func(s string) string {
+		return strings.Map(func(c rune) rune {
+			if unicode.IsControl(c) {
+				return ' '
+			}
+			return c
+		}, s)
+	}
+	for _, r := range records {
+		reader := "no"
+		if r.Proto != "" {
+			reader = "-"
+		} else if r.Reading {
+			reader = "yes"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n", cell(r.Name), cell(r.Kind), cell(r.Owner), reader, r.Queued, cell(r.Descr))
+	}
+	return w.Flush()
 }
 
 func send(args []string) error {
@@ -582,19 +663,38 @@ func onOwnSocket() bool {
 }
 
 func socketPath() string {
+	if cliAddress != "" {
+		return cliAddress
+	}
 	if a := os.Getenv("AGENT_BUS_ADDR"); a != "" {
 		return a
 	}
-	return api.DefaultSocket()
+	return api.ClientSocket()
 }
 
 // transport speaks HTTP over either a unix socket or loopback TCP: same
 // protocol on both listeners. Built once — `consume --follow` polls in a loop,
 // and a fresh Transport each time would leak idle connections.
 // See docs/decisions.md.
-var transport = sync.OnceValues(func() (*http.Client, string) {
-	return api.Dial(os.Getenv("AGENT_BUS_ADDR"))
-})
+var transport = sync.OnceValues(connect)
+
+func connect() (*http.Client, string) {
+	return api.Dial(socketPath())
+}
+
+// A runner starts as the account and then becomes its service. The cached
+// client must leave the credential-bearing user socket at that boundary.
+func useToken(token string) {
+	addr := socketPath()
+	if api.IsUserSocket(addr) && !strings.HasPrefix(addr, "http://") {
+		client, _ := transport()
+		client.CloseIdleConnections()
+		cliAddress = filepath.Join(filepath.Dir(addr), "bus.sock")
+		os.Setenv("AGENT_BUS_ADDR", cliAddress)
+		transport = sync.OnceValues(connect)
+	}
+	os.Setenv("AGENT_BUS_TOKEN", token)
+}
 
 func get(path string, q url.Values) error { return show(call("GET", path, q, nil)) }
 func post(path string, body any) error    { return show(call("POST", path, nil, body)) }

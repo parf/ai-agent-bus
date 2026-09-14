@@ -47,6 +47,10 @@ func (b *Bus) Challenge(name string) (string, error) {
 		return "", fmt.Errorf("%w: %s", ErrBadName, err)
 	}
 	b.mu.Lock()
+	if !b.active(n.String()) {
+		b.mu.Unlock()
+		return "", ErrInactive
+	}
 	dir, backed := b.dirs[n.Realm]
 	b.mu.Unlock()
 	if !backed {
@@ -93,7 +97,7 @@ func (b *Bus) Enrol(nonce, signature string) (protocol.Record, error) {
 	b.mu.Lock()
 	delete(b.pending, nonce)
 	b.mu.Unlock()
-	return b.register(protocol.Record{Name: c.name, Kind: "agent", Owner: c.name}, true)
+	return b.register(protocol.Record{Name: c.name, Kind: "agent", Owner: c.name}, true, false)
 }
 
 // forget drops challenges nobody answered. Caller holds the lock.

@@ -57,14 +57,46 @@ func main() {
 	bus := &caller{client: client, base: base}
 	tls := have(*certF) && have(*keyF)
 
+	handler := dashboard(bus, tls)
+
+	if !tls {
+		// Never silently: a dashboard on plain HTTP is a different thing
+		// from one on HTTPS, and the person running it should know which
+		// they have. The public hostname is given up with the certificate —
+		// it is only worth having because the certificate matches it — but
+		// an address somebody asked for out loud is still honoured.
+		if *addr == Host+":"+httpsPort {
+			*addr = "127.0.0.1:6780"
+		}
+		log.Printf("no certificate at %s — plain HTTP. See docs/05-discovery.md#dashboard for where to get one", *certF)
+	}
+	l, err := listen(*addr, tls)
+	if err != nil {
+		log.Fatal(err)
+	}
+	srv := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+	scheme := "http"
+	if tls {
+		scheme = "https"
+	}
+	log.Printf("agent-bus-web on %s://%s", scheme, l.Addr())
+	if tls {
+		log.Fatal(srv.ServeTLS(l, *certF, *keyF))
+	}
+	log.Fatal(srv.Serve(l))
+}
+
+// dashboard has no application state or credential of its own.
+func dashboard(bus *caller, tls bool) http.Handler {
+	mux := http.NewServeMux()
 	// The whole public signal. Anything that varies is something an
 	// anonymous visitor can watch, so this answers nothing at all.
 	// See docs/05-discovery.md#rules-it-is-built-to.
-	http.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		cred := cookie(r)
 		// Whose page this is comes from the bus, not from the child: the
@@ -103,7 +135,7 @@ func main() {
 
 	// Signing in is the one moment a token is handled here, and it is not
 	// kept: it is spent on a session the bus holds and then forgotten.
-	http.HandleFunc("POST /signin", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /signin", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		var got struct {
 			Session string `json:"session"`
@@ -133,7 +165,7 @@ func main() {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
 
-	http.HandleFunc("POST /signout", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /signout", func(w http.ResponseWriter, r *http.Request) {
 		if cred := cookie(r); cred != "" {
 			bus.send(cred, "DELETE", "/session", nil)
 		}
@@ -141,31 +173,20 @@ func main() {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
 
-	if !tls {
-		// Never silently: a dashboard on plain HTTP is a different thing
-		// from one on HTTPS, and the person running it should know which
-		// they have. The public hostname is given up with the certificate —
-		// it is only worth having because the certificate matches it — but
-		// an address somebody asked for out loud is still honoured.
-		if *addr == Host+":"+httpsPort {
-			*addr = "127.0.0.1:7878"
+	bus.adminRoutes(mux, tls)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+		if r.Method == http.MethodPost {
+			if r.Header.Get("Origin") != "" && !sameOrigin(r, tls) {
+				http.Error(w, "same-origin form required", http.StatusForbidden)
+				return
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		}
-		log.Printf("no certificate at %s — plain HTTP. See docs/05-discovery.md#dashboard for where to get one", *certF)
-	}
-	l, err := listen(*addr, tls)
-	if err != nil {
-		log.Fatal(err)
-	}
-	srv := &http.Server{Handler: nil, ReadHeaderTimeout: 10 * time.Second}
-	scheme := "http"
-	if tls {
-		scheme = "https"
-	}
-	log.Printf("agent-bus-web on %s://%s", scheme, l.Addr())
-	if tls {
-		log.Fatal(srv.ServeTLS(l, *certF, *keyF))
-	}
-	log.Fatal(srv.Serve(l))
+		mux.ServeHTTP(w, r)
+	})
 }
 
 // listen binds addr, and falls back off port 443 rather than dying on it:
@@ -227,29 +248,40 @@ func (c *caller) get(cred, path string, into any) error {
 }
 
 func (c *caller) send(cred, method, path string, into any) error {
-	req, err := http.NewRequest(method, c.base+path, nil)
+	return c.request(cred, method, path, nil, into)
+}
+
+func (c *caller) request(cred, method, path string, body io.Reader, into any) error {
+	if cred == "" {
+		return fmt.Errorf("sign in required")
+	}
+	req, err := http.NewRequest(method, c.base+path, body)
 	if err != nil {
 		return err
 	}
-	if cred != "" {
-		req.Header.Set(api.HeaderToken, cred)
+	req.Header.Set(api.HeaderToken, cred)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+		if method == "POST" && path == "/register" {
+			req.Header.Set("If-None-Match", "*")
+		}
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	payload, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("%s: %s", path, body)
+		return &busError{code: resp.StatusCode, message: string(payload)}
 	}
 	if into == nil {
 		return nil
 	}
-	return json.Unmarshal(body, into)
+	return json.Unmarshal(payload, into)
 }
 
 func env(k, def string) string {
@@ -276,7 +308,12 @@ const head = `<!doctype html>
  .warn{color:#b00}
  h2{font-size:15px;margin:1.6rem 0 .4rem}
  .who{float:right;font-size:13px}
- input{font:13px ui-monospace,monospace;padding:.3rem;width:26rem;max-width:100%}
+ input{font:13px ui-monospace,monospace;padding:.3rem;width:26rem;max-width:100%;box-sizing:border-box}
+ input[type=checkbox]{width:auto}
+ textarea{max-width:100%;box-sizing:border-box;font:13px ui-monospace,monospace}
+ button,select{font:inherit;padding:.3rem .5rem}
+ form+form{margin-top:1rem}
+ nav{line-height:2}
 </style>
 `
 
@@ -305,6 +342,7 @@ var page = template.Must(template.New("dash").Parse(head + `<meta http-equiv="re
 <form method=post action=/signout class=who>
  <code>{{.You}}</code> <button type=submit>sign out</button></form>
 <h1>agent-bus</h1>
+<nav><a href=/services>Registered services</a> · <a href=/channels>Channels</a> · <a href=/users>Users</a> · <a href=/groups>Groups</a> · <a href=/activity>Activity graphs</a> · <a href=/>Diagnostics</a></nav>
 
 <h2 id=node>node</h2>
 <p>up {{.Status.Up}} · {{.Status.Services}} records · {{.Status.Queued}} queued ·

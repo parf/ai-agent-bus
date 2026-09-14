@@ -128,7 +128,22 @@ func runBus(c config) {
 			}
 		}()
 	}
+	bus.SampleActivity(time.Now())
+	activityTick := time.NewTicker(time.Minute)
+	activityDone := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case at := <-activityTick.C:
+				bus.SampleActivity(at)
+			case <-activityDone:
+				return
+			}
+		}
+	}()
 	<-stop
+	activityTick.Stop()
+	close(activityDone)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, srv := range srvs {

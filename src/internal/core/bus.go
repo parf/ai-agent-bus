@@ -24,6 +24,9 @@ import (
 const maxQueue = 1000
 
 var (
+	ErrProfile  = errors.New("invalid user profile")
+	ErrInactive = errors.New("user access is suspended")
+	ErrDisabled = errors.New("service is disabled")
 	ErrUnknown  = errors.New("no such name")
 	ErrTwoReads = errors.New("inbox already has a reader, and neither asked to share it")
 	ErrBadName  = errors.New("bad name")
@@ -36,6 +39,8 @@ var (
 	ErrWait     = errors.New("a wait is a duration, like 30s")
 	ErrBound    = errors.New("a bound is a positive number of messages")
 	ErrNotOwner = errors.New("that record belongs to someone else")
+	ErrExists   = errors.New("that name is already registered")
+	ErrBusy     = errors.New("cannot unregister a busy inbox")
 	ErrPrivate  = errors.New("a configuration is private to the service it belongs to")
 	ErrNotAllow = errors.New("not on that service's allow list")
 	ErrEnrol    = errors.New("enrolment")
@@ -61,6 +66,8 @@ type waiter struct {
 	filtered   bool
 	share      bool
 	ch         chan protocol.Envelope
+	caller     string
+	stopped    chan error
 }
 
 type inbox struct {
@@ -69,6 +76,7 @@ type inbox struct {
 	// never taken from a caller. A queue that is drained and one nobody
 	// ever wrote to both read as empty, and these tell them apart.
 	in, out int
+	refused int
 	// Its own loss, not the daemon's, for the reason protocol.Record.Dropped
 	// gives.
 	dropped, expired int
@@ -78,8 +86,13 @@ type inbox struct {
 }
 
 type Bus struct {
-	mu      sync.Mutex
-	records map[string]protocol.Record
+	users    map[string]protocol.User
+	mu       sync.Mutex
+	activity []activitySample
+	records  map[string]protocol.Record
+	groups   map[string][]string
+	admin    string
+	retired  map[string]string // unregistered names retain their credential ownership
 	// How many calls were refused, and for what. Counted because a bus that
 	// is quiet and one that is refusing everything look identical from
 	// outside — see docs/05-discovery.md#what-it-shows.
@@ -105,6 +118,9 @@ type Bus struct {
 func New() *Bus {
 	return &Bus{
 		records: map[string]protocol.Record{},
+		groups:  map[string][]string{},
+		users:   map[string]protocol.User{},
+		retired: map[string]string{},
 		refused: map[string]int{},
 		inboxes: map[string]*inbox{},
 		started: time.Now(),
@@ -114,9 +130,16 @@ func New() *Bus {
 // Register states a record. A name in a realm a directory backs cannot be
 // created this way — it has to be enrolled, or the first caller to ask for a
 // name would become it. See docs/01-identity.md#registration.
-func (b *Bus) Register(r protocol.Record) (protocol.Record, error) { return b.register(r, false) }
+func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
+	return b.register(r, false, false)
+}
 
-func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error) {
+// RegisterNew claims a name without replacing even the caller's own record.
+func (b *Bus) RegisterNew(r protocol.Record) (protocol.Record, error) {
+	return b.register(r, false, true)
+}
+
+func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.Record, error) {
 	name, err := canon(r.Name)
 	if err != nil {
 		return protocol.Record{}, err
@@ -141,6 +164,12 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if !b.active(r.Owner) {
+		return protocol.Record{}, ErrInactive
+	}
+	if _, exists := b.records[name]; createOnly && exists {
+		return protocol.Record{}, ErrExists
+	}
 	// Refusing a *new* name in a vouched-for realm is what turns "the owner
 	// of a record may have its credential" from a hole into a rule: you
 	// become the name by proving you hold its key, not by asking first.
@@ -175,6 +204,8 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 		return protocol.Record{}, fmt.Errorf("%w, not %d", ErrBound, r.Bound)
 	}
 	r.Config, r.ConfigSHA, r.Subs = nil, "", nil
+	r.Maintainers, r.Disabled = "", false
+	r.CanManage, r.CanTransfer = false, false
 	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
 	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
 	// Publishing a name is open to anyone; changing one that exists belongs
@@ -182,18 +213,39 @@ func (b *Bus) register(r protocol.Record, enrolled bool) (protocol.Record, error
 	// every start is not a stranger to its own name, and it is the only
 	// other principal that could hold that name's credential.
 	// See docs/01-identity.md#ownership.
-	if old, known := b.records[name]; known {
+	if old, known := b.recordOrReservation(name); known {
 		caller := r.Owner // the face puts the caller here, not a claim
-		if old.Owner != "" && caller != old.Owner && caller != name {
+		if old.Owner != "" && !b.manages(caller, old) {
 			return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, name, old.Owner)
 		}
 		r.Config = old.Config
 		r.Owner = old.Owner
 		r.Subs = old.Subs
+		r.Maintainers, r.Disabled = old.Maintainers, old.Disabled
 	}
 	r.Name = name
 	r.At = time.Now()
+
+	if enrolled {
+		user := b.users[name]
+		user.Name = name
+		if user.State == "" {
+			user.State = "active"
+		}
+		parsed, _ := protocol.ParseName(name)
+		if parsed.Realm == "github" {
+			for other, profile := range b.users {
+				if other != name && profile.GithubUser == parsed.Local {
+					return protocol.Record{}, fmt.Errorf("%w: GitHub login already belongs to another profile", ErrProfile)
+				}
+			}
+			user.GithubUser = parsed.Local
+		}
+		b.users[name] = user
+	}
 	b.records[name] = r
+	b.recheckInbox(name)
+	delete(b.retired, name)
 	b.ensure(name)
 	// Public here, not in the face: the configuration is core's to guard,
 	// and an answer that forgot to redact has already got out twice.
@@ -239,12 +291,12 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	cfg = canonical.Bytes()
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	r, known := b.records[n]
+	r, known := b.recordOrReservation(n)
 	if !known {
 		// Same defaults a bare registration gets: configuring is not a
 		// second way to describe a service, only a way to give it config.
 		r = protocol.Record{Name: n, Kind: "generic", Owner: who, Full: protocol.OverflowStrict}
-	} else if r.Owner != who && n != who {
+	} else if !b.manages(who, r) {
 		// Writing is the owner's, and the service's own. Reading is neither:
 		// see Config.
 		return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, n, r.Owner)
@@ -252,6 +304,7 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	r.Config = cfg
 	r.At = time.Now()
 	b.records[n] = r
+	delete(b.retired, n)
 	b.ensure(n)
 	return r.Public(), nil
 }
@@ -299,7 +352,7 @@ func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 	if !ok || !b.may(caller, r) {
 		return protocol.Record{}, false
 	}
-	return b.withLiveness(n, r.Public()), true
+	return b.visible(caller, r), true
 }
 
 // OwnerOf is the ownership question on its own, because it is not a discovery
@@ -312,7 +365,7 @@ func (b *Bus) OwnerOf(name string) (string, bool) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	r, ok := b.records[n]
+	r, ok := b.recordOrReservation(n)
 	return r.Owner, ok
 }
 
@@ -373,7 +426,7 @@ func (b *Bus) List(caller, kind string) []protocol.Record {
 		if !b.may(caller, r) {
 			continue
 		}
-		out = append(out, b.withLiveness(r.Name, r.Public()))
+		out = append(out, b.visible(caller, r))
 	}
 	return out
 }
@@ -439,6 +492,12 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// rather than left to wonder. See docs/01-identity.md#acl.
 	if !b.may(from, rec) {
 		return protocol.Envelope{}, fmt.Errorf("%s may not send to %s: %w", from, to, ErrNotAllow)
+	}
+	if !b.active(rec.Name) {
+		return protocol.Envelope{}, ErrInactive
+	}
+	if rec.Disabled {
+		return protocol.Envelope{}, ErrDisabled
 	}
 	// An answer that cannot be routed is the requester's problem to hear
 	// about now. Registered, not live: the name owns a queue whether or not
@@ -557,7 +616,7 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		// Asked again at every publish, not only at subscribe: access taken
 		// away has to stop the copies, or subscribing would be a way to go
 		// on reading a topic that stopped allowing you.
-		if !known || !b.may(s, topic) {
+		if !known || !b.active(s) || sub.Disabled || !b.may(s, topic) {
 			continue
 		}
 		c := e
@@ -592,6 +651,9 @@ func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) 
 	// exactly as a lookup answers. See docs/01-identity.md#acl.
 	if !known || !b.may(who, r) {
 		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
+	}
+	if on && r.Disabled {
+		return protocol.Record{}, ErrDisabled
 	}
 	if r.Kind != protocol.KindTopic || r.Mode != protocol.ModePubSub {
 		return protocol.Record{}, fmt.Errorf("%w: only a pubsub topic has subscribers, and %s is not one", ErrMode, n)
@@ -674,6 +736,10 @@ func (b *Bus) prune(in *inbox, now time.Time) {
 // asked to share the inbox.
 // See docs/04-messaging.md#one-reader-per-inbox.
 func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered, share bool) (protocol.Envelope, error) {
+	return b.ConsumeAs(ctx, name, name, topic, tag, filtered, share)
+}
+
+func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, filtered, share bool) (protocol.Envelope, error) {
 	name, err := canon(name)
 	if err != nil {
 		return protocol.Envelope{}, err
@@ -686,6 +752,15 @@ func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered, sh
 	if _, known := b.records[name]; !known {
 		b.mu.Unlock()
 		return protocol.Envelope{}, fmt.Errorf("no inbox for %s: register it first (%w)", name, ErrUnknown)
+	}
+	rec := b.records[name]
+	if !b.may(caller, rec) {
+		b.mu.Unlock()
+		return protocol.Envelope{}, ErrNotAllow
+	}
+	if rec.Disabled {
+		b.mu.Unlock()
+		return protocol.Envelope{}, ErrDisabled
 	}
 	in := b.ensure(name)
 	// Never handed to a consumer: the check is here, where the message would
@@ -714,11 +789,13 @@ func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered, sh
 			}
 		}
 	}
-	w := &waiter{topic: topic, tag: tag, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1)}
+	w := &waiter{topic: topic, tag: tag, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1), caller: caller, stopped: make(chan error, 1)}
 	in.waiters = append(in.waiters, w)
 	b.mu.Unlock()
 
 	select {
+	case err := <-w.stopped:
+		return protocol.Envelope{}, err
 	case e := <-w.ch:
 		return e, nil
 	case <-ctx.Done():
@@ -742,7 +819,10 @@ func (b *Bus) settle(name string, w *waiter) (protocol.Envelope, bool) {
 		return e, true
 	default:
 	}
-	in := b.ensure(name)
+	in := b.inboxes[name]
+	if in == nil {
+		return protocol.Envelope{}, false
+	}
 	for i, x := range in.waiters {
 		if x == w {
 			in.waiters = drop(in.waiters, i)
@@ -801,6 +881,11 @@ func (b *Bus) Owned(caller string) []string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	out := []string{caller}
+	for name, owner := range b.retired {
+		if name != caller && owner == caller {
+			out = append(out, name)
+		}
+	}
 	for name, r := range b.records {
 		if name != caller && r.Owner == caller {
 			out = append(out, name)

@@ -227,3 +227,15 @@ func (t *Tokens) save() error {
 	}
 	return t.store.Save(creds)
 }
+
+// Names returns principal names only, for the daemon's filtered people view.
+func (t *Tokens) Names() []string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	names := make([]string, 0, len(t.tok))
+	for name := range t.tok {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}

@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
@@ -62,6 +63,34 @@ func DefaultSocket() string {
 	return filepath.Join(os.TempDir(), fmt.Sprintf("agent-bus-%d.sock", os.Getuid()))
 }
 
+// ClientSocket discovers a local listener without changing the daemon's
+// default bind path. A supplied token must use the shared listener.
+func ClientSocket() string {
+	dirs := []string{}
+	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
+		dirs = append(dirs, filepath.Join(dir, "agent-bus"))
+	}
+	dirs = append(dirs, SystemRuntimeDir)
+	account := ""
+	if u, err := user.Current(); err == nil {
+		account = u.Username
+	}
+	return clientSocket(dirs, account, os.Getenv("AGENT_BUS_TOKEN") != "")
+}
+
+func clientSocket(dirs []string, account string, hasToken bool) string {
+	for _, dir := range dirs {
+		path := filepath.Join(dir, "bus.sock")
+		if !hasToken && account != "" {
+			path = UserSocket(dir, account)
+		}
+		if fi, err := os.Stat(path); err == nil && fi.Mode()&os.ModeSocket != 0 {
+			return path
+		}
+	}
+	return DefaultSocket()
+}
+
 // UserSocket is one account's own socket in the daemon's socket directory.
 // The name carries the account so that a person, a script and the daemon all
 // work it out the same way. See docs/02-access.md#local-socket.
@@ -88,6 +117,7 @@ type Server struct {
 }
 
 func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
+	bus.Administrator(owner)
 	return &Server{bus: bus, tokens: tokens, owner: owner}
 }
 
@@ -111,11 +141,20 @@ func (s *Server) routes(g guard) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /status", g(s.status))
 	mux.HandleFunc("POST /register", g(s.register))
+	mux.HandleFunc("POST /unregister", g(s.unregister))
+	mux.HandleFunc("POST /manage", g(s.manage))
+	mux.HandleFunc("GET /groups", g(s.groups))
+	mux.HandleFunc("GET /users", g(s.users))
+	mux.HandleFunc("POST /user", g(s.user))
+	mux.HandleFunc("POST /user/state", g(s.userState))
+	mux.HandleFunc("GET /activity", g(s.activity))
+	mux.HandleFunc("POST /group", g(s.group))
 	mux.HandleFunc("GET /ls", g(s.ls))
 	mux.HandleFunc("GET /lookup", g(s.lookup))
 	mux.HandleFunc("GET /recent", g(s.recent))
 	mux.HandleFunc("GET /names", g(s.names))
 	mux.HandleFunc("POST /subscribe", g(s.subscribe))
+	mux.HandleFunc("POST /subscriber/remove", g(s.removeSubscriber))
 	mux.HandleFunc("POST /configure", g(s.configure))
 	mux.HandleFunc("GET /config", g(s.config))
 	mux.HandleFunc("POST /send", g(s.send))
@@ -153,6 +192,10 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 			fail(w, http.StatusUnauthorized, "bad token")
 			return
 		}
+		if !s.bus.CanAuthenticate(name.String()) {
+			s.reply(w, nil, core.ErrInactive)
+			return
+		}
 		next(w, r, name)
 	}
 }
@@ -165,6 +208,10 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 func (s *Server) onSocket(me protocol.Name) guard {
 	return func(next func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
+			if !s.bus.CanAuthenticate(me.String()) {
+				s.reply(w, nil, core.ErrInactive)
+				return
+			}
 			next(w, r, me)
 		}
 	}
@@ -238,8 +285,10 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	ok(w, struct {
 		core.Status
-		You string `json:"you"`
-	}{s.bus.Status(), caller.String()})
+		You           string `json:"you"`
+		Administrator bool   `json:"administrator,omitempty"`
+		DaemonOwner   bool   `json:"daemon_owner,omitempty"`
+	}{s.bus.Status(), caller.String(), s.bus.IsMaintainer(caller.String()), caller.String() == s.owner})
 }
 
 // subscribe puts the caller on a pub/sub topic, or takes it off. The caller
@@ -258,12 +307,24 @@ func (s *Server) subscribe(w http.ResponseWriter, r *http.Request, caller protoc
 	s.reply(w, rec, err)
 }
 
+func (s *Server) unregister(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	var in struct{ Name string }
+	if read(w, r, &in) {
+		s.reply(w, nil, s.bus.Unregister(in.Name, caller.String()))
+	}
+}
+
 func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in protocol.Record
 	if !read(w, r, &in) {
 		return
 	}
 	in.Owner = caller.String()
+	if r.Header.Get("If-None-Match") == "*" {
+		rec, err := s.bus.RegisterNew(in)
+		s.reply(w, rec, err)
+		return
+	}
 	rec, err := s.bus.Register(in)
 	s.reply(w, rec, err)
 }
@@ -388,6 +449,9 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 	}
 	in.From = caller.String()
 	e, err := s.bus.Send(in)
+	if err != nil {
+		s.bus.RecordRefusal(in.To)
+	}
 	s.reply(w, e, err)
 }
 
@@ -435,7 +499,10 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 	ctx, cancel := context.WithTimeout(r.Context(), wait)
 	defer cancel()
 
-	e, err := s.bus.Consume(ctx, inbox, topic, tag, filtered, q.Has("share"))
+	e, err := s.bus.ConsumeAs(ctx, caller.String(), inbox, topic, tag, filtered, q.Has("share"))
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
+		s.bus.RecordRefusal(inbox)
+	}
 	// Only the deadline running out means "nothing arrived", and it is the
 	// error itself that says so — not whether ctx happens to be expired,
 	// which it always is once wait=0s. Every other refusal is a real answer
@@ -460,6 +527,9 @@ var codes = []struct {
 	// however many ways there are to send it.
 	kind string
 }{
+	{core.ErrProfile, http.StatusBadRequest, "malformed"},
+	{core.ErrInactive, http.StatusForbidden, "suspended"},
+	{core.ErrDisabled, http.StatusConflict, "disabled"},
 	{core.ErrBadName, http.StatusBadRequest, "malformed"},
 	{core.ErrOverflow, http.StatusBadRequest, "malformed"},
 	{core.ErrMode, http.StatusBadRequest, "malformed"},
@@ -469,6 +539,8 @@ var codes = []struct {
 	{core.ErrWait, http.StatusBadRequest, "malformed"},
 	{core.ErrBound, http.StatusBadRequest, "malformed"},
 	{core.ErrNotOwner, http.StatusForbidden, "acl"},
+	{core.ErrExists, http.StatusPreconditionFailed, "name-taken"},
+	{core.ErrBusy, http.StatusConflict, "busy"},
 	{core.ErrPrivate, http.StatusForbidden, "acl"},
 	{core.ErrNotAllow, http.StatusForbidden, "acl"},
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
