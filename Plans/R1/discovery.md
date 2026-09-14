@@ -46,13 +46,20 @@ Prometheus `/metrics` first (Grafana reads it); OTLP / StatsD secondary.
 
 ## Dashboard extensions
 
+Optional for MVP; assigned to R1 by the owner on 2026-09-13. The
+[required dashboard](../../docs/05-discovery.md#required-tabs) owns the baseline.
+These additions do not remove its built diagnostic views.
+
 | View | Stage | Dependency |
 |---|---|---|
-| **groups** and who is in them | R1 | groups themselves ([identity § groups and roles](identity.md#groups-and-roles)) |
+| **advanced groups** — nested expressions and delegated administration | R1 | [groups and roles](identity.md#groups-and-roles); basic group and maintainer administration is [MVP](../../docs/01-identity.md#groups-and-maintainers) |
 | **health** — up, down, and how long since the last probe | R1 | the health child ([health checker](#health-checker)) |
-| **load** — calls per minute and per hour, per name and for the node | R1 | the ring buffers in [stats](#stats). Inline SVG; `/metrics` ([exports](#exports)) is what a real graphing stack reads |
+| **advanced activity** — longer history, latency distributions, comparisons and export | R1 | [stats](#stats) and [exports](#exports); basic activity graphs are [MVP](../../docs/05-discovery.md#required-tabs) |
 | **runner** — what a `runner@<host>` manages: every service it knows, which are enabled and which are up ([runner § what an instance is](runner.md#what-an-instance-is)), with the verbs on each, and a form that installs a new instance | R1 | nothing new — the runner is a service and answers like one ([runner § reaching the runner](runner.md#reaching-the-runner)). Every control **posts as the person** ([rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)), so the page drives a runner it has no authority over |
 | **children** — bus, web, auth: alive, restarted how often. Not the runner, which the supervisor does not start and has nothing to report about | R1 | the supervisor reporting into the bus. Until then that answer is `agent-bus status` and the page says nothing about it |
 | **origin** — which node a record came from | R1 | chained registries ([overview § chaining](federation.md#chaining)) |
+| **exchange explorer** — expanded investigation of late and unanswered calls | R1 | the existing MVP envelope timeline remains available |
+| **operations tab** — consolidated node/child health, restart history, stuck queues and alerts | R1 | supervisor and health reports; existing node status and stuck-inbox views remain MVP |
+| **advanced access/settings** — central ACL editor, account mapping and credential administration | R1 | extends required per-record controls and existing CLI administration; never renders raw credentials |
 
 A one-time sign-in code and a dashboard-scoped credential remain candidates from the R1 plan.

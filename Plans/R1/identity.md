@@ -4,12 +4,11 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 
 ## Groups and roles
 
-- **Groups** compose from groups with `& | !` (`@eng & !@contractors`). They
-  exist only with the AUTH role on. ⚠️ A group that arrives before AUTH does
-  is a **flat named set** — a list of principals, a record like any other,
-  expanded in the one place `allow` is already checked ([acl](../../docs/01-identity.md#acl)). The
-  expression engine comes with AUTH and not before: `& | !` on the
-  authorization path is where a precedence bug grants silently.
+- **Groups** compose from groups with `& | !` (`@eng & !@contractors`) when
+  AUTH is on. Basic flat groups and maintainers are now
+  [required MVP](../../docs/01-identity.md#groups-and-maintainers).
+  The expression engine comes with AUTH: `& | !` on the authorization path
+  is where a precedence bug grants silently.
 - **Roles** — *what a principal may do*: service-defined strings (`admin`,
   `read-only`, …) written in parentheses after the term ([sigils](#sigils)),
   assigned with the same expression pattern as groups. AUTH stores and
@@ -74,7 +73,8 @@ or U's group. U's key or token never leaves U. A *personal* service calling out
 ## Resolved at login
 
 Services know nothing about groups or mappings. On first contact they ask AUTH
-one question, signed with the service key, and cache the answer for the epoch:
+one question, signed with the service key, and cache the answer according to
+the [AUTH consistency contract](auth.md#consistency-window):
 
 ```
 → who is this user (for me)?
@@ -84,28 +84,11 @@ one question, signed with the service key, and cache the answer for the epoch:
 
 ## Ownership
 
-- **Publish** a new service or topic: any authenticated principal.
-- **Change / delete**: **owner or maintainer** only — and the record itself:
-  a service re-registering on every start is not a stranger to its own name,
-  and it is the only other principal that can hold that name's credential
-  ([access § getting a token](../../docs/02-access.md#getting-a-token)).
-- **The owner is exactly one user; the maintainer is a group.** Not an
-  expression and not a tier list: *whose is this?* has to have one answer, and
-  an expression can match many people or none. One name is also one person
-  accountable for it, which a group is not.
+The owner and maintainers model is now
+[required MVP](../../docs/01-identity.md#groups-and-maintainers), including flat
+groups before AUTH. R1 adds [managed runner controls](runner.md#what-the-runner-does)
+and the distributed record behavior below.
 
-| | May change |
-|---|---|
-| **maintainer** (a group) | what the service *is* — definition, run options, enable/disable — and the ACL, **except** the owner entry |
-| **owner** (one user) | that, and ownership itself |
-
-  So granting somebody use of a service never grants them the record: the ACL
-  and this are two lists, and only the owner moves the line between them.
-  Owners use org groups but cannot create groups or grant beyond their own
-  service. Personal services are owned by their user.
-- ⚠️ **With the AUTH role off there are no maintainers**, because there are no
-  groups ([groups and roles](#groups-and-roles)) — a service has an owner and
-  nothing else, which is the whole of the required minimum's answer.
 - **A record that owns itself is somebody; one owned by another name is
   something they run.** Personal services being owned by their user is what
   makes that read: it is the whole difference the people view needs

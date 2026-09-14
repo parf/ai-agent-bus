@@ -2,6 +2,8 @@
 
 Release stages, in order. Each section describes the major change from the preceding stage; the linked plans own scope and status. Program release numbers follow [shared versioning](../CLAUDE.md#versioning), and individual shipped changes belong in the [changelog](../CHANGELOG.md#changelog).
 
+Credential lifetime follows the same [manual-change policy](../docs/02-access.md#token-lifetime) throughout these stages; future encryption does not introduce scheduled token retirement.
+
 ## PoC
 
 **Prove that agents can discover each other and exchange useful work.** The completed PoC established the working bus, connected live agent sessions and made scripts callable as services. Its achievement was the end-to-end interaction; shared-host administration and operational hardening were left for the next stage ([PoC scope](done/PoC/scope.md#poc), [completion evidence](done/PoC/DONE.md#done--poc)).
@@ -26,7 +28,8 @@ Release stages, in order. Each section describes the major change from the prece
 | **Recovery across restarts** | Registry and waiting work can return after a restart, within the documented loss window | Built: [durability](../docs/04-messaging.md#durability) |
 | Operational visibility | Operators can inspect permitted records, backlog, losses and message activity through a signed-in dashboard | Built, with people view pending: [dashboard views](../docs/05-discovery.md#what-it-shows) |
 | **Installation and privilege separation** | The daemon gains a managed installation; separate processes and optional script confinement narrow responsibilities | Setup and split built; package and installed checks pending: [setup](../docs/09-setup.md#status), [stage gate](MVP/TODO.md#installed-stage-gate) |
-| Trusted people and service descriptions | Maintainer-controlled profiles and generated method information make the registry more useful to people and agents | Pending: [person records](../docs/01-identity.md#pending-person-records), [method information](../docs/03-services-and-topics.md#service-and-template) |
+| Usable runtime integrations | Packaged integrations and smart launchers make the existing adapters usable from a fresh installation | Built implementation; live-runtime and fresh-host acceptance pending: [integration delivery](../docs/08-runner-role.md#runtime-integration-delivery), [launchers](../docs/08-runner-role.md#smart-launchers) |
+| Trusted people and service descriptions | Maintainer-controlled profiles and generated method information make the registry more useful to people and agents | Built: [person records](../docs/01-identity.md#person-records); pending: [method information](../docs/03-services-and-topics.md#service-and-template) |
 | Release identification | Programs report a consistent release identity, and running processes expose operational context | Built: [build information](../docs/09-setup.md#build-information), [process titles](../docs/11-processes.md#process-titles) |
 
 The trust boundary has not changed yet: the MVP daemon can read message bodies and stored configuration ([current trust boundary](../docs/02-access.md#encrypted-sessions)).
@@ -43,6 +46,7 @@ The trust boundary has not changed yet: the MVP daemon can read message bodies a
 | **Managed service lifecycle** | Services become installed deployments with startup and restart behavior; kept children can retain state between messages | [Managed runner](R1/runner.md#what-the-runner-does), [long-lived services](R1/runner.md#long-lived-services) |
 | Distributed work and coordination | Workers can serve a shared name across hosts, and shared resources can be coordinated through the bus | [Pools](R1/runner.md#one-name-on-many-hosts), [locks](R1/locks.md#shared-locks) |
 | Deployment recovery | A user can recover deployment configuration from an encrypted backup without giving the daemon recovery authority | [Backup contract](R1/runner.md#backing-it-up) |
+| Installable distributions | Published artifacts make installation and container startup possible without building from source | [Release artifacts](R1/distribution.md#release-artifacts) |
 | Richer operations | Health, load history, deployment controls and record origin extend the MVP's current-state view | [Dashboard extensions](R1/discovery.md#dashboard-extensions), [reload](R1/operations.md#reload) |
 | Broader clients and exchanges | Additional client implementations and streamed answers become possible once their protocol contract is agreed | [Clients](R1/modules.md#modules), [streaming](R1/access.md#streaming) |
 
@@ -50,13 +54,13 @@ Encrypted delivery to absent receivers, peer authenticity and clocks, namespace 
 
 ## R1.1
 
-**Make the platform useful out of the box with a catalogue of ordinary services.** Where R1 builds the operating mechanisms, R1.1 proposes tools that use them, plus a ready-to-use image and better service-to-service and person-facing workflows. It is not started and depends on R1; catalogue entries are intended to use the ordinary service interface, while other stage extensions may require daemon work ([R1.1 scope](R1.1/README.md#scope), [prerequisites](R1.1/TODO.md#dependencies)).
+**Make the platform useful out of the box with a catalogue of ordinary services.** Where R1 builds the operating mechanisms, R1.1 proposes tools that use them, adds the catalogue to the image and improves service-to-service and person-facing workflows. It is not started and depends on R1; catalogue entries are intended to use the ordinary service interface, while other stage extensions may require daemon work ([R1.1 scope](R1.1/README.md#scope), [prerequisites](R1.1/TODO.md#dependencies)).
 
 | Major change from R1 | Proposed result | Owning design |
 |---|---|---|
 | **Bundled useful services** | Teams can deploy existing tools instead of first writing every integration themselves | [Catalogue](R1.1/services.md#the-catalogue) |
 | An ordinary extension path | Bundled tools exercise the same interface available to independently written services | [Catalogue contract](R1.1/services.md#rules-they-all-obey) |
-| **Ready-to-use distribution** | A prepared image brings up the bus with useful services already installed | [Image](R1.1/image.md#the-image) |
+| **Catalogue distribution** | The image gains useful services already installed | [Image](R1.1/image.md#the-image) |
 | Service-to-service credentials | A running service can obtain a destination-scoped credential without a person at a keyboard | [Service credentials](R1.1/access.md#service-to-service) |
 | Registry housekeeping | Incidental records can expire while deliberately retained and actively served records remain | [Record lifetime](R1.1/records.md#how-long-a-record-lives) |
 | Reaching people | Contact preferences and ordinary delivery services can route messages and operational alerts to humans | [Contact routes](R1.1/people.md#how-to-reach-a-person), [alerting](R1.1/services.md#the-bus-watching-itself) |

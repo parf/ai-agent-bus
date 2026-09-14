@@ -24,6 +24,10 @@ from the daemon. The [target](access.md#encrypted-sessions) remains blocked by
 | Replay rejected, a fresh message delivered | Disable replay tracking |
 | Captured bodies cannot be decrypted with daemon-held material | Replace endpoint-only material with a daemon-held key |
 | Receiver absent at send decrypts after joining | Discard or fail to recover the agreed key material |
+| Without a manual change, the same credential authenticates and queued ciphertext decrypts after simulated clock advances and restart | Reintroduce a time-derived key or an age/inactivity expiry check |
+| A manually invalidated credential is refused for new authentication, with a valid credential succeeding beside it | Bypass explicit invalidation |
 
-The accepted design must specify how the last two checks are demonstrated;
-round-trip success alone cannot certify secrecy.
+The accepted design must specify how secrecy, offline recovery and the backlog
+outcome of manual changes are demonstrated under [Q6](QUESTIONS.md#access-context).
+Clock tests use an injectable clock rather than real-time waiting. Round-trip
+success alone cannot certify secrecy or lifetime behavior.

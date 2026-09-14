@@ -6,12 +6,24 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Launcher terminal titles, palettes and restoration | [terminal appearance](08-runner-role.md#terminal-appearance) | 2026-09-13 owner instruction |
+| OpenCode explicit session binding | [adapters](08-runner-role.md#adapters) | 2026-09-13 installed launcher verification |
+| OpenCode user-wrapper precedence | [running the launchers](08-runner-role.md#running-the-launchers) | 2026-09-13 fish launcher verification |
 | MVP web credential and state boundary | [web authority](11-processes.md#web-authority-boundary) | 2026-09-13 owner-approved release review |
 | MVP runtime sidecar isolation and recovery | [runtime acceptance](08-runner-role.md#runtime-isolation-and-recovery) | 2026-09-13 owner-approved release review |
 | MVP upgrade, recovery and real SSH acceptance | [installation acceptance](09-setup.md#installation-acceptance) | 2026-09-13 owner-approved release review |
 | MVP installed browser acceptance | [browser acceptance](05-discovery.md#browser-acceptance) | 2026-09-13 owner-approved release review |
 | MVP administrative crash-recovery decision gate | [policy status](04-messaging.md#administrative-crash-recovery) | 2026-09-13 owner-approved review; Q39 remains unresolved |
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
+| Human-readable CLI listings | [CLI listing](05-discovery.md#cli-listing) | 2026-09-13 owner instruction |
+| Manual removal of idle registry addresses | [unregistering](01-identity.md#unregistering) | 2026-09-13 owner request |
+| Launcher address follows renamed session on restart | [session names](08-runner-role.md#session-names) | 2026-09-13 owner revision |
+| Launcher addresses use template and instance naming | [session names](08-runner-role.md#session-names) | 2026-09-13 owner instruction |
+| Credential lifetime across releases | [token lifetime](02-access.md#token-lifetime) | 2026-09-13 owner instruction |
+| Launcher local socket discovery | [smart launchers](08-runner-role.md#smart-launchers) | 2026-09-13 owner instruction |
+| CLI address precedence and local socket discovery | [local socket](02-access.md#local-socket) | 2026-09-13 owner instruction |
+| Token helper local socket discovery | [local socket](02-access.md#local-socket) | 2026-09-13 installed token-command fix |
+| Cross-account session access through the authenticated shared socket | [local socket](02-access.md#local-socket) | 2026-09-13 installed-launcher fix |
 | Versioning | [definition](../CLAUDE.md#versioning) | D1 |
 | Build information | [definition](09-setup.md#build-information) | D2 |
 | Process titles | [definition](11-processes.md#process-titles) | D3 |
@@ -22,6 +34,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Proving possession | [definition](01-identity.md#proving-possession) | D12, D33, D34, D35 |
 | Acl | [definition](01-identity.md#acl) | D15, D25, D36 |
 | Registration | [definition](01-identity.md#registration) | D16, D17 |
+| Conditional new-name registration | [definition](01-identity.md#registration) | 2026-09-13; enforces the owner's concurrent-session uniqueness requirement |
 | Profile fields | [definition](01-identity.md#profile-fields) | D19, D248 |
 | Who may write a record | [definition](01-identity.md#who-may-write-a-record) | D20, D21 |
 | Every identifying field is unique | [definition](01-identity.md#every-identifying-field-is-unique) | D22 |
@@ -54,6 +67,13 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | What is shared | [definition](11-processes.md#what-is-shared) | D101, D192 |
 | How a child is started | [definition](11-processes.md#how-a-child-is-started) | D102 |
 | Adapters | [definition](08-runner-role.md#adapters) | D109, D177 |
+| MVP runtime integration delivery | [definition](08-runner-role.md#runtime-integration-delivery) | 2026-09-13 owner instruction |
+| Codex delivery form | [definition](08-runner-role.md#runtime-integration-delivery) | 2026-09-13 owner clarification; resolves Q36 |
+| Smart runtime launchers | [definition](08-runner-role.md#smart-launchers) | 2026-09-13 owner instruction |
+| Assigned session names before directory fallback | [definition](08-runner-role.md#session-names) | 2026-09-13 owner instruction |
+| Numbered duplicate session names | [definition](08-runner-role.md#session-names) | 2026-09-13 owner instruction |
+| Launcher automatic execution and continuation | [definition](08-runner-role.md#smart-launchers) | 2026-09-13 owner instruction; replaces preserving caller-selected execution modes |
+| Runtime MCP minimum | [definition](05-discovery.md#mcp-minimum) | 2026-09-13 owner instruction |
 | 12-stages | [definition](12-stages.md#stages) | D110 |
 | Request and reply | [definition](04-messaging.md#request-and-reply) | D112, D227, D236, D238, D239, D240 |
 | Script services | [definition](08-runner-role.md#script-services) | D117, D250, D251, D252, D254 |
@@ -78,6 +98,35 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Rules it is built to | [definition](05-discovery.md#rules-it-is-built-to) | D241, D242, D244 |
 | Signing in | [definition](05-discovery.md#signing-in) | D245, D246 |
 | Current and future documentation ownership | [working rules](../CLAUDE.md#working-rules) | 2026-09-13 owner instruction |
+
+## Dashboard scope revision
+
+| Date | Decision | Why | Substance |
+|---|---|---|---|
+| 2026-09-13 | Required administrative dashboard | Owner confirms missing requirements and the MVP/R1 split | [required tabs](05-discovery.md#required-tabs) |
+| 2026-09-13 | Owner and maintainers in MVP | Owner explicitly retains the authority model in required scope | [groups and maintainers](01-identity.md#groups-and-maintainers) |
+
+## Service owner authority
+
+| Date | Decision | Why | Substance |
+|---|---|---|---|
+| 2026-09-13 | Full control of owned services | Owner clarifies that ordinary users need no daemon administration role to manage their services | [owner control](01-identity.md#owner-control) |
+
+## Dashboard implementation defaults
+
+| Date | Decision | Why | Substance |
+|---|---|---|---|
+| 2026-09-13 | Local user administration before AUTH | Implement the accepted owner/maintainer hierarchy with a protected flat group; resolves Q29 | [groups and maintainers](01-identity.md#groups-and-maintainers) |
+| 2026-09-13 | Profile identifier normalization | Initial implementation default without provider alias merging; resolves Q28 | [identifier uniqueness](01-identity.md#every-identifying-field-is-unique) |
+| 2026-09-13 | User pause and ban behavior | Initial implementation default preserves credentials and queued work; resolves Q37 | [user lifecycle](01-identity.md#user-lifecycle) |
+| 2026-09-13 | Bounded dashboard history | Initial implementation default keeps collection independent of page visits; resolves Q38 | [activity history](05-discovery.md#activity-history) |
+
+## Superseded
+
+| Earlier design | Replacement |
+|---|---|
+| MVP dashboard permits only sign-in/out; basic groups and activity charts wait for R1 | [required tabs](05-discovery.md#required-tabs) |
+| Maintainers require AUTH and are absent from MVP | [groups and maintainers](01-identity.md#groups-and-maintainers) |
 
 ## Open
 

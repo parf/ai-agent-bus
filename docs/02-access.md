@@ -65,6 +65,13 @@ operator's key has the admin program instead
 to a target service. Over SSH, the forced command fixes which principal a key
 may request; the caller cannot replace that entitlement.
 
+For bus-routed messages, the daemon checks the caller's token and delivers the
+verified sender identity with the message; it does not forward that token to
+the receiving service. The service reads and sends using its own credential
+([delivery source](../src/internal/api/server.go)). Possession of a user's
+token would allow impersonation within that user's permissions, but receiving
+a message does not grant that possession.
+
 The daemon owner may request a credential for any name. Other callers may
 request their own credential or one for a name they own. Registration in an
 unvouched realm is first-come; claiming a name there and obtaining its token
@@ -72,12 +79,22 @@ makes the caller that principal. Directory-backed realms require enrolment.
 
 ## Token lifetime
 
+**All versions: principal tokens never expire or rotate automatically.**
+Invalidation or rotation requires an explicit manual action; elapsed time,
+inactivity and daemon restart do not retire a token.
+
+The reason is queued-message recovery: when a token supplies message-encryption
+key material, losing that material can make unprocessed ciphertext unreadable.
+Manual invalidation also needs an explicit decision about the remaining backlog;
+it does not make old ciphertext decryptable with the replacement token. The
+[future key lifecycle](../Plans/R1/access.md#key-modes) must account for this.
+The MVP currently carries plaintext bodies ([trust boundary](#encrypted-sessions)).
+
 | Built behavior | Meaning |
 |---|---|
 | Persistence | Tokens survive daemon restarts behind the store port |
 | Rotation | Current and previous tokens authenticate; the one before them does not |
 | Retrieval | Asking again returns the current token; `agent-bus-token <name> --rotate` asks for a new one |
-| Expiry | Principal tokens have no automatic expiry in the MVP |
 | Issued time | Durable alongside the token |
 | Last use | In-memory state for this run; no disk write per authenticated call |
 | Listing credentials | A caller sees only credentials it holds, represented by keyed fingerprints rather than token bytes |
@@ -88,6 +105,14 @@ see [discovery § signing in](05-discovery.md#signing-in).
 ## Local socket
 
 On the daemon's own host there is nothing to supply at all.
+
+The CLI resolves its connection in this order: global `--addr` before the
+command, `AGENT_BUS_ADDR`, then local socket discovery. Discovery checks the
+login runtime directory before the installed directory below; without a token
+it selects the account's socket, and with a token it selects the shared socket.
+An explicit address that fails is reported, never replaced by another bus.
+The daemon's default bind path is independent of client discovery.
+The token helper shares that discovery rule when `AGENT_BUS_ADDR` is unset.
 
 | | |
 |---|---|
@@ -104,6 +129,11 @@ socket like everybody else — it is a user of the bus too.
 
 **A client on its own socket never states a name**, so it may not know one:
 `status` answers with it.
+
+The sibling `bus.sock` is the shared, token-authenticated listener, with mode
+`666` so sessions under other local accounts can reach it. It never supplies
+an identity: missing or invalid tokens are refused. A launcher uses its private
+user socket to obtain a session token, then uses the shared socket as that session.
 
 **The socket is a credential, not an exemption from having one.** It says who
 is calling exactly as a token does — which is why one daemon can serve **many

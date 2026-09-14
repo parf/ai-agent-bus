@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-labelledby="title description">
+  <title id="title">MVP: getting user and service tokens</title>
+  <desc id="description">A user can request a token through an authenticated local account socket, an installed SSH key with a forced-command entitlement, or proof of a private key published by the configured directory. The bus issues or retrieves a token for the authorized user identity. To start a service, the launching runner first authenticates as the owner, registers the service, and requests its credential. The bus checks ownership and returns a separate service token. The runner switches to that service token before reading and sending messages.</desc>
+  <defs>
+    <marker id="blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="green-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#087f6b"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="900" rx="18" fill="#f8fafc"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#0f172a">
+    <text x="40" y="48" font-size="28" font-weight="700">MVP · Getting tokens</text>
+    <text x="40" y="79" font-size="18" fill="#475569">The daemon issues credentials. Ownership authorizes a service-token request.</text>
+
+    <rect x="40" y="108" width="1120" height="280" rx="14" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="64" y="145" font-size="23" font-weight="700">A. User · authenticate through an available path</text>
+
+    <rect x="64" y="170" width="372" height="154" rx="10" fill="#eff6ff" stroke="#93c5fd"/>
+    <text x="82" y="199" font-size="18" font-weight="700" fill="#1d4ed8">An existing identity proof</text>
+    <text x="82" y="231" font-size="17">Local: the account's mapped socket</text>
+    <text x="82" y="264" font-size="17">SSH: installed key and entitled name</text>
+    <text x="82" y="297" font-size="17">Key proof: sign a directory-key challenge</text>
+
+    <text x="496" y="225" text-anchor="middle" font-size="16" fill="#1d4ed8">Request</text>
+    <path d="M447 246 H546" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#blue-arrow)"/>
+
+    <rect x="560" y="170" width="260" height="154" rx="10" fill="#f8fafc" stroke="#94a3b8"/>
+    <text x="690" y="206" text-anchor="middle" font-size="23" font-weight="700">Bus daemon</text>
+    <text x="690" y="245" text-anchor="middle" font-size="17">Check the authorized identity</text>
+    <text x="690" y="274" text-anchor="middle" font-size="17">Issue or retrieve its token</text>
+    <text x="690" y="303" text-anchor="middle" font-size="17">Keep it in the token store</text>
+
+    <text x="882" y="225" text-anchor="middle" font-size="16" fill="#1d4ed8">Return</text>
+    <path d="M832 246 H927" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#blue-arrow)"/>
+
+    <rect x="942" y="170" width="194" height="154" rx="10" fill="#eff6ff" stroke="#93c5fd"/>
+    <text x="1039" y="220" text-anchor="middle" font-size="23" font-weight="700">User token</text>
+    <text x="1039" y="256" text-anchor="middle" font-size="17" fill="#1d4ed8">Authenticates</text>
+    <text x="1039" y="282" text-anchor="middle" font-size="17" fill="#1d4ed8">as the user</text>
+
+    <text x="64" y="360" font-size="17" fill="#475569">Local socket access can authenticate directly; the user does not need to copy a token for local calls.</text>
+
+    <rect x="40" y="412" width="1120" height="430" rx="14" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="64" y="451" font-size="23" font-weight="700">B. Service · the owner authorizes startup</text>
+    <text x="230" y="490" text-anchor="middle" font-size="19" font-weight="700" fill="#1d4ed8">Launching runner, as owner</text>
+    <text x="930" y="490" text-anchor="middle" font-size="19" font-weight="700">Bus daemon</text>
+    <g stroke="#cbd5e1" stroke-width="2" stroke-dasharray="5 7">
+      <path d="M230 505 V742"/>
+      <path d="M930 505 V742"/>
+    </g>
+
+    <text x="276" y="530" font-size="19" font-weight="700" fill="#1d4ed8">1  Register the service using the owner's credential</text>
+    <path d="M230 549 H920" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#blue-arrow)"/>
+    <text x="930" y="576" text-anchor="middle" font-size="16" fill="#475569">Records the owner</text>
+
+    <text x="276" y="612" font-size="19" font-weight="700" fill="#1d4ed8">2  Ask for the service's token, still authenticated as owner</text>
+    <path d="M230 631 H920" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#blue-arrow)"/>
+    <text x="930" y="658" text-anchor="middle" font-size="16" fill="#475569">Checks ownership</text>
+
+    <text x="276" y="698" font-size="19" font-weight="700" fill="#087f6b">3  Return the service's separate token</text>
+    <path d="M930 717 H240" stroke="#087f6b" stroke-width="3" fill="none" marker-end="url(#green-arrow)"/>
+
+    <rect x="64" y="758" width="1072" height="58" rx="10" fill="#ecfdf5" stroke="#6ee7b7"/>
+    <text x="600" y="783" text-anchor="middle" font-size="19" font-weight="700" fill="#087f6b">The runner replaces its owner credential with the service token.</text>
+    <text x="600" y="806" text-anchor="middle" font-size="17">It now reads the service inbox and sends messages as the service.</text>
+
+    <text x="40" y="876" font-size="18" fill="#475569">The owner credential authorizes startup. It is not the credential used for subsequent service messages.</text>
+  </g>
+</svg>

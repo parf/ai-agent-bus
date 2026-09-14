@@ -8,7 +8,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 |---|---|---|---|
 | Q4 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](auth.md#ssh-admin) |
 | Q5 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](registry.md#registry-sync) |
-| Q6 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with R1 | [access § encrypted sessions](access.md#encrypted-sessions) |
+| Q6 | How an absent receiver obtains decryption material, and how manual credential changes affect retained keys and queued bodies | owner, with R1 | [access § key modes](access.md#key-modes) |
 | Q12 | How a dormant name is woken, and what the daemon has to learn to do it | owner, in R1 | [runner § what an instance is](runner.md#what-an-instance-is) |
 | Q13 | Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](runner.md#long-lived-services) |
 | Q15 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](runner.md#where-it-runs) |
@@ -18,6 +18,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q19 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) |
 | Q20 | A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](federation.md#chaining) |
 | Q33 | Whether backup is a runner verb, a bundled service, or neither | owner | [context](runner.md#backing-it-up) |
+| Q35 | How authorization caches observe policy changes and explicit revocations, including disconnected peers and live sessions | owner, with R1 | [AUTH consistency](auth.md#consistency-window) |
 
 ## Access context
 
@@ -31,7 +32,13 @@ for a reader that may not exist yet
 ([messaging § inbox queues](../../docs/04-messaging.md#inbox-queues)), and a dump reloads
 a backlog into a restarted daemon
 ([messaging § durability](../../docs/04-messaging.md#durability)). So a stored body needs
-a key derivable without the sender present. *Settled by:* owner, with R1.
+a key recoverable without the sender present. Under the settled
+[credential lifetime policy](../../docs/02-access.md#token-lifetime), clock-driven
+replacement is excluded. The remaining design must cover deterministic
+derivation, identifying the needed material and retaining or recovering it
+after a manual change. It must also distinguish refusal of new authentication
+from the ability to decrypt old work: a manual revocation needs an explicit
+backlog outcome. *Settled by:* owner, with R1.
 
 ## Runner context
 
@@ -87,3 +94,11 @@ is designed.
 would drop the key `agent-bus-setup` installed for issuing tokens
 ([access § getting a token](../../docs/02-access.md#getting-a-token)) the moment AUTH is
 switched on. *Settled by:* owner.
+
+## Authorization refresh
+
+Q35: removing the token epoch also removes the earlier bound on stale AUTH
+answers. Decide when cached permissions are refreshed, how an explicit
+revocation reaches replicas and live sessions, and what a disconnected caller
+may do. This is authorization freshness, not a reopened token-expiry decision.
+*Settled by:* owner, with R1.

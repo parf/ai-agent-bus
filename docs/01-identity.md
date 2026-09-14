@@ -4,8 +4,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Canonical names, token-backed principals, manual registration, key-possession enrolment, service ACL and ownership. |
-| Pending | Person fields, maintainer editing and identifier uniqueness; see [pending person records](#pending-person-records). |
+| Built | Canonical names, credentials, registration and enrolment, [owner controls](#owner-control), [person records](#person-records), [user lifecycle](#user-lifecycle) and [flat groups](#groups-and-maintainers). |
+| Pending | Installed-runtime acceptance; future identity extensions remain in their owning release plans. |
 
 ## Principals
 
@@ -64,6 +64,12 @@ proof of a key the directory publishes; the resulting record owns itself.
 GitHub enrolment fetches public keys, not profile details. Existing tokens
 continue working if the provider is unavailable.
 
+Creation can be conditional: claim a canonical name only if it is unregistered.
+The daemon checks and inserts under the same registry lock, refusing an existing
+name even when the caller owns it. Launchers use this to allocate unique session
+names concurrently. Ordinary registration still permits authorized updates;
+the HTTP condition is implemented by the [API](../src/internal/api/server.go).
+
 The record actually stored is defined in
 [protocol source](../src/internal/protocol/envelope.go); there is no second
 schema here.
@@ -104,33 +110,76 @@ sshd hands one out ([access § getting a token](02-access.md#getting-a-token)).
 
 An unanswered challenge expires; an answered one is spent.
 
-## Pending person records
+## Unregistering
 
-These are accepted MVP requirements, **not implemented** by the current record
-or ACL code. The people view depends on them.
+**Built:** `agent-bus unregister <name>` removes an idle registry record,
+its empty inbox, configuration and subscriptions. [Record management authority](#groups-and-maintainers) is required. Missing names are errors; queued messages or any waiting
+reader block removal. Stop readers and drain the queue before unregistering.
+
+This removes an address, not a process or a credential. It disappears from
+discovery and new messages to it are refused. Existing history remains history.
+The name stays reserved to the same owner across daemon restarts, because its
+[credential remains valid](02-access.md#token-lifetime). Its owner or principal
+may register it again, starting with an empty inbox and no configuration or
+subscriptions. Configuring an absent name obeys the same ownership reservation.
+
+<a id="pending-person-records"></a>
+
+## Person records
+
+**Built.** Maintainer-vouched profiles are separate from service registrations.
+The daemon lists profiles, self-owned records and otherwise unregistered credential
+holders; service identities owned by somebody else are not listed as people.
+Administrators see the user directory; ordinary callers see their own details.
 
 ### Who may write a record
 
 Only a daemon maintainer edits user fields, never the person. A maintainer may
 edit below their own level, not a peer maintainer or the owner. The owner is
 always a maintainer and may edit every level. A trusted person record comes
-from maintainer vouching or successful enrolment. This pending policy must work
-before the future AUTH role; its representation is an [open MVP question](../Plans/MVP/QUESTIONS.md#open-questions).
+from maintainer vouching or successful enrolment. This policy works before AUTH, using the daemon owner, the daemon maintainers
+group and ordinary users as the three levels. Profile and membership changes
+are stored in the existing restart snapshot.
+
+### User lifecycle
+
+**Built.** Authorized administrators add and edit users and apply these states
+through the [dashboard](05-discovery.md#required-tabs), under the
+[write hierarchy](#who-may-write-a-record).
+
+| State | Effect |
+|---|---|
+| Active | The principal may authenticate and use its granted access |
+| Paused | Tokens, existing browser sessions, local sockets and enrolment cannot grant bus access; new deliveries to the user's inbox are refused |
+| Banned | The same access restriction; only the daemon owner may lift the ban |
+
+An authorized maintainer may reactivate a paused ordinary user. The daemon owner
+must remain active. State changes cancel the user's blocked reads and are retained by the existing
+[snapshot contract](04-messaging.md#durability); queued work is retained subject
+to its existing TTL. Credentials are not
+rotated or deleted, so reactivation restores their use. Running services retain
+their own identities and are not stopped by a change to their owner's user state.
+Already delivered work cannot be recalled.
+
+These are the implementation defaults chosen on 2026-09-13, not automatic token
+expiry or process supervision.
 
 ### Profile fields
 
-The person profile carries person name, email, avatar and `GithubUser`.
-The latter is the GitHub login, including on records in other realms; when
-registered from GitHub it equals the username. Collection of profile data is
-pending. Proving a cross-provider alias is [later identity work](../Plans/R1.2/QUESTIONS.md#open-questions).
+Profiles carry person name, email and `GithubUser`; avatars are generated from
+the person name and served locally. `GithubUser` is the GitHub login, including
+on records in other realms; a GitHub identity keeps its own username. Proving a cross-provider alias is [later identity work](../Plans/R1.2/QUESTIONS.md#open-questions).
 
 Phone and IM routes belong to [later contact routing](../Plans/R1.1/people.md#how-to-reach-a-person).
 
 ### Every identifying field is unique
 
 Every supported identifying field is normalised before writing and unique
-across person records. A field with no supported normalisation is not supported.
-The [normalisation question](../Plans/MVP/QUESTIONS.md#open-questions) remains open.
+across person records. Email addresses and GitHub logins are trimmed and compared
+in lower-case ASCII. Email syntax and GitHub login syntax are checked; provider
+aliases such as dots and plus-addresses are not merged. Person names are display
+text, not unique identifiers. These are the initial implementation defaults;
+a field with no supported normalisation is not supported.
 The rule extends to identifying contact fields when their owning release adds them.
 
 ## ACL
@@ -138,8 +187,9 @@ The rule extends to identifying contact fields when their owning release adds th
 **Built.** Access is enforced in [core](../src/internal/core/acl.go), for every
 face. The record's owner and its own principal have access. An empty `allow`
 is open to authenticated callers; otherwise a matching principal or `*` grants
-access. Master grants access unless the record refuses master. There are no
-built group expressions or role-bearing terms.
+access. Master grants access unless the record refuses master. Flat group
+membership is also resolved here; nested group expressions and
+role-bearing terms remain unbuilt.
 
 `allow` and the master-refusal flag are registry properties, never fields read
 from the service's private configuration. The daemon owner holds master, and
@@ -149,13 +199,68 @@ ownership of another principal's record.
 No writing verb bypasses its applicable access and ownership checks. Querying,
 sending and consuming are checked in the daemon; a face cannot widen access.
 
+## Groups and maintainers
+
+**Built.** Flat groups support daemon administration and service/topic maintainers.
+The protected `@maintainers` group identifies daemon maintainers; the configured
+daemon owner is always a member. Only the daemon owner changes that group, which
+cannot be deleted or have the owner removed.
+Groups before AUTH are flat named sets of principals,
+local to one daemon. The daemon resolves membership at its existing access check;
+nesting, expressions and service-defined roles remain [R1](../Plans/R1/identity.md#groups-and-roles).
+Organization group administration belongs to daemon administration; owning a
+service alone does not grant permission to create groups or administer users.
+
+| Authority | May change |
+|---|---|
+| Daemon owner | Administer the daemon and its maintainers group; edit users at every level under the [user write hierarchy](#who-may-write-a-record) |
+| Daemon maintainers group | Administer users below their own level; cannot edit a peer maintainer or the daemon owner, or promote themselves through membership changes |
+| Service or topic owner | One user, not a group or expression; [full control over owned services and topics](#owner-control), including exclusive authority to transfer ownership |
+| Service or topic maintainers group | Change the assigned record's definition, supported run options, availability and ACL, except ownership; membership confers no authority over unrelated records or daemon administration |
+
+The daemon owner is always a daemon maintainer. Daemon maintenance and record maintenance
+are distinct scopes, even when they include the same people. Master access is
+still [access, not ownership](#acl). The authenticated record itself retains its
+existing right to re-register; that does not grant ownership transfer.
+Daemon administrators edit ordinary group membership. An assigned or ACL-referenced
+group cannot be deleted until its references are removed. Names are available
+for service-owner assignment; membership lists are visible to daemon administrators. Runtime start/stop controls remain [R1 runner work](../Plans/R1/runner.md#what-the-runner-does).
+
+### Owner control
+
+**Built for supported daemon operations.** A user has **full control over services
+and topics they own**, without daemon owner approval or membership in the daemon maintainers group. This includes
+editing the definition, configuring the service, managing access and assigned
+maintainers, enabling or disabling it, deleting it and transferring ownership.
+Supported runtime lifecycle operations are also available to the owner when
+[managed runner controls](../Plans/R1/runner.md#what-the-runner-does) ship.
+The dashboard exposes these controls on the user's own records under
+[required tabs](05-discovery.md#required-tabs).
+
+Ownership is sufficient authorization; operations still obey their contracts,
+including [idle removal](#unregistering) and
+[private configuration handling](03-services-and-topics.md#configuring-a-template).
+This grants no authority over other users' services or daemon administration.
+
+Disabling refuses new deliveries to the service and inbox reads, including
+blocked reads, while preserving queued messages. Enabling permits delivery and
+reading again; it does not start an OS process. Already delivered work is not
+recalled. A service re-registering cannot undo its availability or maintainer
+assignment. Removing access also cancels blocked reads that relied on it.
+
+Transfer requires a registered, self-owned recipient identity; a self-owned
+identity itself cannot be transferred. Existing service credentials and copies
+already held remain valid under the [credential policy](02-access.md#token-lifetime).
+Transfer changes record ownership and who may request its token; it is not
+credential revocation.
+
 ## Ownership
 
 **Built.** Publishing a name gives it one owner. Existing records may be changed
-by their owner or by the record's own principal. Re-registration preserves
+by their owner, assigned maintainers or the record's own principal. Re-registration preserves
 ownership. The same rule protects registry configuration; only the service
 itself may read that configuration back.
 
-A self-owned record can identify a person for the pending people view, but it
-does not imply the profile fields are implemented. Maintainer changes to user
-records remain the [pending contract](#pending-person-records).
+A self-owned record can identify a person in the [people view](#person-records).
+Person-profile writes use the [maintainer hierarchy](#who-may-write-a-record);
+service and topic changes use [record management authority](#groups-and-maintainers).

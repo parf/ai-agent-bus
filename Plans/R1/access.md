@@ -15,28 +15,31 @@ owns is an [open question](QUESTIONS.md#access-context).
 
 ## Key modes
 
-Three sources, one wire protocol. Static is the minimal mode; the other two
-exist for principals that hold a key.
+The proposed sources follow the shared [token lifetime policy](../../docs/02-access.md#token-lifetime).
+The earlier clock-based derivation and scheduled retirement are superseded.
 
-| Mode | `access_key` | Expiry | AUTH role | Identity |
-|---|---|---|---|---|
-| **static** | the token above, or pre-shared in both configs | by policy; local default never — see [token lifetime](../../docs/02-access.md#token-lifetime) | not needed | the token |
-| **pairwise** | `HKDF(X25519(my_priv, their_pub), "pairwise" \| sorted(fp_a, fp_b))` | never | not needed | Ed25519 key |
-| **derived** | `HKDF(master_secret, "ak" \| user \| service \| epoch)`, `epoch = floor(now/3600)` | 60 min | yes, once per epoch | Ed25519 key |
+| Mode | Proposed source | AUTH role | Identity |
+|---|---|---|---|
+| **static** | Issued token or explicitly shared credential | Not needed | Token |
+| **pairwise** | Derived from the parties' keys | Not needed | Ed25519 key |
+| **derived** | AUTH-derived material scoped to the principal and service | Needed for issuance | Ed25519 key |
 
 - **Pairwise** is the standalone mode for key-holding parties, and the path
   that still works with AUTH down.
-- **Derived** keys are deterministic → every AUTH replica computes the same
-  key, no shared token store. Accept current **and previous** epoch across the
-  boundary. Shrink the epoch (e.g. 15 min) for faster revocation — same design.
-  Roles and `gen` are **not** in the derivation (a role change must not break
-  live sessions); they travel as metadata. `master_secret` rotates via a
-  `key_version` prefix in the HKDF label, both accepted for one epoch.
-- A service may accept several modes; the handshake carries `key_mode` plus
-  identifiers (token id / pubkey fingerprint, `service`, `epoch` or none).
+- **Derived** keys remain deterministic across AUTH replicas, but the clock
+  does not select replacement material. The revised derivation and recovery
+  of old material after a manual change remain [Q6](QUESTIONS.md#access-context).
+- Roles and policy generations travel as metadata rather than changing the
+  encryption key. Policy refresh is governed by the [AUTH consistency
+  contract](auth.md#consistency-window), separately from credential lifetime.
+- A service may accept several modes; identifying the material needed for a
+  queued body is part of the unresolved key lifecycle, not a new wire format here.
 - Ed25519→X25519: libsodium `crypto_sign_ed25519_pk_to_curve25519`, Go
   `filippo.io/edwards25519`.
-- Roles and access, like keys, take effect on the next epoch.
+Manual rotation or invalidation must account for outstanding ciphertext.
+The MVP's limited credential history is not proof that older encrypted backlog
+can be recovered; [Q6](QUESTIONS.md#access-context) must settle retention and
+recovery, including what happens to backlog when access is deliberately revoked.
 
 ## Encrypted sessions
 
@@ -73,8 +76,9 @@ proof of encryption or a claim that the current daemon cannot read bodies.
 The first AEAD message after the handshake is the check: if it fails to
 decrypt, the key is wrong. Then:
 
-1. **Re-query AUTH once** for a fresh key (epoch boundary, rotation,
-   revocation) and retry the handshake.
+1. **Re-query AUTH once** to check for an explicit credential change or stale
+   lookup, then retry the handshake if access is still granted. This lookup
+   does not itself rotate or retire a token.
 2. **If it still fails — alert, loud**: emit a bus event on the caller's inbox
    and the `alerts` topic, mark the pair on the dashboard, log it. No further
    retries.

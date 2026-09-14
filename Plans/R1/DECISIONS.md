@@ -12,7 +12,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Ownership | [definition](identity.md#ownership) | D38, D40, D133, D134, D135 |
 | Sealed private config | [definition](identity.md#sealed-private-config) | D41 |
 | Token scope | [definition](access.md#token-scope) | D46 |
-| Key modes | [definition](access.md#key-modes) | D58 |
+| Key modes | [definition](access.md#key-modes) | D58; lifecycle revised 2026-09-13 |
 | Encrypted sessions | [definition](access.md#encrypted-sessions) | D59, D60 |
 | Additional script forms | [definition](runner.md#additional-script-forms) | D61, D118, D119, D121 |
 | Key confirmation | [definition](access.md#key-confirmation) | D63 |
@@ -47,9 +47,35 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 |---|---|---|---|
 | 2026-09-13 | User-key backup encryption | Reuse the user's existing key and an established tool; owner instruction | [runner § backing it up](runner.md#backing-it-up) |
 
+## Distribution choice
+
+| Date | Decision | Why | Substance |
+|---|---|---|---|
+| 2026-09-13 | Published release distributions | Owner requests installation and container startup without a source build | [Release artifacts](distribution.md#release-artifacts), [container runtime](distribution.md#container-runtime) |
+
 ## Open
 
 Unresolved choices live in [questions](QUESTIONS.md#open-questions).
+
+## Credential lifecycle revision
+
+| Date | Decision | Why | Substance |
+|---|---|---|---|
+| 2026-09-13 | Credential lifecycle across releases | Preserve the material needed for unprocessed encrypted messages; owner instruction | [token lifetime](../../docs/02-access.md#token-lifetime), [R1 key modes](access.md#key-modes) |
+
+## Dashboard scope revision
+
+| Date | Decision | Why | Substance |
+|---|---|---|---|
+| 2026-09-13 | Optional dashboard additions in R1 | Owner confirms required/optional split | [dashboard extensions](discovery.md#dashboard-extensions) |
+
+## Superseded
+
+| Earlier design | Replacement |
+|---|---|
+| Basic groups, maintainers and activity graphs deferred to R1 | [MVP groups](../../docs/01-identity.md#groups-and-maintainers), [required dashboard](../../docs/05-discovery.md#required-tabs) |
+| Clock-based derived-key lifecycle and its overlap window | [Credential lifetime policy](../../docs/02-access.md#token-lifetime); key sources remain in [key modes](access.md#key-modes) |
+| Epoch-bound authorization freshness | [AUTH consistency](auth.md#consistency-window); replacement propagation rules remain open |
 
 ## History
 

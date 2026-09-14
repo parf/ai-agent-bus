@@ -4,8 +4,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Filtered listings and catalog, signed-in dashboard with envelope-only views. |
-| Pending | People view and generated method documentation. Installed [browser acceptance](#browser-acceptance), resource confinement and [web authority isolation](11-processes.md#web-authority-boundary) remain open. |
+| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration and envelope-only diagnostics. |
+| Pending | Generated method documentation; installed [browser acceptance](#browser-acceptance), resource confinement and [web authority isolation](11-processes.md#web-authority-boundary). |
 
 ## What a listing answers
 
@@ -35,13 +35,38 @@ An inbox that was drained and one nobody ever wrote to both read as empty.
 `in` and `out` are what tell them apart, and they are per name: a busy bus
 does not make a quiet service look busy.
 
+## CLI listing
+
+**Built:** `agent-bus ls -h` renders a table; plain `ls` retains JSON.
+Both accept a single name or `--kind` filtering through the same API calls.
+The table shows name, kind, owner, reader presence, queued count and description.
+Reader presence is `yes` or `no`, or `-` for an external protocol; it is
+the [listing observation](#what-a-listing-answers), not a health check.
+An empty result says `No matching records.`; lookup errors remain errors.
+
 ## Faces
 
 | Face | Built | Pending MVP |
 |---|---|---|
-| API | Registry, messaging, credentials and session operations | Person-record operations |
+| API | Registry, messaging, credentials, sessions and dashboard administration | — |
 | MCP | Bus tools and a catalog filtered by the daemon | Generated service-method documentation |
-| WEB | Signed-in views from the caller's API access | People view |
+| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access | Installed browser acceptance, resource confinement and web authority isolation |
+
+## MCP minimum
+
+**Required for MVP:** both [runtime integrations](08-runner-role.md#runtime-integration-delivery)
+and their [launchers](08-runner-role.md#smart-launchers) come with the bus MCP
+tools configured and callable in the session.
+
+| Capability | Required outcome | Existing implementation |
+|---|---|---|
+| List the bus | Discover registered agents, services and topics through the caller's [catalogue view](#audience) | `ab_ls` in the [MCP face](../src/mcp/server.ts) |
+| Call a service on the bus | Send to a named service and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
+
+These are minimum capabilities, not a restriction on the remaining tools.
+The tools and launcher wiring are built; full live-runtime and fresh-host
+acceptance remains pending. Both capabilities use the caller's existing
+[ACL](01-identity.md#acl); loading the tools grants no additional authority.
 
 ## Audience
 
@@ -52,10 +77,10 @@ in the MVP.
 
 ## Dashboard
 
-The WEB child is a **read-only view of what the bus already answers**. It holds
-nothing and adds nothing: every page is an API call made **as the person
-looking**, so the audience rules decide what a page shows and the face has
-nothing of its own to filter ([audience](#audience)).
+The WEB child presents the bus and forwards administration **as the person
+looking**. The daemon owns state and authorization: every page and form uses
+the visitor's authority, and the face has no independent privileges
+([audience](#audience)). The [required tabs](#required-tabs) use the same daemon authorization as direct API calls.
 
 It shows the envelope and nothing else
 ([messaging § envelope](04-messaging.md#envelope)): no message bodies, here or
@@ -66,11 +91,52 @@ has to be trusted to leave them alone. The feed and the records beside it are
 both filtered per caller: you see the exchanges you were **party to**, sent or
 addressed to you, and master sees the node's.
 
-⚠️ What the MVP ships today is one signed-in page carrying every MVP row of
-[what it shows](#what-it-shows) but **people**, which waits on the credential
-store answering *which names*. The ordering, the grouping and the late mark
+The diagnostics page carries the built rows of [what it shows](#what-it-shows);
+service/channel, user and group administration and activity graphs have separate pages. The ordering, the grouping and the late mark
 are the page's; everything else on it is an answer the bus gave that caller,
 so a view cannot show more than the caller may ask for.
+
+### Required tabs
+
+**Required MVP, built.** Owner confirmation of scope, 2026-09-13.
+The daemon owner has the administrative view; other visitors see and change only
+what the daemon permits. “All” means all visible to that visitor.
+
+| Tab | Required functionality |
+|---|---|
+| Registered services | My / all; active / inactive filters; details and [owner controls](01-identity.md#owner-control), with owner, maintainers group, access, reader presence and queue statistics. Administrative availability and serving / offline are distinct observations |
+| Users | List and details; add, edit, activate, pause and ban; show owned services, group membership and administrative authority |
+| Groups | List and details; create, edit, delete and manage flat membership; basic service and channel access. Include the daemon maintainers group and each record's assigned maintainers group under the [authority rules](01-identity.md#groups-and-maintainers) |
+| Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
+| Registered pub/sub channels | List and details for pub/sub and queue topics; create, edit and remove; subscriptions, owner, maintainers group, permissions, TTL, capacity and overflow policy |
+
+[Owner and maintainer authority](01-identity.md#groups-and-maintainers) applies
+to every control and to direct API calls. Membership and policy changes must
+survive restart. User lifecycle effects are [daemon policy](01-identity.md#user-lifecycle),
+not merely labels on the Users page.
+
+Keep the [built views](#what-it-shows), including stuck inboxes, exchanges,
+credential fingerprints, losses, refusals and node status, accessible in the
+new navigation. Their existing functionality is not deferred by this split.
+[Optional additions](../Plans/R1/discovery.md#dashboard-extensions) belong to R1.
+
+### Activity history
+
+The bus samples record counters once a minute, independently of dashboard visits.
+It keeps one hour plus the baseline for differences; the dashboard also includes
+the current partial interval. History is in memory and starts fresh after restart.
+These are the initial implementation defaults; longer history and export remain
+[R1](../Plans/R1/discovery.md#dashboard-extensions).
+
+Graphs and their accessible value table report accepted, dequeued, dropped,
+expired and refused counts. Aggregates include only currently visible records;
+pub/sub copies count in the subscriber inboxes that accept them. Per-record
+refusals count failed sends and reads; daemon administrators with master access
+also see node refusal totals, including authentication failures. Bodies never
+enter this history.
+
+Adding a subscription remains the subscriber's opt-in. Channel owners and
+maintainers can remove a subscription; they cannot force another inbox to subscribe.
 
 ### Rules it is built to
 
@@ -79,8 +145,8 @@ so a view cannot show more than the caller may ask for.
 | **The anonymous page shows what the bus would answer a caller it cannot name: nothing.** A title, the sign-in form, and how to get a token | Nothing on the page can know whether it is exposed — the hostname is public DNS and the bind address is a flag. Uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. `GET /healthz`, 200 with an empty body, is the whole public signal |
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
 | **No JavaScript, no CDN, no external asset** | A signed-in master is looking at the node's whole envelope feed, and the first `<script src=…>` added for a chart inherits that. Graphs are inline SVG or nothing; an avatar is served from this node, never hotlinked, or every page view tells the provider who is looking |
-| **The web child writes nothing of its own.** A form posts *as the person*, never as the child | It is the least trusted process and the design gives it no write path ([processes § the processes](11-processes.md#the-processes)). Sign in and sign out are the only two in the MVP; what an owner does to a misbehaving service, the page tells them to run |
-| **The form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
+| **The web child writes nothing of its own.** A form posts *as the person*, never as the child | It is the least trusted process and the design gives it no write path ([processes § the processes](11-processes.md#the-processes)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
+| **The sign-in form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
 
 ### Signing in
 
@@ -115,7 +181,7 @@ A bus restart invalidates browser sessions: their map is not persisted.
 | **loss by name** — what each inbox dropped to overflow and what expired in it | Built | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | Built | The built page shows only refusal reasons that occurred; counters are on `status` ([refusals](#refusals)) |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | Built | — `status` carries the unclean-restart fact |
-| **people** — who holds a credential: name, person name, avatar, master or not, what they own | Pending | the credential store answering *which names*, and the person fields ([identity § registration](01-identity.md#registration)) |
+| **people** — identities, profiles, local avatars, authority, state, group membership and owned services | Built | [person records](01-identity.md#person-records) and [user lifecycle](01-identity.md#user-lifecycle) |
 
 ### Refusals
 

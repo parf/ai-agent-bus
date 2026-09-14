@@ -10,12 +10,12 @@ Values have one owning section; other pages link to it.
 
 | Topic | Owns |
 |---|---|
-| [Identity](01-identity.md#principals) | Names, enrolment, record ownership and ACL; pending person records |
+| [Identity](01-identity.md#principals) | Names, enrolment, record ownership, ACL and person records |
 | [Access](02-access.md#what-a-call-carries) | Credentials, rotation, sockets and the current trust boundary |
 | [Services](03-services-and-topics.md#service-kinds) | Registration, configuration and topic properties |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and snapshots |
-| [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard and its pending views |
-| [Runner](08-runner-role.md#script-services) | Foreground script services, current push adapters and sandboxing |
+| [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard and administration |
+| [Runner](08-runner-role.md#script-services) | Foreground script services, push adapters, pending runtime integrations and launchers, sandboxing |
 | [Setup](09-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
 | [Modules](10-modules.md#the-rule) | Implementation boundaries, languages and dependency rules |
 | [Processes](11-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |

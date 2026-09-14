@@ -302,12 +302,42 @@ consumer* spent it rather than only how much the key did.
 **Which is what makes them the case billing was designed for.** A gateway needs
 nothing new to be billed: the billing role records exactly the (principal,
 service) pair a gateway already sees, and asks *may this principal call this
-service* per epoch ([future § billing](../Future/billing.md#billing-role--future)). Until it is turned
+service* through the [balance check](../Future/billing.md#billing-role--future). Until it is turned
 on the same pair is a count and a dashboard row; after it, a cap. Splitting
 generation from embeddings **by name** rather than by verb is what makes that
 work with no new mechanism — price is declared per service, so two prices need
 two services, and the split we wanted for access turns out to be the one
 billing wanted too.
+
+### Agent runtimes
+
+Self-hosted agents that are already running somewhere: **Hermes Agent** (Nous
+Research) and **OpenClaw**. Both are long-lived services with their own chat
+gateways and their own model routing, which makes them **peers of this bus
+rather than tools on it** — the only entries here that talk in both directions.
+
+| | From | |
+|---|---|---|
+| **hermes** | owner | one instance per running agent |
+| **openclaw** | owner | the same shape |
+
+**Two directions, and each one ships something different.**
+
+| | What ships | |
+|---|---|---|
+| **the runtime uses the bus** | an MCP server entry in the runtime's own configuration, pointed at this bus's MCP face ([discovery § faces](../../docs/05-discovery.md#faces)), and a name and token for the runtime to hold | every service that name may call becomes one of its skills, pre-filtered, because the catalog is answered per caller ([discovery § audience](../../docs/05-discovery.md#audience)) |
+| **the bus reaches the runtime** | `hermes@srv1` · `openclaw@srv1` — a gateway instance per running agent, holding that agent's own credential in its `env` | a citizen sends to the name and gets the agent's answer back. An ordinary call, with nothing of ours between the caller and the tool ([rules they all obey](#rules-they-all-obey)) |
+
+| | |
+|---|---|
+| **only the second is code, and that is the point** | the first is a configuration file on their side and **no daemon change and no service of ours**. That is what this catalogue is for ([what the catalogue is for](#what-the-catalogue-is-for)) — an entry that needs no new bus feature is the design being right, and this is the strongest one in the list |
+| **a runtime is one principal, whoever is typing** | everybody in its chats acts with **the runtime's** token, not their own: it is a shared credential by construction, the way a web child on the owner's socket would have been ([discovery § signing in](../../docs/05-discovery.md#signing-in)). So it gets the grants you would give the least trusted person who can reach it, and a second agent that needs more is **a second name** — danger is a name here as everywhere |
+| **which chat an answer lands in is the instance's** | `hermes/ops@srv1` delivers into the ops conversation and `hermes/me@srv1` into a private one. Configured copies of one thing, which the naming already carries ([rules they all obey](#rules-they-all-obey)); the bus routes to a name and never to a conversation |
+| **not a launcher, and no push adapter** | `ab-claude` and its siblings attach to a session a person is watching, and a push adapter exists because a running turn has to be interrupted ([runner § adapters](../../docs/08-runner-role.md#adapters)). These are simply up, so the second direction is a `consume` loop like every other row here — the hard part of the coding runtimes is absent |
+| **their channels stay theirs** | each already fronts Telegram, Discord, WhatsApp and the rest, and we do not proxy those ([people and the world outside](#people-and-the-world-outside)). A message through their gateway is their principal's and one through ours is ours: two paths to the same app, two grants, on purpose |
+| **point their models at ours** | both route to providers of their own. Configured onto `openrouter`, `ollama` or a named provider ([for the agents themselves](#for-the-agents-themselves)), their spend lands under the same ACL and the same counters — otherwise a self-hosted agent is the one consumer whose bill nobody can attribute |
+| **two directions make a cycle possible, and nothing stops one** | a runtime can call a service that reaches the runtime. It is the same hazard as any two services calling each other and is the caller's business, not the bus's ([one contract for the set](#one-contract-for-the-set)) — worth naming only because these are the first entries where **both ends are an agent**, and an agent will build the loop without being asked |
+| **one being down is not an incident here** | a runtime is a registered name whose queue waits, like any consumer ([messaging § inbox queues](../../docs/04-messaging.md#inbox-queues)). Nothing about the bus is arranged around either of them being up |
 
 ## What the catalogue is for
 

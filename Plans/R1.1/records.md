@@ -2,6 +2,9 @@
 
 Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-questions).
 
+Manual removal of idle addresses is now [built in MVP](../../docs/01-identity.md#unregistering).
+Automatic lifetime and removal while served remain future scope below.
+
 ## How long a record lives
 
 **A record is `kept` or `ephemeral`, and that is a different axis from its

@@ -17,8 +17,9 @@ falls through. Applies to identities, ACL/roles, service and topic lookups.
 
 Unresolved details: [questions](QUESTIONS.md#open-questions).
 
-- Upstream answers are cached under the usual epoch/gen rules; unreachable
-  upstream = "cached or unresolved", never a wrong answer.
+- Upstream answers follow the [AUTH consistency contract](auth.md#consistency-window);
+  cache refresh does not replace credentials. Handling stale answers while an
+  upstream is unreachable is part of that contract's open propagation decision.
 - `master_secret` does not span levels → cross-level access uses pairwise keys
   or keys issued by the upstream itself.
 - **Chaining queries upstream, never replicates it.** Peers at the same level

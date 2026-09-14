@@ -5,7 +5,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Installer, administration, token helper, accounts and daemon unit; stamped Go builds. |
-| Pending | Distributable package, editable ACL/account configuration and [installation acceptance](#installation-acceptance). |
+| Pending | Distributable package including [runtime integrations and launchers](08-runner-role.md#runtime-integration-delivery), editable local-account configuration and [installation acceptance](#installation-acceptance). |
 
 ## The programs
 
@@ -150,4 +150,5 @@ future runner unit is defined in [R1 operations](../Plans/R1/operations.md#runne
 Current daemon configuration comes from command flags and environment; setup
 writes the flags into its unit. The per-program defaults are in
 [daemon source](../src/cmd/agent-busd/main.go). A general configuration-file
-format and an ACL editor are not implemented.
+format is not implemented. Per-record ACL editing is available through the
+[dashboard](05-discovery.md#required-tabs).

@@ -5,12 +5,14 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| F.6, F.6.1 and F.7–F.11 | Required dashboard tabs, user administration, protected maintainers, owner controls and activity graphs built | [owner-control evidence](done/owner-controls.md#verification) |
 | A | Call, receipt, deadline and shared-reader behavior built | [wave evidence](done/wave-evidence.md#done--mvp) |
 | B and C | Principal credentials, ownership, ACL and subscriptions built | [wave evidence](done/wave-evidence.md#done--mvp) |
 | E | Restart persistence built | [wave evidence](done/wave-evidence.md#done--mvp) |
 | F.1, F.3–F.5; F.6 partial | Filtered faces, dashboard and existing views built | [wave evidence](done/wave-evidence.md#done--mvp) |
 | G | Process split and foreground service controls built | [wave evidence](done/wave-evidence.md#done--mvp) |
 | H.2–H.7 | Setup, administration and token programs built | [wave evidence](done/wave-evidence.md#done--mvp) |
+| H.8 and H.9–H.9.3 implementation | Runtime launchers and bundled MCP wiring built; live and installed gates remain | [launcher evidence](done/launcher-implementation.md#scope) |
 | Shared version and build information | Program versions and process titles verified | [version checks](#version-and-build-checks) |
 | Documentation migration | Current MVP separated from future plans; history and open questions retained | [migration record](done/document-migration.md#scope) |
 

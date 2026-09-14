@@ -61,9 +61,15 @@ file, start. Works offline; the remote is the off-site copy, not a dependency.
 
 ## Consistency window
 
-Revoked access is honoured up to poll interval + one epoch. Optional
-`revoked_users` list in the bundle, checked on every session start, gives
-immediate effect on *new* sessions; live sessions are not torn down.
+Policy changes and explicit revocations propagate through bundle updates and
+cached authorization answers. Refreshing those answers must preserve the
+[credential lifetime policy](../../docs/02-access.md#token-lifetime); it is not
+a reason to replace message-encryption material.
+
+The earlier epoch-based bound no longer applies. Cache invalidation, the
+revocation propagation bound and treatment of live sessions remain
+[Q35](QUESTIONS.md#authorization-refresh). A changed ACL may deny a call while
+the caller's token still exists.
 
 ## SSH admin
 

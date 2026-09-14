@@ -15,6 +15,7 @@ Proposed, not started. A team or company can run it and expose it. Scope remains
 | Managed services and pools | [Managed services and pools](runner.md#what-the-runner-does) |
 | Discovery and observability | [Discovery and observability](discovery.md#where-a-member-says-it-is) |
 | Operations | [Operations](operations.md#reload) |
+| Installable distributions | [Release artifacts](distribution.md#release-artifacts) |
 | Module boundaries and clients | [Module boundaries and clients](modules.md#modules) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices are in [decisions](DECISIONS.md#recorded-decisions).
