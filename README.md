@@ -15,13 +15,16 @@ whole [MVP scope](Plans/MVP/README.md#scope), with built and pending explicit.
 |---|---|
 | Principal credentials, local sockets and service ACL | Person profiles and maintainer editing |
 | Registry, topics, calls and restart snapshots | Generated service method information |
-| Foreground scripts, MCP and runtime adapters | Release packaging and fresh-host acceptance |
+| Foreground scripts, MCP, runtime adapters and launchers | [Live-runtime acceptance](docs/08-runner-role.md#runtime-integration-delivery), release packaging and fresh-host acceptance |
 | Signed-in dashboard and process split | People view and installed isolation verification |
 
 [Current docs](docs/00-overview.md#document-ownership) own the contracts;
 [remaining work](Plans/MVP/TODO.md#objective) owns acceptance.
 
 ## Using it
+
+New here? The [user guide](docs/user/README.md) is the shortest path from
+nothing to a running service.
 
 Build and development setup are in [source instructions](src/README.md#build-and-check).
 The packaged installation is pending; [setup](docs/09-setup.md#install) describes
