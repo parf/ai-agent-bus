@@ -53,6 +53,7 @@ Read the owning section before changing a boundary:
 |---|---|
 | Layering and dependency choice | [modules](docs/10-modules.md#the-rule), [external tools](docs/10-modules.md#external-tools) |
 | Authentication and identity | [access](docs/02-access.md#what-a-call-carries), [names](docs/01-identity.md#names) |
+| Credential lifetime in every release | [token lifetime](docs/02-access.md#token-lifetime) |
 | Visibility and use | [ACL](docs/01-identity.md#acl) |
 | Private configuration | [configuration](docs/03-services-and-topics.md#configuring-a-template) |
 | Body trust and persistence | [trust boundary](docs/02-access.md#encrypted-sessions), [durability](docs/04-messaging.md#durability) |
@@ -80,6 +81,10 @@ Commit subjects are a single terse imperative-ish sentence describing the
 decision or edit, no prefixes or tags (`Topics are first-class records registered
 like services`, `Static-token principals do not sign; signatures only where a key
 exists`). One decision per commit.
+
+**Commit as you go.** After every substantial feature, and whenever a piece of
+work is complete — not once at the end of a session. Work that is finished but
+uncommitted is work nobody else can see and a rebase can lose.
 
 **Other agents are working in this repo at the same time.** So:
 
