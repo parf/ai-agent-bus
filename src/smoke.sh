@@ -168,10 +168,35 @@ ACCOUNT=$(id -un)
 MINE=$D/user-$ACCOUNT.sock
 has "the daemon opened one for the account it runs as" "$([ -S "$MINE" ] && echo yes)" 'yes'
 has "and it is that account's alone" "$(stat -c %a "$MINE")" '^600$'
+has "the token-authenticated shared socket is reachable across local accounts" "$(stat -c %a "$D/bus.sock")" '^666$'
 has "a call with no name and no token is served" \
   "$(env -u AGENT_BUS_NAME -u AGENT_BUS_TOKEN AGENT_BUS_ADDR=$MINE "$D/agent-bus" status)" '"up"'
 has "and the daemon says whose call it was" \
   "$(env -u AGENT_BUS_NAME -u AGENT_BUS_TOKEN AGENT_BUS_ADDR=$MINE "$D/agent-bus" status)" "\"you\":\"$OWNER\""
+mkdir -p "$D/discovery"
+ln -s "$D" "$D/discovery/agent-bus"
+has "the CLI discovers its local user socket without an address or token" \
+  "$(env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus" status)" "\"you\":\"$OWNER\""
+has "the CLI discovers the shared socket when a token supplies the identity" \
+  "$(env -u AGENT_BUS_ADDR AGENT_BUS_TOKEN=$(tok alice@srv1) XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus" status)" '"you":"alice@srv1"'
+local_token=$(env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus-token" "$OWNER")
+has "the token helper discovers the user socket and retrieves the existing credential" \
+  "$([ "$local_token" = "$TOKEN" ] && echo yes)" '^yes$'
+alice_token=$(tok alice@srv1)
+local_token=$(env -u AGENT_BUS_ADDR AGENT_BUS_TOKEN=$alice_token XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus-token" alice@srv1)
+has "the token helper discovers the shared socket for an existing token" \
+  "$([ "$local_token" = "$alice_token" ] && echo yes)" '^yes$'
+out=$(env -u AGENT_BUS_ADDR AGENT_BUS_TOKEN=$alice_token XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus-token" "$OWNER" 2>&1); rc=$?
+bad_exit "token helper discovery never borrows the local account's authority" $rc
+out=$(AGENT_BUS_ADDR=$D/missing.sock XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus-token" "$OWNER" 2>&1); rc=$?
+bad_exit "the token helper does not replace an explicit unavailable address" $rc
+has "the token helper reports the explicit failing socket" "$out" 'missing.sock'
+has "a global CLI address takes precedence over an invalid environment address" \
+  "$(env -u AGENT_BUS_TOKEN AGENT_BUS_ADDR=$D/missing.sock "$D/agent-bus" --addr "$MINE" status)" "\"you\":\"$OWNER\""
+has "the equals form of a global CLI address takes precedence too" \
+  "$(env -u AGENT_BUS_TOKEN AGENT_BUS_ADDR=$D/missing.sock "$D/agent-bus" --addr="$MINE" status)" "\"you\":\"$OWNER\""
+has "an explicit environment address is not replaced by discovered sockets" \
+  "$(AGENT_BUS_ADDR=$D/missing.sock AGENT_BUS_TOKEN=$TOKEN XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus" status 2>&1)" 'missing.sock'
 has "a write lands under the socket's principal, not under nobody" \
   "$(env -u AGENT_BUS_NAME -u AGENT_BUS_TOKEN AGENT_BUS_ADDR=$MINE "$D/agent-bus" register sock-made@srv1 --descr "from the socket" >/dev/null; ab nobody2@srv1 ls sock-made@srv1)" "\"owner\":\"$OWNER\""
 # One daemon, many people. A second mapped account gets a socket of its own
@@ -632,6 +657,14 @@ has "the script is registered and discoverable" "$(ab asker@srv1 ls)" 'greets yo
 has "it answers a call" "$(ab greeter@srv1 call hello@srv1 --wait 15s world)" 'Hello world'
 kill $HPID 2>/dev/null; wait $HPID 2>/dev/null
 
+env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN XDG_RUNTIME_DIR=$D/discovery \
+  "$D/agent-bus" start local-script@srv1 --algo args "$D/hello-world.sh" --descr "discovered local runner" >"$D/local-start.log" 2>&1 &
+LOCALPID=$!
+for _ in $(seq 1 50); do ab asker@srv1 ls local-script@srv1 2>/dev/null | grep -q 'discovered local runner' && break; sleep 0.1; done
+has "a runner on a discovered user socket switches to its service identity" \
+  "$(ab greeter@srv1 call local-script@srv1 --wait 5s discovery)" 'Hello discovery'
+kill $LOCALPID 2>/dev/null; wait $LOCALPID 2>/dev/null
+
 cat > "$D/envelope.sh" <<'SH'
 #!/bin/sh
 envelope=$(cat)
@@ -1039,10 +1072,62 @@ has "asking about one name answers about one name" \
 has "and says so when there is no such service" \
   "$(ab owner@srv1 ls absent-entirely@srv1 2>&1)" 'no such name'
 
+sec "human listing"
+ab owner@srv1 register human@srv1 --kind agent --descr $'first\nsecond\tthird' >/dev/null
+ab owner@srv1 send human@srv1 queued >/dev/null
+human=$(ab owner@srv1 ls -h --kind agent)
+has "human listing has table columns" "$human" '^NAME  *KIND  *OWNER  *READER  *QUEUED  *DESCRIPTION$'
+has "human listing shows queue and flattens description" "$human" '^human@srv1  *agent  *owner@srv1  *no  *1  *first second third$'
+is_empty "human kind filter excludes service templates" "$(printf '%s\n' "$human" | grep '^looked@srv1 ')"
+has "human single lookup works with flag after name" \
+  "$(ab owner@srv1 ls human@srv1 -h)" '^human@srv1  *agent  *owner@srv1  *no  *1  *first second third$'
+has "ordinary listing remains JSON" "$(ab owner@srv1 ls --kind agent)" '^\[.*"name":"human@srv1"'
+has "empty human listing is explicit" "$(ab owner@srv1 ls -h --kind no-such-kind)" '^No matching records\.$'
+human_error=$(ab owner@srv1 ls -h absent-entirely@srv1 2>&1)
+bad_exit "human missing lookup fails" "$?"
+has "human missing lookup reports the error" "$human_error" 'no such name'
+ab owner@srv1 register human-external@srv1 --protocol http --addr http://localhost >/dev/null
+has "external service has no bus-reader indicator" \
+  "$(ab owner@srv1 ls -h human-external@srv1)" '^human-external@srv1  *generic  *owner@srv1  *-  *0'
+ab human@srv1 consume --wait 0s >/dev/null
+ab human@srv1 consume --wait 10s >"$D/human-reader" & HUMAN_READER=$!
+for _ in $(seq 1 100); do
+  human=$(ab owner@srv1 ls -h human@srv1)
+  printf '%s\n' "$human" | grep -q '^human@srv1 *agent *owner@srv1 *yes ' && break
+  sleep .02
+done
+has "human listing reflects a waiting reader" "$human" '^human@srv1  *agent  *owner@srv1  *yes  *0'
+ab owner@srv1 send human@srv1 unblock >/dev/null
+wait "$HUMAN_READER"
+
+sec "unregister an idle address"
+ab owner@srv1 register retired@srv1 --kind agent >/dev/null
+ab retired@srv1 status >/dev/null # issue its credential before removing the address
+out=$(ab stranger@srv1 unregister retired@srv1 2>&1); rc=$?
+bad_exit "unregister rejects another owner" "$rc"
+has "unregister explains ownership refusal" "$out" 'belongs to someone else'
+ab owner@srv1 send retired@srv1 keep >/dev/null
+out=$(ab owner@srv1 unregister retired@srv1 2>&1); rc=$?
+bad_exit "unregister refuses queued messages" "$rc"
+has "unregister explains the busy inbox" "$out" 'queued messages'
+has "refused removal preserves the message" "$(ab retired@srv1 consume --wait 0s)" 'keep'
+has "owner can unregister an idle address" "$(ab owner@srv1 unregister retired@srv1)" '^retired@srv1 unregistered$'
+is_empty "unregistered address leaves the listing" "$(ab owner@srv1 ls | grep -o '"name":"retired@srv1"')"
+has "unregistered address no longer accepts messages" "$(ab owner@srv1 send retired@srv1 late 2>&1)" 'no such name'
+has "unregister preserves the principal credential" "$(ab retired@srv1 status)" '"you":"retired@srv1"'
+out=$(ab stranger@srv1 register retired@srv1 2>&1); rc=$?
+bad_exit "unregister does not free a credential identity for takeover" "$rc"
+out=$(ab stranger@srv1 service-template retired@srv1 '{}' 2>&1); rc=$?
+bad_exit "configure cannot take an unregistered identity either" "$rc"
+out=$(ab stranger@srv1 unregister retired@srv1 2>&1); rc=$?
+bad_exit "unregister of an absent address fails" "$rc"
+has "the same owner can register again" "$(ab owner@srv1 register retired@srv1)" '"name":"retired@srv1"'
+has "a principal can unregister itself" "$(ab retired@srv1 unregister retired@srv1)" 'unregistered'
+
 sec "no token, no serve"
 # Stated as a rule, not sampled: every route the daemon exposes, refused
 # both ways. A route added later without auth fails here.
-for route in "GET /status" "POST /register" "GET /ls" "GET /lookup?name=x@h" \
+for route in "GET /status" "POST /register" "POST /unregister" "GET /ls" "GET /lookup?name=x@h" \
              "POST /configure" "GET /config?name=x@h" "POST /send" "GET /consume?wait=0s"; do
   m=${route%% *}; path=${route#* }
   none=$(curl -s -o /dev/null -w '%{http_code}' -X "$m" --unix-socket "$D/bus.sock" \
@@ -1853,12 +1938,12 @@ has "and any other port it may not bind is an error, not a quiet move" \
   "$(AGENT_BUS_ADDR=$D/bus.sock \
      timeout 2 "$D/agent-bus-web" -addr 127.0.0.1:80 -cert "$D/tls/crt" -key "$D/tls/key" 2>&1)" \
   'permission denied'
-# Without a pair it is plain HTTP on loopback, and says so rather than
-# looking like the secure thing.
+# Without a pair it is plain HTTP on loopback. Use a suite-owned port so an
+# installed dashboard can keep running while the suite checks this behavior.
 out=$(AGENT_BUS_ADDR=$D/bus.sock \
-  timeout 2 "$D/agent-bus-web" -cert "$D/tls/absent" -key "$D/tls/absent" 2>&1)
+  timeout 2 "$D/agent-bus-web" -addr "127.0.0.1:$((PORT+11))" -cert "$D/tls/absent" -key "$D/tls/absent" 2>&1)
 has "with no certificate it says so" "$out" 'no certificate at' 
-has "and does not pretend to be https" "$out" 'http://127.0.0.1:7878'
+has "and does not pretend to be https" "$out" "http://127.0.0.1:$((PORT+11))"
 fi
 
 sec "a restart is not a loss"
@@ -2042,7 +2127,7 @@ if slow; then
     # The shared JSON-RPC plumbing, driven directly: the harnesses below only
     # ever have one request in flight and never split a line across chunks, so
     # they leave most of rpc.ts unwatched (mcp/rpc.test.ts says why).
-    out=$(cd mcp && timeout 60 bun test rpc.test.ts 2>&1)
+    out=$(cd mcp && timeout 60 bun test rpc.test.ts messages.test.ts ../launchers/local.test.ts ../launchers/terminal.test.ts 2>&1)
     rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "rpc unit tests" $rc
@@ -2068,6 +2153,12 @@ if slow; then
     rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "codex adapter smoke" $rc
+
+    out=$(timeout 120 env AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN \
+          AGENT_BUS_NAME=$OWNER LAUNCHER_BUILD=$D TEST_MAPPED_SOCKET=$D/user-$(id -un).sock bun run launchers/smoke.ts 2>&1)
+    rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "installed launcher smoke" $rc
   fi
 
 else skipped=$((skipped+1)); fi

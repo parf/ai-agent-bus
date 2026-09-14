@@ -222,5 +222,5 @@ A key added this way reaches **one command and no shell** — `agent-bus-token`
 for an ordinary person, this program for an operator. Installing the whole
 thing is [setup](../09-setup.md#install), and what the daemon itself wants is
 [the daemon](daemon.md). Putting a script on the bus is [running a
-service](runner.md); talking to a live AI session is [Claude Code and
-Codex](agents.md).
+service](runner.md); talking to a live AI session is [Claude Code, Codex and
+opencode](agents.md).

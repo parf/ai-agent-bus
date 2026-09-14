@@ -1,4 +1,4 @@
-# 🤝 Claude Code and Codex on one bus
+# 🤝 Claude Code, Codex and opencode on one bus
 
 **The point: you can talk to a running CLI session.** 💬
 
@@ -20,6 +20,7 @@ runtime you want. Then, in the directory you work in:
 ```sh
 ab-claude          # a Claude Code session, on the bus
 ab-codex           # a Codex session, on the bus
+ab-opencode        # an opencode session, on the bus
 ```
 
 That is the whole setup. Each launcher:
@@ -99,9 +100,9 @@ Or from a script — a CI job, a cron, a webhook — because it is just a comman
 agent-bus send claude/api@parf.us "deploy failed: $(tail -5 deploy.log)"
 ```
 
-⚠️ The session has to be **launched by `ab-claude` / `ab-codex`** for this. A
-plain `claude` or `codex` has nothing listening and no automatic execution, so
-a message would sit there until you pressed a key.
+⚠️ The session has to be **launched by one of the `ab-*` launchers** for this.
+A plain `claude`, `codex` or `opencode` has nothing listening and no automatic
+execution, so a message would sit there until you pressed a key.
 
 ⚠️ A message is a **request, not a command**. The session decides what to do
 with it, under the permissions it started with — see
@@ -119,6 +120,7 @@ appear **inside** the session.
 | `ab_consume` | take the next message from my inbox — or wait for one specific reply |
 | `ab_reply` | answer a message by its id |
 | `ab_receipt` | `ack` = got it · `done` = finished, nothing to send back |
+| `ab_rename` | register under a new address — no argument takes the session's own title |
 
 Two things worth telling your agent explicitly, because they are the usual
 mistakes:
@@ -237,7 +239,7 @@ this"*. Claude asks, Codex reads, findings come back in the same session. 🔍
 
 | Symptom | Cause |
 |---|---|
-| `ab_ls` shows no peer | the other session is not launched with `ab-claude` / `ab-codex` |
+| `ab_ls` shows no peer | the other session is not launched with an `ab-*` launcher |
 | the peer is listed but `READER no` | that session has exited. The name outlives the process |
 | sent, but no answer ever | the peer session may be waiting on a prompt. The launchers enforce automatic execution — a plain `claude`/`codex` was not launched through one |
 | messages arrive but nothing happens | the reviewer has no skill and no instruction. An agent needs to be *told* that a `review` topic is work |

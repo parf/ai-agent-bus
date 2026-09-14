@@ -40,7 +40,7 @@ type Rpc = {
   error?: { code: number; message: string };
 };
 type Turn = { id: string; status?: unknown };
-type Thread = { id: string; cwd?: string; turns?: Turn[] };
+export type Thread = { id: string; cwd?: string; name?: string | null; turns?: Turn[] };
 
 export class AppServerError extends Error {
   constructor(readonly code: number, message: string) {
@@ -74,7 +74,7 @@ export class Codex {
   // `approvalPolicy` matches what the session is already configured for; it
   // is not a way to switch protections off, which is why it is read and not
   // assumed.
-  readonly #policy = {
+  #policy: Record<string, unknown> = {
     approvalPolicy: (process.env.AGENT_BUS_CODEX_APPROVAL ?? "on-request") as "never" | "on-request",
     approvalsReviewer: "user" as const,
   };
@@ -91,6 +91,42 @@ export class Codex {
 
   get shared(): boolean {
     return !!this.#url;
+  }
+
+  // A launcher owns the selected thread. It must not rediscover another
+  // session by cwd or replace that session's configured permissions.
+  async threads(): Promise<Thread[]> {
+    const result = await this.#request<{ data: Thread[] }>("thread/list", {
+      cwd: this.#cwd, limit: 100, sortKey: "recency_at", sortDirection: "desc", archived: false,
+    });
+    return result.data.filter(t => t.cwd && resolve(t.cwd) === this.#cwd);
+  }
+
+  async openThread(id?: string): Promise<Thread> {
+    this.#policy = {};
+    const result = await this.#request<{ thread: Thread }>(id ? "thread/resume" : "thread/start",
+      id ? { threadId: id } : { cwd: this.#cwd }, 60_000);
+    this.#setThread(result.thread);
+    return result.thread;
+  }
+
+  async threadName(): Promise<string | undefined> {
+    const result = await this.#request<{ thread: Thread }>("thread/read", { threadId: this.#thread });
+    return result.thread.name || undefined;
+  }
+
+  // A fresh TUI creates its own thread. An empty thread created by another
+  // client has no saved rollout yet and cannot be resumed by the TUI.
+  async loadedThread(): Promise<Thread | undefined> {
+    const loaded = await this.#request<{ data: string[] }>("thread/loaded/list", {});
+    for (const id of loaded.data) {
+      const result = await this.#request<{ thread: Thread }>("thread/read", { threadId: id });
+      if (result.thread.cwd && resolve(result.thread.cwd) === this.#cwd) {
+        this.#policy = {};
+        this.#setThread(result.thread);
+        return result.thread;
+      }
+    }
   }
 
   // Connect and handshake only. The thread is chosen at the first delivery,

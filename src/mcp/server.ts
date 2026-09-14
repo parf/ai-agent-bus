@@ -1,5 +1,8 @@
-// The MCP face. Five tools, each one call to the daemon and nothing else: no
-// routing, no retry, no domain logic — see docs/10-modules.md.
+// The MCP face. Six tools, each one call to the daemon and nothing else: no
+// routing, no retry, no domain logic — see docs/10-modules.md. ab_rename is the
+// one exception to "one call": an address change is register-then-unregister,
+// because there is no rename on the daemon and a session must never be left
+// with no address at all.
 //
 // Tool names are ab_*: a client exposes them as mcp__<server>__<tool> and a
 // model's tool names may not contain a colon (docs/glossary.md).
@@ -7,17 +10,28 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { Bus, BusError, type Envelope, type Record_ } from "./bus.ts";
+import { Bus, BusError, defaultName, type Envelope, type Record_ } from "./bus.ts";
 import { startPush, type Push } from "./push.ts";
 import { Codex } from "./codex.ts";
 import { version } from "./version.ts";
+import { describe, codexMessage } from "./messages.ts";
+import { readFileSync } from "node:fs";
 
 if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv[2]!)) {
   console.log(version);
   process.exit(0);
 }
 
-const bus = new Bus();
+// The launcher's private environment file keeps session credentials out of
+// command lines and the user's persistent runtime configuration.
+if (process.env.AGENT_BUS_SESSION_FILE) {
+  const env = JSON.parse(readFileSync(process.env.AGENT_BUS_SESSION_FILE, "utf8"));
+  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_DESCR", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH"]) {
+    if (typeof env[key] === "string") process.env[key] = env[key];
+  }
+}
+
+let bus = new Bus();
 
 // Push mode is known before anything is served: ab_consume must not become
 // the reader in the window where a push adapter is still starting.
@@ -114,6 +128,19 @@ const tools = [
         kind: { type: "string", enum: ["ack", "done"], description: "ack = got it, done = finished it" },
       },
       required: ["message_id", "kind"],
+    },
+  },
+  {
+    name: "ab_rename",
+    description:
+      "Change the address this session is registered under, so peers find it by what it is working on rather than by when it started. " +
+      "With no argument it takes the session's own title, which is what the runtime's rename command sets. " +
+      "The old address is released only when nothing is queued or waiting there; a busy one is kept and reported, so no message is lost.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "the title to register under; omit to use the session's own title" },
+      },
     },
   },
 ] as const;
@@ -223,6 +250,44 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         });
         return text(`told ${original.from} ${kind} for ${id}`);
       }
+      case "ab_rename": {
+        const title = maybe(args, "name") ?? sessionTitle();
+        // Nothing to rename from: the session has no title of its own and the
+        // caller named none. Say how to get one rather than inventing it.
+        if (!title) return text(renameHelp(), true);
+        const next = derive(title);
+        if (next === bus.name) return text(`already registered as ${bus.name}. ${renameHelp()}`, true);
+
+        const previous = bus;
+        // A reader of its own inbox is a waiter, and the daemon refuses to
+        // unregister an address somebody is waiting on. Stop reading first.
+        push?.stop();
+        push = undefined;
+        let moved: Bus;
+        try {
+          // New address first: a failure here leaves the session exactly where
+          // it was, which is the only safe direction to fail in.
+          await previous.register({ name: next, kind: "agent", descr: title });
+          moved = await previous.as(next);
+        } catch (err) {
+          readInbox();
+          throw err;
+        }
+        bus = moved;
+        readInbox();
+
+        // Releasing the old address is the part that is allowed to fail: it is
+        // busy exactly when dropping it would lose something.
+        let old = `released ${previous.name}`;
+        try {
+          await previous.unregister(previous.name);
+        } catch (err) {
+          old = err instanceof BusError
+            ? `kept ${previous.name}: ${err.message}`
+            : `kept ${previous.name}: ${err}`;
+        }
+        return text(`registered as ${bus.name} (${title}); ${old}. Peers that knew the old address must look it up again with ab_ls.`);
+      }
       default:
         return text(`unknown tool ${req.params.name}`, true);
     }
@@ -248,6 +313,45 @@ function maybe(args: Record<string, unknown>, key: string): string | undefined {
 }
 class BadArgs extends Error {}
 
+// The runtime's own name for this session. The launcher refreshes the session
+// file whenever the title changes (docs/08-runner-role.md#session-names), so
+// re-reading it here is how the face learns a rename it was never told about.
+// Without a launcher there is no file, and there is nothing to rename from.
+function sessionTitle(): string | undefined {
+  const file = process.env.AGENT_BUS_SESSION_FILE;
+  if (!file) return undefined;
+  let descr: unknown;
+  try {
+    descr = JSON.parse(readFileSync(file, "utf8")).AGENT_BUS_DESCR;
+  } catch {
+    return undefined; // the launcher owns this file; a partial write is its business, not an error here
+  }
+  if (typeof descr !== "string" || descr.trim() === "") return undefined;
+  // The launcher appends " #2" to keep labels distinct; the title is what the
+  // person typed, and the same disambiguation happens again on the new name.
+  const title = descr.replace(/ #[2-9][0-9]*$/, "").trim();
+  // Its fallback label when a session has no title of its own is
+  // `runtime(dir)` — a placeholder to rename away from, not a title.
+  const runtime = process.env.AGENT_BUS_RUNTIME ?? "agent";
+  if (title === "" || title.startsWith(`${runtime}(`)) return undefined;
+  return title;
+}
+
+// The same derivation the launcher uses for a session address
+// (docs/01-identity.md#names), so a rename here and a restart there agree on
+// the name. The separator is whatever this session already registered with.
+function derive(title: string): string {
+  return defaultName(
+    { ...process.env, AGENT_BUS_RUNTIME: process.env.AGENT_BUS_RUNTIME ?? "agent", AGENT_BUS_CWD: title },
+    bus.name.includes("/") ? "/" : ".",
+  );
+}
+
+function renameHelp(): string {
+  return "Rename the session itself first — /rename in the session, or whatever its runtime calls it — then call ab_rename again with no argument. " +
+    "Or call ab_rename with a name to register under that instead.";
+}
+
 function text(body: string, isError = false) {
   return { content: [{ type: "text" as const, text: body }], ...(isError ? { isError } : {}) };
 }
@@ -268,24 +372,6 @@ function catalogue(r: Record_): string {
   return `${r.name}  [${r.kind}]  ${r.descr ?? ""}`.trimEnd() + `\n    ${notes.join(" · ")}`;
 }
 
-function describe(e: Envelope): string {
-  const head = [`from ${e.from}`, e.topic && `topic ${e.topic}`, e.tag && `tag ${e.tag}`, `id ${e.message_id}`]
-    .filter(Boolean)
-    .join(" · ");
-  // A receipt carries no body: saying so beats handing over a blank one,
-  // which reads as an empty answer (docs/04-messaging.md#receipts).
-  if (e.receipt) {
-    const what = e.re ?? "your message";
-    // The two say opposite things about what happens next, and telling the
-    // model "the answer is still to come" after a `done` is a lie that costs
-    // it a pointless wait (docs/04-messaging.md#receipts).
-    return e.receipt === "done"
-      ? `${head}\n\nreceipt: done — ${e.from} finished ${what} and sent no answer. Nothing further is coming; do not wait for it.`
-      : `${head}\n\nreceipt: ack — ${e.from} received ${what}. Not an answer; the answer is still to come.`;
-  }
-  return `${head}\n\n${e.body}`;
-}
-
 // "30s" / "500ms" / "2m" as seconds. A bare number is NOT a duration to Go's
 // ParseDuration, and the daemon silently falls back to its own default when
 // it cannot parse one — so anything this cannot read is left to the daemon
@@ -298,6 +384,20 @@ function seconds(s: string): number {
   return Math.min(m[2] === "ms" ? n / 1000 : m[2] === "m" ? n * 60 : n, MAX_WAIT);
 }
 
+// Push: the session receives instead of polling. Two modes, one loop
+// (push.ts); off is the default and everything above still works. Declared
+// before the server serves anything, because ab_rename restarts the reader on
+// the new inbox and a request may arrive as soon as the transport is up.
+let push: Push | undefined;
+const alsoStop: (() => void)[] = [];
+const stopWith = (f: () => void) => alsoStop.push(f);
+// What to do with a delivered message, once per mode. Reading is started again
+// after a rename, against the new address; how to deliver never changes.
+let deliver: ((e: Envelope) => Promise<void>) | undefined;
+function readInbox(): void {
+  if (deliver) push = startPush(bus, deliver, log);
+}
+
 // Registering on start is what makes "find each other by name" possible: the
 // name is this session's address for as long as it runs.
 await bus.register({
@@ -307,12 +407,6 @@ await bus.register({
 });
 
 await server.connect(new StdioServerTransport());
-
-// Push: the session receives instead of polling. Two modes, one loop
-// (push.ts); off is the default and everything above still works.
-let push: Push | undefined;
-const alsoStop: (() => void)[] = [];
-const stopWith = (f: () => void) => alsoStop.push(f);
 
 // When the client goes away the face has no reader to deliver to. A poll
 // left running would keep taking messages nobody will see.
@@ -325,13 +419,16 @@ function shutDown(why: string): void {
   }
 }
 server.onclose = () => shutDown("the client closed the connection");
+// The SDK's stdio transport does not translate EOF into onclose. A killed
+// runtime closes this pipe; its inbox reader must not outlive that runtime.
+process.stdin.on("end", () => { shutDown("the client exited"); process.exit(0); });
 for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => { shutDown(sig); process.exit(0); });
 process.on("exit", () => shutDown("exit"));
 
 if (mode === "claude") {
   // The Claude Code channel contract: one notification, content plus string
   // metadata. The session needs --dangerously-load-development-channels.
-  push = startPush(bus, async (e) => {
+  deliver = async (e) => {
     remember(e);
     await server.notification({
       method: "notifications/claude/channel",
@@ -346,33 +443,20 @@ if (mode === "claude") {
         },
       },
     });
-  }, log);
+  };
+  readInbox();
 } else if (mode === "codex") {
   const codex = new Codex(process.env.AGENT_BUS_CWD ?? process.cwd(), log);
   await codex.start();
   if (!codex.shared) {
     log("codex: AGENT_BUS_CODEX_WS is not set, so this drives its own app-server — it will not reach a session someone is typing in");
   }
-  push = startPush(bus, async (e) => {
+  deliver = async (e) => {
     remember(e);
-    // ab_send, not ab_reply: in the Codex shape the pusher is a sidecar and
-    // the session's tools come from a *different* process, whose reply
-    // context does not contain this message. So hand the model the routing
-    // instead — which is all a reply is (docs/04-messaging.md#reply-routing).
-    // Spelled out, because a model that guesses the argument names gets them
-    // wrong and the call is refused before it reaches any server.
-    const args = [
-      `to: "${e.from}"`,
-      e.topic && `topic: "${e.topic}"`,
-      e.tag && `tag: "${e.tag}"`,
-      `text: your answer`,
-    ].filter(Boolean).join(", ");
-    const how = await codex.deliver(
-      `${describe(e)}\n\nAnswer by calling ab_send with ${args}. The topic and tag are what match your answer to the question.`,
-      e.message_id,
-    );
+    const how = await codex.deliver(codexMessage(e), e.message_id);
     log(`delivered ${e.message_id} by ${how}`);
-  }, log);
+  };
+  readInbox();
   stopWith(() => codex.stop());
 } else if (mode !== "off" && mode !== "") {
   log(`AGENT_BUS_PUSH=${mode} is not a mode; use claude, codex or off`);

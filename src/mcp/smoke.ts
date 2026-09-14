@@ -70,7 +70,7 @@ try {
 
   const list = await request("tools/list");
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
-  const expected = ["ab_consume", "ab_ls", "ab_receipt", "ab_reply", "ab_send"];
+  const expected = ["ab_consume", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send"];
   check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
 
   const me = process.env.AGENT_BUS_NAME!;
@@ -224,6 +224,47 @@ try {
   await Bun.sleep(600);
   const after = await call("ab_consume", { wait: "5s" });
   check("a cancelled ab_consume does not eat the next message", after.text.includes("survives a cancelled read"), after.text.slice(0, 120));
+
+  // ab_rename. Address changes are register-then-unregister, so the failure
+  // that matters is the one where the old address still holds something.
+  {
+    // Nothing to rename from: no session file here, so the face must say how
+    // to get a title rather than invent one or fail silently.
+    const nothing = await call("ab_rename");
+    check("ab_rename with nothing to rename says how to get a title",
+      nothing.isError && nothing.text.includes("/rename"), nothing.text.slice(0, 160));
+
+    // An unread message at the old address. Releasing it now would lose that
+    // message, so the rename must keep it and say so.
+    await peer.send({ to: me, body: "left at the old address" });
+    const renamed = await call("ab_rename", { name: "Smoke renamed session" });
+    check("ab_rename registers the new address",
+      !renamed.isError && renamed.text.includes("smoke-renamed-session"), renamed.text.slice(0, 200));
+    check("ab_rename keeps a busy old address instead of losing its queue",
+      renamed.text.includes(`kept ${me}`), renamed.text.slice(0, 200));
+
+    const moved = await call("ab_ls");
+    check("the new address is registered", moved.text.includes("smoke-renamed-session"), moved.text.slice(0, 200));
+    check("and the busy old one is still there", moved.text.includes(me), moved.text.slice(0, 200));
+
+    // The message the old address was holding is still readable there.
+    const old = await owner.as(me);
+    check("the queued message survived the rename",
+      (await old.consume({ wait: "2s" }))?.body === "left at the old address", "old inbox");
+
+    // Renaming to what it already is must not unregister the session out from
+    // under itself; it is a no-op with instructions.
+    const again = await call("ab_rename", { name: "Smoke renamed session" });
+    check("renaming to the current address is refused, not re-registered",
+      again.isError && again.text.includes("already registered"), again.text.slice(0, 160));
+
+    // Sending still works from the new address, and arrives from it.
+    await call("ab_send", { to: peerName, text: "after the rename", topic: "t-rn", tag: "g9" });
+    const fromNew = await peer.consume({ topic: "t-rn", tag: "g9", wait: "5s" });
+    check("the session sends from its new address",
+      fromNew?.body === "after the rename" && fromNew?.from.includes("smoke-renamed-session"),
+      JSON.stringify({ from: fromNew?.from, body: fromNew?.body }));
+  }
 } catch (e) {
   check("no exception", false, String(e));
 } finally {

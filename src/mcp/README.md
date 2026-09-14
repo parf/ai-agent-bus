@@ -24,6 +24,10 @@ scope: [stages § MVP](../../Plans/MVP/README.md#scope).
 | `AGENT_BUS_CWD` | which directory the Codex push mode attaches to. Defaults to the process's |
 | `AGENT_BUS_CODEX_WS` | the **shared** App Server, e.g. `ws://127.0.0.1:8421`. Without it the face drives its own, which cannot reach a live session — see below |
 
+The [launchers](../../docs/08-runner-role.md#smart-launchers) supply their
+[assigned session identity](../../docs/08-runner-role.md#session-names);
+the defaults above apply when starting the face directly.
+
 The face registers its name at start and does not re-register. A daemon
 restart therefore leaves it connected but unreachable: the daemon reloads its
 snapshot, but the face's registration is not refreshed. **Restart the face

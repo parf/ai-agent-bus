@@ -17,6 +17,7 @@ against [MVP work](../Plans/MVP/TODO.md#objective).
 | `internal/ports` | the interfaces core depends on — the seam every dependency is swapped at |
 | `internal/store`, `internal/dump`, `internal/directory`, `internal/signature`, `internal/sandbox` | one adapter each behind those ports |
 | `mcp/` | the MCP face and both push adapters, on bun — [mcp/README.md](mcp/README.md#the-mcp-face) |
+| `launchers/` | smart runtime launchers — [contract and usage](../docs/08-runner-role.md#running-the-launchers) |
 | `cmd/agent-bus-token` | the token program, and the forced command behind an ordinary user's key ([access § getting a token](../docs/02-access.md#getting-a-token)) |
 | `smoke.sh` | automated acceptance checks; installed and manual gates remain in the MVP plan |
 
@@ -28,6 +29,11 @@ pointing back in ([modules](../docs/10-modules.md#the-rule)).
 Build requirements and version output follow
 [setup § build information](../docs/09-setup.md#build-information).
 Release numbering follows [working rules § versioning](../CLAUDE.md#versioning).
+
+With an output-directory argument, the build also bundles the MCP face and
+launchers with Bun, copies the release version and license, and exposes launcher
+entry points at the output root. Move that whole directory together; running it
+requires Bun and the selected AI runtime, but no checkout or npm dependencies.
 
 ```sh
 bash ./build.sh       # build every Go program with build information

@@ -163,7 +163,7 @@ session. Bun and the runtime itself must be installed.
 | `AGENT_BUS_NAME` | the bus name you want. Otherwise one is derived from the session title or the directory |
 
 👉 The interesting part is that you can then **talk to that running session**
-from any terminal — see [Claude Code and Codex](agents.md).
+from any terminal — see [Claude Code, Codex and opencode](agents.md).
 
 `ab-claude --help` / `ab-codex --help` say the rest. They always continue the
 last session in the current directory, and they enforce automatic execution —

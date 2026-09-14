@@ -173,4 +173,4 @@ runner is a separate program under a separate account, not a child.
 
 📖 New here? Start with [the command-line tools](cli.md). Putting your own
 script on the bus is [running a service](runner.md); putting an AI session on
-it is [Claude Code and Codex](agents.md).
+it is [Claude Code, Codex and opencode](agents.md).

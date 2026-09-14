@@ -1,0 +1,397 @@
+import { spawn, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+import { Bus, BusError, defaultName } from "../mcp/bus.ts";
+import { Codex } from "../mcp/codex.ts";
+import { Opencode } from "../mcp/opencode.ts";
+import { sidecarMessage } from "../mcp/messages.ts";
+import { startPush, sleep, type Push } from "../mcp/push.ts";
+import { version } from "../mcp/version.ts";
+import { Bindings, claudeSessions, claudeTitle, numberedName, sameBase, type Session } from "./sessions.ts";
+import { localAddress, runtimeBinary } from "./local.ts";
+import { Terminal } from "./terminal.ts";
+
+const runtime = process.argv[2];
+const args = process.argv.slice(3);
+const log = (s: string) => console.error(`ab-${runtime}: ${s}`);
+const option = (names: string[]) => {
+  for (let i = 0; i < args.length; i++) for (const n of names) {
+    if (args[i]!.startsWith(n + "=")) return args[i]!.slice(n.length + 1);
+    if (args[i] === n && args[i + 1] && !args[i + 1]!.startsWith("-")) return args[i + 1];
+  }
+};
+const has = (...names: string[]) => args.some(a => names.includes(a) || names.some(n => a.startsWith(n + "=")));
+type Child = { proc: ChildProcess; exited: Promise<number>; group: boolean };
+const children: Child[] = [];
+function start(command: string[], env: NodeJS.ProcessEnv, file?: number): Child {
+  const proc = spawn(command[0]!, command.slice(1), {
+    env, stdio: file === undefined ? "inherit" : ["ignore", file, file], detached: file !== undefined,
+  });
+  const exited = new Promise<number>(resolve => {
+    proc.once("error", e => { log(e.message); resolve(1); });
+    proc.once("exit", (code, signal) => resolve(code ?? (signal === "SIGINT" ? 130 : 143)));
+  });
+  const child = { proc, exited, group: file !== undefined };
+  children.push(child);
+  return child;
+}
+async function stop(child: Child): Promise<void> {
+  const signal = (s: NodeJS.Signals) => {
+    try { if (child.group && child.proc.pid) process.kill(-child.proc.pid, s); else child.proc.kill(s); } catch { /* already exited */ }
+  };
+  signal("SIGTERM");
+  await Promise.race([child.exited, sleep(1500)]);
+  // Group members may outlive the App Server; reap those too.
+  signal("SIGKILL");
+  await child.exited;
+}
+
+let bindings: Bindings | undefined, runDir: string | undefined, codex: Codex | undefined, opencode: Opencode | undefined, push: Push | undefined;
+let poll: ReturnType<typeof setInterval> | undefined;
+let terminal: Terminal | undefined;
+let stopping = false;
+let cleanupPromise: Promise<void> | undefined;
+function cleanup(): Promise<void> {
+  return cleanupPromise ??= (async () => {
+  stopping = true;
+  clearInterval(poll);
+  push?.stop();
+  codex?.stop();
+  opencode?.stop();
+  for (const child of children.reverse()) await stop(child);
+  bindings?.close();
+  if (runDir) rmSync(runDir, { recursive: true, force: true });
+  terminal?.restore();
+  })();
+}
+process.on("SIGHUP", () => { void cleanup().then(() => process.exit(129)); });
+process.on("SIGTERM", () => { void cleanup().then(() => process.exit(143)); });
+// The foreground runtime receives terminal SIGINT directly.
+process.on("SIGINT", () => {
+  if (!children.some(c => !c.group && c.proc.exitCode === null)) void cleanup().then(() => process.exit(130));
+});
+
+async function main(): Promise<number> {
+  if (runtime !== "claude" && runtime !== "codex" && runtime !== "opencode") throw new Error("expected claude, codex or opencode");
+  if (has("--version", "-V")) { console.log(version); return 0; }
+  if (has("--help", "-h")) {
+    console.log(`ab-${runtime}: launch ${runtime} with agent-bus tools and messaging.
+Discovers your local socket; AGENT_BUS_ADDR overrides discovery. AGENT_BUS_TOKEN supplies a token when needed.
+AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continuation are enforced.
+Other arguments are forwarded to the runtime. Session state: XDG_STATE_HOME/agent-bus/sessions.
+See docs/08-runner-role.md#smart-launchers.`);
+    return 0;
+  }
+  const binary = runtimeBinary(runtime, process.env);
+  if (!binary) throw new Error(`${runtime} executable not found; install the runtime or set ${runtime.toUpperCase()}_BIN`);
+  const dirOption = runtime === "codex" ? option(["-C", "--cd"]) : runtime === "opencode" ? option(["--dir"]) : undefined;
+  const cwd = realpathSync(dirOption ? resolve(dirOption) : process.cwd());
+  process.chdir(cwd);
+  terminal = new Terminal(runtime, cwd);
+  const address = localAddress(process.env);
+  if (address) process.env.AGENT_BUS_ADDR = address;
+  const cleanEnv = { ...process.env };
+  for (const key of Object.keys(cleanEnv)) if (key.startsWith("AGENT_BUS_")) delete cleanEnv[key];
+  if (terminal.active) {
+    cleanEnv.CLAUDE_CODE_DISABLE_TERMINAL_TITLE = "1";
+    cleanEnv.OPENCODE_DISABLE_TERMINAL_TITLE = "1";
+  }
+  const titleArgs = runtime === "codex" && terminal.active ? ["-c", "tui.terminal_title=[]"] : [];
+  const configured = !!process.env.AGENT_BUS_TOKEN || !!process.env.AGENT_BUS_ADDR;
+  if (!configured) {
+    log("bus is not configured; starting a plain runtime session");
+    if (runtime === "claude") {
+      const sessions = await claudeSessions(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), cwd);
+      terminal.set(option(["-n", "--name"]) || sessions[0]?.name || undefined);
+      return await start([binary, ...claudeArgs(args), "--enable-auto-mode", ...(sessions.length ? ["--continue"] : [])], cleanEnv).exited;
+    }
+    if (runtime === "opencode") return await start([binary, ...(has("-c", "--continue", "-s", "--session") ? [] : ["--continue"]), ...args], cleanEnv).exited;
+    return await start([binary, "resume", "--last", ...args, ...titleArgs, "--dangerously-bypass-approvals-and-sandbox"], cleanEnv).exited;
+  }
+  const owner = new Bus(process.env, true);
+  await owner.status(); // Diagnose the bus before starting runtime sidecars.
+  const state = join(process.env.XDG_STATE_HOME || join(homedir(), ".local/state"), "agent-bus/sessions");
+  bindings = new Bindings(state, runtime);
+  const runs = join(state, "runs");
+  mkdirSync(runs, { recursive: true, mode: 0o700 });
+  chmodSync(runs, 0o700);
+  runDir = mkdtempSync(join(runs, runtime + "-"));
+  const envFile = join(runDir, "bus-env.json");
+  const face = realpathSync(join(import.meta.dir, existsSync(join(import.meta.dir, "../mcp/server.js")) ? "../mcp/server.js" : "../mcp/server.ts"));
+  let session: Session, fresh = false;
+  let remote: string | undefined;
+  const tuiEnv: Record<string, string> = {};
+  let runtimeArgs = [...args];
+  let serverChild: Child | undefined;
+  if (runtime === "claude") {
+    if (has("--fork-session", "--from-pr", "--cloud", "--remote-control", "--background", "--bg")) throw new Error("this session mode cannot be bound by the launcher; start an interactive session");
+    const home = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
+    const sessions = await claudeSessions(home, cwd);
+    const requested = option(["-r", "--resume"]);
+    if (has("-r", "--resume") && !requested) throw new Error("give a session ID or name to resume");
+    const newID = option(["--session-id"]);
+    if (newID) {
+      if (!/^[0-9a-f-]{36}$/i.test(newID)) throw new Error("invalid session ID");
+      if (!bindings.lock(`${runtime}:${newID}`)) throw new Error("session already has a launcher");
+      session = { id: newID };
+    } else {
+      session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested, fresh);
+      if (!has("-r", "--resume", "-c", "--continue")) runtimeArgs = [...(session.file ? ["--continue"] : ["--session-id", session.id]), ...args];
+      // Resolve continue ourselves so a simultaneous launch cannot select the same session.
+      else if (has("-c", "--continue")) runtimeArgs = [...(session.file ? ["--continue"] : ["--session-id", session.id]), ...args.filter(a => a !== "-c" && a !== "--continue")];
+    }
+    runtimeArgs = [...claudeArgs(runtimeArgs), "--enable-auto-mode"];
+    session.name = option(["-n", "--name"]) || session.name;
+    session.file ||= join(home, "projects", cwd.replace(/[^a-zA-Z0-9]/g, "-"), `${session.id}.jsonl`);
+  } else if (runtime === "opencode") {
+    if (has("attach", "serve", "web", "run")) throw new Error("the launcher starts and owns the server; give it interactive arguments only");
+    const tuiArgs: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      const a = args[i]!;
+      // Already resolved before chdir; forwarding it would apply it twice.
+      if (a === "--dir") { i++; continue; }
+      if (a.startsWith("--dir=")) continue;
+      tuiArgs.push(a);
+    }
+    // Reserve an ephemeral loopback port, then let the server bind it.
+    const reservation = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } });
+    const port = reservation.port;
+    reservation.stop(true);
+    remote = `http://127.0.0.1:${port}`;
+    // Anything that can reach this server can drive the session, so it gets a
+    // password even on loopback. Passed by environment, never as a flag: an
+    // argument is world-readable in ps.
+    const password = randomUUID();
+    const serverConfig = {
+      // The launcher's enforced mode, the same promise the other two make.
+      permission: "allow",
+      mcp: {
+        "agent-bus": {
+          type: "local", command: [process.execPath, face],
+          environment: { AGENT_BUS_SESSION_FILE: envFile }, enabled: true,
+        },
+      },
+    };
+    const serverEnv = { ...cleanEnv, OPENCODE_SERVER_PASSWORD: password, OPENCODE_CONFIG_CONTENT: JSON.stringify(serverConfig) };
+    const fd = openSync(join(runDir, "server.log"), "a", 0o600);
+    serverChild = start([binary, "serve", "--port", String(port), "--hostname", "127.0.0.1"], serverEnv, fd);
+    closeSync(fd);
+    opencode = new Opencode(cwd, log, remote, password);
+    let ready = false;
+    for (let i = 0; i < 200; i++) {
+      if (serverChild.proc.exitCode !== null) throw new Error("the opencode server exited during startup");
+      if (await opencode.probe()) { ready = true; break; }
+      await sleep(50);
+    }
+    if (!ready) throw new Error("the opencode server did not become ready");
+    await opencode.start();
+    tuiEnv.OPENCODE_SERVER_PASSWORD = password;
+    const listed = await opencode.sessions();
+    const sessions: Session[] = listed.map(o => ({ id: o.id, name: o.title }));
+    const requested = option(["-s", "--session"]);
+    if (has("--fork")) throw new Error("a forked session cannot be bound by the launcher; start or resume one");
+    session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested, fresh);
+    fresh = !sessions.some(s => s.id === session.id);
+    if (fresh) {
+      // OpenCode persists a new session before the first prompt, so attach
+      // the TUI to the same explicit ID the inbox reader will use.
+      const created = await opencode.openSession();
+      if (!bindings.lock(`${runtime}:${created.id}`)) throw new Error("session already has a launcher");
+      session = { id: created.id };
+      fresh = false;
+    }
+    // Session selection is resolved here, so it must not be forwarded twice.
+    runtimeArgs = tuiArgs.filter((a, i) => !["-c", "--continue", "-s", "--session"].includes(a) && !a.startsWith("--session=") && !a.startsWith("-s=") && !["-s", "--session"].includes(tuiArgs[i - 1] ?? ""));
+  } else {
+    if (has("--remote", "--worktree")) throw new Error("the launcher owns its App Server and working directory; remote/worktree mode is not supported");
+    // CLI permission/config flags must configure the server, not its remote TUI.
+    const serverArgs: string[] = [];
+    const tuiArgs: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      const a = args[i]!;
+      // Already resolved before chdir; forwarding a relative directory here
+      // would apply it a second time in the remote TUI.
+      if (a === "-C" || a === "--cd") { i++; continue; }
+      if (a.startsWith("-C=") || a.startsWith("--cd=")) continue;
+      const pair = ["-c", "--config", "-p", "--profile", "-s", "--sandbox", "-a", "--ask-for-approval"];
+      const match = pair.find(n => a === n || a.startsWith(n + "="));
+      if (match) {
+        const v = a.includes("=") ? a.slice(a.indexOf("=") + 1) : args[++i];
+        if (!v) throw new Error(`missing value for ${match}`);
+        if (["-p", "--profile"].includes(match)) throw new Error("select profiles with CODEX_HOME before using the launcher");
+        const key = ["-s", "--sandbox"].includes(match) ? "sandbox_mode" : ["-a", "--ask-for-approval"].includes(match) ? "approval_policy" : undefined;
+        serverArgs.push("-c", key ? `${key}=${JSON.stringify(v)}` : v);
+      } else if (a === "--dangerously-bypass-approvals-and-sandbox") {
+        serverArgs.push("-c", 'approval_policy="never"', "-c", 'sandbox_mode="danger-full-access"');
+      } else if (a === "--approve-for-me") throw new Error("set the desired approval policy explicitly for the App Server");
+      else tuiArgs.push(a);
+    }
+    // Reserve an ephemeral loopback port; the App Server must then bind it.
+    serverArgs.push("-c", 'approval_policy="never"', "-c", 'sandbox_mode="danger-full-access"');
+    const reservation = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } });
+    remote = `ws://127.0.0.1:${reservation.port}`;
+    reservation.stop(true);
+    const mcp = {
+      command: process.execPath, args: [face],
+      env: { AGENT_BUS_SESSION_FILE: envFile }, enabled: true,
+    };
+    // TOML inline table; strings are JSON-escaped, never interpreted by a shell.
+    serverArgs.push("-c", `mcp_servers.agent-bus={command=${JSON.stringify(mcp.command)},args=[${JSON.stringify(face)}],env={AGENT_BUS_SESSION_FILE=${JSON.stringify(envFile)}},enabled=true,default_tools_approval_mode="approve"}`);
+    const fd = openSync(join(runDir, "app-server.log"), "a", 0o600);
+    serverChild = start([binary, "app-server", ...serverArgs, "--listen", remote], cleanEnv, fd);
+    closeSync(fd);
+    let ready = false;
+    for (let i = 0; i < 100; i++) {
+      if (serverChild.proc.exitCode !== null) throw new Error("App Server exited during startup");
+      try { const response = await fetch(remote.replace("ws:", "http:"), { signal: AbortSignal.timeout(100) }); if (response) { ready = true; break; } } catch { /* not bound yet */ }
+      await sleep(50);
+    }
+    if (!ready) throw new Error("App Server did not become ready");
+    codex = new Codex(cwd, log, remote);
+    await codex.start();
+    const sessions = await codex.threads();
+    const resumeIndex = tuiArgs.indexOf("resume");
+    const requested = resumeIndex >= 0 && tuiArgs[resumeIndex + 1] && !tuiArgs[resumeIndex + 1]!.startsWith("-") ? tuiArgs[resumeIndex + 1] : undefined;
+    if (tuiArgs.includes("fork") || tuiArgs.includes("exec")) throw new Error("the launcher supports interactive start and resume");
+    session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested, fresh);
+    fresh = !sessions.some(s => s.id === session.id);
+    runtimeArgs = tuiArgs.filter((a, i) => a !== "--last" && i !== resumeIndex && !(requested && i === resumeIndex + 1));
+  }
+  const explicit = process.env.AGENT_BUS_NAME?.trim().toLowerCase();
+  const previous = bindings.saved(session, explicit);
+  const base = explicit || defaultName({ ...process.env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: session.name || cwd }, "/");
+  const saved = previous && (explicit || sameBase(previous, base)) ? previous.name : undefined;
+  let records = await owner.ls();
+  const taken = new Set(records.map(r => r.name));
+  let name = saved || base, number = 1;
+  if (saved) {
+    if (!bindings.lock(`bus:${saved}`)) throw new Error("session bus identity is already launched");
+  } else {
+    while (taken.has(name) || !bindings.lock(`bus:${name}`)) {
+      name = numberedName(base, ++number);
+    }
+  }
+  let label = session.name || `${runtime}(${cwd})`;
+  const labelBase = label;
+  const labels = new Set(records.filter(r => r.name !== name && r.name !== previous?.name).map(r => r.descr));
+  for (let n = 2; labels.has(label) || !bindings.lock(`label:${label}`); n++) label = `${labelBase} #${n}`;
+  for (;;) {
+    try { await owner.register({ name, kind: "agent", descr: label }, !saved); break; }
+    catch (e) {
+      if (saved || !(e instanceof BusError) || e.status !== 412) throw e;
+      do {
+        name = numberedName(base, ++number);
+      } while (!bindings.lock(`bus:${name}`));
+      records = await owner.ls();
+      const used = new Set(records.filter(r => r.name !== previous?.name).map(r => r.descr));
+      label = labelBase;
+      for (let n = 2; used.has(label); n++) label = `${labelBase} #${n}`;
+    }
+  }
+  bindings.save(session.id, name, base);
+  if (previous && previous.name !== name) {
+    try { await owner.unregister(previous.name); }
+    catch (e) {
+      if (!(e instanceof BusError && e.status === 404)) log(`new address ${name}; old address ${previous.name} retained: ${e}`);
+    }
+  }
+  const token = await owner.token(name);
+  const addr = process.env.AGENT_BUS_ADDR;
+  const env = {
+    ...process.env, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: token, AGENT_BUS_RUNTIME: runtime,
+    AGENT_BUS_DESCR: label, AGENT_BUS_PUSH: runtime === "claude" ? "claude" : "off",
+    ...(addr && /^user-.*\.sock$/.test(basename(addr)) ? { AGENT_BUS_ADDR: join(dirname(addr), "bus.sock") } : {}),
+  };
+  const bus = new Bus(env);
+  if ((await bus.status()).you !== name) throw new Error("bus listener did not authenticate the session identity");
+  const faceEnv: Record<string, string> = {};
+  for (const key of ["AGENT_BUS_NAME", "AGENT_BUS_TOKEN", "AGENT_BUS_RUNTIME", "AGENT_BUS_DESCR", "AGENT_BUS_PUSH", "AGENT_BUS_ADDR"] as const) {
+    if (env[key] !== undefined) faceEnv[key] = env[key]!;
+  }
+  writeFileSync(envFile, JSON.stringify(faceEnv), { mode: 0o600 });
+  const bindThread = (thread: { id: string }) => {
+    if (thread.id !== session.id) {
+      if (!bindings!.lock(`${runtime}:${thread.id}`)) throw new Error("runtime selected an already launched session");
+      bindings!.save(thread.id, name, base);
+    }
+    push = startPush(bus, async e => {
+      await codex!.deliver(sidecarMessage(e), e.message_id);
+    }, log);
+  };
+  const bindSession = (id: string) => {
+    if (id !== session.id) {
+      if (!bindings!.lock(`${runtime}:${id}`)) throw new Error("runtime selected an already launched session");
+      bindings!.save(id, name, base);
+    }
+    opencode!.bind(id);
+    push = startPush(bus, async e => {
+      await opencode!.deliver(sidecarMessage(e), e.message_id);
+    }, log);
+  };
+  if (codex) {
+    const thread = fresh ? undefined : await codex.openThread(session.id);
+    if (thread) bindThread(thread);
+    runtimeArgs = ["--remote", remote!, "-C", cwd, ...(thread ? ["resume", thread.id] : []), ...runtimeArgs];
+  } else if (opencode) {
+    bindSession(session.id);
+    runtimeArgs = ["attach", remote!, "--dir", cwd, "--session", session.id, ...runtimeArgs];
+  } else {
+    const config = join(runDir, "claude-mcp.json");
+    writeFileSync(config, JSON.stringify({ mcpServers: { "agent-bus": { command: process.execPath, args: [face], env: { AGENT_BUS_SESSION_FILE: envFile } } } }), { mode: 0o600 });
+    runtimeArgs = ["--allowedTools", "mcp__agent-bus__*", "--mcp-config", config, "--dangerously-load-development-channels", "server:agent-bus", ...runtimeArgs];
+  }
+  let refreshing = false;
+  poll = setInterval(async () => {
+    if (refreshing || stopping) return;
+    refreshing = true;
+    try {
+      if (codex && !codex.thread) {
+        const thread = await codex.loadedThread();
+        if (thread) bindThread(thread);
+      }
+      const title = codex ? (codex.thread ? await codex.threadName() : undefined)
+        : opencode ? (opencode.session ? await opencode.title() : undefined)
+        : await claudeTitle(session.file!);
+      if (title && title !== session.name) {
+        const used = new Set((await owner.ls()).filter(r => r.name !== name).map(r => r.descr));
+        let next = title;
+        for (let n = 2; used.has(next) || (next !== label && !bindings!.lock(`label:${next}`)); n++) next = `${title} #${n}`;
+        await owner.register({ name, kind: "agent", descr: next });
+        label = next;
+        session.name = title;
+        terminal?.set(next);
+        faceEnv.AGENT_BUS_DESCR = next;
+        writeFileSync(envFile, JSON.stringify(faceEnv), { mode: 0o600 });
+      }
+      if (push && !push.running()) log("bus push is inactive; restart this launcher to reconnect");
+    } catch (e) { log(`session metadata refresh failed: ${e}`); }
+    finally { refreshing = false; }
+  }, 2000);
+  log(`${label} → ${name}; bus tools configured${codex ? "; shared App Server ready" : opencode ? `; server ready on ${remote}` : "; channel activation requested"}`);
+  terminal.set(session.name ? label : undefined);
+  const tui = start([binary, ...runtimeArgs, ...titleArgs], { ...cleanEnv, ...faceEnv, ...tuiEnv });
+  if (serverChild) {
+    const what = codex ? "App Server" : "opencode server";
+    return await Promise.race([tui.exited, serverChild.exited.then(() => { throw new Error(`the ${what} stopped while the session was running`); })]);
+  }
+  return await tui.exited;
+}
+
+function claudeArgs(input: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < input.length; i++) {
+    const a = input[i]!;
+    if (a === "--permission-mode") { i++; continue; }
+    if (a.startsWith("--permission-mode=") || a === "--enable-auto-mode") continue;
+    out.push(a);
+  }
+  return out;
+}
+
+let code = 1;
+try { code = await main(); }
+catch (e) { log(e instanceof Error ? e.message : String(e)); }
+finally { await cleanup(); }
+process.exit(code);

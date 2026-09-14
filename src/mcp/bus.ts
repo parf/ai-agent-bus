@@ -47,12 +47,12 @@ export class Bus {
   readonly #addr: string;
   readonly #env: Record<string, string | undefined>;
 
-  constructor(env = process.env) {
+  constructor(env = process.env, allowLocal = false) {
     this.name = (env.AGENT_BUS_NAME || defaultName(env)).trim().toLowerCase();
     this.#token = env.AGENT_BUS_TOKEN ?? "";
     this.#addr = env.AGENT_BUS_ADDR ?? defaultSocket(env);
     this.#env = env;
-    if (!this.#token) throw new Error("set AGENT_BUS_TOKEN");
+    if (!this.#token && !(allowLocal && !this.#addr.startsWith("http://"))) throw new Error("set AGENT_BUS_TOKEN");
   }
 
   /** A principal's credential, asked for with this one's. The daemon allows
@@ -70,7 +70,7 @@ export class Bus {
     return new Bus({ ...this.#env, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: await this.token(name) });
   }
 
-  async #call(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<any> {
+  async #call(method: string, path: string, body?: unknown, signal?: AbortSignal, headers: Record<string, string> = {}): Promise<any> {
     const overTCP = this.#addr.startsWith("http://");
     const url = (overTCP ? this.#addr.replace(/\/$/, "") : "http://localhost") + path;
     const res = await fetch(url, {
@@ -80,8 +80,12 @@ export class Bus {
       headers: {
         "X-Agent-Bus-Token": this.#token,
         "Content-Type": "application/json",
+        ...headers,
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    }).catch((err: Error) => {
+      if (signal?.aborted) throw err;
+      throw new Error(`agent-bus ${method} ${path.split("?")[0]} failed at ${this.#addr}: ${err.message}`, { cause: err });
     });
     if (res.status === 204) return null; // nothing arrived before the deadline
 
@@ -90,13 +94,17 @@ export class Bus {
     return text ? JSON.parse(text) : null;
   }
 
-  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; no_master?: boolean }): Promise<Record_> {
-    return this.#call("POST", "/register", rec);
+  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; no_master?: boolean }, createOnly = false): Promise<Record_> {
+    return this.#call("POST", "/register", rec, undefined, createOnly ? { "If-None-Match": "*" } : {});
   }
 
   ls(kind?: string): Promise<Record_[]> {
     return this.#call("GET", "/ls" + (kind ? `?kind=${encodeURIComponent(kind)}` : ""));
   }
+
+  unregister(name: string): Promise<null> { return this.#call("POST", "/unregister", { name }); }
+
+  status(): Promise<{ you: string }> { return this.#call("GET", "/status"); }
 
   // A send that fails after the request left is not a send that did not
   // happen. The daemon does not deduplicate, so the caller is told the
@@ -125,14 +133,14 @@ export class Bus {
 // name, so it derives one: runtime plus where it is working, which is how a
 // human refers to a session anyway. The NATS version names channels the same way.
 // The rule is docs/01-identity.md#names — a-z0-9._- either side, 64 total.
-export function defaultName(env: NodeJS.ProcessEnv = process.env): string {
+export function defaultName(env: NodeJS.ProcessEnv = process.env, separator: "." | "/" = "."): string {
   const realm = slug(env.AGENT_BUS_REALM || hostname());
   const runtime = slug(env.AGENT_BUS_RUNTIME || "agent");
   const where = slug(env.AGENT_BUS_CWD || process.cwd());
   // Trim from the front: the tail of a path is the part that identifies it.
   const room = MAX_NAME - realm.length - 1 - runtime.length - 1;
   const tail = where.length > room ? where.slice(where.length - room) : where;
-  return `${runtime}.${trimEdges(tail)}@${realm}`;
+  return `${runtime}${separator}${trimEdges(tail)}@${realm}`;
 }
 
 const MAX_NAME = 64;

@@ -1,4 +1,5 @@
 {
+  "include": ["*.ts", "../launchers/*.ts"],
   "compilerOptions": {
     "lib": ["ESNext"],
     "target": "ESNext",
