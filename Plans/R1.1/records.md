@@ -107,16 +107,30 @@ That keeps the axis clean. A **declared** state is a decision somebody made and
 the registry holds; **observed** is what the health checker concluded
 ([health checker](../R1/discovery.md#health-checker)); and this is neither —
 it is the service answering for itself, in the moment, and gone the moment it
-is true again. A record that could be marked briefly-down would be a fourth
-thing to keep in step with the other three and stale the second nobody updated
+is true again. A record that could be marked briefly-down would be a third
+thing to keep in step with the other two, and stale the second nobody updated
 it.
 
-⚠️ **`503` already has a meaning from the daemon**: the receiver's queue is at
-its bound ([overflow](../../docs/04-messaging.md#overflow)), counted as `full`.
-A caller seeing 503 is being told *not now* either way, which is why the
-overlap is tolerable — but the two come from different places and only one of
-them is counted as a refusal here. Whether that needs telling apart on the wire
-is [Q48](QUESTIONS.md#open-questions).
+**`503` says one thing here, so a full inbox stops saying it.** The daemon
+answers `503` today when the receiver's queue is at its bound
+([overflow](../../docs/04-messaging.md#overflow)). That leaves a caller unable
+to tell *the service is restarting* from *the reader is behind* — two problems
+with different owners and different fixes. A full inbox becomes **`429`**,
+which is what it actually means: the sender is outrunning the reader and should
+slow down. `503` is then the service's own, and the only thing on this bus that
+says it.
+
+The counted reason does not move with it: a full inbox is still `full`
+([refusals](../../docs/05-discovery.md#refusals)), so the totals and the
+dashboard read the same. This is a change to built MVP behaviour, kept here
+until it is scheduled.
+
+Telling them apart also matters less often than it looks, and that is not a
+reason to skip it. A daemon refusal arrives from the bus; a service's own
+answer arrives from the service, where [`protocol`](../../docs/03-services-and-topics.md#how-to-call-it)
+says the caller speaks to it directly — different endpoints, usually a caller
+that knows which it asked. The codes make it true on every path, including one
+where something answers on a service's behalf.
 
 ### Retired is not the reservation that was removed
 
@@ -134,8 +148,8 @@ entry** has no representation for a record that is gone
 from whichever peer still holds it. A retired one is a record, and syncs like
 any other.
 
-Whether the two `503`s a caller can meet need telling apart on the wire is
-[Q48](QUESTIONS.md#open-questions).
+Nothing here is open. Scheduling the `429` change to a built behaviour is
+[TODO](TODO.md#objective) work.
 
 ## How long a record lives
 

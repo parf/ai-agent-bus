@@ -25,6 +25,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Date | Decision | Why | Substance |
 |---|---|---|---|
 | 2026-09-15 | Two declared states: down and retired | *Not today* and *not ever* are different instructions to a caller | [down and retired](records.md#down-and-retired) |
+| 2026-09-15 | A full inbox answers `429`, leaving `503` to the service alone | *The reader is behind* and *the service is restarting* are different problems with different owners; the counted reason `full` is unchanged | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
 | 2026-09-15 | Briefly unavailable is not settable; a service returns it over the protocol | Only the thing restarting knows it is, and a record marked so is stale the moment nobody updates it | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
 | 2026-09-15 | `down` is the record already called disabled, not a state beside it | One behaviour with two names would be two truths about one thing | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | No declared state answers `500` | Down is deliberate and a 500 is the daemon saying it broke; the two are opposite claims, and a 500 is uncounted as a refusal | [down and retired](records.md#down-and-retired) |
