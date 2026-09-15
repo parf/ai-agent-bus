@@ -61,7 +61,17 @@ export class Bindings {
     const path = join(this.dir, `${hash(key)}.lock`);
     if (this.#locks.includes(path)) return true;
     try { mkdirSync(path, { mode: 0o700 }); }
-    catch (e: any) { if (e.code === "EEXIST") return false; throw e; }
+    catch (e: any) {
+      if (e.code !== "EEXIST") throw e;
+      // close() removes these, but nothing runs on SIGKILL or a reboot, and a
+      // lock held by a process that no longer exists is not a lock — leaving
+      // it is how one directory ends up launching thing.2, .3, .4 forever.
+      // Same-user only: another account's pid is not ours to judge.
+      if (!this.#abandoned(path)) return false;
+      rmSync(path, { recursive: true, force: true });
+      try { mkdirSync(path, { mode: 0o700 }); }
+      catch (again: any) { if (again.code === "EEXIST") return false; throw again; }
+    }
     this.#locks.push(path);
     writeFileSync(join(path, "pid"), String(process.pid), { mode: 0o600 });
     return true;
@@ -85,5 +95,16 @@ export class Bindings {
   }
   file(id: string): string { return join(this.dir, `${hash(`${this.runtime}:${id}`)}.json`); }
   save(id: string, name: string, base: string): void { writeFileSync(this.file(id), JSON.stringify({ name, base }), { mode: 0o600 }); }
+  // A lock is abandoned when its recorded pid is gone. An unreadable or
+  // empty pid file is treated as abandoned too: it is a lock nothing can ever
+  // release. EPERM means the process exists under another account, so it is
+  // held, not abandoned.
+  #abandoned(path: string): boolean {
+    let pid = 0;
+    try { pid = Number(readFileSync(join(path, "pid"), "utf8").trim()); } catch { return true; }
+    if (!Number.isInteger(pid) || pid <= 0) return true;
+    try { process.kill(pid, 0); return false; }
+    catch (e: any) { return e.code !== "EPERM"; }
+  }
   close(): void { for (const path of this.#locks.splice(0)) rmSync(path, { recursive: true, force: true }); }
 }

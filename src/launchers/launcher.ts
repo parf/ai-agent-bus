@@ -18,6 +18,12 @@ import { serveControl } from "./control.ts";
 const runtime = process.argv[2];
 const args = process.argv.slice(3);
 const log = (s: string) => console.error(`ab-${runtime}: ${s}`);
+// Good news goes to stdout and says so. Routing it through log() put it on
+// stderr, where a terminal colours it like the failures it sits beside.
+const paint = process.stdout.isTTY && !process.env.NO_COLOR;
+const note = (s: string) => console.log(paint
+  ? `\x1b[32m\u25a0\x1b[0m \x1b[1magent-bus\x1b[0m: \x1b[90m${s}\x1b[0m`
+  : `agent-bus: ${s}`);
 const option = (names: string[]) => {
   for (let i = 0; i < args.length; i++) for (const n of names) {
     if (args[i]!.startsWith(n + "=")) return args[i]!.slice(n.length + 1);
@@ -410,7 +416,7 @@ See docs/08-runner-role.md#smart-launchers.`);
     }); } catch (e) { log(`session metadata refresh failed: ${e}`); }
     finally { refreshing = false; }
   }, 2000);
-  log(`${label} → ${name}; bus tools configured${codex ? "; shared App Server ready" : opencode ? `; server ready on ${remote}` : "; channel activation requested"}`);
+  note(`${label} → ${name}; bus tools configured${codex ? "; shared App Server ready" : opencode ? `; server ready on ${remote}` : "; channel activation requested"}`);
   terminal.set(session.name ? label : undefined);
   const tui = start([binary, ...runtimeArgs, ...titleArgs], { ...cleanEnv, ...faceEnv, ...tuiEnv });
   if (serverChild) {
