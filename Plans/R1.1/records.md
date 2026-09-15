@@ -123,22 +123,38 @@ service, where [`protocol`](../../docs/03-services-and-topics.md#how-to-call-it)
 says the caller speaks to it directly. Different endpoints, and usually a
 caller that knows which one it asked.
 
-⚠️ **For an ordinary bus service, nothing carries that `503` today.** A service
-with no `protocol` is reached through its inbox, and a service that is
-restarting is not reading its inbox — so the one thing that knows it is warming
-up has no way to say so, and the caller sees what it would see from a service
-that is merely slow. The answer works where `protocol` is set, because there
-the caller is talking to the service. Something reading the inbox on the
-service's behalf — a runner or gateway
-([adapters](../../docs/08-runner-role.md#adapters)) — could answer for it, but
-nothing requires one to exist, and the common case has none.
+**For an ordinary bus service that `503` never arrives, so the daemon answers
+instead.** A service with no `protocol` is reached through its inbox, and a
+service that is restarting is not reading its inbox — so the one thing that
+knows it is warming up has no way to say so. The service's own `503` still
+works where `protocol` is set, because there the caller is talking to the
+service. Everywhere else, what the caller gets is not the service's answer but
+the daemon's observation, and it is two things:
 
-So the state is settled and its delivery is not: what reaches a caller waiting
-on an inbox is [open](QUESTIONS.md#open-questions). **Declaring `down` is
-unaffected**, and that is the point of the split — a declared state is the
-registry's answer, given by the daemon when the send arrives, and it needs no
-cooperation from a process that is not running. `503` is the one answer that
-does.
+| | |
+|---|---|
+| **The daemon says whether anybody is reading** | `reading` is not a heartbeat that can go stale: it is the readers actually blocked on that inbox, so at the instant of a send the daemon knows whether this will be picked up. The answer to the send carries it |
+| **A missing `ack` says nobody took it** | A service acks the moment it picks a message up, so silence where an ack belongs already says nobody did. Nothing new is needed for this one; it wants writing down |
+
+**Neither refuses the send.** The name owns a queue whether or not anything is
+reading it, which is what a queue is *for*: the message is accepted and waits,
+exactly as before. What changes is that a caller is told, instead of spending
+its whole wait on silence and learning nothing at the end of it.
+
+**It says *not now*, and does not pretend to say why.** The daemon cannot tell
+restarting from crashed from between two reads, and claims none of them. All
+three mean nobody will answer this moment, which is the only thing the caller
+was going to act on. Which one it is is observed state, and belongs to the
+[health checker](../R1/discovery.md#health-checker).
+
+Something reading the inbox on the service's behalf — a runner or gateway
+([adapters](../../docs/08-runner-role.md#adapters)) — can still answer a real
+`503` for it, and nothing here stops it. It is no longer the only thing that
+can.
+
+**Declaring `down` is unaffected**, and that is the point of the split: a
+declared state is the registry's answer, given when the send arrives, needing
+no cooperation from a process that is not running.
 
 ### Retired is not the reservation that was removed
 
@@ -156,9 +172,8 @@ entry** has no representation for a record that is gone
 from whichever peer still holds it. A retired one is a record, and syncs like
 any other.
 
-The states and their codes are settled; how a `503` reaches a caller waiting on
-an inbox is [open](QUESTIONS.md#open-questions). Scheduling the `429` change to
-a built behaviour is [TODO](TODO.md#objective) work.
+Nothing here is open. Scheduling the `429` change to a built behaviour, and
+telling a caller that nobody is reading, are [TODO](TODO.md#objective) work.
 
 ## How long a record lives
 

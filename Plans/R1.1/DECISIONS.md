@@ -38,6 +38,9 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-15 | Declaring and undoing are the same authority, in both directions | Nobody should be able to make a change they cannot reverse; the service has nothing left to ask with, so it is a person's act, made with their own credential | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | Each declared state answers with its own code and words, and never *no such name* | A caller cannot tell *no such name* from a typo, and a refusal it cannot act on is not an answer | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | Retirement is where a name is protected, and R1.2's removed-names topic is retired with it | A name deliberately kept costs one record; reserving every removed one is what MVP paid for and dropped | [down and retired](records.md#down-and-retired) |
+| 2026-09-15 | A caller waiting on an inbox is told by the daemon that nobody is reading, not by the service | The service is the one thing that cannot answer while it is restarting; `reading` is the readers actually blocked on that inbox, so the daemon knows at the instant of the send | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
+| 2026-09-15 | A missing `ack` is the second half, and is already true | A service acks the moment it picks a message up, so silence where an ack belongs already says nobody did; this one wants writing down rather than building | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
+| 2026-09-15 | Neither refuses the send | The name owns a queue whether or not anything reads it, which is what a queue is for; the caller is told, and the message still waits | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
 
 ## Runtime integration scope revision
 

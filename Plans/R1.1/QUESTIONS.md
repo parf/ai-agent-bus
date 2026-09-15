@@ -11,7 +11,6 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q26 | Whether `kv` is optional, given that it is where service configuration would live | owner | [bundled services § data](services.md#data) |
 | Q31 | Who may read contact routes: everyone, administrators, or a narrower service audience | owner | [context](people.md#how-to-reach-a-person) |
 | Q32 | Whether record expiry and service credentials are allowed to change the daemon despite the former whole-stage no-change criterion | owner | [context](README.md#scope) |
-| Q49 | What carries a restarting service's `503` to a caller waiting on its inbox, when the service is not reading that inbox | owner | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
 
 ## Services context
 
