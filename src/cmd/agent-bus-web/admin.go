@@ -236,8 +236,8 @@ var serviceList = template.Must(template.New("services").Parse(head + adminNav +
 <h1>{{if .Channels}}Registered channels{{else}}Registered services{{end}}</h1>
 <form method=get><label>Scope <select name=scope><option value=all>All visible</option><option value=my {{if eq .Mine "my"}}selected{{end}}>My</option></select></label>
 <label>Availability <select name=state><option value=all>All</option><option value=active {{if eq .State "active"}}selected{{end}}>Active</option><option value=inactive {{if eq .State "inactive"}}selected{{end}}>Inactive</option></select></label> <button>Filter</button></form>
-<table><tr><th>Name<th>Owner<th>Availability<th>Reader<th>Queued<th>Controls</tr>
-{{range .Records}}<tr><td><a href="/service?name={{.Name}}">{{.Name}}</a><td>{{.Owner}}<td>{{if .Disabled}}Inactive{{else}}Active{{end}}<td>{{if .Proto}}External{{else if .Reading}}Serving{{else}}Offline{{end}}<td>{{.Queued}}<td>{{if .CanManage}}Manage{{else}}View{{end}}</tr>{{else}}<tr><td colspan=6>No matching records</tr>{{end}}</table>
+<table><tr><th>Name<th>Owner<th>Availability<th>Reader<th>Queued<th>Updated<th>Controls</tr>
+{{range .Records}}<tr><td><a href="/service?name={{.Name}}">{{.Name}}</a><td>{{.Owner}}<td>{{if .Disabled}}Inactive{{else}}Active{{end}}<td>{{if .Proto}}External{{else if .Reading}}Serving{{else}}Offline{{end}}<td>{{.Queued}}<td>{{if .At.IsZero}}<span class=muted>unknown</span>{{else}}{{.At.Format "2006-01-02 15:04"}}{{end}}<td>{{if .CanManage}}Manage{{else}}View{{end}}</tr>{{else}}<tr><td colspan=7>No matching records</tr>{{end}}</table>
 <h2>Register {{if .Channels}}channel{{else}}service{{end}}</h2>
 <form method=post action=/service><input type=hidden name=action value=create>
 <label>Name <input name=name required placeholder="name@realm"></label><p><label>Description <input name=descr></label></p>
@@ -246,6 +246,7 @@ var serviceList = template.Must(template.New("services").Parse(head + adminNav +
 var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join}).Parse(head + adminNav + `
 {{with .Record}}<h1>{{.Name}}</h1><p>Owner: {{.Owner}} · Maintainers: {{.Maintainers}} · {{if .Disabled}}Inactive{{else}}Active{{end}}</p>
 <p>Reader: {{if .Proto}}external{{else if .Reading}}serving{{else}}offline{{end}} · {{.Queued}} queued · oldest {{.Oldest}} · {{.Dropped}} dropped · {{.Expired}} expired {{if .AtBound}}· full{{end}}</p>
+<p>Updated: {{if .At.IsZero}}unknown{{else}}{{.At.Format "2006-01-02 15:04:05"}}{{end}}</p>
 <p>Configuration digest: <code>{{.ConfigSHA}}</code></p>
 {{if eq .Mode "pubsub"}}<h2>Subscriptions</h2>
 {{range .Subs}}<p>{{.}}{{if $.Record.CanManage}}<form method=post action=/service><input type=hidden name=name value="{{$.Record.Name}}"><input type=hidden name=subscriber value="{{.}}"><button name=action value=remove-subscriber>Remove subscription</button></form>{{end}}</p>{{else}}<p>No subscribers</p>{{end}}

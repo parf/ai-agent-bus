@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.15 — 2026-09-15
+
+The dashboard's service and channel listings, and a record's own page, show when the record was last written.
+
+## 0.5.15 — 2026-09-15
+
+The name list says whose each credential is and what it is for, so a person can tell their own identity from the services they registered. A credential whose address is gone is marked as a leftover rather than shown as if something answered on it; it is still held, because that is what reclaims the name and what stops a stranger taking it.
+
 ## 0.5.14 — 2026-09-15
 
 The API root sends a browser to the dashboard instead of answering nothing: an exact-root 303 to `-dashboard` / `AGENT_BUS_DASHBOARD`, leaving a mistyped route its 404. One package now owns where the dashboard is reached.
