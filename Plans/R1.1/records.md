@@ -28,14 +28,16 @@ should do; nothing in the bus holds a refused send and tries again later, and
 nothing here proposes that it should. The states already settled what happens
 to traffic meanwhile: what is queued stays, what is new is refused.
 
-⚠️ **`500` cannot be the middle one.** A 500 is the daemon's own fault and is
-deliberately **not counted as a refusal**, so that *"how often am I refusing
-callers?"* is not answered with a number that includes our bugs
-([refusals](../../docs/05-discovery.md#refusals)). A deliberate act by a
-record's owner answered as a server fault would be indistinguishable from a
-daemon bug, in the logs and in the counters. What the middle state answers
-instead is [Q47](QUESTIONS.md#open-questions); `409` is what a disabled record
-answers today, and `503` with a retry hint is the other candidate.
+**None of the three is a `500`, because none of them is a fault.** A service
+that is down is down *on purpose* — somebody decided it — and a 500 is the
+daemon saying it broke. They are opposite claims. The distinction is also
+counted: a 500 is deliberately **left out of the refusal totals**, so that
+*"how often am I refusing callers?"* is not answered with a number that
+includes our bugs ([refusals](../../docs/05-discovery.md#refusals)). An owner's
+decision answered as a server fault would be invisible there and
+indistinguishable from a daemon bug in the log.
+
+Which code the middle state does answer is [Q47](QUESTIONS.md#open-questions).
 
 **Nothing new accumulates is not the same as nothing is there.** A backlog
 already in the inbox is kept; what is refused is anything new. That is exactly
