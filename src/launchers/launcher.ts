@@ -17,13 +17,18 @@ import { serveControl } from "./control.ts";
 
 const runtime = process.argv[2];
 const args = process.argv.slice(3);
-const log = (s: string) => console.error(`ab-${runtime}: ${s}`);
-// Good news goes to stdout and says so. Routing it through log() put it on
-// stderr, where a terminal colours it like the failures it sits beside.
-const paint = process.stdout.isTTY && !process.env.NO_COLOR;
-const note = (s: string) => console.log(paint
-  ? `\x1b[32m\u25a0\x1b[0m \x1b[1magent-bus\x1b[0m: \x1b[90m${s}\x1b[0m`
-  : `agent-bus: ${s}`);
+// One line shape for everything we say, with the square carrying the state:
+// green is fine, orange is worth knowing, red is broken. Good news goes to
+// stdout; anything the user may need to act on goes to stderr, which is also
+// where a terminal would have coloured it red whatever we meant.
+const colour = (stream: NodeJS.WriteStream) => stream.isTTY && !process.env.NO_COLOR;
+const say = (stream: NodeJS.WriteStream, code: string, s: string) =>
+  stream.write(colour(stream)
+    ? `\x1b[${code}m\u25a0\x1b[0m \x1b[1magent-bus\x1b[0m: \x1b[90m${s}\x1b[0m\n`
+    : `agent-bus: ${s}\n`);
+const note = (s: string) => say(process.stdout, "32", s);          // green: done
+const warn = (s: string) => say(process.stderr, "38;5;208", s);    // orange: notice
+const log = (s: string) => say(process.stderr, "31", s);           // red: broken
 const option = (names: string[]) => {
   for (let i = 0; i < args.length; i++) for (const n of names) {
     if (args[i]!.startsWith(n + "=")) return args[i]!.slice(n.length + 1);
@@ -111,7 +116,7 @@ See docs/08-runner-role.md#smart-launchers.`);
   const titleArgs = runtime === "codex" && terminal.active ? ["-c", "tui.terminal_title=[]"] : [];
   const configured = !!process.env.AGENT_BUS_TOKEN || !!process.env.AGENT_BUS_ADDR;
   if (!configured) {
-    log("bus is not configured; starting a plain runtime session");
+    warn("bus is not configured; starting a plain runtime session");
     if (runtime === "claude") {
       const sessions = await claudeSessions(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), cwd);
       terminal.set(option(["-n", "--name"]) || sessions[0]?.name || undefined);
@@ -278,7 +283,7 @@ See docs/08-runner-role.md#smart-launchers.`);
   if (previous && previous.name !== name) {
     try { await owner.unregister(previous.name); }
     catch (e) {
-      if (!(e instanceof BusError && e.status === 404)) log(`new address ${name}; old address ${previous.name} retained: ${e}`);
+      if (!(e instanceof BusError && e.status === 404)) warn(`new address ${name}; old address ${previous.name} retained: ${e}`);
     }
   }
   const token = await owner.token(name);
@@ -412,11 +417,11 @@ See docs/08-runner-role.md#smart-launchers.`);
         faceEnv.AGENT_BUS_DESCR = next;
         saveEnv();
       }
-      if (push && !push.running()) log("bus push is inactive; restart this launcher to reconnect");
-    }); } catch (e) { log(`session metadata refresh failed: ${e}`); }
+      if (push && !push.running()) warn("bus push is inactive; restart this launcher to reconnect");
+    }); } catch (e) { warn(`session metadata refresh failed: ${e}`); }
     finally { refreshing = false; }
   }, 2000);
-  note(`${label} → ${name}; bus tools configured${codex ? "; shared App Server ready" : opencode ? `; server ready on ${remote}` : "; channel activation requested"}`);
+  note(`${label} → ${name}`);
   terminal.set(session.name ? label : undefined);
   const tui = start([binary, ...runtimeArgs, ...titleArgs], { ...cleanEnv, ...faceEnv, ...tuiEnv });
   if (serverChild) {
