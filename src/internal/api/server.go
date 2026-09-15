@@ -337,6 +337,11 @@ func (s *Server) subscribe(w http.ResponseWriter, r *http.Request, caller protoc
 func (s *Server) unregister(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct{ Name string }
 	if read(w, r, &in) {
+		// The credential deliberately outlives the address: it is what lets
+		// the holder come back, and what stops a stranger claiming the name
+		// (smoke.sh "unregister does not free a credential identity for
+		// takeover"). Removing it here would make removing an address a way
+		// to lose a name. A holder who wants it gone asks for that.
 		s.reply(w, nil, s.bus.Unregister(in.Name, caller.String()))
 	}
 }
@@ -462,7 +467,27 @@ func (s *Server) recent(w http.ResponseWriter, r *http.Request, caller protocol.
 // itself. Only ever your own: asking about somebody else's credentials is a
 // question with no good answer. See docs/02-access.md#token-lifetime.
 func (s *Server) names(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	ok(w, s.tokens.Holds(s.bus.Owned(caller.String())))
+	held := s.tokens.Holds(s.bus.Owned(caller.String()))
+	// Who it belongs to and what it is for. The registry knows, the
+	// credential store does not, and a name list that cannot tell a person
+	// from a service cannot be read (docs/05-discovery.md#dashboard).
+	for i := range held {
+		// A person first, and whatever they have registered second: an
+		// identity may also hold a record of its own, and calling that a
+		// service would put the one row this rule never touches under the
+		// same word as the rows it does.
+		if s.bus.IsPerson(held[i].Name) {
+			held[i].Owner, held[i].Kind = held[i].Name, "person"
+		} else if rec, known := s.bus.Lookup(caller.String(), held[i].Name); known {
+			held[i].Owner, held[i].Kind = rec.Owner, rec.Kind
+		} else {
+			// Owned, credentialed, but nothing registered under it: an
+			// address that was removed without its credential going too,
+			// which is what this release stops happening.
+			held[i].Owner, held[i].Kind = caller.String(), "unregistered"
+		}
+	}
+	ok(w, held)
 }
 
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
