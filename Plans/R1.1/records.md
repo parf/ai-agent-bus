@@ -118,12 +118,27 @@ code is for — leaving `503` to the service alone. That is
 tell *the service is restarting* from *the reader is behind*, two problems with
 different owners and different fixes.
 
-Telling them apart also matters less often than it looks, and that is not a
-reason to skip it. A daemon refusal arrives from the bus; a service's own
-answer arrives from the service, where [`protocol`](../../docs/03-services-and-topics.md#how-to-call-it)
-says the caller speaks to it directly — different endpoints, usually a caller
-that knows which it asked. The codes make it true on every path, including one
-where something answers on a service's behalf.
+A daemon refusal arrives from the bus; a service's own answer arrives from the
+service, where [`protocol`](../../docs/03-services-and-topics.md#how-to-call-it)
+says the caller speaks to it directly. Different endpoints, and usually a
+caller that knows which one it asked.
+
+⚠️ **For an ordinary bus service, nothing carries that `503` today.** A service
+with no `protocol` is reached through its inbox, and a service that is
+restarting is not reading its inbox — so the one thing that knows it is warming
+up has no way to say so, and the caller sees what it would see from a service
+that is merely slow. The answer works where `protocol` is set, because there
+the caller is talking to the service. Something reading the inbox on the
+service's behalf — a runner or gateway
+([adapters](../../docs/08-runner-role.md#adapters)) — could answer for it, but
+nothing requires one to exist, and the common case has none.
+
+So the state is settled and its delivery is not: what reaches a caller waiting
+on an inbox is [open](QUESTIONS.md#open-questions). **Declaring `down` is
+unaffected**, and that is the point of the split — a declared state is the
+registry's answer, given by the daemon when the send arrives, and it needs no
+cooperation from a process that is not running. `503` is the one answer that
+does.
 
 ### Retired is not the reservation that was removed
 
@@ -141,8 +156,9 @@ entry** has no representation for a record that is gone
 from whichever peer still holds it. A retired one is a record, and syncs like
 any other.
 
-Nothing here is open. Scheduling the `429` change to a built behaviour is
-[TODO](TODO.md#objective) work.
+The states and their codes are settled; how a `503` reaches a caller waiting on
+an inbox is [open](QUESTIONS.md#open-questions). Scheduling the `429` change to
+a built behaviour is [TODO](TODO.md#objective) work.
 
 ## How long a record lives
 
