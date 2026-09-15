@@ -80,9 +80,11 @@ The overview is a summary of existing MVP views. It must not acquire the R1 oper
 | A missing receipt looks like unfinished execution | “No completion observed in retained history”; absence from a bounded feed is not failure or pending work |
 | Dates have no timezone and several meanings | Label registration update, observation time, credential issue/use and history interval separately; use one explicit display timezone, with full timestamps available |
 
+The same declared-versus-observed distinction is used in [R1.1 record states](../R1.1/records.md#down-and-retired); this link does not promote those states into MVP.
+
 ## Data coverage
 
-This is an inventory of existing information and missing observations, not a proposed schema. The [audit snapshot](done/web-review.md#live-data) records the inspected installation separately from these recommendations.
+This is an inventory of existing information and missing observations, not a proposed schema. The snapshot followed reported test-record cleanup and is not evidence of the installation's normal workload. The [audit snapshot](done/web-review.md#live-data) records the inspected installation separately from these recommendations.
 
 | Information | Availability and source | MVP presentation or gap |
 |---|---|---|
@@ -91,17 +93,17 @@ This is an inventory of existing information and missing observations, not a pro
 | Queue condition and totals | Built: [listing observations](../../docs/05-discovery.md#what-a-listing-answers) | Put oldest/full/loss information beside the relevant name; separate instantaneous observations from accumulated totals |
 | Effective inherited queue settings | The daemon resolves defaults internally; [public records](../../src/internal/protocol/envelope.go) retain unset/inherited settings | Show inheritance honestly now. A resolved value requires a narrow daemon read addition; never copy daemon defaults into templates |
 | Channels and subscriptions | Built: [topics](../../docs/03-services-and-topics.md#topics), [subscribers](../../docs/04-messaging.md#subscribers) | Display delivery mode and visible relationships; shared service layout currently conceals this distinction |
-| Profiles, authority and owned services | Built: [user view construction](../../src/internal/core/users.go) | Presentation gap plus an identity-origin gap: the current answer merges profiles, self-owned records and unregistered credential holders |
+| Profiles, authority and owned services | Built: [user view construction](../../src/internal/core/users.go) | The answer merges profiles, self-owned records and unregistered credential holders. Exposing known origin helps current entries; a new field cannot reconstruct lost historical provenance. See the [credential investigation](done/web-review.md#credential-provenance) |
 | Group membership and references | Membership is role-filtered; references can be joined from visible records: [groups](../../src/internal/core/manage.go) | Do not show membership-hidden as zero. A complete hidden-resource reference count would need an authorized daemon answer |
 | Traffic history | Built: [sampling and aggregation](../../src/internal/core/activity.go) | Use actual timestamps, visible scope, restart boundary and partial-interval marking. Fan-out and read refusals make these unsuitable for a generic “successful calls” metric |
 | Exchanges and receipts | Built envelope references: [envelope](../../src/internal/protocol/envelope.go), [bounded feed](../../src/internal/core/recent.go) | Preserve request IDs and receipt references in diagnostics; current grouping discards them. Do not invent a durable trace or a completion percentage |
-| Node totals and refusal reasons | Built: [status response](../../src/internal/api/server.go), [global totals](../../src/internal/core/bus.go) | Global status and caller-filtered lists are different scopes. Q41 in [open questions](QUESTIONS.md#open-questions) must settle visibility before these become overview metrics |
+| Node totals and refusal reasons | Built: [status response](../../src/internal/api/server.go), [global totals](../../src/internal/core/bus.go) | Global status and caller-filtered lists are different scopes. Q50 in [open questions](QUESTIONS.md#open-questions) must settle visibility before these become overview metrics |
 | Credential fingerprints | Built: [held credentials](../../src/internal/auth/tokens.go), [names response](../../src/internal/api/server.go) | Move from the long diagnostics page to the account area; credential age is not automatic expiry |
 | Node label and running build | Version/build exist in [program version output](../../docs/09-setup.md#build-information); the inspected status answer does not supply them or a node name | Useful narrow read addition for the node area. Do not label the web executable's version as the bus version or derive a node hostname from a principal realm |
 | Process PID, runtime session ID, cwd, process start, OS uptime | Some session bookkeeping is local to [launchers](../../src/launchers/sessions.ts); the bus record does not expose this set | The requested familiar session view can use descriptions now. A real process inventory requires producer support and explicit scope; the web child must not scrape launcher homes or `/proc` |
 | Health, execution results, latency distributions, audit history | Not supplied by the inspected MVP dashboard data | Keep [R1 extensions](../R1/discovery.md#dashboard-extensions) separate. Do not fill absent data with green badges, zeroes or fabricated history |
 
-Q42 in [open questions](QUESTIONS.md#open-questions) owns the legacy identity-classification choice. No automatic deletion, token rotation or name-based reclassification belongs to this redesign.
+Q51 in [open questions](QUESTIONS.md#open-questions) owns presentation and manual retention review for identities without recoverable provenance. Unclassified is a durable outcome unless independent evidence appears, not a promise of later automatic classification. Record expiry cannot address credentials that have no record; the [manual credential lifetime](../../docs/02-access.md#token-lifetime) remains the boundary.
 
 ## Visual direction
 
@@ -157,6 +159,8 @@ No-script and no-CDN are different decisions. Self-hosting a library removes ext
 These references supply interaction and accessibility patterns, not a request to clone their branding or import their frontend packages.
 
 ## Boundaries and handoff
+
+Q52 in [open questions](QUESTIONS.md#open-questions) owns the unresolved missing-certificate startup policy; this redesign does not choose a transport-policy change.
 
 The [execution plan](TODO.md#web-redesign) handles visual design, data semantics, shared presentation, feature migration and installed acceptance separately. Existing isolation and crash-recovery gates remain release blockers; a redesigned page does not close them.
 

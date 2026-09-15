@@ -32,6 +32,7 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 - **Promote on acceptance.** When future scope becomes current, move its accepted substance to the owning current doc, update built/pending status and links, and leave plan history pointing to that home. Do not maintain competing copies.
 - **Decisions need two edits.** Put substance in its owning current doc or future plan topic, and add a named link in `docs/decisions.md` for current scope or the owning plan's `DECISIONS.md` for future scope. A row names the decision; it does not restate values. Remove its resolved question at the same time.
 - **Revising decisions.** Change the substance, record the replacement, and move the old decision reference to superseded history. Do not reopen a settled decision without an owner reason; an implementation gap is pending work, not a new decision.
+- **Question IDs.** One namespace across all plans, including settled questions. Check decision records and Git history before allocating an ID; never reuse one merely because its question was removed.
 - **Open choices.** The owning plan's QUESTIONS file is canonical. A topic points to the question rather than copying it. Preserve unresolved contradictions as questions; never silently pick a mechanism.
 - **Section links.** Cross-references target the defining section, with short labels. Prefer plain-word headings and stable anchors. Historical snapshots are labeled history and do not override active knowledge.
 
