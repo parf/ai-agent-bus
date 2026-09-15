@@ -14,6 +14,7 @@ cd "$(dirname "$0")"
 src="$(pwd -P)"
 
 progs=(agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web)
+launchers=(ab-claude ab-codex ab-opencode)
 bindir=/usr/local/bin
 unit=agent-busd.service
 want=/usr/local/src
@@ -89,7 +90,28 @@ fi
 for p in "${progs[@]}"; do
     ln -sfn "$src/$p" "$bindir/$p"
 done
-echo "linked ${#progs[@]} programs to $src"
+# The launchers are TypeScript, which build.sh does not compile into the
+# checkout, so they only pick up an edit when run from here. Each ab-* prefers
+# a launcher.js beside itself, which is how a copied install goes on running a
+# stale bundle however often the source changes.
+for p in "${launchers[@]}"; do
+    ln -sfn "$src/launchers/$p" "$bindir/$p"
+done
+echo "linked ${#progs[@]} programs and ${#launchers[@]} launchers to $src"
+
+# A copy earlier in the owner's PATH wins silently, and the symptom is an edit
+# that never appears. Report it rather than reaching into somebody's home.
+# A login shell, because the owner's PATH is the one that decides; and resolved
+# paths, because /usr/local/sbin is a symlink to bin on some systems and would
+# otherwise report itself.
+owner=$(stat -c %U "$src")
+for p in "${launchers[@]}"; do
+    other=$(sudo -iu "$owner" sh -lc "command -v $p" 2>/dev/null || true)
+    if [ -n "$other" ] && [ "$(readlink -f "$other")" != "$(readlink -f "$bindir/$p")" ]; then
+        echo "warning: $other shadows $bindir/$p; point it here with" >&2
+        echo "    ln -sfn $src/launchers/$p $other" >&2
+    fi
+done
 
 systemctl restart "$unit"
 # active is not serving: the listener is up a moment after the unit is, and a
