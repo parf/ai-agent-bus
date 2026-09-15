@@ -83,6 +83,7 @@ func runBus(c config) {
 	}
 	bus.Directories(dirs, sshkeygen.New())
 	face := api.New(bus, tokens, me.String())
+	face.Dashboard(c.dash)
 
 	var srvs []*http.Server
 	serve := func(l net.Listener, h http.Handler) {

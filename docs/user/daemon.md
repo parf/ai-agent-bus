@@ -49,7 +49,7 @@ Four ways in, and they are not equal:
 |---|---|---|
 | 🥇 **your own socket** | `/run/agent-bus/user-<name>.sock` | one account. The socket **is** the credential — the kernel already knows who you are, so no token |
 | 🤝 **the shared socket** | `/run/agent-bus/bus.sock` | anyone on the machine, **with a token** |
-| 🌐 **loopback TCP** | `127.0.0.1:6767` | with a token. Refuses to bind anything that is not loopback ✅ |
+| 🌐 **loopback TCP** | `127.0.0.1:6767` | with a token. Refuses to bind anything that is not loopback ✅. Opened in a browser it sends you to the dashboard ([where it listens](../05-discovery.md#where-it-listens)) |
 | 🖥️ **the dashboard** | `agent-bus.localhost.direct:443`, or `8443` | a browser |
 
 The daemon **cannot** listen on a public address. That is not a setting — it

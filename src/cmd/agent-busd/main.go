@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/dashboard"
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/version"
@@ -33,6 +34,7 @@ const (
 
 type config struct {
 	addr, sock, tokenF, owner, dumpF string
+	dash                             string
 	every                            time.Duration
 	users                            accounts
 	hold, vouch                      masters
@@ -51,6 +53,7 @@ func main() {
 	flag.StringVar(&c.dumpF, "dump-file", env("AGENT_BUS_DUMP_FILE", defaultDumpFile()), "where the queues and stats are snapshotted")
 	flag.DurationVar(&c.every, "dump-every", time.Minute, "how often to snapshot while running; 0 turns the periodic dumper off")
 	flag.BoolVar(&c.web, "web", false, "run the dashboard as a child too (docs/05-discovery.md#dashboard)")
+	flag.StringVar(&c.dash, "dashboard", env("AGENT_BUS_DASHBOARD", dashboard.URL), "where a browser opening the API `url` is sent; empty serves no root at all")
 	flag.Var(&c.vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
 	flag.Var(&c.hold, "master", "a principal that reaches every service which has not refused it: `user@realm`; repeatable")
 	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")

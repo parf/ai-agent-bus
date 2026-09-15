@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.14 — 2026-09-15
+
+The API root sends a browser to the dashboard instead of answering nothing: an exact-root 303 to `-dashboard` / `AGENT_BUS_DASHBOARD`, leaving a mistyped route its 404. One package now owns where the dashboard is reached.
+
 ## 0.5.13 — 2026-09-13
 
 Coordinate `ab_rename` through the launcher so runtime titles, inbox readers, MCP credentials and saved session bindings move together; serialize concurrent renames and preserve the launching account’s ownership.

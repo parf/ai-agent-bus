@@ -217,7 +217,15 @@ hostname and a real certificate.
 |---|---|
 | the certificate and its key | `~/.local/state/agent-bus/agent-bus.localhost.direct.crt` and `.key`, overridable with `-cert` / `-key` |
 | the port | 443, falling back to 8443 when the process has no `CAP_NET_BIND_SERVICE` |
-| no certificate at all | plain HTTP on `127.0.0.1:7878`, announced in the log |
+| no certificate at all | plain HTTP on `127.0.0.1:6780`, announced in the log |
+
+**The API's own root sends a browser here.** `http://127.0.0.1:6767/` is the
+daemon, which has no page: a person who typed it in wanted the dashboard, and
+gets a redirect to it. Only the exact root — a mistyped route stays the 404 it
+is. The daemon cannot work the address out, because the port above depends on a
+certificate in another process, so it is told: `-dashboard`, or
+`AGENT_BUS_DASHBOARD`, defaulting to the name in this section. Empty serves no
+root at all.
 
 The pair comes from <https://get.localhost.direct/>: the **self-signed
 bundle**, `localhost.direct.SS.zip`, zip password `localhost`, good until

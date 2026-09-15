@@ -114,6 +114,24 @@ type Server struct {
 	// a credential for a name nobody owns yet — everyone else is limited to
 	// names they own. See docs/02-access.md#getting-a-token.
 	owner string
+	// Where a browser that arrived here is sent instead. Empty means the
+	// root is not served at all, which is what it was before.
+	dash string
+}
+
+// Dashboard says where a person who opened the API in a browser should have
+// gone. The daemon cannot work it out: the dashboard is a separate process
+// that picks its own port from whether it found a certificate
+// (docs/05-discovery.md#where-it-listens), so it is told rather than guessed.
+// Nowhere is a real answer, and it has to survive normalisation: an empty
+// url trimmed and re-slashed would be "/", which is this root redirecting to
+// itself for as long as the browser is willing.
+func (s *Server) Dashboard(url string) {
+	if url == "" {
+		s.dash = ""
+		return
+	}
+	s.dash = strings.TrimSuffix(url, "/") + "/"
 }
 
 func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
@@ -170,6 +188,15 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /enrol", func(w http.ResponseWriter, r *http.Request) {
 		s.enrol(w, r, protocol.Name{})
 	})
+	// The API has no page, and a person who typed its address into a browser
+	// wants the dashboard. `{$}` is the exact root and nothing below it: a
+	// mistyped route stays the 404 it is, rather than becoming a redirect
+	// that hides it. See docs/05-discovery.md#where-it-listens.
+	if s.dash != "" {
+		mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, s.dash, http.StatusSeeOther)
+		})
+	}
 	return mux
 }
 
@@ -310,6 +337,11 @@ func (s *Server) subscribe(w http.ResponseWriter, r *http.Request, caller protoc
 func (s *Server) unregister(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct{ Name string }
 	if read(w, r, &in) {
+		// The credential deliberately outlives the address: it is what lets
+		// the holder come back, and what stops a stranger claiming the name
+		// (smoke.sh "unregister does not free a credential identity for
+		// takeover"). Removing it here would make removing an address a way
+		// to lose a name. A holder who wants it gone asks for that.
 		s.reply(w, nil, s.bus.Unregister(in.Name, caller.String()))
 	}
 }
@@ -435,7 +467,27 @@ func (s *Server) recent(w http.ResponseWriter, r *http.Request, caller protocol.
 // itself. Only ever your own: asking about somebody else's credentials is a
 // question with no good answer. See docs/02-access.md#token-lifetime.
 func (s *Server) names(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	ok(w, s.tokens.Holds(s.bus.Owned(caller.String())))
+	held := s.tokens.Holds(s.bus.Owned(caller.String()))
+	// Who it belongs to and what it is for. The registry knows, the
+	// credential store does not, and a name list that cannot tell a person
+	// from a service cannot be read (docs/05-discovery.md#dashboard).
+	for i := range held {
+		// A person first, and whatever they have registered second: an
+		// identity may also hold a record of its own, and calling that a
+		// service would put the one row this rule never touches under the
+		// same word as the rows it does.
+		if s.bus.IsPerson(held[i].Name) {
+			held[i].Owner, held[i].Kind = held[i].Name, "person"
+		} else if rec, known := s.bus.Lookup(caller.String(), held[i].Name); known {
+			held[i].Owner, held[i].Kind = rec.Owner, rec.Kind
+		} else {
+			// Owned, credentialed, but nothing registered under it: an
+			// address that was removed without its credential going too,
+			// which is what this release stops happening.
+			held[i].Owner, held[i].Kind = caller.String(), "unregistered"
+		}
+	}
+	ok(w, held)
 }
 
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
