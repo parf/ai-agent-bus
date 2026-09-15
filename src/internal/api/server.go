@@ -191,10 +191,15 @@ func (s *Server) routes(g guard) http.Handler {
 	// The API has no page, and a person who typed its address into a browser
 	// wants the dashboard. `{$}` is the exact root and nothing below it: a
 	// mistyped route stays the 404 it is, rather than becoming a redirect
-	// that hides it. See docs/05-discovery.md#where-it-listens.
+	// that hides it.
+	//
+	// Permanent, because it is: this root will never grow a page of its own.
+	// The cost is that a browser may stop asking, so moving the dashboard
+	// afterwards is a thing to clear from a cache rather than to announce.
+	// See docs/05-discovery.md#where-it-listens.
 	if s.dash != "" {
 		mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, s.dash, http.StatusSeeOther)
+			http.Redirect(w, r, s.dash, http.StatusMovedPermanently)
 		})
 	}
 	return mux

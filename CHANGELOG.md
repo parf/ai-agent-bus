@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.18 — 2026-09-15
+
+The dashboard is `http://127.0.0.1:6780` and nothing else: the borrowed `localhost.direct` hostname, the certificate kept under that name and the 443/8443 binding fallback are gone, since the certificate that scheme existed for had expired. HTTPS remains for anyone who supplies `-cert` and `-key`. The API root's redirect to the dashboard is now `301`.
+
 ## 0.5.17 — 2026-09-15
 
 A removed name keeps nothing: no reservation for its last owner, and no credential. Whoever asks for a removed name next gets it, its previous owner included. Reserving it cost a permanent entry and a permanent credential per address — one launcher-smoke run left roughly 250 in one person's name list — for protection this stage does not need; restoring it is R1.2's.

@@ -14,7 +14,7 @@ import (
 // See docs/05-discovery.md#where-it-listens.
 func TestRootRedirectsToDashboard(t *testing.T) {
 	s, _ := serverFor(t, core.New(), "owner@h")
-	s.Dashboard("https://agent-bus.localhost.direct")
+	s.Dashboard("http://127.0.0.1:6780")
 	h := s.Handler()
 
 	get := func(path string) *httptest.ResponseRecorder {
@@ -27,14 +27,14 @@ func TestRootRedirectsToDashboard(t *testing.T) {
 	// No credential: the redirect is the one answer a browser can act on,
 	// and it carries nothing a caller could not have guessed.
 	w := get("/")
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("GET / answered %d, want %d", w.Code, http.StatusSeeOther)
+	if w.Code != http.StatusMovedPermanently {
+		t.Fatalf("GET / answered %d, want %d", w.Code, http.StatusMovedPermanently)
 	}
-	if got, want := w.Header().Get("Location"), "https://agent-bus.localhost.direct/"; got != want {
+	if got, want := w.Header().Get("Location"), "http://127.0.0.1:6780/"; got != want {
 		t.Fatalf("sent to %q, want %q", got, want)
 	}
 
-	if w := get("/no-such-route"); w.Code == http.StatusSeeOther {
+	if w := get("/no-such-route"); w.Code == http.StatusMovedPermanently {
 		t.Fatal("a mistyped route redirected; only the root is the dashboard's")
 	}
 
@@ -48,7 +48,7 @@ func TestRootRedirectsToDashboard(t *testing.T) {
 		}
 		w := httptest.NewRecorder()
 		quiet.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
-		if w.Code == http.StatusSeeOther {
+		if w.Code == http.StatusMovedPermanently {
 			t.Fatalf("redirected to %q without a dashboard to redirect to", w.Header().Get("Location"))
 		}
 	}

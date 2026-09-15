@@ -9,7 +9,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -18,8 +17,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
@@ -30,22 +27,13 @@ import (
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
-// Where the dashboard is meant to be reached is not this program's to state
-// alone — the daemon sends browsers there too, so one package owns it.
-// See docs/05-discovery.md#where-it-listens.
-const (
-	Host      = dash.Host
-	httpsPort = dash.HTTPSPort
-	altPort   = dash.AltPort
-)
-
 func main() {
 	if version.Print() {
 		return
 	}
-	addr := flag.String("addr", env("AGENT_BUS_WEB_ADDR", Host+":"+httpsPort), "where the dashboard listens")
-	certF := flag.String("cert", env("AGENT_BUS_WEB_CERT", defaultCert(".crt")), "TLS certificate; without it the dashboard is plain HTTP on loopback")
-	keyF := flag.String("key", env("AGENT_BUS_WEB_KEY", defaultCert(".key")), "the certificate's private key")
+	addr := flag.String("addr", env("AGENT_BUS_WEB_ADDR", dash.Addr), "where the dashboard listens")
+	certF := flag.String("cert", env("AGENT_BUS_WEB_CERT", ""), "TLS certificate; without one the dashboard is plain HTTP on loopback")
+	keyF := flag.String("key", env("AGENT_BUS_WEB_KEY", ""), "the certificate's private key")
 	flag.Parse()
 
 	client, base := api.Dial(os.Getenv("AGENT_BUS_ADDR"))
@@ -58,18 +46,13 @@ func main() {
 
 	handler := dashboard(bus, tls)
 
-	if !tls {
-		// Never silently: a dashboard on plain HTTP is a different thing
-		// from one on HTTPS, and the person running it should know which
-		// they have. The public hostname is given up with the certificate —
-		// it is only worth having because the certificate matches it — but
-		// an address somebody asked for out loud is still honoured.
-		if *addr == Host+":"+httpsPort {
-			*addr = "127.0.0.1:6780"
-		}
-		log.Printf("no certificate at %s — plain HTTP. See docs/05-discovery.md#dashboard for where to get one", *certF)
+	// Never silently: a dashboard on plain HTTP is a different thing from one
+	// on HTTPS, and somebody who asked for a certificate and did not get one
+	// is owed the reason rather than a page that quietly is not encrypted.
+	if !tls && (*certF != "" || *keyF != "") {
+		log.Printf("no certificate at %q and key at %q — plain HTTP", *certF, *keyF)
 	}
-	l, err := listen(*addr, tls)
+	l, err := net.Listen("tcp", *addr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -188,32 +171,9 @@ func dashboard(bus *caller, tls bool) http.Handler {
 	})
 }
 
-// listen binds addr, and falls back off port 443 rather than dying on it:
-// binding a low port needs a capability the dashboard has no other use for,
-// and a child that will not start is worse than one on a port it announces.
-func listen(addr string, tls bool) (net.Listener, error) {
-	l, err := net.Listen("tcp", addr)
-	if err == nil || !tls || !errors.Is(err, syscall.EACCES) {
-		return l, err
-	}
-	host, port, _ := net.SplitHostPort(addr)
-	if port != httpsPort {
-		return nil, err
-	}
-	log.Printf("port %s needs CAP_NET_BIND_SERVICE, which this has not got — using %s instead", httpsPort, altPort)
-	return net.Listen("tcp", net.JoinHostPort(host, altPort))
-}
-
 func have(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
-}
-
-// defaultCert is beside the daemon's other state, because that is where an
-// install puts what the account owns (docs/09-setup.md#the-two-accounts).
-func defaultCert(ext string) string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "state", "agent-bus", Host+ext)
 }
 
 // cookieName carries the session and nothing else — never a token, and never

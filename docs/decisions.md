@@ -6,6 +6,8 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Dashboard is a loopback address, not a borrowed hostname | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction; the name's certificate had expired |
+| The API root's redirect to the dashboard is permanent | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction |
 | Service method information is the description | [service and template](03-services-and-topics.md#service-and-template) | 2026-09-15 owner instruction; resolves Q7 |
 | Coordinated runtime and bus rename | [explicit session rename](08-runner-role.md#explicit-session-rename) | 2026-09-13 owner clarification |
 | Launcher terminal titles, palettes and restoration | [terminal appearance](08-runner-role.md#terminal-appearance) | 2026-09-13 owner instruction |
@@ -128,6 +130,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Earlier design | Replacement |
 |---|---|
+| The dashboard is `https://agent-bus.localhost.direct`, with a certificate under that name, port 443 and an 8443 fallback | [where it listens](05-discovery.md#where-it-listens) |
 | MVP dashboard permits only sign-in/out; basic groups and activity charts wait for R1 | [required tabs](05-discovery.md#required-tabs) |
 | Maintainers require AUTH and are absent from MVP | [groups and maintainers](01-identity.md#groups-and-maintainers) |
 | An unregistered name stays reserved to its owner and keeps a valid credential | [unregistering](01-identity.md#unregistering), deferred to [removed names](../Plans/R1.2/README.md#removed-names) |

@@ -208,35 +208,28 @@ callers?"* with a number that includes our bugs.
 
 ### Where it listens
 
-The dashboard is **`https://agent-bus.localhost.direct`**. That name, and every
-name under `*.localhost.direct`, resolves to `127.0.0.1` in public DNS, so a
-developer host needs no `/etc/hosts` line and a browser still gets a real
-hostname and a real certificate.
+The dashboard is **`http://127.0.0.1:6780`**, and that is the whole of it: an
+address it binds, not a name anybody has to make resolve.
 
 | It wants | Default |
 |---|---|
-| the certificate and its key | `~/.local/state/agent-bus/agent-bus.localhost.direct.crt` and `.key`, overridable with `-cert` / `-key` |
-| the port | 443, falling back to 8443 when the process has no `CAP_NET_BIND_SERVICE` |
-| no certificate at all | plain HTTP on `127.0.0.1:6780`, announced in the log |
+| where to listen | `127.0.0.1:6780`, with `-addr` or `AGENT_BUS_WEB_ADDR` |
+| a certificate | **none.** Supply `-cert` *and* `-key` and it serves HTTPS on the address it was given; ask for one and miss it and it says so rather than quietly serving plain HTTP |
+| a port it may not bind | an error. No port is a default any more, so every one was asked for on purpose and none is silently traded for another |
+
+**The bus does not listen off this machine**, so the page is for the person at
+it. A borrowed public hostname bought a certificate a browser would accept and
+nothing else; the one this project used had expired, which left the trust
+decision without even that to show for it. Anybody who wants HTTPS here has a
+certificate of their own and says where it is.
 
 **The API's own root sends a browser here.** `http://127.0.0.1:6767/` is the
 daemon, which has no page: a person who typed it in wanted the dashboard, and
-gets a redirect to it. Only the exact root — a mistyped route stays the 404 it
-is. The daemon cannot work the address out, because the port above depends on a
-certificate in another process, so it is told: `-dashboard`, or
-`AGENT_BUS_DASHBOARD`, defaulting to the name in this section. Empty serves no
-root at all.
-
-The pair comes from <https://get.localhost.direct/>: the **self-signed
-bundle**, `localhost.direct.SS.zip`, zip password `localhost`, good until
-2034-11-17 and costing one trust decision per OS or browser. It is the only
-bundle there worth downloading — the CA-signed one beside it expired and no
-browser accepts it.
-
-**A `.key` never goes
-into a repository or anywhere else public** — that is the publisher's own
-condition, and a leaked key is revoked; the repo's `.gitignore` refuses the
-extension rather than trusting anyone to remember.
+gets `301` to it. Only the exact root — a mistyped route stays the 404 it is.
+The daemon is told where to point, with `-dashboard` or `AGENT_BUS_DASHBOARD`,
+defaulting to the address above; empty serves no root at all. The redirect is
+permanent because the root will never grow a page of its own, so a browser may
+stop asking: moving the dashboard afterwards is a thing to clear from a cache.
 
 ## Browser acceptance
 

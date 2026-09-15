@@ -50,14 +50,15 @@ Four ways in, and they are not equal:
 | 🥇 **your own socket** | `/run/agent-bus/user-<name>.sock` | one account. The socket **is** the credential — the kernel already knows who you are, so no token |
 | 🤝 **the shared socket** | `/run/agent-bus/bus.sock` | anyone on the machine, **with a token** |
 | 🌐 **loopback TCP** | `127.0.0.1:6767` | with a token. Refuses to bind anything that is not loopback ✅. Opened in a browser it sends you to the dashboard ([where it listens](../05-discovery.md#where-it-listens)) |
-| 🖥️ **the dashboard** | `agent-bus.localhost.direct:443`, or `8443` | a browser |
+| 🖥️ **the dashboard** | `127.0.0.1:6780` | a browser |
 
 The daemon **cannot** listen on a public address. That is not a setting — it
 checks, and refuses. To reach it from elsewhere, tunnel over ssh. 🔒
 
-The dashboard drops to `8443` when it lacks the capability to bind 443, and to
-plain HTTP on `127.0.0.1:6780` when it has no certificate. A running daemon
-prints which one it took.
+The dashboard is plain HTTP on loopback. Give it `-cert` and `-key` and it
+serves HTTPS on the address you gave it instead
+([where it listens](../05-discovery.md#where-it-listens)). A running daemon
+prints the scheme and address it took.
 
 ## ▶️ Running it
 
@@ -165,7 +166,7 @@ runner is a separate program under a separate account, not a child.
 |---|---|
 | `journalctl -u agent-busd -n 50` | ✅ start here. It says why |
 | refuses the address | `-addr` is not loopback. That is the check doing its job |
-| the dashboard is not on 443 | no capability to bind it — look for `8443` in the log |
+| the dashboard did not start | the port it was given is somebody else's, or not yours to bind — the log says which |
 | a user has no socket | they were never mapped with `-user`. Add it and restart |
 | the queues are empty after a restart | it did not exit gracefully, so the dump was never written |
 

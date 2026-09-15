@@ -150,6 +150,14 @@ else skipped=$((skipped+1)); fi
 sec "status on both listeners"
 has "unix socket" "$(ab parf@localhost status)" '"services"'
 has "loopback tcp" "$(AGENT_BUS_ADDR=http://127.0.0.1:$PORT AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=parf@localhost "$D/agent-bus" status)" '"up"'
+# The API has no page of its own, so a person who opened it in a browser is
+# sent to the one that has. Permanently, and only from the exact root.
+# See docs/05-discovery.md#where-it-listens.
+has "the api root sends a browser to the dashboard" \
+  "$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' "http://127.0.0.1:$PORT/")" \
+  '^301 http://127.0.0.1:6780/$'
+has "and a mistyped route is still a mistyped route" \
+  "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/no-such-route")" '404'
 
 sec "the token is the whole of a call"
 out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=nope "$D/agent-bus" status 2>&1); rc=$?
@@ -1902,45 +1910,35 @@ curl -s -b "$JAR" -o /dev/null -X POST "$WEB/signout"
 is_empty "and signing out ends the session" \
   "$(curl -s -b "$JAR" "$WEB/" | grep -o 'watched by the board')"
 kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
-# A browser wants a hostname and a certificate. *.localhost.direct is public
-# DNS pointing at 127.0.0.1, so both are real and nothing leaves the machine.
-# The suite makes its own pair rather than fetching anyone's — which costs
+# HTTPS is not the default any more, but it is still there for somebody who
+# has a certificate: supply one and the dashboard serves it. The suite makes
+# its own for `localhost`, which resolves without asking anyone — which costs
 # about a second, so this half is opt-in.
-# See docs/05-discovery.md#dashboard.
+# See docs/05-discovery.md#where-it-listens.
 if slow; then
 mkdir -p "$D/tls"
-openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=agent-bus.localhost.direct" \
-  -addext "subjectAltName=DNS:agent-bus.localhost.direct" \
+openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=localhost" \
+  -addext "subjectAltName=DNS:localhost" \
   -keyout "$D/tls/key" -out "$D/tls/crt" >/dev/null 2>&1
 AGENT_BUS_ADDR=$D/bus.sock \
-  "$D/agent-bus-web" -addr "agent-bus.localhost.direct:$((PORT+11))" -cert "$D/tls/crt" -key "$D/tls/key" >"$D/webtls.log" 2>&1 &
+  "$D/agent-bus-web" -addr "localhost:$((PORT+11))" -cert "$D/tls/crt" -key "$D/tls/key" >"$D/webtls.log" 2>&1 &
 WTPID=$!
-for _ in $(seq 1 50); do curl -sk -o /dev/null "https://agent-bus.localhost.direct:$((PORT+11))/" && break; sleep 0.1; done
+for _ in $(seq 1 50); do curl -sk -o /dev/null "https://localhost:$((PORT+11))/" && break; sleep 0.1; done
 TJAR=$D/tls.jar; rm -f "$TJAR"
 curl -sS --cacert "$D/tls/crt" -c "$TJAR" -o /dev/null -X POST -d "token=$TOKEN" \
-  "https://agent-bus.localhost.direct:$((PORT+11))/signin"
+  "https://localhost:$((PORT+11))/signin"
 has "a session cookie made over https is marked secure" "$(cat "$TJAR")" 'TRUE.*agent_bus_session'
-TLSPAGE=$(curl -sS --cacert "$D/tls/crt" -b "$TJAR" "https://agent-bus.localhost.direct:$((PORT+11))/" 2>&1)
+TLSPAGE=$(curl -sS --cacert "$D/tls/crt" -b "$TJAR" "https://localhost:$((PORT+11))/" 2>&1)
 # curl verifies the chain and the hostname against that file alone — no -k —
 # so an answer at all is the certificate being the one it was handed.
-has "the dashboard answers https on its own hostname" \
+has "the dashboard answers https when it is given a certificate" \
   "$(sect exchanges "$TLSPAGE")" 'board-svc@srv1'
 is_empty "with no body there either" "$(printf '%s' "$TLSPAGE" | grep -o "$SECRET")"
 has "it says which scheme it came up on" "$(cat "$D/webtls.log")" 'https://'
 kill $WTPID 2>/dev/null; wait $WTPID 2>/dev/null
-# 443 is not an ordinary account's to bind, and a child that will not start is
-# worse than one on a port it announces. Run as root this would simply get 443
-# and the check would say so.
-AGENT_BUS_ADDR=$D/bus.sock \
-  "$D/agent-bus-web" -addr "agent-bus.localhost.direct:443" -cert "$D/tls/crt" -key "$D/tls/key" >"$D/web443.log" 2>&1 &
-W4PID=$!
-for _ in $(seq 1 50); do curl -sk -o /dev/null "https://agent-bus.localhost.direct:8443/" && break; sleep 0.1; done
-has "a dashboard that may not bind 443 comes up on 8443" \
-  "$(curl -sS --cacert "$D/tls/crt" "https://agent-bus.localhost.direct:8443/" 2>&1)" 'name=token'
-has "and says what it has not got" "$(cat "$D/web443.log")" 'CAP_NET_BIND_SERVICE'
-kill $W4PID 2>/dev/null; wait $W4PID 2>/dev/null
-# Only 443 has somewhere to go. Any other port was asked for on purpose.
-has "and any other port it may not bind is an error, not a quiet move" \
+# Every port is asked for on purpose now that none is a default, so a port it
+# may not bind is an error rather than a quiet move to a neighbouring one.
+has "a port it may not bind is an error, not a quiet move" \
   "$(AGENT_BUS_ADDR=$D/bus.sock \
      timeout 2 "$D/agent-bus-web" -addr 127.0.0.1:80 -cert "$D/tls/crt" -key "$D/tls/key" 2>&1)" \
   'permission denied'
@@ -1948,7 +1946,7 @@ has "and any other port it may not bind is an error, not a quiet move" \
 # installed dashboard can keep running while the suite checks this behavior.
 out=$(AGENT_BUS_ADDR=$D/bus.sock \
   timeout 2 "$D/agent-bus-web" -addr "127.0.0.1:$((PORT+11))" -cert "$D/tls/absent" -key "$D/tls/absent" 2>&1)
-has "with no certificate it says so" "$out" 'no certificate at' 
+has "a certificate that was asked for and is not there is said out loud" "$out" 'no certificate at' 
 has "and does not pretend to be https" "$out" "http://127.0.0.1:$((PORT+11))"
 fi
 
