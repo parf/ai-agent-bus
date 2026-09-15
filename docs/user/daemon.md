@@ -122,7 +122,7 @@ The counters worth a glance:
 | `queued` | work waiting. Steady is fine; **only ever climbing** means something stopped reading |
 | `dropped` | a bounded ring queue threw the oldest away — raise `--bound`, or read faster |
 | `expired` | messages that outlived their TTL before anyone took them |
-| `refused` | the ACL said no. A few is normal; a flood is somebody misconfigured |
+| `refused` | a call was turned away. A few is normal; a flood is somebody misconfigured. It is counted per reason, and each reason has its own status code ([refusals](../05-discovery.md#refusals)) |
 
 And `agent-bus ls -h` for the picture at a glance — a service with `READER no`
 and a rising `QUEUED` is one that has stopped.

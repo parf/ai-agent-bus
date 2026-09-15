@@ -14,7 +14,7 @@ Values have one owning section; other pages link to it.
 | [Access](02-access.md#what-a-call-carries) | Credentials, rotation, sockets and the current trust boundary |
 | [Services](03-services-and-topics.md#service-kinds) | Registration, configuration and topic properties |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and snapshots |
-| [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard and administration |
+| [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
 | [Runner](08-runner-role.md#script-services) | Foreground script services, push adapters, pending runtime integrations and launchers, sandboxing |
 | [Setup](09-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
 | [Modules](10-modules.md#the-rule) | Implementation boundaries, languages and dependency rules |
