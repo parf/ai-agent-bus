@@ -43,6 +43,13 @@ the accounts and tree, writes/enables the daemon unit, and installs the first
 user's key through the admin program. Without root it refuses and prints the
 command to run. `--dry-run` and `--print-unit` are read-only and need no root.
 
+**Development install.** `src/git-install.sh` symlinks the built programs into
+`/usr/local/bin` instead of copying them, so a change is a build and a restart
+rather than a reinstall. The checkout must live outside `/home`: the daemon runs
+behind `ProtectHome=yes` and cannot exec a binary in a home directory at all.
+The script refuses one that does and says where to move it; `--revert` copies
+real binaries back. Daemon state under `/var/lib/agent-bus` is untouched.
+
 **Pending:** the intended package installation is not implemented. The package
 format and binary delivery are [MVP questions](../Plans/MVP/QUESTIONS.md#open-questions).
 A fresh-host install and the running service account must still be verified as
