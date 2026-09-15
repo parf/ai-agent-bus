@@ -13,6 +13,7 @@ Resolve [catalogue and scope questions](QUESTIONS.md#open-questions), then selec
 | Candidate | Prerequisite | Acceptance to carry into its implementation task |
 |---|---|---|
 | Ordinary catalogue services | Managed runner, ACL and configuration contracts | Deploy and call a service using the published ordinary service interface; remove a required interface capability and the exercise fails. Review the daemon diff to detect hidden special handling |
+| [Desktop notifications](services.md#people-and-the-world-outside) | Ordinary catalogue services | A call to `notify@srv1` shows the notification on that host's own display; a caller outside the instance's ACL is refused by the daemon before delivery, and a send with no desktop session comes back as a refusal — an answer, not a no-reply |
 | Service credentials | R1 token scoping | A narrowed credential calls its target and is refused elsewhere; disable target enforcement and the negative check fails |
 | Record expiry | Lifetime and peer clock decisions | An inactive ephemeral record expires while a served record and a kept control survive; removing expiry or the served-record guard fails the appropriate check |
 | Catalogue image | [R1 distribution](../R1/distribution.md#container-runtime) and selected catalogue services | From a clean host, the supplied command boots the image and calls a bundled service without editing a file; omit a required installed service or break the supplied defaults and the call fails |
