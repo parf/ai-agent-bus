@@ -11,6 +11,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q26 | Whether `kv` is optional, given that it is where service configuration would live | owner | [bundled services § data](services.md#data) |
 | Q31 | Who may read contact routes: everyone, administrators, or a narrower service audience | owner | [context](people.md#how-to-reach-a-person) |
 | Q32 | Whether record expiry and service credentials are allowed to change the daemon despite the former whole-stage no-change criterion | owner | [context](README.md#scope) |
+| Q47 | What a record that is down rather than briefly down answers, given that `500` is the daemon's own fault and uncounted: `409` as a disabled record answers today, or `503` distinguished from the brief case by a retry hint | owner, with the MVP faces | [down and retired](records.md#down-and-retired) |
 | Q46 | Who may declare a record down or retired: undoing a retirement is the service owner's and the daemon owner's, while [record management authority](../../docs/01-identity.md#groups-and-maintainers) today also lets a maintainers group disable and delete | owner | [down and retired](records.md#down-and-retired) |
 
 ## Services context

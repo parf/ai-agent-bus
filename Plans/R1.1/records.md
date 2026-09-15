@@ -7,20 +7,35 @@ Automatic lifetime and removal while served remain future scope below.
 
 ## Down and retired
 
-**A record says what its owner means it to be, and the difference between the
-two words is what a caller is told.** One verb sets it; the state is
+**A record says what its owner means it to be, and what separates the words is
+what a caller is told to do about it.** One verb sets it; the state is
 **declared**, never inferred — the same distinction the hostname field is built
 on ([where a member says it is](../R1/discovery.md#where-a-member-says-it-is)).
 
-| Declared | Means | A caller gets | The name |
+| Declared | Means | What a caller should do | Answer |
 |---|---|---|---|
-| **down** | turned off for a reason, and nothing new accumulates while it is — this is [today's disabled record](../../docs/01-identity.md#owner-control), not a second state beside it | an error it may be worth retrying: the thing may be back | stays its owner's, as it does now |
-| **retired** | gone for good | an error that is not worth retrying — a caller still sending to it has a bug to fix | **held**, so nothing else can appear under it |
+| **briefly down** | it is coming back in a moment — restarting, redeploying | hold and retry soon | `503` |
+| **down** | out of service, back eventually — this is [today's disabled record](../../docs/01-identity.md#owner-control), not a state beside it | back off hard; roughly one retry an hour, not a loop | [Q47](QUESTIONS.md#open-questions) |
+| **retired** | gone for good | stop, and fix the code that still sends here | `410` |
 
-The two errors are the point. *"Not now"* and *"not ever"* are different
-answers, and a caller can act on the difference: wait, or stop. Collapsing them
-into one refusal throws away the only thing the owner knew and the caller did
-not.
+The three answers are the point. *"In a second"*, *"not today"* and *"not
+ever"* are different, and a caller can act on the difference: hold, back off,
+or stop. Collapsing them throws away the only thing the owner knew and the
+caller did not.
+
+**The daemon does not retry on anybody's behalf.** These say what a caller
+should do; nothing in the bus holds a refused send and tries again later, and
+nothing here proposes that it should. The states already settled what happens
+to traffic meanwhile: what is queued stays, what is new is refused.
+
+⚠️ **`500` cannot be the middle one.** A 500 is the daemon's own fault and is
+deliberately **not counted as a refusal**, so that *"how often am I refusing
+callers?"* is not answered with a number that includes our bugs
+([refusals](../../docs/05-discovery.md#refusals)). A deliberate act by a
+record's owner answered as a server fault would be indistinguishable from a
+daemon bug, in the logs and in the counters. What the middle state answers
+instead is [Q47](QUESTIONS.md#open-questions); `409` is what a disabled record
+answers today, and `503` with a retry hint is the other candidate.
 
 **Nothing new accumulates is not the same as nothing is there.** A backlog
 already in the inbox is kept; what is refused is anything new. That is exactly
@@ -30,6 +45,11 @@ away because the name it was for has been given up. Nothing is kept forever by
 it either — what is in a queue is subject to the TTL it already had
 ([message ttl](../../docs/04-messaging.md#message-ttl)), so a backlog nobody
 will ever read empties itself rather than becoming permanent.
+
+**410 is chosen for what it means, not because it was free.** *Gone* is the
+one code that says a name was real, is not coming back, and that this is
+intentional — and a caller may cache that answer, which is the correct thing to
+do about something permanent.
 
 **A retired name must never answer *no such name*.** That is the one refusal it
 must not borrow: a caller cannot tell it from a typo, and telling a caller its
