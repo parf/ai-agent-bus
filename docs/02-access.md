@@ -122,16 +122,23 @@ can reach is therefore a name with no record and no person behind it: what a
 credential outliving its address used to leave.
 
 ⚠️ **The daemon owner's credential is minted by the credential store itself,
-not by a record**, so it is ownerless by this test and survives the sweep
-regardless. Nothing gives the owner a profile either, which means this shape is
-not a leftover to be cleared: **there is always at least one credential the
-sweep must not take**, and a listing can never treat the category as empty.
+not by a record**, so it is ownerless by this test and **always survives the
+sweep**, including when it has neither a record nor a profile. Nothing creates a
+profile for it, though one may be made like any other
+([user lifecycle](01-identity.md#user-lifecycle)), and its authority is known
+from the name either way rather than from a profile.
 
-A credential asked for before its name is registered is the same shape, briefly.
-The sweep runs at start, so it sees one moment: such a credential is there until
-the next restart and gone after it. What it deletes it cannot give back — a name
-swept needs a credential again the ordinary way
-([getting a token](#getting-a-token)).
+A credential asked for before its name is registered is the same shape, briefly:
+the sweep sees one moment, so such a credential is there until the next restart
+and collected at it **if the name is still neither registered nor a registered
+user by then**. Register it first and it is kept like any other. What the sweep
+does take it cannot give back — a name swept needs a credential again the
+ordinary way ([getting a token](#getting-a-token)).
+
+So **support for this category is permanent; its occupancy is not.** Anything
+listing it must read as well empty as populated, and against what the caller may
+actually see, which is not the whole store
+([dashboard](05-discovery.md#dashboard)).
 
 Removal already takes a credential with its address, on unregistering and on
 deleting a service ([unregistering](01-identity.md#unregistering)). The sweep is
