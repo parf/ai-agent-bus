@@ -126,6 +126,9 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-13 | Profile identifier normalization | Initial implementation default without provider alias merging; resolves Q28 | [identifier uniqueness](01-identity.md#every-identifying-field-is-unique) |
 | 2026-09-13 | User pause and ban behavior | Initial implementation default preserves credentials and queued work; resolves Q37 | [user lifecycle](01-identity.md#user-lifecycle) |
 | 2026-09-13 | Bounded dashboard history | Initial implementation default keeps collection independent of page visits; resolves Q38 | [activity history](05-discovery.md#activity-history) |
+| 2026-09-15 | A person's credential lasts as long as they are a registered user | It is how they call at all, so nothing underneath it ends it; registration is what does | [token lifetime](02-access.md#token-lifetime) |
+| 2026-09-15 | A credential nobody owns is dropped at daemon start; resolves Q51 | A sweep at a known moment, not expiry — tokens still never retire for being old or idle; this clears what the old outlives-the-address rule left behind | [ownerless credentials](02-access.md#ownerless-credentials) |
+| 2026-09-15 | Node-wide counters are visible to anyone who may ask; resolves Q50 | They describe the daemon, not the caller, so there is no narrower audience; no access is the whole restriction, and a page must label node scope against caller scope | [dashboard](05-discovery.md#dashboard) |
 
 ## Superseded
 

@@ -91,6 +91,14 @@ has to be trusted to leave them alone. The feed and the records beside it are
 both filtered per caller: you see the exchanges you were **party to**, sent or
 addressed to you, and master sees the node's.
 
+**The node's own counters are the node's, not the caller's.** Uptime, the
+registry's totals and the [refusal counts](#refusals) describe the daemon, and
+anybody who may ask sees the same numbers — there is no narrower audience for
+them. Somebody with no access sees nothing at all, which is the whole of the
+restriction. A page showing them beside a caller-filtered list must say which
+is which: *the node refused 40 calls* and *you were refused 2* are both true,
+and neither is the other.
+
 The diagnostics page carries the built rows of [what it shows](#what-it-shows);
 service/channel, user and group administration and activity graphs have separate pages. The ordering, the grouping and the late mark
 are the page's; everything else on it is an answer the bus gave that caller,

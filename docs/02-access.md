@@ -99,6 +99,40 @@ The MVP currently carries plaintext bodies ([trust boundary](#encrypted-sessions
 | Last use | In-memory state for this run; no disk write per authenticated call |
 | Listing credentials | A caller sees only credentials it holds, represented by keyed fingerprints rather than token bytes |
 | Removal | Unregistering an address takes its credential with it ([identity § unregistering](01-identity.md#unregistering)); a person's own credential is not a record's to drop, so it stays |
+| Lifetime | A person's credential lasts **as long as that person is registered**. Nothing else ends it: no clock, no inactivity, no restart. MVP has no way to deregister a person at all — only [pause and ban](01-identity.md#user-lifecycle), which keep the credential — so today the bound exists and is never reached |
+| Collection | **Pending.** At daemon start, a credential whose name has neither a record nor a registered user is dropped ([ownerless credentials](#ownerless-credentials)) |
+
+
+### Ownerless credentials
+
+**Pending, not built.** A credential whose name has neither a record nor a
+registered user belongs to nobody, and the daemon drops it **at start**. That
+is a sweep at a known moment, not expiry: the rule above still holds, and no
+credential is retired for being old or idle.
+
+It is the other half of *as long as the user is registered*. A person keeps
+theirs while they are a registered user, whatever they register or unregister
+underneath it; a name that is nobody's keeps nothing.
+
+**So what it collects is names, never people.** MVP cannot deregister a person,
+and pausing or banning one deliberately keeps their credential
+([user lifecycle](01-identity.md#user-lifecycle)) — a banned person who lost
+their credential could not be unbanned into anything. Every entry this sweep
+can reach is therefore a name with no record and no person behind it: what a
+credential outliving its address used to leave.
+
+⚠️ **The daemon owner's credential is minted by the credential store itself,
+not by a record**, so it can be ownerless by this test and must survive the
+sweep regardless. Anything issued before its record exists is the same shape of
+hazard: the sweep runs at start, so it sees a moment, and what it deletes it
+cannot give back — a name swept needs a credential again the ordinary way
+([getting a token](#getting-a-token)).
+
+Removal already takes a credential with its address, on unregistering and on
+deleting a service ([unregistering](01-identity.md#unregistering)). The sweep is
+for what the *old* rule left: a credential was once kept on purpose when its
+address went, to hold the name against a stranger, and that is what filled a
+person's list with names nothing answers on.
 
 Browser session credentials have their own lifetime and are not persisted;
 see [discovery § signing in](05-discovery.md#signing-in).
