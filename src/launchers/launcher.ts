@@ -1,6 +1,6 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Bus, BusError, defaultName } from "../mcp/bus.ts";
@@ -29,6 +29,20 @@ const say = (stream: NodeJS.WriteStream, code: string, s: string) =>
 const note = (s: string) => say(process.stdout, "32", s);          // green: done
 const warn = (s: string) => say(process.stderr, "38;5;208", s);    // orange: notice
 const log = (s: string) => say(process.stderr, "31", s);           // red: broken
+// Make "agent-bus" resolvable as a channel server in this directory.
+// Failure is not fatal: without it the session runs with tools and no channel,
+// which is worth a warning and not worth refusing to start over.
+function channelName(cwd: string, face: string) {
+  try {
+    const conf = join(homedir(), ".claude.json");
+    const all = existsSync(conf) ? JSON.parse(readFileSync(conf, "utf8")) : {};
+    if (all?.projects?.[cwd]?.mcpServers?.["agent-bus"]) return;
+    const done = spawnSync("claude", ["mcp", "add", "--scope", "local", "agent-bus", "--", process.execPath, face],
+      { cwd, stdio: "ignore" });
+    if (done.status !== 0) warn("could not register the channel server; this session has tools but no channel");
+  } catch (e) { warn(`could not register the channel server: ${e}`); }
+}
+
 const option = (names: string[]) => {
   for (let i = 0; i < args.length; i++) for (const n of names) {
     if (args[i]!.startsWith(n + "=")) return args[i]!.slice(n.length + 1);
@@ -335,6 +349,15 @@ See docs/08-runner-role.md#smart-launchers.`);
   } else {
     const config = join(runDir, "claude-mcp.json");
     writeFileSync(config, JSON.stringify({ mcpServers: { "agent-bus": { command: process.execPath, args: [face], env: { AGENT_BUS_SESSION_FILE: envFile } } } }), { mode: 0o600 });
+    // The channel resolves its server name against the configured scopes only
+    // — managed, user, project, local — and a --mcp-config server is in none of
+    // them, so the session started with "no MCP server configured with that
+    // name" and no channel. A name in the local scope satisfies that lookup;
+    // the definition above still wins for the connection, which is what carries
+    // this session's own env. Written through claude's own command so the file
+    // it shares with every running session is not ours to rewrite, and only
+    // when it is missing, since this persists per directory.
+    channelName(cwd, face);
     runtimeArgs = ["--allowedTools", "mcp__agent-bus__*", "--mcp-config", config, "--dangerously-load-development-channels", "server:agent-bus", ...runtimeArgs];
   }
   let updating = Promise.resolve();
