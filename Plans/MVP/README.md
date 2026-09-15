@@ -40,3 +40,7 @@ The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02
 ## Evidence
 
 [Completion log](DONE.md#done--mvp) records completed waves. [The original plan](done/TODO-before-rewrite.md#mvp-plan-before-the-documentation-rewrite) preserves task IDs and earlier acceptance detail; it is historical, not active work. Acceptance conventions live in [working rules](../../CLAUDE.md#verification).
+
+## Web redesign
+
+The [web interface proposal](web-interfaces.md#proposal) covers requirements, page structure, data gaps and Go tooling, grounded in the [browser and source review](done/web-review.md#scope). It is proposed, not implemented; if accepted, [F.13 work](TODO.md#web-redesign) precedes final browser acceptance.
