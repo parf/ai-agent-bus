@@ -614,7 +614,10 @@ var codes = []struct {
 	{core.ErrNotAllow, http.StatusForbidden, "acl"},
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
 	{core.ErrUnknown, http.StatusNotFound, "unknown"},
-	{core.ErrFull, http.StatusServiceUnavailable, "full"},
+	// Not 503: a full inbox is the sender outrunning the reader, not the
+	// service being unavailable — and 503 is the service's own answer for
+	// that (Plans/R1.1/records.md#coming-back-in-a-moment-is-not-one-of-them).
+	{core.ErrFull, http.StatusTooManyRequests, "full"},
 	{core.ErrTwoReads, http.StatusConflict, "second-reader"},
 }
 

@@ -111,19 +111,12 @@ is true again. A record that could be marked briefly-down would be a third
 thing to keep in step with the other two, and stale the second nobody updated
 it.
 
-**`503` says one thing here, so a full inbox stops saying it.** The daemon
-answers `503` today when the receiver's queue is at its bound
-([overflow](../../docs/04-messaging.md#overflow)). That leaves a caller unable
-to tell *the service is restarting* from *the reader is behind* — two problems
-with different owners and different fixes. A full inbox becomes **`429`**,
-which is what it actually means: the sender is outrunning the reader and should
-slow down. `503` is then the service's own, and the only thing on this bus that
-says it.
-
-The counted reason does not move with it: a full inbox is still `full`
-([refusals](../../docs/05-discovery.md#refusals)), so the totals and the
-dashboard read the same. This is a change to built MVP behaviour, kept here
-until it is scheduled.
+**`503` says one thing here, and a full inbox no longer says it.** A full
+inbox answers `429` — the sender is outrunning the reader, which is what that
+code is for — leaving `503` to the service alone. That is
+[built in MVP](../../docs/04-messaging.md#overflow); without it a caller cannot
+tell *the service is restarting* from *the reader is behind*, two problems with
+different owners and different fixes.
 
 Telling them apart also matters less often than it looks, and that is not a
 reason to skip it. A daemon refusal arrives from the bus; a service's own

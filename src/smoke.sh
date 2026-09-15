@@ -1414,8 +1414,8 @@ if slow; then
   out=$(ab flood@srv1 send sink@srv1 "one too many" 2>&1); rc=$?
   bad_exit "strict refuses the send rather than lose a message" $rc
   has "and names the queue that is full" "$out" 'queue is full: sink@srv1'
-  has "and says the receiver cannot take it, not that we broke" \
-    "$(post_code flood@srv1 /send '{"to":"sink@srv1","body":"one more"}')" '503'
+  has "and says the sender is outrunning the reader, not that we broke" \
+    "$(post_code flood@srv1 /send '{"to":"sink@srv1","body":"one more"}')" '429'
   delta "strict dropped nothing" 0 "$d0" "$(count dropped)"
   d1=$(count dropped)
   for i in $(seq 0 1000); do ab flood@srv1 send ringy@srv1 "msg-$i" >/dev/null 2>&1; done

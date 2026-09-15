@@ -269,6 +269,12 @@ Declared per topic at creation, inboxes included:
 | **strict** (default) | **reject the send/publish** with an error to the producer | anything that is work: losing one silently is worse than failing loudly, so this is what you get unless you ask otherwise |
 | **ring** | drop the **oldest**, and count it in stats | alerts, telemetry, progress — the newest matters most and a gap is not a bug |
 
+**A rejected send answers `429`.** A full queue is the sender outrunning the
+reader, which is what that code is for — and deliberately not `503`, which
+would say the service itself is unavailable and is left to mean only that
+([R1.1 declared state](../Plans/R1.1/records.md#coming-back-in-a-moment-is-not-one-of-them)).
+It is counted as `full` either way ([refusals](05-discovery.md#refusals)).
+
 Declared on the record, so it is a property of the **receiver**, not of the
 sender or the message: whoever owns the queue decides what its fullness
 means. The count of what a ring has dropped is in `status`, because a queue

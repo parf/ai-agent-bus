@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.19 — 2026-09-15
+
+A send refused because the receiver's queue is full answers `429` rather than `503`: a full queue is the sender outrunning the reader, and `503` is left to mean a service that is itself unavailable. The counted refusal reason is unchanged.
+
 ## 0.5.18 — 2026-09-15
 
 The dashboard is `http://127.0.0.1:6780` and nothing else: the borrowed `localhost.direct` hostname, the certificate kept under that name and the 443/8443 binding fallback are gone, since the certificate that scheme existed for had expired. HTTPS remains for anyone who supplies `-cert` and `-key`. The API root's redirect to the dashboard is now `301`.
