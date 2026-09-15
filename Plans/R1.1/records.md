@@ -21,14 +21,15 @@ on ([where a member says it is](../R1/discovery.md#where-a-member-says-it-is)).
 difference: back off, or stop. Collapsing them throws away the only thing the
 owner knew and the caller did not.
 
-**Either is declared by the record's owner or its assigned maintainers** — the
-[record management authority](../../docs/01-identity.md#groups-and-maintainers)
-that already disables and deletes, so this adds no new authority and needs no
-new group. **Coming back is narrower**: a retirement is undone by the service
-owner or the daemon owner, and a maintainer who retired a name cannot take it
-back. The ratchet is deliberate and worth reading twice before anyone
-straightens it out: the same hands that may already delete a record may retire
-one, and returning from *gone for good* is the owner's.
+**Both are the record's owner or its assigned maintainers, in both
+directions** — the [record management
+authority](../../docs/01-identity.md#groups-and-maintainers) that already
+disables and deletes. Declaring and undoing are the same authority: whoever may
+retire a name may bring it back. That adds no new authority, needs no new
+group, and leaves nobody able to make a change they cannot reverse. The daemon
+owner is not named here and does not need to be — it reaches everything
+already, and listing it per operation would invite the reading that somewhere
+it does not ([authority](../../docs/01-identity.md#groups-and-maintainers)).
 
 **The daemon does not retry on anybody's behalf.** These say what a caller
 should do; nothing in the bus holds a refused send and tries again later, and
@@ -79,10 +80,10 @@ the reason MVP found: a credential per given-up name is what filled a person's
 list. Holding the name costs the record that is already there; holding a
 working credential is the expensive half, and this does not.
 
-So **undoing retirement is the owner's own act, not the service's.** The
-service cannot ask — it has nothing left to ask with. Its **owner** can, as
-themselves, and so can the **daemon owner**; a record's owner is on the record,
-and a person's own credential is the one thing removing a record never takes.
+So **undoing retirement is a person's act, not the service's.** The service
+cannot ask — it has nothing left to ask with. Whoever manages the record can,
+as themselves: a record's owner and maintainers are on the record, and a
+person's own credential is the one thing removing a record never takes.
 A name brought back needs a credential again the ordinary way, by the owner
 asking for one for a name they own
 ([getting a token](../../docs/02-access.md#getting-a-token)), or by the service

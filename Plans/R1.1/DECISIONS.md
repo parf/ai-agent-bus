@@ -34,7 +34,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-15 | A declared state keeps the backlog and refuses what is new | Work somebody already accepted is not thrown away because a name was given up; TTL empties what is left | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | A retired name keeps no credential | A credential per given-up name is the cost MVP measured and dropped; the record holds the name without one | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | Down and retired are declared by the owner or the assigned maintainers | The authority that already disables and deletes a record; no new authority and no new group | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | Retirement is undone by the service owner or the daemon owner | The service has nothing left to ask with, so it is the owner's act, made with their own credential | [down and retired](records.md#down-and-retired) |
+| 2026-09-15 | Declaring and undoing are the same authority, in both directions | Nobody should be able to make a change they cannot reverse; the service has nothing left to ask with, so it is a person's act, made with their own credential | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | Each declared state answers with its own code and words, and never *no such name* | A caller cannot tell *no such name* from a typo, and a refusal it cannot act on is not an answer | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | Retirement is where a name is protected, and R1.2's removed-names topic is retired with it | A name deliberately kept costs one record; reserving every removed one is what MVP paid for and dropped | [down and retired](records.md#down-and-retired) |
 
@@ -43,6 +43,12 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Date | Decision | Why | Substance |
 |---|---|---|---|
 | 2026-09-13 | Runtime integrations promoted to MVP | Owner requires usable integrations in the current stage | [MVP delivery](../../docs/08-runner-role.md#runtime-integration-delivery) |
+
+## Superseded
+
+| Earlier design | Replacement |
+|---|---|
+| A retirement is undone only by the service owner or the daemon owner, so a maintainer who retired a name could not take it back | [down and retired](records.md#down-and-retired): declaring and undoing are the same authority |
 
 ## Open
 
