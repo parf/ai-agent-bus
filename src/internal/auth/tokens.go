@@ -178,6 +178,11 @@ type Held struct {
 	Fingerprint string    `json:"fingerprint"`
 	Issued      time.Time `json:"issued,omitempty"`
 	Used        time.Time `json:"used,omitempty"` // this run's; absent until it is used
+	// Whose it is and what it is for, filled in by the caller that knows the
+	// registry. A person holds their own name; everything else is a service
+	// they registered, and says so (docs/05-discovery.md#dashboard).
+	Owner string `json:"owner,omitempty"`
+	Kind  string `json:"kind,omitempty"`
 }
 
 // Fingerprint names a credential without being one. Keyed, so that a leaked

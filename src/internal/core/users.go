@@ -29,6 +29,20 @@ func (b *Bus) IsMaintainer(name string) bool {
 	defer b.mu.Unlock()
 	return b.active(name) && b.isMaintainer(name)
 }
+// IsPerson says whether a name is somebody's identity rather than a service
+// they registered. A person keeps their credential when an address of theirs
+// is removed; a service does not (docs/01-identity.md#unregistering).
+func (b *Bus) IsPerson(name string) bool {
+	n, err := canon(name)
+	if err != nil {
+		return false
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	_, known := b.users[n]
+	return known
+}
+
 func (b *Bus) mayEditUser(caller, name string) bool {
 	return b.active(caller) && (caller == b.admin || b.isMaintainer(caller) && caller != name && !b.isMaintainer(name))
 }
