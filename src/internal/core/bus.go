@@ -92,7 +92,6 @@ type Bus struct {
 	records  map[string]protocol.Record
 	groups   map[string][]string
 	admin    string
-	retired  map[string]string // unregistered names retain their credential ownership
 	// How many calls were refused, and for what. Counted because a bus that
 	// is quiet and one that is refusing everything look identical from
 	// outside — see docs/05-discovery.md#what-it-shows.
@@ -120,7 +119,6 @@ func New() *Bus {
 		records: map[string]protocol.Record{},
 		groups:  map[string][]string{},
 		users:   map[string]protocol.User{},
-		retired: map[string]string{},
 		refused: map[string]int{},
 		inboxes: map[string]*inbox{},
 		started: time.Now(),
@@ -213,7 +211,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	// every start is not a stranger to its own name, and it is the only
 	// other principal that could hold that name's credential.
 	// See docs/01-identity.md#ownership.
-	if old, known := b.recordOrReservation(name); known {
+	if old, known := b.record(name); known {
 		caller := r.Owner // the face puts the caller here, not a claim
 		if old.Owner != "" && !b.manages(caller, old) {
 			return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, name, old.Owner)
@@ -245,7 +243,6 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	}
 	b.records[name] = r
 	b.recheckInbox(name)
-	delete(b.retired, name)
 	b.ensure(name)
 	// Public here, not in the face: the configuration is core's to guard,
 	// and an answer that forgot to redact has already got out twice.
@@ -291,7 +288,7 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	cfg = canonical.Bytes()
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	r, known := b.recordOrReservation(n)
+	r, known := b.record(n)
 	if !known {
 		// Same defaults a bare registration gets: configuring is not a
 		// second way to describe a service, only a way to give it config.
@@ -304,7 +301,6 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	r.Config = cfg
 	r.At = time.Now()
 	b.records[n] = r
-	delete(b.retired, n)
 	b.ensure(n)
 	return r.Public(), nil
 }
@@ -365,7 +361,7 @@ func (b *Bus) OwnerOf(name string) (string, bool) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	r, ok := b.recordOrReservation(n)
+	r, ok := b.record(n)
 	return r.Owner, ok
 }
 
@@ -881,11 +877,6 @@ func (b *Bus) Owned(caller string) []string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	out := []string{caller}
-	for name, owner := range b.retired {
-		if name != caller && owner == caller {
-			out = append(out, name)
-		}
-	}
 	for name, r := range b.records {
 		if name != caller && r.Owner == caller {
 			out = append(out, name)

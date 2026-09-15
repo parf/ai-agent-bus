@@ -98,6 +98,7 @@ The MVP currently carries plaintext bodies ([trust boundary](#encrypted-sessions
 | Issued time | Durable alongside the token |
 | Last use | In-memory state for this run; no disk write per authenticated call |
 | Listing credentials | A caller sees only credentials it holds, represented by keyed fingerprints rather than token bytes |
+| Removal | Unregistering an address takes its credential with it ([identity § unregistering](01-identity.md#unregistering)); a person's own credential is not a record's to drop, so it stays |
 
 Browser session credentials have their own lifetime and are not persisted;
 see [discovery § signing in](05-discovery.md#signing-in).

@@ -11,7 +11,11 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-func TestUnregisterPreservesIdentityAcrossRestart(t *testing.T) {
+// A removed name keeps nothing: no reservation, no owner, no claim on the
+// name. Reserving it cost a permanent entry per throwaway address and bought
+// protection MVP does not need; it is R1.2's
+// (../../Plans/R1.2/README.md#removed-names).
+func TestUnregisterLeavesNothingBehind(t *testing.T) {
 	b := New()
 	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
@@ -43,19 +47,15 @@ func TestUnregisterPreservesIdentityAcrossRestart(t *testing.T) {
 	restored := New()
 	restored.Restore(snapshot)
 	for _, bus := range []*Bus{b, restored} {
-		if owner, ok := bus.OwnerOf("svc@h"); !ok || owner != "owner@h" {
-			t.Fatal("unregister lost credential ownership")
+		if owner, ok := bus.OwnerOf("svc@h"); ok {
+			t.Fatalf("a removed name still claims an owner: %q", owner)
 		}
-		if _, err := bus.Register(protocol.Record{Name: "svc@h", Owner: "stranger@h"}); !errors.Is(err, ErrNotOwner) {
-			t.Fatalf("registration stole retired identity: %v", err)
+		// Whoever asks next gets it, previous owner or not. That is the
+		// simplification: nothing is held back for a name nobody serves.
+		if _, err := bus.Register(protocol.Record{Name: "svc@h", Owner: "stranger@h"}); err != nil {
+			t.Fatalf("a removed name was still reserved: %v", err)
 		}
-		if _, err := bus.Configure("svc@h", "stranger@h", json.RawMessage(`{}`)); !errors.Is(err, ErrNotOwner) {
-			t.Fatalf("configuration stole retired identity: %v", err)
-		}
-		if _, err := bus.RegisterNew(protocol.Record{Name: "svc@h", Owner: "owner@h"}); err != nil {
-			t.Fatalf("owner could not reclaim address: %v", err)
-		}
-		if err := bus.Unregister("svc@h", "svc@h"); err != nil {
+		if err := bus.Unregister("svc@h", "stranger@h"); err != nil {
 			t.Fatalf("principal could not remove its own address: %v", err)
 		}
 	}

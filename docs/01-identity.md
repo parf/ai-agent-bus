@@ -116,12 +116,21 @@ An unanswered challenge expires; an answered one is spent.
 its empty inbox, configuration and subscriptions. [Record management authority](#groups-and-maintainers) is required. Missing names are errors; queued messages or any waiting
 reader block removal. Stop readers and drain the queue before unregistering.
 
-This removes an address, not a process or a credential. It disappears from
-discovery and new messages to it are refused. Existing history remains history.
-The name stays reserved to the same owner across daemon restarts, because its
-[credential remains valid](02-access.md#token-lifetime). Its owner or principal
-may register it again, starting with an empty inbox and no configuration or
-subscriptions. Configuring an absent name obeys the same ownership reservation.
+This removes an address and the credential issued for it, not the process
+behind it. It disappears from discovery, new messages to it are refused, and
+its credential stops authenticating. Existing history remains history.
+
+Nothing is held back for the name. It is reserved to nobody, survives no
+restart, and whoever asks for it next gets it — its previous owner included,
+with no priority. A person's own identity is the one exception, and not as a
+reservation: their credential is how they call at all, so removing a record of
+theirs does not take it. A re-registered name starts with an empty inbox and
+no configuration or subscriptions.
+
+Protecting a removed name — reserving it for its owner, and refusing a
+stranger who asks for it — is [R1.2 work](../Plans/R1.2/README.md#removed-names).
+MVP reserved it, and paid a permanent credential per throwaway address for
+protection it did not need.
 
 <a id="pending-person-records"></a>
 

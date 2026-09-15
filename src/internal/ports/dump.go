@@ -33,7 +33,6 @@ type Snapshot struct {
 	Records []protocol.Record
 	Groups  map[string][]string `json:",omitempty"`
 	Queues  []Queue
-	Retired map[string]string `json:",omitempty"` // ownership survives unregistering
 }
 
 // Dump snapshots in-memory state and reads it back.

@@ -336,14 +336,26 @@ func (s *Server) subscribe(w http.ResponseWriter, r *http.Request, caller protoc
 
 func (s *Server) unregister(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct{ Name string }
-	if read(w, r, &in) {
-		// The credential deliberately outlives the address: it is what lets
-		// the holder come back, and what stops a stranger claiming the name
-		// (smoke.sh "unregister does not free a credential identity for
-		// takeover"). Removing it here would make removing an address a way
-		// to lose a name. A holder who wants it gone asks for that.
-		s.reply(w, nil, s.bus.Unregister(in.Name, caller.String()))
+	if !read(w, r, &in) {
+		return
 	}
+	err := s.bus.Unregister(in.Name, caller.String())
+	// The credential goes with the address. Keeping it was how a removed name
+	// stayed reclaimable and protected from takeover; that protection is
+	// [R1.2's](../../Plans/R1.2/README.md#removed-names), and paying for it
+	// here cost a credential per throwaway address forever.
+	//
+	// A person's own identity is the exception, and not for the same reason:
+	// their credential is how they call at all, and unregistering a record
+	// must not log them out.
+	if err == nil {
+		if name, e := protocol.ParseName(in.Name); e == nil {
+			if n := name.String(); !s.bus.IsPerson(n) {
+				err = s.tokens.Forget(n)
+			}
+		}
+	}
+	s.reply(w, nil, err)
 }
 
 func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protocol.Name) {

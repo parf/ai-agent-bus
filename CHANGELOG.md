@@ -1,12 +1,16 @@
 # Changelog
 
+## 0.5.17 — 2026-09-15
+
+A removed name keeps nothing: no reservation for its last owner, and no credential. Whoever asks for a removed name next gets it, its previous owner included. Reserving it cost a permanent entry and a permanent credential per address — one launcher-smoke run left roughly 250 in one person's name list — for protection this stage does not need; restoring it is R1.2's.
+
+## 0.5.16 — 2026-09-15
+
+The name list says whose each credential is and what it is for, so a person can tell their own identity from the services they registered.
+
 ## 0.5.15 — 2026-09-15
 
 The dashboard's service and channel listings, and a record's own page, show when the record was last written.
-
-## 0.5.15 — 2026-09-15
-
-The name list says whose each credential is and what it is for, so a person can tell their own identity from the services they registered. A credential whose address is gone is marked as a leftover rather than shown as if something answered on it; it is still held, because that is what reclaims the name and what stops a stranger taking it.
 
 ## 0.5.14 — 2026-09-15
 

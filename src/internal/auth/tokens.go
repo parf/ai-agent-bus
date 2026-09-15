@@ -220,6 +220,26 @@ func (t *Tokens) Holds(names []string) []Held {
 	return out
 }
 
+// Forget drops a principal's credential. It goes with the address: a name
+// that is no longer registered answers for nothing, and a credential left
+// behind is both clutter in its holder's list and a thing that still
+// authenticates (docs/02-access.md#token-lifetime). Absent is success — the
+// caller asked for it to be gone. Sessions live in their own map, untouched.
+func (t *Tokens) Forget(name string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	h, has := t.tok[name]
+	if !has {
+		return nil
+	}
+	delete(t.who, h.current)
+	if h.previous != "" {
+		delete(t.who, h.previous)
+	}
+	delete(t.tok, name)
+	return t.save()
+}
+
 // save hands the whole set to the store. Writing all of it every time is
 // what keeps the port this small — there is no update, only the current
 // truth.

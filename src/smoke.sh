@@ -1114,15 +1114,21 @@ has "refused removal preserves the message" "$(ab retired@srv1 consume --wait 0s
 has "owner can unregister an idle address" "$(ab owner@srv1 unregister retired@srv1)" '^retired@srv1 unregistered$'
 is_empty "unregistered address leaves the listing" "$(ab owner@srv1 ls | grep -o '"name":"retired@srv1"')"
 has "unregistered address no longer accepts messages" "$(ab owner@srv1 send retired@srv1 late 2>&1)" 'no such name'
-has "unregister preserves the principal credential" "$(ab retired@srv1 status)" '"you":"retired@srv1"'
-out=$(ab stranger@srv1 register retired@srv1 2>&1); rc=$?
-bad_exit "unregister does not free a credential identity for takeover" "$rc"
-out=$(ab stranger@srv1 service-template retired@srv1 '{}' 2>&1); rc=$?
-bad_exit "configure cannot take an unregistered identity either" "$rc"
+# The credential goes with the address. `tok` caches what it minted, so the
+# cached one is exactly what a holder would still be presenting.
+out=$(ab retired@srv1 status 2>&1); rc=$?
+bad_exit "unregister takes the credential with the address" "$rc"
 out=$(ab stranger@srv1 unregister retired@srv1 2>&1); rc=$?
 bad_exit "unregister of an absent address fails" "$rc"
-has "the same owner can register again" "$(ab owner@srv1 register retired@srv1)" '"name":"retired@srv1"'
-has "a principal can unregister itself" "$(ab retired@srv1 unregister retired@srv1)" 'unregistered'
+# A removed name is reserved for nobody: MVP does not protect it, and
+# protecting it is R1.2's (Plans/R1.2/README.md#removed-names).
+has "a removed name is free for whoever asks next" "$(ab stranger@srv1 register retired@srv1)" '"name":"retired@srv1"'
+has "and belongs to whoever took it" "$(ab stranger@srv1 ls retired@srv1)" '"owner":"stranger@srv1"'
+out=$(ab owner@srv1 register retired@srv1 2>&1); rc=$?
+bad_exit "so the previous owner cannot take it back" "$rc"
+has "and the taker can remove it in turn" "$(ab stranger@srv1 unregister retired@srv1)" '^retired@srv1 unregistered$'
+ab owner@srv1 register selfgone@srv1 --kind agent >/dev/null
+has "a principal can unregister itself" "$(ab selfgone@srv1 unregister selfgone@srv1)" 'unregistered'
 
 sec "no token, no serve"
 # Stated as a rule, not sampled: every route the daemon exposes, refused

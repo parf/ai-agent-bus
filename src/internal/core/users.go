@@ -146,9 +146,6 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 		if _, backed := b.dirs[parsed.Realm]; backed {
 			return protocol.User{}, ErrEnrol
 		}
-		if reserved, ok := b.retired[in.Name]; ok && reserved != in.Name {
-			return protocol.User{}, ErrNotOwner
-		}
 		b.records[in.Name] = protocol.Record{Name: in.Name, Owner: in.Name, Kind: "agent", Full: protocol.OverflowStrict, At: time.Now()}
 		b.ensure(in.Name)
 	}
@@ -198,7 +195,7 @@ func (b *Bus) Users(caller string, credentialNames []string) []protocol.User {
 		}
 	}
 	for _, name := range credentialNames {
-		if r, known := b.recordOrReservation(name); !known || r.Owner == name {
+		if r, known := b.record(name); !known || r.Owner == name {
 			names[name] = true
 		}
 	}

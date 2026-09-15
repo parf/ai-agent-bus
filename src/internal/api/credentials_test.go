@@ -44,7 +44,14 @@ func TestNamesSayWhoseCredentialAndWhatFor(t *testing.T) {
 
 	call("admin@h", "POST", "/user", `{"name":"alice@h","person_name":"Alice","create":true}`, 200)
 	call("alice@h", "POST", "/register", `{"name":"svc@h","kind":"agent","descr":"a service"}`, 200)
-	call("alice@h", "POST", "/token", `{"name":"svc@h"}`, 200)
+	var minted struct{ Token string }
+	if err := json.Unmarshal([]byte(call("alice@h", "POST", "/token", `{"name":"svc@h"}`, 200)), &minted); err != nil {
+		t.Fatal(err)
+	}
+	svcToken := minted.Token
+	if svcToken == "" {
+		t.Fatal("no credential came back for svc@h")
+	}
 
 	held := names("alice@h")
 	svc, has := held["svc@h"]
@@ -62,17 +69,25 @@ func TestNamesSayWhoseCredentialAndWhatFor(t *testing.T) {
 
 	call("alice@h", "POST", "/unregister", `{"name":"svc@h"}`, 200)
 
+	// The credential goes with the address, and the test for that is whether
+	// it still authenticates — not whether the name is listed. An
+	// unregistered name is absent from the list either way, so asserting on
+	// the list alone passes with the credential left intact.
+	r := httptest.NewRequest("GET", "/status", nil)
+	r.Header.Set(HeaderToken, svcToken)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code == 200 {
+		t.Fatalf("the credential outlived the address it was for: /status said %s", w.Body.String())
+	}
+
 	held = names("alice@h")
-	// Still held, by design. What changes is that it is now visibly a name
-	// nothing answers on, instead of sitting in the list looking live.
-	gone, still := held["svc@h"]
-	if !still {
-		t.Fatalf("removing an address took the credential that reclaims it: %+v", held)
+	if leftover, still := held["svc@h"]; still {
+		t.Fatalf("a credential for a removed address is still listed: %+v", leftover)
 	}
-	if gone.Kind != "unregistered" {
-		t.Fatalf("a credential for a removed address is not marked as a leftover: %+v", gone)
-	}
-	if me := held["alice@h"]; me.Kind != "person" {
-		t.Fatalf("a person's own credential changed when their service went: %+v", me)
+	// A person's own is not a service's: it is how they call at all, and
+	// removing a record of theirs must not log them out.
+	if me, mine := held["alice@h"]; !mine || me.Kind != "person" {
+		t.Fatalf("unregistering a service took the person's own credential: %+v", held)
 	}
 }
