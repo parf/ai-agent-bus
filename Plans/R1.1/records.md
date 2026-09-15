@@ -31,6 +31,31 @@ it either — what is in a queue is subject to the TTL it already had
 ([message ttl](../../docs/04-messaging.md#message-ttl)), so a backlog nobody
 will ever read empties itself rather than becoming permanent.
 
+**A retired name must never answer *no such name*.** That is the one refusal it
+must not borrow: a caller cannot tell it from a typo, and telling a caller its
+own name is wrong when the name is right is the answer that sends somebody
+looking in the wrong place. Each declared state answers with its own code and
+its own words, and a caller acts on them. The daemon already works this way —
+one table turns a refusal into a status and a counted reason, so the reason and
+the code cannot drift apart ([refusals](../../docs/05-discovery.md#refusals)) —
+and `down` already has an answer of its own there. Retirement needs one too;
+which code it is belongs to whoever writes it.
+
+**A retired name keeps no credential.** It is dropped with the address, exactly
+as [unregistering](../../docs/01-identity.md#unregistering) drops it, and for
+the reason MVP found: a credential per given-up name is what filled a person's
+list. Holding the name costs the record that is already there; holding a
+working credential is the expensive half, and this does not.
+
+So **undoing retirement is the owner's own act, not the service's.** The
+service cannot ask — it has nothing left to ask with. Its **owner** can, as
+themselves, and so can the **daemon owner**; a record's owner is on the record,
+and a person's own credential is the one thing removing a record never takes.
+A name brought back needs a credential again the ordinary way, by the owner
+asking for one for a name they own
+([getting a token](../../docs/02-access.md#getting-a-token)), or by the service
+re-registering when it starts.
+
 **The health checker ignores both**, because both are declared: a service that
 was turned off on purpose is not a service that failed
 ([health checker](../R1/discovery.md#health-checker)). What the checker reports
@@ -53,9 +78,9 @@ entry** has no representation for a record that is gone
 from whichever peer still holds it. A retired one is a record, and syncs like
 any other.
 
-Open choices: what happens to a retired name's credential, whether retirement
-can be undone and by whom, and how the two refusals are told apart
-([Q41–Q43](QUESTIONS.md#open-questions)).
+What is left open is who may put a record into these states at all, given that
+today's authority over a record is wider than the two people who may undo a
+retirement ([Q46](QUESTIONS.md#open-questions)).
 
 ## How long a record lives
 

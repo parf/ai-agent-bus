@@ -28,6 +28,9 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-15 | `retired` is terminal and holds the name | *Not now* and *not ever* are different answers, and a caller can act on the difference | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | Declared state is what the health checker ignores | A service turned off on purpose is not a service that failed | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | A declared state keeps the backlog and refuses what is new | Work somebody already accepted is not thrown away because a name was given up; TTL empties what is left | [down and retired](records.md#down-and-retired) |
+| 2026-09-15 | A retired name keeps no credential | A credential per given-up name is the cost MVP measured and dropped; the record holds the name without one | [down and retired](records.md#down-and-retired) |
+| 2026-09-15 | Retirement is undone by the service owner or the daemon owner | The service has nothing left to ask with, so it is the owner's act, made with their own credential | [down and retired](records.md#down-and-retired) |
+| 2026-09-15 | Each declared state answers with its own code and words, and never *no such name* | A caller cannot tell *no such name* from a typo, and a refusal it cannot act on is not an answer | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | Retirement is where a name is protected, and R1.2's removed-names topic is retired with it | A name deliberately kept costs one record; reserving every removed one is what MVP paid for and dropped | [down and retired](records.md#down-and-retired) |
 
 ## Runtime integration scope revision

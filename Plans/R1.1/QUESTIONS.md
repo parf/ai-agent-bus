@@ -11,9 +11,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q26 | Whether `kv` is optional, given that it is where service configuration would live | owner | [bundled services § data](services.md#data) |
 | Q31 | Who may read contact routes: everyone, administrators, or a narrower service audience | owner | [context](people.md#how-to-reach-a-person) |
 | Q32 | Whether record expiry and service credentials are allowed to change the daemon despite the former whole-stage no-change criterion | owner | [context](README.md#scope) |
-| Q41 | What a retired name's credential is: dropped with the address as unregistering drops it, or kept so the owner can still call | owner | [down and retired](records.md#down-and-retired) |
-| Q42 | Whether retirement can be undone, and by whom — reversible makes it a stickier `down`, irreversible needs a deletion's care | owner | [down and retired](records.md#down-and-retired) |
-| Q43 | How a caller is told which refusal it got, given that refusal reasons are a closed set counted where the reason becomes a status code | owner, with the MVP faces | [refusals](../../docs/05-discovery.md#refusals) |
+| Q46 | Who may declare a record down or retired: undoing a retirement is the service owner's and the daemon owner's, while [record management authority](../../docs/01-identity.md#groups-and-maintainers) today also lets a maintainers group disable and delete | owner | [down and retired](records.md#down-and-retired) |
 
 ## Services context
 

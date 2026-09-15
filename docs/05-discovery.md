@@ -194,11 +194,21 @@ cannot drift apart.
 |---|---|
 | `credential` | the token is not one, or none came at all — the only thing a call carries ([access § what a call carries](02-access.md#what-a-call-carries)) |
 | `acl` | the service, the record's owner, or a private configuration said no ([identity § acl](01-identity.md#acl)) |
+| `suspended` | the caller's own user state is paused or banned ([user lifecycle](01-identity.md#user-lifecycle)) |
+| `disabled` | the receiver's record is turned off by its owner ([owner control](01-identity.md#owner-control)) |
 | `unknown` | no such name ([messaging § verbs](04-messaging.md#verbs)) |
+| `name-taken` | a registration that asked for an unheld name found it held ([registration](01-identity.md#registration)) |
+| `busy` | an address could not be removed because its inbox has queued messages or a waiting reader ([unregistering](01-identity.md#unregistering)) |
 | `second-reader` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | `full` | the receiver's queue is at its bound and refuses rather than loses ([messaging § overflow](04-messaging.md#overflow)) |
 | `enrolment` | a challenge that did not hold ([identity § proving possession](01-identity.md#proving-possession)) |
 | `malformed` | the caller got the request wrong. One reason, not eight: *"you sent nonsense"* is a single answer however many ways there are to send it |
+
+A record's own state is a reason of its own, and deliberately not `unknown`:
+*turned off* and *no such name* send a caller to different places, so they are
+never the same answer. Declared states beyond `disabled` are
+[R1.1 work](../Plans/R1.1/records.md#down-and-retired) and would each bring
+their own reason rather than borrow one.
 
 **Only reasons that have happened appear** — a reason with a zero beside it is
 noise on every other node. And a fault of the daemon's own is a 500 and is
