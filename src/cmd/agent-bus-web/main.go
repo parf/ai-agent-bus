@@ -378,18 +378,12 @@ var page = template.Must(template.New("dash").Parse(head + `<meta http-equiv="re
 
 <h2 id=names>my names</h2>
 {{if .NoNames}}<p class=muted>{{.NoNames}}</p>{{else}}
-<table><tr><th>name<th>kind<th>owner<th>fingerprint<th>issued<th>last used</tr>
-{{range .Names}}<tr><td><code>{{.Name}}</code>
- <td>{{if eq .Kind "unregistered"}}<span class=warn>unregistered</span>{{else}}{{.Kind}}{{end}}
- <td><code class=muted>{{.Owner}}</code><td><code>{{.Fingerprint}}</code>
+<table><tr><th>name<th>fingerprint<th>issued<th>last used</tr>
+{{range .Names}}<tr><td><code>{{.Name}}</code><td><code>{{.Fingerprint}}</code>
  <td>{{if .Issued.IsZero}}{{else}}{{.Issued.Format "2006-01-02 15:04"}}{{end}}
  <td>{{if .Used.IsZero}}<span class=muted>not this run</span>{{else}}{{.Used.Format "15:04:05"}}{{end}}</tr>
-{{else}}<tr><td colspan=6 class=muted>you hold no credential</tr>{{end}}</table>
+{{else}}<tr><td colspan=4 class=muted>you hold no credential</tr>{{end}}</table>
 {{end}}
-<p class=muted>A credential goes when its address does, so a name here answers
- for something. One marked <span class=warn>unregistered</span> is a leftover from
- before that was true.</p>
-
 <p class=muted>A fingerprint names a credential without being one. Rotate with
  <code>agent-bus-token &lt;user@realm&gt; --rotate</code>; the one it replaces
  keeps working until the next rotation.</p>
