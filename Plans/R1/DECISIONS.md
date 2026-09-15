@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 |---|---|---|
 | Sigils | [definition](identity.md#sigils) | D6, D7, D27, D28, D29, D30 |
 | Enrolment policy | [definition](access.md#enrolment-policy) | D18 |
+| On demand | [definition](runner.md#on-demand) | |
 | Delegation | [definition](identity.md#delegation) | D37 |
 | Ownership | [definition](identity.md#ownership) | D38, D40, D133, D134, D135 |
 | Sealed private config | [definition](identity.md#sealed-private-config) | D41 |

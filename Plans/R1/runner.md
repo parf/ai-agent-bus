@@ -110,6 +110,63 @@ needs an instance ([the three env layers](#the-three-env-layers)).
 | **stopping is unchanged** | no further frame is written and the answer in flight is waited for, then `SIGTERM` — bounded by the same deadline, because a wedged child cannot be waited out |
 | **a crash still loses only what was taken** | a message leaves the daemon only when a hand is free for it, so the rest is still queued for whatever reads that inbox next |
 
+### On demand
+
+**This is how most runner services are meant to run, not a special case for
+rare ones.** Keeping a process resident is what
+[long-lived services](#long-lived-services) buys something by — a loaded model,
+an open handle, a warm cache. A service with nothing to keep warm gains nothing
+from being up, and **most services have nothing to keep warm**: the resident
+ones are the exception, and on demand is the ordinary arrangement for the rest.
+
+Sending an SMS is only the clearest case — rare, cheap to start and pointless
+to keep resident. Today such a name is registered and its inbox fills while
+nothing reads it ([messaging § inbox queues](../../docs/04-messaging.md#inbox-queues)); the work
+waits for a process somebody has to have started, and a box ends up running a
+process per service for services that are idle almost always.
+
+**The mechanism is one field on a record and one branch in delivery.**
+
+| | |
+|---|---|
+| **the record carries a fallback channel** | a service may register one, and the runner puts it on the registration of every on-demand service it owns. Declared once, by the thing that can actually act on it |
+| **no consumer is the trigger** | a call for a name nobody is reading is **wrapped** by the daemon and delivered to that channel instead of waiting in the inbox |
+| **the runner is what reads it** | it takes the wrapper, starts the script for that one task, and hands the result back |
+| **nothing is resident in between** | which is the whole point |
+
+**The caller cannot tell.** It made an ordinary call
+([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)) and gets an ordinary
+reply; only the latency differs. No new verb, no new transport and no second
+way to address a service — the wrapper is an ordinary message on an ordinary
+channel, and the execution is the one the runner already performs per message
+in the `args` and `json` forms ([what an instance is](#what-an-instance-is)).
+
+| | |
+|---|---|
+| **the wrapper carries the original, and the answer comes back as the service** | reply routing is the original envelope's ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)). The runner returns a result and the daemon unwraps it; a caller that sees the runner's name where the service's belongs is the wrap having leaked |
+| **the ACL is applied before the wrap, never after** | the daemon refuses on the record's own ACL exactly as it always does, and only a call that passed is wrapped. Otherwise the fallback channel is a way to reach a service you may not call |
+| **the channel is one runner's, and that is a grant like any other** | anything that may write it could forge a wrapped call, so it is a name with an ACL ([identity § acl](../../docs/01-identity.md#acl)): the daemon writes, one runner reads, and nobody else is on it |
+| **the runner still mints nothing** | it executes and answers. Who called is the daemon's assertion inside the wrapper, never something the runner establishes — the same rule as everywhere else ([what the child is told](#what-the-child-is-told)) |
+| **no consumer is a race, and late beats twice** | a consumer may attach between the check and the hand-off, so the two are one step in the daemon. A message delivered to both the inbox and the channel is the failure that one reader per inbox exists to prevent ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)) |
+| **cold start is the caller's latency, on the caller's ttl** | the call pays a process start. A message ttl shorter than that start is a caller that has already given up ([messaging § message ttl](../../docs/04-messaging.md#message-ttl)), and being on-demand does not extend it |
+| **a runner that is down is a service that is down** | the wrappers queue on the fallback channel, which is an inbox like any other. Nothing new to reason about |
+| **it does not change what a script is** | the same forms, the same env layers ([the three env layers](#the-three-env-layers)), the same sandbox ([sandboxing](#sandboxing)). Only the trigger differs |
+| **the kept child is what needs a reason** | the shape already decides the lifetime ([long-lived services](#long-lived-services)) and this does not add a flag beside it. What changes is the default expectation: a stream form stays because it has something to keep, and everything else is on demand unless somebody says why not |
+
+**Start on demand is the other kind, and it is not settled.** There the call
+starts the **service**, which then reads its own inbox the ordinary way and may
+be stopped again after an idle period.
+
+| | |
+|---|---|
+| **nothing is wrapped** | the message stays in the inbox it already reached, and the daemon only has to say *somebody should start this*. Less machinery than the wrapped form, not more |
+| **the start is paid once, not per call** | a burst warms one process and the rest are ordinary deliveries. Per-call exec is right for an SMS and wrong for anything with a cache to build, so the two answer different questions: **how rare**, and **how expensive to start** |
+| **idle shutdown is a second decision** | what counts as idle, and what stopping does to work in flight — a stop already waits for what it took ([what the runner does](#what-the-runner-does)) |
+
+The pair is inetd's per-call exec beside systemd's socket activation, and that
+system shipped both for this reason. Whether both are built is
+[open](QUESTIONS.md#open-questions).
+
 ## What an instance is
 
 A directory — and the directory being there is the **installed** state, not

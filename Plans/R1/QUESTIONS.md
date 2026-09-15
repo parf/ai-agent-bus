@@ -9,7 +9,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q4 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](auth.md#ssh-admin) |
 | Q5 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](registry.md#registry-sync) |
 | Q6 | How an absent receiver obtains decryption material, and how manual credential changes affect retained keys and queued bodies | owner, with R1 | [access § key modes](access.md#key-modes) |
-| Q12 | How a dormant name is woken, and what the daemon has to learn to do it | owner, in R1 | [runner § what an instance is](runner.md#what-an-instance-is) |
+| Q12 | Whether start-on-demand is built beside the wrapped call, and what idle stops a service that was started that way | owner, in R1 | [runner § on demand](runner.md#on-demand) |
 | Q13 | Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](runner.md#long-lived-services) |
 | Q15 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](runner.md#where-it-runs) |
 | Q16 | How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](access.md#token-scope) |
@@ -50,12 +50,13 @@ child would echo the tag and replies could come back in any order. Left open
 because nothing needs it yet and adding it later breaks nothing.
 *Settled by:* owner, when a service asks for it.
 
-❓ **On-demand start is R1** ([stages § R1](README.md#scope)),
-and it is the one place the daemon learns something runner-shaped: a dormant
-name needs a **wake-up procedure** configured on it, so that a message arriving
-for nobody starts the thing that serves it instead of being refused. Only a
-runner can be woken, which is why the mechanism belongs to it rather than to
-services in general. *Settled by:* owner, in R1.
+❓ **A second kind of on demand** ([runner § on demand](runner.md#on-demand)).
+The wrapped call is settled: no consumer, and the daemon hands the call to the
+record's fallback channel for the runner to execute. Open is whether the other
+kind is built beside it — the call starting the **service**, which then reads
+its own inbox the ordinary way — and, if so, what idle stops it again. They
+answer different questions, how rare against how expensive to start, so the
+second is not a replacement for the first. *Settled by:* owner, in R1.
 
 ❓ **What a backup is driven by** — a runner verb, a bundled service, or
 neither. It is one encrypted archive either way, which is why the shape is
