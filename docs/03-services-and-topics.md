@@ -4,8 +4,7 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Registry records, protocol hints, private registry configuration and queue/pubsub topics. |
-| Pending | Method metadata for generated catalog documentation; [MVP questions](../Plans/MVP/QUESTIONS.md#open-questions). |
+| Built | Registry records, protocol hints, private registry configuration and queue/pubsub topics. A service's method information is its [description](#service-and-template). |
 
 ## Service kinds
 
@@ -53,10 +52,12 @@ not a group or an instruction to fan out. Each complete name has its own
 record, inbox and optional configuration. Nothing parses configuration out of
 an instance's name.
 
-Method metadata, including destructive-method hints, is **pending MVP**.
-The current record cannot carry it and the MCP face cannot generate service
-method documentation from it. The representation is an owner decision in
-[MVP questions](../Plans/MVP/QUESTIONS.md#open-questions).
+**A service's method information is its description, and nothing else.** The
+record's one free-text field is what `ls` and the MCP catalog show, so a service
+whose callers need to know its verbs writes them into that sentence. The MVP has
+no method list, no per-method destructive hint and nothing generated from one; a
+better representation is proposed in
+[R1 method metadata](../Plans/R1/discovery.md#method-metadata).
 
 ## Configuring a template
 

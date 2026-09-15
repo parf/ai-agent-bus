@@ -15,7 +15,8 @@ Owner confirms the scope and resolves [questions](QUESTIONS.md#open-questions). 
 | Scoped credentials and encryption | [Settled lifetime policy](../../docs/02-access.md#token-lifetime); remaining key recovery and token grammar decisions |
 | D.1–D.4 encryption carried from MVP | [Encryption acceptance](encryption-wave.md#d--the-bus-stops-reading-payloads); key lifecycle decisions |
 | Federation | Namespace, record authenticity and clock decisions |
-| Managed runner | Edge identity, config change behavior and dormant activation decisions; current method metadata work |
+| Managed runner | Edge identity, config change behavior and dormant activation decisions; [method metadata](discovery.md#method-metadata) |
+| [Service method metadata](discovery.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |
 | Client libraries | Owner-approved protocol description |
 | [Optional dashboard extensions](discovery.md#dashboard-extensions) | Required MVP dashboard acceptance; the AUTH, health, stats, federation and runner data each additional view reports |
 | AUTH authorization freshness | [Q35](QUESTIONS.md#authorization-refresh), independently of credential lifetime |

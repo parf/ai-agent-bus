@@ -18,7 +18,7 @@ Credential lifetime follows the same [manual-change policy](../docs/02-access.md
 
 ## MVP
 
-**Turn the working prototype into a bus other people can install and share.** The major change is independent caller identity with enforced access, supported by restart recovery, a dashboard and a process split. Much of this is built, but MVP remains active: people administration, method information, packaging and installed isolation evidence still prevent stage acceptance ([MVP scope](MVP/README.md#scope), [remaining work](MVP/TODO.md#remaining-work)).
+**Turn the working prototype into a bus other people can install and share.** The major change is independent caller identity with enforced access, supported by restart recovery, a dashboard and a process split. Much of this is built, but MVP remains active: people administration, packaging and installed isolation evidence still prevent stage acceptance ([MVP scope](MVP/README.md#scope), [remaining work](MVP/TODO.md#remaining-work)).
 
 | Major change from PoC | What changes for users and operators | Status and detail |
 |---|---|---|
@@ -29,7 +29,7 @@ Credential lifetime follows the same [manual-change policy](../docs/02-access.md
 | Operational visibility | Operators can inspect permitted records, backlog, losses and message activity through a signed-in dashboard | Built, with people view pending: [dashboard views](../docs/05-discovery.md#what-it-shows) |
 | **Installation and privilege separation** | The daemon gains a managed installation; separate processes and optional script confinement narrow responsibilities | Setup and split built; package and installed checks pending: [setup](../docs/09-setup.md#status), [stage gate](MVP/TODO.md#installed-stage-gate) |
 | Usable runtime integrations | Packaged integrations and smart launchers make the existing adapters usable from a fresh installation | Built implementation; live-runtime and fresh-host acceptance pending: [integration delivery](../docs/08-runner-role.md#runtime-integration-delivery), [launchers](../docs/08-runner-role.md#smart-launchers) |
-| Trusted people and service descriptions | Maintainer-controlled profiles and generated method information make the registry more useful to people and agents | Built: [person records](../docs/01-identity.md#person-records); pending: [method information](../docs/03-services-and-topics.md#service-and-template) |
+| Trusted people and service descriptions | Maintainer-controlled profiles and a description on every record make the registry more useful to people and agents | Built: [person records](../docs/01-identity.md#person-records), [service description](../docs/03-services-and-topics.md#service-and-template); generated method information moved to [R1](R1/discovery.md#method-metadata) |
 | Release identification | Programs report a consistent release identity, and running processes expose operational context | Built: [build information](../docs/09-setup.md#build-information), [process titles](../docs/11-processes.md#process-titles) |
 
 The trust boundary has not changed yet: the MVP daemon can read message bodies and stored configuration ([current trust boundary](../docs/02-access.md#encrypted-sessions)).

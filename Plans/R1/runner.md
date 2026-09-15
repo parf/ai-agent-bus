@@ -475,5 +475,5 @@ remain release design work after scope confirmation.
 
 A registry record reports the version registered; a standard `version` call
 reports what is running. The runner answers from the service description for
-simple scripts. This depends on the pending method metadata contract; it does
+simple scripts. This depends on [method metadata](discovery.md#method-metadata); it does
 not create an independently versioned program in this repository.

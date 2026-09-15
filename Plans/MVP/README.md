@@ -26,7 +26,7 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 | Area | Status | Canonical contract |
 |---|---|---|
 | Identity, credentials and local isolation | Built and pending; see linked status | [identity](../../docs/01-identity.md#status), [access](../../docs/02-access.md#status) |
-| Registry, topics and private configuration | Built; method metadata pending | [services](../../docs/03-services-and-topics.md#status) |
+| Registry, topics and private configuration | Built | [services](../../docs/03-services-and-topics.md#status) |
 | Messaging and restart persistence | Built | [messaging](../../docs/04-messaging.md#status) |
 | API, CLI, MCP and dashboard | Built and pending; see linked status | [discovery](../../docs/05-discovery.md#status) |
 | Foreground services and adapters | Built, including launchers; live-runtime and fresh-host acceptance pending | [runner](../../docs/08-runner-role.md#status) |

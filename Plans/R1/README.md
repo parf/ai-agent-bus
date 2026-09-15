@@ -14,6 +14,7 @@ Proposed, not started. A team or company can run it and expose it. Scope remains
 | Shared locks | [Shared locks](locks.md#shared-locks) |
 | Managed services and pools | [Managed services and pools](runner.md#what-the-runner-does) |
 | Discovery and observability | [Discovery and observability](discovery.md#where-a-member-says-it-is) |
+| Service method metadata | [Method metadata](discovery.md#method-metadata) |
 | Operations | [Operations](operations.md#reload) |
 | Installable distributions | [Release artifacts](distribution.md#release-artifacts) |
 | Module boundaries and clients | [Module boundaries and clients](modules.md#modules) |

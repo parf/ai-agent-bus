@@ -6,7 +6,7 @@ Finish the [MVP scope](README.md#scope). Built wave results are in [DONE](DONE.m
 
 ## Next step
 
-First close the shared-host safety gaps: G.1.3 (web authority), H.5.2 (SSH onboarding), H.5.3 (administrative crash recovery, after Q39), and H.9.5 (runtime sidecars). The [review evidence](done/release-gap-review.md#findings) distinguishes reproduced failures from unverified risks. Then complete upgrade/recovery, browser and live-runtime acceptance alongside the existing packaging, method-metadata and local-account work. Open choices remain in [QUESTIONS](QUESTIONS.md#open-questions).
+First close the shared-host safety gaps: G.1.3 (web authority), H.5.2 (SSH onboarding), H.5.3 (administrative crash recovery, after Q39), and H.9.5 (runtime sidecars). The [review evidence](done/release-gap-review.md#findings) distinguishes reproduced failures from unverified risks. Then complete upgrade/recovery, browser and live-runtime acceptance alongside the existing packaging and local-account work. Open choices remain in [QUESTIONS](QUESTIONS.md#open-questions).
 
 ## Remaining work
 
@@ -16,7 +16,6 @@ H.8 and H.9–H.9.3 have [built implementation and automated evidence](done/laun
 
 | ID | Deliverable | Depends on | Acceptance and mutation |
 |---|---|---|---|
-| F.2 | Generated service method information | Q7 | A registered service's method description reaches both faces; removing metadata propagation must lose that description and fail. An ordinary service remains callable as a control |
 | H.1 | Distributable package and installation instructions | Q10; all shipped programs and faces | A new user installs on a fresh host and calls a service following only the instructions. Remove a required binary or face artifact from the package and the same exercise must fail |
 | H.1.1 | [Upgrade and recovery](../../docs/09-setup.md#installation-acceptance) | H.1; existing installed state | Upgrade a populated installation and verify credentials, ACLs, queues and local mappings, preserved operator configuration, and the intended build in every running program and face. Interrupt an upgrade and recover by the documented procedure. Omit a component, overwrite configuration or restore mismatched credentials/state separately: each fails its check |
 | H.8 | [Runtime integration delivery](../../docs/08-runner-role.md#runtime-integration-delivery) | Built adapters; H.1 for installed acceptance | Install into clean runtime profiles from the shipped artifacts. A bus message reaches each live interactive session and a correlated reply returns. Remove channel activation or Codex tool configuration separately and the relevant exchange fails; an isolated headless reply does not count |

@@ -14,7 +14,7 @@ whole [MVP scope](Plans/MVP/README.md#scope), with built and pending explicit.
 | Built | Still pending |
 |---|---|
 | Principal credentials, local sockets and service ACL | Person profiles and maintainer editing |
-| Registry, topics, calls and restart snapshots | Generated service method information |
+| Registry, topics, calls and restart snapshots | — |
 | Foreground scripts, MCP, runtime adapters and launchers | [Live-runtime acceptance](docs/08-runner-role.md#runtime-integration-delivery), release packaging and fresh-host acceptance |
 | Signed-in dashboard and process split | People view and installed isolation verification |
 

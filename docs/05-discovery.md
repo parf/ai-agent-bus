@@ -5,7 +5,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration and envelope-only diagnostics. |
-| Pending | Generated method documentation; installed [browser acceptance](#browser-acceptance), resource confinement and [web authority isolation](11-processes.md#web-authority-boundary). |
+| Pending | Installed [browser acceptance](#browser-acceptance), resource confinement and [web authority isolation](11-processes.md#web-authority-boundary). |
 
 ## What a listing answers
 
@@ -49,7 +49,7 @@ An empty result says `No matching records.`; lookup errors remain errors.
 | Face | Built | Pending MVP |
 |---|---|---|
 | API | Registry, messaging, credentials, sessions and dashboard administration | — |
-| MCP | Bus tools and a catalog filtered by the daemon | Generated service-method documentation |
+| MCP | Bus tools and a catalog filtered by the daemon | — |
 | WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access | Installed browser acceptance, resource confinement and web authority isolation |
 
 ## MCP minimum

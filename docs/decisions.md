@@ -6,6 +6,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Service method information is the description | [service and template](03-services-and-topics.md#service-and-template) | 2026-09-15 owner instruction; resolves Q7 |
 | Coordinated runtime and bus rename | [explicit session rename](08-runner-role.md#explicit-session-rename) | 2026-09-13 owner clarification |
 | Launcher terminal titles, palettes and restoration | [terminal appearance](08-runner-role.md#terminal-appearance) | 2026-09-13 owner instruction |
 | OpenCode explicit session binding | [adapters](08-runner-role.md#adapters) | 2026-09-13 installed launcher verification |
