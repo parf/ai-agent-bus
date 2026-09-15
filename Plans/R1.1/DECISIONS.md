@@ -24,10 +24,11 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-15 | Three declared states: briefly down, down, retired | *In a second*, *not today* and *not ever* are different instructions to a caller | [down and retired](records.md#down-and-retired) |
+| 2026-09-15 | Two declared states: down and retired | *Not today* and *not ever* are different instructions to a caller | [down and retired](records.md#down-and-retired) |
+| 2026-09-15 | Briefly unavailable is not settable; a service returns it over the protocol | Only the thing restarting knows it is, and a record marked so is stale the moment nobody updates it | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
 | 2026-09-15 | `down` is the record already called disabled, not a state beside it | One behaviour with two names would be two truths about one thing | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | No declared state answers `500` | Down is deliberate and a 500 is the daemon saying it broke; the two are opposite claims, and a 500 is uncounted as a refusal | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | Briefly down answers `503`, retired answers `410` | *Gone* says a name was real and is not coming back, and is the one such answer worth caching | [down and retired](records.md#down-and-retired) |
+| 2026-09-15 | Down answers `409` and retired `410`; briefly unavailable is the service's own `503` | A code a caller acts on without parsing a header; `409` is what a disabled record already answers, and *gone* says a name was real, is not coming back, and is worth caching | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | `retired` is terminal and holds the name | *Not now* and *not ever* are different answers, and a caller can act on the difference | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | Declared state is what the health checker ignores | A service turned off on purpose is not a service that failed | [down and retired](records.md#down-and-retired) |
 | 2026-09-15 | A declared state keeps the backlog and refuses what is new | Work somebody already accepted is not thrown away because a name was given up; TTL empties what is left | [down and retired](records.md#down-and-retired) |

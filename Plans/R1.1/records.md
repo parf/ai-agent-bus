@@ -14,30 +14,31 @@ on ([where a member says it is](../R1/discovery.md#where-a-member-says-it-is)).
 
 | Declared | Means | What a caller should do | Answer |
 |---|---|---|---|
-| **briefly down** | it is coming back in a moment — restarting, redeploying | hold and retry soon | `503` |
-| **down** | out of service, back eventually — this is [today's disabled record](../../docs/01-identity.md#owner-control), not a state beside it | back off hard; roughly one retry an hour, not a loop | [Q47](QUESTIONS.md#open-questions) |
+| **down** | out of service, back eventually — this is [today's disabled record](../../docs/01-identity.md#owner-control), not a state beside it | back off hard; roughly one retry an hour, not a loop | `409` |
 | **retired** | gone for good | stop, and fix the code that still sends here | `410` |
 
-The three answers are the point. *"In a second"*, *"not today"* and *"not
-ever"* are different, and a caller can act on the difference: hold, back off,
-or stop. Collapsing them throws away the only thing the owner knew and the
-caller did not.
+*"Not today"* and *"not ever"* are different, and a caller can act on the
+difference: back off, or stop. Collapsing them throws away the only thing the
+owner knew and the caller did not.
 
 **The daemon does not retry on anybody's behalf.** These say what a caller
 should do; nothing in the bus holds a refused send and tries again later, and
 nothing here proposes that it should. The states already settled what happens
 to traffic meanwhile: what is queued stays, what is new is refused.
 
-**None of the three is a `500`, because none of them is a fault.** A service
-that is down is down *on purpose* — somebody decided it — and a 500 is the
-daemon saying it broke. They are opposite claims. The distinction is also
-counted: a 500 is deliberately **left out of the refusal totals**, so that
+**Neither is a `500`, because neither is a fault.** `500` keeps the one meaning
+it has: something actually went wrong, and it was ours. A service that is down
+is down *on purpose* — somebody decided it — so the two are opposite claims.
+The distinction is also counted: a 500 is deliberately **left out of the
+refusal totals**, so that
 *"how often am I refusing callers?"* is not answered with a number that
 includes our bugs ([refusals](../../docs/05-discovery.md#refusals)). An owner's
 decision answered as a server fault would be invisible there and
 indistinguishable from a daemon bug in the log.
 
-Which code the middle state does answer is [Q47](QUESTIONS.md#open-questions).
+`409` is what a disabled record answers **today**, so `down` changes nothing
+for a caller that already handles it, and *conflicts with the state this
+resource is in* is what an administrative state is.
 
 **Nothing new accumulates is not the same as nothing is there.** A backlog
 already in the inbox is kept; what is refused is anything new. That is exactly
@@ -83,6 +84,29 @@ was turned off on purpose is not a service that failed
 ([health checker](../R1/discovery.md#health-checker)). What the checker reports
 is observed, what this verb writes is stated, and a listing that cannot tell
 them apart cannot answer *did this break, or did you mean it*.
+
+### Coming back in a moment is not one of them
+
+**A service that is restarting says so itself, and nothing writes it down.**
+*Briefly unavailable* is a `503`, and it comes from the service over the
+protocol — the thing knows it is warming up, and it is the only thing that
+does. It is **not settable**: no verb declares it, the registry has no such
+state, and an owner reaching for one is reaching for `down`.
+
+That keeps the axis clean. A **declared** state is a decision somebody made and
+the registry holds; **observed** is what the health checker concluded
+([health checker](../R1/discovery.md#health-checker)); and this is neither —
+it is the service answering for itself, in the moment, and gone the moment it
+is true again. A record that could be marked briefly-down would be a fourth
+thing to keep in step with the other three and stale the second nobody updated
+it.
+
+⚠️ **`503` already has a meaning from the daemon**: the receiver's queue is at
+its bound ([overflow](../../docs/04-messaging.md#overflow)), counted as `full`.
+A caller seeing 503 is being told *not now* either way, which is why the
+overlap is tolerable — but the two come from different places and only one of
+them is counted as a refusal here. Whether that needs telling apart on the wire
+is [Q48](QUESTIONS.md#open-questions).
 
 ### Retired is not the reservation that was removed
 
