@@ -122,10 +122,15 @@ can reach is therefore a name with no record and no person behind it: what a
 credential outliving its address used to leave.
 
 ⚠️ **The daemon owner's credential is minted by the credential store itself,
-not by a record**, so it can be ownerless by this test and must survive the
-sweep regardless. Anything issued before its record exists is the same shape of
-hazard: the sweep runs at start, so it sees a moment, and what it deletes it
-cannot give back — a name swept needs a credential again the ordinary way
+not by a record**, so it is ownerless by this test and survives the sweep
+regardless. Nothing gives the owner a profile either, which means this shape is
+not a leftover to be cleared: **there is always at least one credential the
+sweep must not take**, and a listing can never treat the category as empty.
+
+A credential asked for before its name is registered is the same shape, briefly.
+The sweep runs at start, so it sees one moment: such a credential is there until
+the next restart and gone after it. What it deletes it cannot give back — a name
+swept needs a credential again the ordinary way
 ([getting a token](#getting-a-token)).
 
 Removal already takes a credential with its address, on unregistering and on
