@@ -127,8 +127,9 @@ reservation: their credential is how they call at all, so removing a record of
 theirs does not take it. A re-registered name starts with an empty inbox and
 no configuration or subscriptions.
 
-Protecting a removed name — reserving it for its owner, and refusing a
-stranger who asks for it — is [R1.2 work](../Plans/R1.2/README.md#removed-names).
+Protecting a name is a thing its owner asks for, not something a removal
+buys: declaring a record [retired](../Plans/R1.1/records.md#down-and-retired)
+holds its name, and is R1.1 work.
 MVP reserved it, and paid a permanent credential per throwaway address for
 protection it did not need.
 

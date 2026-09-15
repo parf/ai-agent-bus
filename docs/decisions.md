@@ -21,7 +21,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
 | Human-readable CLI listings | [CLI listing](05-discovery.md#cli-listing) | 2026-09-13 owner instruction |
 | Manual removal of idle registry addresses | [unregistering](01-identity.md#unregistering) | 2026-09-13 owner request |
-| A removed name keeps nothing, and its protection is R1.2's | [unregistering](01-identity.md#unregistering) | 2026-09-15 owner revision |
+| A removed name keeps nothing; a name is protected by retiring it | [unregistering](01-identity.md#unregistering), [R1.1 retirement](../Plans/R1.1/records.md#down-and-retired) | 2026-09-15 owner revision |
 | Launcher address follows renamed session on restart | [session names](08-runner-role.md#session-names) | 2026-09-13 owner revision |
 | Launcher addresses use template and instance naming | [session names](08-runner-role.md#session-names) | 2026-09-13 owner instruction |
 | Credential lifetime across releases | [token lifetime](02-access.md#token-lifetime) | 2026-09-13 owner instruction |
@@ -133,7 +133,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | The dashboard is `https://agent-bus.localhost.direct`, with a certificate under that name, port 443 and an 8443 fallback | [where it listens](05-discovery.md#where-it-listens) |
 | MVP dashboard permits only sign-in/out; basic groups and activity charts wait for R1 | [required tabs](05-discovery.md#required-tabs) |
 | Maintainers require AUTH and are absent from MVP | [groups and maintainers](01-identity.md#groups-and-maintainers) |
-| An unregistered name stays reserved to its owner and keeps a valid credential | [unregistering](01-identity.md#unregistering), deferred to [removed names](../Plans/R1.2/README.md#removed-names) |
+| An unregistered name stays reserved to its owner and keeps a valid credential | [unregistering](01-identity.md#unregistering); protecting a name is now [R1.1 retirement](../Plans/R1.1/records.md#down-and-retired) |
 
 ## Open
 

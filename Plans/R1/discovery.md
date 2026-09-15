@@ -53,6 +53,10 @@ services it probes.
 - **generic** → probe per the registered hints.
 - **agent** → heartbeat; K missed → down.
 
+A record its owner declared down or retired is not probed and not counted
+against: what this reports is observed, and that is stated
+([down and retired](../R1.1/records.md#down-and-retired)).
+
 
 ## Stats
 

@@ -8,6 +8,7 @@ Proposed, not started. Tools built on the preceding stage. Catalogue entries sho
 |---|---|
 | Bundled services | [Bundled services](services.md#bundled-services) |
 | Agent runtimes | [Agent runtimes](services.md#agent-runtimes) |
+| Declared record state | [Down and retired](records.md#down-and-retired) |
 | Record lifetime | [Record lifetime](records.md#how-long-a-record-lives) |
 | Service credentials | [Service credentials](access.md#service-to-service) |
 | Contact routes | [Contact routes](people.md#how-to-reach-a-person) |
