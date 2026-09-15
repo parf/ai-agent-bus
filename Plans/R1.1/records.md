@@ -21,6 +21,15 @@ on ([where a member says it is](../R1/discovery.md#where-a-member-says-it-is)).
 difference: back off, or stop. Collapsing them throws away the only thing the
 owner knew and the caller did not.
 
+**Either is declared by the record's owner or its assigned maintainers** — the
+[record management authority](../../docs/01-identity.md#groups-and-maintainers)
+that already disables and deletes, so this adds no new authority and needs no
+new group. **Coming back is narrower**: a retirement is undone by the service
+owner or the daemon owner, and a maintainer who retired a name cannot take it
+back. The ratchet is deliberate and worth reading twice before anyone
+straightens it out: the same hands that may already delete a record may retire
+one, and returning from *gone for good* is the owner's.
+
 **The daemon does not retry on anybody's behalf.** These say what a caller
 should do; nothing in the bus holds a refused send and tries again later, and
 nothing here proposes that it should. The states already settled what happens
@@ -124,9 +133,8 @@ entry** has no representation for a record that is gone
 from whichever peer still holds it. A retired one is a record, and syncs like
 any other.
 
-What is left open is who may put a record into these states at all, given that
-today's authority over a record is wider than the two people who may undo a
-retirement ([Q46](QUESTIONS.md#open-questions)).
+Whether the two `503`s a caller can meet need telling apart on the wire is
+[Q48](QUESTIONS.md#open-questions).
 
 ## How long a record lives
 

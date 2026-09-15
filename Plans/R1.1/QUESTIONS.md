@@ -12,7 +12,6 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q31 | Who may read contact routes: everyone, administrators, or a narrower service audience | owner | [context](people.md#how-to-reach-a-person) |
 | Q32 | Whether record expiry and service credentials are allowed to change the daemon despite the former whole-stage no-change criterion | owner | [context](README.md#scope) |
 | Q48 | Whether a `503` from the daemon because an inbox is [full](../../docs/04-messaging.md#overflow) and a `503` from a service that is briefly unavailable need telling apart on the wire, given both mean *not now* | owner, with the MVP faces | [down and retired](records.md#coming-back-in-a-moment-is-not-one-of-them) |
-| Q46 | Who may declare a record down or retired: undoing a retirement is the service owner's and the daemon owner's, while [record management authority](../../docs/01-identity.md#groups-and-maintainers) today also lets a maintainers group disable and delete | owner | [down and retired](records.md#down-and-retired) |
 
 ## Services context
 
