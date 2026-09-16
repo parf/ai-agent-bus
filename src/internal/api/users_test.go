@@ -78,8 +78,13 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 			t.Fatalf("suspended user bypassed through session/local socket: %d", w.Code)
 		}
 	}
-	// Running service identities remain independent of the user's own access.
-	call("svc@h", "GET", "/status", "", 200)
+	// A service identity is *not* independent of its owner's access, which is
+	// what H.5.7 changed: kept is not accepted, so while the state lasts the
+	// credential grants nothing, theirs or their services'
+	// (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned). The
+	// credential itself survives — the call below proves it works again once
+	// the state is lifted, so nothing was revoked.
+	call("svc@h", "GET", "/status", "", 403)
 	restored := core.New()
 	snapshot := b.Snapshot()
 	data, _ := json.Marshal(snapshot)
@@ -88,6 +93,11 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	s = New(restored, s.tokens, "admin@h")
 	call("alice@h", "GET", "/status", "", 403)
 	call("maint@h", "POST", "/user/state", `{"name":"alice@h","state":"active"}`, 200)
+	// The service answers again the moment the state is lifted. That the
+	// *same bytes* still work — kept rather than reissued — is pinned in
+	// TestSuspensionDestroysNothing, which holds the credential across the
+	// ban; this helper mints one per call and could not tell the difference.
+	call("svc@h", "GET", "/status", "", 200)
 	if got := call("alice@h", "GET", "/consume?wait=0s", "", 200); !strings.Contains(got, "retained") {
 		t.Fatal("pause lost queued work")
 	}

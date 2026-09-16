@@ -18,6 +18,57 @@ func (b *Bus) active(name string) bool {
 	return state == "" || state == "active"
 }
 
+// suspension says why calls involving name are refused, or nil. There are two
+// ways for somebody to be behind a name — be it, or own it — and a suspension
+// on either side refuses the same way: `403 suspended`, one suspension seen
+// from either side, with nothing the caller can do about it in either case
+// (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned).
+//
+// Deliberately **not** folded into active(). active asks about a name's own
+// user state and is asked at a dozen places about people, where a record
+// lookup would mean nothing; this asks about somebody else's state and only of
+// a record. They also must not merge in visible(), which reports r.Disabled as
+// "the owner turned delivery off" — a service refused because its owner is
+// suspended is a third fact, and presenting it as the second is the conflation
+// docs/decisions.md forbids.
+//
+// The message names the side because the code cannot: an operator reading a
+// log should not have to guess which of two people is suspended, while the
+// caller is told no more than it was already entitled to know.
+// Caller holds b.mu.
+func (b *Bus) suspension(name string) error {
+	if !b.active(name) {
+		return ErrInactive
+	}
+	return b.ownerSuspension(name)
+}
+
+// ownerSuspension is the half that is about **somebody else**: a service, and
+// the person who owns it. It is separate from the name's own state, and the
+// separation is load-bearing rather than tidy.
+//
+// Whether a name's *own* inactive state refuses a read of its own inbox is a
+// different question, and an open one
+// ([Q63](Plans/MVP/QUESTIONS.md#open-questions)): `Send` refuses to deliver to
+// an inactive name while `ConsumeAs` lets a third party drain what is already
+// there. Adding owner suspension to those paths must not answer it by
+// accident, so this asks only about a separate owner and returns nil for a
+// self-owned record, where there is no separate owner to ask about.
+//
+// It is also **not transitive**. If a service owns a service, suspending the
+// person at the top does not reach the bottom one: the contract is *every
+// service they own* (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned),
+// and ownership is the direct relation the record states. Following the chain
+// would be a different and larger rule.
+// Caller holds b.mu.
+func (b *Bus) ownerSuspension(name string) error {
+	r, ok := b.records[name]
+	if !ok || r.Owner == name || b.active(r.Owner) {
+		return nil
+	}
+	return fmt.Errorf("%w: %s is owned by %s, whose access is suspended", ErrInactive, name, r.Owner)
+}
+
 // Authenticate says whether this name may act at all, and says why not in two
 // different ways, because they are two different answers to give a caller.
 //
@@ -59,10 +110,11 @@ func (b *Bus) acting(name string) error {
 	if err := b.knows(name); err != nil {
 		return err
 	}
-	if !b.active(name) {
-		return ErrInactive
-	}
-	return nil
+	// Both sides, at the edge and again here: a suspended person's service
+	// holds a credential that is kept rather than revoked, and kept is not
+	// accepted — while the state lasts it grants no access, theirs or their
+	// services' (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned).
+	return b.suspension(name)
 }
 
 // IssueFor answers the whole of who may have name's credential, and mints it,

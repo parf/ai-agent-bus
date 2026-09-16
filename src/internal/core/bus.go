@@ -532,8 +532,10 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	if !b.may(from, rec) {
 		return protocol.Envelope{}, fmt.Errorf("%s may not send to %s: %w", from, to, ErrNotAllow)
 	}
-	if !b.active(rec.Name) {
-		return protocol.Envelope{}, ErrInactive
+	// The check is on the called name rather than on who is asking, so the
+	// daemon owner is refused here as readily as a stranger.
+	if err := b.suspension(to); err != nil {
+		return protocol.Envelope{}, err
 	}
 	if rec.Disabled {
 		return protocol.Envelope{}, ErrDisabled
@@ -694,6 +696,9 @@ func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) 
 	if !known || !b.may(who, r) {
 		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
+	if err := b.ownerSuspension(n); on && err != nil {
+		return protocol.Record{}, err
+	}
 	if on && r.Disabled {
 		return protocol.Record{}, ErrDisabled
 	}
@@ -803,6 +808,14 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 	if !b.may(caller, rec) {
 		b.mu.Unlock()
 		return protocol.Envelope{}, ErrNotAllow
+	}
+	// The owner dimension only. Whether a name's own inactive state should
+	// refuse a read of its own inbox is Q63 and is not settled here: Send
+	// refuses to deliver to such a name and this path does not refuse the
+	// drain, and that asymmetry is left exactly as it was found.
+	if err := b.ownerSuspension(name); err != nil {
+		b.mu.Unlock()
+		return protocol.Envelope{}, err
 	}
 	if rec.Disabled {
 		b.mu.Unlock()

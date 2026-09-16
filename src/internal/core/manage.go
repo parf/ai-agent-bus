@@ -268,15 +268,23 @@ func (b *Bus) recheckReaders() {
 func (b *Bus) recheckInbox(name string) {
 	if in := b.inboxes[name]; in != nil {
 		r := b.records[name]
+		suspended := b.ownerSuspension(name)
 		for i := len(in.waiters) - 1; i >= 0; i-- {
 			w := in.waiters[i]
-			if r.Disabled || !b.may(w.caller, r) {
+			if r.Disabled || suspended != nil || !b.may(w.caller, r) {
 				err := ErrNotAllow
 				if e := b.acting(w.caller); e != nil {
 					err = e
 				}
 				if r.Disabled {
 					err = ErrDisabled
+				}
+				// Last, because a reader blocked on a service whose owner has
+				// just been suspended is being told about the suspension, not
+				// about the ACL it still satisfies. SetUserState rechecks
+				// readers, so this fires at the moment of the pause.
+				if suspended != nil {
+					err = suspended
 				}
 				w.stopped <- err
 				in.waiters = drop(in.waiters, i)

@@ -12,7 +12,11 @@ import (
 func ptr[T any](v T) *T { return &v }
 
 func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
-	for _, change := range []string{"disable", "acl", "membership", "user"} {
+	// "owner" is the one where the reader itself is untouched: reader@h is
+	// active and still on the ACL, and the read ends anyway because the
+	// service stopped answering under it
+	// (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned).
+	for _, change := range []string{"disable", "acl", "membership", "user", "owner"} {
 		t.Run(change, func(t *testing.T) {
 			b := New()
 			b.Administrator("admin@h")
@@ -45,6 +49,8 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 				_, err = b.Manage("owner@h", Management{Name: "queue@h", Allow: ptr([]string{"owner@h"})})
 			case "user":
 				_, err = b.SetUserState("admin@h", "reader@h", "paused")
+			case "owner":
+				_, err = b.SetUserState("admin@h", "owner@h", "paused")
 			case "membership":
 				err = b.SetGroup("admin@h", "@readers", nil)
 			}
@@ -52,7 +58,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 				t.Fatal(err)
 			}
 			want := ErrNotAllow
-			if change == "user" {
+			if change == "user" || change == "owner" {
 				want = ErrInactive
 			}
 			if change == "disable" {

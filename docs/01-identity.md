@@ -425,7 +425,7 @@ name* is simply true, because there is no such name.
 
 ### Services of a user who is paused or banned
 
-**Pending, not built.** A user who is paused or banned keeps their record, their
+**Built.** A user who is paused or banned keeps their record, their
 credential and everything they own ([user lifecycle](#user-lifecycle)) — and
 **every service they own refuses calls** while that lasts. Lifting the state
 brings them back.
@@ -436,6 +436,13 @@ the service still answered would be describing a rule nobody applied. It answers
 `403 suspended`, the same code and reason as a caller who is suspended
 themselves ([refusals](05-discovery.md#refusals)): one suspension seen from
 either side, and nothing the caller can do about it either way.
+
+**It follows the record's stated owner, and does not walk the chain.** A
+service may own a service, so the boundary has to be said rather than assumed:
+suspending the person at the top refuses the services they own, and not the
+services *those* own in turn. *Every service they own* is the direct relation
+the record states. Reaching further would be a larger rule and would need an
+answer for a cycle, which nothing here has.
 
 This deletes nothing and stops nothing. The user stays, their services stay,
 their credentials are kept rather than rotated or revoked, and no process is

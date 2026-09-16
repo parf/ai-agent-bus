@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.34 — 2026-09-16
+
+A paused or banned user's services refuse calls, in the daemon rather than as a
+label on a page. The check is on the called name, so a stranger, a maintainer
+and the daemon owner are all refused the same `403 suspended`, and so is the
+service's own credential — kept is not accepted, and a credential that survives
+a ban grants nothing while it lasts. A reader already blocked on the inbox is
+released with the same reason at the moment of the pause. Nothing is destroyed:
+the record, its queues, both credentials and the user record all survive, and
+the same credential works again the moment the state is lifted. Owner
+suspension is its own predicate rather than another input to a name's own
+state, because a service whose owner turned delivery off and one whose owner is
+suspended are two different facts and a page may not merge them.
+
 ## 0.5.33 — 2026-09-16
 
 The verb that deleted a group is gone, from the API and from the dashboard, not

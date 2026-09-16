@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| H.5.7 | A paused or banned user's services refuse calls in the daemon, on the called name rather than on who is asking; nothing is destroyed and the state lifts cleanly | [suspended owner](done/suspended-owner.md#checks) |
 | H.5.6 | The group deletion verb is gone from the API and the dashboard, not only the page; a group is retired by emptying its membership | [group retirement](done/group-retirement.md#checks) |
 | H.5.9 | `agent-bus-admin user add` creates the user it adds, so a fresh install can onboard somebody; an unreachable daemon refuses rather than leaving a key that works before the name exists | [user add evidence](done/user-add-provisions.md#checks) |
 | F.13.5 partial | Referenced receipt correlation and qualified response links built; overview, activity and installed acceptance remain open | [exchange evidence](done/exchange-evidence.md#checks) |
