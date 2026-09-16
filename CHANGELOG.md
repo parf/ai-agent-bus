@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.20 — 2026-09-15
+
+`agent-bus-web` refuses to start when a certificate was asked for and is not there, instead of logging the fact and serving plain HTTP. Asking means supplying `-cert` or `-key`; either without the other is the same ask and the same refusal. Not asking at all is unchanged and still plain HTTP on loopback.
+
 ## 0.5.19 — 2026-09-15
 
 A send refused because the receiver's queue is full answers `429` rather than `503`: a full queue is the sender outrunning the reader, and `503` is left to mean a service that is itself unavailable. The counted refusal reason is unchanged.

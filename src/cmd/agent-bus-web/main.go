@@ -46,11 +46,13 @@ func main() {
 
 	handler := dashboard(bus, tls)
 
-	// Never silently: a dashboard on plain HTTP is a different thing from one
-	// on HTTPS, and somebody who asked for a certificate and did not get one
-	// is owed the reason rather than a page that quietly is not encrypted.
+	// Asked for and not there is a refusal, not a downgrade. A dashboard on
+	// plain HTTP is a different thing from one on HTTPS, and somebody who
+	// asked for a certificate would be told by a log line nobody reads while
+	// the page they open is not encrypted. Refusing is the only answer they
+	// cannot miss. See docs/05-discovery.md#where-it-listens.
 	if !tls && (*certF != "" || *keyF != "") {
-		log.Printf("no certificate at %q and key at %q — plain HTTP", *certF, *keyF)
+		log.Fatalf("asked for a certificate at %q with a key at %q, and HTTPS needs both: refusing to start rather than serve plain HTTP", *certF, *keyF)
 	}
 	l, err := net.Listen("tcp", *addr)
 	if err != nil {

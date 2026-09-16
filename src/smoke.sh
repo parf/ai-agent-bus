@@ -94,6 +94,7 @@ sec() {
   echo "== $1"
 }
 has() { if echo "$2" | grep -q -- "$3"; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: [$2] lacks [$3]"; fail=$((fail+1)); fi; }
+lacks() { if echo "$2" | grep -q -- "$3"; then echo "  FAIL $1: [$2] still has [$3]"; fail=$((fail+1)); else echo "  ok   $1"; pass=$((pass+1)); fi; }
 ok_exit()   { if [ "$2" -eq 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: exit $2"; fail=$((fail+1)); fi; }
 bad_exit()  { if [ "$2" -ne 0 ]; then echo "  ok   $1"; pass=$((pass+1)); else echo "  FAIL $1: expected failure, got exit 0"; fail=$((fail+1)); fi; }
 # "nothing came back" needs its own check: `$(cmd; echo -n nothing)` contains
@@ -1782,7 +1783,7 @@ has "while master sees an exchange between two other names" "$NODE" "$ASENT"
 # authority is a credential mint. See docs/05-discovery.md#signing-in.
 WEB="http://127.0.0.1:$((PORT+9))"
 AGENT_BUS_ADDR=$D/bus.sock \
-  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) -cert "$D/no-cert" -key "$D/no-cert" >"$D/web.log" 2>&1 &
+  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) >"$D/web.log" 2>&1 &
 WPID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "$WEB/" && break; sleep 0.1; done
 ANON=$(curl -s "$WEB/")
@@ -1803,7 +1804,7 @@ has "a refused sign-in says one thing" \
 # signs in, because a web child that can mint the owner is the whole thing
 # the arrangement is against. See docs/05-discovery.md#signing-in.
 AGENT_BUS_ADDR=$D/user-$ACCOUNT.sock \
-  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+14)) -cert "$D/no-cert" -key "$D/no-cert" >"$D/web-own.log" 2>&1 &
+  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+14)) >"$D/web-own.log" 2>&1 &
 WOPID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+14))/" && break; sleep 0.1; done
 OWNJAR=$D/web-own.jar; rm -f "$OWNJAR"
@@ -1901,7 +1902,7 @@ is_empty "and the page carries no token anywhere on it" \
 # map inside the child passes every check above and fails this one.
 kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
 AGENT_BUS_ADDR=$D/bus.sock \
-  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) -cert "$D/no-cert" -key "$D/no-cert" >>"$D/web.log" 2>&1 &
+  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) >>"$D/web.log" 2>&1 &
 WPID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "$WEB/" && break; sleep 0.1; done
 has "a web child restarted mid-session logs nobody out" \
@@ -1946,8 +1947,12 @@ has "a port it may not bind is an error, not a quiet move" \
 # installed dashboard can keep running while the suite checks this behavior.
 out=$(AGENT_BUS_ADDR=$D/bus.sock \
   timeout 2 "$D/agent-bus-web" -addr "127.0.0.1:$((PORT+11))" -cert "$D/tls/absent" -key "$D/tls/absent" 2>&1)
-has "a certificate that was asked for and is not there is said out loud" "$out" 'no certificate at' 
-has "and does not pretend to be https" "$out" "http://127.0.0.1:$((PORT+11))"
+has "a certificate that was asked for and is not there refuses to start" "$out" 'refusing to start'
+lacks "and never comes up on plain http instead" "$out" "http://127.0.0.1:$((PORT+11))"
+# Half a pair is the same ask, and the same refusal.
+out=$(AGENT_BUS_ADDR=$D/bus.sock \
+  timeout 2 "$D/agent-bus-web" -addr "127.0.0.1:$((PORT+11))" -cert "$D/tls/crt" 2>&1)
+has "a certificate with no key is the same refusal" "$out" 'refusing to start'
 fi
 
 sec "a restart is not a loss"
@@ -2051,7 +2056,7 @@ sec "the supervisor holds the sockets, and the bus serves them"
 # request; the process that serves is handed listeners that already exist and
 # could not make one. See docs/11-processes.md#the-rule.
 mkdir -p "$D/sup"
-AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) AGENT_BUS_WEB_CERT=$D/sup/no-cert AGENT_BUS_WEB_KEY=$D/sup/no-cert \
+AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) \
   "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" -token-file "$D/sup/token" \
   -owner "$OWNER" -dump-file "$D/sup/dump.json" -dump-every 0 -web >"$D/sup/log" 2>&1 &
 SUP=$!
@@ -2107,7 +2112,7 @@ is_empty "and takes the sockets it made with it" "$(ls "$D/sup/"*.sock 2>/dev/nu
 # A supervisor that is killed outright cannot tidy up, so the kernel does it:
 # an orphaned bus would keep the listeners and the next start would find the
 # address in use.
-AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) AGENT_BUS_WEB_CERT=$D/sup/no-cert AGENT_BUS_WEB_KEY=$D/sup/no-cert \
+AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) \
   "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" -token-file "$D/sup/token" \
   -owner "$OWNER" -dump-file "$D/sup/dump.json" -dump-every 0 >"$D/sup/log2" 2>&1 &
 SUP2=$!
