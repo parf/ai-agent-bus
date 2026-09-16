@@ -342,3 +342,19 @@ remove-credential's "now backed by a user… refresh" refusal is the canonical
 case). That needs its own problem presentation — "conditions changed, here is
 what is true now" — or it lands in the generic Refused state reading as a
 bug. One row in the Problem four-state table, or a fifth, narrowly scoped.
+
+**Round-one-response corrections, independently verified in source.** Two of
+codex's findings against the response commits, confirmed here so the record
+carries two verifiers: (1) an attempted unregister prunes expired messages
+*before* the busy check (unregister.go:77-81) — so a confirmation promising
+held messages "go with" the record invents a purge: with work waiting the
+daemon refuses ErrBusy, and the refused attempt has still expired everything
+already expired (Expired+1). Confirmation copy for removal must say the
+daemon refuses while work waits — drain first — and must not count the queue
+as leaving with the record. (2) Activity history is this-run's and is never
+restored (activity_test.go:49-53 asserts a fresh process holds zero
+samples), so no cross-restart negative delta exists to clamp — any spec
+sentence describing such clamping describes a system that does not exist;
+the restart boundary is stated, not compensated. Also endorsed from that
+review: a fixed density cap alone cannot catch tight leading or wrong
+ratios — the spec needs a minimum or a ratio basis, not only a maximum.
