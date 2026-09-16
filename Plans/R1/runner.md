@@ -111,14 +111,32 @@ This is a **daemon** capability that the runner consumes. Delivery and the
 registry are the daemon's; starting children with a route is the runner's use
 of it. A client that wants the same fan-in gets it the same way.
 
-#### The rules it has to obey
+#### A route may only name a queue you could send to
 
-The owner settled the mechanism. These follow from it and are **derived here
-rather than stated by the owner**, so they can be refused:
+**Owner-settled, 2026-09-16.** Without it, `route` is an ACL bypass with extra
+steps: register a name, point it at somebody else's inbox, and anyone permitted
+to send to *your* name is now writing into *theirs*. **The authority to route
+into a queue is the authority to put a message in it**, so routing is not a way
+to acquire reach you did not have. This is the shape of the escalation closed
+in [0.5.31](../../CHANGELOG.md).
+
+Because a route can be changed later
+([a route changes after registration](#a-route-changes-after-registration)),
+the check belongs on **every write of the field**. A check on the first write
+only is one somebody routes around by writing twice.
+
+What that leaves open is *when* the permission has to hold, which is
+[Q67](QUESTIONS.md#open-questions): a route written while you could send to the
+target outlives the permission that justified it if nothing asks again, and a
+stale authorisation surviving the standing that granted it is the exact class
+0.5.31 was about.
+
+#### The rules that follow from it
+
+Still **derived here rather than stated by the owner**, so they can be refused:
 
 | | |
 |---|---|
-| **A route may only name a queue you could send to yourself** | Otherwise `route` is an ACL bypass with extra steps: register a name, point it at somebody else's inbox, and anyone permitted to send to *your* name is now writing into *theirs*. The authority to route into a queue is the authority to put a message in it. This is the shape of the escalation closed in [0.5.31](../../CHANGELOG.md), and since a route can be changed later ([a route changes after registration](#a-route-changes-after-registration)) the check belongs on every write of the field, not on registration alone |
 | **The addressed record's ACL is what admits the message** | The sender asked for `scaler@h` and passes `scaler@h`'s ACL. The route target's ACL governs who may *route to* it, which is a different question asked of a different principal at a different time |
 | **Routes do not chain** | One hop. If the target is itself routed, delivery stops at the target rather than following the second route — otherwise a cycle is an unbounded loop, and a two-hop route is a thing nobody asked for that arrives free with the wrong rule |
 | **The queue that holds it is the queue whose policy applies** | Bound, overflow and retention are the route target's, because that is the queue the message physically sits in. The addressed record's own queue settings describe a queue nothing is delivered to |
