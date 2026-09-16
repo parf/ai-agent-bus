@@ -159,6 +159,15 @@ change like any other, returning the name to its own inbox. Changing it needs
 both authorities at once: the standing to manage the record, and the standing
 to route into the new target, which is the same rule that governs setting one.
 
+**A route is not ownership, and repointing one is not a transfer.**
+Owner-settled, 2026-09-16: **changing a record's owner is the owner's alone**,
+which is what the daemon already enforces
+([who manages a record](../../docs/01-identity.md#groups-and-maintainers)) and what this must not become a
+way around. Managing a record is enough to repoint its route; it is not enough
+to give the record away. So a handover moves *work* — the new target serves the
+name — while the record, its credential and its owner stay exactly where they
+were, and the owner remains the one who can end the arrangement.
+
 **A change applies to delivery from that moment, and nothing already delivered
 moves.** Derived, on the daemon's own precedent rather than invented: an
 envelope's expiry is worked out once at accept and changing the queue's TTL
