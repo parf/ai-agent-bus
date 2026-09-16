@@ -125,11 +125,18 @@ Because a route can be changed later
 the check belongs on **every write of the field**. A check on the first write
 only is one somebody routes around by writing twice.
 
-What that leaves open is *when* the permission has to hold, which is
-[Q67](QUESTIONS.md#open-questions): a route written while you could send to the
-target outlives the permission that justified it if nothing asks again, and a
-stale authorisation surviving the standing that granted it is the exact class
-0.5.31 was about.
+**Checked on save, and not again at delivery.** Owner-settled, 2026-09-16.
+Delivery stays a queue operation with no ACL evaluation per message, which is
+what keeps a routed name as cheap to deliver to as an ordinary one.
+
+The consequence, stated rather than discovered: **a route outlives the
+permission that justified it.** Write it while you may send to the target, and
+it keeps delivering after the target tightens its ACL. What it cannot do is
+*grow* — the traffic still originates from a principal the target admitted at
+the time, so the route preserves reach rather than granting it, and that bound
+is what makes checking once defensible. Revocation is by the record: whoever may
+manage it repoints or clears the route. The target cannot refuse a route on its
+own.
 
 #### The rules that follow from it
 
