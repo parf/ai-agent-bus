@@ -231,7 +231,7 @@ shown ([forms](forms.md#consequential-actions)).
 ```
 
 The destructive action is a filled `--red` button with `--text-on-accent`
-(7.07:1 light, 7.44:1 dark). Cancel is a plain link, not a second button —
+(7.07:1). Cancel is a plain link, not a second button —
 one primary action per form, and a cancel shaped like a button is how people
 click the wrong one.
 

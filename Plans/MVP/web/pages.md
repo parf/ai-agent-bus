@@ -48,7 +48,7 @@ with the observation it rests on:
 | Losses, cumulative across restarts | `Dropped`, `Expired` non-zero | orange, links to Diagnostics. **Not** "since start": `Restore` puts these counters back from the snapshot ([dictionary](data-dictionary.md#state)), so a non-zero total may predate this run entirely |
 | Refusals, cumulative | `Status.Refused`, a `map[string]int` by reason | informational; **not** "climbing" — this value is a lifetime total. A supported reason absent from it is a measured `0`, not an unknown ([dictionary](data-dictionary.md#node-and-scope)). A windowed signal exists on Activity but is scoped: node-wide refusals only on the unfiltered admin or master view, a sum over visible records otherwise |
 | **Disabled record holding queued work** | the **stored** `Disabled` bit and `Queued` > 0 — see the caveat below | orange. opencode's find, and stronger than first stated. `Send` refuses at bus.go:532, `recheckInbox` releases existing waiters with `ErrDisabled` (manage.go:292), and `ConsumeAs` refuses a new reader at bus.go:801 — so the backlog can be neither delivered nor drained. home-parf's extension, corrected twice: **the ordinary paths do not drain it**, because the send-path and consume-path prunes sit behind those guards. That is not the same as nothing being able to expire it. `UnregisterAnd` has **no disabled guard** — an attempted removal prunes first (unregister.go:77), so `Expired` can move on a disabled record, and then refuses with `ErrBusy` while any live message or reader remains. codex reproduced it: one expired and one live message, disable, unregister → `Expired` increments, the live message and the record survive, removal refused. So the page says only what is observed — **delivery is off and work is held** — and promises nothing about drainage, expiry or removability |
-| **Services of a suspended owner** | the owner's `State` is paused or banned | orange, linking to the person. **Conditional on [H.5.7](../TODO.md#objective)**, which is pending: today such services do not refuse, so the item would describe a rule that is not in force. It goes in when H.5.7 does |
+| **Services of a suspended owner** | the owner's `State` is paused or banned | orange, linking to the person. [H.5.7](../done/suspended-owner.md#checks) shipped in 0.5.34, so the rule is in force and the item describes it: arrivals are refused and the queue cannot be drained by anybody |
 | Unregistered credentials awaiting review | the cleanup cohort is non-empty | blue, a count and a link. **Owner-decidable**: it is discoverability rather than attention, and [C10](review/codex.md#junk-and-misleading-content) left it homeless |
 
 A backlog with no reader is **not** an item. A queue worker between pulls is
@@ -59,12 +59,17 @@ this item is where that matters. `visible` (manage.go:305) returns
 `r.Disabled || !b.active(r.Name)` — one bit merging two causes — so the face
 cannot tell an owner's decision from a name that has stopped being active. codex
 raised this as a truth defect ([S04](review/codex.md#specification-review-round-one));
-it is also an operational one, because **the two causes do not behave alike**:
+it is also an operational one, because **the three causes do not behave alike**.
+The third arrived after this table was first written: a suspended owner is
+deliberately kept out of the `Disabled` bit so a face can answer it separately
+(core/users.go `suspension`), which means a page reading only that bit cannot
+see it at all.
 
 | Cause | Arrivals | Drainage |
 |---|---|---|
 | Stored `Disabled` | refused | refused — `ConsumeAs` checks this bit, so the queue is frozen |
 | Name not active | refused with `ErrInactive` | **still possible** — `ConsumeAs` guards the caller's standing and the stored bit, never `b.active(name)` |
+| Owner suspended ([H.5.7](../done/suspended-owner.md#checks)) | refused with `ErrInactive` — `Send` asks `suspension(to)` | refused for everybody — `ConsumeAs` asks `ownerSuspension(name)` before it reaches the stored bit |
 
 The divergence is narrower than that table alone suggests, and home-parf's
 sharpening earns its half-sentence: `Consume` calls `ConsumeAs(name, name)`, so

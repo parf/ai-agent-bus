@@ -82,8 +82,9 @@ Adopting nothing means adopting nobody's accessibility work. It is the strongest
 argument against the direction the owner chose, and the mitigation is specific
 rather than hopeful: the hard part is forms and errors, and GOV.UK's markup is
 copyable pattern by pattern. Acceptance carries keyboard operation, landmarks,
-programmatically associated table headings, measured contrast **in both colour
-schemes**, and reflow at narrow and zoomed sizes.
+programmatically associated table headings, measured contrast against **the one palette**
+([settled](visual-design.md#theme-and-density-controls): there is no second
+scheme to measure), and reflow at narrow and zoomed sizes.
 
 The `<main>` landmark is currently opened by the shell and closed by two of nine
 templates. Whatever else changes, the shell owns the whole document structure so
