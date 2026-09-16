@@ -23,7 +23,6 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
-	"github.com/parf/ai-agent-bus/internal/core"
 	dash "github.com/parf/ai-agent-bus/internal/dashboard"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/version"
@@ -75,8 +74,8 @@ func main() {
 // dashboard has no application state or credential of its own.
 func dashboard(bus *caller, tls bool) http.Handler {
 	mux := http.NewServeMux()
-	// The whole public signal. Anything that varies is something an
-	// anonymous visitor can watch, so this answers nothing at all.
+	// Health still answers nothing; the node deliberately publishes its
+	// identity separately.
 	// See docs/05-discovery.md#rules-it-is-built-to.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -88,10 +87,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		// Whose page this is comes from the bus, not from the child: the
 		// cookie is checked by being used. An expired or forged one is a
 		// visitor who is not signed in, which is the anonymous page.
-		var node struct {
-			core.Status
-			You string `json:"you"`
-		}
+
 		if cred == "" {
 			signIn(w, r, "")
 			return
@@ -101,13 +97,14 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		// page, so a stopped daemon read as "you are not signed in" and the
 		// one recovery offered was the one that could not work.
 		// See Plans/MVP/done/web-review.md W12.
-		if err := bus.get(cred, "/status", &node); err != nil {
+		node, err := bus.status(r)
+		if err != nil {
 			fail(w, r, "", err)
 			return
 		}
-		v := view{You: node.You, At: time.Now().Format("2006-01-02 15:04:05"), Status: node.Status, Refusals: refusals(node.Refused)}
+		v := view{pageInfo: requestInfo(r), You: node.You, At: time.Now().Format("2006-01-02 15:04:05"), Status: node.Status, Refusals: refusals(node.Refused)}
 		if err := bus.get(cred, "/ls", &v.Records); err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			fail(w, r, node.You, err)
 			return
 		}
 		// Three views off one listing, each answering a different question
@@ -145,14 +142,14 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		// across the refusal too so a mistyped token does not lose it.
 		to := local(r.FormValue("return"))
 		if typed == "" {
-			render(w, anon, signin{Refused: "that credential was not accepted", Return: to})
+			render(w, anon, signin{pageInfo: requestInfo(r), Refused: "that credential was not accepted", Return: to})
 			return
 		}
 		if err := bus.send(typed, "POST", "/session", &got); err != nil {
 			// One message for every way it can fail, because telling a bad
 			// token from an unknown name is an oracle on an open form.
 			// See docs/05-discovery.md#rules-it-is-built-to.
-			render(w, anon, signin{Refused: "that credential was not accepted", Return: to})
+			render(w, anon, signin{pageInfo: requestInfo(r), Refused: "that credential was not accepted", Return: to})
 			return
 		}
 		http.SetCookie(w, &http.Cookie{
@@ -182,6 +179,9 @@ func dashboard(bus *caller, tls bool) http.Handler {
 				return
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		}
+		if r.URL.Path != "/healthz" && r.URL.Path != "/avatar" && r.URL.Path != "/signout" {
+			r = bus.pageRequest(r)
 		}
 		mux.ServeHTTP(w, r)
 	})
@@ -224,7 +224,7 @@ func signIn(w http.ResponseWriter, r *http.Request, refused string) {
 		// will cache and re-present this as though it were the page.
 		w.WriteHeader(http.StatusUnauthorized)
 	}
-	render(w, anon, signin{Refused: refused, Return: to})
+	render(w, anon, signin{pageInfo: requestInfo(r), Refused: refused, Return: to})
 }
 
 // referrer is where a submission came from, when that was a page of ours. A
@@ -256,6 +256,12 @@ func local(raw string) string {
 func render(w http.ResponseWriter, t *template.Template, v any) {
 	if err := t.Execute(w, v); err != nil {
 		log.Printf("render: %v", err)
+		return
+	}
+	if framed, ok := v.(interface{ Frame() pageInfo }); ok {
+		if err := frameFooter.Execute(w, framed.Frame()); err != nil {
+			log.Printf("render footer: %v", err)
+		}
 	}
 }
 
@@ -338,6 +344,11 @@ const head = `<!doctype html>
  textarea{max-width:100%;box-sizing:border-box;font:13px ui-monospace,monospace}
  button,select{font:inherit;padding:.3rem .5rem}
  form+form{margin-top:1rem}
+ .site-header{border-bottom:1px solid #aaa;padding-bottom:1rem;margin-bottom:1rem}
+ .node-summary{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin:.4rem 0;overflow-wrap:anywhere}
+ .node-load{font-size:12px;line-height:1.7}
+ .message-windows{display:flex;flex-wrap:wrap;gap:0 1.5rem}
+ .site-footer{clear:both;border-top:1px solid #aaa;margin-top:2rem;padding-top:1rem;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
  nav{line-height:2}
  nav a[aria-current=page]{font-weight:700;text-decoration:none}
  :focus-visible{outline:2px solid #253c66;outline-offset:2px}
@@ -376,6 +387,7 @@ func shell(key, title string) string {
 	nav.WriteString(template.HTMLEscapeString(title))
 	nav.WriteString(" \u00b7 agent-bus</title>\n")
 	// Sign out belongs beside the name it signs out, on every page.
+	nav.WriteString(frameHeader)
 	nav.WriteString(`<form method=post action=/signout class=who><code>{{.You}}</code> <button type=submit>sign out</button></form>` + "\n")
 	nav.WriteString("<nav aria-label=\"sections\">")
 	for i, item := range navItems {
@@ -392,22 +404,15 @@ func shell(key, title string) string {
 	return nav.String()
 }
 
-// anon is what the bus would answer a caller it cannot name: nothing. A
-// title, the form, and where a credential comes from. No uptime, no counts
-// and no names — each of those is something a stranger could sit and watch,
-// and nothing on the page can know whether it is exposed.
-// See docs/05-discovery.md#rules-it-is-built-to.
-//
-// signin is the whole of its data. It says nothing about the node, and the
-// return address is checked to be one of this dashboard's own pages before it
-// is ever put in the form: a return field is otherwise an open redirect with a
-// sign-in prompt in front of it.
+// The sign-in page shares the public node identity, and no private status.
+// See docs/05-discovery.md#what-a-node-says-about-itself.
 type signin struct {
+	pageInfo
 	Refused string
 	Return  string
 }
 
-var anon = template.Must(template.New("anon").Parse(head + `<title>Sign in · agent-bus</title>
+var anon = template.Must(template.New("anon").Parse(head + `<title>Sign in · agent-bus</title>` + frameHeader + `
 <main>
 <h1>agent-bus</h1>
 <form method=post action=/signin>

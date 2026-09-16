@@ -99,6 +99,7 @@ type Bus struct {
 	users    map[string]protocol.User
 	mu       sync.Mutex
 	activity []activitySample
+	traffic  trafficCounts
 	records  map[string]protocol.Record
 	groups   map[string][]string
 	admin    string
@@ -615,6 +616,8 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 			}
 			in.waiters = drop(in.waiters, i)
 			in.in, in.out = in.in+1, in.out+1 // straight through: in and out at once
+			b.traffic.in++
+			b.traffic.out++
 			w.ch <- e
 			return nil
 		}
@@ -638,6 +641,7 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 	}
 	in.queue = append(in.queue, e)
 	in.in++
+	b.traffic.in++
 	return nil
 }
 
@@ -830,6 +834,7 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 		if !filtered || (e.Topic == topic && e.Tag == tag) {
 			in.queue = take(in.queue, i)
 			in.out++
+			b.traffic.out++
 			b.mu.Unlock()
 			return e, nil
 		}
@@ -906,11 +911,15 @@ type Status struct {
 	Refused map[string]int `json:"refused,omitempty"`
 }
 
+// Uptime reads only the process start time, immutable after New. Public node
+// identity must not scan private inbox state to obtain this one value.
+func (b *Bus) Uptime() string { return time.Since(b.started).Round(time.Second).String() }
+
 func (b *Bus) Status() Status {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	s := Status{
-		Up:       time.Since(b.started).Round(time.Second).String(),
+		Up:       b.Uptime(),
 		Services: len(b.records),
 	}
 	// Summed, not counted a second time: the node's total has one home, and

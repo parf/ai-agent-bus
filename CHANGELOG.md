@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.38 — 2026-09-16
+
+Every dashboard page, including sign-in, shows the daemon release, host, owner,
+uptime and host load, with separate daemon/web build details in its footer.
+Public message windows count accepted inbox deliveries and dequeues from this
+run, retain traffic after record removal, and state their observed span;
+private status remains authenticated.
+
 ## 0.5.37 — 2026-09-16
 
 Every refusal an endpoint decides is counted once, including the

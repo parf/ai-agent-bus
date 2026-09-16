@@ -215,7 +215,7 @@ var peoplePage = template.Must(template.New("people").Parse(shell("users", "User
 {{else}}No user profile and no registered record. {{if .CanRemove}}<a href="/user?name={{.Name}}&return={{$.Return}}">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}{{end}}</td></tr>
 {{else}}<tr><td colspan=3>No other identities on this page.</td></tr>{{end}}</tbody></table></section>
 <nav aria-label="Directory pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
-</main>`))
+`))
 var personPage = template.Must(template.New("person").Parse(shell("users", "Identity details") + `
 <p><a href="{{.Return}}">Back to directory</a></p>
 <h1 style="overflow-wrap:anywhere">{{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1>
@@ -238,5 +238,5 @@ var personPage = template.Must(template.New("person").Parse(shell("users", "Iden
 {{else}}<p>{{.User.PersonName}}</p><p>{{.User.Email}}</p><p>{{.User.GithubUser}}</p><p>Trusted profile fields are edited by a daemon administrator.</p>{{end}}
 {{end}}
 {{if not .New}}<h2>Owned services</h2>{{range .User.Services}}<p><a href="/service?name={{.}}">{{.}}</a></p>{{else}}<p>No owned services</p>{{end}}{{end}}
-</main>`))
+`))
 var avatarPage = template.Must(template.New("avatar").Parse(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#e5eaf4"/><text x="16" y="22" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#253c66">{{.}}</text></svg>`))

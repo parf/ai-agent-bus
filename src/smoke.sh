@@ -1879,12 +1879,16 @@ WPID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "$WEB/" && break; sleep 0.1; done
 ANON=$(curl -s "$WEB/")
 has "an anonymous visitor gets the sign-in form" "$ANON" 'name=token'
-# Each of these is exactly what the rule is for: a service count that moves
-# is a covert channel anyone who can register writes to, and an uptime is a
-# restart oracle. See docs/05-discovery.md#rules-it-is-built-to.
-is_empty "and no record, no count and no uptime" \
-  "$(printf '%s' "$ANON" | grep -oE 'watched by the board|[0-9]+ records|up [0-9]')"
-has "the whole public signal is an empty 200" \
+has "the login header names the node release" "$ANON" "AgentBus V$(cat internal/version/VERSION)"
+has "the login header names the daemon owner" "$ANON" "owner: <code>$OWNER</code>"
+has "the login header shows uptime" "$ANON" '[0-9][0-9a-z.]* up</span>'
+has "the login footer identifies the daemon build" "$ANON" 'Daemon build: <code>'
+has "the login footer identifies the web build separately" "$ANON" 'Web <code>v'
+# Node identity and sampled traffic totals are public; registry contents stay private.
+# See docs/05-discovery.md#what-a-node-says-about-itself.
+is_empty "and no records or registry totals" \
+  "$(printf '%s' "$ANON" | grep -oE 'watched by the board|[0-9]+ records')"
+has "health still answers an empty 200" \
   "$(curl -s -o /dev/null -w '%{http_code}:%{size_download}' "$WEB/healthz")" '^200:0$'
 # One message however it failed: telling a bad credential from an unknown
 # name is an oracle for which names exist.

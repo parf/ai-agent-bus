@@ -158,6 +158,7 @@ func (s *Server) HandlerFor(principal protocol.Name) http.Handler {
 
 func (s *Server) routes(g guard) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /identity", s.identity)
 	mux.HandleFunc("GET /status", g(s.status))
 	mux.HandleFunc("POST /register", g(s.register))
 	mux.HandleFunc("POST /unregister", g(s.unregister))
@@ -182,7 +183,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /token", g(s.token))
 	mux.HandleFunc("POST /session", g(s.session))
 	mux.HandleFunc("DELETE /session", g(s.endSession))
-	// Enrolment is the one route with no credential on it, because it is
+	// Enrolment needs no credential, because it is
 	// where a credential comes from — requiring one would be a circle. It is
 	// safe for the same reason: the signature *is* the credential, and only a
 	// realm somebody vouches for can be enrolled into at all.
@@ -325,7 +326,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.
 		You           string `json:"you"`
 		Administrator bool   `json:"administrator,omitempty"`
 		DaemonOwner   bool   `json:"daemon_owner,omitempty"`
-	}{s.bus.Status(), caller.String(), s.bus.IsMaintainer(caller.String()), caller.String() == s.owner})
+	}{Status: s.bus.Status(), You: caller.String(), Administrator: s.bus.IsMaintainer(caller.String()), DaemonOwner: caller.String() == s.owner})
 }
 
 // subscribe puts the caller on a pub/sub topic, or takes it off. The caller

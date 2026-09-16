@@ -118,8 +118,8 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	reads.Store(0)
 	before := len(tokens.Names())
 	page, _ := request("owner@h", "/users", "", nil, 200)
-	if reads.Load() != 2 {
-		t.Fatalf("directory fetched %d bus answers, want status + users once", reads.Load())
+	if reads.Load() != 3 {
+		t.Fatalf("directory fetched %d bus answers, want identity + status + users once", reads.Load())
 	}
 	if strings.Contains(page, "/avatar?") {
 		t.Error("directory reintroduced one avatar request per row")
@@ -142,6 +142,7 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 		t.Error("directory is unbounded or its main landmark is unclosed")
 	}
 	private, _ := request("smoke/person@h", "/users", "", nil, 200)
+	private = section(t, private, "<main>", "</main>") // Public header names the daemon owner; directory visibility is unchanged.
 	if strings.Contains(private, "unused-00@h") || strings.Contains(private, "holds@h") || strings.Contains(private, "owner@h") {
 		t.Error("ordinary user can enumerate other identities")
 	}

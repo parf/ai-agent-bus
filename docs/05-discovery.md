@@ -152,11 +152,61 @@ maintainers can remove a subscription; they cannot force another inbox to subscr
 
 | Rule | Why |
 |---|---|
-| **The anonymous page shows what the bus would answer a caller it cannot name: nothing.** A title, the sign-in form, and how to get a token | Nothing on the page can know whether it is exposed — the hostname is public DNS and the bind address is a flag. Uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. `GET /healthz`, 200 with an empty body, is the whole public signal |
+| **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the sign-in form, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
 | **No JavaScript, no CDN, no external asset** | A signed-in master is looking at the node's whole envelope feed, and the first `<script src=…>` added for a chart inherits that. Graphs are inline SVG or nothing; an avatar is served from this node, never hotlinked, or every page view tells the provider who is looking |
 | **The web child writes nothing of its own.** A form posts *as the person*, never as the child | It is the least trusted process and the design gives it no write path ([processes § the processes](11-processes.md#the-processes)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
 | **The sign-in form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
+
+### What a node says about itself
+
+**Owner-settled, 2026-09-16.** A short closed list of facts about the node is
+published to **anybody who can reach the dashboard, signed in or not**: what it
+is, where it runs, whose it is, how long it has been up and roughly how busy it
+is. They appear in the shell every page shares and on the **sign-in page**,
+which is the whole point — somebody who arrives at a bus they do not have a
+credential for should be able to tell what it is and whose it is without asking
+anybody.
+
+| | |
+|---|---|
+| what is published | release, host name, daemon owner name, uptime, load — and the build. **Nothing else**: no record names, no principals, no refusal counts, nothing about who is using it |
+| where each one shows | the header carries release, host, uptime and owner. The footer carries the build. That split is the owner's: the header is what the node is, the footer is which artefact is answering |
+| to whom | any caller that reaches the face, with no credential and no session |
+| host name | the machine's hostname as the OS reports it, `srv1`. The daemon has no node name of its own, so this is a new field rather than a restatement of one; it is not the realm, which the owner's name already carries |
+| uptime | a plain figure, `1h23m up`, as the owner asked. It is what was true when the page rendered and the page does not refresh itself |
+| load | **both readings**, as the owner asked: the host's 1/5/15-minute load average, and the bus's own message counts over the **last minute, last five minutes and last hour**. The bus figures are node-wide totals, not this caller's — see the warnings below. They are named for what they count, **accepted** and **dequeued**, never *calls*: the daemon has no request counter, and a figure labelled for something it does not count is worse than no figure |
+| what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The traffic figures are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal and no direction of business |
+| how it is read | **`GET /identity`**, a public daemon call answering these fields and nothing else to a caller with no credential. There was no such call: every route but enrolment and a root redirect sits behind the token gate, and `GET /status` is authenticated and answers refusals and the caller's own standing besides. So this is a new endpoint rather than a relaxation of `/status`, which keeps its gate and its contents |
+| the face's part | it asks as anybody does. The face still holds no credential and still acts as the visitor for everything else ([web authority boundary](11-processes.md#web-authority-boundary)): this is a fact the daemon publishes, not a privileged call the face makes |
+
+The bus's three windows are read off the **minute samples the bus already
+keeps for an hour**, which is why they are 1/5/60 rather than some other
+spacing: the same shape as the load average beside them, and no new sampler.
+
+**A total here is not a filtered listing.** The per-caller activity series
+cannot express this figure: it answers what one named caller may see, and a
+caller the daemon cannot name may see nothing, so asking it on a stranger's
+behalf would answer a confident **zero** on a busy node — a fabricated figure
+of exactly the kind the rest of this page refuses. So the published figure is
+its own thing: a node-wide sum incremented where delivery happens, with no
+caller and no ACL in the calculation at all. Not because an ACL would leak
+here — it would not, and a privileged caller can get an aggregate over what it
+may see — but because no filtered path can answer **this** question for **this**
+caller.
+
+**What the sampler can and cannot answer.** These are properties of the store
+the figures are read from, not defects to be fixed here, and the page states
+them rather than papering over them:
+
+| | |
+|---|---|
+| they are **sampled**, not exact | what is kept is the node's own running totals, captured once a minute — cumulative figures, not events with timestamps. A window is the difference between one of those samples and the live total now, so it ends at this instant but begins wherever a sample happened to fall. An exact rolling minute is not recoverable and is not claimed; each window states the span it actually covered |
+| history is **shorter than the window** after a restart | an hour of samples takes an hour to accumulate. A node up for three minutes has three minutes of history, and the hour figure says so. **Unobserved history is never shown as zero** — that is the distinction this whole layer exists for |
+| a removed name does **not** take its past with it | the published figure is a process-local total incremented where delivery happens, not a sum over today's registry, so unregistering a name ([unregistering](01-identity.md#unregistering)) cannot erase traffic it carried and reusing a name cannot double-count it. **The per-caller activity series on the dashboard is the other way round** — it is projected over the records that exist now, so a removed name leaves that history retroactively. The two disagree by design and for different readers |
+| what a message counts as | **accepted** is an envelope taking a place in an inbox; **dequeued** is one leaving. A publication to a topic counts its accepted *copies*, one per subscriber whose inbox took it — not the publication. So a publish to a topic nobody subscribes to moves nothing, and a copy an inbox refused is a loss rather than an acceptance |
+| the two figures are not a pair | a straight-through delivery to a waiting reader is accepted and dequeued at once, while a queued one is accepted now and dequeued whenever somebody reads. Within any window, either can exceed the other; a queue drained from before the window makes dequeued the larger |
+| the host's figure is **load, not utilisation** | `/proc/loadavg` is Linux's 1/5/15-minute run-queue average. It is not a percentage and does not become one by being divided by anything the page knows |
 
 ### Signing in
 

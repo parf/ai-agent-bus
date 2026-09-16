@@ -27,6 +27,7 @@ func (e *busError) Error() string { return e.message }
 // their own name: http.Error writes text/plain with no way back, no title and
 // nothing saying who it was refusing (Plans/MVP/done/web-review.md W12).
 type problem struct {
+	pageInfo
 	You             string
 	Title           string
 	Detail          string
@@ -105,6 +106,7 @@ func show(w http.ResponseWriter, code int, p problem, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(code)
+	p.pageInfo = requestInfo(r)
 	render(w, problemPage, p)
 }
 
@@ -115,6 +117,7 @@ var problemPage = template.Must(template.New("problem").Parse(shell("", "Problem
 `))
 
 type adminView struct {
+	pageInfo
 	You           string `json:"you"`
 	DaemonOwner   bool   `json:"daemon_owner"`
 	Administrator bool   `json:"administrator"`
@@ -134,10 +137,13 @@ func (c *caller) signedIn(w http.ResponseWriter, r *http.Request) (adminView, bo
 		signIn(w, r, "sign in to open this page")
 		return v, false
 	}
-	if err := c.get(cookie(r), "/status", &v); err != nil {
+	node, err := c.status(r)
+	if err != nil {
 		fail(w, r, "", err)
 		return v, false
 	}
+	v.pageInfo = requestInfo(r)
+	v.You, v.Administrator, v.DaemonOwner = node.You, node.Administrator, node.DaemonOwner
 	return v, true
 }
 
