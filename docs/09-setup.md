@@ -56,8 +56,9 @@ behind `ProtectHome=yes` and cannot exec a binary in a home directory at all.
 The script refuses one that does and says where to move it; `--revert` copies
 real binaries back. Daemon state under `/var/lib/agent-bus` is untouched.
 
-**Pending:** the intended package installation is not implemented. The package
-format and binary delivery are [MVP questions](../Plans/MVP/QUESTIONS.md#open-questions).
+**Pending:** the intended package installation is not implemented, and in MVP
+it is not meant to be: [one script is the whole way in](#install), and a package
+format is [R1 distribution](../Plans/R1/distribution.md#container-runtime).
 A fresh-host install and the running service account must still be verified as
 [stage gates](../Plans/MVP/TODO.md#installed-stage-gate).
 
@@ -80,7 +81,7 @@ an upgrade preserves credentials, registry and queued state, access policy,
 local account mappings and operator configuration. Every running component
 must use the intended release. Instructions must cover recovery from an
 interrupted upgrade and restoring a consistent set of credentials and state.
-Package format remains an [open choice](../Plans/MVP/QUESTIONS.md#open-questions).
+Package format is not an MVP choice at all — [one script](#install) is, and packaging is [R1](../Plans/R1/distribution.md#container-runtime).
 This requirement does not select the future runner backup mechanism.
 
 SSH onboarding is accepted through an actual sshd installation for both

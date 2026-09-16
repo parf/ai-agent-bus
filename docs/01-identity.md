@@ -264,19 +264,30 @@ still [access, not ownership](#acl). The authenticated record itself retains its
 existing right to re-register; that does not grant ownership transfer.
 Daemon administrators edit ordinary group membership.
 
-**A group is not deleted.** The same rule people already follow
-([user lifecycle](#user-lifecycle)): a name that other things point at is made
-inactive or banned, not removed, because removing it silently changes what every
-record referencing it means. `@maintainers` could never be deleted; now none of
-them can, and what replaces deletion is a state on the group.
+**A group is not deleted, and it is given no states either.** Removing a name
+other records point at silently changes what every one of them means, so
+deletion is out; `@maintainers` could never be deleted and now none of them can.
+But *inactive* and *banned* are not what replaces it.
 
-⚠️ **Pending: a group has no state yet.** Groups are flat sets of names with
-nothing on them to set, so *inactive* and *banned* have to exist before they can
-be offered, and what they do to membership-derived authority is
-[open](../Plans/MVP/QUESTIONS.md#open-questions). The dashboard offers no
-deletion as of this decision; the verb underneath it is still there and goes
-when the states arrive. Names are available
-for service-owner assignment; membership lists are visible to daemon administrators. Runtime start/stop controls remain [R1 runner work](../Plans/R1/runner.md#what-the-runner-does).
+**A group is not a principal.** It holds no credential, authenticates nothing
+and does nothing on its own: it is a list of names that records point at.
+Pausing or banning it would have to mean *its members stop counting*, and
+**emptying the list means exactly that**, with no second concept and no new
+verb. A group that confers nothing is a group with nobody in it, and that is
+already sayable today.
+
+So a retired group keeps its name and loses its members. Every record naming it
+still means what it meant — an ACL still reads `@ops`, `@ops` is now nobody, and
+putting a member back brings it back. Nothing about the record changed, which is
+the whole reason deletion was refused.
+
+`@maintainers` is the one that cannot be emptied, because the daemon owner stays
+in it ([above](#groups-and-maintainers)) — the same rule that stops it being
+deleted, from the same direction.
+
+Names are available for service-owner assignment; membership lists are visible
+to daemon administrators. Runtime start/stop controls remain
+[R1 runner work](../Plans/R1/runner.md#what-the-runner-does).
 
 ### Owner control
 
@@ -352,8 +363,10 @@ brings them back.
 
 **The daemon enforces it, not a label on a page.** The check is on the call, so
 a service's own credential is refused too; a page that said *owner banned* while
-the service still answered would be describing a rule nobody applied. Which
-refusal it answers with is [open](../Plans/MVP/QUESTIONS.md#open-questions).
+the service still answered would be describing a rule nobody applied. It answers
+`403 suspended`, the same code and reason as a caller who is suspended
+themselves ([refusals](05-discovery.md#refusals)): one suspension seen from
+either side, and nothing the caller can do about it either way.
 
 This deletes nothing and stops nothing. The user stays, their services stay,
 their credentials are kept rather than rotated or revoked, and no process is

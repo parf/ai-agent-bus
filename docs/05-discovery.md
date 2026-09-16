@@ -202,7 +202,7 @@ cannot drift apart.
 |---|---|---|
 | `credential` | `401` | the token is not one, or none came at all — the only thing a call carries ([access § what a call carries](02-access.md#what-a-call-carries)) |
 | `acl` | `403` | the service, the record's owner, or a private configuration said no ([identity § acl](01-identity.md#acl)) |
-| `suspended` | `403` | the caller's own user state is paused or banned ([user lifecycle](01-identity.md#user-lifecycle)) |
+| `suspended` | `403` | a user state is in the way: the caller's own, or that of the owner of the name being called ([user lifecycle](01-identity.md#user-lifecycle), [services of a paused or banned user](01-identity.md#services-of-a-user-who-is-paused-or-banned)) |
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](01-identity.md#proving-possession)) |
 | `unknown` | `404` | no such name ([messaging § verbs](04-messaging.md#verbs)) |
 | `disabled` | `409` | the receiver's record is turned off by its owner ([owner control](01-identity.md#owner-control)) |
@@ -217,6 +217,13 @@ credential is missing or is not one. `403` is *I know who you are and you may
 not* — authenticated, and refused for lack of permission. Retrying a `403` with
 the same credential is a caller asking the same question twice; a `401` is
 worth presenting a credential for.
+
+**One suspension, one reason.** A call refused because the caller is banned and
+one refused because the *owner of the name they called* is banned are the same
+fact seen from two sides, and get the same code and the same reason rather than
+a second of each. The caller is told what they can act on either way, which is
+nothing: no credential they could present and no permission anybody could grant
+makes a suspended name answer, and the code already says do not retry this.
 
 A record's own state is a reason of its own, and deliberately not `unknown`:
 *turned off* and *no such name* send a caller to different places, so they are

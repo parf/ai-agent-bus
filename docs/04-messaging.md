@@ -5,7 +5,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Inbox delivery, shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow and JSON restart snapshots. |
-| Pending | Inbox selection/filtering decision and [administrative crash-recovery policy](#administrative-crash-recovery); [MVP questions](../Plans/MVP/QUESTIONS.md#open-questions). |
+| Pending | Inbox selection and filtering: whether they become separate options is an [MVP question](../Plans/MVP/QUESTIONS.md#open-questions). The [administrative crash-recovery policy](#administrative-crash-recovery) is settled and awaits its acceptance run. |
 
 
 How principals on the bus talk. The bus delivers securely and says who sent it;
