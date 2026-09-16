@@ -24,7 +24,7 @@ So a caller reading a listing needs more than a name:
 | **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, since the daemon started | none have |
 | **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, since then ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
 | **`oldest`** | how long the message at the head of its queue has been waiting | its queue is empty |
-| **`at_bound`** | its queue is at the limit it is allowed, so the next message is refused or something is lost ([messaging § overflow](04-messaging.md#overflow)) | there is room. The daemon answers it because a record that declares no bound takes the daemon's, and a reader cannot know what that is |
+| **`at_bound`** | its queue held the limit it is allowed **when the question was asked**. Not a prediction about the next message: a waiting reader is handed one without it ever queueing, and enqueueing prunes what has expired before it tests fullness, so if the queue is still full then the record's [overflow policy](04-messaging.md#overflow) applies — refuse, or forget the oldest | there is room. The daemon answers it because a record that declares no bound takes the daemon's, and a reader cannot know what that is |
 
 These are **observations attached to the listing**, not values a registrant
 may state. Counters survive through snapshots; reader presence does not ([overview § principles](00-overview.md#principles)). They are the difference between
