@@ -100,15 +100,21 @@ The MVP currently carries plaintext bodies ([trust boundary](#encrypted-sessions
 | Listing credentials | A caller sees only credentials it holds, represented by keyed fingerprints rather than token bytes |
 | Removal | Unregistering an address takes its credential with it ([identity § unregistering](01-identity.md#unregistering)); a person's own credential is not a record's to drop, so it stays |
 | Lifetime | A person's credential lasts **as long as that person is registered**. Nothing else ends it: no clock, no inactivity, no restart. MVP has no way to deregister a person at all — only [pause and ban](01-identity.md#user-lifecycle), which keep the credential — so today the bound exists and is never reached |
-| Collection | **Pending.** At daemon start, a credential whose name has neither a record nor a registered user is dropped ([ownerless credentials](#ownerless-credentials)) |
+| Collection | **Pending.** At daemon start, a credential whose name answers to nobody — no record, no registered user, and owning no records — is dropped ([ownerless credentials](#ownerless-credentials)) |
 
 
 ### Ownerless credentials
 
-**Pending, not built.** A credential whose name has neither a record nor a
-registered user belongs to nobody, and the daemon drops it **at start**. That
-is a sweep at a known moment, not expiry: the rule above still holds, and no
-credential is retired for being old or idle.
+**Pending, not built.** A credential belongs to nobody when its name has **no
+record of its own, no registered user, and owns no records**, and the daemon
+drops it **at start**. That is a sweep at a known moment, not expiry: the rule
+above still holds, and no credential is retired for being old or idle.
+
+**Owning records counts as answering to somebody**, and is the third condition
+for a reason: a name can own services without holding a record of its own, and
+taking its credential would leave every one of them
+[dead](01-identity.md#when-the-owner-is-gone) — the sweep would manufacture
+exactly the orphans that rule exists to recover from, at a restart, silently.
 
 It is the other half of *as long as the user is registered*. A person keeps
 theirs while they are a registered user, whatever they register or unregister
@@ -130,8 +136,8 @@ would take the owner's own credential on the first start.
 
 A credential asked for before its name is registered is the same shape, briefly:
 the sweep sees one moment, so such a credential is there until the next restart
-and collected at it **if the name is still neither registered nor a registered
-user by then**. Register it first and it is kept like any other. What the sweep
+and collected at it **only if the name still answers to nobody by all three
+tests**. Register it first and it is kept like any other. What the sweep
 does take it cannot give back — a name swept needs a credential again the
 ordinary way ([getting a token](#getting-a-token)).
 
