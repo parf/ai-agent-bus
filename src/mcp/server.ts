@@ -383,7 +383,14 @@ function catalogue(r: Record_): string {
     r.protocol ? `speaks ${r.protocol}${r.addr ? ` at ${r.addr}` : ""} — call it yourself, not through the bus` : undefined,
     // Whether anyone reads its inbox says nothing about a record the bus
     // does not serve, so it is left out rather than reported as absent.
-    r.protocol ? undefined : r.reading ? "a reader is attached" : "nobody is reading it right now",
+    //
+    // `reading` counts a read that accepts ANY message: a read restricted to
+    // a topic or tag is attached and is not in it (core/bus.go withLiveness),
+    // and `deliver` serves a matching one of those ahead of an unfiltered
+    // reader. So the false case cannot say nobody is reading — it did, and the
+    // dashboard said the same thing until F.13.1. Whether such a read should
+    // be reported at all is Plans/MVP/QUESTIONS.md Q70.
+    r.protocol ? undefined : r.reading ? "a reader is attached" : "no unfiltered reader — a read restricted to a topic or tag is not counted, and does take what matches it",
     r.queued ? `${r.queued} queued` : undefined,
     r.config_sha ? `configured (${r.config_sha.slice(0, 12)})` : undefined,
   ].filter(Boolean);

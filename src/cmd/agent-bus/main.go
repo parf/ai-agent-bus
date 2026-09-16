@@ -248,15 +248,31 @@ func ls(args []string) error {
 		}, s)
 	}
 	for _, r := range records {
-		reader := "no"
-		if r.Proto != "" {
-			reader = "-"
-		} else if r.Reading {
+		// The observation first. A protocol hint is something the caller
+		// declared about how to reach the thing; it cannot cancel a read the
+		// daemon is watching, and answering "-" for a record that has a
+		// reader attached lost the only fact in the column
+		// (Plans/MVP/web/data-dictionary.md#the-rule).
+		//
+		// "no" is bounded the same way the dashboard bounds it: `reading`
+		// holds only a read that accepts any message.
+		reader := "-"
+		switch {
+		case r.Reading:
 			reader = "yes"
+		case r.Proto == "":
+			reader = "no"
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n", cell(r.Name), cell(r.Kind), cell(r.Owner), reader, r.Queued, cell(r.Descr))
 	}
-	return w.Flush()
+	if err := w.Flush(); err != nil {
+		return err
+	}
+	// What the column counts, because "no" alone is a stronger claim than the
+	// daemon makes: `reading` holds only a read that accepts any message, so
+	// one restricted to a topic or tag is attached and is not in it (Q70).
+	fmt.Println("\nREADER  yes: a read that accepts any message is outstanding · no: none is, though a read restricted to a topic or tag would not show here · -: this bus does not serve the record")
+	return nil
 }
 
 func send(args []string) error {
