@@ -121,78 +121,143 @@ func refusals(m map[string]int) []refusal {
 	return out
 }
 
-// exchange is a request and everything that came back for it, on one row.
+// An ordinary message stays a row of its own: replies carry a route, not a
+// request ID. Only a receipt with an explicit reference and the original's
+// expected route joins that original. A route match is a clue, not completion.
 type exchange struct {
-	At    time.Time
-	Topic string
-	Tag   string
-	From  string
-	To    string
-	N     int
-	Ack   bool
-	Done  bool
-	Reply bool
-	Late  bool
-
-	// The caller's deadline, off the request. Kept so that a later message
-	// can be compared with it; never rendered, because what a reader needs
-	// is the mark, not the arithmetic.
-	deadline time.Time
+	protocol.Envelope
+	Receipts []receiptObservation
+	Matches  []string
+	Notice   string
+	Ack      bool
+	Done     bool
+	Late     bool // ordinary message after its sole retained route match's deadline
 }
 
-// exchanges groups the feed by topic and tag, so a request, its `ack`, its
-// reply and its `done` are one row instead of four lines to read in the right
-// order. An answer that arrived after the caller's deadline is marked late —
-// the deadline travels on the envelope, so the page can see it went by
-// (docs/04-messaging.md#request-and-reply).
-//
-// Grouping and the late mark are the page's; the feed was filtered per caller
-// in the bus, and this never widens it.
+type receiptObservation struct {
+	protocol.Envelope
+	Late bool
+}
+
+func (x exchange) N() int { return 1 + len(x.Receipts) }
+
+func (x exchange) latest() time.Time {
+	at := x.At
+	for _, r := range x.Receipts {
+		if r.At.After(at) {
+			at = r.At
+		}
+	}
+	return at
+}
+
+// responseRoute includes all routing fields, including a third-party reply
+// destination. A same-tag message from some other participant is unrelated.
+func responseRoute(request, response protocol.Envelope) bool {
+	back := protocol.ReplyTo{Service: request.From, Topic: request.Topic, Tag: request.Tag}
+	if request.ReplyTo != nil {
+		back = *request.ReplyTo
+	}
+	return response.From == request.To && response.To == back.Service &&
+		response.Topic == back.Topic && response.Tag == back.Tag
+}
+
 func exchanges(feed []protocol.Envelope) []exchange {
-	// The feed arrives newest first; an exchange is read oldest first,
-	// because its first message is the request everything else answers.
-	by := map[string]*exchange{}
-	order := []*exchange{}
-	for i := len(feed) - 1; i >= 0; i-- {
-		e := feed[i]
-		// A message with neither topic nor tag belongs to no exchange but
-		// its own: grouping those together would put unrelated traffic on
-		// one row.
-		key := e.Topic + "\x00" + e.Tag
-		if e.Topic == "" && e.Tag == "" {
-			key = e.ID
-		}
-		x, seen := by[key]
-		if !seen {
-			x = &exchange{
-				At: e.At, Topic: e.Topic, Tag: e.Tag,
-				From: e.From, To: e.To, deadline: e.Deadline,
-			}
-			by[key], order = x, append(order, x)
-		}
-		x.N++
-		switch e.Receipt {
-		case protocol.ReceiptAck:
-			x.Ack = true
-		case protocol.ReceiptDone:
-			x.Done = true
-		default:
-			// An ordinary message coming back the other way is the answer.
-			if seen && e.From == x.To {
-				x.Reply = true
-			}
-		}
-		// The deadline is the request's, so only what came after it can be
-		// late — and a feed that has already forgotten the request carries
-		// no deadline to judge by, which is the honest answer rather than a
-		// guess (docs/04-messaging.md#request-and-reply).
-		if seen && !x.deadline.IsZero() && e.At.After(x.deadline) {
-			x.Late = true
+	out := make([]exchange, 0, len(feed))
+	byID := map[string][]int{}
+	receiptIDs := map[string]bool{}
+	for _, e := range feed {
+		if e.Receipt == "" {
+			byID[e.ID] = append(byID[e.ID], len(out))
+			out = append(out, exchange{Envelope: e})
+		} else {
+			receiptIDs[e.ID] = true
 		}
 	}
-	out := make([]exchange, 0, len(order))
-	for i := len(order) - 1; i >= 0; i-- { // newest exchange first, like the feed
-		out = append(out, *order[i])
+	for _, e := range feed {
+		if e.Receipt == "" {
+			continue
+		}
+		notice := "Original message not in this visible history."
+		if e.Re == "" {
+			notice = "Receipt has no original message reference."
+		} else if targets := byID[e.Re]; len(targets) == 1 {
+			x := &out[targets[0]]
+			if responseRoute(x.Envelope, e) && !e.At.Before(x.At) {
+				x.Receipts = append(x.Receipts, receiptObservation{
+					Envelope: e, Late: !x.Deadline.IsZero() && e.At.After(x.Deadline),
+				})
+				x.Ack = x.Ack || e.Receipt == protocol.ReceiptAck
+				x.Done = x.Done || e.Receipt == protocol.ReceiptDone
+				continue
+			}
+			notice = "Reference found; route or time differs from the original. Kept separate."
+		} else if len(targets) > 1 {
+			notice = "Reference is ambiguous in this history. Kept separate."
+		} else if receiptIDs[e.Re] {
+			notice = "The referenced message is itself a receipt. Kept separate."
+		}
+		out = append(out, exchange{Envelope: e, Notice: notice})
 	}
+	for i := range out {
+		x := &out[i]
+		if x.Receipt != "" || x.Tag == "" {
+			continue
+		}
+		var deadline time.Time
+		for j := range out {
+			r := &out[j]
+			if r.Receipt == "" && r.At.Before(x.At) && responseRoute(r.Envelope, x.Envelope) {
+				x.Matches = append(x.Matches, r.ID)
+				deadline = r.Deadline
+			}
+		}
+		// Multiple retained candidates cannot supply one meaningful deadline.
+		x.Late = len(x.Matches) == 1 && !deadline.IsZero() && x.At.After(deadline)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if a, b := out[i].latest(), out[j].latest(); !a.Equal(b) {
+			return a.After(b)
+		}
+		return out[i].ID < out[j].ID
+	})
 	return out
 }
+
+// Used by the diagnostics page; no template access to message bodies.
+const exchangesTemplate = `
+<style>
+ .exchanges td{vertical-align:top;overflow-wrap:anywhere}
+ @media (max-width:40rem){
+  .exchanges,.exchanges tbody,.exchanges tr,.exchanges td{display:block}
+  .exchanges caption{display:block;text-align:left;margin:.6rem 0}
+  .exchanges thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  .exchanges tr{margin-bottom:1rem;padding:.8rem;border:1px solid #ddd;border-radius:.3rem}
+  .exchanges td{border:0;padding:.25rem 0}
+  .exchanges td::before{content:attr(data-label);display:block;font-weight:600;color:#555}
+ }
+</style>
+<h2 id=exchanges>Exchanges in retained history</h2>
+<p class=muted>Only envelopes visible to you in this daemon run. History is bounded;
+missing messages or receipts do not prove failure or unfinished work. Times include their UTC offset.</p>
+{{if .NoFeed}}<p class=warn>Envelope history unavailable: {{.NoFeed}}</p>{{else}}
+{{if .Exchanges}}
+<details><summary>How to read this history</summary>
+<p class=muted>Receipts name their original message. Ordinary messages remain separate;
+route matches suggest a response but do not prove it or completion. Untagged messages get no inferred links.
+Receipts sent by topic subscribers or queue workers remain separate when their identity differs from the addressed topic.</p></details>
+<table class=exchanges><caption>Messages and explicitly referenced receipts</caption>
+<thead><tr><th scope=col>Observed message<th scope=col>Route and conversation<th scope=col>Envelopes<th scope=col>Evidence</tr></thead>
+<tbody>
+{{range .Exchanges}}<tr id="message-{{.ID}}"><td data-label="Observed message"><time>{{.At.Format "2006-01-02 15:04:05Z07:00"}}</time><br><code>{{.ID}}</code><td data-label="Route and conversation"><code>{{.From}}</code> → <code>{{.To}}</code><br>Topic: <code>{{if .Topic}}{{.Topic}}{{else}}not supplied{{end}}</code> · Tag: <code>{{if .Tag}}{{.Tag}}{{else}}not supplied{{end}}</code>{{with .ReplyTo}}<br>Reply route: <code>{{.Service}}</code> · Topic: <code>{{.Topic}}</code> · Tag: <code>{{.Tag}}</code>{{end}}<td data-label="Envelopes">{{.N}}</td><td data-label="Evidence">
+{{if .Receipt}}<strong>{{.Receipt}} receipt</strong>{{with .Re}} about <code>{{.}}</code>{{end}}<p>{{.Notice}}</p>{{else}}
+{{if .Ack}}<p>Acknowledgement observed.</p>{{end}}
+{{if .Done}}<p>Completion receipt observed.</p>{{else}}<p class=muted>No completion receipt observed in retained history.</p>{{end}}
+{{with .Matches}}<p>Possible response — matching earlier routes: {{range .}}<a href="#message-{{.}}"><code>{{.}}</code></a> {{end}}</p>{{end}}
+{{if .Late}}<p class=warn>After the matching message's deadline.</p>{{end}}
+{{with .Receipts}}<details><summary>Receipt evidence</summary><ul>{{range .}}<li><strong>{{.Receipt}}</strong> <code>{{.ID}}</code> about <code>{{.Re}}</code><br><code>{{.From}}</code> → <code>{{.To}}</code><br><time>{{.At.Format "2006-01-02 15:04:05Z07:00"}}</time>{{if .Late}} · <span class=warn>after the request's deadline</span>{{end}}</li>{{end}}</ul></details>{{end}}
+{{end}}</td></tr>{{end}}
+</tbody></table>
+{{else}}<p class=muted>No envelopes in your retained history. This is not a count of all traffic.</p>{{end}}
+{{end}}
+`

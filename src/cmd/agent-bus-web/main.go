@@ -446,13 +446,7 @@ var page = template.Must(template.New("dash").Parse(shell("diagnostics", "Diagno
 {{range .Backlogs}}<tr><td><code>{{.Name}}</code><td>{{if .Reading}}reading{{else}}<b class=warn>nobody</b>{{end}}<td>{{.Queued}}<td>{{.Oldest}}<td>{{if .AtBound}}<b class=warn>full</b>{{end}}</tr>
 {{else}}<tr><td colspan=5 class=muted>every queue is empty</tr>{{end}}</table>
 
-<h2 id=exchanges>exchanges</h2>
-{{if .NoFeed}}<p class=muted>{{.NoFeed}}</p>{{else}}
-<table><tr><th>at<th>topic<th>tag<th>from<th>to<th>messages<th>ack<th>reply<th>done<th></tr>
-{{range .Exchanges}}<tr><td>{{.At.Format "15:04:05"}}<td>{{.Topic}}<td>{{.Tag}}<td><code>{{.From}}</code><td><code>{{.To}}</code><td>{{.N}}<td>{{if .Ack}}ack{{end}}<td>{{if .Reply}}reply{{end}}<td>{{if .Done}}done{{end}}<td>{{if .Late}}<b class=warn>late</b>{{end}}</tr>
-{{else}}<tr><td colspan=10 class=muted>nothing yet</tr>{{end}}</table>
-{{end}}
-
+` + exchangesTemplate + `
 <h2 id=registry>registry</h2>
 <table><tr><th>name<th>kind<th>description<th>reading<th>queued<th>in<th>out<th>config</tr>
 {{range .Records}}<tr><td><code>{{.Name}}</code><td>{{.Kind}}<td>{{.Descr}}
