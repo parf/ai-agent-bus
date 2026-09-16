@@ -226,11 +226,25 @@ Two things follow:
 | **A handover is not complete when the route changes** | it is complete when the old target's queue no longer holds anything for that name. Tooling that reports the handover done at the moment of the write reports it too early. The tail itself is benign — the old runner simply finishes what it was already holding — for as long as it can still serve the name |
 | **An `orig-to` the runner cannot serve needs a defined answer** | [Q68](QUESTIONS.md#open-questions). Since being routed an unowned name is normal, being routed an *unservable* one is routine too, and a runner with no defined behaviour there either drops work silently or blocks its own inbox |
 
-#### What is not settled
+#### A reply comes from the name that was addressed
 
-One choice that changes the implementation and is not ours to pick:
-[Q64](QUESTIONS.md#open-questions), whether a reply to a routed message comes
-from the addressed name or from the route target.
+**Owner-settled, 2026-09-16: the reply's `from` is the addressed name.** A
+sender that wrote to `scaler@h` is answered by `scaler@h`, and whether that
+name is routed anywhere is not the sender's business. Routing is a deployment
+arrangement, and a caller should not have to learn it to correlate an answer.
+
+This grants the runner nothing new. It already holds the child's credential in
+order to start it ([what the child is told](#what-the-child-is-told)), and it
+**may not mint one** — so answering as the child is a use of authority it was
+given, not an acquisition. A runner that was never handed the credential for a
+name cannot reply for that name either, which is the bound that keeps this from
+being an impersonation primitive.
+
+Stated rather than glossed: the `from` is then **the name the work was for, not
+the process that did it**. Anyone who needs to know which target served a
+message is asking a question the reply does not answer, and the honest place
+for that is the registry — the record's `route` says where it is served, and it
+says so to anyone allowed to look at the record.
 
 ### Long-lived services
 
