@@ -70,7 +70,7 @@ restart boundary is `¿`.
 | `Expired` | passed their TTL undelivered, cumulative across restarts | expired | zero: `0` |
 | `AtBound` | at capacity **at the moment of the read** | **at capacity when observed**, red | predicting the next send at all. Not "dropped or refused now", and not "refused or drops oldest" either: the send path prunes before deciding, may hand a waiting reader the message directly, and races a concurrent consume ([glyphs](glyphs.md#what-an-observation-is-worth)) |
 | `Bound` | queue capacity | unset: *uses the daemon default* — `boundOf` really does resolve one | — never copy the resolved value into a template as though the record carried it |
-| `TTL` | this record's retention | unset: **no expiry**, said in those words | — **never** *uses the daemon default*. There is no retention default: `life()` returns zero, `Expires` stays zero and `prune` skips it. Rendering inheritance here invents a value that does not exist |
+| `TTL` | this record's retention | unset: **no queue-imposed expiry — a message may still specify its own** | — **never** *uses the daemon default*. There is no retention default to inherit. But the record's TTL is only half the answer: `life()` returns zero, and the envelope a zero `Expires` that `prune` skips, **only when the sender named no TTL either**; `life("", "1m")` returns the sender's minute (bus.go:738). Saying "no expiry" flat is a one-sided read of the same function — codex's correction of my correction |
 | `Full` | overflow policy | unset: **refuse**, the protocol's documented meaning of empty | — a normalisation, not a daemon resolution |
 
 ### Node and scope
@@ -81,7 +81,7 @@ restart boundary is `¿`.
 | `Status.Services` | **node-wide** record count | records on this node |
 | `Status.Queued`, `Waiting`, `Dropped`, `Expired` | node-wide totals | labelled node-wide, always |
 | `Status.Unclean` | the last stop did not write memory down | a fact, with no acknowledgement state — rendered **only when true**. It is `omitempty`, so absent covers both a clean stop and a first start with no previous stop, and we may not claim either |
-| `Status.Refused` | lifetime counts by reason, a `map[string]int` | refusals since start — **never** "climbing" *here*, which needs a window this value does not carry. Only reasons that have occurred are present, so an absent reason is `¿`, not `0`. (Activity does compute per-interval deltas, so a windowed refusal signal is buildable there.) |
+| `Status.Refused` | lifetime counts by reason, a `map[string]int` | refusals since start — **never** "climbing" *here*, which needs a window this value does not carry. A supported reason absent from a status that returned successfully is **`0`, a measured zero**: `refused` starts empty (bus.go:126), `Refuse` increments per reason, and `Status` copies the map whole. Sparse serialisation is not missing observation, and `¿` is for evidence that is unavailable or unsupported — codex's correction of my correction. The reason set is closed and [named](../../../docs/05-discovery.md#refusals), so the face knows which zeros to draw |
 
 **Node totals and any list never have to agree**, and every page showing both
 says so: one is the node, the other is what this caller may see

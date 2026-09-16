@@ -93,21 +93,30 @@ Corrections applied from codex and home-parf, each of which I had wrong:
   both peers**: it is not that we have no window anywhere. `activity.go` samples
   and computes per-interval deltas including `Refused`, so a windowed refusal
   signal is buildable on Activity. It is simply not something the Overview's
-  basis can say, and sampled history does not survive a restart.
+  basis can say, and sampled history does not survive a restart. codex's scope
+  qualifier, accepted: that series carries **node-wide** refusals only on the
+  unfiltered admin or master view (activity.go:98–99) and is a sum over
+  visible records otherwise, so the two must never be labelled alike.
 - *"backlog with no reader"* is **not** severity. A queue worker between pulls
   is exactly that shape and nothing is wrong.
 - *"backlog older than the record's own TTL"* was orange in two drafts and is
-  **cut**. home-parf's find, verified: `life()`
-  ([bus.go:724](../../../src/internal/core/bus.go)) with both TTLs unset returns
-  zero, the envelope keeps a zero `Expires`, and `prune` skips it — so an unset
-  record TTL is **no expiry at all**, not a daemon retention default, and for
-  those records the comparison has no right-hand side. Where a TTL *is*
-  declared, `Oldest > TTL` is only reachable in the window before a lazy prune,
-  and what it indicates there is that nobody has read the inbox and it is not
-  full — the backlog-with-no-reader signal above, wearing a TTL costume. It is
-  also the wrong comparison in principle: the deadline is per envelope, fixed at
-  accept from whichever of the two TTLs was shorter, and the record's `TTL` as
-  it reads *now* may not be the one that message was accepted under.
+  **cut**. home-parf's find. The record's `TTL` is simply the wrong right-hand
+  side: where it is unset there is nothing to compare against, and where it is
+  set it is still not the deadline the head was accepted under. `life()`
+  ([bus.go:724](../../../src/internal/core/bus.go)) fixes each envelope's
+  expiry once, at accept, from whichever of the sender's and the queue's TTLs
+  was shorter, so a perfectly live head accepted under a longer setting exceeds
+  today's shortened one with nothing wrong.
+
+  **My first version of this cut over-argued it**, and codex caught both halves.
+  “An unset record TTL means no expiry at all” is a one-sided read of the same
+  function: `life()` returns zero only when *neither* TTL is set, and
+  `life("", "1m")` returns the sender's minute (bus.go:738). And the claim that
+  `Oldest > TTL` indicates “nobody has read the inbox and it is not full” does
+  not follow either way — `prune` is lazy, so a queue can fill and then age with
+  no operation touching it at all. The cut stands on the wrong-right-hand-side
+  argument alone; replacing an invalid signal with a second inference would have
+  been the same mistake again.
 
   Orange survives on the disabled-record-holding-work item, which rests on two
   values the daemon reports directly. The level is not retired; its TTL basis
