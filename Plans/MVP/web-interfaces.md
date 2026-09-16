@@ -103,7 +103,7 @@ This is an inventory of existing information and missing observations, not a pro
 | Process PID, runtime session ID, cwd, process start, OS uptime | Some session bookkeeping is local to [launchers](../../src/launchers/sessions.ts); the bus record does not expose this set | The requested familiar session view can use descriptions now. A real process inventory requires producer support and explicit scope; the web child must not scrape launcher homes or `/proc` |
 | Health, execution results, latency distributions, audit history | Not supplied by the inspected MVP dashboard data | Keep [R1 extensions](../R1/discovery.md#dashboard-extensions) separate. Do not fill absent data with green badges, zeroes or fabricated history |
 
-Retention is settled: a credential whose name has neither a record nor a registered user is dropped at daemon start ([ownerless credentials](../../docs/02-access.md#ownerless-credentials)), which is what removes this cohort rather than a way of presenting it. Until that is built the entries are there, so the unclassified category is still needed — and it must stay correct when the cohort is empty, since a category that only ever held sweepable rows has nothing to show afterwards. Provenance remains unrecoverable for them either way, and no automatic classification is promised.
+The built directory distinguishes current identity evidence and keeps cleanup candidates visible; startup collection and explicit removal follow [ownerless credentials](../../docs/02-access.md#ownerless-credentials), including the interim dependency on orphan-service handling. Support for the category is permanent, its occupancy is not. Presentation must remain correct when empty or populated; absent historical provenance cannot be reconstructed automatically. See the [completed directory slice](done/identity-cleanup.md#scope).
 
 ## Visual direction
 
@@ -160,7 +160,7 @@ These references supply interaction and accessibility patterns, not a request to
 
 ## Boundaries and handoff
 
-Q52 in [open questions](QUESTIONS.md#open-questions) owns the unresolved missing-certificate startup policy; this redesign does not choose a transport-policy change.
+Missing-certificate startup policy is settled in [where it listens](../../docs/05-discovery.md#where-it-listens); this redesign follows that contract.
 
 The [execution plan](TODO.md#web-redesign) handles visual design, data semantics, shared presentation, feature migration and installed acceptance separately. Existing isolation and crash-recovery gates remain release blockers; a redesigned page does not close them.
 
