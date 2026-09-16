@@ -293,25 +293,23 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if caller.String() != s.owner && caller.String() != want.String() {
-		owner, known := s.bus.OwnerOf(want.String())
-		if !known || owner != caller.String() {
-			fail(w, http.StatusForbidden, caller.String()+" does not own "+want.String())
-			return
-		}
-	}
 	issue := s.tokens.Issue
 	if in.Rotate {
 		issue = s.tokens.Rotate
 	}
-	// Issued to somebody, never to nobody. This is the operation that filled
+	// Issued to somebody, never to nobody, and never to somebody who has
+	// stopped being the one entitled to it. This is the operation that filled
 	// the directory with names answering for nothing: a credential was minted
 	// for a name the daemon held nothing else for, and the credential alone
 	// let it call. Register the name, or create it as a user, first.
-	// The registry decides and still holds while the store is written, so an
-	// unregistration cannot fit between the two.
+	//
+	// Who may have it is asked in the registry rather than here, because here
+	// it could only be asked before the mint and answered about a moment that
+	// had passed: a record changes hands, and a caller that owned the name
+	// when it asked would be handed the new owner's credential. The registry
+	// decides and is still holding while the store is written.
 	// See docs/02-access.md#getting-a-token.
-	tok, err := s.bus.IssueFor(want.String(), issue)
+	tok, err := s.bus.IssueFor(caller.String(), want.String(), issue)
 	if err != nil {
 		s.reply(w, nil, err)
 		return
@@ -352,22 +350,15 @@ func (s *Server) unregister(w http.ResponseWriter, r *http.Request, caller proto
 	if !read(w, r, &in) {
 		return
 	}
-	err := s.bus.Unregister(in.Name, caller.String())
-	// The credential goes with the address. Keeping it was how a removed name
-	// stayed reclaimable and protected from takeover; that protection is
-	// [R1.2's](../../Plans/R1.2/README.md#removed-names), and paying for it
-	// here cost a credential per throwaway address forever.
+	// The credential goes with the address, in the same operation. Keeping it
+	// was how a removed name stayed reclaimable and protected from takeover;
+	// that protection is [R1.2's](../../Plans/R1.2/README.md#removed-names),
+	// and paying for it here cost a credential per throwaway address forever.
 	//
-	// A person's own identity is the exception, and not for the same reason:
-	// their credential is how they call at all, and unregistering a record
-	// must not log them out.
-	if err == nil {
-		if name, e := protocol.ParseName(in.Name); e == nil {
-			if n := name.String(); !s.bus.IsPerson(n) {
-				err = s.tokens.Forget(n)
-			}
-		}
-	}
+	// Whether the name is a person, and so keeps its credential, is the
+	// registry's to answer while it still holds — asked out here it was
+	// answered after the record it depends on had already gone.
+	err := s.bus.UnregisterAnd(in.Name, caller.String(), s.tokens.Forget)
 	s.reply(w, nil, err)
 }
 

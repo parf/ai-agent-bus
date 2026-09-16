@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -19,9 +20,7 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 	if err := b.SetGroup("owner@h", MaintainersGroup, []string{"owner@h", "maintainer@h"}, false); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "session@h", Owner: "session@h", Kind: "agent"}); err != nil {
-		t.Fatal(err)
-	}
+	known(t, b, "session@h")
 	// Restored, not registered: a record owned by a name the daemon holds
 	// nothing for but a credential can no longer be registered into existence
 	// (docs/01-identity.md#when-the-owner-is-gone). It still arrives from an
@@ -60,11 +59,18 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 			t.Error("retained credential lacks its owned-service explanation")
 		}
 	}
-	for _, who := range []string{"smoke/person@h", "unused@h", "session@h"} {
+	for _, who := range []string{"smoke/person@h", "session@h"} {
 		rows := b.Users(who, credentials)
 		if len(rows) != 1 || rows[0].Name != who {
 			t.Fatalf("ordinary caller %s can enumerate other identities: %+v", who, rows)
 		}
+	}
+	// Not even its own row: a name the daemon holds nothing for but a
+	// credential may not act, and looking itself up is acting
+	// (docs/02-access.md#what-a-call-carries). It is in the directory for a
+	// maintainer to see, which is the only reason it is there.
+	if rows := b.Users("unused@h", credentials); len(rows) != 0 {
+		t.Fatalf("a credential answering for nobody read the directory: %+v", rows)
 	}
 	if got := b.Ownerless(credentials); len(got) != 1 || got[0] != "unused@h" {
 		t.Fatalf("classification disagrees with sweep: %v", got)
@@ -76,14 +82,18 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 		if _, err := b.SetUserState("owner@h", "maintainer@h", state); err != nil {
 			t.Fatal(err)
 		}
-		rows := b.Users("maintainer@h", credentials)
-		if len(rows) != 1 || rows[0].Name != "maintainer@h" || rows[0].CanRemove {
+		// Nothing at all now, not merely their own row without controls: a
+		// suspended caller may not act, and reading the directory is acting.
+		if rows := b.Users("maintainer@h", credentials); len(rows) != 0 {
 			t.Fatalf("%s maintainer retains directory authority: %+v", state, rows)
 		}
 		called := false
 		err := b.RemoveOwnerless("maintainer@h", "unused@h", func(string) error { called = true; return nil })
-		if err != ErrNotOwner || called {
-			t.Errorf("%s maintainer can remove credentials", state)
+		// Refused for being suspended rather than for not being a maintainer,
+		// because that is what is true and they are different answers to give
+		// (docs/05-discovery.md#refusals).
+		if !errors.Is(err, ErrInactive) || called {
+			t.Errorf("%s maintainer can remove credentials: %v", state, err)
 		}
 	}
 }

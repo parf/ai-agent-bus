@@ -3,8 +3,6 @@ package core
 import (
 	"testing"
 	"time"
-
-	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 // Deciding and then minting is not the same as deciding while minting. With
@@ -15,13 +13,11 @@ import (
 func TestIssuingHoldsTheRegistryWhileItMints(t *testing.T) {
 	b := New()
 	b.Administrator("admin@h")
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "svc@h"}); err != nil {
-		t.Fatal(err)
-	}
+	known(t, b, "svc@h")
 	minting, release := make(chan struct{}), make(chan struct{})
 	issued := make(chan error, 1)
 	go func() {
-		_, err := b.IssueFor("svc@h", func(string) (string, error) {
+		_, err := b.IssueFor("svc@h", "svc@h", func(string) (string, error) {
 			close(minting)
 			<-release
 			return "credential", nil
@@ -61,13 +57,11 @@ func TestIssuingRefusesANameTheDaemonDoesNotKnow(t *testing.T) {
 	b.Administrator("admin@h")
 	called := false
 	mint := func(string) (string, error) { called = true; return "credential", nil }
-	if _, err := b.IssueFor("ghost@h", mint); err == nil || called {
+	if _, err := b.IssueFor("admin@h", "ghost@h", mint); err == nil || called {
 		t.Fatalf("minted for a name with nothing behind it: err=%v called=%v", err, called)
 	}
-	if _, err := b.Register(protocol.Record{Name: "ghost@h", Owner: "ghost@h"}); err != nil {
-		t.Fatal(err)
-	}
-	if tok, err := b.IssueFor("ghost@h", mint); err != nil || tok != "credential" {
+	known(t, b, "ghost@h")
+	if tok, err := b.IssueFor("ghost@h", "ghost@h", mint); err != nil || tok != "credential" {
 		t.Fatalf("a registered name could not be issued one: %q %v", tok, err)
 	}
 }

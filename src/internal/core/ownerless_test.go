@@ -103,9 +103,7 @@ func TestTheSweepDoesNotManufactureOrphans(t *testing.T) {
 		t.Errorf("a name owning nothing is not swept either: %v", got)
 	}
 	// And a self-owned record is kept by the record test, not by this one.
-	if _, err := b.Register(protocol.Record{Name: "self@h", Owner: "self@h"}); err != nil {
-		t.Fatal(err)
-	}
+	known(t, b, "self@h")
 	if got := b.Ownerless([]string{"self@h"}); len(got) != 0 {
 		t.Errorf("a self-owned record was swept: %v", got)
 	}

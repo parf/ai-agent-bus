@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.31 — 2026-09-15
+
+A caller that stopped being one is no longer still acting. Who the caller is, what state they are in and what authority they have over what they are touching are established under the hold the operation writes under, not at the door and not beforehand: the gate released the registry before core took it, and in that gap a caller whose record was removed could register itself back into existence, a caller paused after the gate was served anyway, and asking for a token settled who owned the target before the credential was written — so a record changing hands in between handed the former owner the current owner’s credential. Removing an address and dropping its credential are now one operation, abandoned whole if the credential store refuses the write; a transfer cannot hand a record to somebody who cannot act; a removed principal’s blocked reads end with it; and the clause that let an unknown name create itself is gone, with enrolment saying so for itself instead.
+
 ## 0.5.30 — 2026-09-15
 
 Diagnostics keeps message IDs and receipt references, correlates receipts against the full return route, and labels ordinary response matches as possibilities. Retained-history limits, missing evidence and narrow-screen layouts stay explicit; unused credentials are shown without guessing their origin.

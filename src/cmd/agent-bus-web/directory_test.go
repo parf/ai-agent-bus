@@ -43,9 +43,7 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	if err := b.SetGroup("owner@h", core.MaintainersGroup, []string{"owner@h", "maintainer@h"}, false); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "self@h", Owner: "self@h"}); err != nil {
-		t.Fatal(err)
-	}
+	known(t, b, "self@h")
 	// service@h comes from a store rather than a registration: its owner is a
 	// name the daemon holds only a credential for, and registering that is
 	// refused now (docs/01-identity.md#when-the-owner-is-gone). The directory

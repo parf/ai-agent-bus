@@ -106,7 +106,7 @@ func TestChannelManagersCanRemoveButStrangersCannot(t *testing.T) {
 	b.Administrator("admin@h")
 	known(t, b, "owner@h")
 	b.Register(protocol.Record{Name: "news@h", Owner: "owner@h", Kind: "topic", Mode: "pubsub"})
-	b.Register(protocol.Record{Name: "subscriber@h", Owner: "subscriber@h"})
+	known(t, b, "subscriber@h", "stranger@h", "maint@h")
 	if _, err := b.Subscribe("subscriber@h", "news@h", true); err != nil {
 		t.Fatal(err)
 	}

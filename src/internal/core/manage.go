@@ -53,7 +53,7 @@ func (b *Bus) maintainersAreUsers() {
 }
 
 func (b *Bus) manages(caller string, r protocol.Record) bool {
-	return b.active(caller) && (caller == r.Owner || caller == r.Name || b.member(caller, r.Maintainers))
+	return b.acting(caller) == nil && (caller == r.Owner || caller == r.Name || b.member(caller, r.Maintainers))
 }
 func (b *Bus) member(caller, group string) bool {
 	for _, n := range b.groups[group] {
@@ -96,7 +96,10 @@ func (b *Bus) SetGroup(caller, name string, members []string, remove bool) error
 	sort.Strings(normalized)
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if !b.active(who) || !b.isMaintainer(who) {
+	if err := b.acting(who); err != nil {
+		return err
+	}
+	if !b.isMaintainer(who) {
 		return ErrNotOwner
 	}
 	if name == MaintainersGroup {
@@ -139,6 +142,9 @@ func (b *Bus) Groups(caller string) map[string][]string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	out := map[string][]string{}
+	if b.acting(caller) != nil {
+		return out
+	}
 	for group, members := range b.groups {
 		// Names are available for assignment. Membership lists are administrative.
 		out[group] = []string{}
@@ -160,6 +166,9 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return protocol.Record{}, err
+	}
 	r, ok := b.records[name]
 	if !ok {
 		return protocol.Record{}, ErrUnknown
@@ -180,6 +189,12 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		target, known := b.records[owner]
 		if !known || target.Owner != owner {
 			return protocol.Record{}, fmt.Errorf("%w: new owner must be a registered self-owned principal", ErrBadName)
+		}
+		// And one who may act. Handing a record to a paused or banned name
+		// leaves it owned by somebody who cannot answer for it, which is the
+		// orphan by another route.
+		if err := b.acting(owner); err != nil {
+			return protocol.Record{}, err
 		}
 		if r.Name == r.Owner {
 			return protocol.Record{}, fmt.Errorf("%w: a self-owned identity cannot be transferred", ErrNotOwner)
@@ -271,8 +286,8 @@ func (b *Bus) recheckInbox(name string) {
 			w := in.waiters[i]
 			if r.Disabled || !b.may(w.caller, r) {
 				err := ErrNotAllow
-				if !b.active(w.caller) {
-					err = ErrInactive
+				if e := b.acting(w.caller); e != nil {
+					err = e
 				}
 				if r.Disabled {
 					err = ErrDisabled
@@ -310,6 +325,9 @@ func (b *Bus) RemoveSubscriber(caller, topic, subscriber string) (protocol.Recor
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return protocol.Record{}, err
+	}
 	r, ok := b.records[name]
 	if !ok {
 		return protocol.Record{}, ErrUnknown

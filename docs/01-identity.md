@@ -71,6 +71,15 @@ registering it, or [enrolment](#proving-possession) proving a key — and never 
 itself. Registering a record for an owner the daemon does not know is refused
 for the same reason: it would leave that record owned by nobody, which is
 [wreckage by another route](#when-the-owner-is-gone).
+
+**And there is no self-owned exception.** A name unknown to the daemon could
+briefly still create itself, which is the one shape a legitimate caller needs —
+a newcomer a realm has vouched for, whose [enrolment](#proving-possession) is
+what writes it a record. Separating that caller from an ordinary one asking for
+the same thing was not possible while the check ran on the door's stale answer;
+now that it runs
+[where the operation writes](02-access.md#what-a-call-carries), enrolment says
+so for itself and nothing else reaches the shape.
 GitHub enrolment fetches public keys, not profile details. Existing tokens
 continue working if the provider is unavailable.
 
@@ -147,7 +156,19 @@ Nothing is held back for the name. It is reserved to nobody, survives no
 restart, and whoever asks for it next gets it — its previous owner included,
 with no priority. A person's own identity is the one exception, and not as a
 reservation: their credential is how they call at all, so removing a record of
-theirs does not take it. A re-registered name starts with an empty inbox and
+theirs does not take it.
+
+**The address and its credential go together, in one operation.** Whether the
+name is a person, and so keeps its credential, is decided on the same facts the
+removal is decided on — asked afterwards it was answered about a record that had
+already gone, and in that gap the name could be claimed by somebody else, whose
+credential was then the one dropped. If the credential store will not take the
+write, the removal is abandoned whole: a record gone with its credential still
+answering for it is precisely what
+[the sweep](02-access.md#ownerless-credentials) exists to clean up, and a
+credential dropped for a record that then stays is recoverable by asking for
+another. A blocked read the name had elsewhere ends with it, because it was
+being served on standing the name no longer has. A re-registered name starts with an empty inbox and
 no configuration or subscriptions.
 
 Protecting a name is a thing its owner asks for, not something a removal
@@ -358,6 +379,13 @@ credential revocation.
 by their owner, assigned maintainers or the record's own principal. Re-registration preserves
 ownership. The same rule protects registry configuration; only the service
 itself may read that configuration back.
+
+**A transfer hands the record to somebody who can answer for it now.** The new
+owner must be a registered self-owned principal and must be able to act —
+handing a record to a paused or banned name is the orphan by another route. Who
+owns a record is also what decides who may be given its credential, and that is
+asked where the credential is written rather than beforehand, because a record
+can change hands ([getting a token](02-access.md#getting-a-token)).
 
 A self-owned record can identify a person in the [people view](#person-records).
 Person-profile writes use the [maintainer hierarchy](#who-may-write-a-record);

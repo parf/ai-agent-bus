@@ -2,23 +2,59 @@ package core
 
 import (
 	"testing"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// known makes each name a principal that answers for itself, which is what the
-// daemon now requires before a name may own anything
-// (docs/01-identity.md#registration). Fixtures that wanted an owner used to be
-// able to name a string nobody had heard of; a record owned by nobody the
-// daemon knows is the wreckage the deletion rule exists to clean up, so it can
-// no longer be registered into existence.
+// known makes each name a principal that answers for itself.
+//
+// Stated rather than performed: no ordinary call brings a self-owned name into
+// existence any more. Registering one requires an owner who may already act,
+// and a name that is nobody cannot be its own — which leaves enrolment, which
+// has proved a key, and user creation, which is somebody deciding. A fixture
+// that wants the state without the ceremony writes the state, the same way a
+// store loaded at start does.
 func known(t *testing.T, b *Bus, names ...string) {
 	t.Helper()
+	records := make([]protocol.Record, 0, len(names))
 	for _, name := range names {
-		if _, err := b.Register(protocol.Record{Name: name, Owner: name, Kind: "agent"}); err != nil {
-			t.Fatalf("fixture principal %s: %v", name, err)
+		records = append(records, protocol.Record{Name: name, Kind: "agent"})
+	}
+	provision(t, b, records...)
+}
+
+// provision is the same for a record that carries settings a bare principal
+// does not — an overflow policy, a mode — which a fixture would otherwise have
+// to register to get.
+func provision(t *testing.T, b *Bus, records ...protocol.Record) {
+	t.Helper()
+	s := ports.Snapshot{Clean: true}
+	for _, r := range records {
+		n, err := canon(r.Name)
+		if err != nil {
+			t.Fatalf("fixture principal %s: %v", r.Name, err)
 		}
+		r.Name, r.At = n, time.Now()
+		if r.Owner == "" {
+			r.Owner = n
+		}
+		if r.Kind == "" {
+			r.Kind = "generic"
+		}
+		if r.Full == "" {
+			r.Full = protocol.OverflowStrict
+		}
+		s.Records = append(s.Records, r)
+	}
+	b.Restore(s)
+	// A record has an inbox from the moment it exists, which registering does
+	// and restoring a record with no queue behind it does not.
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, r := range s.Records {
+		b.ensure(r.Name)
 	}
 }
 

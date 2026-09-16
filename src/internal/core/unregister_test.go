@@ -98,9 +98,7 @@ func TestUnregisterClearsConfigurationAndSubscriptions(t *testing.T) {
 	if _, err := b.Configure("svc@h", "svc@h", json.RawMessage(`{"private":true}`)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "topic@h", Kind: protocol.KindTopic, Mode: protocol.ModePubSub}); err != nil {
-		t.Fatal(err)
-	}
+	provision(t, b, protocol.Record{Name: "topic@h", Kind: protocol.KindTopic, Mode: protocol.ModePubSub})
 	if _, err := b.Subscribe("svc@h", "topic@h", true); err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +112,8 @@ func TestUnregisterClearsConfigurationAndSubscriptions(t *testing.T) {
 	if _, ok := b.inboxes["svc@h"]; ok {
 		t.Fatal("inbox survived removal")
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "svc@h"}); err != nil {
+	known(t, b, "keeper@h")
+	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "keeper@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if cfg, err := b.Config("svc@h", "svc@h"); err != nil || len(cfg) != 0 {
@@ -130,8 +129,8 @@ func TestUnregisterClearsConfigurationAndSubscriptions(t *testing.T) {
 func TestUnregisteringDoesNotOrphanWhatItOwns(t *testing.T) {
 	b := New()
 	b.Administrator("admin@h")
+	known(t, b, "alice@h")
 	for _, r := range []protocol.Record{
-		{Name: "alice@h", Owner: "alice@h"},
 		{Name: "child@h", Owner: "alice@h"},
 		{Name: "other@h", Owner: "alice@h"},
 	} {
@@ -193,9 +192,7 @@ func TestUnregisteringDoesNotOrphanWhatItOwns(t *testing.T) {
 
 	// Positive control: owning a record is not the same as being one. A record
 	// somebody else owns is removed without this guard ever applying.
-	if _, err := b.Register(protocol.Record{Name: "bob@h", Owner: "bob@h"}); err != nil {
-		t.Fatal(err)
-	}
+	known(t, b, "bob@h")
 	if _, err := b.Register(protocol.Record{Name: "theirs@h", Owner: "bob@h"}); err != nil {
 		t.Fatal(err)
 	}

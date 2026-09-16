@@ -63,9 +63,7 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	// which does reach one, is refused there for not being a maintainer. The
 	// first alone would stop pinning the authorization check.
 	call("unused@h", "POST", "/identity/remove", `{"name":"unused@h"}`, 401)
-	if _, err := b.Register(protocol.Record{Name: "ordinary@h", Owner: "ordinary@h"}); err != nil {
-		t.Fatal(err)
-	}
+	known(t, b, "ordinary@h")
 	call("ordinary@h", "POST", "/identity/remove", `{"name":"unused@h"}`, 403)
 	if _, ok := s.tokens.Principal(current); !ok {
 		t.Fatal("reading or denied removal changed the credential")

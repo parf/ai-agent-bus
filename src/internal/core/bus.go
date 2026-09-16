@@ -173,8 +173,14 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if err := b.mayOwn(r.Owner, name); err != nil {
-		return protocol.Record{}, err
+	// Enrolment is the one caller that legitimately registers a name the
+	// daemon does not yet know — it has just proved the realm's key for it
+	// (docs/01-identity.md#proving-possession) — and it says so here rather
+	// than through a clause in mayOwn that every other caller could reach.
+	if !enrolled {
+		if err := b.mayOwn(r.Owner, name); err != nil {
+			return protocol.Record{}, err
+		}
 	}
 	if _, exists := b.records[name]; createOnly && exists {
 		return protocol.Record{}, ErrExists
@@ -297,6 +303,9 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	cfg = canonical.Bytes()
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return protocol.Record{}, err
+	}
 	r, known := b.record(n)
 	if !known {
 		// Creating here obeys what creating anywhere else obeys. This is a
@@ -306,9 +315,6 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		// issued a credential, with no key ever proved.
 		// See docs/01-identity.md#registration.
 		if err := b.vouchedFor(n); err != nil {
-			return protocol.Record{}, err
-		}
-		if err := b.mayOwn(who, n); err != nil {
 			return protocol.Record{}, err
 		}
 		// Same defaults a bare registration gets: configuring is not a
@@ -343,6 +349,9 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return nil, err
+	}
 	r, known := b.records[n]
 	if !known {
 		return nil, fmt.Errorf("%w: %s", ErrUnknown, n)
@@ -372,9 +381,11 @@ func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 	return b.visible(caller, r), true
 }
 
-// OwnerOf is the ownership question on its own, because it is not a discovery
-// one: who may be given a name's credential must not depend on who may see it
-// (docs/02-access.md#getting-a-token).
+// OwnerOf reports who owns a name, and nothing more. It is a query, not the
+// first half of a decision: the answer is stale the moment the lock is
+// released, so anything that acts on ownership asks under the hold it acts in
+// (IssueFor is what that looks like). Deciding out here is what let a transfer
+// land between the answer and the act.
 func (b *Bus) OwnerOf(name string) (string, bool) {
 	n, err := canon(name)
 	if err != nil {
@@ -500,6 +511,11 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	// Before the receiver is looked up, so that a caller who is nobody is not
+	// told which names exist by which refusal it gets.
+	if err := b.acting(from); err != nil {
+		return protocol.Envelope{}, err
+	}
 	rec, known := b.records[to]
 	if !known {
 		return protocol.Envelope{}, fmt.Errorf("no such receiver: %s (%w)", to, ErrUnknown)
@@ -663,6 +679,9 @@ func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) 
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return protocol.Record{}, err
+	}
 	r, known := b.records[n]
 	// A topic you may not see does not exist as far as you are concerned,
 	// exactly as a lookup answers. See docs/01-identity.md#acl.
@@ -762,6 +781,10 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 		return protocol.Envelope{}, err
 	}
 	b.mu.Lock()
+	if err := b.acting(caller); err != nil {
+		b.mu.Unlock()
+		return protocol.Envelope{}, err
+	}
 	// An inbox belongs to a registered name. Creating one for whoever asks
 	// would let any caller name leave a permanent entry behind — and the
 	// wait could never end anyway, because Send refuses an unknown
@@ -897,6 +920,9 @@ func (b *Bus) Status() Status {
 func (b *Bus) Owned(caller string) []string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.acting(caller) != nil {
+		return []string{}
+	}
 	out := []string{caller}
 	for name, r := range b.records {
 		if name != caller && r.Owner == caller {

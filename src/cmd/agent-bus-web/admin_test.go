@@ -33,9 +33,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 		// Registered before signing in, not after: a name the daemon holds
 		// nothing for but a credential cannot sign in at all
 		// (docs/02-access.md#what-a-call-carries).
-		if _, err := b.Register(protocol.Record{Name: who, Owner: who}); err != nil {
-			t.Fatal(err)
-		}
+		known(t, b, who)
 		token, err := tokens.Issue(who)
 		if err != nil {
 			t.Fatal(err)

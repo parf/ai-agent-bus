@@ -86,9 +86,7 @@ func TestAnUnknownNameCannotActAndCannotBeIssuedACredential(t *testing.T) {
 	}
 
 	// A service that owns itself has no profile and is not collateral.
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "svc@h"}); err != nil {
-		t.Fatal(err)
-	}
+	known(t, b, "svc@h")
 	if code, body := call("svc@h", "GET", "/status", ""); code != 200 {
 		t.Fatalf("a self-owned service was refused: %d %s", code, body)
 	}

@@ -15,11 +15,7 @@ import (
 func newBusWith(t *testing.T, names ...string) *Bus {
 	t.Helper()
 	b := New()
-	for _, n := range names {
-		if _, err := b.Register(protocol.Record{Name: n, Kind: "agent"}); err != nil {
-			t.Fatalf("register %s: %v", n, err)
-		}
-	}
+	known(t, b, names...)
 	return b
 }
 
@@ -107,10 +103,11 @@ func TestCancelDoesNotSwallowAMessage(t *testing.T) {
 // send can never reach.
 func TestNamesAreCanonical(t *testing.T) {
 	b := New()
-	if _, err := b.Register(protocol.Record{Name: "  svc@h  ", Kind: "agent"}); err != nil {
+	known(t, b, "owner@h")
+	if _, err := b.Register(protocol.Record{Name: "  svc@h  ", Kind: "agent", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "peer@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "peer@h", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: " peer@h", To: "svc@h ", Body: "hi"}); err != nil {
@@ -235,7 +232,7 @@ func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv")
 	mustRegister(t, b, protocol.Record{Name: "jobs@srv", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Owner: "a@srv"})
-	mustRegister(t, b, protocol.Record{Name: "pub@srv", Owner: "pub@srv"})
+	known(t, b, "pub@srv")
 	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "jobs@srv", Topic: "jobs@srv", Body: "work"}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
@@ -253,9 +250,9 @@ func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv")
 	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
-	mustRegister(t, b, protocol.Record{Name: "pub@srv", Owner: "pub@srv"})
+	known(t, b, "pub@srv")
 	for _, s := range []string{"one@srv", "two@srv"} {
-		mustRegister(t, b, protocol.Record{Name: s, Owner: s})
+		known(t, b, s)
 		if _, err := b.Subscribe(s, "news@srv", true); err != nil {
 			t.Fatalf("subscribe %s: %v", s, err)
 		}
@@ -285,7 +282,7 @@ func TestASubscriptionSurvivesTheTopicBeingRestated(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv")
 	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
-	mustRegister(t, b, protocol.Record{Name: "one@srv", Owner: "one@srv"})
+	known(t, b, "one@srv")
 	if _, err := b.Subscribe("one@srv", "news@srv", true); err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
@@ -314,7 +311,7 @@ func TestASubscriptionSurvivesTheTopicBeingRestated(t *testing.T) {
 // other end of the same rule, and without it the guard has no check.
 func TestAnAnswerNeverCarriesLivenessItWasHandedIn(t *testing.T) {
 	b := New()
-	mustRegister(t, b, protocol.Record{Name: "claimer@srv", Owner: "claimer@srv"})
+	known(t, b, "claimer@srv")
 	got := b.withLiveness("claimer@srv", protocol.Record{
 		Name: "claimer@srv", Reading: true, Queued: 9, In: 9, Out: 9,
 		Dropped: 9, Expired: 9, Oldest: "99h",
@@ -329,7 +326,7 @@ func TestAnAnswerNeverCarriesLivenessItWasHandedIn(t *testing.T) {
 // caller's filtered wait sees it. See docs/04-messaging.md#receipts.
 func TestAReceiptReachesTheCallersFilteredWait(t *testing.T) {
 	b := New()
-	mustRegister(t, b, protocol.Record{Name: "caller@srv", Owner: "caller@srv"})
+	known(t, b, "caller@srv")
 	if _, err := b.Send(protocol.Envelope{
 		From: "caller@srv", To: "caller@srv", Topic: "call", Tag: "t1", Receipt: "ack", Re: "abc",
 	}); err != nil {
@@ -403,9 +400,7 @@ func TestConsumedMessagesAreReleased(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b := New()
-			if _, err := b.Register(protocol.Record{Name: "sink@h", Owner: "sink@h"}); err != nil {
-				t.Fatal(err)
-			}
+			known(t, b, "sink@h", "s@h")
 			const n = 100
 			for i := 0; i < n; i++ {
 				if _, err := b.Send(protocol.Envelope{
@@ -435,11 +430,8 @@ func TestConsumedMessagesAreReleased(t *testing.T) {
 // What a ring drops is dropped, not kept in the slack behind the queue.
 func TestRingDropsAreReleased(t *testing.T) {
 	b := New()
-	if _, err := b.Register(protocol.Record{
-		Name: "ringy@h", Owner: "ringy@h", Full: protocol.OverflowRing,
-	}); err != nil {
-		t.Fatal(err)
-	}
+	provision(t, b, protocol.Record{Name: "ringy@h", Full: protocol.OverflowRing})
+	known(t, b, "s@h")
 	for i := 0; i < maxQueue+50; i++ {
 		if _, err := b.Send(protocol.Envelope{To: "ringy@h", From: "s@h", Body: bigBody(i)}); err != nil {
 			t.Fatal(err)
@@ -493,9 +485,7 @@ func TestRingDropsAreReleased(t *testing.T) {
 // A waiter that has been served or has given up must not stay reachable.
 func TestServedWaitersAreReleased(t *testing.T) {
 	b := New()
-	if _, err := b.Register(protocol.Record{Name: "w@h", Owner: "w@h"}); err != nil {
-		t.Fatal(err)
-	}
+	known(t, b, "w@h", "s@h")
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -533,6 +523,7 @@ func TestServedWaitersAreReleased(t *testing.T) {
 // not look like changing it: the digest a query gets is over what is stored.
 func TestAConfigurationIsStoredCompacted(t *testing.T) {
 	b := New()
+	known(t, b, "svc@h")
 	if _, err := b.Configure("svc@h", "svc@h", []byte("{ \"k\" : \"v\" }\n")); err != nil {
 		t.Fatal(err)
 	}
@@ -545,6 +536,7 @@ func TestAConfigurationIsStoredCompacted(t *testing.T) {
 		t.Fatalf("stored %q", got)
 	}
 	spaced, _ := b.Lookup("svc@h", "svc@h")
+	known(t, b, "other@h")
 	compact, err := b.Configure("other@h", "other@h", []byte(`{"k":"v"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -588,6 +580,7 @@ func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
 // it cannot read.
 func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 	b := New()
+	known(t, b, "svc@h")
 	if _, err := b.Configure("svc@h", "svc@h", []byte(`{"k":"v"}`)); err != nil {
 		t.Fatal(err)
 	}
@@ -609,14 +602,21 @@ func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 // anything, because Send refuses an unknown receiver.
 func TestConsumingFromAnUnregisteredNameIsRefused(t *testing.T) {
 	b := New()
-	if _, err := b.Consume(context.Background(), "ghost@nowhere", "", "", false, false); !errors.Is(err, ErrUnknown) {
+	known(t, b, "somebody@h")
+	// Two callers, two refusals, no inbox either way. A name that is nobody
+	// is refused for being nobody, before the question of whose inbox it is;
+	// a principal asking after a name that does not exist is told so.
+	if _, err := b.Consume(context.Background(), "ghost@nowhere", "", "", false, false); !errors.Is(err, ErrNoPrincipal) {
+		t.Fatalf("err = %v, want ErrNoPrincipal", err)
+	}
+	if _, err := b.ConsumeAs(context.Background(), "somebody@h", "ghost@nowhere", "", "", false, false); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("err = %v, want ErrUnknown", err)
 	}
 	b.mu.Lock()
-	n := len(b.inboxes)
+	_, made := b.inboxes["ghost@nowhere"]
 	b.mu.Unlock()
-	if n != 0 {
-		t.Fatalf("the refused read left %d inboxes behind", n)
+	if made {
+		t.Fatal("the refused read left an inbox behind")
 	}
 }
 
@@ -668,9 +668,7 @@ func TestAnUnknownTopicModeIsRefused(t *testing.T) {
 // tested directly. A mutation of it survived the whole acceptance suite.
 func TestLivenessIsAssignedNotMerged(t *testing.T) {
 	b := New()
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Kind: "agent", Owner: "svc@h"}); err != nil {
-		t.Fatal(err)
-	}
+	known(t, b, "svc@h")
 	dirty := protocol.Record{Name: "svc@h", Reading: true, Queued: 77}
 	look := func(name string, r protocol.Record) protocol.Record {
 		b.mu.Lock()
@@ -694,6 +692,7 @@ func TestLivenessIsAssignedNotMerged(t *testing.T) {
 		}
 		time.Sleep(2 * time.Millisecond)
 	}
+	known(t, b, "x@h")
 	if _, err := b.Send(protocol.Envelope{From: "x@h", To: "svc@h", Body: "go"}); err != nil {
 		t.Fatal(err)
 	}

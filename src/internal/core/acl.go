@@ -27,7 +27,10 @@ func (b *Bus) Masters(names []string) {
 // answers if it has anything to say, and only then does master apply, to
 // every service that has not refused it.
 func (b *Bus) may(caller string, r protocol.Record) bool {
-	if !b.active(caller) {
+	// Asked here rather than only at the edge: every verb reaches an ACL, so
+	// one question here is asked under whatever hold the verb writes under.
+	// See acting.
+	if b.acting(caller) != nil {
 		return false
 	}
 	if b.manages(caller, r) {

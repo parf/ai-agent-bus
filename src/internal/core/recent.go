@@ -29,6 +29,9 @@ func (b *Bus) note(e protocol.Envelope) {
 func (b *Bus) Recent(caller string) []protocol.Envelope {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.acting(caller) != nil {
+		return []protocol.Envelope{}
+	}
 	all := b.masters[caller]
 	out := make([]protocol.Envelope, 0, len(b.recent))
 	for i := len(b.recent) - 1; i >= 0; i-- {

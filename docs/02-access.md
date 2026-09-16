@@ -52,6 +52,27 @@ letting it register its way in would only bring leftovers back. Enrolment is the
 path that creates a name and its credential together, and it proves a key to do
 it ([proving possession](01-identity.md#proving-possession)).
 
+**Built: the answer is taken where it is used, not at the door.** Asking once
+on the way in answers about a moment that has passed: the gate lets go of the
+registry before the operation takes it, and in that gap the caller can stop
+being a principal, be paused or banned, or lose the authority the operation is
+about. So the same two questions are asked again under the hold the operation
+writes under, and every predicate that decides — who may see a record, who may
+manage one, who may edit a user — asks them there. The gate stays, because
+refusing at the door is cheaper and says the same thing, but nothing rests on
+it.
+
+**What that gap was worth**, on the three shapes reproduced before it was
+closed: a caller whose record was removed while its request was in flight could
+register itself back into existence; a caller that was paused after the gate was
+served anyway; and asking for a token established who owned the target *before*
+the credential was written, so a record changing hands in between handed the
+former owner the credential of the owner it now has — not a stale read but a
+credential the caller was never entitled to. An operation that writes to two
+places closes the same way: removing an address and dropping its credential are
+one operation under one hold, and so are deciding who may have a credential and
+minting it.
+
 **`AGENT_BUS_NAME` survives and authenticates nothing.** It is what a process is
 serving as — for its own use and its children's ([runner § what the child is
 told](08-runner-role.md#what-the-child-is-told)) — and the daemon does not read
@@ -78,6 +99,13 @@ real first — somebody registers it, or a maintainer creates it as a user — a
 then it may hold a credential. **There is no self-service**: an unregistered
 name cannot do anything at all, registering itself included
 ([what a call carries](#what-a-call-carries)).
+
+**Whose credential you may ask for is decided while it is written.** The daemon
+owner may ask for any, a name may ask for its own, and the owner of a record may
+ask for that record's — and which of those is true is settled inside the same
+hold that writes the credential, because a record can change hands. Asked
+beforehand, the answer described the moment the caller asked rather than the
+moment the credential was made ([what a call carries](#what-a-call-carries)).
 
 **Not every host runs sshd**, so the key path does not go through one: the
 daemon hands out a nonce, the holder signs it, and a signature that checks

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"net/mail"
 	"sort"
@@ -37,6 +38,24 @@ func (b *Bus) active(name string) bool {
 func (b *Bus) Authenticate(name string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	return b.acting(name)
+}
+
+// acting is the same two questions asked again where the answer is used.
+//
+// A gate that answers before the operation starts answers about a moment that
+// has passed: the lock it took is released before core takes its own, and in
+// between the caller can stop being a principal, be paused or banned, or lose
+// the authority the operation is about. Asking once at the edge made every
+// verb a check-then-act, and the act ran on the check's stale word.
+//
+// So this runs under the hold the operation writes under, and every predicate
+// that decides authority — may, manages, mayEditUser — asks it rather than
+// asking only whether a name is active. The gate stays, because refusing at
+// the edge is cheaper and says the same thing, but it is no longer what the
+// refusal rests on. See docs/02-access.md#what-a-call-carries.
+// Caller holds b.mu.
+func (b *Bus) acting(name string) error {
 	if err := b.knows(name); err != nil {
 		return err
 	}
@@ -46,38 +65,42 @@ func (b *Bus) Authenticate(name string) error {
 	return nil
 }
 
-// Known is the same test asked before a credential is handed out, because a
-// credential is issued **to somebody**. Minting one for a name the daemon holds
-// nothing for is what filled the directory with names that answered for
-// nothing: the credential was their only trace, and on its own it let them
-// call. See docs/02-access.md#getting-a-token.
-func (b *Bus) Known(name string) error {
-	n, err := canon(name)
-	if err != nil {
-		return err
-	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.knows(n)
-}
-
-// IssueFor mints under the registry lock, so that the name cannot stop being
-// somebody between the check and the credential. Checking and then issuing
-// left a window an unregistration fitted through, and the credential it
-// produced outlived the name it was issued for.
+// IssueFor answers the whole of who may have name's credential, and mints it,
+// under one hold: that the caller is somebody, that name is somebody, and that
+// the caller is entitled to name's credential.
+//
+// Ownership used to be established outside this hold, and that was worse than
+// a stale read. A record can change hands, so between the ownership answer and
+// the mint the target could be transferred away — and the credential handed
+// over was the *current* owner's, issued to the former one. Asking here, where
+// it is used, is the only way that cannot happen.
 //
 // mint must only touch the credential store, never call back into Bus. Same
 // shape and same hold as RemoveOwnerless, which is the other half of this:
 // one place decides, and it is still deciding when the store is written.
-func (b *Bus) IssueFor(name string, mint func(string) (string, error)) (string, error) {
+// See docs/02-access.md#getting-a-token.
+func (b *Bus) IssueFor(caller, name string, mint func(string) (string, error)) (string, error) {
+	who, err := canon(caller)
+	if err != nil {
+		return "", err
+	}
 	n, err := canon(name)
 	if err != nil {
 		return "", err
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return "", err
+	}
 	if err := b.knows(n); err != nil {
 		return "", err
+	}
+	if who != b.admin && who != n {
+		r, known := b.record(n)
+		if !known || r.Owner != who {
+			return "", fmt.Errorf("%w: %s does not own %s", ErrNotOwner, who, n)
+		}
 	}
 	return mint(n)
 }
@@ -96,7 +119,7 @@ func (b *Bus) isMaintainer(name string) bool {
 func (b *Bus) IsMaintainer(name string) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.active(name) && b.isMaintainer(name)
+	return b.acting(name) == nil && b.isMaintainer(name)
 }
 
 // IsPerson says whether a name is somebody's identity rather than a service
@@ -177,7 +200,10 @@ func (b *Bus) RemoveOwnerless(caller, name string, forget func(string) error) er
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if !b.active(who) || !b.isMaintainer(who) {
+	if err := b.acting(who); err != nil {
+		return err
+	}
+	if !b.isMaintainer(who) {
 		return ErrNotOwner
 	}
 	if !b.ownerless(n) {
@@ -235,28 +261,26 @@ func (b *Bus) vouchedFor(name string) error {
 // up — so it is refused, and refusing it is what makes that rule's premise true
 // rather than aspirational.
 //
-// A name not yet known may still be created **owned by itself**, because that
-// is one call creating a principal rather than stranding a record. Reaching it
-// from outside takes a caller whose record is removed while its own request is
-// in flight, which is the gate-to-mutation window [H.5.8] closes for every verb
-// at once rather than for this one clause; restricting it to enrolment here
-// would narrow one route into that window and leave the window. What does
-// reach it legitimately is
-// [enrolment](docs/01-identity.md#proving-possession), which writes a
-// self-owned record for a newcomer a realm vouched for.
+// There is no longer a clause letting an unknown name create itself. It was
+// here because one caller legitimately needs it — a newcomer a realm vouched
+// for, whose [enrolment](docs/01-identity.md#proving-possession) writes it a
+// self-owned record — and separating that caller from an ordinary one asking
+// for the same thing was not possible while the gate's answer was stale by the
+// time this ran. Now that it is not, enrolment says so for itself (the
+// enrolled argument to register) and this asks for nothing but a principal.
 // Caller holds b.mu.
 func (b *Bus) mayOwn(owner, name string) error {
-	if b.identityKind(owner) == protocol.DirectoryCredential && owner != name {
-		return fmt.Errorf("%w: register %s before owning anything else", ErrNoPrincipal, owner)
-	}
-	if !b.active(owner) {
-		return ErrInactive
+	if err := b.acting(owner); err != nil {
+		if errors.Is(err, ErrNoPrincipal) {
+			return fmt.Errorf("%w: register %s before owning anything", ErrNoPrincipal, owner)
+		}
+		return err
 	}
 	return nil
 }
 
 func (b *Bus) mayEditUser(caller, name string) bool {
-	return b.active(caller) && (caller == b.admin || b.isMaintainer(caller) && caller != name && !b.isMaintainer(name))
+	return b.acting(caller) == nil && (caller == b.admin || b.isMaintainer(caller) && caller != name && !b.isMaintainer(name))
 }
 
 func normalizedProfile(in protocol.User) (protocol.User, error) {
@@ -318,6 +342,13 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	// Before the authority question, because "you are nobody" and "you are
+	// suspended" are not "that is not yours": they are different codes to a
+	// caller (docs/05-discovery.md#refusals), and a predicate that answers
+	// true or false cannot tell them apart.
+	if err := b.acting(who); err != nil {
+		return protocol.User{}, err
+	}
 	if !b.mayEditUser(who, in.Name) {
 		return protocol.User{}, ErrNotOwner
 	}
@@ -380,7 +411,7 @@ func (b *Bus) userView(caller, name string) protocol.User {
 	u.Maintainer = b.isMaintainer(name)
 	u.CanEdit = u.Kind == protocol.DirectoryUser && b.mayEditUser(caller, name)
 	u.CanActivate = u.CanEdit && (u.State != "banned" || caller == b.admin)
-	u.CanRemove = b.active(caller) && b.isMaintainer(caller) && b.ownerless(name)
+	u.CanRemove = b.acting(caller) == nil && b.isMaintainer(caller) && b.ownerless(name)
 	for group, members := range b.groups {
 		for _, member := range members {
 			if member == name {
@@ -402,6 +433,12 @@ func (b *Bus) userView(caller, name string) protocol.User {
 func (b *Bus) Users(caller string, credentialNames []string) []protocol.User {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	// Including the caller's own row: a name that may not act is shown
+	// nothing, and one of the rows this can produce is a junk credential,
+	// which must not be able to look itself up.
+	if b.acting(caller) != nil {
+		return []protocol.User{}
+	}
 	names := map[string]bool{}
 	for name := range b.users {
 		names[name] = true
@@ -418,7 +455,7 @@ func (b *Bus) Users(caller string, credentialNames []string) []protocol.User {
 	}
 	out := []protocol.User{}
 	for name := range names {
-		if caller == name || b.active(caller) && b.isMaintainer(caller) {
+		if caller == name || b.acting(caller) == nil && b.isMaintainer(caller) {
 			out = append(out, b.userView(caller, name))
 		}
 	}
@@ -437,6 +474,9 @@ func (b *Bus) SetUserState(caller, name, state string) (protocol.User, error) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return protocol.User{}, err
+	}
 	if !b.mayEditUser(who, name) {
 		return protocol.User{}, ErrNotOwner
 	}

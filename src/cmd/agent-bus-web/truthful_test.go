@@ -266,9 +266,7 @@ func TestRefusalsRecoverInsteadOfDeadEnding(t *testing.T) {
 	// A permission refusal says so, and says that signing in again is not the
 	// answer — which is exactly what the 401 page offers, so the two must not
 	// read alike.
-	if _, err := b.Register(protocol.Record{Name: "plain@h", Owner: "plain@h"}); err != nil {
-		t.Fatal(err)
-	}
+	known(t, b, "plain@h")
 	plain := signIn("plain@h", nil)
 	plain.Body.Close()
 	if len(plain.Cookies()) != 1 {
