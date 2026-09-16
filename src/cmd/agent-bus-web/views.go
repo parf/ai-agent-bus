@@ -13,6 +13,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -26,7 +27,7 @@ type view struct {
 	Status core.Status
 
 	Records   []protocol.Record // registry, as this caller may see it
-	Backlogs  []protocol.Record // stuck inboxes, worst first
+	Backlogs  []protocol.Record // inboxes holding messages, longest wait first
 	Losses    []protocol.Record // loss by name
 	Refusals  []refusal
 	Exchanges []exchange
@@ -104,13 +105,30 @@ type refusal struct {
 	Count  int
 }
 
-// refusals lists only the reasons that have happened: a reason with a zero
-// beside it is noise on every other node (docs/05-discovery.md#refusals). The
-// map the daemon sends already holds only those, so this orders them.
+// refusals lists **every** supported reason, including the ones at zero
+// (docs/05-discovery.md#refusals). The daemon's map is sparse — `refused`
+// starts empty and `Refuse` increments per reason — but the reason set is
+// closed and named, so a reason missing from a status that answered is a
+// measured zero rather than an absence of observation. Leaving it out made
+// the page unable to say the difference, which is the distinction this whole
+// layer is for (Plans/MVP/web/data-dictionary.md#absence).
+//
+// api.Reasons is the daemon's own table, so a reason added there appears here
+// without anybody remembering to add it.
 func refusals(m map[string]int) []refusal {
 	out := make([]refusal, 0, len(m))
+	seen := map[string]bool{}
+	for _, reason := range api.Reasons() {
+		seen[reason] = true
+		out = append(out, refusal{reason, m[reason]})
+	}
+	// A reason the daemon counted that this face does not know about is still
+	// a refusal that happened, and dropping it would be worse than not
+	// recognising it.
 	for reason, n := range m {
-		out = append(out, refusal{reason, n})
+		if !seen[reason] {
+			out = append(out, refusal{reason, n})
+		}
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Count != out[j].Count {

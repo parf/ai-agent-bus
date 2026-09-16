@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -79,12 +80,18 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 			t.Fatalf("%s does not carry the record's date %q", page, stamp)
 		}
 	}
-	if !strings.Contains(get("/services"), "<th>Updated") {
+	// Named as what it is rather than as "date": the record's own registration
+	// update, which is not an observation time and not a sample time
+	// (Plans/MVP/web/data-dictionary.md#time).
+	listing := get("/services")
+	if !strings.Contains(listing, "<th scope=col>Registration updated") {
 		t.Fatal("the listing has no column for the date it now shows")
 	}
 	// A column added to the table has to be added to its empty row too, or
-	// "no matching records" stops spanning the table it is in.
-	if body := get("/services?scope=my&state=inactive"); strings.Contains(body, "No matching records") && !strings.Contains(body, "colspan=7") {
-		t.Fatal("the empty row does not span the widened table")
+	// "no matching records" stops spanning the table it is in. Counted rather
+	// than written down, so widening the table cannot quietly pass this.
+	want := fmt.Sprintf("colspan=%d", strings.Count(listing, "<th scope=col>"))
+	if body := get("/services?scope=my&state=inactive"); strings.Contains(body, "No matching records") && !strings.Contains(body, want) {
+		t.Fatalf("the empty row does not span the widened table: want %s", want)
 	}
 }

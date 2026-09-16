@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.36 — 2026-09-16
+
+The dashboard stops merging what a record declares, what the daemon observed and
+whether anything is alive: delivery, reader and reached are separate columns,
+node totals say they are node-wide while every list says it is yours, an unset
+queue setting says what it inherits instead of showing a guessed number, and a
+refusal reason that never happened is drawn as the measured zero it is. The
+directory names its three kinds of identity rather than guessing one, says which
+of its counts the page worked out for itself, and reads the same way with no
+unclassified identity on it as with one. An inbox with a reader waiting on one
+topic is no longer described as having no reader at all — on the dashboard, in
+the CLI listing and in the MCP catalogue, which had all said it and which the CLI
+also let a protocol hint hide entirely. A queue holding messages is no longer
+called stuck, an enabled record no longer implies a send would be accepted, and
+the refusal counters say they are a floor rather than a census.
+
 ## 0.5.35 — 2026-09-16
 
 A start deletes every record whose owner the daemon knows nothing about — to a

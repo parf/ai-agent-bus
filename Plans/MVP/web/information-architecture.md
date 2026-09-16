@@ -101,7 +101,7 @@ The homepage's seven sections, resolved:
 | node counts | Overview, with the scope stated. The node's totals and a caller-filtered list are different numbers ([W15](../done/web-review.md#findings)) |
 | unclean-stop warning | Overview attention item |
 | refusal counts | Overview if non-zero; Diagnostics always, by reason |
-| stuck inboxes | Overview attention items, linking to the service. "Stuck" is not a fact the daemon has — it is a backlog, with or without a reader |
+| stuck inboxes | Overview attention items, linking to the service. "Stuck" is not a fact the daemon has — it is a backlog, with or without a reader, so the heading says *inboxes holding messages* |
 | retained exchanges | Diagnostics |
 | **the whole registry table** | **Removed — but only after Services and Channels carry what it uniquely showed.** codex's precondition ([C08](review/codex.md#junk-and-misleading-content)) and it is right: the lists today omit kind, description and accepted/dequeued, so removing the table first would lose real data. No usage research says nobody reads it; the argument for removal is that it answers no question, not that nobody looked |
 | loss by name | Diagnostics, and per-record on the service page where it belongs |
@@ -122,7 +122,7 @@ the shape it takes here.
 | group membership visible only inside the editor | A non-administrator sees a group name with no members and no explanation of why. Say which it is: empty, or hidden from you |
 | registry iteration order | Replace with stable ordering ([W16](../done/web-review.md#findings)) |
 | in / out | Rename to accepted / dequeued. Dequeued is not completed |
-| Serving / Offline | Replace with reader attached / no reader waiting. Offline claims a process is dead from a read observation ([W03](../done/web-review.md#findings)) |
+| Serving / Offline | Replace with reader attached / no unfiltered reader. Offline claims a process is dead from a read observation ([W03](../done/web-review.md#findings)), and *no reader waiting* claims nobody is attached from a bit that excludes filtered reads |
 | Active / Inactive | Enabled / Disabled — an administrative state, not liveness |
 
 ## Overview, and the two guards on it

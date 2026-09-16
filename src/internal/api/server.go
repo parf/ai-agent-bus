@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -623,6 +624,25 @@ var codes = []struct {
 	// that (Plans/R1.1/records.md#coming-back-in-a-moment-is-not-one-of-them).
 	{core.ErrFull, http.StatusTooManyRequests, "full"},
 	{core.ErrTwoReads, http.StatusConflict, "second-reader"},
+}
+
+// Reasons is the closed set of refusal reasons, sorted
+// (docs/05-discovery.md#refusals). A status answer carries only the reasons
+// that have happened, and a face showing refusals has to know which zeros to
+// draw: a supported reason absent from a successful status is a measured zero,
+// not a gap in observation. Derived from the table above so the two cannot
+// drift — a reason added there appears here without being named twice.
+func Reasons() []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, c := range codes {
+		if !seen[c.kind] {
+			seen[c.kind] = true
+			out = append(out, c.kind)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // reply answers with v, or with the status this error maps to. An error no

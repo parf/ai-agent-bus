@@ -147,7 +147,7 @@ defect is real. codex's [S14](review/codex.md#specification-review-round-one).
 | Delivery mode (channel list) | **new.** The channel question |
 | Owner | keep |
 | Enabled / Disabled | **relabel** from Active/Inactive. Administrative state, not liveness. Disabled is a decision, not a failure |
-| Reader: *attached* / *no reader waiting* / *external* | **relabel** from Serving/Offline/External. `Proto` is a caller-supplied hint meaning "expect no local reader", not proof of anything |
+| Reader: *attached* / *no unfiltered reader* / *external* | **relabel** from Serving/Offline/External. `Proto` is a caller-supplied hint meaning "expect no local reader", not proof of anything |
 | Queued | keep on the service list. **Mode-aware on the channel list**: a pub/sub topic keeps no queue of its own — `Send` hands it to `fanout` and nothing waits on the topic — so a Queued cell there is structurally zero. Pub/sub rows show accepted; queue rows show queued; or the cell reads `—` |
 | Subscribers (channel list, pub/sub) | **new** |
 | One judgment column | **new.** Lit only on exceptional rows ([glyphs](glyphs.md#where-a-glyph-is-allowed)) |

@@ -1962,10 +1962,13 @@ is_empty "and a service with a reader and nothing waiting is not" \
   "$(printf '%s' "$STUCK" | grep -o 'busy-svc@srv1')"
 has "and the oldest backlog is ahead of a deeper, newer one" \
   "$(first_of "$STUCK" 'slow-svc@srv1' 'burst-svc@srv1')" 'slow-svc@srv1'
-has "a queue at its bound is marked full" \
-  "$(printf '%s' "$STUCK" | grep 'tight-svc@srv1')" 'full'
+# "at capacity when observed", not "full": what was true at the moment of the
+# read, never a prediction about the next send
+# (Plans/MVP/web/data-dictionary.md#queue).
+has "a queue at its bound is marked at capacity, and dated to the observation" \
+  "$(printf '%s' "$STUCK" | grep 'tight-svc@srv1')" 'at capacity when observed'
 is_empty "and one with room is not" \
-  "$(printf '%s' "$STUCK" | grep 'slow-svc@srv1' | grep -o 'full')"
+  "$(printf '%s' "$STUCK" | grep 'slow-svc@srv1' | grep -o 'at capacity')"
 ab parf@localhost send busy-svc@srv1 "go" >/dev/null
 wait $busy_pid 2>/dev/null
 LOSS=$(sect loss "$VIEWS")
@@ -1976,7 +1979,7 @@ XCH=$(sect exchanges "$VIEWS")
 has "a request and its ack are one exchange, not two lines" \
   "$(printf '%s' "$XCH" | grep 'job' | grep '77')" '>2<'
 NODE_VIEW=$(sect node "$VIEWS")
-has "a signed-in caller is told how long the node has been up" "$NODE_VIEW" 'up [0-9]'
+has "a signed-in caller is told how long the node has been up" "$NODE_VIEW" 'uptime [0-9]'
 # Only the reasons that have happened: a reason with a zero beside it is
 # noise on every other node. See docs/05-discovery.md#refusals.
 tcode not-a-token /ls >/dev/null

@@ -182,11 +182,11 @@ already read "disabled" as "broken".
 
 | Today | Becomes |
 |---|---|
-| `<b class=warn>nobody</b>` in the reader column | *no reader waiting*, unmarked. It is not, by itself, a problem |
+| `<b class=warn>nobody</b>` in the reader column | *no unfiltered reader*, unmarked. It is not, by itself, a problem, and it is not a claim that nobody is attached — a reader waiting on one topic is not counted ([Q70](../QUESTIONS.md)) |
 | `<b class=warn>full</b>` | red status, text *at bound* |
 | `Maximum: 0` repeated down the page | removed; `0` and `¿` in the value table carry it |
 | blank cell for an unset value | one of the four markers, or the label goes too |
-| `Serving` / `Offline` | *reader attached* / *no reader waiting* / *external* |
+| `Serving` / `Offline` | *reader attached* / *no unfiltered reader* / *external* |
 
 ## Open
 

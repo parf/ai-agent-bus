@@ -433,26 +433,52 @@ var page = template.Must(template.New("dash").Parse(shell("diagnostics", "Diagno
 <p><a href=/>Refresh</a> <span class=muted>· as of {{.At}}</span></p>
 
 <h2 id=node>node</h2>
-<p>up {{.Status.Up}} · {{.Status.Services}} records · {{.Status.Queued}} queued ·
- {{.Status.Waiting}} waiting · {{.Status.Dropped}} dropped · {{.Status.Expired}} expired</p>
+<p>uptime {{.Status.Up}} · <b>node-wide:</b> {{.Status.Services}} records ·
+ {{.Status.Queued}} queued · {{.Status.Waiting}} waiting · {{.Status.Dropped}} dropped ·
+ {{.Status.Expired}} expired</p>
+<p class=muted>These count the whole node. Every list below is what <em>you</em> may
+ see, so the two never have to agree.</p>
 {{if .Status.Unclean}}<p class=warn>the last stop was not clean — what was in
  memory at the time was not written down</p>{{end}}
-{{if .Refusals}}<p>refused:
- {{range .Refusals}}<code>{{.Reason}}</code> {{.Count}} · {{end}}</p>
-{{else}}<p class=muted>nothing refused</p>{{end}}
+<table><caption>Refusals since this daemon started, by reason</caption>
+<thead><tr><th scope=col>reason<th scope=col>count</tr></thead>
+<tbody>{{range .Refusals}}<tr><td><code>{{.Reason}}</code><td>{{.Count}}</tr>{{end}}</tbody></table>
+<p class=muted>The reason set is closed, so a <code>0</code> here is a measurement
+ and not a gap. Counted since this daemon started; how fast it is rising is not
+ something this page can say.</p>
+<p class=warn>Not every refusal reaches these counters. A call the daemon turns
+ away while reading the request — an unparseable body, a malformed name, a lookup
+ of a name it does not know — is answered and not counted, so a count here is a
+ floor rather than a census.</p>
 
-<h2 id=stuck>stuck inboxes</h2>
-<table><tr><th>name<th>reader<th>queued<th>oldest<th>at bound</tr>
-{{range .Backlogs}}<tr><td><code>{{.Name}}</code><td>{{if .Reading}}reading{{else}}<b class=warn>nobody</b>{{end}}<td>{{.Queued}}<td>{{.Oldest}}<td>{{if .AtBound}}<b class=warn>full</b>{{end}}</tr>
-{{else}}<tr><td colspan=5 class=muted>every queue is empty</tr>{{end}}</table>
+<h2 id=stuck>inboxes holding messages</h2>
+<table><caption>Inboxes holding messages, longest wait first — visible to you</caption>
+<thead><tr><th scope=col>name<th scope=col>reader<th scope=col>held now<th scope=col>oldest held<th scope=col>capacity</tr></thead>
+<tbody>
+{{range .Backlogs}}<tr><td><code>{{.Name}}</code><td>{{if .Reading}}reader attached{{else}}<b class=warn>no unfiltered reader</b>{{end}}<td>{{.Queued}}<td>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{if .AtBound}}<b class=warn>at capacity when observed</b>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>
+{{else}}<tr><td colspan=5 class=muted>every queue you can see is empty</tr>{{end}}
+</tbody></table>
+<p class=muted>Holding messages is not being stuck: a reader that pulls on a
+ schedule is between pulls here. The observation does not prune first, so some of
+ what is held may already have outlived its TTL.
+ <em>At capacity</em> is what was true when observed, never a prediction about the next send.
+ <em>No unfiltered reader</em> means no read is outstanding that accepts any
+ message. A read restricted to a topic or tag is not represented here: it is
+ attached, and it takes a message that matches it.</p>
 
 ` + exchangesTemplate + `
 <h2 id=registry>registry</h2>
-<table><tr><th>name<th>kind<th>description<th>reading<th>queued<th>in<th>out<th>config</tr>
+<table><caption>Records visible to you — not the node-wide count above</caption>
+<thead><tr><th scope=col>name<th scope=col>kind<th scope=col>description<th scope=col>reader<th scope=col>held now<th scope=col>accepted<th scope=col>dequeued<th scope=col>config</tr></thead>
+<tbody>
 {{range .Records}}<tr><td><code>{{.Name}}</code><td>{{.Kind}}<td>{{.Descr}}
- <td>{{if .Reading}}yes{{end}}<td>{{.Queued}}<td>{{.In}}<td>{{.Out}}
+ <td>{{if .Reading}}reader attached{{else}}<span class=muted>no unfiltered reader</span>{{end}}<td>{{.Queued}}<td>{{.In}}<td>{{.Out}}
  <td><code class=muted>{{.ConfigSHA}}</code></tr>
-{{else}}<tr><td colspan=8 class=muted>nothing registered</tr>{{end}}</table>
+{{else}}<tr><td colspan=8 class=muted>nothing you can see is registered</tr>{{end}}
+</tbody></table>
+<p class=muted>Accepted and dequeued are cumulative across restarts — they come
+ back from the snapshot. Dequeued means handed to a reader, which is not the
+ same as the work being done.</p>
 
 <h2 id=loss>loss by name</h2>
 <table><tr><th>name<th>dropped<th>expired</tr>

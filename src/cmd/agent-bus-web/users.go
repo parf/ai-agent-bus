@@ -190,7 +190,13 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 var peoplePage = template.Must(template.New("people").Parse(shell("users", "Users") + `
 <h1>Users and other identities</h1>
 <p>{{.PeopleCount}} registered users · {{.OtherCount}} other identities visible to you.</p>
-<p>Credentials and registered names are shown separately from user profiles, so unused identities remain visible for review.</p>
+<p class=muted>Those two are counted <em>by this page</em> over the identities you may
+ see, before any search. They are not figures the daemon reported, unlike the owned
+ records and memberships below them, and they are not a count of the credential store.</p>
+<p>Three kinds, named rather than guessed: a <strong>registered user</strong> has a
+ profile, a <strong>registered name</strong> has a record of its own and no profile, and a
+ <strong>credential with no registered name</strong> has neither. Nothing here is inferred
+ from how a name is spelled.</p>
 {{if .Administrator}}<p><a href=/user>Add user</a></p>{{end}}
 <form method=get action=/users>
 <label>Search <input type=search name=q value="{{.Query}}" placeholder="Name, identity, email or GitHub login"></label>
@@ -204,7 +210,7 @@ var peoplePage = template.Must(template.New("people").Parse(shell("users", "User
 <section aria-labelledby=other-heading><h2 id=other-heading>Other identities — review and cleanup</h2>
 <table><thead><tr><th scope=col>Identity</th><th scope=col>What it is</th><th scope=col>Why it is here / next step</th></tr></thead><tbody>
 {{range .Other}}<tr><td><a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td>
-<td>{{if eq .Kind "record"}}Registered name{{else}}Credential without a registered name{{end}}</td>
+<td>{{if eq .Kind "record"}}Registered name{{else}}Credential with no registered name{{end}}</td>
 <td>{{if eq .Kind "record"}}A self-owned record, not a user profile. <a href="/service?name={{.Name}}">Inspect the record</a> before deciding whether it is needed.
 {{else}}No user profile and no registered record. {{if .CanRemove}}<a href="/user?name={{.Name}}&return={{$.Return}}">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}{{end}}</td></tr>
 {{else}}<tr><td colspan=3>No other identities on this page.</td></tr>{{end}}</tbody></table></section>
@@ -214,7 +220,7 @@ var personPage = template.Must(template.New("person").Parse(shell("users", "Iden
 <p><a href="{{.Return}}">Back to directory</a></p>
 <h1 style="overflow-wrap:anywhere">{{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1>
 {{if and (not .New) (ne .User.Kind "user")}}
-<h2>{{if eq .User.Kind "record"}}Registered name{{else}}Credential-only identity{{end}}</h2>
+<h2>{{if eq .User.Kind "record"}}Registered name{{else}}Credential with no registered name{{end}}</h2>
 <p>This is not a registered user. No user lifecycle state has been assigned.</p>
 {{if eq .User.Kind "record"}}<p>A self-owned record exists. <a href="/service?name={{.User.Name}}">Inspect its registration and queues</a> before removing the record.</p>
 {{else}}<p>No user profile and no registered record remains for this name. Review and remove the unused credential.</p>{{end}}

@@ -326,18 +326,57 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 var serviceList = template.Must(template.New("services").Parse(shell("services", "Registered services") + `
 <h1>{{if .Channels}}Registered channels{{else}}Registered services{{end}}</h1>
 <form method=get><label>Scope <select name=scope><option value=all>All visible</option><option value=my {{if eq .Mine "my"}}selected{{end}}>My</option></select></label>
-<label>Availability <select name=state><option value=all>All</option><option value=active {{if eq .State "active"}}selected{{end}}>Active</option><option value=inactive {{if eq .State "inactive"}}selected{{end}}>Inactive</option></select></label> <button>Filter</button></form>
-<table><tr><th>Name<th>Owner<th>Availability<th>Reader<th>Queued<th>Updated<th>Controls</tr>
-{{range .Records}}<tr><td><a href="/service?name={{.Name}}">{{.Name}}</a><td>{{.Owner}}<td>{{if .Disabled}}Inactive{{else}}Active{{end}}<td>{{if .Proto}}External{{else if .Reading}}Serving{{else}}Offline{{end}}<td>{{.Queued}}<td>{{if .At.IsZero}}<span class=muted>unknown</span>{{else}}{{.At.Format "2006-01-02 15:04"}}{{end}}<td>{{if .CanManage}}Manage{{else}}View{{end}}</tr>{{else}}<tr><td colspan=7>No matching records</tr>{{end}}</table>
+<label>Delivery <select name=state><option value=all>All</option><option value=active {{if eq .State "active"}}selected{{end}}>Enabled</option><option value=inactive {{if eq .State "inactive"}}selected{{end}}>Disabled</option></select></label> <button>Filter</button></form>
+<p class=muted>Three separate facts, and none of them is health: whether the
+ record takes delivery now, what the daemon <em>observed</em> about a read on its
+ inbox, and whether the caller said it is reached some other way. None of it is
+ health: the daemon does not observe whether a process is alive, so this page does
+ not say it. <em>Reader</em> counts a read that accepts any message. A read
+ restricted to a topic or tag is not represented here at all: it is attached, and
+ it does take a message that matches it.</p>
+<table><caption>Records visible to you — not a count of this node</caption>
+<thead><tr><th scope=col>Name<th scope=col>Owner<th scope=col>Delivery<th scope=col>Reader<th scope=col>Reached<th scope=col>Queued<th scope=col>Registration updated<th scope=col>Controls</tr></thead>
+<tbody>
+{{range .Records}}<tr><td><a href="/service?name={{.Name}}">{{.Name}}</a><td>{{.Owner}}<td>{{if .Disabled}}Disabled{{else}}Enabled{{end}}<td>{{if .Reading}}reader attached{{else}}<span class=muted>no unfiltered reader</span>{{end}}<td>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{.Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{.At.Format "2006-01-02 15:04"}}{{end}}<td>{{if .CanManage}}Manage{{else}}View{{end}}</tr>{{else}}<tr><td colspan=8>No matching records</tr>{{end}}
+</tbody></table>
 <h2>Register {{if .Channels}}channel{{else}}service{{end}}</h2>
 <form method=post action=/service><input type=hidden name=action value=create>
 <label>Name <input name=name required placeholder="name@realm"></label><p><label>Description <input name=descr></label></p>
 {{if .Channels}}<input type=hidden name=kind value=topic><label>Delivery <select name=mode><option value=pubsub>Pub/sub</option><option value=queue>Queue</option></select></label>{{else}}<label>Kind <select name=kind><option value=generic>Service</option><option value=agent>Agent</option></select></label>{{end}}
 <p><label>Allow <input name=allow></label> Empty allows every authenticated caller.</p><button>Register</button></form>`))
 var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join}).Parse(shell("services", "Service") + `
-{{with .Record}}<h1>{{.Name}}</h1><p>Owner: {{.Owner}} · Maintainers: {{.Maintainers}} · {{if .Disabled}}Inactive{{else}}Active{{end}}</p>
-<p>Reader: {{if .Proto}}external{{else if .Reading}}serving{{else}}offline{{end}} · {{.Queued}} queued · oldest {{.Oldest}} · {{.Dropped}} dropped · {{.Expired}} expired {{if .AtBound}}· full{{end}}</p>
-<p>Updated: {{if .At.IsZero}}unknown{{else}}{{.At.Format "2006-01-02 15:04:05"}}{{end}}</p>
+{{with .Record}}<h1>{{.Name}}</h1><p>Owner: {{.Owner}}{{with .Maintainers}} · Maintainers: {{.}}{{end}}{{if .Mode}} · Delivery: {{if eq .Mode "pubsub"}}a copy to each subscriber{{else}}one at a time{{end}}{{end}}</p>
+<h2>Delivery setting</h2>
+<p>Delivery: <strong>{{if .Disabled}}Disabled{{else}}Enabled{{end}}</strong>{{if .Disabled}} <span class=muted>— the bit does not say whether the owner turned it off or the name stopped being active</span>{{end}}</p>
+<p class=muted>Not under either heading below, because it is neither: the daemon
+ answers the stored bit OR the name having stopped being active, so the page
+ cannot take it apart. And <em>Enabled</em> does not establish that a send will be
+ accepted — the owner's access may be suspended, and the allow list and the queue
+ bound are checked as well. It is the setting, not an answer about the next
+ send.</p>
+<h2>What the record declares</h2>
+<p>Reached: {{if .Proto}}<strong>external</strong> <span class=muted>— a caller-supplied hint, not proof of anything</span>{{else}}this bus{{end}}</p>
+<p>Queue bound: {{if .Bound}}{{.Bound}}{{else}}<span class=muted>unset — uses the daemon default, which is not readable here</span>{{end}}
+ · Retention: {{if .TTL}}{{.TTL}}{{else}}<span class=muted>unset — no queue-imposed expiry; a message may still specify its own</span>{{end}}
+ · When full: {{if eq .Full "ring"}}drop the oldest{{else}}refuse{{end}}</p>
+<p class=muted>One of those three inherits. A bound the record leaves
+ unset is resolved by the daemon and that resolved number is not something this
+ page may read, so it is not shown. Retention has no default to inherit at all.
+ The overflow policy is always the record&rsquo;s own: an empty one is normalised
+ to <em>refuse</em> when the record is registered, so there is no unset to report.</p>
+<h2>What the daemon observed</h2>
+<p>Reader: {{if .Reading}}<strong>reader attached</strong>{{else}}<strong>no unfiltered reader</strong>{{end}}
+ <span class=muted>— a busy process between pulls is not offline, and this is not health</span></p>
+<p class=muted>A read restricted to a topic or tag is not counted here: that
+ reader is attached, and it takes a message that matches it. How many of those
+ there are is not something the daemon reports, so this cannot say nobody is
+ connected.</p>
+<p>Held now: {{.Queued}}{{if .AtBound}} · <span class=warn>at capacity when observed</span>{{end}}
+ · Oldest held: {{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}
+ <span class=muted>— the read does not prune first, so some of these may already have outlived their TTL</span></p>
+<p>Accepted: {{.In}} · Dequeued: {{.Out}} · Dropped: {{.Dropped}} · Expired: {{.Expired}}
+ <span class=muted>— cumulative across restarts, restored from the snapshot. Dequeued is handed to a reader, which is not completed</span></p>
+<p>Registration updated: {{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{.At.Format "2006-01-02 15:04:05"}}{{end}}</p>
 <p>Configuration digest: <code>{{.ConfigSHA}}</code></p>
 {{if eq .Mode "pubsub"}}<h2>Subscriptions</h2>
 {{range .Subs}}<p>{{.}}{{if $.Record.CanManage}}<form method=post action=/service><input type=hidden name=name value="{{$.Record.Name}}"><input type=hidden name=subscriber value="{{.}}"><button name=action value=remove-subscriber>Remove subscription</button></form>{{end}}</p>{{else}}<p>No subscribers</p>{{end}}

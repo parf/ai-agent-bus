@@ -123,7 +123,7 @@ to every control and to direct API calls. Membership and policy changes must
 survive restart. User lifecycle effects are [daemon policy](01-identity.md#user-lifecycle),
 not merely labels on the Users page.
 
-Keep the [built views](#what-it-shows), including stuck inboxes, exchanges,
+Keep the [built views](#what-it-shows), including inboxes holding messages, exchanges,
 credential fingerprints, losses, refusals and node status, accessible in the
 new navigation. Their existing functionality is not deferred by this split.
 [Optional additions](../Plans/R1/discovery.md#dashboard-extensions) belong to R1.
@@ -191,7 +191,7 @@ sessions with its token.
 |---|---|---|
 | the sign-in page and the token help | Built | — |
 | **registry**, as this caller may see it: kind, owner, protocol, description, `reading`/`queued`/`in`/`out`, when the record was last written, the configuration's digest | Built | — it is `/ls` |
-| **stuck inboxes** — a backlog with nobody reading, oldest first, marked when the queue is at its bound. The one view an incident actually needs | Built | — `oldest` and `reading` on the record ([what a listing answers](#what-a-listing-answers)) |
+| **inboxes holding messages** — a backlog, oldest first, marked when the queue is at its bound and when no unfiltered read is outstanding. Holding is not being stuck, and `reading` excludes a filtered read, so neither is stated as more than it is. The one view an incident actually needs | Built | — `oldest` and `reading` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **exchanges** — retained messages and referenced receipt evidence | Built | [correlation and limits](#retained-exchanges) |
 | **my names** — what I hold a credential for, whose it is and what it is for, its fingerprint, when it was issued and last used, and how to rotate it | Built | — the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)). A person's own identity is distinguished from the services they registered. A credential [goes with its address](01-identity.md#unregistering), so the list stays names something answers on |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | Built | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
