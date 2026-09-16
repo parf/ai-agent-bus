@@ -28,15 +28,16 @@ alone, which is precisely why a per-page judgement cannot stop them.
 
 ## Colour
 
-Two complete schemes, chosen as whole palettes rather than one palette and its
-inversion. Delivered through `light-dark()` on a single token set.
+**One palette.** Owner-settled, 2026-09-16: one design, no themes and no second
+scheme ([what ships](visual-design.md#what-ships)). It is light, because an
+operations console is read beside other light tooling and every published
+system this plan borrows from defaults that way
+([components](components.md#patterns-copied-packages-not)).
 
-Every pair below is **measured, not judged** — the ratios are computed from the
+Every value below is **measured, not judged** — the ratios are computed from the
 hex values, and they are what the acceptance test recomputes. The audited build
 shipped muted text at 3.54:1 because `#888` was picked by eye
 ([W11](../done/web-review.md#findings)); nothing here is picked by eye.
-
-### Light
 
 | Token | Value | Role |
 |---|---|---|
@@ -53,44 +54,27 @@ shipped muted text at 3.54:1 because `#888` was picked by eye
 | `--orange` | `#8a5000` | notable |
 | `--blue` | `#1d5fa8` | informational (the accent, deliberately — informational is not a fourth hue) |
 
-### Dark
-
-| Token | Value | Role |
-|---|---|---|
-| `--surface-1` | `#15161a` | page |
-| `--surface-2` | `#1d1f24` | table stripe, card |
-| `--surface-3` | `#25282e` | header, toolbar, table head |
-| `--border` | `#363940` | dividers and table rules |
-| `--border-strong` | `#6d717a` | input and control outlines |
-| `--text-1` | `#e9e9e6` | primary |
-| `--text-2` | `#a6a59e` | secondary |
-| `--text-on-accent` | `#15161a` | text on a filled control — **dark on a light accent**, not white |
-| `--accent` | `#7fb2e8` | links, navigation, primary action, focus ring |
-| `--red` | `#f08a7d` | attention |
-| `--orange` | `#d9a441` | notable |
-| `--blue` | `#7fb2e8` | informational |
-
 ### Measured contrast
 
 Worst case per token across all three surfaces, which is the number that has to
 pass. Ordinary text needs 4.5:1; a UI component outline needs 3:1.
 
-| Pair | Light | Dark | Needs |
-|---|---|---|---|
-| `text-1` on any surface | 14.09 | 12.14 | 4.5 |
-| `text-2` on any surface | 6.13 | 5.98 | 4.5 |
-| `accent` / `blue` on any surface | 5.21 | 6.64 | 4.5 |
-| `red` on any surface | 5.71 | 6.08 | 4.5 |
-| `orange` on any surface | 5.25 | 6.57 | 4.5 |
-| `border-strong` on any surface | 3.02 | 3.02 | 3.0 (non-text) |
-| `text-on-accent` on `accent` | 6.45 | 8.12 | 4.5 |
-| `text-on-accent` on `red` | 7.07 | 7.44 | 4.5 |
-| focus ring on page | 6.23 | 8.12 | 3.0 (non-text) |
+| Pair | Ratio | Needs |
+|---|---|---|
+| `text-1` on any surface | 14.09 | 4.5 |
+| `text-2` on any surface | 6.13 | 4.5 |
+| `accent` / `blue` on any surface | 5.21 | 4.5 |
+| `red` on any surface | 5.71 | 4.5 |
+| `orange` on any surface | 5.25 | 4.5 |
+| `border-strong` on any surface | 3.02 | 3.0 (non-text) |
+| `text-on-accent` on `accent` | 6.45 | 4.5 |
+| `text-on-accent` on `red` | 7.07 | 4.5 |
+| focus ring on page | 6.23 | 3.0 (non-text) |
 
-**Two of these were failures when first drawn.** `--border-strong` began at
-`#9a978e` and `#5c6069`, which measure 2.36 and 2.34 against `--surface-3` —
-both below the 3:1 an input outline owes. They look entirely reasonable. The
-computation is what caught them, which is the case for the test existing.
+**One of these was a failure when first drawn.** `--border-strong` began at
+`#9a978e`, which measures 2.36 against `--surface-3` — below the 3:1 an input
+outline owes. It looks entirely reasonable. The computation is what caught it,
+which is the case for the test existing.
 
 `--border` is deliberately *not* held to 3:1: a table rule is decoration, and a
 divider forced to 3:1 draws a grid louder than the data in it. Where a boundary
@@ -170,12 +154,12 @@ scale becoming a continuum.
 |---|---|---|
 | `--radius-1` | `3px` | inputs, buttons, chips |
 | `--radius-2` | `6px` | cards and panels |
-| `--focus-ring` | `2px solid var(--accent)`, `2px` offset | **never** `outline: none`; the ring is the same in both schemes and measured above |
+| `--focus-ring` | `2px solid var(--accent)`, `2px` offset | **never** `outline: none`; measured above |
 
 **No shadows.** The draft's token list carried them; they are dropped. Elevation
-implies layering this interface does not have, shadows are the first thing to
-look wrong in dark mode, and surface plus border already separates everything
-that needs separating. One fewer thing to get subtly wrong across two schemes.
+implies layering this interface does not have, and surface plus border already
+separates everything that needs separating. A shadow is how a flat layout starts
+pretending to be a stack of cards.
 
 ## Density, and the row capacity it implies
 

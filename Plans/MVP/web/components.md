@@ -49,7 +49,6 @@ name rather than reinventing them:
 | container queries | table and card density by available width, not viewport width |
 | `field-sizing` | inputs that fit their content |
 | `:user-valid` / `:user-invalid` | validation styling that does not fire before the person has typed |
-| `light-dark()` | both colour schemes from one token set |
 | `datalist` | suggesting owners, groups and record names without a combobox widget |
 
 **`dialog` is not used for consequential confirmation**, which stays a

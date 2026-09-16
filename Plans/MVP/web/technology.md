@@ -106,5 +106,5 @@ the tool supplied the guarantee — codex's
 | | |
 |---|---|
 | A like-for-like comparison of the components we would actually use, across the house layer and at least one framework | codex's [dissent](README.md#dissent). The owner has decided; the comparison would still tell us what we gave up |
-| Contrast measurement in both colour schemes | new obligation from shipping dark mode |
+| Contrast measurement over the token pairs | the audited build shipped text at 3.54:1 because it was judged by eye |
 | Browser bytes, requests and daemon calls, tracked separately | [F.13.6](../TODO.md#objective) |

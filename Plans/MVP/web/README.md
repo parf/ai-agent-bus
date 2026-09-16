@@ -20,7 +20,7 @@ documents at all levels before implementation.
 | [Data dictionary](data-dictionary.md#fields) | Every field: source, meaning, label, and when it is not shown |
 | [Glyphs](glyphs.md#the-rule-that-matters-most) | The state vocabulary, and where it is allowed to appear |
 | [Visual design](visual-design.md#tokens) | Principles, contrast obligation, acceptance, and the shipped asset layer |
-| [Tokens](tokens.md#the-budget) | **The one home for every value**: the surface budget, both palettes with measured contrast, type, space and shape |
+| [Tokens](tokens.md#the-budget) | **The one home for every value**: the surface budget, the palette with measured contrast, type, space and shape |
 | [Layouts](layouts.md#the-frame-every-page-shares) | Representative arrangements, wide and narrow, and the five states per component |
 | [Technology](technology.md#rendering) | Go rendering and asset decisions, with their reasoning |
 
@@ -46,7 +46,7 @@ reused ([question namespace](../../../CLAUDE.md#working-rules)).
 | Q58 What "advanced" means | **Density and honest states, no script.** | The [no-script rule](../../../docs/05-discovery.md#rules-it-is-built-to) stands unchanged. Advanced is information design, not partial DOM updates. Sort, filter and paging are page round-trips |
 | Q59 Design system | **A house layer: tokens plus layout primitives plus hand-authored ops components.** | No framework adopted. See [visual design](visual-design.md#tokens) for what ships and codex's [dissent](#dissent) |
 | Q60 Go rendering | **Adopt `templ`.** | Build-time codegen, server-rendered, no bearing on the script rule. See [technology](technology.md#rendering) |
-| Q61 Dark mode | **Build for it and ship it.** | Tokens carry both schemes from the start; contrast is checked in both |
+| Q61 Dark mode | **Dropped — superseded 2026-09-16.** | One design, no themes: a single light palette, no scheme control and nothing to store ([colour](tokens.md#colour)). The earlier answer was to ship both schemes; maintaining two good designs is not the same job as building one |
 
 ## Principles
 
@@ -79,7 +79,7 @@ that lost distinctions the current build already makes, and promised values with
 no dependency, which now have [named fallbacks](pages.md#owed-by-this-specification).
 
 **Round one is answered in full.** S12 and S13 close with two new documents:
-[tokens](tokens.md#the-budget) supplies the chosen values — both palettes with
+[tokens](tokens.md#the-budget) supplies the chosen values — the palette with
 every contrast pair computed rather than judged, a capped type and space scale,
 and the reasoning for each cap — and [layouts](layouts.md#the-frame-every-page-shares)
 supplies the arrangements at both widths. Theme and density controls are
@@ -91,9 +91,10 @@ home-parf's five density checks are now the [acceptance](visual-design.md#accept
 replacing a recorded mitigation that was a reason to expect a good outcome
 rather than a check.
 
-**Settled 2026-09-16: no scheme or density control in MVP**
+**Settled 2026-09-16: one design, no themes, no controls**
 ([theme and density controls](visual-design.md#theme-and-density-controls)), so
-the dashboard stores no preference of any kind.
+the dashboard stores no preference of any kind and there is no second palette to
+keep in step.
 
 **Owner input still needed** — [Q62](../QUESTIONS.md#open-questions): who owns the
 token file. The recorded density risk is conditional on nobody owning

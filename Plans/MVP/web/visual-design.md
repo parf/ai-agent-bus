@@ -2,7 +2,7 @@
 
 Draft for peer review. The owner settled the direction
 ([README](README.md#settled-direction)): a house layer of tokens plus layout
-primitives plus hand-authored components, with dark mode shipped.
+primitives plus hand-authored components — **one design, no themes**.
 
 ## What ships
 
@@ -34,10 +34,10 @@ What that file settles, and what changed from this document's first draft:
 | | Decision | Changed from the draft |
 |---|---|---|
 | Colour | Neutral surfaces, one accent, three status colours carrying meaning only | — |
-| Scheme | Both, as two whole palettes rather than one inverted | — |
+| Scheme | **One palette, light.** No second scheme and no control | **dark mode dropped.** Owner-settled 2026-09-16: one good design rather than two that both need maintaining |
 | Type | System stack; six sizes, two weights, fixed steps | **fluid scale dropped.** It fights the 200% zoom requirement, and density should follow the container rather than the viewport |
 | Space | One geometric scale with deliberate gaps | — |
-| Depth | Surface and border only | **shadows dropped.** Elevation this interface does not have, and the first thing to look wrong in dark mode |
+| Depth | Surface and border only | **shadows dropped.** Elevation this interface does not have, and a shadow is how a flat layout starts pretending to be a stack of cards |
 | Numerics | Tabular figures in every compared column | — |
 
 Density is one variable rather than a thousand edits, which is what makes the
@@ -50,34 +50,30 @@ narrow-screen and reflow requirements tractable at all.
 appeared in this document and in no form inventory, which is how an unapproved
 control becomes an assumed requirement.
 
-| | MVP | If it is later wanted |
-|---|---|---|
-| Colour scheme | **follows the operating system**, via `light-dark()` over the token set. No control | a form in the shell posting to a preferences route, which sets a cookie the shell reads to emit `data-theme`. A server round-trip, no script, and the token set already supports the override |
-| Table density | **one comfortable default**, with a container query tightening a table in a narrow column. No control | the same mechanism |
+**Owner-settled, 2026-09-16: there is nothing to control.** One palette and one
+density, so there is no scheme to switch and no preference to store — no
+preferences route, no cookie, and no page whose appearance depends on state the
+daemon does not hold.
 
-**Owner-settled, 2026-09-16: neither control is in MVP.** The scheme follows
-the operating system and the density is fixed — confirming what the table above
-already says, which is the point of asking rather than assuming.
+| | MVP |
+|---|---|
+| Colour scheme | **one palette** ([colour](tokens.md#colour)). Not a default with an override; the only one there is |
+| Table density | **one comfortable default**, with a container query tightening a table in a narrow column |
 
-Both remain cheap to add later and neither is free now: a preference needs a
-route, a cookie, a persistence scope and a decision about whether it follows the
-person or the browser. **What the settlement buys is that MVP stores no
-preference at all** — no preferences route, no cookie, and no page whose
-appearance depends on state the daemon does not hold. `light-dark()` and the
-container query do the whole job from the token set.
+The container query is the one thing that still adapts, and it is not a theme:
+it responds to the width a table actually has, which is a fact about the layout
+rather than a preference about the person.
 
 ## Contrast
 
-Measured, in **both** schemes, and in acceptance rather than by eye. The audited
-build shipped muted text at 3.54:1 — below the AA minimum for ordinary text —
-and the current `#6b6b6b` is a fix that was never checked against a second
-palette because there was not one. Two palettes double this obligation; opencode
-and home-parf both raised it independently.
+Measured in acceptance rather than by eye. The audited build shipped muted text
+at 3.54:1 — below the AA minimum for ordinary text — because `#888` was picked
+by eye; opencode and home-parf both raised the obligation independently.
 
 **The obligation has already paid.** Computing the ratios while choosing the
-palette caught two failures that looked entirely reasonable on screen: the input
-outline in both schemes measured 2.36 and 2.34 against the darkest surface,
-against the 3:1 a UI component owes. Every pair is tabulated in
+palette caught a failure that looked entirely reasonable on screen: the input
+outline measured 2.36 against the darkest surface, against the 3:1 a UI
+component owes. Every pair is tabulated in
 [tokens](tokens.md#measured-contrast) and the acceptance test recomputes them
 from the hex values.
 
@@ -132,7 +128,7 @@ Five checks, in the order they are worth adding:
 | | Check | Catches |
 |---|---|---|
 | 1 | **Shipped-surface budget, enforced by a test over the stylesheet**: the [caps](tokens.md#the-budget) — 6 sizes, 2 weights, 3 text colours, 1 accent, one space scale. Build fails over the cap | accretion, which is the actual mechanism. Nobody chooses eleven font sizes; they arrive one page at a time and each is defensible alone. **Adopt this one if only one is adopted** |
-| 2 | **Contrast as a unit test over token pairs, in both schemes**, recomputed from the hex values | [W11](../done/web-review.md#findings) recurring. It already caught two failures during design |
+| 2 | **Contrast as a unit test over token pairs**, recomputed from the hex values | [W11](../done/web-review.md#findings) recurring. It already caught two failures during design |
 | 3 | **Numeric density targets**: a minimum row count visible at 1280×800 and 1366×768, *and* the same table passing 1.4.4 at 200% zoom and 1.4.10 reflow at 320 CSS px with no horizontal page scroll | "comfortable density" being unfalsifiable. Rows-above-the-fold catches too airy; zoom and reflow catch too tight. Together they pin it from both sides |
 | 4 | **The worst page first.** Services at ~200 records with pathological content — 74-character address, absent description, description duplicating the address, one at capacity, one disabled, one external, one with backlog and no reader, CJK, a very long realm — built and reviewed **before page two exists** | nine pages built on a scale tuned against the Overview and all wrong together. **This is the check that expires**: it is free today and unavailable the moment a second page exists |
 | 5 | **A five-state proof sheet per component** — populated, empty, denied, unavailable, long-name — as one static page, gating that component before it is used anywhere ([layouts](layouts.md#the-five-states-per-component)) | empty and denied becoming afterthoughts, which is what happens when they are validated last rather than first |
@@ -172,8 +168,8 @@ tautology.
 
 **Contrast over declared pairs is not contrast in the built page.** Check 2
 proves the token table is sound; it cannot prove a component used those tokens.
-Rendered verification of the built pages, in both schemes, stays a separate
-requirement and is not discharged by the unit test.
+Rendered verification of the built pages stays a separate requirement and is not
+discharged by the unit test.
 
 Check 4 also fixes the fixture problem: the installation's live data is too
 quiet to validate incident presentation, so fixtures supply the exceptional
