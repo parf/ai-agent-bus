@@ -48,7 +48,7 @@ answer to *where am I* survives the collapse.
   ├────────────────────────────────────────────────────────────┤
   │ ▌ Delivery is off and work is held                         │   orange bar
   │   ocr/intake@parf.us · 48 held · oldest 3h 12m             │
-  │   This backlog cannot drain until the record is enabled.   │
+  │   Nothing is arriving, and nothing is expiring out of it.  │
   │                                              → the record  │
   └────────────────────────────────────────────────────────────┘
 
@@ -159,8 +159,8 @@ description survive at every width; nothing scrolls sideways.
     Retention          no queue-imposed expiry — a message may set its own
     Overflow           refuse
 
-    ▌ This backlog cannot drain while delivery is off. Nothing
-      enters, nothing leaves, and nothing expires out of it.
+    ▌ Delivery is off and this work is held. Nothing is
+      arriving, and nothing is expiring out of the queue.
 
   Access                                                [Edit]
   Configuration                                         [Edit]
@@ -195,15 +195,17 @@ Server-rendered, its own page, because the consequence is computed when it is
 shown ([forms](forms.md#consequential-actions)).
 
 ```
-  Remove ocr/intake@parf.us?
+  Remove billing/archive@parf.us?
 
   ┌────────────────────────────────────────────────────────────┐
   │ This is what happens                                       │
   │                                                            │
   │  · The address goes, and its credential goes with it.      │
   │  · Nothing answers to this name afterwards.                │
-  │  · 48 held messages go with it.        ← computed just now │
   │  · ops@parf.us keeps their own credential.                 │
+  │                                                            │
+  │ Its queue is empty and no reader is waiting, checked just  │
+  │ now — which is what makes this available at all.           │
   └────────────────────────────────────────────────────────────┘
 
   [Remove this service]   Cancel
@@ -213,6 +215,30 @@ The destructive action is a filled `--red` button with `--text-on-accent`
 (7.07:1 light, 7.44:1 dark). Cancel is a plain link, not a second button —
 one primary action per form, and a cancel shaped like a button is how people
 click the wrong one.
+
+**The draft drew this on the 48-held record and promised "48 held messages go
+with it".** That is a destructive purge the daemon does not offer, on a record
+that could not have been removed at all: `UnregisterAnd` prunes and then
+**refuses** with `ErrBusy` if any message or reader remains
+(unregister.go:76–79). codex's find, and the worse half is that a confirmation
+page exists to state the consequence truthfully — inventing one there is the
+defect class this whole specification is against.
+
+Removal is never a purge, so the unavailable case is its own state rather than a
+scarier confirmation:
+
+```
+  ┌────────────────────────────────────────────────────────────┐
+  │ Removal is not available while work is held                │
+  │                                                            │
+  │ 48 messages are held and 1 reader is waiting. Drain the    │
+  │ queue and stop its readers first — nothing is discarded    │
+  │ on your behalf.                                            │
+  └────────────────────────────────────────────────────────────┘
+```
+
+This is [only offer transitions that apply](forms.md#rules) doing real work: the
+control is absent, and the reason stands where the control would have been.
 
 ## The five states, per component
 

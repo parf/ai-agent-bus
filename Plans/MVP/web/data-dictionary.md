@@ -47,7 +47,7 @@ Where a value's meaning depends on when it was computed, this file says so.
 
 | Field | Means | We call it | Never |
 |---|---|---|---|
-| `Disabled` | the owner turned delivery off | **Disabled** / **Enabled** | "Inactive" — it reads as broken. It is a decision |
+| `Disabled` | **delivery is off**, and the bit does not say why: `visible` (manage.go:305) returns `r.Disabled` OR `!b.active(r.Name)`, merging the owner's decision with the name having stopped being active | **Disabled** / **Enabled** | "Inactive", which reads as broken — and equally *"the owner turned delivery off"*, which this answer cannot establish ([S04](review/codex.md#specification-review-round-one)) |
 | `Reading` | a read is outstanding on this inbox right now | **reader attached** / **no reader waiting** | "Serving"/"Offline". A busy process between pulls is not offline, and this is not health |
 | `Proto` | a caller-supplied hint that the thing is reached another way | **external** | treating it as proof of anything, or as a healthy state |
 | user `State` | active, paused or banned | active / paused / banned | conflating a user's state with a record's |

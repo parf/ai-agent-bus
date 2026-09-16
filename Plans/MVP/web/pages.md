@@ -47,7 +47,7 @@ with the observation it rests on:
 | ~~Backlog older than its own TTL~~ | — | **cut.** The record's TTL is the wrong right-hand side: the deadline is per envelope, fixed at accept from whichever of the sender's and the queue's TTLs was shorter, so a live head accepted under a longer setting can exceed today's without anything being wrong ([glyphs](glyphs.md#attention-levels)). home-parf's find |
 | Losses, cumulative across restarts | `Dropped`, `Expired` non-zero | orange, links to Diagnostics. **Not** "since start": `Restore` puts these counters back from the snapshot ([dictionary](data-dictionary.md#state)), so a non-zero total may predate this run entirely |
 | Refusals, cumulative | `Status.Refused`, a `map[string]int` by reason | informational; **not** "climbing" — this value is a lifetime total. A supported reason absent from it is a measured `0`, not an unknown ([dictionary](data-dictionary.md#node-and-scope)). A windowed signal exists on Activity but is scoped: node-wide refusals only on the unfiltered admin or master view, a sum over visible records otherwise |
-| **Disabled record holding queued work** | the **stored** `Disabled` bit and `Queued` > 0 — see the caveat below | orange. opencode's find, and stronger than first stated. `Send` refuses at bus.go:532, `recheckInbox` releases existing waiters with `ErrDisabled` (manage.go:292), and `ConsumeAs` refuses a new reader at bus.go:801 — so the backlog can be neither delivered nor drained. home-parf's extension, verified: both prune sites sit *behind* those guards, so **the queue is frozen**. Nothing enters, nothing leaves, and nothing expires out of it: `Expired` will not grow even when every message is long past its TTL, and `Oldest` grows without bound. The only exits are re-enable and unregister. The page says the backlog cannot drain by any route |
+| **Disabled record holding queued work** | the **stored** `Disabled` bit and `Queued` > 0 — see the caveat below | orange. opencode's find, and stronger than first stated. `Send` refuses at bus.go:532, `recheckInbox` releases existing waiters with `ErrDisabled` (manage.go:292), and `ConsumeAs` refuses a new reader at bus.go:801 — so the backlog can be neither delivered nor drained. home-parf's extension, verified: both prune sites sit *behind* those guards, so **the queue is frozen**. Nothing enters, nothing leaves, and nothing expires out of it: `Expired` will not grow even when every message is long past its TTL, and `Oldest` grows without bound. **Nor can it simply be removed:** `UnregisterAnd` refuses while any message or reader remains (unregister.go:76–79), and since it prunes first, removal succeeds only once the whole queue has passed its TTL. The exits are re-enable-and-drain, or wait for everything in it to expire. The page states what is observed — delivery is off and work is held — and promises nothing about reachability |
 | **Services of a suspended owner** | the owner's `State` is paused or banned | orange, linking to the person. **Conditional on [H.5.7](../TODO.md#objective)**, which is pending: today such services do not refuse, so the item would describe a rule that is not in force. It goes in when H.5.7 does |
 | Unregistered credentials awaiting review | the cleanup cohort is non-empty | blue, a count and a link. **Owner-decidable**: it is discoverability rather than attention, and [C10](review/codex.md#junk-and-misleading-content) left it homeless |
 
@@ -66,12 +66,23 @@ it is also an operational one, because **the two causes do not behave alike**:
 | Stored `Disabled` | refused | refused — `ConsumeAs` checks this bit, so the queue is frozen |
 | Name not active | refused with `ErrInactive` | **still possible** — `ConsumeAs` guards the caller's standing and the stored bit, never `b.active(name)` |
 
+The divergence is narrower than that table alone suggests, and home-parf's
+sharpening earns its half-sentence: `Consume` calls `ConsumeAs(name, name)`, so
+a session reading **its own** inbox is refused either way — `acting(caller)`
+catches the inactive case. **The two states differ only where some other
+principal may drain that inbox**, which is the delegated path and is reachable
+(server.go:570 takes the inbox from the request, not from the caller). Without
+saying so, the first operator to test the distinction on their own session finds
+it absent and concludes the page is lying.
+
 So an item that reads "disabled and holding work" is urgent in the first case
 and merely blocked-at-the-front-door in the second, and today's answer cannot
 say which. **Until the daemon separates them the item is written to the weaker
 claim** — *delivery is off and work is held* — and does not promise the backlog
 is unreachable. Separating them is a daemon change and is named as
-[owed](#owed-by-this-specification), not assumed.
+[owed](#owed-by-this-specification), not assumed. Whether the asymmetry itself
+is deliberate is a daemon question rather than a dashboard one and is raised as
+[Q63](../QUESTIONS.md#open-questions).
 
 Two structural rules, both opencode's:
 
@@ -278,9 +289,10 @@ labelled, and the third is a defect rather than a limit:
 | | |
 |---|---|
 | **The window is one hour, hard** | 61 minute-samples. Any claim about a trend is a claim about at most sixty minutes and must say so. Nothing longer is answerable from this data |
-| **A restart renders as a quiet minute** | counters are in-memory and reset on restart, and `max(0, …)` clamps the resulting negative delta to `0` — so the discontinuity becomes a zero bucket rather than a gap. That is the zero-versus-absent defect one layer *below* presentation. The face can only locate the boundary by cross-referencing `Status.Up`, and without that cross-reference **the restart boundary this page promises cannot be drawn at all** |
+| **A restart empties the history** | `Restore` puts records and queue counters back and **never restores `b.activity`** — activity_test.go:50–53 asserts exactly that. So a restart leaves the series *absent*, not zero: there is no earlier sample to take a delta against, and everything before the boundary is `¿`. The face still needs `Status.Up` to say where the boundary was, because a short series and a quiet hour look alike. **The draft said a restart clamps to a zero bucket; it does not** — codex's correction of a claim I took from review without checking it against the one already in our own dictionary |
+| **A removed record vanishes retroactively, as a zero** | this is where `max(0, …)` earns its place, and it is the real zero-versus-absent defect one layer below presentation. `total()` iterates `b.records`, so a record removed mid-window leaves both `prev` and `next`, the delta goes negative, and the clamp renders it as a measured `0`. The registry went 21 → 4 on one restart yesterday, so this is not hypothetical |
 | **The scope switches inside one series** | `total()` sums `Refused` over records the caller may see, but for an unfiltered admin or master view node-wide `s.refused` **replaces** that sum (activity.go:98–99). One series, two meanings, chosen by who is looking. A single static label is wrong for one of the two audiences — and it is invisible when an admin tests it. The label is computed from the view, never fixed in the template |
-| **History is computed against the current record set** | `total()` iterates `b.records`, so a record removed mid-window leaves both `prev` and `next` and its traffic vanishes from the series retroactively. The page says the series covers records visible **now** |
+| **History covers the records visible now** | the consequence of the row above, stated on the page rather than implied: the window is not a fixed population, and a series is not a claim about records that have since gone |
 
 ---
 
