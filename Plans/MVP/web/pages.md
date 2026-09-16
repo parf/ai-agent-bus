@@ -75,10 +75,13 @@ The divergence is narrower than that table alone suggests, and home-parf's
 sharpening earns its half-sentence: `Consume` calls `ConsumeAs(name, name)`, so
 a session reading **its own** inbox is refused either way — `acting(caller)`
 catches the inactive case. **The two states differ only where some other
-principal may drain that inbox**, which is the delegated path and is reachable
-(server.go:570 takes the inbox from the request, not from the caller). Without
-saying so, the first operator to test the distinction on their own session finds
-it absent and concludes the page is lying.
+principal may drain that inbox**, and through the face that is narrower still.
+Through the HTTP face an active third party can drain a permitted topic inbox
+using `topic=<registered topic name>` with no tag; an arbitrary service inbox
+cannot be selected with `name=`. Core `ConsumeAs` does accept an explicit inbox,
+so the delegated read exists in the daemon; what a face can reach is the topic
+case. Without saying so, the first operator to test the distinction on their own
+session finds it absent and concludes the page is lying.
 
 So an item that reads "disabled and holding work" is urgent in the first case
 and merely blocked-at-the-front-door in the second, and today's answer cannot
