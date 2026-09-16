@@ -16,6 +16,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -91,8 +92,17 @@ func dashboard(bus *caller, tls bool) http.Handler {
 			core.Status
 			You string `json:"you"`
 		}
-		if cred == "" || bus.get(cred, "/status", &node) != nil {
-			render(w, anon, nil)
+		if cred == "" {
+			signIn(w, r, "")
+			return
+		}
+		// And a bus that is not answering is a different fact, which this
+		// used to swallow: every failed status request became the anonymous
+		// page, so a stopped daemon read as "you are not signed in" and the
+		// one recovery offered was the one that could not work.
+		// See Plans/MVP/done/web-review.md W12.
+		if err := bus.get(cred, "/status", &node); err != nil {
+			fail(w, r, "", err)
 			return
 		}
 		v := view{You: node.You, At: time.Now().Format("2006-01-02 15:04:05"), Status: node.Status, Refusals: refusals(node.Refused)}
@@ -131,15 +141,18 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		// owner — which is the mint this child must not be.
 		// See docs/05-discovery.md#signing-in.
 		typed := r.FormValue("token")
+		// Where they were going before they were asked to sign in, kept
+		// across the refusal too so a mistyped token does not lose it.
+		to := local(r.FormValue("return"))
 		if typed == "" {
-			render(w, anon, map[string]string{"Refused": "that credential was not accepted"})
+			render(w, anon, signin{Refused: "that credential was not accepted", Return: to})
 			return
 		}
 		if err := bus.send(typed, "POST", "/session", &got); err != nil {
 			// One message for every way it can fail, because telling a bad
 			// token from an unknown name is an oracle on an open form.
 			// See docs/05-discovery.md#rules-it-is-built-to.
-			render(w, anon, map[string]string{"Refused": "that credential was not accepted"})
+			render(w, anon, signin{Refused: "that credential was not accepted", Return: to})
 			return
 		}
 		http.SetCookie(w, &http.Cookie{
@@ -147,7 +160,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 			HttpOnly: true, Secure: tls, SameSite: http.SameSiteStrictMode,
 			MaxAge: int(auth.IdleLife / time.Second),
 		})
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, to, http.StatusSeeOther)
 	})
 
 	mux.HandleFunc("POST /signout", func(w http.ResponseWriter, r *http.Request) {
@@ -189,6 +202,55 @@ func cookie(r *http.Request) string {
 		return ""
 	}
 	return c.Value
+}
+
+// signIn serves the form at the address that needed it, rather than sending an
+// anonymous visitor a status code with no form on it. The page keeps its URL,
+// so signing in returns them to what they asked for.
+// See Plans/MVP/done/web-review.md W12.
+func signIn(w http.ResponseWriter, r *http.Request, refused string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	to := ""
+	if r.Method == http.MethodGet && r.URL.Path != "/" {
+		to = r.URL.RequestURI()
+	} else if r.Method != http.MethodGet {
+		to = referrer(r)
+	}
+	if to == "/" {
+		to = ""
+	}
+	if refused != "" {
+		// Something was wrong with the request, and a browser that is told 200
+		// will cache and re-present this as though it were the page.
+		w.WriteHeader(http.StatusUnauthorized)
+	}
+	render(w, anon, signin{Refused: refused, Return: to})
+}
+
+// referrer is where a submission came from, when that was a page of ours. A
+// browser sends Referer as an absolute URL, so it is ours only if the host
+// matches the one this request arrived on.
+func referrer(r *http.Request) string {
+	u, err := url.Parse(r.Referer())
+	if err != nil || u.Host != r.Host {
+		return "/"
+	}
+	return local(u.RequestURI())
+}
+
+// local keeps a return address on this dashboard. Anything with a scheme, a
+// host or a leading // is somebody else's site, and a form field that took one
+// would make the sign-in page an open redirect — the one page a stranger can
+// always reach. Everything that is not plainly ours becomes the front page.
+func local(raw string) string {
+	if raw == "" || !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
+		return "/"
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.User != nil {
+		return "/"
+	}
+	return u.RequestURI()
 }
 
 func render(w http.ResponseWriter, t *template.Template, v any) {
@@ -335,8 +397,21 @@ func shell(key, title string) string {
 // and no names — each of those is something a stranger could sit and watch,
 // and nothing on the page can know whether it is exposed.
 // See docs/05-discovery.md#rules-it-is-built-to.
-var anon = template.Must(template.New("anon").Parse(head + `<h1>agent-bus</h1>
+//
+// signin is the whole of its data. It says nothing about the node, and the
+// return address is checked to be one of this dashboard's own pages before it
+// is ever put in the form: a return field is otherwise an open redirect with a
+// sign-in prompt in front of it.
+type signin struct {
+	Refused string
+	Return  string
+}
+
+var anon = template.Must(template.New("anon").Parse(head + `<title>Sign in · agent-bus</title>
+<main>
+<h1>agent-bus</h1>
 <form method=post action=/signin>
+{{with .Return}}<input type=hidden name=return value="{{.}}">{{end}}
  <p><label>token <input type=password name=token autofocus></label>
  <button type=submit>sign in</button>
 {{with .Refused}}<p class=muted>{{.}}{{end}}

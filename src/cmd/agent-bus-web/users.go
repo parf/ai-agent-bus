@@ -24,7 +24,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			return p, false
 		}
 		if err := c.get(cookie(r), "/users", &p.Users); err != nil {
-			adminError(w, err)
+			fail(w, r, v.You, err)
 			return p, false
 		}
 		return p, true
@@ -80,7 +80,8 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			http.Error(w, "same-origin form required", 403)
 			return
 		}
-		if _, ok := c.signedIn(w, r); !ok {
+		v, ok := c.signedIn(w, r)
+		if !ok {
 			return
 		}
 		if err := r.ParseForm(); err != nil {
@@ -102,7 +103,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			return
 		}
 		if err != nil {
-			adminError(w, err)
+			fail(w, r, v.You, err)
 			return
 		}
 		http.Redirect(w, r, "/users", http.StatusSeeOther)

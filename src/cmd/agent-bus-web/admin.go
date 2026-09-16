@@ -21,14 +21,98 @@ type busError struct {
 }
 
 func (e *busError) Error() string { return e.message }
-func adminError(w http.ResponseWriter, err error) {
-	code := http.StatusBadGateway
-	var failure *busError
-	if errors.As(err, &failure) {
-		code = failure.code
-	}
-	http.Error(w, err.Error(), code)
+
+// problem is a failed page, shown in place of the one asked for. It carries the
+// shell, because a refusal is the moment somebody most needs the navigation and
+// their own name: http.Error writes text/plain with no way back, no title and
+// nothing saying who it was refusing (Plans/MVP/done/web-review.md W12).
+type problem struct {
+	You             string
+	Title           string
+	Detail          string
+	Advice          string
+	Back, BackLabel string
 }
+
+// fail turns a bus refusal into the page for that refusal. The recoveries are
+// deliberately different from each other: an expired session, a permission
+// refusal and a bus that is not answering are three different things to do
+// next, and one status line told a reader none of them apart.
+// Codes are the closed set in docs/05-discovery.md#refusals.
+func fail(w http.ResponseWriter, r *http.Request, you string, err error) {
+	var bad *busError
+	if !errors.As(err, &bad) {
+		// This page rendered, so the dashboard is up; the daemon it asks is a
+		// separate process (docs/11-processes.md#the-processes) and is not
+		// answering. Saying "sign in" here would be a lie about whose fault it
+		// is, and is what the anonymous page used to say.
+		show(w, http.StatusBadGateway, problem{You: you,
+			Title:  "The bus is not answering",
+			Detail: err.Error(),
+			Advice: "The dashboard is running; the daemon behind it is not reachable, so there is nothing to show and nothing was changed. It comes back on its own when the daemon does.",
+		}, r)
+		return
+	}
+	switch bad.code {
+	case http.StatusUnauthorized:
+		// Not an error page at all: the sign-in form, at the address they
+		// asked for, so signing in lands them where they were going.
+		signIn(w, r, "that session has ended \u2014 sign in to carry on")
+	case http.StatusForbidden:
+		show(w, bad.code, problem{You: you,
+			Title:  "Not yours to see",
+			Detail: bad.message,
+			Advice: "You are signed in, and refused for lack of permission rather than for want of a credential \u2014 signing in again would change nothing. Its owner, or a maintainer of it, is who can grant this.",
+		}, r)
+	case http.StatusNotFound:
+		// Hidden and absent are one answer on purpose: telling them apart
+		// would let anybody enumerate the registry a name at a time.
+		// See docs/05-discovery.md#refusals.
+		show(w, bad.code, problem{You: you,
+			Title:  "No such name",
+			Advice: "Either nothing is registered under that name or it is not one you may see. Those are deliberately the same answer, so this does not tell you which.",
+		}, r)
+	case http.StatusServiceUnavailable:
+		show(w, bad.code, problem{You: you,
+			Title:  "The bus is busy",
+			Detail: bad.message,
+			Advice: "The daemon is there and briefly cannot answer. Nothing was changed; the same request is worth making again.",
+		}, r)
+	case http.StatusInternalServerError:
+		show(w, bad.code, problem{You: you,
+			Title:  "Something went wrong in the daemon",
+			Detail: bad.message,
+			Advice: "This is a fault, not a rule: repeating it is unlikely to help, and the daemon's log on this node is where it is recorded.",
+		}, r)
+	default:
+		// 400, 409, 412 and 429: the bus understood and would not.
+		show(w, bad.code, problem{You: you,
+			Title:  "That was refused",
+			Detail: bad.message,
+			Advice: "Nothing was changed. The reason above is the daemon's own.",
+		}, r)
+	}
+}
+
+// show renders a problem with the way back filled in: retrying a page that
+// failed is following the same link again, while a form that was refused wants
+// the form, not a repeat of the submission.
+func show(w http.ResponseWriter, code int, p problem, r *http.Request) {
+	if r.Method == http.MethodGet {
+		p.Back, p.BackLabel = r.URL.RequestURI(), "Try again"
+	} else if back := referrer(r); back != "/" {
+		p.Back, p.BackLabel = back, "Back to the page"
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(code)
+	render(w, problemPage, p)
+}
+
+var problemPage = template.Must(template.New("problem").Parse(shell("", "Problem") + `<h1>{{.Title}}</h1>
+{{with .Detail}}<p class=warn>{{.}}</p>{{end}}
+<p>{{.Advice}}</p>
+{{with .Back}}<p><a href="{{.}}">{{$.BackLabel}}</a></p>{{end}}
+`))
 
 type adminView struct {
 	You           string `json:"you"`
@@ -44,11 +128,14 @@ type adminView struct {
 func (c *caller) signedIn(w http.ResponseWriter, r *http.Request) (adminView, bool) {
 	var v adminView
 	if cookie(r) == "" {
-		http.Error(w, "sign in required", http.StatusUnauthorized)
+		// A deep link is where somebody meant to go, and a plain 401 left them
+		// at a dead end with no form on it. The form is served here instead,
+		// at that address, and carries it back (web-review.md W12).
+		signIn(w, r, "sign in to open this page")
 		return v, false
 	}
 	if err := c.get(cookie(r), "/status", &v); err != nil {
-		adminError(w, err)
+		fail(w, r, "", err)
 		return v, false
 	}
 	return v, true
@@ -83,7 +170,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		}
 		var records []protocol.Record
 		if err := c.get(cookie(r), "/ls", &records); err != nil {
-			adminError(w, err)
+			fail(w, r, v.You, err)
 			return
 		}
 		v.Mine, v.State, v.Channels = r.URL.Query().Get("scope"), r.URL.Query().Get("state"), r.URL.Path == "/channels"
@@ -110,11 +197,11 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			return
 		}
 		if err := c.get(cookie(r), "/lookup?name="+url.QueryEscape(r.URL.Query().Get("name")), &v.Record); err != nil {
-			adminError(w, err)
+			fail(w, r, v.You, err)
 			return
 		}
 		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
-			adminError(w, err)
+			fail(w, r, v.You, err)
 			return
 		}
 		render(w, serviceDetail, v)
@@ -125,18 +212,22 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			return
 		}
 		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
-			adminError(w, err)
+			fail(w, r, v.You, err)
 			return
 		}
 		render(w, groupList, v)
 	})
-	mutate := func(next http.HandlerFunc) http.HandlerFunc {
+	// The view goes through to the handler so a refused submission can be
+	// presented as the person who was refused, on the shell, rather than as a
+	// bare status line (web-review.md W12).
+	mutate := func(next func(http.ResponseWriter, *http.Request, adminView)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			if !sameOrigin(r, tls) {
 				http.Error(w, "same-origin form required", http.StatusForbidden)
 				return
 			}
-			if _, ok := c.signedIn(w, r); !ok {
+			v, ok := c.signedIn(w, r)
+			if !ok {
 				return
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
@@ -144,10 +235,10 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				http.Error(w, "invalid form", http.StatusBadRequest)
 				return
 			}
-			next(w, r)
+			next(w, r, v)
 		}
 	}
-	mux.HandleFunc("POST /service", mutate(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /service", mutate(func(w http.ResponseWriter, r *http.Request, v adminView) {
 		name := r.PostForm.Get("name")
 		change := core.Management{Name: name}
 		var err error
@@ -206,12 +297,12 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			return
 		}
 		if err != nil {
-			adminError(w, err)
+			fail(w, r, v.You, err)
 			return
 		}
 		http.Redirect(w, r, "/services?scope=my", http.StatusSeeOther)
 	}))
-	mux.HandleFunc("POST /groups", mutate(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /groups", mutate(func(w http.ResponseWriter, r *http.Request, v adminView) {
 		action := r.PostForm.Get("action")
 		if action != "save" && action != "delete" {
 			http.Error(w, "unknown action", 400)
@@ -223,7 +314,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			Remove  bool
 		}{r.PostForm.Get("name"), strings.Fields(r.PostForm.Get("members")), action == "delete"})
 		if err != nil {
-			adminError(w, err)
+			fail(w, r, v.You, err)
 			return
 		}
 		http.Redirect(w, r, "/groups", http.StatusSeeOther)

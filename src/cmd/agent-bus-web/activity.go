@@ -50,13 +50,13 @@ func (c *caller) activityRoutes(mux *http.ServeMux) {
 		}
 		name := r.URL.Query().Get("name")
 		if err := c.get(cookie(r), "/ls", &v.Records); err != nil {
-			adminError(w, err)
+			fail(w, r, v.You, err)
 			return
 		}
 		sort.Slice(v.Records, func(i, j int) bool { return v.Records[i].Name < v.Records[j].Name })
 		var points []core.ActivityPoint
 		if err := c.get(cookie(r), "/activity?name="+url.QueryEscape(name), &points); err != nil {
-			adminError(w, err)
+			fail(w, r, v.You, err)
 			return
 		}
 		render(w, activityPage, struct {

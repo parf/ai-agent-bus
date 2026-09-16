@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.25 — 2026-09-15
+
+A dashboard refusal is now a page rather than a dead end. An anonymous deep link gets the sign-in form at the address it asked for and returns there afterwards; a return address that is not this dashboard's own is refused. A bus that is not answering says so instead of claiming the visitor is not signed in, and an expired session, a permission refusal, an unknown name and a daemon fault each get their own recovery, on the shell, with the navigation still under them.
+
 ## 0.5.24 — 2026-09-15
 
 Every dashboard page now shares one shell: a single navigation with the current entry marked, sign out beside the name it signs out, a document language, a viewport, a main landmark and a title of its own. Pages no longer reload themselves — the diagnostics page says when it was built and offers a Refresh link instead, and the activity page's own thirty-second reload is gone. Muted text meets the contrast minimum, and narrow screens get a smaller gutter with only wide tables scrolling.

@@ -150,3 +150,164 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 		}
 	}
 }
+
+// A refusal is a page, not a dead end. Each of these was a bare http.Error
+// body — no shell, no title, nobody's name on it and nowhere to go — or, on
+// root, the sign-in form standing in for a bus that was not answering.
+// See Plans/MVP/done/web-review.md W12.
+func TestRefusalsRecoverInsteadOfDeadEnding(t *testing.T) {
+	b := core.New()
+	tokens, err := auth.Load(memory.NewTokens(), "admin@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := httptest.NewServer(api.New(b, tokens, "admin@h").Handler())
+	defer backend.Close()
+	web := httptest.NewServer(dashboard(&caller{client: backend.Client(), base: backend.URL}, false))
+	defer web.Close()
+	client := web.Client()
+	client.CheckRedirect = func(r *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }
+
+	signIn := func(who string, extra url.Values) *http.Response {
+		t.Helper()
+		token, err := tokens.Issue(who)
+		if err != nil {
+			t.Fatal(err)
+		}
+		form := url.Values{"token": {token}}
+		for k, v := range extra {
+			form[k] = v
+		}
+		resp, err := client.PostForm(web.URL+"/signin", form)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp
+	}
+	do := func(method, path string, session *http.Cookie, form url.Values) (int, string) {
+		t.Helper()
+		var input io.Reader
+		if form != nil {
+			input = strings.NewReader(form.Encode())
+		}
+		req, err := http.NewRequest(method, web.URL+path, input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if form != nil {
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("Origin", web.URL)
+		}
+		if session != nil {
+			req.AddCookie(session)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(body)
+	}
+
+	// An anonymous deep link enters sign-in at the address it asked for, and
+	// carries that address in the form. It used to be `401 sign in required`
+	// in plain text, with no form anywhere on it.
+	code, body := do("GET", "/service?name=svc@h", nil, nil)
+	if code != http.StatusUnauthorized {
+		t.Errorf("an anonymous deep link answered %d, want 401", code)
+	}
+	if !strings.Contains(body, `action=/signin`) {
+		t.Error("an anonymous deep link does not offer the sign-in form")
+	}
+	if !strings.Contains(body, `name=return value="/service?name=svc@h"`) {
+		t.Errorf("the deep link is not carried back into the form: %s", body)
+	}
+
+	// And signing in from there goes to that page, not to the front page.
+	resp := signIn("admin@h", url.Values{"return": {"/service?name=svc@h"}})
+	resp.Body.Close()
+	if to := resp.Header.Get("Location"); to != "/service?name=svc@h" {
+		t.Errorf("sign-in returned to %q, not to where the deep link was going", to)
+	}
+	if len(resp.Cookies()) != 1 {
+		t.Fatal("sign in did not return a session")
+	}
+	session := resp.Cookies()[0]
+
+	// A return address that is not ours is refused, however it is dressed up.
+	// The sign-in page is the one page a stranger can always reach, so a
+	// return field that took a foreign URL would be an open redirect.
+	// A backslash is in the list because several browsers read it as a slash,
+	// so "/\\evil.example" is "//evil.example" to them: staying local means the
+	// address the browser resolves, not the one the string looks like.
+	for _, foreign := range []string{"https://evil.example/x", "//evil.example/x", "http:/\\evil.example", "javascript:alert(1)", "/\\evil.example/x", "https:/\\/\\evil.example"} {
+		resp := signIn("admin@h", url.Values{"return": {foreign}})
+		resp.Body.Close()
+		to := resp.Header.Get("Location")
+		where, err := url.Parse(to)
+		if err != nil || where.Scheme != "" || where.Host != "" || !strings.HasPrefix(to, "/") || strings.HasPrefix(to, "//") || strings.ContainsAny(to, "\\") {
+			t.Errorf("sign-in with return %q went to %q, which is not a page of ours", foreign, to)
+		}
+	}
+
+	// A name that is not there, or is not one this caller may see, is one
+	// answer, on the shell, with the navigation still under it.
+	code, body = do("GET", "/service?name=nobody@h", session, nil)
+	if code != http.StatusNotFound {
+		t.Errorf("an unknown name answered %d, want 404", code)
+	}
+	for _, want := range []string{"No such name", "<main>", "action=/signout", "<title>Problem"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the not-found page has no %s: %s", want, body)
+		}
+	}
+
+	// A permission refusal says so, and says that signing in again is not the
+	// answer — which is exactly what the 401 page offers, so the two must not
+	// read alike.
+	plain := signIn("plain@h", nil)
+	plain.Body.Close()
+	if len(plain.Cookies()) != 1 {
+		t.Fatal("the ordinary user did not get a session")
+	}
+	code, body = do("POST", "/groups", plain.Cookies()[0], url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"plain@h"}})
+	if code != http.StatusForbidden {
+		t.Fatalf("an ordinary user editing a group answered %d, want 403: %s", code, body)
+	}
+	if !strings.Contains(body, "Not yours to see") {
+		t.Errorf("a permission refusal is not presented as one: %s", body)
+	}
+	if strings.Contains(body, "action=/signin") {
+		t.Error("a permission refusal offers signing in again, which cannot help")
+	}
+
+	// A bus that is not answering is its own page. This was the bad one: root
+	// turned every failed status request into the anonymous page, so a stopped
+	// daemon said "you are not signed in" and offered the one recovery that
+	// could not work.
+	dead := httptest.NewServer(api.New(b, tokens, "admin@h").Handler())
+	deadWeb := httptest.NewServer(dashboard(&caller{client: dead.Client(), base: dead.URL}, false))
+	defer deadWeb.Close()
+	dead.Close()
+	req, err := http.NewRequest("GET", deadWeb.URL+"/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.AddCookie(session)
+	down, err := deadWeb.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	offline, _ := io.ReadAll(down.Body)
+	down.Body.Close()
+	if down.StatusCode != http.StatusBadGateway {
+		t.Errorf("an unreachable bus answered %d, want 502", down.StatusCode)
+	}
+	if !strings.Contains(string(offline), "The bus is not answering") {
+		t.Errorf("an unreachable bus is not named as one: %s", offline)
+	}
+	if strings.Contains(string(offline), "action=/signin") {
+		t.Error("an unreachable bus is still presented as not being signed in")
+	}
+}
