@@ -43,6 +43,12 @@ the accounts and tree, writes/enables the daemon unit, and installs the first
 user's key through the admin program. Without root it refuses and prints the
 command to run. `--dry-run` and `--print-unit` are read-only and need no root.
 
+**MVP ships its own install script and nothing else.** No `npm install` path,
+no package registry: the programs are built and `agent-bus-setup` puts them in
+place. Publishing the MCP face to npm stays [R1](../Plans/R1/distribution.md#container-runtime)
+work. One supported way in is what the [installation acceptance](#installation-acceptance)
+below can actually be run against.
+
 **Development install.** `src/git-install.sh` symlinks the built programs into
 `/usr/local/bin` instead of copying them, so a change is a build and a restart
 rather than a reinstall. The checkout must live outside `/home`: the daemon runs
@@ -54,6 +60,18 @@ real binaries back. Daemon state under `/var/lib/agent-bus` is untouched.
 format and binary delivery are [MVP questions](../Plans/MVP/QUESTIONS.md#open-questions).
 A fresh-host install and the running service account must still be verified as
 [stage gates](../Plans/MVP/TODO.md#installed-stage-gate).
+
+## Administering the account map
+
+**Pending.** The local user-to-account map is administered with the credentials
+that already exist and no third one: an **operator SSH key**, whose forced
+command is `agent-bus-admin <principal>` ([SSH admin](#ssh-admin)), or an
+ordinary **user token** against the API ([getting a token](02-access.md#getting-a-token)).
+
+Nothing new is minted for it and no separate administrative password exists.
+The entitlement is the principal in the key's entry, exactly as it is for every
+other operator action, so who may edit the map is answered by the same thing
+that answers who may do anything else.
 
 ## Installation acceptance
 

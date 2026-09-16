@@ -56,10 +56,16 @@ This is the target privilege boundary for bus and web: they must not execute
 user services. The supervisor necessarily executes its children. User scripts
 run in the separate foreground runner.
 
-**Limitation:** the current bus invokes the signature adapter's `ssh-keygen`
-for enrolment. A literal no-exec confinement claim is therefore not met. The
-resolution belongs to the [MVP privilege gate](../Plans/MVP/QUESTIONS.md#open-questions),
-not to an assertion that an unavailable future AUTH child already does it.
+**`ssh-keygen` is allowed, and the boundary is about user services.** The bus
+runs it to check a signature at enrolment, and that stays. What the rule forbids
+is executing **what a user supplied** — a service, a script, anything whose
+contents somebody else chose. A fixed verifier the daemon ships and invokes with
+arguments it built is a different thing from running a stranger's program, and
+collapsing the two would have bought nothing but a literal claim.
+
+So the boundary is not *no exec*, it is **no user services**, and the check is
+what decides the argument rather than how the code is reached. An unavailable
+future AUTH child is not what settles this; the distinction is.
 
 ## Why the supervisor holds CAP_CHOWN
 

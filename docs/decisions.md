@@ -18,7 +18,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | MVP runtime sidecar isolation and recovery | [runtime acceptance](08-runner-role.md#runtime-isolation-and-recovery) | 2026-09-13 owner-approved release review |
 | MVP upgrade, recovery and real SSH acceptance | [installation acceptance](09-setup.md#installation-acceptance) | 2026-09-13 owner-approved release review |
 | MVP installed browser acceptance | [browser acceptance](05-discovery.md#browser-acceptance) | 2026-09-13 owner-approved release review |
-| MVP administrative crash-recovery decision gate | [policy status](04-messaging.md#administrative-crash-recovery) | 2026-09-13 owner-approved review; Q39 remains unresolved |
+| MVP administrative crash-recovery decision gate | [policy status](04-messaging.md#administrative-crash-recovery) | 2026-09-13 owner-approved review; the guarantee was settled 2026-09-15 |
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
 | Human-readable CLI listings | [CLI listing](05-discovery.md#cli-listing) | 2026-09-13 owner instruction |
 | Manual removal of idle registry addresses | [unregistering](01-identity.md#unregistering) | 2026-09-13 owner request |
@@ -132,6 +132,9 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-15 | A certificate asked for and missing refuses the start; resolves Q52 | Somebody who wanted HTTPS would otherwise get a log line they do not read and a page that is not encrypted; refusing is the only answer they cannot miss | [where it listens](05-discovery.md#where-it-listens) |
 | 2026-09-15 | An acknowledged ban, group removal or ACL restriction holds until explicitly lifted; resolves Q39 | Acknowledging is a promise, and a crash is not a way out of one; if the durability cannot be promised the acknowledgement must not be given | [administrative crash recovery](04-messaging.md#administrative-crash-recovery) |
 | 2026-09-15 | A record whose owner nobody answers to is dead, and waits for the daemon owner to give it one; resolves Q40 | Refusing beats queuing work for something nobody is behind, and adopting an unreachable record is the narrowest power that gives a way back — narrower than authority over records that have an owner | [when the owner is gone](01-identity.md#when-the-owner-is-gone) |
+| 2026-09-15 | The daemon may run `ssh-keygen`; the boundary is no user services, not no exec; resolves Q30 | A fixed verifier the daemon ships and calls with its own arguments is not a stranger's program, and what a user supplied is what the rule is about | [nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |
+| 2026-09-15 | MVP installs by its own script only, with no npm path; resolves Q10 | One supported way in is what installation acceptance can be run against; npm publication stays R1 | [install](09-setup.md#install) |
+| 2026-09-15 | The account map is administered by operator SSH key or user token, and nothing new; resolves Q9 | The entitlement is already the principal in the key's entry, so who may edit the map is answered by what answers everything else | [administering the account map](09-setup.md#administering-the-account-map) |
 
 ## Superseded
 
