@@ -68,3 +68,19 @@ changes before token issuance and unregister/credential-removal ordering were
 not declared fixed by this review. Production was still on the earlier release;
 the [combined web check](exchange-evidence.md#combined-checkout-verification)
 is source verification only.
+
+## Subsequent operation-time work
+
+Commit `471f550` implements the follow-up described in
+[gate-window evidence](gate-window.md#scope), including its stated checks,
+mutation results and limits. That record owns the implementation evidence;
+the earlier reproduction above remains history.
+
+The later read-only review still found boundaries to examine: session issuance
+is outside the registry hold ([session handler](../../../src/internal/api/server.go#L258)),
+and some reads turn lost caller standing into empty results rather than
+preserving the gate's refusal ([Recent](../../../src/internal/core/recent.go#L29),
+[Groups](../../../src/internal/core/manage.go#L141)). These source findings were
+handed to Claude on 2026-09-16; no new interleaving reproduction or release
+clearance is claimed here. The mapped-socket web configuration hazard recorded
+above also remains separate from the operation-time changes.
