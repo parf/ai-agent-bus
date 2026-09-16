@@ -55,6 +55,16 @@ person confirmed, because what they confirmed stopped being true — the canonic
 case being a credential removal answered with *now backed by a user, record or
 owned service; refresh the directory*.
 
+**This is for a fact that changed, and only that.** A refusal can also arrive
+because the face never had the fact in the first place — the worked case being a
+filtered waiter, which blocks removal and is invisible to the field that reports
+readers ([layouts](layouts.md#a-consequential-confirmation)). Nothing changed
+there: the condition held before the confirmation was drawn and holds still. It
+is the ordinary current-state refusal, carrying the daemon's own message. The
+final recheck covers stale facts and incomplete facts alike, but they are
+different things to be told, and calling an observability gap a race is a false
+statement dressed as a helpful one — codex.
+
 That is not an ordinary refusal and must not land in the generic one, where it
 reads as a bug. It gets its own presentation: **the conditions changed, here is
 what is true now**, with the current state shown and the action offered again if

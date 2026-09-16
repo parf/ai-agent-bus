@@ -222,8 +222,9 @@ shown ([forms](forms.md#consequential-actions)).
   │  · Nothing answers to this name afterwards.                │
   │  · ops@parf.us keeps their own credential.                 │
   │                                                            │
-  │ Observed just now: nothing queued, no reader attached.     │
-  │ The daemon settles eligibility when you confirm.           │
+  │ Observed just now: nothing queued, no unfiltered read      │
+  │ waiting. Filtered reads are not reported. The daemon       │
+  │ settles eligibility when you confirm.                      │
   └────────────────────────────────────────────────────────────┘
 
   [Remove this service]   Cancel
@@ -261,13 +262,29 @@ control is absent, and the reason stands where the control would have been.
 **The confirmation shows observations; it does not certify eligibility**, and
 the draft's *"which is what makes this available at all"* claimed it did.
 `withLiveness` sets `Reading` only for an **unfiltered** waiter (bus.go:425–429),
-while `UnregisterAnd` refuses on **any** waiter (unregister.go:78). So a filtered
-waiter reads as `Queued: 0`, no reader attached — and removal is still refused.
-codex reproduced it. The page therefore states what was observed and leaves the
-decision to the daemon at submission, which is what a server-rendered
-confirmation was for; a refusal there is the [conditions
-changed](pages.md#problem--recovery-by-what-the-face-actually-knows) state, not a
-bug. Making eligibility visible would need the daemon to report filtered waiters,
+while `UnregisterAnd` refuses on **any** waiter (unregister.go:78). codex
+reproduced it. Note the wording that survives: **not** "no reader attached",
+which the counterexample directly contradicts — there *is* a reader attached, it
+is filtered, and the field does not report it. The line says what the field
+actually answers and names what it omits.
+
+**And a refusal here is not the conditions-changed state.** That was the draft's
+next sentence and it is wrong in exactly this case: the filtered waiter existed
+before the confirmation was drawn, was never observable through that field, and
+still exists at submission. *Nothing changed.* It is the ordinary current-state
+refusal — 409, with the daemon's message
+([Problem](pages.md#problem--recovery-by-what-the-face-actually-knows)).
+
+The final daemon check covers **stale** facts and **incomplete** facts alike, but
+they are different things to be told, and only one of them is anybody's fault
+for waiting:
+
+| | The person is told |
+|---|---|
+| Stale fact — it was true when shown and stopped being true | the world moved between the question and the answer; here is what is true now |
+| Incomplete fact — the face never had it | the daemon's own reason, plainly. No suggestion that anything changed, because nothing did |
+
+Making eligibility visible would need the daemon to report filtered waiters,
 which it does not: [owed](pages.md#owed-by-this-specification).
 
 ## The five states, per component
