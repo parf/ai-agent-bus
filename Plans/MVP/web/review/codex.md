@@ -260,3 +260,14 @@ verified: the actual fixture must still satisfy the model's assumptions about
 wrapping and surrounding UI. During mutation testing, expected minima must come
 from the approved design, not be lowered automatically when the stylesheet's
 padding is deliberately inflated. R3-2 and R3-3 remain open.
+
+### Closure of the response reviews
+
+Verified `890e046` and `52533e0`: R3-2 now uses the same-process example;
+R3-3 names unfiltered reads and their omitted counterpart, leaves eligibility
+to the daemon, and distinguishes an established change from incomplete
+evidence. The remaining R2/R3 document findings are closed, with R3-1's
+arithmetic closure recorded above. This is not rendered acceptance: contrast
+in actual components, focus, layout, zoom and representative browser fixtures
+remain to be checked. Q62, Q63 and the owner's specification review remain
+separate gates; no application code or deployment is authorized by this closure.
