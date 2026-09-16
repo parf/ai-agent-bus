@@ -109,6 +109,15 @@ child cannot make one and does not need the capability to.
 | `AGENT_BUS_FDS` | what arrives at fd 3 upwards, in order: `tcp`, `shared`, `user:<principal>` — the whole contract between the two |
 | `-web` | the dashboard runs as a child too ([discovery § where it listens](05-discovery.md#where-it-listens)), reaching the bus over the shared socket and forwarding the visitor's credentials |
 
+**The dashboard is started without `AGENT_BUS_TOKEN`,** whatever the
+supervisor was started with. It is supposed to hold no credential of its own
+([signing in](05-discovery.md#signing-in)) — one that did would serve every page
+as whoever exported it, to whoever connected. That was true only as long as
+nobody launched the daemon from a shell with a token in it, which is how a
+developer's shell works and is not a guarantee; the supervisor now takes the
+variable away rather than trusting what it was handed. Nothing else is
+stripped: a child gets the environment around it, less what it must not have.
+
 A child that dies is restarted with backoff, and the listeners are passed to
 the replacement — the socket a client holds is the same file across a restart.
 A supervisor that is killed outright takes its children with it

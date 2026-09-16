@@ -134,7 +134,32 @@ func webChild(exe, shared string) *child {
 		what: "web",
 		path: exe,
 		env:  []string{"AGENT_BUS_ADDR=" + shared},
+		// Said here rather than trusted to the launcher. "No credential" was
+		// true only while nobody started the daemon from a shell that had one
+		// exported, and then the dashboard silently had the exporter's
+		// authority to lend out. A child is given what it needs.
+		drop: []string{"AGENT_BUS_TOKEN"},
 	}
+}
+
+// environ is what the child is started with: the environment around the
+// supervisor, less anything this child must not be handed, plus what it is
+// told. Dropping happens first, so a child can be given back a name it is
+// otherwise denied.
+func (k *child) environ(around []string) []string {
+	out := make([]string, 0, len(around)+len(k.env))
+	for _, kv := range around {
+		drop := false
+		for _, name := range k.drop {
+			if strings.HasPrefix(kv, name+"=") {
+				drop = true
+			}
+		}
+		if !drop {
+			out = append(out, kv)
+		}
+	}
+	return append(out, k.env...)
 }
 
 // child is one supervised process. A child dying is normal: it is contained,
@@ -144,6 +169,7 @@ type child struct {
 	path string
 	args []string
 	env  []string
+	drop []string
 	fds  []*os.File
 
 	mu      sync.Mutex
@@ -192,7 +218,7 @@ func (k *child) keepAlive() {
 
 func (k *child) run() error {
 	cmd := exec.Command(k.path, k.args...)
-	cmd.Env = append(os.Environ(), k.env...)
+	cmd.Env = k.environ(os.Environ())
 	cmd.ExtraFiles = k.fds
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	// A supervisor that is killed outright still takes its children with it:

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.26 — 2026-09-15
+
+The supervisor no longer hands the dashboard child an `AGENT_BUS_TOKEN` it inherited: the dashboard is meant to hold no credential of its own, and that held only while nobody started the daemon from a shell that had one exported.
+
 ## 0.5.25 — 2026-09-15
 
 A dashboard refusal is now a page rather than a dead end. An anonymous deep link gets the sign-in form at the address it asked for and returns there afterwards; a return address that is not this dashboard's own is refused. A bus that is not answering says so instead of claiming the visitor is not signed in, and an expired session, a permission refusal, an unknown name and a daemon fault each get their own recovery, on the shell, with the navigation still under them.
