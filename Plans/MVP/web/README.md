@@ -19,7 +19,9 @@ documents at all levels before implementation.
 | [Components](components.md#the-set) | Shell, tables, toolbars, forms, status, empty and error states |
 | [Data dictionary](data-dictionary.md#fields) | Every field: source, meaning, label, and when it is not shown |
 | [Glyphs](glyphs.md#the-rule-that-matters-most) | The state vocabulary, and where it is allowed to appear |
-| [Visual design](visual-design.md#tokens) | Type, colour, density, and the shipped asset layer |
+| [Visual design](visual-design.md#tokens) | Principles, contrast obligation, acceptance, and the shipped asset layer |
+| [Tokens](tokens.md#the-budget) | **The one home for every value**: the surface budget, both palettes with measured contrast, type, space and shape |
+| [Layouts](layouts.md#the-frame-every-page-shares) | Representative arrangements, wide and narrow, and the five states per component |
 | [Technology](technology.md#rendering) | Go rendering and asset decisions, with their reasoning |
 
 Current facts about the built dashboard are **not restated here**. They live in
@@ -76,16 +78,26 @@ cannot support, an Account page that assumed a person profile, an error page
 that lost distinctions the current build already makes, and promised values with
 no dependency, which now have [named fallbacks](pages.md#owed-by-this-specification).
 
-**Open, and both are design rather than correction:**
+**Round one is answered in full.** S12 and S13 close with two new documents:
+[tokens](tokens.md#the-budget) supplies the chosen values — both palettes with
+every contrast pair computed rather than judged, a capped type and space scale,
+and the reasoning for each cap — and [layouts](layouts.md#the-frame-every-page-shares)
+supplies the arrangements at both widths. Theme and density controls are
+**removed from MVP** rather than specified: the draft promised them in this
+document and in no form inventory, which is how an unapproved control becomes an
+assumed requirement.
 
-| | |
-|---|---|
-| S12 (part) | the no-script theme and density controls: what they are, how they persist, and whether they are in MVP scope at all |
-| S13 | the visual design as a reviewable artifact — selected palettes, type and spacing values, and representative layouts in both schemes and both widths. Principles are not a design |
-| home-parf's density acceptance | five checks, of which a shipped-surface budget enforced over the stylesheet is the one that catches the named failure mode, and *build the worst page first* is the one that expires the moment a second page exists |
+home-parf's five density checks are now the [acceptance](visual-design.md#acceptance),
+replacing a recorded mitigation that was a reason to expect a good outcome
+rather than a check.
 
-The token file also needs a named owner. That is a standing commitment rather
-than a technical choice, so it is the owner's to make and is not assumed here.
+**Owner input needed** — [Q62](../QUESTIONS.md#open-questions): who owns the token file,
+and whether a scheme or density control belongs in MVP at all. The recorded
+density risk is conditional on nobody owning typography, so the checks make that
+lapse visible but cannot substitute for the name.
+
+The specifications have not yet been read by the owner; that remains
+[F.13.0](../TODO.md#objective).
 
 ### Dissent
 

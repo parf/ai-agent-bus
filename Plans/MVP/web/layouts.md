@@ -1,0 +1,239 @@
+# Layouts
+
+Draft for peer review. Representative arrangements, wide and narrow, for the
+pages that carry the design's weight — codex's
+[S13](review/codex.md#specification-review-round-one): a design is reviewable
+when somebody can disagree with it before it is built.
+
+Field decisions are in [pages](pages.md#how-to-read-this); values are in
+[tokens](tokens.md#the-budget). This file is arrangement only.
+
+Wide is 1280×800, the lower of the two target desktop sizes. Narrow is 320 CSS
+px, the [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html) floor.
+
+## The frame every page shares
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ agent-bus · node observed 14:22          parf@parf  Sign out │  surface-3
+│ Overview  Services  Channels  Activity  Users  Groups  Diag  │  accent underline on current
+├──────────────────────────────────────────────────────────────┤
+│                                                              │  surface-1
+│  Page title                                        [Refresh] │  text-xl
+│  One line saying what this page answers                      │  text-sm / text-2
+│                                                              │
+│  … page body, max 76rem, centred, 16px gutters …             │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+The shell owns the whole document structure, `<main>` included, so a page
+cannot forget to close it — seven of nine templates do today
+([components](components.md#accessibility-which-is-the-real-cost-of-building-our-own)).
+
+Narrow: identity and sign-out stack; navigation collapses into a
+`details`/`summary` disclosure whose summary names the current page, so the
+answer to *where am I* survives the collapse.
+
+## Overview — the only page allowed to be short
+
+```
+  Overview                                             [Refresh]
+  What needs attention on this node, as of 14:22
+
+  ┌────────────────────────────────────────────────────────────┐
+  │ ▌ Queue at capacity when observed                          │   red bar, surface-2
+  │   billing/invoices@parf.us · 512 of 512 held · overflow:   │
+  │   refuse · observed 14:22                    → the queue   │
+  ├────────────────────────────────────────────────────────────┤
+  │ ▌ Delivery is off and work is held                         │   orange bar
+  │   ocr/intake@parf.us · 48 held · oldest 3h 12m             │
+  │   This backlog cannot drain until the record is enabled.   │
+  │                                              → the record  │
+  └────────────────────────────────────────────────────────────┘
+
+  This node                                    ← labelled node-wide, always
+  ┌──────────┬──────────┬──────────┬──────────┐
+  │ Uptime   │ Records  │ Queued   │ Refused  │
+  │ 6d 4h    │ 231      │ 604      │ 1 204    │   text-2xl, tabular
+  └──────────┴──────────┴──────────┴──────────┘
+  Node-wide. A list below shows only what you may see; the two
+  never have to agree.
+
+  Find ▸ Services   Channels   Users
+```
+
+Each attention item is: **what was observed**, the thing it was observed on,
+the values it rests on, when, and one link. The coloured bar is 3px of
+`--red`/`--orange` on the leading edge and never the only carrier — the heading
+text states the condition in words ([glyphs](glyphs.md#the-rule-that-matters-most)).
+
+Empty:
+
+```
+  ┌────────────────────────────────────────────────────────────┐
+  │ No observed attention conditions in this view, as of 14:22.│
+  │ This covers the conditions the daemon reports, over the    │
+  │ records you may see. It is not a statement that everything │
+  │ is working.                                                │
+  └────────────────────────────────────────────────────────────┘
+```
+
+One bordered line, `--text-2`, no illustration, no green. It does not get a
+third of the screen for saying nothing.
+
+## Services — the page the density is tuned against
+
+Built first, at ~200 records, with the pathological content named in
+[acceptance](visual-design.md#acceptance). Every other table inherits what is
+decided here, which is why it is not built second.
+
+```
+  Services                                             [Refresh]
+  What is registered here, and what is it doing
+
+  ┌────────────────────────────────────────────────────────────┐
+  │ Search ▢────────────  Scope[All▾] State[Any▾] Kind[Any▾]  │  surface-3
+  │ Sort[Name▾]                                    [Filter]    │
+  │ 27 of 231 · kind: agent · holding work      [Clear all]    │
+  └────────────────────────────────────────────────────────────┘
+
+   │ SERVICE                    OWNER      READER      QUEUED │  text-xs 600
+   ├──────────────────────────────────────────────────────────┤
+   │ ▌Invoice intake            parf@…     attached       512 │  red bar
+   │  billing/invoices@parf.us                    at capacity │  mono, text-xs, text-2
+   ├──────────────────────────────────────────────────────────┤
+   │  OCR pipeline              parf@…     no reader        0 │
+   │  ocr/pipeline@parf.us                                    │
+   ├──────────────────────────────────────────────────────────┤
+   │ ▌Document intake           ops@…      no reader       48 │  orange bar
+   │  ocr/intake@parf.us                     delivery is off  │
+   └──────────────────────────────────────────────────────────┘
+                                          ‹ Previous   Next ›
+```
+
+Two lines per row: **description then address**. The description is how a
+session is recognised and is absent from every list today; the address
+disambiguates and is demoted, not dropped. Kind is a filter, not a column —
+*except* on an unfiltered mixed list, where the row must still say what it is
+(codex's round-one handoff). The judgment column is the leading bar plus a word
+under the description, so it costs no column width at all.
+
+Narrow (320px): description, then address, then a status line. Owner, reader
+and queued move into that line as `ops@… · no reader · 48 held`. The bar and the
+description survive at every width; nothing scrolls sideways.
+
+```
+  ┌──────────────────────────────┐
+  │▌Document intake              │
+  │ ocr/intake@parf.us           │
+  │ delivery is off · 48 held    │
+  ├──────────────────────────────┤
+```
+
+## Service detail — read first, then one edit at a time
+
+```
+  Document intake                                      [Refresh]
+  ocr/intake@parf.us
+
+  Identity                                              [Edit]
+    Description   Document intake
+    Address       ocr/intake@parf.us
+    Protocol      —
+    Kind          agent
+    Owner         ops@parf.us
+    Maintainers   @ocr-team
+    State         Disabled · delivery is off
+    Updated       2026-09-14 09:31
+
+  Queue                                                 [Edit]
+    Held               48          ← "held", not "waiting"
+    Oldest held        3h 12m
+    Accepted           1 902       ← cumulative across restarts
+    Dequeued             1 854
+    Dropped                  0
+    Expired                  0
+    At capacity        no
+    Capacity           512
+    Retention          no queue-imposed expiry — a message may set its own
+    Overflow           refuse
+
+    ▌ This backlog cannot drain while delivery is off. Nothing
+      enters, nothing leaves, and nothing expires out of it.
+
+  Access                                                [Edit]
+  Configuration                                         [Edit]
+  Ownership                                          [Transfer]
+  Registration                                         [Remove]
+```
+
+Every section is read-first with its own `[Edit]`, shown only where authority
+allows and collapsed until asked for. There is **no trailing Manage block**: the
+eight concerns that share one page of always-open editors today become eight
+disclosures, each beside what it changes. Opening one:
+
+```
+  Queue                                               [Cancel]
+    Held               48
+    …
+    ┌──────────────────────────────────────────────────────┐
+    │ Retention   ▢─────────────  blank = no queue TTL      │
+    │ Capacity    ▢─────────────  blank = daemon default    │
+    │ Overflow    (•) Refuse   ( ) Drop oldest              │
+    │                                  [Save queue policy]  │
+    └──────────────────────────────────────────────────────┘
+```
+
+The read values stay visible above the editor. Cancel returns without a
+round-trip having changed anything, and the section's filters and scroll
+position are preserved on return.
+
+## A consequential confirmation
+
+Server-rendered, its own page, because the consequence is computed when it is
+shown ([forms](forms.md#consequential-actions)).
+
+```
+  Remove ocr/intake@parf.us?
+
+  ┌────────────────────────────────────────────────────────────┐
+  │ This is what happens                                       │
+  │                                                            │
+  │  · The address goes, and its credential goes with it.      │
+  │  · Nothing answers to this name afterwards.                │
+  │  · 48 held messages go with it.        ← computed just now │
+  │  · ops@parf.us keeps their own credential.                 │
+  └────────────────────────────────────────────────────────────┘
+
+  [Remove this service]   Cancel
+```
+
+The destructive action is a filled `--red` button with `--text-on-accent`
+(7.07:1 light, 7.44:1 dark). Cancel is a plain link, not a second button —
+one primary action per form, and a cancel shaped like a button is how people
+click the wrong one.
+
+## The five states, per component
+
+Each component is proved against all five on one static page before it is used
+anywhere — home-parf's fifth check, and the reason it gates rather than
+concludes: *empty* and *denied* become afterthoughts exactly when they are
+validated last.
+
+| State | Table | Definition list | Form |
+|---|---|---|---|
+| Populated | rows | values | values, valid |
+| Empty | what this page would hold, and how to create one | the label goes with the value ([glyphs](glyphs.md#absence-which-is-four-different-facts)) | — |
+| Denied | *not visible to you*, in words, never an empty array as zero | the same, per field | the control is absent, not disabled-looking |
+| Unavailable | the daemon did not answer; retry. **Never an empty healthy table** | `¿` | the form, with what was typed preserved |
+| Long name | 74-character address wraps in the second line; the row does not widen | wraps; the label column does not move | `field-sizing`, no overflow |
+
+## What is deliberately not drawn here
+
+Diagnostics, Activity, Users, Groups, Register, Account, Sign in and Problem
+follow from these five arrangements and the field decisions in
+[pages](pages.md#how-to-read-this). Drawing all fifteen before any is built
+would be specifying rather than designing — the review that matters is of the
+frame, the table, the detail-with-edits, the confirmation and the states, and
+those are here.
