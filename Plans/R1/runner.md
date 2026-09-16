@@ -85,6 +85,53 @@ lives in `services.json` with `-N` and the confinement rather than in
 `-N`'s default of 1: whether it is safe to run this thing twice is a decision
 the host is already making.
 
+### Many names into one inbox
+
+**Owner-settled, 2026-09-16.** Registration takes an optional **`route`**. When
+a record carries one, a message addressed to that record is delivered into the
+routed queue instead of its own, carrying **`orig-to`** — the name the sender
+actually addressed. Spelled the way `reply-to` already is.
+
+**A runner registers every service it manages with `route` pointing at
+itself**, so it reads one inbox and dispatches on `orig-to` rather than polling
+a queue per child. That is the motivating case and the reason this exists.
+
+It is the **dual of a pool**, and the two are worth reading together:
+
+| | Names | Inboxes | Readers |
+|---|---|---|---|
+| Pool (`--share`) | one | one | many, taking turns ([one name on many hosts](#one-name-on-many-hosts)) |
+| Route | many | one, the target's | one |
+
+A pool hides *where* a worker runs. A route hides *how many* inboxes a reader
+has to watch. Neither hides who the message was for: a pool member reads its
+own name, and a routed message says its own in `orig-to`.
+
+This is a **daemon** capability that the runner consumes. Delivery and the
+registry are the daemon's; starting children with a route is the runner's use
+of it. A client that wants the same fan-in gets it the same way.
+
+#### The rules it has to obey
+
+The owner settled the mechanism. These follow from it and are **derived here
+rather than stated by the owner**, so they can be refused:
+
+| | |
+|---|---|
+| **A route may only name a queue you could send to yourself** | Otherwise `route` is an ACL bypass with extra steps: register a name, point it at somebody else's inbox, and anyone permitted to send to *your* name is now writing into *theirs*. The authority to route into a queue is the authority to put a message in it. This is the shape of the escalation closed in [0.5.31](../../CHANGELOG.md) and it must not come back through registration |
+| **The addressed record's ACL is what admits the message** | The sender asked for `scaler@h` and passes `scaler@h`'s ACL. The route target's ACL governs who may *route to* it, which is a different question asked of a different principal at a different time |
+| **Routes do not chain** | One hop. If the target is itself routed, delivery stops at the target rather than following the second route — otherwise a cycle is an unbounded loop, and a two-hop route is a thing nobody asked for that arrives free with the wrong rule |
+| **The queue that holds it is the queue whose policy applies** | Bound, overflow and retention are the route target's, because that is the queue the message physically sits in. The addressed record's own queue settings describe a queue nothing is delivered to |
+| **A routed record's liveness is the target's** | A routed name has no reader and no queue of its own, so reporting its own would say *no reader waiting, nothing queued* forever, about a service that is being served normally. Either it reports the target's or it says the question does not apply to it — what it must not do is answer with a measurement of an empty queue nobody uses ([declared and observed are never merged](../MVP/web/data-dictionary.md#the-rule)) |
+
+#### What is not settled
+
+Three choices that change the implementation and are not ours to pick:
+[Q64](QUESTIONS.md#open-questions) reply identity,
+[Q65](QUESTIONS.md#open-questions) whether a route may be changed after
+registration, and [Q66](QUESTIONS.md#open-questions) whether routing applies to
+pub/sub subscribers.
+
 ### Long-lived services
 
 **A child in one of the stream forms is started once and kept** — `jsonl` or
