@@ -61,6 +61,16 @@ trimmed away — it is a bad character, and the name is refused.
 **Built.** Any authenticated principal may publish an unheld name in a realm
 without a directory. The caller becomes its owner. A backed realm requires
 proof of a key the directory publishes; the resulting record owns itself.
+
+**Principal, not merely a credential holder.** The caller must be somebody the
+daemon already holds a profile or a record for; a name holding nothing but a
+credential is refused, its own name included
+([what a call carries](02-access.md#what-a-call-carries)). So a name is created
+by somebody who is already here — a maintainer writing a profile, an owner
+registering it, or [enrolment](#proving-possession) proving a key — and never by
+itself. Registering a record for an owner the daemon does not know is refused
+for the same reason: it would leave that record owned by nobody, which is
+[wreckage by another route](#when-the-owner-is-gone).
 GitHub enrolment fetches public keys, not profile details. Existing tokens
 continue working if the provider is unavailable.
 
@@ -121,6 +131,17 @@ issued for it, not the process behind it. The name disappears from discovery,
 new messages to it are refused, and its credential stops authenticating — the
 record is what access hangs on, so with the record gone there is nothing left
 to hold. Existing history remains history.
+
+**Built: you cannot leave by stranding what you own.** Removing the record that
+is a name's whole standing, while that name still owns others, would leave each
+of them owned by somebody the daemon no longer knows — the same wreckage
+[deletion](#when-the-owner-is-gone) exists to clean up, made by an ordinary
+call. It is refused like a queue that is not empty, `409`, and the refusal names
+what is in the way: there is somebody here to tell, and what to do about it —
+remove them, or hand them to another owner — is theirs to choose. What counts is
+what the removal costs *the name*, not who held the record: a record of yours
+that a maintainer owns is no safer to strand. A **registered user keeps its
+services** when its record goes, because the user is still somebody.
 
 Nothing is held back for the name. It is reserved to nobody, survives no
 restart, and whoever asks for it next gets it — its previous owner included,
@@ -344,10 +365,16 @@ service and topic changes use [record management authority](#groups-and-maintain
 
 ### When the owner is gone
 
-**Pending, not built.** Every owner is a user, and a user is never deleted
+**Pending, not built.** Every owner is somebody the daemon knows — a user, or
+a name with a record of its own — and neither is deleted while it owns anything
 ([the levels are nested](#groups-and-maintainers), [user lifecycle](#user-lifecycle)).
-So a service whose owner is not a user is not a state to recover from — it is
-wreckage from before that rule, or from something that went wrong. **It is
+That is **enforced rather than assumed**: registering a record owned by a name
+the daemon holds nothing for but a credential is refused
+([what a call carries](02-access.md#what-a-call-carries)), so no call leaves one
+behind. It had not been, which is what [Q57](decisions.md#settled) settled.
+
+So a service whose owner is not known is not a state to recover from — it is
+wreckage from an older store, or from something that went wrong. **It is
 deleted, at once, with everything that hung on it.**
 
 | Goes | |

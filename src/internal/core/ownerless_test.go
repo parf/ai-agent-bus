@@ -85,10 +85,15 @@ func TestTheSweepNeedsRestoreAndTheOwnerFirst(t *testing.T) {
 func TestTheSweepDoesNotManufactureOrphans(t *testing.T) {
 	b := New()
 	b.Administrator("owner@h")
-	// absent@h holds no record and no profile, and owns a service.
-	if _, err := b.Register(protocol.Record{Name: "theirs@h", Owner: "absent@h"}); err != nil {
-		t.Fatal(err)
-	}
+	// absent@h holds no record and no profile, and owns a service. Restored
+	// rather than registered: registering a record owned by a name the daemon
+	// knows nothing about is refused now
+	// (docs/01-identity.md#when-the-owner-is-gone), so an old store is the
+	// only place this state still comes from — which is the state the sweep
+	// has to be safe against.
+	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
+		{Name: "theirs@h", Owner: "absent@h", Kind: "generic", Full: protocol.OverflowStrict},
+	}})
 	if got := b.Ownerless([]string{"absent@h"}); len(got) != 0 {
 		t.Errorf("%v swept, leaving theirs@h owned by a name with no credential", got)
 	}

@@ -19,14 +19,16 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 	if err := b.SetGroup("owner@h", MaintainersGroup, []string{"owner@h", "maintainer@h"}, false); err != nil {
 		t.Fatal(err)
 	}
-	for _, r := range []protocol.Record{
-		{Name: "session@h", Owner: "session@h", Kind: "agent"},
-		{Name: "owned@h", Owner: "unprofiled-owner@h", Kind: "generic"},
-	} {
-		if _, err := b.Register(r); err != nil {
-			t.Fatal(err)
-		}
+	if _, err := b.Register(protocol.Record{Name: "session@h", Owner: "session@h", Kind: "agent"}); err != nil {
+		t.Fatal(err)
 	}
+	// Restored, not registered: a record owned by a name the daemon holds
+	// nothing for but a credential can no longer be registered into existence
+	// (docs/01-identity.md#when-the-owner-is-gone). It still arrives from an
+	// older store, which is exactly why the directory has to show it.
+	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
+		{Name: "owned@h", Owner: "unprofiled-owner@h", Kind: "generic", Full: protocol.OverflowStrict},
+	}})
 	credentials := []string{"session@h", "owned@h", "unprofiled-owner@h", "unused@h", "smoke/person@h"}
 	for _, caller := range []string{"owner@h", "maintainer@h"} {
 		users := b.Users(caller, credentials)

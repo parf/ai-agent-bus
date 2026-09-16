@@ -30,6 +30,12 @@ func TestDashboardOwnerControls(t *testing.T) {
 	client.CheckRedirect = func(r *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }
 	sessions := map[string]*http.Cookie{}
 	for _, who := range []string{"owner@h", "other@h", "admin@h"} {
+		// Registered before signing in, not after: a name the daemon holds
+		// nothing for but a credential cannot sign in at all
+		// (docs/02-access.md#what-a-call-carries).
+		if _, err := b.Register(protocol.Record{Name: who, Owner: who}); err != nil {
+			t.Fatal(err)
+		}
 		token, err := tokens.Issue(who)
 		if err != nil {
 			t.Fatal(err)
@@ -43,9 +49,6 @@ func TestDashboardOwnerControls(t *testing.T) {
 			t.Fatal("sign in did not return session")
 		}
 		sessions[who] = resp.Cookies()[0]
-		if _, err := b.Register(protocol.Record{Name: who, Owner: who}); err != nil {
-			t.Fatal(err)
-		}
 	}
 	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h", Descr: "service", Allow: []string{"owner@h"}}); err != nil {
 		t.Fatal(err)

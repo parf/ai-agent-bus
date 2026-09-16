@@ -9,6 +9,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
@@ -70,6 +71,14 @@ func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 		h.ServeHTTP(w, r)
 		return w
 	}
+	// Every participant is somebody first. A name the daemon holds nothing for
+	// cannot even be issued a credential, and this test is about
+	// configuration rather than about the gate.
+	for _, who := range []string{"owner@h", "other@h"} {
+		if _, err := bus.SetUser("svc@h", protocol.User{Name: who}, true); err != nil {
+			t.Fatalf("fixture principal %s: %v", who, err)
+		}
+	}
 	if w := post("/configure", "owner@h", `{"name":"mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
 		t.Fatalf("configure: %d %s", w.Code, w.Body.String())
 	} else if strings.Contains(w.Body.String(), "FIXTURE") {
@@ -104,6 +113,14 @@ func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		return w
+	}
+	// Every participant is somebody first. A name the daemon holds nothing for
+	// cannot even be issued a credential, and this test is about
+	// configuration rather than about the gate.
+	for _, who := range []string{"owner@h", "nosy@h"} {
+		if _, err := bus.SetUser("svc@h", protocol.User{Name: who}, true); err != nil {
+			t.Fatalf("fixture principal %s: %v", who, err)
+		}
 	}
 	if w := do("POST", "/configure", "owner@h", `{"name":"mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
 		t.Fatalf("configure: %d %s", w.Code, w.Body.String())

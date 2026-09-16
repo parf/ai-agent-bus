@@ -31,6 +31,15 @@ in the daemon account's `authorized_keys` is restricted to a forced command:
 in that entry; `SSH_ORIGINAL_COMMAND` is parsed as a request, not executed as
 shell text.
 
+⚠️ **`user add` does not yet make the name somebody.** It writes the
+`authorized_keys` line and nothing else, and a credential is now only issued to
+a name the daemon already holds a profile or a record for
+([getting a token](02-access.md#getting-a-token)). So on a fresh install the
+key works and the `token` verb it is forced into refuses, until a maintainer
+creates that user. Adding a user ought to add the user; that it does not is
+[H.5.9](../Plans/MVP/TODO.md#remaining-work), not a step operators are meant to
+remember.
+
 The implemented admin verbs are `user add`, `user list`, `user remove` and
 `token`. The token operation is delegated to the token helper. Console and SSH
 use the same program. Bundle administration and regeneration of keys are not

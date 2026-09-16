@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -29,6 +30,22 @@ func (b *Bus) Unregister(name, caller string) error {
 	}
 	if !b.manages(who, r) {
 		return fmt.Errorf("%w: %s", ErrNotOwner, n)
+	}
+	// Removing the record that makes a name a principal, while that name still
+	// owns others, leaves every one of them owned by somebody the daemon no
+	// longer knows: the wreckage the deletion rule exists for
+	// (docs/01-identity.md#when-the-owner-is-gone), made by an ordinary call.
+	// Refused like a queue that is not empty, and for the same reason — there
+	// is somebody here to tell, and what to do about it is theirs to choose.
+	//
+	// What matters is what removing it costs, not who owned it: a record is
+	// the whole of a name's standing unless it also has a profile, so taking
+	// it leaves that name known to nobody however the record was owned. A
+	// registered user keeps its services, because the user is still there.
+	if _, person := b.users[n]; !person {
+		if owned := b.ownedBy(n); len(owned) != 0 {
+			return fmt.Errorf("%w: %s still owns %s; remove or hand those over first", ErrBusy, n, strings.Join(owned, ", "))
+		}
 	}
 	if in := b.inboxes[n]; in != nil {
 		b.prune(in, time.Now())

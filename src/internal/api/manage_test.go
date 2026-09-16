@@ -29,8 +29,14 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 		}
 		return w.Body.String()
 	}
-	call("alice@h", "/register", `{"name":"alice@h"}`, 200)
-	call("bob@h", "/register", `{"name":"bob@h"}`, 200)
+	// The people exist before they act: a credential is issued to somebody,
+	// and a name nobody created cannot be handed one
+	// (docs/02-access.md#getting-a-token).
+	for _, who := range []string{"alice@h", "bob@h", "maint@h"} {
+		if _, err := bus.SetUser("admin@h", protocol.User{Name: who}, true); err != nil {
+			t.Fatal(err)
+		}
+	}
 	call("alice@h", "/register", `{"name":"svc@h","allow":["alice@h"]}`, 200)
 	call("admin@h", "/manage", `{"name":"svc@h","disabled":true}`, 403)
 	call("bob@h", "/manage", `{"name":"svc@h","owner":"bob@h"}`, 403)

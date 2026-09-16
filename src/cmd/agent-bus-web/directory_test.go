@@ -13,6 +13,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
@@ -42,11 +43,16 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	if err := b.SetGroup("owner@h", core.MaintainersGroup, []string{"owner@h", "maintainer@h"}, false); err != nil {
 		t.Fatal(err)
 	}
-	for _, r := range []protocol.Record{{Name: "self@h", Owner: "self@h"}, {Name: "service@h", Owner: "holds@h"}} {
-		if _, err := b.Register(r); err != nil {
-			t.Fatal(err)
-		}
+	if _, err := b.Register(protocol.Record{Name: "self@h", Owner: "self@h"}); err != nil {
+		t.Fatal(err)
 	}
+	// service@h comes from a store rather than a registration: its owner is a
+	// name the daemon holds only a credential for, and registering that is
+	// refused now (docs/01-identity.md#when-the-owner-is-gone). The directory
+	// still has to show it, because an older store still supplies it.
+	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
+		{Name: "service@h", Owner: "holds@h", Kind: "generic", Full: protocol.OverflowStrict},
+	}})
 	for i := 0; i < 30; i++ {
 		if _, err := tokens.Issue(fmt.Sprintf("unused-%02d@h", i)); err != nil {
 			t.Fatal(err)

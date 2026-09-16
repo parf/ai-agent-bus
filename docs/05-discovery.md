@@ -208,7 +208,7 @@ cannot drift apart.
 
 | Reason | | |
 |---|---|---|
-| `credential` | `401` | the token is not one, or none came at all — the only thing a call carries ([access § what a call carries](02-access.md#what-a-call-carries)) |
+| `credential` | `401` | the token is not one, none came at all, or it backs a name the daemon knows nothing about — all three are *who are you*, and none of them is a state anybody can lift ([access § what a call carries](02-access.md#what-a-call-carries)) |
 | `acl` | `403` | the service, the record's owner, or a private configuration said no ([identity § acl](01-identity.md#acl)) |
 | `suspended` | `403` | a user state is in the way: the caller's own, or that of the owner of the name being called ([user lifecycle](01-identity.md#user-lifecycle), [services of a paused or banned user](01-identity.md#services-of-a-user-who-is-paused-or-banned)) |
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](01-identity.md#proving-possession)) |

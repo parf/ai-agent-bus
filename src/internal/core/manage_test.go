@@ -16,6 +16,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 		t.Run(change, func(t *testing.T) {
 			b := New()
 			b.Administrator("admin@h")
+			known(t, b, "owner@h")
 			if _, err := b.SetUser("admin@h", protocol.User{Name: "reader@h"}, true); err != nil {
 				t.Fatal(err)
 			}
@@ -69,6 +70,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 
 func TestManagementRejectsPartialInvalidChanges(t *testing.T) {
 	b := New()
+	known(t, b, "owner@h")
 	b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h", Descr: "original"})
 	if _, err := b.Manage("owner@h", Management{Name: "svc@h", Descr: ptr("lost"), Bound: ptr(-1)}); !errors.Is(err, ErrBound) {
 		t.Fatal(err)
@@ -83,6 +85,7 @@ func TestManagementRejectsPartialInvalidChanges(t *testing.T) {
 // the now-idle address. The reader's cancellation cleanup must not recreate it.
 func TestCanceledReaderCannotRecreateRemovedInbox(t *testing.T) {
 	b := New()
+	known(t, b, "owner@h")
 	b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h"})
 	w := &waiter{caller: "svc@h", ch: make(chan protocol.Envelope, 1), stopped: make(chan error, 1)}
 	b.inboxes["svc@h"].waiters = append(b.inboxes["svc@h"].waiters, w)
@@ -101,6 +104,7 @@ func TestCanceledReaderCannotRecreateRemovedInbox(t *testing.T) {
 func TestChannelManagersCanRemoveButStrangersCannot(t *testing.T) {
 	b := New()
 	b.Administrator("admin@h")
+	known(t, b, "owner@h")
 	b.Register(protocol.Record{Name: "news@h", Owner: "owner@h", Kind: "topic", Mode: "pubsub"})
 	b.Register(protocol.Record{Name: "subscriber@h", Owner: "subscriber@h"})
 	if _, err := b.Subscribe("subscriber@h", "news@h", true); err != nil {

@@ -16,10 +16,79 @@ func (b *Bus) active(name string) bool {
 	state := b.users[name].State
 	return state == "" || state == "active"
 }
-func (b *Bus) CanAuthenticate(name string) bool {
+
+// Authenticate says whether this name may act at all, and says why not in two
+// different ways, because they are two different answers to give a caller.
+//
+// A name the daemon holds nothing for but a credential is **not somebody it
+// knows**: no profile, no record of its own. Holding a token for it is not
+// access, and the answer is *who are you* rather than *you may not* — nothing
+// it could be granted would help, because there is nobody to grant it to
+// ([refusals](docs/05-discovery.md#refusals) separates those two codes).
+// Unknown had been reading as active, since a name with no profile has no
+// state and no state passes for the ordinary case.
+//
+// This asks who the daemon knows, which is the first half of what the
+// [ownerless sweep](docs/02-access.md#ownerless-credentials) asks at start. The
+// sweep is the more forgiving of the two while its interim guard stands: it
+// keeps a credential whose name owns records, so that it does not strand them
+// before orphan deletion exists. Kept is not accepted — a credential the sweep
+// spares on that ground still answers for nobody here, and grants nothing.
+func (b *Bus) Authenticate(name string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.active(name)
+	if err := b.knows(name); err != nil {
+		return err
+	}
+	if !b.active(name) {
+		return ErrInactive
+	}
+	return nil
+}
+
+// Known is the same test asked before a credential is handed out, because a
+// credential is issued **to somebody**. Minting one for a name the daemon holds
+// nothing for is what filled the directory with names that answered for
+// nothing: the credential was their only trace, and on its own it let them
+// call. See docs/02-access.md#getting-a-token.
+func (b *Bus) Known(name string) error {
+	n, err := canon(name)
+	if err != nil {
+		return err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.knows(n)
+}
+
+// IssueFor mints under the registry lock, so that the name cannot stop being
+// somebody between the check and the credential. Checking and then issuing
+// left a window an unregistration fitted through, and the credential it
+// produced outlived the name it was issued for.
+//
+// mint must only touch the credential store, never call back into Bus. Same
+// shape and same hold as RemoveOwnerless, which is the other half of this:
+// one place decides, and it is still deciding when the store is written.
+func (b *Bus) IssueFor(name string, mint func(string) (string, error)) (string, error) {
+	n, err := canon(name)
+	if err != nil {
+		return "", err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := b.knows(n); err != nil {
+		return "", err
+	}
+	return mint(n)
+}
+
+// knows says whether the daemon holds anything for this name beyond a
+// credential. Caller holds b.mu.
+func (b *Bus) knows(name string) error {
+	if b.identityKind(name) == protocol.DirectoryCredential {
+		return fmt.Errorf("%w: %s has no profile and no record of its own", ErrNoPrincipal, name)
+	}
+	return nil
 }
 func (b *Bus) isMaintainer(name string) bool {
 	return name == b.admin || b.member(name, MaintainersGroup)
@@ -120,6 +189,19 @@ func (b *Bus) RemoveOwnerless(caller, name string, forget func(string) error) er
 // owns says whether this name is somebody else's owner. A record it owns that
 // is itself needs no clause here: Ownerless has already kept it for holding a
 // record. Caller holds b.mu.
+// ownedBy lists the other records this name owns, for a refusal that says what
+// is in the way rather than only that something is. Caller holds b.mu.
+func (b *Bus) ownedBy(name string) []string {
+	out := []string{}
+	for _, r := range b.records {
+		if r.Owner == name && r.Name != name {
+			out = append(out, r.Name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 func (b *Bus) owns(name string) bool {
 	for _, r := range b.records {
 		if r.Owner == name {
@@ -127,6 +209,50 @@ func (b *Bus) owns(name string) bool {
 		}
 	}
 	return false
+}
+
+// vouchedFor refuses to let a name in a realm somebody vouches for be brought
+// into existence by asking. In such a realm you become the name by proving a
+// key the directory publishes ([proving possession](docs/01-identity.md#proving-possession)),
+// and every path that creates a name has to say so — registration and
+// configuration alike, because both of them create. Caller holds b.mu.
+func (b *Bus) vouchedFor(name string) error {
+	n, err := protocol.ParseName(name)
+	if err != nil {
+		return nil
+	}
+	if _, backed := b.dirs[n.Realm]; backed {
+		return fmt.Errorf("%w: %s is vouched for, so it is enrolled, not registered", ErrEnrol, n.Realm)
+	}
+	return nil
+}
+
+// mayOwn says whether owner may end up owning the record called name.
+//
+// Registering a record for an owner the daemon knows nothing about would leave
+// it owned by nobody — the wreckage the
+// [deletion rule](docs/01-identity.md#when-the-owner-is-gone) exists to clean
+// up — so it is refused, and refusing it is what makes that rule's premise true
+// rather than aspirational.
+//
+// A name not yet known may still be created **owned by itself**, because that
+// is one call creating a principal rather than stranding a record. Reaching it
+// from outside takes a caller whose record is removed while its own request is
+// in flight, which is the gate-to-mutation window [H.5.8] closes for every verb
+// at once rather than for this one clause; restricting it to enrolment here
+// would narrow one route into that window and leave the window. What does
+// reach it legitimately is
+// [enrolment](docs/01-identity.md#proving-possession), which writes a
+// self-owned record for a newcomer a realm vouched for.
+// Caller holds b.mu.
+func (b *Bus) mayOwn(owner, name string) error {
+	if b.identityKind(owner) == protocol.DirectoryCredential && owner != name {
+		return fmt.Errorf("%w: register %s before owning anything else", ErrNoPrincipal, owner)
+	}
+	if !b.active(owner) {
+		return ErrInactive
+	}
+	return nil
 }
 
 func (b *Bus) mayEditUser(caller, name string) bool {

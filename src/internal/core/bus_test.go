@@ -233,6 +233,7 @@ func waitForWaiters(t *testing.T, b *Bus, name string, n int) {
 // consumer that was down still finds the message.
 func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
 	b := New()
+	known(t, b, "a@srv")
 	mustRegister(t, b, protocol.Record{Name: "jobs@srv", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Owner: "a@srv"})
 	mustRegister(t, b, protocol.Record{Name: "pub@srv", Owner: "pub@srv"})
 	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "jobs@srv", Topic: "jobs@srv", Body: "work"}); err != nil {
@@ -250,6 +251,7 @@ func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
 // of it. See docs/04-messaging.md#subscribers.
 func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 	b := New()
+	known(t, b, "a@srv")
 	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
 	mustRegister(t, b, protocol.Record{Name: "pub@srv", Owner: "pub@srv"})
 	for _, s := range []string{"one@srv", "two@srv"} {
@@ -281,6 +283,7 @@ func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 // throw it away — a service registers itself on every start.
 func TestASubscriptionSurvivesTheTopicBeingRestated(t *testing.T) {
 	b := New()
+	known(t, b, "a@srv")
 	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
 	mustRegister(t, b, protocol.Record{Name: "one@srv", Owner: "one@srv"})
 	if _, err := b.Subscribe("one@srv", "news@srv", true); err != nil {
@@ -556,6 +559,7 @@ func TestAConfigurationIsStoredCompacted(t *testing.T) {
 // (docs/03-services-and-topics.md#why-a-digest-at-all).
 func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
 	b := New()
+	known(t, b, "parf@srv1")
 	rec, err := b.Register(protocol.Record{
 		Name: "plain@h", Kind: "generic", Owner: "parf@srv1",
 		Config: []byte(`{"smuggled":true}`), ConfigSHA: "forged-by-the-caller",
@@ -620,6 +624,7 @@ func TestConsumingFromAnUnregisteredNameIsRefused(t *testing.T) {
 // a reader it does not have — the same shape as a forged digest.
 func TestARegistrationCannotClaimLiveState(t *testing.T) {
 	b := New()
+	known(t, b, "o@h")
 	rec, err := b.Register(protocol.Record{Name: "probe@h", Kind: "agent", Owner: "o@h", Reading: true, Queued: 77})
 	if err != nil {
 		t.Fatal(err)
@@ -645,6 +650,7 @@ func TestARegistrationCannotClaimLiveState(t *testing.T) {
 // thing a caller asking for pub/sub does not want.
 func TestAnUnknownTopicModeIsRefused(t *testing.T) {
 	b := New()
+	known(t, b, "o@h")
 	if _, err := b.Register(protocol.Record{Name: "t@h", Kind: protocol.KindTopic, Mode: "garbage", Owner: "o@h"}); !errors.Is(err, ErrMode) {
 		t.Fatalf("err = %v, want ErrMode", err)
 	}

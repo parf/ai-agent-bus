@@ -29,6 +29,29 @@ or an ssh line, in exchange for a credential
 ([getting a token](#getting-a-token)). From then on the credential carries it,
 and over ssh the name is not typed at all ([token scope](#token-scope)).
 
+**Built: holding a credential is not being somebody.** The token says which
+name is calling; whether that name is anybody is a second question, and the
+daemon asks it on every call. A name it has no profile and no record for is not
+a principal it knows, and it is refused everything — not because of a state it
+is in, but because there is nobody there. Unknown had been reading as *active*,
+since a name with no profile has no state and no state passes for the ordinary
+case; that is [settled](decisions.md#settled) and fixed.
+
+**The two refusals are not the same, and must not read alike.** A name the
+daemon does not know is told `401`, *who are you*: the same answer a bad token
+gets, and [counted as the same reason](05-discovery.md#refusals), because what
+was presented does not make the caller anybody. A user that is paused or banned
+is known, and is told `403 suspended`, which is a state and says so. Nothing
+could be granted to the first; the second is waiting on somebody.
+
+**There is no exception, and nothing to bootstrap.** An unregistered name
+cannot register itself either: it never had a credential to try it with, because
+[one is not issued to nobody](#getting-a-token). A name that holds a credential
+and nothing else is a leftover from an older store rather than a newcomer, and
+letting it register its way in would only bring leftovers back. Enrolment is the
+path that creates a name and its credential together, and it proves a key to do
+it ([proving possession](01-identity.md#proving-possession)).
+
 **`AGENT_BUS_NAME` survives and authenticates nothing.** It is what a process is
 serving as — for its own use and its children's ([runner § what the child is
 told](08-runner-role.md#what-the-child-is-told)) — and the daemon does not read
@@ -44,6 +67,17 @@ needs only the key.
 | over SSH | `export AGENT_BUS_TOKEN=$(ssh agent-busd@<node> token)` | anyone with SSH to the node; sshd authenticates you with the key you already have, **so you do not name yourself** — the `authorized_keys` line already does ([token scope](#token-scope)) |
 | on the box | `agent-bus-token <user@realm>` | server access, no SSH key on the bus |
 | with a key | `agent-bus-token <user@realm> --key <ed25519>` | **no sshd anywhere** — the daemon sets the challenge and the key answers it |
+
+**Built: a credential is issued to somebody, never to nobody.** Every path
+above asks for a name the daemon already holds something for — a profile, or a
+record of its own. Minting one for a name it knows nothing about is refused,
+whoever asks, the daemon owner included. That operation is how this node came to
+hold two hundred and thirty-one credentials answering for nothing: the
+credential was their only trace, and on its own it let them call. A name becomes
+real first — somebody registers it, or a maintainer creates it as a user — and
+then it may hold a credential. **There is no self-service**: an unregistered
+name cannot do anything at all, registering itself included
+([what a call carries](#what-a-call-carries)).
 
 **Not every host runs sshd**, so the key path does not go through one: the
 daemon hands out a nonce, the holder signs it, and a signature that checks
@@ -122,6 +156,12 @@ exactly the orphans the other rule is for, at a restart, silently — so until
 [H.5.5](../Plans/MVP/TODO.md#remaining-work) lands, a name that owns services
 keeps its credential. The guard is temporary and goes with that task; it is not
 a third condition.
+
+**Kept is not accepted.** A credential spared on that ground still answers for
+nobody, so it grants nothing while it is spared: the name has no profile and no
+record of its own, and is refused every call
+([what a call carries](#what-a-call-carries)). The guard keeps a row in the
+store from being removed too early. It does not keep a door open.
 
 It is the other half of *as long as the user is registered*. A person keeps
 theirs while they are a registered user, whatever they register or unregister

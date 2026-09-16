@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -54,7 +55,18 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	}
 	// GETs did not clean anything. An ordinary principal cannot invoke the
 	// mutation directly, even for its own otherwise eligible credential.
-	call("unused@h", "POST", "/identity/remove", `{"name":"unused@h"}`, 403)
+	//
+	// Two refusals, because there are two kinds of ordinary caller. The
+	// eligible credential is by definition a name the daemon holds nothing
+	// else for, so it no longer reaches a handler at all
+	// (docs/02-access.md#what-a-call-carries) — and a registered principal,
+	// which does reach one, is refused there for not being a maintainer. The
+	// first alone would stop pinning the authorization check.
+	call("unused@h", "POST", "/identity/remove", `{"name":"unused@h"}`, 401)
+	if _, err := b.Register(protocol.Record{Name: "ordinary@h", Owner: "ordinary@h"}); err != nil {
+		t.Fatal(err)
+	}
+	call("ordinary@h", "POST", "/identity/remove", `{"name":"unused@h"}`, 403)
 	if _, ok := s.tokens.Principal(current); !ok {
 		t.Fatal("reading or denied removal changed the credential")
 	}
@@ -86,9 +98,13 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 				t.Fatal(err)
 			}
 		case "owns-services":
-			if _, err := b.Register(protocol.Record{Name: "child@h", Owner: name}); err != nil {
-				t.Fatal(err)
-			}
+			// From a store, not a registration: a record owned by a name the
+			// daemon holds only a credential for cannot be created any more
+			// (docs/01-identity.md#when-the-owner-is-gone), and an older store
+			// is where the eligibility recheck still has to meet it.
+			b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
+				{Name: "child@h", Owner: name, Kind: "generic", Full: protocol.OverflowStrict},
+			}})
 		}
 		call("owner@h", "POST", "/identity/remove", `{"name":"`+name+`"}`, 409)
 		if _, ok := s.tokens.Principal(cred); !ok {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.29 — 2026-09-15
+
+An unregistered name can do nothing. A name the daemon holds no profile and no record for was reading as an active user; it is now refused `401` on every call, counted as a credential refusal rather than as a suspension, and it is not issued a credential in the first place — the operation that left this node holding 231 credentials answering for nothing. Registering a record for an owner the daemon does not know is refused, and so is removing a record while its name still owns others, so an ordinary call can no longer leave a service owned by nobody. An unowned registration now means self-owned. Configuring a name that does not exist creates it, so it now obeys what creating obeys: a name in a realm somebody vouches for could be claimed by configuring it rather than registering it, and then issued a credential with no key proved. Issuing decides and mints under one hold, so a name cannot stop existing in between.
+
 ## 0.5.28 — 2026-09-15
 
 The user directory distinguishes registered users from other identities, keeps unused credentials visible for review, and lets owners and maintainers remove eligible credentials explicitly. Cleanup rechecks current state, persists before revoking tokens and sessions, and preserves failed writes; directory search and pagination avoid per-avatar bus requests.

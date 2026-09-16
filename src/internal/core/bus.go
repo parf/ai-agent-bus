@@ -26,24 +26,28 @@ const maxQueue = 1000
 var (
 	ErrProfile  = errors.New("invalid user profile")
 	ErrInactive = errors.New("user access is suspended")
-	ErrDisabled = errors.New("service is disabled")
-	ErrUnknown  = errors.New("no such name")
-	ErrTwoReads = errors.New("inbox already has a reader, and neither asked to share it")
-	ErrBadName  = errors.New("bad name")
-	ErrReceipt  = errors.New(`a receipt is "ack" or "done"`)
-	ErrFull     = errors.New("the receiver's queue is full")
-	ErrOverflow = errors.New("overflow is strict or ring")
-	ErrMode     = errors.New("a topic mode is queue or pubsub")
-	ErrConfig   = errors.New("a configuration is JSON")
-	ErrTTL      = errors.New("a ttl is a duration, like 30s")
-	ErrWait     = errors.New("a wait is a duration, like 30s")
-	ErrBound    = errors.New("a bound is a positive number of messages")
-	ErrNotOwner = errors.New("that record belongs to someone else")
-	ErrExists   = errors.New("that name is already registered")
-	ErrBusy     = errors.New("cannot unregister a busy inbox")
-	ErrPrivate  = errors.New("a configuration is private to the service it belongs to")
-	ErrNotAllow = errors.New("not on that service's allow list")
-	ErrEnrol    = errors.New("enrolment")
+	// Held a credential, and the daemon holds nothing else for the name: no
+	// profile and no record of its own. That is not a state to recover from,
+	// it is nobody (docs/02-access.md#what-a-call-carries).
+	ErrNoPrincipal = errors.New("that credential answers for nobody")
+	ErrDisabled    = errors.New("service is disabled")
+	ErrUnknown     = errors.New("no such name")
+	ErrTwoReads    = errors.New("inbox already has a reader, and neither asked to share it")
+	ErrBadName     = errors.New("bad name")
+	ErrReceipt     = errors.New(`a receipt is "ack" or "done"`)
+	ErrFull        = errors.New("the receiver's queue is full")
+	ErrOverflow    = errors.New("overflow is strict or ring")
+	ErrMode        = errors.New("a topic mode is queue or pubsub")
+	ErrConfig      = errors.New("a configuration is JSON")
+	ErrTTL         = errors.New("a ttl is a duration, like 30s")
+	ErrWait        = errors.New("a wait is a duration, like 30s")
+	ErrBound       = errors.New("a bound is a positive number of messages")
+	ErrNotOwner    = errors.New("that record belongs to someone else")
+	ErrExists      = errors.New("that name is already registered")
+	ErrBusy        = errors.New("cannot unregister a busy inbox")
+	ErrPrivate     = errors.New("a configuration is private to the service it belongs to")
+	ErrNotAllow    = errors.New("not on that service's allow list")
+	ErrEnrol       = errors.New("enrolment")
 )
 
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.
@@ -148,6 +152,13 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	if r.Kind == "" {
 		r.Kind = "generic"
 	}
+	// A registration that names no owner is the name answering for itself,
+	// which is what registering one has always meant where no realm vouches
+	// for it (docs/01-identity.md#registration). Defaulted here beside the
+	// others, so that "owned by nobody" is not a state a record can be in.
+	if r.Owner == "" {
+		r.Owner = name
+	}
 	if r.Full == "" {
 		r.Full = protocol.OverflowStrict
 	}
@@ -162,8 +173,8 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if !b.active(r.Owner) {
-		return protocol.Record{}, ErrInactive
+	if err := b.mayOwn(r.Owner, name); err != nil {
+		return protocol.Record{}, err
 	}
 	if _, exists := b.records[name]; createOnly && exists {
 		return protocol.Record{}, ErrExists
@@ -173,10 +184,8 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	// become the name by proving you hold its key, not by asking first.
 	// See docs/01-identity.md#registration.
 	if _, known := b.records[name]; !known && !enrolled {
-		if n, err := protocol.ParseName(name); err == nil {
-			if _, backed := b.dirs[n.Realm]; backed {
-				return protocol.Record{}, fmt.Errorf("%w: %s is vouched for, so it is enrolled, not registered", ErrEnrol, n.Realm)
-			}
+		if err := b.vouchedFor(name); err != nil {
+			return protocol.Record{}, err
 		}
 	}
 	// Registering refreshes a description. It is not a way to take a record
@@ -290,6 +299,18 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	defer b.mu.Unlock()
 	r, known := b.record(n)
 	if !known {
+		// Creating here obeys what creating anywhere else obeys. This is a
+		// creation path as much as registration is, and a rule only one of
+		// them applied was not a rule: a name /register refused for being in
+		// a vouched realm could be taken by configuring it instead, and then
+		// issued a credential, with no key ever proved.
+		// See docs/01-identity.md#registration.
+		if err := b.vouchedFor(n); err != nil {
+			return protocol.Record{}, err
+		}
+		if err := b.mayOwn(who, n); err != nil {
+			return protocol.Record{}, err
+		}
 		// Same defaults a bare registration gets: configuring is not a
 		// second way to describe a service, only a way to give it config.
 		r = protocol.Record{Name: n, Kind: "generic", Owner: who, Full: protocol.OverflowStrict}

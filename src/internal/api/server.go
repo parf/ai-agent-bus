@@ -225,8 +225,8 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 			fail(w, http.StatusUnauthorized, "bad token")
 			return
 		}
-		if !s.bus.CanAuthenticate(name.String()) {
-			s.reply(w, nil, core.ErrInactive)
+		if err := s.bus.Authenticate(name.String()); err != nil {
+			s.reply(w, nil, err)
 			return
 		}
 		next(w, r, name)
@@ -241,8 +241,8 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 func (s *Server) onSocket(me protocol.Name) guard {
 	return func(next func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			if !s.bus.CanAuthenticate(me.String()) {
-				s.reply(w, nil, core.ErrInactive)
+			if err := s.bus.Authenticate(me.String()); err != nil {
+				s.reply(w, nil, err)
 				return
 			}
 			next(w, r, me)
@@ -304,9 +304,16 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 	if in.Rotate {
 		issue = s.tokens.Rotate
 	}
-	tok, err := issue(want.String())
+	// Issued to somebody, never to nobody. This is the operation that filled
+	// the directory with names answering for nothing: a credential was minted
+	// for a name the daemon held nothing else for, and the credential alone
+	// let it call. Register the name, or create it as a user, first.
+	// The registry decides and still holds while the store is written, so an
+	// unregistration cannot fit between the two.
+	// See docs/02-access.md#getting-a-token.
+	tok, err := s.bus.IssueFor(want.String(), issue)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		s.reply(w, nil, err)
 		return
 	}
 	ok(w, map[string]string{"name": want.String(), "token": tok})
@@ -599,6 +606,10 @@ var codes = []struct {
 }{
 	{core.ErrProfile, http.StatusBadRequest, "malformed"},
 	{core.ErrInactive, http.StatusForbidden, "suspended"},
+	// Counted as a credential refusal, not as a second reason: the caller is
+	// being told the same thing a bad token is told, which is that what they
+	// presented does not make them anybody.
+	{core.ErrNoPrincipal, http.StatusUnauthorized, "credential"},
 	{core.ErrDisabled, http.StatusConflict, "disabled"},
 	{core.ErrBadName, http.StatusBadRequest, "malformed"},
 	{core.ErrOverflow, http.StatusBadRequest, "malformed"},

@@ -11,6 +11,7 @@ import (
 func TestActivityIsBoundedAndFiltered(t *testing.T) {
 	b := New()
 	b.Administrator("admin@h")
+	known(t, b, "alice@h", "bob@h")
 	b.Register(protocol.Record{Name: "visible@h", Owner: "alice@h", Allow: []string{"alice@h"}, Bound: 1, Full: "ring"})
 	b.Register(protocol.Record{Name: "hidden@h", Owner: "bob@h", Allow: []string{"bob@h"}})
 	start := time.Now().Add(-2 * time.Minute)
