@@ -10,6 +10,15 @@
 # nothing (Plans/done/PoC/README.md#mutation-first-then-belief).
 set -u
 cd "$(dirname "$0")"
+# This run builds its own fixture: whatever bus the caller is already talking
+# to is not it. A session launcher exports AGENT_BUS_TOKEN, NAME, ADDR, PUSH,
+# RUNTIME, DESCR and the control pair, and the MCP face reads all of them —
+# so run from an agent session and the face joins the live daemon in push
+# mode, half the checks fail, and the failure looks like the tree.
+# Setting the few this script knows about is not enough; the rest have to go.
+for v in $(env | sed -n 's/^\(AGENT_BUS_[A-Z_]*\)=.*/\1/p'); do
+  case $v in AGENT_BUS_ROLE|AGENT_BUS_FDS) ;; *) unset "$v" ;; esac
+done
 D=$(mktemp -d); DPID=""
 # Wait for it: a daemon dumps on the way out, and a dump written while the
 # directory is being removed leaves the directory behind.
