@@ -43,6 +43,7 @@ disclosure, not silently remove records, authority checks or required functions.
 | C13 | [Request errors, main:302](../../../../src/cmd/agent-bus-web/main.go#L302), [fail, admin:87](../../../../src/cmd/agent-bus-web/admin.go#L87), `form-error.jpg`: submitted invalid name produces raw JSON; descriptive input disappears | Human error summary, field association, nonsensitive value preservation, specific next step. Never echo token/private config. Transport failure must not promise “Nothing was changed” |
 | C14 | [Sign-in, main:419](../../../../src/cmd/agent-bus-web/main.go#L419): token acquisition help is developer-shaped; SSH onboarding also has a documented pending gap | Keep supported acquisition instructions discoverable and concise. Do not offer an onboarding journey that backend provisioning cannot complete; link the [setup limitation](../../../../docs/09-setup.md#ssh-admin) in design dependencies |
 | C15 | [CSS, main:327](../../../../src/cmd/agent-bus-web/main.go#L327), `mobile-services.jpg`: desktop list becomes a scrolling table; narrow viewport retains name/owner but hides queue observation to the side | Choose essential narrow-screen columns or record summaries deliberately. Current capture had no document-wide horizontal overflow; do not report a whole-page overflow defect |
+| C16 | [Node summary, main:435](../../../../src/cmd/agent-bus-web/main.go#L435), `diagnostics.jpg`: node-wide totals sit above caller-visible queue/registry rows without an explicit scope contrast | Label node totals and visible-resource counts separately, including retained-history scope. Never imply their counts must agree; follow [dashboard audience](../../../../docs/05-discovery.md#dashboard) |
 
 These are content/interaction findings, not a vote for hiding every zero or
 identifier. A measured zero can answer a question. A full routing name
@@ -112,6 +113,11 @@ review constraints, not a second information architecture.
 | Absence markers | Keep hidden-membership explanation in words. A nonzero value below numeric display precision differs from no observation; an integer series drawn below a pixel does not need a new state |
 
 ## Handoff and limits
+
+Opencode independently checked the inventory against route declarations,
+action dispatch and template branches, and accepted this review after source
+spot-checks. Its ordering/template-name notes and explicit scope-label finding
+are incorporated. That review does not expand the stated browser coverage.
 
 Claude owns target specs and owner questions. Opencode reviews completeness
 and researches design candidates. This inventory is the comparison baseline:
