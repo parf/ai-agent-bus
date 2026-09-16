@@ -289,33 +289,38 @@ nor read (waiters are released on disable), so the work is trapped; orange.
 403, so registered-looking services are effectively dead; orange, links to
 Users. Candidate for the owner: a blue count of unregistered credentials
 awaiting review (the cleanup cohort exists and C10 promised discoverability —
-Overview is where it is findable). Structural: (a) **dedup rule** — an
-at-bound queue is probably also backlog-past-TTL; one queue yields one item
-at its worst level, or the page triples; (b) **split from the Node strip** —
-losses and refusals appear in attention (and Diagnostics) only, not again as
-node totals, or the strip and the items disagree with themselves.
-Corrections, conceded from my first draft: (c) pages.md's "backlog older
-than its own TTL" cannot date existing queued messages — a message's expiry
-moment was fixed at accept from the TTL then in effect (envelope.go), so the
-current record TTL is the wrong ruler twice over; the honest basis is a
-daemon-provided per-message fact (oldest message's Expires, or an
-expired-not-yet-pruned count), or the item does not ship. (d) pages.md's
-AtBound wording "messages are being refused or dropped **now**" claims an
-event; AtBound proves capacity only — the honest red-level sentence is
-future-tense ("at its limit: the next send is refused, or the oldest is
-dropped"), and whether that is red or orange is a severity call on risk, not
-on loss.
+Overview is where it is findable). Structural: (a) **dedup rule** — one record yields one attention item, at
+its worst admitted level; the rule needs no assumption about which
+observations co-occur. (b) **split from the Node strip** — losses and
+refusals appear in attention (and Diagnostics) only, not again as node
+totals, or the strip and the items disagree with themselves.
+Corrections, conceded from my first draft and refined again against source:
+(c) pages.md's "backlog older than its own TTL" cannot date existing queued
+messages — a message's expiry moment was fixed at accept from the TTL then
+in effect (envelope.go), so the current record TTL is the wrong ruler twice
+over; the honest basis is a daemon-provided per-message fact (oldest
+message's Expires, or an expired-not-yet-pruned count), or the item does not
+ship. (d) AtBound proves capacity and nothing more — and even a future-tense
+sentence overclaims: enqueue prunes expired entries before testing fullness,
+a matching waiter can take a message straight through without queueing, and a
+reader can drain the queue after observation. The honest form predicts no
+event: "at capacity when observed; if enqueueing still finds it full after
+expiry pruning, the configured overflow policy applies" — or in UI length,
+"At capacity" plus the policy. Severity is a call on capacity risk, not on
+any loss event.
 
-**Services table — one column earns nothing, one is mode-blind.** Kind earns
-nothing as a *column*: the session-recognition journey uses it as a filter
-("Services → agents"), and a per-row category beside description+name is
-redundant with the filter. Keep the filter, drop the column. And the channel
-list's Queued column is blind to delivery mode: a pub/sub topic keeps no
-queue of its own (the daemon counts publications and fans out), so its Queued
-cell is structurally meaningless — either make the column mode-aware (pub/sub
-rows show accepted; queue rows show queued) or leave `—` with the not-
-applicable semantics from glyphs.md. Stating this in pages.md now prevents
-a shipped always-zero column.
+**Services table — one column refined, one is mode-blind.** Kind is
+retained on the default mixed list — there it disambiguates generic services
+from agent sessions and carries the registry-removal precondition (C08:
+kind, description and accepted/dequeued on the lists before the homepage
+registry goes) — and omitted only where an active kind filter makes the
+column uniform, which is when it stops earning its width. The channel list's
+Queued column is blind to delivery mode: a pub/sub topic keeps no queue of
+its own (the daemon counts publications and fans out; nothing waits
+anywhere), so its Queued cell is structurally meaningless — either make the
+column mode-aware (pub/sub rows show accepted; queue rows show queued) or
+leave `—` with the not-applicable semantics from glyphs.md. Stating this in
+pages.md now prevents a shipped always-zero column.
 
 **Showing data because we have it, remaining instances — one finding
 retracted.** I proposed dropping Account's credential-row Owner column as
