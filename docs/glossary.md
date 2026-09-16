@@ -30,8 +30,8 @@ unconfigured capability. Personal/shared describes use; it is not a record kind.
 | Local socket | Account credential | [definition](02-access.md#local-socket) |
 | Service ACL and master | Visibility and use policy | [definition](01-identity.md#acl) |
 | Owner | Authority over a registry record | [definition](01-identity.md#ownership) |
-| Maintainer | Pending authority over person fields | [definition](01-identity.md#who-may-write-a-record) |
-| Person profile | Pending identifying and descriptive information | [definition](01-identity.md#profile-fields) |
+| Maintainer | Authority over the level below, and itself a user | [definition](01-identity.md#groups-and-maintainers) |
+| Person profile | Identifying and descriptive information | [definition](01-identity.md#profile-fields) |
 | Service and service template | Configured service and its unconfigured source | [definition](03-services-and-topics.md#service-and-template) |
 | Protocol hint | How a caller reaches an external service | [definition](03-services-and-topics.md#how-to-call-it) |
 | Registry configuration | Private setup fetched by its service | [definition](03-services-and-topics.md#configuring-a-template) |
