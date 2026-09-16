@@ -131,6 +131,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-15 | Node-wide counters are visible to anyone who may ask; resolves Q50 | They describe the daemon, not the caller, so there is no narrower audience; no access is the whole restriction, and a page must label node scope against caller scope | [dashboard](05-discovery.md#dashboard) |
 | 2026-09-15 | A certificate asked for and missing refuses the start; resolves Q52 | Somebody who wanted HTTPS would otherwise get a log line they do not read and a page that is not encrypted; refusing is the only answer they cannot miss | [where it listens](05-discovery.md#where-it-listens) |
 | 2026-09-15 | An acknowledged ban, group removal or ACL restriction holds until explicitly lifted; resolves Q39 | Acknowledging is a promise, and a crash is not a way out of one; if the durability cannot be promised the acknowledgement must not be given | [administrative crash recovery](04-messaging.md#administrative-crash-recovery) |
+| 2026-09-15 | A record whose owner nobody answers to is dead, and waits for the daemon owner to give it one; resolves Q40 | Refusing beats queuing work for something nobody is behind, and adopting an unreachable record is the narrowest power that gives a way back — narrower than authority over records that have an owner | [when the owner is gone](01-identity.md#when-the-owner-is-gone) |
 
 ## Superseded
 

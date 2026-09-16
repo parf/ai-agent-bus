@@ -274,3 +274,30 @@ itself may read that configuration back.
 A self-owned record can identify a person in the [people view](#person-records).
 Person-profile writes use the [maintainer hierarchy](#who-may-write-a-record);
 service and topic changes use [record management authority](#groups-and-maintainers).
+
+### When the owner is gone
+
+**Pending, not built.** An owner is a name, and nothing guarantees anybody still
+answers to it. When nobody does — no credential for it and no registered user
+— **the record is dead**: the bus refuses calls to it rather than queuing work
+for something with nobody behind it, and in R1 the
+[runner must not start it at all](../Plans/R1/runner.md#the-list-of-what-is-installed).
+
+It is **not deleted and its name is not freed.** It waits, and what it waits
+for is **the daemon owner assigning it a new owner**. That is the one thing the
+daemon owner may do to a record it does not own, and it is deliberately that
+narrow: adopting something nobody can reach is not the same as authority over
+everything, and a record with a living owner is still only theirs.
+
+Without it there is no way back at all. Management today is the owner, the
+record's own principal, or a member of the group the record names
+([groups and maintainers](#groups-and-maintainers)) — an orphan fails all three,
+and a record naming no group has no third door to try. The route that existed
+before this was minting a credential for the dead owner, which answers a
+cleanup by bringing a principal back to life.
+
+Which refusal a dead record answers with is
+[open](../Plans/MVP/QUESTIONS.md#open-questions): it must not be *no such name*,
+for the reason a retired one must not be
+([R1.1 down and retired](../Plans/R1.1/records.md#down-and-retired)), and the
+codes are a closed set ([refusals](05-discovery.md#refusals)).
