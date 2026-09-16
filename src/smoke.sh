@@ -43,8 +43,8 @@ export BUILD_STARTED=$(date +%s)
 bash ./build.sh "$D" || exit 1
 export BUILD_FINISHED=$(date +%s)
 
-# The daemon belongs to a principal, and that is who may hand out a
-# credential for a name nobody owns yet. Stated rather than taken from the
+# The daemon belongs to a principal, which provisions the fixture names
+# before issuing their credentials. Stated rather than taken from the
 # account running the suite, so the checks read the same everywhere.
 OWNER=parf@localhost
 "$D/agent-busd" -addr 127.0.0.1:$PORT -socket "$D/bus.sock" -token-file "$D/token" -owner "$OWNER" -dump-file "$D/dump.json" -dump-every 0 >"$D/daemon.log" 2>&1 &
@@ -63,7 +63,7 @@ ready "$D/bus.sock" || { echo "daemon did not start"; cat "$D/daemon.log"; exit 
 TOKEN=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/token")
 tok() {
   local f="$D/tok.$(printf '%s' "$1" | tr '/@.' '___')"
-  [ -s "$f" ] || AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER     "$D/agent-bus-token" "$1" >"$f" 2>/dev/null
+  [ -s "$f" ] || AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER     "$D/agent-bus-token" "$1" >"$f" || return
   cat "$f" 2>/dev/null
 }
 ab() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 "$D/agent-bus" "${@:2}"; }
@@ -122,6 +122,19 @@ tcode() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H 
 post_body() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok "$1")" -d "$3" "http://unix$2"; }
 post_code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok "$1")" -d "$3" "http://unix$2"; }
 
+# Provision people separately from tokens and service records. Drop only their
+# backing inbox, retaining the profile: tests about a sender without an inbox
+# must not accidentally give it one. A failed fixture stops the run, rather
+# than letting a later refusal look like the behavior under test.
+users() {
+  local name
+  for name in "$@"; do
+    curl -fsS --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" \
+      -d "{\"name\":\"$name\",\"create\":true}" http://unix/user >/dev/null || exit 1
+    ab "$name" unregister "$name" >/dev/null || exit 1
+  done
+}
+
 sec "the Go checks"
 # Run here, not only by hand: a mutation of anything the unit tests cover was
 # invisible to this script while they lived outside. CLAUDE.md asks for all
@@ -170,6 +183,7 @@ has "and a mistyped route is still a mistyped route" \
   "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/no-such-route")" '404'
 
 sec "the token is the whole of a call"
+users alice@srv1
 out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=nope "$D/agent-bus" status 2>&1); rc=$?
 has "wrong token says so" "$out" 'bad token'; bad_exit "wrong token exits non-zero" $rc
 has "401 for a wrong token" "$(tcode nope /status)" '401'
@@ -180,6 +194,7 @@ has "and the daemon reads the caller out of it" \
   "$(env -u AGENT_BUS_NAME AGENT_BUS_ADDR=http://127.0.0.1:$PORT AGENT_BUS_TOKEN=$(tok alice@srv1) "$D/agent-bus" status)" '"you":"alice@srv1"'
 
 sec "your own socket says who you are"
+users nobody2@srv1
 # Nothing to set up locally: the daemon knows the account at the other end
 # from which socket it arrived on. See docs/02-access.md#local-socket.
 ACCOUNT=$(id -un)
@@ -227,6 +242,17 @@ if id -u nobody >/dev/null 2>&1; then
   MPID2=$!
   ready "$D/multi/user-nobody.sock" || echo "  WARNING: $D/multi/user-nobody.sock never answered"
   has "a second account gets a socket of its own" "$([ -S "$D/multi/user-nobody.sock" ] && echo yes)" 'yes'
+  # Socket ownership identifies a caller; it does not create a bus user.
+  for route in "GET /status" "POST /register" "POST /token" "POST /user" "POST /session"; do
+    m=${route%% *}; path=${route#* }
+    has "an unknown mapped user cannot $route, even for itself" \
+      "$(curl -s -o /dev/null -w '%{http_code}' -X "$m" --unix-socket "$D/multi/user-nobody.sock" \
+        -d '{"name":"nemo@srv1","create":true}' "http://unix$path")" '^401$'
+  done
+  has "and the refusal is about an unknown principal" \
+    "$(curl -s --unix-socket "$D/multi/user-nobody.sock" http://unix/status)" 'answers for nobody'
+  curl -fsS --unix-socket "$D/multi/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" \
+    -d '{"name":"nemo@srv1","create":true}' http://unix/user >/dev/null || exit 1
   has "and is a different principal on it" \
     "$(curl -s --unix-socket "$D/multi/user-nobody.sock" "http://unix/status")" '"you":"nemo@srv1"'
   has "while the owner's socket in the same directory is still the owner" \
@@ -243,6 +269,7 @@ has "the shared socket still wants a token" \
 has "and the directory is walk-through only, not readable" "$(stat -c %a "$D")" '^711$'
 
 sec "a token names its principal and nothing else does"
+users bob@srv1
 alice=$(tok alice@srv1); bob=$(tok bob@srv1)
 has "two tokens are two principals on one socket" \
   "$(tbody "$alice" /status)" '"you":"alice@srv1"'
@@ -262,8 +289,16 @@ has "and may get one for a service it owns" \
   "$(post_code alice@srv1 /token '{"name":"alice-svc@srv1"}')" '200'
 has "while somebody else may not" \
   "$(post_code bob@srv1 /token '{"name":"alice-svc@srv1"}')" '403'
-has "the daemon's owner may ask for any name" \
-  "$(post_code $OWNER /token '{"name":"nobody-owns-this@srv1"}')" '200'
+has "even the daemon owner cannot mint a credential for an unknown name" \
+  "$(post_code "$OWNER" /token '{"name":"nobody-owns-this@srv1"}')" '^401$'
+has "nor rotate one into existence" \
+  "$(post_code "$OWNER" /token '{"name":"nobody-owns-this@srv1","rotate":true}')" '^401$'
+is_empty "a refused token ask creates no stored credential" \
+  "$(awk '$1 == "nobody-owns-this@srv1" {print $1}' "$D/token")"
+ab "$OWNER" register nobody-owns-this@srv1 >/dev/null || exit 1
+has "the owner may issue a credential after registering the name" \
+  "$(post_code "$OWNER" /token '{"name":"nobody-owns-this@srv1"}')" '^200$'
+users owner@srv1
 again=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus-token" alice@srv1 2>&1)
 if [ "$again" = "$alice" ]; then echo "  ok   asking twice is a read, not a rotation"; pass=$((pass+1));
 else echo "  FAIL asking twice is a read, not a rotation: [$again]"; fail=$((fail+1)); fi
@@ -327,6 +362,7 @@ mkdir -p "$D/ro-run"
 "$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/ro-run/bus.sock" -token-file "$D/ro/token" -owner "$OWNER" -dump-file "$D/ro-run/dump.json" -dump-every 0 >"$D/daemon3.log" 2>&1 &
 OPID=$!
 ready "$D/ro-run/bus.sock" || echo "  WARNING: $D/ro-run/bus.sock never answered"
+AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN "$D/agent-bus" register unsaveable@srv1 >/dev/null || exit 1
 chmod 0500 "$D/ro"
 out=$(AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" unsaveable@srv1 2>&1); rc=$?
 bad_exit "a credential the store could not keep is not handed out" $rc
@@ -348,6 +384,7 @@ fi
 has "because the record is not his to take over" "$out" 'belongs to someone else'
 
 sec "a record belongs to whoever published it"
+users thief2@srv1 stranger2@srv1
 # Publishing is open; changing is not. See docs/01-identity.md#ownership.
 ab owner@srv1 register owned@srv1 --descr "mine" --addr first:1 >/dev/null
 out=$(ab thief2@srv1 register owned@srv1 --descr "stolen" --addr second:2 2>&1); rc=$?
@@ -359,12 +396,13 @@ has "its owner may still change it" \
   "$(ab owner@srv1 register owned@srv1 --descr "mine" --addr third:3 >/dev/null; ab nobody2@srv1 ls owned@srv1)" 'third:3'
 has "and the record itself may refresh its own, as a service does on every start" \
   "$(ab owned@srv1 register owned@srv1 --descr "self" --addr third:3 >/dev/null; ab nobody2@srv1 ls owned@srv1)" '"descr":"self"'
-has "while publishing a name nobody holds stays open to anyone" \
+has "while an existing user may publish a new name" \
   "$(ab stranger2@srv1 register brand-new@srv1 --descr "open" >/dev/null; ab nobody2@srv1 ls brand-new@srv1)" '"descr":"open"'
 
 sec "register and ls"
-ab fixer@srv1 register fixer@srv1 --kind agent --descr "fixes things" >/dev/null
-ab asker@srv1 register asker@srv1 --kind agent >/dev/null
+users sender@srv1 someone@srv1 nobody@srv1
+ab owner@srv1 register fixer@srv1 --kind agent --descr "fixes things" >/dev/null
+ab owner@srv1 register asker@srv1 --kind agent >/dev/null
 has "ls shows the description" "$(ab asker@srv1 ls)" 'fixes things'
 
 sec "send, then reply matched by topic and tag"
@@ -445,6 +483,7 @@ if slow; then
 
 else skipped=$((skipped+1)); fi
 sec "pub/sub: a copy per subscriber, in the subscriber's own inbox"
+users drive-by@srv1 nobody-here@srv1
 ab owner@srv1 topic create news@srv1 --kind pubsub --descr "broadcast" >/dev/null
 ab owner@srv1 register sub-a@srv1 --kind agent >/dev/null
 ab owner@srv1 register sub-b@srv1 --kind agent >/dev/null
@@ -481,7 +520,7 @@ has "and the topic no longer names it" "$(ab owner@srv1 ls news@srv1)" '"subs":\
 # A subscriber has to own an inbox for the copy to land in, so it is a
 # registered name like any receiver.
 out=$(ab nobody-here@srv1 subscribe news@srv1 2>&1); rc=$?
-bad_exit "subscribing as a name nobody registered is refused" $rc
+bad_exit "a known user without an inbox cannot subscribe" $rc
 has "and says to register it first" "$out" 'so its copies have somewhere to land'
 # A queue topic that EXISTS, so the refusal is about its mode and not about
 # the name being unknown.
@@ -523,6 +562,7 @@ is_empty "not the topic's, which keeps nothing to lose" \
   "$(ab owner@srv1 ls news@srv1 | grep -o '"dropped":')"
 
 sec "a person can see what they hold a credential for, and never the credential"
+users holder@srv1
 ab holder@srv1 register holder@srv1 --descr "a person" >/dev/null
 ab holder@srv1 register holder-svc@srv1 --descr "something they own" >/dev/null
 ab holder@srv1 register holder-cold@srv1 --descr "owned, never asked for" >/dev/null
@@ -595,6 +635,7 @@ has "and the placeholder for a missing previous is not a token" \
 kill $NPID 2>/dev/null; wait $NPID 2>/dev/null
 
 sec "refusals are counted, and each under its own reason"
+users caller@srv1 stranger@srv1
 # A bus that is quiet and one that is refusing every call look identical
 # from outside (docs/05-discovery.md#what-it-shows). Each kind is checked
 # separately: one counter covering them all would say "something is wrong"
@@ -632,14 +673,14 @@ sec "a name that is not a name"
 bad_exit "register without a realm" "$(ab asker@srv1 register no-realm >/dev/null 2>&1; echo $?)"
 
 sec "one name, however it is spelled: trim, lower-case, ASCII"
-ab pad@srv1 register '  PAD@Srv1  ' --kind agent >/dev/null
+ab owner@srv1 register '  PAD@Srv1  ' --kind agent >/dev/null
 has "ls shows the canonical form" "$(ab asker@srv1 ls)" '"name":"pad@srv1"'
 ab asker@srv1 send ' Pad@SRV1 ' --topic pad --tag p "padded name" >/dev/null
 has "a padded, upper-case send reaches it" "$(ab pad@srv1 consume --topic pad --tag p --wait 3s)" 'padded name'
 bad_exit "a non-ASCII name is refused" "$(ab asker@srv1 register 'pärf@srv1' >/dev/null 2>&1; echo $?)"
 
 sec "call and ack: a service answers, and says it got the message first"
-ab svc@srv1 register svc@srv1 --kind generic --descr "answers calls" >/dev/null
+ab owner@srv1 register svc@srv1 --kind generic --descr "answers calls" >/dev/null
 (
   msg=$(ab svc@srv1 consume --wait 10s)
   id=$(printf '%s' "$msg" | sed 's/.*"message_id":"\([^"]*\)".*/\1/')
@@ -655,6 +696,7 @@ has "the ack was seen and reported" "$(cat "$D/call.err")" 'ack from svc@srv1'
 has "a call to nobody fails" "$(ab caller@srv1 call ghost@nowhere --wait 2s hi 2>&1)" 'no such receiver'
 
 sec "topics: a publisher with no service record, a consumer that was down"
+users reader@srv1
 ab owner@srv1 topic create jobs@srv1 --descr "work queue" >/dev/null
 has "the topic is in ls" "$(ab owner@srv1 ls --kind topic)" 'jobs@srv1'
 ab drive-by@srv1 publish --topic jobs@srv1 "sweep the floor" >/dev/null
@@ -670,9 +712,10 @@ out=$(ab caller@srv1 consume --topic jobz@srv1 --wait 1s 2>&1); rc=$?
 bad_exit "a mistyped topic name is an error, not a silent filter" $rc
 has "and says which name" "$out" 'no such topic: jobz@srv1'
 
+ab owner@srv1 register keeper@srv1 >/dev/null || exit 1
 if slow; then
   sec "a call does not damage what it calls from"
-  ab keeper@srv1 register keeper@srv1 --kind generic --addr host:1234 --descr "KEEP ME" >/dev/null
+  ab owner@srv1 register keeper@srv1 --kind generic --addr host:1234 --descr "KEEP ME" >/dev/null
   # the whole record, not a word from it: kind, addr, description, owner and the
   # timestamp all change if the caller re-states itself.
   record() { ab keeper@srv1 ls | grep -o '{[^}]*"name":"keeper@srv1"[^}]*}'; }
@@ -684,7 +727,7 @@ if slow; then
   else
     echo "  FAIL the caller's own record survives its call: [$before] became [$after]"; fail=$((fail+1))
   fi
-  ab unheard@srv1 register unheard@srv1 --kind generic >/dev/null
+  ab owner@srv1 register unheard@srv1 --kind generic >/dev/null
   out=$(ab caller@srv1 call unheard@srv1 --wait 5q "typo" 2>&1); rc=$?
   bad_exit "a bad --wait is refused" $rc
   is_empty "and refused before the message is sent" "$(ab unheard@srv1 consume --wait 1s)"
@@ -697,6 +740,8 @@ if slow; then
 
 else skipped=$((skipped+1)); fi
 sec "a shell script is a service"
+users greeter@srv1 launcher@srv1
+for name in hello envelope defaulted; do ab owner@srv1 register "$name@srv1" >/dev/null || exit 1; done
 printf '#!/bin/sh\necho "Hello $1"\n' > "$D/hello-world.sh"; chmod +x "$D/hello-world.sh"
 abx hello@srv1 start hello@srv1 --algo args "$D/hello-world.sh" --descr "greets you" >"$D/start.log" 2>&1 &
 HPID=$!
@@ -745,7 +790,7 @@ for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'from a file' &&
 has "a service described as JSON on stdin" "$(ab greeter@srv1 call fromfile@srv1 --wait 15s again)" 'Hello again'
 kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
 has "a script and its arguments must be one quoted word" \
-  "$(ab x@srv1 start x@srv1 --algo args ./greet.sh loudly 2>&1)" 'one script'
+  "$(ab launcher@srv1 start x@srv1 --algo args ./greet.sh loudly 2>&1)" 'one script'
 
 if slow; then
   sec "reply-to: the answer goes where the request said, and a dead route is refused now"
@@ -769,7 +814,7 @@ if slow; then
 
   # Fire-and-forget asks for nothing back, so it stays open to a sender that
   # owns no queue. A check that only refuses is a check that refuses too much.
-  ok_exit "a send from an unregistered sender still works" \
+  ok_exit "a known user without a service inbox may send" \
     "$(ab nobody@srv1 send worker@srv1 --topic rt --tag 3 "no answer wanted" >/dev/null 2>&1; echo $?)"
   has "and it arrives" "$(ab worker@srv1 consume --topic rt --tag 3 --wait 5s)" 'no answer wanted'
 
@@ -1044,7 +1089,7 @@ if slow; then
 
 else skipped=$((skipped+1)); fi
 sec "--follow, and the one refusal the daemon owes us"
-ab follower@srv1 register follower@srv1 --kind agent >/dev/null
+ab owner@srv1 register follower@srv1 --kind agent >/dev/null
 # --follow keeps reading until it is stopped: that is the verb, so the check
 # has to be the one to stop it.
 abx follower@srv1 consume --follow --wait 5s >"$D/follow.out" 2>&1 &
@@ -1236,11 +1281,12 @@ wait $LPID 2>/dev/null
 delta "a message handed to a waiting reader counts in" 3 "$cin" "$(svc counted@srv1 in)"
 delta "and out, without ever sitting in the queue" 3 "$cout" "$(svc counted@srv1 out)"
 
-sec "consuming as a name nobody registered is refused, not answered with silence"
-has "the daemon says register it first" \
+sec "a known user still needs an inbox before consuming"
+users ghost@srv1
+has "the daemon distinguishes a missing inbox from an unknown user" \
   "$(code ghost@srv1 "/consume?wait=0s")" '404'
 has "while a registered name with an empty inbox is 204" \
-  "$(ab quiet@srv1 register quiet@srv1 >/dev/null; code quiet@srv1 "/consume?wait=0s")" '204'
+  "$(ab launcher@srv1 register quiet@srv1 >/dev/null; code quiet@srv1 "/consume?wait=0s")" '204'
 
 if slow; then
   sec "a listing says whether a call would reach anyone"
@@ -1272,6 +1318,7 @@ if slow; then
 
 else skipped=$((skipped+1)); fi
 sec "configuring a service template produces a configured service"
+users nosy@srv1 thief@srv1 smuggler@srv1
 # The configuration is arbitrary JSON and stays opaque; the one thing that
 # matters to the bus is that it never shows up where it should not.
 echo '{"model":"opus","depth":3}' | ab owner@srv1 service-template code-review/cfg@rdvp - >/dev/null
@@ -1441,6 +1488,7 @@ else skipped=$((skipped+1)); fi
 
 if slow; then
   sec "a full queue: refuse by default, drop the oldest if asked"
+  users flood@srv1
   ab owner@srv1 register sink@srv1 --kind generic >/dev/null
   ab owner@srv1 register ringy@srv1 --kind generic --overflow ring >/dev/null
   has "a record says what a full queue does, and refuses by default" \
@@ -1474,7 +1522,8 @@ bun -e "Bun.serve({port:$((PORT+3)),async fetch(r){const u=new URL(r.url);
   return new Response('{}');}})" >/dev/null 2>&1 &
 MPID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+3))/ls" && break; sleep 0.2; done
-out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+3)) AGENT_BUS_TOKEN=$(tok impatient@srv1) \
+# This stalled-response fixture accepts any token; it is not the real bus.
+out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+3)) AGENT_BUS_TOKEN=fixture-token \
       timeout 5 "$D/agent-bus" call slow@srv1 --wait 500ms "are you there?" 2>&1); rc=$?
 kill $MPID 2>/dev/null; wait $MPID 2>/dev/null
 if [ "$rc" -eq 124 ]; then
@@ -1485,6 +1534,7 @@ fi
 has "and says the message was accepted" "$out" 'do not resend'
 
 sec "the caller's deadline travels to the service"
+users asker2@srv1
 # The wait belongs to the CALLER, so a service can see the answer is already
 # too late and not do the work. The moment is the daemon's: a caller states a
 # duration and never an instant, the same way it may not state its own name.
@@ -1542,6 +1592,7 @@ printf 'squatter %s\n' "$(cat "$D/enr/mine.pub")" >> "$D/enr/keys"
 EPID=$!
 ready "$D/enr/bus.sock" || echo "  WARNING: $D/enr/bus.sock never answered"
 ETOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/enr/token")
+AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK "$D/agent-bus" register alice@srv1 >/dev/null || exit 1
 eab() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
 etok() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$@"; }
 # A fourth argument is a body, and a body is what makes it a POST: passing an
@@ -1619,6 +1670,7 @@ bad_exit "while nobody new can enrol while it is gone" $rc
 kill $EPID 2>/dev/null; wait $EPID 2>/dev/null
 
 sec "who may reach what: the service answers first, then master"
+users acl-owner@srv1
 # Two services alike in everything but the one flag, so what is being
 # measured is the policy and not the request.
 # See docs/01-identity.md#acl.
@@ -1875,7 +1927,7 @@ is_empty "and master's page holds what master may not see" \
 # A backlog only ever grows where nobody is reading — an unfiltered reader
 # is handed the message as it arrives — so a service with a reader is the
 # control that says the list is not just every record over again.
-ab busy-svc@srv1 register busy-svc@srv1 --descr "somebody home" >/dev/null
+ab owner@srv1 register busy-svc@srv1 --descr "somebody home" >/dev/null
 ab busy-svc@srv1 consume --wait 10s >/dev/null 2>&1 &
 busy_pid=$!
 ab parf@localhost register slow-svc@srv1 --descr "nobody home" >/dev/null
@@ -1892,8 +1944,8 @@ ab parf@localhost send lossy-svc@srv1 "first" >/dev/null
 ab parf@localhost send lossy-svc@srv1 "second" >/dev/null
 # A request and its ack, one exchange: same topic and tag, two envelopes.
 # The asker is registered because a receipt goes back to it by name.
-ab job-caller@srv1 register job-caller@srv1 --descr "asks for work" >/dev/null
-ab work-svc@srv1 register work-svc@srv1 --descr "does the work" >/dev/null
+ab owner@srv1 register job-caller@srv1 --descr "asks for work" >/dev/null
+ab owner@srv1 register work-svc@srv1 --descr "does the work" >/dev/null
 ab job-caller@srv1 send work-svc@srv1 --topic job --tag 77 "do it" >/dev/null
 ( msg=$(ab work-svc@srv1 consume --wait 5s)
   id=$(printf '%s' "$msg" | sed 's/.*"message_id":"\([^"]*\)".*/\1/')
@@ -2006,7 +2058,7 @@ dur_up() {
   DUR=$!
   ready "$D/dur/bus.sock" || echo "  WARNING: $D/dur/bus.sock never answered"
   DTOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/dur/token")
-  KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" keeper@srv1 2>/dev/null)
+  [ "$1" = first ] || KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" keeper@srv1 2>/dev/null)
 }
 dur_down() { kill "$1" "$DUR" 2>/dev/null; wait "$DUR" 2>/dev/null; }
 dab() { AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
@@ -2181,6 +2233,11 @@ if slow; then
     ok_exit "rpc unit tests" $rc
 
     # each harness runs its own peer in-process, so there is no start-order race
+    # These harnesses ask for credentials before their first record refresh.
+    # Provision their service identities explicitly; no mint creates a name.
+    for name in mcp.session peer peer.third pusher push.session; do
+      ab "$OWNER" register "$name@srv1" >/dev/null || exit 1
+    done
     out=$(cd mcp && timeout 120 env AGENT_BUS_ADDR=$D/bus.sock \
           AGENT_BUS_OWNER=$OWNER AGENT_BUS_OWNER_TOKEN=$TOKEN \
           AGENT_BUS_TOKEN=$(tok mcp.session@srv1) \
