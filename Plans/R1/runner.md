@@ -224,7 +224,33 @@ Two things follow:
 | | |
 |---|---|
 | **A handover is not complete when the route changes** | it is complete when the old target's queue no longer holds anything for that name. Tooling that reports the handover done at the moment of the write reports it too early. The tail itself is benign — the old runner simply finishes what it was already holding — for as long as it can still serve the name |
-| **An `orig-to` the runner cannot serve needs a defined answer** | [Q68](QUESTIONS.md#open-questions). Since being routed an unowned name is normal, being routed an *unservable* one is routine too, and a runner with no defined behaviour there either drops work silently or blocks its own inbox |
+| **An `orig-to` the runner cannot serve is answered, not held** | [below](#an-unservable-orig-to-is-refused-to-its-sender). Since being routed an unowned name is normal, being routed an *unservable* one is routine too |
+
+#### An unservable `orig-to` is refused to its sender
+
+**Owner-settled, 2026-09-16: the runner replies with an error and the message
+is consumed.** No child for that name, or the child is gone, and the sender is
+told so rather than left waiting.
+
+**The shared inbox is what makes holding the wrong answer here.** A runner's
+inbox is not one service's queue — it is the queue every name routed to that
+runner shares. Work held for one unservable name sits in front of work for
+every other, and one misconfigured route becomes an outage for children that
+are running perfectly well. Bound and retention belong to that shared queue
+([the queue that holds it](#the-rules-that-follow-from-it)), so the damage is
+capped but it is not contained to the name that caused it.
+
+The cost, stated plainly: **a transient gap becomes a hard failure.** A child
+restarting when a message lands produces an error the sender must retry
+through, rather than a short wait nobody notices. That is the trade the owner
+made, and it says something about what a route promises — a route is an address,
+not a guarantee that something is listening at it. Durability across a restart
+is the sender's to arrange by retrying, not the queue's to fake by holding.
+
+By [reply identity](#a-reply-comes-from-the-name-that-was-addressed), that error
+comes **from the name the sender addressed** — `scaler@h`, not the runner. The
+sender learns its message failed; it does not learn where the name was being
+served, or that it was routed at all.
 
 #### A reply comes from the name that was addressed
 
