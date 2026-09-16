@@ -177,6 +177,14 @@ and from then on the browser carries that id and nothing else.
 
 A bus restart invalidates browser sessions: their map is not persisted.
 
+**So does removing the credential they came from.** A session is a credential
+without being a token, so one that outlived its token would leave a name
+answering for up to the idle timeout after the daemon decided it answers for
+nothing — [no registration, no access](01-identity.md#unregistering) not
+holding, quietly. Unregistering, deleting a service and the
+[ownerless sweep](02-access.md#ownerless-credentials) all end that name's
+sessions with its token.
+
 ### What it shows
 
 | View | MVP status | Source or remaining dependency |

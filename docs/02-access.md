@@ -142,11 +142,24 @@ anyway — a sweep that looked only for a record, and not for a registered user,
 would take the owner's own credential on the first start.
 
 A credential asked for before its name is registered is the same shape, briefly:
-the sweep sees one moment, so such a credential is there until the next restart
-and collected at it **only if the name still answers to nobody by both tests**.
+the sweep sees one moment, so such a credential lasts until the next start — or
+until somebody takes it by hand, below — and goes then **only if the name still
+answers to nobody by both tests**.
 Register it first and it is kept like any other. What the sweep does take it
 cannot give back — a name swept needs a credential again the ordinary way
 ([getting a token](#getting-a-token)).
+
+**Pending: it can also be done by hand, by the daemon owner or a maintainer.**
+The automatic sweep stays and runs at every start; this is the same rule
+applied when somebody looks, so a name that turns up between restarts does not
+have to wait for one. Maintainers are included because they already administer
+users and this is the user directory — an ownerless credential is nobody's, so
+the [order](01-identity.md#groups-and-maintainers) does not settle it on its
+own and this was chosen.
+
+Eligibility is checked again at the moment of removal, not taken from the list
+that was rendered: a record or a profile created in between makes the name
+somebody's, and the answer then is a refusal rather than a deletion.
 
 So **support for this category is permanent; its occupancy is not.** Anything
 listing it must read as well empty as populated, and against what the caller may

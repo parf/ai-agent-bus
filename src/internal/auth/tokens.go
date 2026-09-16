@@ -137,15 +137,13 @@ func (t *Tokens) mint(name string, was held) (string, error) {
 		current: hex.EncodeToString(raw[:]), previous: was.current,
 		issued: time.Now(), used: &atomic.Int64{},
 	}
-	t.keep(name, fresh)
-	if err := t.save(); err != nil {
-		// A credential that was not written down is one a restart forgets,
-		// so it must not be handed out either. Putting back what was there
-		// is enough: keep dropped exactly those tokens.
-		t.keep(name, was)
-		delete(t.who, fresh.current)
+	// A credential that was not written down is one a restart forgets, so it
+	// must not be handed out either. Written first, so there is nothing to put
+	// back: on a failure the maps were never touched.
+	if err := t.saving(name, fresh, false); err != nil {
 		return "", err
 	}
+	t.keep(name, fresh)
 	return fresh.current, nil
 }
 
@@ -224,30 +222,75 @@ func (t *Tokens) Holds(names []string) []Held {
 // that is no longer registered answers for nothing, and a credential left
 // behind is both clutter in its holder's list and a thing that still
 // authenticates (docs/02-access.md#token-lifetime). Absent is success — the
-// caller asked for it to be gone. Sessions live in their own map, untouched.
+// caller asked for it to be gone.
+//
+// **Written before it takes effect.** Dropping the maps first and then failing
+// to write leaves a credential that has stopped working and comes back at the
+// next restart: a revocation that un-revokes itself, and nobody is told. On a
+// failed write nothing changes at all and the error is the answer.
+//
+// **Browser sessions for the name go too.** A session is a credential without
+// being a token (sessions.go), so one that outlived the credential it came
+// from would be exactly "no registration, no access" not holding
+// (docs/01-identity.md#unregistering) — for up to IdleLife, on a name the
+// daemon has already decided answers for nothing. They are dropped even when
+// there was no token to forget, because a session that stands for a name is
+// reachable however the name lost its credential.
 func (t *Tokens) Forget(name string) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	h, has := t.tok[name]
 	if !has {
+		t.endSessionsFor(name)
 		return nil
+	}
+	if err := t.saving(name, held{}, true); err != nil {
+		return err
 	}
 	delete(t.who, h.current)
 	if h.previous != "" {
 		delete(t.who, h.previous)
 	}
 	delete(t.tok, name)
-	return t.save()
+	t.endSessionsFor(name)
+	return nil
 }
 
-// save hands the whole set to the store. Writing all of it every time is
-// what keeps the port this small — there is no update, only the current
-// truth.
-func (t *Tokens) save() error {
-	creds := make([]ports.Credential, 0, len(t.tok))
-	for name, h := range t.tok {
+// endSessionsFor drops every session standing for one name. A session is keyed
+// by its own id and not by who it is for, so this is a scan; sign-ins are rare
+// and bounded, which is the same reason StartSession sweeps idle ones inline.
+// Caller holds the write lock.
+func (t *Tokens) endSessionsFor(name string) {
+	for id, s := range t.sess {
+		if s.who == name {
+			delete(t.sess, id)
+		}
+	}
+}
+
+// saving hands the store the whole set as it will be once this change is made:
+// name gains what, or goes when drop is set. Writing all of it every time is
+// what keeps the port this small — there is no update, only the current truth.
+//
+// Every write goes through here **before** the maps move, so the store and
+// memory never disagree in a direction anybody has to undo. Both failures are
+// then the same shape: nothing happened, and the error says so. Minting the
+// other way round hands out a credential the next restart has never heard of;
+// forgetting the other way round stops one working and brings it back at that
+// restart. One ordering, in one place, rather than a rollback per caller.
+func (t *Tokens) saving(name string, what held, drop bool) error {
+	creds := make([]ports.Credential, 0, len(t.tok)+1)
+	for n, h := range t.tok {
+		if n == name {
+			continue
+		}
 		creds = append(creds, ports.Credential{
-			Name: name, Current: h.current, Previous: h.previous, Issued: h.issued,
+			Name: n, Current: h.current, Previous: h.previous, Issued: h.issued,
+		})
+	}
+	if !drop {
+		creds = append(creds, ports.Credential{
+			Name: name, Current: what.current, Previous: what.previous, Issued: what.issued,
 		})
 	}
 	return t.store.Save(creds)
