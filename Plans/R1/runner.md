@@ -111,6 +111,19 @@ This is a **daemon** capability that the runner consumes. Delivery and the
 registry are the daemon's; starting children with a route is the runner's use
 of it. A client that wants the same fan-in gets it the same way.
 
+**A route governs direct delivery, and subscriptions are not that.**
+Owner-settled, 2026-09-16: routing does not apply to pub/sub. A subscriber
+receives its copy into its own inbox whatever its `route` says, because
+`fanout` is a separate delivery path rather than a send to the subscriber's
+name ([topics](../../docs/03-services-and-topics.md#topics)).
+
+The cost is real and is accepted rather than argued away: **a runner whose
+children subscribe still reads one inbox per subscribed child**, so routing
+does not simplify the pub/sub case at all. What it buys instead is that
+`orig-to` keeps one meaning — the name a *sender* addressed — and a reader
+subscribed under several routed names cannot be handed several copies of one
+message in one inbox with no way to tell which subscription matched.
+
 #### A route may only name a queue you could send to
 
 **Owner-settled, 2026-09-16.** Without it, `route` is an ACL bypass with extra
@@ -215,10 +228,9 @@ Two things follow:
 
 #### What is not settled
 
-Two choices that change the implementation and are not ours to pick:
-[Q64](QUESTIONS.md#open-questions) reply identity, and
-[Q66](QUESTIONS.md#open-questions) whether routing applies to pub/sub
-subscribers.
+One choice that changes the implementation and is not ours to pick:
+[Q64](QUESTIONS.md#open-questions), whether a reply to a routed message comes
+from the addressed name or from the route target.
 
 ### Long-lived services
 
