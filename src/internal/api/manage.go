@@ -20,10 +20,17 @@ func (s *Server) group(w http.ResponseWriter, r *http.Request, caller protocol.N
 	var change struct {
 		Name    string
 		Members []string
-		Remove  bool
+		// Still read, and still refused. Dropping the field would let a
+		// removal request decode as a membership save with no members,
+		// which is a different operation answered with success.
+		Remove bool
 	}
 	if read(w, r, &change) {
-		s.reply(w, nil, s.bus.SetGroup(caller.String(), change.Name, change.Members, change.Remove))
+		if change.Remove {
+			s.reply(w, nil, core.ErrNoRemoval)
+			return
+		}
+		s.reply(w, nil, s.bus.SetGroup(caller.String(), change.Name, change.Members))
 	}
 }
 

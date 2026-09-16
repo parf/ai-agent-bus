@@ -57,7 +57,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 			_, err := b.RemoveSubscriber(c, "news@h", "sub@h")
 			return err
 		}},
-		{"set-group", func(b *Bus, c string) error { return b.SetGroup(c, "@team", []string{c}, false) }},
+		{"set-group", func(b *Bus, c string) error { return b.SetGroup(c, "@team", []string{c}) }},
 		{"set-user", func(b *Bus, c string) error {
 			_, err := b.SetUser(c, protocol.User{Name: "someone@h"}, true)
 			return err
@@ -100,7 +100,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 				if _, err := b.SetUser("admin@h", protocol.User{Name: "paused@h"}, true); err != nil {
 					t.Fatal(err)
 				}
-				if err := b.SetGroup("admin@h", MaintainersGroup, []string{"admin@h", "paused@h"}, false); err != nil {
+				if err := b.SetGroup("admin@h", MaintainersGroup, []string{"admin@h", "paused@h"}); err != nil {
 					t.Fatal(err)
 				}
 				if _, err := b.SetUserState("admin@h", "paused@h", "paused"); err != nil {
@@ -368,7 +368,7 @@ func TestListingsShowNothingToACallerThatMayNotAct(t *testing.T) {
 			}
 			// A maintainer, so that what it is refused cannot be mistaken for
 			// never having had the authority.
-			if err := b.SetGroup("admin@h", MaintainersGroup, []string{"admin@h", "paused@h"}, false); err != nil {
+			if err := b.SetGroup("admin@h", MaintainersGroup, []string{"admin@h", "paused@h"}); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := b.SetUserState("admin@h", "paused@h", "paused"); err != nil {

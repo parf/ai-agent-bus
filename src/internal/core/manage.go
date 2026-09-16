@@ -77,7 +77,7 @@ func groupName(n string) bool {
 
 // Groups are daemon-local flat sets. Only the daemon owner changes membership;
 // record ownership never confers organization administration.
-func (b *Bus) SetGroup(caller, name string, members []string, remove bool) error {
+func (b *Bus) SetGroup(caller, name string, members []string) error {
 	who, err := canon(caller)
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func (b *Bus) SetGroup(caller, name string, members []string, remove bool) error
 		return ErrNotOwner
 	}
 	if name == MaintainersGroup {
-		if who != b.admin || remove {
+		if who != b.admin {
 			return ErrNotOwner
 		}
 		includesOwner := false
@@ -116,23 +116,9 @@ func (b *Bus) SetGroup(caller, name string, members []string, remove bool) error
 			return fmt.Errorf("%w: owner must remain a maintainer", ErrNotOwner)
 		}
 	}
-	if remove {
-		for _, r := range b.records {
-			if r.Maintainers == name {
-				return fmt.Errorf("%w: group is assigned to a record", ErrBusy)
-			}
-			for _, a := range r.Allow {
-				if a == name {
-					return fmt.Errorf("%w: group is used by an ACL", ErrBusy)
-				}
-			}
-		}
-		delete(b.groups, name)
-	} else {
-		b.groups[name] = normalized
-		if name == MaintainersGroup {
-			b.maintainersAreUsers()
-		}
+	b.groups[name] = normalized
+	if name == MaintainersGroup {
+		b.maintainersAreUsers()
 	}
 	b.recheckReaders()
 	return nil

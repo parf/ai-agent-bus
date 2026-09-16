@@ -40,7 +40,7 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "smoke/person@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.SetGroup("owner@h", core.MaintainersGroup, []string{"owner@h", "maintainer@h"}, false); err != nil {
+	if err := b.SetGroup("owner@h", core.MaintainersGroup, []string{"owner@h", "maintainer@h"}); err != nil {
 		t.Fatal(err)
 	}
 	known(t, b, "self@h")

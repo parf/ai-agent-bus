@@ -48,6 +48,12 @@ var (
 	ErrPrivate     = errors.New("a configuration is private to the service it belongs to")
 	ErrNotAllow    = errors.New("not on that service's allow list")
 	ErrEnrol       = errors.New("enrolment")
+	// A group is retired by emptying its membership
+	// (docs/01-identity.md#groups-and-maintainers), so there is no removal to
+	// ask for. A request that asks anyway is refused rather than read as a
+	// membership change: emptying a group leaves every record that names it
+	// alone, and unmapping the name would not have.
+	ErrNoRemoval   = errors.New("a group is retired by emptying its membership; there is no removal")
 )
 
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.

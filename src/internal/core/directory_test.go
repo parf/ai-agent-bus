@@ -17,7 +17,7 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 		{Name: "paused@h", State: "paused"},
 		{Name: "banned@h", State: "banned"},
 	}})
-	if err := b.SetGroup("owner@h", MaintainersGroup, []string{"owner@h", "maintainer@h"}, false); err != nil {
+	if err := b.SetGroup("owner@h", MaintainersGroup, []string{"owner@h", "maintainer@h"}); err != nil {
 		t.Fatal(err)
 	}
 	known(t, b, "session@h")

@@ -121,6 +121,14 @@ func TestDashboardOwnerControls(t *testing.T) {
 	group := url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"other@h"}}
 	request("owner@h", "POST", "/groups", web.URL, group, 403)
 	request("admin@h", "POST", "/groups", web.URL, group, 303)
+	// A group is retired by emptying it, so "delete" is not an action here
+	// even for the daemon owner, and even from a request that is otherwise
+	// entirely in order — right origin, right session, real group
+	// (docs/01-identity.md#groups-and-maintainers).
+	request("admin@h", "POST", "/groups", web.URL, url.Values{"action": {"delete"}, "name": {"@ops"}}, 400)
+	// And the members it carried were not applied on the way out: a rejected
+	// action does nothing, rather than doing the save it was not asked for.
+	request("admin@h", "POST", "/groups", web.URL, url.Values{"action": {"delete"}, "name": {"@ops"}, "members": {"admin@h"}}, 400)
 	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"maintainers"}, "name": {"svc@h"}, "maintainers": {"@ops"}}, 303)
 	page = request("other@h", "GET", "/service?name=svc@h", "", nil, 200)
 	if !strings.Contains(page, "Save settings") || strings.Contains(page, "Transfer ownership") {

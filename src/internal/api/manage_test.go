@@ -47,7 +47,9 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	call("maint@h", "/configure", `{"name":"svc@h","config":{"secret":"kept"}}`, 200)
 	call("maint@h", "/manage", `{"name":"svc@h","owner":"maint@h"}`, 403)
 	call("maint@h", "/manage", `{"name":"svc@h","maintainers":""}`, 403)
-	call("admin@h", "/group", `{"name":"@ops","remove":true}`, 409)
+	// The removal verb is gone, so this is no longer the 409 that said the
+	// group was in use: there is nothing to be in use for.
+	call("admin@h", "/group", `{"name":"@ops","remove":true}`, 400)
 	call("alice@h", "/send", `{"to":"svc@h","body":"preserved"}`, 200)
 	call("alice@h", "/manage", `{"name":"svc@h","disabled":true}`, 200)
 	call("alice@h", "/send", `{"to":"svc@h","body":"refused"}`, 409)

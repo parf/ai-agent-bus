@@ -616,6 +616,7 @@ var codes = []struct {
 	{core.ErrPrivate, http.StatusForbidden, "acl"},
 	{core.ErrNotAllow, http.StatusForbidden, "acl"},
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
+	{core.ErrNoRemoval, http.StatusBadRequest, "malformed"},
 	{core.ErrUnknown, http.StatusNotFound, "unknown"},
 	// Not 503: a full inbox is the sender outrunning the reader, not the
 	// service being unavailable — and 503 is the service's own answer for

@@ -20,7 +20,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 			if _, err := b.SetUser("admin@h", protocol.User{Name: "reader@h"}, true); err != nil {
 				t.Fatal(err)
 			}
-			if err := b.SetGroup("admin@h", "@readers", []string{"reader@h"}, false); err != nil {
+			if err := b.SetGroup("admin@h", "@readers", []string{"reader@h"}); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := b.Register(protocol.Record{Name: "queue@h", Owner: "owner@h", Kind: "topic", Allow: []string{"@readers"}}); err != nil {
@@ -46,7 +46,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 			case "user":
 				_, err = b.SetUserState("admin@h", "reader@h", "paused")
 			case "membership":
-				err = b.SetGroup("admin@h", "@readers", nil, false)
+				err = b.SetGroup("admin@h", "@readers", nil)
 			}
 			if err != nil {
 				t.Fatal(err)
@@ -113,7 +113,7 @@ func TestChannelManagersCanRemoveButStrangersCannot(t *testing.T) {
 	if _, err := b.RemoveSubscriber("stranger@h", "news@h", "subscriber@h"); !errors.Is(err, ErrNotOwner) {
 		t.Fatal("stranger removed subscription", err)
 	}
-	if err := b.SetGroup("admin@h", "@ops", []string{"maint@h"}, false); err != nil {
+	if err := b.SetGroup("admin@h", "@ops", []string{"maint@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Manage("owner@h", Management{Name: "news@h", Maintainers: ptr("@ops")}); err != nil {

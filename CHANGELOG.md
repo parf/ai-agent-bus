@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.33 — 2026-09-16
+
+The verb that deleted a group is gone, from the API and from the dashboard, not
+only from the page. A group is retired by emptying its membership: the name
+stays, every record pointing at it still means what it meant, and putting a
+member back brings it back. The removal request is refused rather than dropped,
+because a request whose only removal-shaped field is ignored decodes as a
+membership save with no members — a different operation, answered with success.
+The dashboard's `POST /groups` rejects the old `delete` action for the same
+reason: it rendered no button for it and accepted it anyway.
+
 ## 0.5.32 — 2026-09-16
 
 `agent-bus-admin user add` creates the user it adds, so a fresh install can onboard somebody. Writing an `authorized_keys` line was never the whole of adding a person: strict issuing refuses a name the daemon holds nothing for, so the forced command the key reaches answered every newcomer with a refusal. The key line is written first because it is the half that can be taken back and a user is never deleted, and it is removed again if the daemon refuses, so the two halves land together or not at all. `--admin` grants maintainer standing by group membership, which is the only thing that grants it. An unreachable daemon refuses the whole operation rather than leaving a key that works before the name exists.

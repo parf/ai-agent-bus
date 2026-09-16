@@ -303,16 +303,18 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		http.Redirect(w, r, "/services?scope=my", http.StatusSeeOther)
 	}))
 	mux.HandleFunc("POST /groups", mutate(func(w http.ResponseWriter, r *http.Request, v adminView) {
-		action := r.PostForm.Get("action")
-		if action != "save" && action != "delete" {
+		// "delete" was an action here and is not one now: a group is retired
+		// by emptying its membership. It is named rather than falling into the
+		// default so that an old bookmark is refused instead of silently
+		// saving whatever members the form carried.
+		if action := r.PostForm.Get("action"); action != "save" {
 			http.Error(w, "unknown action", 400)
 			return
 		}
 		err := c.post(cookie(r), "/group", struct {
 			Name    string
 			Members []string
-			Remove  bool
-		}{r.PostForm.Get("name"), strings.Fields(r.PostForm.Get("members")), action == "delete"})
+		}{r.PostForm.Get("name"), strings.Fields(r.PostForm.Get("members"))})
 		if err != nil {
 			fail(w, r, v.You, err)
 			return

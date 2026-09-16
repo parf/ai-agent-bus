@@ -35,7 +35,9 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	call("alice@h", "POST", "/user", `{"name":"alice@h","person_name":"self-vouched"}`, 403)
 	call("maint@h", "POST", "/group", `{"name":"@maintainers","members":["maint@h"]}`, 403)
 	call("admin@h", "POST", "/group", `{"name":"@maintainers","members":[]}`, 403)
-	call("admin@h", "POST", "/group", `{"name":"@maintainers","remove":true}`, 403)
+	// Not 403 any more: the removal is refused before anyone asks whose group
+	// it is, so the daemon owner is refused it on the same terms as everybody.
+	call("admin@h", "POST", "/group", `{"name":"@maintainers","remove":true}`, 400)
 	call("admin@h", "POST", "/user/state", `{"name":"admin@h","state":"paused"}`, 403)
 	call("admin@h", "POST", "/user", `{"name":"duplicate@h","email":"ALICE@EXAMPLE.COM","create":true}`, 400)
 	call("admin@h", "POST", "/user", `{"name":"duplicate@h","github_user":"ALICE-CODE","create":true}`, 400)

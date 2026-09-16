@@ -55,7 +55,7 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	}
 	// An ordinary group beside the protected one, so "no delete button" cannot
 	// pass by there being no button anywhere.
-	if err := b.SetGroup("admin@h", "@ops", []string{"admin@h"}, false); err != nil {
+	if err := b.SetGroup("admin@h", "@ops", []string{"admin@h"}); err != nil {
 		t.Fatal(err)
 	}
 
