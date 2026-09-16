@@ -194,3 +194,38 @@ No runtime suite was run for this documentation-only review. The requested
 answers are S12 (form fragmentation), S02–S03 (Overview), and S04/S11
 (inheritance and available values). The remaining findings are the coverage
 and truthfulness checks against the baseline, not a replacement architecture.
+
+## Review of the round-one response
+
+Checked `7b29451` and `c613217`, including the new token and layout documents,
+on 2026-09-16. **Not fully closed.** The channel configuration, read-only field
+homes, Create-user entry, Account sources, individual-message journey and
+explicit data fallbacks address their original findings. The palette is now
+concrete: independent calculation reproduces every published contrast ratio,
+including both outline minima. That verifies the arithmetic, not rendered
+contrast, focus visibility, layout or zoom behaviour.
+
+| ID | Remaining finding | Evidence and correction |
+|---|---|---|
+| R2-1 | **The confirmation invents destructive queue deletion.** `layouts.md:205` promises “48 held messages go with it” and offers Remove | [UnregisterAnd](../../../../src/internal/core/unregister.go) lines 76–79 prunes expired entries, then returns `ErrBusy` if any queued messages or waiters remain. Ordinary removal cannot discard those live messages. Draw a blocked-removal example with a safe recovery, and a separate eligible-removal confirmation; retain the final daemon recheck. Do not import orphan cleanup's purge semantics into this verb |
+| R2-2 | **The disabled-queue correction is still too strong and inconsistent across files.** `pages.md:50` says “nothing expires out of it”; `layouts.md:50,162–163` again promises no drainage, although `pages.md:70–73` chooses the weaker effective-state claim. `data-dictionary.md:50` still says “the owner turned delivery off” | There are three prune callers, not just send and consume: [unregister.go:77](../../../../src/internal/core/unregister.go) prunes without a stored-disabled guard. A scratch reproduction with one expired and one live message increments `Expired` on attempted unregister, retains the live message and refuses removal. The ordinary send/consume paths do not drain a stored-disabled queue; that does not prove no operation can expire it. Separately, the returned effective bit still merges causes ([visible](../../../../src/internal/core/manage.go), line 305). Use the weaker observation consistently in the dictionary and actual mockups, not only in their caveat |
+| R2-3 | **The new restart diagnosis contradicts both source and an existing test.** `pages.md:281,452` says restart resets counters and is clamped into a zero activity bucket | [Restore](../../../../src/internal/core/snapshot.go) restores queue counters but not samples. [TestActivityIsBoundedAndFiltered](../../../../src/internal/core/activity_test.go) lines 50–53 explicitly verifies the restored bus has no activity history. [Activity](../../../../src/internal/core/activity.go) lines 82–108 differences samples from the current process; it cannot subtract a previous process's sample that was never restored. `Status.Up` may help explain restart time, but it does not repair the alleged cross-restart delta. Describe missing pre-restart history and the available sampled interval, without inventing a zero bucket or a window spanning two runs |
+| R2-4 | **The recovery table assumes a machine-readable reason it does not receive, and still supplies incorrect recoveries.** `pages.md:416–432` promises reason-specific 403/409 bodies, calls busy “transient”, and recommends retry | The daemon selects a counter reason in [server.go:634–639](../../../../src/internal/api/server.go), but its error response at 659–662 carries only error text. The web [request helper](../../../../src/cmd/agent-bus-web/main.go), line 303, stores status plus the raw payload; it has no stable reason discriminator. Name this dependency or give a safe fallback, rather than infer reasons from a closed *counter* vocabulary. Busy includes a credential now backed by a person or record, so waiting need not help. Enrolment means failed proof, not necessarily an unenrolled name. For an uncertain mutation outcome, inspect current state before offering a blind retry |
+| R2-5 | **Claimed closures still have contradictory live copies.** `pages.md:135` retains “Kind: filter only, not a column”, while `layouts.md` restores kind on mixed lists. The dedup row at `pages.md:80` replaces one unsupported co-occurrence claim with “a disabled record holding work is usually also at its bound”. The Q60 row at `docs/decisions.md:142` retains the unconditional compile-error promise, and `components.md:13` still says nothing off the shelf supplies the table | Apply the corrected rules at their owning sections and link from other documents. Remove the co-occurrence premise entirely: one item per record does not need it. Remove the stale universal/component-guarantee assertions instead of relying on a later caveat. The mixed-list kind requirement must govern both the field map and mockup |
+| R2-6 | **The density acceptance cannot yet reject the mutations it names.** `visual-design.md:130` requires “a minimum row count” without choosing one. Its introduction promises rejection of a wrong scale ratio or tight leading; the count caps in check 1 do not establish either | Choose the minimum and precise viewport/fixture/header conditions in the value home. Six arbitrarily spaced font sizes still satisfy the six-size cap; tightening every line height also leaves that cap unchanged. Name which separate bound or rendered check rejects each promised mutation. Checking contrast over the declared pairs likewise does not prove components actually use those pairs: retain rendered verification as a separate requirement |
+| R2-7 | **The new mockups contradict the chosen presentation in smaller but implementation-relevant ways.** Overview's node strip in `layouts.md:57` includes Refused although `pages.md:81` excludes it there. The Services toolbar shows Kind Any while its active summary says kind agent, and its holding-work results include a zero-depth row. Its wide owner labels use ellipses with no stated way to recover the full value | Make each representative fixture internally consistent with its query and the field map. Specify how a truncated owner can be inspected without script and without assuming the caller may read that owner's user page. These are design decisions the mockup should resolve, not contradictions to leave to its implementer |
+
+### Verification and scope
+
+Ran the existing `TestActivityIsBoundedAndFiltered` and a scratch overlay test,
+`TestReviewDisabledUnregisterPrunesButDoesNotPurge`; both pass. The latter
+proves the disabled queue's expiry count can change on refused unregister and
+that the live message and record survive. Scratch files are confined to ignored
+`tmp/specs-round-2/`; no application or permanent test files were edited.
+Recomputed palette ratios from the token hex values using sRGB relative
+luminance; all match the table to its displayed precision. No browser rendering
+or full runtime suite was claimed for this document review.
+
+Q62 and the owner's specification review remain separate gates. These findings
+do not reopen no-script, the house layer, templ or dark mode. They prevent the
+new mockups and acceptance from undoing the source-grounded corrections.
