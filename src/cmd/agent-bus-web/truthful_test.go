@@ -82,25 +82,28 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	if strings.Contains(service, "Credentials remain valid") {
 		t.Error("removal help still promises the credential survives; api.unregister forgets it")
 	}
+	if !strings.Contains(service, "No registration, no access") {
+		t.Error("removal help does not say that removing the registration removes access")
+	}
 	if !strings.Contains(service, "goes with the address") {
 		t.Error("removal help does not say the credential goes with the address")
 	}
 
 	groups := get("/groups")
-	// The button is one form per group, so look inside the protected group's
-	// own section rather than at the page.
-	protected := groups[strings.Index(groups, "@maintainers"):]
-	if end := strings.Index(protected, "</form>"); end >= 0 {
-		protected = protected[:end]
+	// Groups are not deleted at all, so no group offers it — the protected one
+	// because core refuses it outright, the rest because deletion is not how a
+	// group is retired. See docs/01-identity.md#groups-and-maintainers.
+	if strings.Contains(groups, "value=delete") {
+		t.Error("the groups page still offers a deletion")
 	}
-	if strings.Contains(protected, "value=delete") {
-		t.Error("the maintainers group offers a delete core refuses unconditionally")
+	// Positive control: the form itself is still there, so the check above
+	// cannot pass by the page having lost its controls altogether.
+	if !strings.Contains(groups, "value=save") {
+		t.Error("the groups page lost membership editing, so the check above proves nothing")
 	}
-	ops := groups[strings.Index(groups, "@ops"):]
-	if end := strings.Index(ops, "</form>"); end >= 0 {
-		ops = ops[:end]
-	}
-	if !strings.Contains(ops, "value=delete") {
-		t.Error("an ordinary group lost its delete button, so the check above proves nothing")
+	for _, group := range []string{"@maintainers", "@ops"} {
+		if !strings.Contains(groups, group) {
+			t.Errorf("%s is not on the page at all", group)
+		}
 	}
 }

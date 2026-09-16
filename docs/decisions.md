@@ -135,6 +135,8 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-15 | The daemon may run `ssh-keygen`; the boundary is no user services, not no exec; resolves Q30 | A fixed verifier the daemon ships and calls with its own arguments is not a stranger's program, and what a user supplied is what the rule is about | [nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |
 | 2026-09-15 | MVP installs by its own script only, with no npm path; resolves Q10 | One supported way in is what installation acceptance can be run against; npm publication stays R1 | [install](09-setup.md#install) |
 | 2026-09-15 | The account map is administered by operator SSH key or user token, and nothing new; resolves Q9 | The entitlement is already the principal in the key's entry, so who may edit the map is answered by what answers everything else | [administering the account map](09-setup.md#administering-the-account-map) |
+| 2026-09-15 | No registration, no access | The record is what access hangs on; a credential whose record is gone has nothing left to hold, and the page said the opposite | [unregistering](01-identity.md#unregistering) |
+| 2026-09-15 | A group is not deleted; it is made inactive or banned, as a person is | Removing a name other records point at silently changes what they mean; `@maintainers` could never be deleted and now none of them can | [groups and maintainers](01-identity.md#groups-and-maintainers) |
 
 ## Superseded
 

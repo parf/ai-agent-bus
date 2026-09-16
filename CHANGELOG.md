@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.22 — 2026-09-15
+
+Removing a registration says what it does: no registration, no access. The dashboard offers no group deletion at all — a group is made inactive or banned as a person is, rather than removed out from under the records naming it. The group states themselves are pending.
+
 ## 0.5.21 — 2026-09-15
 
 Two dashboard pages stop promising what the daemon refuses. Removing a registration no longer says credentials remain valid: the service credential goes with the address, and only a person's own stays. The maintainers group no longer offers a delete button, because that deletion is refused for everybody including the daemon owner.

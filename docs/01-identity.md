@@ -116,9 +116,11 @@ An unanswered challenge expires; an answered one is spent.
 its empty inbox, configuration and subscriptions. [Record management authority](#groups-and-maintainers) is required. Missing names are errors; queued messages or any waiting
 reader block removal. Stop readers and drain the queue before unregistering.
 
-This removes an address and the credential issued for it, not the process
-behind it. It disappears from discovery, new messages to it are refused, and
-its credential stops authenticating. Existing history remains history.
+**No registration, no access.** This removes an address and the credential
+issued for it, not the process behind it. The name disappears from discovery,
+new messages to it are refused, and its credential stops authenticating — the
+record is what access hangs on, so with the record gone there is nothing left
+to hold. Existing history remains history.
 
 Nothing is held back for the name. It is reserved to nobody, survives no
 restart, and whoever asks for it next gets it — its previous owner included,
@@ -232,8 +234,20 @@ The daemon owner is always a daemon maintainer. Daemon maintenance and record ma
 are distinct scopes, even when they include the same people. Master access is
 still [access, not ownership](#acl). The authenticated record itself retains its
 existing right to re-register; that does not grant ownership transfer.
-Daemon administrators edit ordinary group membership. An assigned or ACL-referenced
-group cannot be deleted until its references are removed. Names are available
+Daemon administrators edit ordinary group membership.
+
+**A group is not deleted.** The same rule people already follow
+([user lifecycle](#user-lifecycle)): a name that other things point at is made
+inactive or banned, not removed, because removing it silently changes what every
+record referencing it means. `@maintainers` could never be deleted; now none of
+them can, and what replaces deletion is a state on the group.
+
+⚠️ **Pending: a group has no state yet.** Groups are flat sets of names with
+nothing on them to set, so *inactive* and *banned* have to exist before they can
+be offered, and what they do to membership-derived authority is
+[open](../Plans/MVP/QUESTIONS.md#open-questions). The dashboard offers no
+deletion as of this decision; the verb underneath it is still there and goes
+when the states arrive. Names are available
 for service-owner assignment; membership lists are visible to daemon administrators. Runtime start/stop controls remain [R1 runner work](../Plans/R1/runner.md#what-the-runner-does).
 
 ### Owner control
