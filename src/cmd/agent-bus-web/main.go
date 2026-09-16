@@ -446,9 +446,10 @@ var page = template.Must(template.New("dash").Parse(shell("diagnostics", "Diagno
 <p class=muted>The reason set is closed, so a <code>0</code> here is a measurement
  and not a gap. Counted since this daemon started; how fast it is rising is not
  something this page can say.</p>
-<p class=warn>Some refusals are not counted yet, among them unparseable JSON, an
- invalid name in a token request, and a lookup of a name the daemon does not
- hold. These are recorded counts, not all refusals.</p>
+<p class=muted>The totals count API refusals, including bad credentials and malformed
+ requests, whatever the caller&rsquo;s standing. What the router rejected before any
+ handler ran is not included. Internal failures are not caller refusals and are
+ not counted either.</p>
 
 <h2 id=stuck>inboxes holding messages</h2>
 <table><caption>Inboxes holding messages, longest wait first — visible to you</caption>

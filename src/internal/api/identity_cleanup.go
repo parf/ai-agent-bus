@@ -8,7 +8,7 @@ import (
 
 func (s *Server) removeIdentity(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct{ Name string }
-	if read(w, r, &in) {
+	if s.read(w, r, &in) {
 		s.reply(w, nil, s.bus.RemoveOwnerless(caller.String(), in.Name, s.tokens.Forget))
 	}
 }

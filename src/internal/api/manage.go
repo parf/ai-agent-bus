@@ -8,7 +8,7 @@ import (
 
 func (s *Server) manage(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var change core.Management
-	if read(w, r, &change) {
+	if s.read(w, r, &change) {
 		rec, err := s.bus.Manage(caller.String(), change)
 		s.reply(w, rec, err)
 	}
@@ -25,7 +25,7 @@ func (s *Server) group(w http.ResponseWriter, r *http.Request, caller protocol.N
 		// which is a different operation answered with success.
 		Remove bool
 	}
-	if read(w, r, &change) {
+	if s.read(w, r, &change) {
 		if change.Remove {
 			s.reply(w, nil, core.ErrNoRemoval)
 			return
@@ -36,7 +36,7 @@ func (s *Server) group(w http.ResponseWriter, r *http.Request, caller protocol.N
 
 func (s *Server) removeSubscriber(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct{ Topic, Subscriber string }
-	if read(w, r, &in) {
+	if s.read(w, r, &in) {
 		rec, err := s.bus.RemoveSubscriber(caller.String(), in.Topic, in.Subscriber)
 		s.reply(w, rec, err)
 	}
@@ -55,7 +55,7 @@ func (s *Server) user(w http.ResponseWriter, r *http.Request, caller protocol.Na
 		protocol.User
 		Create bool `json:"create,omitempty"`
 	}
-	if read(w, r, &in) {
+	if s.read(w, r, &in) {
 		user, err := s.bus.SetUser(caller.String(), in.User, in.Create)
 		s.reply(w, user, err)
 	}
@@ -63,7 +63,7 @@ func (s *Server) user(w http.ResponseWriter, r *http.Request, caller protocol.Na
 
 func (s *Server) userState(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct{ Name, State string }
-	if read(w, r, &in) {
+	if s.read(w, r, &in) {
 		u, err := s.bus.SetUserState(caller.String(), in.Name, in.State)
 		s.reply(w, u, err)
 	}

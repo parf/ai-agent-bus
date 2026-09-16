@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.37 — 2026-09-16
+
+Every refusal an endpoint decides is counted once, including the
+request-validation and hidden-or-missing-name paths that answered callers
+silently. Internal failures and router rejections stay outside the totals,
+because neither is a caller being turned away.
+
 ## 0.5.36 — 2026-09-16
 
 The dashboard stops merging what a record declares, what the daemon observed and

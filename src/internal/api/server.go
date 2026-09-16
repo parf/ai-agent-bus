@@ -214,16 +214,14 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 	return func(w http.ResponseWriter, r *http.Request) {
 		who, known := s.tokens.Principal(r.Header.Get(HeaderToken))
 		if !known {
-			s.bus.Refuse("credential")
-			fail(w, http.StatusUnauthorized, "bad token")
+			s.refuse(w, http.StatusUnauthorized, "credential", "bad token")
 			return
 		}
 		// A stored principal was a name when it was issued; parsing it back is
 		// cheap and keeps every handler taking a Name rather than a string.
 		name, err := protocol.ParseName(who)
 		if err != nil {
-			s.bus.Refuse("credential")
-			fail(w, http.StatusUnauthorized, "bad token")
+			s.refuse(w, http.StatusUnauthorized, "credential", "bad token")
 			return
 		}
 		if err := s.bus.Authenticate(name.String()); err != nil {
@@ -259,7 +257,7 @@ func (s *Server) onSocket(me protocol.Name) guard {
 func (s *Server) session(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	id, err := s.tokens.StartSession(caller.String())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		oops(w, err)
 		return
 	}
 	ok(w, struct {
@@ -286,12 +284,12 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 		Name   string `json:"name"`
 		Rotate bool   `json:"rotate,omitempty"`
 	}
-	if !read(w, r, &in) {
+	if !s.read(w, r, &in) {
 		return
 	}
 	want, err := protocol.ParseName(in.Name)
 	if err != nil {
-		fail(w, http.StatusBadRequest, err.Error())
+		s.refuse(w, http.StatusBadRequest, "malformed", err.Error())
 		return
 	}
 	issue := s.tokens.Issue
@@ -339,7 +337,7 @@ func (s *Server) subscribe(w http.ResponseWriter, r *http.Request, caller protoc
 		Topic string `json:"topic"`
 		Off   bool   `json:"off,omitempty"`
 	}
-	if !read(w, r, &in) {
+	if !s.read(w, r, &in) {
 		return
 	}
 	rec, err := s.bus.Subscribe(caller.String(), in.Topic, !in.Off)
@@ -348,7 +346,7 @@ func (s *Server) subscribe(w http.ResponseWriter, r *http.Request, caller protoc
 
 func (s *Server) unregister(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct{ Name string }
-	if !read(w, r, &in) {
+	if !s.read(w, r, &in) {
 		return
 	}
 	// The credential goes with the address, in the same operation. Keeping it
@@ -365,7 +363,7 @@ func (s *Server) unregister(w http.ResponseWriter, r *http.Request, caller proto
 
 func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in protocol.Record
-	if !read(w, r, &in) {
+	if !s.read(w, r, &in) {
 		return
 	}
 	in.Owner = caller.String()
@@ -386,7 +384,7 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 		Name   string          `json:"name"`
 		Config json.RawMessage `json:"config"`
 	}
-	if !read(w, r, &in) {
+	if !s.read(w, r, &in) {
 		return
 	}
 	rec, err := s.bus.Configure(in.Name, caller.String(), in.Config)
@@ -419,7 +417,7 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.
 	name := r.URL.Query().Get("name")
 	rec, known := s.bus.Lookup(caller.String(), name)
 	if !known {
-		fail(w, http.StatusNotFound, "no such name: "+name)
+		s.refuse(w, http.StatusNotFound, "unknown", "no such name: "+name)
 		return
 	}
 	ok(w, rec)
@@ -435,7 +433,7 @@ func (s *Server) enrol(w http.ResponseWriter, r *http.Request, _ protocol.Name) 
 		Nonce     string `json:"nonce"`
 		Signature string `json:"signature"`
 	}
-	if !read(w, r, &in) {
+	if !s.read(w, r, &in) {
 		return
 	}
 	if in.Signature == "" {
@@ -513,7 +511,7 @@ func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name
 
 func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in protocol.Envelope
-	if !read(w, r, &in) {
+	if !s.read(w, r, &in) {
 		return
 	}
 	in.From = caller.String()
@@ -554,7 +552,7 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 			// A topic filter is a label (`deploy-42`); a topic *name* is a
 			// name (`jobs@srv1`). Saying the second and meaning the first is
 			// a typo, and answering it with a silent timeout hides it.
-			fail(w, http.StatusNotFound, "no such topic: "+topic)
+			s.refuse(w, http.StatusNotFound, "unknown", "no such topic: "+topic)
 			return
 		}
 	}
@@ -656,17 +654,19 @@ func (s *Server) reply(w http.ResponseWriter, v any, err error) {
 	}
 	for _, c := range codes {
 		if errors.Is(err, c.err) {
-			s.bus.Refuse(c.kind)
-			fail(w, c.code, err.Error())
+			s.refuse(w, c.code, c.kind, err.Error())
 			return
 		}
 	}
-	fail(w, http.StatusInternalServerError, err.Error())
+	oops(w, err)
 }
 
-func read(w http.ResponseWriter, r *http.Request, v any) bool {
+// read decodes a request body, and a body it cannot decode is a refusal like
+// any other — the caller asked for something and was turned away. This is the
+// shared decoding path for JSON request bodies.
+func (s *Server) read(w http.ResponseWriter, r *http.Request, v any) bool {
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(v); err != nil {
-		fail(w, http.StatusBadRequest, "bad json: "+err.Error())
+		s.refuse(w, http.StatusBadRequest, "malformed", "bad json: "+err.Error())
 		return false
 	}
 	return true
@@ -677,7 +677,24 @@ func ok(w http.ResponseWriter, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
-func fail(w http.ResponseWriter, code int, msg string) {
+// refuse counts an endpoint's refusal once, then writes it. Handlers must use
+// this rather than the bare answer writer for caller errors. Router rejections
+// and internal failures do not count (docs/05-discovery.md#refusals).
+// The reason cannot be inferred from the status: 403 and 409 each cover
+// several distinct reasons.
+func (s *Server) refuse(w http.ResponseWriter, code int, reason, msg string) {
+	s.bus.Refuse(reason)
+	answer(w, code, msg)
+}
+
+// oops is the other half: ours rather than the caller's, always 500, never
+// counted. Refusing a caller and failing them are different things to be told
+// about.
+func oops(w http.ResponseWriter, err error) {
+	answer(w, http.StatusInternalServerError, err.Error())
+}
+
+func answer(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})

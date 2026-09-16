@@ -140,7 +140,9 @@ Graphs and their accessible value table report accepted, dequeued, dropped,
 expired and refused counts. Aggregates include only currently visible records;
 pub/sub copies count in the subscriber inboxes that accept them. Per-record
 refusals count failed sends and reads; daemon administrators with master access
-also see node refusal totals, including authentication failures. Bodies never
+also see node refusal totals, on the terms [refusals](#refusals) sets — every
+endpoint refusal, including authentication failures and malformed requests, and
+not the router's rejections or our own failures. Bodies never
 enter this history.
 
 Adding a subscription remains the subscriber's opt-in. Channel owners and
@@ -228,10 +230,14 @@ records the implemented checks; installed browser acceptance remains separate.
 A bus that is quiet and one that is refusing every call look identical from
 outside. `status` carries **how many calls were turned away and for what**,
 counted where a refusal becomes a status code so that the reason and the code
-cannot drift apart. **Partial:** a refusal decided before that point is answered
-and not counted, so the figures are recorded counts rather than every refusal.
-[H.5.10](../Plans/MVP/TODO.md#remaining-work) closes it; until it lands the faces
-say so.
+cannot drift apart. Every refusing path calls one shared counter, which is what
+keeps the figures whole — a fact about the paths there are, not a guarantee that
+a future one cannot answer around it.
+
+**An addressed endpoint's refusals are counted whatever the caller's standing**
+— a bad token and a malformed request alike. Two things are not counted, and
+neither is a caller being turned away: a route the router rejects before any
+handler runs, and a failure of ours, which is a `500`.
 
 | Reason | | |
 |---|---|---|

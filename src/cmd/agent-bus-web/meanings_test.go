@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -372,13 +373,8 @@ func TestEverySupportedRefusalReasonIsDrawnIncludingItsZero(t *testing.T) {
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "nobody@h", Body: "x"}); err == nil {
 		t.Fatal("the fixture produced no refusal")
 	}
-	// A refusal is counted where a status code is decided, and only on one of
-	// the two paths that decide one: `reply` maps an error to a code and
-	// counts it, while a handler calling `fail` directly does not — a lookup
-	// of an unknown name answers 404 and is counted nowhere. So the control
-	// has to be a request refused through `reply`, and what this page can
-	// claim is bounded by that. Sending through core reaches no counter at
-	// all, and neither does a page the web child refuses by itself.
+	// Count through HTTP: a direct core call does not classify a refusal.
+	// Both reply's error mapping and early request validation count in the API.
 	ask, err := http.NewRequest("POST", m.backend.URL+"/send", strings.NewReader(`{"to":"nobody@h","body":"x"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -398,8 +394,9 @@ func TestEverySupportedRefusalReasonIsDrawnIncludingItsZero(t *testing.T) {
 	if resp.StatusCode != 404 {
 		t.Fatalf("the fixture's unknown name answered %d, so nothing was counted", resp.StatusCode)
 	}
-	// The caveat is factual rather than decorative: this refusal is answered
-	// and counted nowhere, which is what the page now warns about.
+	// A refusal decided before the error map is counted like any other, since
+	// H.5.10. The page says every endpoint refusal is in the figures, and
+	// this is the path that used to answer and count nothing.
 	before := m.bus.Status().Refused["unknown"]
 	miss, err := http.NewRequest("GET", m.backend.URL+"/lookup?name=alsomissing@h", nil)
 	if err != nil {
@@ -414,8 +411,8 @@ func TestEverySupportedRefusalReasonIsDrawnIncludingItsZero(t *testing.T) {
 			t.Fatalf("the uncounted-path control answered %d", got.StatusCode)
 		}
 	}
-	if after := m.bus.Status().Refused["unknown"]; after != before {
-		t.Fatalf("a lookup refusal reached the counter (%d to %d); H.5.10 may be done and this caveat stale", before, after)
+	if after := m.bus.Status().Refused["unknown"]; after != before+1 {
+		t.Fatalf("a lookup refusal moved the counter %d to %d, want one more", before, after)
 	}
 	body := m.get("/")
 	reasons := api.Reasons()
@@ -429,24 +426,27 @@ func TestEverySupportedRefusalReasonIsDrawnIncludingItsZero(t *testing.T) {
 	}
 	// The numbers, not only the names. A table drawing every reason with a
 	// zero beside it says nothing that a table drawing none of them did not.
-	if got := m.row(body, "unknown"); !strings.Contains(got, "<td>1<") && !strings.HasSuffix(got, "<td>1") {
-		t.Errorf("a reason that was counted once is not shown as one: %s", got)
+	// Read against what the daemon reports rather than against a literal, so
+	// the check is that the page shows the count rather than that the fixture
+	// produced a particular number of refusals.
+	held := fmt.Sprintf("<td>%d", m.bus.Status().Refused["unknown"])
+	if m.bus.Status().Refused["unknown"] == 0 {
+		t.Fatal("the fixture produced no counted refusal")
+	}
+	if got := m.row(body, "unknown"); !strings.HasSuffix(got, held) {
+		t.Errorf("a counted reason is not shown with its count (want %s): %s", held, got)
 	}
 	// And a reason nothing produced is a zero rather than a blank or a dash.
 	if got := m.row(body, "malformed"); !strings.Contains(got, "<td>0<") && !strings.HasSuffix(got, "<td>0") {
 		t.Errorf("a reason nothing produced is not drawn as a measured zero: %s", got)
 	}
-	// And the page says what the count does not cover, because it does not
-	// cover everything: a refusal decided while reading the request never
-	// reaches the counter (H.5.10). A page presenting this as a census would
-	// be making exactly the claim this whole layer exists to stop.
-	if !strings.Contains(body, "recorded counts, not all refusals") {
-		t.Error("the page presents an incomplete counter as every refusal")
+	// And the page says what the figures cover, which is now every refusal an
+	// endpoint decided — including the ones it once answered silently.
+	if !strings.Contains(body, "whatever the caller&rsquo;s standing") {
+		t.Error("the page does not say the counts do not depend on who was refused")
 	}
-	// Named, so the caveat tells an operator which answers are missing rather
-	// than leaving them to distrust the whole table.
-	if !strings.Contains(body, "lookup of a name the daemon does not hold") {
-		t.Error("the page does not say which refusals are missing")
+	if !strings.Contains(body, "router rejected before any handler ran is not") {
+		t.Error("the page does not say what the counts leave out")
 	}
 	if !strings.Contains(body, "closed") || !strings.Contains(body, "measurement") {
 		t.Error("the page does not say a zero here is measured")

@@ -6,6 +6,7 @@ gates are in [TODO](TODO.md#objective).
 | Work | Result | Evidence |
 |---|---|---|
 | H.5.5, H.5.4 | A start deletes every record whose owner it knows nothing about, to a fixed point, and then drops the credentials that answered for them; the interim guard between the two sweeps is gone. Group membership now goes with a deleted name, which it did not | [orphan services](done/orphan-services.md#checks) |
+| H.5.10 | Every refusal an endpoint decides is counted once, on one shared path; the router's rejections and our own failures stay outside the totals, because neither is a caller being turned away | [refusal counting](done/refusal-counting.md#what-proves-it) |
 | H.5.7 | A paused or banned user's services refuse calls in the daemon, on the called name rather than on who is asking; nothing is destroyed and the state lifts cleanly | [suspended owner](done/suspended-owner.md#checks) |
 | H.5.6 | The group deletion verb is gone from the API and the dashboard, not only the page; a group is retired by emptying its membership | [group retirement](done/group-retirement.md#checks) |
 | H.5.9 | `agent-bus-admin user add` creates the user it adds, so a fresh install can onboard somebody; an unreachable daemon refuses rather than leaving a key that works before the name exists | [user add evidence](done/user-add-provisions.md#checks) |
