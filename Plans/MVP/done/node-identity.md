@@ -90,10 +90,6 @@ by a test. **A long host name is not**: it is handled by
 rather than on a check that would fail if it stopped. The measured host was
 `parf.us`. Recorded as a gap rather than counted as coverage.
 
-Final frozen `src/smoke.sh --slow`: **578 passed, 0 failed**, exit 0;
-vet and race checks passed (`tmp/node-identity/slow-frozen.log`). The executable
-script copy and `src/smoke.sh` had the same SHA-256 throughout this run.
-
 ### A void run is not a failed one, and not a green one
 
 The first final `--slow` was **discarded, not interpreted**. A comment in
