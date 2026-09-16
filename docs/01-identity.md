@@ -140,9 +140,33 @@ protection it did not need.
 ## Person records
 
 **Built.** Maintainer-vouched profiles are separate from service registrations.
-The daemon lists profiles, self-owned records and otherwise unregistered credential
-holders; service identities owned by somebody else are not listed as people.
 Administrators see the user directory; ordinary callers see their own details.
+
+**Pending: the directory shows what is not a person, and says so.** A person is
+a name a maintainer wrote a profile for, blank fields included — the same test
+that decides whether a credential survives its address going
+([unregistering](#unregistering)). The page also lists names that hold a
+credential without a profile, and services that own themselves, because those
+are how a name outlives what it was for: a launcher that registered a session,
+a token minted for a name nobody kept. On this node they reached two hundred
+and thirty-two rows against four records.
+
+**Showing them is the point; hiding them is not.** Every one of those rows read
+*User · active* — a kind nobody chose and a state nobody set — which is what
+made two hundred of them invisible as a problem. Filtering them out would fix
+the reading and leave the mess, and nobody would ever go and clear it. So each
+one appears under what it actually is, with the reason it is there, and can be
+removed from the page.
+
+**The daemon decides which is which**, from the profile it holds and the record
+it holds, never from how a name is spelled. A name that looks like a test
+fixture and belongs to somebody is a person; a tidy-looking name with nothing
+behind it is not.
+
+What is removable is what the [ownerless sweep](02-access.md#ownerless-credentials)
+would take anyway — no record and no registered user. The sweep runs at start;
+this is the same rule, applied when somebody looks rather than at the next
+restart.
 
 ### Who may write a record
 
