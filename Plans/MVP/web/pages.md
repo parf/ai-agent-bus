@@ -47,7 +47,7 @@ with the observation it rests on:
 | ~~Backlog older than its own TTL~~ | — | **cut.** The record's TTL is the wrong right-hand side: the deadline is per envelope, fixed at accept from whichever of the sender's and the queue's TTLs was shorter, so a live head accepted under a longer setting can exceed today's without anything being wrong ([glyphs](glyphs.md#attention-levels)). home-parf's find |
 | Losses, cumulative across restarts | `Dropped`, `Expired` non-zero | orange, links to Diagnostics. **Not** "since start": `Restore` puts these counters back from the snapshot ([dictionary](data-dictionary.md#state)), so a non-zero total may predate this run entirely |
 | Refusals, cumulative | `Status.Refused`, a `map[string]int` by reason | informational; **not** "climbing" — this value is a lifetime total. A supported reason absent from it is a measured `0`, not an unknown ([dictionary](data-dictionary.md#node-and-scope)). A windowed signal exists on Activity but is scoped: node-wide refusals only on the unfiltered admin or master view, a sum over visible records otherwise |
-| **Disabled record holding queued work** | the **stored** `Disabled` bit and `Queued` > 0 — see the caveat below | orange. opencode's find, and stronger than first stated. `Send` refuses at bus.go:532, `recheckInbox` releases existing waiters with `ErrDisabled` (manage.go:292), and `ConsumeAs` refuses a new reader at bus.go:801 — so the backlog can be neither delivered nor drained. home-parf's extension, verified: both prune sites sit *behind* those guards, so **the queue is frozen**. Nothing enters, nothing leaves, and nothing expires out of it: `Expired` will not grow even when every message is long past its TTL, and `Oldest` grows without bound. **Nor can it simply be removed:** `UnregisterAnd` refuses while any message or reader remains (unregister.go:76–79), and since it prunes first, removal succeeds only once the whole queue has passed its TTL. The exits are re-enable-and-drain, or wait for everything in it to expire. The page states what is observed — delivery is off and work is held — and promises nothing about reachability |
+| **Disabled record holding queued work** | the **stored** `Disabled` bit and `Queued` > 0 — see the caveat below | orange. opencode's find, and stronger than first stated. `Send` refuses at bus.go:532, `recheckInbox` releases existing waiters with `ErrDisabled` (manage.go:292), and `ConsumeAs` refuses a new reader at bus.go:801 — so the backlog can be neither delivered nor drained. home-parf's extension, corrected twice: **the ordinary paths do not drain it**, because the send-path and consume-path prunes sit behind those guards. That is not the same as nothing being able to expire it. `UnregisterAnd` has **no disabled guard** — an attempted removal prunes first (unregister.go:77), so `Expired` can move on a disabled record, and then refuses with `ErrBusy` while any live message or reader remains. codex reproduced it: one expired and one live message, disable, unregister → `Expired` increments, the live message and the record survive, removal refused. So the page says only what is observed — **delivery is off and work is held** — and promises nothing about drainage, expiry or removability |
 | **Services of a suspended owner** | the owner's `State` is paused or banned | orange, linking to the person. **Conditional on [H.5.7](../TODO.md#objective)**, which is pending: today such services do not refuse, so the item would describe a rule that is not in force. It goes in when H.5.7 does |
 | Unregistered credentials awaiting review | the cleanup cohort is non-empty | blue, a count and a link. **Owner-decidable**: it is discoverability rather than attention, and [C10](review/codex.md#junk-and-misleading-content) left it homeless |
 
@@ -88,7 +88,7 @@ Two structural rules, both opencode's:
 
 | | |
 |---|---|
-| **One queue, one item** | A disabled record holding work is usually also at its bound, and a lossy queue is often both. Each record yields a single item at its worst level, or the page repeats itself. (The original example was at-bound implying backlog-past-TTL; that signal is cut, and dedup never needed it — codex) |
+| **One queue, one item** | Each record yields a single item, at its worst level. No claim about which conditions co-occur is needed or made: two drafts attached one to this rule and both were unsupported, and the rule never required either — codex |
 | **Never counted twice** | Losses and refusals appear as attention items and in Diagnostics. They do **not** also appear in the node strip, or the strip and the items disagree with each other on the same page |
 
 **Empty state:** *"No observed attention conditions in this view, as of
@@ -143,7 +143,7 @@ defect is real. codex's [S14](review/codex.md#specification-review-round-one).
 | Column | Decision |
 |---|---|
 | Description, then full routing name beneath | **new + keep.** Identification is by address only today; the description exists on records and is how a session is recognised ([C01](review/codex.md#junk-and-misleading-content)). The full name stays because it disambiguates sessions — demote by task, never drop |
-| Kind | **filter only, not a column.** The session-recognition journey uses it as a filter — Services, then agents — and a per-row category beside the description and full name is redundant with the control that got you there |
+| Kind | **A filter wherever the list is already narrowed to one kind**, because a per-row category is then redundant with the control that got you there. **A column on any list that is not** — an unfiltered or mixed-kind list must still say what each row is, and no filter is supplying that. This governs the [mockups](layouts.md#services--the-page-the-density-is-tuned-against) as much as this table; the draft's flat "filter only" was wrong and the two documents disagreed — codex |
 | Delivery mode (channel list) | **new.** The channel question |
 | Owner | keep |
 | Enabled / Disabled | **relabel** from Active/Inactive. Administrative state, not liveness. Disabled is a decision, not a failure |
@@ -414,7 +414,7 @@ it reaches the form.
 
 ---
 
-## Problem — recovery by reason, not one page
+## Problem — recovery by what the face actually knows
 
 Today one template carries every failure ([W12](../done/web-review.md#findings)).
 **The draft's replacement was worse than the build in one respect**, which
@@ -424,24 +424,39 @@ states I listed collapsed the last two back together. The defect that remains is
 its `default` branch, where 400, 409, 412 and 429 arrive as one *"That was
 refused"* — four different situations with four different next actions.
 
-The rule: **a state exists where the recovery differs**, and it is keyed to the
-daemon's reason, not to a code alone. The [refusal
-vocabulary](../../../docs/05-discovery.md#refusals) is a closed counted set, so
-this table can be complete rather than open-ended.
+**The face does not receive a reason.** codex's
+[R2-4](review/codex.md#review-of-the-round-one-response), verified: `reply`
+picks a counter kind at server.go:637 and uses it for `Refuse(c.kind)`, then
+calls `fail(w, c.code, err.Error())`, which serialises `{"error": text}` only.
+The web child stores the status and the raw payload (main.go:303) and has no
+stable discriminator. The `kind` vocabulary is also deliberately coarse — its
+own comment says everything a caller got wrong is one kind — so it is the wrong
+axis for recovery even if it were sent.
 
-| Reason | Code | Body | Next action |
-|---|---|---|---|
-| Not found, or hidden from you | 404 | identical presentation for both — hiding and refusing must not be distinguishable | back to the list |
-| Credential | 401 | the session ended | sign in, returning here. Already the build's behaviour, and correct |
-| ACL, suspended, enrolment | 403 | **three different bodies.** Lacking permission is not being suspended, and neither is not being enrolled — giving a service permission cures exactly one of them | who can grant it / who can lift the state / how to enrol |
-| Name taken | 412 | the name exists | choose another, with the form and its values preserved |
-| Malformed | 400 | what was wrong with the input | **the form, with values preserved** — not a problem page at all. A problem page here is the defect ([C13](review/codex.md#junk-and-misleading-content)) |
-| Disabled, busy, second-reader | 409 | **three different bodies.** A disabled record is a decision, a busy one is transient, a second reader is a contract | enable it / retry / who holds the read |
-| Full | 429 | the receiver is at capacity | its queue, and the overflow policy in force |
-| Daemon fault | 500 | a fault, not a rule | repeating is unlikely to help; the node's log. Keep the build's wording |
-| Daemon unavailable | 503 | it is there and briefly cannot answer | retry. **Never** an empty healthy list |
-| Transport failed | — | the request did not complete | retry, and **never** "nothing was changed", which is not knowable |
-| **Conditions changed** | any | what you confirmed stopped being true before it ran | show what is true now, and offer the action again if it still applies ([forms](forms.md#when-the-recheck-refuses-after-you-confirmed)). Not the generic refusal, where it reads as a bug |
+So the table below is keyed on **what the face actually has**: the status code,
+and the daemon's own message shown verbatim. Reason-specific bodies within a
+code are a *dependency*, named here and listed as
+[owed](#owed-by-this-specification), not something a template may infer.
+
+| Code | What the face may say | Fallback it uses today |
+|---|---|---|
+| 401 | the session ended | sign in, returning here. Already the build's behaviour, and correct |
+| 403 | you are refused, and the daemon's message says why | **one body, the message verbatim.** It covers permission, suspension and failed enrolment proof, and the face cannot tell them apart. It must therefore not say "ask the owner for permission", which is right for one of the three |
+| 404 | nothing under that name, or nothing you may see | identical for both, deliberately |
+| 400 | what was wrong with the input | **the form, with values preserved and the message beside the field where it can be attributed** — never a problem page. This is the one case the code alone is enough to route |
+| 409 | the request conflicts with current state | **the message verbatim, and no retry offered by default.** The draft called this transient and recommended waiting; it is not. A credential refused because it is now backed by a person or record will be refused identically next time |
+| 412 | the name is taken | the form, with values preserved |
+| 429 | the receiver is at capacity | its queue, and the overflow policy in force |
+| 500 | a fault, not a rule | repeating is unlikely to help; the node's log |
+| 503 | the daemon is there and briefly cannot answer | retry. **Never** an empty healthy list |
+| transport failed | the request did not complete | **inspect current state before offering anything**, and never "nothing was changed" — which is not knowable, and a blind retry on an uncertain mutation is worse than a look |
+| **conditions changed** | what you confirmed stopped being true before it ran | show what is true now, and offer the action again if it still applies ([forms](forms.md#when-the-recheck-refuses-after-you-confirmed)) |
+
+Three corrections inside that table were mine, all in the same direction —
+promising a recovery more specific than the evidence supports. Enrolment means a
+proof failed, not that a name is unenrolled. Busy is not a synonym for
+transient. And an uncertain mutation outcome is a reason to read current state,
+not to repeat the write.
 
 One reusable template is not the defect; one reusable *reason* is. Hidden and
 missing stay deliberately indistinguishable.
@@ -460,8 +475,9 @@ ships **instead**, so no page is blocked waiting on a daemon change.
 | Node label and running build | needs a narrow daemon read | **omit the label.** The heading shows observation time and uptime, which are answered today. No placeholder, no hostname guessed by the face. The web executable's version is not the bus version and is never shown as one |
 | Effective TTL and capacity | needs a daemon read to resolve inheritance | **show the declared setting with its actual semantics**, per field: `Bound` unset reads *uses the daemon default*, `TTL` unset reads *no queue-imposed expiry — a message may still set its own*, `Full` is written at registration and always concrete ([dictionary](data-dictionary.md#queue)). Never a resolved number the record does not carry |
 | Owner's decision separated from name-inactive | needs the daemon to stop merging them in `visible` | **write the attention item to the weaker claim** (delivery is off and work is held) and do not promise the backlog is unreachable (the Overview attention set, above) |
+| A machine-readable refusal reason | `fail` serialises only `{"error": text}`; the counter `kind` is not sent and is too coarse anyway | **one body per status code**, with the daemon's message verbatim, and no recovery claimed that the code alone cannot support ([Problem](#problem--recovery-by-what-the-face-actually-knows)) |
 | Per-message delivery evidence | retained exchanges, scoped | **route the question there**, and where an individual dequeue is not recorded, say it cannot be established ([S09](review/codex.md#specification-review-round-one)) |
-| Restart boundary on Activity | needs `Status.Up` cross-referenced, since a restart clamps to a zero bucket | **cross-reference it**, or the boundary is not drawn and the graph says its window may span one |
+| Restart boundary on Activity | needs `Status.Up` to say **when** the process started; the history itself is simply absent across a restart | **state the available sampled interval** and mark everything before it `¿`. There is no cross-restart delta to repair and no window spanning two runs: `Activity` differences samples from the current process only |
 
 Where a row is later taken up as daemon work it moves to the TODO with an ID;
 until then the fallback is what ships, and it is honest rather than empty.

@@ -131,6 +131,32 @@ Five checks, in the order they are worth adding:
 | 4 | **The worst page first.** Services at ~200 records with pathological content — 74-character address, absent description, description duplicating the address, one at capacity, one disabled, one external, one with backlog and no reader, CJK, a very long realm — built and reviewed **before page two exists** | nine pages built on a scale tuned against the Overview and all wrong together. **This is the check that expires**: it is free today and unavailable the moment a second page exists |
 | 5 | **A five-state proof sheet per component** — populated, empty, denied, unavailable, long-name — as one static page, gating that component before it is used anywhere ([layouts](layouts.md#the-five-states-per-component)) | empty and denied becoming afterthoughts, which is what happens when they are validated last rather than first |
 
+**Which check rejects which mutation.** codex's
+[R2-6](review/codex.md#review-of-the-round-one-response) is right that the caps
+alone cannot reject the mutations the framing promises: six arbitrarily spaced
+sizes still satisfy a six-size cap, and tightening every line height leaves it
+untouched. Each named mutation needs a bound that bites:
+
+| Mutation | Rejected by |
+|---|---|
+| A seventh size, a third weight, a fourth text colour | check 1, the counts |
+| **Wrong scale ratio** | a **ratio bound**, not a count: adjacent steps must stay within 1.12–1.30, computed over the sorted size list ([tokens](tokens.md#type)) |
+| **Tight leading** | a **minimum line height per size band**: 1.4 at and below `--text-base`, 1.2 above it |
+| A fourth accent, a decorative status colour | check 1, plus the rule that status colour appears only beside a word |
+| Too airy | check 3's minimum row count |
+| Too tight | check 3's zoom and reflow bounds |
+
+**Check 3 needs its numbers chosen, and they are**: at 1280×800, with the shell,
+page heading and toolbar present, **18 service rows** are visible without
+scrolling; at 1366×768, **16**. Measured against the Services fixture from
+check 4, at the comfortable density, with two-line identity cells — the
+conditions matter as much as the count, so they live here with it.
+
+**Contrast over declared pairs is not contrast in the built page.** Check 2
+proves the token table is sound; it cannot prove a component used those tokens.
+Rendered verification of the built pages, in both schemes, stays a separate
+requirement and is not discharged by the unit test.
+
 Check 4 also fixes the fixture problem: the installation's live data is too
 quiet to validate incident presentation, so fixtures supply the exceptional
 cases — and a fixture capture is not evidence of what operators actually do.

@@ -10,7 +10,7 @@ hard part is information design rather than widget count.
 | Shell | Header with node identity and page title, navigation with the current entry marked, signed-in principal linking to Account, sign out | Exists as `shell()` and already carries sign-out everywhere ([inventory](review/current-state.md#routes-and-templates)). What changes is the destination set and correct page identity |
 | Navigation | Seven destinations | Narrow screens use `details`/`summary`, not script |
 | Task toolbar | Search, scope, filters, sort, result count, active filters, clear | GET only, state in the URL |
-| Data table | Caption, scoped headers, stable order, one judgment column, chosen narrow-screen columns | The component nothing off the shelf supplies, because ours is URL-driven rather than client-side |
+| Data table | Caption, scoped headers, stable order, one judgment column, chosen narrow-screen columns | Hand-written because ours is URL-driven rather than client-side, and we found nothing supplying that. **Not** "the component nothing off the shelf supplies" — a universal we did not survey and do not need ([S15](review/codex.md#specification-review-round-one)) |
 | Detail sections | Heading, definition list, and — where authority allows — the form for that one concern, collapsed until asked for | Read sections never depend on edit permission. There is **no trailing Manage block**: an edit lives in the section it changes, which is the whole point of splitting them |
 | Form | Labels above controls, help beside the control, error summary and field errors, one primary action | |
 | Confirmation | Server-rendered page naming target and consequence | [forms](forms.md#consequential-actions) |

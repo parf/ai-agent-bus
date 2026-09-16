@@ -41,27 +41,32 @@ answer to *where am I* survives the collapse.
   Overview                                             [Refresh]
   What needs attention on this node, as of 14:22
 
-  ┌────────────────────────────────────────────────────────────┐
+  ┌──────────────────────────────────────────────────────────┐
   │ ▌ Queue at capacity when observed                          │   red bar, surface-2
   │   billing/invoices@parf.us · 512 of 512 held · overflow:   │
   │   refuse · observed 14:22                    → the queue   │
-  ├────────────────────────────────────────────────────────────┤
+  ├──────────────────────────────────────────────────────────┤
   │ ▌ Delivery is off and work is held                         │   orange bar
   │   ocr/intake@parf.us · 48 held · oldest 3h 12m             │
-  │   Nothing is arriving, and nothing is expiring out of it.  │
-  │                                              → the record  │
-  └────────────────────────────────────────────────────────────┘
+  │   Nothing is arriving while it stays off.    → the record   │
+  └──────────────────────────────────────────────────────────┘
 
   This node                                    ← labelled node-wide, always
   ┌──────────┬──────────┬──────────┬──────────┐
-  │ Uptime   │ Records  │ Queued   │ Refused  │
-  │ 6d 4h    │ 231      │ 604      │ 1 204    │   text-2xl, tabular
+  │ Uptime   │ Records  │ Queued   │ Readers  │
+  │ 6d 4h    │ 231      │ 604      │ 12       │   text-2xl, tabular
   └──────────┴──────────┴──────────┴──────────┘
   Node-wide. A list below shows only what you may see; the two
   never have to agree.
 
   Find ▸ Services   Channels   Users
 ```
+
+**Refusals are deliberately not in that strip.** The draft put them there,
+against this specification's own *never counted twice* rule — refusals and
+losses are attention items and Diagnostics figures, and a third copy on the
+same page is how a page comes to disagree with itself (codex's
+[R2-7](review/codex.md#review-of-the-round-one-response)).
 
 Each attention item is: **what was observed**, the thing it was observed on,
 the values it rests on, when, and one link. The coloured bar is 3px of
@@ -92,32 +97,45 @@ decided here, which is why it is not built second.
   Services                                             [Refresh]
   What is registered here, and what is it doing
 
-  ┌────────────────────────────────────────────────────────────┐
-  │ Search ▢────────────  Scope[All▾] State[Any▾] Kind[Any▾]  │  surface-3
-  │ Sort[Name▾]                                    [Filter]    │
-  │ 27 of 231 · kind: agent · holding work      [Clear all]    │
-  └────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────┐
+  │ Search ▢──────────  Scope[All▾] State[Any▾] Kind[Agent▾] │  surface-3
+  │ Sort[Queued ↓▾]                                  [Filter]│
+  │ 27 of 231 · kind: agent                        [Clear all]│
+  └──────────────────────────────────────────────────────────┘
 
-   │ SERVICE                    OWNER      READER      QUEUED │  text-xs 600
+   │  SERVICE                 OWNER         READER     QUEUED │  text-xs 600
    ├──────────────────────────────────────────────────────────┤
-   │ ▌Invoice intake            parf@…     attached       512 │  red bar
-   │  billing/invoices@parf.us                    at capacity │  mono, text-xs, text-2
+   │▌ Invoice intake          parf@parf.us  attached      512 │  red bar
+   │  billing/invoices@parf.us                     at capacity│  mono, text-2
    ├──────────────────────────────────────────────────────────┤
-   │  OCR pipeline              parf@…     no reader        0 │
+   │▌ Document intake         ops@parf.us   no reader      48 │  orange bar
+   │  ocr/intake@parf.us                       delivery is off│
+   ├──────────────────────────────────────────────────────────┤
+   │  OCR pipeline            parf@parf.us  no reader       0 │
    │  ocr/pipeline@parf.us                                    │
-   ├──────────────────────────────────────────────────────────┤
-   │ ▌Document intake           ops@…      no reader       48 │  orange bar
-   │  ocr/intake@parf.us                     delivery is off  │
    └──────────────────────────────────────────────────────────┘
                                           ‹ Previous   Next ›
 ```
 
 Two lines per row: **description then address**. The description is how a
 session is recognised and is absent from every list today; the address
-disambiguates and is demoted, not dropped. Kind is a filter, not a column —
-*except* on an unfiltered mixed list, where the row must still say what it is
-(codex's round-one handoff). The judgment column is the leading bar plus a word
-under the description, so it costs no column width at all.
+disambiguates and is demoted, not dropped. The judgment column is the leading
+bar plus a word under the description, so it costs no column width at all. Rows
+follow the query — here depth descending — which is why the ordinary zero-depth
+row sits last rather than in the middle of a list filtered on nothing of the
+sort.
+
+**Kind is absent here because this list is filtered to agents**, and the toolbar
+says so. On an unfiltered or mixed list it is a column, because nothing else
+tells a reader what a row is.
+
+**No cell truncates a value that has no other route to it.** The draft ellipsed
+owners to `parf@…` and offered no recovery, which without script means the value
+is simply gone: a `title` attribute is not keyboard-reachable and may not be the
+only path. Owners wrap to a second line instead. The recovery may not be *"open
+the owner's user page"* either — the caller may have no permission to read it,
+and a value already present in this answer must not need a second, refusable
+request to see (codex's [R2-7](review/codex.md#review-of-the-round-one-response)).
 
 Narrow (320px): description, then address, then a status line. Owner, reader
 and queued move into that line as `ops@… · no reader · 48 held`. The bar and the
@@ -160,7 +178,7 @@ description survive at every width; nothing scrolls sideways.
     Overflow           refuse
 
     ▌ Delivery is off and this work is held. Nothing is
-      arriving, and nothing is expiring out of the queue.
+      arriving while it stays off.
 
   Access                                                [Edit]
   Configuration                                         [Edit]
