@@ -2157,7 +2157,10 @@ orph_up() {
   "$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/orph/bus.sock" -token-file "$D/orph/token" \
     -owner "$OWNER" -dump-file "$D/orph/dump.json" -dump-every 0 >"$D/orph/$1.log" 2>&1 &
   OPID=$!
-  ready "$D/orph/bus.sock" || echo "  WARNING: $D/orph/bus.sock never answered"
+  # The status is the caller's to act on, not a warning to scroll past: every
+  # call below blocks on an unserved socket rather than failing, so a start
+  # that never answered would hang the run instead of failing a check.
+  ready "$D/orph/bus.sock" || return 1
   OTOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/orph/token")
 }
 orph_down() { kill "$OPID" 2>/dev/null; wait "$OPID" 2>/dev/null; }
@@ -2169,7 +2172,7 @@ oas() { AGENT_BUS_ADDR=$D/orph/bus.sock AGENT_BUS_TOKEN=$(otok "$1") AGENT_BUS_N
 opost() { curl -fsS --unix-socket "$D/orph/bus.sock" -H "X-Agent-Bus-Token: $OTOK" -d "$2" "http://unix$1" >/dev/null || { orph_down; exit 1; }; }
 ocode() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/orph/bus.sock" -H "X-Agent-Bus-Token: $1" "http://unix/status"; }
 
-orph_up first
+orph_up first || { echo "  FAIL the orphan fixture's daemon did not start"; fail=$((fail+1)); }
 for u in keeper@srv1 napping@srv1 barred@srv1; do
   opost /user "{\"name\":\"$u\",\"create\":true}"
 done
@@ -2230,7 +2233,7 @@ lacks "but no profile for the daemon owner, as a hand-edited store may not" \
   "$EDUSERS" "$OWNER"
 lacks "nor a line in the group a reload would rebuild one from" "$EDGROUPS" "$OWNER"
 
-orph_up second
+orph_up second || { echo "  FAIL the start over the edited store did not come up"; fail=$((fail+1)); }
 has "the start says how many it took" "$(cat "$D/orph/second.log")" 'deleted 4 services'
 REG=$(oab ls)
 lacks "the record whose owner nothing knows is gone" "$REG" 'lost@srv1'
@@ -2275,13 +2278,33 @@ has "nor does the one that was owning services" "$(ocode "$CHAINTOK")" '401'
 # The positive half comes first and is not optional. `lacks` on an empty or
 # unparseable file passes for every absence there is, so a save that wrote
 # nothing at all would satisfy the three checks below on its own.
-STORE=$(cat "$D/orph/dump.json")
-has "the snapshot the start wrote back is a snapshot" "$STORE" '^{"Users":\[.*"Records":\['
-has "with the records that survived still in it" "$STORE" '"name":"owner-svc@srv1"'
-has "and their queued work still in it" "$STORE" '"to":"steady@srv1","body":"queued before the stop"'
+# Taken before anything stops, because a graceful stop writes its own clean
+# dump over this one and would prove nothing about the save that follows the
+# sweep. These are the bytes a start that then died would have left.
+cp "$D/orph/dump.json" "$D/orph/after-sweep.json"
+STORE=$(cat "$D/orph/after-sweep.json")
+has "the records that survived are in the snapshot the sweep wrote" "$STORE" '"name":"owner-svc@srv1"'
+has "and their queued work is in it" "$STORE" '"to":"steady@srv1","body":"queued before the stop"'
 lacks "the store on disk is rewritten, so a start that dies repeats nothing" \
   "$STORE" 'chain-c@srv1'
 lacks "and the work that was queued for it is not in it either" "$STORE" '"to":"chain-a@srv1"'
+orph_down
+
+# Grepping those bytes cannot say they are a snapshot: every `lacks` above
+# passes against a file that is empty, truncated or not JSON at all. So a
+# third start reads them, and the daemon is the parser — it refuses to start
+# on a dump it cannot decode, and `ready` is what noticed. Started from the
+# copy rather than from whatever the stop above wrote.
+cp "$D/orph/after-sweep.json" "$D/orph/dump.json"
+if orph_up third; then
+  THIRD=$(oab ls)
+  has "a third start reads that snapshot whole" "$THIRD" '"name":"owner-svc@srv1"'
+  has "with the queue that survived still on it" "$(oab ls steady@srv1)" '"queued":1'
+  has "and the work still in it" "$(oas steady@srv1 consume --wait 0s)" 'queued before the stop'
+  lacks "and does not find the wreckage a second time" "$THIRD" 'chain-c@srv1'
+else
+  echo "  FAIL a third start reads that snapshot whole: it never answered"; fail=$((fail+1))
+fi
 orph_down
 
 sec "the supervisor holds the sockets, and the bus serves them"

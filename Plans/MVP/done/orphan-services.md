@@ -150,13 +150,16 @@ Each break made, the named check watched to fail, the file restored.
 | a registered user's record is wreckage after all | `TestARegisteredUsersOwnRecordIsNotWreckage` — *purged [active@h svc@h]* |
 | the surviving inboxes are not rechecked | `TestAPurgeReleasesTheWaitsItLeftOnOtherInboxes` — *handed "post-purge" from an inbox that survived* |
 | ownership walked to a person instead of one step | `TestAnOwnershipCycleSurvives` — the cycle and what hangs under it, all five taken |
-| **both** credential drops removed | smoke — the reclaimed name answers its predecessor's credential |
+| the credential sweep stops dropping what the purge freed | smoke — the reclaimed name answers its predecessor's credential |
+| the snapshot the sweep wrote is truncated by one byte | smoke — *a third start reads that snapshot whole: it never answered* |
 
 **One survivor, and it is the ordering working.** The interim guard, restored,
 does not save a credential: by the time `Ownerless` asks, `Orphans` has taken
-the records, so the guard has nothing to fire on. The purge's own `Forget` loop
-was the other survivor, and it is gone rather than excused — a line no mutation
-can reach is a line certifying nothing.
+the records, so the guard has nothing to fire on.
+
+The purge had a second `Forget` loop of its own in the draft, and removing it
+changed nothing — which is why it is gone rather than excused. There is one loop
+in the landed code, and the mutation above removes that one.
 
 ## Three checks of mine were hollow
 
@@ -167,7 +170,8 @@ than a summary line.
 |---|---|
 | *the purged work is not in the store* | grepped for the body followed by the addressee; a stored envelope writes `to` before `body`, so it could never match |
 | *the credential no longer authenticates* | a name with no record is refused at the gate whether or not its bytes were ever dropped, so it passed with both `Forget` paths gone. It now replays the old bytes **after** somebody else has taken the name, which is the question it was for — does the previous holder answer as the new owner. codex found this, the same shape it found in H.5.7 |
-| *the store no longer holds it* | `lacks` against an unreadable or empty file passes for every absence there is, so a save that wrote nothing satisfied it. A positive half now comes first: the snapshot parses, the survivors are in it, and so are their queued bodies. codex found this, and the two `sed` extractions of the edited store had the same shape — a match that failed handed back an empty string and read as proof |
+| *the store no longer holds it* | `lacks` against an unreadable or empty file passes for every absence there is, so a save that wrote nothing satisfied it. codex found this, and the two `sed` extractions of the edited store had the same shape — a match that failed handed back an empty string and read as proof |
+| *the snapshot the start wrote back is a snapshot* | my first answer to the line above, and a prefix grep is not a parse: codex truncated a valid snapshot by its last byte and all five checks still passed. **A third start now reads those exact bytes** — copied aside before any stop, because a graceful stop writes its own clean dump over them — and the daemon is the parser, refusing to start on a snapshot it cannot decode |
 
 ## The one the sweep does not see
 
@@ -190,14 +194,23 @@ which is why the `api.New` ordering above is so hard to falsify. Pinned by
 ## Left open
 
 A `Forget` that cannot write its store leaves the old bytes authenticating, and
-both sweeps log it and carry on. The name is then free, so whoever registers it
-next is answered by their predecessor's credential. codex reproduced it and
-asked for the start to fail instead. It is not introduced here — it is the
-credential sweep's existing policy, and deleting records only makes names free
-sooner — and the trade is availability against a narrow window under a failed
-disk write, which is the owner's to make. Recorded as
-[Q69](../QUESTIONS.md#open-questions); the claim in the code and in this
-document is now *best effort*, not *guaranteed*.
+the sweep logs it and carries on. The name is then free, so whoever registers it
+next is answered by their predecessor's credential.
+
+**And it does not heal.** My first write-up of this called it a narrow window
+that the next start retries. That is wrong, and codex was right to push back: once
+the name has been registered again `identityKind` answers *record*, `ownerless`
+is false, and every later start **keeps** the old bytes. I reproduced it — the
+name is collectable before the re-registration and not after. The previous
+holder authenticates as the new owner's service for as long as that name exists.
+
+Not introduced here: it is the credential sweep's existing policy, and deleting
+records only makes names free sooner. But the trade is availability against a
+**permanent** privilege transfer, not a momentary one, and that is the owner's
+to make. Recorded as [Q69](../QUESTIONS.md#open-questions) with a third option
+codex's analysis suggests — keep serving, but hold the name unregistrable until
+the revocation lands. The claim in the code and here is *best effort*, never
+*guaranteed*.
 
 ## Peer review
 

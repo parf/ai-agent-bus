@@ -92,9 +92,12 @@ func (b *Bus) orphan(name string) {
 	// Released before the inbox goes, and with nothing out of it: a reader
 	// waiting on a name that is being deleted is owed the answer that will be
 	// true a moment later, not a message from a queue that is being thrown
-	// away. Nothing else releases them — a deleted record is the zero record,
-	// which allows everybody, so recheckReaders would look at this waiter and
-	// leave it where it is, blocked on an inbox nothing will ever deliver to.
+	// away. Nothing else releases them, for two reasons in sequence — after
+	// the delete recheckReaders cannot enumerate this inbox at all, and even
+	// before it a deleted record reads back as the zero record, whose empty
+	// allow list makes may() true for everybody. The waits the same name left
+	// on inboxes that SURVIVE are a different problem, collected by the
+	// recheckReaders at the end of Orphans.
 	if in := b.inboxes[name]; in != nil {
 		for _, w := range in.waiters {
 			w.stopped <- fmt.Errorf("%w: %s", ErrUnknown, name)
