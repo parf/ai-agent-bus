@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.27 — 2026-09-15
+
+The daemon drops credentials that answer for nothing at start: no record of their own and no registered user. This node had 232 of them against four records, every one listed as a user. One interim while orphan-service deletion is still pending — a name that owns services keeps its credential, so the sweep cannot leave a service nobody answers for.
+
 ## 0.5.26 — 2026-09-15
 
 The supervisor no longer hands the dashboard child an `AGENT_BUS_TOKEN` it inherited: the dashboard is meant to hold no credential of its own, and that held only while nobody started the daemon from a shell that had one exported.

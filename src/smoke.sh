@@ -285,17 +285,38 @@ has "but the one before that is refused" "$(tcode "$first" /status)" '401'
 # Every principal is in the file, not just the owner's: a second daemon
 # reading it hands the same credentials back, which is what "tokens are
 # durable" has to mean once there is more than one.
-cp "$D/token" "$D/token2"
+# Its own daemon, stopped and started again on the same file. The principals
+# are registered first and deliberately kept: a credential for a name the
+# second start does not know about answers for nothing and is dropped at that
+# start, which is the rule and not a fault
+# (docs/02-access.md#ownerless-credentials). Minting for names nobody keeps is
+# how a directory fills with rows nothing is behind.
 mkdir -p "$D/r2"
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/r2/bus.sock" -token-file "$D/token2" -owner "$OWNER" -dump-file "$D/r2/dump.json" -dump-every 0 >"$D/daemon2.log" 2>&1 &
-RPID=$!
-ready "$D/r2/bus.sock" || echo "  WARNING: $D/r2/bus.sock never answered"
-has "a restart keeps both of a rotated principal's tokens" \
-  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/r2/bus.sock" -H "X-Agent-Bus-Token: $second" "http://unix/status")" '200'
-has "and still refuses the one it dropped" \
-  "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/r2/bus.sock" -H "X-Agent-Bus-Token: $first" "http://unix/status")" '401'
+r2_up() {
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/r2/bus.sock" -token-file "$D/r2/token" \
+    -owner "$OWNER" -dump-file "$D/r2/dump.json" -dump-every 0 >"$D/daemon2-$1.log" 2>&1 &
+  RPID=$!
+  ready "$D/r2/bus.sock" || echo "  WARNING: $D/r2/bus.sock never answered"
+  R2TOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/r2/token")
+}
+r2ab() { AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$R2TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
+r2tok() { AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$R2TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$@"; }
+r2code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/r2/bus.sock" -H "X-Agent-Bus-Token: $1" "http://unix/status"; }
+r2_up first
+r2ab register kept-rotor@srv1 >/dev/null
+r2ab register kept-other@srv1 >/dev/null
+dropped=$(r2tok kept-rotor@srv1)
+previous=$(r2tok kept-rotor@srv1 --rotate)
+current=$(r2tok kept-rotor@srv1 --rotate)
+other=$(r2tok kept-other@srv1)
+has "both rotation slots work before the restart" "$(r2code "$previous")$(r2code "$current")" '200200'
+kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
+r2_up second
+has "a restart keeps both of a rotated principal's tokens" "$(r2code "$current")" '200'
+has "and the one before it, across the restart" "$(r2code "$previous")" '200'
+has "and still refuses the one it dropped" "$(r2code "$dropped")" '401'
 has "a restart keeps every principal, not only the owner's" \
-  "$(AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus" status)" '"up"'
+  "$(AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$other AGENT_BUS_NAME=kept-other@srv1 "$D/agent-bus" status)" '"up"'
 kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
 # What the store keeps, it keeps to itself. See docs/09-setup.md#storage.
 has "the credential file is that account's alone" "$(stat -c %a "$D/token")" '^600$'
@@ -549,13 +570,22 @@ is_empty "a rotated credential has a different fingerprint" \
 # Issued is durable, last-used is this run's (docs/02-access.md#token-lifetime).
 # A second daemon reading the same file has never seen the credential used,
 # but it must still know when it was minted.
-cp "$D/token" "$D/token3"
 mkdir -p "$D/r3"
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+14)) -socket "$D/r3/bus.sock" -token-file "$D/token3" -owner "$OWNER" -dump-file "$D/r3/dump.json" -dump-every 0 >"$D/daemon3.log" 2>&1 &
-NPID=$!
-ready "$D/r3/bus.sock" || echo "  WARNING: $D/r3/bus.sock never answered"
+r3_up() {
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+14)) -socket "$D/r3/bus.sock" -token-file "$D/r3/token" \
+    -owner "$OWNER" -dump-file "$D/r3/dump.json" -dump-every 0 >"$D/daemon3-$1.log" 2>&1 &
+  NPID=$!
+  ready "$D/r3/bus.sock" || echo "  WARNING: $D/r3/bus.sock never answered"
+  R3TOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/r3/token")
+}
+r3_up first
+# Registered and kept, for the same reason as the rotation checks above.
+AGENT_BUS_ADDR=$D/r3/bus.sock AGENT_BUS_TOKEN=$R3TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" register kept-holder@srv1 >/dev/null
+HTOK=$(AGENT_BUS_ADDR=$D/r3/bus.sock AGENT_BUS_TOKEN=$R3TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" kept-holder@srv1 --rotate 2>/dev/null)
+kill $NPID 2>/dev/null; wait $NPID 2>/dev/null
+r3_up second
 has "and the issue date survives a restart" \
-  "$(curl -s --unix-socket "$D/r3/bus.sock" -H "X-Agent-Bus-Token: $RTOK" "http://unix/names")" '"issued":"20'
+  "$(curl -s --unix-socket "$D/r3/bus.sock" -H "X-Agent-Bus-Token: $HTOK" "http://unix/names")" '"issued":"20'
 # A principal with a date and no previous token writes a placeholder where
 # the previous one would be, so the fields stay positional. It is a hole in
 # the line, not a credential, and reading it back as one would let a single

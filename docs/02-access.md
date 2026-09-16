@@ -105,17 +105,23 @@ The MVP currently carries plaintext bodies ([trust boundary](#encrypted-sessions
 
 ### Ownerless credentials
 
-**Pending, not built.** A credential belongs to nobody when its name has **no
-record of its own and no registered user**, and the daemon drops it **at
-start**. That is a sweep at a known moment, not expiry: the rule above still
+**Built, with one interim below.** A credential belongs to nobody when its name
+has **no record of its own and no registered user**, and the daemon drops it
+**at start**. That is a sweep at a known moment, not expiry: the rule above still
 holds, and no credential is retired for being old or idle.
 
-**Owning records does not save one, because such records do not survive the
+**Owning records will not save one, because such records will not survive the
 same start.** A name that owns services without being a registered user leaves
 them [dead, and they are deleted](01-identity.md#when-the-owner-is-gone) — so
-by the time the credential is judged there is nothing left for it to answer
-for. The two sweeps say the same thing about the same name, and a credential
-kept for records that are gone would be the ownerless case exactly.
+once that deletion exists there is nothing left for the credential to answer
+for, and the two sweeps say the same thing about the same name.
+
+⚠️ **Interim: that deletion is not built, so owning records does save one for
+now.** Sweeping a credential whose records are still there would manufacture
+exactly the orphans the other rule is for, at a restart, silently — so until
+[H.5.5](../Plans/MVP/TODO.md#remaining-work) lands, a name that owns services
+keeps its credential. The guard is temporary and goes with that task; it is not
+a third condition.
 
 It is the other half of *as long as the user is registered*. A person keeps
 theirs while they are a registered user, whatever they register or unregister

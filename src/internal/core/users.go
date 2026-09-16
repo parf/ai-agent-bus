@@ -29,6 +29,7 @@ func (b *Bus) IsMaintainer(name string) bool {
 	defer b.mu.Unlock()
 	return b.active(name) && b.isMaintainer(name)
 }
+
 // IsPerson says whether a name is somebody's identity rather than a service
 // they registered. A person keeps their credential when an address of theirs
 // is removed; a service does not (docs/01-identity.md#unregistering).
@@ -41,6 +42,64 @@ func (b *Bus) IsPerson(name string) bool {
 	defer b.mu.Unlock()
 	_, known := b.users[n]
 	return known
+}
+
+// Ownerless picks out, of the credential names given, those that answer for
+// nothing: no record of their own and no registered user. Those are what the
+// daemon drops at start (docs/02-access.md#ownerless-credentials) — a sweep at
+// a known moment, never expiry, because a credential does not retire for being
+// old or idle.
+//
+// The two tests are the daemon's own: a profile it holds and a record it
+// holds. Never how a name is spelled — a name that looks like a test fixture
+// and belongs to somebody is a person, and a tidy-looking name with nothing
+// behind it is not (docs/01-identity.md#person-records).
+//
+// The daemon owner's credential is minted by the store rather than by a
+// record, and survives because starting the daemon writes the owner a profile.
+// That is why this must run after the administrator is set, and why it asks
+// about users at all: a sweep that looked only for a record would take it.
+func (b *Bus) Ownerless(names []string) []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := []string{}
+	for _, raw := range names {
+		name, err := canon(raw)
+		if err != nil {
+			continue
+		}
+		if _, person := b.users[name]; person {
+			continue
+		}
+		if _, has := b.records[name]; has {
+			continue
+		}
+		// Interim, until H.5.5 lands: a name can own services without holding
+		// a record of its own, and taking its credential would leave every one
+		// of them with an owner nothing answers for. The settled answer is
+		// that those records are deleted at the same start
+		// (docs/01-identity.md#when-the-owner-is-gone), and then this guard is
+		// pointless and goes. Until that exists, sweeping here would
+		// manufacture exactly the orphans that rule is for.
+		if b.owns(name) {
+			continue
+		}
+		out = append(out, raw)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// owns says whether this name is somebody else's owner. A record it owns that
+// is itself needs no clause here: Ownerless has already kept it for holding a
+// record. Caller holds b.mu.
+func (b *Bus) owns(name string) bool {
+	for _, r := range b.records {
+		if r.Owner == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *Bus) mayEditUser(caller, name string) bool {

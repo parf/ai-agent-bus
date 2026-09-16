@@ -85,6 +85,23 @@ func runBus(c config) {
 	face := api.New(bus, tokens, me.String())
 	face.Dashboard(c.dash)
 
+	// A credential whose name has no record and no registered user answers for
+	// nothing, and is dropped here — at start, at a known moment, never by
+	// expiry (docs/02-access.md#ownerless-credentials).
+	//
+	// After Restore, so the records and users it asks about are the ones the
+	// snapshot brought back; and after api.New, because that is what makes the
+	// daemon owner a registered user. Either way round it would sweep what it
+	// is meant to keep.
+	if swept := bus.Ownerless(tokens.Names()); len(swept) > 0 {
+		for _, name := range swept {
+			if err := tokens.Forget(name); err != nil {
+				log.Printf("ownerless %s: %v", name, err)
+			}
+		}
+		log.Printf("dropped %d credentials that answered for nothing", len(swept))
+	}
+
 	var srvs []*http.Server
 	serve := func(l net.Listener, h http.Handler) {
 		srv := &http.Server{
