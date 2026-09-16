@@ -137,6 +137,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-15 | The account map is administered by operator SSH key or user token, and nothing new; resolves Q9 | The entitlement is already the principal in the key's entry, so who may edit the map is answered by what answers everything else | [administering the account map](09-setup.md#administering-the-account-map) |
 | 2026-09-15 | No registration, no access | The record is what access hangs on; a credential whose record is gone has nothing left to hold, and the page said the opposite | [unregistering](01-identity.md#unregistering) |
 | 2026-09-15 | A group is not deleted; it is made inactive or banned, as a person is | Removing a name other records point at silently changes what they mean; `@maintainers` could never be deleted and now none of them can | [groups and maintainers](01-identity.md#groups-and-maintainers) |
+| 2026-09-15 | Access control is ordered owner, then maintainers, then users | One stated order instead of a rule per verb; it settles who prevails and who may act on whom, and does not narrow who may act at all | [groups and maintainers](01-identity.md#groups-and-maintainers) |
 
 ## Superseded
 

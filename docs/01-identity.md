@@ -223,6 +223,17 @@ nesting, expressions and service-defined roles remain [R1](../Plans/R1/identity.
 Organization group administration belongs to daemon administration; owning a
 service alone does not grant permission to create groups or administer users.
 
+**Owner, then maintainers, then users — in that order.** Where two of them
+could both act, the higher one wins; where one may not be touched by the other,
+it is always the lower reaching up. A maintainer edits below their own level
+and never a peer or the owner; only the owner transfers ownership; the daemon
+owner stays in `@maintainers` and only they change it.
+
+This is a **precedence**, not a narrowing of who may act. Owner and maintainers
+both manage a record, and today's `manages` treats them alike
+([owner control](#owner-control)) — the order says who prevails when they
+disagree and who may act on whom, not that a maintainer must ask.
+
 | Authority | May change |
 |---|---|
 | Daemon owner | Administer the daemon and its maintainers group; edit users at every level under the [user write hierarchy](#who-may-write-a-record) |
