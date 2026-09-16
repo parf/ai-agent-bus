@@ -42,11 +42,11 @@ with the observation it rests on:
 
 | Item | Basis | Level |
 |---|---|---|
-| The last stop was not clean | `Status.Unclean` | red, stated as a fact with no lifecycle |
-| Queue at its bound | `AtBound` | red. Capacity is reached; what the next send does depends on the overflow policy. **Not** "messages are being dropped now" — that was my overclaim, and arrival is not implied |
-| Backlog older than its own TTL | `Oldest` against that record's `TTL` | orange |
-| Losses since start | `Dropped`, `Expired` non-zero | orange, links to Diagnostics |
-| Refusals, cumulative | `Refusals` by reason, non-zero | informational; **not** "climbing" — we have lifetime totals and no window |
+| The last stop was not clean | `Status.Unclean` | red, stated as a fact with no lifecycle. Shown **only when true**: the field is `omitempty`, so absent means a clean stop *or* no previous stop and the face cannot tell them apart. Never print "clean shutdown" as an observation |
+| Queue at capacity when observed | `AtBound` | red. **A condition, not a prediction.** Even "the next send is refused or drops the oldest" overstates it: the observation path does not prune, while the send path prunes first, can hand a waiting reader the message directly, and races a concurrent consume ([glyphs](glyphs.md#what-an-observation-is-worth)). Name the configured overflow policy beside it as a setting |
+| ~~Backlog older than its own TTL~~ | — | **cut.** An unset record TTL is no expiry at all rather than a daemon default, so for most records the comparison has no right-hand side; where TTL is set it only fires before a lazy prune, and says nobody has read the inbox — which is not severity ([glyphs](glyphs.md#attention-levels)). home-parf's find |
+| Losses, cumulative across restarts | `Dropped`, `Expired` non-zero | orange, links to Diagnostics. **Not** "since start": `Restore` puts these counters back from the snapshot ([dictionary](data-dictionary.md#state)), so a non-zero total may predate this run entirely |
+| Refusals, cumulative | `Status.Refused`, a `map[string]int` by reason | informational; **not** "climbing" — this value is a lifetime total. The map carries only reasons that have occurred, so an absent reason is not a measured zero. A windowed signal is available on Activity, which does compute deltas — it is simply not this item's basis |
 | **Disabled record holding queued work** | `Disabled` and `Queued` > 0 | orange. opencode's find, verified: `Send` refuses a disabled record and `recheckInbox` releases its waiters, so those messages can be neither delivered nor read. The work is trapped and nothing on any page says so |
 | **Services of a suspended owner** | the owner's `State` is paused or banned | orange, linking to the person. **Conditional on [H.5.7](../TODO.md#objective)**, which is pending: today such services do not refuse, so the item would describe a rule that is not in force. It goes in when H.5.7 does |
 | Unregistered credentials awaiting review | the cleanup cohort is non-empty | blue, a count and a link. **Owner-decidable**: it is discoverability rather than attention, and [C10](review/codex.md#junk-and-misleading-content) left it homeless |
@@ -300,7 +300,7 @@ New page. Everything here is moving off the bottom of the diagnostics wall.
 |---|---|
 | Own identity, person name, authority, memberships | Users detail, for oneself |
 | Own records, separated from own identity | my names |
-| Each credential: name, kind, fingerprint, issued, last used | my names. **Owner is dropped** — on your own credentials it is always you, so the column says the same thing on every row |
+| Each credential: name, kind, fingerprint, issued, last used | my names. **Owner is kept where it differs from you, and only there.** It is not always you: `Owned` starts with the caller's own name ([bus.go](../../../src/internal/core/bus.go)), so a signed-in service holds its own credential while the record's `Owner` is somebody else — which is the shape of our current agent identities. Dropping the column universally would hide exactly the row it matters on. codex's correction of my error |
 | An `unregistered` credential, marked, with what it means | my names |
 | Rotation | the command, **and its consequence beside the button**: the replaced credential keeps working until the next rotation. That sentence is load-bearing |
 | *"Envelopes only — bodies are never shown"* | **move** to Diagnostics, which is where it is true |

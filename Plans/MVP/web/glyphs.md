@@ -43,24 +43,75 @@ were given. It is proposed here so the owner can refuse it.
 Every threshold below names the observation it rests on. A severity we cannot
 derive from something the daemon actually reports is not ours to invent.
 
+The judgment column is **one ordered status enum whose values carry colour**,
+not a severity axis and a category axis sharing a cell. That is what keeps it
+inside the one-axis rule; home-parf caught that the first draft broke it.
+
 | Level | Means | Admitted use here | Observed basis |
 |---|---|---|---|
-| red | demands attention | a queue at its bound | `AtBound` — messages are being refused or dropped now |
-| orange | notable, not urgent | a backlog whose oldest message is older than the record's own TTL | `Oldest` against `TTL`; both are reported |
-| white | no signal; absent or unset | not observed | no sample covers the window |
-| blue | informational, or not applicable | a record declaring an external protocol | `Proto` is a **caller-supplied hint**, not proof the thing is served elsewhere. It means "do not expect a local reader here", nothing more |
+| red | demands attention | a queue at capacity **when observed** | `AtBound`. A condition, never a prediction — see [what an observation is worth](#what-an-observation-is-worth) |
+| orange | notable, not urgent | a disabled record still holding queued work | `Disabled` with `Queued` > 0. `Send` refuses a disabled record and `recheckInbox` releases its waiters, so the work can be neither delivered nor read |
+| white | no signal; not observed | a value the daemon does not report for this row | the loud form of `¿`. Same fact, two notations: white in a status column, `¿` in a data cell |
+| blue | informational | a record declaring an external protocol | `Proto` is a **caller-supplied hint**, not proof the thing is served elsewhere. It means "do not expect a local reader here", nothing more. Not-applicable is `—`, not blue |
 | green | nothing to worry about | **not used** | see below |
 
-Corrections applied from codex, each of which I had wrong:
+**Precedence is defined, because it is not arbitrary.** A disabled record at its
+bound is not urgent: nothing is being accepted, so capacity is not the thing
+wrong with it. Disabled outranks at-bound. Where two would light, the one that
+explains the other wins.
+
+## What an observation is worth
+
+Verified in source after home-parf and codex arrived at it independently, from
+different directions, and both were right.
+
+`withLiveness` ([bus.go:407](../../../src/internal/core/bus.go)) computes
+`AtBound`, `Queued` and `Oldest` **without pruning**. `prune` runs in exactly
+three places — send-when-full, consume, and unregister — and **none of them is on
+the observation path**. Meanwhile `deliver` prunes expiry *before* the overflow
+decision, hands a matching waiter its message straight through without touching
+the queue at all, and a concurrent consume can free space underneath both.
+
+Three consequences, and the vocabulary has to carry all three:
+
+| Reported | What it actually says |
+|---|---|
+| `AtBound` | at capacity **at the moment of the read**, counting messages that may already have outlived their TTL unswept. The next send may be accepted by a waiter, by a prune, or by a concurrent consume. Stating a consequence — even "refused or drops oldest" — overstates it |
+| `Queued` | messages **held** now, not messages **waiting** now |
+| `Oldest` | the age of the head, which may be a message the daemon already considers dead |
+
+So red says *at capacity when observed*, names the configured overflow policy
+beside it as a setting, and predicts nothing.
+
+Corrections applied from codex and home-parf, each of which I had wrong:
 
 - *"unclean stop not yet acknowledged"* invented an acknowledgement state. The
   daemon has `Status.Unclean` and nothing else. It is a fact to state, with no
   lifecycle.
-- *"refusals climbing"* requires a window and a delta. The overview has lifetime
-  totals. Either the face gets a window or the word "climbing" goes; it goes.
+- *"refusals climbing"* requires a window and a delta. `Status.Refused` is a
+  lifetime total, so the word goes from the Overview. **One correction back to
+  both peers**: it is not that we have no window anywhere. `activity.go` samples
+  and computes per-interval deltas including `Refused`, so a windowed refusal
+  signal is buildable on Activity. It is simply not something the Overview's
+  basis can say, and sampled history does not survive a restart.
 - *"backlog with no reader"* is **not** severity. A queue worker between pulls
-  is exactly that shape and nothing is wrong. Depth alone is not an incident;
-  age against the record's own TTL is the first defensible signal.
+  is exactly that shape and nothing is wrong.
+- *"backlog older than the record's own TTL"* was orange in two drafts and is
+  **cut**. home-parf's find, verified: `life()`
+  ([bus.go:724](../../../src/internal/core/bus.go)) with both TTLs unset returns
+  zero, the envelope keeps a zero `Expires`, and `prune` skips it — so an unset
+  record TTL is **no expiry at all**, not a daemon retention default, and for
+  those records the comparison has no right-hand side. Where a TTL *is*
+  declared, `Oldest > TTL` is only reachable in the window before a lazy prune,
+  and what it indicates there is that nobody has read the inbox and it is not
+  full — the backlog-with-no-reader signal above, wearing a TTL costume. It is
+  also the wrong comparison in principle: the deadline is per envelope, fixed at
+  accept from whichever of the two TTLs was shorter, and the record's `TTL` as
+  it reads *now* may not be the one that message was accepted under.
+
+  Orange survives on the disabled-record-holding-work item, which rests on two
+  values the daemon reports directly. The level is not retired; its TTL basis
+  is.
 
 Green is not used at all, and this is deliberate. The only green anyone would
 reach for is "a reader is attached", and reader presence is not health
@@ -69,7 +120,11 @@ marking it marks nothing — and it would spend the attention budget on the rows
 that do not need it.
 
 Purple (off-scale), black (filled) and brown (faded, for deprecated things) are
-in the vocabulary and have no use here yet.
+in the vocabulary and have no use here yet. **`∅` joins them**: it is for a
+measured non-zero value below display precision, every figure on this dashboard
+is an integer count, and integer counts do not round away. Retired honestly
+rather than left in the table looking available — home-parf's point, and the
+same standard the colours are held to.
 
 ## Absence, which is four different facts
 
@@ -83,7 +138,7 @@ I agree.
 | | Means | Example here |
 |---|---|---|
 | `0` | measured zero | the queue is empty and we looked |
-| `∅` | a measured non-zero value below display precision | a rate that rounds away at the shown precision. **Not** for integer counts, which never round |
+| `∅` | a measured non-zero value below display precision | **no MVP use**: every figure here is an integer count and integer counts never round. Kept in the vocabulary, unused on this dashboard — see [not used](#attention-levels) |
 | `—` | not applicable; the thing does not exist here | subscribers on a queue-mode channel; oldest-message age on a queue that is empty **now** — the daemon does not say whether it ever held one |
 | `¿` | not measured, or not observable | traffic before the last restart |
 

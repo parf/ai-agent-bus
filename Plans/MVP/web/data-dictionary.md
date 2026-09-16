@@ -18,6 +18,18 @@ A record *declares* it is enabled. The daemon *observes* whether a read is
 outstanding. Neither says a process is alive, and nothing on this dashboard is
 allowed to imply it does.
 
+Two corollaries the first draft left implicit, both from home-parf:
+
+**Provenance is the same class of distinction.** A figure the daemon reported
+and a figure the web child computed are not interchangeable, and a table that
+shows them side by side without saying which is which has merged them exactly
+the way declared and observed must not be merged.
+
+**An observation is worth what its read path actually did.** The daemon reports
+queue state without pruning expiry first, so *held* is not *waiting* and *at
+capacity* is not *refusing* ([glyphs](glyphs.md#what-an-observation-is-worth)).
+Where a value's meaning depends on when it was computed, this file says so.
+
 ## Fields
 
 ### Identity
@@ -50,14 +62,16 @@ restart boundary is `¿`.
 
 | Field | Means | We call it | Not shown when |
 |---|---|---|---|
-| `Queued` | messages waiting now | queued | — |
-| `Oldest` | age of the oldest waiting message | oldest waiting | empty: `—`. The queue is empty **now**; the daemon does not say whether it ever held anything |
+| `Queued` | messages **held** now — the observation path does not prune, so some may already have outlived their TTL | queued | — |
+| `Oldest` | age of the head of the queue, which may be a message the daemon already considers expired but has not swept | oldest held | empty: `—`. The queue is empty **now**; the daemon does not say whether it ever held anything |
 | `In` | messages accepted, **cumulative across restarts** | **accepted** | — not "since start": [`Restore`](../../../src/internal/core/snapshot.go) puts these back from the snapshot. codex's correction |
 | `Out` | messages handed to a reader, cumulative across restarts | **dequeued** | — never "completed". Handing a message over is not doing the work |
 | `Dropped` | discarded by the overflow policy, cumulative across restarts | dropped | zero: `0`, which is a measurement |
 | `Expired` | passed their TTL undelivered, cumulative across restarts | expired | zero: `0` |
-| `AtBound` | the queue is at capacity now | **at bound**, red | claiming messages are being dropped or refused *right now*. Capacity reached is not arrival; what happens on the next send depends on the overflow policy |
-| `TTL`, `Bound`, `Full` | this record's own settings | with inheritance stated: *uses the daemon default* where unset | — the daemon resolves defaults internally and the record keeps them unset; never copy a default into a template as though the record carried it |
+| `AtBound` | at capacity **at the moment of the read** | **at capacity when observed**, red | predicting the next send at all. Not "dropped or refused now", and not "refused or drops oldest" either: the send path prunes before deciding, may hand a waiting reader the message directly, and races a concurrent consume ([glyphs](glyphs.md#what-an-observation-is-worth)) |
+| `Bound` | queue capacity | unset: *uses the daemon default* — `boundOf` really does resolve one | — never copy the resolved value into a template as though the record carried it |
+| `TTL` | this record's retention | unset: **no expiry**, said in those words | — **never** *uses the daemon default*. There is no retention default: `life()` returns zero, `Expires` stays zero and `prune` skips it. Rendering inheritance here invents a value that does not exist |
+| `Full` | overflow policy | unset: **refuse**, the protocol's documented meaning of empty | — a normalisation, not a daemon resolution |
 
 ### Node and scope
 
@@ -66,8 +80,8 @@ restart boundary is `¿`.
 | `Status.Up` | time since this daemon started | uptime |
 | `Status.Services` | **node-wide** record count | records on this node |
 | `Status.Queued`, `Waiting`, `Dropped`, `Expired` | node-wide totals | labelled node-wide, always |
-| `Status.Unclean` | the last stop did not write memory down | a fact, with no acknowledgement state |
-| `Refusals` | lifetime counts by reason | refusals since start — **never** "climbing", which needs a window we do not have |
+| `Status.Unclean` | the last stop did not write memory down | a fact, with no acknowledgement state — rendered **only when true**. It is `omitempty`, so absent covers both a clean stop and a first start with no previous stop, and we may not claim either |
+| `Status.Refused` | lifetime counts by reason, a `map[string]int` | refusals since start — **never** "climbing" *here*, which needs a window this value does not carry. Only reasons that have occurred are present, so an absent reason is `¿`, not `0`. (Activity does compute per-interval deltas, so a windowed refusal signal is buildable there.) |
 
 **Node totals and any list never have to agree**, and every page showing both
 says so: one is the node, the other is what this caller may see
@@ -80,7 +94,7 @@ says so: one is the node, the other is what this caller may see
 | `Fingerprint` | names a credential without being one | fingerprint |
 | `Issued` | when it was minted | issued |
 | `Used` | last seen this run | last used, or *not this run* — not an expiry signal |
-| `Kind: unregistered` | a credential whose name the daemon holds nothing else for | a leftover, with what it means |
+| `Kind: unregistered` | a credential whose name the daemon holds nothing else for | a leftover, with what it means — and **legacy-only** since 0.5.29: such a name is refused `401` on every call and is not issued a credential at all, so the daemon no longer creates these. It describes the cohort that predates the change, and must not read as a live category |
 
 A credential is never rendered. Age is not expiry; nothing here retires for
 being old.
@@ -93,7 +107,7 @@ being old.
 | `Services` | records this identity owns | owned records | — |
 | `Groups` | memberships visible to the caller | memberships, or *no memberships* | — |
 | group members, withheld | the caller may not see them | **not visible to you** | an empty array shown as zero members |
-| `PeopleCount`, `OtherCount` | counts over the caller-visible directory before search | labelled with that scope | |
+| `PeopleCount`, `OtherCount` | counts over the caller-visible directory before search | labelled with that scope, **and marked as the face's own** — they are fields of `peopleView` in the web child, not daemon answers, and sit beside `Services` and `Groups`, which are | presenting a face-computed figure and a daemon-reported one as the same kind of fact. Provenance is the same class of distinction as declared-versus-observed, and this file's rule covers it |
 
 ## Absence
 

@@ -58,16 +58,26 @@ reused ([question namespace](../../../CLAUDE.md#working-rules)).
 | Edit authority does not decide read authority | The daemon's visibility rules decide what a caller may read, always and only. Within what it has already returned, lacking permission to *change* a value must not additionally hide it — which is what happens today ([C04](review/codex.md#junk-and-misleading-content)) |
 | Demote by task, do not discard | A full routing name disambiguates a session; a message ID serves diagnostics. The question is which page needs it, not whether anyone does |
 | The face renders; it decides nothing | No authorization, no I/O and no derived truth in a template |
-| A consequential action is confirmed on a page the server rendered | Because authorization and current conditions are rechecked at submission. A client-side dialog quietly removes that recheck, and native `dialog` now makes the wrong choice easy |
+| A consequential action is confirmed on a page the server rendered | Because the consequence it describes is computed when it is shown. A dialog carried in the page states conditions as of that page's render; a server-rendered confirmation re-reads them. **Not** because a client dialog removes the daemon's recheck — it does not, the daemon rechecks at submission either way. That was my error, corrected where the rule lives ([forms](forms.md#consequential-actions)) |
 
 ## Review status
 
 | Peer | Slice | State |
 |---|---|---|
-| codex | [Inventory](review/current-state.md) and [findings](review/codex.md) | delivered, committed `5f01f90` |
-| opencode | [Research and UX critique](review/opencode.md) | delivered; critique of page specs pending |
-| claude/home-parf | Second design research, glyph pressure-test | delivered on the bus; to be written to `review/home-parf.md` |
-| claude/ab-dvp | Architecture, page specs, documents, owner questions | in progress |
+| codex | [Inventory](review/current-state.md) and [findings](review/codex.md) | round one delivered `5f01f90`; specification review S01–S15 delivered `6824bcf`. Verdict: **not implementation-ready** |
+| opencode | [Research and UX critique](review/opencode.md) | delivered `4892883`, corrected `f41973e` |
+| claude/home-parf | [Design research and field-level verification](review/home-parf.md) | delivered `aaac271`, with negative results and a density acceptance proposal |
+| claude/ab-dvp | Architecture, page specs, documents, owner questions | drafted; correcting against round one |
+
+**Round one is answered in part.** This commit closes the attention-vocabulary
+and field-provenance findings, which are the ones that would have shipped a
+severity language the daemon cannot support. codex's S01–S15 structural gaps
+— effective `Disabled`, the Create-user journey, per-message arrival, problem
+recovery collapsing distinct reasons, dependency and fallback for node and
+effective-value additions, and concrete palettes, layouts and density controls
+— are open. So is home-parf's density acceptance proposal, whose first check
+(a shipped-surface budget enforced over the stylesheet) is the one that would
+have caught the failure mode they named.
 
 ### Dissent
 
