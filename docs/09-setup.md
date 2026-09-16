@@ -31,14 +31,21 @@ in the daemon account's `authorized_keys` is restricted to a forced command:
 in that entry; `SSH_ORIGINAL_COMMAND` is parsed as a request, not executed as
 shell text.
 
-⚠️ **`user add` does not yet make the name somebody.** It writes the
-`authorized_keys` line and nothing else, and a credential is now only issued to
-a name the daemon already holds a profile or a record for
-([getting a token](02-access.md#getting-a-token)). So on a fresh install the
-key works and the `token` verb it is forced into refuses, until a maintainer
-creates that user. Adding a user ought to add the user; that it does not is
-[H.5.9](../Plans/MVP/TODO.md#remaining-work), not a step operators are meant to
-remember.
+**`user add` creates the user it adds.** A credential is only issued to a name
+the daemon already holds a profile or a record for
+([getting a token](02-access.md#getting-a-token)), so writing the
+`authorized_keys` line alone would leave a key whose forced command is refused
+— which is no way in at all. The verb writes the line and creates the user, and
+`--admin` additionally puts the name in `@maintainers`. Authority is granted
+only where it was asked for: maintainer standing is membership, derived by the
+daemon, never a field a caller may claim.
+
+The two halves are kept together. The key line is written first because it is
+the half that can be taken back — a user is never deleted
+([user lifecycle](01-identity.md#user-lifecycle)) — and it is removed again if
+the daemon refuses. **The daemon has to be running**: with no way to create the
+name, `user add` refuses rather than leaving a key that works before the name
+exists. Start the daemon and run it again.
 
 The implemented admin verbs are `user add`, `user list`, `user remove` and
 `token`. The token operation is delegated to the token helper. Console and SSH

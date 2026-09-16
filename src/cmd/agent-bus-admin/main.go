@@ -8,8 +8,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
@@ -17,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/version"
 )
@@ -204,8 +209,111 @@ func userAdd(args []string) error {
 	if err := writeKeys(kept); err != nil {
 		return err
 	}
+	// The key is written first because it is the half that can be taken back:
+	// a user is never deleted (docs/01-identity.md#user-lifecycle), so the
+	// irreversible half goes last and the reversible one is undone when it
+	// refuses. Either both, or neither.
+	if err := provision(n, admin); err != nil {
+		if undo := writeKeys(lines); undo != nil {
+			return fmt.Errorf("%w\n\nthe key for %s is written and could not be taken back out (%v): remove it with `agent-bus-admin user remove %s`", err, n, undo, n)
+		}
+		return err
+	}
 	fmt.Printf("%s may now ask for its credential over ssh %s@<host>\n", n, svcAccount)
+	if admin {
+		fmt.Printf("%s is a maintainer\n", n)
+	}
 	return nil
+}
+
+// provision makes the daemon know the name, which is what turns the line just
+// written into a way in. Strict issuing refuses a name the daemon holds
+// nothing for ([Q57](docs/decisions.md#settled)), so the `token` verb the key
+// is forced into answers a fresh install with a refusal and nobody can be
+// onboarded — writing `authorized_keys` and stopping was never the whole of
+// adding somebody.
+//
+// The daemon has to be up. The alternative is to write the intent down and act
+// on it at the next start, which puts onboarding in two places and needs a
+// stored form nobody has asked for; a key that works before the name exists is
+// the state this closes, so an unreachable daemon refuses rather than half-adds.
+// See docs/09-setup.md#ssh-admin.
+func provision(n protocol.Name, admin bool) error {
+	// Already known is not a failure: adding a second key for somebody who is
+	// already here is the same operation as adding their first.
+	if _, code, err := call("POST", "/user", map[string]any{"name": n.String(), "create": true}); err != nil {
+		return fmt.Errorf("%s is not added: the daemon did not answer (%w).\nStart it and run this again — a key that reaches the token command before the name exists cannot get a credential", n, err)
+	} else if code >= 400 && code != http.StatusPreconditionFailed {
+		return fmt.Errorf("%s is not added: the daemon refused to create it (%s)", n, http.StatusText(code))
+	}
+	if !admin {
+		return nil
+	}
+	// Authority is granted only where it was asked for, and it is granted by
+	// membership rather than by a field: `Maintainer` is derived by the daemon
+	// and never accepted as a claim. SetGroup replaces the list, so the
+	// current one is read and added to.
+	members, err := maintainers()
+	if err != nil {
+		return fmt.Errorf("%s is added but is not a maintainer: %w", n, err)
+	}
+	for _, m := range members {
+		if m == n.String() {
+			return nil
+		}
+	}
+	if _, code, err := call("POST", "/group", map[string]any{"name": core.MaintainersGroup, "members": append(members, n.String())}); err != nil {
+		return fmt.Errorf("%s is added but is not a maintainer: %w", n, err)
+	} else if code >= 400 {
+		return fmt.Errorf("%s is added but is not a maintainer: the daemon refused (%s)", n, http.StatusText(code))
+	}
+	return nil
+}
+
+func maintainers() ([]string, error) {
+	out, code, err := call("GET", "/groups", nil)
+	if err != nil {
+		return nil, err
+	}
+	if code >= 400 {
+		return nil, fmt.Errorf("the daemon refused the group list (%s)", http.StatusText(code))
+	}
+	var groups map[string][]string
+	if err := json.Unmarshal(out, &groups); err != nil {
+		return nil, err
+	}
+	return groups[core.MaintainersGroup], nil
+}
+
+// call reaches the daemon on this account's own socket, which is the
+// credential: running as the account that owns the install is what makes this
+// the owner's call. See docs/02-access.md#local-socket.
+func call(method, path string, body any) ([]byte, int, error) {
+	var r io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return nil, 0, err
+		}
+		r = bytes.NewReader(b)
+	}
+	addr := os.Getenv("AGENT_BUS_ADDR")
+	if addr == "" {
+		addr = api.ClientSocket()
+	}
+	client, base := api.Dial(addr)
+	req, err := http.NewRequest(method, base+path, r)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+	out, err := io.ReadAll(resp.Body)
+	return out, resp.StatusCode, err
 }
 
 func userList() error {

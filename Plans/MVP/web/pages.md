@@ -328,7 +328,7 @@ by name. The registry table does not come with it.
 | Empty cleanup table plus its explanation | **collapse** to a count and a link while empty; expand only when candidates exist ([C10](review/codex.md#junk-and-misleading-content)) |
 | Classification of an unclassified identity | **keep as a word.** Never a colour, never inferred from a slash or a runtime prefix in a name |
 | Avatar | `/avatar` is reachable and authenticated but no template references it ([inventory](review/current-state.md#routes-and-templates)). **Decide deliberately**: use it here, or remove the endpoint. It must not fetch the whole directory per image ([W07](../done/web-review.md#findings)) |
-| **Create user** | **entry point, which the draft lost** — codex's [S07](review/codex.md#specification-review-round-one). The form exists in [forms](forms.md#the-set) with no page offering it. A primary action beside the directory heading, **shown only where the caller may create**, opening `/users/new`. Invalid input returns that form with its values and a field-level error, never a problem page. Success lands on the new user's page. This is the only onboarding path for a fresh install, which is what makes its absence a gap rather than an omission ([H.5.9](../TODO.md#objective)) |
+| **Create user** | **entry point, which the draft lost** — codex's [S07](review/codex.md#specification-review-round-one). The form exists in [forms](forms.md#the-set) with no page offering it. A primary action beside the directory heading, **shown only where the caller may create**, opening `/users/new`. Invalid input returns that form with its values and a field-level error, never a problem page. Success lands on the new user's page. Until 0.5.32 the SSH verb could not onboard anybody either ([H.5.9](../done/user-add-provisions.md#scope), now shipped), so this page was the only remaining route and had no entry point — which is what made its absence a gap rather than an omission |
 
 ## User `/user?name=`
 
@@ -402,11 +402,13 @@ Token, and how to get one. The form takes a token and nothing else — there is 
 name to type, so there is no second failure message to read as an oracle for
 which names exist.
 
-Acquisition help is concise and in the supported order. It must not offer an
-onboarding journey the daemon cannot complete: `agent-bus-admin user add` does
-not currently create the user it adds
-([H.5.9](../TODO.md#objective), [C14](review/codex.md#junk-and-misleading-content)),
-so the SSH path is described with that limit rather than promised.
+Acquisition help is concise and in the supported order, and describes only what
+the daemon can complete. **The limit the draft recorded here is gone**:
+`agent-bus-admin user add` creates the user it adds as of 0.5.32
+([evidence](../done/user-add-provisions.md#scope)), so the SSH path is a real
+onboarding journey and is described as one. What remains worth saying is that it
+needs a running daemon, because the verb refuses rather than leaving a key that
+works before the name exists ([C14](review/codex.md#junk-and-misleading-content)).
 
 A refusal says the token was not accepted and nothing about which names exist.
 The return destination is validated as one of this dashboard's own pages before
