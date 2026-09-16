@@ -104,14 +104,18 @@ other node". Two consequences: the name in the dictionary is wrong, and an
 absent reason is not a measured zero. The four markers already answer it and
 were not applied here.
 
-### F5. `Status.Unclean` has three states, not two
+### F5. `Status.Unclean` — corrected: two states, one of them ambiguous
 
-It is `omitempty` because "a first start has no previous stop to have been clean
-or otherwise". So: true is an unclean stop, false is a clean one, and **absent
-is no previous stop at all**. The dictionary treats it as one boolean fact. The
-third state is exactly what `—` is for, and this is the clearest case in the
-whole document for the absence vocabulary being applied to a node field rather
-than only to queue cells.
+I first wrote that this field is tri-state. ab-dvp's reading is the right one and
+mine was wrong. It is a plain `bool` with `omitempty`
+([bus.go:884](../../../../src/internal/core/bus.go#L884)), so false is omitted and
+**absent on the wire means either a clean stop or a first start, indistinguishably.**
+
+The three-way meaning exists only in the field's comment — "a first start has no
+previous stop to have been clean or otherwise" — and `omitempty` on a bool cannot
+carry it. The consequence for the face is the stronger version of what I claimed:
+render it only when true, and never print "clean shutdown" as an observation,
+because that is not a thing this status answer can establish.
 
 ### F6. The directory row mixes daemon truth with face-computed truth
 
@@ -158,6 +162,54 @@ refusal and traffic figure is an integer count. Purple, black and brown were
 honestly retired as "no use here yet"; `∅` deserves the same line or a named
 cell. A marker that never appears teaches people to expect a meaning that never
 comes.
+
+## Round 2: the windowed refusal signal, and what verified afterwards
+
+Added after [1292b21](../glyphs.md). ab-dvp's correction is accepted: "climbing"
+fails on the Overview because `Status.Refused` is a lifetime total, not because
+no window exists anywhere. `activity.go` keeps 61 minute-samples
+([activityKept](../../../../src/internal/core/activity.go#L8)), snapshots
+`refused` per record and node-wide, and emits per-interval deltas including
+`Refused` ([activity.go:108](../../../../src/internal/core/activity.go#L108)),
+driven by the bus process rather than by page visits. A windowed refusal signal
+is buildable on Activity and should not be recorded as impossible.
+
+Four constraints come with it, and the third is a defect rather than a limit.
+
+| | |
+|---|---|
+| **The window is one hour, hard** | 61 minute-samples. Any "rising" claim is a claim about ≤60 minutes and must say so. Nothing longer is answerable from this data |
+| **A restart renders as a quiet minute** | Counters are in-memory and reset on restart; the delta is clamped by `max(0, …)`, so the discontinuity becomes `0` rather than a gap. That is the zero-versus-absent defect one layer down, in the data. The face can only locate the boundary by cross-referencing `Status.Up` — which is the fix, and without it the restart boundary visual-design requires cannot be drawn |
+| **The scope switches inside one series** | `total()` sums `Refused` per record the caller may see — but when `name == ""` and the caller is the admin or a master, the node-wide `s.refused` **replaces** that sum ([activity.go:99](../../../../src/internal/core/activity.go#L99)). One series, two meanings, chosen by who is looking. A single static label is wrong for one of the two audiences. This is C16's scope problem inside a series rather than between panels |
+| **History is computed against the current record set** | `total()` iterates `b.records`, so a record removed mid-window drops out of both `prev` and `next` and its history leaves the series retroactively. With the registry having just gone from 21 records to 4, this is not hypothetical |
+
+### The disabled-record orange basis verifies, and is stronger than argued
+
+Checked all three legs: `Send` refuses at
+[bus.go:532](../../../../src/internal/core/bus.go#L532), `recheckInbox` releases
+existing waiters with `ErrDisabled` at
+[manage.go:292](../../../../src/internal/core/manage.go#L292), and — the leg that
+matters — `ConsumeAs` refuses a disabled record at
+[bus.go:801](../../../../src/internal/core/bus.go#L801), so no *new* reader can
+drain it either. The work is genuinely neither deliverable nor readable.
+
+It is worse than that, in a way that helps. `prune` sits *after* the disabled
+guard in the consume path, and the send-path prune is unreachable because `Send`
+refuses first. So **a disabled record's queue is frozen**: nothing enters, nothing
+leaves, and nothing expires out of it. `Expired` will not grow even when every
+message in it is long past its TTL, and `Oldest` grows without bound. The only
+exits are re-enable and unregister.
+
+Two consequences:
+
+- On a disabled record, `Oldest` is the most honest figure on the page, and the
+  presentation should say the backlog cannot drain by any route.
+- It gives the precedence choice a better reason than the one I offered. I said
+  disabled outranks at-bound because nothing is being accepted anyway. The
+  stronger reason is that on a disabled record `AtBound` is computed over a queue
+  that may be entirely expired and can never self-clear — so at-bound there is
+  neither transient nor actionable, while the action is exactly what the disabled
+  marker names.
 
 ## Answer 2: acceptance for the typography-and-density risk
 
