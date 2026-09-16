@@ -158,6 +158,13 @@ with no priority. A person's own identity is the one exception, and not as a
 reservation: their credential is how they call at all, so removing a record of
 theirs does not take it.
 
+**Built: and the name's group membership goes with it.** Because the name is
+reclaimable by anybody, a membership left behind is not a dangling row — it is
+inherited. Whoever registers the name next would arrive already in every group
+the previous holder was in, and reach every record those groups allow. A
+registered user is again the exception, and for the reason above: their record
+going does not stop them being somebody, so it does not take their standing.
+
 **The address and its credential go together, in one operation.** Whether the
 name is a person, and so keeps its credential, is decided on the same facts the
 removal is decided on — asked afterwards it was answered about a record that had

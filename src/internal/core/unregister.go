@@ -89,19 +89,51 @@ func (b *Bus) UnregisterAnd(name, caller string, forget func(string) error) erro
 			return err
 		}
 	}
-	delete(b.records, n)
-	delete(b.inboxes, n)
-	for name, topic := range b.records {
-		if len(topic.Subs) != 0 {
-			topic.Subs = drop1(topic.Subs, n)
-			b.records[name] = topic
+	// A person keeps their profile, their credential and their standing when
+	// a record of theirs is removed; everything below is for a name that has
+	// stopped being a principal at all.
+	if _, person := b.users[n]; person {
+		delete(b.records, n)
+		delete(b.inboxes, n)
+		for name, topic := range b.records {
+			if len(topic.Subs) != 0 {
+				topic.Subs = drop1(topic.Subs, n)
+				b.records[name] = topic
+			}
 		}
+	} else {
+		b.forgetName(n)
 	}
 	// The name has stopped being a principal, so its reads of other inboxes
 	// have stopped being reads anybody is entitled to. Its own inbox is gone;
 	// these are the waits it left elsewhere.
 	b.recheckReaders()
 	return nil
+}
+
+// forgetName takes every trace of a name that is no longer a principal: the
+// record, the inbox, the subscriptions it held, and the groups it was in.
+// Shared with the startup purge (orphans.go) so the two cannot disagree about
+// what a name leaves behind. Caller holds b.mu.
+func (b *Bus) forgetName(name string) {
+	delete(b.records, name)
+	delete(b.inboxes, name)
+	for other, topic := range b.records {
+		if len(topic.Subs) != 0 {
+			topic.Subs = drop1(topic.Subs, name)
+			b.records[other] = topic
+		}
+	}
+	// **Group membership goes with the name.** A freed name is reclaimable by
+	// anybody (docs/01-identity.md#unregistering), so a membership left
+	// behind is not a dangling row — it is inherited. Whoever registers the
+	// name next is in every group the old one was, and reaches every record
+	// those groups allow.
+	for group, members := range b.groups {
+		if next := drop1(members, name); len(next) != len(members) {
+			b.groups[group] = next
+		}
+	}
 }
 
 // record is used for ownership, never discovery or routing. Caller holds b.mu.
