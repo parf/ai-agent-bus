@@ -152,6 +152,7 @@ Each break made, the named check watched to fail, the file restored.
 | ownership walked to a person instead of one step | `TestAnOwnershipCycleSurvives` — the cycle and what hangs under it, all five taken |
 | the credential sweep stops dropping what the purge freed | smoke — the reclaimed name answers its predecessor's credential |
 | the snapshot the sweep wrote is truncated by one byte | smoke — *a third start reads that snapshot whole: it never answered* |
+| each of the three starts, made never to answer | smoke — the section reports that start and stops, rather than running on |
 
 **One survivor, and it is the ordering working.** The interim guard, restored,
 does not save a credential: by the time `Ownerless` asks, `Orphans` has taken
@@ -188,6 +189,20 @@ a hand that can write `@maintainers` can write `Users`. This is also the
 mechanism by which the **daemon owner** gets their standing back on a restart,
 which is why the `api.New` ordering above is so hard to falsify. Pinned by
 `TestAMaintainerInTheStoreIsAUser`.
+
+## The harness could hang, which is worse than a weak check
+
+codex's truncated-snapshot mutation did not fail the run — it **stalled** it. A
+bus that dies at start leaves the supervisor restarting it, and the socket stays
+bound with nothing serving, so every call waits in the backlog instead of
+failing. `ready` gives up only after a hundred one-second attempts, close to two
+minutes, and then the section carried on into calls that each did the same.
+
+Fixed twice over, because the first fix was not one: `orph_up` reports whether
+the daemon answered, and the section is a body a failed start can **leave**.
+Recording a failed assertion and falling through is not a guard — codex ran my
+first attempt with the start stubbed out and both dependent calls were still
+reached. Each of the three starts now has a mutation of its own.
 
 `src/smoke.sh --slow`: green.
 
