@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.21 — 2026-09-15
+
+Two dashboard pages stop promising what the daemon refuses. Removing a registration no longer says credentials remain valid: the service credential goes with the address, and only a person's own stays. The maintainers group no longer offers a delete button, because that deletion is refused for everybody including the daemon owner.
+
 ## 0.5.20 — 2026-09-15
 
 `agent-bus-web` refuses to start when a certificate was asked for and is not there, instead of logging the fact and serving plain HTTP. Asking means supplying `-cert` or `-key`; either without the other is the same ask and the same refusal. Not asking at all is unchanged and still plain HTTP on loopback.
