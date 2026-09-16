@@ -316,9 +316,10 @@ kind, description and accepted/dequeued on the lists before the homepage
 registry goes) — and omitted only where an active kind filter makes the
 column uniform, which is when it stops earning its width. The channel list's
 Queued column is blind to delivery mode: a pub/sub topic keeps no queue of
-its own (the daemon counts publications and fans out; nothing waits
-anywhere), so its Queued cell is structurally meaningless — either make the
-column mode-aware (pub/sub rows show accepted; queue rows show queued) or
+its own (the daemon counts publications and fans out; nothing waits on the
+topic itself — copies land and may wait in each subscriber's own inbox), so
+its Queued cell is structurally meaningless — either make the column
+mode-aware (pub/sub rows show accepted; queue rows show queued) or
 leave `—` with the not-applicable semantics from glyphs.md. Stating this in
 pages.md now prevents a shipped always-zero column.
 
