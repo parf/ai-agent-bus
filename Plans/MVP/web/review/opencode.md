@@ -281,18 +281,30 @@ no page ever renders eight forms — it renders sections with at most one
 collapsed edit each, and the count stops being a usability variable.
 
 **Attention set — two additions with daemon-derivable basis, one
-discoverability candidate, two structural rules.** Additions: (1) a disabled
-record with queued work — those messages can be neither delivered nor read
-(waiters are released on disable), so the work is trapped; orange. (2)
-services of a suspended owner — under H.5.7 semantics they authenticate 403,
-so registered-looking services are effectively dead; orange, links to Users.
-Candidate for the owner: a blue count of unregistered credentials awaiting
-review (the cleanup cohort exists and C10 promised discoverability — Overview
-is where it is findable). Structural: (a) **dedup rule** — an at-bound queue
-is probably also backlog-past-TTL; one queue yields one item at its worst
-level, or the page triples; (b) **split from the Node strip** — losses and
-refusals appear in attention (and Diagnostics) only, not again as node
-totals, or the strip and the items disagree with themselves.
+discoverability candidate, two structural rules — and two basis corrections
+I originally passed (caught by codex's round one).** Additions: (1) a
+disabled record with queued work — those messages can be neither delivered
+nor read (waiters are released on disable), so the work is trapped; orange.
+(2) services of a suspended owner — under H.5.7 semantics they authenticate
+403, so registered-looking services are effectively dead; orange, links to
+Users. Candidate for the owner: a blue count of unregistered credentials
+awaiting review (the cleanup cohort exists and C10 promised discoverability —
+Overview is where it is findable). Structural: (a) **dedup rule** — an
+at-bound queue is probably also backlog-past-TTL; one queue yields one item
+at its worst level, or the page triples; (b) **split from the Node strip** —
+losses and refusals appear in attention (and Diagnostics) only, not again as
+node totals, or the strip and the items disagree with themselves.
+Corrections, conceded from my first draft: (c) pages.md's "backlog older
+than its own TTL" cannot date existing queued messages — a message's expiry
+moment was fixed at accept from the TTL then in effect (envelope.go), so the
+current record TTL is the wrong ruler twice over; the honest basis is a
+daemon-provided per-message fact (oldest message's Expires, or an
+expired-not-yet-pruned count), or the item does not ship. (d) pages.md's
+AtBound wording "messages are being refused or dropped **now**" claims an
+event; AtBound proves capacity only — the honest red-level sentence is
+future-tense ("at its limit: the next send is refused, or the oldest is
+dropped"), and whether that is red or orange is a severity call on risk, not
+on loss.
 
 **Services table — one column earns nothing, one is mode-blind.** Kind earns
 nothing as a *column*: the session-recognition journey uses it as a filter
@@ -305,12 +317,17 @@ rows show accepted; queue rows show queued) or leave `—` with the not-
 applicable semantics from glyphs.md. Stating this in pages.md now prevents
 a shipped always-zero column.
 
-**Showing data because we have it, remaining instances.** Account's
-credential rows carry an Owner column that is always the reader — drop it
-(kind and fingerprint do the work). Everything else audited in pages.md
-earns its place; the closure discipline (every inventoried field assigned a
-home/demotion/removal) is the strongest thing in the document set and should
-survive into the acceptance checks verbatim.
+**Showing data because we have it, remaining instances — one finding
+retracted.** I proposed dropping Account's credential-row Owner column as
+"always the reader"; codex's round one shows that is false for service and
+session principals: /names fills Owner from the record, a session's record
+owner is its launcher (who differs from the reader), and the unregistered
+case carries the caller as owner by definition — while owned records without
+credentials are absent entirely. The column stays; whether to render it only
+when it differs from the reader is a visual-design decision. Everything else
+audited in pages.md earns its place; the closure discipline (every inventoried
+field assigned a home/demotion/removal) is the strongest thing in the
+document set and should survive into the acceptance checks verbatim.
 
 **One missing spec: the post-confirm recheck failure.** forms.md says the
 daemon rechecks at submission — right — but not what the person sees when the
