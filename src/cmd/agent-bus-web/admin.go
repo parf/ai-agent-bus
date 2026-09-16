@@ -230,9 +230,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	}))
 }
 
-const adminNav = `<nav><a href=/services>Registered services</a> · <a href=/channels>Channels</a> · <a href=/users>Users</a> · <a href=/groups>Groups</a> · <a href=/activity>Activity graphs</a> · <a href=/>Diagnostics</a></nav><p>Signed in as <code>{{.You}}</code></p>`
-
-var serviceList = template.Must(template.New("services").Parse(head + adminNav + `
+var serviceList = template.Must(template.New("services").Parse(shell("services", "Registered services") + `
 <h1>{{if .Channels}}Registered channels{{else}}Registered services{{end}}</h1>
 <form method=get><label>Scope <select name=scope><option value=all>All visible</option><option value=my {{if eq .Mine "my"}}selected{{end}}>My</option></select></label>
 <label>Availability <select name=state><option value=all>All</option><option value=active {{if eq .State "active"}}selected{{end}}>Active</option><option value=inactive {{if eq .State "inactive"}}selected{{end}}>Inactive</option></select></label> <button>Filter</button></form>
@@ -243,7 +241,7 @@ var serviceList = template.Must(template.New("services").Parse(head + adminNav +
 <label>Name <input name=name required placeholder="name@realm"></label><p><label>Description <input name=descr></label></p>
 {{if .Channels}}<input type=hidden name=kind value=topic><label>Delivery <select name=mode><option value=pubsub>Pub/sub</option><option value=queue>Queue</option></select></label>{{else}}<label>Kind <select name=kind><option value=generic>Service</option><option value=agent>Agent</option></select></label>{{end}}
 <p><label>Allow <input name=allow></label> Empty allows every authenticated caller.</p><button>Register</button></form>`))
-var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join}).Parse(head + adminNav + `
+var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join}).Parse(shell("services", "Service") + `
 {{with .Record}}<h1>{{.Name}}</h1><p>Owner: {{.Owner}} · Maintainers: {{.Maintainers}} · {{if .Disabled}}Inactive{{else}}Active{{end}}</p>
 <p>Reader: {{if .Proto}}external{{else if .Reading}}serving{{else}}offline{{end}} · {{.Queued}} queued · oldest {{.Oldest}} · {{.Dropped}} dropped · {{.Expired}} expired {{if .AtBound}}· full{{end}}</p>
 <p>Updated: {{if .At.IsZero}}unknown{{else}}{{.At.Format "2006-01-02 15:04:05"}}{{end}}</p>
@@ -267,6 +265,6 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 {{if ne .Name .Owner}}<h2>Transfer ownership</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=transfer><label>New owner <input name=owner required></label><p>The new owner must have a registered identity. Existing service credentials remain valid; transfer does not revoke copies already held.</p><button>Transfer ownership</button></form>{{end}}{{end}}
 <h2>Remove registration</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=delete><p>Drain the queue and stop readers first. <strong>No registration, no access:</strong> the credential goes with the address and nothing answers to this name afterwards. A person's own credential stays, because it is not a record's to drop.</p><button>Remove idle service</button></form>
 {{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}`))
-var groupList = template.Must(template.New("groups").Funcs(template.FuncMap{"join": strings.Join}).Parse(head + adminNav + `
+var groupList = template.Must(template.New("groups").Funcs(template.FuncMap{"join": strings.Join}).Parse(shell("groups", "Groups") + `
 <h1>Groups</h1>{{range $name,$members := .Groups}}<h2>{{$name}}</h2>{{if and $.Administrator (or $.DaemonOwner (ne $name "@maintainers"))}}<form method=post action=/groups><input type=hidden name=name value="{{$name}}"><label>Members <input name=members value="{{join $members " "}}"></label><button name=action value=save>Save members</button></form>{{if eq $name "@maintainers"}}<p class=muted>The daemon owner stays in this group.</p>{{end}}{{end}}{{else}}<p>No groups registered.</p>{{end}}
 {{if .Administrator}}<h2>Create group</h2><form method=post action=/groups><label>Name <input name=name placeholder="@operators" required></label><label>Members <input name=members placeholder="user@realm"></label><button name=action value=save>Create</button></form>{{else}}<p>Daemon administrators manage group membership. Only the daemon owner changes the maintainers group. Service owners can assign an existing group to their own services.</p>{{end}}`))

@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
@@ -94,7 +95,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 			render(w, anon, nil)
 			return
 		}
-		v := view{You: node.You, Status: node.Status, Refusals: refusals(node.Refused)}
+		v := view{You: node.You, At: time.Now().Format("2006-01-02 15:04:05"), Status: node.Status, Refusals: refusals(node.Refused)}
 		if err := bus.get(cred, "/ls", &v.Records); err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -257,15 +258,16 @@ func env(k, def string) string {
 // for a chart would inherit a signed-in master's whole envelope feed.
 // See docs/05-discovery.md#rules-it-is-built-to.
 const head = `<!doctype html>
+<html lang=en>
 <meta charset="utf-8">
-<title>agent-bus</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
  body{font:14px system-ui,sans-serif;margin:2rem;max-width:60rem}
  table{border-collapse:collapse;width:100%;margin-bottom:2rem}
  th,td{text-align:left;padding:.3rem .6rem;border-bottom:1px solid #ddd}
  th{font-weight:600;color:#555}
- code{font:13px ui-monospace,monospace}
- .muted{color:#888}
+ code{font:13px ui-monospace,monospace;overflow-wrap:anywhere}
+ .muted{color:#6b6b6b}
  .warn{color:#b00}
  h2{font-size:15px;margin:1.6rem 0 .4rem}
  .who{float:right;font-size:13px}
@@ -275,8 +277,58 @@ const head = `<!doctype html>
  button,select{font:inherit;padding:.3rem .5rem}
  form+form{margin-top:1rem}
  nav{line-height:2}
+ nav a[aria-current=page]{font-weight:700;text-decoration:none}
+ :focus-visible{outline:2px solid #253c66;outline-offset:2px}
+ /* A phone is not a narrow desktop: the gutter shrinks and only a genuinely
+    wide table scrolls, rather than the whole page.
+    See docs/05-discovery.md#rules-it-is-built-to. */
+ @media (max-width:40rem){
+  body{margin:1rem}
+  .who{float:none;display:block;margin-bottom:.5rem}
+  input{width:100%}
+  table{display:block;overflow-x:auto}
+ }
 </style>
 `
+
+// The navigation is one list, in one place. It was two — an inline copy on the
+// diagnostics page and adminNav on every other — which is how sign-out came to
+// exist on one page only (Plans/MVP/done/web-review.md W01).
+var navItems = []struct{ Href, Label, Key string }{
+	{"/services", "Registered services", "services"},
+	{"/channels", "Channels", "channels"},
+	{"/users", "Users", "users"},
+	{"/groups", "Groups", "groups"},
+	{"/activity", "Activity graphs", "activity"},
+	{"/", "Diagnostics", "diagnostics"},
+}
+
+// shell is the head, title and navigation a signed-in page shares. It is built
+// per page rather than carried in each handler's data, because which page this
+// is, is known when the template is parsed and never changes afterwards. That
+// keeps the current entry marked without every view growing a field for it.
+func shell(key, title string) string {
+	var nav strings.Builder
+	nav.WriteString(head)
+	nav.WriteString("<title>")
+	nav.WriteString(template.HTMLEscapeString(title))
+	nav.WriteString(" \u00b7 agent-bus</title>\n")
+	// Sign out belongs beside the name it signs out, on every page.
+	nav.WriteString(`<form method=post action=/signout class=who><code>{{.You}}</code> <button type=submit>sign out</button></form>` + "\n")
+	nav.WriteString("<nav aria-label=\"sections\">")
+	for i, item := range navItems {
+		if i > 0 {
+			nav.WriteString(" \u00b7 ")
+		}
+		nav.WriteString("<a href=" + item.Href)
+		if item.Key == key {
+			nav.WriteString(" aria-current=page")
+		}
+		nav.WriteString(">" + item.Label + "</a>")
+	}
+	nav.WriteString("</nav>\n<main>\n")
+	return nav.String()
+}
 
 // anon is what the bus would answer a caller it cannot name: nothing. A
 // title, the form, and where a credential comes from. No uptime, no counts
@@ -299,11 +351,11 @@ var anon = template.Must(template.New("anon").Parse(head + `<h1>agent-bus</h1>
 // away, then the backlogs nobody is reading, then the traffic, and the registry
 // and the credentials last. Every one of them is what the bus answered **this
 // caller** (docs/05-discovery.md#what-it-shows).
-var page = template.Must(template.New("dash").Parse(head + `<meta http-equiv="refresh" content="5">
-<form method=post action=/signout class=who>
- <code>{{.You}}</code> <button type=submit>sign out</button></form>
-<h1>agent-bus</h1>
-<nav><a href=/services>Registered services</a> · <a href=/channels>Channels</a> · <a href=/users>Users</a> · <a href=/groups>Groups</a> · <a href=/activity>Activity graphs</a> · <a href=/>Diagnostics</a></nav>
+// The page no longer refreshes itself. A reader has to be able to stop moving
+// content, and a whole-page reload every five seconds also threw away whatever
+// they were part-way through reading (Plans/MVP/done/web-review.md W11).
+var page = template.Must(template.New("dash").Parse(shell("diagnostics", "Diagnostics") + `<h1>agent-bus</h1>
+<p><a href=/>Refresh</a> <span class=muted>· as of {{.At}}</span></p>
 
 <h2 id=node>node</h2>
 <p>up {{.Status.Up}} · {{.Status.Services}} records · {{.Status.Queued}} queued ·

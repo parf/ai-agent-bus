@@ -109,10 +109,10 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 	})
 }
 
-var peoplePage = template.Must(template.New("people").Parse(head + adminNav + `
+var peoplePage = template.Must(template.New("people").Parse(shell("users", "Users") + `
 <h1>Users</h1>{{if .Administrator}}<p><a href=/user>Add user</a></p>{{end}}
 <table><tr><th>Person<th>Identity<th>Authority<th>State</tr>{{range .Users}}<tr><td><img src="/avatar?name={{.Name}}" width=32 height=32 alt=""> {{.PersonName}}<td><a href="/user?name={{.Name}}">{{.Name}}</a><td>{{if .DaemonOwner}}Daemon owner{{else if .Maintainer}}Daemon maintainer{{else}}User{{end}}<td>{{.State}}</tr>{{else}}<tr><td colspan=4>No users visible</tr>{{end}}</table>`))
-var personPage = template.Must(template.New("person").Parse(head + adminNav + `
+var personPage = template.Must(template.New("person").Parse(shell("users", "Person") + `
 <h1>{{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1>
 {{if not .New}}<p>State: {{.User.State}} · {{if .User.DaemonOwner}}Daemon owner{{else if .User.Maintainer}}Daemon maintainer{{else}}User{{end}}</p>
 <h2>Groups</h2>{{range .User.Groups}}<p>{{.}}</p>{{else}}<p>No group memberships</p>{{end}}

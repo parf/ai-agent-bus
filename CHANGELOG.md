@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.24 — 2026-09-15
+
+Every dashboard page now shares one shell: a single navigation with the current entry marked, sign out beside the name it signs out, a document language, a viewport, a main landmark and a title of its own. Pages no longer reload themselves — the diagnostics page says when it was built and offers a Refresh link instead, and the activity page's own thirty-second reload is gone. Muted text meets the contrast minimum, and narrow screens get a smaller gutter with only wide tables scrolling.
+
 ## 0.5.23 — 2026-09-15
 
 The authority levels are nested rather than side by side: adding somebody to `@maintainers` now makes them a registered user, as starting the daemon already did for the owner. A snapshot written before this rule is repaired on restore. Taking somebody out of the group leaves the person behind, since a user is never deleted.

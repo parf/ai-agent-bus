@@ -89,6 +89,49 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 		t.Error("removal help does not say the credential goes with the address")
 	}
 
+	// Every signed-in page carries the same shell. Checked on all of them,
+	// because the duplicate nav is exactly how sign-out came to exist on one
+	// page only (Plans/MVP/done/web-review.md W01).
+	// The marked entry is checked as the actual link for this page: the
+	// stylesheet also contains the string aria-current=page, so looking for it
+	// anywhere on the page passes without any entry being marked at all.
+	marks := map[string]string{
+		"/": "<a href=/ aria-current=page>", "/services": "<a href=/services aria-current=page>",
+		"/channels": "<a href=/services aria-current=page>", "/users": "<a href=/users aria-current=page>",
+		"/groups": "<a href=/groups aria-current=page>", "/activity": "<a href=/activity aria-current=page>",
+	}
+	for _, path := range []string{"/", "/services", "/channels", "/users", "/groups", "/activity"} {
+		body := get(path)
+		for _, want := range []string{
+			`<html lang=en>`,
+			`<meta name="viewport"`,
+			`<main>`,
+			`action=/signout`,
+			marks[path],
+		} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s has no %s", path, want)
+			}
+		}
+		// And exactly one entry is marked, so "current" cannot mean "all".
+		if n := strings.Count(body, "aria-current=page>"); n != 1 {
+			t.Errorf("%s marks %d navigation entries, want 1", path, n)
+		}
+		if strings.Contains(body, "http-equiv=refresh") || strings.Contains(body, `http-equiv="refresh"`) {
+			t.Errorf("%s still refreshes itself with no way to stop it", path)
+		}
+		if strings.Contains(body, "#888") {
+			t.Errorf("%s still uses the muted grey that misses contrast", path)
+		}
+	}
+	// Each page names itself, so a tab and a history entry can be told apart.
+	titles := map[string]string{"/": "Diagnostics", "/services": "Registered services", "/users": "Users", "/groups": "Groups"}
+	for path, title := range titles {
+		if want := "<title>" + title + " \u00b7 agent-bus</title>"; !strings.Contains(get(path), want) {
+			t.Errorf("%s is not titled %q", path, title)
+		}
+	}
+
 	groups := get("/groups")
 	// Groups are not deleted at all, so no group offers it — the protected one
 	// because core refuses it outright, the rest because deletion is not how a
