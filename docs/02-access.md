@@ -167,29 +167,22 @@ The MVP currently carries plaintext bodies ([trust boundary](#encrypted-sessions
 
 ### Ownerless credentials
 
-**Built, with one interim below.** A credential belongs to nobody when its name
+**Built.** A credential belongs to nobody when its name
 has **no record of its own and no registered user**, and the daemon drops it
 **at start**. That is a sweep at a known moment, not expiry: the rule above still
 holds, and no credential is retired for being old or idle.
 
-**Owning records will not save one, because such records will not survive the
-same start.** A name that owns services without being a registered user leaves
-them [dead, and they are deleted](01-identity.md#when-the-owner-is-gone) — so
-once that deletion exists there is nothing left for the credential to answer
-for, and the two sweeps say the same thing about the same name.
+**Owning records does not save one, because those records do not survive the
+same start.** A name with neither a profile nor a record of its own leaves
+every record it owns [answering for nobody, and they are
+deleted](01-identity.md#when-the-owner-is-gone) first, in the same start — so by the time this sweep asks, there is nothing left for
+the credential to answer for, and the two say the same thing about one name.
 
-⚠️ **Interim: that deletion is not built, so owning records does save one for
-now.** Sweeping a credential whose records are still there would manufacture
-exactly the orphans the other rule is for, at a restart, silently — so until
-[H.5.5](../Plans/MVP/TODO.md#remaining-work) lands, a name that owns services
-keeps its credential. The guard is temporary and goes with that task; it is not
-a third condition.
-
-**Kept is not accepted.** A credential spared on that ground still answers for
-nobody, so it grants nothing while it is spared: the name has no profile and no
-record of its own, and is refused every call
-([what a call carries](#what-a-call-carries)). The guard keeps a row in the
-store from being removed too early. It does not keep a door open.
+**That order is the whole of it.** Sweeping a credential whose records were
+still there would manufacture exactly the orphans the other rule is for; running
+the deletion first means it cannot. There is no third condition and no guard:
+the two sweeps are one decision made twice, about the record and then about the
+credential.
 
 It is the other half of *as long as the user is registered*. A person keeps
 theirs while they are a registered user, whatever they register or unregister

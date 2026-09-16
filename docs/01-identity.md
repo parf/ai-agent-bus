@@ -200,8 +200,9 @@ labels and controls. A profile with blank fields is still a user.
 Each non-user entry explains why it is present and links to its record or
 owned services where applicable. Eligible credentials have an explicit review
 and removal action under the [cleanup rule](02-access.md#ownerless-credentials);
-viewing the directory never removes anything. Identities retained by that
-rule's interim guard remain visible with the services that need attention.
+viewing the directory never removes anything. The page shows what the daemon
+holds now, which includes names minted since it started; the sweep is what
+takes them, and it runs at the next start.
 
 Search, category filtering and pagination preserve the current view on return
 from details and cleanup. Counts describe caller-visible entries, not the
@@ -400,7 +401,7 @@ service and topic changes use [record management authority](#groups-and-maintain
 
 ### When the owner is gone
 
-**Pending, not built.** Every owner is somebody the daemon knows — a user, or
+**Built.** Every owner is somebody the daemon knows — a user, or
 a name with a record of its own — and neither is deleted while it owns anything
 ([the levels are nested](#groups-and-maintainers), [user lifecycle](#user-lifecycle)).
 That is **enforced rather than assumed**: registering a record owned by a name
@@ -417,6 +418,22 @@ deleted, at once, with everything that hung on it.**
 | the record | the name is free again, reserved to nobody, exactly as [unregistering](#unregistering) leaves it |
 | its credential | no registration, no access |
 | **its queues** | all of them, whatever is in them |
+| its subscriptions and its group membership | a freed name is reclaimable, so a membership left behind would be [inherited](#unregistering) rather than merely stale |
+
+**It happens at start, and it runs to a fixed point.** A start is the one moment
+the daemon reads a store it did not write, and nothing is serving yet. One pass
+is not enough, because deleting is what makes the next orphan: A owns B and B
+owns C, all of them records, so taking A away is what leaves B unknown. The
+sweep repeats until a pass finds nothing.
+
+**One step, not walked to a person.** A self-owned record with no user behind it
+is a principal this daemon supports — it authenticates, it may be handed a
+record by transfer, and it may register records of its own. Asking instead
+whether a chain of owners ends at a *user* would delete names the daemon had
+just accepted. A cycle therefore survives, by the same rule rather than as an
+exception: every member's owner has a record. No call can build one — transfer
+demands a self-owned principal and re-registration keeps the owner it had — so a
+cycle in a store came from outside the daemon.
 
 **The backlog is not a reason to keep it.** Unregistering by hand refuses while
 anything is queued or a reader waits, because a person can be told to drain it

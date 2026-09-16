@@ -238,9 +238,12 @@ func (b *Bus) identityKind(name string) string {
 }
 
 func (b *Bus) ownerless(name string) bool {
-	// Interim until H.5.5: keep the credential behind existing services.
-	// Remove this guard with orphan-service deletion, not before it.
-	return b.identityKind(name) == protocol.DirectoryCredential && !b.owns(name)
+	// No interim guard any more. It kept the credential behind a name that
+	// still owned services, so as not to strand them before there was
+	// anything to delete them; Orphans runs first now, and a name with no
+	// record and no profile owns nothing by the time this is asked — every
+	// record it owned was wreckage and went with it.
+	return b.identityKind(name) == protocol.DirectoryCredential
 }
 
 // RemoveOwnerless holds the same lock used to create profiles and records
@@ -264,7 +267,7 @@ func (b *Bus) RemoveOwnerless(caller, name string, forget func(string) error) er
 		return ErrNotOwner
 	}
 	if !b.ownerless(n) {
-		return fmt.Errorf("%w: credential is now backed by a user, record or owned service; refresh the directory", ErrBusy)
+		return fmt.Errorf("%w: credential is now backed by a user or a record; refresh the directory", ErrBusy)
 	}
 	return forget(n)
 }

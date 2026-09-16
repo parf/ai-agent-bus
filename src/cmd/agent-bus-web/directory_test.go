@@ -44,11 +44,20 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 	known(t, b, "self@h")
-	// service@h comes from a store rather than a registration: its owner is a
-	// name the daemon holds only a credential for, and registering that is
-	// refused now (docs/01-identity.md#when-the-owner-is-gone). The directory
-	// still has to show it, because an older store still supplies it.
+	// holds@h is a principal without being a person: a self-owned record and
+	// no profile. The daemon supports it — it authenticates, it may be handed
+	// a record by transfer, and it may register records of its own — so it
+	// survives the orphan sweep and the directory has to show it as what it
+	// is. Restored rather than registered because that is where such a name
+	// comes from; the owner it needs would have to exist first.
+	//
+	// It owns a service, which is why credential cleanup must not be offered
+	// for it: taking the credential of a name that owns records is how orphans
+	// get manufactured, and the sweep no longer guards against that
+	// (docs/01-identity.md#when-the-owner-is-gone) because nothing reachable
+	// creates it. The classification is what keeps it safe.
 	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
+		{Name: "holds@h", Owner: "holds@h", Kind: "generic", Full: protocol.OverflowStrict},
 		{Name: "service@h", Owner: "holds@h", Kind: "generic", Full: protocol.OverflowStrict},
 	}})
 	for i := 0; i < 30; i++ {

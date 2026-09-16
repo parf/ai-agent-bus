@@ -72,7 +72,13 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 	if rows := b.Users("unused@h", credentials); len(rows) != 0 {
 		t.Fatalf("a credential answering for nobody read the directory: %+v", rows)
 	}
-	if got := b.Ownerless(credentials); len(got) != 1 || got[0] != "unused@h" {
+	// Both, now that orphan deletion exists. The interim guard used to spare
+	// a credential whose name still owned services, so as not to manufacture
+	// orphans at a restart; Orphans runs first and deletes them instead, so by
+	// the time this is asked in a real start, unprofiled-owner@h owns nothing.
+	// This fixture restores the wreckage by hand without that start, which is
+	// why the two disagree here and nowhere else.
+	if got := b.Ownerless(credentials); len(got) != 2 || got[0] != "unprofiled-owner@h" || got[1] != "unused@h" {
 		t.Fatalf("classification disagrees with sweep: %v", got)
 	}
 	if rows := b.Users("owned@h", credentials); len(rows) != 0 {

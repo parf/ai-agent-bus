@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.35 — 2026-09-16
+
+A start deletes every record whose owner the daemon knows nothing about — to a
+fixed point, because deleting is what makes the next orphan — with its queues,
+its subscriptions and the readers blocked on it, and then drops the credentials
+that answered for them. The interim guard that kept the two sweeps from
+disagreeing is gone with it. Separately: a deleted name's group membership now
+goes with the name, which it did not — a freed name is reclaimable, so whoever
+registered it next inherited every group the previous holder was in.
+
 ## 0.5.34 — 2026-09-16
 
 A paused or banned user's services refuse calls, in the daemon rather than as a

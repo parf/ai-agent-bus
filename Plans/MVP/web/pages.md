@@ -345,7 +345,12 @@ deleted, only made inactive
 ([user lifecycle](../../../docs/01-identity.md#user-lifecycle)).
 
 For a non-user identity: the kind, why it is retained, and the removal control
-only when `CanRemove`, with consequences stated before the form.
+only when `CanRemove`, with consequences stated before the form. There are two
+kinds and no third: a self-owned record, and a credential with neither profile
+nor record. *It owns services, so removal is held* was a third, and it went with
+the interim guard it described — a name that owns records without being one is
+[deleted at start](../../../docs/01-identity.md#when-the-owner-is-gone), so the
+page cannot be shown one.
 
 ---
 

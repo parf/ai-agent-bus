@@ -85,6 +85,25 @@ func runBus(c config) {
 	face := api.New(bus, tokens, me.String())
 	face.Dashboard(c.dash)
 
+	// A record whose owner the daemon knows nothing about is wreckage, and it
+	// goes first — with its queues, whatever is in them
+	// (docs/01-identity.md#when-the-owner-is-gone).
+	//
+	// Before the credential sweep below, because deleting a record is what
+	// makes its name answer for nothing: the two run in that order so they
+	// cannot disagree about one name. After api.New for the same reason the
+	// sweep is, and it matters more here — that call is what registers the
+	// daemon owner, and a record of theirs would be wreckage until it has
+	// happened.
+	if purged := bus.Orphans(); len(purged) > 0 {
+		log.Printf("deleted %d services whose owner the daemon does not know", len(purged))
+	}
+	// Their credentials are not dropped here. Every name that just went has no
+	// record and no profile now, which is exactly what the sweep below asks,
+	// so a loop here would be a second place deciding the same thing — and a
+	// second place to get it wrong. Proved by mutation: removing it changed
+	// nothing, and removing both is what the smoke's reuse check catches.
+
 	// A credential whose name has no record and no registered user answers for
 	// nothing, and is dropped here — at start, at a known moment, never by
 	// expiry (docs/02-access.md#ownerless-credentials).
@@ -101,6 +120,12 @@ func runBus(c config) {
 		}
 		log.Printf("dropped %d credentials that answered for nothing", len(swept))
 	}
+	// The snapshot written at line one of this run predates both sweeps, so a
+	// restart that died before the next periodic save would read the wreckage
+	// back and do this again. Written here, a start that then dies repeats
+	// nothing — as far as the write succeeds. save logs and continues, so this
+	// is best effort like every other snapshot; what it is not is skipped.
+	save(false)
 
 	var srvs []*http.Server
 	serve := func(l net.Listener, h http.Handler) {

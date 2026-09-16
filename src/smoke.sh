@@ -2142,6 +2142,148 @@ if slow; then
   dur_down -TERM
 fi
 
+sec "a start clears out the records whose owner it does not know"
+# The wreckage rule (docs/01-identity.md#when-the-owner-is-gone): a record
+# whose owner the daemon knows nothing about answers for nobody, and a start
+# takes it rather than leaving a name nobody can reach or reclaim. Its own
+# daemon and its own store, because what is under test is what a start reads
+# off disk.
+#
+# The store is edited between the stop and the start, and that is the only way
+# to present one: a running daemon refuses every call that would make an
+# orphan. This sweep is for a store written by an older daemon or by a hand.
+mkdir -p "$D/orph"
+orph_up() {
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/orph/bus.sock" -token-file "$D/orph/token" \
+    -owner "$OWNER" -dump-file "$D/orph/dump.json" -dump-every 0 >"$D/orph/$1.log" 2>&1 &
+  OPID=$!
+  ready "$D/orph/bus.sock" || echo "  WARNING: $D/orph/bus.sock never answered"
+  OTOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/orph/token")
+}
+orph_down() { kill "$OPID" 2>/dev/null; wait "$OPID" 2>/dev/null; }
+otok() { AGENT_BUS_ADDR=$D/orph/bus.sock AGENT_BUS_TOKEN=$OTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$1" 2>/dev/null; }
+oab() { AGENT_BUS_ADDR=$D/orph/bus.sock AGENT_BUS_TOKEN=$OTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
+oas() { AGENT_BUS_ADDR=$D/orph/bus.sock AGENT_BUS_TOKEN=$(otok "$1") AGENT_BUS_NAME=$1 "$D/agent-bus" "${@:2}"; }
+# A fixture failure stops the run, and must not leave this section's daemon
+# behind when it does: the trap at the top knows about the main one only.
+opost() { curl -fsS --unix-socket "$D/orph/bus.sock" -H "X-Agent-Bus-Token: $OTOK" -d "$2" "http://unix$1" >/dev/null || { orph_down; exit 1; }; }
+ocode() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/orph/bus.sock" -H "X-Agent-Bus-Token: $1" "http://unix/status"; }
+
+orph_up first
+for u in keeper@srv1 napping@srv1 barred@srv1; do
+  opost /user "{\"name\":\"$u\",\"create\":true}"
+done
+# ghost@srv1 is a service, not a person: the edit below repoints what it owns,
+# and a name with a profile would still be known however its record reads.
+oab register ghost@srv1 >/dev/null
+oas ghost@srv1 register lost@srv1 --descr "answers for nobody" >/dev/null
+# Three deep, so one pass is not enough: taking chain-a is what orphans
+# chain-b, and taking chain-b is what orphans chain-c.
+oas ghost@srv1 register chain-a@srv1 >/dev/null
+oas chain-a@srv1 register chain-b@srv1 >/dev/null
+oas chain-b@srv1 register chain-c@srv1 >/dev/null
+# Positive controls, one per owner state the daemon still knows about, plus
+# one owned by the daemon owner — whose standing exists only after api.New,
+# so an earlier sweep would eat it.
+oas keeper@srv1 register steady@srv1 >/dev/null
+oas napping@srv1 register napped@srv1 >/dev/null
+oas barred@srv1 register barred-svc@srv1 >/dev/null
+oab register owner-svc@srv1 >/dev/null
+for s in lost@srv1 chain-a@srv1 steady@srv1 napped@srv1 barred-svc@srv1 owner-svc@srv1; do
+  oab send "$s" "queued before the stop" >/dev/null
+done
+# Suspended after the queues exist: a suspended owner's service refuses
+# delivery, so seeding second would seed nothing and the controls would
+# survive with nothing to lose.
+opost /user/state '{"name":"napping@srv1","state":"paused"}'
+opost /user/state '{"name":"barred@srv1","state":"banned"}'
+LOSTTOK=$(otok lost@srv1)
+CHAINTOK=$(otok chain-a@srv1)
+has "the wreckage authenticates before the start that clears it" \
+  "$(ocode "$LOSTTOK")$(ocode "$CHAINTOK")" '200200'
+orph_down
+
+# The hand edit. What ghost owns is repointed at a name that has neither a
+# profile nor a record; ghost's own record is owned by the daemon owner and is
+# not touched, so the name the edit points away from is itself a control.
+sed -i 's/"owner":"ghost@srv1"/"owner":"vanished@srv1"/g' "$D/orph/dump.json"
+has "the store now holds a record owned by a name nothing knows" \
+  "$(cat "$D/orph/dump.json")" '"owner":"vanished@srv1"'
+# And every trace of the daemon owner as a *principal* goes with it: their
+# profile, and their line in the maintainers group, which a reload turns back
+# into a profile. The owner is made a registered user by the call that builds
+# the face, so a sweep running before that call finds every record of theirs
+# unowned and takes the lot. owner-svc@srv1 below is that check, and it says
+# nothing at all while the store hands the owner back before the face is up.
+# Two substitutions for the profile, because the order of the array is a map's
+# and not stable: dropping the trailing comma when the owner happens to be
+# last would leave JSON the start refuses to read, which checks nothing.
+OWNROW="{\"name\":\"$OWNER\",\"state\":\"[a-z]*\",\"kind\":\"\"}"
+sed -i "s|$OWNROW,||; s|,$OWNROW||; s|\"@maintainers\":\[\"$OWNER\"\]|\"@maintainers\":[]|" "$D/orph/dump.json"
+# Each read once and checked for shape first: a sed that matched nothing hands
+# back an empty string, which `lacks` accepts as proof of anything.
+EDUSERS=$(sed -n 's/.*\("Users":\[[^]]*\]\).*/\1/p' "$D/orph/dump.json")
+EDGROUPS=$(sed -n 's/.*\("Groups":{[^}]*}\).*/\1/p' "$D/orph/dump.json")
+has "the edited store still lists the users it kept" "$EDUSERS" 'keeper@srv1'
+has "and still has a maintainers group to read" "$EDGROUPS" '"@maintainers":'
+lacks "but no profile for the daemon owner, as a hand-edited store may not" \
+  "$EDUSERS" "$OWNER"
+lacks "nor a line in the group a reload would rebuild one from" "$EDGROUPS" "$OWNER"
+
+orph_up second
+has "the start says how many it took" "$(cat "$D/orph/second.log")" 'deleted 4 services'
+REG=$(oab ls)
+lacks "the record whose owner nothing knows is gone" "$REG" 'lost@srv1'
+# All three, not just the first: a single pass leaves the tail of the chain
+# live, owned by a name that has just been deleted.
+lacks "and so is the chain it was holding up, to its end" "$REG" 'chain-c@srv1'
+lacks "not only the link the edit named" "$REG" 'chain-a@srv1'
+lacks "nor only the two above it" "$REG" 'chain-b@srv1'
+has "while the name the edit pointed away from is still there" "$REG" 'ghost@srv1'
+has "the credential that answered for the wreckage no longer authenticates" \
+  "$(ocode "$LOSTTOK")" '401'
+# H.5.4's remaining clause, in the same run: a name that is not a registered
+# user and *owns services* is collected too, and this is the start that
+# deleted those services. One run, so the two sweeps cannot disagree about a
+# name — the credential goes because the record went, in that order.
+has "and so does one that was owning services when the start took it" \
+  "$(ocode "$CHAINTOK")" '401'
+# Every control keeps its queue. A stopped owner is not a missing one.
+for s in steady@srv1 napped@srv1 barred-svc@srv1 owner-svc@srv1; do
+  has "$s survives the start with its queue" "$(oab ls "$s")" '"queued":1'
+done
+# The freed name is reserved to nobody, and carries nothing across.
+oas keeper@srv1 register lost@srv1 --descr "somebody else's now" >/dev/null
+oas keeper@srv1 register chain-a@srv1 >/dev/null
+has "and the freed name registers to somebody else" "$(oab ls lost@srv1)" "somebody else's now"
+is_empty "who is handed none of what was queued for the old one" \
+  "$(oas lost@srv1 consume --wait 0s 2>&1)"
+# And the old bytes are refused NOW, with the name registered again. The 401s
+# above prove nothing on their own: a name with no record is refused at the
+# gate whether or not its credential was ever dropped, so a Forget that never
+# ran, or that failed its write, passes them. This is the question they were
+# meant to ask — does the previous holder still authenticate as the name
+# somebody else now owns.
+has "and the credential the old holder kept does not answer for the new one" \
+  "$(ocode "$LOSTTOK")" '401'
+has "nor does the one that was owning services" "$(ocode "$CHAINTOK")" '401'
+# The snapshot this start wrote at line one predates the sweep. Read off disk
+# rather than through a second restart, because a graceful stop would write a
+# clean dump either way and prove nothing about the save that follows the
+# sweep: this is what a start that then dies leaves behind.
+#
+# The positive half comes first and is not optional. `lacks` on an empty or
+# unparseable file passes for every absence there is, so a save that wrote
+# nothing at all would satisfy the three checks below on its own.
+STORE=$(cat "$D/orph/dump.json")
+has "the snapshot the start wrote back is a snapshot" "$STORE" '^{"Users":\[.*"Records":\['
+has "with the records that survived still in it" "$STORE" '"name":"owner-svc@srv1"'
+has "and their queued work still in it" "$STORE" '"to":"steady@srv1","body":"queued before the stop"'
+lacks "the store on disk is rewritten, so a start that dies repeats nothing" \
+  "$STORE" 'chain-c@srv1'
+lacks "and the work that was queued for it is not in it either" "$STORE" '"to":"chain-a@srv1"'
+orph_down
+
 sec "the supervisor holds the sockets, and the bus serves them"
 # One binary, two roles. The process that may chown a socket never serves a
 # request; the process that serves is handed listeners that already exist and

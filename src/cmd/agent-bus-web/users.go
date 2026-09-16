@@ -206,8 +206,7 @@ var peoplePage = template.Must(template.New("people").Parse(shell("users", "User
 {{range .Other}}<tr><td><a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td>
 <td>{{if eq .Kind "record"}}Registered name{{else}}Credential without a registered name{{end}}</td>
 <td>{{if eq .Kind "record"}}A self-owned record, not a user profile. <a href="/service?name={{.Name}}">Inspect the record</a> before deciding whether it is needed.
-{{else if .Services}}No user profile or record of its own. It still owns services; resolve those services first. Credential removal is held until orphan-service cleanup is available.
-{{else}}No user profile and no registered record; it owns no services. {{if .CanRemove}}<a href="/user?name={{.Name}}&return={{$.Return}}">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}{{end}}</td></tr>
+{{else}}No user profile and no registered record. {{if .CanRemove}}<a href="/user?name={{.Name}}&return={{$.Return}}">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}{{end}}</td></tr>
 {{else}}<tr><td colspan=3>No other identities on this page.</td></tr>{{end}}</tbody></table></section>
 <nav aria-label="Directory pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
 </main>`))
@@ -218,8 +217,7 @@ var personPage = template.Must(template.New("person").Parse(shell("users", "Iden
 <h2>{{if eq .User.Kind "record"}}Registered name{{else}}Credential-only identity{{end}}</h2>
 <p>This is not a registered user. No user lifecycle state has been assigned.</p>
 {{if eq .User.Kind "record"}}<p>A self-owned record exists. <a href="/service?name={{.User.Name}}">Inspect its registration and queues</a> before removing the record.</p>
-{{else if .User.Services}}<p>This name owns services but has no user profile or record of its own. Resolve the services below first; credential removal is held until orphan-service cleanup is available.</p>
-{{else}}<p>No user profile, registered record or owned service remains for this name. Review and remove the unused credential.</p>{{end}}
+{{else}}<p>No user profile and no registered record remains for this name. Review and remove the unused credential.</p>{{end}}
 {{if .User.CanRemove}}<h2>Remove unused credential</h2><p>Removal ends access through this name’s current token, previous token and browser sessions. It does not delete a user or service. If the name becomes registered before submission, removal will be refused.</p>
 <form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=remove-credential style="max-width:100%;overflow-wrap:anywhere">Remove credential for {{.User.Name}}</button></form>{{end}}
 {{else}}

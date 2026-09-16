@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/core"
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -79,7 +78,12 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	}
 	// The user looked at an eligible row, but something registered before
 	// submission. Each independently protective condition must be rechecked.
-	for _, shape := range []string{"user", "record", "owns-services"} {
+	// "owns-services" was a third shape here until orphan deletion landed. It
+	// is gone rather than relaxed: the state it built — a credential-only name
+	// still owning records, from an older store — is deleted at startup now
+	// (docs/01-identity.md#when-the-owner-is-gone), so no serving daemon has
+	// one for the recheck to meet.
+	for _, shape := range []string{"user", "record"} {
 		name := shape + "@h"
 		cred := token(name)
 		call("owner@h", "GET", "/users", "", 200)
@@ -95,14 +99,6 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 			if _, err := b.Register(protocol.Record{Name: name, Owner: "owner@h"}); err != nil {
 				t.Fatal(err)
 			}
-		case "owns-services":
-			// From a store, not a registration: a record owned by a name the
-			// daemon holds only a credential for cannot be created any more
-			// (docs/01-identity.md#when-the-owner-is-gone), and an older store
-			// is where the eligibility recheck still has to meet it.
-			b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
-				{Name: "child@h", Owner: name, Kind: "generic", Full: protocol.OverflowStrict},
-			}})
 		}
 		call("owner@h", "POST", "/identity/remove", `{"name":"`+name+`"}`, 409)
 		if _, ok := s.tokens.Principal(cred); !ok {
@@ -111,7 +107,7 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	}
 	call("owner@h", "POST", "/identity/remove", `{"name":"owner@h"}`, 409)
 	call("owner@h", "POST", "/identity/remove", `{"name":"maintainer@h"}`, 409)
-	if counts := b.Status().Refused; counts["busy"] != 5 || counts["malformed"] != 0 {
+	if counts := b.Status().Refused; counts["busy"] != 4 || counts["malformed"] != 0 {
 		t.Fatalf("valid cleanup conflicts counted as malformed requests: %v", counts)
 	}
 	call("owner@h", "POST", "/identity/remove", `{"name":"unrelated@h"}`, 200)
