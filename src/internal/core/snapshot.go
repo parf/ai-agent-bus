@@ -52,6 +52,9 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	for name, members := range s.Groups {
 		b.groups[name] = append([]string{}, members...)
 	}
+	// A snapshot written before maintainers had to be users can hold one who
+	// is not; the invariant is restored rather than trusted.
+	b.maintainersAreUsers()
 	for _, r := range s.Records {
 		b.records[r.Name] = r
 	}

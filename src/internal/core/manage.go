@@ -33,8 +33,22 @@ func (b *Bus) Administrator(owner string) {
 	if !b.member(owner, MaintainersGroup) {
 		b.groups[MaintainersGroup] = append(b.groups[MaintainersGroup], owner)
 	}
-	if _, ok := b.users[owner]; !ok {
-		b.users[owner] = protocol.User{Name: owner, State: "active"}
+	b.maintainersAreUsers()
+}
+
+// maintainersAreUsers keeps the levels nested: an owner is a maintainer and a
+// maintainer is a user (docs/01-identity.md#groups-and-maintainers). Somebody
+// given authority over users who was not one themselves would be a principal
+// the user administration cannot see, and a credential the ownerless sweep
+// would take (docs/02-access.md#ownerless-credentials). Caller holds b.mu.
+//
+// Being taken out of the group does not take the profile away again: a user is
+// never deleted, only made inactive (docs/01-identity.md#user-lifecycle).
+func (b *Bus) maintainersAreUsers() {
+	for _, name := range b.groups[MaintainersGroup] {
+		if _, known := b.users[name]; !known {
+			b.users[name] = protocol.User{Name: name, State: "active"}
+		}
 	}
 }
 
@@ -113,6 +127,9 @@ func (b *Bus) SetGroup(caller, name string, members []string, remove bool) error
 		delete(b.groups, name)
 	} else {
 		b.groups[name] = normalized
+		if name == MaintainersGroup {
+			b.maintainersAreUsers()
+		}
 	}
 	b.recheckReaders()
 	return nil

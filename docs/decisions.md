@@ -138,6 +138,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-15 | No registration, no access | The record is what access hangs on; a credential whose record is gone has nothing left to hold, and the page said the opposite | [unregistering](01-identity.md#unregistering) |
 | 2026-09-15 | A group is not deleted; it is made inactive or banned, as a person is | Removing a name other records point at silently changes what they mean; `@maintainers` could never be deleted and now none of them can | [groups and maintainers](01-identity.md#groups-and-maintainers) |
 | 2026-09-15 | Access control is ordered owner, then maintainers, then users | One stated order instead of a rule per verb; it settles who prevails and who may act on whom, and does not narrow who may act at all | [groups and maintainers](01-identity.md#groups-and-maintainers) |
+| 2026-09-15 | The three levels are nested: every owner is a maintainer, every maintainer is a user | Three depths of one thing rather than three kinds; a maintainer who was not a user would have authority over users that user administration could not see | [groups and maintainers](01-identity.md#groups-and-maintainers) |
 
 ## Superseded
 

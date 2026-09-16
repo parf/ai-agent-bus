@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.23 — 2026-09-15
+
+The authority levels are nested rather than side by side: adding somebody to `@maintainers` now makes them a registered user, as starting the daemon already did for the owner. A snapshot written before this rule is repaired on restore. Taking somebody out of the group leaves the person behind, since a user is never deleted.
+
 ## 0.5.22 — 2026-09-15
 
 Removing a registration says what it does: no registration, no access. The dashboard offers no group deletion at all — a group is made inactive or banned as a person is, rather than removed out from under the records naming it. The group states themselves are pending.

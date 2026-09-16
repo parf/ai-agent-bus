@@ -1,6 +1,10 @@
 package core
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/parf/ai-agent-bus/internal/ports"
+)
 
 // The owner runs the maintainers group and cannot step out of it. Nothing
 // covered these rules before, so each one here is the first thing that would
@@ -58,17 +62,68 @@ func TestOwnerRunsTheMaintainersGroup(t *testing.T) {
 	}
 }
 
-// Administrator writes a profile for the owner, which is why the owner is a
-// registered user rather than a credential with nothing behind it. The
-// ownerless-credential sweep depends on this being true.
-// See docs/02-access.md#ownerless-credentials.
-func TestTheOwnerIsARegisteredUser(t *testing.T) {
+// The three levels are nested, not side by side: an owner is a maintainer and
+// a maintainer is a user. A maintainer who was not a user would be a principal
+// with authority over users that user administration could not see, and a
+// credential the ownerless sweep would take.
+// See docs/01-identity.md#groups-and-maintainers.
+func TestTheLevelsAreNested(t *testing.T) {
 	b := New()
 	if b.IsPerson("owner@h") {
 		t.Fatal("a person before anybody said so")
 	}
 	b.Administrator("owner@h")
+	if !b.IsMaintainer("owner@h") {
+		t.Error("the owner is not a maintainer")
+	}
 	if !b.IsPerson("owner@h") {
-		t.Error("the daemon owner is not a registered user, so a sweep keyed on that would take its credential")
+		t.Error("the owner is not a registered user, so a sweep keyed on that would take its credential")
+	}
+
+	if err := b.SetGroup("owner@h", MaintainersGroup, []string{"owner@h", "second@h"}, false); err != nil {
+		t.Fatal(err)
+	}
+	if !b.IsMaintainer("second@h") {
+		t.Error("an added maintainer is not a maintainer")
+	}
+	if !b.IsPerson("second@h") {
+		t.Error("an added maintainer is not a registered user")
+	}
+
+	// Taking them out again leaves the person behind: users are not deleted,
+	// only made inactive (docs/01-identity.md#user-lifecycle).
+	if err := b.SetGroup("owner@h", MaintainersGroup, []string{"owner@h"}, false); err != nil {
+		t.Fatal(err)
+	}
+	if b.IsMaintainer("second@h") {
+		t.Error("a removed maintainer is still one")
+	}
+	if !b.IsPerson("second@h") {
+		t.Error("removing a maintainer deleted the person")
+	}
+
+	// A group that is not the maintainers group confers nothing, so joining it
+	// is not what makes somebody a user.
+	if err := b.SetGroup("owner@h", "@ops", []string{"third@h"}, false); err != nil {
+		t.Fatal(err)
+	}
+	if b.IsPerson("third@h") {
+		t.Error("an ordinary group membership made a user, so the check above proves nothing")
+	}
+}
+
+// A snapshot written before the rule can hold a maintainer with no profile.
+// Restoring one must not carry the gap forward.
+func TestRestoreMakesOldMaintainersUsers(t *testing.T) {
+	b := New()
+	b.Administrator("owner@h")
+	b.Restore(ports.Snapshot{Groups: map[string][]string{
+		MaintainersGroup: {"owner@h", "legacy@h"},
+	}})
+	if !b.IsMaintainer("legacy@h") {
+		t.Fatal("the restored maintainer is not one")
+	}
+	if !b.IsPerson("legacy@h") {
+		t.Error("a maintainer restored from an older snapshot is still not a user")
 	}
 }

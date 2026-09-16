@@ -223,6 +223,15 @@ nesting, expressions and service-defined roles remain [R1](../Plans/R1/identity.
 Organization group administration belongs to daemon administration; owning a
 service alone does not grant permission to create groups or administer users.
 
+**The levels are nested: every owner is a maintainer, and every maintainer is a
+user.** They are not three kinds of principal but three depths of one, so the
+owner appears in `@maintainers` and in the user directory, and somebody added to
+`@maintainers` becomes a registered user at that moment. A maintainer who was
+not a user would hold authority over users that user administration could not
+see. Taking somebody out of the group leaves the person behind, because a user
+is never deleted ([user lifecycle](#user-lifecycle)); ordinary group membership
+confers nothing and makes nobody a user.
+
 **Owner, then maintainers, then users — each with full control over the level
 below.** The owner runs the maintainers: adds them, removes them, and edits
 every level beneath. Maintainers run the users the same way. Nobody reaches
