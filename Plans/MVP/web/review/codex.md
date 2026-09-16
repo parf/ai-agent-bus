@@ -229,3 +229,34 @@ or full runtime suite was claimed for this document review.
 Q62 and the owner's specification review remain separate gates. These findings
 do not reopen no-script, the house layer, templ or dark mode. They prevent the
 new mockups and acceptance from undoing the source-grounded corrections.
+
+## Review of the round-two response
+
+Checked `391f804` and `7224cb8`. R2-2, R2-4, R2-5 and R2-7 are addressed:
+disabled-state wording is bounded, recovery uses available status/message
+evidence, the stale field/rationale copies are corrected, and the wide mockup's
+filters, owner visibility and node strip agree. R2-1's invented purge is gone;
+R2-3's restart correction is in place. Three points prevent full closure:
+
+| ID | Finding | Required correction |
+|---|---|---|
+| R3-1 | **The chosen density minima cannot fit the chosen tokens.** `visual-design.md:149–153` requires 18 comfortable two-line rows in an 800px viewport and 16 in 768px, with shell, title and toolbar. At the standard 16px root, [type](../tokens.md#type) and [cell padding](../tokens.md#space) require at least `14 × 1.45 + 12 × 1.4 + 2 × 8 = 53.1px` per row. Those counts need **955.8px** and **849.6px** before any surrounding UI, borders or wrapping | Derive the count from the actual available table height and fixture. Do not shrink text or leading merely to satisfy an independently invented target. Put the numerical bounds in the promised single value home and reference them from acceptance. This is arithmetic, not a subjective density objection |
+| R3-2 | **The corrected Activity paragraph invents a different negative-delta explanation.** [pages](../pages.md#activity-activity) says removal makes a record leave “both `prev` and `next`, the delta goes negative, and the clamp renders it as a measured `0`” | [Activity](../../../../src/internal/core/activity.go) lines 85–108 computes both totals over the same current record set. Removing a name excludes it from both sides; that alone does not create a negative difference. A scratch example with three accepted messages, two belonging to the removed record, changes the historical aggregate from three to **one**, not zero. Keep “history covers records visible now”; remove the unsupported clamp explanation. A counter reset on reuse of a name is a different case and is not established by simple removal |
+| R3-3 | **The replacement confirmation claims absence of all readers from insufficient evidence.** [confirmation](../layouts.md#a-consequential-confirmation) says “Its queue is empty and no reader is waiting, checked just now — which is what makes this available at all” | [withLiveness](../../../../src/internal/core/bus.go) lines 425–429 sets `Reading` only for **unfiltered** waiters; [UnregisterAnd](../../../../src/internal/core/unregister.go) lines 76–79 refuses for **any** waiter. A scratch fixture with a filtered waiter returns `Queued=0`, `Reading=false`, yet removal returns `ErrBusy`. Describe only the observations available and keep final eligibility with the daemon; alternatively name the missing eligibility evidence as a dependency. An empty queue and no observed unfiltered reader are not proof that removal will succeed |
+
+Two scratch overlay checks passed with `-count=1`:
+`TestReviewFilteredWaiterIsNotReportedAsReading` constructs the held state of a
+filtered reader, then checks listing and unregister; it is not a concurrent
+HTTP test. `TestReviewRemovalRecomputesBothEndsOfTheInterval` samples traffic
+for two records, removes one after draining it, and verifies the historical
+aggregate for the surviving record. Files remain in ignored
+`tmp/specs-round-3/`; no application or permanent test files changed.
+The density calculation is a lower bound, not a browser measurement.
+
+**R3-1 update:** `24213ed` fixes the impossible target. Its stated model sums
+the chrome to 287.2px and a comfortable row to 54.1px; flooring the remaining
+height yields the two documented minima. Arithmetic checked, not browser
+verified: the actual fixture must still satisfy the model's assumptions about
+wrapping and surrounding UI. During mutation testing, expected minima must come
+from the approved design, not be lowered automatically when the stylesheet's
+padding is deliberately inflated. R3-2 and R3-3 remain open.
