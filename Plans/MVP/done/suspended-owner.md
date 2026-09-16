@@ -35,10 +35,15 @@ suspended caller gets, because it is one suspension seen from either side.
 **Owner suspension is not another input to `active`.** `active` asks about a
 name's own state and is asked about people at a dozen sites where a record
 lookup means nothing; this asks about somebody else's and only of a record.
-They also must not merge in `visible`, which reports `Disabled` as *the owner
-turned delivery off* — a service refused because its owner is suspended is a
-third fact, and presenting it as the second is the conflation
-[decisions](../../../docs/decisions.md#settled) forbids.
+
+It is also kept out of `visible`, and the reason is narrower than the first
+draft of this document said. `visible` computes `r.Disabled || !active(r.Name)`
+already, so `Disabled` does **not** mean *the owner turned delivery off* — it
+means *delivery is off*, with the bit unable to say which of two reasons
+applies ([data dictionary](../web/data-dictionary.md#fields)). Folding
+suspension in would put a third distinct fact into a field that cannot carry
+the two it has. Keeping it separate leaves a face free to answer it separately,
+or not at all, rather than answering it wrongly.
 
 **The check is ordered before `Disabled` everywhere**, so a record that is both
 answers *suspended* on all three edges, and the released waiter hears the
@@ -89,11 +94,23 @@ Each break made, the named check watched to fail, the file restored.
 | **only** the `Subscribe` check removed | `TestASuspendedOwnersTopicRefusesNewSubscribersButLetsThemLeave` |
 | `ownerSuspension` reaches a self-owned record | `TestSuspensionDidNotSettleTheDrainQuestion` |
 | the credentials are forgotten on suspension (fixture perturbation) | `TestSuspensionDestroysNothing` — `401 bad token` |
+| `reply` stops counting the refusal | `TestASuspendedOwnersRefusalIsCounted` — *went 0 to 0* on both paths |
+| `reply` counts it twice | the same — *went 0 to 2*, which a check for "any increase" would have accepted |
 
-The last three exist because codex ran them first and they **survived**: the
-two single-check removals left both suites green, and the credential claim was
-being made by a fixture that re-mints a token on every call rather than by the
-daemon keeping one. Those were real holes in the test set, not in the code.
+Three of these exist because codex ran them first and they **survived**: the
+`ConsumeAs` removal, the `Subscribe` removal, and the credential perturbation.
+The two single-check removals left both suites green, and the credential claim
+was being made by a fixture that re-mints a token on every call rather than by
+the daemon keeping one. Those were real holes in the test set, not in the code.
+The self-owned-record mutation is not one of them — it follows from the Q63
+blocker rather than from a survivor.
+
+**And one of these checks was itself lost.** `TestASuspendedOwnersRefusalIsCounted`
+was cut from the file by a careless edit that truncated everything below the
+test being moved to `core`, leaving `refusals()` an unused method — which
+compiles, so the suite stayed green and said nothing. codex found it missing
+from the commit. It is restored, and now fails both when the count is dropped
+and when it is doubled.
 
 `src/smoke.sh --slow`: green.
 

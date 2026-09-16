@@ -27,10 +27,15 @@ func (b *Bus) active(name string) bool {
 // Deliberately **not** folded into active(). active asks about a name's own
 // user state and is asked at a dozen places about people, where a record
 // lookup would mean nothing; this asks about somebody else's state and only of
-// a record. They also must not merge in visible(), which reports r.Disabled as
-// "the owner turned delivery off" — a service refused because its owner is
-// suspended is a third fact, and presenting it as the second is the conflation
-// docs/decisions.md forbids.
+// a record.
+//
+// It is also kept out of visible(), which already merges: it reports
+// r.Disabled OR !active(r.Name) (manage.go), so the bit says *delivery is off*
+// without saying which of two reasons it is. A third input would merge a third
+// distinct fact into a field that cannot carry the two it has
+// (Plans/MVP/web/data-dictionary.md#fields). Owner suspension stays a separate
+// question so a face can answer it separately, or not at all, rather than
+// answering it wrongly.
 //
 // The message names the side because the code cannot: an operator reading a
 // log should not have to guess which of two people is suspended, while the

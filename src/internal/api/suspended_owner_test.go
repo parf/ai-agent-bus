@@ -228,3 +228,29 @@ func TestSuspensionIsNotTransitive(t *testing.T) {
 	// states, and would need a cycle answer this does not have.
 	f.call("bystander@h", "POST", "/send", `{"to":"child@h","body":"served"}`, 200)
 }
+
+// The reason is counted where the code is decided
+// (docs/05-discovery.md#refusals), so a refusal nobody can see is not one.
+func TestASuspendedOwnersRefusalIsCounted(t *testing.T) {
+	f := suspendedOwnerFixture(t)
+	f.state("alice@h", "paused")
+
+	// Two paths reach a 403 and both must count. A caller refused by a
+	// handler goes through reply(); the service's own credential is refused
+	// at the gate, before any handler runs, and the gate hands the same error
+	// to the same reply() rather than answering for itself.
+	//
+	// Measured immediately around each request, and exactly one: a baseline
+	// taken before the pause would also accept an increment at pause time, or
+	// a double count, without proving this request produced one.
+	for _, c := range []struct{ who, method, path, body string }{
+		{"bystander@h", "POST", "/send", `{"to":"svc@h","body":"counted"}`},
+		{"svc@h", "GET", "/status", ""},
+	} {
+		before := f.refusals()["suspended"]
+		f.call(c.who, c.method, c.path, c.body, 403)
+		if after := f.refusals()["suspended"]; after != before+1 {
+			t.Errorf("%s %s: the suspended counter went %d to %d, want one more", c.who, c.path, before, after)
+		}
+	}
+}
