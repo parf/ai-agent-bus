@@ -257,6 +257,12 @@ own first draft, which made exactly that mistake.
   regardless of the answer — the #888 lesson (W11) must not be relearned in a
   second palette.
 
+  *Outcome note, 2026-09-16: superseded. The owner settled one light palette,
+  no scheme control (visual-design.md, tokens.md, README Q61) — "one good
+  design rather than two that both need maintaining". The dual-scheme
+  recommendation above is advice-history; the contrast obligation stands,
+  over the one palette.*
+
 ## 9. Specs round 1 — critique of pages/forms/components (2026-09-16)
 
 Owner decisions taken as given (no script, house layer, templ, dark mode
