@@ -55,10 +55,16 @@ control becomes an assumed requirement.
 | Colour scheme | **follows the operating system**, via `light-dark()` over the token set. No control | a form in the shell posting to a preferences route, which sets a cookie the shell reads to emit `data-theme`. A server round-trip, no script, and the token set already supports the override |
 | Table density | **one comfortable default**, with a container query tightening a table in a narrow column. No control | the same mechanism |
 
-Both are deliberately cheap to add later and neither is free now: a preference
-needs a route, a cookie, a persistence scope and a decision about whether it
-follows the person or the browser. That is [Q62](../QUESTIONS.md#open-questions), and it
-is the owner's, not ours.
+**Owner-settled, 2026-09-16: neither control is in MVP.** The scheme follows
+the operating system and the density is fixed — confirming what the table above
+already says, which is the point of asking rather than assuming.
+
+Both remain cheap to add later and neither is free now: a preference needs a
+route, a cookie, a persistence scope and a decision about whether it follows the
+person or the browser. **What the settlement buys is that MVP stores no
+preference at all** — no preferences route, no cookie, and no page whose
+appearance depends on state the daemon does not hold. `light-dark()` and the
+container query do the whole job from the token set.
 
 ## Contrast
 

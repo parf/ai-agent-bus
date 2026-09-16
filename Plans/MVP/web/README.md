@@ -91,10 +91,14 @@ home-parf's five density checks are now the [acceptance](visual-design.md#accept
 replacing a recorded mitigation that was a reason to expect a good outcome
 rather than a check.
 
-**Owner input needed** — [Q62](../QUESTIONS.md#open-questions): who owns the token file,
-and whether a scheme or density control belongs in MVP at all. The recorded
-density risk is conditional on nobody owning typography, so the checks make that
-lapse visible but cannot substitute for the name.
+**Settled 2026-09-16: no scheme or density control in MVP**
+([theme and density controls](visual-design.md#theme-and-density-controls)), so
+the dashboard stores no preference of any kind.
+
+**Owner input still needed** — [Q62](../QUESTIONS.md#open-questions): who owns the
+token file. The recorded density risk is conditional on nobody owning
+typography, so the checks make that lapse visible but cannot substitute for the
+name.
 
 The specifications have not yet been read by the owner; that remains
 [F.13.0](../TODO.md#objective).
