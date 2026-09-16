@@ -157,6 +157,13 @@ That is this check's own failure mode appearing inside the document that defines
 it: a density target chosen beside the tokens rather than from them is
 decorative, however precise it looks. The number now moves when a token moves.
 
+**But not while mutation-testing.** The expected counts are pinned to the
+approved token set, and the check compares a rendered page against *those*
+numbers. Recomputing the requirement from whatever stylesheet is loaded would
+let an inflated one derive its own lower target and pass — the too-airy mutation
+excusing itself. codex's caveat, and it is the difference between a check and a
+tautology.
+
 **Contrast over declared pairs is not contrast in the built page.** Check 2
 proves the token table is sound; it cannot prove a component used those tokens.
 Rendered verification of the built pages, in both schemes, stays a separate

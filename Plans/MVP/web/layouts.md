@@ -222,8 +222,8 @@ shown ([forms](forms.md#consequential-actions)).
   │  · Nothing answers to this name afterwards.                │
   │  · ops@parf.us keeps their own credential.                 │
   │                                                            │
-  │ Its queue is empty and no reader is waiting, checked just  │
-  │ now — which is what makes this available at all.           │
+  │ Observed just now: nothing queued, no reader attached.     │
+  │ The daemon settles eligibility when you confirm.           │
   └────────────────────────────────────────────────────────────┘
 
   [Remove this service]   Cancel
@@ -257,6 +257,18 @@ scarier confirmation:
 
 This is [only offer transitions that apply](forms.md#rules) doing real work: the
 control is absent, and the reason stands where the control would have been.
+
+**The confirmation shows observations; it does not certify eligibility**, and
+the draft's *"which is what makes this available at all"* claimed it did.
+`withLiveness` sets `Reading` only for an **unfiltered** waiter (bus.go:425–429),
+while `UnregisterAnd` refuses on **any** waiter (unregister.go:78). So a filtered
+waiter reads as `Queued: 0`, no reader attached — and removal is still refused.
+codex reproduced it. The page therefore states what was observed and leaves the
+decision to the daemon at submission, which is what a server-rendered
+confirmation was for; a refusal there is the [conditions
+changed](pages.md#problem--recovery-by-what-the-face-actually-knows) state, not a
+bug. Making eligibility visible would need the daemon to report filtered waiters,
+which it does not: [owed](pages.md#owed-by-this-specification).
 
 ## The five states, per component
 
