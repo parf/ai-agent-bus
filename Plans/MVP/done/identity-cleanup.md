@@ -41,6 +41,22 @@ Removing only the form handler's origin check survived: the dashboard's outer
 middleware independently rejects the same request. That surviving mutation is
 not claimed as evidence for the inner check.
 
+## Installed verification
+
+Commit `12c109f` deployed from the tested immutable tree. All six Go programs
+report `0.5.28`, build `parf@parf.us 2026-09-15 22:01:00`; the running supervisor,
+bus and web executables were checked after the systemd restart.
+
+| Check | Observed |
+|---|---|
+| Retained data | One registered user, five credentials, four agent records; owners unchanged and all four readers reattached |
+| Installed directory | Authenticated `/users` shows both identity categories, one closed main landmark and no avatar requests |
+| Verification isolation | Browser mutations used disposable fixtures only; installed checks created and then ended one temporary browser session |
+
+This checks the deployed directory slice, not the remaining installed F.12
+acceptance. The earlier startup cleanup was deployed separately; this restart
+is not evidence of another garbage cohort being removed.
+
 ## Remaining work
 
 Service/channel journeys, form preservation, broader visual polish and the
