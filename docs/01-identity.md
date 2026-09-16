@@ -169,9 +169,14 @@ An authorized maintainer may reactivate a paused ordinary user. The daemon owner
 must remain active. State changes cancel the user's blocked reads and are retained by the existing
 [snapshot contract](04-messaging.md#durability); queued work is retained subject
 to its existing TTL. Credentials are not
-rotated or deleted, so reactivation restores their use. Running services retain
-their own identities and are not stopped by a change to their owner's user state.
+rotated or deleted, so reactivation restores their use. Running services keep
+their own identities and no process is stopped, but the state reaches what they
+own: while it lasts, their services [refuse calls](#services-of-a-user-who-is-paused-or-banned).
 Already delivered work cannot be recalled.
+
+**That last part is pending.** The states themselves are built and enforced for
+the person; propagating one to the services they own is not written yet, so a
+paused owner's service still answers today.
 
 These are the implementation defaults chosen on 2026-09-13, not automatic token
 expiry or process supervision.
@@ -314,27 +319,43 @@ service and topic changes use [record management authority](#groups-and-maintain
 
 ### When the owner is gone
 
-**Pending, not built.** An owner is a name, and nothing guarantees anybody still
-answers to it. When nobody does — no credential for it and no registered user
-— **the record is dead**: the bus refuses calls to it rather than queuing work
-for something with nobody behind it, and in R1 the
-[runner must not start it at all](../Plans/R1/runner.md#the-list-of-what-is-installed).
+**Pending, not built.** Every owner is a user, and a user is never deleted
+([the levels are nested](#groups-and-maintainers), [user lifecycle](#user-lifecycle)).
+So a service whose owner is not a user is not a state to recover from — it is
+wreckage from before that rule, or from something that went wrong. **It is
+deleted, at once, with everything that hung on it.**
 
-It is **not deleted and its name is not freed.** It waits, and what it waits
-for is **the daemon owner assigning it a new owner**. That is the one thing the
-daemon owner may do to a record it does not own, and it is deliberately that
-narrow: adopting something nobody can reach is not the same as authority over
-everything, and a record with a living owner is still only theirs.
+| Goes | |
+|---|---|
+| the record | the name is free again, reserved to nobody, exactly as [unregistering](#unregistering) leaves it |
+| its credential | no registration, no access |
+| **its queues** | all of them, whatever is in them |
 
-Without it there is no way back at all. Management today is the owner, the
-record's own principal, or a member of the group the record names
-([groups and maintainers](#groups-and-maintainers)) — an orphan fails all three,
-and a record naming no group has no third door to try. The route that existed
-before this was minting a credential for the dead owner, which answers a
-cleanup by bringing a principal back to life.
+**The backlog is not a reason to keep it.** Unregistering by hand refuses while
+anything is queued or a reader waits, because a person can be told to drain it
+first. There is nobody to tell here: the messages are addressed to something no
+principal answers for, and holding them only means holding them forever. So this
+deletion does not ask.
 
-Which refusal a dead record answers with is
-[open](../Plans/MVP/QUESTIONS.md#open-questions): it must not be *no such name*,
-for the reason a retired one must not be
-([R1.1 down and retired](../Plans/R1.1/records.md#down-and-retired)), and the
-codes are a closed set ([refusals](05-discovery.md#refusals)).
+**There is nothing to reassign, and no name is held.** An earlier design kept
+such a record alive, waiting for the daemon owner to give it an owner; that is
+[superseded](decisions.md#superseded). Keeping it paid storage and a refusal
+path for a case the nesting rule stops from arising — and afterwards *no such
+name* is simply true, because there is no such name.
+
+### Services of a user who is paused or banned
+
+**Pending, not built.** A user who is paused or banned keeps their record, their
+credential and everything they own ([user lifecycle](#user-lifecycle)) — and
+**every service they own refuses calls** while that lasts. Lifting the state
+brings them back.
+
+**The daemon enforces it, not a label on a page.** The check is on the call, so
+a service's own credential is refused too; a page that said *owner banned* while
+the service still answered would be describing a rule nobody applied. Which
+refusal it answers with is [open](../Plans/MVP/QUESTIONS.md#open-questions).
+
+This deletes nothing and stops nothing. The user stays, their services stay,
+their tokens keep authenticating, and no process is killed — banning somebody is
+not a way to reap their work, and a ban that destroyed things could not be
+lifted.

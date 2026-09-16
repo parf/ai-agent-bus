@@ -30,10 +30,10 @@ group, and leaves nobody able to make a change they cannot reverse. The daemon
 owner is not named here because over a record with a living owner it has no
 authority to name: record management is the owner, the record's own principal,
 or the group it names ([authority](../../docs/01-identity.md#groups-and-maintainers)),
-and `manages` has no clause for the daemon owner. Its one power over somebody
-else's record is adopting one nobody can reach
-([when the owner is gone](../../docs/01-identity.md#when-the-owner-is-gone)),
-which is not this.
+and `manages` has no clause for the daemon owner — not for this or for
+anything else. A record nobody can reach is not an exception either: it is
+[deleted, not adopted](../../docs/01-identity.md#when-the-owner-is-gone), so
+there is no record left to hold authority over.
 
 **The daemon does not retry on anybody's behalf.** These say what a caller
 should do; nothing in the bus holds a refused send and tries again later, and

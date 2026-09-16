@@ -106,15 +106,16 @@ The MVP currently carries plaintext bodies ([trust boundary](#encrypted-sessions
 ### Ownerless credentials
 
 **Pending, not built.** A credential belongs to nobody when its name has **no
-record of its own, no registered user, and owns no records**, and the daemon
-drops it **at start**. That is a sweep at a known moment, not expiry: the rule
-above still holds, and no credential is retired for being old or idle.
+record of its own and no registered user**, and the daemon drops it **at
+start**. That is a sweep at a known moment, not expiry: the rule above still
+holds, and no credential is retired for being old or idle.
 
-**Owning records counts as answering to somebody**, and is the third condition
-for a reason: a name can own services without holding a record of its own, and
-taking its credential would leave every one of them
-[dead](01-identity.md#when-the-owner-is-gone) — the sweep would manufacture
-exactly the orphans that rule exists to recover from, at a restart, silently.
+**Owning records does not save one, because such records do not survive the
+same start.** A name that owns services without being a registered user leaves
+them [dead, and they are deleted](01-identity.md#when-the-owner-is-gone) — so
+by the time the credential is judged there is nothing left for it to answer
+for. The two sweeps say the same thing about the same name, and a credential
+kept for records that are gone would be the ownerless case exactly.
 
 It is the other half of *as long as the user is registered*. A person keeps
 theirs while they are a registered user, whatever they register or unregister
@@ -136,10 +137,10 @@ would take the owner's own credential on the first start.
 
 A credential asked for before its name is registered is the same shape, briefly:
 the sweep sees one moment, so such a credential is there until the next restart
-and collected at it **only if the name still answers to nobody by all three
-tests**. Register it first and it is kept like any other. What the sweep
-does take it cannot give back — a name swept needs a credential again the
-ordinary way ([getting a token](#getting-a-token)).
+and collected at it **only if the name still answers to nobody by both tests**.
+Register it first and it is kept like any other. What the sweep does take it
+cannot give back — a name swept needs a credential again the ordinary way
+([getting a token](#getting-a-token)).
 
 So **support for this category is permanent; its occupancy is not.** Anything
 listing it must read as well empty as populated, and against what the caller may
