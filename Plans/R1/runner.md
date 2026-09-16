@@ -168,15 +168,32 @@ kind of fact. The alternative is a daemon that reaches into a queue somebody
 else is reading and takes work back out of it, which is a much larger promise
 than routing asked to make.
 
-**So the handover has a tail, and this is the part worth knowing before it is
-built.** Re-pointing `scaler@h` from `runner-a` to `runner-b` leaves messages
-for `scaler@h` sitting in `runner-a`'s inbox, undelivered and now addressed to
-a service `runner-a` no longer manages. Two consequences:
+So re-pointing `scaler@h` from `runner-a` to `runner-b` leaves messages for
+`scaler@h` sitting in `runner-a`'s inbox, addressed to a service `runner-a` no
+longer manages.
+
+#### Dispatch is keyed on `orig-to`, not on what the runner owns
+
+**Owner-settled, 2026-09-16: a runner keeps dispatching an `orig-to` it no
+longer owns — and being routed a name you do not manage is usually deliberate
+rather than left over.** That is the general rule, and a handover is only its
+most obvious case. A name can be pointed at a runner as a front door, by
+somebody who owns neither, and the runner serves it because the message says
+what it is for.
+
+**The instance list is not the dispatch table.** It says what this runner
+*starts*; `orig-to` says what a message is *for*, and the two answer different
+questions. A runner that dispatches by walking its instances will strand work
+in the ordinary case, not merely at the edges — which is the whole reason this
+is worth stating before it is built rather than discovered by a queue nobody
+drains.
+
+Two things follow:
 
 | | |
 |---|---|
-| **A runner must keep dispatching an `orig-to` it no longer owns** | or that work is stranded in its queue with nothing willing to claim it. Draining what a route change left behind is the runner's job, and a runner that only dispatches names in its current instance list will silently strand them |
-| **A handover is not complete when the route changes** | it is complete when the old target's queue no longer holds anything for that name. Tooling that reports the handover done at the moment of the write reports it too early |
+| **A handover is not complete when the route changes** | it is complete when the old target's queue no longer holds anything for that name. Tooling that reports the handover done at the moment of the write reports it too early. The tail itself is benign — the old runner simply finishes what it was already holding — for as long as it can still serve the name |
+| **An `orig-to` the runner cannot serve needs a defined answer** | [Q68](QUESTIONS.md#open-questions). Since being routed an unowned name is normal, being routed an *unservable* one is routine too, and a runner with no defined behaviour there either drops work silently or blocks its own inbox |
 
 #### What is not settled
 
