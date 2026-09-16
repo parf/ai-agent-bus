@@ -96,10 +96,10 @@ rather than a check.
 the dashboard stores no preference of any kind and there is no second palette to
 keep in step.
 
-**Owner input still needed** — [Q62](../QUESTIONS.md#open-questions): who owns the
-token file. The recorded density risk is conditional on nobody owning
-typography, so the checks make that lapse visible but cannot substitute for the
-name.
+**Settled 2026-09-16: the daemon owner owns the token file**
+([risk](visual-design.md#risk-recorded)). The recorded density risk is
+conditional on nobody owning typography; that condition is now closed by a role
+rather than by an appointment.
 
 The specifications have not yet been read by the owner; that remains
 [F.13.0](../TODO.md#objective).

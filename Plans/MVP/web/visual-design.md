@@ -192,7 +192,18 @@ real and is accepted knowingly.
 if nobody owns typography and density*. The five checks above make ownership
 visible when it lapses; they do not create it. One named person, every token
 change through them, and a page that introduces a size instead of using a token
-failing review — that is what the checks are checking for. Naming that person is
-a standing commitment rather than a technical decision, so it is the owner's:
-[Q62](../QUESTIONS.md#open-questions). Accepting a risk is not the same as being able to
-see it arrive.
+failing review — that is what the checks are checking for. Accepting a risk is
+not the same as being able to see it arrive.
+
+**Owner-settled, 2026-09-16: the daemon owner owns
+[the token file](tokens.md#the-budget).** Every change to a token goes through
+them, and a page that introduces a value instead of using one is theirs to
+refuse.
+
+It is an existing role rather than a new appointment
+([groups and maintainers](../../../docs/01-identity.md#groups-and-maintainers)),
+which is what makes it durable: there is no post to leave vacant, and whoever
+holds the daemon holds this. **One design makes the post affordable** — there is
+a single palette, six sizes and one space scale to keep, not two schemes to keep
+in step, and the review this asks for is small enough that a person with another
+job can actually do it.
