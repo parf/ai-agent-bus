@@ -43,13 +43,23 @@ with the observation it rests on:
 | Item | Basis | Level |
 |---|---|---|
 | The last stop was not clean | `Status.Unclean` | red, stated as a fact with no lifecycle |
-| Queue at its bound | `AtBound` | red — messages are being refused or dropped now |
+| Queue at its bound | `AtBound` | red. Capacity is reached; what the next send does depends on the overflow policy. **Not** "messages are being dropped now" — that was my overclaim, and arrival is not implied |
 | Backlog older than its own TTL | `Oldest` against that record's `TTL` | orange |
 | Losses since start | `Dropped`, `Expired` non-zero | orange, links to Diagnostics |
-| Refusals since start | `Refusals` by reason, non-zero | informational; **not** "climbing" — we have lifetime totals and no window |
+| Refusals, cumulative | `Refusals` by reason, non-zero | informational; **not** "climbing" — we have lifetime totals and no window |
+| **Disabled record holding queued work** | `Disabled` and `Queued` > 0 | orange. opencode's find, verified: `Send` refuses a disabled record and `recheckInbox` releases its waiters, so those messages can be neither delivered nor read. The work is trapped and nothing on any page says so |
+| **Services of a suspended owner** | the owner's `State` is paused or banned | orange, linking to the person. **Conditional on [H.5.7](../TODO.md#objective)**, which is pending: today such services do not refuse, so the item would describe a rule that is not in force. It goes in when H.5.7 does |
+| Unregistered credentials awaiting review | the cleanup cohort is non-empty | blue, a count and a link. **Owner-decidable**: it is discoverability rather than attention, and [C10](review/codex.md#junk-and-misleading-content) left it homeless |
 
 A backlog with no reader is **not** an item. A queue worker between pulls is
 exactly that shape and nothing is wrong.
+
+Two structural rules, both opencode's:
+
+| | |
+|---|---|
+| **One queue, one item** | A queue at its bound is usually also a backlog past its TTL. Each record yields a single item at its worst level, or the page triples and says the same thing three ways |
+| **Never counted twice** | Losses and refusals appear as attention items and in Diagnostics. They do **not** also appear in the node strip, or the strip and the items disagree with each other on the same page |
 
 **Empty state:** *"Nothing needs attention, as of 14:22."* with the scope stated.
 Never "healthy" — that is a claim about the system rather than about what was
@@ -85,12 +95,12 @@ Services heading and highlights Services
 | Column | Decision |
 |---|---|
 | Description, then full routing name beneath | **new + keep.** Identification is by address only today; the description exists on records and is how a session is recognised ([C01](review/codex.md#junk-and-misleading-content)). The full name stays because it disambiguates sessions — demote by task, never drop |
-| Kind (service list) | **move from Diagnostics.** A category, so it is a filter control and never a glyph |
+| Kind | **filter only, not a column.** The session-recognition journey uses it as a filter — Services, then agents — and a per-row category beside the description and full name is redundant with the control that got you there |
 | Delivery mode (channel list) | **new.** The channel question |
 | Owner | keep |
 | Enabled / Disabled | **relabel** from Active/Inactive. Administrative state, not liveness. Disabled is a decision, not a failure |
 | Reader: *attached* / *no reader waiting* / *external* | **relabel** from Serving/Offline/External. `Proto` is a caller-supplied hint meaning "expect no local reader", not proof of anything |
-| Queued | keep |
+| Queued | keep on the service list. **Mode-aware on the channel list**: a pub/sub topic keeps no queue of its own — `Send` hands it to `fanout` and nothing waits on the topic — so a Queued cell there is structurally zero. Pub/sub rows show accepted; queue rows show queued; or the cell reads `—` |
 | Subscribers (channel list, pub/sub) | **new** |
 | One judgment column | **new.** Lit only on exceptional rows ([glyphs](glyphs.md#where-a-glyph-is-allowed)) |
 | Updated `At` | **demote** to detail. It consumes a column and answers a question nobody on a list is asking |
@@ -133,7 +143,6 @@ then focused edits.
 | Access | Allow list, master-refusal, and what that means in a sentence | same |
 | Subscribers (pub/sub only) | Each subscriber, linked where the caller may inspect it | same |
 | Configuration | Whether one is set, and its digest as evidence. **Never its contents** | same |
-| Manage | The edit forms, one per concern | `CanManage` |
 
 **The read sections do not depend on edit permission.** Address, protocol, ACL
 and queue policy are already in the daemon's answer to this caller and today are
@@ -149,15 +158,33 @@ returned metadata is not.
 | Direct-reader state on a pub/sub channel | **drop.** A pub/sub topic showing "Offline" is meaningless ([C03](review/codex.md#junk-and-misleading-content)) |
 | Both Subscribe and Unsubscribe buttons, always | **relabel to one**, reflecting current state |
 
-**Forms, one concern each** ([forms](forms.md#the-set)): metadata; queue policy;
-access; configuration; maintainers; transfer; enable/disable; remove. Eight
-forms where there is one page today. Each returns **to the section it changed**
-with a specific result — not to `/services?scope=my`, which is where every
-service and channel action lands today, so a channel subscription answers by
-leaving the channel ([C06](review/codex.md#junk-and-misleading-content)).
+**Each edit lives inside the section it changes**, not in a Manage block after
+them. My first draft drew both and contradicted
+[components](components.md#the-set); opencode caught it and components wins,
+because a trailing block of eight forms is the wall we are removing.
 
-Transfer and remove are consequential and get a server-rendered confirmation
-naming the target and the consequence ([forms](forms.md#consequential-actions)).
+| Section | Its one edit |
+|---|---|
+| Identity | metadata, maintainers, enable/disable |
+| Queue | queue policy |
+| Access | the allow list |
+| Configuration | replace configuration |
+| Subscribers | subscribe/unsubscribe, remove a subscriber |
+
+Each is collapsed until asked for, so no page ever renders eight open editors
+and the count stops being a usability variable. **Transfer is a link** opening
+its confirmation flow rather than a permanently rendered form; **remove** sits
+at the end of the page with its own confirmation.
+
+Each returns **to the section it changed** with a specific result — not to
+`/services?scope=my`, which is where every service and channel action lands
+today, so a channel subscription answers by leaving the channel
+([C06](review/codex.md#junk-and-misleading-content)).
+
+Transfer and maintainers assignment are **owner-only**, and that is the
+authority contract rather than an editor defect: core restricts both to
+`r.Owner` deliberately. A maintainer who may manage a record still may not give
+it away or change who maintains it.
 
 ---
 
@@ -273,7 +300,7 @@ New page. Everything here is moving off the bottom of the diagnostics wall.
 |---|---|
 | Own identity, person name, authority, memberships | Users detail, for oneself |
 | Own records, separated from own identity | my names |
-| Each credential: name, kind, owner, fingerprint, issued, last used | my names |
+| Each credential: name, kind, fingerprint, issued, last used | my names. **Owner is dropped** — on your own credentials it is always you, so the column says the same thing on every row |
 | An `unregistered` credential, marked, with what it means | my names |
 | Rotation | the command, **and its consequence beside the button**: the replaced credential keeps working until the next rotation. That sentence is load-bearing |
 | *"Envelopes only — bodies are never shown"* | **move** to Diagnostics, which is where it is true |
@@ -302,7 +329,7 @@ it reaches the form.
 
 ---
 
-## Problem — four states, not one page
+## Problem — five states, not one page
 
 Today one template carries every failure ([W12](../done/web-review.md#findings)).
 They need different bodies because they need different next actions:
@@ -313,6 +340,7 @@ They need different bodies because they need different next actions:
 | Refused | you are signed in and lack permission; signing in again changes nothing | who can grant it |
 | Session expired | sign in again | sign-in, returning here |
 | Bus unavailable | the daemon did not answer | retry; **never** rendered as an empty healthy list, and never promising "nothing was changed" when the transport failed ([C13](review/codex.md#junk-and-misleading-content)) |
+| **Conditions changed** | what you confirmed stopped being true before it ran | show what is true now, and offer the action again if it still applies ([forms](forms.md#when-the-recheck-refuses-after-you-confirmed)). Not the generic refusal, where it reads as a bug |
 
 ---
 

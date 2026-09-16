@@ -40,17 +40,23 @@ allowed to imply it does.
 | `Proto` | a caller-supplied hint that the thing is reached another way | **external** | treating it as proof of anything, or as a healthy state |
 | user `State` | active, paused or banned | active / paused / banned | conflating a user's state with a record's |
 
+**Queue counters persist; activity history does not.** The two are easy to
+conflate and we did: accepted, dequeued, dropped and expired are restored from
+the snapshot, while sampled traffic history starts empty after a restart. So a
+counter spanning a restart is a real cumulative total, and a graph before the
+restart boundary is `¿`.
+
 ### Queue
 
 | Field | Means | We call it | Not shown when |
 |---|---|---|---|
 | `Queued` | messages waiting now | queued | — |
 | `Oldest` | age of the oldest waiting message | oldest waiting | empty: `—`. The queue is empty **now**; the daemon does not say whether it ever held anything |
-| `In` | messages accepted since start | **accepted** | — |
-| `Out` | messages handed to a reader since start | **dequeued** | — never "completed". Handing a message over is not doing the work |
-| `Dropped` | discarded by the overflow policy | dropped | zero: `0`, which is a measurement |
-| `Expired` | passed their TTL undelivered | expired | zero: `0` |
-| `AtBound` | the queue is at capacity now | **at bound**, red | — |
+| `In` | messages accepted, **cumulative across restarts** | **accepted** | — not "since start": [`Restore`](../../../src/internal/core/snapshot.go) puts these back from the snapshot. codex's correction |
+| `Out` | messages handed to a reader, cumulative across restarts | **dequeued** | — never "completed". Handing a message over is not doing the work |
+| `Dropped` | discarded by the overflow policy, cumulative across restarts | dropped | zero: `0`, which is a measurement |
+| `Expired` | passed their TTL undelivered, cumulative across restarts | expired | zero: `0` |
+| `AtBound` | the queue is at capacity now | **at bound**, red | claiming messages are being dropped or refused *right now*. Capacity reached is not arrival; what happens on the next send depends on the overflow policy |
 | `TTL`, `Bound`, `Full` | this record's own settings | with inheritance stated: *uses the daemon default* where unset | — the daemon resolves defaults internally and the record keeps them unset; never copy a default into a template as though the record carried it |
 
 ### Node and scope

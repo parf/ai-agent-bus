@@ -22,12 +22,17 @@ Transfer, remove, ban, and remove-credential get a **server-rendered
 confirmation page** naming the target and the consequence, and the daemon
 rechecks authorization and current conditions at submission.
 
-This is a rule and not a preference. Native `dialog` and the invoker-commands
-API make a client-side confirmation easy to reach for, and it would quietly
-remove the recheck — the state the confirmation described could have changed
-between rendering it and acting on it. That is precisely the window class this
-repository spent [0.5.31](../../../CHANGELOG.md) closing in the daemon; it must
-not be reintroduced in the face.
+This is a rule and not a preference, but **not for the reason I first gave.**
+codex's correction: the daemon rechecks at the final submission whichever way
+the confirmation was drawn, so a client-side dialog does not remove that
+recheck. My sentence claiming it did was wrong.
+
+What a server-rendered confirmation actually buys is that **the consequence it
+describes is computed when it is shown.** A dialog carried in the page states
+conditions as they were when that page was rendered, which may be minutes or
+hours stale; a fetched confirmation re-reads them. The person is then agreeing
+to something true rather than to something remembered. The daemon's authority
+check is unaffected either way and is what actually protects the operation.
 
 The confirmation states what happens afterwards, and the wording is derived from
 the current contract rather than copied between forms:
@@ -42,6 +47,19 @@ the current contract rather than copied between forms:
 Remove-a-service and transfer are the two whose help text was wrong in opposite
 directions in the audited build; each now derives from its own contract section
 and neither borrows the other's wording ([W05](../done/web-review.md#findings)).
+
+## When the recheck refuses after you confirmed
+
+Missing from my first draft; opencode's find. The daemon can refuse *after* the
+person confirmed, because what they confirmed stopped being true — the canonical
+case being a credential removal answered with *now backed by a user, record or
+owned service; refresh the directory*.
+
+That is not an ordinary refusal and must not land in the generic one, where it
+reads as a bug. It gets its own presentation: **the conditions changed, here is
+what is true now**, with the current state shown and the action offered again if
+it still applies. The person did nothing wrong and the system did nothing wrong;
+the world moved between the question and the answer.
 
 ## The set
 
@@ -87,4 +105,4 @@ this dashboard is for discovery, administration and envelope diagnostics.
 | Removal offered with no confirmation step | service removal |
 | An invalid name returns JSON and discards the description | register |
 | Members editable only where they are visible, so an ordinary caller sees neither | groups |
-| Maintainers assignment and transfer share a permission guard, so a maintainer who may manage cannot assign | service detail |
+

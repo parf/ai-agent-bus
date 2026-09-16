@@ -11,7 +11,7 @@ hard part is information design rather than widget count.
 | Navigation | Seven destinations | Narrow screens use `details`/`summary`, not script |
 | Task toolbar | Search, scope, filters, sort, result count, active filters, clear | GET only, state in the URL |
 | Data table | Caption, scoped headers, stable order, one judgment column, chosen narrow-screen columns | The component nothing off the shelf supplies, because ours is URL-driven rather than client-side |
-| Detail sections | Heading, definition list, and — where authority allows — the form for that one concern | Read sections never depend on edit permission |
+| Detail sections | Heading, definition list, and — where authority allows — the form for that one concern, collapsed until asked for | Read sections never depend on edit permission. There is **no trailing Manage block**: an edit lives in the section it changes, which is the whole point of splitting them |
 | Form | Labels above controls, help beside the control, error summary and field errors, one primary action | |
 | Confirmation | Server-rendered page naming target and consequence | [forms](forms.md#consequential-actions) |
 | Status | Text, with colour and shape reinforcing it | [glyphs](glyphs.md#attention-levels) |
@@ -53,8 +53,11 @@ name rather than reinventing them:
 | `datalist` | suggesting owners, groups and record names without a combobox widget |
 
 **`dialog` is not used for consequential confirmation**, which stays a
-server-rendered page ([forms](forms.md#consequential-actions)). The new APIs make
-the wrong choice easy; this is written down for that reason.
+server-rendered page ([forms](forms.md#consequential-actions)) — because a
+confirmation carried in the page describes conditions as they were when that
+page was rendered, and a fetched one re-reads them. Not because it would remove
+the daemon's authorization check, which it would not; that was my error and is
+corrected where the rule lives.
 
 What is genuinely given up, stated plainly: sort and filter are round-trips; no
 instant search; no copy-to-clipboard; graph detail is limited to what SVG
