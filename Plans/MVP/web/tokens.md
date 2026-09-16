@@ -177,7 +177,43 @@ implies layering this interface does not have, shadows are the first thing to
 look wrong in dark mode, and surface plus border already separates everything
 that needs separating. One fewer thing to get subtly wrong across two schemes.
 
-## Density
+## Density, and the row capacity it implies
+
+**Derived from the values above, not chosen beside them.** The first draft named
+18 rows at 1280×800 and 16 at 1366×768; codex did the arithmetic and both are
+impossible — 18 comfortable rows need 956px, more than the entire viewport,
+before any shell. Picking a density target independently of the tokens that
+produce it is the failure the acceptance check exists to catch, committed in the
+file that defines the check. So the number is computed here, where the inputs
+live, and it moves when they do.
+
+At a 16px root, the line boxes are `--text-sm` 20.3px, `--text-xs` 16.8px and
+`--text-xl` 28.6px.
+
+| Consumer | Height | From |
+|---|---|---|
+| Shell header | 73.6 | two `--text-sm` rows at `--space-2` vertical, plus a 1px border |
+| Page title block | 76.9 | `--text-xl` + `--space-1` + `--text-sm` + `--space-6` |
+| Task toolbar | 102.9 | three `--text-sm` lines, `--space-3` vertical, borders, `--space-4` gap |
+| Table head | 33.8 | `--text-xs` at `--space-2` vertical, plus a rule |
+| **Chrome total** | **287.2** | |
+
+A two-line identity row is `--text-sm` + `--text-xs` + `--space-2` twice + a 1px
+separator: **54.1px comfortable, 46.1px dense**.
+
+| Viewport | Height for rows | Comfortable | Dense |
+|---|---|---|---|
+| 1280×800 | 512.8 | **9 rows** | 11 |
+| 1366×768 | 480.8 | **8 rows** | 10 |
+
+Those are the [acceptance](visual-design.md#acceptance) minima. **Nine is fewer
+than it feels like it should be, and that is information rather than a problem
+to argue with**: a two-line row costs what it costs, and the levers are in this
+file — the vertical padding, or the decision that identity takes two lines at
+all. Raising the target without moving a token is how a density requirement
+becomes decorative.
+
+## Container queries, not breakpoints
 
 One default, one alternative, applied per table by a container query on
 available width rather than by a viewport breakpoint. A narrow column in a wide

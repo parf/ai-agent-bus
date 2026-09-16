@@ -146,11 +146,16 @@ untouched. Each named mutation needs a bound that bites:
 | Too airy | check 3's minimum row count |
 | Too tight | check 3's zoom and reflow bounds |
 
-**Check 3 needs its numbers chosen, and they are**: at 1280×800, with the shell,
-page heading and toolbar present, **18 service rows** are visible without
-scrolling; at 1366×768, **16**. Measured against the Services fixture from
-check 4, at the comfortable density, with two-line identity cells — the
-conditions matter as much as the count, so they live here with it.
+**Check 3's numbers are derived, in the value home**: **9 service rows** at
+1280×800 and **8** at 1366×768, comfortable density, two-line identity cells,
+with the shell, title block and toolbar present. The derivation and every input
+are in [tokens](tokens.md#density-and-the-row-capacity-it-implies).
+
+The first draft asserted 18 and 16 instead. Both are impossible — 18 comfortable
+rows need 956px against an 800px viewport — and codex caught it by arithmetic.
+That is this check's own failure mode appearing inside the document that defines
+it: a density target chosen beside the tokens rather than from them is
+decorative, however precise it looks. The number now moves when a token moves.
 
 **Contrast over declared pairs is not contrast in the built page.** Check 2
 proves the token table is sound; it cannot prove a component used those tokens.
