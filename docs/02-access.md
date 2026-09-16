@@ -149,9 +149,9 @@ Register it first and it is kept like any other. What the sweep does take it
 cannot give back — a name swept needs a credential again the ordinary way
 ([getting a token](#getting-a-token)).
 
-**Pending: it can also be done by hand, by the daemon owner or a maintainer.**
+**Built: it can also be done by hand, by the daemon owner or a maintainer.**
 The automatic sweep stays and runs at every start; this is the same rule
-applied when somebody looks, so a name that turns up between restarts does not
+applied through an explicit removal action, so a name that turns up between restarts does not
 have to wait for one. Maintainers are included because they already administer
 users and this is the user directory — an ownerless credential is nobody's, so
 the [order](01-identity.md#groups-and-maintainers) does not settle it on its

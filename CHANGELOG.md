@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.28 — 2026-09-15
+
+The user directory distinguishes registered users from other identities, keeps unused credentials visible for review, and lets owners and maintainers remove eligible credentials explicitly. Cleanup rechecks current state, persists before revoking tokens and sessions, and preserves failed writes; directory search and pagination avoid per-avatar bus requests.
+
 ## 0.5.27 — 2026-09-15
 
 The daemon drops credentials that answer for nothing at start: no record of their own and no registered user. This node had 232 of them against four records, every one listed as a user. One interim while orphan-service deletion is still pending — a name that owns services keeps its credential, so the sweep cannot leave a service nobody answers for.

@@ -165,6 +165,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /users", g(s.users))
 	mux.HandleFunc("POST /user", g(s.user))
 	mux.HandleFunc("POST /user/state", g(s.userState))
+	mux.HandleFunc("POST /identity/remove", g(s.removeIdentity))
 	mux.HandleFunc("GET /activity", g(s.activity))
 	mux.HandleFunc("POST /group", g(s.group))
 	mux.HandleFunc("GET /ls", g(s.ls))

@@ -214,7 +214,7 @@ cannot drift apart.
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](01-identity.md#proving-possession)) |
 | `unknown` | `404` | no such name ([messaging § verbs](04-messaging.md#verbs)) |
 | `disabled` | `409` | the receiver's record is turned off by its owner ([owner control](01-identity.md#owner-control)) |
-| `busy` | `409` | an address could not be removed because its inbox has queued messages or a waiting reader ([unregistering](01-identity.md#unregistering)) |
+| `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity.md#unregistering)), or a credential is backed by a user, record or retained service ([cleanup](02-access.md#ownerless-credentials)) |
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity.md#registration)) |
 | `full` | `429` | the receiver's queue is at its bound and refuses rather than loses ([messaging § overflow](04-messaging.md#overflow)) |

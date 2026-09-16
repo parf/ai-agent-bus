@@ -68,26 +68,53 @@ func (b *Bus) Ownerless(names []string) []string {
 		if err != nil {
 			continue
 		}
-		if _, person := b.users[name]; person {
-			continue
+		if b.ownerless(name) {
+			out = append(out, raw)
 		}
-		if _, has := b.records[name]; has {
-			continue
-		}
-		// Interim, until H.5.5 lands: a name can own services without holding
-		// a record of its own, and taking its credential would leave every one
-		// of them with an owner nothing answers for. The settled answer is
-		// that those records are deleted at the same start
-		// (docs/01-identity.md#when-the-owner-is-gone), and then this guard is
-		// pointless and goes. Until that exists, sweeping here would
-		// manufacture exactly the orphans that rule is for.
-		if b.owns(name) {
-			continue
-		}
-		out = append(out, raw)
 	}
 	sort.Strings(out)
 	return out
+}
+
+// identityKind and ownerless share the facts behind directory labels and
+// cleanup. Caller holds b.mu; empty profile fields never change a user's kind.
+func (b *Bus) identityKind(name string) string {
+	if _, person := b.users[name]; person {
+		return protocol.DirectoryUser
+	}
+	if _, record := b.records[name]; record {
+		return protocol.DirectoryRecord
+	}
+	return protocol.DirectoryCredential
+}
+
+func (b *Bus) ownerless(name string) bool {
+	// Interim until H.5.5: keep the credential behind existing services.
+	// Remove this guard with orphan-service deletion, not before it.
+	return b.identityKind(name) == protocol.DirectoryCredential && !b.owns(name)
+}
+
+// RemoveOwnerless holds the same lock used to create profiles and records
+// until the credential is removed. A stale directory row grants no authority.
+// forget must only touch the credential store, never call back into Bus.
+func (b *Bus) RemoveOwnerless(caller, name string, forget func(string) error) error {
+	who, err := canon(caller)
+	if err != nil {
+		return err
+	}
+	n, err := canon(name)
+	if err != nil {
+		return err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.active(who) || !b.isMaintainer(who) {
+		return ErrNotOwner
+	}
+	if !b.ownerless(n) {
+		return fmt.Errorf("%w: credential is now backed by a user, record or owned service; refresh the directory", ErrBusy)
+	}
+	return forget(n)
 }
 
 // owns says whether this name is somebody else's owner. A record it owns that
@@ -146,7 +173,8 @@ func normalizedProfile(in protocol.User) (protocol.User, error) {
 			}
 		}
 	}
-	in.Maintainer, in.DaemonOwner, in.CanEdit, in.CanActivate = false, false, false, false
+	in.Kind = ""
+	in.Maintainer, in.DaemonOwner, in.CanEdit, in.CanActivate, in.CanRemove = false, false, false, false, false
 	in.Groups, in.Services = nil, nil
 	return in, nil
 }
@@ -216,13 +244,17 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 func (b *Bus) userView(caller, name string) protocol.User {
 	u := b.users[name]
 	u.Name = name
-	if u.State == "" {
+	u.Kind = b.identityKind(name)
+	if u.Kind != protocol.DirectoryUser {
+		u.State = ""
+	} else if u.State == "" {
 		u.State = "active"
 	}
 	u.DaemonOwner = name == b.admin
 	u.Maintainer = b.isMaintainer(name)
-	u.CanEdit = b.mayEditUser(caller, name)
+	u.CanEdit = u.Kind == protocol.DirectoryUser && b.mayEditUser(caller, name)
 	u.CanActivate = u.CanEdit && (u.State != "banned" || caller == b.admin)
+	u.CanRemove = b.active(caller) && b.isMaintainer(caller) && b.ownerless(name)
 	for group, members := range b.groups {
 		for _, member := range members {
 			if member == name {
@@ -260,7 +292,7 @@ func (b *Bus) Users(caller string, credentialNames []string) []protocol.User {
 	}
 	out := []protocol.User{}
 	for name := range names {
-		if caller == name || b.isMaintainer(caller) {
+		if caller == name || b.active(caller) && b.isMaintainer(caller) {
 			out = append(out, b.userView(caller, name))
 		}
 	}

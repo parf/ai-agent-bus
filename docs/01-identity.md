@@ -142,31 +142,21 @@ protection it did not need.
 **Built.** Maintainer-vouched profiles are separate from service registrations.
 Administrators see the user directory; ordinary callers see their own details.
 
-**Pending: the directory shows what is not a person, and says so.** A person is
-a name a maintainer wrote a profile for, blank fields included — the same test
-that decides whether a credential survives its address going
-([unregistering](#unregistering)). The page also lists names that hold a
-credential without a profile, and services that own themselves, because those
-are how a name outlives what it was for: a launcher that registered a session,
-a token minted for a name nobody kept. On this node they reached two hundred
-and thirty-two rows against four records.
+**Built.** The directory keeps registered users, self-owned records and
+credential-only identities visible, in separate sections. The daemon classifies
+from its user profiles and records; neither blank fields nor name spelling
+establishes what an identity is. Only registered users have user lifecycle
+labels and controls. A profile with blank fields is still a user.
 
-**Showing them is the point; hiding them is not.** Every one of those rows read
-*User · active* — a kind nobody chose and a state nobody set — which is what
-made two hundred of them invisible as a problem. Filtering them out would fix
-the reading and leave the mess, and nobody would ever go and clear it. So each
-one appears under what it actually is, with the reason it is there, and can be
-removed from the page.
+Each non-user entry explains why it is present and links to its record or
+owned services where applicable. Eligible credentials have an explicit review
+and removal action under the [cleanup rule](02-access.md#ownerless-credentials);
+viewing the directory never removes anything. Identities retained by that
+rule's interim guard remain visible with the services that need attention.
 
-**The daemon decides which is which**, from the profile it holds and the record
-it holds, never from how a name is spelled. A name that looks like a test
-fixture and belongs to somebody is a person; a tidy-looking name with nothing
-behind it is not.
-
-What is removable is what the [ownerless sweep](02-access.md#ownerless-credentials)
-would take anyway — no record and no registered user. The sweep runs at start;
-this is the same rule, applied when somebody looks rather than at the next
-restart.
+Search, category filtering and pagination preserve the current view on return
+from details and cleanup. Counts describe caller-visible entries, not the
+whole credential store. The page does not fetch a directory again per avatar.
 
 ### Who may write a record
 

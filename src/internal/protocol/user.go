@@ -1,5 +1,11 @@
 package protocol
 
+const (
+	DirectoryUser       = "user"
+	DirectoryRecord     = "record"
+	DirectoryCredential = "credential"
+)
+
 // User is a maintainer-vouched profile, separate from service registration.
 type User struct {
 	Name       string `json:"name"`
@@ -8,6 +14,8 @@ type User struct {
 	GithubUser string `json:"github_user,omitempty"`
 	State      string `json:"state"`
 	// Derived by the daemon for the current visitor, never accepted as claims.
+	Kind        string   `json:"kind"`
+	CanRemove   bool     `json:"can_remove,omitempty"`
 	Maintainer  bool     `json:"maintainer,omitempty"`
 	DaemonOwner bool     `json:"daemon_owner,omitempty"`
 	CanEdit     bool     `json:"can_edit,omitempty"`

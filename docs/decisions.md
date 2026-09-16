@@ -142,6 +142,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-15 | A suspended owner's service answers `403 suspended`, the caller's own reason widened rather than a second one; resolves Q55 | It is one suspension seen from two sides, and the caller can act on neither: no credential and no grant makes a suspended name answer, which is what `403` already tells them | [refusals](05-discovery.md#refusals) |
 | 2026-09-15 | An ownerless credential may be removed by hand by the daemon owner or a maintainer, and the start-of-day sweep stays; resolves Q56 | Maintainers already administer users and this is the user directory; the access order does not settle it, because a credential nobody owns is not a level below anybody | [ownerless credentials](02-access.md#ownerless-credentials) |
 | 2026-09-15 | The three levels are nested: every owner is a maintainer, every maintainer is a user | Three depths of one thing rather than three kinds; a maintainer who was not a user would have authority over users that user administration could not see | [groups and maintainers](01-identity.md#groups-and-maintainers) |
+| 2026-09-15 | Keep non-user identities visible and distinguish them from registered users | Cleanup needs visible evidence rather than a directory that hides debris | [person records](01-identity.md#person-records) |
 
 ## Superseded
 
