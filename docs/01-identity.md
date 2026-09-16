@@ -356,6 +356,9 @@ the service still answered would be describing a rule nobody applied. Which
 refusal it answers with is [open](../Plans/MVP/QUESTIONS.md#open-questions).
 
 This deletes nothing and stops nothing. The user stays, their services stay,
-their tokens keep authenticating, and no process is killed — banning somebody is
-not a way to reap their work, and a ban that destroyed things could not be
+their credentials are kept rather than rotated or revoked, and no process is
+killed — banning somebody is not a way to reap their work, and a ban that
+destroyed things could not be lifted. **Kept is not accepted**: while the state
+lasts those credentials grant no access, theirs or their services'
+([user lifecycle](#user-lifecycle)). They are there to work again when it is
 lifted.
