@@ -118,19 +118,47 @@ rather than stated by the owner**, so they can be refused:
 
 | | |
 |---|---|
-| **A route may only name a queue you could send to yourself** | Otherwise `route` is an ACL bypass with extra steps: register a name, point it at somebody else's inbox, and anyone permitted to send to *your* name is now writing into *theirs*. The authority to route into a queue is the authority to put a message in it. This is the shape of the escalation closed in [0.5.31](../../CHANGELOG.md) and it must not come back through registration |
+| **A route may only name a queue you could send to yourself** | Otherwise `route` is an ACL bypass with extra steps: register a name, point it at somebody else's inbox, and anyone permitted to send to *your* name is now writing into *theirs*. The authority to route into a queue is the authority to put a message in it. This is the shape of the escalation closed in [0.5.31](../../CHANGELOG.md), and since a route can be changed later ([a route changes after registration](#a-route-changes-after-registration)) the check belongs on every write of the field, not on registration alone |
 | **The addressed record's ACL is what admits the message** | The sender asked for `scaler@h` and passes `scaler@h`'s ACL. The route target's ACL governs who may *route to* it, which is a different question asked of a different principal at a different time |
 | **Routes do not chain** | One hop. If the target is itself routed, delivery stops at the target rather than following the second route — otherwise a cycle is an unbounded loop, and a two-hop route is a thing nobody asked for that arrives free with the wrong rule |
 | **The queue that holds it is the queue whose policy applies** | Bound, overflow and retention are the route target's, because that is the queue the message physically sits in. The addressed record's own queue settings describe a queue nothing is delivered to |
 | **A routed record's liveness is the target's** | A routed name has no reader and no queue of its own, so reporting its own would say *no reader waiting, nothing queued* forever, about a service that is being served normally. Either it reports the target's or it says the question does not apply to it — what it must not do is answer with a measurement of an empty queue nobody uses ([declared and observed are never merged](../MVP/web/data-dictionary.md#the-rule)) |
 
+#### A route changes after registration
+
+**Owner-settled, 2026-09-16: yes.** A route is an ordinary field of the record,
+changed the way the record's other fields are — re-registering a name is
+already an update rather than a collision
+([one name on many hosts](#one-name-on-many-hosts)) — and clearing it is a
+change like any other, returning the name to its own inbox. Changing it needs
+both authorities at once: the standing to manage the record, and the standing
+to route into the new target, which is the same rule that governs setting one.
+
+**A change applies to delivery from that moment, and nothing already delivered
+moves.** Derived, on the daemon's own precedent rather than invented: an
+envelope's expiry is worked out once at accept and changing the queue's TTL
+afterwards does not revisit it
+([message TTL](../../docs/04-messaging.md#message-ttl)). Delivery is the same
+kind of fact. The alternative is a daemon that reaches into a queue somebody
+else is reading and takes work back out of it, which is a much larger promise
+than routing asked to make.
+
+**So the handover has a tail, and this is the part worth knowing before it is
+built.** Re-pointing `scaler@h` from `runner-a` to `runner-b` leaves messages
+for `scaler@h` sitting in `runner-a`'s inbox, undelivered and now addressed to
+a service `runner-a` no longer manages. Two consequences:
+
+| | |
+|---|---|
+| **A runner must keep dispatching an `orig-to` it no longer owns** | or that work is stranded in its queue with nothing willing to claim it. Draining what a route change left behind is the runner's job, and a runner that only dispatches names in its current instance list will silently strand them |
+| **A handover is not complete when the route changes** | it is complete when the old target's queue no longer holds anything for that name. Tooling that reports the handover done at the moment of the write reports it too early |
+
 #### What is not settled
 
-Three choices that change the implementation and are not ours to pick:
-[Q64](QUESTIONS.md#open-questions) reply identity,
-[Q65](QUESTIONS.md#open-questions) whether a route may be changed after
-registration, and [Q66](QUESTIONS.md#open-questions) whether routing applies to
-pub/sub subscribers.
+Two choices that change the implementation and are not ours to pick:
+[Q64](QUESTIONS.md#open-questions) reply identity, and
+[Q66](QUESTIONS.md#open-questions) whether routing applies to pub/sub
+subscribers.
 
 ### Long-lived services
 
