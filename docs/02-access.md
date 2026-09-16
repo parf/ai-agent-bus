@@ -121,12 +121,12 @@ their credential could not be unbanned into anything. Every entry this sweep
 can reach is therefore a name with no record and no person behind it: what a
 credential outliving its address used to leave.
 
-⚠️ **The daemon owner's credential is minted by the credential store itself,
-not by a record**, so it is ownerless by this test and **always survives the
-sweep**, including when it has neither a record nor a profile. Nothing creates a
-profile for it, though one may be made like any other
-([user lifecycle](01-identity.md#user-lifecycle)), and its authority is known
-from the name either way rather than from a profile.
+The daemon owner's credential is minted by the credential store itself rather
+than by a record, but **it is not ownerless**: starting the daemon writes the
+owner a user profile, so it is a registered user like any other and survives by
+the ordinary rule rather than by an exemption. That is worth a check of its own
+anyway — a sweep that looked only for a record, and not for a registered user,
+would take the owner's own credential on the first start.
 
 A credential asked for before its name is registered is the same shape, briefly:
 the sweep sees one moment, so such a credential is there until the next restart
