@@ -303,11 +303,23 @@ A reproduced bus-child crash restored access after an acknowledged ban;
 [review evidence](../Plans/MVP/done/release-gap-review.md#findings) records the
 sequence. Snapshot write failures are currently reported in the daemon log.
 
-**Required MVP decision, pending:** [Q39](../Plans/MVP/QUESTIONS.md#open-questions)
-owns the durability and recovery guarantee for acknowledged access changes.
-The review approval adds this release gate; it does not silently replace the
-existing snapshot contract or select a storage mechanism. [H.5.3](../Plans/MVP/TODO.md#remaining-work)
-must exercise crash and persistence failure under the approved policy.
+**Settled: an acknowledged restriction holds until somebody lifts it.** A ban
+that was acknowledged stays a ban until the owner unbans; nothing else ends it,
+and a crash is not a way out. The same shape covers the other two the question
+bundled — a group removal and a tightened ACL — because they are the same act:
+access taken away on purpose, and only an explicit decision puts it back.
+
+So **acknowledging one is a promise about it**, and the current behaviour breaks
+that promise: the change waits for the next snapshot, and a crash before it
+restored a banned caller's access. The guarantee is what must change, not the
+report. Which storage or write order delivers it is implementation, and this
+does not pick one.
+
+A **failed** persist is the same problem seen earlier: if the durability cannot
+be promised, the acknowledgement must not be given. Today such a failure is a
+line in the daemon log, which the caller never sees.
+[H.5.3](../Plans/MVP/TODO.md#remaining-work) exercises both the crash and the
+failed write against this rule.
 
 ## Envelope
 
