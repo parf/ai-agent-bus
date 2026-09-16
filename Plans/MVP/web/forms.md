@@ -73,7 +73,7 @@ the world moved between the question and the answer.
 | Edit metadata | Service, Channel | description, address, protocol | the identity section |
 | Edit queue policy | Service, Channel | TTL, capacity, overflow | the queue section |
 | Edit access | Service, Channel | allow list, refuse master | the access section |
-| Replace configuration | Service | configuration (always empty, never repopulated) | the configuration section, showing the new digest |
+| Replace configuration | Service, Channel | configuration (always empty, never repopulated) | the configuration section, showing the new digest |
 | Assign maintainers | Service, Channel | group, or none | the identity section |
 | Enable / Disable | Service, Channel | — | the identity section |
 | Transfer ownership | Service, Channel | new owner | **confirm**, then the identity section |
@@ -86,6 +86,19 @@ the world moved between the question and the answer.
 | Edit profile | User | person name, email, GitHub login | the profile section |
 | Change state | User | the applicable transitions only | the identity section; **confirm** for ban |
 | Remove a credential | User, non-user identity | — | **confirm**, then the directory |
+
+**Configuration stays on channels.** The draft gave Replace configuration to
+Service only; the shared detail template already offers it on any managed record
+including channels (admin.go:354), so restricting it here would have removed a
+working capability as a side effect of a documentation split. Removing it would
+need its own decision — codex's
+[S07](review/codex.md#specification-review-round-one).
+
+**Subscribe and unsubscribe are not management.** They sit outside `CanManage`
+in the build (admin.go:341) and stay outside it here: adding a subscription is
+the subscriber's own opt-in, while *removing someone else's* is a manager's
+action. Two different authorities in one section, named separately
+([S06](review/codex.md#specification-review-round-one)).
 
 No group-delete form. The handler accepts the action and no template renders it;
 removing the verb from core and the API is [H.5.6](../TODO.md#objective).

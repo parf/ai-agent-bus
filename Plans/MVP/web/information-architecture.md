@@ -32,7 +32,8 @@ The page set is derived from these, not from the data model.
 | Who may use my service? | Service → Access → one focused edit | back to Access, with the result |
 | Who is this person and what may they administer? | Users → person | User detail |
 | Why can I not do this? | any refusal → explanation and the corrective step | in place, or a problem page |
-| Did my message arrive, and was it consumed? | Services → the service → Queue | Service → Queue counters |
+| Did **this** message arrive, and was it consumed? | Diagnostics → retained envelopes, scoped to what you may see | **not queue counters.** Totals cannot identify an individual message: accepted and dequeued are aggregate flow, and the [exchange contract](../../../docs/05-discovery.md#retained-exchanges) keeps envelope evidence, receipts and responses as separate things. Where an individual dequeue is not recorded, the page says it cannot be established rather than inferring it — codex's [S09](review/codex.md#specification-review-round-one) |
+| Is work flowing through this queue at all? | Services → the service → Queue | queue counters, as aggregate flow, which is the question they can answer |
 | What credentials do I hold? | Account | Account |
 | What happened to this exchange? | Diagnostics → the envelope feed | Diagnostics |
 

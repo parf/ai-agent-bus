@@ -85,13 +85,21 @@ Recorded so it is not re-proposed.
 | Rejected | Reason |
 |---|---|
 | htmx, Datastar, any enhancement layer | Owner decision. No audited finding is fixed by partial updates; inline handler attributes are script under another name; adoption is a one-way door for the templates |
-| Themed admin templates (Tabler, CoreUI, AdminLTE and kin) | Their identity is JavaScript, charts and CDN icon fonts. **codex's caveat stands**: Tabler documents CSS with optional JS, so "cannot be used at all" is overstated. The decision rests on the owner's choice of a house layer, not on that claim |
+| Themed admin templates (Tabler, CoreUI, AdminLTE and kin) | **Owner decision: a house layer.** The earlier rationale here — that their identity *is* JavaScript and CDN icon fonts — is withdrawn rather than caveated, because it is a universal claim we did not establish and Tabler is a counterexample: it documents CSS with optional JS and local hosting. codex's [S15](review/codex.md#specification-review-round-one). What remains, and is enough: the owner chose the house layer, and no matched-component comparison was run to price the alternative ([dissent](README.md#dissent)) |
 | Carbon as a dependency | Components are JavaScript; only tokens and guidance transfer. The guidance is taken |
 | Bulma as the base | Credible and documented as the fallback. Not chosen. Its own modal needs caller script, so it is not wholly script-free either |
 | Salesforce Lightning | SLDS 2 coupled itself to the Salesforce platform and its component model; no longer the free-standing CSS system it was |
 | Tailwind | Generated CSS is runtime-safe, but it supplies atoms rather than a table, a toolbar or a form pattern, and utility-soup templates are a real cost when templates are the review artifact |
 | chi and other routers | Present route complexity is modest |
-| A client-side data table | Ours is URL-driven. Every off-the-shelf table assumes client-side search, sort and paging, which is exactly what we cannot have — the most important component is hand-written either way |
+| A client-side data table | Ours is URL-driven, and that is the requirement. **Not** "every off-the-shelf table assumes client-side state" — a universal we did not survey and do not need: it is enough that a URL-driven table is what this dashboard requires and that we found none supplying it, so the component is hand-written either way. codex's [S15](review/codex.md#specification-review-round-one) |
+
+**Typed components are a design choice, not a validator.** templ compiles a
+component to a Go function whose parameters its *author* chooses, so a caption,
+a label or an error slot is mandatory only if someone declares it mandatory.
+Adopting templ does not make an omitted label a compile error; designing the
+component API that way does. Recorded because the Q60 rationale read as though
+the tool supplied the guarantee — codex's
+[S15](review/codex.md#specification-review-round-one).
 
 ## Unverified, and owed before implementation
 

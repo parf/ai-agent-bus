@@ -47,23 +47,57 @@ with the observation it rests on:
 | ~~Backlog older than its own TTL~~ | — | **cut.** The record's TTL is the wrong right-hand side: the deadline is per envelope, fixed at accept from whichever of the sender's and the queue's TTLs was shorter, so a live head accepted under a longer setting can exceed today's without anything being wrong ([glyphs](glyphs.md#attention-levels)). home-parf's find |
 | Losses, cumulative across restarts | `Dropped`, `Expired` non-zero | orange, links to Diagnostics. **Not** "since start": `Restore` puts these counters back from the snapshot ([dictionary](data-dictionary.md#state)), so a non-zero total may predate this run entirely |
 | Refusals, cumulative | `Status.Refused`, a `map[string]int` by reason | informational; **not** "climbing" — this value is a lifetime total. A supported reason absent from it is a measured `0`, not an unknown ([dictionary](data-dictionary.md#node-and-scope)). A windowed signal exists on Activity but is scoped: node-wide refusals only on the unfiltered admin or master view, a sum over visible records otherwise |
-| **Disabled record holding queued work** | `Disabled` and `Queued` > 0 | orange. opencode's find, verified: `Send` refuses a disabled record and `recheckInbox` releases its waiters, so those messages can be neither delivered nor read. The work is trapped and nothing on any page says so |
+| **Disabled record holding queued work** | the **stored** `Disabled` bit and `Queued` > 0 — see the caveat below | orange. opencode's find, and stronger than first stated. `Send` refuses at bus.go:532, `recheckInbox` releases existing waiters with `ErrDisabled` (manage.go:292), and `ConsumeAs` refuses a new reader at bus.go:801 — so the backlog can be neither delivered nor drained. home-parf's extension, verified: both prune sites sit *behind* those guards, so **the queue is frozen**. Nothing enters, nothing leaves, and nothing expires out of it: `Expired` will not grow even when every message is long past its TTL, and `Oldest` grows without bound. The only exits are re-enable and unregister. The page says the backlog cannot drain by any route |
 | **Services of a suspended owner** | the owner's `State` is paused or banned | orange, linking to the person. **Conditional on [H.5.7](../TODO.md#objective)**, which is pending: today such services do not refuse, so the item would describe a rule that is not in force. It goes in when H.5.7 does |
 | Unregistered credentials awaiting review | the cleanup cohort is non-empty | blue, a count and a link. **Owner-decidable**: it is discoverability rather than attention, and [C10](review/codex.md#junk-and-misleading-content) left it homeless |
 
 A backlog with no reader is **not** an item. A queue worker between pulls is
 exactly that shape and nothing is wrong.
 
+**The `Disabled` we are given is not the `Disabled` that freezes a queue**, and
+this item is where that matters. `visible` (manage.go:305) returns
+`r.Disabled || !b.active(r.Name)` — one bit merging two causes — so the face
+cannot tell an owner's decision from a name that has stopped being active. codex
+raised this as a truth defect ([S04](review/codex.md#specification-review-round-one));
+it is also an operational one, because **the two causes do not behave alike**:
+
+| Cause | Arrivals | Drainage |
+|---|---|---|
+| Stored `Disabled` | refused | refused — `ConsumeAs` checks this bit, so the queue is frozen |
+| Name not active | refused with `ErrInactive` | **still possible** — `ConsumeAs` guards the caller's standing and the stored bit, never `b.active(name)` |
+
+So an item that reads "disabled and holding work" is urgent in the first case
+and merely blocked-at-the-front-door in the second, and today's answer cannot
+say which. **Until the daemon separates them the item is written to the weaker
+claim** — *delivery is off and work is held* — and does not promise the backlog
+is unreachable. Separating them is a daemon change and is named as
+[owed](#owed-by-this-specification), not assumed.
+
 Two structural rules, both opencode's:
 
 | | |
 |---|---|
-| **One queue, one item** | A queue at its bound is usually also a backlog past its TTL. Each record yields a single item at its worst level, or the page triples and says the same thing three ways |
+| **One queue, one item** | A disabled record holding work is usually also at its bound, and a lossy queue is often both. Each record yields a single item at its worst level, or the page repeats itself. (The original example was at-bound implying backlog-past-TTL; that signal is cut, and dedup never needed it — codex) |
 | **Never counted twice** | Losses and refusals appear as attention items and in Diagnostics. They do **not** also appear in the node strip, or the strip and the items disagree with each other on the same page |
 
-**Empty state:** *"Nothing needs attention, as of 14:22."* with the scope stated.
-Never "healthy" — that is a claim about the system rather than about what was
-observed.
+**Empty state:** *"No observed attention conditions in this view, as of
+14:22"*, with the scope stated. **Not** *"nothing needs attention"*, which was
+the draft's wording and is unbounded — codex's
+[S03](review/codex.md#specification-review-round-one). The admitted set is a
+handful of conditions the daemon reports; a reader whose process died leaves a
+queue that trips none of them. Absence of an item is absence of *these*
+observations, not assurance. Never "healthy", for the same reason one size
+larger.
+
+**Queued work keeps a direct route**, which the draft lost when the backlog
+table became an exception list — codex's
+[S03](review/codex.md#specification-review-round-one). Services and Channels
+sort by queue depth and filter to *holding work*, so every caller-visible queue
+is reachable in one step with its depth, its head age and its reader state
+shown as observations. The exception list is what the Overview *promotes*; it is
+not the only way to see a queue. A journey that can only reach a backlog when
+severity fires cannot answer "why is work not arriving", because the answer is
+usually a queue that trips nothing.
 
 **Node totals and the lists never have to agree**, and the page says so: one is
 node-wide, the other is what this caller may see
@@ -88,9 +122,12 @@ Two destinations, **one component family**. A channel's first question is how it
 delivers and who subscribes; a service's is whether anything is reading and what
 is queued. One table answering both is what buried delivery mode
 ([C03](review/codex.md#junk-and-misleading-content)). Each page renders its own
-heading and marks its own navigation entry — today Channels renders under the
-Services heading and highlights Services
-([C06](review/codex.md#junk-and-misleading-content)).
+heading and marks its own navigation entry. **Precisely:** the `h1` is already
+correct — it switches on `.Channels` — but both routes share
+`shell("services", "Registered services")`, so Channels carries the Services
+document title and highlights the Services nav entry (admin.go:324). The
+draft's "renders under the Services heading" overstated it; the title and nav
+defect is real. codex's [S14](review/codex.md#specification-review-round-one).
 
 | Column | Decision |
 |---|---|
@@ -113,8 +150,13 @@ or mode; sort. All in the URL as GET parameters, all retained through paging and
 through a visit to a detail page and back. Result count and active filters are
 shown, with one action to clear them.
 
-**Ordering is stable and named.** Core's `List` iterates a map, so successive
-loads reorder unchanged rows ([W16](../done/web-review.md#findings)).
+**Ordering is stable and named.** Core's `List` iterates a map, so order out of
+the daemon is not stable — but **the services and channels list already sorts by
+name** (admin.go:189), and the draft was wrong to call it an unstable load.
+[W16](../done/web-review.md#findings) survives where nothing re-sorts: the
+diagnostics registry. codex's [S14](review/codex.md#specification-review-round-one).
+What this specification adds is a *chosen* order with the sort in the URL,
+rather than an incidental one.
 
 **Empty states are three different pages**, and this is the split's price:
 
@@ -138,8 +180,8 @@ then focused edits.
 
 | Section | Content | Visible to |
 |---|---|---|
-| Identity | Description, full name, kind or delivery mode, owner, maintainers, enabled state | anyone who may see the record |
-| Queue | Queued, oldest, accepted, dequeued, dropped, expired, at-bound, effective TTL and capacity with inheritance stated honestly | same |
+| Identity | Description, full name, **address**, **protocol**, kind or delivery mode, owner, maintainers, enabled state, **updated time** | anyone who may see the record |
+| Queue | Queued, oldest, accepted, dequeued, dropped, expired, at-bound, **overflow policy**, TTL and capacity with inheritance stated per field | same |
 | Access | Allow list, master-refusal, and what that means in a sentence | same |
 | Subscribers (pub/sub only) | Each subscriber, linked where the caller may inspect it | same |
 | Configuration | Whether one is set, and its digest as evidence. **Never its contents** | same |
@@ -149,6 +191,15 @@ and queue policy are already in the daemon's answer to this caller and today are
 rendered only inside the editor
 ([C04](review/codex.md#junk-and-misleading-content)). Controls are conditional;
 returned metadata is not.
+
+Four fields were required in prose and missing from the table above, so the
+table is where they now live — codex's
+[S07](review/codex.md#specification-review-round-one). **Address** and
+**protocol** are read-only in Identity; **updated time** is the detail home the
+list demotes it to, and had nowhere to land; **overflow policy** belongs in the
+read-only Queue summary, not only in its editor. A requirement stated in a
+paragraph and absent from the section map is a requirement an implementation
+will miss.
 
 | Field | Decision |
 |---|---|
@@ -220,6 +271,17 @@ typed is gone ([C13](review/codex.md#junk-and-misleading-content)).
 Arriving from a service or channel keeps that filter. The scope selector says
 what it is scoped to.
 
+**Four constraints the series carries**, found by home-parf and verified. They
+are not presentation choices; three of them change what the graph may be
+labelled, and the third is a defect rather than a limit:
+
+| | |
+|---|---|
+| **The window is one hour, hard** | 61 minute-samples. Any claim about a trend is a claim about at most sixty minutes and must say so. Nothing longer is answerable from this data |
+| **A restart renders as a quiet minute** | counters are in-memory and reset on restart, and `max(0, …)` clamps the resulting negative delta to `0` — so the discontinuity becomes a zero bucket rather than a gap. That is the zero-versus-absent defect one layer *below* presentation. The face can only locate the boundary by cross-referencing `Status.Up`, and without that cross-reference **the restart boundary this page promises cannot be drawn at all** |
+| **The scope switches inside one series** | `total()` sums `Refused` over records the caller may see, but for an unfiltered admin or master view node-wide `s.refused` **replaces** that sum (activity.go:98–99). One series, two meanings, chosen by who is looking. A single static label is wrong for one of the two audiences — and it is invisible when an admin tests it. The label is computed from the view, never fixed in the template |
+| **History is computed against the current record set** | `total()` iterates `b.records`, so a record removed mid-window leaves both `prev` and `next` and its traffic vanishes from the series retroactively. The page says the series covers records visible **now** |
+
 ---
 
 ## Diagnostics `/diagnostics`
@@ -254,6 +316,7 @@ by name. The registry table does not come with it.
 | Empty cleanup table plus its explanation | **collapse** to a count and a link while empty; expand only when candidates exist ([C10](review/codex.md#junk-and-misleading-content)) |
 | Classification of an unclassified identity | **keep as a word.** Never a colour, never inferred from a slash or a runtime prefix in a name |
 | Avatar | `/avatar` is reachable and authenticated but no template references it ([inventory](review/current-state.md#routes-and-templates)). **Decide deliberately**: use it here, or remove the endpoint. It must not fetch the whole directory per image ([W07](../done/web-review.md#findings)) |
+| **Create user** | **entry point, which the draft lost** — codex's [S07](review/codex.md#specification-review-round-one). The form exists in [forms](forms.md#the-set) with no page offering it. A primary action beside the directory heading, **shown only where the caller may create**, opening `/users/new`. Invalid input returns that form with its values and a field-level error, never a problem page. Success lands on the new user's page. This is the only onboarding path for a fresh install, which is what makes its absence a gap rather than an omission ([H.5.9](../TODO.md#objective)) |
 
 ## User `/user?name=`
 
@@ -282,11 +345,12 @@ only when `CanRemove`, with consequences stated before the form.
 |---|---|
 | Group name | keep |
 | Members | **fix.** Membership renders only inside the editor today, so an ordinary caller sees a heading with no members and no explanation ([C05](review/codex.md#junk-and-misleading-content)). Say *not visible to you* — never an empty array shown as a zero count |
-| Records referencing the group | **new.** This is [W08](../done/web-review.md#findings): there is nowhere today to see why a group cannot be removed |
+| Records referencing the group | **new.** This is [W08](../done/web-review.md#findings): there is nowhere today to see which records a membership change will affect. The draft motivated it as *why removal is refused*, two rows above prohibiting deletion — codex's [S14](review/codex.md#specification-review-round-one). The real use is live: editing members changes who may manage every record listed here, and that blast radius is otherwise invisible |
 | Protected state of `@maintainers` | **keep**, stated as protection, with no delete control offered |
 | Delete | **no control.** The handler accepts it and nothing renders it; removing the verb is [H.5.6](../TODO.md#objective), not a UI feature to restore |
 
-The detail page earns its place on the references alone.
+The detail page earns its place on the references alone — they are what makes a
+membership edit a reviewable decision rather than a blind one.
 
 ---
 
@@ -296,13 +360,22 @@ The detail page earns its place on the references alone.
 
 New page. Everything here is moving off the bottom of the diagnostics wall.
 
+**Account is designed for two principals, not one.** codex's
+[S08](review/codex.md#specification-review-round-one), verified: `Users`
+(users.go:442–454) admits a name that has a person profile, or that owns itself,
+or that holds a credential and is unregistered or self-owned. A **service
+principal owned by somebody else has none of those**, so it has no directory row
+at all — and our current agent identities are exactly that shape. The page may
+not assume a profile, and an empty `/users` answer for yourself is not an
+absence of identity.
+
 | Field | From |
 |---|---|
-| Own identity, person name, authority, memberships | Users detail, for oneself |
-| Own records, separated from own identity | my names |
+| Own identity, person name, authority, memberships | Users detail **when a profile exists**; otherwise the record's own identity, with the profile fields absent rather than blank-labelled |
+| Own records, separated from own identity | **the authorized record listing**, not `/names`. `Holds` (tokens.go:196–207) skips names with no credential, so `/names` answers *what you hold*, which is not *what you own*. The draft conflated them |
 | Each credential: name, kind, fingerprint, issued, last used | my names. **Owner is kept where it differs from you, and only there.** It is not always you: `Owned` starts with the caller's own name ([bus.go](../../../src/internal/core/bus.go)), so a signed-in service holds its own credential while the record's `Owner` is somebody else — which is the shape of our current agent identities. Dropping the column universally would hide exactly the row it matters on. codex's correction of my error |
 | An `unregistered` credential, marked, with what it means | my names |
-| Rotation | the command, **and its consequence beside the button**: the replaced credential keeps working until the next rotation. That sentence is load-bearing |
+| Rotation | **the command, as help — there is no button.** MVP scope is command help, and the draft's "button" promised an operation nothing implements. Its consequence sits beside the instruction: the replaced credential keeps working until the next rotation. That sentence is load-bearing |
 | *"Envelopes only — bodies are never shown"* | **move** to Diagnostics, which is where it is true |
 
 No page ever renders a credential — a fingerprint, when it was issued, when it
@@ -329,18 +402,57 @@ it reaches the form.
 
 ---
 
-## Problem — five states, not one page
+## Problem — recovery by reason, not one page
 
 Today one template carries every failure ([W12](../done/web-review.md#findings)).
-They need different bodies because they need different next actions:
+**The draft's replacement was worse than the build in one respect**, which
+codex's [S10](review/codex.md#specification-review-round-one) caught: `fail`
+(admin.go:56–93) already separates 401, 403, 404, 500 and 503, and the four
+states I listed collapsed the last two back together. The defect that remains is
+its `default` branch, where 400, 409, 412 and 429 arrive as one *"That was
+refused"* — four different situations with four different next actions.
 
-| State | Body | Next action |
+The rule: **a state exists where the recovery differs**, and it is keyed to the
+daemon's reason, not to a code alone. The [refusal
+vocabulary](../../../docs/05-discovery.md#refusals) is a closed counted set, so
+this table can be complete rather than open-ended.
+
+| Reason | Code | Body | Next action |
+|---|---|---|---|
+| Not found, or hidden from you | 404 | identical presentation for both — hiding and refusing must not be distinguishable | back to the list |
+| Credential | 401 | the session ended | sign in, returning here. Already the build's behaviour, and correct |
+| ACL, suspended, enrolment | 403 | **three different bodies.** Lacking permission is not being suspended, and neither is not being enrolled — giving a service permission cures exactly one of them | who can grant it / who can lift the state / how to enrol |
+| Name taken | 412 | the name exists | choose another, with the form and its values preserved |
+| Malformed | 400 | what was wrong with the input | **the form, with values preserved** — not a problem page at all. A problem page here is the defect ([C13](review/codex.md#junk-and-misleading-content)) |
+| Disabled, busy, second-reader | 409 | **three different bodies.** A disabled record is a decision, a busy one is transient, a second reader is a contract | enable it / retry / who holds the read |
+| Full | 429 | the receiver is at capacity | its queue, and the overflow policy in force |
+| Daemon fault | 500 | a fault, not a rule | repeating is unlikely to help; the node's log. Keep the build's wording |
+| Daemon unavailable | 503 | it is there and briefly cannot answer | retry. **Never** an empty healthy list |
+| Transport failed | — | the request did not complete | retry, and **never** "nothing was changed", which is not knowable |
+| **Conditions changed** | any | what you confirmed stopped being true before it ran | show what is true now, and offer the action again if it still applies ([forms](forms.md#when-the-recheck-refuses-after-you-confirmed)). Not the generic refusal, where it reads as a bug |
+
+One reusable template is not the defect; one reusable *reason* is. Hidden and
+missing stay deliberately indistinguishable.
+
+---
+
+## Owed by this specification
+
+Nothing here is a presentation problem, and none of it may be solved by a
+template inventing a value — codex's
+[S11](review/codex.md#specification-review-round-one). Each row names what MVP
+ships **instead**, so no page is blocked waiting on a daemon change.
+
+| Wanted | Status | MVP fallback, chosen |
 |---|---|---|
-| Not found, or hidden from you | identical presentation for both — hiding and refusing must not be distinguishable | back to the list |
-| Refused | you are signed in and lack permission; signing in again changes nothing | who can grant it |
-| Session expired | sign in again | sign-in, returning here |
-| Bus unavailable | the daemon did not answer | retry; **never** rendered as an empty healthy list, and never promising "nothing was changed" when the transport failed ([C13](review/codex.md#junk-and-misleading-content)) |
-| **Conditions changed** | what you confirmed stopped being true before it ran | show what is true now, and offer the action again if it still applies ([forms](forms.md#when-the-recheck-refuses-after-you-confirmed)). Not the generic refusal, where it reads as a bug |
+| Node label and running build | needs a narrow daemon read | **omit the label.** The heading shows observation time and uptime, which are answered today. No placeholder, no hostname guessed by the face. The web executable's version is not the bus version and is never shown as one |
+| Effective TTL and capacity | needs a daemon read to resolve inheritance | **show the declared setting with its actual semantics**, per field: `Bound` unset reads *uses the daemon default*, `TTL` unset reads *no queue-imposed expiry — a message may still set its own*, `Full` is written at registration and always concrete ([dictionary](data-dictionary.md#queue)). Never a resolved number the record does not carry |
+| Owner's decision separated from name-inactive | needs the daemon to stop merging them in `visible` | **write the attention item to the weaker claim** (delivery is off and work is held) and do not promise the backlog is unreachable (the Overview attention set, above) |
+| Per-message delivery evidence | retained exchanges, scoped | **route the question there**, and where an individual dequeue is not recorded, say it cannot be established ([S09](review/codex.md#specification-review-round-one)) |
+| Restart boundary on Activity | needs `Status.Up` cross-referenced, since a restart clamps to a zero bucket | **cross-reference it**, or the boundary is not drawn and the graph says its window may span one |
+
+Where a row is later taken up as daemon work it moves to the TODO with an ID;
+until then the fallback is what ships, and it is honest rather than empty.
 
 ---
 

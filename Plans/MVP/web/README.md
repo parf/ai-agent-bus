@@ -69,15 +69,23 @@ reused ([question namespace](../../../CLAUDE.md#working-rules)).
 | claude/home-parf | [Design research and field-level verification](review/home-parf.md) | delivered `aaac271`, with negative results and a density acceptance proposal |
 | claude/ab-dvp | Architecture, page specs, documents, owner questions | drafted; correcting against round one |
 
-**Round one is answered in part.** This commit closes the attention-vocabulary
-and field-provenance findings, which are the ones that would have shipped a
-severity language the daemon cannot support. codex's S01–S15 structural gaps
-— effective `Disabled`, the Create-user journey, per-message arrival, problem
-recovery collapsing distinct reasons, dependency and fallback for node and
-effective-value additions, and concrete palettes, layouts and density controls
-— are open. So is home-parf's density acceptance proposal, whose first check
-(a shipped-surface budget enforced over the stylesheet) is the one that would
-have caught the failure mode they named.
+**Round one: thirteen of fifteen closed.** S01–S11 and S14–S15 are answered in
+the specifications, each against source rather than against the finding text.
+What they changed is mostly truthfulness — a severity vocabulary the daemon
+cannot support, an Account page that assumed a person profile, an error page
+that lost distinctions the current build already makes, and promised values with
+no dependency, which now have [named fallbacks](pages.md#owed-by-this-specification).
+
+**Open, and both are design rather than correction:**
+
+| | |
+|---|---|
+| S12 (part) | the no-script theme and density controls: what they are, how they persist, and whether they are in MVP scope at all |
+| S13 | the visual design as a reviewable artifact — selected palettes, type and spacing values, and representative layouts in both schemes and both widths. Principles are not a design |
+| home-parf's density acceptance | five checks, of which a shipped-surface budget enforced over the stylesheet is the one that catches the named failure mode, and *build the worst page first* is the one that expires the moment a second page exists |
+
+The token file also needs a named owner. That is a standing commitment rather
+than a technical choice, so it is the owner's to make and is not assumed here.
 
 ### Dissent
 
