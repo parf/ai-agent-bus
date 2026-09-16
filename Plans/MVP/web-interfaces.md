@@ -1,5 +1,15 @@
 # MVP web interfaces
 
+**Superseded in part.** The owner reopened this as a full redesign on
+2026-09-16, and the current specifications live in
+[the redesign directory](web/README.md#what-each-document-owns): architecture,
+pages, forms, components, the data dictionary, glyphs, visual design and
+technology, with peer review beside them. This file remains the earlier
+proposal and the plan's topic entry; where the two disagree the redesign is
+newer. Its [architecture recommendation](#architecture-recommendation) in
+particular is superseded by the owner's decisions on
+[script, design system, rendering and colour scheme](../../docs/decisions.md#settled).
+
 ## Proposal
 
 Status: implementation authorized and in progress; [completed slices](DONE.md#done--mvp) do not close the remaining [acceptance work](TODO.md#web-redesign). Replace the collection of administrative forms with one coherent interface for finding services, understanding delivery, and managing access. Keep Go rendering, make existing information discoverable, and fix misleading states before adding more telemetry. The owner should be able to recognise a session, identify a stalled inbox, and understand the consequence of an administrative action without interpreting API terminology.
