@@ -124,6 +124,29 @@ does not simplify the pub/sub case at all. What it buys instead is that
 subscribed under several routed names cannot be handed several copies of one
 message in one inbox with no way to tell which subscription matched.
 
+#### Routing is invisible to the sender, on every path
+
+**Owner-settled, 2026-09-16.** Whatever becomes of a message sent to
+`scaler@h` — served, refused, expired, answered with an error — what comes back
+names `scaler@h` and nothing else. The sender is not told that a route exists,
+where it points, or that something other than the name it addressed did the
+work. This is the rule the reply and error paths below are instances of, not a
+summary of them.
+
+Two boundaries, because *invisible* cannot mean invisible to everyone:
+
+| | |
+|---|---|
+| **The reader sees it by construction** | `orig-to` is the dispatch key. A runner that could not see which name a message was for could not serve it. The promise is to the **sender** |
+| **The record carries it** | `route` is a field of the record, and whoever may read the record reads it ([ACL](../../docs/01-identity.md#acl)). *Where is this served* is answered there — to people with standing, rather than to anyone who can send |
+
+**What cannot be hidden is shared fate**, and this does not pretend otherwise. A
+routed name lives in somebody else's queue and is subject to that queue's bound
+and retention ([the queue that holds it](#the-rules-that-follow-from-it)), so a
+sender can be refused for `scaler@h` because of traffic to names it has never
+heard of. Nothing *says* so, and a sender watching closely enough infers it.
+The rule governs **what the daemon states**, not whether routing leaves a trace.
+
 #### A route may only name a queue you could send to
 
 **Owner-settled, 2026-09-16.** Without it, `route` is an ACL bypass with extra
@@ -160,7 +183,7 @@ Still **derived here rather than stated by the owner**, so they can be refused:
 | **The addressed record's ACL is what admits the message** | The sender asked for `scaler@h` and passes `scaler@h`'s ACL. The route target's ACL governs who may *route to* it, which is a different question asked of a different principal at a different time |
 | **Routes do not chain** | One hop. If the target is itself routed, delivery stops at the target rather than following the second route — otherwise a cycle is an unbounded loop, and a two-hop route is a thing nobody asked for that arrives free with the wrong rule |
 | **The queue that holds it is the queue whose policy applies** | Bound, overflow and retention are the route target's, because that is the queue the message physically sits in. The addressed record's own queue settings describe a queue nothing is delivered to |
-| **A routed record's liveness is the target's** | A routed name has no reader and no queue of its own, so reporting its own would say *no reader waiting, nothing queued* forever, about a service that is being served normally. Either it reports the target's or it says the question does not apply to it — what it must not do is answer with a measurement of an empty queue nobody uses ([declared and observed are never merged](../MVP/web/data-dictionary.md#the-rule)) |
+| **A routed record's liveness is the target's** | A routed name has no reader and no queue of its own, so reporting its own would say *no reader waiting, nothing queued* forever, about a service that is being served normally. Either it reports the target's or it says the question does not apply to it — what it must not do is answer with a measurement of an empty queue nobody uses ([declared and observed are never merged](../MVP/web/data-dictionary.md#the-rule)). Whichever it is, this is a **record-side** answer given to somebody who may already read `route`, so it is outside the sender promise |
 
 #### A route changes after registration
 
@@ -250,14 +273,18 @@ is the sender's to arrange by retrying, not the queue's to fake by holding.
 By [reply identity](#a-reply-comes-from-the-name-that-was-addressed), that error
 comes **from the name the sender addressed** — `scaler@h`, not the runner. The
 sender learns its message failed; it does not learn where the name was being
-served, or that it was routed at all.
+served, or that it was routed at all. **A failure is a path like any other**,
+and it is the path where naming the target would be most tempting and most
+wrong: a diagnostic that leaks the deployment to whoever can provoke an error
+is a worse leak than one that leaks it to whoever can succeed.
 
 #### A reply comes from the name that was addressed
 
 **Owner-settled, 2026-09-16: the reply's `from` is the addressed name.** A
-sender that wrote to `scaler@h` is answered by `scaler@h`, and whether that
-name is routed anywhere is not the sender's business. Routing is a deployment
-arrangement, and a caller should not have to learn it to correlate an answer.
+sender that wrote to `scaler@h` is answered by `scaler@h` — the reply path's
+instance of [invisible to the sender](#routing-is-invisible-to-the-sender-on-every-path).
+Routing is a deployment arrangement, and a caller should not have to learn it
+to correlate an answer.
 
 This grants the runner nothing new. It already holds the child's credential in
 order to start it ([what the child is told](#what-the-child-is-told)), and it
@@ -268,9 +295,9 @@ being an impersonation primitive.
 
 Stated rather than glossed: the `from` is then **the name the work was for, not
 the process that did it**. Anyone who needs to know which target served a
-message is asking a question the reply does not answer, and the honest place
-for that is the registry — the record's `route` says where it is served, and it
-says so to anyone allowed to look at the record.
+message is asking a question the reply does not answer, and is asking it in the
+wrong place — the record's `route` answers it, to anyone allowed to look at the
+record.
 
 ### Long-lived services
 
