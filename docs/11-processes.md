@@ -91,6 +91,20 @@ daemon credentials, snapshots or SSH authorization, or use mapped account
 sockets to acquire authority independently of its visitor. Normal calls use
 the shared listener and the visitor's credential or browser session.
 
+**The panel acts on the visitor's token, and on nothing else.** Owner-settled,
+2026-09-16. Every call a signed-in person causes is made with that person's
+credential, so what the dashboard can do is exactly what that person could do
+from the CLI. It is a face, not an authority.
+
+Three things follow. The first two are restatements of the boundary above; the
+third is derived here:
+
+| | |
+|---|---|
+| **No privileged fallback** | a call refused for the visitor is refused. The panel does not retry as anybody else, because it is started without a credential of its own ([how a child is started](#how-a-child-is-started)) and there is nobody else for it to be |
+| **Nothing outlives the session** | authority arrives with the request and leaves with it. The session lives in the bus, not the child ([signing in](05-discovery.md#signing-in)), so a panel that is not serving a signed-in request is holding no authority at all |
+| **Authority is rendered, not computed** | the daemon already answers per caller — a record comes back saying whether *this* caller may manage or transfer it ([ACL](01-identity.md#acl)). The panel shows what it was told rather than working it out. A face that derives permissions itself is a second implementation of the access rules, and two implementations disagree; the disagreement that matters is the one where the page offers an action the daemon will refuse |
+
 Passing only the shared socket to the child is application wiring, not OS
 confinement. The current shared service account leaves other paths accessible;
 the [installed review](../Plans/MVP/done/release-gap-review.md#findings)
