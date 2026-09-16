@@ -228,7 +228,10 @@ records the implemented checks; installed browser acceptance remains separate.
 A bus that is quiet and one that is refusing every call look identical from
 outside. `status` carries **how many calls were turned away and for what**,
 counted where a refusal becomes a status code so that the reason and the code
-cannot drift apart.
+cannot drift apart. **Partial:** a refusal decided before that point is answered
+and not counted, so the figures are recorded counts rather than every refusal.
+[H.5.10](../Plans/MVP/TODO.md#remaining-work) closes it; until it lands the faces
+say so.
 
 | Reason | | |
 |---|---|---|

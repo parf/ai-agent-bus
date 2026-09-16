@@ -57,24 +57,30 @@ number carries the claim the fixture makes the numbers unequal.
 | a face-computed count / a daemon-reported one | `TestFaceComputedCountsAreMarkedAsTheFacesOwn` |
 | ordinary, maintainer and owner on one fixture | `TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner` |
 
-Twenty-three mutations, each caught by its named check: merge the two other identity
-kinds into one word; label them "Unclassified"; drop *by this page* from the
-directory counts; offer every caller Manage; offer none; merge the two delivery
-modes; state a mode for a record that declares none; blank the backlog table's
-reader column; count a filtered waiter as a reader; drop the empty directory
-section instead of saying it is empty; rename the registry's four columns; and
-render a queue at its bound as "full" rather than as what was observed; label
-every row in the listing Enabled; zero every refusal count; show neither declared
-bound nor declared TTL; render an absent oldest as 0; swap accepted and dequeued;
-drop *at capacity* from the listing and the detail page only; call a filtered
-reader nobody; and drop the note saying which readers the column leaves out; say a filtered read
-will not take a message; present the delivery setting as availability; and drop
-the warning that the refusal count is a floor.
+Twenty-six mutations, each caught by its named check. On the directory: merge
+the two other identity kinds into one word; label them *Unclassified*; drop *by
+this page* from the counts; drop the empty section instead of saying it is
+empty. On authority: offer every caller Manage; offer none. On delivery: merge
+the two modes; state a mode for a record that declares none; label every row in
+the listing Enabled; present the setting as availability on the detail page;
+claim availability in the listing's legend. On the reader bit: blank the backlog
+table's reader column; count a filtered waiter as a reader; call a filtered
+reader nobody; drop the note saying which reads the column leaves out; say a
+filtered read will not take a message; remove the send from `deliver` while
+still dropping the waiter. On queues and counters: rename the registry's four
+columns; swap accepted and dequeued; show neither declared bound nor declared
+TTL; render an absent oldest as `0`; render a queue at its bound as *full*; drop
+*at capacity* from the listing and the detail page only. On refusals: zero every
+count; drop the warning that the counts are partial; stop naming which refusals
+the warning is about.
 
-Six of them were found by codex, running mutations against this tree that my
-own set had missed, and three more came out of correcting what those fixes then
-claimed. The registry pair was found by a mutation that **survived**. `reader` and `held now`
-also head columns of the backlog table directly above the registry, so a
+Nine of them were found by codex and opencode, running mutations and sweeps
+against this tree that my own set had missed, and five more came out of
+correcting what those fixes then claimed — twice over, on the reader bit, where
+the first correction replaced one false sentence with another.
+
+The registry pair was found by a mutation that **survived**. `reader` and `held
+now` also head columns of the backlog table directly above the registry, so a
 page-wide match for them was satisfied by a registry with no headings at all —
 the same hollow shape as the legend above. Claims about one of several stacked
 tables are now read out of that table.
@@ -90,5 +96,7 @@ tables are now read out of that table.
 | delivery is not a declaration | `visible` answers the stored bit OR the name having stopped being active (core/manage.go), so the detail page states it under its own heading rather than under what the record declares |
 | the reader bit excludes a read restricted to a topic or tag | the label said *no reader waiting*, which is false while such a reader is attached — and the first correction said it "will not take the next message", which `deliver` disproves by serving a matching one of those first. The cell now says **no unfiltered reader** on every face, each stating which reads it leaves out. Whether to report them as a fact of their own stays [Q70](../QUESTIONS.md) |
 | Enabled is not availability | `visible` merges the stored bit with the name being inactive, but a suspended *owner* is checked at `Send` — so a record reads Enabled while every send to it is refused. The page calls it the delivery *setting* and says it does not establish that a send would be accepted |
-| not every refusal is counted | a call turned away while the request is being read never reaches the counter, so the page says the count is a floor rather than a census, and the daemon fix is tracked as H.5.7 |
+| not every refusal is counted | a refusal decided before the shared path that maps an error to a code is answered and counted nowhere — an unparseable body, an invalid name in a token request, a lookup of a name the daemon does not hold, a consume on a missing topic. The page says these are recorded counts rather than all refusals, [the contract says so too](../../../docs/05-discovery.md#refusals), and the daemon fix is H.5.10 |
+| a waiter leaving the list is not a message arriving | the first version of the filtered-read proof asserted only that the waiting count fell, which a daemon that dropped the message would satisfy too — codex overlaid exactly that and it passed. The reader helper now returns what `ConsumeAs` received, and the check reads the body |
+| the listing's legend kept the withdrawn claim | the detail page stopped saying a record *takes delivery now* and its sibling three hundred lines away did not, with no check banning it there. Found by opencode, and it is the same shape as the CLI row below: one surface corrected, its sibling left behind |
 | the CLI contradicted the dashboard about the same bit | `ab ls` rendered a protocol hint *ahead* of the reader observation, so an external record with a reader attached showed `-`. The observation now comes first, and the table carries a legend saying what the column counts |

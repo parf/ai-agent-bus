@@ -327,9 +327,11 @@ var serviceList = template.Must(template.New("services").Parse(shell("services",
 <h1>{{if .Channels}}Registered channels{{else}}Registered services{{end}}</h1>
 <form method=get><label>Scope <select name=scope><option value=all>All visible</option><option value=my {{if eq .Mine "my"}}selected{{end}}>My</option></select></label>
 <label>Delivery <select name=state><option value=all>All</option><option value=active {{if eq .State "active"}}selected{{end}}>Enabled</option><option value=inactive {{if eq .State "inactive"}}selected{{end}}>Disabled</option></select></label> <button>Filter</button></form>
-<p class=muted>Three separate facts, and none of them is health: whether the
- record takes delivery now, what the daemon <em>observed</em> about a read on its
- inbox, and whether the caller said it is reached some other way. None of it is
+<p class=muted>Three separate facts, and none of them is health: the record&rsquo;s
+ delivery setting, what the daemon <em>observed</em> about a read on its inbox,
+ and whether the caller said it is reached some other way. <em>Enabled</em> does
+ not establish that a send will be accepted — the owner&rsquo;s access and the
+ allow list are checked as well. None of it is
  health: the daemon does not observe whether a process is alive, so this page does
  not say it. <em>Reader</em> counts a read that accepts any message. A read
  restricted to a topic or tag is not represented here at all: it is attached, and

@@ -43,11 +43,13 @@ type view struct {
 // that started a second ago is a burst, and a single message nobody has taken
 // for an hour is the outage.
 //
-// Every backlog here is one nobody is reading, which is not a filter but a
-// property of the daemon: an unfiltered reader is handed a message as it
-// arrives, so a queue only grows when there is nobody on the other end
-// (docs/04-messaging.md#one-reader-per-inbox). The reader column says so
-// rather than being taken on trust.
+// Every backlog here is one no unfiltered read is outstanding on, which is not
+// a filter but a property of the daemon: such a reader is handed a message as
+// it arrives, so a queue grows only while none is waiting
+// (docs/04-messaging.md#one-reader-per-inbox). That is not the same as nobody
+// being on the other end — a read restricted to a topic or tag is attached
+// while everything that does not match it queues up. The reader column says
+// which of the two it means rather than being taken on trust.
 // See docs/05-discovery.md#what-it-shows.
 func stuck(rs []protocol.Record) []protocol.Record {
 	out := make([]protocol.Record, 0, len(rs))

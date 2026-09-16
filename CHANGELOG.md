@@ -14,7 +14,9 @@ topic is no longer described as having no reader at all — on the dashboard, in
 the CLI listing and in the MCP catalogue, which had all said it and which the CLI
 also let a protocol hint hide entirely. A queue holding messages is no longer
 called stuck, an enabled record no longer implies a send would be accepted, and
-the refusal counters say they are a floor rather than a census.
+the refusal counters say they are recorded counts rather than all refusals,
+naming the paths that are missing — the contract says so too, and H.5.10 closes
+it.
 
 ## 0.5.35 — 2026-09-16
 

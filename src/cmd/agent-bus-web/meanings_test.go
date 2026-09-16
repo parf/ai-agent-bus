@@ -133,7 +133,7 @@ func (m *meanings) shapes() {
 
 // A reader that is actually blocked, so "reader attached" is an observation
 // rather than a fixture field. Returns once the daemon reports the wait.
-func (m *meanings) attachReader(name string, topic ...string) {
+func (m *meanings) attachReader(name string, topic ...string) <-chan protocol.Envelope {
 	m.t.Helper()
 	// An optional topic filter, for the one shape a plain reader cannot hold
 	// still for: a reader attached to an inbox that also has a backlog. Asked
@@ -145,7 +145,16 @@ func (m *meanings) attachReader(name string, topic ...string) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	m.t.Cleanup(cancel)
-	go m.bus.ConsumeAs(ctx, name, name, want, "", want != "", false)
+	// The result is kept, not discarded: a waiter leaving the list is not the
+	// same event as a message reaching it, and a check on the count alone
+	// passes against a daemon that drops the message on the floor.
+	got := make(chan protocol.Envelope, 1)
+	go func() {
+		e, err := m.bus.ConsumeAs(ctx, name, name, want, "", want != "", false)
+		if err == nil {
+			got <- e
+		}
+	}()
 	deadline := time.Now().Add(3 * time.Second)
 	for m.bus.Status().Waiting == 0 {
 		if time.Now().After(deadline) {
@@ -153,6 +162,7 @@ func (m *meanings) attachReader(name string, topic ...string) {
 		}
 		time.Sleep(time.Millisecond)
 	}
+	return got
 }
 
 // Disabled says delivery is off and does not say why. "Inactive" reads as
@@ -405,7 +415,7 @@ func TestEverySupportedRefusalReasonIsDrawnIncludingItsZero(t *testing.T) {
 		}
 	}
 	if after := m.bus.Status().Refused["unknown"]; after != before {
-		t.Fatalf("a lookup refusal reached the counter (%d to %d); H.5.7 may be done and this caveat stale", before, after)
+		t.Fatalf("a lookup refusal reached the counter (%d to %d); H.5.10 may be done and this caveat stale", before, after)
 	}
 	body := m.get("/")
 	reasons := api.Reasons()
@@ -428,10 +438,15 @@ func TestEverySupportedRefusalReasonIsDrawnIncludingItsZero(t *testing.T) {
 	}
 	// And the page says what the count does not cover, because it does not
 	// cover everything: a refusal decided while reading the request never
-	// reaches the counter (H.5.7). A page presenting this as a census would
+	// reaches the counter (H.5.10). A page presenting this as a census would
 	// be making exactly the claim this whole layer exists to stop.
-	if !strings.Contains(body, "floor rather than a census") {
+	if !strings.Contains(body, "recorded counts, not all refusals") {
 		t.Error("the page presents an incomplete counter as every refusal")
+	}
+	// Named, so the caveat tells an operator which answers are missing rather
+	// than leaving them to distrust the whole table.
+	if !strings.Contains(body, "lookup of a name the daemon does not hold") {
+		t.Error("the page does not say which refusals are missing")
 	}
 	if !strings.Contains(body, "closed") || !strings.Contains(body, "measurement") {
 		t.Error("the page does not say a zero here is measured")
@@ -748,7 +763,7 @@ func TestTheReaderColumnSaysWhichReadsItCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.attachReader("reading@h")
-	// The diagnostics page lists a queue nobody will drain, and says so.
+	// The diagnostics page lists a queue with no unfiltered read on it.
 	body := m.get("/")
 	if !strings.Contains(m.row(body, "quiet@h"), "no unfiltered reader") {
 		t.Errorf("a backlog with no unfiltered read on it does not say so: %s", m.row(body, "quiet@h"))
@@ -768,7 +783,7 @@ func TestTheReaderColumnSaysWhichReadsItCounts(t *testing.T) {
 	if _, err := n.bus.Send(protocol.Envelope{From: "admin@h", To: "reading@h", Body: "held"}); err != nil {
 		t.Fatal(err)
 	}
-	n.attachReader("reading@h", "other")
+	taken := n.attachReader("reading@h", "other")
 	row := n.row(n.get("/"), "reading@h")
 	if !strings.Contains(row, "no unfiltered reader") {
 		t.Errorf("a read restricted to a topic is counted in a bit that excludes it: %s", row)
@@ -788,13 +803,20 @@ func TestTheReaderColumnSaysWhichReadsItCounts(t *testing.T) {
 			t.Errorf("%s says a filtered read will not take a message, which deliver disproves", page)
 		}
 	}
-	// The proof, on the fixture: the excluded reader takes the next message
-	// that matches it, while the page reports no unfiltered reader.
-	if _, err := n.bus.Send(protocol.Envelope{From: "admin@h", To: "reading@h", Topic: "other", Body: "matches"}); err != nil {
+	// The proof, on the fixture: the excluded reader receives the message that
+	// matches it, while the page reports no unfiltered reader. Receipt, not
+	// the waiter count — the count falls when the waiter is removed, which a
+	// daemon that removed it and sent nothing would also do.
+	if _, err := n.bus.Send(protocol.Envelope{From: "admin@h", To: "reading@h", Topic: "other", Body: "only this body"}); err != nil {
 		t.Fatal(err)
 	}
-	if n.bus.Status().Waiting != 0 {
-		t.Error("the excluded reader did not take a message addressed to its topic")
+	select {
+	case e := <-taken:
+		if e.Body != "only this body" {
+			t.Errorf("the excluded reader received something else: %q", e.Body)
+		}
+	case <-time.After(3 * time.Second):
+		t.Error("the excluded reader never received the message addressed to its topic")
 	}
 }
 
@@ -842,17 +864,25 @@ func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "svc@h", Body: "x"}); err == nil {
 		t.Fatal("the fixture's send was accepted, so there is nothing to misreport")
 	}
-	body := m.get("/service?name=svc@h")
-	if !strings.Contains(body, "Delivery: <strong>Enabled</strong>") {
+	if !strings.Contains(m.get("/service?name=svc@h"), "Delivery: <strong>Enabled</strong>") {
 		t.Fatal("the fixture no longer produces an enabled record whose sends are refused")
 	}
-	if strings.Contains(body, "takes delivery now") {
-		t.Error("the page says the record takes delivery now, which this send disproves")
+	if !strings.Contains(m.row(m.get("/services"), "svc@h"), "<td>Enabled") {
+		t.Fatal("the listing no longer shows the record as enabled")
 	}
-	if !strings.Contains(body, "does not establish that a send will be accepted") {
-		t.Error("the page presents the delivery setting as an answer about the next send")
-	}
-	if !strings.Contains(body, "owner") {
-		t.Error("the page does not name the owner's access as one of the other checks")
+	// On both pages. Correcting the detail page and leaving the listing's
+	// legend saying the withdrawn thing is the same shape as correcting one
+	// face and leaving its sibling behind.
+	for _, page := range []string{"/service?name=svc@h", "/services"} {
+		body := m.get(page)
+		if strings.Contains(body, "takes delivery now") {
+			t.Errorf("%s says the record takes delivery now, which this send disproves", page)
+		}
+		if !strings.Contains(body, "does not establish that a send will be accepted") {
+			t.Errorf("%s presents the delivery setting as an answer about the next send", page)
+		}
+		if !strings.Contains(body, "owner") {
+			t.Errorf("%s does not name the owner's access as one of the other checks", page)
+		}
 	}
 }

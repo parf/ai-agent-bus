@@ -423,7 +423,7 @@ var anon = template.Must(template.New("anon").Parse(head + `<title>Sign in · ag
 
 // page is the signed-in view, refreshed by the browser. Seven sections in the
 // order an incident wants them: what the node is doing and who it is turning
-// away, then the backlogs nobody is reading, then the traffic, and the registry
+// away, then the inboxes holding messages, then the traffic, and the registry
 // and the credentials last. Every one of them is what the bus answered **this
 // caller** (docs/05-discovery.md#what-it-shows).
 // The page no longer refreshes itself. A reader has to be able to stop moving
@@ -446,10 +446,9 @@ var page = template.Must(template.New("dash").Parse(shell("diagnostics", "Diagno
 <p class=muted>The reason set is closed, so a <code>0</code> here is a measurement
  and not a gap. Counted since this daemon started; how fast it is rising is not
  something this page can say.</p>
-<p class=warn>Not every refusal reaches these counters. A call the daemon turns
- away while reading the request — an unparseable body, a malformed name, a lookup
- of a name it does not know — is answered and not counted, so a count here is a
- floor rather than a census.</p>
+<p class=warn>Some refusals are not counted yet, among them unparseable JSON, an
+ invalid name in a token request, and a lookup of a name the daemon does not
+ hold. These are recorded counts, not all refusals.</p>
 
 <h2 id=stuck>inboxes holding messages</h2>
 <table><caption>Inboxes holding messages, longest wait first — visible to you</caption>

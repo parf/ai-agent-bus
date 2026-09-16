@@ -177,7 +177,10 @@ from whichever peer still holds it. A retired one is a record, and syncs like
 any other.
 
 Nothing here is open. Scheduling the `429` change to a built behaviour, and
-telling a caller that nobody is reading, are [TODO](TODO.md#objective) work.
+telling a caller that no read is waiting for its message, are
+[TODO](TODO.md#objective) work. Not *nobody is reading*: `reading` excludes a
+read restricted to a topic or tag, which is attached and takes what matches it,
+so MVP withdrew that phrase from every face.
 
 ## How long a record lives
 
