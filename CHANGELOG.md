@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.30 — 2026-09-15
+
+Diagnostics keeps message IDs and receipt references, correlates receipts against the full return route, and labels ordinary response matches as possibilities. Retained-history limits, missing evidence and narrow-screen layouts stay explicit; unused credentials are shown without guessing their origin.
+
 ## 0.5.29 — 2026-09-15
 
 An unregistered name can do nothing. A name the daemon holds no profile and no record for was reading as an active user; it is now refused `401` on every call, counted as a credential refusal rather than as a suspension, and it is not issued a credential in the first place — the operation that left this node holding 231 credentials answering for nothing. Registering a record for an owner the daemon does not know is refused, and so is removing a record while its name still owns others, so an ordinary call can no longer leave a service owned by nobody. An unowned registration now means self-owned. Configuring a name that does not exist creates it, so it now obeys what creating obeys: a name in a realm somebody vouches for could be claimed by configuring it rather than registering it, and then issued a credential with no key proved. Issuing decides and mints under one hold, so a name cannot stop existing in between.

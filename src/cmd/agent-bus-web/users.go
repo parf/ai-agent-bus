@@ -219,7 +219,7 @@ var personPage = template.Must(template.New("person").Parse(shell("users", "Iden
 <p>This is not a registered user. No user lifecycle state has been assigned.</p>
 {{if eq .User.Kind "record"}}<p>A self-owned record exists. <a href="/service?name={{.User.Name}}">Inspect its registration and queues</a> before removing the record.</p>
 {{else if .User.Services}}<p>This name owns services but has no user profile or record of its own. Resolve the services below first; credential removal is held until orphan-service cleanup is available.</p>
-{{else}}<p>No user profile, registered record or owned service remains for this name. A newly issued credential may also be waiting for registration; check that it is no longer needed before removing it.</p>{{end}}
+{{else}}<p>No user profile, registered record or owned service remains for this name. Review and remove the unused credential.</p>{{end}}
 {{if .User.CanRemove}}<h2>Remove unused credential</h2><p>Removal ends access through this name’s current token, previous token and browser sessions. It does not delete a user or service. If the name becomes registered before submission, removal will be refused.</p>
 <form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=remove-credential style="max-width:100%;overflow-wrap:anywhere">Remove credential for {{.User.Name}}</button></form>{{end}}
 {{else}}

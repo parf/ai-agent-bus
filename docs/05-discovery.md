@@ -192,12 +192,36 @@ sessions with its token.
 | the sign-in page and the token help | Built | — |
 | **registry**, as this caller may see it: kind, owner, protocol, description, `reading`/`queued`/`in`/`out`, when the record was last written, the configuration's digest | Built | — it is `/ls` |
 | **stuck inboxes** — a backlog with nobody reading, oldest first, marked when the queue is at its bound. The one view an incident actually needs | Built | — `oldest` and `reading` on the record ([what a listing answers](#what-a-listing-answers)) |
-| **exchanges** — the envelope feed grouped by topic and tag, so a request, its `ack`, its reply and its `done` are one row, and an answer past its deadline is marked late | Built | — the feed is filtered per caller ([dashboard](#dashboard)); grouping and the late mark are the page's |
+| **exchanges** — retained messages and referenced receipt evidence | Built | [correlation and limits](#retained-exchanges) |
 | **my names** — what I hold a credential for, whose it is and what it is for, its fingerprint, when it was issued and last used, and how to rotate it | Built | — the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)). A person's own identity is distinguished from the services they registered. A credential [goes with its address](01-identity.md#unregistering), so the list stays names something answers on |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | Built | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | Built | The built page shows only refusal reasons that occurred; counters are on `status` ([refusals](#refusals)) |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | Built | — `status` carries the unclean-restart fact |
 | **people** — identities, profiles, local avatars, authority, state, group membership and owned services | Built | [person records](01-identity.md#person-records) and [user lifecycle](01-identity.md#user-lifecycle) |
+
+### Retained exchanges
+
+**Built.** Diagnostics preserves each message's identity, routing labels and
+receipt references within the caller's [visible feed](#dashboard). A bounded
+history is an observation window: absent evidence does not establish failure
+or unfinished work, and a failed load is shown separately from an empty feed.
+
+| Evidence | Presentation |
+|---|---|
+| Receipt references one retained ordinary message, matches its receiver and full return route, and was observed no earlier | Group with that message; expose the receipt's identity, reference, sender and time |
+| Missing, ambiguous or inconsistent reference; reference to another receipt | Keep the receipt separate and explain what prevents correlation |
+| Ordinary message with a tag matches an earlier message's return route | Keep a separate row and link possible responses; a route match proves neither a reply nor completion |
+| Acknowledgement or completion receipt is grouped with the original | Report that receipt as observed; do not infer execution success from a dequeue or ordinary message |
+| Grouped receipt arrives after the original's deadline | Mark it after that request's deadline; equality is not late |
+| Ordinary message has exactly one possible response match with a deadline | Qualify the late mark by that match; ambiguous matches supply no single deadline |
+
+Return-route overrides replace the original destination and labels for these
+comparisons. Receipts from topic subscribers or queue workers stay separate
+when their identity differs from the addressed topic; untagged ordinary
+messages get no inferred response links. Rows sort by newest observed activity,
+with message identity breaking ties; displayed times include their UTC offset.
+Bodies never enter this view. [MVP verification](../Plans/MVP/done/exchange-evidence.md#checks)
+records the implemented checks; installed browser acceptance remains separate.
 
 ### Refusals
 

@@ -6,6 +6,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Retained exchange correlation preserves references and qualifies inferred responses | [retained exchanges](05-discovery.md#retained-exchanges) | 2026-09-15 authorized web implementation; F.13.5 partial |
 | A full queue answers `429`, not `503` | [overflow](04-messaging.md#overflow) | 2026-09-15 owner instruction; `503` is left to a service that is briefly unavailable |
 | Dashboard is a loopback address, not a borrowed hostname | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction; the name's certificate had expired |
 | The API root's redirect to the dashboard is permanent | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction |

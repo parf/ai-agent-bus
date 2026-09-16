@@ -60,3 +60,12 @@ Isolated repository verification on `2471421` plus this slice: `src/smoke.sh
 The coordinated release still needs a combined run after the concurrent access
 change lands, followed by installed verification. The disposable preview was
 stopped and removed before the suite; it is not a shipped test or live data.
+
+## Combined checkout verification
+
+After access revision `08c128f`, a frozen checkout plus the `.30` release
+metadata and factual unused-credential wording passed the full slow smoke:
+**543 passed, 0 failed**, including vet, race and all MCP/launcher sections.
+The exchange implementation was unchanged from the isolated evidence above.
+Log: `tmp/q57-review/web30-combined.log`. This verifies the combined checkout,
+not deployment or closure of the [access audit findings](access-review.md#findings).

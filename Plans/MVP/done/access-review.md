@@ -20,6 +20,7 @@ The [access contract](../../../docs/02-access.md#what-a-call-carries) and
 | A removed caller could recreate itself | Same interleaving, targeting its own name through both registration and configuration | Reproduced after the first configuration fix; general self-creation exception remained reachable without enrolment |
 | Token existence check and mint were separate | `Known` released the registry lock before `Issue`; removal can fit between them | Source interleaving, not a stress-test reproduction; handed to Claude for atomic issuance |
 | Issuance authority can change after its check | Ownership lookup preceded the proposed locked issuance helper | Follow-up review: the locked decision must include caller authority, not only target existence |
+| Web on a mapped backend accepts a bogus credential | A nonempty fake sign-in token minted the mapped owner's browser session; shared-backend control refused it | Reproduced only under incorrect backend configuration; the supervisor supplies the shared socket. Existing empty-token check misses this case |
 | SSH key provisioning does not create a bus user | Admin `user add` writes the key entry; strict token issuance requires an existing name | Recorded as H.5.9; generated-key checks do not prove fresh-user onboarding |
 | Paused/banned owners' service credentials need propagation | Authentication checks the service name's state, without the owner's state | Existing H.5.7 requirement remains pending; no new policy question |
 
@@ -57,3 +58,13 @@ The immutable snapshot is `tmp/qwt`. Its source was not edited during any
 smoke invocation. Production data was untouched and no release was installed
 by this review. Later combined verification and deployment need their own
 record; the isolated result above does not certify them.
+
+## Follow-up at the web release checkpoint
+
+`08c128f` includes the common protected-realm creation check, target existence
+held through credential issuance, and the route-coverage test. The broader
+operation-time authority problem remains H.5.8: self-recreation, ownership
+changes before token issuance and unregister/credential-removal ordering were
+not declared fixed by this review. Production was still on the earlier release;
+the [combined web check](exchange-evidence.md#combined-checkout-verification)
+is source verification only.
