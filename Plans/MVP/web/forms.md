@@ -100,6 +100,10 @@ the world moved between the question and the answer.
 | Change state | User | the applicable transitions only | the identity section; **confirm** for ban |
 | Remove a credential | User, non-user identity | — | **confirm**, then the directory |
 
+The current Service/Channel Delivery filters and User kind filter use links,
+and Service Kind and Channel delivery mode use radios, as of 0.5.64. Other
+small-choice conversions remain scoped to the page that owns them.
+
 **Configuration stays on channels.** The draft gave Replace configuration to
 Service only; the shared detail template already offers it on any managed record
 including channels (admin.go:354), so restricting it here would have removed a

@@ -143,6 +143,26 @@ what the daemon permits. “All” means all visible to that visitor.
 
 The [Personal Services view](03-services-and-topics.md#personal-and-shared) is built.
 
+### Section navigation and registration
+
+**Built in 0.5.64.** Services shows caller-visible **All**, **My** and
+**Personal** category counts before the delivery filter; Channels shows its
+caller-visible total. Users and Groups show their visible directory totals.
+These are counts computed from the page's existing daemon answers, not
+node-wide metrics and not additional reads.
+
+Registration opens dedicated `/services/new`, `/channels/new`, `/users/new`
+and `/groups/new` pages from the matching section navigation. User and Group
+entries appear only when the daemon says the visitor is an Administrator;
+the routes repeat that authority check. The old empty `/user` registration URL
+continues to work.
+
+Two- and three-value URL filters are visible links whose active state and plain
+values remain in the URL. Two-value creation choices are labelled radio
+buttons. An owned Service or Channel row says **Yours**; **Edit** follows the
+daemon's returned management capability independently, so an assigned
+Maintainer may edit without being labelled as owner.
+
 [Administrative and record authority](01-identity-and-roles.md#groups) applies
 to every control and to direct API calls. Membership and policy changes must
 survive restart. User lifecycle effects are [daemon policy](01-identity-and-roles.md#user-states),

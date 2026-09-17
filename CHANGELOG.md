@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.64 — 2026-09-17
+
+Add counted section navigation and dedicated registration pages for Services,
+Channels, Users and Groups. Show small stable choices directly and mark owned
+records separately from daemon-authorized Edit actions.
+
 ## 0.5.63 — 2026-09-17
 
 Move service and channel configuration replacement, ownership transfer and

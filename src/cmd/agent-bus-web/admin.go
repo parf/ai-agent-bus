@@ -130,6 +130,40 @@ type adminView struct {
 	Owners        []string
 	Channels      bool
 	PersonalPage  bool
+	SectionLinks  []viewLink
+	FilterLinks   []viewLink
+}
+
+type viewLink struct {
+	Href, Label string
+	Count       int
+	Counted     bool
+	Current     bool
+}
+
+func pageURL(path string, q url.Values) string {
+	if encoded := q.Encode(); encoded != "" {
+		return path + "?" + encoded
+	}
+	return path
+}
+
+func cloneValues(in url.Values) url.Values {
+	out := make(url.Values, len(in))
+	for key, values := range in {
+		out[key] = append([]string(nil), values...)
+	}
+	return out
+}
+
+func queryWith(path string, in url.Values, key, value string) string {
+	q := cloneValues(in)
+	if value == "" {
+		q.Del(key)
+	} else {
+		q.Set(key, value)
+	}
+	return pageURL(path, q)
 }
 
 type serviceConfirmation struct {
@@ -225,6 +259,12 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			return
 		}
 		v.Mine, v.State = r.URL.Query().Get("scope"), r.URL.Query().Get("state")
+		if v.Mine != "my" {
+			v.Mine = ""
+		}
+		if v.State != "active" && v.State != "inactive" {
+			v.State = ""
+		}
 		v.Channels, v.PersonalPage = r.URL.Path == "/channels", r.URL.Path == "/personal"
 		switch {
 		case v.Channels:
@@ -254,7 +294,21 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			}
 		}
 		owners := map[string]bool{}
+		allServices, myServices, personalServices, allChannels := 0, 0, 0, 0
 		for _, record := range records {
+			switch {
+			case record.Kind == protocol.KindTopic:
+				allChannels++
+			case record.Personal:
+				if v.DaemonOwner || record.Owner == v.You {
+					personalServices++
+				}
+			default:
+				allServices++
+				if record.Owner == v.You {
+					myServices++
+				}
+			}
 			if v.PersonalPage {
 				if record.Kind == protocol.KindTopic || !record.Personal {
 					continue
@@ -274,6 +328,41 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			}
 			v.Records = append(v.Records, record)
 		}
+		stateQuery := url.Values{}
+		if v.State != "" {
+			stateQuery.Set("state", v.State)
+		}
+		if v.Channels {
+			v.SectionLinks = []viewLink{
+				{Href: pageURL("/channels", stateQuery), Label: "All channels", Count: allChannels, Counted: true, Current: true},
+				{Href: "/channels/new", Label: "Register channel"},
+			}
+		} else {
+			allQuery, myQuery, personalQuery := cloneValues(stateQuery), cloneValues(stateQuery), cloneValues(stateQuery)
+			myQuery.Set("scope", "my")
+			if v.PersonalPage && v.DaemonOwner && v.OwnerFilter != "" {
+				personalQuery.Set("owner", v.OwnerFilter)
+			}
+			v.SectionLinks = []viewLink{
+				{Href: pageURL("/services", allQuery), Label: "All", Count: allServices, Counted: true, Current: !v.PersonalPage && v.Mine == ""},
+				{Href: pageURL("/services", myQuery), Label: "My", Count: myServices, Counted: true, Current: !v.PersonalPage && v.Mine == "my"},
+				{Href: pageURL("/personal", personalQuery), Label: "Personal", Count: personalServices, Counted: true, Current: v.PersonalPage},
+				{Href: "/services/new", Label: "Register service"},
+			}
+		}
+		filterBase := url.Values{}
+		if v.Mine == "my" && !v.PersonalPage {
+			filterBase.Set("scope", "my")
+		}
+		if v.PersonalPage && v.DaemonOwner && v.OwnerFilter != "" {
+			filterBase.Set("owner", v.OwnerFilter)
+		}
+		filterPath := r.URL.Path
+		v.FilterLinks = []viewLink{
+			{Href: pageURL(filterPath, cloneValues(filterBase)), Label: "All", Current: v.State == ""},
+			{Href: queryWith(filterPath, filterBase, "state", "active"), Label: "Enabled", Current: v.State == "active"},
+			{Href: queryWith(filterPath, filterBase, "state", "inactive"), Label: "Disabled", Current: v.State == "inactive"},
+		}
 		for owner := range owners {
 			v.Owners = append(v.Owners, owner)
 		}
@@ -284,6 +373,22 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	mux.HandleFunc("GET /services", listing)
 	mux.HandleFunc("GET /channels", listing)
 	mux.HandleFunc("GET /personal", listing)
+	mux.HandleFunc("GET /services/new", func(w http.ResponseWriter, r *http.Request) {
+		v, ok := c.signedIn(w, r)
+		if !ok {
+			return
+		}
+		v.Current = "services"
+		render(w, serviceNew, v)
+	})
+	mux.HandleFunc("GET /channels/new", func(w http.ResponseWriter, r *http.Request) {
+		v, ok := c.signedIn(w, r)
+		if !ok {
+			return
+		}
+		v.Current, v.Channels = "channels", true
+		render(w, serviceNew, v)
+	})
 	mux.HandleFunc("GET /service", func(w http.ResponseWriter, r *http.Request) {
 		v, ok := c.signedIn(w, r)
 		if !ok {
@@ -321,7 +426,23 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			fail(w, r, v.You, err)
 			return
 		}
+		v.SectionLinks = []viewLink{{Href: "/groups", Label: "All groups", Count: len(v.Groups), Counted: true, Current: true}}
+		if v.Administrator {
+			v.SectionLinks = append(v.SectionLinks, viewLink{Href: "/groups/new", Label: "Register group"})
+		}
 		render(w, groupList, v)
+	})
+	mux.HandleFunc("GET /groups/new", func(w http.ResponseWriter, r *http.Request) {
+		v, ok := c.signedIn(w, r)
+		if !ok {
+			return
+		}
+		v.Current = "groups"
+		if !v.Administrator {
+			fail(w, r, v.You, &busError{code: http.StatusForbidden, message: "only a daemon Administrator can register a group"})
+			return
+		}
+		render(w, groupNew, v)
 	})
 	// The view goes through to the handler so a refused submission can be
 	// presented as the person who was refused, on the shell, rather than as a
@@ -520,8 +641,9 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 
 var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{"readerCount": readerCount, "entityLabel": entityLabel}).Parse(shell("records", "Registered services") + `
 <h1>{{if .Channels}}Registered channels{{else if .PersonalPage}}Personal services{{else}}Registered services{{end}}</h1>
-<form method=get>{{if .PersonalPage}}{{if .DaemonOwner}}<label>Owner <select name=owner><option value="">All visible owners</option>{{range .Owners}}<option {{if eq . $.OwnerFilter}}selected{{end}}>{{.}}</option>{{end}}</select></label>{{else}}<span>Owned by <code>{{.You}}</code></span>{{end}}{{else}}<label>Scope <select name=scope><option value=all>All visible</option><option value=my {{if eq .Mine "my"}}selected{{end}}>My</option></select></label>{{end}}
-<label>Delivery <select name=state><option value=all>All</option><option value=active {{if eq .State "active"}}selected{{end}}>Enabled</option><option value=inactive {{if eq .State "inactive"}}selected{{end}}>Disabled</option></select></label> <button>Filter</button></form>
+<nav class=section-nav aria-label="{{if .Channels}}Channel{{else}}Service{{end}} views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}{{if .Counted}} ({{.Count}}){{end}}</a>{{end}}</nav>
+{{if .PersonalPage}}{{if .DaemonOwner}}<form method=get><label>Owner <select name=owner><option value="">All visible owners</option>{{range .Owners}}<option {{if eq . $.OwnerFilter}}selected{{end}}>{{.}}</option>{{end}}</select></label>{{with .State}}<input type=hidden name=state value="{{.}}">{{end}} <button>Choose owner</button></form>{{else}}<p>Owned by <code>{{.You}}</code></p>{{end}}{{end}}
+<nav class=filter-nav aria-label="Delivery filter">Delivery: {{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>
 {{if .PersonalPage}}<p class=muted>Personal is an owner-set grouping tag. It changes where a service appears here, not who may call it. {{if .DaemonOwner}}This per-owner view contains only Personal services visible through your normal access; it is not a node-wide inventory.{{else}}This page shows your Personal services.{{end}}</p>{{end}}
 <p class=muted>Three separate facts, and none of them is health: the record&rsquo;s
  delivery setting, what the daemon <em>observed</em> about a read on its inbox,
@@ -535,12 +657,15 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 <table><caption>Records visible to you — not a count of this node</caption>
 <thead><tr><th scope=col>Name<th scope=col>Type<th scope=col>Owner<th scope=col>Delivery<th scope=col>Readers<th scope=col>Reached<th scope=col>Queued<th scope=col>Registration updated<th scope=col>Controls</tr></thead>
 <tbody>
-{{range .Records}}<tr><td><a href="/service?name={{.Name}}">{{.Name}}</a><td>{{entityLabel .Kind}}<td>{{.Owner}}<td>{{if .Disabled}}Disabled{{else}}Enabled{{end}}<td>{{readerCount .Readers}}<td>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{.Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{.At.Format "2006-01-02 15:04"}}{{end}}<td>{{if .CanManage}}Manage{{else}}View{{end}}</tr>{{else}}<tr><td colspan=9>No matching records</tr>{{end}}
+{{range .Records}}<tr><td><a href="/service?name={{.Name}}">{{.Name}}</a>{{if eq .Owner $.You}} <span class=owned-marker>Yours</span>{{end}}<td>{{entityLabel .Kind}}<td>{{.Owner}}<td>{{if .Disabled}}Disabled{{else}}Enabled{{end}}<td>{{readerCount .Readers}}<td>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{.Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{.At.Format "2006-01-02 15:04"}}{{end}}<td>{{if .CanManage}}<a href="/service?name={{.Name}}#settings">Edit</a>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>{{else}}<tr><td colspan=9>No matching records</tr>{{end}}
 </tbody></table>
-<h2>Register {{if .Channels}}channel{{else}}service{{end}}</h2>
+`))
+var serviceNew = template.Must(template.New("service-new").Funcs(template.FuncMap{"entityLabel": entityLabel}).Parse(shell("records", "Register") + `
+<p><a href="{{if .Channels}}/channels{{else}}/services{{end}}">Back to {{if .Channels}}Channels{{else}}Services{{end}}</a></p>
+<h1>Register {{if .Channels}}channel{{else}}service{{end}}</h1>
 <form method=post action=/service><input type=hidden name=action value=create>
 <label>Name <input name=name required placeholder="name@realm"></label><p><label>Description <input name=descr></label></p>
-{{if .Channels}}<input type=hidden name=kind value=topic><label>Delivery <select name=mode><option value=pubsub>Pub/sub</option><option value=queue>Queue</option></select></label>{{else if .PersonalPage}}<input type=hidden name=kind value=generic><input type=hidden name=personal value=on>{{else}}<label>Kind <select name=kind><option value=generic>{{entityLabel "generic"}}</option><option value=agent>{{entityLabel "agent"}}</option></select></label> <label>Personal <input type=checkbox name=personal></label>{{end}}
+{{if .Channels}}<input type=hidden name=kind value=topic><fieldset><legend>Delivery</legend><label><input type=radio name=mode value=pubsub checked> Pub/sub</label> <label><input type=radio name=mode value=queue> Queue</label></fieldset>{{else}}<fieldset><legend>Kind</legend><label><input type=radio name=kind value=generic checked> {{entityLabel "generic"}}</label> <label><input type=radio name=kind value=agent> {{entityLabel "agent"}}</label></fieldset><p><label>Personal <input type=checkbox name=personal></label></p>{{end}}
 <p><label>Allow, one name or <code>*</code> per line <textarea name=allow rows=5></textarea></label> Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>{{if not .Channels}}<p class=muted>A Personal service may name only other registered services directly. Users, groups, <code>*</code>, itself and Maintainers are refused.</p>{{end}}<button>Register</button></form>`))
 var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel}).Parse(shell("records", "Service") + `
 {{with .Record}}<h1>{{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1><p>Type: <strong>{{entityLabel .Kind}}</strong> · Owner: {{.Owner}}{{with .Maintainers}} · Maintainers: {{join . ", "}}{{end}}{{if .Mode}} · Delivery: {{if eq .Mode "pubsub"}}a copy to each subscriber{{else}}one at a time{{end}}{{end}}</p>
@@ -579,7 +704,7 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 {{range .Subs}}<p>{{.}}{{if $.Record.CanManage}}<form method=post action=/service><input type=hidden name=name value="{{$.Record.Name}}"><input type=hidden name=subscriber value="{{.}}"><button name=action value=remove-subscriber>Remove subscription</button></form>{{end}}</p>{{else}}<p>No subscribers</p>{{end}}
 <form method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value=subscribe>Subscribe my inbox</button><button name=action value=unsubscribe>Unsubscribe my inbox</button></form>{{end}}
 {{if .CanManage}}
-<form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=save>
+<h2 id=settings>Settings</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=save>
 <p><label>Description <input name=descr value="{{.Descr}}"></label></p>
 <p><label>Address <input name=addr value="{{.Addr}}"></label></p>
 <p><label>Protocol <input name=protocol value="{{.Proto}}"></label></p>
@@ -604,5 +729,8 @@ var serviceConfirm = template.Must(template.New("service-confirm").Funcs(templat
 {{if eq $.Action "transfer"}}<h1>Confirm ownership transfer</h1><p>Transfer <code>{{.Name}}</code> from <code>{{.Owner}}</code> to <code>{{$.NewOwner}}</code>?</p><p>The new owner must still be registered and active when the daemon applies this. Credentials already held are not revoked.</p><form method=post action=/service><input type=hidden name=action value=transfer><input type=hidden name=name value="{{.Name}}"><input type=hidden name=owner value="{{$.NewOwner}}"><input type=hidden name=expected_owner value="{{.Owner}}"><input type=hidden name=confirmed value=1><button>Transfer ownership</button></form>
 {{else}}<h1>Confirm removal</h1><p>Remove <code>{{.Name}}</code>? It currently holds <strong>{{.Queued}}</strong> messages and has <strong>{{readerCount .Readers}}</strong> outstanding reads.</p><p>The address and its credential go with it; nothing answers to this name afterwards. A person&rsquo;s own credential stays because it is not this record&rsquo;s to remove.</p><form method=post action=/service><input type=hidden name=action value=delete><input type=hidden name=name value="{{.Name}}"><input type=hidden name=expected_owner value="{{.Owner}}"><input type=hidden name=expected_queued value="{{.Queued}}"><input type=hidden name=expected_readers value="{{readerSnapshot .Readers}}"><input type=hidden name=confirmed value=1><button>Remove registration</button></form>{{end}}{{end}}`))
 var groupList = template.Must(template.New("groups").Funcs(template.FuncMap{"join": strings.Join, "groupGlyph": groupGlyph}).Parse(shell("groups", "Groups") + `
-<h1>Groups</h1>{{range $name,$members := .Groups}}<h2><span role=img aria-label="Group">{{groupGlyph}}</span> <code>{{$name}}</code></h2>{{if and $.Administrator (or $.DaemonOwner (ne $name "@administrators"))}}<form method=post action=/groups><input type=hidden name=name value="{{$name}}"><label>Members <input name=members value="{{join $members " "}}"></label><button name=action value=save>Save members</button></form>{{if eq $name "@administrators"}}<p class=muted>The daemon owner stays in this group.</p>{{end}}{{end}}{{else}}<p>No groups registered.</p>{{end}}
-{{if .Administrator}}<h2>Create group</h2><form method=post action=/groups><label>Name <input name=name placeholder="@operators" required></label><label>Members <input name=members placeholder="user@realm"></label><button name=action value=save>Create</button></form>{{else}}<p>Daemon administrators manage group membership. Only the daemon owner changes the maintainers group. Service owners can assign an existing group to their own services.</p>{{end}}`))
+<h1>Groups</h1><nav class=section-nav aria-label="Group views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}{{if .Counted}} ({{.Count}}){{end}}</a>{{end}}</nav>{{range $name,$members := .Groups}}<h2><span role=img aria-label="Group">{{groupGlyph}}</span> <code>{{$name}}</code></h2>{{if and $.Administrator (or $.DaemonOwner (ne $name "@administrators"))}}<form method=post action=/groups><input type=hidden name=name value="{{$name}}"><label>Members <input name=members value="{{join $members " "}}"></label><button name=action value=save>Save members</button></form>{{if eq $name "@administrators"}}<p class=muted>The daemon owner stays in this group.</p>{{end}}{{end}}{{else}}<p>No groups registered.</p>{{end}}
+{{if not .Administrator}}<p>Daemon administrators manage group membership. Only the daemon owner changes the administrators group. Service owners can assign an existing group to their own services.</p>{{end}}`))
+var groupNew = template.Must(template.New("group-new").Parse(shell("groups", "Register group") + `
+<p><a href=/groups>Back to Groups</a></p><h1>Register group</h1>
+<form method=post action=/groups><input type=hidden name=action value=save><label>Name <input name=name placeholder="@operators" required></label><p><label>Members, one identity or group per line <textarea name=members rows=6 placeholder="user@realm"></textarea></label></p><button>Register group</button></form>`))

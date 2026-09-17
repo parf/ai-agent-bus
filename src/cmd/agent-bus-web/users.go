@@ -140,7 +140,35 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			return
 		}
 		p.directory(r)
+		p.SectionLinks = []viewLink{{Href: "/users", Label: "All identities", Count: p.PeopleCount + p.OtherCount, Counted: true, Current: true}}
+		if p.Administrator {
+			p.SectionLinks = append(p.SectionLinks, viewLink{Href: "/users/new", Label: "Register user"})
+		}
+		filterBase := url.Values{}
+		if p.Query != "" {
+			filterBase.Set("q", p.Query)
+		}
+		p.FilterLinks = []viewLink{
+			{Href: pageURL("/users", cloneValues(filterBase)), Label: "All", Count: p.PeopleCount + p.OtherCount, Counted: true, Current: p.Kind == ""},
+			{Href: queryWith("/users", filterBase, "kind", "users"), Label: "👤 Users", Count: p.PeopleCount, Counted: true, Current: p.Kind == "users"},
+			{Href: queryWith("/users", filterBase, "kind", "other"), Label: "Other", Count: p.OtherCount, Counted: true, Current: p.Kind == "other"},
+		}
 		render(w, peoplePage, p)
+	})
+	renderNew := func(w http.ResponseWriter, r *http.Request, p peopleView) {
+		if !p.Administrator {
+			fail(w, r, p.You, &busError{code: http.StatusForbidden, message: "only a daemon Administrator can register a user"})
+			return
+		}
+		p.New, p.Return = true, "/users"
+		render(w, personPage, p)
+	}
+	mux.HandleFunc("GET /users/new", func(w http.ResponseWriter, r *http.Request) {
+		v, ok := c.signedIn(w, r)
+		if !ok {
+			return
+		}
+		renderNew(w, r, peopleView{adminView: v})
 	})
 	mux.HandleFunc("GET /user", func(w http.ResponseWriter, r *http.Request) {
 		p, ok := load(w, r)
@@ -150,8 +178,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		name := r.URL.Query().Get("name")
 		p.Return = directoryReturn(r.URL.Query().Get("return"))
 		if name == "" && p.Administrator {
-			p.New = true
-			render(w, personPage, p)
+			renderNew(w, r, p)
 			return
 		}
 		for _, u := range p.Users {
@@ -197,7 +224,8 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			return
 		}
 		var err error
-		switch r.PostForm.Get("action") {
+		action := r.PostForm.Get("action")
+		switch action {
 		case "remove-credential":
 			err = c.post(cookie(r), "/identity/remove", map[string]string{"name": r.PostForm.Get("name")})
 		case "save", "create":
@@ -216,12 +244,17 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			fail(w, r, v.You, err)
 			return
 		}
-		http.Redirect(w, r, directoryReturn(r.PostForm.Get("return")), http.StatusSeeOther)
+		next := directoryReturn(r.PostForm.Get("return"))
+		if action == "create" {
+			next = "/user?name=" + url.QueryEscape(r.PostForm.Get("name"))
+		}
+		http.Redirect(w, r, next, http.StatusSeeOther)
 	})
 }
 
 var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityGlyph": identityGlyph, "identityLabel": identityLabel}).Parse(shell("users", "Users") + `
 <h1>Users and other identities</h1>
+<nav class=section-nav aria-label="User views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}{{if .Counted}} ({{.Count}}){{end}}</a>{{end}}</nav>
 <p>{{.PeopleCount}} registered users · {{.OtherCount}} other identities visible to you.</p>
 <p class=muted>Those two are counted <em>by this page</em> over the identities you may
  see, before any search. They are not figures the daemon reported, unlike the owned
@@ -230,11 +263,10 @@ var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"id
  profile, a <strong>registered name</strong> has a record of its own and no profile, and a
  <strong>credential with no registered name</strong> has neither. Nothing here is inferred
  from how a name is spelled.</p>
-{{if .Administrator}}<p><a href=/user>Add user</a></p>{{end}}
 <form method=get action=/users>
 <label>Search <input type=search name=q value="{{.Query}}" placeholder="Name, identity, email or GitHub login"></label>
-<label>Show <select name=kind><option value="">All identities</option><option value=users {{if eq .Kind "users"}}selected{{end}}>👤 Users</option><option value=other {{if eq .Kind "other"}}selected{{end}}>Other identities</option></select></label>
-<button>Apply</button> <a href=/users>Clear filters</a></form>
+{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}<button>Search</button> <a href=/users>Clear filters</a></form>
+<nav class=filter-nav aria-label="Identity type filter">Show: {{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}} ({{.Count}})</a>{{end}}</nav>
 <p>Showing {{.Start}}–{{.End}} of {{.Matched}} matching identities.</p>
 <section aria-labelledby=people-heading><h2 id=people-heading>Registered users</h2>
 <table><thead><tr><th scope=col>Person / identity</th><th scope=col>Authority</th><th scope=col>State</th></tr></thead><tbody>

@@ -180,6 +180,11 @@ My is the caller-owned subset of All. Counts are caller-visible category totals
 before the search, state and kind filters, so changing a filter does not make a
 navigation count describe a different category.
 
+**Built in 0.5.64:** these category links and counts, dedicated Service and
+Channel registration routes, Delivery links, create-time Kind/Delivery radios,
+and the separate **Yours** and daemon-authorized **Edit** signals. Search, sort,
+paging and read-first detail disclosures remain pending.
+
 The title's `ⓘ` help contains the category definitions as bullets — All is
 caller-visible non-Personal services, My is the caller-owned subset, Personal
 is the separately grouped owner view — instead of placing those paragraphs
@@ -409,7 +414,8 @@ by name. The registry table does not come with it.
 
 **Answers:** who is here, and what may they administer?
 
-**Section navigation:** All users · Register user. The register entry appears
+**Section navigation:** All identities (`#`) · Register user. The count covers
+the caller-visible mixed directory before search or kind filters. The register entry appears
 only for callers who may create one and opens `/users/new`; it does not sit as a
 separate primary action beside the directory heading.
 
@@ -428,6 +434,8 @@ separate primary action beside the directory heading.
 
 A dedicated registration form reached from the Users section navigation.
 Fields and results are owned by the [forms inventory](forms.md#the-set).
+The route, conditional entry and new-user detail redirect are built in 0.5.64;
+field-level invalid-input preservation remains part of the larger journey.
 
 ## User `/user?name=`
 
@@ -502,6 +510,10 @@ membership edit a reviewable decision rather than a blind one.
 A dedicated registration form reached from the Groups section navigation.
 Success lands on the new group detail page; invalid input returns the same form
 with its values and field errors.
+
+The conditional route and form are built in 0.5.64. Until the planned Group
+detail exists, success returns to Groups; that remaining destination and
+invalid-input preservation are not claimed by this slice.
 
 ---
 

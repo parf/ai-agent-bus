@@ -338,6 +338,9 @@ const head = `<!doctype html>
  .muted{color:#6b6b6b}
  .warn{color:#b00}
  a.danger{color:#b00;font-weight:600}
+ .section-nav,.filter-nav{display:flex;flex-wrap:wrap;gap:.35rem 1rem;margin:.5rem 0 1rem}
+ .section-nav a[aria-current],.filter-nav a[aria-current]{font-weight:700;text-decoration:none;border-bottom:2px solid currentColor}
+ .owned-marker{font-weight:600;color:#253c66;white-space:nowrap}
  h2{font-size:15px;margin:1.6rem 0 .4rem}
  .who{float:right;font-size:13px}
  input{font:13px ui-monospace,monospace;padding:.3rem;width:26rem;max-width:100%;box-sizing:border-box}

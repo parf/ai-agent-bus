@@ -659,7 +659,7 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	if row := m.row(users, "person@h"); !strings.Contains(row, `aria-label="👤 User">👤</span> <a`) || strings.Contains(row, `<span class=muted>👤 User</span>`) {
 		t.Errorf("registered user has no identity label: %s", row)
 	}
-	if !strings.Contains(users, `value=users selected>👤 Users`) || strings.Contains(users, `value="👤`) {
+	if !strings.Contains(users, `href="/users?kind=users" aria-current=true>👤 Users`) || strings.Contains(users, `kind=%F0`) {
 		t.Errorf("directory filter mixed its displayed label into the URL value: %s", users)
 	}
 
@@ -669,12 +669,13 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 			t.Errorf("%s has no %q label: %s", name, want, row)
 		}
 	}
-	for _, plain := range []string{`value=generic>⚙️ Service`, `value=agent>👾 Agent`} {
-		if !strings.Contains(services, plain) {
+	create := m.get("/services/new")
+	for _, plain := range []string{`name=kind value=generic`, `name=kind value=agent`} {
+		if !strings.Contains(create, plain) {
 			t.Errorf("create form does not keep a plain kind value beside %q", plain)
 		}
 	}
-	if strings.Contains(services, `value="⚙️`) || strings.Contains(services, `value="👾`) {
+	if !strings.Contains(create, "⚙️ Service") || !strings.Contains(create, "👾 Agent") || strings.Contains(create, `value="⚙️`) || strings.Contains(create, `value="👾`) {
 		t.Error("a display glyph entered a form value")
 	}
 
@@ -762,16 +763,16 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 	// maintainer reads admin@h's record exactly as any other caller does —
 	// which is the point, since the words did not change either.
 	for _, who := range []struct{ caller, offered string }{
-		{"admin@h", ">Manage"}, {"maint@h", ">View"}, {"plain@h", ">View"},
+		{"admin@h", `#settings">Edit</a>`}, {"maint@h", `<span class=muted>&mdash;</span>`}, {"plain@h", `<span class=muted>&mdash;</span>`},
 	} {
 		row := m.row(m.as(who.caller).get("/services"), "quiet@h")
-		if !strings.HasSuffix(row, who.offered) {
+		if !strings.Contains(row, who.offered) {
 			t.Errorf("%s is offered the wrong control over a record owned by admin@h: %s", who.caller, row)
 		}
 	}
 	// And the caller's own record is theirs to manage, whoever they are, so
 	// the check above is about authority rather than about rank.
-	if !strings.HasSuffix(m.row(m.as("plain@h").get("/services"), "plain@h"), ">Manage") {
+	if row := m.row(m.as("plain@h").get("/services"), "plain@h"); !strings.Contains(row, `#settings">Edit</a>`) || !strings.Contains(row, `class=owned-marker>Yours</span>`) {
 		t.Error("an ordinary caller is offered no control over their own record")
 	}
 }
@@ -932,7 +933,7 @@ func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 func TestACLFormsExplainRestrictedEmptyLists(t *testing.T) {
 	m := meaningFixture(t)
 	m.register(protocol.Record{Name: "private@h", Owner: "admin@h"})
-	for _, page := range []string{"/services", "/service?name=private@h"} {
+	for _, page := range []string{"/services/new", "/service?name=private@h"} {
 		body := m.get(page)
 		if !strings.Contains(body, "Empty allows only the owner and assigned Maintainers. Add names or * to share.") {
 			t.Errorf("%s does not explain the restricted default and explicit sharing", page)
