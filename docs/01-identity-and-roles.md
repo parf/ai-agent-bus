@@ -183,8 +183,15 @@ remain refused. This is existing behavior, confirmed by the Q63 decision.
 
 A service has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
-The following model is built except for **service-defined roles**, which remain
-pending.
+The following model is built except for **service-defined roles** and the
+accepted Maintainers-list replacement, which remain pending.
+
+**Accepted pending change:** Maintainers becomes a list of named users, groups,
+agents and services, using the same one-term-per-line input pattern as ACLs.
+Only the Owner or daemon Owner may replace the list. Group entries use ordinary
+nested membership. Until this change ships, the daemon stores one Maintainers
+group; faces must label that limitation as current behavior rather than the
+final model.
 
 | Role | Authority |
 |---|---|

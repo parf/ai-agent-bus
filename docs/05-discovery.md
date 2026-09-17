@@ -431,11 +431,12 @@ even when their visible option label carries a glyph.
 ### ACL editing
 
 ACL textareas use the project's plain-text ACL syntax, not the display glyphs.
-Users must not need to type Unicode to identify a user, agent, service or group.
-Prefill editable values with the textual expression; keep glyphs in surrounding
-labels or read-only views. Saving an ACL preserves its syntax and does not add
-display symbols to it. The same rule applies to CLI command arguments and
-copyable ACL examples.
+Each ACL term occupies one line: a user, group, agent, service or `*`. Users
+must not need to type Unicode to identify one. Blank lines are ignored; a
+refused line is reported against that line and the submitted text is preserved.
+Keep glyphs in surrounding labels or read-only views. Saving an ACL preserves
+its terms and does not add display symbols to it. The same rule applies to CLI
+command arguments and copyable ACL examples.
 
 The [ACL contract](02-access.md#acl) defines access terms and their implementation status.
 The [proposed role syntax](../Plans/R1/identity.md#sigils) remains separately

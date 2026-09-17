@@ -175,7 +175,7 @@ description survive at every width; nothing scrolls sideways.
     Address       ocr/intake@parf.us
     Protocol      —
     Kind          agent
-    Owner         ops@parf.us
+    Owner         [photo] ops@parf.us
     Maintainers   @ocr-team
     State         Disabled · delivery is off
     Updated       2026-09-14 09:31
@@ -196,13 +196,13 @@ description survive at every width; nothing scrolls sideways.
       arriving while it stays off.
 
   Access                                                [Edit]
-  Configuration                                         [Edit]
+  Configuration
+    Digest        sha256:…
   Activity
     Accepted / dequeued                          [inline graph]
     Dropped / expired / refused                  2 / 0 / 1
                                       [View all activity →]
-  Ownership                                          [Transfer]
-  Registration                                         [Remove]
+  Danger Zone                                    [open dangerous actions →]
 ```
 
 Every section is read-first with its own `[Edit]`, shown only where authority
@@ -225,6 +225,21 @@ disclosures, each beside what it changes. Opening one:
 The read values stay visible above the editor. Cancel returns without a
 round-trip having changed anything, and the section's filters and scroll
 position are preserved on return.
+
+Access and Maintainers use the same line-list textarea: one named user, group,
+agent or service per line, with submitted lines retained beside line-specific
+errors. Access additionally admits `*`. The Maintainers list depends on its
+accepted daemon-model change; it is not the current single-group value stretched
+into a textarea.
+
+The owner photo appears only for a caller-visible User profile and uses the
+local thumbnail; it is decorative beside the linked owner name. Otherwise the
+ordinary entity label remains.
+
+The red **Danger Zone** link opens a separate server-rendered resource view.
+Only Replace configuration, Transfer ownership and Remove registration live
+there; none of their forms appears on the ordinary detail page. Transfer and
+removal continue to a fresh confirmation page before submission.
 
 ## A consequential confirmation
 

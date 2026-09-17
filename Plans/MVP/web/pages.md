@@ -228,7 +228,7 @@ then focused edits.
 
 | Section | Content | Visible to |
 |---|---|---|
-| Identity | Description, full name, **address**, **protocol**, kind or delivery mode, owner, maintainers, enabled state, **updated time** | anyone who may see the record |
+| Identity | Description, full name, **address**, **protocol**, kind or delivery mode, owner, the owner's caller-visible local photo when the owner is a User, maintainers, enabled state, **updated time** | anyone who may see the record |
 | Queue | Queued, oldest, accepted, dequeued, dropped, expired, at-bound, **overflow policy**, TTL and capacity with inheritance stated per field | same |
 | Access | Allow list, master-refusal, and what that means in a sentence | same |
 | Subscribers (pub/sub only) | Each subscriber, linked where the caller may inspect it | same |
@@ -280,13 +280,26 @@ because a trailing block of eight forms is the wall we are removing.
 | Identity | metadata, maintainers, enable/disable |
 | Queue | queue policy |
 | Access | the allow list |
-| Configuration | replace configuration |
 | Subscribers | subscribe/unsubscribe, remove a subscriber |
 
 Each is collapsed until asked for, so no page ever renders eight open editors
-and the count stops being a usability variable. **Transfer is a link** opening
-its confirmation flow rather than a permanently rendered form; **remove** sits
-at the end of the page with its own confirmation.
+and the count stops being a usability variable. Replace configuration,
+ownership transfer and registration removal appear only after following the
+red **Danger Zone** link to its server-rendered subpage. They never render on
+the ordinary detail page. Transfer and removal then open their own fresh
+confirmation pages.
+
+The Access and Maintainers editors use the same line-list textarea. Each line
+names one user, group, agent or service; Access may also contain `*`. Blank
+lines are ignored; invalid lines stay in place with line-specific errors.
+Neither editor accepts display glyphs. Maintainers is a real list, not today's
+single group rendered in a larger control, so it depends on the accepted
+[authority-model change](../../../docs/01-identity-and-roles.md#services).
+
+The owner photo is decorative beside the linked owner name and comes from the
+same authorized local-thumbnail path as the Users page. If the owner has no
+caller-visible User profile or photo, the page renders the existing entity
+label without guessing or making a provider request.
 
 For a caller-owned record, the detail heading also carries **Edit**. It opens
 the first applicable editor while retaining the section-specific editors below;
@@ -301,6 +314,21 @@ Transfer and maintainers assignment are **owner-only**, and that is the
 authority contract rather than an editor defect: core restricts both to
 `r.Owner` deliberately. A maintainer who may manage a record still may not give
 it away or change who maintains it.
+
+### Danger Zone
+
+The red **Danger Zone** link on a Service or Channel opens a server-rendered
+subpage titled for that resource. It contains exactly three authorized entries:
+
+- **Replace configuration** opens an always-empty textarea; private
+  configuration is never prefilled.
+- **Transfer ownership** opens the fresh consequential confirmation flow.
+- **Remove registration** opens the fresh consequential confirmation flow.
+
+The ordinary detail page shows the configuration digest but none of these
+forms. The Danger Zone includes a plain return link to that detail page. Red
+identifies this one navigation entry; it is not used to decorate the whole page
+or to replace the consequence text.
 
 ---
 

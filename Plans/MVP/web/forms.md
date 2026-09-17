@@ -16,6 +16,7 @@ rules all of them obey.
 | Only offer transitions that apply | An active user is offered Activate today, beside Pause and Ban, all styled alike ([C12](review/codex.md#junk-and-misleading-content)) |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
 | Show small choices | Two or three values use labelled radio buttons, not a select. URL-backed filters use the [link/button rule](components.md#small-choice-controls) instead |
+| One name per line | ACL and Maintainers use the same line-list textarea component with plain terms, never glyphs or comma-separated chips. Errors identify the refused line and preserve all submitted lines |
 
 ## Consequential actions
 
@@ -83,12 +84,12 @@ the world moved between the question and the answer.
 | Register a channel | `/channels/new` | name, description, delivery mode, allow | the new channel's page |
 | Edit metadata | Service, Channel | description, address, protocol | the identity section |
 | Edit queue policy | Service, Channel | TTL, capacity, overflow | the queue section |
-| Edit access | Service, Channel | allow list in [plain-text ACL syntax](../../../docs/05-discovery.md#acl-editing), refuse master | the access section |
-| Replace configuration | Service, Channel | configuration (always empty, never repopulated) | the configuration section, showing the new digest |
-| Assign maintainers | Service, Channel | group, or none | the identity section |
+| Edit access | Service, Channel | one plain ACL term per textarea line; refuse master | the access section |
+| Replace configuration | Service, Channel | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
+| Assign maintainers | Service, Channel | one named user, group, agent or service per textarea line | the identity section |
 | Enable / Disable | Service, Channel | — | the identity section |
-| Transfer ownership | Service, Channel | new owner | **confirm**, then the identity section |
-| Remove | Service, Channel | — | **confirm**, then the list it came from |
+| Transfer ownership | Service, Channel | new owner | **Danger Zone** only; **confirm**, then the identity section |
+| Remove registration | Service, Channel | — | **Danger Zone** only; **confirm**, then the list it came from |
 | Subscribe / Unsubscribe | Channel, pub/sub | — | the subscribers section |
 | Remove a subscriber | Channel, pub/sub | subscriber | the subscribers section |
 | Register a group | `/groups/new` | name, members | the new group's page |
@@ -111,6 +112,19 @@ in the build (admin.go:341) and stay outside it here: adding a subscription is
 the subscriber's own opt-in, while *removing someone else's* is a manager's
 action. Two different authorities in one section, named separately
 ([S06](review/codex.md#specification-review-round-one)).
+
+ACL and Maintainers share the same textarea and line handling. ACL additionally
+accepts `*`; Maintainers accepts named users, groups, agents and services. The
+accepted Maintainers list requires the pending daemon-model change recorded in
+the [authority contract](../../../docs/01-identity-and-roles.md#services); the
+web must not flatten it back into today's single-group field.
+
+**Danger Zone is a red text link, not a permanently open red panel.** It opens
+a server-rendered resource subpage containing only Replace configuration,
+Transfer ownership and Remove registration. Returning to the ordinary detail
+page hides those forms again. Transfer and removal still use their separate,
+fresh confirmation pages; the extra step changes presentation, not daemon
+authorization.
 
 No group-delete form. The handler accepts the action and no template renders it;
 removing the verb from core and the API is [H.5.6](../TODO.md#objective).

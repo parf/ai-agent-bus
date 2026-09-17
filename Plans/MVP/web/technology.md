@@ -74,6 +74,12 @@ and lets the UI fall back to a previous imported thumbnail or generated
 initials. Byte and dimension bounds are implementation constants with tests at
 both accepted and refused boundaries.
 
+A Service or Channel detail may request its one owner's local thumbnail with
+the authorized detail data. It never fetches the provider, never performs a
+directory-wide read for one owner and never reveals that a hidden profile has a
+photo. An owner without a caller-visible User profile uses the ordinary entity
+label.
+
 ## Process boundary, unchanged
 
 The web child remains the least trusted process and keeps no write path of its

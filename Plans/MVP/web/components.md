@@ -15,8 +15,10 @@ hard part is information design rather than widget count.
 | Data table | Caption, scoped headers, stable order, one judgment column, owned-item marker, chosen narrow-screen columns | Hand-written because ours is URL-driven rather than client-side, and we found nothing supplying that. **Not** "the component nothing off the shelf supplies" — a universal we did not survey and do not need ([S15](review/codex.md#specification-review-round-one)) |
 | Detail sections | Heading, definition list, and — where authority allows — the form for that one concern, collapsed until asked for | Read sections never depend on edit permission. There is **no trailing Manage block**: an edit lives in the section it changes, which is the whole point of splitting them |
 | Form | Labels above controls, help beside the control, error summary and field errors, one primary action | |
+| Line-list textarea | One plain identity or ACL term per line; submitted lines survive validation and each refused line receives its own error | The same component edits ACLs and the accepted Maintainers list; ACL additionally admits `*`. Glyphs never enter editable syntax |
 | Context help | A visible `ⓘ` button opening a compact popover with a heading and short bulleted list | Keyboard, touch and pointer accessible; never a hover-only `title` attribute |
 | Confirmation | Server-rendered page naming target and consequence | [forms](forms.md#consequential-actions) |
+| Danger Zone | A red text link to a server-rendered resource subpage; not an always-visible panel | Contains Replace configuration, Transfer ownership and Remove registration only. Authority remains daemon-enforced; transfer and removal still continue to Confirmation |
 | Status | Text, with colour and shape reinforcing it | [glyphs](glyphs.md#attention-levels) |
 | States | Populated, empty, denied, unavailable | below |
 | Graph | Inline SVG, labelled axes, shared range, value table beside it | No script, no canvas, no external chart library |

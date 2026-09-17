@@ -41,7 +41,7 @@ Where a value's meaning depends on when it was computed, this file says so.
 | `Kind` | generic, agent or topic | Service, Agent, Channel | — |
 | `Mode` | queue or pub/sub, topics only | delivery: one at a time, or a copy each | not a topic |
 | `Owner` | the principal who owns the record | owner | — |
-| `Maintainers` | a group with management authority | maintainers | **unset: the label goes too** |
+| `Maintainers` | currently one group; accepted pending model is a list of named users, groups, agents and services with management authority | maintainers | **empty: the label goes too** |
 
 ### State
 
@@ -164,6 +164,8 @@ or initials. Concrete byte and dimension limits are adapter constants tested at
 both boundaries. A complete provider response explicitly
 removing both photo sources clears the imported thumbnail. The retained photo
 records its fetch time; the page never claims it is current beyond that read.
+The same local thumbnail may accompany a caller-visible User owner on a resource
+detail; it reveals no provider URL and no hidden profile fact.
 
 ## Absence
 
