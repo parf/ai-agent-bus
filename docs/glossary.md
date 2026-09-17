@@ -30,14 +30,17 @@ unconfigured capability. Personal/shared describes use; it is not a record kind.
 | Local socket | Account credential | [definition](02-access.md#local-socket) |
 | Service ACL and master | Visibility and use policy | [definition](01-identity.md#acl) |
 | Owner | Highest authority within the named scope | [definition](01-owners-and-maintainers.md#role-names-and-scopes) |
-| Administrator | Daemon user/group administration | [definition](01-owners-and-maintainers.md#role-names-and-scopes) |
-| Maintainer | Assigned service/channel management | [definition](01-owners-and-maintainers.md#role-names-and-scopes) |
+| Daemon Owner | Root-like authority over the node; assigned through setup | [definition](01-owners-and-maintainers.md#daemon-owner) |
+| Administrator | Manages daemon users and groups | [definition](01-owners-and-maintainers.md#daemon-administrators) |
+| Maintainer | Explicitly assigned to manage a service or channel | [definition](01-owners-and-maintainers.md#services) |
+| User | Registered person | [definition](01-owners-and-maintainers.md#users-and-profile-editing) |
 | Member | Basic access to a service/channel | [definition](01-owners-and-maintainers.md#role-names-and-scopes) |
 | Person profile | Identifying and descriptive information | [definition](01-identity.md#profile-fields) |
 | Service and service template | Configured service and its unconfigured source | [definition](03-services-and-topics.md#service-and-template) |
 | Protocol hint | How a caller reaches an external service | [definition](03-services-and-topics.md#how-to-call-it) |
 | Registry configuration | Private setup fetched by its service | [definition](03-services-and-topics.md#configuring-a-template) |
-| Topic | Registered delivery destination | [definition](03-services-and-topics.md#topics) |
+| Channel | Service-like entity without an actual service process | [definition](01-owners-and-maintainers.md#channels) |
+| Topic | Delivery term for a channel | [definition](03-services-and-topics.md#topics) |
 | Inbox | Queue belonging to a registered name | [definition](04-messaging.md#inbox-queues) |
 | Receipt | Receiver acknowledgement of progress | [definition](04-messaging.md#receipts) |
 | Envelope | Message routing and body container | [definition](04-messaging.md#envelope) |
