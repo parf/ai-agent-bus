@@ -60,3 +60,20 @@ path is introduced.
 
 Personal services still reject group ACL entries and Maintainer assignments.
 Service-defined role storage remains separate pending work.
+
+## Live postflight
+
+Commit `a50f365` was pushed before deployment. `src/build.sh` stamped the
+daemon and web binaries as **0.5.57**, `parf@parf.us 2026-09-17 13:09:06`; the
+live `agent-busd.service` restarted at 13:09 EDT.
+
+Preflight found two live groups: `@administrators` with two direct members and
+an empty `@administrators-legacy`; neither carried a nested edge. After restart,
+the public identity reported 0.5.57 and Owner `parf@parf`. Anonymous `/status`
+remained 401 while the Owner's mapped socket received 200.
+
+A request to add `@administrators-legacy` inside `@administrators` returned 400
+with the direct-identities-only error. `/groups` was byte-for-byte unchanged
+before and after. No ordinary live group was created or changed. The web child
+retained zero capabilities, `NoNewPrivs`, its two-value environment and its
+limits of one CPU, 256 MiB memory, no swap and 64 tasks.
