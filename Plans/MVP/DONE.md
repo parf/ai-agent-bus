@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| 0.5.53 live rollout | Public identity, raw reader data, numeric CLI and WEB, fresh MCP rendering, web confinement and peer reconnection verified; existing MCP processes retain their loaded module until launcher restart | [live postflight](done/reader-visibility.md#live-postflight) |
 | Reader visibility | WEB, human CLI and MCP show one numeric count across every outstanding consume request; the count is live, not health or durable state | [0.5.53 evidence](done/reader-visibility.md#checks) |
 | 0.5.52 live rollout | Explicit inbox selection, address-shaped filters, malformed and unknown selection, process versions and peer reconnection verified without dequeuing a live message | [live postflight](done/inbox-selection.md#live-postflight) |
 | Explicit inbox selection | API, CLI and MCP select the inbox separately from topic/tag filters; omission still reads the caller's own | [0.5.52 evidence](done/inbox-selection.md#checks) |

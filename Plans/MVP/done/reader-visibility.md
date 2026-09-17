@@ -72,3 +72,24 @@ checked 138 files and 2,821 local links with zero errors.
 This is an instantaneous count of outstanding requests. Zero does not mean a
 service is dead; a process may be between reads. A positive count promises no
 message match and no completed work. It counts neither processes nor sessions.
+
+## Live postflight
+
+Commit `7efb957` was pushed before deployment. `src/build.sh` stamped every Go
+program as **0.5.53**, `parf@parf.us 2026-09-17 11:15:12`; the live
+`agent-busd.service` restarted at 11:15 EDT.
+
+The public identity and anonymous header reported 0.5.53. A raw authenticated
+listing stated `readers` on all five visible records: four measured one and one
+measured zero at that instant. The human CLI rendered the same numeric column.
+Signed-in WEB service and diagnostic pages rendered the Readers column, its
+bounded explanation and both zero and nonzero values. The confined web child
+remained in its delegated cgroup with the 256 MiB memory, zero-swap, one-CPU and
+64-process limits.
+
+A fresh MCP catalogue process against the live daemon rendered `readers: 1
+outstanding` for each of its two visible records. Existing launcher sessions do
+not reload their already-running MCP module when the daemon restarts; the
+current Codex sidecar therefore retained the earlier boolean wording until its
+next launcher restart. This is a process-lifetime deployment boundary, not
+credit for a live reload that did not occur.
