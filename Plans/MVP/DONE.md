@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Default service access | Restricted empty ACLs apply after restore; explicit sharing, own-inbox access and metadata-refresh grants retained | [0.5.44 evidence](done/empty-acl.md#checks) |
 | Administrator naming | Administrative role, protected group and client labels renamed; existing membership and explicit record grants migrated | [migration evidence](done/administrator-names.md#checks) |
 | H.5.5, H.5.4 | A start deletes every record whose owner it knows nothing about, to a fixed point, and then drops the credentials that answered for them; the interim guard between the two sweeps is gone. Group membership now goes with a deleted name, which it did not | [orphan services](done/orphan-services.md#checks) |
 | G.1.1 | The daemon never executes what a user supplied: registrations, configurations and message bodies stay data, and enrolment still runs the shipped verifier. An application boundary, not an OS-enforced one | [exec boundary](done/exec-boundary.md#what-proves-it) |

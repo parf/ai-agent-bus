@@ -1,3 +1,4 @@
+import { shareFixtureInbox } from "./smoke-access.ts";
 // B.3 acceptance for the Claude push mode: the session stops polling and a
 // message reaches it as notifications/claude/channel, with enough metadata to
 // answer it. The peer here is the Bus class itself — no second process needed.
@@ -97,7 +98,8 @@ try {
   const refused = await call("ab_consume", { wait: "1s" });
   check("an unfiltered ab_consume steps aside for push", refused.isError && refused.text.includes("push is on"), refused.text);
 
-  await peer.register({ name: peerName, kind: "agent" });
+  await peer.register({ name: peerName, kind: "agent", allow: ["*"] });
+  await shareFixtureInbox(await owner.as(me));
   const sent = await peer.send({ to: me, body: "pushed hello", topic: "p1", tag: "q1" });
 
   const note = await waitForChannel(1, 10_000);

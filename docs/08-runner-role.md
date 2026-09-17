@@ -38,6 +38,7 @@ cat service.json | agent-bus start -5
 | Stop | Stop taking work and wait for scripts already running; leave the registry record and queue intact |
 | Work directory | One per service; the script starts there |
 | Credentials | The launcher must be allowed to obtain the service's credential; it cannot become somebody else's service |
+| Sharing | State `--allow name,...` or `--allow '*'`, and optionally `--no-master`; JSON uses `allow` and `no_master`. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-roles.md#registration). Reply inboxes need their own grants |
 
 ### Stopping it and reading what it said
 

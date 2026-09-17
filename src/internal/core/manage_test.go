@@ -16,7 +16,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 	// active and still on the ACL, and the read ends anyway because the
 	// service stopped answering under it
 	// (docs/01-identity-and-roles.md#user-states).
-	for _, change := range []string{"disable", "acl", "membership", "user", "owner"} {
+	for _, change := range []string{"disable", "acl", "empty-acl", "membership", "user", "owner"} {
 		t.Run(change, func(t *testing.T) {
 			b := New()
 			b.SetDaemonOwner("admin@h")
@@ -47,6 +47,8 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 				_, err = b.Manage("owner@h", Management{Name: "queue@h", Disabled: ptr(true)})
 			case "acl":
 				_, err = b.Manage("owner@h", Management{Name: "queue@h", Allow: ptr([]string{"owner@h"})})
+			case "empty-acl":
+				_, err = b.Manage("owner@h", Management{Name: "queue@h", Allow: ptr([]string{})})
 			case "user":
 				_, err = b.SetUserState("admin@h", "reader@h", "paused")
 			case "owner":
@@ -111,7 +113,7 @@ func TestChannelManagersCanRemoveButStrangersCannot(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "owner@h")
-	b.Register(protocol.Record{Name: "news@h", Owner: "owner@h", Kind: "topic", Mode: "pubsub"})
+	b.Register(protocol.Record{Name: "news@h", Owner: "owner@h", Allow: []string{"*"}, Kind: "topic", Mode: "pubsub"})
 	known(t, b, "subscriber@h", "stranger@h", "maint@h")
 	if _, err := b.Subscribe("subscriber@h", "news@h", true); err != nil {
 		t.Fatal(err)

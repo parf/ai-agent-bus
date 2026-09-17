@@ -48,6 +48,7 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 		t.Fatalf("unfiltered or unnormalized people view: %+v", users)
 	}
 	call("alice@h", "POST", "/register", `{"name":"svc@h"}`, 200)
+	call("alice@h", "POST", "/manage", `{"name":"alice@h","allow":["admin@h"]}`, 200)
 	call("admin@h", "POST", "/send", `{"to":"alice@h","body":"retained"}`, 200)
 	session, err := s.tokens.StartSession("alice@h")
 	if err != nil {

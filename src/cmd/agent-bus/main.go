@@ -52,7 +52,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus publish --topic <name> <text>
   agent-bus subscribe <topic>     receive a copy of everything published there
   agent-bus unsubscribe <topic>
-  agent-bus start <name> --algo=json|args <script> [-N] [--descr d]
+  agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*] [--no-master]
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]

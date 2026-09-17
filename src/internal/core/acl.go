@@ -23,9 +23,9 @@ func (b *Bus) Masters(names []string) {
 // may answers whether caller may see and use r. Caller holds the lock.
 //
 // A record is always its owner's and its own — a service that could not read
-// the inbox it registered would be unable to start. After that the service
-// answers if it has anything to say, and only then does master apply, to
-// every service that has not refused it.
+// the inbox it registered would be unable to start. An empty ACL grants nobody
+// else access. With an explicit ACL, matching entries and master may grant
+// access to other principals.
 func (b *Bus) may(caller string, r protocol.Record) bool {
 	// Asked here rather than only at the edge: every verb reaches an ACL, so
 	// one question here is asked under whatever hold the verb writes under.
@@ -36,10 +36,10 @@ func (b *Bus) may(caller string, r protocol.Record) bool {
 	if b.manages(caller, r) {
 		return true
 	}
-	// No entry of its own is not a refusal: nothing has said no yet, and
-	// with no master ACL configured that is an open bus.
+	// No grants means management access only, including on restored records.
+	// Master does not reopen an empty ACL.
 	if len(r.Allow) == 0 {
-		return true
+		return false
 	}
 	for _, s := range r.Allow {
 		if s == "*" || s == caller || b.member(caller, s) {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.44 — 2026-09-17
+
+Empty ACLs now retain only resource-owner, assigned-Maintainer and own-inbox access, including after restore; implicit master access no longer opens them. Re-registration preserves omitted ACL settings, script runners accept explicit sharing options, and forms explain the restrictive default.
+
 ## 0.5.43 — 2026-09-16
 
 Name daemon user/group managers Administrators, with the protected `@administrators` group and matching API, CLI and web labels. Migrate prior administrative membership and explicit service grants without promoting members of an existing ordinary group at the new name; service/channel Maintainer roles remain separate.

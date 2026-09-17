@@ -104,7 +104,7 @@ func TestCancelDoesNotSwallowAMessage(t *testing.T) {
 func TestNamesAreCanonical(t *testing.T) {
 	b := New()
 	known(t, b, "owner@h")
-	if _, err := b.Register(protocol.Record{Name: "  svc@h  ", Kind: "agent", Owner: "owner@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "  svc@h  ", Kind: "agent", Owner: "owner@h", Allow: []string{"peer@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Register(protocol.Record{Name: "peer@h", Owner: "owner@h"}); err != nil {
@@ -231,7 +231,7 @@ func waitForWaiters(t *testing.T, b *Bus, name string, n int) {
 func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv")
-	mustRegister(t, b, protocol.Record{Name: "jobs@srv", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "jobs@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Owner: "a@srv"})
 	known(t, b, "pub@srv")
 	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "jobs@srv", Topic: "jobs@srv", Body: "work"}); err != nil {
 		t.Fatalf("publish: %v", err)
@@ -249,7 +249,7 @@ func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
 func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv")
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
 	known(t, b, "pub@srv")
 	for _, s := range []string{"one@srv", "two@srv"} {
 		known(t, b, s)
@@ -281,18 +281,18 @@ func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 func TestASubscriptionSurvivesTheTopicBeingRestated(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv")
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
 	known(t, b, "one@srv")
 	if _, err := b.Subscribe("one@srv", "news@srv", true); err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv", Descr: "again"})
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv", Descr: "again"})
 	r, ok := b.Lookup("a@srv", "news@srv")
 	if !ok || len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
 		t.Fatalf("subscribers after a restate: %v", r.Subs)
 	}
 	// And a caller cannot claim one by stating it.
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv", Subs: []string{"intruder@srv"}})
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv", Subs: []string{"intruder@srv"}})
 	r, _ = b.Lookup("a@srv", "news@srv")
 	if len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
 		t.Fatalf("a stated subscriber was taken: %v", r.Subs)
@@ -430,7 +430,7 @@ func TestConsumedMessagesAreReleased(t *testing.T) {
 // What a ring drops is dropped, not kept in the slack behind the queue.
 func TestRingDropsAreReleased(t *testing.T) {
 	b := New()
-	provision(t, b, protocol.Record{Name: "ringy@h", Full: protocol.OverflowRing})
+	provision(t, b, protocol.Record{Name: "ringy@h", Allow: []string{"s@h"}, Full: protocol.OverflowRing})
 	known(t, b, "s@h")
 	for i := 0; i < maxQueue+50; i++ {
 		if _, err := b.Send(protocol.Envelope{To: "ringy@h", From: "s@h", Body: bigBody(i)}); err != nil {

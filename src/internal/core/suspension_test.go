@@ -21,6 +21,9 @@ func TestSuspensionDidNotSettleTheDrainQuestion(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if _, err := b.Manage("alice@h", Management{Name: "alice@h", Allow: ptr([]string{"sender@h"})}); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := b.Send(protocol.Envelope{From: "sender@h", To: "alice@h", Body: "to the person"}); err != nil {
 		t.Fatal(err)
 	}

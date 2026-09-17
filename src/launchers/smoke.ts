@@ -9,7 +9,7 @@ mkdirSync(root, { recursive: true });
 const dir = mkdtempSync(join(root, "run-"));
 const owner = new Bus();
 const peerName = `launcher-peer-${process.pid}@srv1`;
-await owner.register({ name: peerName, kind: "generic" });
+await owner.register({ name: peerName, kind: "generic", allow: ["*"] });
 const deniedName = `launcher-denied-${process.pid}@srv1`;
 await owner.register({ name: deniedName, kind: "generic", allow: ["nobody@srv1"], no_master: true });
 const peer = await owner.as(peerName);

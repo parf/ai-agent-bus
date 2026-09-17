@@ -76,6 +76,22 @@ non-owner administrative standing. Its members still retain the access and
 service maintenance granted through ordinary group references. Downgrading does
 not restore the old name automatically.
 
+## Empty ACL upgrade
+
+From 0.5.44, existing empty ACLs adopt the [restricted default](02-access.md#acl);
+there is no grandfathered open access. Unrelated callers lose both delivery
+access and visibility: listings omit the record and lookup answers as hidden.
+
+Before upgrading, resource owners should explicitly grant any intended peer
+access, including access to reply inboxes. `*` opts into broad sharing; do not
+add it merely to silence a refusal. This release also stops implicit master
+access to empty-ACL resources. The daemon owner needs resource-level authority
+there until the [node-wide override](01-identity-and-roles.md#daemon-owner) is built.
+
+Fresh automatic registrations by faces and launchers also follow the default;
+configured sharing survives [metadata re-registration](01-identity-and-roles.md#registration).
+Script runners can state grants with [their start options](08-runner-role.md#script-services).
+
 ## Install
 
 **Built:** build the programs, then run `sudo agent-bus-setup`. Setup creates

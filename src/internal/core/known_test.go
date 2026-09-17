@@ -8,7 +8,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// known makes each name a principal that answers for itself.
+// known makes each name a principal with an explicitly shared inbox.
 //
 // Stated rather than performed: no ordinary call brings a self-owned name into
 // existence any more. Registering one requires an owner who may already act,
@@ -20,7 +20,7 @@ func known(t *testing.T, b *Bus, names ...string) {
 	t.Helper()
 	records := make([]protocol.Record, 0, len(names))
 	for _, name := range names {
-		records = append(records, protocol.Record{Name: name, Kind: "agent"})
+		records = append(records, protocol.Record{Name: name, Kind: "agent", Allow: []string{"*"}})
 	}
 	provision(t, b, records...)
 }

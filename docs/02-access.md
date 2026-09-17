@@ -10,7 +10,7 @@ Tokens, key-possession enrolment, account sockets, rotation, browser sessions
 and flat ACLs are built. Nested groups and service-role expressions remain
 [pending](../Plans/MVP/TODO.md#authority-model). Startup revocation remains
 [best effort](#ownerless-credentials); further hardening is deferred. Future encryption is separate.
-The [Owner-and-Maintainers empty ACL rule](#acl) is accepted and awaits implementation.
+The [Owner-and-Maintainers empty ACL rule](#acl) applies to new and restored records.
 
 ## What a call carries
 
@@ -132,7 +132,7 @@ need to list itself in its own ACL: it may read its own inbox independently.
 Caller standing, owner suspension and the service's Disabled setting still apply.
 
 **For other principals, an empty ACL means access only for the record's Owner
-and assigned Maintainers. Accepted; implementation pending.** This default
+and assigned Maintainers.** This default
 applies to Personal and non-Personal services alike.
 Being a user alone grants no access: Owner and Maintainer are the relevant
 resource roles, not additional entries that must be placed in the ACL.
@@ -146,17 +146,17 @@ Faces cannot widen these permissions. Enter ACLs in the project's
 [plain-text syntax](05-discovery.md#acl-editing), not display glyphs.
 
 <details>
-<summary>Current implementation and the pending access change</summary>
+<summary>Grants, master access and upgrade behavior</summary>
 
-Today the daemon still treats an empty allow list as open. The table below
-describes that existing behavior, not the accepted restricted default.
+Version 0.5.44 replaces the former open-empty default, including on restored
+records. See the [upgrade note](09-setup.md#empty-acl-upgrade).
 
 | Rule | Effect for an active, known caller |
 |---|---|
 | Resource management authority | Owner, resource's own principal and assigned Maintainers have access |
-| Empty allow list | Open to authenticated principals |
+| Empty allow list | No additional access beyond resource management authority |
 | Matching name, group or `*` | Grants access |
-| Master | Grants access unless the record refuses master |
+| Master | Grants access with a non-empty ACL unless the record refuses master |
 
 The daemon owner holds master; additional masters are configured at startup.
 Master grants access, not ownership or management. The accepted node-wide

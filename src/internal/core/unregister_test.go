@@ -98,7 +98,7 @@ func TestUnregisterClearsConfigurationAndSubscriptions(t *testing.T) {
 	if _, err := b.Configure("svc@h", "svc@h", json.RawMessage(`{"private":true}`)); err != nil {
 		t.Fatal(err)
 	}
-	provision(t, b, protocol.Record{Name: "topic@h", Kind: protocol.KindTopic, Mode: protocol.ModePubSub})
+	provision(t, b, protocol.Record{Name: "topic@h", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub})
 	if _, err := b.Subscribe("svc@h", "topic@h", true); err != nil {
 		t.Fatal(err)
 	}

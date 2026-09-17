@@ -1,3 +1,4 @@
+import { shareFixtureInbox } from "./smoke-access.ts";
 // B.1/B.2 acceptance: drive the MCP server over stdio exactly as a client
 // does — initialize, tools/list, tools/call — and check the five tools work
 // against a real daemon. Run by src/smoke.sh, which starts that daemon.
@@ -86,7 +87,8 @@ try {
     AGENT_BUS_TOKEN: process.env.AGENT_BUS_OWNER_TOKEN,
   });
   const peer = await owner.as(peerName);
-  await peer.register({ name: peerName, kind: "agent" });
+  await peer.register({ name: peerName, kind: "agent", allow: ["*"] });
+  await shareFixtureInbox(await owner.as(me));
 
   // The catalog is per caller, because the daemon is what filters and the
   // face only asks. Two principals, one registry, different answers — and
@@ -152,7 +154,7 @@ try {
   {
     const third = `${peerName.split("@")[0]}.third@${peerName.split("@")[1]}`;
     const bystander = await owner.as(third);
-    await bystander.register({ name: third, kind: "agent" });
+    await bystander.register({ name: third, kind: "agent", allow: ["*"] });
     await peer.send({ to: me, body: "answer elsewhere", topic: "t-rt", tag: "g5", reply_to: { service: third, topic: "t-rt", tag: "g5" } } as any);
     const chore = await call("ab_consume", { topic: "t-rt", tag: "g5", wait: "5s" });
     const rtId = chore.text.match(/id ([0-9a-f]+)/)?.[1] ?? "";

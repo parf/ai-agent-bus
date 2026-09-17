@@ -19,7 +19,7 @@ import (
 // point, a blocked reader, and the guards an ordinary removal applies.
 
 func wreck(name, owner string) protocol.Record {
-	return protocol.Record{Name: name, Owner: owner, Kind: "generic", Full: protocol.OverflowStrict}
+	return protocol.Record{Name: name, Owner: owner, Kind: "generic", Full: protocol.OverflowStrict, Allow: []string{"*"}}
 }
 
 func listed(t *testing.T, b *Bus, name string) bool {
@@ -103,7 +103,10 @@ func TestAPurgedNameIsFreeAndItsQueueIsGone(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Name: "wreck@h", Owner: "active@h", Kind: "generic"}); err != nil {
 		t.Fatalf("the freed name did not register to somebody else: %v", err)
 	}
-	rec, _ := b.Lookup("owner@h", "wreck@h")
+	rec, ok := b.Lookup("active@h", "wreck@h")
+	if !ok {
+		t.Fatal("new owner cannot see reclaimed record")
+	}
 	if rec.Owner != "active@h" {
 		t.Errorf("the name came back owned by %q", rec.Owner)
 	}
@@ -216,6 +219,9 @@ func TestARegisteredUsersOwnRecordIsNotWreckage(t *testing.T) {
 		wreck("svc@h", "missing@h"),
 	)
 	if err := b.SetGroup("owner@h", "@ops", []string{"active@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Manage("active@h", Management{Name: "active@h", Allow: ptr([]string{"owner@h"})}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "active@h", Body: "for a real person"}); err != nil {

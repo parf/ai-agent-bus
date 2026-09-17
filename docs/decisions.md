@@ -8,8 +8,9 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Metadata refresh preserves omitted ACL settings | [registration](01-identity-and-roles.md#registration) | 2026-09-17 implementation review; explicit replacement and management clearing retained in 0.5.44 |
 | Personal ACLs exclude groups | [Personal assignment limits](03-services-and-topics.md#personal-and-shared) | 2026-09-17 owner clarification; resolves Q71, including groups composed only of services; implementation pending |
-| ACL governs access by other principals | [access rules](02-access.md#acl) | 2026-09-17 owner confirmation; service's own-inbox right retained under the pending empty-ACL change |
+| ACL governs access by other principals | [access rules](02-access.md#acl) | 2026-09-17 owner confirmation; own-inbox right retained in the 0.5.44 default change |
 | Resource owners choose groups; Administrators control membership | [group authority](01-identity-and-roles.md#groups) | 2026-09-17 owner decision; confirms existing indirect acquisition of resource authority |
 | Broader transfer-recipient eligibility deferred | [ownership](01-identity-and-roles.md#ownership) | 2026-09-17 owner direction; rare case, existing conditions retained |
 | Startup revocation failure hardening deferred | [existing failure behavior](02-access.md#ownerless-credentials) | 2026-09-17 owner direction; Q69 removed from open questions, implementation unchanged |
@@ -17,7 +18,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Explicit inbox selection, independent message filters | [consume syntax](04-messaging.md#inbox-selection-and-filters) | 2026-09-17 owner decision; resolves Q21, implementation pending |
 | Draining an inactive identity's inbox | [user-state access](01-identity-and-roles.md#user-states) | 2026-09-17 owner decision; resolves Q63, confirming existing behavior |
 | Explicit wildcard for broad user access | [ACL grants](02-access.md#acl) | 2026-09-16 owner clarification |
-| Empty ACL retains resource-management access | [ACL default](02-access.md#acl) | 2026-09-16 owner correction; accepted, implementation pending |
+| Empty ACL retains resource-management access | [ACL default](02-access.md#acl) | 2026-09-16 owner correction; implemented in 0.5.44 |
 | Owner-tagged Personal services | [web grouping and assignment limits](03-services-and-topics.md#personal-and-shared) | 2026-09-16 instruction, clarified 2026-09-17; ordinary access policy retained, implementation pending |
 | Plain-text ACL editing | [ACL editing](05-discovery.md#acl-editing) | 2026-09-16 owner instruction; display glyphs are not input syntax |
 | Entity labels in web and CLI | [display labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-16 owner-selected glyphs for web and human-readable CLI output |

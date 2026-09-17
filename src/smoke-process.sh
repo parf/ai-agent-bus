@@ -84,6 +84,8 @@ await_title "replacement bus resets its calls" "$NEW" "agent-busd $VERSION ; Cal
 timeout 5 "$BIN/agent-bus" status >/dev/null
 await_title "replacement bus still serves the inherited socket" "$NEW" "agent-busd $VERSION ; Calls: 1 ; bus"
 
+# Replies enter the caller's inbox under an explicit fixture grant.
+"$BIN/agent-bus" register "$AGENT_BUS_NAME" --allow title@test >/dev/null
 "$BIN/agent-bus" start title@test --algo args 'printf "%s"' -4 >"$D/runner.log" 2>&1 &
 RUN=$!
 await_title "runner identifies its version and service" "$RUN" "agent-bus-runner $VERSION ; Calls: 0 ; title@test"

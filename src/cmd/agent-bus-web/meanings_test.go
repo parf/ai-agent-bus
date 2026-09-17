@@ -121,7 +121,7 @@ func (m *meanings) shapes() {
 	m.t.Helper()
 	m.register(protocol.Record{Name: "admin@h", Owner: "admin@h"})
 	m.register(protocol.Record{Name: "reading@h", Owner: "admin@h", Descr: "a reader is on it"})
-	m.register(protocol.Record{Name: "quiet@h", Owner: "admin@h", Descr: "enabled, nobody reading"})
+	m.register(protocol.Record{Name: "quiet@h", Owner: "admin@h", Allow: []string{"*"}, Descr: "enabled, nobody reading"})
 	// Through Manage, because Register clears the bit (bus.go:226): delivery
 	// is turned off by its owner, not declared at registration.
 	m.register(protocol.Record{Name: "off@h", Owner: "admin@h", Descr: "the owner turned it off"})
@@ -337,7 +337,7 @@ func TestUnsetQueueSettingsAreStatedAsInheritanceRatherThanGuessed(t *testing.T)
 	if strings.Contains(body, "unset — refuse") {
 		t.Error("the page claims an unset overflow, which a registered record cannot have")
 	}
-	m.register(protocol.Record{Name: "bounded@h", Owner: "admin@h", Bound: 7, TTL: "1m", Full: protocol.OverflowRing})
+	m.register(protocol.Record{Name: "bounded@h", Owner: "admin@h", Allow: []string{"reader@h"}, Bound: 7, TTL: "1m", Full: protocol.OverflowRing})
 	// Read where the page states them, not anywhere on it: the management
 	// form below carries both values in its inputs, so a page-wide match is
 	// satisfied by a detail page that displays neither.
@@ -856,7 +856,7 @@ func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	m.register(protocol.Record{Name: "svc@h", Owner: "alice@h"})
+	m.register(protocol.Record{Name: "svc@h", Owner: "alice@h", Allow: []string{"admin@h"}})
 	if _, err := m.bus.SetUserState("admin@h", "alice@h", "paused"); err != nil {
 		t.Fatal(err)
 	}
@@ -883,6 +883,20 @@ func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 		}
 		if !strings.Contains(body, "owner") {
 			t.Errorf("%s does not name the owner's access as one of the other checks", page)
+		}
+	}
+}
+
+func TestACLFormsExplainRestrictedEmptyLists(t *testing.T) {
+	m := meaningFixture(t)
+	m.register(protocol.Record{Name: "private@h", Owner: "admin@h"})
+	for _, page := range []string{"/services", "/service?name=private@h"} {
+		body := m.get(page)
+		if !strings.Contains(body, "Empty allows only the owner and assigned Maintainers. Add names or * to share.") {
+			t.Errorf("%s does not explain the restricted default and explicit sharing", page)
+		}
+		if strings.Contains(body, "Empty allows every authenticated caller") {
+			t.Errorf("%s still promises open access", page)
 		}
 	}
 }

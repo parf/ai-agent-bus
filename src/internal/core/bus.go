@@ -241,6 +241,12 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 		r.Owner = old.Owner
 		r.Subs = old.Subs
 		r.Maintainers, r.Disabled = old.Maintainers, old.Disabled
+		// Metadata refreshes must not erase grants or lift a master refusal.
+		// Explicit ACLs still replace the policy; Manage can clear either field.
+		if r.Allow == nil {
+			r.Allow = old.Allow
+			r.NoMaster = r.NoMaster || old.NoMaster
+		}
 	}
 	r.Name = name
 	r.At = time.Now()

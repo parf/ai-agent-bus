@@ -36,13 +36,15 @@ import (
 // A service description, from flags or from JSON on stdin. The two forms
 // carry the same fields so that one can be pasted from the other.
 type service struct {
-	Name      string `json:"name"`
-	Algo      string `json:"algo"`      // json: envelope on stdin · args: body as argv[1]
-	Script    string `json:"script"`    // the program to run
-	Descr     string `json:"descr"`     // what ls and the MCP catalog show
-	Instances int    `json:"instances"` // how many may run at once
-	Sandbox   string `json:"sandbox"`   // on or off; unset is off — confinement is asked for
-	Network   bool   `json:"network"`   // a script that needs one says so; off otherwise
+	Name      string   `json:"name"`
+	Allow     []string `json:"allow,omitempty"`
+	NoMaster  bool     `json:"no_master,omitempty"`
+	Algo      string   `json:"algo"`      // json: envelope on stdin · args: body as argv[1]
+	Script    string   `json:"script"`    // the program to run
+	Descr     string   `json:"descr"`     // what ls and the MCP catalog show
+	Instances int      `json:"instances"` // how many may run at once
+	Sandbox   string   `json:"sandbox"`   // on or off; unset is off — confinement is asked for
+	Network   bool     `json:"network"`   // a script that needs one says so; off otherwise
 
 	// Worked out at start rather than stated: how the script is confined,
 	// the one directory it may write to, what it must still be able to read,
@@ -76,6 +78,7 @@ func start(args []string) error {
 	}
 	if err := postQuiet("/register", protocol.Record{
 		Name: svc.Name, Kind: "generic", Addr: svc.Script, Descr: svc.Descr,
+		Allow: svc.Allow, NoMaster: svc.NoMaster,
 	}); err != nil {
 		return err
 	}
@@ -206,6 +209,12 @@ func describe(args []string) (service, error) {
 	// Overridden by the flag the same way -N overrides the JSON form.
 	if v := flags["sandbox"]; v != "" {
 		svc.Sandbox = v
+	}
+	if has(flags, "allow") {
+		svc.Allow = allow(flags)
+	}
+	if has(flags, "no-master") {
+		svc.NoMaster = true
 	}
 	if has(flags, "network") {
 		svc.Network = true

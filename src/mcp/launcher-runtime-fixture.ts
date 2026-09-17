@@ -1,3 +1,5 @@
+import { Bus } from "./bus.ts";
+import { shareFixtureInbox } from "./smoke-access.ts";
 // Runtime boundary fixture. The bus and MCP face are real in smoke.sh.
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -122,6 +124,7 @@ if (args[0] === "serve") {
   };
   const transport = new StdioClientTransport({ command: config.command, args: config.args, env: { ...process.env, ...config.env } as Record<string, string> });
   await client.connect(transport);
+  await shareFixtureInbox(new Bus(busEnv));
   event("mcp-pid", transport.pid);
   event("tools", (await client.listTools()).tools.map(t => t.name));
   event("listed", await client.callTool({ name: "ab_ls", arguments: {} }));
@@ -148,6 +151,7 @@ if (args[0] === "serve") {
     event("rename-repeat", repeat);
     await second.close();
     const after = JSON.parse(readFileSync(config.env.AGENT_BUS_SESSION_FILE, "utf8"));
+    await shareFixtureInbox(new Bus(after));
     event("after-rename", { name: after.AGENT_BUS_NAME, label: after.AGENT_BUS_DESCR });
     if (existsSync(file + ".delivered")) writeFileSync(file + ".delivered", "");
     delivered = "";

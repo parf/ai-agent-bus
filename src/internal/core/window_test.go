@@ -333,7 +333,7 @@ func TestARemovedPrincipalsBlockedReadIsReleased(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "reader@h")
-	provision(t, b, protocol.Record{Name: "shared@h", Owner: "admin@h"})
+	provision(t, b, protocol.Record{Name: "shared@h", Owner: "admin@h", Allow: []string{"reader@h"}})
 	stopped := make(chan error, 1)
 	go func() {
 		_, err := b.ConsumeAs(context.Background(), "reader@h", "shared@h", "", "", false, false)

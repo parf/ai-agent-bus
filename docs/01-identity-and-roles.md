@@ -175,8 +175,7 @@ daemon-owner override remain pending**.
 * Disabling refuses deliveries and inbox reads, cancels blocked reads, and
   retains queued messages. Enabling does not start a process. Removing access
   cancels reads relying on it; delivered work is not recalled.
-* Re-registration preserves ownership, private configuration, subscriptions,
-  assigned Maintainers and the disabled setting.
+* Re-registration retains the [protected settings](#registration).
 * Management includes configuration, access, availability and removal, subject
   to [removal conditions](#unregistering). Only the service itself may fetch its
   [private configuration](03-services-and-topics.md#configuring-a-template).
@@ -247,6 +246,12 @@ A conditional creation refuses an existing canonical name, even for its owner;
 claim and insertion happen together. Launchers use this for unique session
 names. Ordinary re-registration instead permits authorized updates under the
 [management rules](#services).
+
+Re-registration preserves ownership, private configuration, subscriptions,
+assigned Maintainers and the disabled setting. Omitting the ACL retains its
+grants and master refusal; an explicit ACL replaces those settings. An explicit
+master refusal can tighten access without replacing the ACL. Use management to
+deliberately clear grants or the master refusal.
 
 </details>
 

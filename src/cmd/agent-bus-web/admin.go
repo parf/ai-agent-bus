@@ -351,7 +351,7 @@ var serviceList = template.Must(template.New("services").Parse(shell("services",
 <form method=post action=/service><input type=hidden name=action value=create>
 <label>Name <input name=name required placeholder="name@realm"></label><p><label>Description <input name=descr></label></p>
 {{if .Channels}}<input type=hidden name=kind value=topic><label>Delivery <select name=mode><option value=pubsub>Pub/sub</option><option value=queue>Queue</option></select></label>{{else}}<label>Kind <select name=kind><option value=generic>Service</option><option value=agent>Agent</option></select></label>{{end}}
-<p><label>Allow <input name=allow></label> Empty allows every authenticated caller.</p><button>Register</button></form>`))
+<p><label>Allow <input name=allow></label> Empty allows only the owner and assigned Maintainers. Add names or * to share.</p><button>Register</button></form>`))
 var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join}).Parse(shell("services", "Service") + `
 {{with .Record}}<h1>{{.Name}}</h1><p>Owner: {{.Owner}}{{with .Maintainers}} · Maintainers: {{.}}{{end}}{{if .Mode}} · Delivery: {{if eq .Mode "pubsub"}}a copy to each subscriber{{else}}one at a time{{end}}{{end}}</p>
 <h2>Delivery setting</h2>
@@ -394,7 +394,7 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 <p><label>Description <input name=descr value="{{.Descr}}"></label></p>
 <p><label>Address <input name=addr value="{{.Addr}}"></label></p>
 <p><label>Protocol <input name=protocol value="{{.Proto}}"></label></p>
-<p><label>Allow (principals, groups or *) <input name=allow value="{{join .Allow " "}}"></label></p><p>Empty allows every authenticated caller. Owners and maintainers retain access.</p>
+<p><label>Allow (principals, groups or *) <input name=allow value="{{join .Allow " "}}"></label></p><p>Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>
 <p><label>Refuse master access <input type=checkbox name=no_master {{if .NoMaster}}checked{{end}}></label></p>
 <p><label>Queue TTL <input name=ttl value="{{.TTL}}" placeholder="default"></label></p>
 <p><label>Queue capacity (0 uses default) <input type=number min=0 name=bound value="{{.Bound}}"></label></p>
