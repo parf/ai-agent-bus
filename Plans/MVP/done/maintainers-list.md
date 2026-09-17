@@ -71,3 +71,16 @@ service-defined role storage, redesign the service journey, or change
 ownership/orphan traversal. An older daemon cannot decode a snapshot after the
 new array form has been written; the setup guide records that fail-closed
 downgrade boundary.
+
+## Live postflight
+
+Commit `374632b` was pushed and deployed as 0.5.62. The live identity reported
+build `parf@parf.us 2026-09-17 18:56:02`; the public identity route answered
+200 and the anonymous status route remained 401. All eight caller-visible
+records omitted the empty Maintainers field, matching the current wire rule;
+the preflight snapshot likewise contained no legacy Maintainers value to
+migrate. No live record was changed for this check.
+
+The WEB child remained in its delegated cgroup with the accepted limits:
+256 MiB memory, no swap, 64 processes and one CPU. It had zero effective
+capabilities and only `AGENT_BUS_ADDR=/bus.sock` and `PWD=/` in its environment.
