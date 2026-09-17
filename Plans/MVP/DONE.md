@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| 0.5.51 live rollout | Personal tab, corrected navigation, public identity, confined web process and peer reconnection verified without registry changes | [live postflight](done/personal-services-web.md#live-postflight) |
 | Personal service web | Dedicated owner view, ACL-visible daemon-owner filter, main-list exclusion and atomic owner controls without changing access | [0.5.51 evidence](done/personal-services-web.md#checks) |
 | Personal service core | Owner classification persists; atomic assignment limits reject users, groups, wildcard, Maintainers, Agents and Channels without changing access | [0.5.50 evidence](done/personal-services-core.md#checks) |
 | 0.5.49 live rollout | Generated delegation active; web-only cgroup limits, real page, mapped bus call and peer reconnection verified read-only | [live postflight](done/web-resources.md#live-postflight) |

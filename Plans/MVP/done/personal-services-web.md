@@ -55,3 +55,17 @@ The 175-entry source/version manifest was unchanged after the run
 This is grouping and owner control, not a second registry or access mode. The
 daemon owner sees only what the existing `/ls` authorization returns. CLI, MCP
 and API listings remain unchanged.
+
+## Live postflight
+
+Commit `6e35e49` was built once with stamp `parf@parf.us 2026-09-17 10:20:33`
+and deployed as 0.5.51. Anonymous `/identity` reported that version and stamp.
+Using the existing owner credential read through its mapped socket, `/services`,
+`/personal` and `/channels` each returned 200; each marked only its own tab, and
+the Personal page rendered the ACL-visible, not-node-wide boundary. The live
+registry contained no Personal records, so this verification changed none.
+
+The web child remained in its delegated group with one CPU, 256 MiB memory,
+zero swap, 64 tasks and zero effective capabilities. `/status` carried no
+unclean flag. OpenCode replied over the same session after restart, confirming
+the peer path reconnected without manual registration.
