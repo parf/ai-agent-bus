@@ -5,6 +5,9 @@ cd "$(dirname "$0")"
 out=${1:-.}
 build_info="$(id -un)@$(hostname) $(date '+%Y-%m-%d %H:%M:%S')"
 go build -ldflags "-X 'github.com/parf/ai-agent-bus/internal/version.Build=$build_info'" -o "$out/" ./cmd/...
+# The web filesystem contains its executable, not host libraries. Keep its
+# build stamp identical while producing a standalone executable for bubblewrap.
+CGO_ENABLED=0 go build -ldflags "-X 'github.com/parf/ai-agent-bus/internal/version.Build=$build_info'" -o "$out/agent-bus-web" ./cmd/agent-bus-web
 # A self-contained runtime tree; npm publication remains an R1 deliverable.
 if [ "$out" != . ]; then
     mkdir -p "$out/mcp" "$out/launchers" "$out/internal/version"

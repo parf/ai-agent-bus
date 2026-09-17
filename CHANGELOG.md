@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.46 — 2026-09-17
+
+Confine the supervised web child to its executable, shared API socket and explicit TLS inputs, excluding daemon state and privileged sockets. Bubblewrap and unprivileged user namespaces are required; sandbox failures never start an unconfined dashboard.
+
 ## 0.5.45 — 2026-09-17
 
 Preserve SSH operator key entitlement and rotation requests through token delegation. Setup gives the daemon account a shell that can run restricted SSH commands and repairs the previous nologin default without replacing a custom shell.

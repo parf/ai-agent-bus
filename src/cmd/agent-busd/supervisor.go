@@ -130,34 +130,20 @@ func webChild(exe, shared string) *child {
 	if _, err := os.Stat(exe); err != nil {
 		log.Fatalf("web: %v — the dashboard is a separate binary beside this one", err)
 	}
-	return &child{
-		what: "web",
-		path: exe,
-		env:  []string{"AGENT_BUS_ADDR=" + shared},
-		// Said here rather than trusted to the launcher. "No credential" was
-		// true only while nobody started the daemon from a shell that had one
-		// exported, and then the dashboard silently had the exporter's
-		// authority to lend out. A child is given what it needs.
-		drop: []string{"AGENT_BUS_TOKEN"},
+	wrap, err := exec.LookPath("bwrap")
+	if err != nil {
+		log.Fatal("web: bubblewrap is required; refusing to start an unconfined dashboard")
 	}
+	return &child{what: "web", path: wrap, args: webSandbox(exe, shared, os.Getenv), cleanEnv: true}
 }
 
-// environ is what the child is started with: the environment around the
-// supervisor, less anything this child must not be handed, plus what it is
-// told. Dropping happens first, so a child can be given back a name it is
-// otherwise denied.
+// Only the bus inherits the supervisor environment. The sandbox wrapper gets
+// explicit values only, so even loader variables cannot reach it before bwrap
+// clears its own environment.
 func (k *child) environ(around []string) []string {
-	out := make([]string, 0, len(around)+len(k.env))
-	for _, kv := range around {
-		drop := false
-		for _, name := range k.drop {
-			if strings.HasPrefix(kv, name+"=") {
-				drop = true
-			}
-		}
-		if !drop {
-			out = append(out, kv)
-		}
+	out := []string{}
+	if !k.cleanEnv {
+		out = append(out, around...)
 	}
 	return append(out, k.env...)
 }
@@ -165,12 +151,12 @@ func (k *child) environ(around []string) []string {
 // child is one supervised process. A child dying is normal: it is contained,
 // restarted with backoff, and only the supervisor surviving matters.
 type child struct {
-	what string
-	path string
-	args []string
-	env  []string
-	drop []string
-	fds  []*os.File
+	what     string
+	path     string
+	args     []string
+	env      []string
+	cleanEnv bool
+	fds      []*os.File
 
 	mu      sync.Mutex
 	cmd     *exec.Cmd

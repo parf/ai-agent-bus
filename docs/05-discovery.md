@@ -6,8 +6,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration and envelope-only diagnostics. |
-| Pending | [All-reader count](#readers), installed [browser acceptance](#browser-acceptance), resource confinement and [web authority isolation](11-processes.md#web-authority-boundary). |
+| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics and [web authority isolation](11-processes.md#web-authority-boundary). |
+| Pending | [All-reader count](#readers), installed [browser acceptance](#browser-acceptance) and resource limits. |
 
 ## What a listing answers
 
@@ -66,7 +66,7 @@ An empty result says `No matching records.`; lookup errors remain errors.
 |---|---|---|
 | API | Registry, messaging, credentials, sessions and dashboard administration | — |
 | MCP | Bus tools and a catalog filtered by the daemon | — |
-| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access | Installed browser acceptance, resource confinement and web authority isolation |
+| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access | Installed browser acceptance and resource limits |
 
 ## MCP minimum
 

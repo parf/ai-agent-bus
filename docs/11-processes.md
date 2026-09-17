@@ -6,8 +6,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Supervisor, bus child, optional web child, inherited listeners and versioned process titles. |
-| Pending | Installed capability acceptance, including mutation checks; dashboard resource confinement and [credential/state isolation](#web-authority-boundary). See [MVP work](../Plans/MVP/TODO.md#remaining-work) and [installed gates](../Plans/MVP/TODO.md#installed-stage-gate). |
+| Built | Supervisor, bus child, optional confined web child, inherited listeners and versioned process titles. |
+| Pending | Installed capability acceptance, including mutation checks; dashboard resource limits. See [MVP work](../Plans/MVP/TODO.md#remaining-work) and [installed gates](../Plans/MVP/TODO.md#installed-stage-gate). |
 
 ## The rule
 
@@ -88,7 +88,7 @@ and then uses their browser session.
 
 ## Web authority boundary
 
-**Required MVP, pending.** The web child must be unable to read or modify
+The supervised web child cannot read or modify
 daemon credentials, snapshots or SSH authorization, or use mapped account
 sockets to acquire authority independently of its visitor. Normal calls use
 the shared listener and the visitor's credential or browser session.
@@ -98,9 +98,6 @@ the shared listener and the visitor's credential or browser session.
 credential, so what the dashboard can do is exactly what that person could do
 from the CLI. It is a face, not an authority.
 
-Three things follow. The first two are restatements of the boundary above; the
-third is derived here:
-
 | | |
 |---|---|
 | **The node's own identity is not authority** | release, build, host name, daemon owner, uptime and calls served are published to anybody, signed in or not ([what a node says about itself](05-discovery.md#what-a-node-says-about-itself)). The daemon answers that closed list without a credential, so the face reads it as anybody does — it is not the face acquiring privilege, and nothing else is readable that way |
@@ -108,12 +105,32 @@ third is derived here:
 | **Nothing outlives the session** | authority arrives with the request and leaves with it. The session lives in the bus, not the child ([signing in](05-discovery.md#signing-in)), so a panel that is not serving a signed-in request is holding no authority at all |
 | **Authority is rendered, not computed** | the daemon already answers per caller — a record comes back saying whether *this* caller may manage or transfer it ([ACL](02-access.md#acl)). The panel shows what it was told rather than working it out. A face that derives permissions itself is a second implementation of the access rules, and two implementations disagree; the disagreement that matters is the one where the page offers an action the daemon will refuse |
 
-Passing only the shared socket to the child is application wiring, not OS
-confinement. The current shared service account leaves other paths accessible;
-the [installed review](../Plans/MVP/done/release-gap-review.md#findings)
-records the permissions probe. Resource limits and capability dropping do not
-establish this file and socket boundary. The implementation mechanism remains
-to be selected; [G.1.3](../Plans/MVP/TODO.md#remaining-work) owns acceptance.
+The supervisor uses bubblewrap to expose individual inputs in an otherwise
+empty filesystem. Sandbox setup failure never falls back to an unconfined web
+child. A standalone invocation of `agent-bus-web` does not establish this boundary.
+
+<details>
+<summary>Filesystem and process confinement</summary>
+
+| Input or boundary | Supervised web |
+|---|---|
+| Executable | Static web binary, read-only; no host library directories |
+| API | Shared socket only; mapped account sockets are absent |
+| TLS | Only explicitly configured certificate/key files, read-only; a missing requested file prevents startup |
+| Name resolution | Read-only `/etc/hosts` and `/etc/resolv.conf`, when present |
+| Processes | Private PID namespace and its own `/proc`; host process roots and descriptors are not exposed |
+| Other files | Private temporary filesystem and minimal `/dev`; no daemon state, home or SSH directory |
+| Environment | Only the shared API address and explicit web listen/TLS settings; inherited credentials and unrelated variables are discarded |
+| Privilege | New user/IPC/UTS namespaces, new session, no capabilities; host networking retained for the HTTP listener |
+
+The earlier [same-account exposure](../Plans/MVP/done/release-gap-review.md#findings)
+is why application wiring alone was insufficient. This does not provide a
+network firewall or the separately pending web resource limits. It also does
+not hide credentials a visitor intentionally supplies to the web process.
+Read the [installed acceptance](../Plans/MVP/done/web-isolation.md#checks) for
+the exercised host policy and mutation limits.
+
+</details>
 
 ## How a child is started
 
@@ -126,14 +143,9 @@ child cannot make one and does not need the capability to.
 | `AGENT_BUS_FDS` | what arrives at fd 3 upwards, in order: `tcp`, `shared`, `user:<principal>` — the whole contract between the two |
 | `-web` | the dashboard runs as a child too ([discovery § where it listens](05-discovery.md#where-it-listens)), reaching the bus over the shared socket and forwarding the visitor's credentials |
 
-**The dashboard is started without `AGENT_BUS_TOKEN`,** whatever the
-supervisor was started with. It is supposed to hold no credential of its own
-([signing in](05-discovery.md#signing-in)) — one that did would serve every page
-as whoever exported it, to whoever connected. That was true only as long as
-nobody launched the daemon from a shell with a token in it, which is how a
-developer's shell works and is not a guarantee; the supervisor now takes the
-variable away rather than trusting what it was handed. Nothing else is
-stripped: a child gets the environment around it, less what it must not have.
+The bus child inherits the supervisor's environment. The web wrapper starts
+with an empty environment and receives only the explicit inputs listed in
+the [web boundary](#web-authority-boundary), never a principal token.
 
 A child that dies is restarted with backoff, and the listeners are passed to
 the replacement — the socket a client holds is the same file across a restart.

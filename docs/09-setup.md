@@ -95,6 +95,14 @@ Script runners can state grants with [their start options](08-runner-role.md#scr
 
 ## Install
 
+Enabling `-web` requires bubblewrap (`bwrap` on `PATH`) and working unprivileged
+user namespaces under the unit's restrictions. Build with `src/build.sh`:
+its static web binary needs no host libraries inside the
+[web sandbox](11-processes.md#web-authority-boundary). Missing sandbox support
+is a startup failure, never an unconfined fallback. No setuid helper or extra
+capability is granted; the web listener retains the host's unprivileged port
+rules. Fresh-host acceptance must verify this dependency on the target host.
+
 **Built:** build the programs, then run `sudo agent-bus-setup`. Setup creates
 the accounts and tree, writes/enables the daemon unit, and installs the first
 user's key through the admin program. Without root it refuses and prints the

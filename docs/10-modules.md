@@ -64,6 +64,7 @@ may use `curl`, because that is their ordinary client.
 |---|---|
 | Sign or verify possession | `ssh-keygen` |
 | Optional script confinement | `systemd-run --user` |
+| Supervised web confinement | `bwrap`; [runtime requirements](09-setup.md#install) |
 | Install accounts and daemon unit | Host account tools and systemd |
 | Switch to the admin account | `sudo` |
 

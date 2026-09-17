@@ -2354,16 +2354,26 @@ SUP=$!
 ready "$D/sup/bus.sock" || echo "  WARNING: $D/sup/bus.sock never answered"
 # By parent pid throughout: a pattern would match anything else on the host.
 has "the daemon is a supervisor and its children" "$(pgrep -P "$SUP" | wc -l)" '^2$'
+# Bubblewrap owns the web's PID namespace and reaper. Inspect the descendant
+# tree, rather than mistaking its wrapper for the renderer or losing orphans.
+descendants() {
+  local child
+  for child in $(pgrep -P "$1"); do echo "$child"; descendants "$child"; done
+}
+for _ in $(seq 1 50); do
+  WEBPID=$(ps -o pid=,comm= -p $(descendants "$SUP" | paste -sd, -) | awk '$2 == "agent-bus-web" {print $1}')
+  [ -n "$WEBPID" ] && break
+  sleep 0.1
+done
 has "and the dashboard is one of them, not something it embeds" \
-  "$(ps -o comm= -p $(pgrep -P "$SUP" | tr '\n' ',' | sed 's/,$//') | tr '\n' ' ')" 'agent-bus-web'
-WEBPID=$(pgrep -P "$SUP" -x agent-bus-web)
+  "$(ps -o comm= -p "$WEBPID")" 'agent-bus-web'
 is_empty "the dashboard carries no token of its own" \
   "$(tr '\0' '\n' < /proc/$WEBPID/environ | grep AGENT_BUS_TOKEN)"
 # And not the owner's socket either, which is the half a missing token does
 # not cover: on that socket it would be the owner without a credential at all.
 # See docs/05-discovery.md#signing-in.
 has "and reaches the bus over the shared socket, not the owner's" \
-  "$(tr '\0' '\n' < /proc/$WEBPID/environ | grep AGENT_BUS_ADDR)" 'AGENT_BUS_ADDR=.*/sup/bus.sock$'
+  "$(tr '\0' '\n' < /proc/$WEBPID/environ | grep AGENT_BUS_ADDR)" '^AGENT_BUS_ADDR=/bus.sock$'
 AGENT_BUS_ADDR=$D/sup/user-$ACCOUNT.sock "$D/agent-bus" register sup-svc@srv1 --allow '*' \
   --descr "seen through the supervisor" >/dev/null
 for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+12))/" && break; sleep 0.1; done
@@ -2390,7 +2400,7 @@ has "while the socket is the same file, because the fd was handed over" \
 # Ask after the pids themselves, not after the supervisor's children: an
 # orphan is reparented to init the moment its parent dies, so "it has no
 # children" is true of a dead process however badly it left.
-KIDS=$(pgrep -P "$SUP" | tr '\n' ' ')
+KIDS=$(descendants "$SUP" | tr '\n' ' ')
 kill -TERM "$SUP" 2>/dev/null; wait "$SUP" 2>/dev/null
 gone() { for _ in $(seq 1 40); do [ -z "$(ps -o pid= -p $1 2>/dev/null)" ] && break; sleep 0.1; done
   ps -o pid= -p $1 2>/dev/null; }

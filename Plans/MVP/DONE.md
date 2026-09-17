@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| G.1.3 | Supervised web filesystem, process and environment confinement; actual generated-unit acceptance with disposable canaries | [web isolation](done/web-isolation.md#checks) |
 | H.5.2 | SSH forced-command entitlement and account-shell repair; isolated real-sshd acceptance and mutations | [SSH onboarding](done/ssh-onboarding.md#checks) |
 | Default service access | Restricted empty ACLs apply after restore; explicit sharing, own-inbox access and metadata-refresh grants retained | [0.5.44 evidence](done/empty-acl.md#checks) |
 | Administrator naming | Administrative role, protected group and client labels renamed; existing membership and explicit record grants migrated | [migration evidence](done/administrator-names.md#checks) |
