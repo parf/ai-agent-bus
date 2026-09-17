@@ -388,8 +388,9 @@ function catalogue(r: Record_): string {
     // a topic or tag is attached and is not in it (core/bus.go withLiveness),
     // and `deliver` serves a matching one of those ahead of an unfiltered
     // reader. So the false case cannot say nobody is reading — it did, and the
-    // dashboard said the same thing until F.13.1. Whether such a read should
-    // be reported at all is Plans/MVP/QUESTIONS.md Q70.
+    // dashboard said the same thing until F.13.1. Q70's accepted all-reader
+    // web count is pending (docs/05-discovery.md#readers); this remains the
+    // current MCP rendering of the existing bit.
     r.protocol ? undefined : r.reading ? "a reader is attached" : "no unfiltered reader — a read restricted to a topic or tag is not counted, and does take what matches it",
     r.queued ? `${r.queued} queued` : undefined,
     r.config_sha ? `configured (${r.config_sha.slice(0, 12)})` : undefined,

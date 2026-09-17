@@ -753,9 +753,9 @@ func TestPubSubAndQueueDeliveryAreNamedAndNeitherIsGuessed(t *testing.T) {
 //
 // The shapes the pages can distinguish are a live inbox with an unfiltered
 // read on it and a backlog with no unfiltered read, and no live call produces
-// both at once — an unfiltered reader drains what it finds. Whether a face
-// should report the excluded reads as a fact of their own is
-// [Q70](../../Plans/MVP/QUESTIONS.md).
+// both at once — an unfiltered reader drains what it finds. Q70's accepted
+// all-reader web count is pending (docs/05-discovery.md#readers); this test
+// pins the current bit and its labels until that change is implemented.
 func TestTheReaderColumnSaysWhichReadsItCounts(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()

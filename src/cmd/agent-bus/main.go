@@ -270,7 +270,8 @@ func ls(args []string) error {
 	}
 	// What the column counts, because "no" alone is a stronger claim than the
 	// daemon makes: `reading` holds only a read that accepts any message, so
-	// one restricted to a topic or tag is attached and is not in it (Q70).
+	// one restricted to a topic or tag is attached and is not in it. Q70's
+	// pending web count is separate (docs/05-discovery.md#readers).
 	fmt.Println("\nREADER  yes: a read that accepts any message is outstanding · no: none is, though a read restricted to a topic or tag would not show here · -: this bus does not serve the record")
 	return nil
 }
