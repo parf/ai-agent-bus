@@ -8,17 +8,21 @@ type NodeIdentity struct {
 	Owner   string `json:"owner"`
 	Up      string `json:"up"`
 	// Empty Host means the OS did not provide a hostname.
-	Host     string          `json:"host"`
-	Load     *[3]float64     `json:"load"`
-	Messages []MessageWindow `json:"messages"`
+	Host  string     `json:"host"`
+	Calls *CallStats `json:"calls"`
 }
 
-// MessageWindow counts accepted inbox deliveries and dequeues, not API calls.
+// CallStats counts HTTP requests entering daemon handlers, including refused
+// calls and long polls still in flight. It does not count completed work.
+type CallStats struct {
+	Total   uint64       `json:"total"`
+	Windows []CallWindow `json:"windows"`
+}
+
 // Observed is the actual sampled span, which can differ from Window.
-type MessageWindow struct {
+type CallWindow struct {
 	Window    string `json:"window"`
 	Observed  string `json:"observed"`
 	Available bool   `json:"available"`
-	Accepted  int    `json:"accepted"`
-	Dequeued  int    `json:"dequeued"`
+	Count     uint64 `json:"count"`
 }

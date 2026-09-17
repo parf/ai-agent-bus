@@ -1,11 +1,6 @@
 package core
 
-import (
-	"strconv"
-	"time"
-
-	"github.com/parf/ai-agent-bus/internal/protocol"
-)
+import "time"
 
 // One hour of minute samples plus the baseline needed for the first delta.
 const activityKept = 61
@@ -21,17 +16,14 @@ type ActivityPoint struct {
 	At time.Time `json:"at"`
 	Counts
 }
-type trafficCounts struct{ in, out int }
-
 type activitySample struct {
-	traffic trafficCounts
 	at      time.Time
 	records map[string]Counts
 	refused int
 }
 
 func (b *Bus) activitySnapshot(now time.Time) activitySample {
-	s := activitySample{at: now, traffic: b.traffic, records: map[string]Counts{}}
+	s := activitySample{at: now, records: map[string]Counts{}}
 	for name := range b.records {
 		if in := b.inboxes[name]; in != nil {
 			s.records[name] = Counts{in.in, in.out, in.dropped, in.expired, in.refused}
@@ -114,38 +106,4 @@ func (b *Bus) Activity(caller, name string) ([]ActivityPoint, error) {
 		points = append(points, ActivityPoint{samples[i].at, Counts{max(0, next.In-prev.In), max(0, next.Out-prev.Out), max(0, next.Dropped-prev.Dropped), max(0, next.Expired-prev.Expired), max(0, next.Refused-prev.Refused)}})
 	}
 	return points, nil
-}
-
-// NodeMessages publishes only node totals. These process-local counters do not
-// depend on today's registry or its ACLs: removing a record cannot erase traffic.
-// The existing minute sampler captures them; no separate sampling loop is used.
-func (b *Bus) NodeMessages(now time.Time) []protocol.MessageWindow {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	windows := []protocol.MessageWindow{}
-	for _, span := range []time.Duration{time.Minute, 5 * time.Minute, time.Hour} {
-		w := protocol.MessageWindow{Window: strconv.Itoa(int(span/time.Minute)) + "m"}
-		cutoff := now.Add(-span)
-		var baseline *activitySample
-		for i := range b.activity {
-			sample := &b.activity[i]
-			if sample.at.After(now) {
-				break
-			}
-			if baseline == nil || !sample.at.After(cutoff) {
-				baseline = sample
-			}
-			if sample.at.After(cutoff) {
-				break
-			}
-		}
-		if baseline != nil {
-			w.Available = true
-			w.Observed = now.Sub(baseline.at).Round(time.Second).String()
-			w.Accepted = b.traffic.in - baseline.traffic.in
-			w.Dequeued = b.traffic.out - baseline.traffic.out
-		}
-		windows = append(windows, w)
-	}
-	return windows
 }

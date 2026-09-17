@@ -19,6 +19,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
+	"github.com/parf/ai-agent-bus/internal/callstats"
 	"github.com/parf/ai-agent-bus/internal/core"
 	dirfile "github.com/parf/ai-agent-bus/internal/directory/file"
 	"github.com/parf/ai-agent-bus/internal/directory/github"
@@ -32,6 +33,7 @@ import (
 
 func runBus(c config) {
 	var calls atomic.Uint64
+	callHistory := callstats.New(&calls)
 	defer proctitle.Start("agent-busd", "bus", &calls)()
 	tokens, err := auth.Load(file.NewTokens(c.tokenF), c.owner)
 	if err != nil {
@@ -84,6 +86,7 @@ func runBus(c config) {
 	bus.Directories(dirs, sshkeygen.New())
 	face := api.New(bus, tokens, me.String())
 	face.Dashboard(c.dash)
+	face.Calls(callHistory.Snapshot)
 
 	// A record whose owner the daemon knows nothing about is wreckage, and it
 	// goes first — with its queues, whatever is in them
@@ -127,13 +130,11 @@ func runBus(c config) {
 	// is best effort like every other snapshot; what it is not is skipped.
 	save(false)
 
+	callHistory.Sample(time.Now())
 	var srvs []*http.Server
 	serve := func(l net.Listener, h http.Handler) {
 		srv := &http.Server{
-			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				calls.Add(1)
-				h.ServeHTTP(w, r)
-			}),
+			Handler: countCalls(&calls, h),
 			// Long-poll consume holds a request open, so there is no write
 			// deadline; the header and idle deadlines cost nothing.
 			ReadHeaderTimeout: 10 * time.Second,
@@ -179,6 +180,7 @@ func runBus(c config) {
 			select {
 			case at := <-activityTick.C:
 				bus.SampleActivity(at)
+				callHistory.Sample(at)
 			case <-activityDone:
 				return
 			}
@@ -231,4 +233,13 @@ func inherited() []inlet {
 		in = append(in, inlet{l: l, who: who})
 	}
 	return in
+}
+
+// Count admission, not completion: a long poll already occupies the daemon.
+// Every listener uses this wrapper and the process title reads the same atomic.
+func countCalls(calls *atomic.Uint64, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		h.ServeHTTP(w, r)
+	})
 }

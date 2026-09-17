@@ -344,10 +344,9 @@ const head = `<!doctype html>
  textarea{max-width:100%;box-sizing:border-box;font:13px ui-monospace,monospace}
  button,select{font:inherit;padding:.3rem .5rem}
  form+form{margin-top:1rem}
- .site-header{border-bottom:1px solid #aaa;padding-bottom:1rem;margin-bottom:1rem}
- .node-summary{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin:.4rem 0;overflow-wrap:anywhere}
- .node-load{font-size:12px;line-height:1.7}
- .message-windows{display:flex;flex-wrap:wrap;gap:0 1.5rem}
+ .site-header{overflow-x:auto;white-space:nowrap;border-bottom:1px solid #aaa;padding-bottom:1rem;margin-bottom:1rem}
+ .node-summary{display:flex;flex-wrap:nowrap;gap:1rem;margin:.4rem 0}
+ .node-summary>*{flex-shrink:0}
  .site-footer{clear:both;border-top:1px solid #aaa;margin-top:2rem;padding-top:1rem;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
  nav{line-height:2}
  nav a[aria-current=page]{font-weight:700;text-decoration:none}

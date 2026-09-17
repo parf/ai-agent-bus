@@ -109,6 +109,7 @@ func IsUserSocket(path string) bool {
 const maxWait = 60 * time.Second
 
 type Server struct {
+	calls  func(time.Time) protocol.CallStats
 	bus    *core.Bus
 	tokens *auth.Tokens
 	// The principal this daemon belongs to. It is the one that may hand out

@@ -99,7 +99,6 @@ type Bus struct {
 	users    map[string]protocol.User
 	mu       sync.Mutex
 	activity []activitySample
-	traffic  trafficCounts
 	records  map[string]protocol.Record
 	groups   map[string][]string
 	admin    string
@@ -616,8 +615,6 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 			}
 			in.waiters = drop(in.waiters, i)
 			in.in, in.out = in.in+1, in.out+1 // straight through: in and out at once
-			b.traffic.in++
-			b.traffic.out++
 			w.ch <- e
 			return nil
 		}
@@ -641,7 +638,6 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 	}
 	in.queue = append(in.queue, e)
 	in.in++
-	b.traffic.in++
 	return nil
 }
 
@@ -834,7 +830,6 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 		if !filtered || (e.Topic == topic && e.Tag == tag) {
 			in.queue = take(in.queue, i)
 			in.out++
-			b.traffic.out++
 			b.mu.Unlock()
 			return e, nil
 		}

@@ -162,51 +162,61 @@ maintainers can remove a subscription; they cannot force another inbox to subscr
 
 **Owner-settled, 2026-09-16.** A short closed list of facts about the node is
 published to **anybody who can reach the dashboard, signed in or not**: what it
-is, where it runs, whose it is, how long it has been up and roughly how busy it
-is. They appear in the shell every page shares and on the **sign-in page**,
+is, where it runs, whose it is, how long it has been up and how many calls it
+has served. They appear in the shell every page shares and on the **sign-in page**,
 which is the whole point — somebody who arrives at a bus they do not have a
 credential for should be able to tell what it is and whose it is without asking
 anybody.
 
 | | |
 |---|---|
-| what is published | release, host name, daemon owner name, uptime, load — and the build. **Nothing else**: no record names, no principals, no refusal counts, nothing about who is using it |
-| where each one shows | the header carries release, host, uptime and owner. The footer carries the build. That split is the owner's: the header is what the node is, the footer is which artefact is answering |
+| what is published | release, host name, daemon owner name, uptime, **calls served** — and the build. **Nothing else**: no record names, no principals, no refusal counts, nothing about who is using it |
+| where each one shows | **the header is one line**: release, host, uptime, owner, and three call figures — `min:`, `hr:`, `total:`. The footer carries the build. The owner set the one-line rule and chose those three; a five-minute window and a day window were each tried and removed |
 | to whom | any caller that reaches the face, with no credential and no session |
 | host name | the machine's hostname as the OS reports it, `srv1`. The daemon has no node name of its own, so this is a new field rather than a restatement of one; it is not the realm, which the owner's name already carries |
 | uptime | a plain figure, `1h23m up`, as the owner asked. It is what was true when the page rendered and the page does not refresh itself |
-| load | **both readings**, as the owner asked: the host's 1/5/15-minute load average, and the bus's own message counts over the **last minute, last five minutes and last hour**. The bus figures are node-wide totals, not this caller's — see the warnings below. They are named for what they count, **accepted** and **dequeued**, never *calls*: the daemon has no request counter, and a figure labelled for something it does not count is worse than no figure |
-| what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The traffic figures are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal and no direction of business |
+| calls served | the count of **HTTP requests the bus process has served**, over the **last minute** and **the last hour**, plus the **total since the daemon started**. Every request on every listener, gated or refused or served — it is counted before the handler runs, so it is traffic reaching the daemon rather than work it agreed to do. A node-wide figure, not this caller's. **No host reading is published**: the owner asked for the daemon's own calls only, and an OS load average is a fact about the machine rather than about this node |
+| what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The call counts are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal, no endpoint and no direction of business |
 | how it is read | **`GET /identity`**, a public daemon call answering these fields and nothing else to a caller with no credential. There was no such call: every route but enrolment and a root redirect sits behind the token gate, and `GET /status` is authenticated and answers refusals and the caller's own standing besides. So this is a new endpoint rather than a relaxation of `/status`, which keeps its gate and its contents |
 | the face's part | it asks as anybody does. The face still holds no credential and still acts as the visitor for everything else ([web authority boundary](11-processes.md#web-authority-boundary)): this is a fact the daemon publishes, not a privileged call the face makes |
 
-The bus's three windows are read off the **minute samples the bus already
-keeps for an hour**, which is why they are 1/5/60 rather than some other
-spacing: the same shape as the load average beside them, and no new sampler.
+The total needs no sampler at all: it is the counter itself. The minute and
+hour windows come from a **separate 61-sample history of that counter** — plain
+readings, no records and no names in it — driven by the **existing minute
+ticker**, so there is no additional timer. It is not the per-record activity
+the dashboard graphs; those samples stay what they were and are counted
+per record.
 
-**A total here is not a filtered listing.** The per-caller activity series
-cannot express this figure: it answers what one named caller may see, and a
-caller the daemon cannot name may see nothing, so asking it on a stranger's
-behalf would answer a confident **zero** on a busy node — a fabricated figure
-of exactly the kind the rest of this page refuses. So the published figure is
-its own thing: a node-wide sum incremented where delivery happens, with no
-caller and no ACL in the calculation at all. Not because an ACL would leak
-here — it would not, and a privileged caller can get an aggregate over what it
-may see — but because no filtered path can answer **this** question for **this**
-caller.
+**Why a total rather than a day.** A day window was asked for and withdrawn.
+The counter is process-local and resets with the daemon, so on any node
+restarted within 24 hours `day:` would report everything since start while
+calling itself a day. `total:` reports the same number and is honest about it —
+and it needs no span of its own, because `1h23m up` is on the same line and
+scopes it.
 
-**What the sampler can and cannot answer.** These are properties of the store
-the figures are read from, not defects to be fixed here, and the page states
-them rather than papering over them:
+**This figure is nobody's listing.** It is a process-local counter, incremented
+where every HTTP request enters the bus process, with no caller, no record and
+no ACL anywhere in it. That is what lets it be published to a stranger at all:
+there is no per-caller view to get wrong, because there is no per-caller view.
+The dashboard's activity series is the other thing entirely — filtered to what
+one named caller may see, and unable to answer this question for a caller it
+cannot name, since for a stranger it would report a confident **zero** on a
+busy node.
+
+**What the counter can and cannot answer.** These are properties of what is
+being counted, not defects to be fixed here, and the page states them rather
+than papering over them:
 
 | | |
 |---|---|
-| they are **sampled**, not exact | what is kept is the node's own running totals, captured once a minute — cumulative figures, not events with timestamps. A window is the difference between one of those samples and the live total now, so it ends at this instant but begins wherever a sample happened to fall. An exact rolling minute is not recoverable and is not claimed; each window states the span it actually covered |
-| history is **shorter than the window** after a restart | an hour of samples takes an hour to accumulate. A node up for three minutes has three minutes of history, and the hour figure says so. **Unobserved history is never shown as zero** — that is the distinction this whole layer exists for |
-| a removed name does **not** take its past with it | the published figure is a process-local total incremented where delivery happens, not a sum over today's registry, so unregistering a name ([unregistering](01-identity.md#unregistering)) cannot erase traffic it carried and reusing a name cannot double-count it. **The per-caller activity series on the dashboard is the other way round** — it is projected over the records that exist now, so a removed name leaves that history retroactively. The two disagree by design and for different readers |
-| what a message counts as | **accepted** is an envelope taking a place in an inbox; **dequeued** is one leaving. A publication to a topic counts its accepted *copies*, one per subscriber whose inbox took it — not the publication. So a publish to a topic nobody subscribes to moves nothing, and a copy an inbox refused is a loss rather than an acceptance |
-| the two figures are not a pair | a straight-through delivery to a waiting reader is accepted and dequeued at once, while a queued one is accepted now and dequeued whenever somebody reads. Within any window, either can exceed the other; a queue drained from before the window makes dequeued the larger |
-| the host's figure is **load, not utilisation** | `/proc/loadavg` is Linux's 1/5/15-minute run-queue average. It is not a percentage and does not become one by being divided by anything the page knows |
+| it counts requests **admitted**, not work completed | the counter increments before the handler runs, so a refusal, a router 404, a bad token and a served call all count the same. A node being hammered with rejected requests reads as busy, which is correct — it is traffic reaching the daemon, not work the daemon agreed to do |
+| a long poll counts when it **starts** | a waiting `consume` holds one request open for as long as it waits, and it was counted on arrival. On a bus whose faces sit in long polls, a quiet minute in which several readers attach still shows calls. Nothing is wrong with the figure; it is answering a different question than "how much happened" |
+| the dashboard counts itself | `GET /identity` is a request like any other, so loading a page adds to the figures that page then shows. No page refreshes itself ([what it shows](#what-it-shows)), so an open page left alone generates nothing; it is a **person** reloading who moves the number they are watching |
+| the windows are **sampled**, not exact | what is kept is the running total captured once a minute, so a window is the difference between one sample and the live total now — it ends at this instant and begins wherever a sample fell. An exact rolling minute is not recoverable and is not claimed; each window states the span it actually covered |
+| history is **shorter than the window** after a restart | the counter starts at zero with the process, and an hour of readings takes an hour to accumulate. **Each window reports its own span, not the node's age**: on a node up three minutes, `min:` still has a baseline near its own cutoff and reports about a minute, while `hr:` reports the three minutes it actually has. **Unobserved history is never shown as zero** — that is the distinction this whole layer exists for |
+| `total:` is **exact**; the windows are not | the total is the counter read directly, with no sampling in it. Only `min:` and `hr:` are differences between a sample and now, and only they carry an observed span |
+| the three may legitimately be **equal** | during the first minute, and whenever every call the node has served falls inside the shortest observed window. Nothing is wrong and nothing should be built assuming they differ — but nor do they collapse merely because the daemon is young: at ten minutes, `min:` covers the last one while `hr:` and `total:` cover all ten |
+| all three reset on restart | the counter lives with the process. A restart is not a quiet node, and `up` on the same line is what tells them apart |
 
 ### Signing in
 

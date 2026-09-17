@@ -68,6 +68,7 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 	reads := 0
 	broken := false
 	legacy := false
+	collecting := false
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reads++
 		if r.URL.Path != "/identity" || r.Header.Get(api.HeaderToken) != "" || r.Header.Get("Cookie") != "" {
@@ -77,11 +78,15 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 			http.Error(w, "offline", 503)
 			return
 		}
+		if collecting {
+			json.NewEncoder(w).Encode(protocol.NodeIdentity{Calls: &protocol.CallStats{Total: 9, Windows: []protocol.CallWindow{{Window: "1m"}, {Window: "1h"}}}})
+			return
+		}
 		if legacy {
 			json.NewEncoder(w).Encode(protocol.NodeIdentity{Version: "9.8.7", Build: "old daemon build", Owner: "owner@h", Up: "1h23m"})
 			return
 		}
-		json.NewEncoder(w).Encode(protocol.NodeIdentity{Version: "9.8.7", Build: "daemon <build>", Owner: "owner<&>@h", Up: "1h23m", Host: "fixture-host", Load: &[3]float64{0, 1.25, 2.5}, Messages: []protocol.MessageWindow{{Window: "1m", Observed: "1m20s", Available: true, Accepted: 7, Dequeued: 9}, {Window: "5m", Observed: "2m0s", Available: true}, {Window: "60m"}}})
+		json.NewEncoder(w).Encode(protocol.NodeIdentity{Version: "9.8.7", Build: "daemon <build>", Owner: "owner<&>@h", Up: "1h23m", Host: "fixture-host", Calls: &protocol.CallStats{Total: 4321, Windows: []protocol.CallWindow{{Window: "1m", Observed: "1m20s", Available: true, Count: 7}, {Window: "1h", Observed: "2m0s", Available: true}}}})
 	}))
 	defer backend.Close()
 	h := dashboard(&caller{client: backend.Client(), base: backend.URL}, false)
@@ -90,12 +95,25 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 		h.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		body := w.Body.String()
 		header := section(t, body, "<header ", "</header>")
-		for _, fact := range []string{"AgentBus V9.8.7", "1h23m up", "owner&lt;&amp;&gt;@h", "fixture-host", "0.00 / 1.25 / 2.50", "7 accepted / 9 dequeued", "observed 1m20s", "0 accepted / 0 dequeued", "observed 2m0s", "collecting history"} {
+		for _, fact := range []string{"AgentBus V9.8.7", "1h23m up", "owner&lt;&amp;&gt;@h", "fixture-host", "min: <strong>7</strong>", "observed 1m20s", "hr: <strong>0</strong>", "observed 2m0s", "total: <strong>4321</strong>"} {
 			if !strings.Contains(header, fact) {
 				t.Errorf("header lacks %q: %s", fact, header)
 			}
 		}
 		footer := section(t, body, "<footer ", "</footer>")
+		for _, fact := range []string{"long polls still in progress"} {
+			if !strings.Contains(footer, fact) {
+				t.Errorf("footer lacks %q: %s", fact, footer)
+			}
+		}
+		if strings.Contains(header, "~5m") || strings.Contains(header, "build:") {
+			t.Error("detail crept into header")
+		}
+		for _, old := range []string{"Host load", "About load readings", "accepted /", "dequeued"} {
+			if strings.Contains(body, old) {
+				t.Errorf("removed metric still on page: %s", old)
+			}
+		}
 		if !strings.Contains(footer, "Daemon build: <code>daemon &lt;build&gt;") || !strings.Contains(footer, "Web <code>v"+version.String) || !strings.Contains(footer, version.Build) {
 			t.Errorf("build sources confused or unescaped: %s", footer)
 		}
@@ -106,11 +124,19 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 	if reads != 2 {
 		t.Fatalf("%d public reads for two pages", reads)
 	}
+	collecting = true
+	pending := httptest.NewRecorder()
+	h.ServeHTTP(pending, httptest.NewRequest("GET", "/", nil))
+	pendingHeader := section(t, pending.Body.String(), "<header ", "</header>")
+	if !strings.Contains(pendingHeader, "min: collecting history") || !strings.Contains(pendingHeader, "hr: collecting history") || !strings.Contains(pendingHeader, "total: <strong>9</strong>") || strings.Contains(pendingHeader, "<strong>0</strong>") {
+		t.Fatalf("unobserved windows fabricated a value: %s", pendingHeader)
+	}
+	collecting = false
 	legacy = true
 	old := httptest.NewRecorder()
 	h.ServeHTTP(old, httptest.NewRequest("GET", "/", nil))
 	oldHeader := section(t, old.Body.String(), "<header ", "</header>")
-	for _, missing := range []string{"host unavailable", "Host load <small>(1 / 5 / 15 min)</small>: unavailable", "Message counts unavailable"} {
+	for _, missing := range []string{"host unavailable", "min: unavailable; hr: unavailable; total: unavailable"} {
 		if !strings.Contains(oldHeader, missing) {
 			t.Errorf("missing legacy value fabricated: %s", oldHeader)
 		}

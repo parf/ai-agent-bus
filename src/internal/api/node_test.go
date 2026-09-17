@@ -2,9 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/parf/ai-agent-bus/internal/callstats"
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,6 +18,11 @@ import (
 func TestPublicNodeIdentityIsOnlyThePublishedFacts(t *testing.T) {
 	b := core.New()
 	s, _ := serverFor(t, b, "owner@h")
+	var calls atomic.Uint64
+	history := callstats.New(&calls)
+	history.Sample(time.Now().Add(-2 * time.Minute))
+	calls.Add(7)
+	s.Calls(history.Snapshot)
 	if _, err := b.Register(protocol.Record{Name: "private-inbox@h", Owner: "owner@h", Allow: []string{"owner@h"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -43,12 +50,18 @@ func TestPublicNodeIdentityIsOnlyThePublishedFacts(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(fields) != 7 || got.Owner != "owner@h" || got.Version != version.String || got.Build != version.Build || got.Host != host || len(got.Messages) != 3 {
+		if _, ok := fields["load"]; ok {
+			t.Fatal("OS load still published")
+		}
+		if _, ok := fields["messages"]; ok {
+			t.Fatal("message counters still published")
+		}
+		if len(fields) != 6 || got.Owner != "owner@h" || got.Version != version.String || got.Build != version.Build || got.Host != host || got.Calls == nil || len(got.Calls.Windows) != 2 || got.Calls.Total != 7 {
 			t.Fatalf("public projection differs: %v", got)
 		}
-		for _, window := range got.Messages {
-			if !window.Available || window.Accepted != 1 || window.Dequeued != 0 {
-				t.Fatalf("public message totals not wired to daemon traffic: %+v", window)
+		for _, window := range got.Calls.Windows {
+			if !window.Available || window.Count != 7 {
+				t.Fatalf("public request totals not wired to the process counter: %+v", window)
 			}
 		}
 		if strings.Contains(w.Body.String(), "private-inbox") || strings.Contains(w.Body.String(), "secret body") {
@@ -67,14 +80,15 @@ func TestPublicNodeIdentityIsOnlyThePublishedFacts(t *testing.T) {
 	}
 }
 
-func TestHostLoadDistinguishesZeroFromUnavailable(t *testing.T) {
-	for _, raw := range []string{"", "1 2", "NaN 0 0", "0 +Inf 0", "0 0 -1", "not 0 0"} {
-		if parseLoad([]byte(raw)) != nil {
-			t.Errorf("invented host load from %q", raw)
-		}
+func TestUnwiredCallCounterIsUnavailable(t *testing.T) {
+	s, _ := serverFor(t, core.New(), "owner@h")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/identity", nil))
+	var got protocol.NodeIdentity
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
 	}
-	got := parseLoad([]byte("0.00 1.25 2.50 1/50 1234\n"))
-	if got == nil || *got != [3]float64{0, 1.25, 2.5} {
-		t.Fatalf("lost real load: %v", got)
+	if got.Calls != nil {
+		t.Fatal("unwired process counter invented zero calls")
 	}
 }

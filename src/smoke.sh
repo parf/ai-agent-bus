@@ -1882,9 +1882,14 @@ has "an anonymous visitor gets the sign-in form" "$ANON" 'name=token'
 has "the login header names the node release" "$ANON" "AgentBus V$(cat internal/version/VERSION)"
 has "the login header names the daemon owner" "$ANON" "owner: <code>$OWNER</code>"
 has "the login header shows uptime" "$ANON" '[0-9][0-9a-z.]* up</span>'
+has "the login header reports sampled minute calls" "$ANON" 'min: <strong>[0-9][0-9]*</strong>'
+has "the login header reports sampled hour calls" "$ANON" 'hr: <strong>[0-9][0-9]*</strong>'
+has "the login header reports total calls" "$ANON" 'total: <strong>[0-9][0-9]*</strong>'
+has "sampled calls state their observed span" "$ANON" 'observed [0-9]'
+lacks "OS and inbox readings are removed" "$ANON" 'Host load\|About load readings\|accepted /\|dequeued'
 has "the login footer identifies the daemon build" "$ANON" 'Daemon build: <code>'
 has "the login footer identifies the web build separately" "$ANON" 'Web <code>v'
-# Node identity and sampled traffic totals are public; registry contents stay private.
+# Node identity and sampled request counts are public; registry contents stay private.
 # See docs/05-discovery.md#what-a-node-says-about-itself.
 is_empty "and no records or registry totals" \
   "$(printf '%s' "$ANON" | grep -oE 'watched by the board|[0-9]+ records')"

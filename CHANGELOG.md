@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.39 — 2026-09-16
+
+The one-line dashboard header shows daemon calls for the sampled minute and hour,
+with their observed spans, and the exact total since start. These admitted HTTP
+requests replace host load and message counts; build details stay in the footer.
+
 ## 0.5.38 — 2026-09-16
 
 Every dashboard page, including sign-in, shows the daemon release, host, owner,

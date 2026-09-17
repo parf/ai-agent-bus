@@ -8,6 +8,14 @@ this file is how it was built and what was measured.
 
 codex wrote the code. This file records the review, which was read-only.
 
+> **Superseded in part by 0.5.39.** The message counters described here were
+> removed one version later: the owner asked for served calls instead, and the
+> request counter I had told codex did not exist turned out to have been in
+> `cmd/agent-busd/bus.go` all along. What shipped at 0.5.38 is recorded below
+> as it was. The host load average went at the same time, by owner decision.
+> This file is history and is not the current contract, which is
+> [what a node says about itself](../../../docs/05-discovery.md#what-a-node-says-about-itself).
+
 ## What the owner asked, and what it grew into
 
 It began as four facts — release, build, owner, uptime — and grew twice while
@@ -58,7 +66,7 @@ Settled against source, and stated on the page rather than only here:
 
 | | |
 |---|---|
-| they count **accepted** and **dequeued**, never *calls* | there is no request counter in the daemon. A figure labelled for something it does not count is worse than no figure |
+| they count **accepted** and **dequeued**, never *calls* | *— the reason given at the time was that there is no request counter in the daemon. **That was false**, and 0.5.39 replaced these figures with the real one; see the note at the top. The labelling principle it rests on was sound and is why the mistake cost only a version: a figure labelled for something it does not count is worse than no figure* |
 | a publication counts its **copies**, not itself | `fanout` (`bus.go:657`) bumps the topic's own counter with no node total beside it; the per-subscriber copies count as they are accepted. So a publish to a topic nobody subscribes to moves the public number by zero, and the page says zero is not idle |
 | the two are not a pair | straight-through delivery counts both at once, a queued message counts accepted now and dequeued whenever somebody reads. Either can exceed the other in a window |
 | a removed name keeps its traffic | the total is process-local, so unregistering cannot erase it. The dashboard's per-caller series is the opposite by design, and both are stated |

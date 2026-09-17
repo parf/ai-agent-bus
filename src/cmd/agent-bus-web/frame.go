@@ -76,12 +76,9 @@ const frameHeader = `<header class=site-header aria-label="Node information">
 {{with .Frame.Node}}<span>{{if .Host}}{{.Host}}{{else}}host unavailable{{end}}</span>
 <span>{{if .Up}}{{.Up}} up{{else}}uptime unavailable{{end}}</span>
 <span>owner: <code>{{if .Owner}}{{.Owner}}{{else}}unavailable{{end}}</code></span>
+{{with .Calls}}<span class=call-counts>{{range .Windows}}{{if eq .Window "1m"}}min:{{else}}hr:{{end}} {{if .Available}}<strong>{{.Count}}</strong> <small>(observed {{.Observed}})</small>{{else}}collecting history{{end}} ; {{end}}total: <strong>{{.Total}}</strong></span>{{else}}<span>min: unavailable; hr: unavailable; total: unavailable</span>{{end}}
 {{else}}<span>Node information unavailable</span>{{end}}
 </div>
-{{with .Frame.Node}}<div class=node-load>
-<div>Host load <small>(1 / 5 / 15 min)</small>: {{if .Load}}<code>{{printf "%.2f" (index .Load 0)}} / {{printf "%.2f" (index .Load 1)}} / {{printf "%.2f" (index .Load 2)}}</code>{{else}}unavailable{{end}}</div>
-<div class=message-windows aria-label="Sampled message counts">{{range .Messages}}<span><strong>~{{.Window}}</strong>: {{if .Available}}{{.Accepted}} accepted / {{.Dequeued}} dequeued <small>(observed {{.Observed}})</small>{{else}}collecting history{{end}}</span>{{else}}<span>Message counts unavailable</span>{{end}}</div>
-</div>{{end}}
 </header>
 `
 
@@ -89,6 +86,7 @@ var frameFooter = template.Must(template.New("footer").Parse(`</main>
 <footer class=site-footer aria-label="Build information">
 {{with .Node}}<div>Daemon build: <code>{{if .Build}}{{.Build}}{{else}}unavailable{{end}}</code></div>{{end}}
 <div>Web <code>v{{.WebVersion}}</code> · build: <code>{{.WebBuild}}</code></div>
-<details><summary>About load readings</summary>Host load is the OS load average, not CPU utilisation. Message totals count accepted inbox deliveries (including subscriber copies) and dequeues, not API calls or completed work. Zero deliveries does not mean the node is idle; a publication with no subscribers counts no copies. Dequeues may exceed arrivals when older work is drained. Windows use minute samples plus the current partial interval, from this daemon run only; the observed span is shown for each.</details>
+<details><summary>About call counts</summary>
+HTTP requests entering the daemon on all listeners, including refused requests, router 404/405 responses, this page's queries (including /identity itself), and long polls still in progress. A long poll counts when it starts, not when it finishes. These are not completed operations or the separate refusal totals. Total is exact since this process started; the minute and hour windows use minute samples and the current total, and each shows its observed span. Loading or reloading a page adds calls; leaving it open does not refresh it.</details>
 </footer>
 </html>`))
