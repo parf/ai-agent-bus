@@ -28,11 +28,7 @@ The daemon owner has root-like authority over the node:
 * Manage users and all groups.
 * Edit any service or channel, including its ACL, Maintainers and owner.
 * Transfer daemon ownership to another user.
-
-Setup establishes the invoking user as the initial owner. The daemon must not
-start without explicitly established ownership or invent an owner from its
-runtime OS account. Ownership transfer must update that configured authority.
-A restart may be required for ownership changes to take effect.
+* Assigned via `agent-bus-setup`.
 
 ## Daemon Administrators
 
