@@ -46,8 +46,9 @@ Final frozen `src/daemon-owner-smoke.local.sh --slow`: **597 passed, 0 failed**,
 exit 0; vet and race passed (`tmp/daemon-owner/slow-final-2.log`, lines 10–11
 and 953). The frozen and tracked scripts both have SHA-256
 `017c827a9b85242d452cc48de6c1d82a997b688e9a51ac8bec85846024fad05a`.
-All 187 source/version manifest entries matched after the run. Documentation
-validation checked 143 files and 2,811 local links with zero errors.
+All 187 source/version manifest entries matched after the run. Final
+documentation validation checked 144 files and 2,812 local links with zero
+errors.
 
 ## Fixture corrections
 
@@ -72,3 +73,20 @@ former Owner's Administrator standing or revoke credentials. Downgrading to an
 older daemon ignores durable ownership and temporarily restores its configured
 startup owner. Profile self-editing, Administrator unbanning, nested groups,
 service-defined roles and historical live-fixture cleanup remain pending.
+
+## Live postflight
+
+Commit `d66f116` was pushed before deployment. `src/build.sh` stamped every Go
+program as **0.5.55**, `parf@parf.us 2026-09-17 12:14:00`; the live
+`agent-busd.service` restarted at 12:14 EDT.
+
+The public identity reported 0.5.55 and Owner `parf@parf`. The first production
+snapshot written after the upgrade contains `owner_established: true` and
+`owner: parf@parf`, establishing the legacy seed once. Anonymous `/status`
+remained 401 while the Owner's mapped socket received 200 from `/status` and
+`/groups`. No live ownership transfer was performed.
+
+The bus and web child served after restart; the web child retained its private
+namespace, delegated resource group and zero capabilities. OpenCode replied
+from the same session after the restart, the twelfth consecutive measured
+peer-path reconnection.
