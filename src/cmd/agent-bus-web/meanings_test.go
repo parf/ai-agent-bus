@@ -580,7 +580,7 @@ func (m *meanings) row(body, name string) string {
 func (m *meanings) own(name string) {
 	m.t.Helper()
 	m.bus.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
-		{Name: name, Owner: name, Kind: "agent", Full: protocol.OverflowStrict, At: time.Now()},
+		{Name: name, Owner: name, Kind: "agent", Full: protocol.OverflowStrict, Allow: []string{"admin@h"}, At: time.Now()},
 	}})
 }
 
@@ -623,23 +623,74 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	}
 	body := m.get("/users")
 	for _, kind := range []struct{ name, says string }{
-		{"person@h", "<td>User</td>"},
-		{"named@h", "<td>Registered name</td>"},
+		{"person@h", "👤 User"},
+		{"named@h", "🤖 Agent"},
 		{"junk@h", "<td>Credential with no registered name</td>"},
 	} {
 		if !strings.Contains(m.row(body, kind.name), kind.says) {
 			t.Errorf("%s is not named as %q: %s", kind.name, kind.says, m.row(body, kind.name))
 		}
 	}
+	if row := m.row(body, "junk@h"); strings.Contains(row, "👤") || strings.Contains(row, "🤖") || strings.Contains(row, "⚙️") {
+		t.Errorf("credential-only identity was given a guessed glyph: %s", row)
+	}
 	// Named from what the daemon holds, never read off the spelling. A name
 	// with a slash in it is a runtime session on this bus and is a registered
 	// name like any other.
 	m.own("claude/one@h")
-	if !strings.Contains(m.row(m.get("/users"), "claude/one@h"), "<td>Registered name</td>") {
+	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, "<td>Registered name</td>") || !strings.Contains(row, "🤖 Agent") {
 		t.Error("a slashed name is not named the same way as any other record")
 	}
 	if strings.Contains(m.get("/users"), "Unclassified") {
 		t.Error("the directory invents a category for a name it can classify")
+	}
+}
+
+func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
+	m := meaningFixture(t)
+	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "person@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	m.register(protocol.Record{Name: "svc@h", Owner: "admin@h", Kind: "generic", Allow: []string{"peer@h"}})
+	m.register(protocol.Record{Name: "bot@h", Owner: "admin@h", Kind: "agent"})
+	m.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue})
+
+	users := m.get("/users?kind=users")
+	if row := m.row(users, "person@h"); !strings.Contains(row, "👤 User") {
+		t.Errorf("registered user has no identity label: %s", row)
+	}
+	if !strings.Contains(users, `value=users selected>👤 Users`) || strings.Contains(users, `value="👤`) {
+		t.Errorf("directory filter mixed its displayed label into the URL value: %s", users)
+	}
+
+	services := m.get("/services")
+	for name, want := range map[string]string{"svc@h": "⚙️ Service", "bot@h": "🤖 Agent"} {
+		if row := m.row(services, name); !strings.Contains(row, want) {
+			t.Errorf("%s has no %q label: %s", name, want, row)
+		}
+	}
+	for _, plain := range []string{`value=generic>⚙️ Service`, `value=agent>🤖 Agent`} {
+		if !strings.Contains(services, plain) {
+			t.Errorf("create form does not keep a plain kind value beside %q", plain)
+		}
+	}
+	if strings.Contains(services, `value="⚙️`) || strings.Contains(services, `value="🤖`) {
+		t.Error("a display glyph entered a form value")
+	}
+
+	detail := m.get("/service?name=svc@h")
+	if !strings.Contains(detail, "Type: <strong>⚙️ Service</strong>") || !strings.Contains(detail, `name=allow value="peer@h"`) {
+		t.Errorf("detail lost its label or plain ACL value: %s", detail)
+	}
+	if strings.Contains(detail, `name=allow value="⚙️`) || strings.Contains(detail, `name=allow value="🤖`) {
+		t.Error("a display glyph entered the editable ACL")
+	}
+
+	diagnostics := m.get("/")
+	for name, want := range map[string]string{"svc@h": "⚙️ Service", "bot@h": "🤖 Agent", "jobs@h": "Channel"} {
+		if row := m.row(diagnostics, name); !strings.Contains(row, want) {
+			t.Errorf("diagnostics labels %s inconsistently: %s", name, row)
+		}
 	}
 }
 

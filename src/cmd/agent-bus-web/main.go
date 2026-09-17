@@ -440,7 +440,7 @@ var anon = template.Must(template.New("anon").Parse(head + `<title>Sign in · ag
 // The page no longer refreshes itself. A reader has to be able to stop moving
 // content, and a whole-page reload every five seconds also threw away whatever
 // they were part-way through reading (Plans/MVP/done/web-review.md W11).
-var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCount": readerCount}).Parse(shell("diagnostics", "Diagnostics") + `<h1>agent-bus</h1>
+var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCount": readerCount, "entityLabel": entityLabel}).Parse(shell("diagnostics", "Diagnostics") + `<h1>agent-bus</h1>
 <p><a href=/>Refresh</a> <span class=muted>· as of {{.At}}</span></p>
 
 <h2 id=node>node</h2>
@@ -482,7 +482,7 @@ var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCoun
 <table><caption>Records visible to you — not the node-wide count above</caption>
 <thead><tr><th scope=col>name<th scope=col>kind<th scope=col>description<th scope=col>readers<th scope=col>held now<th scope=col>accepted<th scope=col>dequeued<th scope=col>config</tr></thead>
 <tbody>
-{{range .Records}}<tr><td><code>{{.Name}}</code><td>{{.Kind}}<td>{{.Descr}}
+{{range .Records}}<tr><td><code>{{.Name}}</code><td>{{entityLabel .Kind}}<td>{{.Descr}}
  <td>{{readerCount .Readers}}<td>{{.Queued}}<td>{{.In}}<td>{{.Out}}
  <td><code class=muted>{{.ConfigSHA}}</code></tr>
 {{else}}<tr><td colspan=8 class=muted>nothing you can see is registered</tr>{{end}}
@@ -500,7 +500,7 @@ var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCoun
 {{if .NoNames}}<p class=muted>{{.NoNames}}</p>{{else}}
 <table><tr><th>name<th>kind<th>owner<th>fingerprint<th>issued<th>last used</tr>
 {{range .Names}}<tr><td><code>{{.Name}}</code>
- <td>{{if eq .Kind "unregistered"}}<span class=warn>unregistered</span>{{else}}{{.Kind}}{{end}}
+ <td>{{if eq .Kind "unregistered"}}<span class=warn>unregistered</span>{{else}}{{entityLabel .Kind}}{{end}}
  <td><code class=muted>{{.Owner}}</code><td><code>{{.Fingerprint}}</code>
  <td>{{if .Issued.IsZero}}{{else}}{{.Issued.Format "2006-01-02 15:04"}}{{end}}
  <td>{{if .Used.IsZero}}<span class=muted>not this run</span>{{else}}{{.Used.Format "15:04:05"}}{{end}}</tr>

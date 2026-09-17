@@ -12,9 +12,8 @@ H.9.5 has [concurrent native Codex/OpenCode evidence](done/runtime-interactive.m
 
 Owner-requested web slices are built; the remaining [web redesign](#web-redesign) still depends on F.13.0, the owner’s specification review. That gate does not block independently accepted work below or shared-host safety fixes.
 
-Accepted feature work remains in [Readers](#reader-visibility),
-[display labels](#identity-display-labels) and [authority](#authority-model).
-These sections are unfinished MVP work, not optional follow-up.
+Accepted feature work remains in [authority](#authority-model).
+This section is unfinished MVP work, not optional follow-up.
 
 ## Remaining work
 
@@ -97,7 +96,10 @@ references.
 
 ## Identity display labels
 
-Implement the [web and human-readable CLI labels](../../docs/05-discovery.md#identity-labels-in-web-and-cli). Verify User, Agent and Service fixtures use the daemon’s identity facts, with visible text beside each glyph; role and health labels remain separate. JSON/API kinds and MCP output stay unchanged. Keep ACL textareas, CLI arguments and copyable examples in the existing plain-text syntax. A display glyph inserted into an editable ACL or a changed machine-readable kind must fail its check.
+Completed in 0.5.54; see [identity display label checks](done/identity-display-labels.md#checks).
+WEB and human CLI derive User, Agent and Service labels from daemon facts;
+machine values and editable syntax remain plain. The anchor stays for existing
+references.
 
 ## Questions
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.54 — 2026-09-17
+
+Label User, Agent and Service identities consistently in WEB and human CLI
+from daemon-stated kinds. JSON, URLs, CLI arguments and editable ACL values
+keep their plain machine vocabulary; rows without a visible kind stay unlabeled.
+
 ## 0.5.53 — 2026-09-17
 
 Show one Readers count across filtered and unfiltered consume requests in WEB,

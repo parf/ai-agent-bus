@@ -23,6 +23,7 @@ import (
 	"unicode"
 
 	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/version"
 )
@@ -250,13 +251,24 @@ func ls(args []string) error {
 	for _, r := range records {
 		// Protocol is a declared way to call a record; Readers is what the
 		// daemon observes on its inbox. Neither fact cancels the other.
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n", cell(r.Name), cell(r.Kind), cell(r.Owner), readerCount(r.Readers), r.Queued, cell(r.Descr))
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n", cell(r.Name), cliEntityLabel(r.Kind), cell(r.Owner), readerCount(r.Readers), r.Queued, cell(r.Descr))
 	}
 	if err := w.Flush(); err != nil {
 		return err
 	}
 	fmt.Println("\nREADERS  outstanding consume requests, filtered and unfiltered together; an observation, not service health or completed work")
 	return nil
+}
+
+func cliEntityLabel(kind string) string {
+	label := display.Entity(kind)
+	// tabwriter counts code points while terminals render the robot as two
+	// columns. An explicit zero-width variation selector gives both the same
+	// width model, keeping the next column aligned with ⚙️ Service.
+	if kind == "agent" {
+		return strings.Replace(label, "🤖", "🤖️", 1)
+	}
+	return label
 }
 
 func readerCount(readers *int) string {

@@ -400,8 +400,7 @@ owns the installed exercise and mutation checks.
 
 ## Identity labels in web and CLI
 
-**Accepted display requirement; implementation pending.** In the web interface
-and human-readable CLI output, use:
+**Built in 0.5.54.** In the web interface and human-readable CLI output, use:
 
 | Label | Entity |
 |---|---|
@@ -415,6 +414,14 @@ beside the glyph; Owner, Administrator, Maintainer and Member remain separate
 and record facts returned by the daemon rather than guessing type from a name.
 This vocabulary is for displayed labels; it does not rename API kinds, alter
 JSON output or prescribe MCP output.
+
+WEB applies the same kind-to-label function to directory, service, Personal,
+detail and diagnostics views. A directory row with no caller-visible record
+kind stays unlabeled; the face does not infer a glyph from its name or
+credential. Channel remains the web term for a topic. Human `agent-bus ls -h`
+uses the same identity labels and keeps the stated `topic` kind; raw `ls` keeps
+the daemon's JSON unchanged. Filter and form values remain plain vocabulary
+even when their visible option label carries a glyph.
 
 ### ACL editing
 

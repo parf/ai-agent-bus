@@ -19,6 +19,20 @@ type peopleView struct {
 	People, Other                                []protocol.User
 	Query, Kind, Return, Previous, Next          string
 	PeopleCount, OtherCount, Matched, Start, End int
+	RecordKinds                                  map[string]string
+}
+
+func identityLabel(u protocol.User, recordKinds map[string]string) string {
+	if u.Kind == protocol.DirectoryUser {
+		return entityLabel(protocol.DirectoryUser)
+	}
+	if u.Kind == protocol.DirectoryRecord {
+		kind := recordKinds[u.Name]
+		if kind == "agent" || kind == "generic" || kind == protocol.KindTopic {
+			return entityLabel(kind)
+		}
+	}
+	return ""
 }
 
 func directoryReturn(raw string) string {
@@ -98,6 +112,15 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		if err := c.get(cookie(r), "/users", &p.Users); err != nil {
 			fail(w, r, v.You, err)
 			return p, false
+		}
+		var records []protocol.Record
+		if err := c.get(cookie(r), "/ls", &records); err != nil {
+			fail(w, r, v.You, err)
+			return p, false
+		}
+		p.RecordKinds = make(map[string]string, len(records))
+		for _, record := range records {
+			p.RecordKinds[record.Name] = record.Kind
 		}
 		return p, true
 	}
@@ -187,7 +210,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 	})
 }
 
-var peoplePage = template.Must(template.New("people").Parse(shell("users", "Users") + `
+var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityLabel": identityLabel}).Parse(shell("users", "Users") + `
 <h1>Users and other identities</h1>
 <p>{{.PeopleCount}} registered users · {{.OtherCount}} other identities visible to you.</p>
 <p class=muted>Those two are counted <em>by this page</em> over the identities you may
@@ -200,25 +223,26 @@ var peoplePage = template.Must(template.New("people").Parse(shell("users", "User
 {{if .Administrator}}<p><a href=/user>Add user</a></p>{{end}}
 <form method=get action=/users>
 <label>Search <input type=search name=q value="{{.Query}}" placeholder="Name, identity, email or GitHub login"></label>
-<label>Show <select name=kind><option value="">All identities</option><option value=users {{if eq .Kind "users"}}selected{{end}}>Registered users</option><option value=other {{if eq .Kind "other"}}selected{{end}}>Other identities</option></select></label>
+<label>Show <select name=kind><option value="">All identities</option><option value=users {{if eq .Kind "users"}}selected{{end}}>👤 Users</option><option value=other {{if eq .Kind "other"}}selected{{end}}>Other identities</option></select></label>
 <button>Apply</button> <a href=/users>Clear filters</a></form>
 <p>Showing {{.Start}}–{{.End}} of {{.Matched}} matching identities.</p>
 <section aria-labelledby=people-heading><h2 id=people-heading>Registered users</h2>
 <table><thead><tr><th scope=col>Person / identity</th><th scope=col>Authority</th><th scope=col>State</th></tr></thead><tbody>
-{{range .People}}<tr><td>{{with .PersonName}}<strong>{{.}}</strong><br>{{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</td><td>{{.State}}</td></tr>
+{{range .People}}<tr><td>{{with .PersonName}}<strong>{{.}}</strong><br>{{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a><br><span class=muted>{{identityLabel . $.RecordKinds}}</span></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</td><td>{{.State}}</td></tr>
 {{else}}<tr><td colspan=3>No registered users on this page.</td></tr>{{end}}</tbody></table></section>
 <section aria-labelledby=other-heading><h2 id=other-heading>Other identities — review and cleanup</h2>
 <table><thead><tr><th scope=col>Identity</th><th scope=col>What it is</th><th scope=col>Why it is here / next step</th></tr></thead><tbody>
-{{range .Other}}<tr><td><a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td>
+{{range .Other}}<tr><td><a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a>{{with identityLabel . $.RecordKinds}}<br><span class=muted>{{.}}</span>{{end}}</td>
 <td>{{if eq .Kind "record"}}Registered name{{else}}Credential with no registered name{{end}}</td>
 <td>{{if eq .Kind "record"}}A self-owned record, not a user profile. <a href="/service?name={{.Name}}">Inspect the record</a> before deciding whether it is needed.
 {{else}}No user profile and no registered record. {{if .CanRemove}}<a href="/user?name={{.Name}}&return={{$.Return}}">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}{{end}}</td></tr>
 {{else}}<tr><td colspan=3>No other identities on this page.</td></tr>{{end}}</tbody></table></section>
 <nav aria-label="Directory pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
 `))
-var personPage = template.Must(template.New("person").Parse(shell("users", "Identity details") + `
+var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"identityLabel": identityLabel}).Parse(shell("users", "Identity details") + `
 <p><a href="{{.Return}}">Back to directory</a></p>
 <h1 style="overflow-wrap:anywhere">{{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1>
+{{if not .New}}{{with identityLabel .User .RecordKinds}}<p>Type: <strong>{{.}}</strong></p>{{end}}{{end}}
 {{if and (not .New) (ne .User.Kind "user")}}
 <h2>{{if eq .User.Kind "record"}}Registered name{{else}}Credential with no registered name{{end}}</h2>
 <p>This is not a registered user. No user lifecycle state has been assigned.</p>

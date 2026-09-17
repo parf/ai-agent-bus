@@ -1178,34 +1178,37 @@ ab owner@srv1 register human@srv1 --allow '*' --kind agent --descr $'first\nseco
 ab owner@srv1 send human@srv1 queued >/dev/null
 human=$(ab owner@srv1 ls -h --kind agent)
 has "human listing has table columns" "$human" '^NAME  *KIND  *OWNER  *READERS  *QUEUED  *DESCRIPTION$'
-has "human listing shows queue and flattens description" "$human" '^human@srv1  *agent  *owner@srv1  *0  *1  *first second third$'
+has "human listing shows queue and flattens description" "$human" '^human@srv1  *🤖️ Agent  *owner@srv1  *0  *1  *first second third$'
 is_empty "human kind filter excludes service templates" "$(printf '%s\n' "$human" | grep '^looked@srv1 ')"
 has "human single lookup works with flag after name" \
-  "$(ab owner@srv1 ls human@srv1 -h)" '^human@srv1  *agent  *owner@srv1  *0  *1  *first second third$'
+  "$(ab owner@srv1 ls human@srv1 -h)" '^human@srv1  *🤖️ Agent  *owner@srv1  *0  *1  *first second third$'
 abx human@srv1 consume --topic NeverArrives --wait 5s >"$D/human-reader" 2>&1 & HPID=$!
 for _ in $(seq 1 100); do
   human=$(ab owner@srv1 ls human@srv1 -h)
-  printf '%s\n' "$human" | grep -q '^human@srv1  *agent  *owner@srv1  *1  *1 ' && break
+  printf '%s\n' "$human" | grep -q '^human@srv1  *🤖️ Agent  *owner@srv1  *1  *1 ' && break
   sleep 0.01
 done
-has "human listing counts a filtered reader" "$human" '^human@srv1  *agent  *owner@srv1  *1  *1  *first second third$'
+has "human listing counts a filtered reader" "$human" '^human@srv1  *🤖️ Agent  *owner@srv1  *1  *1  *first second third$'
 kill "$HPID" 2>/dev/null; wait "$HPID" 2>/dev/null
-has "ordinary listing remains JSON" "$(ab owner@srv1 ls --kind agent)" '^\[.*"name":"human@srv1"'
+raw_human=$(ab owner@srv1 ls --kind agent)
+has "ordinary listing remains JSON" "$raw_human" '^\[.*"name":"human@srv1"'
+has "JSON retains the machine kind" "$raw_human" '"kind":"agent"'
+lacks "JSON contains no display glyph" "$raw_human" '👤\|🤖\|⚙️'
 has "empty human listing is explicit" "$(ab owner@srv1 ls -h --kind no-such-kind)" '^No matching records\.$'
 human_error=$(ab owner@srv1 ls -h absent-entirely@srv1 2>&1)
 bad_exit "human missing lookup fails" "$?"
 has "human missing lookup reports the error" "$human_error" 'no such name'
 ab owner@srv1 register human-external@srv1 --allow '*' --protocol http --addr http://localhost >/dev/null
 has "external protocol stays separate from its measured reader count" \
-  "$(ab owner@srv1 ls -h human-external@srv1)" '^human-external@srv1  *generic  *owner@srv1  *0  *0'
+  "$(ab owner@srv1 ls -h human-external@srv1)" '^human-external@srv1  *⚙️ Service  *owner@srv1  *0  *0'
 ab human@srv1 consume --wait 0s >/dev/null
 ab human@srv1 consume --wait 10s >"$D/human-reader" & HUMAN_READER=$!
 for _ in $(seq 1 100); do
   human=$(ab owner@srv1 ls -h human@srv1)
-  printf '%s\n' "$human" | grep -q '^human@srv1 *agent *owner@srv1 *1 ' && break
+  printf '%s\n' "$human" | grep -q '^human@srv1 *🤖️ Agent *owner@srv1 *1 ' && break
   sleep .02
 done
-has "human listing reflects a waiting reader" "$human" '^human@srv1  *agent  *owner@srv1  *1  *0'
+has "human listing reflects a waiting reader" "$human" '^human@srv1  *🤖️ Agent  *owner@srv1  *1  *0'
 ab owner@srv1 send human@srv1 unblock >/dev/null
 wait "$HUMAN_READER"
 

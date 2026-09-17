@@ -17,6 +17,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -25,6 +26,13 @@ func readerCount(readers *int) string {
 		return "unavailable"
 	}
 	return strconv.Itoa(*readers)
+}
+
+func entityLabel(kind string) string {
+	if kind == protocol.KindTopic {
+		return "Channel"
+	}
+	return display.Entity(kind)
 }
 
 type view struct {
