@@ -70,9 +70,14 @@ if (args[0] === "serve") {
   }
   writeFileSync(file + ".mcp", JSON.stringify(config));
   const url = new URL(value("--listen")!);
+  const token = args.includes("--ws-token-file") ? readFileSync(value("--ws-token-file")!, "utf8") : undefined;
+  const expected = value("--ws-auth") === "capability-token" && token ? `Bearer ${token}` : undefined;
   const thread = { id: process.env.TEST_SESSION_ID || "codex-session", cwd: process.cwd(), name: savedTitle(), turns: [] };
   Bun.serve({ hostname: "127.0.0.1", port: Number(url.port),
-    fetch(req, server) { return server.upgrade(req) ? undefined : new Response("ready"); },
+    fetch(req, server) {
+      if (expected && req.headers.get("authorization") !== expected) return new Response("unauthorized", { status: 401 });
+      return server.upgrade(req) ? undefined : new Response("ready");
+    },
     websocket: {
       message(ws, data) {
         const m = JSON.parse(String(data));
@@ -113,6 +118,20 @@ if (args[0] === "serve") {
   writeFileSync(file + ".tui-ready", "ready");
   if (kind === "claude" && !args.includes("mcp__agent-bus__*")) { event("tools-not-authorized"); process.exit(18); }
   if (kind === "codex" && config.default_tools_approval_mode !== "approve") { event("tools-not-authorized"); process.exit(18); }
+  if (kind === "codex") {
+    const remote = value("--remote")!;
+    const token = process.env[value("--remote-auth-token-env")!];
+    const denied = await fetch(remote.replace("ws:", "http:"));
+    event("runtime-denied", denied.status);
+    // An actual handshake pins the TUI's credential channel, not just the
+    // presence of an environment variable in a fixture.
+    const ws = new WebSocket(remote, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
+    await new Promise<void>((ok, fail) => {
+      const timer = setTimeout(() => fail(new Error("TUI could not authenticate")), 3000);
+      ws.onopen = () => { clearTimeout(timer); event("tui-authenticated"); ws.close(); ok(); };
+      ws.onerror = () => { clearTimeout(timer); fail(new Error("TUI authentication refused")); };
+    });
+  }
   // The TUI reaches its own server only because the launcher gave it the password.
   if (kind === "opencode" && !process.env.OPENCODE_SERVER_PASSWORD) { event("tools-not-authorized"); process.exit(18); }
   const busEnv = JSON.parse(readFileSync(config.env.AGENT_BUS_SESSION_FILE, "utf8"));

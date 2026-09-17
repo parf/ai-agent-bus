@@ -14,6 +14,7 @@ import { localAddress, runtimeBinary } from "./local.ts";
 import { Terminal } from "./terminal.ts";
 import { claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
+import { codexAuth } from "./runtime-auth.ts";
 
 const runtime = process.argv[2];
 const args = process.argv.slice(3);
@@ -234,7 +235,7 @@ See docs/08-runner-role.md#smart-launchers.`);
     // Session selection is resolved here, so it must not be forwarded twice.
     runtimeArgs = tuiArgs.filter((a, i) => !["-c", "--continue", "-s", "--session"].includes(a) && !a.startsWith("--session=") && !a.startsWith("-s=") && !["-s", "--session"].includes(tuiArgs[i - 1] ?? ""));
   } else {
-    if (has("--remote", "--worktree")) throw new Error("the launcher owns its App Server and working directory; remote/worktree mode is not supported");
+    if (has("--remote", "--remote-auth-token-env", "--worktree")) throw new Error("the launcher owns its App Server, authentication and working directory; remote/worktree mode is not supported");
     // CLI permission/config flags must configure the server, not its remote TUI.
     const serverArgs: string[] = [];
     const tuiArgs: string[] = [];
@@ -262,6 +263,13 @@ See docs/08-runner-role.md#smart-launchers.`);
     const reservation = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } });
     remote = `ws://127.0.0.1:${reservation.port}`;
     reservation.stop(true);
+    // Loopback is reachable by other local accounts. The native server checks
+    // this capability before upgrading any connection; never fall back to an
+    // unauthenticated listener when a runtime lacks these flags.
+    const authentication = codexAuth(runDir);
+    const password = authentication.token;
+    serverArgs.push(...authentication.args);
+    tuiEnv.AGENT_BUS_CODEX_AUTH_TOKEN = password;
     const mcp = {
       command: process.execPath, args: [face],
       env: { AGENT_BUS_SESSION_FILE: envFile }, enabled: true,
@@ -273,12 +281,12 @@ See docs/08-runner-role.md#smart-launchers.`);
     closeSync(fd);
     let ready = false;
     for (let i = 0; i < 100; i++) {
-      if (serverChild.proc.exitCode !== null) throw new Error("App Server exited during startup");
+      if (serverChild.proc.exitCode !== null) throw new Error("App Server exited during startup; Codex must support --ws-auth capability-token and --remote-auth-token-env");
       try { const response = await fetch(remote.replace("ws:", "http:"), { signal: AbortSignal.timeout(100) }); if (response) { ready = true; break; } } catch { /* not bound yet */ }
       await sleep(50);
     }
     if (!ready) throw new Error("App Server did not become ready");
-    codex = new Codex(cwd, log, remote);
+    codex = new Codex(cwd, log, remote, password);
     await codex.start();
     const sessions = await codex.threads();
     const resumeIndex = tuiArgs.indexOf("resume");
@@ -342,7 +350,7 @@ See docs/08-runner-role.md#smart-launchers.`);
   if (codex) {
     const thread = fresh ? undefined : await codex.openThread(session.id);
     if (thread) bindThread(thread);
-    runtimeArgs = ["--remote", remote!, "-C", cwd, ...(thread ? ["resume", thread.id] : []), ...runtimeArgs];
+    runtimeArgs = ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...(thread ? ["resume", thread.id] : []), ...runtimeArgs];
   } else if (opencode) {
     bindSession(session.id);
     runtimeArgs = ["attach", remote!, "--dir", cwd, "--session", session.id, ...runtimeArgs];

@@ -253,13 +253,31 @@ not coordinated by the local session locks; default state stays on its launching
 
 ## Runtime isolation and recovery
 
-**Required MVP, pending acceptance.** Every shipped runtime's session-control
-endpoints must refuse other OS accounts while the intended terminal, tools
-and pusher remain usable. Loopback reachability and distinct session names
-alone do not establish that boundary. The current Codex WebSocket path needs
-an installed cross-account check; the review has not established unauthorized
-attachment. [H.9.5](../Plans/MVP/TODO.md#remaining-work) owns this verification
-and any necessary correction.
+Every shipped runtime must keep session control private to its OS account.
+**Built:** launcher-owned Codex and OpenCode servers require per-run credentials;
+launcher rename control requires its own capability. Loopback alone is not a
+boundary. **H.9.5 acceptance remains open:** installed endpoint checks and fixture
+integration do not yet prove the intended interactive terminal, tools and pusher
+working together under the boundary for every shipped runtime.
+
+<details>
+<summary>Credentials and measured scope</summary>
+
+Codex uses native capability-token authentication before WebSocket upgrade.
+Its token file is private inside the launcher's private run directory; the
+pusher supplies an Authorization header and the TUI reads its token from an
+environment variable. It requires a runtime supporting `--ws-auth capability-token`
+and `--remote-auth-token-env`; unsupported versions fail startup, with no
+unauthenticated fallback. OpenCode uses its native server password. Secrets
+never appear in launcher-supplied command-line arguments. Root and processes
+already running as the same OS account are outside this account boundary.
+
+The [endpoint evidence](../Plans/MVP/done/runtime-endpoint-auth.md#checks) includes
+actual second-account reads and renames, positive controls with authentication
+removed, and separate launcher/MCP/pusher fixture checks. [H.9.5](../Plans/MVP/TODO.md#remaining-work)
+retains the installed interactive co-exercise.
+
+</details>
 
 After a daemon restart or sidecar failure, an open interactive session must
 resume bus delivery or clearly report that integration is inactive and how

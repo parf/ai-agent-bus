@@ -72,6 +72,10 @@ try {
     check(`${runtime} prevents the runtime from replacing its terminal title`, runtime === "codex" ? allArgs.some(a => a.includes("tui.terminal_title=[]")) : rows.some(r => r.kind === "terminal-env" && r.data === "1"));
     check(`${runtime} preserves the prompt argument`, allArgs.some(a => a.includes("a prompt with spaces")));
     if (runtime === "codex") check("Codex resolves a relative directory exactly once", allArgs.some(a => a.filter((v: string) => v === "-C").length === 1 && a[a.indexOf("-C") + 1] === cwd));
+    if (runtime === "codex") {
+      check("Codex rejects an unauthenticated runtime client", rows.some(r => r.kind === "runtime-denied" && r.data === 401));
+      check("Codex TUI authenticates to its private server", rows.some(r => r.kind === "tui-authenticated"));
+    }
     if (runtime === "opencode") check("opencode resolves a relative directory exactly once", allArgs.some(a => a.filter((v: string) => v === "--dir").length === 1 && a[a.indexOf("--dir") + 1] === cwd));
     check(`${runtime} enforces automatic execution`, runtime === "claude" ? allArgs.some(a => a.includes("--enable-auto-mode") && !a.includes("--permission-mode")) : runtime === "opencode" ? rows.filter(r => r.kind === "permission").at(-1)?.data === "allow" : rows.filter(r => r.kind === "approval").at(-1)?.data === "never" && rows.filter(r => r.kind === "sandbox").at(-1)?.data === "danger-full-access" && !rows.some(r => /^(thread|turn)\//.test(r.kind) && r.data?.approvalPolicy === "on-request"));
     check(`${runtime} continues its session`, runtime === "claude" ? allArgs.some(a => a.includes("--continue"))

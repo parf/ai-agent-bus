@@ -23,6 +23,7 @@ scope: [stages § MVP](../../Plans/MVP/README.md#scope).
 | `AGENT_BUS_DESCR` | what `ls` shows for this session |
 | `AGENT_BUS_CWD` | which directory the Codex push mode attaches to. Defaults to the process's |
 | `AGENT_BUS_CODEX_WS` | the **shared** App Server, e.g. `ws://127.0.0.1:8421`. Without it the face drives its own, which cannot reach a live session — see below |
+| `AGENT_BUS_CODEX_AUTH_TOKEN` | bearer capability for the shared Codex App Server; the smart launcher provides it privately to its TUI and pusher, never in command-line arguments |
 
 The [launchers](../../docs/08-runner-role.md#smart-launchers) supply their
 [assigned session identity](../../docs/08-runner-role.md#session-names);
@@ -93,13 +94,12 @@ pusher a sidecar for the same reason.
 Give both the same `AGENT_BUS_NAME`: one session, one name. Only the pusher
 consumes, so they do not contend for the inbox's one read.
 
-```sh
-codex app-server --listen ws://127.0.0.1:8421 &          # one server, tools inside it
-AGENT_BUS_NAME=me@host AGENT_BUS_PUSH=codex \
-  AGENT_BUS_CODEX_WS=ws://127.0.0.1:8421 \
-  AGENT_BUS_CWD="$PWD" bun run server.ts &               # the pusher attaches
-codex --remote ws://127.0.0.1:8421 -C "$PWD"             # so does the TUI
-```
+Use `ab-codex`: the launcher starts this shared topology and supplies its
+[private runtime credentials](../../docs/08-runner-role.md#runtime-isolation-and-recovery)
+to both clients. A hand-started server must enforce authentication too;
+loopback alone lets other local accounts attach. For a separately managed
+server, supply the matching `AGENT_BUS_CODEX_AUTH_TOKEN` to this adapter and use
+the runtime's own authenticated TUI connection options.
 
 **A Codex session answers with `ab_send`, not `ab_reply`**: the message was
 consumed by the pusher, and the tools live in the other process, so its reply
@@ -117,8 +117,7 @@ and blocks the reply).
 A **loopback WebSocket**, not `unix://`: both are WebSocket listeners, and bun
 can open one over a port but not over a unix socket — which is exactly what
 put Legacy-V1's Codex notifier on Node. A port removes the `ws` dependency and its
-`permessage-deflate` workaround, and the App Server binds localhost only,
-which is the daemon's own rule (loopback only).
+`permessage-deflate` workaround, while native bearer authentication provides the account boundary.
 
 Without `AGENT_BUS_CODEX_WS` the face still works and says so in its log: it
 drives its own App Server and answers in a headless thread. That is a

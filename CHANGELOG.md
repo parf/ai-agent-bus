@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.48 — 2026-09-17
+
+Protect the launcher-owned Codex App Server with a private per-run capability. The TUI and pusher authenticate; other local accounts cannot attach merely by finding its loopback port.
+
 ## 0.5.47 — 2026-09-17
 
 Persist administrative changes before acknowledging success, so bans, removed memberships and tightened ACLs survive bus crashes. Snapshot capture and replacement are serialized; failed persistence returns an error and can be retried.

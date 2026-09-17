@@ -17,8 +17,8 @@
 // | stdio | our own `codex app-server`, NDJSON (B.0) |
 //
 // `--listen unix://` is a WebSocket too, and bun cannot open one over a unix
-// socket. A loopback port avoids it, and the App Server binds localhost only,
-// which is the daemon's own rule.
+// socket. The launcher uses loopback with a per-run bearer capability: loopback
+// alone does not isolate sessions from other local OS accounts.
 //
 // The call sequence is Legacy-V1's, minus the JetStream parts: initialize →
 // thread/list newest for this cwd → thread/resume, else thread/start → per
@@ -66,6 +66,7 @@ export class Codex {
   #closed = false;
   readonly #cwd: string;
   readonly #url?: string;
+  readonly #token?: string;
   readonly #log: (s: string) => void;
   // Approvals go to the person in the TUI, never to us. Without this the App
   // Server asks *the client that started the turn* — this face — and a face
@@ -79,10 +80,11 @@ export class Codex {
     approvalsReviewer: "user" as const,
   };
 
-  constructor(cwd: string, log: (s: string) => void, url = process.env.AGENT_BUS_CODEX_WS) {
+  constructor(cwd: string, log: (s: string) => void, url = process.env.AGENT_BUS_CODEX_WS, token = process.env.AGENT_BUS_CODEX_AUTH_TOKEN) {
     this.#cwd = resolve(cwd);
     this.#log = log;
     this.#url = url?.trim() || undefined;
+    this.#token = token;
   }
 
   get thread(): string | undefined {
@@ -285,7 +287,7 @@ export class Codex {
   // --- transports -------------------------------------------------------
 
   async #connect(url: string): Promise<Wire> {
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(url, this.#token ? { headers: { Authorization: `Bearer ${this.#token}` } } : undefined);
     await new Promise<void>((ok, fail) => {
       const t = setTimeout(() => fail(new Error(`codex: ${url} did not open in 15s`)), 15_000);
       ws.onopen = () => { clearTimeout(t); ok(); };
