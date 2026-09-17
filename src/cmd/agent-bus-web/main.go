@@ -347,7 +347,7 @@ const head = `<!doctype html>
  .site-header{overflow-x:auto;white-space:nowrap;border-bottom:1px solid #aaa;padding-bottom:1rem;margin-bottom:1rem}
  .node-summary{display:flex;flex-wrap:nowrap;gap:1rem;margin:.4rem 0}
  .node-summary>*{flex-shrink:0}
- .site-footer{clear:both;border-top:1px solid #aaa;margin-top:2rem;padding-top:1rem;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+ .site-footer{white-space:nowrap;overflow-x:auto;clear:both;border-top:1px solid #aaa;margin-top:2rem;padding-top:1rem;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
  nav{line-height:2}
  nav a[aria-current=page]{font-weight:700;text-decoration:none}
  :focus-visible{outline:2px solid #253c66;outline-offset:2px}

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.40 — 2026-09-16
+
+Simplify the header to uptime and minute/hour/total calls, keeping sampled spans in the API; the one-line footer shows matching builds once and identifies differing builds.
+
 ## 0.5.39 — 2026-09-16
 
 The one-line dashboard header shows daemon calls for the sampled minute and hour,

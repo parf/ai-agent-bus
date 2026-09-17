@@ -46,13 +46,13 @@ func TestEveryHTMLPageCarriesNodeIdentity(t *testing.T) {
 			}
 			body := w.Body.String()
 			header := section(t, body, "<header ", "</header>")
-			for _, fact := range []string{"AgentBus V" + version.String, "owner: <code>admin@h</code>", " up</span>"} {
+			for _, fact := range []string{"AgentBus V" + version.String, "owner: <code>admin@h</code>", "<strong>uptime</strong>: "} {
 				if !strings.Contains(header, fact) {
 					t.Errorf("header lacks %q: %s", fact, header)
 				}
 			}
 			footer := section(t, body, "<footer ", "</footer>")
-			for _, fact := range []string{"Daemon build: <code>" + version.Build, "Web <code>v" + version.String, "build: <code>" + version.Build} {
+			for _, fact := range []string{"Build: <code>" + version.Build} {
 				if !strings.Contains(footer, fact) {
 					t.Errorf("footer lacks %q: %s", fact, footer)
 				}
@@ -69,6 +69,7 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 	broken := false
 	legacy := false
 	collecting := false
+	matchingBuild := false
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reads++
 		if r.URL.Path != "/identity" || r.Header.Get(api.HeaderToken) != "" || r.Header.Get("Cookie") != "" {
@@ -80,6 +81,10 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 		}
 		if collecting {
 			json.NewEncoder(w).Encode(protocol.NodeIdentity{Calls: &protocol.CallStats{Total: 9, Windows: []protocol.CallWindow{{Window: "1m"}, {Window: "1h"}}}})
+			return
+		}
+		if matchingBuild {
+			json.NewEncoder(w).Encode(protocol.NodeIdentity{Version: version.String, Build: version.Build})
 			return
 		}
 		if legacy {
@@ -95,18 +100,18 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 		h.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		body := w.Body.String()
 		header := section(t, body, "<header ", "</header>")
-		for _, fact := range []string{"AgentBus V9.8.7", "1h23m up", "owner&lt;&amp;&gt;@h", "fixture-host", "min: <strong>7</strong>", "observed 1m20s", "hr: <strong>0</strong>", "observed 2m0s", "total: <strong>4321</strong>"} {
+		for _, fact := range []string{"AgentBus V9.8.7", "<strong>uptime</strong>: 1h23m", "owner&lt;&amp;&gt;@h", "fixture-host", "<strong>calls</strong>: minute: 7 ; hour: 0 ; total: 4321"} {
 			if !strings.Contains(header, fact) {
 				t.Errorf("header lacks %q: %s", fact, header)
 			}
 		}
 		footer := section(t, body, "<footer ", "</footer>")
-		for _, fact := range []string{"long polls still in progress"} {
-			if !strings.Contains(footer, fact) {
-				t.Errorf("footer lacks %q: %s", fact, footer)
+		for _, removed := range []string{"<details>", "About call counts", "Web <code>v", "minute:", "hour:", "total:"} {
+			if strings.Contains(footer, removed) {
+				t.Errorf("footer still contains %q: %s", removed, footer)
 			}
 		}
-		if strings.Contains(header, "~5m") || strings.Contains(header, "build:") {
+		if strings.Contains(header, "observed") || strings.Contains(header, "min:") || strings.Contains(header, "hr:") || strings.Contains(header, " up</span>") || strings.Contains(header, "build:") {
 			t.Error("detail crept into header")
 		}
 		for _, old := range []string{"Host load", "About load readings", "accepted /", "dequeued"} {
@@ -114,7 +119,7 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 				t.Errorf("removed metric still on page: %s", old)
 			}
 		}
-		if !strings.Contains(footer, "Daemon build: <code>daemon &lt;build&gt;") || !strings.Contains(footer, "Web <code>v"+version.String) || !strings.Contains(footer, version.Build) {
+		if !strings.Contains(footer, "Daemon build: <code>daemon &lt;build&gt;") || !strings.Contains(footer, "Web build: <code>"+version.Build) || !strings.Contains(footer, version.Build) {
 			t.Errorf("build sources confused or unescaped: %s", footer)
 		}
 		if !strings.Contains(body, "action=/signin") {
@@ -124,11 +129,19 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 	if reads != 2 {
 		t.Fatalf("%d public reads for two pages", reads)
 	}
+	matchingBuild = true
+	matched := httptest.NewRecorder()
+	h.ServeHTTP(matched, httptest.NewRequest("GET", "/", nil))
+	matchedFooter := section(t, matched.Body.String(), "<footer ", "</footer>")
+	if strings.Count(matchedFooter, "<code>") != 1 || !strings.Contains(matchedFooter, "Build: <code>"+version.Build+"</code>") || strings.Contains(matchedFooter, "Daemon build:") || strings.Contains(matchedFooter, "Web build:") {
+		t.Fatalf("identical builds were not shown once: %s", matchedFooter)
+	}
+	matchingBuild = false
 	collecting = true
 	pending := httptest.NewRecorder()
 	h.ServeHTTP(pending, httptest.NewRequest("GET", "/", nil))
 	pendingHeader := section(t, pending.Body.String(), "<header ", "</header>")
-	if !strings.Contains(pendingHeader, "min: collecting history") || !strings.Contains(pendingHeader, "hr: collecting history") || !strings.Contains(pendingHeader, "total: <strong>9</strong>") || strings.Contains(pendingHeader, "<strong>0</strong>") {
+	if !strings.Contains(pendingHeader, "minute: collecting history") || !strings.Contains(pendingHeader, "hour: collecting history") || !strings.Contains(pendingHeader, "total: 9") || strings.Contains(pendingHeader, "minute: 0") || strings.Contains(pendingHeader, "hour: 0") {
 		t.Fatalf("unobserved windows fabricated a value: %s", pendingHeader)
 	}
 	collecting = false
@@ -136,7 +149,7 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 	old := httptest.NewRecorder()
 	h.ServeHTTP(old, httptest.NewRequest("GET", "/", nil))
 	oldHeader := section(t, old.Body.String(), "<header ", "</header>")
-	for _, missing := range []string{"host unavailable", "min: unavailable; hr: unavailable; total: unavailable"} {
+	for _, missing := range []string{"host unavailable", "<strong>calls</strong>: minute: unavailable; hour: unavailable; total: unavailable"} {
 		if !strings.Contains(oldHeader, missing) {
 			t.Errorf("missing legacy value fabricated: %s", oldHeader)
 		}
@@ -148,6 +161,10 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 	header := section(t, w.Body.String(), "<header ", "</header>")
 	if !strings.Contains(header, "Node information unavailable") || strings.Contains(header, "owner&lt;") || strings.Contains(header, version.String) {
 		t.Fatalf("unavailable daemon was replaced by stale or local facts: %s", header)
+	}
+	footer := section(t, w.Body.String(), "<footer ", "</footer>")
+	if !strings.Contains(footer, "Daemon build: unavailable") || !strings.Contains(footer, "Web build: <code>"+version.Build) {
+		t.Fatalf("missing daemon build borrowed a local value: %s", footer)
 	}
 	if !strings.Contains(w.Body.String(), "action=/signin") {
 		t.Error("identity failure hid login")

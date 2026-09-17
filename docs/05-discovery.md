@@ -171,10 +171,10 @@ anybody.
 | | |
 |---|---|
 | what is published | release, host name, daemon owner name, uptime, **calls served** — and the build. **Nothing else**: no record names, no principals, no refusal counts, nothing about who is using it |
-| where each one shows | **the header is one line**: release, host, uptime, owner, and three call figures — `min:`, `hr:`, `total:`. The footer carries the build. The owner set the one-line rule and chose those three; a five-minute window and a day window were each tried and removed |
+| where each one shows | **the header is one line**: release, host, **`uptime:`**, owner, then **`calls:`** with `minute:`, `hour:` and `total:`. **The footer carries the build and nothing else** — one line, no explanatory text. The owner set both one-line rules, chose those three figures (a five-minute and a day window were each tried and removed), and set the labels |
 | to whom | any caller that reaches the face, with no credential and no session |
 | host name | the machine's hostname as the OS reports it, `srv1`. The daemon has no node name of its own, so this is a new field rather than a restatement of one; it is not the realm, which the owner's name already carries |
-| uptime | a plain figure, `1h23m up`, as the owner asked. It is what was true when the page rendered and the page does not refresh itself |
+| uptime | a plain figure behind an explicit label, `uptime: 1h23m`, as the owner asked. It is what was true when the page rendered, and the page does not refresh itself |
 | calls served | the count of **HTTP requests the bus process has served**, over the **last minute** and **the last hour**, plus the **total since the daemon started**. Every request on every listener, gated or refused or served — it is counted before the handler runs, so it is traffic reaching the daemon rather than work it agreed to do. A node-wide figure, not this caller's. **No host reading is published**: the owner asked for the daemon's own calls only, and an OS load average is a fact about the machine rather than about this node |
 | what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The call counts are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal, no endpoint and no direction of business |
 | how it is read | **`GET /identity`**, a public daemon call answering these fields and nothing else to a caller with no credential. There was no such call: every route but enrolment and a root redirect sits behind the token gate, and `GET /status` is authenticated and answers refusals and the caller's own standing besides. So this is a new endpoint rather than a relaxation of `/status`, which keeps its gate and its contents |
@@ -191,7 +191,7 @@ per record.
 The counter is process-local and resets with the daemon, so on any node
 restarted within 24 hours `day:` would report everything since start while
 calling itself a day. `total:` reports the same number and is honest about it —
-and it needs no span of its own, because `1h23m up` is on the same line and
+and it needs no span of its own, because `uptime:` is on the same line and
 scopes it.
 
 **This figure is nobody's listing.** It is a process-local counter, incremented
@@ -204,19 +204,19 @@ cannot name, since for a stranger it would report a confident **zero** on a
 busy node.
 
 **What the counter can and cannot answer.** These are properties of what is
-being counted, not defects to be fixed here, and the page states them rather
-than papering over them:
+being counted, not defects to be fixed here. They are documented here; the
+compact dashboard does not explain them:
 
 | | |
 |---|---|
 | it counts requests **admitted**, not work completed | the counter increments before the handler runs, so a refusal, a router 404, a bad token and a served call all count the same. A node being hammered with rejected requests reads as busy, which is correct — it is traffic reaching the daemon, not work the daemon agreed to do |
 | a long poll counts when it **starts** | a waiting `consume` holds one request open for as long as it waits, and it was counted on arrival. On a bus whose faces sit in long polls, a quiet minute in which several readers attach still shows calls. Nothing is wrong with the figure; it is answering a different question than "how much happened" |
 | the dashboard counts itself | `GET /identity` is a request like any other, so loading a page adds to the figures that page then shows. No page refreshes itself ([what it shows](#what-it-shows)), so an open page left alone generates nothing; it is a **person** reloading who moves the number they are watching |
-| the windows are **sampled**, not exact | what is kept is the running total captured once a minute, so a window is the difference between one sample and the live total now — it ends at this instant and begins wherever a sample fell. An exact rolling minute is not recoverable and is not claimed; each window states the span it actually covered |
-| history is **shorter than the window** after a restart | the counter starts at zero with the process, and an hour of readings takes an hour to accumulate. **Each window reports its own span, not the node's age**: on a node up three minutes, `min:` still has a baseline near its own cutoff and reports about a minute, while `hr:` reports the three minutes it actually has. **Unobserved history is never shown as zero** — that is the distinction this whole layer exists for |
-| `total:` is **exact**; the windows are not | the total is the counter read directly, with no sampling in it. Only `min:` and `hr:` are differences between a sample and now, and only they carry an observed span |
-| the three may legitimately be **equal** | during the first minute, and whenever every call the node has served falls inside the shortest observed window. Nothing is wrong and nothing should be built assuming they differ — but nor do they collapse merely because the daemon is young: at ten minutes, `min:` covers the last one while `hr:` and `total:` cover all ten |
-| all three reset on restart | the counter lives with the process. A restart is not a quiet node, and `up` on the same line is what tells them apart |
+| the windows are **sampled**, and the header does not say by how much | a window begins at the newest reading at or before its cutoff, so its span is **whatever the readings allow**, not what its name says. With the usual minute cadence and enough history, `minute:` covers roughly one to two minutes and `hour:` a little over the hour; a delayed tick widens it, a young node shortens it below the nominal span entirely, and it matches exactly when the cutoff falls on a retained reading. None of those is the guaranteed case, which is why the daemon measures each span rather than reasoning about it. **The header prints the label alone**, by owner decision at 0.5.40, taken with this stated: `uptime:` beside it shows how young the node is, and that was judged enough for a glance. The span is still measured and still published — `observed` on each window of `GET /identity` — but **no page says so**: the answer lives on the API, not in the dashboard |
+| history is **shorter than the window** after a restart | the counter starts at zero with the process, and an hour of readings takes an hour to accumulate. **A window's span is its own, not the node's age**: on a node up three minutes, `minute:` still finds a baseline near its own cutoff and covers about a minute, while `hour:` covers the three minutes it has. `observed` carries this on the wire; the header does not. **Unobserved history is never shown as zero** — that is the distinction this whole layer exists for |
+| `total:` is **exact**; the windows are not | the total is the counter read directly, with no sampling in it. Only `minute:` and `hour:` are differences between a reading and now, and only they carry an `observed` span on the wire |
+| the three may legitimately be **equal** | during the first minute, and whenever every call the node has served falls inside the shortest observed window. Nothing is wrong and nothing should be built assuming they differ — but nor do they collapse merely because the daemon is young: at ten minutes, `minute:` covers the last one while `hour:` and `total:` cover all ten |
+| all three reset on restart | the counter lives with the process. A restart is not a quiet node, and `uptime:` on the same line is what tells them apart |
 
 ### Signing in
 

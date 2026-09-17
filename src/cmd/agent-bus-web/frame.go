@@ -26,9 +26,8 @@ type pageInfo struct {
 
 // An embedded method lets every HTML view share the frame without changing
 // the SVG avatar response. Local build facts remain explicitly web facts.
-func (p pageInfo) Frame() pageInfo    { return p }
-func (p pageInfo) WebVersion() string { return version.String }
-func (p pageInfo) WebBuild() string   { return version.Build }
+func (p pageInfo) Frame() pageInfo  { return p }
+func (p pageInfo) WebBuild() string { return version.Build }
 
 type pageInfoKey struct{}
 
@@ -74,9 +73,9 @@ const frameHeader = `<header class=site-header aria-label="Node information">
 <div class=node-summary>
 <strong>AgentBus {{with .Frame.Node}}{{if .Version}}V{{.Version}}{{else}}version unavailable{{end}}{{else}}version unavailable{{end}}</strong>
 {{with .Frame.Node}}<span>{{if .Host}}{{.Host}}{{else}}host unavailable{{end}}</span>
-<span>{{if .Up}}{{.Up}} up{{else}}uptime unavailable{{end}}</span>
+<span><strong>uptime</strong>: {{if .Up}}{{.Up}}{{else}}unavailable{{end}}</span>
 <span>owner: <code>{{if .Owner}}{{.Owner}}{{else}}unavailable{{end}}</code></span>
-{{with .Calls}}<span class=call-counts>{{range .Windows}}{{if eq .Window "1m"}}min:{{else}}hr:{{end}} {{if .Available}}<strong>{{.Count}}</strong> <small>(observed {{.Observed}})</small>{{else}}collecting history{{end}} ; {{end}}total: <strong>{{.Total}}</strong></span>{{else}}<span>min: unavailable; hr: unavailable; total: unavailable</span>{{end}}
+{{with .Calls}}<span class=call-counts><strong>calls</strong>: {{range .Windows}}{{if eq .Window "1m"}}minute:{{else}}hour:{{end}} {{if .Available}}{{.Count}}{{else}}collecting history{{end}} ; {{end}}total: {{.Total}}</span>{{else}}<span><strong>calls</strong>: minute: unavailable; hour: unavailable; total: unavailable</span>{{end}}
 {{else}}<span>Node information unavailable</span>{{end}}
 </div>
 </header>
@@ -84,9 +83,6 @@ const frameHeader = `<header class=site-header aria-label="Node information">
 
 var frameFooter = template.Must(template.New("footer").Parse(`</main>
 <footer class=site-footer aria-label="Build information">
-{{with .Node}}<div>Daemon build: <code>{{if .Build}}{{.Build}}{{else}}unavailable{{end}}</code></div>{{end}}
-<div>Web <code>v{{.WebVersion}}</code> · build: <code>{{.WebBuild}}</code></div>
-<details><summary>About call counts</summary>
-HTTP requests entering the daemon on all listeners, including refused requests, router 404/405 responses, this page's queries (including /identity itself), and long polls still in progress. A long poll counts when it starts, not when it finishes. These are not completed operations or the separate refusal totals. Total is exact since this process started; the minute and hour windows use minute samples and the current total, and each shows its observed span. Loading or reloading a page adds calls; leaving it open does not refresh it.</details>
+{{$web := .WebBuild}}{{with .Node}}{{if and .Build (eq .Build $web)}}Build: <code>{{.Build}}</code>{{else}}Daemon build: <code>{{if .Build}}{{.Build}}{{else}}unavailable{{end}}</code> · Web build: <code>{{$web}}</code>{{end}}{{else}}Daemon build: unavailable · Web build: <code>{{$web}}</code>{{end}}
 </footer>
 </html>`))

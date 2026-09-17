@@ -7,6 +7,13 @@ The contract is
 
 codex wrote the code. This file records the direction and the review, both mine.
 
+> **The header changed again at 0.5.40.** The labels became `uptime:` and
+> `calls: minute: / hour: / total:`, and the `(observed …)` spans were dropped
+> from the header by owner decision, taken with the approximation stated. What
+> is recorded below is 0.5.39 as it shipped; the measurement and the wire format
+> did not change. Current contract:
+> [what a node says about itself](../../../docs/05-discovery.md#what-a-node-says-about-itself).
+
 ## What changed and why
 
 The owner read the shipped footer and cut it down:

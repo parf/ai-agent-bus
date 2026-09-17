@@ -1881,14 +1881,15 @@ ANON=$(curl -s "$WEB/")
 has "an anonymous visitor gets the sign-in form" "$ANON" 'name=token'
 has "the login header names the node release" "$ANON" "AgentBus V$(cat internal/version/VERSION)"
 has "the login header names the daemon owner" "$ANON" "owner: <code>$OWNER</code>"
-has "the login header shows uptime" "$ANON" '[0-9][0-9a-z.]* up</span>'
-has "the login header reports sampled minute calls" "$ANON" 'min: <strong>[0-9][0-9]*</strong>'
-has "the login header reports sampled hour calls" "$ANON" 'hr: <strong>[0-9][0-9]*</strong>'
-has "the login header reports total calls" "$ANON" 'total: <strong>[0-9][0-9]*</strong>'
-has "sampled calls state their observed span" "$ANON" 'observed [0-9]'
+has "the login header shows uptime" "$ANON" '<strong>uptime</strong>: [0-9][0-9a-z.]*</span>'
+has "the login header reports sampled minute calls" "$ANON" '<strong>calls</strong>: minute: [0-9][0-9]*'
+has "the login header reports sampled hour calls" "$ANON" 'hour: [0-9][0-9]*'
+has "the login header reports total calls" "$ANON" 'total: [0-9][0-9]*'
+lacks "observed spans stay out of the header" "$ANON" '(observed '
+lacks "the footer has no About section or repeated version" "$ANON" 'About call counts\|Web <code>v'
 lacks "OS and inbox readings are removed" "$ANON" 'Host load\|About load readings\|accepted /\|dequeued'
-has "the login footer identifies the daemon build" "$ANON" 'Daemon build: <code>'
-has "the login footer identifies the web build separately" "$ANON" 'Web <code>v'
+has "the login footer identifies the shared build once" "$ANON" 'Build: <code>'
+lacks "identical builds are not repeated" "$ANON" 'Daemon build:\|Web build:'
 # Node identity and sampled request counts are public; registry contents stay private.
 # See docs/05-discovery.md#what-a-node-says-about-itself.
 is_empty "and no records or registry totals" \
