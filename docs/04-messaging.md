@@ -2,6 +2,18 @@
 
 📌 **TL;DR:** Messages wait in bounded inboxes; dequeue is not completion.
 
+```mermaid
+flowchart LR
+    C[Caller] -->|send request| SI[Service inbox]
+    SI -->|consume| S[Service]
+    S -->|send reply| CI[Caller inbox]
+    CI -->|consume reply| C
+```
+
+A successful request and reply, using the caller's own return address.
+Each inbox belongs to a registered name; replies use the same topic and tag.
+Taking a message does not prove the work finished—see [receipts](#receipts).
+
 ## Status
 
 | MVP | Scope |
