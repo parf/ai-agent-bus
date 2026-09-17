@@ -35,11 +35,11 @@ plain text.
 | 👥 | `U+1F465` | Group | a group or team |
 | 🤖 | `U+1F916` | Agent | an agent identity |
 | ⚙️ | `U+2699 U+FE0F` | Service | a service identity |
-| 🔑 | `U+1F511` | Authenticated user | the current user is authenticated; this is an access state, not another identity kind |
+| 🔑 | `U+1F511` | Credentials | credentials used to prove an identity; never the secret value itself |
 
 User, Agent and Service are the implemented shared web/CLI entity labels. Group
-and Authenticated user record the selected vocabulary; their exact placements
-remain part of the unsettled web proposal below.
+and Credentials record the selected vocabulary; their exact placements remain
+part of the unsettled web proposal below.
 
 ## Rendering: a proposal, not a settled decision
 
