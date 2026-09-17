@@ -90,3 +90,20 @@ that earlier run is not green evidence.
 
 This evidence covers disposable fixtures and package tests. It does not claim
 that production ACLs were changed or that the live daemon was upgraded.
+
+## Later live deployment
+
+At the owner's restart instruction, the development installation was rebuilt
+with `src/build.sh` and `agent-busd.service` restarted on 2026-09-17 at
+01:09 EDT. Public identity and the anonymous web header reported **0.5.44**;
+build stamp `parf@parf.us 2026-09-17 01:08:55`. The unit was active/running,
+while anonymous `/status` still answered 401.
+
+No live ACLs were widened. The owner could still list its five agent records;
+its three unrelated empty-ACL fixture records were no longer visible through
+that caller. Four agent records, including Codex and OpenCode, reported attached
+readers in the post-restart observation. The fifth had no reader at that instant;
+this is not a claim about its health. Codex's same-session bus list succeeded
+and showed only its own record, exercising the new visibility default live.
+Peer messages now require explicit grants. Local observations are retained in
+`tmp/empty-acl/deploy/`.
