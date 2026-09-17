@@ -6,7 +6,7 @@ gates are in [TODO](TODO.md#objective).
 | Work | Result | Evidence |
 |---|---|---|
 | 0.5.48 live rollout | Combined daemon update, confined web and peer reconnection verified; existing runtime sidecars retained | [rollout evidence](done/rollout-048.md#measured) |
-| H.9.5 partial | Native Codex endpoint authentication and installed cross-account read/rename checks; interactive co-exercise remains open | [endpoint evidence](done/runtime-endpoint-auth.md#checks) |
+| H.9.5 partial | Native authentication and concurrent Codex/OpenCode TUI, MCP and pusher isolation checks; Claude co-exercise remains open | [endpoint evidence](done/runtime-endpoint-auth.md#checks), [interactive evidence](done/runtime-interactive.md#checks) |
 | H.5.3 | Administrative success waits for persistence; real bus-child crashes, failed disk writes and stale-checkpoint mutations exercised | [administrative durability](done/administrative-durability.md#checks) |
 | G.1.3 | Supervised web filesystem, process and environment confinement; actual generated-unit acceptance with disposable canaries | [web isolation](done/web-isolation.md#checks) |
 | H.5.2 | SSH forced-command entitlement and account-shell repair; isolated real-sshd acceptance and mutations | [SSH onboarding](done/ssh-onboarding.md#checks) |

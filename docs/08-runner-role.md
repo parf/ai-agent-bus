@@ -256,9 +256,7 @@ not coordinated by the local session locks; default state stays on its launching
 Every shipped runtime must keep session control private to its OS account.
 **Built:** launcher-owned Codex and OpenCode servers require per-run credentials;
 launcher rename control requires its own capability. Loopback alone is not a
-boundary. **H.9.5 acceptance remains open:** installed endpoint checks and fixture
-integration do not yet prove the intended interactive terminal, tools and pusher
-working together under the boundary for every shipped runtime.
+boundary. **H.9.5 acceptance remains open:** the [interactive evidence](../Plans/MVP/done/runtime-interactive.md#scope) covers Codex and OpenCode; Claude still needs the same co-exercise.
 
 <details>
 <summary>Credentials and measured scope</summary>
@@ -275,7 +273,7 @@ already running as the same OS account are outside this account boundary.
 The [endpoint evidence](../Plans/MVP/done/runtime-endpoint-auth.md#checks) includes
 actual second-account reads and renames, positive controls with authentication
 removed, and separate launcher/MCP/pusher fixture checks. [H.9.5](../Plans/MVP/TODO.md#remaining-work)
-retains the installed interactive co-exercise.
+retains the outstanding co-exercise; the [Claude prerequisite](../Plans/MVP/done/runtime-interactive.md#claude-prerequisite) names the unavailable input path and the acceptance it prevents.
 
 </details>
 
