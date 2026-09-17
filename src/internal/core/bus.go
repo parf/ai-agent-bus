@@ -241,7 +241,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, personName 
 		return protocol.Record{}, fmt.Errorf("%w, not %d", ErrBound, r.Bound)
 	}
 	r.Config, r.ConfigSHA, r.Subs = nil, "", nil
-	r.Maintainers, r.Disabled = "", false
+	r.Maintainers, r.Disabled = nil, false
 	clearLiveRecord(&r)
 	// Publishing a name is open to anyone; changing one that exists belongs
 	// to its owner, and to the record itself — a service registering on
@@ -256,7 +256,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, personName 
 		r.Config = old.Config
 		r.Owner = old.Owner
 		r.Subs = old.Subs
-		r.Maintainers, r.Disabled = old.Maintainers, old.Disabled
+		r.Maintainers, r.Disabled = append(protocol.MaintainerList(nil), old.Maintainers...), old.Disabled
 		// Personal is the owner's classification. A service refreshes its own
 		// metadata on every start and cannot clear or set that owner choice.
 		r.Personal = old.Personal

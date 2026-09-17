@@ -22,6 +22,10 @@ export type Envelope = {
 };
 
 export type Record_ = { name: string; kind: string; addr?: string; descr?: string; owner: string;
+  // Resource management grants are a list. Older daemons used one group
+  // string; the current daemon accepts that input only for migration and
+  // always answers with this array form.
+  maintainers?: string[];
   // Who may see and use it. A listing already leaves out what its caller may
   // not, so this is what a record says about itself, not a filter to apply
   // here (docs/02-access.md#acl).

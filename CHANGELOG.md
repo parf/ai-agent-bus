@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.62 — 2026-09-17
+
+Replace the single resource Maintainers group with an owner-assigned list of
+Users, Groups, Agents and Services. Preserve nested authority and legacy
+snapshots while emitting the new array form on every current face.
+
 ## 0.5.61 — 2026-09-17
 
 Use `👾` for Agent in WEB and human CLI output. Keep the shared display

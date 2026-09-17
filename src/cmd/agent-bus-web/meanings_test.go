@@ -679,10 +679,10 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	}
 
 	detail := m.get("/service?name=svc@h")
-	if !strings.Contains(detail, "Type: <strong>⚙️ Service</strong>") || !strings.Contains(detail, `name=allow value="peer@h"`) {
+	if !strings.Contains(detail, "Type: <strong>⚙️ Service</strong>") || !strings.Contains(detail, `<textarea name=allow rows=5>peer@h</textarea>`) {
 		t.Errorf("detail lost its label or plain ACL value: %s", detail)
 	}
-	if strings.Contains(detail, `name=allow value="⚙️`) || strings.Contains(detail, `name=allow value="👾`) {
+	if strings.Contains(detail, `<textarea name=allow rows=5>⚙️`) || strings.Contains(detail, `<textarea name=allow rows=5>👾`) {
 		t.Error("a display glyph entered the editable ACL")
 	}
 

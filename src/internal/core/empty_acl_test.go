@@ -24,14 +24,14 @@ func restrictedFixture(t *testing.T, restored bool) *Bus {
 		t.Fatal(err)
 	}
 	for _, r := range []protocol.Record{
-		{Name: "svc@h", Owner: "alice@h", Maintainers: "@support"},
+		{Name: "svc@h", Owner: "alice@h", Maintainers: protocol.MaintainerList{"@support"}},
 		{Name: "peer@h", Owner: "outsider@h"},
 	} {
 		if _, err := b.Register(r); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "svc@h", Maintainers: ptr("@support")}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "svc@h", Maintainers: ptr(protocol.MaintainerList{"@support"})}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.SetGroup("admin@h", "@readers", []string{"outsider@h"}); err != nil {

@@ -183,15 +183,10 @@ remain refused. This is existing behavior, confirmed by the Q63 decision.
 
 A service has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
-The following model is built except for **service-defined roles** and the
-accepted Maintainers-list replacement, which remain pending.
-
-**Accepted pending change:** Maintainers becomes a list of named users, groups,
-agents and services, using the same one-term-per-line input pattern as ACLs.
-Only the Owner or daemon Owner may replace the list. Group entries use ordinary
-nested membership. Until this change ships, the daemon stores one Maintainers
-group; faces must label that limitation as current behavior rather than the
-final model.
+The following model is built except for **service-defined roles**.
+Maintainers is a list of named users, groups, agents and services. Only the
+resource Owner or daemon Owner replaces it; group entries use ordinary nested
+membership. Human editors use one plain term per line, as ACL editors do.
 
 | Role | Authority |
 |---|---|
@@ -202,11 +197,11 @@ final model.
 <details>
 <summary>Management boundaries and availability</summary>
 
-* Today the owner, the resource's own principal and members of its assigned
-  Maintainers group can manage it. Only the owner may change that group
-  assignment or transfer ownership. Choosing a group delegates its membership
-  to [group administration](#groups); it does not give the service owner control
-  over who Administrators add to it.
+* The owner, the resource's own principal and every direct or effective member
+  of its Maintainers list can manage it. Only the resource Owner or daemon Owner
+  may replace the list; only they may transfer ownership. Naming a group
+  delegates its membership to [group administration](#groups); it does not give
+  the service owner control over who Administrators add to it.
 * Disabling refuses deliveries and inbox reads, cancels blocked reads, and
   retains queued messages. Enabling does not start a process. Removing access
   cancels reads relying on it; delivered work is not recalled.
@@ -231,8 +226,9 @@ ownership of the channel or another subscriber's inbox.
 
 ## Groups
 
-For shared management, create a group and explicitly assign it as Service or
-Channel Maintainer on each resource. There is no automatic global assignment.
+For shared management, create a group and add it to each resource's Maintainers
+list. A list may instead name a User, Agent or Service directly. There is no
+automatic global assignment.
 **Administrators control ordinary group membership**, including groups assigned
 as Maintainers. They may add themselves or another user they create, without
 additional approval from the service owner. Choosing the group accepts those

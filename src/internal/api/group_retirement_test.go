@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -101,7 +102,7 @@ func TestAnEmptiedGroupSurvivesASnapshotRoundTrip(t *testing.T) {
 	if !found {
 		t.Fatal("the record did not survive the snapshot")
 	}
-	if rec.Maintainers != "@ops" {
+	if !reflect.DeepEqual(rec.Maintainers, protocol.MaintainerList{"@ops"}) {
 		t.Errorf("the record lost its reference to the emptied group: %q", rec.Maintainers)
 	}
 }
@@ -145,7 +146,7 @@ func TestEmptyingAGroupLeavesTheRecordsThatNameIt(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &rec); err != nil {
 		t.Fatal(err)
 	}
-	if rec.Maintainers != "@ops" {
+	if !reflect.DeepEqual(rec.Maintainers, protocol.MaintainerList{"@ops"}) {
 		t.Errorf("emptying the group changed the record that named it: %q", rec.Maintainers)
 	}
 	if rec.Descr != "through the group" {

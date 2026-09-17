@@ -135,7 +135,12 @@ func TestDashboardOwnerControls(t *testing.T) {
 	// And the members it carried were not applied on the way out: a rejected
 	// action does nothing, rather than doing the save it was not asked for.
 	request("admin@h", "POST", "/groups", web.URL, url.Values{"action": {"delete"}, "name": {"@ops"}, "members": {"admin@h"}}, 400)
-	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"maintainers"}, "name": {"svc@h"}, "maintainers": {"@ops"}}, 303)
+	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"maintainers"}, "name": {"svc@h"}, "maintainers": {"@ops\nadmin@h"}}, 303)
+	page = request("owner@h", "GET", "/service?name=svc@h", "", nil, 200)
+	if !strings.Contains(page, `<textarea name=maintainers rows=5>@ops
+admin@h</textarea>`) {
+		t.Fatalf("Maintainers list did not round-trip through its line editor: %s", page)
+	}
 	page = request("other@h", "GET", "/service?name=svc@h", "", nil, 200)
 	if !strings.Contains(page, "Save settings") || strings.Contains(page, "Transfer ownership") {
 		t.Fatal("maintainer controls wrong")

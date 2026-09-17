@@ -146,7 +146,7 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 		t.Fatalf("Personal update returned to %q", header.Get("Location"))
 	}
 	record, ok := p.bus.Lookup("alice@h", "toggle@h")
-	if !ok || !record.Personal || record.Maintainers != "" || strings.Join(record.Allow, " ") != "peer-service@h" {
+	if !ok || !record.Personal || len(record.Maintainers) != 0 || strings.Join(record.Allow, " ") != "peer-service@h" {
 		t.Fatalf("atomic Personal enable: %+v", record)
 	}
 	page, _ := p.request("alice@h", "GET", "/service?name=toggle%40h", nil, 200)
@@ -163,7 +163,7 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 	disable := url.Values{"action": {"personal"}, "name": {"toggle@h"}, "allow": {"bob@h"}, "maintainers": {"@ops"}}
 	p.request("alice@h", "POST", "/service", disable, http.StatusSeeOther)
 	record, ok = p.bus.Lookup("alice@h", "toggle@h")
-	if !ok || record.Personal || record.Maintainers != "@ops" || strings.Join(record.Allow, " ") != "bob@h" {
+	if !ok || record.Personal || strings.Join(record.Maintainers, " ") != "@ops" || strings.Join(record.Allow, " ") != "bob@h" {
 		t.Fatalf("atomic Personal disable and sharing: %+v", record)
 	}
 	maintainer, _ := p.request("bob@h", "GET", "/service?name=toggle%40h", nil, 200)

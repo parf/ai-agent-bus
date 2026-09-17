@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -42,7 +43,10 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	call("bob@h", "/manage", `{"name":"svc@h","owner":"bob@h"}`, 403)
 	call("alice@h", "/group", `{"name":"@ops","members":["alice@h"]}`, 403)
 	call("admin@h", "/group", `{"name":"@ops","members":["maint@h"]}`, 200)
-	call("alice@h", "/manage", `{"name":"svc@h","maintainers":"@ops","no_master":true,"bound":2,"ttl":"1h","overflow":"strict","descr":"owned"}`, 200)
+	managed := call("alice@h", "/manage", `{"name":"svc@h","maintainers":"@ops","no_master":true,"bound":2,"ttl":"1h","overflow":"strict","descr":"owned"}`, 200)
+	if !strings.Contains(managed, `"maintainers":["@ops"]`) || strings.Contains(managed, `"maintainers":"@ops"`) {
+		t.Fatalf("legacy management input was not answered with the array spelling: %s", managed)
+	}
 	call("maint@h", "/manage", `{"name":"svc@h","descr":"maintained"}`, 200)
 	call("maint@h", "/configure", `{"name":"svc@h","config":{"secret":"kept"}}`, 200)
 	call("maint@h", "/manage", `{"name":"svc@h","owner":"maint@h"}`, 403)
@@ -52,12 +56,19 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	call("admin@h", "/group", `{"name":"@ops","remove":true}`, 400)
 	call("alice@h", "/send", `{"to":"svc@h","body":"preserved"}`, 200)
 	call("alice@h", "/manage", `{"name":"svc@h","disabled":true}`, 200)
+	var omitted protocol.Record
+	if err := json.Unmarshal([]byte(call("alice@h", "/lookup?name=svc@h", "", 200)), &omitted); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(omitted.Maintainers, protocol.MaintainerList{"@ops"}) {
+		t.Fatalf("omitted Maintainers cleared the list: %#v", omitted.Maintainers)
+	}
 	call("alice@h", "/send", `{"to":"svc@h","body":"refused"}`, 409)
 	call("svc@h", "/consume?wait=0s", "", 409)
 	call("svc@h", "/register", `{"name":"svc@h","disabled":false,"maintainers":"","allow":["alice@h"]}`, 200)
 	var rec protocol.Record
 	json.Unmarshal([]byte(call("alice@h", "/lookup?name=svc@h", "", 200)), &rec)
-	if !rec.Disabled || rec.Maintainers != "@ops" || rec.Queued != 1 || !rec.CanManage || !rec.CanTransfer {
+	if !rec.Disabled || !reflect.DeepEqual(rec.Maintainers, protocol.MaintainerList{"@ops"}) || rec.Queued != 1 || !rec.CanManage || !rec.CanTransfer {
 		t.Fatalf("registration overwrote owner controls: %+v", rec)
 	}
 	call("alice@h", "/unregister", `{"name":"svc@h"}`, 409)
@@ -99,4 +110,27 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	call("alice@h", "/register", `{"name":"svc@h"}`, 200)
 	call("bob@h", "/register", `{"name":"svc@h"}`, 403)
 	call("alice@h", "/manage", `{"name":"alice@h","owner":"bob@h"}`, 403)
+}
+
+func TestRegistrationNeverSetsMaintainersInEitherWireShape(t *testing.T) {
+	bus := core.New()
+	s, token := serverFor(t, bus, "admin@h")
+	if _, err := bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := bus.SetGroup("admin@h", "@ops", []string{"alice@h"}); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{
+		"legacy@h": `{"name":"legacy@h","maintainers":"@ops"}`,
+		"array@h":  `{"name":"array@h","maintainers":["@ops"]}`,
+	} {
+		if code, answer := post(t, s, token, "alice@h", "/register", body); code != 200 {
+			t.Fatalf("register %s answered %d: %s", name, code, answer)
+		}
+		record, ok := bus.Lookup("alice@h", name)
+		if !ok || len(record.Maintainers) != 0 {
+			t.Fatalf("registration wrote Maintainers for %s: %+v", name, record)
+		}
+	}
 }

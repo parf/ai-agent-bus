@@ -41,7 +41,7 @@ Where a value's meaning depends on when it was computed, this file says so.
 | `Kind` | generic, agent or topic | Service, Agent, Channel | — |
 | `Mode` | queue or pub/sub, topics only | delivery: one at a time, or a copy each | not a topic |
 | `Owner` | the principal who owns the record | owner | — |
-| `Maintainers` | currently one group; accepted pending model is a list of named users, groups, agents and services with management authority | maintainers | **empty: the label goes too** |
+| `Maintainers` | list of named users, groups, agents and services with management authority | maintainers | **empty: the label goes too** |
 
 ### State
 

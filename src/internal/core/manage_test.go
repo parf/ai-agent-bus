@@ -124,7 +124,7 @@ func TestChannelManagersCanRemoveButStrangersCannot(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@ops", []string{"maint@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Manage("owner@h", Management{Name: "news@h", Maintainers: ptr("@ops")}); err != nil {
+	if _, err := b.Manage("owner@h", Management{Name: "news@h", Maintainers: ptr(protocol.MaintainerList{"@ops"})}); err != nil {
 		t.Fatal(err)
 	}
 	r, err := b.RemoveSubscriber("maint@h", "news@h", "subscriber@h")

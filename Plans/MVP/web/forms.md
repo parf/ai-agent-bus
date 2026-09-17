@@ -115,9 +115,9 @@ action. Two different authorities in one section, named separately
 
 ACL and Maintainers share the same textarea and line handling. ACL additionally
 accepts `*`; Maintainers accepts named users, groups, agents and services. The
-accepted Maintainers list requires the pending daemon-model change recorded in
-the [authority contract](../../../docs/01-identity-and-roles.md#services); the
-web must not flatten it back into today's single-group field.
+built Maintainers list is defined by the
+[authority contract](../../../docs/01-identity-and-roles.md#services); the web
+must not flatten it back into a single-group field.
 
 **Danger Zone is a red text link, not a permanently open red panel.** It opens
 a server-rendered resource subpage containing only Replace configuration,

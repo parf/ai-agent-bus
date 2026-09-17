@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Maintainers list | Owner-assigned User, Group, Agent and Service terms replace the single-group field; nested authority, migration and one-way array output retain existing boundaries | [0.5.62 evidence](done/maintainers-list.md#checks) |
 | Agent glyph | WEB and human CLI use `👾` for daemon-stated Agent kinds while machine values remain plain | [0.5.61 evidence](done/alien-agent-glyph.md#checks) |
 | Compact WEB glyph labels | Directory identity glyphs and Group glyphs directly prefix names without entering machine or editable values | [0.5.60 evidence](done/compact-web-glyphs.md#checks) |
 | H.5.1 | Owner/Administrators durably edit the local-account map through existing credentials; a full restart applies listener identity changes without disturbing unrelated mappings | [0.5.59 evidence](done/account-map.md#checks) |

@@ -83,6 +83,19 @@ non-owner administrative standing. Its members still retain the access and
 service maintenance granted through ordinary group references. Downgrading does
 not restore the old name automatically.
 
+## Maintainers-list upgrade
+
+From 0.5.62, a resource stores a list of Maintainers rather than one group.
+Existing string values load as a one-entry list; an empty string becomes an
+empty list. Every non-empty later answer and snapshot writes the array form;
+an empty list is omitted. Legacy noncanonical terms are preserved but remain
+inert until the Owner replaces the list. Registration never imports this
+authority from caller-supplied metadata.
+
+Upgrade daemon and clients together. The new daemon accepts the legacy string
+input during migration, but an older daemon cannot read the array form written
+by 0.5.62 and fails to restore that snapshot rather than guessing authority.
+
 ## Nested group upgrade
 
 From 0.5.57, an `@group` entry inside an ordinary group is a membership edge.

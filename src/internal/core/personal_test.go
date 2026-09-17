@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -50,7 +51,7 @@ func TestPersonalChangesValidateTheFinalRecordAtomically(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Name: "reports@h", Owner: "alice@h", Allow: []string{"bob@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "reports@h", Maintainers: ptr("@ops")}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "reports@h", Maintainers: ptr(protocol.MaintainerList{"@ops"})}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -58,16 +59,16 @@ func TestPersonalChangesValidateTheFinalRecordAtomically(t *testing.T) {
 		t.Fatalf("enabling without stripping sharing: %v", err)
 	}
 	got, _ := b.Lookup("alice@h", "reports@h")
-	if got.Personal || got.Maintainers != "@ops" || len(got.Allow) != 1 || got.Allow[0] != "bob@h" {
+	if got.Personal || !reflect.DeepEqual(got.Maintainers, protocol.MaintainerList{"@ops"}) || len(got.Allow) != 1 || got.Allow[0] != "bob@h" {
 		t.Fatalf("failed change partly applied: %+v", got)
 	}
 
-	empty := ""
+	empty := protocol.MaintainerList{}
 	peerOnly := []string{"peer@h"}
 	got, err := b.Manage("alice@h", Management{
 		Name: "reports@h", Personal: ptr(true), Maintainers: &empty, Allow: &peerOnly,
 	})
-	if err != nil || !got.Personal || got.Maintainers != "" || len(got.Allow) != 1 || got.Allow[0] != "peer@h" {
+	if err != nil || !got.Personal || len(got.Maintainers) != 0 || len(got.Allow) != 1 || got.Allow[0] != "peer@h" {
 		t.Fatalf("strip sharing and enable Personal atomically: %+v, %v", got, err)
 	}
 
@@ -80,11 +81,11 @@ func TestPersonalChangesValidateTheFinalRecordAtomically(t *testing.T) {
 		t.Fatalf("failed sharing change partly applied: %+v", got)
 	}
 
-	maintainers := "@ops"
+	maintainers := protocol.MaintainerList{"@ops"}
 	got, err = b.Manage("alice@h", Management{
 		Name: "reports@h", Personal: ptr(false), Maintainers: &maintainers, Allow: &userOnly,
 	})
-	if err != nil || got.Personal || got.Maintainers != "@ops" || len(got.Allow) != 1 || got.Allow[0] != "bob@h" {
+	if err != nil || got.Personal || !reflect.DeepEqual(got.Maintainers, protocol.MaintainerList{"@ops"}) || len(got.Allow) != 1 || got.Allow[0] != "bob@h" {
 		t.Fatalf("disable Personal and add sharing atomically: %+v, %v", got, err)
 	}
 }
@@ -120,7 +121,7 @@ func TestPersonalAcceptsOnlyDirectRegisteredServices(t *testing.T) {
 	}); err != nil || !got.Personal {
 		t.Fatalf("direct service ACL refused: %+v, %v", got, err)
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "valid@h", Maintainers: ptr("@ops")}); !errors.Is(err, ErrPersonal) {
+	if _, err := b.Manage("alice@h", Management{Name: "valid@h", Maintainers: ptr(protocol.MaintainerList{"@ops"})}); !errors.Is(err, ErrPersonal) {
 		t.Fatalf("Personal service accepted Maintainers: %v", err)
 	}
 }
@@ -142,7 +143,7 @@ func TestPersonalIsAServiceOnlyOwnerChoice(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Name: "owned@h", Owner: "alice@h", Allow: []string{"peer@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "owned@h", Maintainers: ptr("@ops")}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "owned@h", Maintainers: ptr(protocol.MaintainerList{"@ops"})}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Manage("maint@h", Management{Name: "owned@h", Personal: ptr(true)}); !errors.Is(err, ErrNotOwner) {

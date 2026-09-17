@@ -22,8 +22,8 @@ func TestAdministratorMigrationPreservesGrantsWithoutPromotion(t *testing.T) {
 			"@unresolved-edge":       {"@administrators-legacy-2"},
 		},
 		Records: []protocol.Record{
-			{Name: "admin-managed@h", Owner: "owner@h", Maintainers: "@maintainers", Allow: []string{"owner@h"}},
-			{Name: "ordinary-managed@h", Owner: "owner@h", Maintainers: "@administrators", Allow: []string{"owner@h"}},
+			{Name: "admin-managed@h", Owner: "owner@h", Maintainers: protocol.MaintainerList{"@maintainers"}, Allow: []string{"owner@h"}},
+			{Name: "ordinary-managed@h", Owner: "owner@h", Maintainers: protocol.MaintainerList{"@administrators"}, Allow: []string{"owner@h"}},
 			{Name: "admin-visible@h", Owner: "owner@h", Allow: []string{"@maintainers"}},
 			{Name: "ordinary-visible@h", Owner: "owner@h", Allow: []string{"@administrators"}},
 			{Name: "nested-admin-visible@h", Owner: "owner@h", Allow: []string{"@through-admins"}},
@@ -107,7 +107,7 @@ func TestAdministratorMigrationPreservesGrantsWithoutPromotion(t *testing.T) {
 	}
 	for _, record := range saved.Records {
 		got, ok := restarted.Lookup("owner@h", record.Name)
-		if !ok || got.Maintainers != record.Maintainers || !reflect.DeepEqual(got.Allow, record.Allow) {
+		if !ok || !reflect.DeepEqual(got.Maintainers, record.Maintainers) || !reflect.DeepEqual(got.Allow, record.Allow) {
 			t.Fatalf("second restore changed record grants for %s", record.Name)
 		}
 	}

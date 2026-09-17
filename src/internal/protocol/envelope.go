@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -78,6 +79,29 @@ type ReplyTo struct {
 	Tag     string `json:"tag,omitempty"`
 }
 
+// MaintainerList is the resource's explicit management grants. New answers use
+// an array; accepting the legacy string keeps old snapshots and pre-migration
+// clients readable during the one-way move from one group to a list.
+type MaintainerList []string
+
+func (m *MaintainerList) UnmarshalJSON(data []byte) error {
+	var many []string
+	if err := json.Unmarshal(data, &many); err == nil {
+		*m = many
+		return nil
+	}
+	var one string
+	if err := json.Unmarshal(data, &one); err != nil {
+		return fmt.Errorf("maintainers must be an array of names: %w", err)
+	}
+	if one == "" {
+		*m = nil
+	} else {
+		*m = MaintainerList{one}
+	}
+	return nil
+}
+
 // Record is a registered service, agent or topic. Registering is pushing a
 // description; the thing itself need not know the bus exists.
 // See docs/03-services-and-topics.md.
@@ -109,8 +133,8 @@ type Record struct {
 	TTL   string `json:"ttl,omitempty"`
 	Bound int    `json:"bound,omitempty"`
 
-	Owner       string `json:"owner"`
-	Maintainers string `json:"maintainers,omitempty"`
+	Owner       string         `json:"owner"`
+	Maintainers MaintainerList `json:"maintainers,omitempty"`
 	// Personal groups a service in the owner's web view. It changes neither
 	// delivery nor access; core only enforces which authority assignments may
 	// coexist with it. See docs/03-services-and-topics.md#personal-and-shared.

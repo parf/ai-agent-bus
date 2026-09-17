@@ -50,7 +50,7 @@ func captureOutput(t *testing.T, run func() error) string {
 
 func TestHumanListLabelsEntitiesWithoutChangingJSONKinds(t *testing.T) {
 	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
-	answer := `[{"name":"svc@h","kind":"generic","owner":"owner@h","readers":0},{"name":"bot@h","kind":"agent","owner":"owner@h","readers":0},{"name":"jobs@h","kind":"topic","owner":"owner@h","readers":0}]`
+	answer := `[{"name":"svc@h","kind":"generic","owner":"owner@h","maintainers":["alice@h","@ops"],"readers":0},{"name":"bot@h","kind":"agent","owner":"owner@h","readers":0},{"name":"jobs@h","kind":"topic","owner":"owner@h","readers":0}]`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, answer)
@@ -72,7 +72,7 @@ func TestHumanListLabelsEntitiesWithoutChangingJSONKinds(t *testing.T) {
 	}
 
 	raw := captureOutput(t, func() error { return ls(nil) })
-	if !strings.Contains(raw, `"kind":"generic"`) || !strings.Contains(raw, `"kind":"agent"`) || strings.Contains(raw, "⚙️") || strings.Contains(raw, "👾") {
+	if !strings.Contains(raw, `"kind":"generic"`) || !strings.Contains(raw, `"kind":"agent"`) || !strings.Contains(raw, `"maintainers":["alice@h","@ops"]`) || strings.Contains(raw, "⚙️") || strings.Contains(raw, "👾") {
 		t.Errorf("JSON listing changed its machine vocabulary: %s", raw)
 	}
 }

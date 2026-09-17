@@ -34,7 +34,9 @@ func migrateAdministrators(s ports.Snapshot) ports.Snapshot {
 			}
 		}
 		for _, r := range s.Records {
-			used[r.Maintainers] = true
+			for _, name := range r.Maintainers {
+				used[name] = true
+			}
 			for _, name := range r.Allow {
 				used[name] = true
 			}
@@ -63,8 +65,11 @@ func migrateAdministrators(s ports.Snapshot) ports.Snapshot {
 	s.Records = slices.Clone(s.Records)
 	for i := range s.Records {
 		r := &s.Records[i]
-		if renamed, ok := renames[r.Maintainers]; ok {
-			r.Maintainers = renamed
+		r.Maintainers = slices.Clone(r.Maintainers)
+		for j, name := range r.Maintainers {
+			if renamed, ok := renames[name]; ok {
+				r.Maintainers[j] = renamed
+			}
 		}
 		r.Allow = slices.Clone(r.Allow)
 		for j, name := range r.Allow {

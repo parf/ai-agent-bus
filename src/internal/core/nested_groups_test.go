@@ -45,7 +45,7 @@ func TestNestedGroupsGrantAccessAndManagement(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Name: "managed@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "managed@h", Maintainers: ptr("@outer")}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "managed@h", Maintainers: ptr(protocol.MaintainerList{"@outer"})}); err != nil {
 		t.Fatal(err)
 	}
 	for _, caller := range []string{"reader@h", "worker@h"} {

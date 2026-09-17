@@ -12,19 +12,19 @@ import (
 // Manage changes only explicitly supplied properties, under the ownership lock.
 // Unlike registration it cannot erase a concurrently changed configuration.
 type Management struct {
-	Name        string    `json:"name"`
-	Descr       *string   `json:"descr,omitempty"`
-	Addr        *string   `json:"addr,omitempty"`
-	Proto       *string   `json:"protocol,omitempty"`
-	Allow       *[]string `json:"allow,omitempty"`
-	NoMaster    *bool     `json:"no_master,omitempty"`
-	Disabled    *bool     `json:"disabled,omitempty"`
-	Maintainers *string   `json:"maintainers,omitempty"`
-	Personal    *bool     `json:"personal,omitempty"`
-	Owner       *string   `json:"owner,omitempty"`
-	TTL         *string   `json:"ttl,omitempty"`
-	Bound       *int      `json:"bound,omitempty"`
-	Full        *string   `json:"overflow,omitempty"`
+	Name        string                   `json:"name"`
+	Descr       *string                  `json:"descr,omitempty"`
+	Addr        *string                  `json:"addr,omitempty"`
+	Proto       *string                  `json:"protocol,omitempty"`
+	Allow       *[]string                `json:"allow,omitempty"`
+	NoMaster    *bool                    `json:"no_master,omitempty"`
+	Disabled    *bool                    `json:"disabled,omitempty"`
+	Maintainers *protocol.MaintainerList `json:"maintainers,omitempty"`
+	Personal    *bool                    `json:"personal,omitempty"`
+	Owner       *string                  `json:"owner,omitempty"`
+	TTL         *string                  `json:"ttl,omitempty"`
+	Bound       *int                     `json:"bound,omitempty"`
+	Full        *string                  `json:"overflow,omitempty"`
 }
 
 // SetDaemonOwner establishes an owner in an in-memory or embedded bus. The
@@ -99,7 +99,16 @@ func (b *Bus) administratorsAreUsers() {
 }
 
 func (b *Bus) resourceManages(caller string, r protocol.Record) bool {
-	return b.acting(caller) == nil && (caller == r.Owner || caller == r.Name || b.member(caller, r.Maintainers))
+	return b.acting(caller) == nil && (caller == r.Owner || caller == r.Name || b.maintains(caller, r.Maintainers))
+}
+
+func (b *Bus) maintains(caller string, terms protocol.MaintainerList) bool {
+	for _, term := range terms {
+		if term == caller || b.member(caller, term) {
+			return true
+		}
+	}
+	return false
 }
 
 // manages includes the daemon Owner's accepted node-wide management override.
@@ -129,7 +138,7 @@ func (b *Bus) validatePersonal(r protocol.Record) error {
 	if _, user := b.users[r.Name]; user {
 		return fmt.Errorf("%w: a user identity is not a personal service", ErrPersonal)
 	}
-	if r.Maintainers != "" {
+	if len(r.Maintainers) != 0 {
 		return fmt.Errorf("%w: remove maintainers first", ErrPersonal)
 	}
 	for _, name := range r.Allow {
@@ -177,6 +186,48 @@ func groupName(n string) bool {
 		}
 	}
 	return true
+}
+
+// normalizeMaintainers validates the whole replacement before Manage stores
+// any of it. Named users, services and agents may be direct Maintainers;
+// ordinary groups inherit their nested membership. Topics, credential-only
+// names, duplicates and wildcard authority are deliberately refused.
+// Caller holds b.mu.
+func (b *Bus) normalizeMaintainers(in protocol.MaintainerList) (protocol.MaintainerList, error) {
+	out := make(protocol.MaintainerList, 0, len(in))
+	seen := map[string]bool{}
+	for _, raw := range in {
+		var term string
+		if strings.HasPrefix(strings.TrimSpace(raw), "@") {
+			term = strings.TrimSpace(raw)
+			if !groupName(term) {
+				return nil, fmt.Errorf("%w: invalid maintainers group %q", ErrBadName, raw)
+			}
+			if _, ok := b.groups[term]; !ok {
+				return nil, fmt.Errorf("%w: maintainer %s", ErrUnknown, term)
+			}
+		} else {
+			var err error
+			term, err = canon(raw)
+			if err != nil {
+				return nil, err
+			}
+			_, user := b.users[term]
+			record, registered := b.records[term]
+			if !user && !registered {
+				return nil, fmt.Errorf("%w: maintainer %s", ErrUnknown, term)
+			}
+			if !user && record.Kind != "generic" && record.Kind != "agent" {
+				return nil, fmt.Errorf("%w: maintainer %s must be a user, service, agent or group", ErrBadName, term)
+			}
+		}
+		if seen[term] {
+			return nil, fmt.Errorf("%w: duplicate maintainer %s", ErrBadName, term)
+		}
+		seen[term] = true
+		out = append(out, term)
+	}
+	return out, nil
 }
 
 // Groups are daemon-local sets of principals and ordinary groups.
@@ -341,12 +392,11 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		r.Owner = owner
 	}
 	if change.Maintainers != nil {
-		if *change.Maintainers != "" {
-			if _, ok := b.groups[*change.Maintainers]; !ok {
-				return protocol.Record{}, fmt.Errorf("%w: maintainers group", ErrUnknown)
-			}
+		maintainers, err := b.normalizeMaintainers(*change.Maintainers)
+		if err != nil {
+			return protocol.Record{}, err
 		}
-		r.Maintainers = *change.Maintainers
+		r.Maintainers = maintainers
 	}
 	if change.Personal != nil {
 		r.Personal = *change.Personal
