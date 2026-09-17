@@ -1,5 +1,7 @@
 # Header bus mark — 0.5.41
 
+> At 0.5.42 the owner requested the bus face right. A horizontal SVG mirror changes only the artwork; the original 0.5.41 checks below describe its earlier orientation.
+
 Owner-requested addition to the [shared header](../../../docs/05-discovery.md#what-a-node-says-about-itself), not the broader F.13 redesign.
 
 | Change | Evidence |
@@ -32,3 +34,15 @@ Final frozen `src/smoke.sh --slow`: **585 passed, 0 failed**, exit 0,
 vet and race green (`tmp/logo-41/slow-final.log:926`). Tracked script and
 `src/logo-final-smoke.local.sh` share SHA-256
 `eb96a4415f65a4390ee1f4ebccf52c3c6a01babf64c1a1484b997eb7639512e7`.
+
+## Right-facing revision — 0.5.42
+
+`translate(72 0) scale(-1 1)` mirrors all artwork within the existing viewBox.
+OpenCode reviewed the transform. Chromium rendered the current SVG in the
+retained header fixture: the front lamp is right of the SVG midpoint, and
+removing the transform fails that same geometry assertion. Size and row
+positions stay unchanged (`tmp/logo-42/browser.py`, `services-1280.png`).
+
+Frozen full smoke: **585 passed, 0 failed**, exit 0, vet/race green
+(`tmp/logo-42/slow.log:926`). Tracked and copied smoke scripts have the same
+SHA-256 as the 0.5.41 run above; no smoke changes were needed for this revision.

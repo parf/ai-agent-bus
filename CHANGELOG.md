@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.42 — 2026-09-16
+
+Turn the header bus logo to face right.
+
 ## 0.5.41 — 2026-09-16
 
 Add an inline red-bus logo spanning the identity and navigation rows; show AgentBus version, @ host, owner, uptime and calls beside it, including on sign-in.
