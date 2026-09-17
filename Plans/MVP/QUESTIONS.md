@@ -6,7 +6,7 @@ Only unresolved choices appear below. Previously numbered questions are settled
 or deferred in the [decision index](../../docs/decisions.md#settled); their IDs
 remain reserved.
 
-## Personal service access
+## Service access
 
 ### Service reading its own inbox
 
@@ -16,16 +16,6 @@ Maintainers. A service's own principal is normally distinct from its owner:
 that principal has implicit access. Decide whether it keeps access to its own
 inbox under the new default; do not silently add an exception or break service
 consumption. Acceptance must exercise this case separately.
-
-### Non-empty Personal ACL
-
-❓ The [Personal ACL rule](../../docs/03-services-and-topics.md#personal-and-shared)
-restricts entries to other services. For a non-empty Personal ACL, should
-Maintainer or master authority still admit other users without an explicit user
-entry? These implicit grants exist today. The empty case is settled by the
-[Owner-and-Maintainers default](../../docs/02-access.md#acl), not an open question.
-The classification and requested web views are settled; the non-empty case's
-implicit grants are not.
 
 ## Authority model
 

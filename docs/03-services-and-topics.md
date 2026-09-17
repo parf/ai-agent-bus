@@ -45,20 +45,24 @@ registry for whoever is choosing what to call
 ## Personal and shared
 
 An owner may tag their service **Personal**. Without that tag, it is
-**non-Personal**. A Personal service's ACL may contain other services only,
-never users. **Accepted; implementation pending.**
+**non-Personal**. The tag hides personal services from the main web pages to
+reduce clutter; access works exactly as for a normal service.
+**Accepted; implementation pending.**
 
 | Rule | Requirement |
 |---|---|
 | ACL entries | Only other service identities; a user's backing inbox does not turn that user into a service |
 | Sharing with users | Requires making the service non-Personal; a user entry cannot coexist with the Personal tag |
+| Maintainers | Cannot be assigned while the service is Personal; shared maintenance requires making it non-Personal |
 | Broad access | The [wildcard grant](02-access.md#acl) is not valid for a Personal service |
+| Main web pages | Exclude Personal services; find them in the dedicated tab instead |
 | User's web view | A **Personal Services** tab shows that user's Personal services |
 | Daemon owner's web view | **Personal Services** can be viewed per user |
 
-The tag is a classification, not a different service kind. Interaction with
-[implicit access](../Plans/MVP/QUESTIONS.md#personal-service-access) still needs
-settling before enforcement; this requirement does not yet promise private access.
+The tag introduces no separate access policy or service kind. Apart from these
+assignment restrictions and web grouping, ordinary [access rules](02-access.md#acl),
+ownership and service behavior remain unchanged. Hiding a service from the main
+web pages does not revoke authorized access or remove it from the registry.
 
 ## Service and template
 
