@@ -6,7 +6,7 @@ For credentials and permission checks, see [Access](02-access.md#what-a-call-car
 
 ## Scope
 
-Names, profiles, registration, resource ownership and flat groups are built.
+Names, profiles, registration, resource ownership and nested groups are built.
 The role model below also includes **accepted, pending changes**, marked where
 relevant; [implementation work](../Plans/MVP/TODO.md#authority-model) and
 [open choices](../Plans/MVP/QUESTIONS.md#open-questions) stay in the plans.
@@ -109,8 +109,9 @@ Service/channel management requires the [resource assignment](#services).
 Users can register services and channels and become their owners. A user may
 edit or clear only their own email; username, person name, GitHub name, state
 and authority stay protected. Administrators and the Owner edit profiles below
-their level. Administrator-entered person names are built; trusted imports from
-Linux passwd and GitHub remain pending.
+their level. Person names come from an Administrator, the trusted local-account
+adapter or the GitHub directory used for key enrolment; imports fill a blank
+name and never overwrite an existing one.
 
 <details>
 <summary>Profile fields and the user directory</summary>
@@ -122,6 +123,12 @@ Linux passwd and GitHub remain pending.
   plus-addresses are not merged. Person names need not be unique.
 * A GitHub identity retains its own GitHub username. Proving cross-provider
   aliases is [later work](../Plans/R1.2/QUESTIONS.md#open-questions).
+* A GitHub challenge retains the provider's person name with the public keys;
+  successful proof imports both from that lookup. Fetching either remains
+  evidence from GitHub, not authentication by itself.
+* `agent-bus-admin user import-local` reads the local account through the OS
+  account database. Its input names an account; it accepts no free-form person
+  name. Setup uses it for the first key-backed user.
 * Self-email editing derives the target from the credential and carries no
   identity or protected field. Email remains normalized and unique by the same
   rule as an administrative edit.

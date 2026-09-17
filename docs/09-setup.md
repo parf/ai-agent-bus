@@ -17,8 +17,8 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 
 | Program | Runs as | What it is for |
 |---|---|---|
-| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the **two accounts** ([the two accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the unit, then hands over to `agent-bus-admin` for the first user |
-| `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | everything that edits what lives in the home — `user add`, `user list`, `user remove` today — plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
+| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the **two accounts** ([the two accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the unit, then hands over to `agent-bus-admin` for the first user and their local person name |
+| `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | everything that edits what lives in the home — `user add`, `user import-local`, `user list`, `user remove` today — plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](11-processes.md#processes-and-privileges)) |
@@ -49,8 +49,13 @@ the daemon refuses. **The daemon has to be running**: with no way to create the
 name, `user add` refuses rather than leaving a key that works before the name
 exists. Start the daemon and run it again.
 
-The implemented admin verbs are `user add`, `user list`, `user remove` and
-`token`. The token operation is delegated to the token helper with the key entitlement
+`user import-local <user@realm> <account>` fills a blank person name from the
+OS account database. It accepts an account name rather than profile text and
+preserves an existing name. Setup runs it when it installs the first user's
+key; an operator may run it later when setup found no key.
+
+The implemented admin verbs are `user add`, `user import-local`, `user list`,
+`user remove` and `token`. The token operation is delegated to the token helper with the key entitlement
 and original request kept separate: `token --rotate` rotates that identity;
 asking for another identity is refused. Console and SSH use the same program. Bundle administration and regeneration of keys are not
 part of this grammar.

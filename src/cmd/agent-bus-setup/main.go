@@ -200,6 +200,17 @@ func setup() error {
 			"user", "add", me.String(), "-", "--admin"); err != nil {
 			return err
 		}
+		// PersonName comes from the account database, not from setup's caller.
+		// The admin program owns that adapter and preserves an existing explicit
+		// profile; setup only identifies which local account belongs to the first
+		// key-backed user. With no key this onboarding step is skipped; the same
+		// import-local verb remains available to the operator later.
+		if who := invoker(); who != "" {
+			if err := run(filepath.Join(filepath.Dir(self), "agent-bus-admin"),
+				"user", "import-local", me.String(), who); err != nil {
+				return err
+			}
+		}
 	}
 	fmt.Printf("agent-busd runs as %s, owned by %s, state in %s; services are %s's, in %s\n",
 		svcAccount, me, svcHome, runAccount, svcDir)

@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| PersonName imports | Linux account names enter through the setup/admin adapter; GitHub names are retained with verified enrolment keys; neither path accepts caller profile text | [0.5.58 evidence](done/person-name-imports.md#checks) |
 | 0.5.57 live rollout | Upgrade preflight, public identity, direct-only Administrator refusal without mutation, mapped access and confined web verified | [live postflight](done/nested-groups.md#live-postflight) |
 | Nested groups | Cycle-safe graph membership for ACL, Maintainer and directory views with direct-only Administrator authority | [0.5.57 evidence](done/nested-groups.md#checks) |
 | 0.5.56 live rollout | Public identity, strict protected-field refusal without a profile change, separate self-email capability, confined web and peer reconnection verified | [live postflight](done/profile-authority.md#live-postflight) |

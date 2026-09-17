@@ -37,6 +37,7 @@ const (
 const usage = `agent-bus-admin — what the agent-busd account owns
 
   agent-bus-admin user add <user@realm> <key.pub|-> [--admin]
+  agent-bus-admin user import-local <user@realm> <local-account>
   agent-bus-admin user list
   agent-bus-admin user remove <user@realm>
   agent-bus-admin token <user@realm> [--rotate]
@@ -154,12 +155,65 @@ func userVerb(args []string) error {
 	switch args[0] {
 	case "add":
 		return userAdd(args[1:])
+	case "import-local":
+		return userImportLocal(args[1:], user.Lookup)
 	case "list":
 		return userList()
 	case "remove", "rm", "delete":
 		return userRemove(args[1:])
 	}
 	return fmt.Errorf("no such user verb %q\n\n%s", args[0], usage)
+}
+
+// userImportLocal is the trusted Linux profile adapter. The caller supplies
+// an account to look up, never a person name to believe: os/user is the source
+// of that value. An existing explicit profile wins over a later import.
+func userImportLocal(args []string, lookup func(string) (*user.User, error)) error {
+	if len(args) != 2 {
+		return fmt.Errorf("user import-local wants a bus name and one local account")
+	}
+	n, err := protocol.ParseName(args[0])
+	if err != nil {
+		return err
+	}
+	local, err := lookup(args[1])
+	if err != nil {
+		return fmt.Errorf("look up local account %s: %w", args[1], err)
+	}
+	personName := strings.TrimSpace(local.Name)
+	if personName == "" {
+		fmt.Printf("%s has no person name in the local account database\n", args[1])
+		return nil
+	}
+	out, code, err := call("GET", "/users", nil)
+	if err != nil {
+		return fmt.Errorf("read profiles: %w", err)
+	}
+	if code >= 400 {
+		return fmt.Errorf("the daemon refused the user list (%s)", http.StatusText(code))
+	}
+	var users []protocol.User
+	if err := json.Unmarshal(out, &users); err != nil {
+		return err
+	}
+	for _, profile := range users {
+		if profile.Name != n.String() {
+			continue
+		}
+		if profile.PersonName != "" {
+			fmt.Printf("%s keeps its existing person name\n", n)
+			return nil
+		}
+		profile.PersonName = personName
+		if _, code, err := call("POST", "/user", profile); err != nil {
+			return fmt.Errorf("import %s's person name: %w", n, err)
+		} else if code >= 400 {
+			return fmt.Errorf("the daemon refused %s's person name (%s)", n, http.StatusText(code))
+		}
+		fmt.Printf("%s's person name came from local account %s\n", n, args[1])
+		return nil
+	}
+	return fmt.Errorf("%s is not a registered user", n)
 }
 
 func readKey(path string) ([]byte, error) {

@@ -2,14 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 // A fake daemon, because what is under test is what agent-bus-admin does with
@@ -21,20 +24,18 @@ type daemon struct {
 	refuse   map[string]int // path -> status
 	exists   map[string]bool
 	requests []string
+	profiles map[string]protocol.User
 }
 
 func newDaemon() *daemon {
-	return &daemon{members: []string{"owner@h"}, refuse: map[string]int{}, exists: map[string]bool{}}
+	return &daemon{members: []string{"owner@h"}, refuse: map[string]int{}, exists: map[string]bool{}, profiles: map[string]protocol.User{}}
 }
 
 func (d *daemon) serve(t *testing.T) string {
 	t.Helper()
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /user", func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			Name   string `json:"name"`
-			Create bool   `json:"create"`
-		}
+		var in protocol.User
 		json.NewDecoder(r.Body).Decode(&in)
 		d.requests = append(d.requests, "POST /user "+in.Name)
 		if code, bad := d.refuse["/user"]; bad {
@@ -46,7 +47,16 @@ func (d *daemon) serve(t *testing.T) string {
 			return
 		}
 		d.users = append(d.users, in.Name)
+		d.profiles[in.Name] = in
 		w.Write([]byte(`{}`))
+	})
+	mux.HandleFunc("GET /users", func(w http.ResponseWriter, r *http.Request) {
+		d.requests = append(d.requests, "GET /users")
+		users := make([]protocol.User, 0, len(d.profiles))
+		for _, profile := range d.profiles {
+			users = append(users, profile)
+		}
+		json.NewEncoder(w).Encode(users)
 	})
 	mux.HandleFunc("GET /groups", func(w http.ResponseWriter, r *http.Request) {
 		d.requests = append(d.requests, "GET /groups")
@@ -267,5 +277,59 @@ func TestForcedCommandFollowsTheFlag(t *testing.T) {
 				t.Fatalf("boss@h is forced into %q, want the admin program", what)
 			}
 		}
+	}
+}
+
+func TestLocalPersonNameComesFromAccountLookup(t *testing.T) {
+	d := newDaemon()
+	d.profiles["owner@h"] = protocol.User{Name: "owner@h", State: "active", Email: "owner@example.com"}
+	t.Setenv("AGENT_BUS_ADDR", d.serve(t))
+	lookedUp := ""
+	lookup := func(account string) (*user.User, error) {
+		lookedUp = account
+		return &user.User{Username: account, Name: " Alice From Passwd "}, nil
+	}
+	if err := userImportLocal([]string{"owner@h", "alice"}, lookup); err != nil {
+		t.Fatal(err)
+	}
+	if lookedUp != "alice" {
+		t.Fatalf("looked up %q, want alice", lookedUp)
+	}
+	got := d.profiles["owner@h"]
+	if got.PersonName != "Alice From Passwd" || got.Email != "owner@example.com" || got.State != "active" {
+		t.Fatalf("local import changed the wrong profile fields: %+v", got)
+	}
+}
+
+func TestLocalImportPreservesExplicitPersonName(t *testing.T) {
+	d := newDaemon()
+	d.profiles["owner@h"] = protocol.User{Name: "owner@h", PersonName: "Administrator Choice", State: "active"}
+	t.Setenv("AGENT_BUS_ADDR", d.serve(t))
+	if err := userImportLocal([]string{"owner@h", "alice"}, func(string) (*user.User, error) {
+		return &user.User{Name: "Passwd Choice"}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := d.profiles["owner@h"].PersonName; got != "Administrator Choice" {
+		t.Fatalf("local import overwrote %q", got)
+	}
+	for _, request := range d.requests {
+		if request == "POST /user owner@h" {
+			t.Fatal("preserved profile was posted back unnecessarily")
+		}
+	}
+}
+
+func TestLocalImportAcceptsNoCallerPersonName(t *testing.T) {
+	called := false
+	lookup := func(string) (*user.User, error) {
+		called = true
+		return nil, errors.New("must not run")
+	}
+	if err := userImportLocal([]string{"owner@h", "alice", "Forged Name"}, lookup); err == nil {
+		t.Fatal("free-form person name was accepted")
+	}
+	if called {
+		t.Fatal("invalid free-form input reached the trusted account lookup")
 	}
 }

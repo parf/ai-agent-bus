@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -146,15 +147,15 @@ func New() *Bus {
 // created this way — it has to be enrolled, or the first caller to ask for a
 // name would become it. See docs/01-identity-and-roles.md#registration.
 func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
-	return b.register(r, false, false)
+	return b.register(r, false, false, "")
 }
 
 // RegisterNew claims a name without replacing even the caller's own record.
 func (b *Bus) RegisterNew(r protocol.Record) (protocol.Record, error) {
-	return b.register(r, false, true)
+	return b.register(r, false, true, "")
 }
 
-func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.Record, error) {
+func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, personName string) (protocol.Record, error) {
 	name, err := canon(r.Name)
 	if err != nil {
 		return protocol.Record{}, err
@@ -265,6 +266,15 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	if enrolled {
 		user := b.users[name]
 		user.Name = name
+		// The directory is a trusted source, but it does not outrank an
+		// Administrator's explicit profile edit. Re-enrolment fills a blank and
+		// never overwrites a non-empty person name.
+		if user.PersonName == "" {
+			user.PersonName = strings.TrimSpace(personName)
+			if len(user.PersonName) > 200 {
+				return protocol.Record{}, fmt.Errorf("%w: person name is too long", ErrProfile)
+			}
+		}
 		if user.State == "" {
 			user.State = "active"
 		}

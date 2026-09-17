@@ -3,54 +3,84 @@
 // GET and needs no token, no app and no webhook. HTTP is built in, never a
 // subprocess (docs/10-modules.md#the-rule).
 //
-// It fetches and nothing else. What proves the caller holds one of these keys
-// is a step of its own (docs/01-identity-and-roles.md#registration).
+// It fetches directory facts and nothing else. What proves the caller holds
+// one of these keys is a step of its own
+// (docs/01-identity-and-roles.md#registration).
 package github
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
 type Directory struct {
-	base   string
-	client *http.Client
+	keysBase    string
+	profileBase string
+	client      *http.Client
 }
 
 func New() *Directory {
-	return &Directory{base: "https://github.com", client: &http.Client{Timeout: 10 * time.Second}}
+	return &Directory{
+		keysBase:    "https://github.com",
+		profileBase: "https://api.github.com/users",
+		client:      &http.Client{Timeout: 10 * time.Second},
+	}
 }
 
 // At points the adapter at another host, which is how it is exercised without
 // reaching the internet.
 func At(base string) *Directory {
-	return &Directory{base: strings.TrimSuffix(base, "/"), client: &http.Client{Timeout: 10 * time.Second}}
+	base = strings.TrimSuffix(base, "/")
+	return &Directory{keysBase: base, profileBase: base + "/users", client: &http.Client{Timeout: 10 * time.Second}}
 }
 
-func (d *Directory) Keys(login string) ([]string, error) {
+func (d *Directory) Lookup(login string) (ports.DirectoryEntry, error) {
 	if login == "" || strings.ContainsAny(login, "/?#") {
-		return nil, fmt.Errorf("not a login: %q", login)
+		return ports.DirectoryEntry{}, fmt.Errorf("not a login: %q", login)
 	}
-	resp, err := d.client.Get(d.base + "/" + login + ".keys")
+	keys, err := d.get(d.keysBase + "/" + login + ".keys")
+	if err != nil {
+		return ports.DirectoryEntry{}, err
+	}
+	profile, err := d.get(d.profileBase + "/" + login)
+	if err != nil {
+		return ports.DirectoryEntry{}, err
+	}
+	var out []string
+	for _, line := range strings.Split(string(keys), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			out = append(out, line)
+		}
+	}
+	var p struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(profile, &p); err != nil {
+		return ports.DirectoryEntry{}, fmt.Errorf("%s profile: %w", login, err)
+	}
+	return ports.DirectoryEntry{Keys: out, PersonName: strings.TrimSpace(p.Name)}, nil
+}
+
+func (d *Directory) get(url string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "agent-bus")
+	resp, err := d.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s.keys: %s", login, resp.Status)
+		return nil, fmt.Errorf("%s: %s", req.URL.Path, resp.Status)
 	}
-	b, err := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
-	if err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, line := range strings.Split(string(b), "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			out = append(out, line)
-		}
-	}
-	return out, nil
+	return io.ReadAll(io.LimitReader(resp.Body, 1<<16))
 }

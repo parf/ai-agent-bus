@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.58 — 2026-09-17
+
+Import blank person names from the trusted Linux account adapter and GitHub
+directory enrolment. Provider facts are retained with the verified challenge;
+existing Administrator-entered names are never overwritten.
+
 ## 0.5.57 — 2026-09-17
 
 Resolve nested groups consistently for ACL access and service Maintainer

@@ -20,10 +20,11 @@ import (
 const challengeLife = 2 * time.Minute
 
 type challenge struct {
-	name  string
-	login string
-	keys  []string
-	at    time.Time
+	name       string
+	login      string
+	keys       []string
+	personName string
+	at         time.Time
 }
 
 // Directories says which realms are backed by a directory, and what verifies
@@ -38,9 +39,9 @@ func (b *Bus) Directories(dirs map[string]ports.Directory, sigs ports.Signatures
 }
 
 // Challenge starts an enrolment: it looks the login up, keeps what it found,
-// and hands back the nonce to sign. The keys are held with the challenge so
-// that the answer is checked against what was published when the question was
-// asked, not against whatever is published when it comes back.
+// and hands back the nonce to sign. The directory facts are held with the
+// challenge so that the proof and imported profile use what was published
+// when the question was asked, not whatever is published when it comes back.
 func (b *Bus) Challenge(name string) (string, error) {
 	n, err := protocol.ParseName(name)
 	if err != nil {
@@ -56,11 +57,11 @@ func (b *Bus) Challenge(name string) (string, error) {
 	if !backed {
 		return "", fmt.Errorf("%w: nothing backs the realm %q, so there is nothing to prove", ErrEnrol, n.Realm)
 	}
-	keys, err := dir.Keys(n.Local)
+	entry, err := dir.Lookup(n.Local)
 	if err != nil {
 		return "", fmt.Errorf("%w: %s", ErrEnrol, err)
 	}
-	if len(keys) == 0 {
+	if len(entry.Keys) == 0 {
 		return "", fmt.Errorf("%w: %s publishes no keys", ErrEnrol, n.Local)
 	}
 	var raw [16]byte
@@ -71,7 +72,7 @@ func (b *Bus) Challenge(name string) (string, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.forget(time.Now())
-	b.pending[nonce] = challenge{name: n.String(), login: n.Local, keys: keys, at: time.Now()}
+	b.pending[nonce] = challenge{name: n.String(), login: n.Local, keys: entry.Keys, personName: entry.PersonName, at: time.Now()}
 	return nonce, nil
 }
 
@@ -97,7 +98,7 @@ func (b *Bus) Enrol(nonce, signature string) (protocol.Record, error) {
 	b.mu.Lock()
 	delete(b.pending, nonce)
 	b.mu.Unlock()
-	return b.register(protocol.Record{Name: c.name, Kind: "agent", Owner: c.name}, true, false)
+	return b.register(protocol.Record{Name: c.name, Kind: "agent", Owner: c.name}, true, false, c.personName)
 }
 
 // forget drops challenges nobody answered. Caller holds the lock.

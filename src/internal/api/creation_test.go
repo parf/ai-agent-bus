@@ -12,7 +12,9 @@ import (
 
 type publishedKeys struct{}
 
-func (publishedKeys) Keys(string) ([]string, error) { return []string{"ssh-ed25519 AAAAfixture"}, nil }
+func (publishedKeys) Lookup(string) (ports.DirectoryEntry, error) {
+	return ports.DirectoryEntry{Keys: []string{"ssh-ed25519 AAAAfixture"}}, nil
+}
 
 // Configuring a name that does not exist creates it, so it is a creation path
 // and obeys what creation obeys. It did not: a name registration refused for

@@ -8,18 +8,20 @@ package file
 import (
 	"os"
 	"strings"
+
+	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
 type Directory struct{ path string }
 
 func New(path string) *Directory { return &Directory{path: path} }
 
-// Keys returns what login publishes, or nothing at all. An unknown login is
+// Lookup returns what login publishes, or nothing at all. An unknown login is
 // not an error: it published no keys, which is the same refusal.
-func (d *Directory) Keys(login string) ([]string, error) {
+func (d *Directory) Lookup(login string) (ports.DirectoryEntry, error) {
 	b, err := os.ReadFile(d.path)
 	if err != nil {
-		return nil, err
+		return ports.DirectoryEntry{}, err
 	}
 	var out []string
 	for _, line := range strings.Split(string(b), "\n") {
@@ -31,5 +33,5 @@ func (d *Directory) Keys(login string) ([]string, error) {
 			out = append(out, key)
 		}
 	}
-	return out, nil
+	return ports.DirectoryEntry{Keys: out}, nil
 }

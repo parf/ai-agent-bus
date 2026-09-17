@@ -111,6 +111,5 @@ Implement the pending changes in the [authority specification](../../docs/01-ide
 
 | Work | Acceptance |
 |---|---|
-| PersonName import adapters | Import Linux passwd GECOS through a trusted setup/account path and GitHub profile data through the directory adapter already bound to key enrolment; neither source may be a caller claim. Administrator entry and email-only self editing are built |
 | Historical smoke fixture cleanup | Review existing `plain@srv1`, `chief@srv1` and `piped@srv1` live identities and chief's administrative standing before revoking/removing anything; [escaped provisioning evidence](done/administrator-names.md#live-verification-and-harness-correction) |
 | Service-defined roles | Store and return service-defined labels without interpreting their application meaning while preserving owner-only assignment of the reserved Maintainer role; syntax/transport proposals are not automatically adopted |

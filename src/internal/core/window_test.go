@@ -134,7 +134,7 @@ func TestARemovedCallerCannotRegisterItselfBack(t *testing.T) {
 	}
 	// And the legitimate caller for that shape still has it: enrolment has
 	// proved a key, and says so rather than borrowing a clause anyone reaches.
-	if _, err := b.register(protocol.Record{Name: "gone@h", Owner: "gone@h"}, true, false); err != nil {
+	if _, err := b.register(protocol.Record{Name: "gone@h", Owner: "gone@h"}, true, false, ""); err != nil {
 		t.Fatalf("enrolment could not write a newcomer its record: %v", err)
 	}
 }
