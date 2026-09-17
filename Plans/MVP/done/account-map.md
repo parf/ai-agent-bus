@@ -64,3 +64,18 @@ validated when a mapping is written and again before listeners open.
 
 Downgrading to an older daemon ignores the durable map and returns temporarily
 to its configured `-user` flags. Review those flags before rollback.
+
+## Live postflight
+
+Commit `86f0066` was built as 0.5.59 (`parf@parf.us 2026-09-17
+14:07:18`) and restarted on `parf.us`. The preflight snapshot had no account
+establishment marker. The first current start persisted
+`accounts_established: true` with exactly the two configured mappings:
+`parf` to `parf@parf` and `agent-bus-runner` to `runner@parf`.
+
+The owner-only `/accounts` answer reported those mappings and
+`restart_required: false`. Their sockets and the separate protected
+`agent-busd` socket were mode 0600 with their intended OS owners. The public
+identity answer reported 0.5.59. The web child remained in its delegated
+cgroup with an effective capability mask of zero. No live mapping was edited
+during postflight.
