@@ -77,6 +77,7 @@ Implement the [current authority specification](../../docs/01-owners-and-maintai
 | Daemon-owner override and transfer | Owner can manage and transfer any service/channel; configured daemon ownership survives restart after transfer |
 | Explicit setup ownership | Startup requires established ownership rather than deriving it from the runtime OS account |
 | Profile editing and provenance | Enforce the [profile rules](../../docs/01-owners-and-maintainers.md#users-and-profile-editing), including protected names and permitted PersonName sources |
+| Historical smoke fixture cleanup | Review existing `plain@srv1`, `chief@srv1` and `piped@srv1` live identities and chief's administrative standing before revoking/removing anything; [escaped provisioning evidence](done/administrator-names.md#live-verification-and-harness-correction) |
 | Administrator unbanning | Administrator can unban an ordinary user, but cannot edit peer Administrators or the owner |
 | Effective Maintainer membership | Enforce owner control through direct and nested group changes; blocked on [membership choice](QUESTIONS.md#authority-model) |
 | Nested groups | Resolve nested membership with defined cycle handling; current membership is flat |

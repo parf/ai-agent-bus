@@ -1799,39 +1799,46 @@ fi
 mkdir -p "$D/adm"
 ssh-keygen -q -t ed25519 -N '' -f "$D/adm/user" >/dev/null
 ssh-keygen -q -t ed25519 -N '' -f "$D/adm/boss" >/dev/null
-adm() { AGENT_BUS_HOME=$D/adm "$D/agent-bus-admin" "$@"; }
-adm user add plain@srv1 "$D/adm/user.pub" >/dev/null
-adm user add chief@srv1 "$D/adm/boss.pub" --admin >/dev/null
+# The private home isolates files, not daemon calls. Bind the account socket too;
+# otherwise provisioning discovers a real installation through ClientSocket.
+adm() { AGENT_BUS_HOME=$D/adm AGENT_BUS_ADDR=$MINE "$D/agent-bus-admin" "$@"; }
+adm user add smoke-admin-plain@srv1 "$D/adm/user.pub" >/dev/null
+adm user add smoke-admin-chief@srv1 "$D/adm/boss.pub" --admin >/dev/null
+ADM_USERS=$(curl -s --unix-socket "$MINE" http://unix/users)
+has "admin provisioning creates its ordinary user in the fixture daemon" "$ADM_USERS" '"name":"smoke-admin-plain@srv1"'
+has "admin provisioning creates its Administrator in the fixture daemon" "$ADM_USERS" '"name":"smoke-admin-chief@srv1"[^}]*"administrator":true'
+has "admin provisioning preserves the fixture owner's administrative membership" \
+  "$(curl -s --unix-socket "$MINE" http://unix/groups)" "\"@administrators\":\[[^]]*\"$OWNER\""
 KEYS="$D/adm/.ssh/authorized_keys"
 has "a user's key reaches the token program and nothing else" \
-  "$(grep plain@srv1 "$KEYS")" 'command="[^"]*agent-bus-token plain@srv1"'
+  "$(grep smoke-admin-plain@srv1 "$KEYS")" 'command="[^"]*agent-bus-token smoke-admin-plain@srv1"'
 has "an operator's reaches the admin one" \
-  "$(grep chief@srv1 "$KEYS")" 'command="[^"]*agent-bus-admin chief@srv1"'
+  "$(grep smoke-admin-chief@srv1 "$KEYS")" 'command="[^"]*agent-bus-admin smoke-admin-chief@srv1"'
 has "and neither reaches a shell" "$(grep -c '^restrict,' "$KEYS")" '^2$'
 has "the file is the account's alone" "$(stat -c %a "$KEYS")" '^600$'
 has "and so is the directory sshd insists on" "$(stat -c %a "$(dirname "$KEYS")")" '^700$'
-has "listing says who is there and what they reach" "$(adm user list)" 'chief@srv1.*agent-bus-admin'
-adm user add plain@srv1 "$D/adm/boss.pub" >/dev/null
+has "listing says who is there and what they reach" "$(adm user list)" 'smoke-admin-chief@srv1.*agent-bus-admin'
+adm user add smoke-admin-plain@srv1 "$D/adm/boss.pub" >/dev/null
 has "adding a name again replaces its key rather than adding a second" \
-  "$(grep -c plain@srv1 "$KEYS")" '^1$'
-adm user remove plain@srv1 >/dev/null
-is_empty "removing takes the line away" "$(grep plain@srv1 "$KEYS")"
-out=$(adm user remove plain@srv1 2>&1); rc=$?
+  "$(grep -c smoke-admin-plain@srv1 "$KEYS")" '^1$'
+adm user remove smoke-admin-plain@srv1 >/dev/null
+is_empty "removing takes the line away" "$(grep smoke-admin-plain@srv1 "$KEYS")"
+out=$(adm user remove smoke-admin-plain@srv1 2>&1); rc=$?
 bad_exit "and removing somebody who is not there says so" $rc
 # The installer's key sits in the installer's home, and this program runs as
 # agent-busd, which may not open it. So setup reads it as root and hands the
 # bytes over; `-` is how they arrive. See docs/09-setup.md#the-programs.
-adm user add piped@srv1 - >/dev/null <"$D/adm/user.pub"
+adm user add smoke-admin-piped@srv1 - >/dev/null <"$D/adm/user.pub"
 has "a key given on stdin lands like a key given by name" \
-  "$(grep piped@srv1 "$KEYS")" 'command="[^"]*agent-bus-token piped@srv1"'
-out=$(printf 'not a key at all\n' | adm user add junk@srv1 - 2>&1); rc=$?
+  "$(grep smoke-admin-piped@srv1 "$KEYS")" 'command="[^"]*agent-bus-token smoke-admin-piped@srv1"'
+out=$(printf 'not a key at all\n' | adm user add smoke-admin-junk@srv1 - 2>&1); rc=$?
 bad_exit "and what arrives that way is judged the same" $rc
 has "named as the stdin it came from" "$out" 'the key on stdin is not a public key'
-adm user remove piped@srv1 >/dev/null
-out=$(adm user add oops@srv1 "$D/adm/user" 2>&1); rc=$?
+adm user remove smoke-admin-piped@srv1 >/dev/null
+out=$(adm user add smoke-admin-oops@srv1 "$D/adm/user" 2>&1); rc=$?
 bad_exit "a private key offered by mistake is refused" $rc
 has "and named as what it is" "$out" 'is not a public key'
-has "the operator still has a key of their own" "$(adm user list)" 'chief@srv1'
+has "the operator still has a key of their own" "$(adm user list)" 'smoke-admin-chief@srv1'
 out=$(adm sudo-make-me-a-sandwich 2>&1); rc=$?
 bad_exit "a verb it does not have is refused, not guessed at" $rc
 
