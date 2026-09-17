@@ -7,6 +7,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Registry records, protocol hints, private registry configuration and queue/pubsub topics. A service's method information is its [description](#service-and-template). |
+| Pending | [Personal services](#personal-and-shared): owner tagging, restricted ACL entries and dedicated web views. |
 
 ## Service kinds
 
@@ -43,8 +44,20 @@ registry for whoever is choosing what to call
 
 ## Personal and shared
 
-These describe how a service is used, not a built lifecycle switch. Its record
-owner and ACL decide access; the caller remains the principal its token names.
+An owner may tag their service **Personal**. Without that tag, it is
+**non-Personal**. A Personal service's ACL may contain other services only,
+never users. **Accepted; implementation pending.**
+
+| Rule | Requirement |
+|---|---|
+| ACL entries | Only other service identities; a user's backing inbox does not turn that user into a service |
+| Sharing with users | Requires making the service non-Personal; a user entry cannot coexist with the Personal tag |
+| User's web view | A **Personal Services** tab shows that user's Personal services |
+| Daemon owner's web view | **Personal Services** can be viewed per user |
+
+The tag is a classification, not a different service kind. Interaction with
+[implicit access](../Plans/MVP/QUESTIONS.md#personal-service-access) still needs
+settling before enforcement; this requirement does not yet promise private access.
 
 ## Service and template
 

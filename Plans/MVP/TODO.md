@@ -64,6 +64,16 @@ The [development-host inspection](installed-acceptance.md#inspection) records pa
 | Operational acceptance | H.1.1, H.5.2–H.5.3, H.9.5–H.9.6, F.12, G.1.3 | Retain each task's installed evidence and named mutation failure; fixture-only results cannot close an installed or live-runtime requirement |
 | Fresh installation | H.1, H.8 and H.9–H.9.6; process boundary and confinement work; operational acceptance | Run the package, browser and runtime integration acceptance above on a host without `/rd` or the checkout; retain commands, results, runtime versions and host conditions in the completion evidence |
 
+## Personal services
+
+Implement the [Personal service requirements](../../docs/03-services-and-topics.md#personal-and-shared).
+Persist the owner's choice; omitted tagging remains non-Personal. Verify an
+allowed service entry and a refused user entry, including a user with a backing
+record. Show the user's Personal services and the daemon owner's per-user view,
+with non-Personal controls excluded from those results. Ignoring the tag,
+accepting a user entry or mixing owners must fail its corresponding check.
+Enforcement also requires settling [implicit access](QUESTIONS.md#personal-service-access).
+
 ## Questions
 
 All unresolved choices are owned by [QUESTIONS](QUESTIONS.md#open-questions). The CLI selector question remains open without silently blocking unrelated work. The [Future storage proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.

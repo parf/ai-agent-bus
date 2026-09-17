@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Owner-tagged Personal services | [classification, ACL entries and web views](03-services-and-topics.md#personal-and-shared) | 2026-09-16 owner instruction; accepted, implementation pending |
 | Plain-text ACL editing | [ACL editing](05-discovery.md#acl-editing) | 2026-09-16 owner instruction; display glyphs are not input syntax |
 | Entity labels in web and CLI | [display labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-16 owner-selected glyphs for web and human-readable CLI output |
 | Protected identity fields in self-service profile editing | [profile permissions](01-identity-and-roles.md#users-and-profiles) | 2026-09-16 owner clarification; accepted, implementation pending |

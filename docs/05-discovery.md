@@ -120,6 +120,9 @@ what the daemon permits. “All” means all visible to that visitor.
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
 | Registered pub/sub channels | List and details for pub/sub and queue topics; create, edit and remove; subscriptions, owner, maintainers group, permissions, TTL, capacity and overflow policy |
 
+**Accepted addition, implementation pending:** the
+[Personal Services view](03-services-and-topics.md#personal-and-shared).
+
 [Administrative and record authority](01-identity-and-roles.md#groups) applies
 to every control and to direct API calls. Membership and policy changes must
 survive restart. User lifecycle effects are [daemon policy](01-identity-and-roles.md#user-states),

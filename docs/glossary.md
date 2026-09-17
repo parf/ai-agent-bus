@@ -20,7 +20,8 @@ Current naming index. Canonical values and definitions remain in the linked sect
 
 Use service discovery for the overall capability, registration for one operation.
 Use realm for the name's authority namespace, and service template for the
-unconfigured capability. Personal/shared describes use; it is not a record kind.
+unconfigured capability. Personal is an owner-selected
+[service classification](03-services-and-topics.md#personal-and-shared), not a record kind.
 
 ## Terms
 
@@ -39,6 +40,7 @@ unconfigured capability. Personal/shared describes use; it is not a record kind.
 | Member | Basic access to a service/channel | [definition](01-identity-and-roles.md#role-names-and-scopes) |
 | Person profile | Identifying and descriptive information | [definition](01-identity-and-roles.md#users-and-profiles) |
 | Service and service template | Configured service and its unconfigured source | [definition](03-services-and-topics.md#service-and-template) |
+| Personal service | Owner-tagged service classification; implementation pending | [definition](03-services-and-topics.md#personal-and-shared) |
 | Protocol hint | How a caller reaches an external service | [definition](03-services-and-topics.md#how-to-call-it) |
 | Registry configuration | Private setup fetched by its service | [definition](03-services-and-topics.md#configuring-a-template) |
 | Channel | Service-like entity without an actual service process | [definition](01-identity-and-roles.md#channels) |
