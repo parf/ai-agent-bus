@@ -8,7 +8,8 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
-| Empty ACL is owner-only | [ACL default](02-access.md#acl) | 2026-09-16 owner clarification; accepted, implementation pending |
+| Explicit wildcard for broad user access | [ACL grants](02-access.md#acl) | 2026-09-16 owner clarification |
+| Empty ACL retains resource-management access | [ACL default](02-access.md#acl) | 2026-09-16 owner correction; accepted, implementation pending |
 | Owner-tagged Personal services | [classification, ACL entries and web views](03-services-and-topics.md#personal-and-shared) | 2026-09-16 owner instruction; accepted, implementation pending |
 | Plain-text ACL editing | [ACL editing](05-discovery.md#acl-editing) | 2026-09-16 owner instruction; display glyphs are not input syntax |
 | Entity labels in web and CLI | [display labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-16 owner-selected glyphs for web and human-readable CLI output |
@@ -172,6 +173,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Earlier design | Replacement |
 |---|---|
+| Empty ACL admits only the record owner (2026-09-16; never implemented) | [ACL default](02-access.md#acl) — corrected by the owner the same day |
 | The shared owner/maintainer/user vocabulary for daemon and resource authority (2026-09-15) | [Scoped role names](01-identity-and-roles.md#role-names-and-scopes) — replaced by owner clarification on 2026-09-16 |
 | The dashboard is `https://agent-bus.localhost.direct`, with a certificate under that name, port 443 and an 8443 fallback | [where it listens](05-discovery.md#where-it-listens) |
 | MVP dashboard permits only sign-in/out; basic groups and activity charts wait for R1 | [required tabs](05-discovery.md#required-tabs) |

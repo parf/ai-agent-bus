@@ -66,16 +66,24 @@ The [development-host inspection](installed-acceptance.md#inspection) records pa
 
 ## Personal services
 
-Enforce the [owner-only empty ACL rule](../../docs/02-access.md#acl) for Personal
-and non-Personal records. Check the owner succeeds and other principals cannot
-gain access through the empty-list branch or existing implicit grants; retain a
+Enforce the [Owner-and-Maintainers empty ACL rule](../../docs/02-access.md#acl) for Personal
+and non-Personal records. Check the owner and assigned Maintainers succeed while
+other principals cannot gain access through the empty-list branch or existing implicit grants; retain a
 non-empty ACL positive control. Restore the open-empty behavior and the refusal
 check must fail. Update form help together with enforcement.
+Check existing empty-ACL records after upgrade as well as newly created records;
+there is no grandfathered open-access default.
+Verify that adding the explicit wildcard grants an unrelated active registered
+user access without admitting an unknown or suspended caller. Removing the
+wildcard must remove that grant.
+Resolve and exercise the [service's own inbox access](QUESTIONS.md#service-reading-its-own-inbox)
+separately; owner and Maintainer checks cannot establish that a service can consume.
 
 Implement the [Personal service requirements](../../docs/03-services-and-topics.md#personal-and-shared).
 Persist the owner's choice; omitted tagging remains non-Personal. Verify an
 allowed service entry and a refused user entry, including a user with a backing
-record. Show the user's Personal services and the daemon owner's per-user view,
+record, and refuse the wildcard on a Personal service. Show the user's Personal
+services and the daemon owner's per-user view,
 with non-Personal controls excluded from those results. Ignoring the tag,
 accepting a user entry or mixing owners must fail its corresponding check.
 Enforcement also requires settling [implicit access](QUESTIONS.md#personal-service-access).

@@ -405,6 +405,6 @@ labels or read-only views. Saving an ACL preserves its syntax and does not add
 display symbols to it. The same rule applies to CLI command arguments and
 copyable ACL examples.
 
-The [current ACL contract](02-access.md#acl) defines implemented access terms.
+The [ACL contract](02-access.md#acl) defines access terms and their implementation status.
 The [proposed role syntax](../Plans/R1/identity.md#sigils) remains separately
 identified as proposed; this display rule does not introduce new parser syntax.

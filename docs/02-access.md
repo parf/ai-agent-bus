@@ -10,7 +10,7 @@ Tokens, key-possession enrolment, account sockets, rotation, browser sessions
 and flat ACLs are built. Nested groups and service-role expressions remain
 [pending](../Plans/MVP/TODO.md#authority-model); startup revocation failure policy
 is [unresolved](../Plans/MVP/QUESTIONS.md#open-questions). Future encryption is separate.
-The [owner-only empty ACL rule](#acl) is accepted and awaits implementation.
+The [Owner-and-Maintainers empty ACL rule](#acl) is accepted and awaits implementation.
 
 ## What a call carries
 
@@ -128,8 +128,18 @@ working during provider outages. Private keys stay with the signing tool.
 ## ACL
 
 A record's ACL controls who may see and use it. **An empty ACL means access
-only for the record's owner. Accepted; implementation pending.** This default
-applies to Personal and non-Personal services alike.
+only for the record's Owner and assigned Maintainers. Accepted; implementation
+pending.** This default applies to Personal and non-Personal services alike.
+Being a user alone grants no access: Owner and Maintainer are the relevant
+resource roles, not additional entries that must be placed in the ACL.
+The service's [own-principal access](../Plans/MVP/QUESTIONS.md#service-reading-its-own-inbox)
+still needs an explicit rule before implementation.
+
+To allow **any registered user**, explicitly add **`*`** to the ACL. This does
+not admit anonymous, unknown or suspended callers. A
+[Personal service](03-services-and-topics.md#personal-and-shared) cannot use
+this grant because its ACL cannot grant access to users.
+
 Faces cannot widen these permissions. Enter ACLs in the project's
 [plain-text syntax](05-discovery.md#acl-editing), not display glyphs.
 
@@ -137,7 +147,7 @@ Faces cannot widen these permissions. Enter ACLs in the project's
 <summary>Current implementation and the pending access change</summary>
 
 Today the daemon still treats an empty allow list as open. The table below
-describes that existing behavior, not the accepted owner-only default.
+describes that existing behavior, not the accepted restricted default.
 
 | Rule | Effect for an active, known caller |
 |---|---|

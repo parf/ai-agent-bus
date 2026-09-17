@@ -13,11 +13,22 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 ## Personal service access
 
+### Service reading its own inbox
+
+❓ The [empty ACL rule](../../docs/02-access.md#acl) names Owner and assigned
+Maintainers. A service's own principal is normally distinct from its owner:
+`svc@host` consumes with its own credential, while `alice@host` owns it. Today
+that principal has implicit access. Decide whether it keeps access to its own
+inbox under the new default; do not silently add an exception or break service
+consumption. Acceptance must exercise this case separately.
+
+### Non-empty Personal ACL
+
 ❓ The [Personal ACL rule](../../docs/03-services-and-topics.md#personal-and-shared)
 restricts entries to other services. For a non-empty Personal ACL, should
 Maintainer or master authority still admit other users without an explicit user
 entry? These implicit grants exist today. The empty case is settled by the
-[owner-only default](../../docs/02-access.md#acl), not an open question.
+[Owner-and-Maintainers default](../../docs/02-access.md#acl), not an open question.
 The classification and requested web views are settled; the non-empty case's
 implicit grants are not.
 

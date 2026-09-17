@@ -52,6 +52,7 @@ never users. **Accepted; implementation pending.**
 |---|---|
 | ACL entries | Only other service identities; a user's backing inbox does not turn that user into a service |
 | Sharing with users | Requires making the service non-Personal; a user entry cannot coexist with the Personal tag |
+| Broad access | The [wildcard grant](02-access.md#acl) is not valid for a Personal service |
 | User's web view | A **Personal Services** tab shows that user's Personal services |
 | Daemon owner's web view | **Personal Services** can be viewed per user |
 
