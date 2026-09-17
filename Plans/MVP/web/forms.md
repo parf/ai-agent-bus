@@ -78,7 +78,7 @@ the world moved between the question and the answer.
 |---|---|---|---|
 | Sign in | Sign in | token; validated local return | the page asked for |
 | Sign out | shell | — | root |
-| Filter a list | Services, Channels, Users, Activity | GET only; search, scope, state, kind or mode, sort, page | the same list, filters in the URL |
+| Filter a list | Services, Channels, Users, Activity | GET only; search, view, state, kind or mode, sort, page | the same list, filters in the URL |
 | Register a service | `/services/new` | name, description, kind, allow | the new service's page |
 | Register a channel | `/channels/new` | name, description, delivery mode, allow | the new channel's page |
 | Edit metadata | Service, Channel | description, address, protocol | the identity section |
@@ -116,6 +116,11 @@ removing the verb from core and the API is [H.5.6](../TODO.md#objective).
 
 No message composer. It needs a separately accepted body-handling workflow, and
 this dashboard is for discovery, administration and envelope diagnostics.
+
+GitHub company, location, public email, Twitter/X handle, avatar URL and
+Gravatar ID are provider facts, not form fields. They are imported by the
+trusted directory path and rendered read-only; neither a user nor an
+Administrator can restate them through the web form.
 
 ## Where the current forms stop making sense
 

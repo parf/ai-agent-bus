@@ -56,12 +56,20 @@ in December 2025 ([components](components.md#interaction-without-script)). The
 | URLs | `?name=` for every resource. Names contain slashes — the majority of directory names do — and a path segment makes correctness depend on escaped-segment matching and unescaping agreeing across the mux, every hand-built href and every return-URL round trip. One rule for all resources |
 | Assets | `embed`, served from this node. No CDN, no external fetch |
 | Shape | Route → visitor-authenticated API calls → view preparation → component. Templates perform no I/O and no authorization |
-| Data | Fetch only what the page needs. Build avatar initials from the already-authorized directory answer rather than fetching the directory once per image ([W07](../done/web-review.md#findings)) |
+| Data | Fetch only what the page needs. Build avatar initials from the already-authorized directory answer rather than fetching the directory once per image ([W07](../done/web-review.md#findings)). GitHub metadata must arrive through that daemon answer; templates do not call providers |
 | Paging | Server-side over the authorized listing. It bounds HTML and browser work, not daemon response size; measure those separately before adding daemon-side querying |
 | Cancellation | Bounded request timeouts and cancellation passed through the web/API boundary |
 
 No database, no cross-user cache, no new wire design. Presentation problems are
 solved in presentation.
+
+The planned GitHub profile fields are a data dependency, not a presentation
+workaround: `protocol.User`, snapshot persistence, the trusted directory result
+and `/users` must carry them before the user page may show them. `avatar_url` is
+retained as metadata but never emitted as an `<img src>` because that would
+hotlink the signed-in page to an external host. Until a separately accepted
+local image-import path exists, the page uses the existing local initials avatar
+and exposes the provider URL only as a user-followed link.
 
 ## Process boundary, unchanged
 

@@ -44,11 +44,13 @@ The planned page map follows. `⚠` marks a page that does not exist today.
 | Page | URL | Purpose | State today |
 |---|---|---|---|
 | Overview | `/` | What needs attention, and nothing else | ⚠ new; `/` is diagnostics |
-| Services | `/services` | Find a service | shared with channels |
-| Service | `/service?name=` | One service: overview, queue, access, configuration | one long form page |
+| Services | `/services` | Find a caller-visible non-Personal service | shared with channels |
+| My services | `/services?scope=my` | Find a non-Personal service owned by the caller | a filter on Services |
+| Personal services | `/personal` | Find Personal services in the existing owner-scoped view | exists as a separate top-level tab |
+| Service | `/service?name=` | One service: overview, queue, activity, access, configuration | one long form page |
 | Register service | `/services/new` | Create one | a form at the bottom of the list |
 | Channels | `/channels` | Find a channel, by delivery mode | shared with services |
-| Channel | `/channel?name=` | One channel: mode, subscribers, queue, access | rendered by the service template |
+| Channel | `/channel?name=` | One channel: mode, subscribers, queue, activity, access | rendered by the service template |
 | Register channel | `/channels/new` | Create one | a form at the bottom of the shared list |
 | Activity | `/activity` | Observed traffic over a stated window | exists |
 | Diagnostics | `/diagnostics` | Retained envelopes, losses, refusals | is the homepage today |
@@ -100,16 +102,21 @@ not a form appended to a list and not an unrelated heading action:
 
 | Section | Second-level navigation |
 |---|---|
-| Services | All services · Register service |
+| Services | All (`#`) · My (`#`) · Personal (`#`) · Register service |
 | Channels | All channels · Register channel |
 | Users | All users · Register user |
 | Groups | All groups · Register group |
 
-The current entry is marked. A register entry is shown only when the caller may
-perform that action; hiding the link is a convenience and the daemon still
-authorizes submission. Detail pages keep the same section navigation, so a
-person can return to the list or start another registration without climbing
-through the global menu.
+The current entry is marked. Service counts cover the records in each
+caller-visible category before search, state and kind filters: All and My omit
+Personal services; Personal uses the established owner-scoped Personal view.
+All and My overlap deliberately: My is the caller-owned subset of All. Personal
+is separated from both.
+
+A register entry is shown only when the caller may perform that action; hiding
+the link is a convenience and the daemon still authorizes submission. Detail
+pages keep the same section navigation, so a person can return to the list or
+start another registration without climbing through the global menu.
 
 ## What moves, and what stops being shown
 

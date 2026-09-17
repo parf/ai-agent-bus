@@ -8,17 +8,50 @@ hard part is information design rather than widget count.
 | Component | What it is | Notes |
 |---|---|---|
 | Shell | Header with node identity and page title, navigation with the current entry marked, signed-in principal linking to Account, sign out | Exists as `shell()` and already carries sign-out everywhere ([inventory](review/current-state.md#routes-and-templates)). What changes is the destination set and correct page identity |
+| Page title | One small image or glyph, the visible title, optional Refresh, and at most one short factual subtitle | [Title vocabulary](glyphs.md#page-title-images-and-glyphs); instructional prose belongs in Context help |
 | Navigation | Seven destinations | Narrow screens use `details`/`summary`, not script |
-| Section navigation | List and register destinations for Services, Channels, Users and Groups, with the current entry marked | The register link is conditional on caller authority; [page map](information-architecture.md#navigation) |
+| Section navigation | List categories with counts and register destinations for Services, Channels, Users and Groups, with the current entry marked | The register link is conditional on caller authority; [page map](information-architecture.md#navigation) |
 | Task toolbar | Search, scope, filters, sort, result count, active filters, clear | GET only, state in the URL |
-| Data table | Caption, scoped headers, stable order, one judgment column, chosen narrow-screen columns | Hand-written because ours is URL-driven rather than client-side, and we found nothing supplying that. **Not** "the component nothing off the shelf supplies" — a universal we did not survey and do not need ([S15](review/codex.md#specification-review-round-one)) |
+| Data table | Caption, scoped headers, stable order, one judgment column, owned-item marker, chosen narrow-screen columns | Hand-written because ours is URL-driven rather than client-side, and we found nothing supplying that. **Not** "the component nothing off the shelf supplies" — a universal we did not survey and do not need ([S15](review/codex.md#specification-review-round-one)) |
 | Detail sections | Heading, definition list, and — where authority allows — the form for that one concern, collapsed until asked for | Read sections never depend on edit permission. There is **no trailing Manage block**: an edit lives in the section it changes, which is the whole point of splitting them |
 | Form | Labels above controls, help beside the control, error summary and field errors, one primary action | |
+| Context help | A visible `ⓘ` button opening a compact popover with a heading and short bulleted list | Keyboard, touch and pointer accessible; never a hover-only `title` attribute |
 | Confirmation | Server-rendered page naming target and consequence | [forms](forms.md#consequential-actions) |
 | Status | Text, with colour and shape reinforcing it | [glyphs](glyphs.md#attention-levels) |
 | States | Populated, empty, denied, unavailable | below |
 | Graph | Inline SVG, labelled axes, shared range, value table beside it | No script, no canvas, no external chart library |
 | Pagination | Previous and next as links carrying every filter | |
+
+## Compact help, not prose walls
+
+Pages do not lead with instructional paragraphs. The title may carry one short
+factual subtitle; definitions, limits and usage guidance move behind a visible
+`ⓘ` help control beside the title or the section it explains.
+
+The control is a real button using the native popover mechanism. It has an
+accessible name such as *About service views*, works by keyboard and touch, and
+opens a panel containing a heading and a short bulleted list. Bullets are one
+idea each; if the explanation needs a page, the final bullet links to that page
+instead of putting the page inside the popover.
+
+Help never hides a current condition, refusal reason, field constraint needed
+to complete a form, or the consequence of a destructive action. Those remain
+in the page at the point of decision. The popover carries explanation, not
+evidence the person must discover before acting.
+
+## Owned items
+
+Every caller-owned record is marked wherever it appears in a human list,
+including All, My, Personal, search results and related-record lists. The mark
+combines a visible **Yours** label with shape or border emphasis; colour is
+reinforcement, never the only signal. It does not change ordering, access or
+kind.
+
+The record name opens its read-first detail page. An owned row also carries an
+explicit **Edit** link or button to the same detail page with the relevant
+editor opened. Non-owned rows receive an Edit action only when the daemon's
+returned authority says the caller may manage them; ownership is a reliable
+positive case, not a second authorization system.
 
 ## Small choice controls
 
@@ -61,7 +94,7 @@ name rather than reinventing them:
 | Native | Used for |
 |---|---|
 | `details` / `summary`, with `name=` for exclusive groups | narrow-screen navigation, filter disclosure, receipt evidence, help text |
-| `popover` with `popovertarget` | a menu, where one genuinely earns itself |
+| `popover` with `popovertarget` | compact context help and a menu, where one genuinely earns itself |
 | Invoker commands (`command` / `commandfor`) | disclosure and dialog invocation without script. Cross-browser since Safari 26.2, December 2025 |
 | `:has()` | parent-conditional styling, replacing marker classes |
 | container queries | table and card density by available width, not viewport width |

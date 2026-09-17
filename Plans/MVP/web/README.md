@@ -57,6 +57,7 @@ reused ([question namespace](../../../CLAUDE.md#working-rules)).
 | Absence has four meanings and they are different | Measured zero, below display precision, not applicable, not observed ([glyphs](glyphs.md#absence-which-is-four-different-facts)) |
 | Declared state and observed state are never merged | A record says it is enabled; a reader is either attached or not. Neither is health |
 | One concern per form | Queue policy, access, configuration, ownership and removal are five decisions, not one page |
+| Keep help out of the primary flow | One short subtitle at most; explanatory material opens from an accessible `ⓘ` control as a short bulleted list. Current conditions, constraints, errors and consequences stay visible |
 | Edit authority does not decide read authority | The daemon's visibility rules decide what a caller may read, always and only. Within what it has already returned, lacking permission to *change* a value must not additionally hide it — which is what happens today ([C04](review/codex.md#junk-and-misleading-content)) |
 | Demote by task, do not discard | A full routing name disambiguates a session; a message ID serves diagnostics. The question is which page needs it, not whether anyone does |
 | The face renders; it decides nothing | No authorization, no I/O and no derived truth in a template |

@@ -19,8 +19,8 @@ px, the [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html) floor.
 │ Overview  Services  Channels  Activity  Users  Groups  Diag  │  accent underline on current
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │  surface-1
-│  Page title                                        [Refresh] │  text-xl
-│  One line saying what this page answers                      │  text-sm / text-2
+│  ◇ Page title  ⓘ                                  [Refresh] │  text-xl
+│  One short factual subtitle, only where useful               │  text-sm / text-2
 │                                                              │
 │  … page body, max 76rem, centred, 16px gutters …             │
 │                                                              │
@@ -94,22 +94,22 @@ Built first, at ~200 records, with the pathological content named in
 decided here, which is why it is not built second.
 
 ```
-  Services                                             [Refresh]
-  What is registered here, and what is it doing
+  ⚙️ Services  ⓘ                                      [Refresh]
+  Caller-visible services
 
-  [All services]  Register service
+  All (231)  [My (12)]  Personal (3)  Register service
 
   ┌──────────────────────────────────────────────────────────┐
-  │ Search ▢──────────  Scope [All] Mine                     │  surface-3
-  │ State [Any] Enabled Disabled  Kind All [Agent] Service   │
+  │ Search ▢─────────────────────  State [Any] Enabled Disabled│ surface-3
+  │ Kind All [Agent] Service                              │
   │ Sort[Queued ↓▾]                                  [Filter]│
   │ 27 of 231 · kind: agent                        [Clear all]│
   └──────────────────────────────────────────────────────────┘
 
    │  SERVICE                 OWNER         READER     QUEUED │  text-xs 600
    ├──────────────────────────────────────────────────────────┤
-   │▌ Invoice intake          parf@parf.us  attached      512 │  red bar
-   │  billing/invoices@parf.us                     at capacity│  mono, text-2
+   │▌ Invoice intake  [Yours]  parf@parf.us attached      512 │  red bar
+   │  billing/invoices@parf.us              at capacity [Edit]│  mono, text-2
    ├──────────────────────────────────────────────────────────┤
    │▌ Document intake         ops@parf.us   no reader      48 │  orange bar
    │  ocr/intake@parf.us                       delivery is off│
@@ -132,10 +132,15 @@ sort.
 says so. On an unfiltered or mixed list it is a column, because nothing else
 tells a reader what a row is.
 
-Brackets mark the current link choice in this text mockup. Scope, state and kind
-expose their two or three values directly and preserve them in the URL; the
+Brackets mark the current link choice in this text mockup. All, My and Personal
+are second-level links with caller-visible category totals; state and kind
+expose their two or three values directly and preserve them in the URL. The
 larger sort list remains a select. Register service is section navigation, not a
 form appended below the table.
+
+**Yours is never colour alone.** The label and row shape remain in All, My,
+Personal and filtered results. The service name opens its detail; Edit is a
+separate action that opens the same detail with an editor exposed.
 
 **No cell truncates a value that has no other route to it.** The draft ellipsed
 owners to `parf@…` and offered no recovery, which without script means the value
@@ -160,8 +165,10 @@ description survive at every width; nothing scrolls sideways.
 ## Service detail — read first, then one edit at a time
 
 ```
-  Document intake                                      [Refresh]
+  👾 Document intake  ⓘ                               [Refresh]
   ocr/intake@parf.us
+
+  Yours                                                   [Edit]
 
   Identity                                              [Edit]
     Description   Document intake
@@ -190,6 +197,10 @@ description survive at every width; nothing scrolls sideways.
 
   Access                                                [Edit]
   Configuration                                         [Edit]
+  Activity
+    Accepted / dequeued                          [inline graph]
+    Dropped / expired / refused                  2 / 0 / 1
+                                      [View all activity →]
   Ownership                                          [Transfer]
   Registration                                         [Remove]
 ```

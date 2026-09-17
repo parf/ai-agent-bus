@@ -109,6 +109,30 @@ being old.
 | group members, withheld | the caller may not see them | **not visible to you** | an empty array shown as zero members |
 | `PeopleCount`, `OtherCount` | counts over the caller-visible directory before search | labelled with that scope, **and marked as the face's own** — they are fields of `peopleView` in the web child, not daemon answers, and sit beside `Services` and `Groups`, which are | presenting a face-computed figure and a daemon-reported one as the same kind of fact. Provenance is the same class of distinction as declared-versus-observed, and this file's rule covers it |
 
+### GitHub profile — planned
+
+The GitHub directory adapter already retrieves the public profile response but
+the daemon currently retains only the login and `name`. The remaining fields
+need persistent profile and wire support before the web can render them; a
+template must never fetch GitHub itself.
+
+| GitHub field | Planned profile meaning | Display and absence |
+|---|---|---|
+| `login` | GitHub login; already stored as `github_user` | link label for the GitHub profile |
+| `name` | trusted person name; already fills a blank `person_name` without overwriting an explicit value | ordinary Person name; omit when blank |
+| `avatar_url` | provider avatar location | show as an outbound link, never as a browser-hotlinked image; the page keeps its locally rendered initials until a local image-import path exists |
+| `gravatar_id` | legacy provider avatar identifier | show in GitHub details only when non-empty; never construct a remote image request from it |
+| `company` | provider-published organization or employer | Company; omit when blank |
+| `location` | provider-published location text | Location; omit when blank |
+| `email` | provider-published public email | GitHub public email, separate from the user-managed `email`; omit when GitHub returns no value |
+| `twitter_username` | provider-published Twitter/X handle | linked handle; omit when blank |
+
+Provider metadata is read-only in AgentBus. A successful GitHub lookup replaces
+the retained provider fields, including clearing values the provider no longer
+publishes. It never overwrites the user-managed email, and the existing
+fill-blank-only rule for Person name remains. Visibility follows the existing
+user-directory answer; these fields do not create a public profile endpoint.
+
 ## Absence
 
 Four facts, four markers, and not a licence to mark every blank

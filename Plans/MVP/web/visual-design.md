@@ -84,7 +84,7 @@ word ([glyphs](glyphs.md#the-rule-that-matters-most)).
 
 | | |
 |---|---|
-| Page title and purpose | what this page answers |
+| Page image or glyph, title, optional short subtitle and `ⓘ` help | what this page is; explanation stays out of the primary flow |
 | Task toolbar | search and filters, where a list |
 | Primary data | the table, or the identity and its operational summary |
 | Secondary detail | inheritance, digests, evidence |

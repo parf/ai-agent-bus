@@ -49,6 +49,33 @@ headings put Group directly before the group name; the surrounding page states
 the meanings in words. Identity and Credentials record the selected vocabulary;
 their exact placements remain part of the unsettled web proposal below.
 
+## Page-title images and glyphs
+
+Owner-selected exception to the quiet-glyph rule: every page title starts with
+one small image or glyph. It names the page category and always sits beside the
+visible title, so it is neither a status signal nor a replacement for text.
+The image is decorative to assistive technology because the adjacent `h1`
+already supplies its name.
+
+| Page | Title image or glyph |
+|---|---|
+| Overview | the inline AgentBus mark |
+| Services and generic-service detail | ⚙️ Service |
+| Agent detail | 👾 Agent |
+| Channels and channel detail | a small inline channel SVG |
+| Activity | a small inline graph SVG |
+| Users and user detail | 👤 User |
+| Groups and group detail | 👥 Group |
+| Account | 🪪 Identity |
+| Sign in and credential pages | 🔑 Credentials |
+| Diagnostics | a small inline inspection SVG |
+| Problem | a small inline warning SVG |
+
+Register pages inherit their section image. The inline SVGs are repository-owned
+and self-contained: no external asset, icon font, hotlink or extra public route.
+Detail pages choose only from daemon-stated kind; an absent kind gets the
+section image rather than a guessed entity glyph.
+
 ## Rendering: a proposal, not a settled decision
 
 **Proposed: adopt the semantics, render them as CSS shape plus colour plus
@@ -192,6 +219,7 @@ value rather than being replaced by a symbol.
 
 | Screen | Allowed | Not allowed |
 |---|---|---|
+| Page title | one page-category image or glyph beside the title text | status, inferred entity type, or multiple decorative marks |
 | Overview attention items | severity, one per item — that page is nothing but exceptions | — |
 | Services and Channels lists | **one** judgment column, lit only on exceptional rows | the kind column (a category: use a filter); the enabled column while most rows are enabled; anything green |
 | Service and Channel detail | queue condition; refusal reason | section headings |

@@ -1,6 +1,6 @@
 # Pages
 
-Draft for peer review. Fifteen screens. Every field codex
+Draft for peer review. Every field codex
 [inventoried](review/current-state.md#visible-fields-by-page) is given a home,
 a demotion or a removal here; nothing is left unassigned, because "hide the
 junk" is only checkable against a named list.
@@ -15,10 +15,16 @@ junk" is only checkable against a named list.
 | **relabel** | the value is right and the word is wrong |
 | **drop** | not shown anywhere |
 
-Every page has: one `h1` that names it, a stated observation time where it shows
-observations, a toolbar where it lists things, and the four states
+Every page has: one `h1` with its [page image or glyph](glyphs.md#page-title-images-and-glyphs),
+a stated observation time where it shows observations, a toolbar where it lists
+things, and the four states
 ([components](components.md#states)) — populated, empty, denied, unavailable.
 None of those is optional, and "unavailable" never renders as "empty".
+
+The title gets at most one short factual subtitle. Long definitions and usage
+instructions use the shared [ⓘ help pattern](components.md#compact-help-not-prose-walls)
+with a short bulleted list. Current conditions, form constraints, errors and
+consequences remain visible where the person acts.
 
 ---
 
@@ -154,6 +160,7 @@ defect is real. codex's [S14](review/codex.md#specification-review-round-one).
 | Kind | **A filter wherever the list is already narrowed to one kind**, because a per-row category is then redundant with the control that got you there. **A column on any list that is not** — an unfiltered or mixed-kind list must still say what each row is, and no filter is supplying that. This governs the [mockups](layouts.md#services--the-page-the-density-is-tuned-against) as much as this table; the draft's flat "filter only" was wrong and the two documents disagreed — codex |
 | Delivery mode (channel list) | **new.** The channel question |
 | Owner | keep |
+| Owned by the caller | **always mark.** A visible *Yours* label plus non-colour emphasis survives All, My, Personal and filtered results; owned rows also expose an Edit action |
 | Enabled / Disabled | **relabel** from Active/Inactive. Administrative state, not liveness. Disabled is a decision, not a failure |
 | Reader: *attached* / *no unfiltered reader* / *external* | **relabel** from Serving/Offline/External. `Proto` is a caller-supplied hint meaning "expect no local reader", not proof of anything |
 | Queued | keep on the service list. **Mode-aware on the channel list**: a pub/sub topic keeps no queue of its own — `Send` hands it to `fanout` and nothing waits on the topic — so a Queued cell there is structurally zero. Pub/sub rows show accepted; queue rows show queued; or the cell reads `—` |
@@ -164,15 +171,32 @@ defect is real. codex's [S14](review/codex.md#specification-review-round-one).
 | `ConfigSHA` | **move** to the configuration section of the detail page |
 | `In` / `Out` | **move** to detail, **relabelled** accepted / dequeued. Dequeued is not completed |
 
-**Section navigation:** All services · Register service, or All channels ·
-Register channel. It is the second row beneath the global navigation and follows
-the shared [section-navigation rule](information-architecture.md#navigation).
+**Section navigation:** All (`#`) · My (`#`) · Personal (`#`) · Register
+service, or All channels · Register channel. It is the second row beneath the
+global navigation and follows the shared
+[section-navigation rule](information-architecture.md#navigation). All and My
+exclude Personal services, preserving the accepted dedicated Personal grouping;
+My is the caller-owned subset of All. Counts are caller-visible category totals
+before the search, state and kind filters, so changing a filter does not make a
+navigation count describe a different category.
 
-**Toolbar:** search over description and name; scope (all / mine); state; kind
-or mode; sort. Two- and three-value filters expose their choices as stateful
-links or buttons rather than selects. All state is in the URL as GET parameters,
-retained through paging and through a visit to a detail page and back. Result
-count and active filters are shown, with one action to clear them.
+The title's `ⓘ` help contains the category definitions as bullets — All is
+caller-visible non-Personal services, My is the caller-owned subset, Personal
+is the separately grouped owner view — instead of placing those paragraphs
+above the table.
+
+**Toolbar:** search over description and name; state; kind or mode; sort. The
+service view choice moved to the section-navigation links above. Two- and
+three-value filters expose their choices as stateful links or buttons rather
+than selects. All state is in the URL as GET parameters, retained through paging
+and through a visit to a detail page and back. Result count and active filters
+are shown, with one action to clear them.
+
+**Rows have two destinations.** The name opens the read-first service or channel
+view. A caller-owned row is always visually marked and carries an explicit Edit
+action, which opens that view with its editor exposed. A non-owned row may also
+offer Edit when the daemon reports management authority; the face never derives
+permission from the visual marker.
 
 **Ordering is stable and named.** Core's `List` iterates a map, so order out of
 the daemon is not stable — but **the services and channels list already sorts by
@@ -209,12 +233,25 @@ then focused edits.
 | Access | Allow list, master-refusal, and what that means in a sentence | same |
 | Subscribers (pub/sub only) | Each subscriber, linked where the caller may inspect it | same |
 | Configuration | Whether one is set, and its digest as evidence. **Never its contents** | same |
+| Activity | Compact record-scoped graphs for accepted and dequeued traffic; exceptional dropped, expired and refused series when non-zero; a link to `/activity?name=` for the complete graphs and sample table | same |
 
 **The read sections do not depend on edit permission.** Address, protocol, ACL
 and queue policy are already in the daemon's answer to this caller and today are
 rendered only inside the editor
 ([C04](review/codex.md#junk-and-misleading-content)). Controls are conditional;
 returned metadata is not.
+
+**Activity is embedded only where the daemon can scope it honestly.** Service
+and channel detail request the same bounded history as
+`/activity?name=<record>`. The compact section states the observed window and
+restart boundary, summarises zero-only series instead of giving each a full
+graph, and links to **View all activity** for all five graphs and the accessible
+sample table. Users and groups get no inferred roll-up: the activity API does
+not provide a user- or group-scoped series.
+
+The section's `ⓘ` help carries the sampled-window limits, restart behavior and
+the meaning of *dequeued* as bullets. The observed graph, time range and current
+absence state remain visible; help does not hide the evidence it qualifies.
 
 Four fields were required in prose and missing from the table above, so the
 table is where they now live — codex's
@@ -250,6 +287,10 @@ Each is collapsed until asked for, so no page ever renders eight open editors
 and the count stops being a usability variable. **Transfer is a link** opening
 its confirmation flow rather than a permanently rendered form; **remove** sits
 at the end of the page with its own confirmation.
+
+For a caller-owned record, the detail heading also carries **Edit**. It opens
+the first applicable editor while retaining the section-specific editors below;
+the heading action is an entry point, not a second form or a wider grant.
 
 Each returns **to the section it changed** with a specific result — not to
 `/services?scope=my`, which is where every service and channel action lands
@@ -295,8 +336,9 @@ typed is gone ([C13](review/codex.md#junk-and-misleading-content)).
 | Value table beside the graphs | **keep** — it is the accessible path to the numbers |
 | Absence vocabulary in the table | `0` measured zero, `¿` not observed. Before the last restart is `¿`, not `0` |
 
-Arriving from a service or channel keeps that filter. The scope selector says
-what it is scoped to.
+Arriving from a service or channel keeps that filter. The scope control says
+what it is scoped to. Every record detail carries the reciprocal link back to
+this complete view.
 
 **Four constraints the series carries**, found by home-parf and verified. They
 are not presentation choices; three of them change what the graph may be
@@ -344,7 +386,8 @@ separate primary action beside the directory heading.
 |---|---|
 | `PeopleCount` / `OtherCount` | **keep**, with scope labelled: caller-visible directory, before the search |
 | Search, kind filter, paging, `Matched`, clear-filters | keep |
-| Person name, full name, authority, state | keep |
+| Person name, full name, GitHub login, authority, state | keep |
+| Search over GitHub metadata | include company, location, public GitHub email and Twitter/X handle once the daemon publishes them; no browser-side provider lookup |
 | Empty cleanup table plus its explanation | **collapse** to a count and a link while empty; expand only when candidates exist ([C10](review/codex.md#junk-and-misleading-content)) |
 | Classification of an unclassified identity | **keep as a word.** Never a colour, never inferred from a slash or a runtime prefix in a name |
 | Avatar | `/avatar` is reachable and authenticated but no template references it ([inventory](review/current-state.md#routes-and-templates)). **Decide deliberately**: use it here, or remove the endpoint. It must not fetch the whole directory per image ([W07](../done/web-review.md#findings)) |
@@ -362,8 +405,16 @@ Fields and results are owned by the [forms inventory](forms.md#the-set).
 | Identity | Name, person name, state, daemon authority |
 | Memberships | Groups, or an explicit no-memberships statement |
 | Owned records | Linked, or an explicit none |
-| Profile | Fields when `CanEdit`; otherwise the values, labelled, plus who may change them |
+| Profile | AgentBus person name, user-managed email and GitHub login; editable only under the existing field authorities |
+| GitHub profile | Read-only provider fields: public email, company, location, Twitter/X handle, avatar link and legacy Gravatar ID. The section is absent for a non-GitHub profile; individual blank fields are omitted |
 | Lifecycle | Separate from the summary. **Only the transitions that apply** — an already-active user is offered Activate beside Pause and Ban today, all looking alike ([C12](review/codex.md#junk-and-misleading-content)). Ban is consequential and confirmed |
+
+The GitHub section labels its source and freshness. It uses the retained daemon
+answer only: no browser request to GitHub, no remote `<img>`, and no inference
+that a missing public email or location is private, empty, or current beyond the
+last successful provider lookup. `name` continues to feed Person name under the
+existing fill-blank rule; GitHub's public `email` is a separate read-only fact
+and never replaces the email a user or Administrator set in AgentBus.
 
 There is no delete-user control and there will not be one: a user is never
 deleted, only made inactive
