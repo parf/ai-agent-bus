@@ -35,3 +35,15 @@ run. The frozen and tracked scripts both have SHA-256
 `aff1dd8ff54820c09129106b5f0b92c264780cf3394c054629cd78421a82fab3`.
 
 The final build reported 0.5.60 with stamp `parf@parf.us 2026-09-17 15:38:26`.
+
+## Live postflight
+
+Commit `b8d3fd1` was built and restarted on `parf.us` as 0.5.60 with stamp
+`parf@parf.us 2026-09-17 15:41:14`. A real owner sign-in rendered the live
+`chief@srv1` row with `👤` immediately before the linked name and no repeated
+type line. The selected `👤 Users` filter rendered, and both live group headings
+rendered `👥` immediately before their names. The checks only read pages.
+
+The web child remained in its delegated cgroup with an effective capability
+mask of zero. The durable account map still reported its two established
+mappings and no pending restart.
