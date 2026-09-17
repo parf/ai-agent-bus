@@ -16,16 +16,3 @@ Maintainers. A service's own principal is normally distinct from its owner:
 that principal has implicit access. Decide whether it keeps access to its own
 inbox under the new default; do not silently add an exception or break service
 consumption. Acceptance must exercise this case separately.
-
-## Authority model
-
-### Effective Maintainer membership
-
-⁉️ The [owner-control requirement](../../docs/01-identity-and-roles.md#services)
-needs protection when an Administrator can edit a group granting maintenance
-authority. Nested subgroup edits can also change effective membership. Shared
-groups can be assigned by several resource owners.
-
-**Owner answer:** _Pending — separate owner-controlled maintenance membership
-from ordinary access groups, or protect every group change affecting it; define
-whose approval applies to a group shared by different owners._

@@ -1,5 +1,9 @@
 # Administrator naming
 
+**Later decision (2026-09-17):** the owner accepted Administrator control of
+[group membership](../../../docs/01-identity-and-roles.md#groups), including assigned
+Maintainer groups. The membership-protection work mentioned below was superseded.
+
 ## Scope
 
 The daemon administrative role is Administrator; service/channel Maintainer

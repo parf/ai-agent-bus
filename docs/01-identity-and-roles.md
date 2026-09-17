@@ -9,7 +9,7 @@ For credentials and permission checks, see [Access](02-access.md#what-a-call-car
 Names, profiles, registration, resource ownership and flat groups are built.
 The role model below also includes **accepted, pending changes**, marked where
 relevant; [implementation work](../Plans/MVP/TODO.md#authority-model) and
-[open choices](../Plans/MVP/QUESTIONS.md#authority-model) stay in the plans.
+[open choices](../Plans/MVP/QUESTIONS.md#open-questions) stay in the plans.
 
 ## Identities
 
@@ -169,8 +169,9 @@ daemon-owner override remain pending**.
 
 * Today the owner, the resource's own principal and members of its assigned
   Maintainers group can manage it. Only the owner may change that group
-  assignment or transfer ownership. [Group membership protection](#groups)
-  is a separate, unresolved part of enforcing owner control.
+  assignment or transfer ownership. Choosing a group delegates its membership
+  to [group administration](#groups); it does not give the service owner control
+  over who Administrators add to it.
 * Disabling refuses deliveries and inbox reads, cancels blocked reads, and
   retains queued messages. Enabling does not start a process. Removing access
   cancels reads relying on it; delivered work is not recalled.
@@ -198,8 +199,12 @@ ownership of the channel or another subscriber's inbox.
 
 For shared management, create a group and explicitly assign it as Service or
 Channel Maintainer on each resource. There is no automatic global assignment.
+**Administrators control ordinary group membership**, including groups assigned
+as Maintainers. They may add themselves or another user they create, without
+additional approval from the service owner. Choosing the group accepts those
+membership changes on every resource using it. This is intended, built behavior.
 Retire an ordinary group by emptying it; groups are not deleted, paused or banned.
-**Nested groups and protection of owner-controlled maintenance membership are pending.**
+**Nested groups remain pending.**
 
 <details>
 <summary>Administrative membership and shared-group limits</summary>
@@ -217,10 +222,10 @@ Retire an ordinary group by emptying it; groups are not deleted, paused or banne
 * The accepted model allows nested groups, but **current membership is flat**.
   Nested membership and service-role storage are [pending](../Plans/MVP/TODO.md#authority-model);
   proposed expression syntax remains in [R1](../Plans/R1/identity.md#groups-and-roles).
-* **Owner-controlled effective Maintainer membership is not yet enforced.**
-  Administrators can edit ordinary groups, including assigned Maintainer groups,
-  and thereby acquire resource authority indirectly. Protection for nested and
-  shared groups needs the [membership decision](../Plans/MVP/QUESTIONS.md#effective-maintainer-membership).
+* Sharing a Maintainer group across resources does not require joint owner
+  approval for membership changes. Resource owners control assignment of the
+  group; Administrators control its members. The protected Administrator group
+  retains its separate daemon-owner-only membership rule.
 
 </details>
 

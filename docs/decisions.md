@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Resource owners choose groups; Administrators control membership | [group authority](01-identity-and-roles.md#groups) | 2026-09-17 owner decision; confirms existing indirect acquisition of resource authority |
 | Broader transfer-recipient eligibility deferred | [ownership](01-identity-and-roles.md#ownership) | 2026-09-17 owner direction; rare case, existing conditions retained |
 | Startup revocation failure hardening deferred | [existing failure behavior](02-access.md#ownerless-credentials) | 2026-09-17 owner direction; Q69 removed from open questions, implementation unchanged |
 | One reader count includes filtered waits | [reader observation](05-discovery.md#readers) | 2026-09-17 owner decision; resolves Q70, implementation pending |
@@ -178,6 +179,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Earlier design | Replacement |
 |---|---|
+| Service owners must approve effective Maintainer membership changes (pending proposal, never implemented) | [group authority](01-identity-and-roles.md#groups) — superseded by owner decision on 2026-09-17 |
 | Empty ACL admits only the record owner (2026-09-16; never implemented) | [ACL default](02-access.md#acl) — corrected by the owner the same day |
 | The shared owner/maintainer/user vocabulary for daemon and resource authority (2026-09-15) | [Scoped role names](01-identity-and-roles.md#role-names-and-scopes) — replaced by owner clarification on 2026-09-16 |
 | The dashboard is `https://agent-bus.localhost.direct`, with a certificate under that name, port 443 and an 8443 fallback | [where it listens](05-discovery.md#where-it-listens) |

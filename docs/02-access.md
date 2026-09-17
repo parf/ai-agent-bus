@@ -164,8 +164,8 @@ private service configuration. Queries, sends, consumes and writes still obey
 their applicable state and authority checks.
 
 ACLs can name users, services and groups. Group resolution is currently flat;
-[nesting and effective maintenance membership](01-identity-and-roles.md#groups)
-are separate pending work. User/Agent/Service glyphs are
+[nested groups](01-identity-and-roles.md#groups) remain pending.
+User/Agent/Service glyphs are
 [display labels](05-discovery.md#identity-labels-in-web-and-cli), not ACL input.
 
 </details>
