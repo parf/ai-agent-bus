@@ -117,10 +117,12 @@ removing the verb from core and the API is [H.5.6](../TODO.md#objective).
 No message composer. It needs a separately accepted body-handling workflow, and
 this dashboard is for discovery, administration and envelope diagnostics.
 
-GitHub company, location, public email, Twitter/X handle, avatar URL and
-Gravatar ID are provider facts, not form fields. They are imported by the
-trusted directory path and rendered read-only; neither a user nor an
-Administrator can restate them through the web form.
+GitHub company, location, Twitter/X handle, avatar URL and Gravatar ID are
+provider facts, not form fields. They are imported by the trusted directory path
+and rendered read-only; neither a user nor an Administrator can restate them
+through the web form. GitHub's public email is different: it fills the existing
+Email only when blank, after which the ordinary AgentBus email-editing rules
+apply. There is no separate GitHub-email control.
 
 ## Where the current forms stop making sense
 

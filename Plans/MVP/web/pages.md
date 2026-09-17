@@ -387,7 +387,7 @@ separate primary action beside the directory heading.
 | `PeopleCount` / `OtherCount` | **keep**, with scope labelled: caller-visible directory, before the search |
 | Search, kind filter, paging, `Matched`, clear-filters | keep |
 | Person name, full name, GitHub login, authority, state | keep |
-| Search over GitHub metadata | include company, location, public GitHub email and Twitter/X handle once the daemon publishes them; no browser-side provider lookup |
+| Search over GitHub metadata | include company, location and Twitter/X handle once the daemon publishes them; the existing Email search covers an imported public email. No browser-side provider lookup |
 | Empty cleanup table plus its explanation | **collapse** to a count and a link while empty; expand only when candidates exist ([C10](review/codex.md#junk-and-misleading-content)) |
 | Classification of an unclassified identity | **keep as a word.** Never a colour, never inferred from a slash or a runtime prefix in a name |
 | Avatar | `/avatar` is reachable and authenticated but no template references it ([inventory](review/current-state.md#routes-and-templates)). **Decide deliberately**: use it here, or remove the endpoint. It must not fetch the whole directory per image ([W07](../done/web-review.md#findings)) |
@@ -406,15 +406,16 @@ Fields and results are owned by the [forms inventory](forms.md#the-set).
 | Memberships | Groups, or an explicit no-memberships statement |
 | Owned records | Linked, or an explicit none |
 | Profile | AgentBus person name, user-managed email and GitHub login; editable only under the existing field authorities |
-| GitHub profile | Read-only provider fields: public email, company, location, Twitter/X handle, avatar link and legacy Gravatar ID. The section is absent for a non-GitHub profile; individual blank fields are omitted |
+| GitHub profile | Read-only provider fields: company, location, Twitter/X handle, avatar link and legacy Gravatar ID. The section is absent for a non-GitHub profile; individual blank fields are omitted |
 | Lifecycle | Separate from the summary. **Only the transitions that apply** — an already-active user is offered Activate beside Pause and Ban today, all looking alike ([C12](review/codex.md#junk-and-misleading-content)). Ban is consequential and confirmed |
 
 The GitHub section labels its source and freshness. It uses the retained daemon
 answer only: no browser request to GitHub, no remote `<img>`, and no inference
 that a missing public email or location is private, empty, or current beyond the
 last successful provider lookup. `name` continues to feed Person name under the
-existing fill-blank rule; GitHub's public `email` is a separate read-only fact
-and never replaces the email a user or Administrator set in AgentBus.
+existing fill-blank rule. GitHub's public `email` likewise fills the existing
+Email only when empty: no second email field is rendered, and an existing value
+is never replaced.
 
 There is no delete-user control and there will not be one: a user is never
 deleted, only made inactive

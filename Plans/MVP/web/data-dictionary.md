@@ -124,14 +124,20 @@ template must never fetch GitHub itself.
 | `gravatar_id` | legacy provider avatar identifier | show in GitHub details only when non-empty; never construct a remote image request from it |
 | `company` | provider-published organization or employer | Company; omit when blank |
 | `location` | provider-published location text | Location; omit when blank |
-| `email` | provider-published public email | GitHub public email, separate from the user-managed `email`; omit when GitHub returns no value |
+| `email` | provider-published public email | fills the existing AgentBus `email` only when it is empty; there is no separate GitHub-email field |
 | `twitter_username` | provider-published Twitter/X handle | linked handle; omit when blank |
 
 Provider metadata is read-only in AgentBus. A successful GitHub lookup replaces
 the retained provider fields, including clearing values the provider no longer
-publishes. It never overwrites the user-managed email, and the existing
-fill-blank-only rule for Person name remains. Visibility follows the existing
-user-directory answer; these fields do not create a public profile endpoint.
+publishes. `name` and `email` are imports into the existing Person name and Email
+fields: each fills a blank and never overwrites a value already stored. Email
+also uses the existing cross-profile uniqueness rule. If another profile already
+owns the normalized public email, enrolment still succeeds and the blank stays
+blank; optional provider metadata does not become an authentication gate. Once
+imported, Email remains the ordinary AgentBus field under its existing edit
+rules; GitHub later hiding or changing the public email does not clear it.
+Visibility follows the existing user-directory answer; these fields do not
+create a public profile endpoint.
 
 ## Absence
 
