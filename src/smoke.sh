@@ -19,10 +19,14 @@ cd "$(dirname "$0")"
 for v in $(env | sed -n 's/^\(AGENT_BUS_[A-Z_]*\)=.*/\1/p'); do
   case $v in AGENT_BUS_ROLE|AGENT_BUS_FDS) ;; *) unset "$v" ;; esac
 done
-D=$(mktemp -d); DPID=""
+D=$(mktemp -d); DPID=""; SUPUNIT=""
 # Wait for it: a daemon dumps on the way out, and a dump written while the
 # directory is being removed leaves the directory behind.
-cleanup() { [ -n "$DPID" ] && { kill "$DPID" 2>/dev/null; wait "$DPID" 2>/dev/null; }; rm -rf "$D"; }
+cleanup() {
+  [ -n "$SUPUNIT" ] && systemctl --user stop "$SUPUNIT" >/dev/null 2>&1
+  [ -n "$DPID" ] && { kill "$DPID" 2>/dev/null; wait "$DPID" 2>/dev/null; }
+  rm -rf "$D"
+}
 trap cleanup EXIT
 # The CLI keeps its reply context under XDG_CACHE_HOME, and this run wants a
 # private one. Go's build cache lives there too by default, so redirecting it
@@ -2347,10 +2351,23 @@ sec "the supervisor holds the sockets, and the bus serves them"
 # request; the process that serves is handed listeners that already exist and
 # could not make one. See docs/11-processes.md#the-rule.
 mkdir -p "$D/sup"
-AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) \
+# The production setup unit supplies the delegated subgroup used by web-only
+# limits. This development fixture uses an explicit transient user unit with
+# the same construction; running the binary directly would correctly leave
+# web down rather than silently unbounded.
+SUPUNIT=agent-bus-smoke-$BASHPID
+systemd-run --user --unit="$SUPUNIT" --collect --wait --pipe --quiet \
+  --working-directory="$(pwd)" --setenv=AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) \
+  --setenv=AGENT_BUS_WEB_USER_DELEGATION=1 \
+  -p Delegate=cpu -p Delegate=memory -p Delegate=pids -p DelegateSubgroup=supervisor \
   "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" -token-file "$D/sup/token" \
   -owner "$OWNER" -dump-file "$D/sup/dump.json" -dump-every 0 -web >"$D/sup/log" 2>&1 &
-SUP=$!
+SUPRUN=$!
+for _ in $(seq 1 100); do
+  SUP=$(systemctl --user show "$SUPUNIT" -p MainPID --value 2>/dev/null)
+  [ "${SUP:-0}" -gt 0 ] && break
+  sleep 0.05
+done
 ready "$D/sup/bus.sock" || echo "  WARNING: $D/sup/bus.sock never answered"
 # By parent pid throughout: a pattern would match anything else on the host.
 has "the daemon is a supervisor and its children" "$(pgrep -P "$SUP" | wc -l)" '^2$'
@@ -2401,7 +2418,8 @@ has "while the socket is the same file, because the fd was handed over" \
 # orphan is reparented to init the moment its parent dies, so "it has no
 # children" is true of a dead process however badly it left.
 KIDS=$(descendants "$SUP" | tr '\n' ' ')
-kill -TERM "$SUP" 2>/dev/null; wait "$SUP" 2>/dev/null
+kill -TERM "$SUP" 2>/dev/null; wait "$SUPRUN" 2>/dev/null
+SUPUNIT=""
 gone() { for _ in $(seq 1 40); do [ -z "$(ps -o pid= -p $1 2>/dev/null)" ] && break; sleep 0.1; done
   ps -o pid= -p $1 2>/dev/null; }
 is_empty "stopping the supervisor stops the children" "$(gone "$KIDS")"

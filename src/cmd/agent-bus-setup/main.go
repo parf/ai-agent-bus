@@ -271,6 +271,9 @@ ExecStart=%[3]s -addr %[4]s -socket %[6]s -token-file %[2]s/token -dump-file %[2
 	fmt.Fprintf(&b, `
 Restart=on-failure
 RestartSec=2
+# Web-only cgroup; the supervisor and bus stay outside its limits.
+Delegate=cpu memory pids
+DelegateSubgroup=supervisor
 # One capability, declared rather than taken: a per-account socket has to be
 # handed to its account. The supervisor keeps it and no child inherits it —
 # docs/11-processes.md#why-the-supervisor-holds-cap_chown

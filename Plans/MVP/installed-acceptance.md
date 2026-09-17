@@ -20,16 +20,14 @@ claim that every capability set was empty.
 
 ## Resource confinement
 
-The supervisor, bus and web shared the unit's cgroup. Its memory limit was
-`max` and CPU quota was `max 100000`; the web process also had unlimited CPU
-time and address space limits. No separate web cgroup was present. Inspection
-of the current setup unit generator and child launcher found no web-specific
-resource limit.
+The 2026-09-13 inspection found the supervisor, bus and web in one unlimited
+cgroup. That historical gap is closed by [G.1.2's generated-unit pressure and
+mutation evidence](done/web-resources.md#checks): web and its wrapper now have
+their own delegated limits while the bus remains outside and keeps answering.
 
-[G.1.2](TODO.md#remaining-work) therefore needs implementation before its
-load and mutation acceptance can run. Applying a shared unit limit alone
-would not establish confinement of the web child while the bus continues.
-No resource-exhaustion experiment was run against the active installation.
+The destructive pressure exercise uses disposable state, sockets and
+credentials. The production unit receives read-only postflight checks after
+deployment; no resource-exhaustion experiment runs against live state.
 
 ## Reproducing the inspection
 

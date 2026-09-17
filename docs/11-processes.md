@@ -7,7 +7,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Supervisor, bus child, optional confined web child, inherited listeners and versioned process titles. |
-| Pending | Installed capability acceptance, including mutation checks; dashboard resource limits. See [MVP work](../Plans/MVP/TODO.md#remaining-work) and [installed gates](../Plans/MVP/TODO.md#installed-stage-gate). |
+| Pending | Installed capability acceptance, including mutation checks. See [MVP work](../Plans/MVP/TODO.md#remaining-work) and [installed gates](../Plans/MVP/TODO.md#installed-stage-gate). |
 
 ## The rule
 
@@ -125,10 +125,46 @@ child. A standalone invocation of `agent-bus-web` does not establish this bounda
 
 The earlier [same-account exposure](../Plans/MVP/done/release-gap-review.md#findings)
 is why application wiring alone was insufficient. This does not provide a
-network firewall or the separately pending web resource limits. It also does
+network firewall. It also does
 not hide credentials a visitor intentionally supplies to the web process.
 Read the [installed acceptance](../Plans/MVP/done/web-isolation.md#checks) for
 the exercised host policy and mutation limits.
+
+</details>
+
+## Web resource limits
+
+The supervised dashboard and every process inside its wrapper share a cgroup
+limited to 256 MiB memory, no swap, 64 tasks and one CPU. The supervisor and
+bus remain outside that cgroup. Reaching a limit may kill the web child; the
+supervisor logs the failure, applies its normal restart backoff and starts a
+new renderer under the same limits. Bus calls continue while web is absent.
+
+<details>
+<summary>Delegation, startup and recovery</summary>
+
+The generated system unit delegates only the CPU, memory and task controllers
+and starts the supervisor in its own subgroup. The supervisor verifies that
+exact construction, enables the controllers and uses `clone3` cgroup placement
+to put bubblewrap inside the limited group before it executes. There is no
+unlimited interval before later migration.
+
+Missing delegation keeps web down and logs the required
+`Delegate=cpu memory pids` and `DelegateSubgroup=supervisor` setup; it does not
+stop the bus or search parent cgroups for another writable directory. An
+ordinary development run needs an explicit delegated transient user unit and
+`AGENT_BUS_WEB_USER_DELEGATION=1`; the installed system unit uses systemd's
+delegation marker instead. That environment value is trusted launcher input
+only for the xattr distinction: subgroup name, ownership, controllers and
+writability are still checked, so a false claim leaves web down rather than
+running it without limits.
+
+The same cgroup is emptied and reused after a renderer failure. Cleanup waits
+at most two seconds; a non-empty group fails closed instead of allocating
+another directory. Supervisor shutdown kills remaining descendants and removes
+the group. [Installed pressure evidence](../Plans/MVP/done/web-resources.md#checks)
+records CPU throttling, task refusal, group OOM and renderer recovery while the
+bus keeps answering.
 
 </details>
 

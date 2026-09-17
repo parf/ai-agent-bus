@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Web resource confinement | [web resource limits](11-processes.md#web-resource-limits) | 2026-09-17 G.1.2 implementation; delegated web-only cgroup, fail closed without delegation |
 | Web filesystem and process confinement | [web authority boundary](11-processes.md#web-authority-boundary) | 2026-09-17 G.1.3 implementation; explicit input mounts and environment, no unconfined fallback |
 | SSH forced-command execution and entitlement | [SSH administration](09-setup.md#ssh-admin), [account shell](09-setup.md#the-two-accounts) | 2026-09-17 H.5.2 implementation; repairs the previously blocked token delegation and forced-command execution |
 | Metadata refresh preserves omitted ACL settings | [registration](01-identity-and-roles.md#registration) | 2026-09-17 implementation review; explicit replacement and management clearing retained in 0.5.44 |

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.49 — 2026-09-17
+
+Confine the supervised dashboard and its wrapper to one CPU, 256 MiB memory,
+no swap and 64 tasks in a delegated web-only cgroup. Resource pressure may
+restart web under the same limits while the bus stays available; missing or
+unusable delegation keeps web down instead of starting it without limits.
+
 ## 0.5.48 — 2026-09-17
 
 Protect the launcher-owned Codex App Server with a private per-run capability. The TUI and pusher authenticate; other local accounts cannot attach merely by finding its loopback port.

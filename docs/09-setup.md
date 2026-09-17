@@ -96,12 +96,21 @@ Script runners can state grants with [their start options](08-runner-role.md#scr
 ## Install
 
 Enabling `-web` requires bubblewrap (`bwrap` on `PATH`) and working unprivileged
-user namespaces under the unit's restrictions. Build with `src/build.sh`:
+user namespaces under the unit's restrictions. It also requires unified cgroup
+v2 and systemd 254 or newer for delegated controllers and
+`DelegateSubgroup=supervisor`. Build with `src/build.sh`:
 its static web binary needs no host libraries inside the
 [web sandbox](11-processes.md#web-authority-boundary). Missing sandbox support
 is a startup failure, never an unconfined fallback. No setuid helper or extra
 capability is granted; the web listener retains the host's unprivileged port
 rules. Fresh-host acceptance must verify this dependency on the target host.
+
+The generated unit supplies the dashboard's [separate resource group](11-processes.md#web-resource-limits).
+Starting `agent-busd -web` outside that unit deliberately leaves web down. For
+a development run, use a transient **user** service with `Delegate=cpu`,
+`Delegate=memory`, `Delegate=pids`, `DelegateSubgroup=supervisor` and
+`AGENT_BUS_WEB_USER_DELEGATION=1`; the supervisor still verifies ownership,
+controllers, subgroup name and writability before starting web.
 
 **Built:** build the programs, then run `sudo agent-bus-setup`. Setup creates
 the accounts and tree, writes/enables the daemon unit, and installs the first

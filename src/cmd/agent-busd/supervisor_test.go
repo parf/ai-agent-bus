@@ -25,6 +25,9 @@ func TestWebWrapperInheritsNoEnvironment(t *testing.T) {
 		t.Fatal(err)
 	}
 	web := webChild(exe, "/run/agent-bus/bus.sock")
+	if !web.limited {
+		t.Fatal("the web child can start without its resource group")
+	}
 	if got := web.environ([]string{"AGENT_BUS_TOKEN=secret", "OTHER_SECRET=also-secret", "LD_PRELOAD=unsafe"}); len(got) != 0 {
 		t.Errorf("the dashboard wrapper inherited host environment: %v", got)
 	}

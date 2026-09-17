@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| G.1.2 | Web-only CPU, memory, swap and task limits; actual generated-unit pressure, recovery and fail-closed acceptance | [web resources](done/web-resources.md#checks) |
 | 0.5.48 live rollout | Combined daemon update, confined web and peer reconnection verified; existing runtime sidecars retained | [rollout evidence](done/rollout-048.md#measured) |
 | H.9.5 partial | Native authentication and concurrent Codex/OpenCode TUI, MCP and pusher isolation checks; Claude co-exercise remains open | [endpoint evidence](done/runtime-endpoint-auth.md#checks), [interactive evidence](done/runtime-interactive.md#checks) |
 | H.5.3 | Administrative success waits for persistence; real bus-child crashes, failed disk writes and stale-checkpoint mutations exercised | [administrative durability](done/administrative-durability.md#checks) |
