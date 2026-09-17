@@ -132,6 +132,32 @@ type adminView struct {
 	PersonalPage  bool
 }
 
+type serviceConfirmation struct {
+	adminView
+	Action, NewOwner string
+}
+
+func readerSnapshot(readers *int) string {
+	if readers == nil {
+		return "unavailable"
+	}
+	return strconv.Itoa(*readers)
+}
+
+func conditionsChanged(w http.ResponseWriter, r *http.Request, v adminView, detail string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusConflict)
+	render(w, problemPage, problem{
+		pageInfo:  requestInfo(r),
+		You:       v.You,
+		Title:     "The conditions changed",
+		Detail:    detail,
+		Advice:    "The daemon was re-read before the action. Review the current record and confirm again if the action still applies.",
+		Back:      "/service-danger?name=" + url.QueryEscape(v.Record.Name),
+		BackLabel: "Review the current Danger Zone",
+	})
+}
+
 func (c *caller) signedIn(w http.ResponseWriter, r *http.Request) (adminView, bool) {
 	var v adminView
 	if cookie(r) == "" {
@@ -173,6 +199,21 @@ func (c *caller) post(cred, path string, value any) error {
 func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	c.activityRoutes(mux)
 	c.userRoutes(mux, tls)
+	loadRecord := func(w http.ResponseWriter, r *http.Request, v *adminView, name string) bool {
+		if err := c.get(cookie(r), "/lookup?name="+url.QueryEscape(name), &v.Record); err != nil {
+			fail(w, r, v.You, err)
+			return false
+		}
+		switch {
+		case v.Record.Kind == protocol.KindTopic:
+			v.Current = "channels"
+		case v.Record.Personal:
+			v.Current = "personal"
+		default:
+			v.Current = "services"
+		}
+		return true
+	}
 	listing := func(w http.ResponseWriter, r *http.Request) {
 		v, ok := c.signedIn(w, r)
 		if !ok {
@@ -248,23 +289,28 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if !ok {
 			return
 		}
-		if err := c.get(cookie(r), "/lookup?name="+url.QueryEscape(r.URL.Query().Get("name")), &v.Record); err != nil {
-			fail(w, r, v.You, err)
+		if !loadRecord(w, r, &v, r.URL.Query().Get("name")) {
 			return
 		}
 		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
 			fail(w, r, v.You, err)
 			return
 		}
-		switch {
-		case v.Record.Kind == protocol.KindTopic:
-			v.Current = "channels"
-		case v.Record.Personal:
-			v.Current = "personal"
-		default:
-			v.Current = "services"
-		}
 		render(w, serviceDetail, v)
+	})
+	mux.HandleFunc("GET /service-danger", func(w http.ResponseWriter, r *http.Request) {
+		v, ok := c.signedIn(w, r)
+		if !ok {
+			return
+		}
+		if !loadRecord(w, r, &v, r.URL.Query().Get("name")) {
+			return
+		}
+		if !v.Record.CanManage {
+			fail(w, r, v.You, &busError{code: http.StatusForbidden, message: "only the owner or an assigned Maintainer can manage this record"})
+			return
+		}
+		render(w, serviceDanger, v)
 	})
 	mux.HandleFunc("GET /groups", func(w http.ResponseWriter, r *http.Request) {
 		v, ok := c.signedIn(w, r)
@@ -298,11 +344,67 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			next(w, r, v)
 		}
 	}
+	mux.HandleFunc("POST /service-confirm", mutate(func(w http.ResponseWriter, r *http.Request, v adminView) {
+		name, action := r.PostForm.Get("name"), r.PostForm.Get("action")
+		if !loadRecord(w, r, &v, name) {
+			return
+		}
+		confirm := serviceConfirmation{adminView: v, Action: action}
+		switch action {
+		case "transfer":
+			if !v.Record.CanTransfer || v.Record.Name == v.Record.Owner {
+				fail(w, r, v.You, &busError{code: http.StatusForbidden, message: "only this record's owner or the daemon owner can transfer it"})
+				return
+			}
+			confirm.NewOwner = strings.TrimSpace(r.PostForm.Get("owner"))
+			if confirm.NewOwner == "" {
+				http.Error(w, "new owner is required", http.StatusBadRequest)
+				return
+			}
+		case "delete":
+			if !v.Record.CanManage {
+				fail(w, r, v.You, &busError{code: http.StatusForbidden, message: "only the owner or an assigned Maintainer can remove this record"})
+				return
+			}
+		default:
+			http.Error(w, "unknown confirmation action", http.StatusBadRequest)
+			return
+		}
+		render(w, serviceConfirm, confirm)
+	}))
 	mux.HandleFunc("POST /service", mutate(func(w http.ResponseWriter, r *http.Request, v adminView) {
 		name := r.PostForm.Get("name")
+		action := r.PostForm.Get("action")
 		change := core.Management{Name: name}
 		var err error
-		switch r.PostForm.Get("action") {
+		targetChannel := false
+		confirmed := r.PostForm.Get("confirmed") == "1"
+		if confirmed && (action == "transfer" || action == "delete") {
+			if !loadRecord(w, r, &v, name) {
+				return
+			}
+			targetChannel = v.Record.Kind == protocol.KindTopic
+			changed := v.Record.Owner != r.PostForm.Get("expected_owner")
+			if action == "transfer" {
+				changed = changed || !v.Record.CanTransfer || v.Record.Name == v.Record.Owner
+			} else {
+				expectedQueued, parseErr := strconv.Atoi(r.PostForm.Get("expected_queued"))
+				changed = changed || parseErr != nil || v.Record.Queued != expectedQueued || readerSnapshot(v.Record.Readers) != r.PostForm.Get("expected_readers") || !v.Record.CanManage
+			}
+			if changed {
+				conditionsChanged(w, r, v, "The record no longer has the owner, queue or reader state shown on the confirmation page.")
+				return
+			}
+		}
+		if action == "transfer" && !confirmed {
+			var record protocol.Record
+			if lookupErr := c.get(cookie(r), "/lookup?name="+url.QueryEscape(name), &record); lookupErr != nil {
+				fail(w, r, v.You, lookupErr)
+				return
+			}
+			targetChannel = record.Kind == protocol.KindTopic
+		}
+		switch action {
 		case "save":
 			descr, addr, proto, ttl, overflow := r.PostForm.Get("descr"), r.PostForm.Get("addr"), r.PostForm.Get("protocol"), r.PostForm.Get("ttl"), r.PostForm.Get("overflow")
 			bound, parseErr := strconv.Atoi(r.PostForm.Get("bound"))
@@ -360,6 +462,12 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		case "remove-subscriber":
 			err = c.post(cookie(r), "/subscriber/remove", map[string]string{"topic": name, "subscriber": r.PostForm.Get("subscriber")})
 		case "delete":
+			var record protocol.Record
+			if lookupErr := c.get(cookie(r), "/lookup?name="+url.QueryEscape(name), &record); lookupErr != nil {
+				fail(w, r, v.You, lookupErr)
+				return
+			}
+			targetChannel = record.Kind == protocol.KindTopic
 			err = c.post(cookie(r), "/unregister", map[string]string{"name": name})
 		default:
 			http.Error(w, "unknown action", 400)
@@ -369,9 +477,23 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			fail(w, r, v.You, err)
 			return
 		}
-		next := "/services?scope=my"
-		if r.PostForm.Get("action") == "personal" || r.PostForm.Get("action") == "create" && r.PostForm.Get("personal") == "on" {
-			next = "/personal"
+		next := "/service?name=" + url.QueryEscape(name)
+		switch {
+		case action == "delete" && targetChannel:
+			next = "/channels"
+		case action == "delete":
+			next = "/services"
+		case action == "transfer":
+			var current protocol.Record
+			// The redirect below must follow this exact daemon visibility answer;
+			// do not replace it with cached or face-inferred authority.
+			if lookupErr := c.get(cookie(r), "/lookup?name="+url.QueryEscape(name), &current); lookupErr != nil {
+				if targetChannel {
+					next = "/channels"
+				} else {
+					next = "/services"
+				}
+			}
 		}
 		http.Redirect(w, r, next, http.StatusSeeOther)
 	}))
@@ -467,11 +589,20 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 <p><label>Queue capacity (0 uses default) <input type=number min=0 name=bound value="{{.Bound}}"></label></p>
 <p><label>Overflow <select name=overflow><option value=strict>Refuse</option><option value=ring {{if eq .Full "ring"}}selected{{end}}>Drop oldest</option></select></label></p><button>Save settings</button></form>
 <form method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value="{{if .Disabled}}enable{{else}}disable{{end}}">{{if .Disabled}}Enable{{else}}Disable{{end}}</button></form>
-<h2>Replace configuration</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=configure><label>New configuration <textarea name=config rows=6 cols=60 required autocomplete=off></textarea></label><p>Existing private configuration is never displayed.</p><button>Replace configuration</button></form>
 {{if .CanTransfer}}{{if eq .Kind "generic"}}<h2>Classification and sharing</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=personal><p><label>Personal <input type=checkbox name=personal {{if .Personal}}checked{{end}}></label> Groups this service in the owner&rsquo;s Personal services page; it does not change access.</p><p><label>Allow, one name or <code>*</code> per line <textarea name=allow rows=5>{{join .Allow "\n"}}</textarea></label></p><p><label>Maintainers, one user, group, agent or service per line <textarea name=maintainers rows=5>{{join .Maintainers "\n"}}</textarea></label></p><p class=muted>When Personal is checked, Allow may name only other registered services directly. Users, groups, <code>*</code>, this service and Maintainers are refused. Clear Personal in this same form before adding any of them.</p><button>Save classification and sharing</button></form>{{else}}<h2>Maintainers</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=maintainers><label>One user, group, agent or service per line <textarea name=maintainers rows=5>{{join .Maintainers "\n"}}</textarea></label><button>Assign</button></form>{{end}}
-{{if ne .Name .Owner}}<h2>Transfer ownership</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=transfer><label>New owner <input name=owner required></label><p>The new owner must have a registered identity. Existing service credentials remain valid; transfer does not revoke copies already held.</p><button>Transfer ownership</button></form>{{end}}{{end}}
-<h2>Remove registration</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=delete><p>Drain the queue and stop readers first. <strong>No registration, no access:</strong> the credential goes with the address and nothing answers to this name afterwards. A person's own credential stays, because it is not a record's to drop.</p><button>Remove idle service</button></form>
+{{end}}
+<p><a class=danger href="/service-danger?name={{.Name}}">Danger Zone</a></p>
 {{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}`))
+var serviceDanger = template.Must(template.New("service-danger").Funcs(template.FuncMap{"readerCount": readerCount}).Parse(shell("records", "Danger Zone") + `
+{{with .Record}}<p><a href="/service?name={{.Name}}">Back to {{.Name}}</a></p>
+<h1>Danger Zone · {{.Name}}</h1>
+<h2>Replace configuration</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=configure><label>New configuration <textarea name=config rows=6 cols=60 required autocomplete=off></textarea></label><p>Existing private configuration is never displayed.</p><button>Replace configuration</button></form>
+{{if .CanTransfer}}{{if ne .Name .Owner}}<h2>Transfer ownership</h2><form method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=transfer><label>New owner <input name=owner required></label><p>The new owner must have a registered identity. Existing service credentials remain valid; transfer does not revoke copies already held.</p><button>Continue to confirmation</button></form>{{end}}{{end}}
+<h2>Remove registration</h2><form method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=delete><p><strong>No registration, no access:</strong> the credential goes with the address. Drain the queue and stop readers first; the confirmation page re-reads both before describing the consequence.</p><button>Continue to confirmation</button></form>{{end}}`))
+var serviceConfirm = template.Must(template.New("service-confirm").Funcs(template.FuncMap{"readerSnapshot": readerSnapshot, "readerCount": readerCount}).Parse(shell("records", "Confirm action") + `
+{{with .Record}}<p><a href="/service-danger?name={{.Name}}">Back to the Danger Zone</a></p>
+{{if eq $.Action "transfer"}}<h1>Confirm ownership transfer</h1><p>Transfer <code>{{.Name}}</code> from <code>{{.Owner}}</code> to <code>{{$.NewOwner}}</code>?</p><p>The new owner must still be registered and active when the daemon applies this. Credentials already held are not revoked.</p><form method=post action=/service><input type=hidden name=action value=transfer><input type=hidden name=name value="{{.Name}}"><input type=hidden name=owner value="{{$.NewOwner}}"><input type=hidden name=expected_owner value="{{.Owner}}"><input type=hidden name=confirmed value=1><button>Transfer ownership</button></form>
+{{else}}<h1>Confirm removal</h1><p>Remove <code>{{.Name}}</code>? It currently holds <strong>{{.Queued}}</strong> messages and has <strong>{{readerCount .Readers}}</strong> outstanding reads.</p><p>The address and its credential go with it; nothing answers to this name afterwards. A person&rsquo;s own credential stays because it is not this record&rsquo;s to remove.</p><form method=post action=/service><input type=hidden name=action value=delete><input type=hidden name=name value="{{.Name}}"><input type=hidden name=expected_owner value="{{.Owner}}"><input type=hidden name=expected_queued value="{{.Queued}}"><input type=hidden name=expected_readers value="{{readerSnapshot .Readers}}"><input type=hidden name=confirmed value=1><button>Remove registration</button></form>{{end}}{{end}}`))
 var groupList = template.Must(template.New("groups").Funcs(template.FuncMap{"join": strings.Join, "groupGlyph": groupGlyph}).Parse(shell("groups", "Groups") + `
 <h1>Groups</h1>{{range $name,$members := .Groups}}<h2><span role=img aria-label="Group">{{groupGlyph}}</span> <code>{{$name}}</code></h2>{{if and $.Administrator (or $.DaemonOwner (ne $name "@administrators"))}}<form method=post action=/groups><input type=hidden name=name value="{{$name}}"><label>Members <input name=members value="{{join $members " "}}"></label><button name=action value=save>Save members</button></form>{{if eq $name "@administrators"}}<p class=muted>The daemon owner stays in this group.</p>{{end}}{{end}}{{else}}<p>No groups registered.</p>{{end}}
 {{if .Administrator}}<h2>Create group</h2><form method=post action=/groups><label>Name <input name=name placeholder="@operators" required></label><label>Members <input name=members placeholder="user@realm"></label><button name=action value=save>Create</button></form>{{else}}<p>Daemon administrators manage group membership. Only the daemon owner changes the maintainers group. Service owners can assign an existing group to their own services.</p>{{end}}`))

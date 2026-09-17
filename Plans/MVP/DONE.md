@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Service and Channel Danger Zone | Configuration replacement, ownership transfer and removal moved off ordinary detail; transfer/removal re-read facts on server-rendered confirmation pages | [0.5.63 evidence](done/service-danger-zone.md#checks) |
 | Maintainers list | Owner-assigned User, Group, Agent and Service terms replace the single-group field; nested authority, migration and one-way array output retain existing boundaries | [0.5.62 evidence](done/maintainers-list.md#checks) |
 | Agent glyph | WEB and human CLI use `👾` for daemon-stated Agent kinds while machine values remain plain | [0.5.61 evidence](done/alien-agent-glyph.md#checks) |
 | Compact WEB glyph labels | Directory identity glyphs and Group glyphs directly prefix names without entering machine or editable values | [0.5.60 evidence](done/compact-web-glyphs.md#checks) |

@@ -1,5 +1,8 @@
 # Maintainers list
 
+> **Superseded in part by 0.5.63:** the line-list editor remains; the Danger
+> Zone identified here as pending is now [built](service-danger-zone.md#result).
+
 📌 **TL;DR:** 0.5.62 replaces the single resource Maintainers group with an
 Owner-assigned list of Users, Groups, Agents and Services.
 

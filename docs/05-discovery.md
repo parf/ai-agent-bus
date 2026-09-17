@@ -441,3 +441,20 @@ command arguments and copyable ACL examples.
 The [ACL contract](02-access.md#acl) defines access terms and their implementation status.
 The [proposed role syntax](../Plans/R1/identity.md#sigils) remains separately
 identified as proposed; this display rule does not introduce new parser syntax.
+
+### Resource Danger Zone
+
+**Built in 0.5.63.** Ordinary Service and Channel detail pages do not render
+configuration replacement, ownership transfer or registration removal forms.
+An authorized manager follows the red **Danger Zone** link to a separate page;
+the face repeats the caller-visible record lookup and the daemon remains the
+authority for every submitted action.
+
+Configuration replacement accepts a new JSON value there and never displays
+the stored private value. Transfer and removal first post to a server-rendered
+confirmation that re-reads the record. The final submission rechecks the facts
+shown by that confirmation and the daemon rechecks the operation itself. A
+changed visible fact returns a distinct stale-confirmation page; an unchanged
+current-state refusal keeps the daemon's own reason. Successful ordinary edits
+and configuration replacement return to the affected detail; successful
+removal returns to the matching Services or Channels list.

@@ -78,7 +78,7 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 		return string(body)
 	}
 
-	service := get("/service?name=svc@h")
+	service := get("/service-danger?name=svc@h")
 	if strings.Contains(service, "Credentials remain valid") {
 		t.Error("removal help still promises the credential survives; api.unregister forgets it")
 	}

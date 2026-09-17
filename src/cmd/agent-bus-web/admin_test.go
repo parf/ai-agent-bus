@@ -97,18 +97,56 @@ func TestDashboardOwnerControls(t *testing.T) {
 	}
 	request("", "GET", "/services", "", nil, 401)
 	page := request("owner@h", "GET", "/service?name=svc@h", "", nil, 200)
-	for _, label := range []string{"Save settings", "Replace configuration", "Transfer ownership", "Remove idle service"} {
-		if !strings.Contains(page, ">"+label+"</button>") {
-			t.Fatalf("missing owner control: %s", label)
+	if !strings.Contains(page, ">Save settings</button>") || !strings.Contains(page, `class=danger`) || !strings.Contains(page, `>Danger Zone</a>`) {
+		t.Fatal("owner detail is missing its routine editor or Danger Zone link")
+	}
+	for _, hidden := range []string{"Replace configuration", "Transfer ownership", "Remove registration", "Remove idle service"} {
+		if strings.Contains(page, hidden) {
+			t.Fatalf("ordinary detail exposed dangerous action %q", hidden)
+		}
+	}
+	danger := request("owner@h", "GET", "/service-danger?name=svc@h", "", nil, 200)
+	for _, label := range []string{"Replace configuration", "Transfer ownership", "Remove registration"} {
+		if !strings.Contains(danger, label) {
+			t.Fatalf("Danger Zone missing owner control: %s", label)
 		}
 	}
 	page = request("admin@h", "GET", "/service?name=svc@h", "", nil, 200)
-	for _, label := range []string{"Save settings", "Replace configuration", "Transfer ownership", "Remove idle service"} {
-		if !strings.Contains(page, ">"+label+"</button>") {
-			t.Fatalf("daemon owner missing node-wide control: %s", label)
+	if !strings.Contains(page, "Danger Zone") || strings.Contains(page, "Replace configuration") {
+		t.Fatal("daemon owner detail did not use the same Danger Zone boundary")
+	}
+	danger = request("admin@h", "GET", "/service-danger?name=svc@h", "", nil, 200)
+	for _, label := range []string{"Replace configuration", "Transfer ownership", "Remove registration"} {
+		if !strings.Contains(danger, label) {
+			t.Fatalf("daemon owner Danger Zone missing node-wide control: %s", label)
 		}
 	}
-	request("other@h", "GET", "/service?name=svc@h", "", nil, 404)
+	for _, who := range []string{"owner@h", "admin@h"} {
+		request(who, "POST", "/service-confirm", "https://evil.example", url.Values{"action": {"delete"}, "name": {"svc@h"}}, 403)
+		request(who, "POST", "/service-confirm", "", url.Values{"action": {"delete"}, "name": {"svc@h"}}, 403)
+	}
+	request("owner@h", "POST", "/service-confirm", "https://evil.example", url.Values{"action": {"transfer"}, "name": {"svc@h"}, "owner": {"other@h"}}, 403)
+	request("owner@h", "POST", "/service-confirm", "", url.Values{"action": {"transfer"}, "name": {"svc@h"}, "owner": {"other@h"}}, 403)
+	confirm := request("owner@h", "POST", "/service-confirm", web.URL, url.Values{"action": {"transfer"}, "name": {"svc@h"}, "owner": {"other@h"}}, 200)
+	if !strings.Contains(confirm, "Confirm ownership transfer") || !strings.Contains(confirm, `name=confirmed value=1`) {
+		t.Fatal("transfer did not stop on a server-rendered confirmation")
+	}
+	if record, _ := b.Lookup("owner@h", "svc@h"); record.Owner != "owner@h" {
+		t.Fatal("rendering the transfer confirmation changed the record")
+	}
+	hidden := request("other@h", "GET", "/service-danger?name=svc@h", "", nil, 404)
+	missing := request("other@h", "GET", "/service-danger?name=missing@h", "", nil, 404)
+	hiddenShape := hidden[strings.Index(hidden, "<main>"):]
+	missingShape := missing[strings.Index(missing, "<main>"):]
+	for _, spelling := range []string{"svc@h", url.QueryEscape("svc@h")} {
+		hiddenShape = strings.ReplaceAll(hiddenShape, spelling, "NAME")
+	}
+	for _, spelling := range []string{"missing@h", url.QueryEscape("missing@h")} {
+		missingShape = strings.ReplaceAll(missingShape, spelling, "NAME")
+	}
+	if !strings.Contains(hidden, "No such name") || hiddenShape != missingShape {
+		t.Fatal("Danger Zone distinguished a hidden record from a missing one")
+	}
 	if body := request("owner@h", "GET", "/services?scope=my&state=active", "", nil, 200); !strings.Contains(body, "svc@h") {
 		t.Fatal("own active service missing")
 	}
@@ -142,8 +180,12 @@ admin@h</textarea>`) {
 		t.Fatalf("Maintainers list did not round-trip through its line editor: %s", page)
 	}
 	page = request("other@h", "GET", "/service?name=svc@h", "", nil, 200)
-	if !strings.Contains(page, "Save settings") || strings.Contains(page, "Transfer ownership") {
+	if !strings.Contains(page, "Save settings") || !strings.Contains(page, "Danger Zone") || strings.Contains(page, "Transfer ownership") {
 		t.Fatal("maintainer controls wrong")
+	}
+	danger = request("other@h", "GET", "/service-danger?name=svc@h", "", nil, 200)
+	if !strings.Contains(danger, "Replace configuration") || !strings.Contains(danger, "Remove registration") || strings.Contains(danger, "Transfer ownership") {
+		t.Fatal("maintainer Danger Zone controls wrong")
 	}
 	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"enable"}, "name": {"svc@h"}}, 303)
 	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"transfer"}, "name": {"svc@h"}, "owner": {"other@h"}}, 403)

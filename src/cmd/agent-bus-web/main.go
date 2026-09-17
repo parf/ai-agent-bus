@@ -337,6 +337,7 @@ const head = `<!doctype html>
  code{font:13px ui-monospace,monospace;overflow-wrap:anywhere}
  .muted{color:#6b6b6b}
  .warn{color:#b00}
+ a.danger{color:#b00;font-weight:600}
  h2{font-size:15px;margin:1.6rem 0 .4rem}
  .who{float:right;font-size:13px}
  input{font:13px ui-monospace,monospace;padding:.3rem;width:26rem;max-width:100%;box-sizing:border-box}

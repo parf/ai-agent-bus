@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.63 — 2026-09-17
+
+Move service and channel configuration replacement, ownership transfer and
+registration removal behind a red Danger Zone link. Re-read transfer and
+removal facts on server-rendered confirmation pages and return ordinary edits
+to the resource they changed.
+
 ## 0.5.62 — 2026-09-17
 
 Replace the single resource Maintainers group with an owner-assigned list of

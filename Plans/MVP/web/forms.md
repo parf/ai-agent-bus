@@ -126,6 +126,9 @@ page hides those forms again. Transfer and removal still use their separate,
 fresh confirmation pages; the extra step changes presentation, not daemon
 authorization.
 
+This bounded form and confirmation flow is built in 0.5.63. Other Service and
+Channel journey work in this proposal remains pending.
+
 No group-delete form. The handler accepts the action and no template renders it;
 removing the verb from core and the API is [H.5.6](../TODO.md#objective).
 

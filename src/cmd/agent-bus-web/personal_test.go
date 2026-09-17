@@ -142,7 +142,7 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 
 	enable := url.Values{"action": {"personal"}, "name": {"toggle@h"}, "personal": {"on"}, "allow": {"peer-service@h"}}
 	_, header := p.request("alice@h", "POST", "/service", enable, http.StatusSeeOther)
-	if header.Get("Location") != "/personal" {
+	if header.Get("Location") != "/service?name=toggle%40h" {
 		t.Fatalf("Personal update returned to %q", header.Get("Location"))
 	}
 	record, ok := p.bus.Lookup("alice@h", "toggle@h")
@@ -179,7 +179,7 @@ func TestPersonalCreationUsesCoreValidation(t *testing.T) {
 	}
 	create := url.Values{"action": {"create"}, "name": {"new-personal@h"}, "kind": {"generic"}, "personal": {"on"}, "allow": {"peer-service@h"}}
 	_, header := p.request("alice@h", "POST", "/service", create, http.StatusSeeOther)
-	if header.Get("Location") != "/personal" {
+	if header.Get("Location") != "/service?name=new-personal%40h" {
 		t.Fatalf("Personal creation returned to %q", header.Get("Location"))
 	}
 	if got, ok := p.bus.Lookup("alice@h", "new-personal@h"); !ok || !got.Personal {

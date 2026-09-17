@@ -317,6 +317,9 @@ it away or change who maintains it.
 
 ### Danger Zone
 
+**Built in 0.5.63.** The larger Service and Channel journey remains proposed
+until its own implementation work lands.
+
 The red **Danger Zone** link on a Service or Channel opens a server-rendered
 subpage titled for that resource. It contains exactly three authorized entries:
 
