@@ -293,6 +293,9 @@ daemon providing the behavior instead of a service process.
 * Users may edit profile information except their identity name and full name.
   Current field names are `Name` and `PersonName`; lifecycle state and authority
   are administrative controls, not self-editable profile information.
+* `PersonName` is taken from Linux passwd, from GitHub, or entered by an authorized
+  maintainer. The user cannot change it themselves. These are the required
+  sources, not a claim that every import path is already implemented.
 * Ownership must be explicitly established through setup; startup must not invent
   an owner from the account running the daemon. A legitimate ownership transfer
   must update the configured authority that startup uses.
