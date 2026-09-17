@@ -88,6 +88,16 @@ with non-Personal controls excluded from those results. Ignoring the tag,
 accepting a user entry or mixing owners must fail its corresponding check.
 Enforcement also requires settling [implicit access](QUESTIONS.md#personal-service-access).
 
+## Inbox selection and filters
+
+Implement [Q21's explicit inbox selector](../../docs/04-messaging.md#inbox-selection-and-filters)
+across the CLI and daemon, with matching face semantics. Verify default own-inbox
+reads, explicit authorized inbox reads, topic/tag filters on either, and refusal
+of unauthorized inbox selection. Adding a tag or registering a channel whose
+name matches a filter must not change the selected inbox. Restore implicit
+selection from a filter and its named check must fail. Update help and callers
+that relied on the former overload; keep documentation examples unambiguous.
+
 ## Questions
 
 All unresolved choices are owned by [QUESTIONS](QUESTIONS.md#open-questions). The CLI selector question remains open without silently blocking unrelated work. The [Future storage proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.

@@ -19,7 +19,7 @@ Taking a message does not prove the work finished—see [receipts](#receipts).
 | MVP | Scope |
 |---|---|
 | Built | Inbox delivery, shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow and JSON restart snapshots. |
-| Pending | Inbox selection and filtering: whether they become separate options is an [MVP question](../Plans/MVP/QUESTIONS.md#open-questions). The [administrative crash-recovery policy](#administrative-crash-recovery) is settled and awaits its acceptance run. |
+| Pending | [Separate inbox selection and message filters](#inbox-selection-and-filters) are accepted, awaiting implementation. The [administrative crash-recovery policy](#administrative-crash-recovery) is settled and awaits its acceptance run. |
 
 
 How principals on the bus talk. The bus delivers securely and says who sent it;
@@ -57,7 +57,7 @@ back from `send` is the whole delivery story, and whether anyone *acted* is
 the receiver's own `ack` or reply, never the transport's
 ([receipts](#receipts)).
 
-`consume` reads your own queue in both cases. Delivery does not report who
+`consume` defaults to your own queue; see [inbox selection](#inbox-selection-and-filters). Delivery does not report who
 received a publish, but the API answers "are there subscribers on this topic,
 and who?" to anyone whose access allows the lookup.
 
@@ -97,6 +97,42 @@ knows whether the work is worth doing for somebody else — a third party on
 guarantee is that the moment is its own: the caller states a **duration** and
 never an instant, so the service is not reading the caller's clock.
 
+## Inbox selection and filters
+
+**Accepted; implementation pending (Q21).** `--inbox` selects where to read;
+`--topic` and `--tag` select messages there. Without `--inbox`, read your own
+inbox. Filters never select a different inbox, regardless of their spelling
+or whether a matching channel exists. Selecting an inbox does not change the
+caller's identity or bypass its access checks.
+
+```sh
+agent-bus consume --inbox jobs@host
+agent-bus consume --topic MyTopic
+agent-bus consume --topic MyTopic --tag result
+agent-bus consume --inbox jobs@host --topic MyTopic --tag result
+```
+
+<details>
+<summary>Options and migration from the current behavior</summary>
+
+| Option | Meaning |
+|---|---|
+| `--inbox NAME` | Explicit inbox; omitted means the caller's own |
+| `--topic TOPIC` | Message-topic filter, never an inbox address |
+| `--tag TAG` | Message-tag filter; does not change the selected inbox |
+
+Each option requires a value when present. Reading without filters takes the
+next message from the selected inbox. “Own inbox” refers to the caller's
+identity, not the service's Personal classification.
+
+Today the daemon overloads the topic filter: without a tag, a caller-visible
+registered topic selects that topic's inbox; a name-shaped value that does not
+resolve to a topic is refused. Otherwise the caller's own inbox is filtered.
+When the new syntax is implemented, commands that used this implicit selection
+must select the inbox explicitly. Adding a tag will no longer change the inbox.
+
+</details>
+
 ## One reader per inbox
 
 **An inbox has exactly one reader.** A session runs a push adapter, an MCP
@@ -110,15 +146,9 @@ the notifier, or the reverse.
 | by convention, one *designated* process does that reading for a principal | the bus enforces the outstanding read, not process ownership; claiming otherwise would need a lease nobody wants in a PoC |
 | a waiter passes a **topic + tag filter** to `consume`, and the daemon hands it a match ahead of the unfiltered reader | the match happens where the message already is: no dispatcher in a client, and no local protocol between a Go CLI and a TypeScript session process |
 
-**Reading a topic is not filtering.** A queue topic is an inbox with a name
-([services § topics](03-services-and-topics.md#topics)), so
-`consume` reads it as an inbox — one reader, like any other. The same option
-names both, and the daemon decides once, for every face: a **registered
-topic named on its own** is an inbox to read; anything else, or anything with
-a tag beside it, filters the caller's own inbox. A reply always carries a
-tag, which is what keeps the two apart. A **name-shaped topic that is
-registered nowhere is refused** — `jobs@srv1` when the topic is `jobs@srv-1`
-is a typo, and reading it as a filter would answer with a silent timeout.
+**Reading a topic is not filtering.** A queue topic is a named inbox;
+[inbox selection and filters](#inbox-selection-and-filters) define which queue
+is read and which messages are selected.
 
 The filter is how a wait coexists with a live session's reader — it is an
 ordinary `consume`, so every client language gets it for free, and the daemon
