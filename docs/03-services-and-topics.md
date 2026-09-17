@@ -47,7 +47,7 @@ registry for whoever is choosing what to call
 An owner may tag their service **Personal**. Without that tag, it is
 **non-Personal**. The tag hides personal services from the main web pages to
 reduce clutter; access works exactly as for a normal service.
-**Accepted; implementation pending.**
+**Accepted; implementation pending.** [Group-entry validity remains open](../Plans/MVP/QUESTIONS.md#personal-acl-group-entries).
 
 | Rule | Requirement |
 |---|---|

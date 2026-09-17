@@ -19,7 +19,7 @@ Taking a message does not prove the work finished—see [receipts](#receipts).
 | MVP | Scope |
 |---|---|
 | Built | Inbox delivery, shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow and JSON restart snapshots. |
-| Pending | [Separate inbox selection and message filters](#inbox-selection-and-filters) are accepted, awaiting implementation. The [administrative crash-recovery policy](#administrative-crash-recovery) is settled and awaits its acceptance run. |
+| Pending | [Separate inbox selection and message filters](#inbox-selection-and-filters) are accepted, awaiting implementation. The [administrative crash-recovery policy](#administrative-crash-recovery) is settled; implementation and acceptance remain pending. |
 
 
 How principals on the bus talk. The bus delivers securely and says who sent it;

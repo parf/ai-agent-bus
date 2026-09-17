@@ -70,8 +70,8 @@ An empty result says `No matching records.`; lookup errors remain errors.
 
 ## MCP minimum
 
-**Required for MVP:** both [runtime integrations](08-runner-role.md#runtime-integration-delivery)
-and their [launchers](08-runner-role.md#smart-launchers) come with the bus MCP
+**Required for MVP:** the [runtime integrations](08-runner-role.md#runtime-integration-delivery)
+and every shipped [launcher](08-runner-role.md#smart-launchers) come with the bus MCP
 tools configured and callable in the session.
 
 | Capability | Required outcome | Existing implementation |

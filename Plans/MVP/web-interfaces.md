@@ -12,7 +12,7 @@ particular is superseded by the owner's decisions on
 
 ## Proposal
 
-Status: implementation authorized and in progress; [completed slices](DONE.md#done--mvp) do not close the remaining [acceptance work](TODO.md#web-redesign). Replace the collection of administrative forms with one coherent interface for finding services, understanding delivery, and managing access. Keep Go rendering, make existing information discoverable, and fix misleading states before adding more telemetry. The owner should be able to recognise a session, identify a stalled inbox, and understand the consequence of an administrative action without interpreting API terminology.
+Status: individually requested slices are built; the remaining redesign depends on F.13.0, the owner’s specification review. [Completed slices](DONE.md#done--mvp) do not close the remaining [acceptance work](TODO.md#web-redesign). Replace the collection of administrative forms with one coherent interface for finding services, understanding delivery, and managing access. Keep Go rendering, make existing information discoverable, and fix misleading states before adding more telemetry. The owner should be able to recognise a session, identify a stalled inbox, and understand the consequence of an administrative action without interpreting API terminology.
 
 Read the [audit](done/web-review.md#findings) for evidence, [data coverage](#data-coverage) for what is actually available, and [execution plan](TODO.md#web-redesign) for dependencies and falsifiable acceptance. Recommendations here are not settled product contracts; acceptance promotes them through the [document lifecycle](../../CLAUDE.md#working-rules).
 

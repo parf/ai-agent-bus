@@ -1,5 +1,7 @@
 # MVP
 
+📌 **TL;DR:** Core behavior is built; accepted additions and installed release gates remain.
+
 ## Purpose
 
 Somebody other than the author can install it and use it safely on a shared host.
@@ -26,8 +28,8 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 | Area | Status | Canonical contract |
 |---|---|---|
 | Identity, credentials and local isolation | Built and pending; see linked status | [identity](../../docs/01-identity-and-roles.md#scope), [access](../../docs/02-access.md#scope) |
-| Registry, topics and private configuration | Built | [services](../../docs/03-services-and-topics.md#status) |
-| Messaging and restart persistence | Built | [messaging](../../docs/04-messaging.md#status) |
+| Registry, topics and private configuration | Built; Personal tagging and views pending | [services](../../docs/03-services-and-topics.md#status) |
+| Messaging and restart persistence | Built; explicit inbox selection and administrative crash durability pending | [messaging](../../docs/04-messaging.md#status) |
 | API, CLI, MCP and dashboard | Built and pending; see linked status | [discovery](../../docs/05-discovery.md#status) |
 | Foreground services and adapters | Built, including launchers; live-runtime and fresh-host acceptance pending | [runner](../../docs/08-runner-role.md#status) |
 | Installation and service account | Setup built; package and installed acceptance pending | [setup](../../docs/09-setup.md#status) |
@@ -43,4 +45,4 @@ The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02
 
 ## Web redesign
 
-The [web interface proposal](web-interfaces.md#proposal) covers requirements, page structure, data gaps and Go tooling, grounded in the [browser and source review](done/web-review.md#scope). Implementation is authorized and in progress; [F.13 work](TODO.md#web-redesign) tracks unfinished design and verification before final browser acceptance.
+The [web interface proposal](web-interfaces.md#proposal) covers requirements, page structure, data gaps and Go tooling, grounded in the [browser and source review](done/web-review.md#scope). Owner-requested slices are built; the remaining redesign awaits F.13.0, the owner’s specification review. [F.13 work](TODO.md#web-redesign) tracks that gate and subsequent acceptance.
