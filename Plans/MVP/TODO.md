@@ -68,7 +68,7 @@ The [development-host inspection](installed-acceptance.md#inspection) records pa
 
 Enforce the [Owner-and-Maintainers empty ACL rule](../../docs/02-access.md#acl) for Personal
 and non-Personal records. Check the owner and assigned Maintainers succeed while
-other principals cannot gain access through the empty-list branch or existing implicit grants; retain a
+unrelated principals cannot gain access through the empty-list branch or existing implicit grants; retain a
 non-empty ACL positive control. Restore the open-empty behavior and the refusal
 check must fail. Update form help together with enforcement.
 Check existing empty-ACL records after upgrade as well as newly created records;
@@ -76,8 +76,10 @@ there is no grandfathered open-access default.
 Verify that adding the explicit wildcard grants an unrelated active registered
 user access without admitting an unknown or suspended caller. Removing the
 wildcard must remove that grant.
-Resolve and exercise the [service's own inbox access](QUESTIONS.md#service-reading-its-own-inbox)
-separately; owner and Maintainer checks cannot establish that a service can consume.
+Preserve the [service's own inbox access](../../docs/02-access.md#acl): consume
+with the service's own credential under both an empty ACL and one listing only
+another service. Retain suspension and Disabled refusals. Removing this own-inbox
+right must fail its separate positive control.
 
 ## Personal services
 

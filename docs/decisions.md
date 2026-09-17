@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| ACL governs access by other principals | [access rules](02-access.md#acl) | 2026-09-17 owner confirmation; service's own-inbox right retained under the pending empty-ACL change |
 | Resource owners choose groups; Administrators control membership | [group authority](01-identity-and-roles.md#groups) | 2026-09-17 owner decision; confirms existing indirect acquisition of resource authority |
 | Broader transfer-recipient eligibility deferred | [ownership](01-identity-and-roles.md#ownership) | 2026-09-17 owner direction; rare case, existing conditions retained |
 | Startup revocation failure hardening deferred | [existing failure behavior](02-access.md#ownerless-credentials) | 2026-09-17 owner direction; Q69 removed from open questions, implementation unchanged |

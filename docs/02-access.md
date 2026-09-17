@@ -127,13 +127,15 @@ working during provider outages. Private keys stay with the signing tool.
 
 ## ACL
 
-A record's ACL controls who may see and use it. **An empty ACL means access
-only for the record's Owner and assigned Maintainers. Accepted; implementation
-pending.** This default applies to Personal and non-Personal services alike.
+**ACL governs other principals' access to a service.** The service does not
+need to list itself in its own ACL: it may read its own inbox independently.
+Caller standing, owner suspension and the service's Disabled setting still apply.
+
+**For other principals, an empty ACL means access only for the record's Owner
+and assigned Maintainers. Accepted; implementation pending.** This default
+applies to Personal and non-Personal services alike.
 Being a user alone grants no access: Owner and Maintainer are the relevant
 resource roles, not additional entries that must be placed in the ACL.
-The service's [own-principal access](../Plans/MVP/QUESTIONS.md#service-reading-its-own-inbox)
-still needs an explicit rule before implementation.
 
 To allow **any registered user**, explicitly add **`*`** to the ACL. This does
 not admit anonymous, unknown or suspended callers. A
