@@ -92,11 +92,12 @@ const tools = [
   {
     name: "ab_consume",
     description:
-      "Take the next message from my own inbox, waiting up to a few seconds. Taking it removes it from the inbox: nobody else will see it, and there is no second chance to read it. " +
+      "Take the next message from an inbox, my own when inbox is omitted, waiting up to a few seconds. Taking it removes it from the inbox: nobody else will see it, and there is no second chance to read it. " +
       "Finding nothing is a normal result, not a failure. With a topic and tag, wait for that one message instead — that is how you collect a reply to something you sent.",
     inputSchema: {
       type: "object",
       properties: {
+        inbox: { type: "string", minLength: 1, description: "non-empty inbox to read; omitted means my own" },
         topic: { type: "string" },
         tag: { type: "string" },
         wait: { type: "string", description: "how long to wait, e.g. 5s (default 5s, max 60s)" },
@@ -189,6 +190,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         return text(`the bus accepted ${e.message_id} for ${e.to}${how ? ` (${how})` : ""}`);
       }
       case "ab_consume": {
+        const inbox = optionalNonEmpty(args, "inbox"), topic = maybe(args, "topic"), tag = maybe(args, "tag");
         // Push holds this inbox's one unfiltered read, so an unfiltered
         // consume would only collide with it. A filtered one is still served,
         // ahead of the loop (docs/04-messaging.md#one-reader-per-inbox).
@@ -197,10 +199,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         // refused — saying "messages arrive on their own" is false, and it
         // would leave the inbox unread until a restart. `push` is still
         // undefined during the startup window the comment above guards.
-        if (pushing && (push?.running() ?? true) && !args.topic && !args.tag) {
-          return text(`push is on for ${bus.name}: messages arrive on their own. Pass topic and tag to wait for one reply.`, true);
+        if (pushing && (push?.running() ?? true) && !inbox && !topic && !tag) {
+          return text(`push is on for ${bus.name}: messages arrive on their own. Pass inbox to read another inbox, or topic and tag to wait for one reply.`, true);
         }
-        const topic = maybe(args, "topic"), tag = maybe(args, "tag");
         const wait = maybe(args, "wait") ?? "5s";
         // A receipt is a message, so it ends a wait — but it is not the
         // answer the caller asked for. A filtered read asks again with what
@@ -214,7 +215,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
           // reads exactly what this computed, whatever the caller spelled.
           const left = deadline - Date.now();
           if (left <= 0) return text("nothing waiting");
-          const e = await bus.consume({ topic, tag, wait: `${left}ms` }, extra.signal);
+          const e = await bus.consume({ inbox, topic, tag, wait: `${left}ms` }, extra.signal);
           if (!e) return text("nothing waiting");
           remember(e);
           // `done` says no answer is coming, so a filtered wait ends on it
@@ -327,6 +328,12 @@ function maybe(args: Record<string, unknown>, key: string): string | undefined {
   const v = args[key];
   if (v === undefined || v === null || v === "") return undefined;
   if (typeof v !== "string") throw new BadArgs(`${key} must be a string`);
+  return v;
+}
+function optionalNonEmpty(args: Record<string, unknown>, key: string): string | undefined {
+  const v = args[key];
+  if (v === undefined || v === null) return undefined;
+  if (typeof v !== "string" || v.trim() === "") throw new BadArgs(`${key} must be a non-empty string when present`);
   return v;
 }
 class BadArgs extends Error {}

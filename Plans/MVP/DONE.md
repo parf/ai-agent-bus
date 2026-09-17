@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Explicit inbox selection | API, CLI and MCP select the inbox separately from topic/tag filters; omission still reads the caller's own | [0.5.52 evidence](done/inbox-selection.md#checks) |
 | 0.5.51 live rollout | Personal tab, corrected navigation, public identity, confined web process and peer reconnection verified without registry changes | [live postflight](done/personal-services-web.md#live-postflight) |
 | Personal service web | Dedicated owner view, ACL-visible daemon-owner filter, main-list exclusion and atomic owner controls without changing access | [0.5.51 evidence](done/personal-services-web.md#checks) |
 | Personal service core | Owner classification persists; atomic assignment limits reject users, groups, wildcard, Maintainers, Agents and Channels without changing access | [0.5.50 evidence](done/personal-services-core.md#checks) |

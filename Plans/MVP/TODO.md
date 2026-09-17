@@ -12,7 +12,7 @@ H.9.5 has [concurrent native Codex/OpenCode evidence](done/runtime-interactive.m
 
 Owner-requested web slices are built; the remaining [web redesign](#web-redesign) still depends on F.13.0, the owner’s specification review. That gate does not block independently accepted work below or shared-host safety fixes.
 
-Accepted feature work remains in [inbox selection](#inbox-selection-and-filters), [Readers](#reader-visibility),
+Accepted feature work remains in [Readers](#reader-visibility),
 [display labels](#identity-display-labels) and [authority](#authority-model).
 These sections are unfinished MVP work, not optional follow-up.
 
@@ -83,13 +83,10 @@ changing ordinary authorization or delivery.
 
 ## Inbox selection and filters
 
-Implement [Q21's explicit inbox selector](../../docs/04-messaging.md#inbox-selection-and-filters)
-across the CLI and daemon, with matching face semantics. Verify default own-inbox
-reads, explicit authorized inbox reads, topic/tag filters on either, and refusal
-of unauthorized inbox selection. Adding a tag or registering a channel whose
-name matches a filter must not change the selected inbox. Restore implicit
-selection from a filter and its named check must fail. Update help and callers
-that relied on the former overload; keep documentation examples unambiguous.
+Completed in 0.5.52; see [inbox-selection checks](done/inbox-selection.md#checks).
+The API, CLI and MCP face select an inbox explicitly while topic and tag remain
+filters; omission selects the caller's own inbox. The former topic-address
+overload and its spelling-dependent 404 are gone.
 
 ## Reader visibility
 

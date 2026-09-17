@@ -120,7 +120,7 @@ export class Bus {
   }
 
   consume(
-    opts: { topic?: string; tag?: string; wait?: string } = {},
+    opts: { inbox?: string; topic?: string; tag?: string; wait?: string } = {},
     signal?: AbortSignal,
   ): Promise<Envelope | null> {
     const q = new URLSearchParams();

@@ -707,17 +707,17 @@ users reader@srv1
 ab owner@srv1 topic create jobs@srv1 --allow '*' --descr "work queue" >/dev/null
 has "the topic is in ls" "$(ab owner@srv1 ls --kind topic)" 'jobs@srv1'
 ab drive-by@srv1 publish --topic jobs@srv1 "sweep the floor" >/dev/null
-has "a consumer that was down still finds it" "$(ab reader@srv1 consume --topic jobs@srv1 --wait 5s)" 'sweep the floor'
+has "a consumer that was down still finds it" "$(ab reader@srv1 consume --inbox jobs@srv1 --wait 5s)" 'sweep the floor'
 # Reading a topic and filtering your own inbox are different inboxes, so the
 # check needs a message in each: asserting "nothing came back" passed happily
 # with the rule mutated to read the topic in both cases.
 ab someone@srv1 send caller@srv1 --topic jobs@srv1 --tag mine "PRIVATE" >/dev/null
 ab drive-by@srv1 publish --topic jobs@srv1 "TOPIC" >/dev/null
 has "a topic plus a tag filters my own inbox" "$(ab caller@srv1 consume --topic jobs@srv1 --tag mine --wait 3s)" 'PRIVATE'
-has "a topic alone reads the topic" "$(ab caller@srv1 consume --topic jobs@srv1 --wait 3s)" 'TOPIC'
-out=$(ab caller@srv1 consume --topic jobz@srv1 --wait 1s 2>&1); rc=$?
-bad_exit "a mistyped topic name is an error, not a silent filter" $rc
-has "and says which name" "$out" 'no such topic: jobz@srv1'
+has "an explicit inbox reads that inbox" "$(ab caller@srv1 consume --inbox jobs@srv1 --wait 3s)" 'TOPIC'
+out=$(ab caller@srv1 consume --inbox jobz@srv1 --wait 1s 2>&1); rc=$?
+bad_exit "an unknown explicit inbox is refused" $rc
+has "and says which name" "$out" 'no inbox for jobz@srv1'
 
 ab owner@srv1 register keeper@srv1 --allow '*' >/dev/null || exit 1
 if slow; then

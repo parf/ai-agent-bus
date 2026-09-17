@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.52 — 2026-09-17
+
+Select a consume inbox explicitly across the API, CLI and MCP face. Topic and
+tag now only filter messages within that inbox; omission reads the caller's
+own, and the former address-shaped topic overload is removed.
+
 ## 0.5.51 — 2026-09-17
 
 Group Personal services in a dedicated owner view without changing access or

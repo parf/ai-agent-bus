@@ -41,7 +41,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus unregister <name>          remove an idle registry entry; does not stop a process
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
-  agent-bus consume [--topic t] [--tag g] [--wait 30s] [--follow] [--share]
+  agent-bus consume [--inbox name] [--topic t] [--tag g] [--wait 30s] [--follow] [--share]
                             --share: one of several workers behind this name
   agent-bus ack <message-id>
   agent-bus done <message-id>
@@ -526,7 +526,12 @@ func subscribe(args []string, on bool) error {
 func consume(args []string) error {
 	_, flags := split(args)
 	q := url.Values{}
-	for _, k := range []string{"topic", "tag", "wait"} {
+	for _, k := range []string{"inbox", "topic", "tag"} {
+		if has(flags, k) && flags[k] == "" {
+			return fmt.Errorf("--%s wants a value", k)
+		}
+	}
+	for _, k := range []string{"inbox", "topic", "tag", "wait"} {
 		if v := flags[k]; v != "" {
 			q.Set(k, v)
 		}

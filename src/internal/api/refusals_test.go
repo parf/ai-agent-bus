@@ -104,9 +104,6 @@ func TestARefusalDecidedBeforeTheErrorMapStillCounts(t *testing.T) {
 		{"an unparseable body", "POST", "/send", "{", tok, 400, "malformed"},
 		{"an invalid name in a token request", "POST", "/token", `{"name":"!"}`, tok, 400, "malformed"},
 		{"a lookup of a name the daemon does not hold", "GET", "/lookup?name=missing@h", "", tok, 404, "unknown"},
-		// The topic that names a name rather than a filter. A filter matching
-		// nothing is an ordinary empty wait and is not refused at all.
-		{"a consume whose topic names a name", "GET", "/consume?topic=missing@h", "", tok, 404, "unknown"},
 		// Unauthenticated, and counted for that reason rather than despite it:
 		// an addressed endpoint's refusals count whatever the caller's
 		// standing, which is the same rule that counts a bad token.
@@ -161,12 +158,10 @@ func TestAHiddenNameCountsAsAMissingOneDoes(t *testing.T) {
 		t.Fatal(err)
 	}
 	outsider := c.as("stranger@h")
-	for _, path := range []string{"/lookup?name=", "/consume?topic="} {
-		for _, name := range []string{"secret@h", "nothing@h"} {
-			code, moved := c.call("GET", path+name, "", outsider)
-			if code != 404 || !maps.Equal(moved, one("unknown")) {
-				t.Errorf("%s%s answered %d, counted %v; want 404 and unknown once", path, name, code, moved)
-			}
+	for _, name := range []string{"secret@h", "nothing@h"} {
+		code, moved := c.call("GET", "/lookup?name="+name, "", outsider)
+		if code != 404 || !maps.Equal(moved, one("unknown")) {
+			t.Errorf("lookup %s answered %d, counted %v; want 404 and unknown once", name, code, moved)
 		}
 	}
 }
@@ -177,10 +172,8 @@ func TestAHiddenNameCountsAsAMissingOneDoes(t *testing.T) {
 func TestWhatIsNotARefusalIsNotCounted(t *testing.T) {
 	c := refusalFixture(t)
 	tok := c.as("admin@h")
-	// The consume below reads the caller's own inbox — the API takes the
-	// inbox from the credential, never from a parameter — so the caller needs
-	// a record of its own for that call to be an ordinary empty wait rather
-	// than a refusal.
+	// The consume below omits inbox and therefore reads the caller's own, so
+	// the caller needs a record for that call to be an ordinary empty wait.
 	if _, err := c.bus.Register(protocol.Record{Name: "admin@h", Owner: "admin@h"}); err != nil {
 		t.Fatal(err)
 	}
@@ -198,6 +191,7 @@ func TestWhatIsNotARefusalIsNotCounted(t *testing.T) {
 		{"a route the mux never matched", "GET", "/no-such-endpoint", "", 404},
 		{"a method the mux refuses", "PUT", "/ls", "", 405},
 		{"an unmatched topic filter", "GET", "/consume?topic=not-a-name&wait=1ms", "", 204},
+		{"an address-shaped topic filter", "GET", "/consume?topic=missing@h&wait=1ms", "", 204},
 	} {
 		code, moved := c.call(call.method, call.path, call.body, tok)
 		if code != call.code {

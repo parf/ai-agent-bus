@@ -19,7 +19,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Broader transfer-recipient eligibility deferred | [ownership](01-identity-and-roles.md#ownership) | 2026-09-17 owner direction; rare case, existing conditions retained |
 | Startup revocation failure hardening deferred | [existing failure behavior](02-access.md#ownerless-credentials) | 2026-09-17 owner direction; Q69 removed from open questions, implementation unchanged |
 | One reader count includes filtered waits | [reader observation](05-discovery.md#readers) | 2026-09-17 owner decision; resolves Q70, implementation pending |
-| Explicit inbox selection, independent message filters | [consume syntax](04-messaging.md#inbox-selection-and-filters) | 2026-09-17 owner decision; resolves Q21, implementation pending |
+| Explicit inbox selection, independent message filters | [consume syntax](04-messaging.md#inbox-selection-and-filters) | 2026-09-17 owner decision; resolves Q21, implemented in 0.5.52 |
 | Draining an inactive identity's inbox | [user-state access](01-identity-and-roles.md#user-states) | 2026-09-17 owner decision; resolves Q63, confirming existing behavior |
 | Explicit wildcard for broad user access | [ACL grants](02-access.md#acl) | 2026-09-16 owner clarification |
 | Empty ACL retains resource-management access | [ACL default](02-access.md#acl) | 2026-09-16 owner correction; implemented in 0.5.44 |

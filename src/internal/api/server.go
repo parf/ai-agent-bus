@@ -525,38 +525,20 @@ func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Na
 }
 
 // consume long-polls an inbox. Which one, and whether it is filtered, is
-// decided here so that every face gets the same answer:
-//
-//   - `topic` alone, naming a **registered topic** → read that topic's inbox.
-//     A queue topic is an inbox with a name
-//     (docs/03-services-and-topics.md#topics), and there is one reader of it
-//     like any other inbox.
-//   - otherwise `topic` and `tag` **filter the caller's own inbox** — the
-//     wait a reply is collected on (docs/04-messaging.md#request-and-reply).
+// `inbox` selects the queue. Without it the caller reads its own. `topic` and
+// `tag` only filter messages inside that queue; neither ever resolves a record
+// name (docs/04-messaging.md#inbox-selection-and-filters).
 //
 // `share` says this reader is one of a pool, which is the only thing that
 // lets a second unfiltered read wait beside it
 // (docs/04-messaging.md#one-reader-per-inbox).
-//
-// A tag is what makes the second case: a reply always carries one, and a
-// topic never doubles as a name when a tag is present.
 func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	q := r.URL.Query()
 	topic, tag := q.Get("topic"), q.Get("tag")
 	filtered := topic != "" || tag != ""
-	inbox := caller.String()
-	if topic != "" && tag == "" {
-		rec, known := s.bus.Lookup(caller.String(), topic)
-		switch {
-		case known && rec.Kind == protocol.KindTopic:
-			inbox, topic, filtered = rec.Name, "", false
-		case strings.Contains(topic, "@"):
-			// A topic filter is a label (`deploy-42`); a topic *name* is a
-			// name (`jobs@srv1`). Saying the second and meaning the first is
-			// a typo, and answering it with a silent timeout hides it.
-			s.refuse(w, http.StatusNotFound, "unknown", "no such topic: "+topic)
-			return
-		}
+	inbox := q.Get("inbox")
+	if !q.Has("inbox") {
+		inbox = caller.String()
 	}
 
 	wait := 30 * time.Second

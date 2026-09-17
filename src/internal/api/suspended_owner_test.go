@@ -180,18 +180,18 @@ func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 	f.call("bystander@h", "POST", "/send", `{"to":"jobs@h","body":"waiting"}`, 200)
 	f.state("alice@h", "paused")
 
-	body := f.call("bystander@h", "GET", "/consume?topic=jobs@h&wait=0s", "", 403)
+	body := f.call("bystander@h", "GET", "/consume?inbox=jobs@h&wait=0s", "", 403)
 	if !strings.Contains(body, "suspended") {
 		t.Errorf("a third-party read was refused without saying why: %s", body)
 	}
 	// The daemon owner's master access is read authority, and it does not
 	// exempt them from this either.
-	f.call("admin@h", "GET", "/consume?topic=jobs@h&wait=0s", "", 403)
+	f.call("admin@h", "GET", "/consume?inbox=jobs@h&wait=0s", "", 403)
 
 	// The work is still there when the state is lifted; nothing was drained
 	// or discarded while it was refused.
 	f.state("alice@h", "active")
-	if got := f.call("bystander@h", "GET", "/consume?topic=jobs@h&wait=0s", "", 200); !strings.Contains(got, "waiting") {
+	if got := f.call("bystander@h", "GET", "/consume?inbox=jobs@h&wait=0s", "", 200); !strings.Contains(got, "waiting") {
 		t.Fatalf("the held message did not survive the pause: %s", got)
 	}
 }

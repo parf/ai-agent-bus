@@ -44,8 +44,7 @@ Taking a message does not prove the work finished—see [receipts](#receipts).
 
 | MVP | Scope |
 |---|---|
-| Built | Inbox delivery, shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow, JSON restart snapshots and [durable administrative changes](#administrative-crash-recovery). |
-| Pending | [Separate inbox selection and message filters](#inbox-selection-and-filters) are accepted, awaiting implementation. |
+| Built | Inbox delivery, [explicit inbox selection](#inbox-selection-and-filters), shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow, JSON restart snapshots and [durable administrative changes](#administrative-crash-recovery). |
 
 
 How principals on the bus talk. The bus delivers securely and says who sent it;
@@ -125,7 +124,7 @@ never an instant, so the service is not reading the caller's clock.
 
 ## Inbox selection and filters
 
-**Accepted; implementation pending (Q21).** `--inbox` selects where to read;
+**Built in 0.5.52 (Q21).** `--inbox` selects where to read;
 `--topic` and `--tag` select messages there. Without `--inbox`, read your own
 inbox. Filters never select a different inbox, regardless of their spelling
 or whether a matching channel exists. Selecting an inbox does not change the
@@ -139,7 +138,7 @@ agent-bus consume --inbox jobs@host --topic MyTopic --tag result
 ```
 
 <details>
-<summary>Options and migration from the current behavior</summary>
+<summary>Options and migration</summary>
 
 | Option | Meaning |
 |---|---|
@@ -151,11 +150,9 @@ Each option requires a value when present. Reading without filters takes the
 next message from the selected inbox. “Own inbox” refers to the caller's
 identity, not the service's Personal classification.
 
-Today the daemon overloads the topic filter: without a tag, a caller-visible
-registered topic selects that topic's inbox; a name-shaped value that does not
-resolve to a topic is refused. Otherwise the caller's own inbox is filtered.
-When the new syntax is implemented, commands that used this implicit selection
-must select the inbox explicitly. Adding a tag will no longer change the inbox.
+Before 0.5.52, a topic without a tag could implicitly select a registered
+topic's inbox. Such callers must now select it explicitly. An address-shaped
+topic is an ordinary filter value: if it matches nothing, the wait ends empty.
 
 </details>
 
@@ -177,7 +174,7 @@ the notifier, or the reverse.
 | by convention, one *designated* process does that reading for a principal | the bus enforces the outstanding read, not process ownership; claiming otherwise would need a lease nobody wants in a PoC |
 | a waiter passes a **topic + tag filter** to `consume`, and the daemon hands it a match ahead of the unfiltered reader | the match happens where the message already is: no dispatcher in a client, and no local protocol between a Go CLI and a TypeScript session process |
 
-**Reading a topic is not filtering.** A queue topic is a named inbox;
+**Reading a topic inbox is not filtering.** A queue topic is a named inbox;
 [inbox selection and filters](#inbox-selection-and-filters) define which queue
 is read and which messages are selected.
 

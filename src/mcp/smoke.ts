@@ -73,6 +73,10 @@ try {
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
   const expected = ["ab_consume", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send"];
   check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
+  const consumeTool = (list.result?.tools ?? []).find((t: any) => t.name === "ab_consume");
+  check("ab_consume advertises a non-empty explicit inbox", consumeTool?.inputSchema?.properties?.inbox?.minLength === 1, JSON.stringify(consumeTool));
+  const emptyInbox = await call("ab_consume", { inbox: "" });
+  check("ab_consume refuses an empty explicit inbox", emptyInbox.isError && emptyInbox.text.includes("non-empty"), emptyInbox.text);
 
   const me = process.env.AGENT_BUS_NAME!;
   const ls = await call("ab_ls");
