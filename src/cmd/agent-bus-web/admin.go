@@ -125,7 +125,11 @@ type adminView struct {
 	Record        protocol.Record
 	Groups        map[string][]string
 	Mine, State   string
+	OwnerFilter   string
+	Current       string
+	Owners        []string
 	Channels      bool
+	PersonalPage  bool
 }
 
 func (c *caller) signedIn(w http.ResponseWriter, r *http.Request) (adminView, bool) {
@@ -179,9 +183,46 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			fail(w, r, v.You, err)
 			return
 		}
-		v.Mine, v.State, v.Channels = r.URL.Query().Get("scope"), r.URL.Query().Get("state"), r.URL.Path == "/channels"
+		v.Mine, v.State = r.URL.Query().Get("scope"), r.URL.Query().Get("state")
+		v.Channels, v.PersonalPage = r.URL.Path == "/channels", r.URL.Path == "/personal"
+		switch {
+		case v.Channels:
+			v.Current = "channels"
+		case v.PersonalPage:
+			v.Current = "personal"
+		default:
+			v.Current = "services"
+		}
+		if v.PersonalPage && !v.DaemonOwner && r.URL.Query().Has("owner") {
+			// The owner selector belongs to the daemon owner's view. Do not
+			// silently give the same shared URL a caller-dependent meaning.
+			query := r.URL.Query()
+			query.Del("owner")
+			to := r.URL.Path
+			if encoded := query.Encode(); encoded != "" {
+				to += "?" + encoded
+			}
+			http.Redirect(w, r, to, http.StatusSeeOther)
+			return
+		}
+		if v.PersonalPage {
+			if v.DaemonOwner {
+				v.OwnerFilter = r.URL.Query().Get("owner")
+			} else {
+				v.OwnerFilter = v.You
+			}
+		}
+		owners := map[string]bool{}
 		for _, record := range records {
-			if (record.Kind == protocol.KindTopic) != v.Channels {
+			if v.PersonalPage {
+				if record.Kind == protocol.KindTopic || !record.Personal {
+					continue
+				}
+				owners[record.Owner] = true
+				if v.OwnerFilter != "" && record.Owner != v.OwnerFilter {
+					continue
+				}
+			} else if (record.Kind == protocol.KindTopic) != v.Channels || (!v.Channels && record.Personal) {
 				continue
 			}
 			if v.Mine == "my" && record.Owner != v.You {
@@ -192,11 +233,16 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			}
 			v.Records = append(v.Records, record)
 		}
+		for owner := range owners {
+			v.Owners = append(v.Owners, owner)
+		}
+		sort.Strings(v.Owners)
 		sort.Slice(v.Records, func(i, j int) bool { return v.Records[i].Name < v.Records[j].Name })
 		render(w, serviceList, v)
 	}
 	mux.HandleFunc("GET /services", listing)
 	mux.HandleFunc("GET /channels", listing)
+	mux.HandleFunc("GET /personal", listing)
 	mux.HandleFunc("GET /service", func(w http.ResponseWriter, r *http.Request) {
 		v, ok := c.signedIn(w, r)
 		if !ok {
@@ -209,6 +255,14 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
 			fail(w, r, v.You, err)
 			return
+		}
+		switch {
+		case v.Record.Kind == protocol.KindTopic:
+			v.Current = "channels"
+		case v.Record.Personal:
+			v.Current = "personal"
+		default:
+			v.Current = "services"
 		}
 		render(w, serviceDetail, v)
 	})
@@ -256,9 +310,12 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				http.Error(w, "invalid queue capacity", 400)
 				return
 			}
-			allow := strings.Fields(r.PostForm.Get("allow"))
 			noMaster := r.PostForm.Get("no_master") == "on"
-			change.Descr, change.Addr, change.Proto, change.TTL, change.Full, change.Bound, change.Allow, change.NoMaster = &descr, &addr, &proto, &ttl, &overflow, &bound, &allow, &noMaster
+			change.Descr, change.Addr, change.Proto, change.TTL, change.Full, change.Bound, change.NoMaster = &descr, &addr, &proto, &ttl, &overflow, &bound, &noMaster
+			if r.PostForm.Has("edit_allow") {
+				allow := strings.Fields(r.PostForm.Get("allow"))
+				change.Allow = &allow
+			}
 			err = c.post(cookie(r), "/manage", change)
 		case "enable", "disable":
 			disabled := r.PostForm.Get("action") == "disable"
@@ -267,6 +324,12 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		case "maintainers":
 			group := r.PostForm.Get("maintainers")
 			change.Maintainers = &group
+			err = c.post(cookie(r), "/manage", change)
+		case "personal":
+			personal := r.PostForm.Get("personal") == "on"
+			allow := strings.Fields(r.PostForm.Get("allow"))
+			maintainers := r.PostForm.Get("maintainers")
+			change.Personal, change.Allow, change.Maintainers = &personal, &allow, &maintainers
 			err = c.post(cookie(r), "/manage", change)
 		case "transfer":
 			owner := r.PostForm.Get("owner")
@@ -288,7 +351,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				http.Error(w, "invalid record kind", 400)
 				return
 			}
-			err = c.post(cookie(r), "/register", protocol.Record{Name: name, Kind: kind, Mode: mode, Descr: r.PostForm.Get("descr"), Allow: strings.Fields(r.PostForm.Get("allow"))})
+			err = c.post(cookie(r), "/register", protocol.Record{Name: name, Kind: kind, Mode: mode, Descr: r.PostForm.Get("descr"), Allow: strings.Fields(r.PostForm.Get("allow")), Personal: r.PostForm.Get("personal") == "on"})
 		case "subscribe", "unsubscribe":
 			err = c.post(cookie(r), "/subscribe", struct {
 				Topic string
@@ -306,7 +369,11 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			fail(w, r, v.You, err)
 			return
 		}
-		http.Redirect(w, r, "/services?scope=my", http.StatusSeeOther)
+		next := "/services?scope=my"
+		if r.PostForm.Get("action") == "personal" || r.PostForm.Get("action") == "create" && r.PostForm.Get("personal") == "on" {
+			next = "/personal"
+		}
+		http.Redirect(w, r, next, http.StatusSeeOther)
 	}))
 	mux.HandleFunc("POST /groups", mutate(func(w http.ResponseWriter, r *http.Request, v adminView) {
 		// "delete" was an action here and is not one now: a group is retired
@@ -329,10 +396,11 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	}))
 }
 
-var serviceList = template.Must(template.New("services").Parse(shell("services", "Registered services") + `
-<h1>{{if .Channels}}Registered channels{{else}}Registered services{{end}}</h1>
-<form method=get><label>Scope <select name=scope><option value=all>All visible</option><option value=my {{if eq .Mine "my"}}selected{{end}}>My</option></select></label>
+var serviceList = template.Must(template.New("services").Parse(shell("records", "Registered services") + `
+<h1>{{if .Channels}}Registered channels{{else if .PersonalPage}}Personal services{{else}}Registered services{{end}}</h1>
+<form method=get>{{if .PersonalPage}}{{if .DaemonOwner}}<label>Owner <select name=owner><option value="">All visible owners</option>{{range .Owners}}<option {{if eq . $.OwnerFilter}}selected{{end}}>{{.}}</option>{{end}}</select></label>{{else}}<span>Owned by <code>{{.You}}</code></span>{{end}}{{else}}<label>Scope <select name=scope><option value=all>All visible</option><option value=my {{if eq .Mine "my"}}selected{{end}}>My</option></select></label>{{end}}
 <label>Delivery <select name=state><option value=all>All</option><option value=active {{if eq .State "active"}}selected{{end}}>Enabled</option><option value=inactive {{if eq .State "inactive"}}selected{{end}}>Disabled</option></select></label> <button>Filter</button></form>
+{{if .PersonalPage}}<p class=muted>Personal is an owner-set grouping tag. It changes where a service appears here, not who may call it. {{if .DaemonOwner}}This per-owner view contains only Personal services visible through your normal access; it is not a node-wide inventory.{{else}}This page shows your Personal services.{{end}}</p>{{end}}
 <p class=muted>Three separate facts, and none of them is health: the record&rsquo;s
  delivery setting, what the daemon <em>observed</em> about a read on its inbox,
  and whether the caller said it is reached some other way. <em>Enabled</em> does
@@ -350,10 +418,10 @@ var serviceList = template.Must(template.New("services").Parse(shell("services",
 <h2>Register {{if .Channels}}channel{{else}}service{{end}}</h2>
 <form method=post action=/service><input type=hidden name=action value=create>
 <label>Name <input name=name required placeholder="name@realm"></label><p><label>Description <input name=descr></label></p>
-{{if .Channels}}<input type=hidden name=kind value=topic><label>Delivery <select name=mode><option value=pubsub>Pub/sub</option><option value=queue>Queue</option></select></label>{{else}}<label>Kind <select name=kind><option value=generic>Service</option><option value=agent>Agent</option></select></label>{{end}}
-<p><label>Allow <input name=allow></label> Empty allows only the owner and assigned Maintainers. Add names or * to share.</p><button>Register</button></form>`))
-var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join}).Parse(shell("services", "Service") + `
-{{with .Record}}<h1>{{.Name}}</h1><p>Owner: {{.Owner}}{{with .Maintainers}} · Maintainers: {{.}}{{end}}{{if .Mode}} · Delivery: {{if eq .Mode "pubsub"}}a copy to each subscriber{{else}}one at a time{{end}}{{end}}</p>
+{{if .Channels}}<input type=hidden name=kind value=topic><label>Delivery <select name=mode><option value=pubsub>Pub/sub</option><option value=queue>Queue</option></select></label>{{else if .PersonalPage}}<input type=hidden name=kind value=generic><input type=hidden name=personal value=on>{{else}}<label>Kind <select name=kind><option value=generic>Service</option><option value=agent>Agent</option></select></label> <label>Personal <input type=checkbox name=personal></label>{{end}}
+<p><label>Allow <input name=allow></label> Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>{{if not .Channels}}<p class=muted>A Personal service may name only other registered services directly. Users, groups, <code>*</code>, itself and Maintainers are refused.</p>{{end}}<button>Register</button></form>`))
+var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join}).Parse(shell("records", "Service") + `
+{{with .Record}}<h1>{{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1><p>Owner: {{.Owner}}{{with .Maintainers}} · Maintainers: {{.}}{{end}}{{if .Mode}} · Delivery: {{if eq .Mode "pubsub"}}a copy to each subscriber{{else}}one at a time{{end}}{{end}}</p>
 <h2>Delivery setting</h2>
 <p>Delivery: <strong>{{if .Disabled}}Disabled{{else}}Enabled{{end}}</strong>{{if .Disabled}} <span class=muted>— the bit does not say whether the owner turned it off or the name stopped being active</span>{{end}}</p>
 <p class=muted>Not under either heading below, because it is neither: the daemon
@@ -394,14 +462,14 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 <p><label>Description <input name=descr value="{{.Descr}}"></label></p>
 <p><label>Address <input name=addr value="{{.Addr}}"></label></p>
 <p><label>Protocol <input name=protocol value="{{.Proto}}"></label></p>
-<p><label>Allow (principals, groups or *) <input name=allow value="{{join .Allow " "}}"></label></p><p>Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>
+{{if .Personal}}<p class=muted>Personal classification, Allow and Maintainers are changed together in the owner form below.</p>{{else}}<input type=hidden name=edit_allow value=1><p><label>Allow (principals, groups or *) <input name=allow value="{{join .Allow " "}}"></label></p><p>Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>{{end}}
 <p><label>Refuse master access <input type=checkbox name=no_master {{if .NoMaster}}checked{{end}}></label></p>
 <p><label>Queue TTL <input name=ttl value="{{.TTL}}" placeholder="default"></label></p>
 <p><label>Queue capacity (0 uses default) <input type=number min=0 name=bound value="{{.Bound}}"></label></p>
 <p><label>Overflow <select name=overflow><option value=strict>Refuse</option><option value=ring {{if eq .Full "ring"}}selected{{end}}>Drop oldest</option></select></label></p><button>Save settings</button></form>
 <form method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value="{{if .Disabled}}enable{{else}}disable{{end}}">{{if .Disabled}}Enable{{else}}Disable{{end}}</button></form>
 <h2>Replace configuration</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=configure><label>New configuration <textarea name=config rows=6 cols=60 required autocomplete=off></textarea></label><p>Existing private configuration is never displayed.</p><button>Replace configuration</button></form>
-{{if .CanTransfer}}<h2>Maintainers</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=maintainers><label>Group <select name=maintainers><option value="">None</option>{{range $group,$members := $.Groups}}<option {{if eq $group $.Record.Maintainers}}selected{{end}}>{{$group}}</option>{{end}}</select></label><button>Assign</button></form>
+{{if .CanTransfer}}{{if eq .Kind "generic"}}<h2>Classification and sharing</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=personal><p><label>Personal <input type=checkbox name=personal {{if .Personal}}checked{{end}}></label> Groups this service in the owner&rsquo;s Personal services page; it does not change access.</p><p><label>Allow <input name=allow value="{{join .Allow " "}}"></label></p><p><label>Maintainers group <select name=maintainers><option value="">None</option>{{range $group,$members := $.Groups}}<option {{if eq $group $.Record.Maintainers}}selected{{end}}>{{$group}}</option>{{end}}</select></label></p><p class=muted>When Personal is checked, Allow may name only other registered services directly. Users, groups, <code>*</code>, this service and Maintainers are refused. Clear Personal in this same form before adding any of them.</p><button>Save classification and sharing</button></form>{{else}}<h2>Maintainers</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=maintainers><label>Group <select name=maintainers><option value="">None</option>{{range $group,$members := $.Groups}}<option {{if eq $group $.Record.Maintainers}}selected{{end}}>{{$group}}</option>{{end}}</select></label><button>Assign</button></form>{{end}}
 {{if ne .Name .Owner}}<h2>Transfer ownership</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=transfer><label>New owner <input name=owner required></label><p>The new owner must have a registered identity. Existing service credentials remain valid; transfer does not revoke copies already held.</p><button>Transfer ownership</button></form>{{end}}{{end}}
 <h2>Remove registration</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=delete><p>Drain the queue and stop readers first. <strong>No registration, no access:</strong> the credential goes with the address and nothing answers to this name afterwards. A person's own credential stays, because it is not a record's to drop.</p><button>Remove idle service</button></form>
 {{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}`))

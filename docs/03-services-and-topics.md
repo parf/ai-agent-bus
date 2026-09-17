@@ -6,8 +6,7 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Registry records, protocol hints, private registry configuration, queue/pubsub topics and [Personal classification](#personal-and-shared). A service's method information is its [description](#service-and-template). |
-| Pending | The dedicated Personal-service web views and main-page filtering. |
+| Built | Registry records, protocol hints, private registry configuration, queue/pubsub topics and [Personal classification and web grouping](#personal-and-shared). A service's method information is its [description](#service-and-template). |
 
 ## Service kinds
 
@@ -47,8 +46,7 @@ registry for whoever is choosing what to call
 An owner may tag their service **Personal**. Without that tag, it is
 **non-Personal**. The tag hides personal services from the main web pages to
 reduce clutter; access works exactly as for a normal service.
-The stored classification and its assignment limits are built; the web views
-remain pending.
+The stored classification, assignment limits and web grouping are built.
 
 | Rule | Requirement |
 |---|---|
@@ -59,7 +57,7 @@ remain pending.
 | Broad access | The [wildcard grant](02-access.md#acl) is not valid for a Personal service |
 | Main web pages | Exclude Personal services; find them in the dedicated tab instead |
 | User's web view | A **Personal Services** tab shows that user's Personal services |
-| Daemon owner's web view | **Personal Services** can be viewed per user |
+| Daemon owner's web view | **Personal Services** can be filtered per owner among the records visible through the daemon owner's ordinary access; it is not a node-wide inventory |
 
 The tag introduces no separate access policy or service kind. Apart from these
 assignment restrictions and web grouping, ordinary [access rules](02-access.md#acl),

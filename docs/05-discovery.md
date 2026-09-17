@@ -128,14 +128,14 @@ what the daemon permits. “All” means all visible to that visitor.
 
 | Tab | Required functionality |
 |---|---|
-| Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, maintainers group, access, reader presence and queue statistics. Administrative availability and serving / offline are distinct observations |
+| Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, maintainers group, access, reader presence and queue statistics. Excludes Personal services, which have their own tab. Administrative availability and serving / offline are distinct observations |
+| Personal services | Owner-tagged services grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner among ACL-visible records |
 | Users | List and details; add, edit, activate, pause and ban; show owned services, group membership and administrative authority |
 | Groups | List and details; create, edit and manage flat membership; basic service and channel access. Include the daemon Administrator group and each record's assigned maintainers group under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
 | Registered pub/sub channels | List and details for pub/sub and queue topics; create, edit and remove; subscriptions, owner, maintainers group, permissions, TTL, capacity and overflow policy |
 
-**Accepted addition, implementation pending:** the
-[Personal Services view](03-services-and-topics.md#personal-and-shared).
+The [Personal Services view](03-services-and-topics.md#personal-and-shared) is built.
 
 [Administrative and record authority](01-identity-and-roles.md#groups) applies
 to every control and to direct API calls. Membership and policy changes must

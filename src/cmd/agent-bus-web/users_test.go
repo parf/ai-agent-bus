@@ -65,7 +65,7 @@ func TestRequiredDashboardTabs(t *testing.T) {
 		}
 		return string(body)
 	}
-	for _, path := range []string{"/services", "/channels", "/users", "/groups", "/activity"} {
+	for _, path := range []string{"/services", "/personal", "/channels", "/users", "/groups", "/activity"} {
 		request(path, nil, 200)
 	}
 	request("/user", url.Values{"action": {"create"}, "name": {"alice@h"}, "person_name": {"Alice"}, "email": {"ALICE@example.com"}}, 303)

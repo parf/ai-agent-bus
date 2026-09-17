@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.51 — 2026-09-17
+
+Group Personal services in a dedicated owner view without changing access or
+delivery. Main service lists omit them; owners change classification, ACL and
+Maintainers atomically, and the daemon owner can filter the Personal records
+visible through ordinary access.
+
 ## 0.5.50 — 2026-09-17
 
 Persist an owner-controlled Personal classification for services. Personal

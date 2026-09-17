@@ -12,8 +12,7 @@ H.9.5 has [concurrent native Codex/OpenCode evidence](done/runtime-interactive.m
 
 Owner-requested web slices are built; the remaining [web redesign](#web-redesign) still depends on F.13.0, the owner’s specification review. That gate does not block independently accepted work below or shared-host safety fixes.
 
-Accepted feature work remains in [Personal services](#personal-services),
-[inbox selection](#inbox-selection-and-filters), [Readers](#reader-visibility),
+Accepted feature work remains in [inbox selection](#inbox-selection-and-filters), [Readers](#reader-visibility),
 [display labels](#identity-display-labels) and [authority](#authority-model).
 These sections are unfinished MVP work, not optional follow-up.
 
@@ -77,20 +76,10 @@ changes below remain separate work.
 
 ## Personal services
 
-The stored classification and assignment limits were completed in 0.5.50; see
-[core implementation and checks](done/personal-services-core.md#checks). The
-owner's choice persists, metadata refresh preserves it, combined assignment
-changes are atomic, and invalid user, group, wildcard, Maintainer, Agent and
-Channel assignments are refused without changing ordinary authorization.
-
-Remaining web work:
-
-Show Personal services in the user's dedicated tab and the daemon owner's
-per-user view, excluding them from the main web pages. Keep non-Personal fixture
-records as positive controls on the main pages. For otherwise identical valid
-configurations, web filtering must not change authorization or delivery.
-Ignoring the tag, mixing owners or treating web filtering as access denial must
-fail its corresponding check.
+Completed in 0.5.50–0.5.51; see [core checks](done/personal-services-core.md#checks)
+and [web checks](done/personal-services-web.md#checks). The owner classification,
+assignment limits, dedicated owner view and main-list exclusion are built without
+changing ordinary authorization or delivery.
 
 ## Inbox selection and filters
 

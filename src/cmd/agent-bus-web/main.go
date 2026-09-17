@@ -370,6 +370,7 @@ const head = `<!doctype html>
 // exist on one page only (Plans/MVP/done/web-review.md W01).
 var navItems = []struct{ Href, Label, Key string }{
 	{"/services", "Registered services", "services"},
+	{"/personal", "Personal services", "personal"},
 	{"/channels", "Channels", "channels"},
 	{"/users", "Users", "users"},
 	{"/groups", "Groups", "groups"},
@@ -394,6 +395,10 @@ func shell(key, title string) string {
 	for i, item := range navItems {
 		if i > 0 {
 			nav.WriteString(" \u00b7 ")
+		}
+		if key == "records" && (item.Key == "services" || item.Key == "personal" || item.Key == "channels") {
+			nav.WriteString(`{{if eq .Current "` + item.Key + `"}}<a href=` + item.Href + ` aria-current=page>{{else}}<a href=` + item.Href + `>{{end}}` + item.Label + `</a>`)
+			continue
 		}
 		nav.WriteString("<a href=" + item.Href)
 		if item.Key == key {
