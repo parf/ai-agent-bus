@@ -67,3 +67,19 @@ The [development-host inspection](installed-acceptance.md#inspection) records pa
 ## Questions
 
 All unresolved choices are owned by [QUESTIONS](QUESTIONS.md#open-questions). The CLI selector question remains open without silently blocking unrelated work. The [Future storage proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.
+
+## Authority model
+
+Implement the [current authority specification](../../docs/01-owners-and-maintainers.md#role-names-and-scopes).
+
+| Work | Acceptance |
+|---|---|
+| Administrator naming — in progress | Code, public user role and protected group use Administrator terminology; existing administrative membership and explicit record grants survive migration without promoting ordinary-group members |
+| Daemon-owner override and transfer | Owner can manage and transfer any service/channel; configured daemon ownership survives restart after transfer |
+| Explicit setup ownership | Startup requires established ownership rather than deriving it from the runtime OS account |
+| Profile editing and provenance | Enforce the [profile rules](../../docs/01-owners-and-maintainers.md#users-and-profile-editing), including protected names and permitted PersonName sources |
+| Administrator unbanning | Administrator can unban an ordinary user, but cannot edit peer Administrators or the owner |
+| Effective Maintainer membership | Enforce owner control through direct and nested group changes; blocked on [membership choice](QUESTIONS.md#authority-model) |
+| Nested groups | Resolve nested membership with defined cycle handling; current membership is flat |
+| Service-defined roles | Store/resolve and return service-defined labels while preserving owner-only assignment of the reserved Maintainer role; syntax/transport proposals are not automatically adopted |
+| Transfer recipient | Apply the resolved [recipient rule](QUESTIONS.md#authority-model) |

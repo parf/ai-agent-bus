@@ -5,7 +5,7 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 ## Groups and roles
 
 Basic nested membership and service-defined roles are now
-[accepted implementation work](../../docs/01-owners-and-maintainers.md#added-implementation-scope).
+[accepted implementation work](../MVP/TODO.md#authority-model).
 The expression syntax and role-transport design below remain proposals; accepting
 the capabilities does not adopt these specific representations.
 

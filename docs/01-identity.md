@@ -308,12 +308,12 @@ in the accepted model is not yet implemented.
 **Implementation gap.** Administrators can currently edit any ordinary group,
 including one assigned as a service's maintainers group, and thereby change
 who manages that service. The accepted owner-controlled membership rule needs
-[protection for this indirect path](01-owners-and-maintainers.md#remaining-membership-interaction).
+[protection for this indirect path](../Plans/MVP/QUESTIONS.md#authority-model).
 Merely renaming the administrative role does not close it.
 
 Current groups are flat sets of principal names, local to one daemon. Nested
 groups and service-defined roles are accepted as
-[new implementation work](01-owners-and-maintainers.md#added-implementation-scope);
+[new implementation work](../Plans/MVP/TODO.md#authority-model);
 expression syntax remains in the [R1 proposal](../Plans/R1/identity.md#groups-and-roles).
 Owning a service alone does not grant daemon user/group administration.
 
