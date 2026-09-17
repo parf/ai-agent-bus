@@ -809,10 +809,9 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 		b.mu.Unlock()
 		return protocol.Envelope{}, ErrNotAllow
 	}
-	// The owner dimension only. Whether a name's own inactive state should
-	// refuse a read of its own inbox is Q63 and is not settled here: Send
-	// refuses to deliver to such a name and this path does not refuse the
-	// drain, and that asymmetry is left exactly as it was found.
+	// Q63 permits draining an inactive name's own inbox by an active,
+	// authorized caller. Only a separate owner's suspension blocks this path.
+	// See docs/01-identity-and-roles.md#user-states.
 	if err := b.ownerSuspension(name); err != nil {
 		b.mu.Unlock()
 		return protocol.Envelope{}, err

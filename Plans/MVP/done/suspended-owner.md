@@ -1,5 +1,9 @@
 # H.5.7 — a suspended user's services refuse calls
 
+**Later decision (2026-09-17):** Q63 is now settled by the
+[user-state access rule](../../../docs/01-identity-and-roles.md#user-states).
+The discussion below records the question as it stood when H.5.7 shipped.
+
 Shipped in 0.5.34. Evidence for the acceptance in
 [TODO](../TODO.md#remaining-work) as it stood before removal.
 

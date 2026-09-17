@@ -126,6 +126,10 @@ cannot; their directly owned services are suspended too. Suspension keeps
 credentials and queued work, stops no process, and is reversible. Users are
 not deleted in MVP.
 
+**An active, authorized caller may drain an inactive identity's inbox.** The
+target's inactivity alone does not block reading queued work; new deliveries
+remain refused. This is existing behavior, confirmed by the Q63 decision.
+
 <details>
 <summary>Suspension, reactivation and inboxes</summary>
 
@@ -141,9 +145,9 @@ not deleted in MVP.
   service A and A owns B, pausing Alice suspends A, not B.
 * Credentials are kept, not rotated or revoked. Lifting the state restores their
   use. Stored state survives restart; queued messages keep their existing expiry.
-* Whether a third party should be able to drain an inactive person's own inbox
-  remains [Q63](../Plans/MVP/QUESTIONS.md#open-questions). This differs from a
-  service whose separate owner is suspended.
+* Draining still requires access and obeys the stored Disabled setting. A service
+  whose separate owner is suspended remains unreadable under the direct-owner
+  suspension rule; permission to drain an inactive identity does not bypass it.
 
 </details>
 

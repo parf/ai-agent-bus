@@ -52,13 +52,10 @@ func (b *Bus) suspension(name string) error {
 // the person who owns it. It is separate from the name's own state, and the
 // separation is load-bearing rather than tidy.
 //
-// Whether a name's *own* inactive state refuses a read of its own inbox is a
-// different question, and an open one
-// ([Q63](Plans/MVP/QUESTIONS.md#open-questions)): `Send` refuses to deliver to
-// an inactive name while `ConsumeAs` lets a third party drain what is already
-// there. Adding owner suspension to those paths must not answer it by
-// accident, so this asks only about a separate owner and returns nil for a
-// self-owned record, where there is no separate owner to ask about.
+// Q63 permits an active, authorized caller to drain an inactive name's own
+// inbox while Send refuses new deliveries (docs/01-identity-and-roles.md#user-states).
+// This asks only about a separate owner and returns nil for a self-owned
+// record, where there is no separate owner to ask about.
 //
 // It is also **not transitive**. If a service owns a service, suspending the
 // person at the top does not reach the bottom one: the contract is *every

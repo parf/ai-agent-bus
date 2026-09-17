@@ -9,13 +9,9 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// Q63 asks whether ConsumeAs should refuse a read of an inactive name's *own*
-// inbox, the way Send already refuses to deliver to one. It is the owner's
-// question and it is open (Plans/MVP/QUESTIONS.md#open-questions), so H.5.7
-// had to leave that behaviour exactly as it found it. Adding owner suspension
-// to this path very nearly answered it by accident — the first draft called a
-// predicate whose leading branch is `!active(name)` — so this pins the
-// boundary rather than trusting the spelling.
+// H.5.7 preserved this behavior; the owner confirmed it when settling Q63:
+// an active, authorized caller may drain an inactive name's own inbox.
+// See docs/01-identity-and-roles.md#user-states.
 func TestSuspensionDidNotSettleTheDrainQuestion(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
@@ -32,9 +28,8 @@ func TestSuspensionDidNotSettleTheDrainQuestion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// alice's record is self-owned, so there is no separate owner to be
-	// suspended. Whether her own paused state should refuse this read is Q63,
-	// and the answer here must still be the one that was there before.
+	// Alice's record is self-owned, so there is no separate owner to be
+	// suspended. Her own inactive state does not prevent an authorized drain.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	e, err := b.ConsumeAs(ctx, "admin@h", "alice@h", "", "", false, false)

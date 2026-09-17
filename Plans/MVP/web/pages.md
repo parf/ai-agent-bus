@@ -88,9 +88,9 @@ and merely blocked-at-the-front-door in the second, and today's answer cannot
 say which. **Until the daemon separates them the item is written to the weaker
 claim** — *delivery is off and work is held* — and does not promise the backlog
 is unreachable. Separating them is a daemon change and is named as
-[owed](#owed-by-this-specification), not assumed. Whether the asymmetry itself
-is deliberate is a daemon question rather than a dashboard one and is raised as
-[Q63](../QUESTIONS.md#open-questions).
+[owed](#owed-by-this-specification), not assumed. The owner settled Q63 in the
+[user-state access rule](../../../docs/01-identity-and-roles.md#user-states);
+the dashboard must preserve that distinction.
 
 Two structural rules, both opencode's:
 
