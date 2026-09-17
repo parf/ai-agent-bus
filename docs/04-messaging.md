@@ -2,13 +2,39 @@
 
 📌 **TL;DR:** Messages wait in bounded inboxes; dequeue is not completion.
 
-```mermaid
-flowchart LR
-    C[Caller] -->|send request| SI[Service inbox]
-    SI -->|consume| S[Service]
-    S -->|send reply| CI[Caller inbox]
-    CI -->|consume reply| C
-```
+<svg viewBox="0 0 760 300" role="img" aria-label="Request and reply circle between a caller and a service, through their inboxes" style="max-width:760px;width:100%;height:auto;font-family:sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <!-- caller -->
+  <rect x="30" y="128" width="110" height="44" rx="6" fill="#ffffff" stroke="#172b3a" stroke-width="1.5"/>
+  <text x="85" y="155" text-anchor="middle" font-size="15" font-weight="600" fill="#1a1a17">Caller</text>
+  <!-- service -->
+  <rect x="620" y="128" width="110" height="44" rx="6" fill="#ffffff" stroke="#172b3a" stroke-width="1.5"/>
+  <text x="675" y="155" text-anchor="middle" font-size="15" font-weight="600" fill="#1a1a17">Service</text>
+  <!-- service inbox (cylinder) -->
+  <path d="M330,44 L330,71 A50,9 0 0 0 430,71 L430,44" fill="#f2f2ee" stroke="#87847b" stroke-width="1.5"/>
+  <ellipse cx="380" cy="44" rx="50" ry="9" fill="#f2f2ee" stroke="#87847b" stroke-width="1.5"/>
+  <text x="380" y="62" text-anchor="middle" font-size="13" fill="#1a1a17">Service inbox</text>
+  <!-- caller inbox (cylinder) -->
+  <path d="M330,234 L330,261 A50,9 0 0 0 430,261 L430,234" fill="#f2f2ee" stroke="#87847b" stroke-width="1.5"/>
+  <ellipse cx="380" cy="234" rx="50" ry="9" fill="#f2f2ee" stroke="#87847b" stroke-width="1.5"/>
+  <text x="380" y="252" text-anchor="middle" font-size="13" fill="#1a1a17">Caller inbox</text>
+  <!-- request: caller -> service inbox -->
+  <path d="M142,126 C205,102 262,64 326,48" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="212" y="70" text-anchor="middle" font-size="13" fill="#475569">send request</text>
+  <!-- consume: service inbox -> service -->
+  <path d="M434,48 C498,64 555,102 618,126" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="548" y="70" text-anchor="middle" font-size="13" fill="#475569">consume</text>
+  <!-- reply: service -> caller inbox -->
+  <path d="M618,174 C555,198 498,236 434,250" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="548" y="234" text-anchor="middle" font-size="13" fill="#475569">send reply</text>
+  <!-- consume reply: caller inbox -> caller -->
+  <path d="M326,250 C262,236 205,198 142,174" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="212" y="234" text-anchor="middle" font-size="13" fill="#475569">consume reply</text>
+</svg>
 
 A successful request and reply, using the caller's own return address.
 Each inbox belongs to a registered name; replies use the same topic and tag.
