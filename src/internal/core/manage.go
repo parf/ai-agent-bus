@@ -27,14 +27,53 @@ type Management struct {
 	Full        *string   `json:"overflow,omitempty"`
 }
 
+// SetDaemonOwner establishes an owner in an in-memory or embedded bus. The
+// installed daemon uses EstablishDaemonOwner so a startup seed cannot replace
+// durable transferred authority.
 func (b *Bus) SetDaemonOwner(owner string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.ownerRestored = false
+	b.ownerRestoreErr = nil
+	b.setDaemonOwner(owner)
+}
+
+// setDaemonOwner updates the role nesting while caller holds b.mu.
+func (b *Bus) setDaemonOwner(owner string) {
 	b.admin = owner
 	if !b.member(owner, AdministratorsGroup) {
 		b.groups[AdministratorsGroup] = append(b.groups[AdministratorsGroup], owner)
+		sort.Strings(b.groups[AdministratorsGroup])
 	}
 	b.administratorsAreUsers()
+}
+
+// EstablishDaemonOwner applies setup's owner only to a first or legacy
+// snapshot. A current snapshot is authoritative: damage is an error rather
+// than an excuse to resurrect the setup seed after a transfer.
+func (b *Bus) EstablishDaemonOwner(seed string) error {
+	owner, err := canon(seed)
+	if err != nil {
+		return fmt.Errorf("daemon owner: %w", err)
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.ownerRestored {
+		if b.ownerRestoreErr != nil {
+			return b.ownerRestoreErr
+		}
+		return nil
+	}
+	if b.admin == "" {
+		b.setDaemonOwner(owner)
+	}
+	return nil
+}
+
+func (b *Bus) DaemonOwner() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.admin
 }
 
 // administratorsAreUsers keeps daemon roles nested: an owner is an Administrator
@@ -53,8 +92,21 @@ func (b *Bus) administratorsAreUsers() {
 	}
 }
 
-func (b *Bus) manages(caller string, r protocol.Record) bool {
+func (b *Bus) resourceManages(caller string, r protocol.Record) bool {
 	return b.acting(caller) == nil && (caller == r.Owner || caller == r.Name || b.member(caller, r.Maintainers))
+}
+
+// manages includes the daemon Owner's accepted node-wide management override.
+// It is deliberately separate from resourceManages: root management does not
+// turn an empty ACL into message access.
+func (b *Bus) manages(caller string, r protocol.Record) bool {
+	return (caller == b.admin && b.acting(caller) == nil) || b.resourceManages(caller, r)
+}
+
+// canSee gives management enough discovery to act without widening message
+// access. Ordinary callers continue to see exactly what may() permits.
+func (b *Bus) canSee(caller string, r protocol.Record) bool {
+	return b.manages(caller, r) || b.may(caller, r)
 }
 
 // Personal is a grouping tag, not an access mode. Its assignment limits are
@@ -176,6 +228,43 @@ func (b *Bus) Groups(caller string) map[string][]string {
 	return out
 }
 
+// TransferDaemonOwner moves node authority while preserving the former owner
+// as an Administrator. Removing that standing is a separate explicit act by
+// the new owner. The target must already be an active registered User.
+func (b *Bus) TransferDaemonOwner(caller, next string) (protocol.User, error) {
+	who, err := canon(caller)
+	if err != nil {
+		return protocol.User{}, err
+	}
+	owner, err := canon(next)
+	if err != nil {
+		return protocol.User{}, err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return protocol.User{}, err
+	}
+	if who != b.admin {
+		return protocol.User{}, ErrNotOwner
+	}
+	if owner == b.admin {
+		return protocol.User{}, fmt.Errorf("%w: already the daemon owner", ErrBadName)
+	}
+	_, exists := b.users[owner]
+	if !exists {
+		return protocol.User{}, fmt.Errorf("%w: daemon owner must be a registered user", ErrBadName)
+	}
+	if err := b.acting(owner); err != nil {
+		return protocol.User{}, err
+	}
+	b.setDaemonOwner(owner)
+	if err := b.checkpoint(false); err != nil {
+		return protocol.User{}, err
+	}
+	return b.userView(owner, owner), nil
+}
+
 func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) {
 	who, err := canon(caller)
 	if err != nil {
@@ -197,7 +286,7 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	if !b.manages(who, r) {
 		return protocol.Record{}, ErrNotOwner
 	}
-	if (change.Owner != nil || change.Maintainers != nil || change.Personal != nil) && who != r.Owner {
+	if (change.Owner != nil || change.Maintainers != nil || change.Personal != nil) && who != r.Owner && who != b.admin {
 		return protocol.Record{}, ErrNotOwner
 	}
 	if change.Owner != nil {
@@ -342,7 +431,7 @@ func (b *Bus) visible(caller string, r protocol.Record) protocol.Record {
 	r = b.withLiveness(r.Name, r.Public())
 	r.Disabled = r.Disabled || !b.active(r.Name)
 	r.CanManage = b.manages(caller, r)
-	r.CanTransfer = caller == r.Owner
+	r.CanTransfer = caller == r.Owner || caller == b.admin
 	return r
 }
 

@@ -13,6 +13,14 @@ func (s *Server) manage(w http.ResponseWriter, r *http.Request, caller protocol.
 		s.reply(w, rec, err)
 	}
 }
+
+func (s *Server) owner(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	var in struct{ Name string }
+	if s.read(w, r, &in) {
+		user, err := s.bus.TransferDaemonOwner(caller.String(), in.Name)
+		s.reply(w, user, err)
+	}
+}
 func (s *Server) groups(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	ok(w, s.bus.Groups(caller.String()))
 }

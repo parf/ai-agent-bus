@@ -71,8 +71,8 @@ func TestEmptyACLRestrictsUseAndVisibilityOnNewAndRestoredRecords(t *testing.T) 
 				t.Run(who, func(t *testing.T) {
 					allowed := who == "alice@h" || who == "maintainer@h" || who == "svc@h"
 					r, visible := b.Lookup(who, "svc@h")
-					if visible != allowed {
-						t.Fatalf("lookup visible=%v, want %v", visible, allowed)
+					if visible != (allowed || who == "admin@h") {
+						t.Fatalf("lookup visible=%v, want %v", visible, allowed || who == "admin@h")
 					}
 					if visible && len(r.Allow) != 0 {
 						t.Fatal("empty ACL silently rewritten")
@@ -83,8 +83,8 @@ func TestEmptyACLRestrictsUseAndVisibilityOnNewAndRestoredRecords(t *testing.T) 
 							listed = true
 						}
 					}
-					if listed != allowed {
-						t.Fatalf("listing contains service=%v, want %v", listed, allowed)
+					if listed != (allowed || who == "admin@h") {
+						t.Fatalf("listing contains service=%v, want %v", listed, allowed || who == "admin@h")
 					}
 					_, err := b.Send(protocol.Envelope{From: who, To: "svc@h", Body: who})
 					if allowed {

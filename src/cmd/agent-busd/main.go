@@ -49,7 +49,7 @@ func main() {
 	flag.StringVar(&c.addr, "addr", env("AGENT_BUS_ADDR", "127.0.0.1:6767"), "TCP listen address — loopback only")
 	flag.StringVar(&c.sock, "socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
 	flag.StringVar(&c.tokenF, "token-file", env("AGENT_BUS_TOKEN_FILE", defaultTokenFile()), "token store; created if absent")
-	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", defaultOwner()), "the principal this daemon belongs to")
+	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", ""), "initial daemon owner (required; later transfers are durable)")
 	flag.StringVar(&c.dumpF, "dump-file", env("AGENT_BUS_DUMP_FILE", defaultDumpFile()), "where the queues and stats are snapshotted")
 	flag.DurationVar(&c.every, "dump-every", time.Minute, "how often to snapshot while running; 0 turns the periodic dumper off")
 	flag.BoolVar(&c.web, "web", false, "run the dashboard as a child too (docs/05-discovery.md#dashboard)")
@@ -58,6 +58,9 @@ func main() {
 	flag.Var(&c.hold, "master", "a principal that reaches every service which has not refused it: `user@realm`; repeatable")
 	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
 	flag.Parse()
+	if _, err := requiredOwner(c.owner); err != nil {
+		log.Fatalf("owner: %v", err)
+	}
 
 	if os.Getenv(roleEnv) == roleBus {
 		runBus(c)
@@ -65,6 +68,14 @@ func main() {
 	}
 	defer proctitle.Start("agent-busd", "supervisor", nil)()
 	runSupervisor(c)
+}
+
+func requiredOwner(value string) (protocol.Name, error) {
+	name, err := protocol.ParseName(value)
+	if err != nil {
+		return protocol.Name{}, fmt.Errorf("required --owner user@realm: %w", err)
+	}
+	return name, nil
 }
 
 // accounts is the local account -> principal mapping setup writes down.
@@ -196,23 +207,6 @@ func env(k, def string) string {
 		return v
 	}
 	return def
-}
-
-// defaultOwner is the account running the daemon, vouched for by this host —
-// the `user@host` form in docs/01-identity-and-roles.md#names.
-func defaultOwner() string {
-	who := "agent-busd"
-	if u, err := user.Current(); err == nil && u.Username != "" {
-		who = u.Username
-	}
-	host, err := os.Hostname()
-	if err != nil || host == "" {
-		host = "localhost"
-	}
-	if i := strings.IndexByte(host, '.'); i > 0 {
-		host = host[:i]
-	}
-	return who + "@" + host
 }
 
 // masters is a repeatable flag, and nothing more: who holds the master ACL

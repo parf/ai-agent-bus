@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -19,7 +20,12 @@ func (b *Bus) Snapshot() ports.Snapshot {
 
 // snapshot is called with b.mu held.
 func (b *Bus) snapshot() ports.Snapshot {
-	s := ports.Snapshot{At: time.Now(), Groups: map[string][]string{}}
+	s := ports.Snapshot{
+		OwnerEstablished: b.admin != "",
+		Owner:            b.admin,
+		At:               time.Now(),
+		Groups:           map[string][]string{},
+	}
 	for _, user := range b.users {
 		s.Users = append(s.Users, user)
 	}
@@ -83,6 +89,21 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	s = migrateAdministrators(s)
+	b.ownerRestored = s.OwnerEstablished || s.Owner != ""
+	b.ownerRestoreErr = nil
+	if s.Owner != "" && !s.OwnerEstablished {
+		b.admin = ""
+		b.ownerRestoreErr = fmt.Errorf("snapshot has daemon owner without establishment marker")
+	}
+	if s.OwnerEstablished {
+		b.admin = ""
+		owner, err := canon(s.Owner)
+		if err != nil {
+			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner: %w", err)
+		} else {
+			b.admin = owner
+		}
+	}
 	b.unclean = !s.Clean
 	for _, user := range s.Users {
 		b.users[user.Name] = user
@@ -90,8 +111,19 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	for name, members := range s.Groups {
 		b.groups[name] = append([]string{}, members...)
 	}
+	if s.OwnerEstablished && b.ownerRestoreErr == nil {
+		if _, known := b.users[b.admin]; !known {
+			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner %s is not a registered user", b.admin)
+		} else if err := b.acting(b.admin); err != nil {
+			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner %s is not active: %w", b.admin, err)
+		} else if !b.member(b.admin, AdministratorsGroup) {
+			b.groups[AdministratorsGroup] = append(b.groups[AdministratorsGroup], b.admin)
+			sort.Strings(b.groups[AdministratorsGroup])
+		}
+	}
 	// A snapshot written before administrators had to be users can hold one who
-	// is not; the invariant is restored rather than trusted.
+	// is not; the invariant is restored rather than trusted. This happens after
+	// the durable-owner check so it cannot manufacture a missing owner profile.
 	b.administratorsAreUsers()
 	for _, r := range s.Records {
 		// A snapshot may have been written by another version or supplied by

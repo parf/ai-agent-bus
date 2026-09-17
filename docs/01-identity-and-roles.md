@@ -1,6 +1,6 @@
 # Identity and roles
 
-📌 **TL;DR:** Administrators manage users and groups; Maintainers manage assigned resources.
+📌 **TL;DR:** The Owner controls the node; Administrators manage users and groups; Maintainers manage assigned resources.
 
 For credentials and permission checks, see [Access](02-access.md#what-a-call-carries).
 
@@ -60,24 +60,41 @@ flowchart TB
     subgraph Resource[Service / channel]
         RO[Owner] --> RM[Maintainer] --> Member[Member]
     end
-    DO -. "Node-wide control: pending" .-> RO
+    DO -. "Node-wide management" .-> RO
 ```
 
 Solid arrows show permission inheritance within each scope. The dashed override
-is pending and belongs only to the daemon Owner, never to Administrators.
+crosses scopes and belongs only to the daemon Owner, never to Administrators.
 
 </details>
 
 ## Daemon owner
 
-Assigned via `agent-bus-setup`, the daemon owner has root-like authority in the
-accepted model. **Node-wide resource override and daemon ownership transfer
-are pending.**
+The daemon owner has root-like authority. Setup supplies the required first
+owner; the daemon then stores that position and a transfer survives restart.
 
 * Assign and revoke Administrators; edit, activate, pause and ban them.
 * Manage users and all groups.
 * Edit any service or channel, including its ACL, Maintainers and owner.
 * Transfer daemon ownership to another user.
+
+<details>
+<summary>Transfer and access boundaries</summary>
+
+Only the current active Owner may transfer the position, to a different active
+registered User. The recipient becomes an Administrator; the former Owner stays
+an Administrator until the new Owner changes that group. A startup owner value
+seeds a legacy or first snapshot only and cannot replace a transferred Owner.
+A current snapshot with a missing, invalid, inactive or unknown Owner fails
+startup rather than silently restoring the seed.
+
+Root management includes discovery, settings, ACL, Maintainers, ownership,
+configuration and removal. It does not itself grant message use. The current
+Owner separately holds the [master grant](02-access.md#acl), which still needs
+a non-empty ACL and remains subject to explicit master refusal. Administrators
+gain no node-wide resource authority from their administrative position.
+
+</details>
 
 ## Daemon Administrators
 
@@ -155,8 +172,8 @@ remain refused. This is existing behavior, confirmed by the Q63 decision.
 
 A service has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
-The following is the accepted model; **service-defined roles and the
-daemon-owner override remain pending**.
+The following model is built except for **service-defined roles**, which remain
+pending.
 
 | Role | Authority |
 |---|---|
@@ -257,9 +274,9 @@ deliberately clear grants or the master refusal.
 
 ## Ownership
 
-Changing a service or channel's owner requires its current owner's authority.
-The accepted daemon-owner override is still pending. Transfer changes who may
-manage the record and request its credential; it does not revoke existing tokens.
+Changing a service or channel's owner requires its current owner's or the daemon
+Owner's authority. Transfer changes who may manage the record and request its
+credential; it does not revoke existing tokens.
 
 <details>
 <summary>Transfer recipients and self-owned identities</summary>

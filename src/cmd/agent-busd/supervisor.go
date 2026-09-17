@@ -17,8 +17,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 func runSupervisor(c config) {
@@ -55,7 +53,7 @@ func runSupervisor(c config) {
 	if err := os.Chmod(c.sock, 0o666); err != nil {
 		log.Fatalf("chmod %s: %v", c.sock, err)
 	}
-	me, err := protocol.ParseName(c.owner)
+	me, err := requiredOwner(c.owner)
 	if err != nil {
 		log.Fatalf("owner: %v", err)
 	}

@@ -102,6 +102,12 @@ func TestDashboardOwnerControls(t *testing.T) {
 			t.Fatalf("missing owner control: %s", label)
 		}
 	}
+	page = request("admin@h", "GET", "/service?name=svc@h", "", nil, 200)
+	for _, label := range []string{"Save settings", "Replace configuration", "Transfer ownership", "Remove idle service"} {
+		if !strings.Contains(page, ">"+label+"</button>") {
+			t.Fatalf("daemon owner missing node-wide control: %s", label)
+		}
+	}
 	request("other@h", "GET", "/service?name=svc@h", "", nil, 404)
 	if body := request("owner@h", "GET", "/services?scope=my&state=active", "", nil, 200); !strings.Contains(body, "svc@h") {
 		t.Fatal("own active service missing")
@@ -110,7 +116,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 	request("owner@h", "POST", "/service", "https://evil.example", disable, 403)
 	request("owner@h", "POST", "/service", "", disable, 403)
 	request("other@h", "POST", "/service", web.URL, disable, 403)
-	request("admin@h", "POST", "/service", web.URL, disable, 403)
+	request("admin@h", "POST", "/service", web.URL, disable, 303)
 	request("owner@h", "POST", "/service", web.URL, disable, 303)
 	if body := request("owner@h", "GET", "/services?scope=my&state=active", "", nil, 200); strings.Contains(body, "svc@h") {
 		t.Fatal("disabled service appears active")

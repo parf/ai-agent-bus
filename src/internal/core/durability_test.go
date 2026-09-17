@@ -125,6 +125,11 @@ func administrativeChanges() []durableChange {
 				t.Fatal("acknowledged configuration was not recovered")
 			}
 		}},
+		{"daemon-owner", func(b *Bus) error { _, e := b.TransferDaemonOwner("admin@h", "bob@h"); return e }, func(t *testing.T, b *Bus) {
+			if b.DaemonOwner() != "bob@h" || !b.IsAdministrator("admin@h") || !b.IsAdministrator("bob@h") {
+				t.Fatalf("acknowledged owner transfer was not recovered: owner=%s", b.DaemonOwner())
+			}
+		}},
 	}
 }
 
@@ -144,7 +149,9 @@ func TestAdministrativeSuccessHasAlreadyPersisted(t *testing.T) {
 			saved, _, _ := d.Load()
 			recovered := New()
 			recovered.Restore(saved)
-			recovered.SetDaemonOwner("admin@h")
+			if err := recovered.EstablishDaemonOwner("admin@h"); err != nil {
+				t.Fatal(err)
+			}
 			c.check(t, recovered)
 			if err := recovered.Authenticate("friend@h"); err != nil {
 				t.Fatalf("unrelated user lost standing: %v", err)
@@ -192,7 +199,9 @@ func TestOlderCheckpointCannotOverwriteAcknowledgedBan(t *testing.T) {
 	saved, _, _ := d.Load()
 	recovered := New()
 	recovered.Restore(saved)
-	recovered.SetDaemonOwner("admin@h")
+	if err := recovered.EstablishDaemonOwner("admin@h"); err != nil {
+		t.Fatal(err)
+	}
 	if !errors.Is(recovered.Authenticate("bob@h"), ErrInactive) {
 		t.Fatal("older checkpoint erased acknowledged ban")
 	}

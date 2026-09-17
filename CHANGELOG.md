@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.55 — 2026-09-17
+
+Persist daemon ownership and let the current Owner manage every service and
+channel without widening message access. Ownership transfers to an active
+registered User survive restart; startup now requires an explicit owner seed.
+
 ## 0.5.54 — 2026-09-17
 
 Label User, Agent and Service identities consistently in WEB and human CLI

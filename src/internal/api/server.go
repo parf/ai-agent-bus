@@ -112,10 +112,6 @@ type Server struct {
 	calls  func(time.Time) protocol.CallStats
 	bus    *core.Bus
 	tokens *auth.Tokens
-	// The principal this daemon belongs to. It is the one that may hand out
-	// a credential for a name nobody owns yet — everyone else is limited to
-	// names they own. See docs/02-access.md#getting-a-token.
-	owner string
 	// Where a browser that arrived here is sent instead. Empty means the
 	// root is not served at all, which is what it was before.
 	dash string
@@ -137,8 +133,10 @@ func (s *Server) Dashboard(url string) {
 }
 
 func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
-	bus.SetDaemonOwner(owner)
-	return &Server{bus: bus, tokens: tokens, owner: owner}
+	if err := bus.EstablishDaemonOwner(owner); err != nil {
+		panic(err)
+	}
+	return &Server{bus: bus, tokens: tokens}
 }
 
 // guard turns a handler that needs a caller into one that does not, by
@@ -164,6 +162,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /register", g(s.register))
 	mux.HandleFunc("POST /unregister", g(s.unregister))
 	mux.HandleFunc("POST /manage", g(s.manage))
+	mux.HandleFunc("POST /owner", g(s.owner))
 	mux.HandleFunc("GET /groups", g(s.groups))
 	mux.HandleFunc("GET /users", g(s.users))
 	mux.HandleFunc("POST /user", g(s.user))
@@ -322,12 +321,13 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 // socket cannot answer for itself, because it never stated a name.
 // See docs/02-access.md#local-socket.
 func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	owner := s.bus.DaemonOwner()
 	ok(w, struct {
 		core.Status
 		You           string `json:"you"`
 		Administrator bool   `json:"administrator,omitempty"`
 		DaemonOwner   bool   `json:"daemon_owner,omitempty"`
-	}{Status: s.bus.Status(), You: caller.String(), Administrator: s.bus.IsAdministrator(caller.String()), DaemonOwner: caller.String() == s.owner})
+	}{Status: s.bus.Status(), You: caller.String(), Administrator: s.bus.IsAdministrator(caller.String()), DaemonOwner: caller.String() == owner})
 }
 
 // subscribe puts the caller on a pub/sub topic, or takes it off. The caller

@@ -33,7 +33,7 @@ func (b *Bus) may(caller string, r protocol.Record) bool {
 	if b.acting(caller) != nil {
 		return false
 	}
-	if b.manages(caller, r) {
+	if b.resourceManages(caller, r) {
 		return true
 	}
 	// No grants means management access only, including on restored records.
@@ -46,5 +46,5 @@ func (b *Bus) may(caller string, r protocol.Record) bool {
 			return true
 		}
 	}
-	return !r.NoMaster && b.masters[caller]
+	return !r.NoMaster && (caller == b.admin || b.masters[caller])
 }

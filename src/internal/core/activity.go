@@ -73,7 +73,7 @@ func (b *Bus) Activity(caller, name string) ([]ActivityPoint, error) {
 	defer b.mu.Unlock()
 	if name != "" {
 		r, known := b.records[name]
-		if !known || !b.may(caller, r) {
+		if !known || !b.canSee(caller, r) {
 			return nil, ErrUnknown
 		}
 	}
@@ -83,7 +83,7 @@ func (b *Bus) Activity(caller, name string) ([]ActivityPoint, error) {
 	total := func(s activitySample) Counts {
 		c := Counts{}
 		for n, r := range b.records {
-			if name != "" && n != name || !b.may(caller, r) {
+			if name != "" && n != name || !b.canSee(caller, r) {
 				continue
 			}
 			v := s.records[n]

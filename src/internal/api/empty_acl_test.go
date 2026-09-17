@@ -33,7 +33,9 @@ func TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP(t *testing.T) {
 		return w.Body.String()
 	}
 	request("alice@h", "GET", "/lookup?name=private@h", "", 200)
-	for _, who := range []string{"outsider@h", "admin@h"} {
+	request("admin@h", "GET", "/lookup?name=private@h", "", 200)
+	request("admin@h", "POST", "/send", `{"to":"private@h","body":"forbidden"}`, 403)
+	for _, who := range []string{"outsider@h"} {
 		hidden := request(who, "GET", "/lookup?name=private@h", "", 404)
 		missing := request(who, "GET", "/lookup?name=missing@h", "", 404)
 		// Each response may echo the requested name; compare the same name.

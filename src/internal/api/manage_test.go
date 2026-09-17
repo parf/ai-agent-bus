@@ -38,7 +38,7 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 		}
 	}
 	call("alice@h", "/register", `{"name":"svc@h","allow":["alice@h"]}`, 200)
-	call("admin@h", "/manage", `{"name":"svc@h","disabled":true}`, 403)
+	call("admin@h", "/manage", `{"name":"svc@h","descr":"node owner may manage every service"}`, 200)
 	call("bob@h", "/manage", `{"name":"svc@h","owner":"bob@h"}`, 403)
 	call("alice@h", "/group", `{"name":"@ops","members":["alice@h"]}`, 403)
 	call("admin@h", "/group", `{"name":"@ops","members":["maint@h"]}`, 200)

@@ -32,7 +32,7 @@ func (b *Bus) Recent(caller string) []protocol.Envelope {
 	if b.acting(caller) != nil {
 		return []protocol.Envelope{}
 	}
-	all := b.masters[caller]
+	all := caller == b.admin || b.masters[caller]
 	out := make([]protocol.Envelope, 0, len(b.recent))
 	for i := len(b.recent) - 1; i >= 0; i-- {
 		if e := b.recent[i]; all || e.From == caller || e.To == caller {

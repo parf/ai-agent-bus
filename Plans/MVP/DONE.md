@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Daemon Owner authority | Required first-run seed, durable transfer, node-wide resource management without Administrator inheritance or ACL widening | [0.5.55 evidence](done/daemon-owner.md#checks) |
 | 0.5.54 live rollout | Public identity, WEB and human CLI labels, raw JSON vocabulary, confinement and peer reconnection verified without registry changes | [live postflight](done/identity-display-labels.md#live-postflight) |
 | Identity display labels | WEB and human CLI label User, Agent and Service from daemon-stated kinds while JSON, filters and editable ACL syntax stay plain | [0.5.54 evidence](done/identity-display-labels.md#checks) |
 | 0.5.53 live rollout | Public identity, raw reader data, numeric CLI and WEB, fresh MCP rendering, web confinement and peer reconnection verified; existing MCP processes retain their loaded module until launcher restart | [live postflight](done/reader-visibility.md#live-postflight) |

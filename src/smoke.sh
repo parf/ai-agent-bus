@@ -1109,7 +1109,10 @@ for _ in $(seq 1 50); do grep -q second "$D/follow.out" && break; sleep 0.2; don
 kill $FPID 2>/dev/null; wait $FPID 2>/dev/null
 has "--follow keeps reading" "$(cat "$D/follow.out")" 'first'
 has "--follow reads the next one too" "$(cat "$D/follow.out")" 'second'
-out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-file "$D/token" -dump-file "$D/public.dump" -dump-every 0 2>&1); rc=$?
+out=$("$D/agent-busd" -addr 127.0.0.1:$((PORT+1)) -socket "$D/no-owner.sock" -token-file "$D/token" -dump-file "$D/no-owner.dump" -dump-every 0 2>&1); rc=$?
+bad_exit "the daemon refuses to derive ownership from the OS account" $rc
+has "and requires an explicit owner before opening listeners" "$out" 'required --owner user@realm'
+out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-file "$D/token" -owner "$OWNER" -dump-file "$D/public.dump" -dump-every 0 2>&1); rc=$?
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
 
@@ -1643,7 +1646,7 @@ NEWTOK=$(printf '%s' "$out" | sed -n 's/.*"token":"\([0-9a-f]*\)".*/\1/p')
 has "which authenticates as that name" \
   "$(ecode newbie@vouched "$NEWTOK" /status)" '200'
 has "somebody else cannot register over an enrolled name" \
-  "$(ecode $OWNER "$ETOK" /register '{"name":"newbie@vouched","kind":"generic"}')" '403'
+  "$(ecode alice@srv1 "$(etok alice@srv1 2>/dev/null)" /register '{"name":"newbie@vouched","kind":"generic"}')" '403'
 has "nor be handed its credential" \
   "$(ecode alice@srv1 "$(etok alice@srv1 2>/dev/null)" /token '{"name":"newbie@vouched"}')" '403'
 # Enrolment is where a credential comes from, so it cannot want one first.
@@ -1951,13 +1954,14 @@ PAGE=$(curl -s -b "$JAR" "$WEB/")
 has "the dashboard renders the envelope" "$(sect exchanges "$PAGE")" 'board-svc@srv1'
 has "and the record it was for" "$PAGE" 'watched by the board'
 is_empty "and no body reaches the page" "$(printf '%s' "$PAGE" | grep -o "$SECRET")"
-# Two principals, one URL, different pages — and what tells them apart is a
-# record master may not see, so it is the ACL answering and not the greeting.
+# Two principals, one URL, different pages. The resource owner sees its record;
+# the daemon Owner sees it for management even though its master access is
+# refused. The earlier send check pins that visibility does not grant message use.
 OJAR=$D/web-owner.jar; rm -f "$OJAR"
 curl -s -c "$OJAR" -o /dev/null -X POST -d "token=$(tok acl-owner@srv1)" "$WEB/signin"
 has "a second principal gets their own page" "$(curl -s -b "$OJAR" "$WEB/")" 'refuses master'
-is_empty "and master's page holds what master may not see" \
-  "$(printf '%s' "$PAGE" | grep -o 'refuses master')"
+has "and the daemon Owner sees a master-refusing record for management" \
+  "$PAGE" 'refuses master'
 
 # The views the MVP owes, each a reshape of what the bus already answered
 # THIS caller: the ordering, the grouping and the late mark are the page's
@@ -2261,11 +2265,9 @@ orph_checks() {
   has "the store now holds a record owned by a name nothing knows" \
     "$(cat "$D/orph/dump.json")" '"owner":"vanished@srv1"'
   # And every trace of the daemon owner as a *principal* goes with it: their
-  # profile, and their line in the maintainers group, which a reload turns back
-  # into a profile. The owner is made a registered user by the call that builds
-  # the face, so a sweep running before that call finds every record of theirs
-  # unowned and takes the lot. owner-svc@srv1 below is that check, and it says
-  # nothing at all while the store hands the owner back before the face is up.
+  # profile, and their line in the administrators group, which a reload could
+  # otherwise turn back into a profile. A current snapshot must fail closed on
+  # that damage rather than silently resurrecting setup's seed.
   # Two substitutions for the profile, because the order of the array is a map's
   # and not stable: dropping the trailing comma when the owner happens to be
   # last would leave JSON the start refuses to read, which checks nothing.
@@ -2281,6 +2283,21 @@ orph_checks() {
     "$EDUSERS" "$OWNER"
   lacks "nor a line in the group a reload would rebuild one from" "$EDGROUPS" "$OWNER"
 
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/orph/bus.sock" -token-file "$D/orph/token" \
+    -owner "$OWNER" -dump-file "$D/orph/dump.json" -dump-every 0 >"$D/orph/damaged.log" 2>&1 &
+  OPID=$!
+  sleep 0.5
+  is_empty "a damaged current owner never reaches a serving bus" \
+    "$(curl -s --max-time 0.2 --unix-socket "$D/orph/bus.sock" http://unix/status 2>/dev/null)"
+  has "and startup names the missing durable owner" \
+    "$(cat "$D/orph/damaged.log")" "snapshot daemon owner $OWNER is not a registered user"
+  orph_down
+
+  # Removing the fields is an explicit legacy fixture. Only this state takes
+  # --owner as a one-time seed; the following save writes durable ownership.
+  sed -i "s|\"owner_established\":true,\"owner\":\"$OWNER\",||" "$D/orph/dump.json"
+  lacks "the explicit legacy snapshot has no durable owner marker" \
+    "$(cat "$D/orph/dump.json")" 'owner_established'
   orph_up second || { echo "  FAIL the start over the edited store did not come up"; fail=$((fail+1)); return 1; }
   has "the start says how many it took" "$(cat "$D/orph/second.log")" 'deleted 4 services'
   REG=$(oab ls)

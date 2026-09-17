@@ -135,7 +135,7 @@ what the daemon permits. “All” means all visible to that visitor.
 | Tab | Required functionality |
 |---|---|
 | Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, maintainers group, access, Readers count and queue statistics. Excludes Personal services, which have their own tab. Administrative availability and reader observation are distinct facts |
-| Personal services | Owner-tagged services grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner among ACL-visible records |
+| Personal services | Owner-tagged services grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
 | Users | List and details; add, edit, activate, pause and ban; show owned services, group membership and administrative authority |
 | Groups | List and details; create, edit and manage flat membership; basic service and channel access. Include the daemon Administrator group and each record's assigned maintainers group under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
@@ -164,7 +164,7 @@ These are the initial implementation defaults; longer history and export remain
 Graphs and their accessible value table report accepted, dequeued, dropped,
 expired and refused counts. Aggregates include only currently visible records;
 pub/sub copies count in the subscriber inboxes that accept them. Per-record
-refusals count failed sends and reads; daemon administrators with master access
+refusals count failed sends and reads; the daemon owner and configured masters
 also see node refusal totals, on the terms [refusals](#refusals) sets — every
 endpoint refusal, including authentication failures and malformed requests, and
 not the router's rejections or our own failures. Bodies never

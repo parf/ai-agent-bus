@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Durable daemon ownership and node-wide management | [daemon owner](01-identity-and-roles.md#daemon-owner), [setup upgrade](09-setup.md#daemon-ownership-upgrade) | 2026-09-17 implementation; required setup seed, durable transfer to an active registered User, Owner-only resource override without inherited Administrator authority |
 | Web resource confinement | [web resource limits](11-processes.md#web-resource-limits) | 2026-09-17 G.1.2 implementation; delegated web-only cgroup, fail closed without delegation |
 | Web filesystem and process confinement | [web authority boundary](11-processes.md#web-authority-boundary) | 2026-09-17 G.1.3 implementation; explicit input mounts and environment, no unconfined fallback |
 | SSH forced-command execution and entitlement | [SSH administration](09-setup.md#ssh-admin), [account shell](09-setup.md#the-two-accounts) | 2026-09-17 H.5.2 implementation; repairs the previously blocked token delegation and forced-command execution |

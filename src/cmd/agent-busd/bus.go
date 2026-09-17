@@ -35,11 +35,7 @@ func runBus(c config) {
 	var calls atomic.Uint64
 	callHistory := callstats.New(&calls)
 	defer proctitle.Start("agent-busd", "bus", &calls)()
-	tokens, err := auth.Load(file.NewTokens(c.tokenF), c.owner)
-	if err != nil {
-		log.Fatalf("token: %v", err)
-	}
-	me, err := protocol.ParseName(c.owner)
+	me, err := requiredOwner(c.owner)
 	if err != nil {
 		log.Fatalf("owner: %v", err)
 	}
@@ -55,6 +51,14 @@ func runBus(c config) {
 		}
 		bus.Restore(s)
 	}
+	if err := bus.EstablishDaemonOwner(me.String()); err != nil {
+		log.Fatalf("owner: %v", err)
+	}
+	owner := bus.DaemonOwner()
+	tokens, err := auth.Load(file.NewTokens(c.tokenF), owner)
+	if err != nil {
+		log.Fatalf("token: %v", err)
+	}
 	bus.Persistence(snap)
 	// Written straight away and not clean: the next start needs to tell a
 	// first one from one that follows a death, and only a file on disk can.
@@ -64,9 +68,10 @@ func runBus(c config) {
 		}
 	}
 	save(false)
-	// The daemon's owner holds master without being listed: they installed
-	// it, and the setup user is the admin. See docs/02-access.md#acl.
-	bus.Masters(append([]string{me.String()}, c.hold...))
+	// Explicit masters are configuration. The durable current owner holds the
+	// implicit owner grant in core, so a transfer takes effect without changing
+	// setup's flags or the supervisor's account-socket mapping.
+	bus.Masters(c.hold)
 	// A realm somebody vouches for can only be entered by proving you hold
 	// a key it publishes. Realms nobody vouches for stay open, as they were.
 	// See docs/01-identity-and-roles.md#registration.
@@ -83,7 +88,7 @@ func runBus(c config) {
 		}
 	}
 	bus.Directories(dirs, sshkeygen.New())
-	face := api.New(bus, tokens, me.String())
+	face := api.New(bus, tokens, owner)
 	face.Dashboard(c.dash)
 	face.Calls(callHistory.Snapshot)
 
@@ -93,10 +98,9 @@ func runBus(c config) {
 	//
 	// Before the credential sweep below, because deleting a record is what
 	// makes its name answer for nothing: the two run in that order so they
-	// cannot disagree about one name. After api.New for the same reason the
-	// sweep is, and it matters more here — that call is what registers the
-	// daemon owner, and a record of theirs would be wreckage until it has
-	// happened.
+	// cannot disagree about one name. After owner establishment for the same
+	// reason the sweep is: a record of the owner would be wreckage until the
+	// durable owner is restored or the first-run seed is applied.
 	if purged := bus.Orphans(); len(purged) > 0 {
 		log.Printf("deleted %d services whose owner the daemon does not know", len(purged))
 	}
@@ -110,10 +114,9 @@ func runBus(c config) {
 	// nothing, and is dropped here — at start, at a known moment, never by
 	// expiry (docs/02-access.md#ownerless-credentials).
 	//
-	// After Restore, so the records and users it asks about are the ones the
-	// snapshot brought back; and after api.New, because that is what makes the
-	// daemon owner a registered user. Either way round it would sweep what it
-	// is meant to keep.
+	// After Restore and owner establishment, so the records and users it asks
+	// about are the durable ones. Either way round it would sweep what it is
+	// meant to keep.
 	if swept := bus.Ownerless(tokens.Names()); len(swept) > 0 {
 		for _, name := range swept {
 			if err := tokens.Forget(name); err != nil {
@@ -157,7 +160,7 @@ func runBus(c config) {
 		}
 		serve(in.l, face.HandlerFor(name))
 	}
-	log.Printf("bus serving %d listeners for %s (tokens %s)", len(srvs), me, c.tokenF)
+	log.Printf("bus serving %d listeners for %s (tokens %s)", len(srvs), owner, c.tokenF)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)

@@ -104,6 +104,11 @@ type Bus struct {
 	records  map[string]protocol.Record
 	groups   map[string][]string
 	admin    string
+	// ownerRestored means a current snapshot, rather than setup, supplied
+	// admin. ownerRestoreErr is retained until startup validates that durable
+	// authority before serving anything.
+	ownerRestored   bool
+	ownerRestoreErr error
 	// How many calls were refused, and for what. Counted because a bus that
 	// is quiet and one that is refusing everything look identical from
 	// outside — see docs/05-discovery.md#what-it-shows.
@@ -399,7 +404,7 @@ func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 	// A name you may not see does not exist as far as you are concerned:
 	// hiding it and refusing it are different answers, and discovery is the
 	// half that hides. See docs/02-access.md#acl.
-	if !ok || !b.may(caller, r) {
+	if !ok || !b.canSee(caller, r) {
 		return protocol.Record{}, false
 	}
 	return b.visible(caller, r), true
@@ -486,7 +491,7 @@ func (b *Bus) List(caller, kind string) []protocol.Record {
 		// Two things are held back: what the caller may not see at all,
 		// and the configuration, which is nobody's but the service's — a
 		// digest of it is what a query gets instead.
-		if !b.may(caller, r) {
+		if !b.canSee(caller, r) {
 			continue
 		}
 		out = append(out, b.visible(caller, r))

@@ -16,7 +16,7 @@ func (s *Server) Calls(snapshot func(time.Time) protocol.CallStats) { s.calls = 
 func (s *Server) identity(w http.ResponseWriter, r *http.Request) {
 	host, _ := os.Hostname()
 	node := protocol.NodeIdentity{Version: version.String, Build: version.Build,
-		Owner: s.owner, Up: s.bus.Uptime(), Host: host}
+		Owner: s.bus.DaemonOwner(), Up: s.bus.Uptime(), Host: host}
 	if s.calls != nil {
 		stats := s.calls(time.Now())
 		node.Calls = &stats

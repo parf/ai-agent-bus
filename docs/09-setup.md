@@ -86,12 +86,31 @@ access and visibility: listings omit the record and lookup answers as hidden.
 Before upgrading, resource owners should explicitly grant any intended peer
 access, including access to reply inboxes. `*` opts into broad sharing; do not
 add it merely to silence a refusal. This release also stops implicit master
-access to empty-ACL resources. The daemon owner needs resource-level authority
-there until the [node-wide override](01-identity-and-roles.md#daemon-owner) is built.
+access to empty-ACL resources. The daemon Owner can discover and manage those
+resources through separate [node-wide authority](01-identity-and-roles.md#daemon-owner),
+but still cannot use their message interface without an ACL grant.
 
 Fresh automatic registrations by faces and launchers also follow the default;
 configured sharing survives [metadata re-registration](01-identity-and-roles.md#registration).
 Script runners can state grants with [their start options](08-runner-role.md#script-services).
+
+## Daemon ownership upgrade
+
+`--owner user@realm` (or `AGENT_BUS_OWNER`) is required; the daemon no longer
+derives authority from the OS account name. On the first 0.5.55 start it seeds
+legacy state and is written into the snapshot. Later starts trust the stored
+Owner, so changing the flag does not transfer authority. Use the daemon-owner
+transfer API instead.
+
+The configured value still maps the daemon OS account's private socket. A
+transfer changes daemon authority, not that local-account mapping; configure a
+socket for the new Owner or use their token to act as them. A current snapshot
+whose stored Owner is damaged fails startup.
+
+**Downgrade:** an older daemon ignores the durable Owner fields and derives
+authority from its configured `--owner` again. Resource ACLs and Administrator
+membership remain stored, but daemon ownership reverts to that seed until the
+current version returns.
 
 ## Install
 
@@ -198,14 +217,15 @@ From that the daemon opens one socket per user
 on every request.
 
 Result: a bus with AUTH off that **serves every user on the host at once**, so
-service ACLs apply per user with nothing for anyone to configure. The person
-who ran setup **holds master** ([identity § acl](02-access.md#acl)).
+service ACLs apply per user with nothing for anyone to configure. Setup's
+initial principal is the first daemon Owner; after transfer, the stored current
+Owner holds master ([identity § acl](02-access.md#acl)).
 ## Storage
 
 | Built store | Holds |
 |---|---|
 | Text-file adapter, mode 0600 | Principal credentials and issued times; current and previous tokens |
-| JSON snapshot adapter | Registry, queue contents, counters and clean-stop marker |
+| JSON snapshot adapter | Daemon Owner, registry, queue contents, counters and clean-stop marker |
 | Memory only | Browser sessions, outstanding readers, uptime and recent envelope feed |
 
 The ports let a backend change without changing delivery. Database selection,

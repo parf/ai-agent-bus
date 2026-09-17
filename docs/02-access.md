@@ -159,8 +159,9 @@ records. See the [upgrade note](09-setup.md#empty-acl-upgrade).
 | Master | Grants access with a non-empty ACL unless the record refuses master |
 
 The daemon owner holds master; additional masters are configured at startup.
-Master grants access, not ownership or management. The accepted node-wide
-[Owner override](01-identity-and-roles.md#daemon-owner) remains pending.
+Master grants access, not ownership or management. The daemon Owner separately
+has [node-wide management](01-identity-and-roles.md#daemon-owner); that lets the
+Owner discover and edit an empty-ACL resource without opening its message access.
 Allow lists and master refusal are registry settings, never values taken from
 private service configuration. Queries, sends, consumes and writes still obey
 their applicable state and authority checks.

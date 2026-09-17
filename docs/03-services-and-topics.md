@@ -57,7 +57,7 @@ The stored classification, assignment limits and web grouping are built.
 | Broad access | The [wildcard grant](02-access.md#acl) is not valid for a Personal service |
 | Main web pages | Exclude Personal services; find them in the dedicated tab instead |
 | User's web view | A **Personal Services** tab shows that user's Personal services |
-| Daemon owner's web view | **Personal Services** can be filtered per owner among the records visible through the daemon owner's ordinary access; it is not a node-wide inventory |
+| Daemon owner's web view | **Personal Services** can be filtered per owner across the node-wide inventory visible through Owner management |
 
 The tag introduces no separate access policy or service kind. Apart from these
 assignment restrictions and web grouping, ordinary [access rules](02-access.md#acl),

@@ -111,8 +111,6 @@ Implement the pending changes in the [authority specification](../../docs/01-ide
 
 | Work | Acceptance |
 |---|---|
-| Daemon-owner override and transfer | Owner can manage and transfer any service/channel; configured daemon ownership survives restart after transfer |
-| Explicit setup ownership | Startup requires established ownership rather than deriving it from the runtime OS account |
 | Profile editing and provenance | Enforce the [profile rules](../../docs/01-identity-and-roles.md#users-and-profiles), including protected names and permitted PersonName sources |
 | Historical smoke fixture cleanup | Review existing `plain@srv1`, `chief@srv1` and `piped@srv1` live identities and chief's administrative standing before revoking/removing anything; [escaped provisioning evidence](done/administrator-names.md#live-verification-and-harness-correction) |
 | Administrator unbanning | Administrator can unban an ordinary user, but cannot edit peer Administrators or the owner |
