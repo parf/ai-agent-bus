@@ -92,12 +92,13 @@ right must fail its separate positive control.
 Implement the [Personal service requirements](../../docs/03-services-and-topics.md#personal-and-shared).
 Persist the owner's choice; omitted tagging remains non-Personal. Verify an
 allowed service entry and a refused user entry, including a user with a backing
-record, and refuse the wildcard and Maintainer assignments on a Personal service.
+record, and refuse group entries (including a service-only group), the wildcard
+and Maintainer assignments on a Personal service.
 Show Personal services in the user's dedicated tab and the daemon owner's
 per-user view, excluding them from the main web pages. Keep non-Personal fixture
 records as positive controls on the main pages. For otherwise identical valid
 configurations, toggling Personal must not change authorization or delivery.
-Settle [Q71’s group-entry rule](QUESTIONS.md#personal-acl-group-entries) before implementing that validation; add a group-entry control and, if groups are allowed, a membership-change control.
+Allowing a group entry must fail its named refusal check.
 Ignoring the tag, accepting a forbidden assignment, mixing owners or treating
 web filtering as access denial must fail its corresponding check.
 
@@ -127,7 +128,7 @@ Implement the [web and human-readable CLI labels](../../docs/05-discovery.md#ide
 
 ## Questions
 
-[Q71](QUESTIONS.md#personal-acl-group-entries) owns the remaining Personal group-entry choice; the other implementation gaps are not reopened policy questions. The [Future storage proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.
+No open choices are currently recorded in [QUESTIONS](QUESTIONS.md#open-questions); implementation gaps are not reopened policy questions. The [Future storage proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.
 
 ## Authority model
 

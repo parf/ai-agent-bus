@@ -47,11 +47,12 @@ registry for whoever is choosing what to call
 An owner may tag their service **Personal**. Without that tag, it is
 **non-Personal**. The tag hides personal services from the main web pages to
 reduce clutter; access works exactly as for a normal service.
-**Accepted; implementation pending.** [Group-entry validity remains open](../Plans/MVP/QUESTIONS.md#personal-acl-group-entries).
+**Accepted; implementation pending.**
 
 | Rule | Requirement |
 |---|---|
 | ACL entries | Only other service identities; a user's backing inbox does not turn that user into a service |
+| Groups | Not valid ACL entries, even when every member is a service |
 | Sharing with users | Requires making the service non-Personal; a user entry cannot coexist with the Personal tag |
 | Maintainers | Cannot be assigned while the service is Personal; shared maintenance requires making it non-Personal |
 | Broad access | The [wildcard grant](02-access.md#acl) is not valid for a Personal service |
