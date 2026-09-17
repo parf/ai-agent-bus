@@ -390,3 +390,16 @@ beside the glyph; Owner, Administrator, Maintainer and Member remain separate
 and record facts returned by the daemon rather than guessing type from a name.
 This vocabulary is for displayed labels; it does not rename API kinds, alter
 JSON output or prescribe MCP output.
+
+### ACL editing
+
+ACL textareas use the project's plain-text ACL syntax, not the display glyphs.
+Users must not need to type Unicode to identify a user, agent, service or group.
+Prefill editable values with the textual expression; keep glyphs in surrounding
+labels or read-only views. Saving an ACL preserves its syntax and does not add
+display symbols to it. The same rule applies to CLI command arguments and
+copyable ACL examples.
+
+The [current ACL contract](01-identity.md#acl) defines implemented access terms.
+The [proposed role syntax](../Plans/R1/identity.md#sigils) remains separately
+identified as proposed; this display rule does not introduce new parser syntax.

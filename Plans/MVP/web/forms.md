@@ -82,7 +82,7 @@ the world moved between the question and the answer.
 | Register a channel | `/channels/new` | name, description, delivery mode, allow | the new channel's page |
 | Edit metadata | Service, Channel | description, address, protocol | the identity section |
 | Edit queue policy | Service, Channel | TTL, capacity, overflow | the queue section |
-| Edit access | Service, Channel | allow list, refuse master | the access section |
+| Edit access | Service, Channel | allow list in [plain-text ACL syntax](../../../docs/05-discovery.md#acl-editing), refuse master | the access section |
 | Replace configuration | Service, Channel | configuration (always empty, never repopulated) | the configuration section, showing the new digest |
 | Assign maintainers | Service, Channel | group, or none | the identity section |
 | Enable / Disable | Service, Channel | — | the identity section |
@@ -128,4 +128,3 @@ this dashboard is for discovery, administration and envelope diagnostics.
 | Removal offered with no confirmation step | service removal |
 | An invalid name returns JSON and discards the description | register |
 | Members editable only where they are visible, so an ordinary caller sees neither | groups |
-
