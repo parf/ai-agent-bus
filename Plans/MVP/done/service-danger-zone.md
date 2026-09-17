@@ -66,3 +66,18 @@ the comparison: operation-time daemon authorization remains decisive.
 
 This slice does not implement list search, sorting, paging, owner photos,
 activity placement, registration-page moves or the remaining visual redesign.
+
+## Live postflight
+
+Commit `08541fd` was built once for both binaries with build stamp
+`parf@parf.us 2026-09-17 19:20:48` and deployed by restarting the approved
+live unit. The daemon's public identity and the sign-in page both reported
+0.5.63 and that same build; anonymous daemon status remained `401`. No live
+record was changed. An authenticated read of
+`codex/ai-agent-bus@parf.us` showed one red **Danger Zone** link and none of
+the three dangerous headings on ordinary detail; its Danger page answered
+`200` and showed configuration replacement, transfer and removal.
+
+The web child remained inside its delegated cgroup with a 256 MiB memory
+limit, no swap, 64 PIDs and one CPU. It had zero effective capabilities and
+an environment containing only `AGENT_BUS_ADDR=/bus.sock` and `PWD=/`.
