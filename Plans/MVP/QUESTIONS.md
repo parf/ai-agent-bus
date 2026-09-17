@@ -14,12 +14,12 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 ## Personal service access
 
 ❓ The [Personal ACL rule](../../docs/03-services-and-topics.md#personal-and-shared)
-restricts entries to other services. Should Personal also exclude other users
-who obtain access without a user entry? Today an empty ACL is open, and
-Maintainer or master authority grants access independently of an explicit entry.
-Define the Personal behavior for these paths, including the owner's own access,
-before treating the tag as a privacy boundary. The classification and requested
-web views are settled; these access interactions are not.
+restricts entries to other services. For a non-empty Personal ACL, should
+Maintainer or master authority still admit other users without an explicit user
+entry? These implicit grants exist today. The empty case is settled by the
+[owner-only default](../../docs/02-access.md#acl), not an open question.
+The classification and requested web views are settled; the non-empty case's
+implicit grants are not.
 
 ## Authority model
 

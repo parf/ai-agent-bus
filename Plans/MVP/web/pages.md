@@ -264,8 +264,9 @@ it away or change who maintains it.
 
 A dedicated page, not a form stapled beneath a list. Fields: name, description,
 kind or delivery mode, initial allow list. Help beside the name field states the
-`user@realm` shape; help beside allow states that empty means every
-authenticated caller and that owners and maintainers keep access regardless.
+`user@realm` shape; help beside allow follows the
+[ACL contract](../../../docs/02-access.md#acl). Its accepted default is pending
+daemon enforcement; the form must not promise that enforcement before it exists.
 
 Invalid input returns **this form**, with the values preserved and an error
 summary. Today an invalid name renders raw JSON and the description the person

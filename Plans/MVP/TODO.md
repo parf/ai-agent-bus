@@ -66,6 +66,12 @@ The [development-host inspection](installed-acceptance.md#inspection) records pa
 
 ## Personal services
 
+Enforce the [owner-only empty ACL rule](../../docs/02-access.md#acl) for Personal
+and non-Personal records. Check the owner succeeds and other principals cannot
+gain access through the empty-list branch or existing implicit grants; retain a
+non-empty ACL positive control. Restore the open-empty behavior and the refusal
+check must fail. Update form help together with enforcement.
+
 Implement the [Personal service requirements](../../docs/03-services-and-topics.md#personal-and-shared).
 Persist the owner's choice; omitted tagging remains non-Personal. Verify an
 allowed service entry and a refused user entry, including a user with a backing
