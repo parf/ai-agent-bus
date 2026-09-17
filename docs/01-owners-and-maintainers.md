@@ -48,12 +48,12 @@ Users can register services and channels and become their owners.
 
 | Profile field | User may edit |
 |---|---|
-| `userName` (`Name` in code) | No |
-| `personName` (`PersonName`) | No |
-| `gitHubName` (`GithubUser`) | No |
+| Username | No |
+| Person name | No |
+| GitHub name | No |
 | Email | Yes |
 
-`PersonName` comes from Linux passwd, GitHub, or an authorized Administrator's
+Person name comes from Linux passwd, GitHub, or an authorized Administrator's
 entry. Account state and role assignments are administrative controls, not
 self-editable profile fields.
 
@@ -90,7 +90,7 @@ override. Shared groups must preserve
 
 A channel is a service-like entity **without an actual service process behind
 it**. It has a name, owner, Maintainers, ACL and settings. The daemon provides
-its queue or pub/sub behavior; the current implementation calls it a topic.
+its queue or pub/sub behavior.
 
 The creating user owns it. The [service authority rules](#services) apply:
 Owner > Maintainer > Member, with the daemon-owner override. Joining,
