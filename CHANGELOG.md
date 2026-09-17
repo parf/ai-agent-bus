@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.45 — 2026-09-17
+
+Preserve SSH operator key entitlement and rotation requests through token delegation. Setup gives the daemon account a shell that can run restricted SSH commands and repairs the previous nologin default without replacing a custom shell.
+
 ## 0.5.44 — 2026-09-17
 
 Empty ACLs now retain only resource-owner, assigned-Maintainer and own-inbox access, including after restore; implicit master access no longer opens them. Re-registration preserves omitted ACL settings, script runners accept explicit sharing options, and forms explain the restrictive default.

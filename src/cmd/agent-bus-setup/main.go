@@ -131,15 +131,25 @@ func setup() error {
 			"Use --dry-run to see the steps, or --print-unit for the unit alone",
 			steps[0], unitPath, strings.Join(os.Args, " "), svcAccount)
 	}
-	// Two accounts, because there are two secret domains and neither may read
-	// the other's. Both nologin: neither is one you log in as.
+	// sshd executes even a forced command through the account's shell. The
+	// daemon account therefore needs sh; restrict,command= on every issued key
+	// supplies the SSH boundary. The runner has no SSH entry point.
 	// See docs/09-setup.md#the-two-accounts.
-	for _, a := range []struct{ name, home string }{{svcAccount, svcHome}, {runAccount, runHome}} {
+	for _, a := range []struct{ name, home, shell string }{
+		{svcAccount, svcHome, "/bin/sh"},
+		{runAccount, runHome, "/usr/sbin/nologin"},
+	} {
 		if _, err := user.Lookup(a.name); err == nil {
+			if a.name == svcAccount {
+				// Repair installations created with the old nologin shell too.
+				if err := repairSSHShell(a.name, a.shell); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		if err := run("useradd", "--system", "--home-dir", a.home, "--create-home",
-			"--shell", "/usr/sbin/nologin", a.name); err != nil {
+			"--shell", a.shell, a.name); err != nil {
 			return err
 		}
 	}
@@ -193,6 +203,22 @@ func setup() error {
 	}
 	fmt.Printf("agent-busd runs as %s, owned by %s, state in %s; services are %s's, in %s\n",
 		svcAccount, me, svcHome, runAccount, svcDir)
+	return nil
+}
+
+// Do not overwrite an operator's custom shell when repairing the old default.
+func repairSSHShell(name, shell string) error {
+	entry, err := exec.Command("getent", "passwd", name).Output()
+	if err != nil {
+		return fmt.Errorf("read %s account shell: %w", name, err)
+	}
+	fields := strings.Split(strings.TrimSpace(string(entry)), ":")
+	if len(fields) != 7 || fields[0] != name {
+		return fmt.Errorf("invalid passwd entry for %s", name)
+	}
+	if fields[6] == "/usr/sbin/nologin" || fields[6] == "/sbin/nologin" {
+		return run("usermod", "--shell", shell, name)
+	}
 	return nil
 }
 

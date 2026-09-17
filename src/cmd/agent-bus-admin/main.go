@@ -55,14 +55,9 @@ func main() {
 }
 
 func admin() error {
-	args := os.Args[1:]
-	// Over SSH the line named the operator and the request arrived in the
-	// environment. A name in argv is the entitlement, not the verb.
-	if ssh := os.Getenv("SSH_ORIGINAL_COMMAND"); ssh != "" {
-		if len(args) > 0 && !isVerb(args[0]) {
-			args = args[1:]
-		}
-		args = append(args, strings.Fields(ssh)...)
+	args, entitled, err := adminRequest(os.Args[1:], os.Getenv("SSH_ORIGINAL_COMMAND"))
+	if err != nil {
+		return err
 	}
 	if len(args) == 0 {
 		return fmt.Errorf("%s", usage)
@@ -74,10 +69,36 @@ func admin() error {
 	case "user":
 		return userVerb(args[1:])
 	case "token":
+		if entitled != "" {
+			// Keep the trusted argv name and the untrusted SSH request separate.
+			// The token helper checks the requested name against this entitlement.
+			return handOver("agent-bus-token", []string{entitled})
+		}
 		return handOver("agent-bus-token", args[1:])
 	default:
 		return fmt.Errorf("no such verb %q\n\n%s", args[0], usage)
 	}
+}
+
+func adminRequest(args []string, original string) ([]string, string, error) {
+	if len(args) == 0 || isVerb(args[0]) {
+		if original != "" {
+			return nil, "", fmt.Errorf("SSH administration requires an entitled principal")
+		}
+		return args, "", nil
+	}
+	if len(args) != 1 {
+		return nil, "", fmt.Errorf("forced command requires one entitled principal")
+	}
+	n, err := protocol.ParseName(args[0])
+	if err != nil {
+		return nil, "", err
+	}
+	request := strings.Fields(original)
+	if len(request) == 0 {
+		return nil, "", fmt.Errorf("request token or an administration verb\n\n%s", usage)
+	}
+	return request, n.String(), nil
 }
 
 func isVerb(s string) bool { return s == "user" || s == "token" }
@@ -121,7 +142,7 @@ func handOver(what string, args []string) error {
 		return err
 	}
 	cmd := exec.Command(filepath.Join(filepath.Dir(self), what), args...)
-	cmd.Env = append(os.Environ(), "SSH_ORIGINAL_COMMAND=")
+	cmd.Env = os.Environ()
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	return cmd.Run()
 }

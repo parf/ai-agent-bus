@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| SSH forced-command execution and entitlement | [SSH administration](09-setup.md#ssh-admin), [account shell](09-setup.md#the-two-accounts) | 2026-09-17 H.5.2 implementation; repairs the previously blocked token delegation and forced-command execution |
 | Metadata refresh preserves omitted ACL settings | [registration](01-identity-and-roles.md#registration) | 2026-09-17 implementation review; explicit replacement and management clearing retained in 0.5.44 |
 | Personal ACLs exclude groups | [Personal assignment limits](03-services-and-topics.md#personal-and-shared) | 2026-09-17 owner clarification; resolves Q71, including groups composed only of services; implementation pending |
 | ACL governs access by other principals | [access rules](02-access.md#acl) | 2026-09-17 owner confirmation; own-inbox right retained in the 0.5.44 default change |

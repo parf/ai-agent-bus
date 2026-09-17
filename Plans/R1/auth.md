@@ -73,8 +73,7 @@ the caller's token still exists.
 
 ## SSH admin
 
-`agent-busd` runs as the dedicated `agent-busd` user: nologin shell, no sudo,
-home 0700. Admins SSH in with their own keys; identity is bound to the key; the
+`agent-busd` uses the [dedicated account and SSH shell](../../docs/09-setup.md#the-two-accounts). Admins SSH in with their own keys; identity is bound to the key; the
 forced command is **`agent-bus-admin`**, the same program an operator runs on
 the console ([setup § the programs](../../docs/09-setup.md#the-programs)), so
 there is one grammar and one set of rules rather than two.

@@ -50,8 +50,9 @@ name, `user add` refuses rather than leaving a key that works before the name
 exists. Start the daemon and run it again.
 
 The implemented admin verbs are `user add`, `user list`, `user remove` and
-`token`. The token operation is delegated to the token helper. Console and SSH
-use the same program. Bundle administration and regeneration of keys are not
+`token`. The token operation is delegated to the token helper with the key entitlement
+and original request kept separate: `token --rotate` rotates that identity;
+asking for another identity is refused. Console and SSH use the same program. Bundle administration and regeneration of keys are not
 part of this grammar.
 
 ## Administrator name migration
@@ -143,12 +144,10 @@ This requirement does not select the future runner backup mechanism.
 SSH onboarding is accepted through an actual sshd installation for both
 ordinary and operator keys, including the documented token command,
 entitlement enforcement and restricted access. Checking generated
-`authorized_keys` text alone is insufficient. The current nologin account
-setup and operator token delegation have [review findings](../Plans/MVP/done/release-gap-review.md#findings)
-that prevent treating source-level checks as installed success.
+`authorized_keys` text alone is insufficient. The [SSH onboarding evidence](../Plans/MVP/done/ssh-onboarding.md#checks) records the real-sshd exercise and its environment limits.
 
-[H.1.1 and H.5.2](../Plans/MVP/TODO.md#remaining-work) own the corresponding
-upgrade, recovery and SSH acceptance exercises.
+[H.1.1](../Plans/MVP/TODO.md#remaining-work) retains upgrade/recovery acceptance;
+[H.5.2](../Plans/MVP/done/ssh-onboarding.md#checks) records the completed SSH exercise.
 
 ## Build information
 
@@ -207,8 +206,12 @@ installed; the second account and directories prepare a later runner.
 | `runner/` | `agent-bus-runner` | 700 | Prepared runner home; no managed instances installed |
 | `service.d/` | `agent-bus-runner` | 755 | Prepared shareable service-code directory |
 
-Both accounts have nologin shells. Only the daemon account receives the forced
-SSH commands. Runtime sockets live at the [access location](02-access.md#local-socket),
+The daemon account uses `/bin/sh` because sshd runs even forced commands through
+the account shell; each issued key is restricted to its named helper, without
+PTY or forwarding. The runner keeps `nologin` and receives no SSH keys. Setup
+repairs the daemon account’s former `nologin` default while preserving custom
+shells; an operator choosing one must ensure it can execute the forced helpers.
+Runtime sockets live at the [access location](02-access.md#local-socket),
 not under either home.
 
 ### The two units
