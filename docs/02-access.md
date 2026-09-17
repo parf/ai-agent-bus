@@ -120,8 +120,10 @@ challenges expire, and successful ones are spent. Registration cannot create a
 new name in a directory-backed realm; realms without directories use the
 [registration rule](01-identity-and-roles.md#registration).
 
-GitHub enrolment fetches public keys, not profile details. Existing tokens keep
-working during provider outages. Private keys stay with the signing tool.
+GitHub enrolment retains public keys and the provider's person name under the
+[profile import rules](01-identity-and-roles.md#users-and-profiles). Existing
+tokens keep working during provider outages; a new challenge requires both
+provider answers. Private keys stay with the signing tool.
 
 </details>
 
