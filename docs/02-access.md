@@ -8,8 +8,8 @@ For ownership and management, see [Identity and roles](01-identity-and-roles.md#
 
 Tokens, key-possession enrolment, account sockets, rotation, browser sessions
 and flat ACLs are built. Nested groups and service-role expressions remain
-[pending](../Plans/MVP/TODO.md#authority-model); startup revocation failure policy
-is [unresolved](../Plans/MVP/QUESTIONS.md#open-questions). Future encryption is separate.
+[pending](../Plans/MVP/TODO.md#authority-model). Startup revocation remains
+[best effort](#ownerless-credentials); further hardening is deferred. Future encryption is separate.
 The [Owner-and-Maintainers empty ACL rule](#acl) is accepted and awaits implementation.
 
 ## What a call carries
@@ -216,7 +216,8 @@ never performs cleanup.
 * **Startup revocation is best effort today.** If saving a revocation fails, the
   daemon logs it and continues. Old bytes can then authenticate a later holder
   of the same name; re-registration also prevents later ownerless sweeps from
-  retrying. The failure policy remains [Q69](../Plans/MVP/QUESTIONS.md#open-questions).
+  retrying. Further hardening was deferred by the owner on 2026-09-17 (Q69);
+  no change to this behavior is scheduled.
 * Explicit [unregistration](01-identity-and-roles.md#unregistering) instead
   abandons removal if its required credential-store write fails.
 
