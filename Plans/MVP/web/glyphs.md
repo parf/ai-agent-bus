@@ -23,6 +23,24 @@ glyph on every row has become a column heading and should be one.
 | If most rows carry it, none should | Move it to the heading, or to a filter control |
 | Every glyph sits beside a word | Resolves the apparent conflict between the vocabulary's colour-primary rule and our contrast requirement: the judgment column is a **status column containing text**, not a bare dot. Colour and shape reinforce the word; neither replaces it |
 
+## Identity and access symbols
+
+The owner selected these human-facing symbols. Keep the word beside the glyph;
+URLs, JSON, ACL expressions and other editable or machine-readable values stay
+plain text.
+
+| Glyph | Unicode | Visible label | Meaning |
+|---|---|---|---|
+| 👤 | `U+1F464` | User | one registered person |
+| 👥 | `U+1F465` | Group | a group or team |
+| 🤖 | `U+1F916` | Agent | an agent identity |
+| ⚙️ | `U+2699 U+FE0F` | Service | a service identity |
+| 🔑 | `U+1F511` | Authenticated user | the current user is authenticated; this is an access state, not another identity kind |
+
+User, Agent and Service are the implemented shared web/CLI entity labels. Group
+and Authenticated user record the selected vocabulary; their exact placements
+remain part of the unsettled web proposal below.
+
 ## Rendering: a proposal, not a settled decision
 
 **Proposed: adopt the semantics, render them as CSS shape plus colour plus
