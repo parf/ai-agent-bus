@@ -10,7 +10,7 @@ Values have one owning section; other pages link to it.
 
 | Topic | Owns |
 |---|---|
-| [Authority model](01-owners-and-maintainers.md#role-names-and-scopes) | Accepted role names, authority scope and pending policy revisions; owner answers and remaining choices |
+| [Authority model](01-owners-and-maintainers.md#role-names-and-scopes) | Accepted role names, authority scope and pending policy revisions and remaining choices |
 | [Identity](01-identity.md#principals) | Names, enrolment, record ownership, ACL and person records |
 | [Access](02-access.md#what-a-call-carries) | Credentials, rotation, sockets and the current trust boundary |
 | [Services](03-services-and-topics.md#service-kinds) | Registration, configuration and topic properties |

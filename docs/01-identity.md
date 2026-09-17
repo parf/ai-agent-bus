@@ -216,7 +216,7 @@ Administrator or the owner. The owner may edit every level. A trusted person
 record comes from Administrator vouching or successful enrolment. Profile and
 membership changes are stored in the existing restart snapshot.
 
-The [accepted model](01-owners-and-maintainers.md#clear-decisions) changes
+The [accepted model](01-owners-and-maintainers.md#users-and-profile-editing) changes
 self-edit permissions and name provenance; those changes remain pending.
 
 ### User lifecycle
@@ -231,7 +231,7 @@ through the [dashboard](05-discovery.md#required-tabs), under the
 | Paused | Tokens, existing browser sessions, local sockets and enrolment cannot grant bus access; new deliveries to the user's inbox are refused |
 | Banned | The same access restriction; current code permits only the daemon owner to lift the ban |
 
-The [accepted model](01-owners-and-maintainers.md#clear-decisions) also permits
+The [accepted model](01-owners-and-maintainers.md#daemon-administrators) also permits
 Administrators to lift ordinary-user bans; that revision is pending.
 An authorized Administrator may currently reactivate a paused ordinary user. The daemon owner
 must remain active. State changes cancel the user's blocked reads and are retained by the existing
@@ -302,7 +302,7 @@ Daemon administration and record maintenance are separate scopes. Current
 `manages` admits a record's owner, its own principal and members of its assigned
 maintainers group. Both ownership transfer and changing that group assignment
 are owner-only. Master access grants access rather than management. The
-[daemon-owner override](01-owners-and-maintainers.md#daemon-owner-editing-any-service)
+[daemon-owner override](01-owners-and-maintainers.md#daemon-owner)
 in the accepted model is not yet implemented.
 
 **Implementation gap.** Administrators can currently edit any ordinary group,

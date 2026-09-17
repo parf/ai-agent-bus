@@ -1,5 +1,8 @@
 # Owners, administrators and maintainers
 
+Current accepted model. Implementation is partial; outstanding work and choices
+are listed at the end.
+
 ## Role names and scopes
 
 | Scope | Highest authority | Delegated management | Basic access |
@@ -7,355 +10,144 @@
 | Daemon | Owner | Administrator | User |
 | Service or channel | Owner | Maintainer | Member |
 
-**Administrator** is an administrative position for daemon user and group
-management. It does not automatically grant service or channel maintenance.
-**Maintainer** manages the service or channel to which the role is assigned.
-A **User** is a registered person; a resource **Member** has access and may be a
-user or another service. Roles include the lower role's permissions within
-their own scope. The daemon owner's root-like override is explicit, not a
-permission inherited by Administrators.
+**Administrator** manages daemon users and groups. **Maintainer** manages an
+explicitly assigned service or channel. Administrative standing does not
+implicitly grant service or channel maintenance.
 
-These are the intended names and authority rules. Current code still calls
-Administrators daemon maintainers and stores them in `@maintainers`; this
-terminology update does not rename that stored group or claim the pending
-policy changes are implemented.
+A **User** is a registered person. A resource **Member** has access and may be a
+user or another service. Higher roles include the lower role's permissions
+within their scope. The daemon owner's root-like override is explicit; it is
+not inherited by Administrators.
+
+## Daemon owner
+
+The daemon owner has root-like authority over the node:
+
+* Assign and revoke Administrators; edit, activate, pause and ban them.
+* Manage users and all groups.
+* Edit any service or channel, including its ACL, Maintainers and owner.
+* Transfer daemon ownership to another user.
+
+Setup establishes the invoking user as the initial owner. The daemon must not
+start without explicitly established ownership or invent an owner from its
+runtime OS account. Ownership transfer must update that configured authority.
+A restart may be required for ownership changes to take effect.
+
+## Daemon Administrators
+
+Administrators can add and manage ordinary users, including activation,
+reactivation, pausing, banning and unbanning. They manage ordinary groups.
+
+They cannot edit the daemon owner or peer Administrators, or grant themselves
+those positions. Protected maintenance membership follows the
+[owner-control rule](#remaining-membership-interaction).
+
+Administrator standing alone does not permit service/channel management; an
+explicit Maintainer assignment is required.
+
+## Users and profile editing
+
+Users can register services and channels and become their owners.
+
+| Profile field | User may edit |
+|---|---|
+| `userName` (`Name` in code) | No |
+| `personName` (`PersonName`) | No |
+| `gitHubName` (`GithubUser`) | No |
+| Email | Yes |
+
+`PersonName` comes from Linux passwd, GitHub, or an authorized Administrator's
+entry. Account state and role assignments are administrative controls, not
+self-editable profile fields.
+
+## Services
+
+| Role | Authority |
+|---|---|
+| Owner | All Maintainer/Member permissions; assign and revoke Maintainers; transfer ownership |
+| Maintainer | Edit service settings and ACL; assign/revoke service-defined roles except Maintainer |
+| Member | Use the service |
+
+Only the service owner controls Maintainer membership and ownership transfer,
+subject to the daemon-owner override. Maintainers cannot remove or replace
+other Maintainers through ACL editing.
+
+ACLs can name users, groups and other services. Groups can contain users,
+services and other groups. Service-defined role meanings belong to the service;
+the daemon stores/resolves the labels without interpreting those meanings.
+Maintainer is the reserved management role enforced by the daemon.
 
 ## Shared service management
 
-When management across services is needed, create a group and explicitly assign
-it as **Service Maintainer** on each relevant service. Assign it as **Channel
-Maintainer** on channels it should manage. “Global” describes the intended
-coverage of those assignments; it is not a special group name or an automatic
-grant over existing or future records. Administrator membership alone grants
-none of these assignments.
+For management across services, create a group and explicitly assign it as
+**Service Maintainer** on each relevant service, or **Channel Maintainer** on
+each relevant channel. “Global” describes the coverage of those assignments;
+it is not a special group name or automatic access to existing or future
+records. Administrator membership alone grants none of these assignments.
 
-Service/channel owners make the assignments, subject to the daemon-owner
-override. The [membership interaction](#remaining-membership-interaction) still
-needs resolution: using a shared group must not silently undo the owner's
-requirement that effective maintainer membership stays owner-controlled.
+Assignments belong to each resource's owner, subject to the daemon-owner
+override. Shared groups must preserve
+[owner-controlled effective membership](#remaining-membership-interaction).
 
-# Daemon
-
-Always have owner; will not start unless it have one; use ...our-setup-script... to setup
-
-## Daemon Owner can
-
-* Assign/Revoke Administrator role
-
-* Activate/Deactivate/Ban Administrators
-
-* Transfer ownership (assign new owner)
-
-* Edit any service; including its ACL/roles
-
-* Edit any groups
-
-  
-
-## Daemon Administrators can
-
-* Add regular users
-* Activate/Deactivate/Ban regular users
-* Edit ordinary groups; protected Administrator and maintenance-authority membership obey their own assignment rules
-
-### Can not 
-
-* edit the daemon owner or peer Administrators in any way
-* edit services/channels without an explicit Maintainer assignment
-
-
-
-## Daemon Users can
-
-* register service/channel - they'll became `service owner`
-* Edit their own profile, except `userName`, `personName` and `gitHubName`.
-  With today's profile fields, only email is self-editable; account state and
-  role assignments remain administrative controls.
-
-
-
-# Service
-
-## Service Owners can
-
-* Add/Remove maintainers (assign/revoke maintainer role)
-* Transfer ownership (assign new owner)
-
-## Service Maintainers can
-
-* Edit service 
-* Edit ACL 
-  * add/remove service users/groups (allow existing user to access service)
-  * can not remove maintainers
-  * assign/revoke roles (except maintainer)
-* Service ACL
-  * list of users, groups, or **other services** that can use this service
-  * group can contain other groups, users & services
-
-* Maintainer service role that can only be assigned by owner
-
-## Service Members can
-
-* access service
-
-# Channels
+## Channels
 
 A channel is a service-like entity **without an actual service process behind
-it**. It has a name, owner, maintainers, access list and settings; the daemon
-itself provides its queue or pub/sub behavior. In the current implementation
-this is a topic record, not a separately running service.
+it**. It has a name, owner, Maintainers, ACL and settings. The daemon provides
+its queue or pub/sub behavior; the current implementation calls it a topic.
 
-It follows the same Owner > Maintainer > Member authority model as a service;
-it is not owned collectively by its subscribers. This section states the intended model;
-the daemon-owner override and owner-controlled maintainer membership still
-need implementation.
+The creating user owns it. The [service authority rules](#services) apply:
+Owner > Maintainer > Member, with the daemon-owner override. Joining,
+publishing or reading does not confer ownership.
 
-## Channel Owner
-
-* The registered user who creates the channel becomes its owner.
-* There is one owner; joining, publishing or reading does not confer ownership.
-* The owner can do everything a channel maintainer or member can do.
-* The owner assigns/revokes channel maintainers and can transfer ownership.
-* The daemon owner retains the root-like override, including changing the channel owner.
-
-## Channel Maintainers
-
-* Edit the channel's definition, settings and access list.
-* Cannot transfer ownership or assign/revoke channel maintainers.
-* Administrator status alone grants no channel-management authority.
-* Maintainer membership stays owner-controlled, just as for services.
-
-## Channel Members and Subscribers
-
-* Access is granted to users, groups or other services through the channel ACL.
-* Queue mode: authorized callers send messages and consume from the shared queue.
+* Queue mode: authorized callers send to and consume from the shared queue.
 * Pub/sub mode: authorized callers publish and manage their own subscription;
-  copies go to subscriber inboxes.
-* Owning the channel does not make its owner the owner of subscriber services
-  or their inboxes. Channel access does not grant access to other subscribers' inboxes.
+  copies land in subscriber inboxes.
+* Owning a channel grants no ownership of subscriber services or their inboxes.
+  Channel access does not grant access to other subscribers' inboxes.
 
-See [topic behavior](03-services-and-topics.md#topics) for delivery semantics. The
-service-transfer recipient restrictions discussed below also need to be
-settled for channels.
+[Topic behavior](03-services-and-topics.md#topics) owns delivery semantics.
 
----
+## Display and ACL input
 
-# Review comments for owner answers
-
-Compared with current source and existing contracts on 2026-09-16. These are
-comparison notes against that source snapshot; owner answers below record new policy.
-Historical quotations retain the former term “daemon maintainer”; current role
-names are defined [above](#role-names-and-scopes).
-Answer under each comment; no task or question IDs have been allocated.
-Markers follow [Glyphs](https://parf.dev/ai-skills/Glyphs.md).
-
-## Conflicts between this model and existing policy or behavior
-
-⁉️ The sources below disagree or implement different authority boundaries. Owner answers will settle which rule should govern.
-
-### Daemon owner editing any service
-
-**Codex:** This model grants it. Existing [record authority](01-identity.md#groups-and-maintainers)
-separates daemon administration from service management. In
-[`manages`](../src/internal/core/manage.go), only the record owner, record's own
-principal, or a member of its assigned maintainers group may manage it; there is
-no daemon-owner override. Master access is access, not management.
-
-**Decision needed:** Add the daemon-owner override, or retain separate scopes.
-
-**Owner answer:** YES - daemon owner = root like authority; it can edit anything; including service owner change; (ok to require daemon/service restart to take effect)
-
-### Daemon ownership transfer
-
-**Codex:** This model grants transfer. Current code assigns the daemon owner at
-startup through [`api.New`](../src/internal/api/server.go) and
-[`Administrator`](../src/internal/core/manage.go); no runtime transfer operation
-exists. Existing docs describe the configured owner, not a transfer procedure.
-Changing startup configuration is not an implemented ownership-transfer workflow.
-
-**Decision needed:** Build runtime transfer, or define ownership changes as an installation operation.
-
-**Owner answer:** _Yes . (ok to require daemon/service restart to take effect)_
-
-### Users editing themselves
-
-**Codex:** If “edit itself” means profile fields, this conflicts with
-[who may write a record](01-identity.md#who-may-write-a-record), which explicitly
-forbids self-vouching. [`mayEditUser`](../src/internal/core/users.go) rejects
-ordinary-user and maintainer self-edits; only the daemon owner can edit their own
-profile. Editing an owned service is already a different, permitted operation.
-
-**Decision needed:** Which self-editable fields or operations should this grant.
-
-**Owner answer:** YES - user can edit their profile fields; (FORBID changing - userName and FullName)
-
-### Who actually grants service-maintainer authority
-
-**Codex:** This model makes the service owner responsible for adding/removing
-maintainers. Today the owner selects one existing group through
-[`Manage`](../src/internal/core/manage.go), but service ownership alone cannot
-edit its members. [Daemon administrators control ordinary group membership](01-identity.md#groups-and-maintainers).
-
-A daemon maintainer can add themselves to an ordinary group already assigned as
-a service's maintainers group, then manage that service. `SetGroup` permits the
-membership edit and `manages` grants the resulting authority. Thus the **group
-assignment is owner-only; effective membership is not**. The model's own grants
-of ordinary-group editing and owner-only service-maintainer assignment also need
-to account for this interaction.
-
-**Decision needed:** Does the owner delegate membership control to group administrators, or must service-maintainer membership itself remain owner-controlled.
-
-**Owner answer:** service-maintainer membership itself remain owner-controlled
-
-### Service-defined roles
-
-**Codex:** This model allows maintainers to assign/revoke roles other than
-maintainer. Current implementation has ownership, an assigned maintainers group
-and an access list; service-defined roles are [proposed R1 work](../Plans/R1/identity.md#groups-and-roles),
-explicitly [unbuilt in the current ACL contract](01-identity.md#acl).
-
-**Decision needed:** Whether this introduces service-defined roles now, or only names existing access and management permissions.
-
-**Owner answer:** lets do it now, it cost us almost nothing; because daemon do not care about roles (except for maintainer)
-
-## Existing docs disagreeing with implementation
-
-⁉️ These conflicts are inside the existing documentation, independently of which model is chosen above.
-
-### Changing the assigned maintainers group
-
-**Codex:** [Groups and maintainers](01-identity.md#groups-and-maintainers) says
-“only ownership transfer is the owner's alone”; its authority table likewise
-excludes only ownership. Code in [`Manage`](../src/internal/core/manage.go)
-reserves **both** ownership transfer and changing the assigned maintainers group
-to the record owner. This model agrees with code on the latter restriction.
-
-**Decision needed:** Confirm the owner-only restriction so the broader existing prose can be corrected.
-
-**Owner answer:** ownership transfer is the owner's alone.
-
-### Does “user” require a user profile
-
-**Codex:** The existing authority table says a service owner is “one user”, but
-[the ownership contract](01-identity.md#when-the-owner-is-gone) and
-[`mayOwn`](../src/internal/core/users.go) also permit an active record-backed
-principal without a user profile to own services. Likewise, assigning an ordinary
-service-maintainers group does not create user profiles for its members. The
-automatic owner → maintainer → registered-user nesting is implemented for daemon
-administration, not for every service principal.
-
-**Decision needed:** Does “User” in this model mean any admitted principal with service access, or specifically a registered user profile at every layer.
-
-**Owner answer:** registered user; in service AVL we can list other services too
-
-## Qualifications the model leaves open
-
-❓ These are existing restrictions or mechanisms the model does not explicitly accept or replace.
-
-### Reactivation after a ban
-
-**Codex:** [User lifecycle](01-identity.md#user-lifecycle) and
-[`SetUser` / `SetUserState`](../src/internal/core/users.go) let daemon maintainers
-reactivate paused regular users, but **only the daemon owner may lift a ban**.
-The model's unqualified “Activate” does not state that exception.
-
-**Owner answer:** daemon maintainers can reactivate & unban (makes sense because they can add new users)
-
-### Service transfer restrictions
-
-**Codex:** [Owner control](01-identity.md#owner-control) and
-[`Manage`](../src/internal/core/manage.go) require an active recipient with a
-self-owned record. A self-owned identity cannot itself be transferred. The
-model grants transfer without saying whether these restrictions remain.
-
-**Owner answer: what is self-owned identity? how we can get one??
-
-**Codex reply:** It is a registry record whose name and owner are the same:
-`alice@host` owned by `alice@host`. It represents Alice herself, unlike
-`worker@host` owned by `alice@host`, which represents Alice's service.
-Creating an ordinary user through `SetUser` creates that self-owned record
-alongside the profile when no record exists; successful signed enrolment also
-creates one. It is not a separate kind of account you must manually request.
-Adding someone only to daemon `@maintainers` creates a profile but does not
-itself guarantee that record exists.
-
-Today transfer requires the recipient to have that self-owned record, and
-refuses to transfer a self-owned record itself. With your registered-user rule,
-my recommendation is to authorize a service/channel transfer by the recipient's
-active user profile, without making this storage detail a user-facing condition;
-keep transferring a service distinct from transferring a person's identity.
-This is a recommendation, not an answered decision.
-
-### Owner setup at startup
-
-**Codex:** Startup requires a valid owner name, but
-[`defaultOwner`](../src/cmd/agent-busd/main.go) can derive one from the OS account
-and hostname. The setup script need not have run. The model's setup-script text
-is still a placeholder.
-
-**Owner answer:**  yes USER who executed setup script is an owner; should NOT start otherwise 
-
-## Already aligned
-
-Daemon owner membership in the protected maintainers group; daemon maintainers
-administering ordinary users but not peer maintainers or the owner; users
-registering services/channels they own; service maintainers editing their assigned
-service and its ACL and inheriting access through `may` → `manages`. The group
-membership qualification above still applies.
-
-# Review of owner answers
-
-The answers set new policy; earlier comparison notes describe the implementation
-they replace. Channels follow the same authority rules as services, with the
-daemon providing the behavior instead of a service process.
-
-## Clear decisions
-
-* Daemon owner is the root authority, including service/channel ownership changes.
-  “Owner-only” at record level is subject to this explicit daemon-owner override.
-* Service/channel maintainer membership is controlled by its owner.
-* Administrators can lift bans on ordinary users, still not on peer Administrators
-  or the daemon owner.
-* Users may edit profile information except `userName`, `personName` and
-  `gitHubName`. Current code calls these `Name`, `PersonName` and `GithubUser`.
-  Only email remains self-editable in today's profile; lifecycle state and
-  authority are administrative controls, not self-editable profile information.
-  This later clarification supersedes the earlier answer naming only username
-  and full name as protected.
-* `PersonName` is taken from Linux passwd, from GitHub, or entered by an authorized
-  Administrator. The user cannot change it themselves. These are the required
-  sources, not a claim that every import path is already implemented.
-* Ownership must be explicitly established through setup; startup must not invent
-  an owner from the account running the daemon. A legitimate ownership transfer
-  must update the configured authority that startup uses.
-
-## Remaining membership interaction
-
-⁉️ Owner-controlled service/channel maintainers conflict with unrestricted Administrator edits of ordinary groups when the same group grants maintenance authority.
-
-Nested groups make that indirect path longer, not different: editing a subgroup
-can change effective maintainers too. Protecting only the top-level group is
-insufficient. Shared groups also raise whose approval applies when two different
-owners assign the same group.
-
-**Owner answer:** _Pending — should maintenance authority use owner-controlled membership separate from ordinary access groups, or can groups grant it subject to protection of all membership changes that affect it._
+Use the [web and CLI identity labels](05-discovery.md#identity-labels-in-web-and-cli)
+for display. [ACL editing](05-discovery.md#acl-editing) uses the project's
+plain-text syntax, not Unicode display glyphs.
 
 ## Added implementation scope
 
-Group nesting is new work: current `member` checks a flat list and `SetGroup`
-normalizes members as principal names. Supporting groups inside groups needs
-resolution and defined handling of cycles; it is not just accepting another ACL
-entry. Users and services as direct ACL principals are already supported.
+The model above is accepted policy, not a claim that all of it is implemented.
 
-Service-defined roles may remain uninterpreted by the daemon, but assigning,
-storing and returning the labels still needs implementation. The existing
-[R1 proposal](../Plans/R1/identity.md#groups-and-roles) keeps role meanings in the
-service while the authority layer stores/resolves labels. “Opaque meaning” does
-not require hiding roles inside private service configuration. The reserved
-maintainer role must retain its owner-only assignment rule.
+* Current code still names daemon Administrators “maintainers” and stores them
+  in `@maintainers`; the stored name has not been migrated.
+* Daemon-owner management override, daemon ownership transfer, explicit setup
+  enforcement, profile self-editing and Administrator unbanning need changes.
+* Required `PersonName` sources do not imply every import path already exists.
+* Protected effective Maintainer membership needs implementation.
+* Nested groups need resolution and cycle handling; current membership is flat.
+* Service-defined roles need storage/resolution and a way to return labels.
+  The [R1 syntax and transport proposal](../Plans/R1/identity.md#groups-and-roles)
+  is not automatically adopted by accepting the capability.
+
+## Remaining membership interaction
+
+⁉️ Owner-controlled Maintainer membership needs protection when an Administrator
+can edit a group that grants maintenance authority. With nesting, subgroup
+edits can change effective membership too. If several owners assign the same
+group, whose approval governs membership changes also needs settling.
+
+**Owner answer:** _Pending — separate owner-controlled maintenance membership
+from ordinary access groups, or protect every group change affecting it._
 
 ## Transfer recipient
 
-❓ The self-owned-identity explanation above answers the terminology question; the recipient restriction itself still needs an answer.
+❓ May any active registered user receive service/channel ownership, regardless
+of whether they currently have a self-owned registry record.
 
-**Owner answer:** _Pending — may any active registered user receive service/channel ownership, regardless of whether they currently have a self-owned registry record._
+A self-owned record has the same name and owner, for example `alice@host` owned
+by `alice@host`. Creating an ordinary user or completing enrolment normally
+creates it. The current transfer check requires one; having a user profile
+alone does not guarantee it exists. Transferring a service is distinct from
+transferring the user's own identity.
+
+**Owner answer:** _Pending. Recommendation: use the recipient's active user
+profile, without exposing the self-owned-record requirement to the user._

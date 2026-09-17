@@ -8,7 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 |---|---|---|
 | Plain-text ACL editing | [ACL editing](05-discovery.md#acl-editing) | 2026-09-16 owner instruction; display glyphs are not input syntax |
 | Entity labels in web and CLI | [display labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-16 owner-selected glyphs for web and human-readable CLI output |
-| Protected identity fields in self-service profile editing | [profile permissions](01-owners-and-maintainers.md#clear-decisions) | 2026-09-16 owner clarification; accepted, implementation pending |
+| Protected identity fields in self-service profile editing | [profile permissions](01-owners-and-maintainers.md#users-and-profile-editing) | 2026-09-16 owner clarification; accepted, implementation pending |
 | Separate administrative and resource-maintenance roles | [role names](01-owners-and-maintainers.md#role-names-and-scopes), [shared management](01-owners-and-maintainers.md#shared-service-management) | 2026-09-16 owner clarification; replaces the shared daemon/service “Maintainer” terminology. Earlier dated rows retain historical wording |
 | Retained exchange correlation preserves references and qualifies inferred responses | [retained exchanges](05-discovery.md#retained-exchanges) | 2026-09-15 authorized web implementation; F.13.5 partial |
 | A full queue answers `429`, not `503` | [overflow](04-messaging.md#overflow) | 2026-09-15 owner instruction; `503` is left to a service that is briefly unavailable |
