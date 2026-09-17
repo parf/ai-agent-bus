@@ -36,3 +36,15 @@ and tracked scripts both have SHA-256
 `5af2a0bd6b940be7c842244215d7205f5c24037c7d6049d261fc02986ad8d1ac`.
 
 The final build reported 0.5.61 with stamp `parf@parf.us 2026-09-17 15:56:14`.
+
+## Live postflight
+
+Commit `976d862` was built and restarted on `parf.us` as 0.5.61 with stamp
+`parf@parf.us 2026-09-17 15:59:01`. The live WEB service list and registration
+form rendered `👾 Agent` and no former glyph. Installed human `agent-bus ls -h`
+rendered `👾️ Agent`; raw JSON retained `kind: agent` with no display glyph.
+
+The live directory contained no caller-visible record-only Agent identity, so
+its compact Agent prefix remains fixture-proven rather than claimed from
+production. The web child remained in its delegated cgroup with an effective
+capability mask of zero. Postflight made no state-changing request.
