@@ -70,3 +70,25 @@ credit.
 
 This changes selection syntax, not who may read an inbox. It adds no fallback
 for the retired topic-address overload and no new refusal reason.
+
+## Live postflight
+
+Commit `d1b068f` was pushed, built once and restarted as 0.5.52. Anonymous
+`GET /identity` reported release 0.5.52 and build
+`parf@parf.us 2026-09-17 10:44:40`; supervisor, bus and web process titles
+reported the same release.
+
+Through the mapped user socket, an explicit visible agent inbox with an
+address-shaped topic and unique tag ended empty with exit 0. The same inbox
+with a plain unique topic also ended empty. Thus both values acted as filters
+and neither restored the address-shaped `404`. An unknown explicit inbox was
+refused, valueless CLI `--inbox` failed locally, and raw `inbox=` answered
+`400`. Unique filters ensured no live message was dequeued.
+
+The first own-inbox probe was not used as selection evidence: `parf@parf` has
+a user profile but no record/inbox, so it correctly answered `404`. The
+corrected probe selected an existing visible agent inbox explicitly.
+
+OpenCode's same session reconnected without manual registration. Its first
+send during teardown reported the delivery outcome unknown; the retry after
+recovery arrived, preserving both the peer path and the delivery-outcome rule.
