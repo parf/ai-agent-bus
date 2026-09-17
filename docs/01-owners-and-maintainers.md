@@ -44,18 +44,10 @@ explicit Maintainer assignment is required.
 
 ## Users and profile editing
 
-Users can register services and channels and become their owners.
-
-| Profile field | User may edit |
-|---|---|
-| Username | No |
-| Person name | No |
-| GitHub name | No |
-| Email | Yes |
-
-Person name comes from Linux passwd, GitHub, or an authorized Administrator's
-entry. Account state and role assignments are administrative controls, not
-self-editable profile fields.
+Users can register services and channels and become their owners. They may edit
+their email, but not their username, person name or GitHub name. Person names come
+from Linux passwd, GitHub or an Administrator. Account state and roles are
+managed by Administrators or the Owner according to their authority.
 
 ## Services
 
