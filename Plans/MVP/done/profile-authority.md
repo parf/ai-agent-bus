@@ -56,3 +56,20 @@ This slice adds no web form. Administrator-entered person names already have a
 trusted writer; importing Linux passwd GECOS and GitHub profile data remains
 pending and must be performed by their trusted adapters, never by accepting a
 caller-stated provenance label.
+
+## Live postflight
+
+Commit `ac620ef` was pushed before deployment. `src/build.sh` stamped the
+daemon and web binaries as **0.5.56**, `parf@parf.us 2026-09-17 12:41:01`; the
+live `agent-busd.service` restarted at 12:41 EDT.
+
+The public identity reported 0.5.56 and Owner `parf@parf`. Anonymous `/status`
+remained 401 while the Owner's mapped socket received 200. A protected-field
+`POST /profile` returned 400 for unknown `person_name`; `/users` was byte-for-byte
+unchanged before and after, so no live profile was edited. The Owner's user view
+reported `can_set_email: true` separately from `can_edit: true`.
+
+The web child retained zero capabilities, `NoNewPrivs`, its explicit two-value
+environment and its delegated limits: one CPU, 256 MiB memory, no swap and 64
+tasks. OpenCode replied through the same session after the restart, the
+thirteenth consecutive measured peer-path reconnection.
