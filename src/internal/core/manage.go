@@ -125,7 +125,7 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 		b.administratorsAreUsers()
 	}
 	b.recheckReaders()
-	return nil
+	return b.checkpoint(false)
 }
 
 func (b *Bus) Groups(caller string) map[string][]string {
@@ -258,6 +258,9 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	r.At = time.Now()
 	b.records[name] = r
 	b.recheckInbox(name)
+	if err := b.checkpoint(false); err != nil {
+		return protocol.Record{}, err
+	}
 	return b.withLiveness(name, r.Public()), nil
 }
 
@@ -338,5 +341,8 @@ func (b *Bus) RemoveSubscriber(caller, topic, subscriber string) (protocol.Recor
 	}
 	r.Subs = drop1(r.Subs, sub)
 	b.records[name] = r
+	if err := b.checkpoint(false); err != nil {
+		return protocol.Record{}, err
+	}
 	return r.Public(), nil
 }

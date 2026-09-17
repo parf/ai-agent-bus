@@ -44,8 +44,8 @@ Taking a message does not prove the work finished—see [receipts](#receipts).
 
 | MVP | Scope |
 |---|---|
-| Built | Inbox delivery, shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow and JSON restart snapshots. |
-| Pending | [Separate inbox selection and message filters](#inbox-selection-and-filters) are accepted, awaiting implementation. The [administrative crash-recovery policy](#administrative-crash-recovery) is settled; implementation and acceptance remain pending. |
+| Built | Inbox delivery, shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow, JSON restart snapshots and [durable administrative changes](#administrative-crash-recovery). |
+| Pending | [Separate inbox selection and message filters](#inbox-selection-and-filters) are accepted, awaiting implementation. |
 
 
 How principals on the bus talk. The bus delivers securely and says who sent it;
@@ -392,7 +392,7 @@ that forgets silently looks exactly like one nobody sent to.
 
 Queues, registry records and counters are snapshotted together through the
 `dump` port. The MVP adapter writes **JSON**, on startup, on graceful shutdown,
-and optionally periodically. Delivery checks message expiry after reload.
+optionally periodically, and before administrative success. Delivery checks message expiry after reload.
 A drained inbox remains drained across subsequent snapshots.
 
 The snapshot records whether shutdown was clean. A start after an unclean stop
@@ -405,29 +405,36 @@ sessions describe the current process lifetime, not recovered state.
 
 ## Administrative crash recovery
 
-**Current behavior:** administration changes use the restart snapshot, so a
-successful response does not establish persistence before the next snapshot.
-A reproduced bus-child crash restored access after an acknowledged ban;
-[review evidence](../Plans/MVP/done/release-gap-review.md#findings) records the
-sequence. Snapshot write failures are currently reported in the daemon log.
+**An acknowledged restriction survives a bus crash until explicitly changed.**
+Bans, group membership and ACL changes are saved before success is returned;
+periodic snapshots cannot overwrite them with older state.
 
-**Settled: an acknowledged restriction holds until somebody lifts it.** A ban
-that was acknowledged stays a ban until the owner unbans; nothing else ends it,
-and a crash is not a way out. The same shape covers the other two the question
-bundled — a group removal and a tightened ACL — because they are the same act:
-access taken away on purpose, and only an explicit decision puts it back.
+<details>
+<summary>Persistence, failures and scope</summary>
 
-So **acknowledging one is a promise about it**, and the current behaviour breaks
-that promise: the change waits for the next snapshot, and a crash before it
-restored a banned caller's access. The guarantee is what must change, not the
-report. Which storage or write order delivers it is implementation, and this
-does not pick one.
+Administrative writes use the existing snapshot port under the same lock as
+policy changes. The JSON adapter writes and synchronizes a private temporary
+file, replaces the snapshot, then synchronizes its directory. Periodic and
+shutdown checkpoints use that same ordering; the periodic writer stops before
+the final clean checkpoint.
 
-A **failed** persist is the same problem seen earlier: if the durability cannot
-be promised, the acknowledgement must not be given. Today such a failure is a
-line in the daemon log, which the caller never sees.
-[H.5.3](../Plans/MVP/TODO.md#remaining-work) exercises both the crash and the
-failed write against this rule.
+This covers user/profile state, groups, record management and refreshes,
+configuration, subscriptions and record removal. The snapshot also captures
+queued traffic at that instant, but individual message acknowledgements retain
+the [existing durability boundary](#durability).
+
+A persistence failure returns an error, not success. The change may already be
+applied in memory or on disk: an error does **not** promise rollback. Correct the
+storage failure and explicitly retry. In particular, a failed ban write does
+not quietly lift the in-memory ban.
+
+Browser sessions remain process-local; after restart, callers sign in again.
+Persistent tokens and mapped sockets are checked against the recovered policy.
+The [H.5.3 evidence](../Plans/MVP/done/administrative-durability.md#checks) covers
+real bus-child kills, storage failure and the old-checkpoint ordering hazard.
+It does not certify every filesystem or simulate hardware power loss.
+
+</details>
 
 ## Envelope
 

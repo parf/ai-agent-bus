@@ -55,12 +55,11 @@ func runBus(c config) {
 		}
 		bus.Restore(s)
 	}
+	bus.Persistence(snap)
 	// Written straight away and not clean: the next start needs to tell a
 	// first one from one that follows a death, and only a file on disk can.
 	save := func(clean bool) {
-		s := bus.Snapshot()
-		s.Clean = clean
-		if err := snap.Save(s); err != nil {
+		if err := bus.Checkpoint(clean); err != nil {
 			log.Printf("dump: %v", err)
 		}
 	}
@@ -163,12 +162,20 @@ func runBus(c config) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	// The periodic dumper bounds what an untimely death costs to one interval.
+	stopSnapshots := func() {}
 	if c.every > 0 {
 		tick := time.NewTicker(c.every)
-		defer tick.Stop()
+		done, stopped := make(chan struct{}), make(chan struct{})
+		stopSnapshots = func() { tick.Stop(); close(done); <-stopped }
 		go func() {
-			for range tick.C {
-				save(false)
+			defer close(stopped)
+			for {
+				select {
+				case <-tick.C:
+					save(false)
+				case <-done:
+					return
+				}
 			}
 		}()
 	}
@@ -187,6 +194,9 @@ func runBus(c config) {
 		}
 	}()
 	<-stop
+	// Join the periodic writer before the final clean checkpoint; no later
+	// tick may replace it with an unclean snapshot during shutdown.
+	stopSnapshots()
 	activityTick.Stop()
 	close(activityDone)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

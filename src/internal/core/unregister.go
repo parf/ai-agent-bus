@@ -108,7 +108,7 @@ func (b *Bus) UnregisterAnd(name, caller string, forget func(string) error) erro
 	// have stopped being reads anybody is entitled to. Its own inbox is gone;
 	// these are the waits it left elsewhere.
 	b.recheckReaders()
-	return nil
+	return b.checkpoint(false)
 }
 
 // forgetName takes every trace of a name that is no longer a principal: the

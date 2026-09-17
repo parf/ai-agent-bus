@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -13,6 +14,11 @@ import (
 func (b *Bus) Snapshot() ports.Snapshot {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	return b.snapshot()
+}
+
+// snapshot is called with b.mu held.
+func (b *Bus) snapshot() ports.Snapshot {
 	s := ports.Snapshot{At: time.Now(), Groups: map[string][]string{}}
 	for _, user := range b.users {
 		s.Users = append(s.Users, user)
@@ -36,6 +42,37 @@ func (b *Bus) Snapshot() ports.Snapshot {
 		})
 	}
 	return s
+}
+
+// Persistence binds the existing snapshot port before serving requests.
+// Unbound buses are intentionally in-memory (unit tests and embedded use).
+func (b *Bus) Persistence(d ports.Dump) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.dump = d
+}
+
+// Checkpoint serializes capture AND replacement with administrative mutations.
+// Taking a snapshot first and locking only Save would let an older periodic
+// write restore authority after a newer restriction had already been acknowledged.
+func (b *Bus) Checkpoint(clean bool) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.checkpoint(clean)
+}
+
+// checkpoint runs under the operation's hold. On failure there is no success
+// acknowledgement; memory may already contain the change. Never imply rollback.
+func (b *Bus) checkpoint(clean bool) error {
+	if b.dump == nil {
+		return nil
+	}
+	s := b.snapshot()
+	s.Clean = clean
+	if err := b.dump.Save(s); err != nil {
+		return fmt.Errorf("persist administrative state: %w", err)
+	}
+	return nil
 }
 
 // Restore puts a snapshot back. Expiry is not re-checked here: a message

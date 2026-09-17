@@ -452,6 +452,9 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 	}
 	b.users[in.Name] = in
 	b.recheckReaders()
+	if err := b.checkpoint(false); err != nil {
+		return protocol.User{}, err
+	}
 	return b.userView(who, in.Name), nil
 }
 
@@ -552,5 +555,8 @@ func (b *Bus) SetUserState(caller, name, state string) (protocol.User, error) {
 	u.Name, u.State = name, state
 	b.users[name] = u
 	b.recheckReaders()
+	if err := b.checkpoint(false); err != nil {
+		return protocol.User{}, err
+	}
 	return b.userView(who, name), nil
 }

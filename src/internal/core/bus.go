@@ -96,6 +96,7 @@ type inbox struct {
 }
 
 type Bus struct {
+	dump     ports.Dump
 	users    map[string]protocol.User
 	mu       sync.Mutex
 	activity []activitySample
@@ -271,6 +272,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	b.records[name] = r
 	b.recheckInbox(name)
 	b.ensure(name)
+	if err := b.checkpoint(false); err != nil {
+		return protocol.Record{}, err
+	}
 	// Public here, not in the face: the configuration is core's to guard,
 	// and an answer that forgot to redact has already got out twice.
 	return r.Public(), nil
@@ -341,6 +345,9 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	r.At = time.Now()
 	b.records[n] = r
 	b.ensure(n)
+	if err := b.checkpoint(false); err != nil {
+		return protocol.Record{}, err
+	}
 	return r.Public(), nil
 }
 
@@ -719,6 +726,9 @@ func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) 
 		r.Subs = append(r.Subs, who)
 	}
 	b.records[n] = r
+	if err := b.checkpoint(false); err != nil {
+		return protocol.Record{}, err
+	}
 	return b.withLiveness(n, r.Public()), nil
 }
 

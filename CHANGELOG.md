@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.47 — 2026-09-17
+
+Persist administrative changes before acknowledging success, so bans, removed memberships and tightened ACLs survive bus crashes. Snapshot capture and replacement are serialized; failed persistence returns an error and can be retried.
+
 ## 0.5.46 — 2026-09-17
 
 Confine the supervised web child to its executable, shared API socket and explicit TLS inputs, excluding daemon state and privileged sockets. Bubblewrap and unprivileged user namespaces are required; sandbox failures never start an unconfined dashboard.

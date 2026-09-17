@@ -1,8 +1,5 @@
-// Package jsonfile is the dump adapter that writes the snapshot as one JSON
-// document, mode 0600 because it carries message bodies. The design names
-// Parquet (docs/04-messaging.md#durability); that is one more adapter behind
-// the same port and nothing inward changes for it
-// (docs/10-modules.md#the-rule).
+// Package jsonfile atomically replaces the mode-0600 restart snapshot.
+// The adapter synchronizes data and directory metadata before success.
 package jsonfile
 
 import (
@@ -19,7 +16,7 @@ type Dump struct{ path string }
 func New(path string) *Dump { return &Dump{path: path} }
 
 // Save replaces the file through a temporary one, so a start either reads
-// the whole previous snapshot or the one before it, never half of each.
+// the whole previous snapshot or its replacement, never half of each.
 func (d *Dump) Save(s ports.Snapshot) error {
 	b, err := json.Marshal(s)
 	if err != nil {
@@ -28,11 +25,31 @@ func (d *Dump) Save(s ports.Snapshot) error {
 	if err := os.MkdirAll(filepath.Dir(d.path), 0o700); err != nil {
 		return err
 	}
-	tmp := d.path + ".new"
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+	f, err := os.CreateTemp(filepath.Dir(d.path), ".agent-bus-snapshot-*")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, d.path)
+	defer os.Remove(f.Name())
+	if _, err = f.Write(b); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(f.Name(), d.path); err != nil {
+		return err
+	}
+	dir, err := os.Open(filepath.Dir(d.path))
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
 }
 
 // Load reports false when there is no file: a first start and one that
