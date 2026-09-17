@@ -1,16 +1,38 @@
-# Owner > Maintainer > User
+# Owners, administrators and maintainers
 
+## Role names and scopes
 
+| Scope | Highest authority | Delegated management | Basic access |
+|---|---|---|---|
+| Daemon | Owner | Administrator | User |
+| Service or channel | Owner | Maintainer | Member |
 
-^^ generic logic supported on all layers; for daemon and for services
+**Administrator** is an administrative position for daemon user and group
+management. It does not automatically grant service or channel maintenance.
+**Maintainer** manages the service or channel to which the role is assigned.
+A **User** is a registered person; a resource **Member** has access and may be a
+user or another service. Roles include the lower role's permissions within
+their own scope. The daemon owner's root-like override is explicit, not a
+permission inherited by Administrators.
 
-Owner is also maintainer and user
+These are the intended names and authority rules. Current code still calls
+Administrators daemon maintainers and stores them in `@maintainers`; this
+terminology update does not rename that stored group or claim the pending
+policy changes are implemented.
 
-Maintainer is always a user
+## Shared service management
 
-So Owner can do any maintainer stuff and user stuff too
+When management across services is needed, create a group and explicitly assign
+it as **Service Maintainer** on each relevant service. Assign it as **Channel
+Maintainer** on channels it should manage. “Global” describes the intended
+coverage of those assignments; it is not a special group name or an automatic
+grant over existing or future records. Administrator membership alone grants
+none of these assignments.
 
-
+Service/channel owners make the assignments, subject to the daemon-owner
+override. The [membership interaction](#remaining-membership-interaction) still
+needs resolution: using a shared group must not silently undo the owner's
+requirement that effective maintainer membership stays owner-controlled.
 
 # Daemon
 
@@ -18,9 +40,9 @@ Always have owner; will not start unless it have one; use ...our-setup-script...
 
 ## Daemon Owner can
 
-* Assign/Revoke maintainer role
+* Assign/Revoke Administrator role
 
-* Activate/Deactivate/Ban maintainers
+* Activate/Deactivate/Ban Administrators
 
 * Transfer ownership (assign new owner)
 
@@ -30,23 +52,25 @@ Always have owner; will not start unless it have one; use ...our-setup-script...
 
   
 
-## Daemon Maintainers can
+## Daemon Administrators can
 
 * Add regular users
 * Activate/Deactivate/Ban regular users
-* Edit groups (except maintainers)
+* Edit ordinary groups; protected Administrator and maintenance-authority membership obey their own assignment rules
 
 ### Can not 
 
-* edit owners or other maintainers in any way
-* edit service (must be at least service maintainers)
+* edit the daemon owner or peer Administrators in any way
+* edit services/channels without an explicit Maintainer assignment
 
 
 
 ## Daemon Users can
 
 * register service/channel - they'll became `service owner`
-* edit itself
+* Edit their own profile, except `userName`, `personName` and `gitHubName`.
+  With today's profile fields, only email is self-editable; account state and
+  role assignments remain administrative controls.
 
 
 
@@ -70,7 +94,7 @@ Always have owner; will not start unless it have one; use ...our-setup-script...
 
 * Maintainer service role that can only be assigned by owner
 
-## Service Users can
+## Service Members can
 
 * access service
 
@@ -81,7 +105,7 @@ it**. It has a name, owner, maintainers, access list and settings; the daemon
 itself provides its queue or pub/sub behavior. In the current implementation
 this is a topic record, not a separately running service.
 
-It follows the same Owner > Maintainer > User authority model as a service;
+It follows the same Owner > Maintainer > Member authority model as a service;
 it is not owned collectively by its subscribers. This section states the intended model;
 the daemon-owner override and owner-controlled maintainer membership still
 need implementation.
@@ -90,7 +114,7 @@ need implementation.
 
 * The registered user who creates the channel becomes its owner.
 * There is one owner; joining, publishing or reading does not confer ownership.
-* The owner can do everything a channel maintainer or user can do.
+* The owner can do everything a channel maintainer or member can do.
 * The owner assigns/revokes channel maintainers and can transfer ownership.
 * The daemon owner retains the root-like override, including changing the channel owner.
 
@@ -98,10 +122,10 @@ need implementation.
 
 * Edit the channel's definition, settings and access list.
 * Cannot transfer ownership or assign/revoke channel maintainers.
-* Daemon-maintainer status alone grants no channel-management authority.
+* Administrator status alone grants no channel-management authority.
 * Maintainer membership stays owner-controlled, just as for services.
 
-## Channel Users and Subscribers
+## Channel Members and Subscribers
 
 * Access is granted to users, groups or other services through the channel ACL.
 * Queue mode: authorized callers send messages and consume from the shared queue.
@@ -119,7 +143,9 @@ settled for channels.
 # Review comments for owner answers
 
 Compared with current source and existing contracts on 2026-09-16. These are
-comparison notes, not settled policy or instructions to change implementation.
+comparison notes against that source snapshot; owner answers below record new policy.
+Historical quotations retain the former term “daemon maintainer”; current role
+names are defined [above](#role-names-and-scopes).
 Answer under each comment; no task or question IDs have been allocated.
 Markers follow [Glyphs](https://parf.dev/ai-skills/Glyphs.md).
 
@@ -288,13 +314,16 @@ daemon providing the behavior instead of a service process.
 * Daemon owner is the root authority, including service/channel ownership changes.
   “Owner-only” at record level is subject to this explicit daemon-owner override.
 * Service/channel maintainer membership is controlled by its owner.
-* Daemon maintainers can lift bans on ordinary users, still not on peer maintainers
+* Administrators can lift bans on ordinary users, still not on peer Administrators
   or the daemon owner.
-* Users may edit profile information except their identity name and full name.
-  Current field names are `Name` and `PersonName`; lifecycle state and authority
-  are administrative controls, not self-editable profile information.
+* Users may edit profile information except `userName`, `personName` and
+  `gitHubName`. Current code calls these `Name`, `PersonName` and `GithubUser`.
+  Only email remains self-editable in today's profile; lifecycle state and
+  authority are administrative controls, not self-editable profile information.
+  This later clarification supersedes the earlier answer naming only username
+  and full name as protected.
 * `PersonName` is taken from Linux passwd, from GitHub, or entered by an authorized
-  maintainer. The user cannot change it themselves. These are the required
+  Administrator. The user cannot change it themselves. These are the required
   sources, not a claim that every import path is already implemented.
 * Ownership must be explicitly established through setup; startup must not invent
   an owner from the account running the daemon. A legitimate ownership transfer
@@ -302,7 +331,7 @@ daemon providing the behavior instead of a service process.
 
 ## Remaining membership interaction
 
-⁉️ Owner-controlled service/channel maintainers conflict with unrestricted daemon-maintainer edits of ordinary groups when the same group grants maintenance authority.
+⁉️ Owner-controlled service/channel maintainers conflict with unrestricted Administrator edits of ordinary groups when the same group grants maintenance authority.
 
 Nested groups make that indirect path longer, not different: editing a subgroup
 can change effective maintainers too. Protecting only the top-level group is

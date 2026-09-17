@@ -29,8 +29,10 @@ unconfigured capability. Personal/shared describes use; it is not a record kind.
 | Token | Principal credential | [definition](02-access.md#what-a-call-carries) |
 | Local socket | Account credential | [definition](02-access.md#local-socket) |
 | Service ACL and master | Visibility and use policy | [definition](01-identity.md#acl) |
-| Owner | Authority over a registry record | [definition](01-identity.md#ownership) |
-| Maintainer | Authority over the level below, and itself a user | [definition](01-identity.md#groups-and-maintainers) |
+| Owner | Highest authority within the named scope | [definition](01-owners-and-maintainers.md#role-names-and-scopes) |
+| Administrator | Daemon user/group administration | [definition](01-owners-and-maintainers.md#role-names-and-scopes) |
+| Maintainer | Assigned service/channel management | [definition](01-owners-and-maintainers.md#role-names-and-scopes) |
+| Member | Basic access to a service/channel | [definition](01-owners-and-maintainers.md#role-names-and-scopes) |
 | Person profile | Identifying and descriptive information | [definition](01-identity.md#profile-fields) |
 | Service and service template | Configured service and its unconfigured source | [definition](03-services-and-topics.md#service-and-template) |
 | Protocol hint | How a caller reaches an external service | [definition](03-services-and-topics.md#how-to-call-it) |

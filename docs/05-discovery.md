@@ -114,11 +114,11 @@ what the daemon permits. “All” means all visible to that visitor.
 |---|---|
 | Registered services | My / all; active / inactive filters; details and [owner controls](01-identity.md#owner-control), with owner, maintainers group, access, reader presence and queue statistics. Administrative availability and serving / offline are distinct observations |
 | Users | List and details; add, edit, activate, pause and ban; show owned services, group membership and administrative authority |
-| Groups | List and details; create, edit, delete and manage flat membership; basic service and channel access. Include the daemon maintainers group and each record's assigned maintainers group under the [authority rules](01-identity.md#groups-and-maintainers) |
+| Groups | List and details; create, edit and manage flat membership; basic service and channel access. Include the daemon Administrator group and each record's assigned maintainers group under the [authority rules](01-identity.md#groups-and-maintainers); retire groups by emptying them, with no delete control |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
 | Registered pub/sub channels | List and details for pub/sub and queue topics; create, edit and remove; subscriptions, owner, maintainers group, permissions, TTL, capacity and overflow policy |
 
-[Owner and maintainer authority](01-identity.md#groups-and-maintainers) applies
+[Administrative and record authority](01-identity.md#groups-and-maintainers) applies
 to every control and to direct API calls. Membership and policy changes must
 survive restart. User lifecycle effects are [daemon policy](01-identity.md#user-lifecycle),
 not merely labels on the Users page.
@@ -372,3 +372,21 @@ authority level. Web and bus restarts follow the [session contract](#signing-in)
 HTTP handler tests and command-line cookie jars remain useful evidence but
 do not establish this browser workflow. [F.12](../Plans/MVP/TODO.md#remaining-work)
 owns the installed exercise and mutation checks.
+
+## Identity labels in web and CLI
+
+**Accepted display requirement; implementation pending.** In the web interface
+and human-readable CLI output, use:
+
+| Label | Entity |
+|---|---|
+| 👤 User | Registered person |
+| 🤖 Agent | Agent identity |
+| ⚙️ Service | Service identity |
+
+These glyphs label entity types, not authority or health. Keep the visible text
+beside the glyph; Owner, Administrator, Maintainer and Member remain separate
+[role labels](01-owners-and-maintainers.md#role-names-and-scopes). Use the identity
+and record facts returned by the daemon rather than guessing type from a name.
+This vocabulary is for displayed labels; it does not rename API kinds, alter
+JSON output or prescribe MCP output.

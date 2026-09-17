@@ -95,7 +95,7 @@ record of its own. Minting one for a name it knows nothing about is refused,
 whoever asks, the daemon owner included. That operation is how this node came to
 hold two hundred and thirty-one credentials answering for nothing: the
 credential was their only trace, and on its own it let them call. A name becomes
-real first — somebody registers it, or a maintainer creates it as a user — and
+real first — somebody registers it, or an Administrator creates it as a user — and
 then it may hold a credential. **There is no self-service**: an unregistered
 name cannot do anything at all, registering itself included
 ([what a call carries](#what-a-call-carries)).
@@ -210,10 +210,10 @@ Register it first and it is kept like any other. What the sweep does take it
 cannot give back — a name swept needs a credential again the ordinary way
 ([getting a token](#getting-a-token)).
 
-**Built: it can also be done by hand, by the daemon owner or a maintainer.**
+**Built: it can also be done by hand, by the daemon owner or an Administrator.**
 The automatic sweep stays and runs at every start; this is the same rule
 applied through an explicit removal action, so a name that turns up between restarts does not
-have to wait for one. Maintainers are included because they already administer
+have to wait for one. Administrators are included because they already administer
 users and this is the user directory — an ownerless credential is nobody's, so
 the [order](01-identity.md#groups-and-maintainers) does not settle it on its
 own and this was chosen.

@@ -188,7 +188,7 @@ protection it did not need.
 
 ## Person records
 
-**Built.** Maintainer-vouched profiles are separate from service registrations.
+**Built.** Administrator-vouched profiles are separate from service registrations.
 Administrators see the user directory; ordinary callers see their own details.
 
 **Built.** The directory keeps registered users, self-owned records and
@@ -210,12 +210,14 @@ whole credential store. The page does not fetch a directory again per avatar.
 
 ### Who may write a record
 
-Only a daemon maintainer edits user fields, never the person. A maintainer may
-edit below their own level, not a peer maintainer or the owner. The owner is
-always a maintainer and may edit every level. A trusted person record comes
-from maintainer vouching or successful enrolment. This policy works before AUTH, using the daemon owner, the daemon maintainers
-group and ordinary users as the three levels. Profile and membership changes
-are stored in the existing restart snapshot.
+**Current implementation.** Only a daemon Administrator edits user fields,
+never the person. An Administrator may edit below their own level, not a peer
+Administrator or the owner. The owner may edit every level. A trusted person
+record comes from Administrator vouching or successful enrolment. Profile and
+membership changes are stored in the existing restart snapshot.
+
+The [accepted model](01-owners-and-maintainers.md#clear-decisions) changes
+self-edit permissions and name provenance; those changes remain pending.
 
 ### User lifecycle
 
@@ -227,9 +229,11 @@ through the [dashboard](05-discovery.md#required-tabs), under the
 |---|---|
 | Active | The principal may authenticate and use its granted access |
 | Paused | Tokens, existing browser sessions, local sockets and enrolment cannot grant bus access; new deliveries to the user's inbox are refused |
-| Banned | The same access restriction; only the daemon owner may lift the ban |
+| Banned | The same access restriction; current code permits only the daemon owner to lift the ban |
 
-An authorized maintainer may reactivate a paused ordinary user. The daemon owner
+The [accepted model](01-owners-and-maintainers.md#clear-decisions) also permits
+Administrators to lift ordinary-user bans; that revision is pending.
+An authorized Administrator may currently reactivate a paused ordinary user. The daemon owner
 must remain active. State changes cancel the user's blocked reads and are retained by the existing
 [snapshot contract](04-messaging.md#durability); queued work is retained subject
 to its existing TTL. Credentials are not
@@ -282,51 +286,36 @@ sending and consuming are checked in the daemon; a face cannot widen access.
 
 ## Groups and maintainers
 
-**Built.** Flat groups support daemon administration and service/topic maintainers.
-The protected `@maintainers` group identifies daemon maintainers; the configured
-daemon owner is always a member. Only the daemon owner changes that group, which
-cannot be deleted or have the owner removed.
-Groups before AUTH are flat named sets of principals,
-local to one daemon. The daemon resolves membership at its existing access check;
-nesting, expressions and service-defined roles remain [R1](../Plans/R1/identity.md#groups-and-roles).
-Organization group administration belongs to daemon administration; owning a
-service alone does not grant permission to create groups or administer users.
+Role terminology and intended authority are defined in the
+[owner model](01-owners-and-maintainers.md#role-names-and-scopes); shared
+management follows [explicit group assignments](01-owners-and-maintainers.md#shared-service-management).
 
-**The levels are nested: every owner is a maintainer, and every maintainer is a
-user.** They are not three kinds of principal but three depths of one, so the
-owner appears in `@maintainers` and in the user directory, and somebody added to
-`@maintainers` becomes a registered user at that moment. A maintainer who was
-not a user would hold authority over users that user administration could not
-see. Taking somebody out of the group leaves the person behind, because a user
-is never deleted ([user lifecycle](#user-lifecycle)); ordinary group membership
-confers nothing and makes nobody a user.
+**Built representation.** Flat groups support daemon administration and
+service/topic maintenance. The protected `@maintainers` group currently holds
+**Administrators**; its stored name and the code's older terminology have not
+been renamed. The configured daemon owner is always a member. Only the daemon
+owner changes that group, which cannot be deleted or have the owner removed.
+An added Administrator becomes a registered user; removing the assignment keeps
+the profile. Ordinary group membership does not create user profiles.
 
-**Owner, then maintainers, then users — each with full control over the level
-below.** The owner runs the maintainers: adds them, removes them, and edits
-every level beneath. Maintainers run the users the same way. Nobody reaches
-sideways or up — a maintainer may not edit a peer or the owner, and the owner
-cannot step out of `@maintainers`, because a list that did not name them would
-describe a group they are in regardless.
+Daemon administration and record maintenance are separate scopes. Current
+`manages` admits a record's owner, its own principal and members of its assigned
+maintainers group. Both ownership transfer and changing that group assignment
+are owner-only. Master access grants access rather than management. The
+[daemon-owner override](01-owners-and-maintainers.md#daemon-owner-editing-any-service)
+in the accepted model is not yet implemented.
 
-**This is the hierarchy of people, and not the same thing as who manages a
-record.** A record is managed by its owner *and* its assigned maintainers group
-alike ([owner control](#owner-control)), which is a property of that record
-rather than a rank; only ownership transfer is the owner's alone. The order
-above decides who may act on **whom**, and the record rules decide who may act
-on **what**.
+**Implementation gap.** Administrators can currently edit any ordinary group,
+including one assigned as a service's maintainers group, and thereby change
+who manages that service. The accepted owner-controlled membership rule needs
+[protection for this indirect path](01-owners-and-maintainers.md#remaining-membership-interaction).
+Merely renaming the administrative role does not close it.
 
-| Authority | May change |
-|---|---|
-| Daemon owner | Administer the daemon and its maintainers group; edit users at every level under the [user write hierarchy](#who-may-write-a-record) |
-| Daemon maintainers group | Administer users below their own level; cannot edit a peer maintainer or the daemon owner, or promote themselves through membership changes |
-| Service or topic owner | One user, not a group or expression; [full control over owned services and topics](#owner-control), including exclusive authority to transfer ownership |
-| Service or topic maintainers group | Change the assigned record's definition, supported run options, availability and ACL, except ownership; membership confers no authority over unrelated records or daemon administration |
-
-The daemon owner is always a daemon maintainer. Daemon maintenance and record maintenance
-are distinct scopes, even when they include the same people. Master access is
-still [access, not ownership](#acl). The authenticated record itself retains its
-existing right to re-register; that does not grant ownership transfer.
-Daemon administrators edit ordinary group membership.
+Current groups are flat sets of principal names, local to one daemon. Nested
+groups and service-defined roles are accepted as
+[new implementation work](01-owners-and-maintainers.md#added-implementation-scope);
+expression syntax remains in the [R1 proposal](../Plans/R1/identity.md#groups-and-roles).
+Owning a service alone does not grant daemon user/group administration.
 
 **A group is not deleted, and it is given no states either.** Removing a name
 other records point at silently changes what every one of them means, so
@@ -356,7 +345,7 @@ to daemon administrators. Runtime start/stop controls remain
 ### Owner control
 
 **Built for supported daemon operations.** A user has **full control over services
-and topics they own**, without daemon owner approval or membership in the daemon maintainers group. This includes
+and topics they own**, without daemon owner approval or Administrator standing. This includes
 editing the definition, configuring the service, managing access and assigned
 maintainers, enabling or disabling it, deleting it and transferring ownership.
 Supported runtime lifecycle operations are also available to the owner when
@@ -396,7 +385,7 @@ asked where the credential is written rather than beforehand, because a record
 can change hands ([getting a token](02-access.md#getting-a-token)).
 
 A self-owned record can identify a person in the [people view](#person-records).
-Person-profile writes use the [maintainer hierarchy](#who-may-write-a-record);
+Person-profile writes use the [administrative hierarchy](#who-may-write-a-record);
 service and topic changes use [record management authority](#groups-and-maintainers).
 
 ### When the owner is gone

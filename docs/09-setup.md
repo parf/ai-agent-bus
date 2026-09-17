@@ -37,7 +37,7 @@ the daemon already holds a profile or a record for
 `authorized_keys` line alone would leave a key whose forced command is refused
 — which is no way in at all. The verb writes the line and creates the user, and
 `--admin` additionally puts the name in `@maintainers`. Authority is granted
-only where it was asked for: maintainer standing is membership, derived by the
+only where it was asked for: Administrator standing is membership, derived by the
 daemon, never a field a caller may claim.
 
 The two halves are kept together. The key line is written first because it is
