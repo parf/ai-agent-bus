@@ -55,3 +55,18 @@ and its frozen copy both had SHA-256
 This slice does not claim Group detail, invalid-input form preservation,
 search, sorting, paging, page-title glyphs, compact help, activity placement,
 owner photos or the remaining visual redesign.
+
+## Live postflight
+
+Commit `bcccde3` was built once for both binaries with build stamp
+`parf@parf.us 2026-09-17 19:57:54` and deployed by restarting the approved
+live unit. The daemon reported 0.5.64 and anonymous daemon status remained
+`401`. Authenticated reads of Services, Personal, Channels, Users and Groups,
+plus all four dedicated registration pages, returned `200`. The rendered pages
+contained their counted section links and active state, the separate
+**Yours**/**Edit** signals, and the plain-valued radio choices. No live record
+was created or changed.
+
+The web child remained inside its delegated cgroup with a 256 MiB memory
+limit, no swap, 64 PIDs and one CPU. It had zero effective capabilities and
+an environment containing only `AGENT_BUS_ADDR=/bus.sock` and `PWD=/`.
