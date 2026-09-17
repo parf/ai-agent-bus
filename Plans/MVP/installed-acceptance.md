@@ -28,6 +28,8 @@ their own delegated limits while the bus remains outside and keeps answering.
 The destructive pressure exercise uses disposable state, sockets and
 credentials. The production unit receives read-only postflight checks after
 deployment; no resource-exhaustion experiment runs against live state.
+The [0.5.49 postflight](done/web-resources.md#live-postflight) verified the
+generated delegation, separate web group and exact limits on the active unit.
 
 ## Reproducing the inspection
 

@@ -73,6 +73,20 @@ Frozen `--slow`: **589 passed, 0 failed**, with vet and race green
 Tracked `src/smoke.sh` and its frozen copy shared SHA-256
 `e401546193343b037b16df4c5e408d1f208aa35f6cbe8180a64274a0e6e23b21`.
 
+## Live postflight
+
+Commit `cca46ec` was pushed before deployment. The generated base unit replaced
+the prior non-delegating unit, systemd was reloaded, and the daemon restarted
+once on 0.5.49. Read-only checks found:
+
+- `Delegate=yes` with CPU, memory and task controllers;
+- supervisor and bus together in the named `supervisor` subgroup;
+- web alone in one sibling `web-*` cgroup with the exact five configured values;
+- the real sign-in page and mapped-user status call both serving; and
+- the existing OpenCode session reconnecting without manual registration.
+
+No pressure, OOM, task storm or production-state write was used for postflight.
+
 ## Limits
 
 This host exercise uses its installed systemd, cgroup v2 and service account;
