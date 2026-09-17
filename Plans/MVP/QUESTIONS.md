@@ -29,17 +29,3 @@ groups can be assigned by several resource owners.
 **Owner answer:** _Pending — separate owner-controlled maintenance membership
 from ordinary access groups, or protect every group change affecting it; define
 whose approval applies to a group shared by different owners._
-
-### Transfer recipient
-
-❓ May any active registered user receive service/channel ownership, regardless
-of whether they currently have a self-owned registry record.
-
-A self-owned record has the same name and owner, for example `alice@host` owned
-by `alice@host`. Ordinary user creation and enrolment normally create one;
-Administrator membership creates a profile without guaranteeing that record.
-Current transfer requires the record. Transferring a service is distinct from
-transferring a person's own identity.
-
-**Owner answer:** _Pending. Recommendation: authorize by the recipient's active
-user profile, without exposing the self-owned-record requirement to the user._

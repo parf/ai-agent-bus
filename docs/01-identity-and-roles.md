@@ -257,8 +257,9 @@ manage the record and request its credential; it does not revoke existing tokens
 Today a recipient must be active and have a self-owned record: its name and
 owner are identical. A self-owned identity itself cannot be transferred.
 Ordinary user creation and enrolment create such records; Administrator
-membership creates a profile without guaranteeing one. Whether any active user
-profile should suffice is the [open recipient choice](../Plans/MVP/QUESTIONS.md#transfer-recipient).
+membership creates a profile without guaranteeing one. Broadening recipient
+eligibility was deferred by the owner on 2026-09-17 as a rare case; these
+existing conditions remain unchanged.
 
 Existing credentials and copies already held follow the
 [token lifetime policy](02-access.md#token-lifetime).

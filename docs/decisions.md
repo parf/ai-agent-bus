@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Broader transfer-recipient eligibility deferred | [ownership](01-identity-and-roles.md#ownership) | 2026-09-17 owner direction; rare case, existing conditions retained |
 | Startup revocation failure hardening deferred | [existing failure behavior](02-access.md#ownerless-credentials) | 2026-09-17 owner direction; Q69 removed from open questions, implementation unchanged |
 | One reader count includes filtered waits | [reader observation](05-discovery.md#readers) | 2026-09-17 owner decision; resolves Q70, implementation pending |
 | Explicit inbox selection, independent message filters | [consume syntax](04-messaging.md#inbox-selection-and-filters) | 2026-09-17 owner decision; resolves Q21, implementation pending |

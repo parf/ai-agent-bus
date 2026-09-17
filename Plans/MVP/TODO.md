@@ -130,4 +130,3 @@ Implement the [current authority specification](../../docs/01-identity-and-roles
 | Effective Maintainer membership | Enforce owner control through direct and nested group changes; blocked on [membership choice](QUESTIONS.md#authority-model) |
 | Nested groups | Resolve nested membership with defined cycle handling; current membership is flat |
 | Service-defined roles | Store/resolve and return service-defined labels while preserving owner-only assignment of the reserved Maintainer role; syntax/transport proposals are not automatically adopted |
-| Transfer recipient | Apply the resolved [recipient rule](QUESTIONS.md#authority-model) |
