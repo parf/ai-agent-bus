@@ -120,8 +120,8 @@ template must never fetch GitHub itself.
 |---|---|---|
 | `login` | GitHub login; already stored as `github_user` | link label for the GitHub profile |
 | `name` | trusted person name; already fills a blank `person_name` without overwriting an explicit value | ordinary Person name; omit when blank |
-| `avatar_url` | provider avatar location | show as an outbound link, never as a browser-hotlinked image; the page keeps its locally rendered initials until a local image-import path exists |
-| `gravatar_id` | legacy provider avatar identifier | show in GitHub details only when non-empty; never construct a remote image request from it |
+| `avatar_url` | provider photo location | primary source for a locally imported profile photo; never emitted as a browser-hotlinked image |
+| `gravatar_id` | legacy provider avatar identifier | fallback source when the GitHub photo cannot be imported; never fetched by the browser |
 | `company` | provider-published organization or employer | Company; omit when blank |
 | `location` | provider-published location text | Location; omit when blank |
 | `email` | provider-published public email | fills the existing AgentBus `email` only when it is empty; there is no separate GitHub-email field |
@@ -138,6 +138,32 @@ imported, Email remains the ordinary AgentBus field under its existing edit
 rules; GitHub later hiding or changing the public email does not clear it.
 Visibility follows the existing user-directory answer; these fields do not
 create a public profile endpoint.
+
+The fetch is tied to the GitHub-login field: creating or changing
+`github_user` fetches and validates the public GitHub profile before the field
+change commits. A provider-profile transport, status or decode failure refuses
+that field update and leaves the old login and metadata unchanged. Saving an
+unrelated profile field does not contact GitHub. **Refresh GitHub profile** is
+the explicit way to fetch the current login again. Clearing `github_user`
+clears GitHub metadata and the imported photo, but keeps Person name and Email:
+after fill-blank import they are ordinary AgentBus fields, not mirrors.
+
+### User photo — planned
+
+The user photo source order is GitHub `avatar_url`, then `gravatar_id`, then
+locally generated initials. The trusted provider adapter fetches remote image
+bytes, bounds their size and dimensions, validates and decodes the image, and
+re-encodes a small local thumbnail so metadata and provider-controlled formats
+do not reach the browser. Redirects outside the approved GitHub-avatar or
+Gravatar hosts are refused.
+
+Photo import is optional metadata. A failed photo request never refuses key
+enrolment or clears a previously imported thumbnail, and a partial or failed
+decode commits no image bytes. The page falls back to the previous local photo
+or initials. Concrete byte and dimension limits are adapter constants tested at
+both boundaries. A complete provider response explicitly
+removing both photo sources clears the imported thumbnail. The retained photo
+records its fetch time; the page never claims it is current beyond that read.
 
 ## Absence
 

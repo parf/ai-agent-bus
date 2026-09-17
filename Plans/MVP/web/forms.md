@@ -95,6 +95,7 @@ the world moved between the question and the answer.
 | Edit members | Group | members | the group's members section |
 | Register a user | `/users/new` | name, person name, email, GitHub login | the new user's page |
 | Edit profile | User | person name, email, GitHub login | the profile section |
+| Refresh GitHub profile | User with a GitHub login | — | the same profile with provider fields and local photo refreshed |
 | Change state | User | the applicable transitions only | the identity section; **confirm** for ban |
 | Remove a credential | User, non-user identity | — | **confirm**, then the directory |
 
@@ -117,12 +118,19 @@ removing the verb from core and the API is [H.5.6](../TODO.md#objective).
 No message composer. It needs a separately accepted body-handling workflow, and
 this dashboard is for discovery, administration and envelope diagnostics.
 
-GitHub company, location, Twitter/X handle, avatar URL and Gravatar ID are
+GitHub company, location, Twitter/X handle and the photo-source metadata are
 provider facts, not form fields. They are imported by the trusted directory path
 and rendered read-only; neither a user nor an Administrator can restate them
-through the web form. GitHub's public email is different: it fills the existing
+through the web form. The visible photo is the locally normalized thumbnail,
+not the remote URL. GitHub's public email is different: it fills the existing
 Email only when blank, after which the ordinary AgentBus email-editing rules
 apply. There is no separate GitHub-email control.
+
+Setting or changing GitHub login fetches the provider profile before the update
+commits. A provider-profile failure returns the form with the old login and
+metadata intact; optional photo failure falls back without refusing the login.
+Saving unrelated profile fields performs no provider call. Clearing the login
+clears provider metadata and the local photo but retains Person name and Email.
 
 ## Where the current forms stop making sense
 

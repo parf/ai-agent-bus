@@ -390,7 +390,7 @@ separate primary action beside the directory heading.
 | Search over GitHub metadata | include company, location and Twitter/X handle once the daemon publishes them; the existing Email search covers an imported public email. No browser-side provider lookup |
 | Empty cleanup table plus its explanation | **collapse** to a count and a link while empty; expand only when candidates exist ([C10](review/codex.md#junk-and-misleading-content)) |
 | Classification of an unclassified identity | **keep as a word.** Never a colour, never inferred from a slash or a runtime prefix in a name |
-| Avatar | `/avatar` is reachable and authenticated but no template references it ([inventory](review/current-state.md#routes-and-templates)). **Decide deliberately**: use it here, or remove the endpoint. It must not fetch the whole directory per image ([W07](../done/web-review.md#findings)) |
+| Photo | **use.** Show the locally imported GitHub photo, then Gravatar fallback, then generated initials. The list uses a small thumbnail beside the name; no remote browser request and no per-row daemon lookup ([W07](../done/web-review.md#findings)) |
 | **Register user** | **entry point, which the draft lost** — codex's [S07](review/codex.md#specification-review-round-one). The form exists in [forms](forms.md#the-set) with no page offering it. Its conditional entry now lives in the second-level navigation and opens `/users/new`. Invalid input returns that form with its values and a field-level error, never a problem page. Success lands on the new user's page. Until 0.5.32 the SSH verb could not onboard anybody either ([H.5.9](../done/user-add-provisions.md#scope), now shipped), so this page was the only remaining route and had no entry point — which is what made its absence a gap rather than an omission |
 
 ## Register user `/users/new`
@@ -402,20 +402,36 @@ Fields and results are owned by the [forms inventory](forms.md#the-set).
 
 | Section | Content |
 |---|---|
-| Identity | Name, person name, state, daemon authority |
+| Identity | Locally served profile photo or initials, name, person name, state, daemon authority |
 | Memberships | Groups, or an explicit no-memberships statement |
 | Owned records | Linked, or an explicit none |
-| Profile | AgentBus person name, user-managed email and GitHub login; editable only under the existing field authorities |
-| GitHub profile | Read-only provider fields: company, location, Twitter/X handle, avatar link and legacy Gravatar ID. The section is absent for a non-GitHub profile; individual blank fields are omitted |
+| Profile | AgentBus person name, user-managed email and GitHub login; editable only under the existing field authorities. Setting/changing login fetches GitHub; an explicit Refresh action updates an unchanged login |
+| GitHub profile | Read-only provider fields: company, location, Twitter/X handle, photo source and legacy Gravatar ID. The section is absent for a non-GitHub profile; individual blank fields are omitted |
 | Lifecycle | Separate from the summary. **Only the transitions that apply** — an already-active user is offered Activate beside Pause and Ban today, all looking alike ([C12](review/codex.md#junk-and-misleading-content)). Ban is consequential and confirmed |
 
 The GitHub section labels its source and freshness. It uses the retained daemon
-answer only: no browser request to GitHub, no remote `<img>`, and no inference
+answer only: the visible photo is a locally imported, normalized thumbnail; no
+browser request to GitHub or Gravatar, no remote `<img>`, and no inference
 that a missing public email or location is private, empty, or current beyond the
 last successful provider lookup. `name` continues to feed Person name under the
 existing fill-blank rule. GitHub's public `email` likewise fills the existing
 Email only when empty: no second email field is rendered, and an existing value
 is never replaced.
+
+The Users list receives all visible thumbnails in the directory answer or one
+bounded batch read and embeds/serves them locally. It must not call the daemon
+once per row. User detail reads one photo with the profile. If optional image
+import failed, both views render the same generated initials rather than a
+broken image. A thumbnail or initials immediately beside the visible user name
+is decorative (`alt=""`); the adjacent text remains the accessible name. The
+same rule applies to the detail-title photo because its `h1` already names the
+user.
+
+GitHub refresh is never implicit page I/O. It runs only when the login field is
+created or changed, or when an authorized person invokes **Refresh GitHub
+profile**. The update is atomic around the required profile response: failure
+keeps the prior login and provider metadata. Photo import remains optional and
+may fall back without refusing that otherwise valid update.
 
 There is no delete-user control and there will not be one: a user is never
 deleted, only made inactive

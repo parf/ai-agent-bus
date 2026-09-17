@@ -64,7 +64,8 @@ already supplies its name.
 | Agent detail | 👾 Agent |
 | Channels and channel detail | a small inline channel SVG |
 | Activity | a small inline graph SVG |
-| Users and user detail | 👤 User |
+| Users | 👤 User |
+| User detail | the locally imported profile photo; 👤 User when no photo exists |
 | Groups and group detail | 👥 Group |
 | Account | 🪪 Identity |
 | Sign in and credential pages | 🔑 Credentials |
