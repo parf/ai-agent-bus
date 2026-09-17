@@ -22,11 +22,16 @@ func migrateAdministrators(s ports.Snapshot) ports.Snapshot {
 	s.Groups = maps.Clone(s.Groups)
 	renames := map[string]string{legacyAdministratorsGroup: AdministratorsGroup}
 	if members, collision := s.Groups[AdministratorsGroup]; collision {
-		// Avoid both existing groups and dangling record references: creating a
-		// group under a previously unresolved ACL term would grant new access.
+		// Avoid existing groups and every dangling reference: creating a group
+		// under an unresolved ACL or nested-group term would grant new access.
 		used := map[string]bool{}
-		for name := range s.Groups {
+		for name, groupMembers := range s.Groups {
 			used[name] = true
+			for _, member := range groupMembers {
+				if groupName(member) {
+					used[member] = true
+				}
+			}
 		}
 		for _, r := range s.Records {
 			used[r.Maintainers] = true
@@ -43,6 +48,18 @@ func migrateAdministrators(s ports.Snapshot) ports.Snapshot {
 	}
 	s.Groups[AdministratorsGroup] = admins
 	delete(s.Groups, legacyAdministratorsGroup)
+	// Group members may themselves be group names. Rewrite those edges in the
+	// same direction as record grants so migration cannot leave a nested grant
+	// pointing at the retired or colliding name.
+	for group, members := range s.Groups {
+		members = slices.Clone(members)
+		for i, member := range members {
+			if renamed, ok := renames[member]; ok {
+				members[i] = renamed
+			}
+		}
+		s.Groups[group] = members
+	}
 	s.Records = slices.Clone(s.Records)
 	for i := range s.Records {
 		r := &s.Records[i]

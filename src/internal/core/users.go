@@ -518,12 +518,9 @@ func (b *Bus) userView(caller, name string) protocol.User {
 	u.CanSetEmail = u.Kind == protocol.DirectoryUser && caller == name && b.acting(caller) == nil
 	u.CanActivate = u.CanEdit
 	u.CanRemove = b.acting(caller) == nil && b.isAdministrator(caller) && b.ownerless(name)
-	for group, members := range b.groups {
-		for _, member := range members {
-			if member == name {
-				u.Groups = append(u.Groups, group)
-				break
-			}
+	for group := range b.groups {
+		if b.member(name, group) {
+			u.Groups = append(u.Groups, group)
 		}
 	}
 	for _, r := range b.records {

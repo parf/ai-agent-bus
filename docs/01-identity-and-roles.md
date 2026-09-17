@@ -224,7 +224,9 @@ as Maintainers. They may add themselves or another user they create, without
 additional approval from the service owner. Choosing the group accepts those
 membership changes on every resource using it. This is intended, built behavior.
 Retire an ordinary group by emptying it; groups are not deleted, paused or banned.
-**Nested groups remain pending.**
+Ordinary groups may contain principals and other groups. Their membership
+follows the stored graph: cycles terminate, unknown group references stay inert
+until populated, and any path to a principal grants effective membership.
 
 <details>
 <summary>Administrative membership and shared-group limits</summary>
@@ -239,9 +241,16 @@ Retire an ordinary group by emptying it; groups are not deleted, paused or banne
 * Group names are available for resource-owner assignments; full membership
   lists are visible to Administrators. Owning a service grants no daemon
   user/group administration.
-* The accepted model allows nested groups, but **current membership is flat**.
-  Nested membership and service-role storage are [pending](../Plans/MVP/TODO.md#authority-model);
-  proposed expression syntax remains in [R1](../Plans/R1/identity.md#groups-and-roles).
+* Nested membership is built in 0.5.57. Stored group lists show direct entries;
+  user views report effective membership. ACL and Maintainer checks use the
+  same reachability rule. Service-role storage remains
+  [pending](../Plans/MVP/TODO.md#authority-model); proposed expression syntax
+  remains in [R1](../Plans/R1/identity.md#groups-and-roles).
+* `@administrators` accepts direct user identities only; the Owner remains a
+  direct member. A snapshot that nests a group there is refused at startup.
+  An ordinary group may name `@administrators`: its direct members then receive
+  that ordinary group's access or Maintainer grant, without creating nested
+  Administrator authority.
 * Sharing a Maintainer group across resources does not require joint owner
   approval for membership changes. Resource owners control assignment of the
   group; Administrators control its members. The protected Administrator group

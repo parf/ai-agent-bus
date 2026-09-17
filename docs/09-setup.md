@@ -77,6 +77,20 @@ non-owner administrative standing. Its members still retain the access and
 service maintenance granted through ordinary group references. Downgrading does
 not restore the old name automatically.
 
+## Nested group upgrade
+
+From 0.5.57, an `@group` entry inside an ordinary group is a membership edge.
+Earlier snapshots may contain such entries as inert strings. Review existing
+group lists for stray `@`-names before upgrading: a group that exists now,
+or is populated later, grants its effective members every ACL and Maintainer
+permission carried by the containing group.
+
+Cycles terminate without granting anybody unless another path reaches them;
+unknown groups remain inert. `@administrators` stays direct-only and a snapshot
+that nests a group inside it is refused at startup. Personal services still
+reject group ACL entries and Maintainer assignments, so this upgrade does not
+widen their assignment rules.
+
 ## Empty ACL upgrade
 
 From 0.5.44, existing empty ACLs adopt the [restricted default](02-access.md#acl);

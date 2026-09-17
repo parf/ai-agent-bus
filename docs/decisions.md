@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Nested group resolution | [group authority](01-identity-and-roles.md#groups), [upgrade behavior](09-setup.md#nested-group-upgrade) | 2026-09-17 implementation; graph reachability with cycle termination, direct-only protected Administrator membership |
 | Self-email editing and Administrator unban | [profile permissions](01-identity-and-roles.md#users-and-profiles), [user states](01-identity-and-roles.md#user-states) | 2026-09-17 implementation; users control only their own email, Administrators may unban only ordinary users |
 | Durable daemon ownership and node-wide management | [daemon owner](01-identity-and-roles.md#daemon-owner), [setup upgrade](09-setup.md#daemon-ownership-upgrade) | 2026-09-17 implementation; required setup seed, durable transfer to an active registered User, Owner-only resource override without inherited Administrator authority |
 | Web resource confinement | [web resource limits](11-processes.md#web-resource-limits) | 2026-09-17 G.1.2 implementation; delegated web-only cgroup, fail closed without delegation |

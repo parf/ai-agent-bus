@@ -6,8 +6,8 @@ For ownership and management, see [Identity and roles](01-identity-and-roles.md#
 
 ## Scope
 
-Tokens, key-possession enrolment, account sockets, rotation, browser sessions
-and flat ACLs are built. Nested groups and service-role expressions remain
+Tokens, key-possession enrolment, account sockets, rotation, browser sessions,
+ACLs and nested groups are built. Service-role expressions remain
 [pending](../Plans/MVP/TODO.md#authority-model). Startup revocation remains
 [best effort](#ownerless-credentials); further hardening is deferred. Future encryption is separate.
 The [Owner-and-Maintainers empty ACL rule](#acl) applies to new and restored records.
@@ -166,8 +166,9 @@ Allow lists and master refusal are registry settings, never values taken from
 private service configuration. Queries, sends, consumes and writes still obey
 their applicable state and authority checks.
 
-ACLs can name users, services and groups. Group resolution is currently flat;
-[nested groups](01-identity-and-roles.md#groups) remain pending.
+ACLs can name users, services and groups. Group resolution follows
+[nested membership](01-identity-and-roles.md#groups), including cycle-safe and
+later-populated group references.
 User/Agent/Service glyphs are
 [display labels](05-discovery.md#identity-labels-in-web-and-cli), not ACL input.
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.57 — 2026-09-17
+
+Resolve nested groups consistently for ACL access and service Maintainer
+authority. Cycles terminate, unknown references remain inert until populated,
+and the protected Administrator group stays direct-only.
+
 ## 0.5.56 — 2026-09-17
 
 Let users edit or clear only their own email, with protected profile fields

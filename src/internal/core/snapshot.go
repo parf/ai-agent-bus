@@ -111,6 +111,14 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	for name, members := range s.Groups {
 		b.groups[name] = append([]string{}, members...)
 	}
+	if b.ownerRestoreErr == nil {
+		for _, member := range b.groups[AdministratorsGroup] {
+			if groupName(member) {
+				b.ownerRestoreErr = fmt.Errorf("snapshot %s contains nested group %s; administrative membership is direct-only", AdministratorsGroup, member)
+				break
+			}
+		}
+	}
 	if s.OwnerEstablished && b.ownerRestoreErr == nil {
 		if _, known := b.users[b.admin]; !known {
 			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner %s is not a registered user", b.admin)

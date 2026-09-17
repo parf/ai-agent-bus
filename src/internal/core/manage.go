@@ -58,10 +58,10 @@ func (b *Bus) EstablishDaemonOwner(seed string) error {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.ownerRestoreErr != nil {
+		return b.ownerRestoreErr
+	}
 	if b.ownerRestored {
-		if b.ownerRestoreErr != nil {
-			return b.ownerRestoreErr
-		}
 		return nil
 	}
 	if b.admin == "" {
@@ -86,6 +86,12 @@ func (b *Bus) DaemonOwner() string {
 // never deleted, only made inactive (docs/01-identity-and-roles.md#user-states).
 func (b *Bus) administratorsAreUsers() {
 	for _, name := range b.groups[AdministratorsGroup] {
+		// Administrative authority is direct-only. A damaged snapshot is
+		// refused at startup; do not manufacture a user for its group name on
+		// the way to that refusal.
+		if groupName(name) {
+			continue
+		}
 		if _, known := b.users[name]; !known {
 			b.users[name] = protocol.User{Name: name, State: "active"}
 		}
@@ -139,8 +145,23 @@ func (b *Bus) validatePersonal(r protocol.Record) error {
 	return nil
 }
 func (b *Bus) member(caller, group string) bool {
-	for _, n := range b.groups[group] {
-		if n == caller {
+	return b.memberThrough(caller, group, map[string]bool{})
+}
+
+// memberThrough resolves ordinary group membership as finite graph
+// reachability. Cycles and unknown groups are inert unless another edge reaches
+// the caller. The protected Administrator group is always a direct membership
+// boundary, including when an ordinary group names it for an access grant.
+func (b *Bus) memberThrough(caller, group string, seen map[string]bool) bool {
+	if !groupName(group) || seen[group] {
+		return false
+	}
+	seen[group] = true
+	for _, member := range b.groups[group] {
+		if member == caller {
+			return true
+		}
+		if group != AdministratorsGroup && groupName(member) && b.memberThrough(caller, member, seen) {
 			return true
 		}
 	}
@@ -158,9 +179,10 @@ func groupName(n string) bool {
 	return true
 }
 
-// Groups are daemon-local flat sets. Administrators edit ordinary groups; only
-// the daemon owner changes administrative membership. Record ownership does
-// not grant daemon administration.
+// Groups are daemon-local sets of principals and ordinary groups.
+// Administrators edit ordinary groups; only the daemon owner changes direct
+// administrative membership. Record ownership does not grant daemon
+// administration.
 func (b *Bus) SetGroup(caller, name string, members []string) error {
 	who, err := canon(caller)
 	if err != nil {
@@ -174,9 +196,13 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	}
 	normalized := []string{}
 	for _, m := range members {
-		n, err := canon(m)
-		if err != nil {
-			return err
+		m = strings.TrimSpace(m)
+		n := m
+		if !groupName(m) {
+			n, err = canon(m)
+			if err != nil {
+				return err
+			}
 		}
 		normalized = append(normalized, n)
 	}
@@ -195,6 +221,9 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 		}
 		includesOwner := false
 		for _, member := range normalized {
+			if groupName(member) {
+				return fmt.Errorf("%w: %s accepts direct user identities only", ErrBadName, AdministratorsGroup)
+			}
 			if member == b.admin {
 				includesOwner = true
 			}

@@ -17,12 +17,18 @@ func TestAdministratorMigrationPreservesGrantsWithoutPromotion(t *testing.T) {
 			"@maintainers":           {"owner@h", "admin@h"},
 			"@administrators":        {"ordinary@h"},
 			"@administrators-legacy": {"other@h"},
+			"@through-admins":        {"@maintainers"},
+			"@through-collision":     {"@administrators"},
+			"@unresolved-edge":       {"@administrators-legacy-2"},
 		},
 		Records: []protocol.Record{
 			{Name: "admin-managed@h", Owner: "owner@h", Maintainers: "@maintainers", Allow: []string{"owner@h"}},
 			{Name: "ordinary-managed@h", Owner: "owner@h", Maintainers: "@administrators", Allow: []string{"owner@h"}},
 			{Name: "admin-visible@h", Owner: "owner@h", Allow: []string{"@maintainers"}},
 			{Name: "ordinary-visible@h", Owner: "owner@h", Allow: []string{"@administrators"}},
+			{Name: "nested-admin-visible@h", Owner: "owner@h", Allow: []string{"@through-admins"}},
+			{Name: "nested-ordinary-visible@h", Owner: "owner@h", Allow: []string{"@through-collision"}},
+			{Name: "nested-unresolved@h", Owner: "owner@h", Allow: []string{"@unresolved-edge"}},
 			{Name: "unresolved@h", Owner: "owner@h", Allow: []string{"@administrators-legacy-1"}},
 		},
 		Queues: []ports.Queue{{Name: "ordinary-managed@h", In: 1, Messages: []protocol.Envelope{{Body: "kept"}}}},
@@ -58,6 +64,9 @@ func TestAdministratorMigrationPreservesGrantsWithoutPromotion(t *testing.T) {
 	}{
 		{"admin@h", "admin-visible@h", true}, {"ordinary@h", "ordinary-visible@h", true},
 		{"ordinary@h", "admin-visible@h", false}, {"admin@h", "ordinary-visible@h", false},
+		{"admin@h", "nested-admin-visible@h", true}, {"ordinary@h", "nested-ordinary-visible@h", true},
+		{"ordinary@h", "nested-admin-visible@h", false}, {"admin@h", "nested-ordinary-visible@h", false},
+		{"ordinary@h", "nested-unresolved@h", false},
 		{"ordinary@h", "unresolved@h", false},
 	} {
 		if _, visible := b.Lookup(check.who, check.record); visible != check.allowed {
@@ -65,8 +74,13 @@ func TestAdministratorMigrationPreservesGrantsWithoutPromotion(t *testing.T) {
 		}
 	}
 	groups := b.Groups("owner@h")
-	if _, exists := groups["@maintainers"]; exists || !reflect.DeepEqual(groups["@administrators-legacy-2"], []string{"ordinary@h"}) {
+	if _, exists := groups["@maintainers"]; exists || !reflect.DeepEqual(groups["@administrators-legacy-3"], []string{"ordinary@h"}) {
 		t.Fatalf("wrong migrated groups: %v", groups)
+	}
+	if !reflect.DeepEqual(groups["@through-admins"], []string{AdministratorsGroup}) ||
+		!reflect.DeepEqual(groups["@through-collision"], []string{"@administrators-legacy-3"}) ||
+		!reflect.DeepEqual(groups["@unresolved-edge"], []string{"@administrators-legacy-2"}) {
+		t.Fatalf("nested group references were not migrated: %v", groups)
 	}
 	after, _ := json.Marshal(s)
 	if string(original) != string(after) {
