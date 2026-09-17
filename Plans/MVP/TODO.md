@@ -90,13 +90,10 @@ overload and its spelling-dependent 404 are gone.
 
 ## Reader visibility
 
-Implement the web's [single Readers count](../../docs/05-discovery.md#readers).
-Verify no waiters, one unfiltered waiter, a filtered-only waiter, and mixed
-shared/filtered waits using nonzero fixtures. Completion, cancellation and
-timeout must remove the corresponding wait from the count. Excluding filtered
-waits or retaining an ended wait must fail a named check. Render one count,
-without a filter breakdown; retain caller visibility and do not label it health
-or completion. Typical services retain their full-inbox reader.
+Completed in 0.5.53; see [reader visibility checks](done/reader-visibility.md#checks).
+WEB, human CLI and MCP render one count across filtered and unfiltered waits;
+the compatibility boolean remains wire-only. The anchor stays for existing
+references.
 
 ## Identity display labels
 

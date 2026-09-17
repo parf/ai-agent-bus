@@ -440,7 +440,7 @@ var anon = template.Must(template.New("anon").Parse(head + `<title>Sign in · ag
 // The page no longer refreshes itself. A reader has to be able to stop moving
 // content, and a whole-page reload every five seconds also threw away whatever
 // they were part-way through reading (Plans/MVP/done/web-review.md W11).
-var page = template.Must(template.New("dash").Parse(shell("diagnostics", "Diagnostics") + `<h1>agent-bus</h1>
+var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCount": readerCount}).Parse(shell("diagnostics", "Diagnostics") + `<h1>agent-bus</h1>
 <p><a href=/>Refresh</a> <span class=muted>· as of {{.At}}</span></p>
 
 <h2 id=node>node</h2>
@@ -464,26 +464,26 @@ var page = template.Must(template.New("dash").Parse(shell("diagnostics", "Diagno
 
 <h2 id=stuck>inboxes holding messages</h2>
 <table><caption>Inboxes holding messages, longest wait first — visible to you</caption>
-<thead><tr><th scope=col>name<th scope=col>reader<th scope=col>held now<th scope=col>oldest held<th scope=col>capacity</tr></thead>
+<thead><tr><th scope=col>name<th scope=col>readers<th scope=col>held now<th scope=col>oldest held<th scope=col>capacity</tr></thead>
 <tbody>
-{{range .Backlogs}}<tr><td><code>{{.Name}}</code><td>{{if .Reading}}reader attached{{else}}<b class=warn>no unfiltered reader</b>{{end}}<td>{{.Queued}}<td>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{if .AtBound}}<b class=warn>at capacity when observed</b>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>
+{{range .Backlogs}}<tr><td><code>{{.Name}}</code><td>{{readerCount .Readers}}<td>{{.Queued}}<td>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{if .AtBound}}<b class=warn>at capacity when observed</b>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>
 {{else}}<tr><td colspan=5 class=muted>every queue you can see is empty</tr>{{end}}
 </tbody></table>
 <p class=muted>Holding messages is not being stuck: a reader that pulls on a
  schedule is between pulls here. The observation does not prune first, so some of
  what is held may already have outlived its TTL.
  <em>At capacity</em> is what was true when observed, never a prediction about the next send.
- <em>No unfiltered reader</em> means no read is outstanding that accepts any
- message. A read restricted to a topic or tag is not represented here: it is
- attached, and it takes a message that matches it.</p>
+ <em>Readers</em> counts outstanding consume requests, filtered and unfiltered
+ together. Zero is not health; a process may be between reads. A positive count
+ promises neither a match for a held message nor completed work.</p>
 
 ` + exchangesTemplate + `
 <h2 id=registry>registry</h2>
 <table><caption>Records visible to you — not the node-wide count above</caption>
-<thead><tr><th scope=col>name<th scope=col>kind<th scope=col>description<th scope=col>reader<th scope=col>held now<th scope=col>accepted<th scope=col>dequeued<th scope=col>config</tr></thead>
+<thead><tr><th scope=col>name<th scope=col>kind<th scope=col>description<th scope=col>readers<th scope=col>held now<th scope=col>accepted<th scope=col>dequeued<th scope=col>config</tr></thead>
 <tbody>
 {{range .Records}}<tr><td><code>{{.Name}}</code><td>{{.Kind}}<td>{{.Descr}}
- <td>{{if .Reading}}reader attached{{else}}<span class=muted>no unfiltered reader</span>{{end}}<td>{{.Queued}}<td>{{.In}}<td>{{.Out}}
+ <td>{{readerCount .Readers}}<td>{{.Queued}}<td>{{.In}}<td>{{.Out}}
  <td><code class=muted>{{.ConfigSHA}}</code></tr>
 {{else}}<tr><td colspan=8 class=muted>nothing you can see is registered</tr>{{end}}
 </tbody></table>

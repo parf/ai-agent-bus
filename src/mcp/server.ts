@@ -11,6 +11,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { Bus, BusError, defaultName, type Envelope, type Record_ } from "./bus.ts";
+import { catalogue } from "./catalogue.ts";
 import { startPush, type Push } from "./push.ts";
 import { Codex } from "./codex.ts";
 import { version } from "./version.ts";
@@ -379,30 +380,6 @@ function renameHelp(): string {
 
 function text(body: string, isError = false) {
   return { content: [{ type: "text" as const, text: body }], ...(isError ? { isError } : {}) };
-}
-
-// What a caller needs to decide whether to call it: what it is, how to reach
-// it, and whether anyone is there. A record with no protocol is an ordinary
-// bus service — send to the name; anything else the caller speaks itself, at
-// the address given (docs/05-discovery.md#what-a-listing-answers).
-function catalogue(r: Record_): string {
-  const notes = [
-    r.protocol ? `speaks ${r.protocol}${r.addr ? ` at ${r.addr}` : ""} — call it yourself, not through the bus` : undefined,
-    // Whether anyone reads its inbox says nothing about a record the bus
-    // does not serve, so it is left out rather than reported as absent.
-    //
-    // `reading` counts a read that accepts ANY message: a read restricted to
-    // a topic or tag is attached and is not in it (core/bus.go withLiveness),
-    // and `deliver` serves a matching one of those ahead of an unfiltered
-    // reader. So the false case cannot say nobody is reading — it did, and the
-    // dashboard said the same thing until F.13.1. Q70's accepted all-reader
-    // web count is pending (docs/05-discovery.md#readers); this remains the
-    // current MCP rendering of the existing bit.
-    r.protocol ? undefined : r.reading ? "a reader is attached" : "no unfiltered reader — a read restricted to a topic or tag is not counted, and does take what matches it",
-    r.queued ? `${r.queued} queued` : undefined,
-    r.config_sha ? `configured (${r.config_sha.slice(0, 12)})` : undefined,
-  ].filter(Boolean);
-  return `${r.name}  [${r.kind}]  ${r.descr ?? ""}`.trimEnd() + `\n    ${notes.join(" · ")}`;
 }
 
 // "30s" / "500ms" / "2m" as seconds. A bare number is NOT a duration to Go's

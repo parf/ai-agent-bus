@@ -227,9 +227,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	}
 	r.Config, r.ConfigSHA, r.Subs = nil, "", nil
 	r.Maintainers, r.Disabled = "", false
-	r.CanManage, r.CanTransfer = false, false
-	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
-	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
+	clearLiveRecord(&r)
 	// Publishing a name is open to anyone; changing one that exists belongs
 	// to its owner, and to the record itself — a service registering on
 	// every start is not a stranger to its own name, and it is the only
@@ -431,12 +429,14 @@ func (b *Bus) OwnerOf(name string) (string, bool) {
 // written back, so nothing in the registry depends on who happened to be
 // connected. Caller holds the lock.
 func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
-	r.Reading, r.Queued, r.In, r.Out = false, 0, 0, 0
-	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
+	clearLiveRecord(&r)
 	in, ok := b.inboxes[name]
+	readers := 0
+	r.Readers = &readers
 	if !ok {
 		return r
 	}
+	readers = len(in.waiters)
 	r.Queued, r.In, r.Out = len(in.queue), in.in, in.out
 	// Answered here rather than left to be worked out from `queued`, because
 	// a record that declares no bound takes the daemon's and a reader cannot
@@ -455,6 +455,15 @@ func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 		}
 	}
 	return r
+}
+
+// clearLiveRecord keeps caller-specific and process-local observations out of
+// registration and persistence. They are reconstructed from the caller and
+// inbox only when an answer leaves the core.
+func clearLiveRecord(r *protocol.Record) {
+	r.CanManage, r.CanTransfer = false, false
+	r.Reading, r.Readers, r.Queued, r.In, r.Out = false, nil, 0, 0, 0
+	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
 }
 
 // boundOf is how many messages a record's inbox may hold: what it declared,

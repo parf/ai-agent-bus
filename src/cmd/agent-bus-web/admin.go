@@ -396,7 +396,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	}))
 }
 
-var serviceList = template.Must(template.New("services").Parse(shell("records", "Registered services") + `
+var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{"readerCount": readerCount}).Parse(shell("records", "Registered services") + `
 <h1>{{if .Channels}}Registered channels{{else if .PersonalPage}}Personal services{{else}}Registered services{{end}}</h1>
 <form method=get>{{if .PersonalPage}}{{if .DaemonOwner}}<label>Owner <select name=owner><option value="">All visible owners</option>{{range .Owners}}<option {{if eq . $.OwnerFilter}}selected{{end}}>{{.}}</option>{{end}}</select></label>{{else}}<span>Owned by <code>{{.You}}</code></span>{{end}}{{else}}<label>Scope <select name=scope><option value=all>All visible</option><option value=my {{if eq .Mine "my"}}selected{{end}}>My</option></select></label>{{end}}
 <label>Delivery <select name=state><option value=all>All</option><option value=active {{if eq .State "active"}}selected{{end}}>Enabled</option><option value=inactive {{if eq .State "inactive"}}selected{{end}}>Disabled</option></select></label> <button>Filter</button></form>
@@ -407,20 +407,20 @@ var serviceList = template.Must(template.New("services").Parse(shell("records", 
  not establish that a send will be accepted — the owner&rsquo;s access and the
  allow list are checked as well. None of it is
  health: the daemon does not observe whether a process is alive, so this page does
- not say it. <em>Reader</em> counts a read that accepts any message. A read
- restricted to a topic or tag is not represented here at all: it is attached, and
- it does take a message that matches it.</p>
+ not say it. <em>Readers</em> counts every outstanding consume request,
+ filtered and unfiltered together. Zero can mean a process is between reads;
+ a positive count promises neither a matching message nor completed work.</p>
 <table><caption>Records visible to you — not a count of this node</caption>
-<thead><tr><th scope=col>Name<th scope=col>Owner<th scope=col>Delivery<th scope=col>Reader<th scope=col>Reached<th scope=col>Queued<th scope=col>Registration updated<th scope=col>Controls</tr></thead>
+<thead><tr><th scope=col>Name<th scope=col>Owner<th scope=col>Delivery<th scope=col>Readers<th scope=col>Reached<th scope=col>Queued<th scope=col>Registration updated<th scope=col>Controls</tr></thead>
 <tbody>
-{{range .Records}}<tr><td><a href="/service?name={{.Name}}">{{.Name}}</a><td>{{.Owner}}<td>{{if .Disabled}}Disabled{{else}}Enabled{{end}}<td>{{if .Reading}}reader attached{{else}}<span class=muted>no unfiltered reader</span>{{end}}<td>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{.Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{.At.Format "2006-01-02 15:04"}}{{end}}<td>{{if .CanManage}}Manage{{else}}View{{end}}</tr>{{else}}<tr><td colspan=8>No matching records</tr>{{end}}
+{{range .Records}}<tr><td><a href="/service?name={{.Name}}">{{.Name}}</a><td>{{.Owner}}<td>{{if .Disabled}}Disabled{{else}}Enabled{{end}}<td>{{readerCount .Readers}}<td>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{.Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{.At.Format "2006-01-02 15:04"}}{{end}}<td>{{if .CanManage}}Manage{{else}}View{{end}}</tr>{{else}}<tr><td colspan=8>No matching records</tr>{{end}}
 </tbody></table>
 <h2>Register {{if .Channels}}channel{{else}}service{{end}}</h2>
 <form method=post action=/service><input type=hidden name=action value=create>
 <label>Name <input name=name required placeholder="name@realm"></label><p><label>Description <input name=descr></label></p>
 {{if .Channels}}<input type=hidden name=kind value=topic><label>Delivery <select name=mode><option value=pubsub>Pub/sub</option><option value=queue>Queue</option></select></label>{{else if .PersonalPage}}<input type=hidden name=kind value=generic><input type=hidden name=personal value=on>{{else}}<label>Kind <select name=kind><option value=generic>Service</option><option value=agent>Agent</option></select></label> <label>Personal <input type=checkbox name=personal></label>{{end}}
 <p><label>Allow <input name=allow></label> Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>{{if not .Channels}}<p class=muted>A Personal service may name only other registered services directly. Users, groups, <code>*</code>, itself and Maintainers are refused.</p>{{end}}<button>Register</button></form>`))
-var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join}).Parse(shell("records", "Service") + `
+var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join, "readerCount": readerCount}).Parse(shell("records", "Service") + `
 {{with .Record}}<h1>{{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1><p>Owner: {{.Owner}}{{with .Maintainers}} · Maintainers: {{.}}{{end}}{{if .Mode}} · Delivery: {{if eq .Mode "pubsub"}}a copy to each subscriber{{else}}one at a time{{end}}{{end}}</p>
 <h2>Delivery setting</h2>
 <p>Delivery: <strong>{{if .Disabled}}Disabled{{else}}Enabled{{end}}</strong>{{if .Disabled}} <span class=muted>— the bit does not say whether the owner turned it off or the name stopped being active</span>{{end}}</p>
@@ -441,12 +441,11 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
  The overflow policy is always the record&rsquo;s own: an empty one is normalised
  to <em>refuse</em> when the record is registered, so there is no unset to report.</p>
 <h2>What the daemon observed</h2>
-<p>Reader: {{if .Reading}}<strong>reader attached</strong>{{else}}<strong>no unfiltered reader</strong>{{end}}
- <span class=muted>— a busy process between pulls is not offline, and this is not health</span></p>
-<p class=muted>A read restricted to a topic or tag is not counted here: that
- reader is attached, and it takes a message that matches it. How many of those
- there are is not something the daemon reports, so this cannot say nobody is
- connected.</p>
+<p>Readers: <strong>{{readerCount .Readers}}</strong>
+ <span class=muted>— outstanding consume requests, filtered and unfiltered together</span></p>
+<p class=muted>Zero can mean a process is between reads and is not an offline
+ signal. A positive count promises neither that a particular message matches
+ nor that any work has finished.</p>
 <p>Held now: {{.Queued}}{{if .AtBound}} · <span class=warn>at capacity when observed</span>{{end}}
  · Oldest held: {{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}
  <span class=muted>— the read does not prune first, so some of these may already have outlived their TTL</span></p>

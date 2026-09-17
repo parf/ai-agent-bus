@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.53 — 2026-09-17
+
+Show one Readers count across filtered and unfiltered consume requests in WEB,
+human CLI and MCP listings. Reader counts are live observations, never health
+or durable state; the older unfiltered boolean remains wire compatibility.
+
 ## 0.5.52 — 2026-09-17
 
 Select a consume inbox explicitly across the API, CLI and MCP face. Topic and

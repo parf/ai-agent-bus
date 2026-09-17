@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Reader visibility | WEB, human CLI and MCP show one numeric count across every outstanding consume request; the count is live, not health or durable state | [0.5.53 evidence](done/reader-visibility.md#checks) |
 | 0.5.52 live rollout | Explicit inbox selection, address-shaped filters, malformed and unknown selection, process versions and peer reconnection verified without dequeuing a live message | [live postflight](done/inbox-selection.md#live-postflight) |
 | Explicit inbox selection | API, CLI and MCP select the inbox separately from topic/tag filters; omission still reads the caller's own | [0.5.52 evidence](done/inbox-selection.md#checks) |
 | 0.5.51 live rollout | Personal tab, corrected navigation, public identity, confined web process and peer reconnection verified without registry changes | [live postflight](done/personal-services-web.md#live-postflight) |

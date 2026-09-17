@@ -132,13 +132,13 @@ func (m *meanings) shapes() {
 	m.register(protocol.Record{Name: "elsewhere@h", Owner: "admin@h", Descr: "reached another way", Proto: "https"})
 }
 
-// A reader that is actually blocked, so "reader attached" is an observation
-// rather than a fixture field. Returns once the daemon reports the wait.
+// A read that is actually blocked, so the count is an observation rather than
+// a fixture field. Returns once the daemon reports the wait.
 func (m *meanings) attachReader(name string, topic ...string) <-chan protocol.Envelope {
 	m.t.Helper()
-	// An optional topic filter, for the one shape a plain reader cannot hold
-	// still for: a reader attached to an inbox that also has a backlog. Asked
-	// for everything it drains the queue and stops waiting, so the reader
+	// An optional topic filter, for the one shape an unfiltered read cannot hold
+	// still for: a read attached to an inbox that also has a backlog. Asked
+	// for everything it drains the queue and stops waiting, so the read
 	// that leaves a backlog standing is one waiting for something else.
 	want := ""
 	if len(topic) != 0 {
@@ -203,9 +203,9 @@ func TestDeliveryIsEnabledOrDisabledAndNeverInactive(t *testing.T) {
 	}
 }
 
-// Reading is an observation about a read on an inbox. It is not health, and a
-// busy process between pulls is not offline.
-func TestAReaderIsObservedAndIsNeverCalledOfflineOrServing(t *testing.T) {
+// Readers is an observation about outstanding reads on an inbox. It is not
+// health, and a busy process between pulls is not offline.
+func TestReadersAreObservedAndNeverCalledOfflineOrServing(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
 	m.attachReader("reading@h")
@@ -215,14 +215,28 @@ func TestAReaderIsObservedAndIsNeverCalledOfflineOrServing(t *testing.T) {
 			t.Errorf("the listing says %q, which is health language the daemon does not supply", banned)
 		}
 	}
-	if !strings.Contains(body, "reader attached") {
-		t.Error("an observed read is not reported as a reader being attached")
+	if !strings.Contains(m.row(body, "reading@h"), "Enabled<td>1<td>") {
+		t.Errorf("the outstanding read is not counted: %s", m.row(body, "reading@h"))
 	}
-	if !strings.Contains(body, "no unfiltered reader") {
-		t.Error("an inbox with nobody on it is not distinguished")
+	if !strings.Contains(m.row(body, "quiet@h"), "Enabled<td>0<td>") {
+		t.Errorf("the measured zero is not shown: %s", m.row(body, "quiet@h"))
 	}
 	if !strings.Contains(body, "None of it is health") {
 		t.Error("the page does not say this is not health")
+	}
+}
+
+func TestReaderCountDistinguishesUnavailableFromMeasuredZero(t *testing.T) {
+	zero := 0
+	two := 2
+	if got := readerCount(nil); got != "unavailable" {
+		t.Fatalf("absent reader count = %q", got)
+	}
+	if got := readerCount(&zero); got != "0" {
+		t.Fatalf("measured zero reader count = %q", got)
+	}
+	if got := readerCount(&two); got != "2" {
+		t.Fatalf("measured nonzero reader count = %q", got)
 	}
 }
 
@@ -250,8 +264,8 @@ func TestExternalDoesNotStandInForTheReaderObservation(t *testing.T) {
 	if !strings.Contains(row, "external") {
 		t.Error("the external record's own row does not say so")
 	}
-	if !strings.Contains(row, "reader attached") {
-		t.Error("the external record's row does not report the read that is outstanding on it")
+	if !strings.Contains(row, "Enabled<td>1<td>external") {
+		t.Errorf("the external record's row does not keep the separate reader count: %s", row)
 	}
 	if !strings.Contains(m.get("/service?name=elsewhere@h"), "not proof of anything") {
 		t.Error("the detail page treats the hint as though it established something")
@@ -282,7 +296,7 @@ func TestQueueCountersSayTheirScopeAndNeverSayCompleted(t *testing.T) {
 		t.Fatal(err)
 	}
 	head := m.section(m.get("/"), "registry")
-	for _, col := range []string{"<th scope=col>reader", "<th scope=col>held now",
+	for _, col := range []string{"<th scope=col>readers", "<th scope=col>held now",
 		"<th scope=col>accepted", "<th scope=col>dequeued"} {
 		if !strings.Contains(head, col) {
 			t.Errorf("the registry table has no %q column: %s", col, head)
@@ -742,42 +756,24 @@ func TestPubSubAndQueueDeliveryAreNamedAndNeitherIsGuessed(t *testing.T) {
 	}
 }
 
-// What the reader column counts, and what it says about what it does not.
-//
-// "Reader" holds a read that accepts **any** message: a waiter that named a
-// topic or a tag is excluded (core/bus.go withLiveness). That is not a claim
-// that such a reader will not take anything — `deliver` serves a matching
-// filtered waiter *ahead* of an unfiltered one, so it takes the next message
-// that matches it. So the bit is about which reads are represented, and the
-// pages have to say so rather than reporting the excluded ones as nobody.
-//
-// The shapes the pages can distinguish are a live inbox with an unfiltered
-// read on it and a backlog with no unfiltered read, and no live call produces
-// both at once — an unfiltered reader drains what it finds. Q70's accepted
-// all-reader web count is pending (docs/05-discovery.md#readers); this test
-// pins the current bit and its labels until that change is implemented.
-func TestTheReaderColumnSaysWhichReadsItCounts(t *testing.T) {
+// Readers counts every outstanding consume request. A filtered waiter may
+// coexist with a backlog and must still appear in the same numeric column.
+func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "held"}); err != nil {
 		t.Fatal(err)
 	}
 	m.attachReader("reading@h")
-	// The diagnostics page lists a queue with no unfiltered read on it.
+	// The diagnostics page lists a queue with no read on it.
 	body := m.get("/")
-	if !strings.Contains(m.row(body, "quiet@h"), "no unfiltered reader") {
-		t.Errorf("a backlog with no unfiltered read on it does not say so: %s", m.row(body, "quiet@h"))
+	if !strings.Contains(m.row(body, "quiet@h"), "<td>0<td>1<td>") {
+		t.Errorf("the backlog does not show readers=0 and held=1: %s", m.row(body, "quiet@h"))
 	}
-	if !strings.Contains(m.row(body, "quiet@h"), "<td>1<td>") {
-		t.Errorf("the backlog is listed without what is in it: %s", m.row(body, "quiet@h"))
+	if !strings.Contains(m.row(m.get("/services"), "reading@h"), "Enabled<td>1<td>") {
+		t.Error("an unfiltered read is not counted")
 	}
-	// An inbox with a reader is not in the backlog table at all, and the same
-	// two words are still the ones used for it where it does appear.
-	if !strings.Contains(m.row(m.get("/services"), "reading@h"), "reader attached") {
-		t.Error("an inbox with a reader on it is not said to have one")
-	}
-	// A read restricted to a topic is not in the bit, and the daemon reports
-	// it as no unfiltered reader rather than as a reader.
+	// A read restricted to a topic is counted while a nonmatching backlog stays.
 	n := meaningFixture(t)
 	n.shapes()
 	if _, err := n.bus.Send(protocol.Envelope{From: "admin@h", To: "reading@h", Body: "held"}); err != nil {
@@ -785,16 +781,13 @@ func TestTheReaderColumnSaysWhichReadsItCounts(t *testing.T) {
 	}
 	taken := n.attachReader("reading@h", "other")
 	row := n.row(n.get("/"), "reading@h")
-	if !strings.Contains(row, "no unfiltered reader") {
-		t.Errorf("a read restricted to a topic is counted in a bit that excludes it: %s", row)
+	if !strings.Contains(row, "<td>1<td>1<td>") {
+		t.Errorf("the filtered read and held message are not both reported: %s", row)
 	}
-	// And the page does not turn that into a claim that nobody is connected,
-	// which it has no way to know: a filtered reader is attached right now.
-	if strings.Contains(row, "no reader waiting") || strings.Contains(row, "nobody") {
-		t.Errorf("the row says nobody is reading while a filtered reader is attached: %s", row)
-	}
-	if !strings.Contains(n.get("/"), "restricted to a topic or tag is not represented here") {
-		t.Error("the page does not say which reads the column leaves out")
+	for _, phrase := range []string{"filtered and unfiltered together", "positive count promises neither"} {
+		if !strings.Contains(n.get("/"), phrase) {
+			t.Errorf("the page omits the count boundary %q", phrase)
+		}
 	}
 	// And it does not say they will not take anything, which is false: a
 	// matching filtered waiter is served ahead of an unfiltered one.
@@ -803,10 +796,8 @@ func TestTheReaderColumnSaysWhichReadsItCounts(t *testing.T) {
 			t.Errorf("%s says a filtered read will not take a message, which deliver disproves", page)
 		}
 	}
-	// The proof, on the fixture: the excluded reader receives the message that
-	// matches it, while the page reports no unfiltered reader. Receipt, not
-	// the waiter count — the count falls when the waiter is removed, which a
-	// daemon that removed it and sent nothing would also do.
+	// The proof, on the fixture: the counted reader receives its match. Receipt,
+	// not only the count falling, proves the waiter was served.
 	if _, err := n.bus.Send(protocol.Envelope{From: "admin@h", To: "reading@h", Topic: "other", Body: "only this body"}); err != nil {
 		t.Fatal(err)
 	}

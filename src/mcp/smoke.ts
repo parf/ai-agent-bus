@@ -81,6 +81,7 @@ try {
   const me = process.env.AGENT_BUS_NAME!;
   const ls = await call("ab_ls");
   check("registered itself on start", ls.text.includes(me), ls.text);
+  check("catalogue renders the generic reader count", ls.text.includes("readers: 0 outstanding"), ls.text);
 
   const peerName = process.env.SMOKE_PEER!;
   // The harness mints the credentials it needs as the daemon's owner: a name

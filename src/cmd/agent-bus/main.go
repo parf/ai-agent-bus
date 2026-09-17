@@ -237,7 +237,7 @@ func ls(args []string) error {
 		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tKIND\tOWNER\tREADER\tQUEUED\tDESCRIPTION")
+	fmt.Fprintln(w, "NAME\tKIND\tOWNER\tREADERS\tQUEUED\tDESCRIPTION")
 	// Keep metadata in one cell, including tabs, newlines and terminal controls.
 	cell := func(s string) string {
 		return strings.Map(func(c rune) rune {
@@ -248,32 +248,22 @@ func ls(args []string) error {
 		}, s)
 	}
 	for _, r := range records {
-		// The observation first. A protocol hint is something the caller
-		// declared about how to reach the thing; it cannot cancel a read the
-		// daemon is watching, and answering "-" for a record that has a
-		// reader attached lost the only fact in the column
-		// (Plans/MVP/web/data-dictionary.md#the-rule).
-		//
-		// "no" is bounded the same way the dashboard bounds it: `reading`
-		// holds only a read that accepts any message.
-		reader := "-"
-		switch {
-		case r.Reading:
-			reader = "yes"
-		case r.Proto == "":
-			reader = "no"
-		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n", cell(r.Name), cell(r.Kind), cell(r.Owner), reader, r.Queued, cell(r.Descr))
+		// Protocol is a declared way to call a record; Readers is what the
+		// daemon observes on its inbox. Neither fact cancels the other.
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n", cell(r.Name), cell(r.Kind), cell(r.Owner), readerCount(r.Readers), r.Queued, cell(r.Descr))
 	}
 	if err := w.Flush(); err != nil {
 		return err
 	}
-	// What the column counts, because "no" alone is a stronger claim than the
-	// daemon makes: `reading` holds only a read that accepts any message, so
-	// one restricted to a topic or tag is attached and is not in it. Q70's
-	// pending web count is separate (docs/05-discovery.md#readers).
-	fmt.Println("\nREADER  yes: a read that accepts any message is outstanding · no: none is, though a read restricted to a topic or tag would not show here · -: this bus does not serve the record")
+	fmt.Println("\nREADERS  outstanding consume requests, filtered and unfiltered together; an observation, not service health or completed work")
 	return nil
+}
+
+func readerCount(readers *int) string {
+	if readers == nil {
+		return "unavailable"
+	}
+	return strconv.Itoa(*readers)
 }
 
 func send(args []string) error {

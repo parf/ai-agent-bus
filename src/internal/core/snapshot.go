@@ -94,6 +94,10 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	// is not; the invariant is restored rather than trusted.
 	b.administratorsAreUsers()
 	for _, r := range s.Records {
+		// A snapshot may have been written by another version or supplied by
+		// an embedding caller. Live fields belong to this process and its
+		// current inboxes, never to durable registry state.
+		clearLiveRecord(&r)
 		b.records[r.Name] = r
 	}
 	for _, q := range s.Queues {

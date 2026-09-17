@@ -6,8 +6,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics and [web authority isolation](11-processes.md#web-authority-boundary). |
-| Pending | [All-reader count](#readers), installed [browser acceptance](#browser-acceptance) and resource limits. |
+| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), [web authority isolation](11-processes.md#web-authority-boundary) and resource limits. |
+| Pending | Installed [browser acceptance](#browser-acceptance). |
 
 ## What a listing answers
 
@@ -21,7 +21,8 @@ So a caller reading a listing needs more than a name:
 | Field | Says | Absent means |
 |---|---|---|
 | **`protocol`** | how to call it, when that is not through the bus ([services § how to call it](03-services-and-topics.md#how-to-call-it)) | an ordinary bus service: send to the name |
-| **`reading`** | an unfiltered read is outstanding now; current implementation excludes filtered reads | no unfiltered read observed; this does not mean nobody is attached |
+| **`readers`** | how many consume requests are outstanding now, filtered and unfiltered together | unavailable; a current daemon publishes measured zero explicitly |
+| **`reading`** | compatibility-only flag: an unfiltered read is outstanding now. Human faces render `readers`; new consumers should use it | no unfiltered read observed; this does not mean nobody is attached |
 | **`queued`** | how many messages are waiting in it | none are |
 | **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, since the daemon started | none have |
 | **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, since then ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
@@ -29,8 +30,10 @@ So a caller reading a listing needs more than a name:
 | **`at_bound`** | its queue held the limit it is allowed **when the question was asked**. Not a prediction about the next message: a waiting reader is handed one without it ever queueing, and enqueueing prunes what has expired before it tests fullness, so if the queue is still full then the record's [overflow policy](04-messaging.md#overflow) applies — refuse, or forget the oldest | there is room. The daemon answers it because a record that declares no bound takes the daemon's, and a reader cannot know what that is |
 
 These are **observations attached to the listing**, not values a registrant
-may state. Counters survive through snapshots; reader presence does not ([overview § principles](00-overview.md#principles)). They describe the observed inbox,
-not service health or a guarantee that a particular request will be handled.
+may state. Traffic and loss counters survive through snapshots; `readers` and
+`reading` do not ([overview § principles](00-overview.md#principles)). They
+describe the observed inbox, not service health or a guarantee that a
+particular request will be handled.
 
 An inbox that was drained and one nobody ever wrote to both read as empty.
 `in` and `out` are what tell them apart, and they are per name: a busy bus
@@ -38,8 +41,8 @@ does not make a quiet service look busy.
 
 ## Readers
 
-**Accepted; implementation pending (Q70).** The web shows one **Readers** count
-per visible inbox: all currently outstanding consume requests, filtered and
+**Built in 0.5.53 (Q70).** Every human face shows one **Readers** count per
+visible inbox: all currently outstanding consume requests, filtered and
 unfiltered together. No separate counters or breakdown by filter type.
 
 This helps an operator see whether anything is waiting to read. Zero means no
@@ -48,16 +51,19 @@ be processing a message between reads. A positive count does not promise that
 a particular message matches, or that any work has finished. Count waiting
 requests, not processes, sessions or completed reads.
 
-The current `reading` flag cannot provide this count. Normal service behavior
-follows the [full-inbox reading rule](04-messaging.md#one-reader-per-inbox).
+The compatibility `reading` flag cannot provide this count and is not rendered
+by WEB, CLI or MCP. Normal service behavior follows the [full-inbox reading
+rule](04-messaging.md#one-reader-per-inbox).
 
 ## CLI listing
 
 **Built:** `agent-bus ls -h` renders a table; plain `ls` retains JSON.
 Both accept a single name or `--kind` filtering through the same API calls.
-The table shows name, kind, owner, reader presence, queued count and description.
-Reader presence is `yes` or `no`, or `-` for an external protocol; it is
-the [listing observation](#what-a-listing-answers), not a health check.
+The table shows name, kind, owner, Readers count, queued count and description.
+A current daemon reports a numeric Readers value for every row, including a
+record with an external protocol; a missing older answer renders as
+`unavailable`. Protocol and inbox observation are separate facts. It is the
+[listing observation](#what-a-listing-answers), not a health check.
 An empty result says `No matching records.`; lookup errors remain errors.
 
 ## Faces
@@ -66,7 +72,7 @@ An empty result says `No matching records.`; lookup errors remain errors.
 |---|---|---|
 | API | Registry, messaging, credentials, sessions and dashboard administration | — |
 | MCP | Bus tools and a catalog filtered by the daemon | — |
-| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access | Installed browser acceptance and resource limits |
+| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; confined with resource limits | Installed browser acceptance |
 
 ## MCP minimum
 
@@ -128,7 +134,7 @@ what the daemon permits. “All” means all visible to that visitor.
 
 | Tab | Required functionality |
 |---|---|
-| Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, maintainers group, access, reader presence and queue statistics. Excludes Personal services, which have their own tab. Administrative availability and serving / offline are distinct observations |
+| Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, maintainers group, access, Readers count and queue statistics. Excludes Personal services, which have their own tab. Administrative availability and reader observation are distinct facts |
 | Personal services | Owner-tagged services grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner among ACL-visible records |
 | Users | List and details; add, edit, activate, pause and ban; show owned services, group membership and administrative authority |
 | Groups | List and details; create, edit and manage flat membership; basic service and channel access. Include the daemon Administrator group and each record's assigned maintainers group under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control |
@@ -271,8 +277,8 @@ sessions with its token.
 | View | MVP status | Source or remaining dependency |
 |---|---|---|
 | the sign-in page and the token help | Built | — |
-| **registry**, as this caller may see it: kind, owner, protocol, description, `reading`/`queued`/`in`/`out`, when the record was last written, the configuration's digest | Built | — it is `/ls` |
-| **inboxes holding messages** — a backlog, oldest first, marked when the queue is at its bound and when no unfiltered read is outstanding. Holding is not being stuck, and `reading` excludes a filtered read, so neither is stated as more than it is. The one view an incident actually needs | Built | — `oldest` and `reading` on the record ([what a listing answers](#what-a-listing-answers)) |
+| **registry**, as this caller may see it: kind, owner, protocol, description, `readers`/`queued`/`in`/`out`, when the record was last written, the configuration's digest | Built | — it is `/ls` |
+| **inboxes holding messages** — a backlog, oldest first, marked when the queue is at its bound and accompanied by the Readers count. Holding is not being stuck; filtered readers may coexist with unmatched queued work, and the count is observation rather than health. The one view an incident actually needs | Built | — `oldest` and `readers` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **exchanges** — retained messages and referenced receipt evidence | Built | [correlation and limits](#retained-exchanges) |
 | **my names** — what I hold a credential for, whose it is and what it is for, its fingerprint, when it was issued and last used, and how to rotate it | Built | — the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)). A person's own identity is distinguished from the services they registered. A credential [goes with its address](01-identity-and-roles.md#unregistering), so the list stays names something answers on |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | Built | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |

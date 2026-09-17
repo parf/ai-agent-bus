@@ -11,6 +11,7 @@ package main
 
 import (
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
@@ -18,6 +19,13 @@ import (
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
+
+func readerCount(readers *int) string {
+	if readers == nil {
+		return "unavailable"
+	}
+	return strconv.Itoa(*readers)
+}
 
 type view struct {
 	pageInfo
@@ -44,13 +52,9 @@ type view struct {
 // that started a second ago is a burst, and a single message nobody has taken
 // for an hour is the outage.
 //
-// Every backlog here is one no unfiltered read is outstanding on, which is not
-// a filter but a property of the daemon: such a reader is handed a message as
-// it arrives, so a queue grows only while none is waiting
-// (docs/04-messaging.md#one-reader-per-inbox). That is not the same as nobody
-// being on the other end — a read restricted to a topic or tag is attached
-// while everything that does not match it queues up. The reader column says
-// which of the two it means rather than being taken on trust.
+// A backlog can coexist with filtered readers: they take matching messages
+// while everything else waits. Readers is therefore an observation beside
+// queue depth rather than a health verdict about it.
 // See docs/05-discovery.md#what-it-shows.
 func stuck(rs []protocol.Record) []protocol.Record {
 	out := make([]protocol.Record, 0, len(rs))

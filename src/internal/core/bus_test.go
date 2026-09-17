@@ -313,10 +313,10 @@ func TestAnAnswerNeverCarriesLivenessItWasHandedIn(t *testing.T) {
 	b := New()
 	known(t, b, "claimer@srv")
 	got := b.withLiveness("claimer@srv", protocol.Record{
-		Name: "claimer@srv", Reading: true, Queued: 9, In: 9, Out: 9,
+		Name: "claimer@srv", Reading: true, Readers: ptr(9), Queued: 9, In: 9, Out: 9,
 		Dropped: 9, Expired: 9, Oldest: "99h",
 	})
-	if got.Reading || got.Queued != 0 || got.In != 0 || got.Out != 0 ||
+	if got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 || got.In != 0 || got.Out != 0 ||
 		got.Dropped != 0 || got.Expired != 0 || got.Oldest != "" {
 		t.Fatalf("liveness came back from the caller, not from the inbox: %+v", got)
 	}
@@ -625,23 +625,23 @@ func TestConsumingFromAnUnregisteredNameIsRefused(t *testing.T) {
 func TestARegistrationCannotClaimLiveState(t *testing.T) {
 	b := New()
 	known(t, b, "o@h")
-	rec, err := b.Register(protocol.Record{Name: "probe@h", Kind: "agent", Owner: "o@h", Reading: true, Queued: 77})
+	rec, err := b.Register(protocol.Record{Name: "probe@h", Kind: "agent", Owner: "o@h", Reading: true, Readers: ptr(99), Queued: 77})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rec.Reading || rec.Queued != 0 {
-		t.Fatalf("the registration answer carried live state: reading=%v queued=%d", rec.Reading, rec.Queued)
+	if rec.Reading || rec.Readers != nil || rec.Queued != 0 {
+		t.Fatalf("the registration answer carried live state: reading=%v readers=%v queued=%d", rec.Reading, rec.Readers, rec.Queued)
 	}
 	got, ok := b.Lookup("probe@h", "probe@h")
 	if !ok {
 		t.Fatal("not registered")
 	}
-	if got.Reading {
-		t.Fatal("a stored reading=true survived into a lookup, with nobody reading")
+	if got.Reading || got.Readers == nil || *got.Readers != 0 {
+		t.Fatalf("stored or absent reader state survived into a lookup: reading=%v readers=%v", got.Reading, got.Readers)
 	}
 	for _, r := range b.List("probe@h", "") {
-		if r.Name == "probe@h" && r.Reading {
-			t.Fatal("a stored reading=true survived into a listing")
+		if r.Name == "probe@h" && (r.Reading || r.Readers == nil || *r.Readers != 0) {
+			t.Fatalf("stored or absent reader state survived into a listing: reading=%v readers=%v", r.Reading, r.Readers)
 		}
 	}
 }
@@ -669,18 +669,18 @@ func TestAnUnknownTopicModeIsRefused(t *testing.T) {
 func TestLivenessIsAssignedNotMerged(t *testing.T) {
 	b := New()
 	known(t, b, "svc@h")
-	dirty := protocol.Record{Name: "svc@h", Reading: true, Queued: 77}
+	dirty := protocol.Record{Name: "svc@h", Reading: true, Readers: ptr(99), Queued: 77}
 	look := func(name string, r protocol.Record) protocol.Record {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		return b.withLiveness(name, r)
 	}
 
-	if got := look("svc@h", dirty); got.Reading || got.Queued != 0 {
-		t.Fatalf("an idle empty inbox answered reading=%v queued=%d", got.Reading, got.Queued)
+	if got := look("svc@h", dirty); got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 {
+		t.Fatalf("an idle empty inbox answered reading=%v readers=%v queued=%d", got.Reading, got.Readers, got.Queued)
 	}
-	if got := look("no-inbox@h", dirty); got.Reading || got.Queued != 0 {
-		t.Fatalf("a name with no inbox answered reading=%v queued=%d", got.Reading, got.Queued)
+	if got := look("no-inbox@h", dirty); got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 {
+		t.Fatalf("a name with no inbox answered reading=%v readers=%v queued=%d", got.Reading, got.Readers, got.Queued)
 	}
 
 	// A waiting unfiltered reader is reported, and only while it waits.

@@ -1177,27 +1177,35 @@ sec "human listing"
 ab owner@srv1 register human@srv1 --allow '*' --kind agent --descr $'first\nsecond\tthird' >/dev/null
 ab owner@srv1 send human@srv1 queued >/dev/null
 human=$(ab owner@srv1 ls -h --kind agent)
-has "human listing has table columns" "$human" '^NAME  *KIND  *OWNER  *READER  *QUEUED  *DESCRIPTION$'
-has "human listing shows queue and flattens description" "$human" '^human@srv1  *agent  *owner@srv1  *no  *1  *first second third$'
+has "human listing has table columns" "$human" '^NAME  *KIND  *OWNER  *READERS  *QUEUED  *DESCRIPTION$'
+has "human listing shows queue and flattens description" "$human" '^human@srv1  *agent  *owner@srv1  *0  *1  *first second third$'
 is_empty "human kind filter excludes service templates" "$(printf '%s\n' "$human" | grep '^looked@srv1 ')"
 has "human single lookup works with flag after name" \
-  "$(ab owner@srv1 ls human@srv1 -h)" '^human@srv1  *agent  *owner@srv1  *no  *1  *first second third$'
+  "$(ab owner@srv1 ls human@srv1 -h)" '^human@srv1  *agent  *owner@srv1  *0  *1  *first second third$'
+abx human@srv1 consume --topic NeverArrives --wait 5s >"$D/human-reader" 2>&1 & HPID=$!
+for _ in $(seq 1 100); do
+  human=$(ab owner@srv1 ls human@srv1 -h)
+  printf '%s\n' "$human" | grep -q '^human@srv1  *agent  *owner@srv1  *1  *1 ' && break
+  sleep 0.01
+done
+has "human listing counts a filtered reader" "$human" '^human@srv1  *agent  *owner@srv1  *1  *1  *first second third$'
+kill "$HPID" 2>/dev/null; wait "$HPID" 2>/dev/null
 has "ordinary listing remains JSON" "$(ab owner@srv1 ls --kind agent)" '^\[.*"name":"human@srv1"'
 has "empty human listing is explicit" "$(ab owner@srv1 ls -h --kind no-such-kind)" '^No matching records\.$'
 human_error=$(ab owner@srv1 ls -h absent-entirely@srv1 2>&1)
 bad_exit "human missing lookup fails" "$?"
 has "human missing lookup reports the error" "$human_error" 'no such name'
 ab owner@srv1 register human-external@srv1 --allow '*' --protocol http --addr http://localhost >/dev/null
-has "external service has no bus-reader indicator" \
-  "$(ab owner@srv1 ls -h human-external@srv1)" '^human-external@srv1  *generic  *owner@srv1  *-  *0'
+has "external protocol stays separate from its measured reader count" \
+  "$(ab owner@srv1 ls -h human-external@srv1)" '^human-external@srv1  *generic  *owner@srv1  *0  *0'
 ab human@srv1 consume --wait 0s >/dev/null
 ab human@srv1 consume --wait 10s >"$D/human-reader" & HUMAN_READER=$!
 for _ in $(seq 1 100); do
   human=$(ab owner@srv1 ls -h human@srv1)
-  printf '%s\n' "$human" | grep -q '^human@srv1 *agent *owner@srv1 *yes ' && break
+  printf '%s\n' "$human" | grep -q '^human@srv1 *agent *owner@srv1 *1 ' && break
   sleep .02
 done
-has "human listing reflects a waiting reader" "$human" '^human@srv1  *agent  *owner@srv1  *yes  *0'
+has "human listing reflects a waiting reader" "$human" '^human@srv1  *agent  *owner@srv1  *1  *0'
 ab owner@srv1 send human@srv1 unblock >/dev/null
 wait "$HUMAN_READER"
 
@@ -1246,9 +1254,9 @@ done
 
 sec "a caller states a record, never what the daemon observes"
 is_empty "a registration cannot claim a reader it does not have" \
-  "$(post_body owner@srv1 /register '{"name":"probe@srv1","kind":"agent","reading":true,"queued":77}' | grep -o '"reading":true\|"queued":77')"
+  "$(post_body owner@srv1 /register '{"name":"probe@srv1","kind":"agent","reading":true,"readers":99,"queued":77}' | grep -o '"reading":true\|"readers":99\|"queued":77')"
 is_empty "and the claim does not survive into a listing" \
-  "$(ab nobody@srv1 ls probe@srv1 | grep -o '"reading":true')"
+  "$(ab nobody@srv1 ls probe@srv1 | grep -o '"reading":true\|"readers":99')"
 is_empty "a registration cannot claim a call count" \
   "$(post_body owner@srv1 /register '{"name":"probe3@srv1","in":99,"out":99}' | grep -o '"in":99\|"out":99')"
 is_empty "a registration cannot claim loss it did not suffer" \
@@ -1310,15 +1318,15 @@ if slow; then
   is_empty "so no protocol comes back for it" \
     "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"protocol":[^,}]*')"
   has "a registered name nobody serves is not shown as read" \
-    "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":[a-z]*\|"name":"plain.svc@srv1"')" '"name":"plain.svc@srv1"'
+    "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":[a-z]*\|"readers":[0-9]*\|"name":"plain.svc@srv1"')" '"name":"plain.svc@srv1"'
   is_empty "and reading is absent rather than false" \
-    "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":true')"
+    "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"reading":true\|"readers":[1-9][0-9]*')"
   # And with a reader attached, the same query says so.
   ab reader@srv1 register reader@srv1 --allow '*' >/dev/null
   ab reader@srv1 consume --wait 6s >/dev/null 2>&1 &
   reader_pid=$!
   sleep 1
-  has "a name something is reading says so" "$(ab nobody@srv1 ls reader@srv1)" '"reading":true'
+  has "a name something is reading says so" "$(ab nobody@srv1 ls reader@srv1)" '"reading":true.*"readers":1'
   ab nobody@srv1 send reader@srv1 "wake up" >/dev/null
   wait $reader_pid
   has "and the depth of what is waiting is visible" \
@@ -2455,7 +2463,7 @@ if slow; then
     # The shared JSON-RPC plumbing, driven directly: the harnesses below only
     # ever have one request in flight and never split a line across chunks, so
     # they leave most of rpc.ts unwatched (mcp/rpc.test.ts says why).
-    out=$(cd mcp && timeout 60 bun test rpc.test.ts messages.test.ts ../launchers/local.test.ts ../launchers/terminal.test.ts ../launchers/runtime-auth.test.ts 2>&1)
+    out=$(cd mcp && timeout 60 bun test rpc.test.ts messages.test.ts catalogue.test.ts ../launchers/local.test.ts ../launchers/terminal.test.ts ../launchers/runtime-auth.test.ts 2>&1)
     rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "rpc unit tests" $rc
