@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.41 — 2026-09-16
+
+Add an inline red-bus logo spanning the identity and navigation rows; show AgentBus version, @ host, owner, uptime and calls beside it, including on sign-in.
+
 ## 0.5.40 — 2026-09-16
 
 Simplify the header to uptime and minute/hour/total calls, keeping sampled spans in the API; the one-line footer shows matching builds once and identifies differing builds.

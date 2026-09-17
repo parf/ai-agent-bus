@@ -46,10 +46,19 @@ func TestEveryHTMLPageCarriesNodeIdentity(t *testing.T) {
 			}
 			body := w.Body.String()
 			header := section(t, body, "<header ", "</header>")
+			if strings.Count(header, "<svg class=node-logo") != 1 || strings.Index(header, "</svg>") > strings.Index(header, "AgentBus") || !strings.Contains(header, `aria-hidden="true"`) {
+				t.Fatalf("inline bus mark missing or not before its text label: %s", header)
+			}
 			for _, fact := range []string{"AgentBus V" + version.String, "owner: <code>admin@h</code>", "<strong>uptime</strong>: "} {
 				if !strings.Contains(header, fact) {
 					t.Errorf("header lacks %q: %s", fact, header)
 				}
+			}
+			if strings.Index(header, "owner:") > strings.Index(header, "<strong>uptime") || strings.Index(header, "<strong>uptime") > strings.Index(header, "<strong>calls") {
+				t.Errorf("header identity and call fields are out of order: %s", header)
+			}
+			if !strings.Contains(header, `<div class=node-navigation>`) || !strings.Contains(header, `<nav aria-label="sections">`) {
+				t.Error("navigation is not in the second header row")
 			}
 			footer := section(t, body, "<footer ", "</footer>")
 			for _, fact := range []string{"Build: <code>" + version.Build} {
@@ -100,7 +109,7 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 		h.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		body := w.Body.String()
 		header := section(t, body, "<header ", "</header>")
-		for _, fact := range []string{"AgentBus V9.8.7", "<strong>uptime</strong>: 1h23m", "owner&lt;&amp;&gt;@h", "fixture-host", "<strong>calls</strong>: minute: 7 ; hour: 0 ; total: 4321"} {
+		for _, fact := range []string{"<svg class=node-logo", "AgentBus V9.8.7", "<strong>uptime</strong>: 1h23m", "owner&lt;&amp;&gt;@h", "<span>@ fixture-host</span>", "<strong>calls</strong>: minute: 7 ; hour: 0 ; total: 4321"} {
 			if !strings.Contains(header, fact) {
 				t.Errorf("header lacks %q: %s", fact, header)
 			}
@@ -177,7 +186,7 @@ func TestNodeIdentityNamesTheDaemonOwnerNotTheVisitor(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := m.as("visitor@h").get("/users")
-	header := section(t, body, "<header ", "</header>")
+	header := section(t, body, "<div class=node-summary>", "</div>")
 	if !strings.Contains(header, "admin@h") || strings.Contains(header, "visitor@h") {
 		t.Fatalf("owner is confused with visitor: %s", header)
 	}

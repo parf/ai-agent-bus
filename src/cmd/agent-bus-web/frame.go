@@ -69,16 +69,20 @@ func (c *caller) status(r *http.Request) (nodeStatus, error) {
 	return node, err
 }
 
-const frameHeader = `<header class=site-header aria-label="Node information">
+// shell closes the header after navigation; the anonymous page closes it directly.
+const frameHeader = `<header class=site-header aria-label="Site header">
+` + nodeLogo + `
 <div class=node-summary>
 <strong>AgentBus {{with .Frame.Node}}{{if .Version}}V{{.Version}}{{else}}version unavailable{{end}}{{else}}version unavailable{{end}}</strong>
-{{with .Frame.Node}}<span>{{if .Host}}{{.Host}}{{else}}host unavailable{{end}}</span>
-<span><strong>uptime</strong>: {{if .Up}}{{.Up}}{{else}}unavailable{{end}}</span>
+{{with .Frame.Node}}<span>@ {{if .Host}}{{.Host}}{{else}}host unavailable{{end}}</span>
 <span>owner: <code>{{if .Owner}}{{.Owner}}{{else}}unavailable{{end}}</code></span>
+<span><strong>uptime</strong>: {{if .Up}}{{.Up}}{{else}}unavailable{{end}}</span>
 {{with .Calls}}<span class=call-counts><strong>calls</strong>: {{range .Windows}}{{if eq .Window "1m"}}minute:{{else}}hour:{{end}} {{if .Available}}{{.Count}}{{else}}collecting history{{end}} ; {{end}}total: {{.Total}}</span>{{else}}<span><strong>calls</strong>: minute: unavailable; hour: unavailable; total: unavailable</span>{{end}}
 {{else}}<span>Node information unavailable</span>{{end}}
 </div>
-</header>
+`
+
+const frameHeaderEnd = `</header>
 `
 
 var frameFooter = template.Must(template.New("footer").Parse(`</main>

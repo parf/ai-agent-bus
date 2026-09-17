@@ -1879,6 +1879,7 @@ WPID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "$WEB/" && break; sleep 0.1; done
 ANON=$(curl -s "$WEB/")
 has "an anonymous visitor gets the sign-in form" "$ANON" 'name=token'
+has "the login header includes its inline bus logo" "$ANON" '<svg class=node-logo'
 has "the login header names the node release" "$ANON" "AgentBus V$(cat internal/version/VERSION)"
 has "the login header names the daemon owner" "$ANON" "owner: <code>$OWNER</code>"
 has "the login header shows uptime" "$ANON" '<strong>uptime</strong>: [0-9][0-9a-z.]*</span>'

@@ -171,7 +171,7 @@ anybody.
 | | |
 |---|---|
 | what is published | release, host name, daemon owner name, uptime, **calls served** — and the build. **Nothing else**: no record names, no principals, no refusal counts, nothing about who is using it |
-| where each one shows | **the header is one line**: release, host, **`uptime:`**, owner, then **`calls:`** with `minute:`, `hour:` and `total:`. **The footer carries the build and nothing else** — one line, no explanatory text. The owner set both one-line rules, chose those three figures (a five-minute and a day window were each tried and removed), and set the labels |
+| where each one shows | **the header has a two-row bus mark** derived from the [project artwork](img/agent-bus.png) at the far left. To its right, one line carries release, `@` host, owner, **`uptime:`**, then **`calls:`** with `minute:`, `hour:` and `total:`; the navigation sits below that line, beside the logo. **The footer carries the build and nothing else** — one line, no explanatory text. The owner set the one-line identity and footer rules, chose those three figures (a five-minute and a day window were each tried and removed), and set the labels |
 | to whom | any caller that reaches the face, with no credential and no session |
 | host name | the machine's hostname as the OS reports it, `srv1`. The daemon has no node name of its own, so this is a new field rather than a restatement of one; it is not the realm, which the owner's name already carries |
 | uptime | a plain figure behind an explicit label, `uptime: 1h23m`, as the owner asked. It is what was true when the page rendered, and the page does not refresh itself |

@@ -344,8 +344,10 @@ const head = `<!doctype html>
  textarea{max-width:100%;box-sizing:border-box;font:13px ui-monospace,monospace}
  button,select{font:inherit;padding:.3rem .5rem}
  form+form{margin-top:1rem}
- .site-header{overflow-x:auto;white-space:nowrap;border-bottom:1px solid #aaa;padding-bottom:1rem;margin-bottom:1rem}
- .node-summary{display:flex;flex-wrap:nowrap;gap:1rem;margin:.4rem 0}
+ .site-header{display:grid;grid-template-columns:80px minmax(0,1fr);column-gap:1rem;align-items:center;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #aaa;padding-bottom:1rem;margin-bottom:1rem}
+ .node-logo{grid-column:1;grid-row:1 / span 2}
+ .node-summary{grid-column:2;grid-row:1;display:flex;align-items:center;flex-wrap:nowrap;gap:1rem;margin:.4rem 0}
+ .node-navigation{grid-column:2;grid-row:2}
  .node-summary>*{flex-shrink:0}
  .site-footer{white-space:nowrap;overflow-x:auto;clear:both;border-top:1px solid #aaa;margin-top:2rem;padding-top:1rem;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
  nav{line-height:2}
@@ -387,7 +389,7 @@ func shell(key, title string) string {
 	nav.WriteString(" \u00b7 agent-bus</title>\n")
 	// Sign out belongs beside the name it signs out, on every page.
 	nav.WriteString(frameHeader)
-	nav.WriteString(`<form method=post action=/signout class=who><code>{{.You}}</code> <button type=submit>sign out</button></form>` + "\n")
+	nav.WriteString(`<div class=node-navigation><form method=post action=/signout class=who><code>{{.You}}</code> <button type=submit>sign out</button></form>` + "\n")
 	nav.WriteString("<nav aria-label=\"sections\">")
 	for i, item := range navItems {
 		if i > 0 {
@@ -399,7 +401,7 @@ func shell(key, title string) string {
 		}
 		nav.WriteString(">" + item.Label + "</a>")
 	}
-	nav.WriteString("</nav>\n<main>\n")
+	nav.WriteString("</nav></div>\n" + frameHeaderEnd + "<main>\n")
 	return nav.String()
 }
 
@@ -411,7 +413,7 @@ type signin struct {
 	Return  string
 }
 
-var anon = template.Must(template.New("anon").Parse(head + `<title>Sign in · agent-bus</title>` + frameHeader + `
+var anon = template.Must(template.New("anon").Parse(head + `<title>Sign in · agent-bus</title>` + frameHeader + frameHeaderEnd + `
 <main>
 <h1>agent-bus</h1>
 <form method=post action=/signin>

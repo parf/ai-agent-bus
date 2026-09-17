@@ -1,5 +1,7 @@
 # The header says less than it measures — 0.5.40
 
+> At 0.5.41 the [bus logo spans identity and navigation rows](header-logo.md#header-bus-mark--0541). The labels and build handling recorded below remain.
+
 Presentation only. No counter, sampler or API change; `GET /identity` answers
 exactly what it answered at
 [0.5.39](node-calls.md#a-node-publishes-the-calls-it-has-served--0539).
