@@ -56,4 +56,20 @@ historical provenance is reconstructed.
 
 ## Live postflight
 
-Pending deployment.
+Commit `23d5972` was pushed before deployment. `src/build.sh` stamped the
+programs as **0.5.58**, `parf@parf.us 2026-09-17 13:32:32`; the live unit
+restarted at 13:33 EDT.
+
+The first unprivileged `systemctl restart` request timed out without a unit
+transition: 0.5.57 remained active and no job remained. The authorized
+`sudo -n systemctl restart` retry completed and is the deployment credited
+here.
+
+The public identity and sign-in page reported 0.5.58. Anonymous `/status`
+remained 401 while the Owner's mapped socket received 200. The installed admin
+binary exposed the strict `user import-local` grammar. No live profile was
+changed; provider and passwd imports were exercised only in disposable tests.
+
+The web child retained zero capabilities, `NoNewPrivs`, exactly
+`AGENT_BUS_ADDR=/bus.sock` and `PWD=/`, and its limits of one CPU, 256 MiB
+memory, no swap and 64 tasks.
