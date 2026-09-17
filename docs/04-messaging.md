@@ -135,6 +135,11 @@ must select the inbox explicitly. Adding a tag will no longer change the inbox.
 
 ## One reader per inbox
 
+A typical service must read its whole inbox, without a topic/tag filter.
+Filtered waits serve specific exchanges; they do not replace the service's
+general reader. The web's [Readers count](05-discovery.md#readers) shows all
+outstanding reads together.
+
 **An inbox has exactly one reader.** A session runs a push adapter, an MCP
 face and possibly a CLI, and all three would otherwise `consume` the same
 queue and take each other's messages — a waiting `call` losing its reply to

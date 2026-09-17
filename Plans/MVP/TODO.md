@@ -98,9 +98,19 @@ name matches a filter must not change the selected inbox. Restore implicit
 selection from a filter and its named check must fail. Update help and callers
 that relied on the former overload; keep documentation examples unambiguous.
 
+## Reader visibility
+
+Implement the web's [single Readers count](../../docs/05-discovery.md#readers).
+Verify no waiters, one unfiltered waiter, a filtered-only waiter, and mixed
+shared/filtered waits using nonzero fixtures. Completion, cancellation and
+timeout must remove the corresponding wait from the count. Excluding filtered
+waits or retaining an ended wait must fail a named check. Render one count,
+without a filter breakdown; retain caller visibility and do not label it health
+or completion. Typical services retain their full-inbox reader.
+
 ## Questions
 
-All unresolved choices are owned by [QUESTIONS](QUESTIONS.md#open-questions). The CLI selector question remains open without silently blocking unrelated work. The [Future storage proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.
+All unresolved choices are owned by [QUESTIONS](QUESTIONS.md#open-questions). The [Future storage proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.
 
 ## Authority model
 

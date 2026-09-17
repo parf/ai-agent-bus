@@ -7,7 +7,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration and envelope-only diagnostics. |
-| Pending | Installed [browser acceptance](#browser-acceptance), resource confinement and [web authority isolation](11-processes.md#web-authority-boundary). |
+| Pending | [All-reader count](#readers), installed [browser acceptance](#browser-acceptance), resource confinement and [web authority isolation](11-processes.md#web-authority-boundary). |
 
 ## What a listing answers
 
@@ -21,7 +21,7 @@ So a caller reading a listing needs more than a name:
 | Field | Says | Absent means |
 |---|---|---|
 | **`protocol`** | how to call it, when that is not through the bus ([services § how to call it](03-services-and-topics.md#how-to-call-it)) | an ordinary bus service: send to the name |
-| **`reading`** | a read on its inbox is outstanding *now* — something is serving it | registered, but nobody is home |
+| **`reading`** | an unfiltered read is outstanding now; current implementation excludes filtered reads | no unfiltered read observed; this does not mean nobody is attached |
 | **`queued`** | how many messages are waiting in it | none are |
 | **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, since the daemon started | none have |
 | **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, since then ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
@@ -29,13 +29,27 @@ So a caller reading a listing needs more than a name:
 | **`at_bound`** | its queue held the limit it is allowed **when the question was asked**. Not a prediction about the next message: a waiting reader is handed one without it ever queueing, and enqueueing prunes what has expired before it tests fullness, so if the queue is still full then the record's [overflow policy](04-messaging.md#overflow) applies — refuse, or forget the oldest | there is room. The daemon answers it because a record that declares no bound takes the daemon's, and a reader cannot know what that is |
 
 These are **observations attached to the listing**, not values a registrant
-may state. Counters survive through snapshots; reader presence does not ([overview § principles](00-overview.md#principles)). They are the difference between
-*"this name exists"* and *"a call would reach someone"*, which is the question
-a caller is actually asking.
+may state. Counters survive through snapshots; reader presence does not ([overview § principles](00-overview.md#principles)). They describe the observed inbox,
+not service health or a guarantee that a particular request will be handled.
 
 An inbox that was drained and one nobody ever wrote to both read as empty.
 `in` and `out` are what tell them apart, and they are per name: a busy bus
 does not make a quiet service look busy.
+
+## Readers
+
+**Accepted; implementation pending (Q70).** The web shows one **Readers** count
+per visible inbox: all currently outstanding consume requests, filtered and
+unfiltered together. No separate counters or breakdown by filter type.
+
+This helps an operator see whether anything is waiting to read. Zero means no
+read is outstanding at that instant, not that the service is dead; a reader may
+be processing a message between reads. A positive count does not promise that
+a particular message matches, or that any work has finished. Count waiting
+requests, not processes, sessions or completed reads.
+
+The current `reading` flag cannot provide this count. Normal service behavior
+follows the [full-inbox reading rule](04-messaging.md#one-reader-per-inbox).
 
 ## CLI listing
 
