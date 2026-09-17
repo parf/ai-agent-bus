@@ -47,7 +47,7 @@ the whole difference from an ephemeral channel.
 | Verb | Target | Lands in | Allowed if |
 |---|---|---|---|
 | **`send`** | a known receiver, `service@realm` | exactly that queue | you may talk to that principal |
-| **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([services § topics](03-services-and-topics.md#topics)) | you hold `publish:<glob>` |
+| **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([services § topics](03-services-and-topics.md#topics)) | the topic's [access policy](02-access.md#acl) permits the caller; delivery-state checks still apply |
 
 **A message is addressed to a name, and a name that is registered nowhere is
 refused at `send`** — there is no label to send to and nothing accepts on
