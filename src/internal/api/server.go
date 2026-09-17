@@ -109,12 +109,22 @@ func IsUserSocket(path string) bool {
 const maxWait = 60 * time.Second
 
 type Server struct {
-	calls  func(time.Time) protocol.CallStats
-	bus    *core.Bus
-	tokens *auth.Tokens
+	calls            func(time.Time) protocol.CallStats
+	bus              *core.Bus
+	tokens           *auth.Tokens
+	localAccount     func(string) error
+	protectedAccount string
 	// Where a browser that arrived here is sent instead. Empty means the
 	// root is not served at all, which is what it was before.
 	dash string
+}
+
+// LocalAccounts supplies the host-only half of account-map validation. Core
+// decides authority and principal standing; the assembled daemon decides
+// whether an OS account exists. The daemon service account's implicit socket
+// is deliberately outside the editable map.
+func (s *Server) LocalAccounts(protected string, validate func(string) error) {
+	s.protectedAccount, s.localAccount = protected, validate
 }
 
 // Dashboard says where a person who opened the API in a browser should have
@@ -163,6 +173,8 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /unregister", g(s.unregister))
 	mux.HandleFunc("POST /manage", g(s.manage))
 	mux.HandleFunc("POST /owner", g(s.owner))
+	mux.HandleFunc("GET /accounts", g(s.accounts))
+	mux.HandleFunc("POST /account", g(s.account))
 	mux.HandleFunc("GET /groups", g(s.groups))
 	mux.HandleFunc("GET /users", g(s.users))
 	mux.HandleFunc("POST /user", g(s.user))

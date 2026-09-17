@@ -1,10 +1,17 @@
 package main
 
 import (
+	"net"
 	"os"
+	"os/user"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/parf/ai-agent-bus/internal/dump/jsonfile"
+	"github.com/parf/ai-agent-bus/internal/ports"
+	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 func TestBusChildRetainsEnvironment(t *testing.T) {
@@ -53,6 +60,92 @@ func TestWebSandboxKeepsOnlyExplicitInputs(t *testing.T) {
 	}
 	if !slices.Equal(args[len(args)-2:], []string{"--", "/agent-bus-web"}) {
 		t.Fatal("sandbox does not execute the bound web binary")
+	}
+}
+
+func TestSupervisorUsesEstablishedAccountMapInsteadOfSetupFlags(t *testing.T) {
+	other, err := user.Lookup("nobody")
+	if err != nil {
+		t.Skip("no second local account")
+	}
+	path := filepath.Join(t.TempDir(), "dump.json")
+	var seed accounts
+	if err := seed.Set(other.Username + "=seed@h"); err != nil {
+		t.Fatal(err)
+	}
+	c := config{dumpF: path, users: seed}
+	got, err := supervisorAccounts(c)
+	if err != nil || got.mapping()[other.Username] != "seed@h" {
+		t.Fatalf("legacy setup seed: %v, %v", got.mapping(), err)
+	}
+	if err := jsonfile.New(path).Save(ports.Snapshot{
+		AccountsEstablished: true,
+		Accounts:            []protocol.AccountMapping{{Account: other.Username, Principal: "stored@h"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = supervisorAccounts(c)
+	if err != nil || got.mapping()[other.Username] != "stored@h" {
+		t.Fatalf("stored map did not replace setup flags: %v, %v", got.mapping(), err)
+	}
+	if err := jsonfile.New(path).Save(ports.Snapshot{AccountsEstablished: true}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = supervisorAccounts(c)
+	if err != nil || len(got.list()) != 0 {
+		t.Fatalf("intentionally empty map resurrected setup flags: %v, %v", got.mapping(), err)
+	}
+}
+
+func TestSupervisorRefusesUnusableStoredAccountMap(t *testing.T) {
+	me, err := user.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, snapshot := range []ports.Snapshot{
+		{Accounts: []protocol.AccountMapping{{Account: "nobody", Principal: "user@h"}}},
+		{AccountsEstablished: true, Accounts: []protocol.AccountMapping{{Account: "account-that-does-not-exist-agent-bus", Principal: "user@h"}}},
+		{AccountsEstablished: true, Accounts: []protocol.AccountMapping{{Account: me.Username, Principal: "user@h"}}},
+		{AccountsEstablished: true, Accounts: []protocol.AccountMapping{{Account: "nobody", Principal: "one@h"}, {Account: "nobody", Principal: "two@h"}}},
+	} {
+		path := filepath.Join(t.TempDir(), "dump.json")
+		if err := jsonfile.New(path).Save(snapshot); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := supervisorAccounts(config{dumpF: path}); err == nil {
+			t.Fatalf("unusable stored map was accepted: %+v", snapshot)
+		}
+	}
+}
+
+func TestRetiredUserSocketsAreRemovedWithoutTouchingCurrentOnes(t *testing.T) {
+	dir := t.TempDir()
+	listen := func(name string) net.Listener {
+		t.Helper()
+		l, err := net.Listen("unix", filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		l.(*net.UnixListener).SetUnlinkOnClose(false)
+		return l
+	}
+	kept, retired := listen("user-kept.sock"), listen("user-retired.sock")
+	kept.Close()
+	retired.Close()
+	if err := clearRetiredUserSockets(dir, map[string]bool{"user-kept.sock": true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "user-kept.sock")); err != nil {
+		t.Fatal("current mapped socket was removed")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "user-retired.sock")); !os.IsNotExist(err) {
+		t.Fatal("retired socket stayed discoverable")
+	}
+	if err := os.WriteFile(filepath.Join(dir, "user-collision.sock"), []byte("not a socket"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := clearRetiredUserSockets(dir, map[string]bool{"user-kept.sock": true}); err == nil {
+		t.Fatal("a non-socket collision was silently removed")
 	}
 }
 

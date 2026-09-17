@@ -7,7 +7,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Installer, administration, token helper, accounts and daemon unit; stamped Go builds. |
-| Pending | Distributable package including [runtime integrations and launchers](08-runner-role.md#runtime-integration-delivery), editable local-account configuration and [installation acceptance](#installation-acceptance). |
+| Pending | Distributable package including [runtime integrations and launchers](08-runner-role.md#runtime-integration-delivery) and [installation acceptance](#installation-acceptance). |
 
 ## The programs
 
@@ -18,7 +18,7 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | Program | Runs as | What it is for |
 |---|---|---|
 | `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the **two accounts** ([the two accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the unit, then hands over to `agent-bus-admin` for the first user and their local person name |
-| `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | everything that edits what lives in the home — `user add`, `user import-local`, `user list`, `user remove` today — plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
+| `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](11-processes.md#processes-and-privileges)) |
@@ -55,7 +55,8 @@ preserves an existing name. Setup runs it when it installs the first user's
 key; an operator may run it later when setup found no key.
 
 The implemented admin verbs are `user add`, `user import-local`, `user list`,
-`user remove` and `token`. The token operation is delegated to the token helper with the key entitlement
+`user remove`, `account list`, `account set`, `account remove` and `token`.
+The token operation is delegated to the token helper with the key entitlement
 and original request kept separate: `token --rotate` rotates that identity;
 asking for another identity is refused. Console and SSH use the same program. Bundle administration and regeneration of keys are not
 part of this grammar.
@@ -176,15 +177,41 @@ A fresh-host install and the running service account must still be verified as
 
 ## Administering the account map
 
-**Pending.** The local user-to-account map is administered with the credentials
-that already exist and no third one: an **operator SSH key**, whose forced
-command is `agent-bus-admin <principal>` ([SSH admin](#ssh-admin)), or an
-ordinary **user token** against the API ([getting a token](02-access.md#getting-a-token)).
+**Built.** The durable local-account map is administered by the daemon Owner or
+an Administrator with credentials that already exist: an **operator SSH key**,
+whose forced command is `agent-bus-admin <principal>` ([SSH admin](#ssh-admin)),
+or that principal's **user token** against the API
+([getting a token](02-access.md#getting-a-token)).
 
 Nothing new is minted for it and no separate administrative password exists.
 The entitlement is the principal in the key's entry, exactly as it is for every
 other operator action, so who may edit the map is answered by the same thing
 that answers who may do anything else.
+
+```sh
+agent-bus-admin account list
+agent-bus-admin account set <local-account> <user@realm>
+agent-bus-admin account remove <local-account>
+sudo systemctl restart agent-busd
+```
+
+The mapped principal must already be known and active, and the local OS account
+must exist. The daemon account's own socket is implicit and cannot be reassigned
+or removed. A successful edit is in the snapshot before it is acknowledged,
+but listeners belong to the supervisor: the command reports `restart required`
+until a full daemon restart applies the desired map. A bus-child restart alone
+keeps the existing listeners.
+
+The first current start seeds this map from setup's `-user` flags. Once the
+snapshot carries the establishment marker, the stored map is authoritative;
+changing or retaining an old flag cannot restore a removed mapping. Startup
+rejects malformed mappings, duplicate accounts, missing OS accounts and any
+attempt to put the implicit daemon account into the editable map. Retired socket
+paths are removed when the new supervisor starts.
+
+**Downgrade:** an older daemon ignores the durable map and returns to its
+configured `-user` flags until the current version returns. Review those flags
+before rollback; they may describe an earlier identity assignment.
 
 ## Installation acceptance
 
@@ -244,7 +271,7 @@ Owner holds master ([identity § acl](02-access.md#acl)).
 | Built store | Holds |
 |---|---|
 | Text-file adapter, mode 0600 | Principal credentials and issued times; current and previous tokens |
-| JSON snapshot adapter | Daemon Owner, registry, queue contents, counters and clean-stop marker |
+| JSON snapshot adapter | Daemon Owner, local-account map, registry, queue contents, counters and clean-stop marker |
 | Memory only | Browser sessions, outstanding readers, uptime and recent envelope feed |
 
 The ports let a backend change without changing delivery. Database selection,

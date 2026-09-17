@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"net"
@@ -54,6 +55,15 @@ func runBus(c config) {
 	if err := bus.EstablishDaemonOwner(me.String()); err != nil {
 		log.Fatalf("owner: %v", err)
 	}
+	activeAccounts := map[string]string{}
+	if raw := os.Getenv(accountsEnv); raw == "" {
+		log.Fatalf("%s is empty: the bus is started by the supervisor, not by hand", accountsEnv)
+	} else if err := json.Unmarshal([]byte(raw), &activeAccounts); err != nil {
+		log.Fatalf("%s: %v", accountsEnv, err)
+	}
+	if err := bus.EstablishAccounts(activeAccounts); err != nil {
+		log.Fatalf("local accounts: %v", err)
+	}
 	owner := bus.DaemonOwner()
 	tokens, err := auth.Load(file.NewTokens(c.tokenF), owner)
 	if err != nil {
@@ -89,6 +99,7 @@ func runBus(c config) {
 	}
 	bus.Directories(dirs, sshkeygen.New())
 	face := api.New(bus, tokens, owner)
+	face.LocalAccounts(ownerAccount(), validateLocalAccount)
 	face.Dashboard(c.dash)
 	face.Calls(callHistory.Snapshot)
 

@@ -256,6 +256,12 @@ obtains a session token over its account socket, then uses the shared listener.
 Socket ownership needs [supervisor-only CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown),
 not a root-running bus child.
 
+Setup flags seed the editable account map once. The stored map is then
+authoritative and Owner/Administrators change it through the existing
+[administration path](09-setup.md#administering-the-account-map); a full daemon
+restart replaces the listeners. The daemon account's implicit socket stays
+outside that map.
+
 </details>
 
 ## Trust boundary

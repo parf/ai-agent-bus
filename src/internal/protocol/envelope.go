@@ -178,6 +178,22 @@ type Record struct {
 	AtBound bool `json:"at_bound,omitempty"`
 }
 
+// AccountMapping says which bus principal one local OS account's private
+// socket authenticates as. It is configuration, never a credential: the
+// socket's ownership is the credential. See docs/09-setup.md#local-users.
+type AccountMapping struct {
+	Account   string `json:"account"`
+	Principal string `json:"principal"`
+}
+
+// AccountMappings is the administrative view of the durable map. A change is
+// persisted immediately but listeners belong to the supervisor, so the view
+// says when a full daemon restart is still needed to apply it.
+type AccountMappings struct {
+	Mappings        []AccountMapping `json:"mappings"`
+	RestartRequired bool             `json:"restart_required"`
+}
+
 // Public is what a record looks like to anyone but the service itself: the
 // configuration replaced by a digest of it. Every answer that carries a
 // record goes through here — a listing, a lookup, a registration and the

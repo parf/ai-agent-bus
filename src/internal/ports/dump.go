@@ -29,14 +29,18 @@ type Queue struct {
 type Snapshot struct {
 	// OwnerEstablished distinguishes a legacy snapshot that predates durable
 	// daemon ownership from a current snapshot whose missing Owner is damage.
-	OwnerEstablished bool            `json:"owner_established,omitempty"`
-	Owner            string          `json:"owner,omitempty"`
-	Users            []protocol.User `json:",omitempty"`
-	At               time.Time
-	Clean            bool // written by a graceful stop; false means the run was still going
-	Records          []protocol.Record
-	Groups           map[string][]string `json:",omitempty"`
-	Queues           []Queue
+	OwnerEstablished bool   `json:"owner_established,omitempty"`
+	Owner            string `json:"owner,omitempty"`
+	// AccountsEstablished separates a legacy snapshot, whose command-line
+	// mappings seed the first current run, from an intentionally empty map.
+	AccountsEstablished bool                      `json:"accounts_established,omitempty"`
+	Accounts            []protocol.AccountMapping `json:"accounts,omitempty"`
+	Users               []protocol.User           `json:",omitempty"`
+	At                  time.Time
+	Clean               bool // written by a graceful stop; false means the run was still going
+	Records             []protocol.Record
+	Groups              map[string][]string `json:",omitempty"`
+	Queues              []Queue
 }
 
 // Dump snapshots in-memory state and reads it back.

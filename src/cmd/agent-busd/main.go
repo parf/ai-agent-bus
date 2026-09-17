@@ -27,9 +27,10 @@ import (
 // What the supervisor tells a child it is, and which listener is which fd.
 // Both are read once at start and never again.
 const (
-	roleEnv = "AGENT_BUS_ROLE"
-	fdsEnv  = "AGENT_BUS_FDS"
-	roleBus = "bus"
+	roleEnv     = "AGENT_BUS_ROLE"
+	fdsEnv      = "AGENT_BUS_FDS"
+	accountsEnv = "AGENT_BUS_ACCOUNTS"
+	roleBus     = "bus"
 )
 
 type config struct {
@@ -102,16 +103,29 @@ func (a *accounts) Set(v string) error {
 	if err != nil {
 		return err
 	}
-	u, err := user.Lookup(who)
+	uid, err := localAccountUID(who)
 	if err != nil {
-		return fmt.Errorf("no local account %q: %w", who, err)
-	}
-	uid, err := strconv.Atoi(u.Uid)
-	if err != nil {
-		return fmt.Errorf("uid of %q: %w", who, err)
+		return err
 	}
 	a.add2(account{account: who, name: name, uid: uid})
 	return nil
+}
+
+func localAccountUID(who string) (int, error) {
+	u, err := user.Lookup(who)
+	if err != nil {
+		return 0, fmt.Errorf("no local account %q: %w", who, err)
+	}
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return 0, fmt.Errorf("uid of %q: %w", who, err)
+	}
+	return uid, nil
+}
+
+func validateLocalAccount(who string) error {
+	_, err := localAccountUID(who)
+	return err
 }
 
 // add is Set for a mapping the daemon already knows is good.
@@ -139,6 +153,14 @@ func (a *accounts) add2(x account) {
 }
 
 func (a *accounts) list() []account { return a.all }
+
+func (a *accounts) mapping() map[string]string {
+	out := make(map[string]string, len(a.all))
+	for _, entry := range a.all {
+		out[entry.account] = entry.name.String()
+	}
+	return out
+}
 
 // listen opens one account's socket: theirs to reach, nobody else's to read.
 // The chown needs CAP_CHOWN, which is the supervisor's and no child's

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.59 — 2026-09-17
+
+Persist the local OS-account map and let the daemon Owner or Administrators
+edit it through existing credentials. Setup flags seed once; a full daemon
+restart applies changed private-socket identities and retires removed sockets.
+
 ## 0.5.58 — 2026-09-17
 
 Import blank person names from the trusted Linux account adapter and GitHub

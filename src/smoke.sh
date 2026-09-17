@@ -261,6 +261,40 @@ if id -u nobody >/dev/null 2>&1; then
     "$(curl -s --unix-socket "$D/multi/user-nobody.sock" "http://unix/status")" '"you":"nemo@srv1"'
   has "while the owner's socket in the same directory is still the owner" \
     "$(curl -s --unix-socket "$D/multi/user-$ACCOUNT.sock" "http://unix/status")" "\"you\":\"$OWNER\""
+  # The same credential that administers users administers this durable map;
+  # the listener itself changes only when the supervisor is restarted. Seed
+  # the replacement principal and one private service so the check proves
+  # both discovery and use, rather than only echoing /status.
+  curl -fsS --unix-socket "$D/multi/user-$ACCOUNT.sock" \
+    -d '{"name":"mapped@srv1","create":true}' http://unix/user >/dev/null || exit 1
+  mapped_token=$(AGENT_BUS_ADDR=$D/multi/user-$ACCOUNT.sock "$D/agent-bus-token" mapped@srv1)
+  AGENT_BUS_ADDR=$D/multi/bus.sock AGENT_BUS_TOKEN=$mapped_token AGENT_BUS_NAME=mapped@srv1 \
+    "$D/agent-bus" register mapped-private@srv1 >/dev/null || exit 1
+  out=$(AGENT_BUS_ADDR=$D/multi/user-nobody.sock "$D/agent-bus" ls mapped-private@srv1 2>&1); rc=$?
+  bad_exit "the old mapping cannot discover the replacement principal's private service" $rc
+  out=$(AGENT_BUS_HOME=$D/admin-home AGENT_BUS_ADDR=$D/multi/user-$ACCOUNT.sock \
+    "$D/agent-bus-admin" account set nobody mapped@srv1 2>&1); rc=$?
+  ok_exit "the existing administrative credential changes the account map" $rc
+  has "the persisted change says a restart is required" "$out" 'restart agent-busd'
+  has "the listener does not change identity in place" \
+    "$(curl -s --unix-socket "$D/multi/user-nobody.sock" http://unix/status)" '"you":"nemo@srv1"'
+  kill $MPID2 2>/dev/null; wait $MPID2 2>/dev/null
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/multi/bus.sock" -token-file "$D/token" \
+    -owner "$OWNER" -user "nobody=nemo@srv1" -dump-file "$D/multi/dump.json" -dump-every 0 >"$D/multi.log2" 2>&1 &
+  MPID2=$!
+  ready "$D/multi/user-nobody.sock" || echo "  WARNING: the remapped socket never answered"
+  has "the durable map overrides the contrary setup seed after restart" \
+    "$(curl -s --unix-socket "$D/multi/user-nobody.sock" http://unix/status)" '"you":"mapped@srv1"'
+  has "the changed mapping reveals what the replacement principal may see" \
+    "$(AGENT_BUS_ADDR=$D/multi/user-nobody.sock "$D/agent-bus" ls mapped-private@srv1)" '"name":"mapped-private@srv1"'
+  out=$(AGENT_BUS_ADDR=$D/multi/user-nobody.sock "$D/agent-bus" send mapped-private@srv1 mapped-use 2>&1); rc=$?
+  ok_exit "and it may use that private service through the remapped socket" $rc
+  has "an unrelated account mapping is unchanged" \
+    "$(curl -s --unix-socket "$D/multi/user-$ACCOUNT.sock" http://unix/status)" "\"you\":\"$OWNER\""
+  out=$(AGENT_BUS_HOME=$D/admin-home AGENT_BUS_ADDR=$D/multi/user-$ACCOUNT.sock \
+    "$D/agent-bus-admin" account list 2>&1)
+  has "the applied account map is listed" "$out" $'nobody\tmapped@srv1'
+  lacks "and no longer claims a pending restart" "$out" 'restart required'
   # Unprivileged, the chown cannot land, and the daemon has to say so rather
   # than leave a socket that looks like somebody else's and is not.
   has "it says out loud when it could not hand the socket over" "$(cat "$D/multi.log")" 'CAP_CHOWN'

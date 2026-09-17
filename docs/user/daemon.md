@@ -35,7 +35,7 @@ Worth knowing:
 | Flag | |
 |---|---|
 | `-owner user@realm` | who this daemon belongs to. Defaults to you |
-| `-user account=user@realm` | map a local account to a bus principal — repeat per person |
+| `-user account=user@realm` | seed a local account mapping on the first current start — repeat per person |
 | `-key path` | a different public key for the first user |
 | `-addr` · `-exec` | listen address, and which `agent-busd` to run |
 
@@ -83,7 +83,7 @@ The flags:
 | Flag | |
 |---|---|
 | `-owner user@realm` | whose daemon this is. The owner is always an administrator |
-| `-user account=user@realm` | a local account, and the principal it is. Repeat per person — this is what creates a personal socket |
+| `-user account=user@realm` | first-current-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
 | `-master user@realm` | a principal that reaches **every** service which has not refused it. Repeatable ⚠️ use sparingly |
 | `-directory realm=github` | a realm and what vouches for it. `realm=/path/to/keys` for a directory of key files |
 | `-addr` · `-socket` | the loopback address and the unix socket path |
@@ -142,8 +142,16 @@ agent-bus-admin user remove parf@myhost
 ```
 
 A key added this way reaches exactly **one command and no shell**. 🔑 To give
-somebody their own socket — no token at all — map their account with `-user`
-and restart.
+somebody their own socket — no token at all — use:
+
+```sh
+agent-bus-admin account set <local-account> <user@realm>
+sudo systemctl restart agent-busd
+```
+
+`account list` says whether the saved map still needs a restart; `account
+remove` retires a mapping on the next restart. The daemon account's own socket
+is implicit and cannot be edited.
 
 ## 🧬 How it is put together
 
@@ -169,7 +177,7 @@ runner is a separate program under a separate account, not a child.
 | `journalctl -u agent-busd -n 50` | ✅ start here. It says why |
 | refuses the address | `-addr` is not loopback. That is the check doing its job |
 | the dashboard did not start | the port it was given is somebody else's, or not yours to bind — the log says which |
-| a user has no socket | they were never mapped with `-user`. Add it and restart |
+| a user has no socket | check `agent-bus-admin account list`; add the mapping and restart the full daemon |
 | the queues are empty after a restart | it did not exit gracefully, so the dump was never written |
 
 ---

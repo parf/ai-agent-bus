@@ -41,6 +41,9 @@ const usage = `agent-bus-admin — what the agent-busd account owns
   agent-bus-admin user list
   agent-bus-admin user remove <user@realm>
   agent-bus-admin token <user@realm> [--rotate]
+  agent-bus-admin account list
+  agent-bus-admin account set <local-account> <user@realm>
+  agent-bus-admin account remove <local-account>
 
 A key added here reaches one forced command and no shell: agent-bus-token,
 or this program with --admin. See docs/09-setup.md#ssh-admin.`
@@ -66,6 +69,10 @@ func admin() error {
 	if err := beTheAccount(); err != nil {
 		return err
 	}
+	return runAdmin(args, entitled)
+}
+
+func runAdmin(args []string, entitled string) error {
 	switch args[0] {
 	case "user":
 		return userVerb(args[1:])
@@ -76,6 +83,8 @@ func admin() error {
 			return handOver("agent-bus-token", []string{entitled})
 		}
 		return handOver("agent-bus-token", args[1:])
+	case "account":
+		return accountVerb(args[1:])
 	default:
 		return fmt.Errorf("no such verb %q\n\n%s", args[0], usage)
 	}
@@ -102,7 +111,56 @@ func adminRequest(args []string, original string) ([]string, string, error) {
 	return request, n.String(), nil
 }
 
-func isVerb(s string) bool { return s == "user" || s == "token" }
+func isVerb(s string) bool { return s == "user" || s == "token" || s == "account" }
+
+func accountVerb(args []string) error {
+	if len(args) == 1 && args[0] == "list" {
+		out, code, err := call("GET", "/accounts", nil)
+		if err != nil {
+			return err
+		}
+		if code >= 400 {
+			return fmt.Errorf("the daemon refused the account map (%s)", http.StatusText(code))
+		}
+		var view protocol.AccountMappings
+		if err := json.Unmarshal(out, &view); err != nil {
+			return err
+		}
+		for _, mapping := range view.Mappings {
+			fmt.Printf("%s\t%s\n", mapping.Account, mapping.Principal)
+		}
+		if view.RestartRequired {
+			fmt.Println("restart required")
+		}
+		return nil
+	}
+	change := map[string]any{}
+	switch {
+	case len(args) == 3 && args[0] == "set":
+		change["account"], change["principal"] = args[1], args[2]
+	case len(args) == 2 && (args[0] == "remove" || args[0] == "rm"):
+		change["account"], change["remove"] = args[1], true
+	default:
+		return fmt.Errorf("account wants list, set <local-account> <user@realm>, or remove <local-account>\n\n%s", usage)
+	}
+	out, code, err := call("POST", "/account", change)
+	if err != nil {
+		return err
+	}
+	if code >= 400 {
+		return fmt.Errorf("the daemon refused the account-map change (%s): %s", http.StatusText(code), strings.TrimSpace(string(out)))
+	}
+	var view protocol.AccountMappings
+	if err := json.Unmarshal(out, &view); err != nil {
+		return err
+	}
+	if view.RestartRequired {
+		fmt.Println("saved; restart agent-busd to apply the socket change")
+	} else {
+		fmt.Println("account map unchanged")
+	}
+	return nil
+}
 
 // beTheAccount re-runs this program as the account that owns the files, when
 // it is not already. Nothing here is root's: the account's own files are the

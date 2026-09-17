@@ -21,11 +21,16 @@ func (b *Bus) Snapshot() ports.Snapshot {
 // snapshot is called with b.mu held.
 func (b *Bus) snapshot() ports.Snapshot {
 	s := ports.Snapshot{
-		OwnerEstablished: b.admin != "",
-		Owner:            b.admin,
-		At:               time.Now(),
-		Groups:           map[string][]string{},
+		OwnerEstablished:    b.admin != "",
+		Owner:               b.admin,
+		AccountsEstablished: true,
+		At:                  time.Now(),
+		Groups:              map[string][]string{},
 	}
+	for account, principal := range b.accounts {
+		s.Accounts = append(s.Accounts, protocol.AccountMapping{Account: account, Principal: principal})
+	}
+	sort.Slice(s.Accounts, func(i, j int) bool { return s.Accounts[i].Account < s.Accounts[j].Account })
 	for _, user := range b.users {
 		s.Users = append(s.Users, user)
 	}
@@ -102,6 +107,26 @@ func (b *Bus) Restore(s ports.Snapshot) {
 			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner: %w", err)
 		} else {
 			b.admin = owner
+		}
+	}
+	b.accountsRestored = s.AccountsEstablished || len(s.Accounts) > 0
+	b.accountRestoreErr = nil
+	b.accounts = map[string]string{}
+	if len(s.Accounts) > 0 && !s.AccountsEstablished {
+		b.accountRestoreErr = fmt.Errorf("snapshot has local account mappings without establishment marker")
+	}
+	if s.AccountsEstablished {
+		for _, mapping := range s.Accounts {
+			principal, err := canon(mapping.Principal)
+			if mapping.Account == "" || err != nil {
+				b.accountRestoreErr = fmt.Errorf("snapshot local account mapping %q=%q is invalid", mapping.Account, mapping.Principal)
+				break
+			}
+			if _, duplicate := b.accounts[mapping.Account]; duplicate {
+				b.accountRestoreErr = fmt.Errorf("snapshot repeats local account %q", mapping.Account)
+				break
+			}
+			b.accounts[mapping.Account] = principal
 		}
 	}
 	b.unclean = !s.Clean

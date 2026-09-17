@@ -19,6 +19,7 @@ func TestSSHRequestKeepsTheKeyEntitlementSeparate(t *testing.T) {
 		{"other name remains untrusted", []string{"owner@h"}, "token alice@h", []string{"token", "alice@h"}, "owner@h", false},
 		{"empty command is not a console alias", []string{"owner@h"}, "", nil, "", true},
 		{"operator verb", []string{"owner@h"}, "user list", []string{"user", "list"}, "owner@h", false},
+		{"account administration", []string{"owner@h"}, "account set local alice@h", []string{"account", "set", "local", "alice@h"}, "owner@h", false},
 		{"console", []string{"token", "alice@h"}, "", []string{"token", "alice@h"}, "", false},
 		{"missing entitlement", nil, "user list", nil, "", true},
 		{"extra forced args", []string{"owner@h", "alice@h"}, "token", nil, "", true},

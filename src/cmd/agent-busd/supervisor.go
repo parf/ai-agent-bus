@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -17,6 +18,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/parf/ai-agent-bus/internal/dump/jsonfile"
 )
 
 func runSupervisor(c config) {
@@ -57,11 +60,30 @@ func runSupervisor(c config) {
 	if err != nil {
 		log.Fatalf("owner: %v", err)
 	}
+	// Setup flags seed a legacy installation once. After the bus has written
+	// the establishment marker, the snapshot is authoritative: otherwise an
+	// operator's change would be undone by the unchanged systemd command line.
+	explicit, err := supervisorAccounts(c)
+	if err != nil {
+		log.Fatalf("local accounts: %v", err)
+	}
+	c.users = explicit
+	activeJSON, err := json.Marshal(c.users.mapping())
+	if err != nil {
+		log.Fatalf("local accounts: %v", err)
+	}
 	// One socket per local account, so the bus knows who is calling with
 	// nothing for anyone to configure. The account running the daemon is a
 	// user of it like any other, so it gets one without being asked for.
 	// See docs/02-access.md#local-socket.
 	c.users.add(ownerAccount(), me)
+	keepUserSockets := map[string]bool{}
+	for _, u := range c.users.list() {
+		keepUserSockets["user-"+u.account+".sock"] = true
+	}
+	if err := clearRetiredUserSockets(dir, keepUserSockets); err != nil {
+		log.Fatalf("retired local account socket: %v", err)
+	}
 	paths := []string{c.sock}
 	names := []string{"tcp", "shared"}
 	ls := []net.Listener{tcp, shared}
@@ -94,7 +116,7 @@ func runSupervisor(c config) {
 		what: "bus",
 		path: exe,
 		args: os.Args[1:],
-		env:  []string{roleEnv + "=" + roleBus, fdsEnv + "=" + strings.Join(names, ",")},
+		env:  []string{roleEnv + "=" + roleBus, fdsEnv + "=" + strings.Join(names, ","), accountsEnv + "=" + string(activeJSON)},
 		fds:  fds,
 	}}
 	if c.web {
@@ -117,6 +139,58 @@ func runSupervisor(c config) {
 		os.Remove(p)
 	}
 	log.Print("stopped")
+}
+
+func supervisorAccounts(c config) (accounts, error) {
+	snapshot, found, err := jsonfile.New(c.dumpF).Load()
+	if err != nil {
+		return accounts{}, err
+	}
+	if !found || !snapshot.AccountsEstablished && len(snapshot.Accounts) == 0 {
+		return editableAccounts(c.users)
+	}
+	if !snapshot.AccountsEstablished {
+		return accounts{}, fmt.Errorf("snapshot has local account mappings without establishment marker")
+	}
+	var out accounts
+	for _, mapping := range snapshot.Accounts {
+		if out.seen[mapping.Account] {
+			return accounts{}, fmt.Errorf("snapshot repeats local account %q", mapping.Account)
+		}
+		if err := out.Set(mapping.Account + "=" + mapping.Principal); err != nil {
+			return accounts{}, err
+		}
+	}
+	return editableAccounts(out)
+}
+
+func editableAccounts(in accounts) (accounts, error) {
+	if principal, supplied := in.mapping()[ownerAccount()]; supplied {
+		return accounts{}, fmt.Errorf("%s is the daemon account and is mapped implicitly, not to %s",
+			ownerAccount(), principal)
+	}
+	return in, nil
+}
+
+// A removed mapping must remove its discoverable socket too. RuntimeDirectory
+// normally clears these across a systemd restart, but direct runs and an
+// unclean supervisor death do not get to lean on that. Only our exact socket
+// namespace is touched; a live or non-socket collision fails closed.
+func clearRetiredUserSockets(dir string, keep map[string]bool) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if keep[name] || !strings.HasPrefix(name, "user-") || !strings.HasSuffix(name, ".sock") {
+			continue
+		}
+		if err := clearStaleSocket(filepath.Join(dir, name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // webChild is the dashboard, which speaks the API like any other client. It

@@ -99,12 +99,19 @@ type inbox struct {
 
 type Bus struct {
 	dump     ports.Dump
-	users    map[string]protocol.User
-	mu       sync.Mutex
-	activity []activitySample
-	records  map[string]protocol.Record
-	groups   map[string][]string
-	admin    string
+	accounts map[string]string
+	// activeAccounts is what the supervisor actually opened for this run.
+	// accounts may move ahead after a durable administrative edit; the
+	// difference is the precise "restart required" fact returned to callers.
+	activeAccounts    map[string]string
+	accountsRestored  bool
+	accountRestoreErr error
+	users             map[string]protocol.User
+	mu                sync.Mutex
+	activity          []activitySample
+	records           map[string]protocol.Record
+	groups            map[string][]string
+	admin             string
 	// ownerRestored means a current snapshot, rather than setup, supplied
 	// admin. ownerRestoreErr is retained until startup validates that durable
 	// authority before serving anything.
@@ -134,12 +141,14 @@ type Bus struct {
 
 func New() *Bus {
 	return &Bus{
-		records: map[string]protocol.Record{},
-		groups:  map[string][]string{},
-		users:   map[string]protocol.User{},
-		refused: map[string]int{},
-		inboxes: map[string]*inbox{},
-		started: time.Now(),
+		accounts:       map[string]string{},
+		activeAccounts: map[string]string{},
+		records:        map[string]protocol.Record{},
+		groups:         map[string][]string{},
+		users:          map[string]protocol.User{},
+		refused:        map[string]int{},
+		inboxes:        map[string]*inbox{},
+		started:        time.Now(),
 	}
 }
 

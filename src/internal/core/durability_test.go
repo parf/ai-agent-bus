@@ -56,6 +56,9 @@ func durabilityFixture(t *testing.T) *Bus {
 	if err := b.SetGroup("admin@h", "@readers", []string{"bob@h", "friend@h"}); err != nil {
 		t.Fatal(err)
 	}
+	if err := b.EstablishAccounts(map[string]string{"local-user": "alice@h"}); err != nil {
+		t.Fatal(err)
+	}
 	for _, r := range []protocol.Record{
 		{Name: "svc@h", Owner: "alice@h", Allow: []string{"@readers"}, NoMaster: true},
 		{Name: "topic@h", Owner: "alice@h", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Allow: []string{"*"}},
@@ -134,6 +137,15 @@ func administrativeChanges() []durableChange {
 		{"daemon-owner", func(b *Bus) error { _, e := b.TransferDaemonOwner("admin@h", "bob@h"); return e }, func(t *testing.T, b *Bus) {
 			if b.DaemonOwner() != "bob@h" || !b.IsAdministrator("admin@h") || !b.IsAdministrator("bob@h") {
 				t.Fatalf("acknowledged owner transfer was not recovered: owner=%s", b.DaemonOwner())
+			}
+		}},
+		{"account-map", func(b *Bus) error {
+			_, e := b.SetAccount("admin@h", "local-user", "bob@h", false)
+			return e
+		}, func(t *testing.T, b *Bus) {
+			view, err := b.Accounts("admin@h")
+			if err != nil || len(view.Mappings) != 1 || view.Mappings[0].Principal != "bob@h" {
+				t.Fatalf("acknowledged account map was not recovered: %+v, %v", view, err)
 			}
 		}},
 	}

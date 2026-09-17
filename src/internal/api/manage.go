@@ -1,10 +1,49 @@
 package api
 
 import (
+	"fmt"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"net/http"
 )
+
+func (s *Server) accounts(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	view, err := s.bus.Accounts(caller.String())
+	s.reply(w, view, err)
+}
+
+func (s *Server) account(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	var change struct {
+		Account   string `json:"account"`
+		Principal string `json:"principal,omitempty"`
+		Remove    bool   `json:"remove,omitempty"`
+	}
+	if !s.readStrict(w, r, &change) {
+		return
+	}
+	// Decide daemon authority before probing the host account database. An
+	// ordinary caller must not use this endpoint to enumerate OS accounts.
+	if _, err := s.bus.Accounts(caller.String()); err != nil {
+		s.reply(w, nil, err)
+		return
+	}
+	if change.Account == s.protectedAccount {
+		s.reply(w, nil, fmt.Errorf("%w: the daemon account mapping is implicit", core.ErrNotOwner))
+		return
+	}
+	if !change.Remove {
+		if s.localAccount == nil {
+			s.reply(w, nil, fmt.Errorf("%w: local account validation is unavailable", core.ErrBadName))
+			return
+		}
+		if err := s.localAccount(change.Account); err != nil {
+			s.reply(w, nil, fmt.Errorf("%w: local account %q: %v", core.ErrBadName, change.Account, err))
+			return
+		}
+	}
+	view, err := s.bus.SetAccount(caller.String(), change.Account, change.Principal, change.Remove)
+	s.reply(w, view, err)
+}
 
 func (s *Server) manage(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var change core.Management
