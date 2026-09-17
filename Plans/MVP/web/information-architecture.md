@@ -39,7 +39,7 @@ The page set is derived from these, not from the data model.
 
 ## Pages
 
-Fifteen screens across thirteen destinations. `⚠` marks one that does not exist today.
+The planned page map follows. `⚠` marks a page that does not exist today.
 
 | Page | URL | Purpose | State today |
 |---|---|---|---|
@@ -49,12 +49,15 @@ Fifteen screens across thirteen destinations. `⚠` marks one that does not exis
 | Register service | `/services/new` | Create one | a form at the bottom of the list |
 | Channels | `/channels` | Find a channel, by delivery mode | shared with services |
 | Channel | `/channel?name=` | One channel: mode, subscribers, queue, access | rendered by the service template |
+| Register channel | `/channels/new` | Create one | a form at the bottom of the shared list |
 | Activity | `/activity` | Observed traffic over a stated window | exists |
 | Diagnostics | `/diagnostics` | Retained envelopes, losses, refusals | is the homepage today |
 | Users | `/users` | Find a person or an identity | exists |
 | User | `/user?name=` | Profile, authority, memberships, owned records | exists |
+| Register user | `/users/new` | Create one | the form exists without a clear page-level entry point |
 | Groups | `/groups` | Groups, membership, references | list and inline forms only |
 | Group | `/group?name=` | One group: members, and what uses it | ⚠ new |
+| Register group | `/groups/new` | Create one | an inline form on Groups |
 | Account | `/account` | Own identity, own credentials, how to rotate | ⚠ new; lives on the diagnostics page |
 | Sign in | `/signin` | Token, and how to get one | exists |
 | Problem | — | Refusal, expired session, unavailable bus, not found | one page for all four |
@@ -91,6 +94,22 @@ Services in the navigation ([C06](review/codex.md#junk-and-misleading-content)).
 
 The current location is marked. Every page carries the same shell; the shell is
 one thing in one place.
+
+**Resource sections have a second navigation row.** Creation is a destination,
+not a form appended to a list and not an unrelated heading action:
+
+| Section | Second-level navigation |
+|---|---|
+| Services | All services · Register service |
+| Channels | All channels · Register channel |
+| Users | All users · Register user |
+| Groups | All groups · Register group |
+
+The current entry is marked. A register entry is shown only when the caller may
+perform that action; hiding the link is a convenience and the daemon still
+authorizes submission. Detail pages keep the same section navigation, so a
+person can return to the list or start another registration without climbing
+through the global menu.
 
 ## What moves, and what stops being shown
 

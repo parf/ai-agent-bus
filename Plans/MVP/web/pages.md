@@ -164,10 +164,15 @@ defect is real. codex's [S14](review/codex.md#specification-review-round-one).
 | `ConfigSHA` | **move** to the configuration section of the detail page |
 | `In` / `Out` | **move** to detail, **relabelled** accepted / dequeued. Dequeued is not completed |
 
+**Section navigation:** All services · Register service, or All channels ·
+Register channel. It is the second row beneath the global navigation and follows
+the shared [section-navigation rule](information-architecture.md#navigation).
+
 **Toolbar:** search over description and name; scope (all / mine); state; kind
-or mode; sort. All in the URL as GET parameters, all retained through paging and
-through a visit to a detail page and back. Result count and active filters are
-shown, with one action to clear them.
+or mode; sort. Two- and three-value filters expose their choices as stateful
+links or buttons rather than selects. All state is in the URL as GET parameters,
+retained through paging and through a visit to a detail page and back. Result
+count and active filters are shown, with one action to clear them.
 
 **Ordering is stable and named.** Core's `List` iterates a map, so order out of
 the daemon is not stable — but **the services and channels list already sorts by
@@ -262,8 +267,10 @@ it away or change who maintains it.
 
 **Answers:** how do I create one?
 
-A dedicated page, not a form stapled beneath a list. Fields: name, description,
-kind or delivery mode, initial allow list. Help beside the name field states the
+A dedicated page reached from the section's second-level navigation, not a form
+stapled beneath a list. Fields: name, description, kind or delivery mode,
+initial allow list. A choice with only two or three values uses radio buttons.
+Help beside the name field states the
 `user@realm` shape; help beside allow follows the
 [ACL contract](../../../docs/02-access.md#acl). Its accepted default is pending
 daemon enforcement; the form must not promise that enforcement before it exists.
@@ -329,6 +336,10 @@ by name. The registry table does not come with it.
 
 **Answers:** who is here, and what may they administer?
 
+**Section navigation:** All users · Register user. The register entry appears
+only for callers who may create one and opens `/users/new`; it does not sit as a
+separate primary action beside the directory heading.
+
 | Field | Decision |
 |---|---|
 | `PeopleCount` / `OtherCount` | **keep**, with scope labelled: caller-visible directory, before the search |
@@ -337,7 +348,12 @@ by name. The registry table does not come with it.
 | Empty cleanup table plus its explanation | **collapse** to a count and a link while empty; expand only when candidates exist ([C10](review/codex.md#junk-and-misleading-content)) |
 | Classification of an unclassified identity | **keep as a word.** Never a colour, never inferred from a slash or a runtime prefix in a name |
 | Avatar | `/avatar` is reachable and authenticated but no template references it ([inventory](review/current-state.md#routes-and-templates)). **Decide deliberately**: use it here, or remove the endpoint. It must not fetch the whole directory per image ([W07](../done/web-review.md#findings)) |
-| **Create user** | **entry point, which the draft lost** — codex's [S07](review/codex.md#specification-review-round-one). The form exists in [forms](forms.md#the-set) with no page offering it. A primary action beside the directory heading, **shown only where the caller may create**, opening `/users/new`. Invalid input returns that form with its values and a field-level error, never a problem page. Success lands on the new user's page. Until 0.5.32 the SSH verb could not onboard anybody either ([H.5.9](../done/user-add-provisions.md#scope), now shipped), so this page was the only remaining route and had no entry point — which is what made its absence a gap rather than an omission |
+| **Register user** | **entry point, which the draft lost** — codex's [S07](review/codex.md#specification-review-round-one). The form exists in [forms](forms.md#the-set) with no page offering it. Its conditional entry now lives in the second-level navigation and opens `/users/new`. Invalid input returns that form with its values and a field-level error, never a problem page. Success lands on the new user's page. Until 0.5.32 the SSH verb could not onboard anybody either ([H.5.9](../done/user-add-provisions.md#scope), now shipped), so this page was the only remaining route and had no entry point — which is what made its absence a gap rather than an omission |
+
+## Register user `/users/new`
+
+A dedicated registration form reached from the Users section navigation.
+Fields and results are owned by the [forms inventory](forms.md#the-set).
 
 ## User `/user?name=`
 
@@ -367,6 +383,10 @@ page cannot be shown one.
 
 **Answers:** what groups exist, who is in them, and what uses them?
 
+**Section navigation:** All groups · Register group. `/groups/new` owns the
+registration form; Groups remains a list rather than a list followed by an
+inline editor. The register entry is conditional on caller authority.
+
 | Field | Decision |
 |---|---|
 | Group name | keep |
@@ -377,6 +397,12 @@ page cannot be shown one.
 
 The detail page earns its place on the references alone — they are what makes a
 membership edit a reviewable decision rather than a blind one.
+
+## Register group `/groups/new`
+
+A dedicated registration form reached from the Groups section navigation.
+Success lands on the new group detail page; invalid input returns the same form
+with its values and field errors.
 
 ---
 

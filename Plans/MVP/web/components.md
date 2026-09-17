@@ -9,6 +9,7 @@ hard part is information design rather than widget count.
 |---|---|---|
 | Shell | Header with node identity and page title, navigation with the current entry marked, signed-in principal linking to Account, sign out | Exists as `shell()` and already carries sign-out everywhere ([inventory](review/current-state.md#routes-and-templates)). What changes is the destination set and correct page identity |
 | Navigation | Seven destinations | Narrow screens use `details`/`summary`, not script |
+| Section navigation | List and register destinations for Services, Channels, Users and Groups, with the current entry marked | The register link is conditional on caller authority; [page map](information-architecture.md#navigation) |
 | Task toolbar | Search, scope, filters, sort, result count, active filters, clear | GET only, state in the URL |
 | Data table | Caption, scoped headers, stable order, one judgment column, chosen narrow-screen columns | Hand-written because ours is URL-driven rather than client-side, and we found nothing supplying that. **Not** "the component nothing off the shelf supplies" — a universal we did not survey and do not need ([S15](review/codex.md#specification-review-round-one)) |
 | Detail sections | Heading, definition list, and — where authority allows — the form for that one concern, collapsed until asked for | Read sections never depend on edit permission. There is **no trailing Manage block**: an edit lives in the section it changes, which is the whole point of splitting them |
@@ -18,6 +19,23 @@ hard part is information design rather than widget count.
 | States | Populated, empty, denied, unavailable | below |
 | Graph | Inline SVG, labelled axes, shared range, value table beside it | No script, no canvas, no external chart library |
 | Pagination | Previous and next as links carrying every filter | |
+
+## Small choice controls
+
+A select hides choices that are few enough to show. **Two or three stable
+choices do not use a select.**
+
+| Choice | Control |
+|---|---|
+| Destination or URL-backed list state, such as All / Mine | links or submit buttons; the active value is visibly and programmatically marked, and GET state remains in the URL |
+| A value inside a form | radio buttons in a labelled `fieldset` |
+| Four or more choices, or a dynamic list | select, autocomplete or the appropriate list control |
+
+This rule applies to scope, state, kind and mode wherever only two or three
+values are offered. It does not turn a form choice into navigation or a URL
+filter into form-only state. If a stable set grows from three choices to four,
+the renderer changes it to a select while keeping the same field name and URL
+values.
 
 ## States
 

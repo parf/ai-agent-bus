@@ -15,6 +15,7 @@ rules all of them obey.
 | Success returns to what changed | The section that changed, with a specific result. Not a list, and not `/services?scope=my`, which is where every service and channel action lands today ([C06](review/codex.md#junk-and-misleading-content)) |
 | Only offer transitions that apply | An active user is offered Activate today, beside Pause and Ban, all styled alike ([C12](review/codex.md#junk-and-misleading-content)) |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
+| Show small choices | Two or three values use labelled radio buttons, not a select. URL-backed filters use the [link/button rule](components.md#small-choice-controls) instead |
 
 ## Consequential actions
 
@@ -90,9 +91,9 @@ the world moved between the question and the answer.
 | Remove | Service, Channel | — | **confirm**, then the list it came from |
 | Subscribe / Unsubscribe | Channel, pub/sub | — | the subscribers section |
 | Remove a subscriber | Channel, pub/sub | subscriber | the subscribers section |
-| Create a group | Groups | name, members | the new group's page |
+| Register a group | `/groups/new` | name, members | the new group's page |
 | Edit members | Group | members | the group's members section |
-| Create a user | Users | name, person name, email, GitHub login | the new user's page |
+| Register a user | `/users/new` | name, person name, email, GitHub login | the new user's page |
 | Edit profile | User | person name, email, GitHub login | the profile section |
 | Change state | User | the applicable transitions only | the identity section; **confirm** for ban |
 | Remove a credential | User, non-user identity | — | **confirm**, then the directory |

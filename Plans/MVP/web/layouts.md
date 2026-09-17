@@ -97,8 +97,11 @@ decided here, which is why it is not built second.
   Services                                             [Refresh]
   What is registered here, and what is it doing
 
+  [All services]  Register service
+
   ┌──────────────────────────────────────────────────────────┐
-  │ Search ▢──────────  Scope[All▾] State[Any▾] Kind[Agent▾] │  surface-3
+  │ Search ▢──────────  Scope [All] Mine                     │  surface-3
+  │ State [Any] Enabled Disabled  Kind All [Agent] Service   │
   │ Sort[Queued ↓▾]                                  [Filter]│
   │ 27 of 231 · kind: agent                        [Clear all]│
   └──────────────────────────────────────────────────────────┘
@@ -128,6 +131,11 @@ sort.
 **Kind is absent here because this list is filtered to agents**, and the toolbar
 says so. On an unfiltered or mixed list it is a column, because nothing else
 tells a reader what a row is.
+
+Brackets mark the current link choice in this text mockup. Scope, state and kind
+expose their two or three values directly and preserve them in the URL; the
+larger sort list remains a select. Register service is section navigation, not a
+form appended below the table.
 
 **No cell truncates a value that has no other route to it.** The draft ellipsed
 owners to `parf@…` and offered no recovery, which without script means the value
