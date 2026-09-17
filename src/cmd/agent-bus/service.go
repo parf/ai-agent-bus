@@ -41,7 +41,7 @@ func runDir() string {
 }
 
 // segment turns a name into one path segment. A name carries `@` and may
-// carry one `/` (docs/01-identity.md#names), and the slash is the one that
+// carry one `/` (docs/01-identity-and-roles.md#names), and the slash is the one that
 // would otherwise make it two.
 func segment(name string) string { return strings.ReplaceAll(name, "/", "%") }
 

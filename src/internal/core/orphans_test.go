@@ -13,7 +13,7 @@ import (
 
 // H.5.5. A record whose owner the daemon knows nothing about is wreckage and
 // goes at startup with everything that hung on it
-// (docs/01-identity.md#when-the-owner-is-gone). The end-to-end start over a
+// (docs/01-identity-and-roles.md#orphaned-records). The end-to-end start over a
 // store on disk is the smoke case "a start clears out the records whose owner it
 // does not know"; these are the semantics a start cannot present — a fixed
 // point, a blocked reader, and the guards an ordinary removal applies.

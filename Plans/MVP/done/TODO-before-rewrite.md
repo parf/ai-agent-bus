@@ -56,7 +56,7 @@ with wave D:
 | A.5 | whether several readers may block on one inbox | when each asks to share it — [messaging § several readers may wait when they say so](../../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | C.3 | what a subscriber is, and where a copy goes | a registered name, and its own inbox — [messaging § subscribers](../../../docs/04-messaging.md#subscribers) |
 | G.2 | how many sandbox backends | one, plus off — [runner § sandboxing](../../../docs/08-runner-role.md#sandboxing) |
-| D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/R1](../../R1/TODO.md#todo-r1)'s — [access § encrypted sessions](../../../docs/02-access.md#encrypted-sessions) |
+| D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/R1](../../R1/TODO.md#todo-r1)'s — [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 
 ⚠️ **Ownership is only as strong as enrolment.** B.7 closed
 re-registering somebody else's record and B.8 closed claiming a name in a realm
@@ -125,8 +125,8 @@ message that bounces later.
 | B.4 | ✅ _done_ — credentials sit behind the `store` port with a text-file adapter, and the layer rule is checked both ways: nothing inward names an adapter, and the process that assembles them does ([modules § the rule](../../../docs/10-modules.md#the-rule)). What *else* the store holds is still the blocker ([setup § storage](../../../docs/09-setup.md#storage)) |
 | B.5 | ✅ _done_ — the principal is an argument of the forced command, so the key a person holds picks the line and they cannot ask for another ([access § getting a token](../../../docs/02-access.md#getting-a-token)) |
 | B.6 | ✅ _done_ — both clients carry **their own token**, which is the whole of the identity; the runner swaps it when it becomes the service, and the MCP face can mint one for a name it may have |
-| B.7 | ✅ _done_ — re-registering somebody else's record is refused, and told whose it is; the record itself may still refresh its own ([identity § ownership](../../../docs/01-identity.md#ownership)). Claiming an unheld name stays open — that half is B.8's |
-| B.8 | ✅ _done_ — the `directory` port fetches and nothing else; the proof is a step of its own, verified with the host's `ssh-keygen` ([identity § proving possession](../../../docs/01-identity.md#proving-possession)). A vouched realm can only be enrolled into, and the record is its own owner — which is the half of the name-claiming hole that could be closed. Manual (a keys file) and GitHub are two adapters |
+| B.7 | ✅ _done_ — re-registering somebody else's record is refused, and told whose it is; the record itself may still refresh its own ([identity § ownership](../../../docs/01-identity-and-roles.md#ownership)). Claiming an unheld name stays open — that half is B.8's |
+| B.8 | ✅ _done_ — the `directory` port fetches and nothing else; the proof is a step of its own, verified with the host's `ssh-keygen` ([identity § proving possession](../../../docs/02-access.md#proving-possession)). A vouched realm can only be enrolled into, and the record is its own owner — which is the half of the name-claiming hole that could be closed. Manual (a keys file) and GitHub are two adapters |
 | B.9 | ✅ _done_ — every name in the suite has its own credential, minted from the owner on first use; there is no shared token left to bypass with |
 | B.10 | ✅ _settled_ — `token` is the credential verb, `register` the registry one ([access § getting a token](../../../docs/02-access.md#getting-a-token)); B.1 and B.5 build it |
 
@@ -163,7 +163,7 @@ the stage has no meaning.
 
 | ID | Task | Notes |
 |---|---|---|
-| C.1 | ✅ _done_ — `allow` is a field on the record, so the daemon holds what it enforces and never reads a private configuration ([identity § acl](../../../docs/01-identity.md#acl)). Seeing and using are one question: a listing hides what a lookup denies |
+| C.1 | ✅ _done_ — `allow` is a field on the record, so the daemon holds what it enforces and never reads a private configuration ([identity § acl](../../../docs/02-access.md#acl)). Seeing and using are one question: a listing hides what a lookup denies |
 | C.2 | ✅ _done_ — the daemon's owner holds master without being listed, `--master` adds others, and `--no-master` takes the last word back. Master refused everywhere would pass a weaker check and is falsified on its own |
 | C.4 | ✅ _done_ — send, publish and register are each refused for a principal the service will not show, each check falsified alone, and the refusal is its own status |
 | C.3 | ✅ _done_ — a subscriber is a **registered name** and a publication is one copy into each subscriber's own inbox, so the topic keeps nothing and each copy obeys the subscriber's own bound, overflow and TTL ([messaging § subscribers](../../../docs/04-messaging.md#subscribers)). The subscription is a record on the topic, so it survives a restart and a restatement; the ACL is asked again at **every publish**, and one subscriber that will not read cannot stop the topic |
@@ -196,7 +196,7 @@ waiting on it since the PoC.
 🚫 **Cut from this stage.** The sentence is not reachable in the MVP's key
 mode: the daemon issues the token and holds it on the local socket
 ([access § key modes](../../R1/access.md#key-modes),
-[access § encrypted sessions](../../../docs/02-access.md#encrypted-sessions)), so
+[access § encrypted sessions](../../../docs/02-access.md#trust-boundary)), so
 AEAD over it would pass every check but the one that matters. The docs now say
 the bus is trusted on its own host and end to end is R1's, on the
 pairwise or derived keys that make it true
@@ -208,7 +208,7 @@ built, and the rows stay as the shape R1 inherits.
 | D.1 | AEAD sessions | a well-known library on the hot path, never our own primitive ([modules § the rule](../../../docs/10-modules.md#the-rule)) |
 | D.2 | a queued body survives its receiver | the second ❓ above; a live handshake does not fit an inbox that outlives its reader |
 | D.3 | the TypeScript side interoperates | `src/mcp/` reimplements the protocol, and an encryption Go and bun disagree about is worse than none |
-| D.4 | `encryption: off` stays a development path, never the default | ([access § encrypted sessions](../../../docs/02-access.md#encrypted-sessions)) |
+| D.4 | `encryption: off` stays a development path, never the default | ([access § encrypted sessions](../../../docs/02-access.md#trust-boundary)) |
 
 **Done when**, and what breaking it must do:
 
@@ -342,7 +342,7 @@ the binaries arrive, and are built
 | H.4 | ✅ _done_ — `agent-bus-setup` is its own program, root-only, and prints the `sudo` line rather than failing flat ([setup § the programs](../../../docs/09-setup.md#the-programs)) |
 | H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../R1/auth.md#ssh-admin)). It re-runs itself under `sudo -u agent-busd` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the programs](../../../docs/09-setup.md#the-programs)* |
 | H.6 | ✅ _done_ — `agent-bus-token` prints a credential and nothing else. Under SSH the authorized_keys line is the entitlement and `$SSH_ORIGINAL_COMMAND` is the request, so a key may only ask for the name its line names. The CLI's `token` verb went with it |
-| H.7 | ✅ _done_ — `--key` proves the name against what the realm publishes and gets a credential with no credential to start from ([access § getting a token](../../../docs/02-access.md#getting-a-token)). It is enrolment's own challenge with a second caller; the one change the daemon needed was to stop asking `/enrol` for a credential, which was a circle ([identity § proving possession](../../../docs/01-identity.md#proving-possession)) |
+| H.7 | ✅ _done_ — `--key` proves the name against what the realm publishes and gets a credential with no credential to start from ([access § getting a token](../../../docs/02-access.md#getting-a-token)). It is enrolment's own challenge with a second caller; the one change the daemon needed was to stop asking `/enrol` for a credential, which was a circle ([identity § proving possession](../../../docs/02-access.md#proving-possession)) |
 
 **Done when**, and what breaking it must do:
 

@@ -2,7 +2,7 @@
 // `login key-type key-blob [comment]` lines, one or more per login, in the
 // same shape as an `authorized_keys` entry. It is what a host uses before it
 // trusts a provider, and what a test uses instead of the network.
-// See docs/01-identity.md#registration.
+// See docs/01-identity-and-roles.md#registration.
 package file
 
 import (

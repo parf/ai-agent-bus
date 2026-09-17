@@ -11,7 +11,7 @@ the capabilities does not adopt these specific representations.
 
 - **Groups** compose from groups with `& | !` (`@eng & !@contractors`) when
   AUTH is on. Basic flat groups and maintainers are now
-  [required MVP](../../docs/01-identity.md#groups-and-maintainers).
+  [required MVP](../../docs/01-identity-and-roles.md#groups).
   The expression engine comes with AUTH: `& | !` on the authorization path
   is where a precedence bug grants silently.
 - **Roles** — *what a principal may do*: service-defined strings (`admin`,
@@ -45,7 +45,7 @@ it is that service's own vocabulary, not ours.
 |---|---|
 | **being in the list is the access** | the entry grants the call; the parentheses say in what capacity. There is no second access level beside the role, because *may call* and *what the service is told* were the only two things there ever were |
 | **the sigil disambiguates subjects, and only subjects** | a group has to be told from a user and a service from both — `@dev & !@contractors` reads as an expression over groups where `dev & !contractors` does not say what it is combining. A role needs no mark: the parentheses already say what it is |
-| **a user starts alphanumeric** | which is what any name starts with anyway ([names](../../docs/01-identity.md#names)), so this is the rule already there rather than a second one for ACLs. A term beginning with anything else is a group, a service, or nothing at all |
+| **a user starts alphanumeric** | which is what any name starts with anyway ([names](../../docs/01-identity-and-roles.md#names)), so this is the rule already there rather than a second one for ACLs. A term beginning with anything else is a group, a service, or nothing at all |
 
 ⚠️ `#` **begins a comment** in a shell word, in YAML and in `.env`. Typed as
 `--allow #batcher@srv1` it fails loudly — the flag ends up with no value — but
@@ -53,7 +53,7 @@ at the start of a line in a config file it disappears without one. Quote it,
 and do not put a service first on a line.
 
 **A group is local to one `agent-busd`**: `@dev`, never `@dev@company`. A
-group is only ever an ACL subject ([acl](../../docs/01-identity.md#acl)), and every ACL a daemon
+group is only ever an ACL subject ([acl](../../docs/02-access.md#acl)), and every ACL a daemon
 enforces is its own — a record it holds, or its master list — so the daemon is
 the scope, not the host it happens to share. AUTH may say who is *in* a group,
 but the name is resolved where it is used: there is no second `@` to read, and
@@ -90,7 +90,7 @@ the [AUTH consistency contract](auth.md#consistency-window):
 ## Ownership
 
 The owner and maintainers model is now
-[required MVP](../../docs/01-identity.md#groups-and-maintainers), including flat
+[required MVP](../../docs/01-identity-and-roles.md#groups), including flat
 groups before AUTH. R1 adds [managed runner controls](runner.md#what-the-runner-does)
 and the distributed record behavior below.
 

@@ -91,7 +91,7 @@ func TestForgetKeepsEverythingWhenTheWriteFails(t *testing.T) {
 // And when the write lands, both generations and every browser session for
 // that name go — a session is a credential without being a token, so one that
 // outlived its token would be "no registration, no access" not holding, for up
-// to IdleLife. See docs/01-identity.md#unregistering.
+// to IdleLife. See docs/01-identity-and-roles.md#unregistering.
 func TestForgetTakesBothGenerationsAndTheSessions(t *testing.T) {
 	store := &brittle{Tokens: memory.NewTokens()}
 	tok, err := Load(store, "owner@h")

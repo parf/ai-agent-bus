@@ -47,7 +47,7 @@ What starting a name twice on one host now means:
 |---|---|
 | starting the name twice on one host | allowed with `--share`, refused without it — in both directions, the way the daemon already refuses a pool member beside an exclusive reader |
 | the note in the owner's state directory | one per **process**, not one per name. `stop <name>` stops this host's members, all of them, and waits for each; `logs <name>` merges what they wrote ([stopping it and reading what it said](../../docs/08-runner-role.md#stopping-it-and-reading-what-it-said)) |
-| registering the name N times | an update, not a collision: one record, one owner, and every member says the same thing about it ([identity § ownership](../../docs/01-identity.md#ownership)) |
+| registering the name N times | an update, not a collision: one record, one owner, and every member says the same thing about it ([identity § ownership](../../docs/01-identity-and-roles.md#ownership)) |
 | what the registry shows | the name is up while **any** member is. A pool that is half down is a health matter, not a registry one |
 | a reply | goes to whoever sent the message, never to the member that answered, so which one took the work is nobody's business ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)) |
 | what it is still not | a group, a lease or a load balancer. Nothing is remembered between reads, so a member that dies leaves nothing to clean up |
@@ -62,7 +62,7 @@ Three rules stop that, and only the last one is new:
 |---|---|
 | **a pool is one bus** | members that report to different daemons are not a pool, they are two queues with the same idea in them. So the members point their runners at the one daemon, which is the option the runner already has ([setup § the two units](../../docs/09-setup.md#the-two-units)) and the edge-box arrangement ([where it runs](#where-it-runs)) |
 | **the realm is the daemon's, never the runner's host** | a runner on `srv2` reporting to the bus on `srv1` is registering into `srv1`'s realm already. Nothing about where a process sits belongs in the name it serves |
-| **so the pool is given a complete name** | `image-scaler@pool1`, a realm that daemon is told to hold. A complete name is taken whole; only a **bare** one is completed with the local host, and that completion is a convenience carrying no authority ([identity § names](../../docs/01-identity.md#names)). `@srv1` would claim a location false for three members out of four; `@pool1` claims membership, which is true for all of them and survives a member moving |
+| **so the pool is given a complete name** | `image-scaler@pool1`, a realm that daemon is told to hold. A complete name is taken whole; only a **bare** one is completed with the local host, and that completion is a convenience carrying no authority ([identity § names](../../docs/01-identity-and-roles.md#names)). `@srv1` would claim a location false for three members out of four; `@pool1` claims membership, which is true for all of them and survives a member moving |
 
 So a pool needs no naming machinery of its own — its members are simply given
 the whole name, as a run option beside `-N` and `--share`. **Getting it wrong is
@@ -138,7 +138,7 @@ Two boundaries, because *invisible* cannot mean invisible to everyone:
 | | |
 |---|---|
 | **The reader sees it by construction** | `orig-to` is the dispatch key. A runner that could not see which name a message was for could not serve it. The promise is to the **sender** |
-| **The record carries it** | `route` is a field of the record, and whoever may read the record reads it ([ACL](../../docs/01-identity.md#acl)). *Where is this served* is answered there — to people with standing, rather than to anyone who can send |
+| **The record carries it** | `route` is a field of the record, and whoever may read the record reads it ([ACL](../../docs/02-access.md#acl)). *Where is this served* is answered there — to people with standing, rather than to anyone who can send |
 
 **What cannot be hidden is shared fate**, and this does not pretend otherwise. A
 routed name lives in somebody else's queue and is subject to that queue's bound
@@ -198,8 +198,8 @@ to route into the new target, which is the same rule that governs setting one.
 **A route is not ownership, and repointing one is not a transfer.**
 Owner-settled, 2026-09-16: **an owner may pass ownership on, and only the owner
 may** — which is what the daemon already does
-([owner control](../../docs/01-identity.md#owner-control),
-[who manages a record](../../docs/01-identity.md#groups-and-maintainers)).
+([owner control](../../docs/01-identity-and-roles.md#services),
+[who manages a record](../../docs/01-identity-and-roles.md#groups)).
 Routing changes nothing about that. The two operations are simply different:
 
 | | Changes | Who may |
@@ -210,7 +210,7 @@ Routing changes nothing about that. The two operations are simply different:
 So a handover of *work* leaves the record, its credential and its owner where
 they were, and the owner remains the one who can end the arrangement — while a
 handover of the *record* is a transfer, which the owner makes deliberately and
-which carries its own conditions ([transfer](../../docs/01-identity.md#ownership)).
+which carries its own conditions ([transfer](../../docs/01-identity-and-roles.md#ownership)).
 What routing must not become is a way to do the second by doing the first.
 
 **A change applies to delivery from that moment, and nothing already delivered
@@ -359,7 +359,7 @@ in the `args` and `json` forms ([what an instance is](#what-an-instance-is)).
 |---|---|
 | **the wrapper carries the original, and the answer comes back as the service** | reply routing is the original envelope's ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)). The runner returns a result and the daemon unwraps it; a caller that sees the runner's name where the service's belongs is the wrap having leaked |
 | **the ACL is applied before the wrap, never after** | the daemon refuses on the record's own ACL exactly as it always does, and only a call that passed is wrapped. Otherwise the fallback channel is a way to reach a service you may not call |
-| **a wrapped call is accepted from the daemon and from nobody else** | the channel is a name with an ACL like any other ([identity § acl](../../docs/01-identity.md#acl)) — the daemon writes, one runner reads. The runner checks the sender as well, because a wrapper is the one message that asserts *somebody else* called: accepted from the daemon it is that assertion, accepted from anyone it is a way to run a service as a caller you are not |
+| **a wrapped call is accepted from the daemon and from nobody else** | the channel is a name with an ACL like any other ([identity § acl](../../docs/02-access.md#acl)) — the daemon writes, one runner reads. The runner checks the sender as well, because a wrapper is the one message that asserts *somebody else* called: accepted from the daemon it is that assertion, accepted from anyone it is a way to run a service as a caller you are not |
 | **the runner still mints nothing** | it executes and answers. Who called is the daemon's assertion inside the wrapper, never something the runner establishes — the same rule as everywhere else ([what the child is told](#what-the-child-is-told)) |
 | **no consumer is not a race** | routing is one decision by the one thing that knows both facts: routed to the channel when there is no consumer, delivered to the inbox when there is. There is no window between a check and a hand-off because there is no check and no hand-off — and either answer stays right afterwards, since a consumer that attaches later reads the next message, and one that leaves later leaves a queued message, which is the ordinary case already ([messaging § inbox queues](../../docs/04-messaging.md#inbox-queues)) |
 | **cold start is the caller's latency, on the caller's ttl** | the call pays a process start. A message ttl shorter than that start is a caller that has already given up ([messaging § message ttl](../../docs/04-messaging.md#message-ttl)), and being on-demand does not extend it |
@@ -434,7 +434,7 @@ already unambiguous, and a link could not carry the run options anyway. If
 
 **It is also the default name to register, and a default is all it is.** The
 directory gives a bare name, which is completed with the local host the way any
-bare name is ([identity § names](../../docs/01-identity.md#names)) — and `services.json`
+bare name is ([identity § names](../../docs/01-identity-and-roles.md#names)) — and `services.json`
 may state a **complete** name instead, which is then taken whole. That is the
 one thing a host must be able to override, because a pool's members sit in
 identically named directories on four machines and must register **one** name
@@ -443,7 +443,7 @@ It stays the host's file rather than the author's for the usual reason: which
 pool this copy joins is not something the code knows.
 
 One service with many instances is already in the naming —
-`template/instance-name@realm` ([identity § names](../../docs/01-identity.md#names)) — so
+`template/instance-name@realm` ([identity § names](../../docs/01-identity-and-roles.md#names)) — so
 per-user instances need no new idea.
 
 ### The three env layers
@@ -595,7 +595,7 @@ host. Three arrangements, and the third is what the split buys:
 | **edge box** | **elsewhere** | local, alone — a machine that hosts services and holds no bus state |
 
 A remote daemon is reached the way anything else here is reached, over **ssh**
-([access § the three doors](../../docs/02-access.md#the-three-doors)): no port opened to
+([access § the three doors](../../docs/02-access.md#what-a-call-carries)): no port opened to
 a network, and no TLS between bus citizens.
 
 **A bus that is away is not a service that failed.** When the daemon is
@@ -612,12 +612,12 @@ every host at once.
 ### Reaching the runner
 
 **The runner is a service on the bus**, registered as `runner@<host>` — a name
-like any other ([identity § names](../../docs/01-identity.md#names)), so a runner on an
+like any other ([identity § names](../../docs/01-identity-and-roles.md#names)), so a runner on an
 edge box stays addressable from the daemon it reports to —
 and installing, configuring, enabling and starting are calls to it like any
 other. There is **no second ssh door and no account to be let into**: who may
 deploy on a host is the ACL on that one service
-([identity § acl](../../docs/01-identity.md#acl)) — the mechanism the bus already has
+([identity § acl](../../docs/02-access.md#acl)) — the mechanism the bus already has
 rather than a new one beside it.
 
 What the grant is bounded by has not changed:

@@ -8,12 +8,12 @@ a shared host.
 | | |
 |---|---|
 | identity | a token per principal, per-user sockets ([access](../../../docs/02-access.md#access)) |
-| registration | manual record + GitHub ([identity § registration](../../../docs/01-identity.md#registration)) |
-| **user records** | a maintainer writes them and a person does not, which is what makes the fields trustworthy; the owner is always a maintainer and only the owner touches another one ([identity § who may write a record](../../../docs/01-identity.md#who-may-write-a-record)) |
-| **unique identifiers** | every identifying field normalised before it is written and unique across records — email, phone, `GithubUser`, IM handle ([identity § every identifying field is unique](../../../docs/01-identity.md#every-identifying-field-is-unique)) |
+| registration | manual record + GitHub ([identity § registration](../../../docs/01-identity-and-roles.md#registration)) |
+| **user records** | a maintainer writes them and a person does not, which is what makes the fields trustworthy; the owner is always a maintainer and only the owner touches another one ([identity § who may write a record](../../../docs/01-identity-and-roles.md#users-and-profiles)) |
+| **unique identifiers** | every identifying field normalised before it is written and unique across records — email, phone, `GithubUser`, IM handle ([identity § every identifying field is unique](../../../docs/01-identity-and-roles.md#users-and-profiles)) |
 | tokens | persisted, previous kept, local never expires ([access § token lifetime](../../../docs/02-access.md#token-lifetime)) |
-| encryption | 🚫 *struck* — the daemon issues the token a session key derives from, so end to end against it is not reachable in this stage's key mode; the bus is trusted on its own host ([access § encrypted sessions](../../../docs/02-access.md#encrypted-sessions)) |
-| access | service ACL, then master ACL; a service may refuse master ([identity § acl](../../../docs/01-identity.md#acl)) |
+| encryption | 🚫 *struck* — the daemon issues the token a session key derives from, so end to end against it is not reachable in this stage's key mode; the bus is trusted on its own host ([access § encrypted sessions](../../../docs/02-access.md#trust-boundary)) |
+| access | service ACL, then master ACL; a service may refuse master ([identity § acl](../../../docs/02-access.md#acl)) |
 | messaging | TTL, `reply-to`, and **pub/sub topics** — a subscription is a `consume:<glob>` capability, which exists once there is an ACL ([messaging](../../../docs/04-messaging.md#messaging)) |
 | services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several workers behind one name, per-service call stats ([messaging](../../../docs/04-messaging.md#messaging)) |
 | storage | the store and the dump behind their ports — a text file and JSON today, a database and Parquet as adapters ([setup § storage](../../../docs/09-setup.md#storage), [messaging § durability](../../../docs/04-messaging.md#durability)) |

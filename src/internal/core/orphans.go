@@ -11,7 +11,7 @@ import (
 // and returns what it took. A service whose owner is not known is not a state
 // to recover from: it is wreckage from an older store, or from something that
 // went wrong, and it goes at once with everything that hung on it
-// (docs/01-identity.md#when-the-owner-is-gone).
+// (docs/01-identity-and-roles.md#orphaned-records).
 //
 // **Known is a profile or a record, not a profile.** A self-owned record with
 // no user behind it is a principal the daemon supports: it authenticates, it
@@ -71,7 +71,7 @@ func (b *Bus) Orphans() []string {
 // is one. Their profile is their standing, they may manage their own record
 // (`manages` allows the name itself), and messages addressed to them reach
 // somebody. This is the exemption the credential sweep makes too, for the same
-// one reason: a user is never deleted (docs/01-identity.md#user-lifecycle).
+// one reason: a user is never deleted (docs/01-identity-and-roles.md#user-states).
 // Without it the sweep took a person's inbox, their group membership and — by
 // way of the name it handed back — their credential.
 func (b *Bus) wreckage(r protocol.Record) bool {

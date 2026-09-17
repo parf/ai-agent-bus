@@ -21,7 +21,7 @@ preserving their [secret domains](../../docs/09-setup.md#the-two-accounts).
 | Concern | Contract |
 |---|---|
 | Persistence | Mount the daemon's [storage](../../docs/09-setup.md#storage) on a persistent volume so replacing a container preserves registry and credentials |
-| Access | People authenticate over the port with tokens; the local socket serves the container's own processes ([access](../../docs/02-access.md#the-three-doors)) |
+| Access | People authenticate over the port with tokens; the local socket serves the container's own processes ([access](../../docs/02-access.md#what-a-call-carries)) |
 | Sandboxing | The container is the boundary; document that script sandboxing is off. Explicitly requesting unavailable sandboxing must fail under the existing [sandbox contract](../../docs/08-runner-role.md#sandboxing) |
 
 The later [catalogue image](../R1.1/image.md#the-image) extends this distribution.

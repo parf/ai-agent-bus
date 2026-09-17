@@ -123,7 +123,7 @@ func TestUnregisterClearsConfigurationAndSubscriptions(t *testing.T) {
 
 // Removing your own record while you still own others would leave each of them
 // owned by a name the daemon no longer knows — the orphan the deletion rule is
-// for (docs/01-identity.md#when-the-owner-is-gone), made by an ordinary call
+// for (docs/01-identity-and-roles.md#orphaned-records), made by an ordinary call
 // rather than by an old store. There is somebody here to tell, so it is
 // refused like a queue that is not empty rather than cascading.
 func TestUnregisteringDoesNotOrphanWhatItOwns(t *testing.T) {

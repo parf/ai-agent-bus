@@ -3,7 +3,7 @@
 ## Scope
 
 Implemented the owner's 2026-09-13 [required dashboard](../../../docs/05-discovery.md#required-tabs)
-and [service ownership clarification](../../../docs/01-identity.md#owner-control):
+and [service ownership clarification](../../../docs/01-identity-and-roles.md#services):
 F.6, F.6.1 and F.7–F.11. Installed resource-confinement acceptance remains open.
 
 | Area | Implementation |

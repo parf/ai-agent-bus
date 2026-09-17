@@ -188,7 +188,7 @@ func (s *Server) routes(g guard) http.Handler {
 	// where a credential comes from — requiring one would be a circle. It is
 	// safe for the same reason: the signature *is* the credential, and only a
 	// realm somebody vouches for can be enrolled into at all.
-	// See docs/01-identity.md#proving-possession.
+	// See docs/02-access.md#proving-possession.
 	mux.HandleFunc("POST /enrol", func(w http.ResponseWriter, r *http.Request) {
 		s.enrol(w, r, protocol.Name{})
 	})
@@ -428,7 +428,7 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.
 // enrol is both halves of it: with no signature it hands back the nonce to
 // sign, with one it checks the answer. Two calls because the bus has to be
 // the one that says what gets signed — a challenge the caller chose proves
-// nothing. See docs/01-identity.md#registration.
+// nothing. See docs/01-identity-and-roles.md#registration.
 func (s *Server) enrol(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
 	var in struct {
 		Name      string `json:"name"`

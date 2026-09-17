@@ -220,7 +220,7 @@ func TestForbiddenPunctuationInEveryComponent(t *testing.T) {
 // every component, accepted exactly when the rule says so. Sampling three
 // punctuation marks is not the same thing — a parser that let "~" through
 // passed the sample above and was caught only by this
-// (docs/01-identity.md#names).
+// (docs/01-identity-and-roles.md#names).
 func TestTheCharsetIsExhaustive(t *testing.T) {
 	alnum := func(c byte) bool { return c >= 'a' && c <= 'z' || c >= '0' && c <= '9' }
 	// What each component takes after its first character.

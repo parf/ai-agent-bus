@@ -87,7 +87,7 @@ func TestTheTwoSweepsAgreeAboutOneName(t *testing.T) {
 	// absent@h holds no record and no profile, and owns a service. Restored
 	// rather than registered: registering a record owned by a name the daemon
 	// knows nothing about is refused now
-	// (docs/01-identity.md#when-the-owner-is-gone), so an old store is the
+	// (docs/01-identity-and-roles.md#orphaned-records), so an old store is the
 	// only place this state still comes from \u2014 which is the state the sweeps
 	// have to be safe against.
 	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{

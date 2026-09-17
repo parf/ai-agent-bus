@@ -117,7 +117,7 @@ func ask(name string, rotate bool) (string, error) {
 
 // prove is the path that needs nothing already: the bus says what to sign and
 // checks the answer against what the realm publishes, which is the same
-// challenge enrolment asks. See docs/01-identity.md#proving-possession.
+// challenge enrolment asks. See docs/02-access.md#proving-possession.
 func prove(name, key string) (string, error) {
 	out, code, err := post("/enrol", map[string]string{"name": name})
 	if err != nil {

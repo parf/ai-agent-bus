@@ -199,7 +199,7 @@ func env(k, def string) string {
 }
 
 // defaultOwner is the account running the daemon, vouched for by this host —
-// the `user@host` form in docs/01-identity.md#names.
+// the `user@host` form in docs/01-identity-and-roles.md#names.
 func defaultOwner() string {
 	who := "agent-busd"
 	if u, err := user.Current(); err == nil && u.Username != "" {
@@ -216,7 +216,7 @@ func defaultOwner() string {
 }
 
 // masters is a repeatable flag, and nothing more: who holds the master ACL
-// is the daemon's own configuration. See docs/01-identity.md#acl.
+// is the daemon's own configuration. See docs/02-access.md#acl.
 type masters []string
 
 func (m *masters) String() string     { return strings.Join(*m, ",") }

@@ -38,6 +38,6 @@ that is a **pool** cannot be correct. *Settled by:* owner.
 ## People context
 
 ❓ **Who may read somebody else's.** Writing is settled — a maintainer, and
-nobody else ([who may write a record](../../docs/01-identity.md#who-may-write-a-record)). Reading is
+nobody else ([who may write a record](../../docs/01-identity-and-roles.md#users-and-profiles)). Reading is
 not: a phone number is not an avatar, and the alerter needs everybody's.
 *Settled by:* owner, with the ACL.

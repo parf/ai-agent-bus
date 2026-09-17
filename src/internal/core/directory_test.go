@@ -23,7 +23,7 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 	known(t, b, "session@h")
 	// Restored, not registered: a record owned by a name the daemon holds
 	// nothing for but a credential can no longer be registered into existence
-	// (docs/01-identity.md#when-the-owner-is-gone). It still arrives from an
+	// (docs/01-identity-and-roles.md#orphaned-records). It still arrives from an
 	// older store, which is exactly why the directory has to show it.
 	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "owned@h", Owner: "unprofiled-owner@h", Kind: "generic", Full: protocol.OverflowStrict},

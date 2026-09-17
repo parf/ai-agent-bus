@@ -3,7 +3,7 @@
 ## Scope
 
 The daemon administrative role is Administrator; service/channel Maintainer
-assignments remain separate. The [current group contract](../../../docs/01-identity.md#groups-and-maintainers)
+assignments remain separate. The [current group contract](../../../docs/01-identity-and-roles.md#groups)
 and [upgrade guidance](../../../docs/09-setup.md#administrator-name-migration)
 own the behavior. Root overrides, profile permissions and protected effective
 maintenance membership remain [pending work](../TODO.md#authority-model).

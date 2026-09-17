@@ -1,5 +1,7 @@
 # ⚙️ The daemon
 
+📌 **TL;DR:** Install and operate the bus; check its listeners, state and health.
+
 `agent-busd` is the whole bus: registry, broker, MCP server and dashboard, in
 one process. Nothing else needs installing — **no Redis, no RabbitMQ, no NATS,
 no database server.** 🎈

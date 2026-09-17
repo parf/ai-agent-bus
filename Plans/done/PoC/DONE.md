@@ -167,7 +167,7 @@ registered, so a *pushed* reply cannot be re-read.
 
 A plugin manifest cannot know the session's name, so the face **derives** one:
 `<runtime>.<cwd>@<host>`, trimmed to the name rule ([identity §
-names](../../../docs/01-identity.md#names)) — the way Legacy-V1 names its
+names](../../../docs/01-identity-and-roles.md#names)) — the way Legacy-V1 names its
 channels. Zero configuration beyond the token. Verified: a session started with
 no `AGENT_BUS_NAME` registered as
 `claude-code.home-parf-src-ai-agent-bus-src-mcp@parf.us`.
@@ -415,7 +415,7 @@ by Codex and by Fable, findings reproduced before any was accepted.
 **A service is a configured thing.** `template/instance-name@host` joins
 `service@host`, the host is whatever follows the **last** `@`, and the
 instance name takes `+` so `mail-sender/parf+alerts@comfi.com@host` is one
-name ([identity § names](../../../docs/01-identity.md#names)). The
+name ([identity § names](../../../docs/01-identity-and-roles.md#names)). The
 `service-template` verb configures one and reads it back.
 
 **A configuration is private.** Only the service reads its own bytes — its

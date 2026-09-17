@@ -1,5 +1,7 @@
 # 🏃 Running a service
 
+📌 **TL;DR:** `agent-bus start` serves messages through your script.
+
 Your script, your agent session, or anything else that answers messages.
 
 ℹ️ **There is no `agent-bus-runner` program today.** The runner is

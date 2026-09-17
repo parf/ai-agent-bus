@@ -328,7 +328,7 @@ func callVerb(args []string) error {
 		deadline = d
 	}
 	// A caller that wants an answer needs an address for it to arrive at.
-	// Registration is a record you state (docs/01-identity.md#registration),
+	// Registration is a record you state (docs/01-identity-and-roles.md#registration),
 	// and this is the caller stating it — but only if it has none, since
 	// re-stating it here would overwrite a description its owner meant.
 	me := whoami()
@@ -860,7 +860,7 @@ var onOff = map[string]bool{"follow": true, "no-master": true, "share": true, "n
 
 // allow is the service ACL as stated on the command line: a comma-separated
 // list, `*` for anyone who can authenticate, absent for no answer of its own.
-// See docs/01-identity.md#acl.
+// See docs/02-access.md#acl.
 func allow(flags map[string]string) []string {
 	v, ok := flags["allow"]
 	if !ok || strings.TrimSpace(v) == "" {

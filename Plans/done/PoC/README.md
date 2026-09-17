@@ -54,7 +54,7 @@ These are the ones a shortcut would quietly break.
 | Invariant | Where it is stated |
 |---|---|
 | A call carries **a token and nothing else** — it backs one principal, and the socket is a credential of the same kind rather than an exemption from having one. The PoC sent a name beside it; that was dropped afterwards | [access § what a call carries](../../../docs/02-access.md#what-a-call-carries) |
-| **The name is the identity.** No provider numeric id is ever a principal id | [identity § names](../../../docs/01-identity.md#names) |
+| **The name is the identity.** No provider numeric id is ever a principal id | [identity § names](../../../docs/01-identity-and-roles.md#names) |
 | A **reply matches on topic + tag**; the bus adds no call machinery | [messaging § request and reply](../../../docs/04-messaging.md#request-and-reply) |
 | **`ack` = got it, `done` = finished**, both emitted by the receiver | [messaging § receipts](../../../docs/04-messaging.md#receipts) |
 | **Dependencies point inward**; only adapters touch the outside world, and no verb exists only in a face | [modules § the rule](../../../docs/10-modules.md#the-rule) |

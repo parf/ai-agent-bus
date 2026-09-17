@@ -6,7 +6,7 @@ Shipped in 0.5.34. Evidence for the acceptance in
 ## Scope
 
 The contract was written and marked pending
-([identity § services of a user who is paused or banned](../../../docs/01-identity.md#services-of-a-user-who-is-paused-or-banned)):
+([identity § services of a user who is paused or banned](../../../docs/01-identity-and-roles.md#user-states)):
 a paused or banned user keeps everything they own, and **every service they own
 refuses calls while that lasts**. The daemon enforced none of it. `Send` refused
 a receiver whose *own* name was inactive, which for a service is vacuously true

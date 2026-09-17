@@ -350,14 +350,14 @@ by name. The registry table does not come with it.
 
 There is no delete-user control and there will not be one: a user is never
 deleted, only made inactive
-([user lifecycle](../../../docs/01-identity.md#user-lifecycle)).
+([user lifecycle](../../../docs/01-identity-and-roles.md#user-states)).
 
 For a non-user identity: the kind, why it is retained, and the removal control
 only when `CanRemove`, with consequences stated before the form. There are two
 kinds and no third: a self-owned record, and a credential with neither profile
 nor record. *It owns services, so removal is held* was a third, and it went with
 the interim guard it described — a name that owns records without being one is
-[deleted at start](../../../docs/01-identity.md#when-the-owner-is-gone), so the
+[deleted at start](../../../docs/01-identity-and-roles.md#orphaned-records), so the
 page cannot be shown one.
 
 ---

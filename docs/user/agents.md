@@ -1,5 +1,7 @@
 # 🤝 Claude Code, Codex and opencode on one bus
 
+📌 **TL;DR:** Connect running agent sessions; send messages and request cross-reviews.
+
 **The point: you can talk to a running CLI session.** 💬
 
 Not start one. Not queue a job for one. Send a line to a Claude Code or Codex
@@ -255,7 +257,7 @@ suspicious of, not to obey.
 
 🙈 **The bus sees envelopes, and in this stage the daemon is trusted with
 bodies too.** Keep a bus on a host you trust, and do not paste secrets between
-sessions. See [access § trust boundary](../02-access.md#encrypted-sessions).
+sessions. See [access § trust boundary](../02-access.md#trust-boundary).
 
 ---
 

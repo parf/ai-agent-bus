@@ -4,7 +4,7 @@
 
 Implementation evidence for the directory part of F.13.1/F.13.4, with owner
 and maintainer cleanup authority settled by Q56. Current contracts are
-[person records](../../../docs/01-identity.md#person-records) and
+[person records](../../../docs/01-identity-and-roles.md#users-and-profiles) and
 [credential cleanup](../../../docs/02-access.md#ownerless-credentials).
 This does not close the remaining web redesign, H.5.5 orphan-service deletion,
 or installed F.12 acceptance.

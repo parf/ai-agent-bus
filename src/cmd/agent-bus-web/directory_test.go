@@ -54,7 +54,7 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	// It owns a service, which is why credential cleanup must not be offered
 	// for it: taking the credential of a name that owns records is how orphans
 	// get manufactured, and the sweep no longer guards against that
-	// (docs/01-identity.md#when-the-owner-is-gone) because nothing reachable
+	// (docs/01-identity-and-roles.md#orphaned-records) because nothing reachable
 	// creates it. The classification is what keeps it safe.
 	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "holds@h", Owner: "holds@h", Kind: "generic", Full: protocol.OverflowStrict},

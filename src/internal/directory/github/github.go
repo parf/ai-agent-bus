@@ -4,7 +4,7 @@
 // subprocess (docs/10-modules.md#the-rule).
 //
 // It fetches and nothing else. What proves the caller holds one of these keys
-// is a step of its own (docs/01-identity.md#registration).
+// is a step of its own (docs/01-identity-and-roles.md#registration).
 package github
 
 import (

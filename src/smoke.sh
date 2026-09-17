@@ -385,7 +385,7 @@ has "because the record is not his to take over" "$out" 'belongs to someone else
 
 sec "a record belongs to whoever published it"
 users thief2@srv1 stranger2@srv1
-# Publishing is open; changing is not. See docs/01-identity.md#ownership.
+# Publishing is open; changing is not. See docs/01-identity-and-roles.md#ownership.
 ab owner@srv1 register owned@srv1 --descr "mine" --addr first:1 >/dev/null
 out=$(ab thief2@srv1 register owned@srv1 --descr "stolen" --addr second:2 2>&1); rc=$?
 bad_exit "somebody else cannot re-register it" $rc
@@ -1581,7 +1581,7 @@ is_empty "while a long wait does not extend what the queue keeps" \
 
 sec "enrolment: a key you hold, not a key you name"
 # Its own daemon, because a vouched realm changes what registering means.
-# See docs/01-identity.md#registration.
+# See docs/01-identity-and-roles.md#registration.
 mkdir -p "$D/enr"
 ssh-keygen -q -t ed25519 -N '' -f "$D/enr/mine" >/dev/null
 ssh-keygen -q -t ed25519 -N '' -f "$D/enr/theirs" >/dev/null
@@ -1627,7 +1627,7 @@ has "somebody else cannot register over an enrolled name" \
 has "nor be handed its credential" \
   "$(ecode alice@srv1 "$(etok alice@srv1 2>/dev/null)" /token '{"name":"newbie@vouched"}')" '403'
 # Enrolment is where a credential comes from, so it cannot want one first.
-# See docs/01-identity.md#proving-possession.
+# See docs/02-access.md#proving-possession.
 has "a newcomer with no credential at all is still challenged" \
   "$(curl -s --unix-socket "$D/enr/bus.sock" -d '{"name":"squatter@vouched"}' http://unix/enrol)" '"nonce"'
 has "while everything else still wants one" \
@@ -1673,7 +1673,7 @@ sec "who may reach what: the service answers first, then master"
 users acl-owner@srv1
 # Two services alike in everything but the one flag, so what is being
 # measured is the policy and not the request.
-# See docs/01-identity.md#acl.
+# See docs/02-access.md#acl.
 ab acl-owner@srv1 register open-svc@srv1 --descr "takes master" --allow acl-owner@srv1 >/dev/null
 ab acl-owner@srv1 register shut-svc@srv1 --descr "refuses master" --allow acl-owner@srv1 --no-master >/dev/null
 ab acl-owner@srv1 register any-svc@srv1 --descr "open to all" --allow '*' >/dev/null
@@ -2164,7 +2164,7 @@ if slow; then
 fi
 
 sec "a start clears out the records whose owner it does not know"
-# The wreckage rule (docs/01-identity.md#when-the-owner-is-gone): a record
+# The wreckage rule (docs/01-identity-and-roles.md#orphaned-records): a record
 # whose owner the daemon knows nothing about answers for nobody, and a start
 # takes it rather than leaving a name nobody can reach or reclaim. Its own
 # daemon and its own store, because what is under test is what a start reads

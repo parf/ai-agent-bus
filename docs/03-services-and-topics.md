@@ -1,5 +1,7 @@
 # Services and topics
 
+📌 **TL;DR:** Register services; route messages to inboxes or call external protocols directly.
+
 ## Status
 
 | MVP | Scope |
@@ -84,7 +86,7 @@ the same way; the template prefix is not what makes one configurable.
 | | |
 |---|---|
 | the configuration | **arbitrary JSON, stored opaque.** The only check is that it *is* JSON — a syntax check, not interpretation. Nothing looks for a server, a user, a mailbox or a credential |
-| who may write it | the principals with [record management authority](01-identity.md#groups-and-maintainers). Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so a service restarting keeps what it was configured with. A registration carries **neither half**: not the bytes, and not the digest, which is derived from them and would otherwise let anyone claim any setup |
+| who may write it | the principals with [record management authority](01-identity-and-roles.md#groups). Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so a service restarting keeps what it was configured with. A registration carries **neither half**: not the bytes, and not the digest, which is derived from them and would otherwise let anyone claim any setup |
 | who may read it | **the service, and nobody else — its owner included.** Setup data goes in and is used; it does not come back out to be looked at |
 | what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record — the whole listing, a query for one service (`agent-bus ls <name>`), and the answer to setting one ([why a digest at all](#why-a-digest-at-all)) |
 | where the bytes are **not** | anywhere else. No listing carries them, and the one read is the service's own |
@@ -143,7 +145,7 @@ A topic **declares its kind, TTL, bound and overflow mode at creation**:
 
 | Aspect | MVP behavior |
 |---|---|
-| Create and change | [Ownership](01-identity.md#ownership) applies |
+| Create and change | [Ownership](01-identity-and-roles.md#ownership) applies |
 | Visibility and use | [Audience](05-discovery.md#audience) and the record ACL apply; publication rechecks each subscriber |
 | Storage | [Restart persistence](04-messaging.md#durability), with messages in memory |
 | Observations | [Listing state](05-discovery.md#what-a-listing-answers) |

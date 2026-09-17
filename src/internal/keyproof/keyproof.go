@@ -1,7 +1,7 @@
 // The client half of proving possession: the bus says what to sign, and this
 // signs it with a key that never leaves the machine. It runs on the holder's
 // side, not the daemon's — the daemon's half is internal/signature, behind
-// the signatures port. See docs/01-identity.md#proving-possession.
+// the signatures port. See docs/02-access.md#proving-possession.
 package keyproof
 
 import (

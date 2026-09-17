@@ -43,8 +43,9 @@ Code changes require `src/smoke.sh --slow` green; it runs vet and race tests. Th
 ## Writing conventions
 
 - Small files, main ideas only, tables over prose; terse English.
+- Current docs start with a one-line `📌 **TL;DR:**` essence. Lead sections with a short summary; put supporting detail in closed `<details>` / `<summary>` blocks and remove duplication.
 - Use R1, R1.1 and R1.2 for stages; Legacy-V1 for the NATS system.
-- No glyph by default. Use question, conflict, failure, blocked, cancelled, deferred, partial, done, handed-off and superseded glyphs only when they add information. One glyph per cell.
+- Beyond the TL;DR marker, no glyph by default. Use question, conflict, failure, blocked, cancelled, deferred, partial, done, handed-off and superseded glyphs only when they add information. One glyph per cell.
 
 ## Design boundaries
 
@@ -53,11 +54,11 @@ Read the owning section before changing a boundary:
 | Boundary | Home |
 |---|---|
 | Layering and dependency choice | [modules](docs/10-modules.md#the-rule), [external tools](docs/10-modules.md#external-tools) |
-| Authentication and identity | [access](docs/02-access.md#what-a-call-carries), [names](docs/01-identity.md#names) |
+| Authentication and identity | [access](docs/02-access.md#what-a-call-carries), [names](docs/01-identity-and-roles.md#names) |
 | Credential lifetime in every release | [token lifetime](docs/02-access.md#token-lifetime) |
-| Visibility and use | [ACL](docs/01-identity.md#acl) |
+| Visibility and use | [ACL](docs/02-access.md#acl) |
 | Private configuration | [configuration](docs/03-services-and-topics.md#configuring-a-template) |
-| Body trust and persistence | [trust boundary](docs/02-access.md#encrypted-sessions), [durability](docs/04-messaging.md#durability) |
+| Body trust and persistence | [trust boundary](docs/02-access.md#trust-boundary), [durability](docs/04-messaging.md#durability) |
 | Process privilege and exec | [process boundary](docs/11-processes.md#the-rule) |
 
 ## Licensing

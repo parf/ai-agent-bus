@@ -124,7 +124,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 	// A group is retired by emptying it, so "delete" is not an action here
 	// even for the daemon owner, and even from a request that is otherwise
 	// entirely in order — right origin, right session, real group
-	// (docs/01-identity.md#groups-and-maintainers).
+	// (docs/01-identity-and-roles.md#groups).
 	request("admin@h", "POST", "/groups", web.URL, url.Values{"action": {"delete"}, "name": {"@ops"}}, 400)
 	// And the members it carried were not applied on the way out: a rejected
 	// action does nothing, rather than doing the save it was not asked for.

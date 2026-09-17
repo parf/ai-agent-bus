@@ -36,19 +36,19 @@ wins.
 
 | Term | One line | Defined in |
 |---|---|---|
-| **principal** | any user or service with an identity | [identity § principals](../../../docs/01-identity.md#principals) |
-| **`user@realm`** | how every principal is written; realm = a name a bus answers for · provider · team. A service may prefix a template | [identity § names](../../../docs/01-identity.md#names) |
-| **realm** | who vouches for a name | [identity § names](../../../docs/01-identity.md#names) |
-| **canonical name** | the one spelling everything compares and routes on: lower-case, ASCII, trimmed per component, within the bound | [identity § names](../../../docs/01-identity.md#names) |
+| **principal** | any user or service with an identity | [identity § principals](../../../docs/01-identity-and-roles.md#identities) |
+| **`user@realm`** | how every principal is written; realm = a name a bus answers for · provider · team. A service may prefix a template | [identity § names](../../../docs/01-identity-and-roles.md#names) |
+| **realm** | who vouches for a name | [identity § names](../../../docs/01-identity-and-roles.md#names) |
+| **canonical name** | the one spelling everything compares and routes on: lower-case, ASCII, trimmed per component, within the bound | [identity § names](../../../docs/01-identity-and-roles.md#names) |
 | **token** | the one thing every call carries, and the whole identity; persisted, previous one kept | [access § token lifetime](../../../docs/02-access.md#token-lifetime) |
-| **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](../../../docs/01-identity.md#acl) |
+| **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](../../../docs/02-access.md#acl) |
 | **`*`** | the term for anyone who can authenticate; `allow: *` opens a service to the world | [identity § sigils](../../R1/identity.md#sigils) |
 | **`agent-bus-admin`** | the program that edits what the `agent-busd` account owns — *not* a role; the setup user simply holds master | [setup § the programs](../../../docs/09-setup.md#the-programs) |
 | **role** | service-defined string saying what a principal may do, written in parentheses after the term and handed over as written | [identity § sigils](../../R1/identity.md#sigils) |
 | **`@`** · **`#`** (ACL) | a leading `@` is a group, a leading `#` a service, and anything else is a user | [identity § sigils](../../R1/identity.md#sigils) |
 | **`term(roles)`** | an ACL entry: the term says who, the parentheses what the service is told; omitted when there are no roles | [identity § sigils](../../R1/identity.md#sigils) |
-| **`GithubUser`** | the GitHub login on a record, equal to the username when the record came from GitHub; unique across records like every other identifier | [identity § registration](../../../docs/01-identity.md#registration) |
-| **maintainer** (of the daemon) | who may write user records — everything below their own level and nothing at it; the owner is always one | [identity § who may write a record](../../../docs/01-identity.md#who-may-write-a-record) |
+| **`GithubUser`** | the GitHub login on a record, equal to the username when the record came from GitHub; unique across records like every other identifier | [identity § registration](../../../docs/01-identity-and-roles.md#registration) |
+| **maintainer** (of the daemon) | who may write user records — everything below their own level and nothing at it; the owner is always one | [identity § who may write a record](../../../docs/01-identity-and-roles.md#users-and-profiles) |
 | **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](../../R1/identity.md#delegation) |
 | **service-to-service token** | one service's credential, narrowed to the service it is calling, asked for over the bus and as itself | [access § service to service](../../R1.1/access.md#service-to-service) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](../../../docs/03-services-and-topics.md#service-kinds) |
@@ -56,7 +56,7 @@ wins.
 | **lock set** | a named group of locks, one per resource a shared service owns; take any free one and be told which | [messaging § a set of locks](../../R1/locks.md#a-set-of-locks) |
 | **service template** | the *unconfigured* capability; does not run, has no address | [services § service and template](../../../docs/03-services-and-topics.md#service-and-template) |
 | **service** | **always configured**: a template + its config + where it runs. Never say "service" for an unconfigured template | [services § service and template](../../../docs/03-services-and-topics.md#service-and-template) |
-| **`template/instance-name@realm`** | a service configured from a template; `service@realm` when there is no separate template | [identity § names](../../../docs/01-identity.md#names) |
+| **`template/instance-name@realm`** | a service configured from a template; `service@realm` when there is no separate template | [identity § names](../../../docs/01-identity-and-roles.md#names) |
 | **`service-template`** | the verb that configures a template into a service, and reads that configuration back | [services § configuring a template](../../../docs/03-services-and-topics.md#configuring-a-template) |
 | **`protocol`** | on a record: how to call it. Unset = an ordinary bus service, send to the name; `/etc/services` names suggested, never checked | [services § how to call it](../../../docs/03-services-and-topics.md#how-to-call-it) |
 | **`reading` · `queued` · `in` · `out`** | live state on an answer, never stored: is anything serving this name, how much is waiting, and how much has arrived and been taken since the daemon started | [discovery § what a listing answers](../../../docs/05-discovery.md#what-a-listing-answers) |
@@ -82,14 +82,14 @@ wins.
 | **`--algo`** (`args` · `std` · `json` · `jsonl` · `msgpack`) | how a message reaches a script and what that implies about the process: argv, raw bytes on stdin, the envelope as JSON, or — into a child that is kept — that JSON per line, or `uint32`-framed msgpack | [runner § script services](../../../docs/08-runner-role.md#script-services) |
 | **pool** (`--share`) | one name served by several processes, on one host or many, all reporting to one bus; the word is the same on `consume` and on `start` | [runner § one name on many hosts](../../R1/runner.md#one-name-on-many-hosts) |
 | **`on`** (listing field) | where a name's members are running, one entry each, stated by them and never checked | [discovery § where a member says it is](../../R1/discovery.md#where-a-member-says-it-is) |
-| **pool realm** | a realm a daemon holds that is not its hostname, so a pool's name claims membership rather than a location — `image-scaler@pool1` | [identity § names](../../../docs/01-identity.md#names) |
+| **pool realm** | a realm a daemon holds that is not its hostname, so a pool's name claims membership rather than a location — `image-scaler@pool1` | [identity § names](../../../docs/01-identity-and-roles.md#names) |
 | **long-lived service** | a child started once and fed message after message, so state survives between them — the stream forms `jsonl` and `msgpack`, and the only shapes `reload` means anything to | [runner § long-lived services](../../R1/runner.md#long-lived-services) |
 | **template** · **instance** | on disk: `service.d/<name>` is what a service is, `runner/<name>/<instance>` is what one is configured with | [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
 | **`services.json`** | the runner's list of everything **installed** here: per service the host's options (`autostart`, `-N`, confinement, `depends`) and what the runner records (version, origin, `first-started`, `last-started`) | [runner § the list of what is installed](../../R1/runner.md#the-list-of-what-is-installed) |
 | **`autostart`** (`on` · `off` · `on-demand`) | one field in that row — at boot, never, or when first addressed; `off` is installed and configured, started by hand | [runner § the list of what is installed](../../R1/runner.md#the-list-of-what-is-installed) |
 | **`depends`** | services this one comes after: the author's in `config.json`, added to or turned off by the host in `services.json`; ordering only, never a readiness wait | [runner § what it comes after](../../R1/runner.md#what-it-comes-after) |
 | **`kept` · `ephemeral`** | whether the registry holds a record once nobody is using it; a different axis from kind, and nothing being served ever expires | [services § how long a record lives](../../R1.1/records.md#how-long-a-record-lives) |
-| **owner · maintainer** | one **user** who holds the record; a **group** that may change everything about it but ownership | [identity § ownership](../../../docs/01-identity.md#ownership) |
+| **owner · maintainer** | one **user** who holds the record; a **group** that may change everything about it but ownership | [identity § ownership](../../../docs/01-identity-and-roles.md#ownership) |
 | **bus** | the child that is the core: registry, queues, sessions, delivery | [processes](../../../docs/11-processes.md#processes-and-privileges) |
 | **port** | an interface core depends on; the seam a dependency is swapped at | [modules § the rule](../../../docs/10-modules.md#the-rule) |
 | **adapter** (layer) | the one implementation of a port; the only layer allowed outside I/O | [modules § the rule](../../../docs/10-modules.md#the-rule) |

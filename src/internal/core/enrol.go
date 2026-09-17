@@ -13,7 +13,7 @@ import (
 // Enrolment, in two steps, because fetching a public key is not
 // authentication: the bus says what it wants signed, and the newcomer proves
 // it holds the private half of a key the directory publishes for that login.
-// See docs/01-identity.md#registration.
+// See docs/01-identity-and-roles.md#registration.
 
 // How long a challenge is worth answering. Short: it is one round trip on the
 // same host, and an unanswered one is a name somebody is trying to take.
@@ -29,7 +29,7 @@ type challenge struct {
 // Directories says which realms are backed by a directory, and what verifies
 // a signature. A realm that has one can only be entered by enrolling — that
 // is the whole point, and it is what stops a name being claimed by whoever
-// asks first (docs/01-identity.md#ownership).
+// asks first (docs/01-identity-and-roles.md#ownership).
 func (b *Bus) Directories(dirs map[string]ports.Directory, sigs ports.Signatures) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

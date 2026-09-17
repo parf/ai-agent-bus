@@ -8,7 +8,7 @@ import (
 )
 
 // A principal is user@realm; a service is [template/]name@host. The name is
-// the identity — never a provider's numeric id. See docs/01-identity.md#names.
+// the identity — never a provider's numeric id. See docs/01-identity-and-roles.md#names.
 //
 // Every name is canonicalised as lower-case and ASCII only, trimmed as a whole
 // and again per component, so "mail-sender / parf@comfi.com @ host" is the one
@@ -146,5 +146,5 @@ func isASCII(s string) bool {
 // signature made for this bus from being usable anywhere else that verifies
 // sshsig, and the other way round — it is on the wire, so it belongs here
 // rather than in whatever tool checks it.
-// See docs/01-identity.md#registration.
+// See docs/01-identity-and-roles.md#registration.
 const SigNamespace = "agent-bus"

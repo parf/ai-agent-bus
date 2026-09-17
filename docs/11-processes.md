@@ -1,5 +1,7 @@
 # Processes and privileges
 
+📌 **TL;DR:** Supervisor manages processes; bus owns state; web uses the visitor's authority.
+
 ## Status
 
 | MVP | Scope |
@@ -104,7 +106,7 @@ third is derived here:
 | **The node's own identity is not authority** | release, build, host name, daemon owner, uptime and calls served are published to anybody, signed in or not ([what a node says about itself](05-discovery.md#what-a-node-says-about-itself)). The daemon answers that closed list without a credential, so the face reads it as anybody does — it is not the face acquiring privilege, and nothing else is readable that way |
 | **No privileged fallback** | a call refused for the visitor is refused. The panel does not retry as anybody else, because it is started without a credential of its own ([how a child is started](#how-a-child-is-started)) and there is nobody else for it to be |
 | **Nothing outlives the session** | authority arrives with the request and leaves with it. The session lives in the bus, not the child ([signing in](05-discovery.md#signing-in)), so a panel that is not serving a signed-in request is holding no authority at all |
-| **Authority is rendered, not computed** | the daemon already answers per caller — a record comes back saying whether *this* caller may manage or transfer it ([ACL](01-identity.md#acl)). The panel shows what it was told rather than working it out. A face that derives permissions itself is a second implementation of the access rules, and two implementations disagree; the disagreement that matters is the one where the page offers an action the daemon will refuse |
+| **Authority is rendered, not computed** | the daemon already answers per caller — a record comes back saying whether *this* caller may manage or transfer it ([ACL](02-access.md#acl)). The panel shows what it was told rather than working it out. A face that derives permissions itself is a second implementation of the access rules, and two implementations disagree; the disagreement that matters is the one where the page offers an action the daemon will refuse |
 
 Passing only the shared socket to the child is application wiring, not OS
 confinement. The current shared service account leaves other paths accessible;

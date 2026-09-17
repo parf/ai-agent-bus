@@ -19,7 +19,7 @@ in front of it is somebody's ordinary web site, not part of agent-bus.
 | Usage | the bus records every billable call per (principal, service) and reports it to the balance service; the dashboard shows the counts it already keeps ([discovery § dashboard](../../docs/05-discovery.md#dashboard)) |
 | Denied | **no balance = call denied**, with a clear error, like a missing role |
 | What is billable | what the bus can see — a message and its size ([messaging § envelope](../../docs/04-messaging.md#envelope)) |
-| Sign-up | a service with `allow: *` ([identity § acl](../../docs/01-identity.md#acl)); the newcomer's first call enrols them. A web site may call it on the user's behalf — that site is not agent-bus |
+| Sign-up | a service with `allow: *` ([identity § acl](../../docs/02-access.md#acl)); the newcomer's first call enrols them. A web site may call it on the user's behalf — that site is not agent-bus |
 | Pay | the **payment gateway is a citizen of the bus** — a service like any other, talking to a provider and topping up the principal's RADIUS balance. The core never handles money; it routes to the service that does |
 | Money | never in the core: no currency, no invoices, no card data — the `pay` service and the provider behind it own that; the core owns counting and denying |
 

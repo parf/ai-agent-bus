@@ -1,5 +1,7 @@
 # Layers and modules
 
+📌 **TL;DR:** Core decides; ports isolate dependencies; faces translate requests.
+
 ## Status
 
 The table below describes built code. Future packages and client-library plans

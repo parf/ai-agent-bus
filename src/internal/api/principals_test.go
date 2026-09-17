@@ -15,7 +15,7 @@ import (
 // into existence any more: registering one needs an owner who may already act,
 // and a name that is nobody cannot be its own. What still supplies this shape
 // is a store loaded at start, and enrolment, so a fixture says it the way a
-// store does. See docs/01-identity.md#registration.
+// store does. See docs/01-identity-and-roles.md#registration.
 func known(t *testing.T, b *core.Bus, names ...string) {
 	t.Helper()
 	s := ports.Snapshot{Clean: true}

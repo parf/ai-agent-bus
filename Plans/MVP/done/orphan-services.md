@@ -8,7 +8,7 @@ answered for it.
 ## Scope
 
 The contract was written and marked pending
-([identity § when the owner is gone](../../../docs/01-identity.md#when-the-owner-is-gone)):
+([identity § when the owner is gone](../../../docs/01-identity-and-roles.md#orphaned-records)):
 a record whose owner the daemon knows nothing about is wreckage, and goes at
 once with everything that hung on it. Nothing implemented it. And because it
 did not exist, H.5.4's credential sweep carried an **interim guard** — it spared

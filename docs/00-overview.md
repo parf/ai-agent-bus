@@ -1,5 +1,7 @@
 # Overview
 
+📌 **TL;DR:** One daemon connects agents and services through names, queues and permissions.
+
 The current documentation covers the MVP, including its pending requirements.
 Every topic distinguishes built behavior from pending scope. The
 [plan index](../Plans/README.md#stages) owns stage status and future work.
@@ -10,9 +12,8 @@ Values have one owning section; other pages link to it.
 
 | Topic | Owns |
 |---|---|
-| [Authority model](01-owners-and-maintainers.md#role-names-and-scopes) | Role names, authority scope and profile permissions |
-| [Identity](01-identity.md#principals) | Names, enrolment, record ownership, ACL and person records |
-| [Access](02-access.md#what-a-call-carries) | Credentials, rotation, sockets and the current trust boundary |
+| [Identity and roles](01-identity-and-roles.md#identities) | Names, users, roles, groups and resource lifecycle |
+| [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
 | [Services](03-services-and-topics.md#service-kinds) | Registration, configuration and topic properties |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and snapshots |
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
@@ -32,7 +33,7 @@ external broker; it does not require one.
 ## Principles
 
 - Credentials identify callers, and the bus enforces access before delivery
-  ([access](02-access.md#what-a-call-carries), [ACL](01-identity.md#acl)).
+  ([access](02-access.md#what-a-call-carries), [ACL](02-access.md#acl)).
 - A name owns its inbox; the process serving it may disappear while work waits
   ([messaging](04-messaging.md#inbox-queues)).
 - Replies and receipts are ordinary messages; the daemon keeps no exchange state
@@ -55,5 +56,5 @@ Optional future roles are owned by their release plans, not this document.
 |---|---|
 | [At most once consumption](04-messaging.md#one-reader-per-inbox) | A reader dying after dequeue can lose the message |
 | [In-memory queues with snapshots](04-messaging.md#durability) | An unclean stop can lose traffic since the last snapshot |
-| [Trusted host](02-access.md#encrypted-sessions) | The daemon can read bodies and stored configuration |
+| [Trusted host](02-access.md#trust-boundary) | The daemon can read bodies and stored configuration |
 | [Filtered waits](04-messaging.md#one-reader-per-inbox) | A simultaneous unfiltered reader can take an exchange's next reply between waits |

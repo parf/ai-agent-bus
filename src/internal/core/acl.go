@@ -4,7 +4,7 @@ import "github.com/parf/ai-agent-bus/internal/protocol"
 
 // The two ACL layers, in one place because every verb goes through them and a
 // second copy is how one path stays open. Service first, then master.
-// See docs/01-identity.md#acl.
+// See docs/02-access.md#acl.
 
 // Masters sets who holds the master ACL. Not a constructor argument: the bus
 // is built before the daemon has parsed its flags, and this is configuration,

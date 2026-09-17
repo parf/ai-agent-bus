@@ -11,7 +11,7 @@ import (
 )
 
 // A group is retired by emptying its membership
-// (docs/01-identity.md#groups-and-maintainers). These are H.5.6's checks: the
+// (docs/01-identity-and-roles.md#groups). These are H.5.6's checks: the
 // deletion verb is gone from the API as well as the page, and emptying does
 // what deletion was reached for without the damage deletion would have done.
 func groupFixture(t *testing.T) (*core.Bus, *Server, func(string) string) {

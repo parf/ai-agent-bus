@@ -39,7 +39,7 @@ holds one of the things.
 |---|---|
 | **take a named one, or take any free one** | `gpu2` when it has to be that one; *any* when it does not, and the answer says **which** was given |
 | **that answer is the point** | a counting semaphore says *you may proceed* and leaves two holders to pick the same GPU. A set says *you have `gpu2`*, which is the whole difference and the reason this is named locks rather than a number |
-| **the set is a name, so it is granted like one** | who may take from it is the ordinary ACL question ([identity § acl](../../docs/01-identity.md#acl)), asked once about the set rather than per resource |
+| **the set is a name, so it is granted like one** | who may take from it is the ordinary ACL question ([identity § acl](../../docs/02-access.md#acl)), asked once about the set rather than per resource |
 | **empty behaves like a held lock** | `lock` waits for the first one returned, `try-lock` is refused now. Nothing new: it is the two forms above, asked of a set |
 | **and it answers how many are free** | cheap, and the number a dashboard or a queue-depth alarm wants |
 

@@ -44,7 +44,7 @@ agent-bus publish --topic alerts.prod@srv1 "disk nearly full"
 ```
 
 For a script service, use the [foreground runner](docs/08-runner-role.md#script-services).
-The daemon is trusted with bodies in the MVP ([trust boundary](docs/02-access.md#encrypted-sessions));
+The daemon is trusted with bodies in the MVP ([trust boundary](docs/02-access.md#trust-boundary));
 restart persistence has the [documented loss window](docs/04-messaging.md#durability).
 
 ## Plans

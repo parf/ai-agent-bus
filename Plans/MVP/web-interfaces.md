@@ -24,7 +24,7 @@ The owner already requested an administrative application. The gap is not a miss
 |---|---|
 | [Required dashboard](../../docs/05-discovery.md#required-tabs) | Preserve service, channel, user, group and activity workflows; a visual overview cannot replace their controls |
 | [Existing diagnostics](../../docs/05-discovery.md#what-it-shows) | Keep backlog, exchange, loss, refusal, node and credential views reachable, even when the homepage becomes shorter |
-| [Owner control](../../docs/01-identity.md#owner-control) and [maintainer scopes](../../docs/01-identity.md#groups-and-maintainers) | Show the relevant actions and their scope; daemon administration is not ownership of every service |
+| [Owner control](../../docs/01-identity-and-roles.md#services) and [maintainer scopes](../../docs/01-identity-and-roles.md#groups) | Show the relevant actions and their scope; daemon administration is not ownership of every service |
 | [Discovery observations](../../docs/05-discovery.md#what-a-listing-answers) | Separate registration, permission to deliver, reader presence and queue condition |
 | [Session names](../../docs/08-runner-role.md#session-names) | Show the familiar session description prominently beside its complete routing address |
 | [Service method information](../../docs/03-services-and-topics.md#service-and-template) | Show the description before asking someone to use a service; do not promise a generated method browser |
@@ -80,13 +80,13 @@ The overview is a summary of existing MVP views. It must not acquire the R1 oper
 
 | Current problem | Proposed language or behavior |
 |---|---|
-| “Active” can be mistaken for a live process | “Enabled” / “Disabled” describes administrative delivery state; explanatory text follows [owner control](../../docs/01-identity.md#owner-control) |
+| “Active” can be mistaken for a live process | “Enabled” / “Disabled” describes administrative delivery state; explanatory text follows [owner control](../../docs/01-identity-and-roles.md#services) |
 | “Serving” / “Offline” claims more than an instantaneous read observation proves | “Reader attached” / “No reader waiting”; explain that the latter does not establish process death. External protocol and pub/sub presentation must not imply a direct inbox reader is required |
 | Every queued inbox is called stuck | Present “Queued work”; distinguish backlog with a reader from backlog without one. Show observed age and saturation rather than inventing a health threshold |
 | In/out and waiting are ambiguous | Use accepted/dequeued and waiting reads; never equate dequeued with completed work |
 | Omitted values print as blank labels | Use “Not supplied”, “Uses daemon default”, “No queued messages”, or “Not observed”, according to the actual fact |
 | “Users” includes credentials without person provenance | Distinguish trusted profiles from unclassified identities using daemon evidence; do not classify a person from a slash or runtime prefix in a name |
-| “Credentials remain valid” on removal is stale | Derive action help from [unregistering](../../docs/01-identity.md#unregistering); do not reuse transfer's credential wording |
+| “Credentials remain valid” on removal is stale | Derive action help from [unregistering](../../docs/01-identity-and-roles.md#unregistering); do not reuse transfer's credential wording |
 | A missing receipt looks like unfinished execution | “No completion observed in retained history”; absence from a bounded feed is not failure or pending work |
 | Dates have no timezone and several meanings | Label registration update, observation time, credential issue/use and history interval separately; use one explicit display timezone, with full timestamps available |
 

@@ -1,5 +1,7 @@
 # 👋 agent-bus, for people who use it
 
+📌 **TL;DR:** Register a name, send messages, run services and connect agent sessions.
+
 Four short guides. Read the first three in order and you will be running your
 own service in about ten minutes.
 

@@ -1,5 +1,7 @@
 # Messaging
 
+📌 **TL;DR:** Messages wait in bounded inboxes; dequeue is not completion.
+
 ## Status
 
 | MVP | Scope |
@@ -54,7 +56,7 @@ the same topic + tag**, and the caller waits for it:
 
 | Side | Does |
 |---|---|
-| caller | **states its own record** if it has none — an answer needs an address to arrive at ([identity § registration](01-identity.md#registration)) — then `send` and wait on its own queue for a message with that topic + tag. A plain `send` does **not** require this: a sender's name is checked for shape, not for registration, so fire-and-forget works from anyone and an answer to an unregistered sender is refused as *no such name*. Wanting a reply is what makes the record necessary |
+| caller | **states its own record** if it has none — an answer needs an address to arrive at ([identity § registration](01-identity-and-roles.md#registration)) — then `send` and wait on its own queue for a message with that topic + tag. A plain `send` does **not** require this: a sender's name is checked for shape, not for registration, so fire-and-forget works from anyone and an answer to an unregistered sender is refused as *no such name*. Wanting a reply is what makes the record necessary |
 | service | `consume` its inbox, optionally `ack` (got it), do the work, `reply` — and `done` if the sender asked for it |
 | deadline | the caller's, and it **travels with the request** so the service can give up early — see below. The message's TTL is a different bound, and is what stops a late answer arriving |
 
@@ -254,7 +256,7 @@ an inbox rather than hand it to whoever is connected.
 
 | | |
 |---|---|
-| who may subscribe | anyone the topic's ACL lets see it ([identity § acl](01-identity.md#acl)) — and you subscribe **yourself**, because it is your inbox the copies land in |
+| who may subscribe | anyone the topic's ACL lets see it ([identity § acl](02-access.md#acl)) — and you subscribe **yourself**, because it is your inbox the copies land in |
 | and must be registered | the copy needs somewhere to go, and an inbox belongs to a registered name |
 | asked again at **every publish** | access taken away stops the copies. Checking only at subscribe would make a subscription a way to go on reading a topic that stopped allowing you |
 | whose bound, TTL and overflow apply | the **subscriber's**, because the copy is in the subscriber's inbox |

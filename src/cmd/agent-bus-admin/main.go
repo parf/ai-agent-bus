@@ -210,7 +210,7 @@ func userAdd(args []string) error {
 		return err
 	}
 	// The key is written first because it is the half that can be taken back:
-	// a user is never deleted (docs/01-identity.md#user-lifecycle), so the
+	// a user is never deleted (docs/01-identity-and-roles.md#user-states), so the
 	// irreversible half goes last and the reversible one is undone when it
 	// refuses. Either both, or neither.
 	if err := provision(n, admin); err != nil {

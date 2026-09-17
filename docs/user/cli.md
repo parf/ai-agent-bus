@@ -1,5 +1,7 @@
 # 🧰 The command-line tools
 
+📌 **TL;DR:** Use `agent-bus` to register, send, read and run.
+
 Everything you do with agent-bus from a terminal. Start here.
 
 There are five programs. You will use the first one almost always:

@@ -1,5 +1,7 @@
 # Stages
 
+📌 **TL;DR:** MVP is current; later work belongs to its release plan.
+
 Stage status and scope are owned by the [plan index](../Plans/README.md#stages).
 This page preserves navigation from the numbered documentation.
 

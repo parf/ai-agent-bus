@@ -11,7 +11,7 @@ import (
 )
 
 // H.5.7: every service a paused or banned user owns refuses calls while that
-// lasts (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned). The
+// lasts (docs/01-identity-and-roles.md#user-states). The
 // check is on the called name, not on who is asking, so these are all about
 // what `svc@h` answers rather than about who alice@h is.
 

@@ -232,7 +232,7 @@ func (t *Tokens) Holds(names []string) []Held {
 // **Browser sessions for the name go too.** A session is a credential without
 // being a token (sessions.go), so one that outlived the credential it came
 // from would be exactly "no registration, no access" not holding
-// (docs/01-identity.md#unregistering) — for up to IdleLife, on a name the
+// (docs/01-identity-and-roles.md#unregistering) — for up to IdleLife, on a name the
 // daemon has already decided answers for nothing. They are dropped even when
 // there was no token to forget, because a session that stands for a name is
 // reachable however the name lost its credential.

@@ -66,11 +66,11 @@ func runBus(c config) {
 	}
 	save(false)
 	// The daemon's owner holds master without being listed: they installed
-	// it, and the setup user is the admin. See docs/01-identity.md#acl.
+	// it, and the setup user is the admin. See docs/02-access.md#acl.
 	bus.Masters(append([]string{me.String()}, c.hold...))
 	// A realm somebody vouches for can only be entered by proving you hold
 	// a key it publishes. Realms nobody vouches for stay open, as they were.
-	// See docs/01-identity.md#registration.
+	// See docs/01-identity-and-roles.md#registration.
 	dirs := map[string]ports.Directory{}
 	for _, v := range c.vouch {
 		realm, what, ok := strings.Cut(v, "=")
@@ -90,7 +90,7 @@ func runBus(c config) {
 
 	// A record whose owner the daemon knows nothing about is wreckage, and it
 	// goes first — with its queues, whatever is in them
-	// (docs/01-identity.md#when-the-owner-is-gone).
+	// (docs/01-identity-and-roles.md#orphaned-records).
 	//
 	// Before the credential sweep below, because deleting a record is what
 	// makes its name answer for nothing: the two run in that order so they

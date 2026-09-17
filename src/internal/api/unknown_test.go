@@ -115,7 +115,7 @@ var privateRoutes = []string{
 // the mapped account on a socket — against every private route: an unregistered
 // name is refused all of them, and leaves nothing behind for having tried.
 // Enrolment is absent on purpose: it carries no credential, because it is where
-// one comes from (docs/01-identity.md#proving-possession).
+// one comes from (docs/02-access.md#proving-possession).
 //
 // Route coverage of this shape was worked out by the codex peer during its
 // access audit; the checks are restated here rather than kept in a scratch

@@ -22,7 +22,7 @@ func (b *Bus) active(name string) bool {
 // ways for somebody to be behind a name — be it, or own it — and a suspension
 // on either side refuses the same way: `403 suspended`, one suspension seen
 // from either side, with nothing the caller can do about it in either case
-// (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned).
+// (docs/01-identity-and-roles.md#user-states).
 //
 // Deliberately **not** folded into active(). active asks about a name's own
 // user state and is asked at a dozen places about people, where a record
@@ -62,7 +62,7 @@ func (b *Bus) suspension(name string) error {
 //
 // It is also **not transitive**. If a service owns a service, suspending the
 // person at the top does not reach the bottom one: the contract is *every
-// service they own* (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned),
+// service they own* (docs/01-identity-and-roles.md#user-states),
 // and ownership is the direct relation the record states. Following the chain
 // would be a different and larger rule.
 // Caller holds b.mu.
@@ -118,7 +118,7 @@ func (b *Bus) acting(name string) error {
 	// Both sides, at the edge and again here: a suspended person's service
 	// holds a credential that is kept rather than revoked, and kept is not
 	// accepted — while the state lasts it grants no access, theirs or their
-	// services' (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned).
+	// services' (docs/01-identity-and-roles.md#user-states).
 	return b.suspension(name)
 }
 
@@ -181,7 +181,7 @@ func (b *Bus) IsAdministrator(name string) bool {
 
 // IsPerson says whether a name is somebody's identity rather than a service
 // they registered. A person keeps their credential when an address of theirs
-// is removed; a service does not (docs/01-identity.md#unregistering).
+// is removed; a service does not (docs/01-identity-and-roles.md#unregistering).
 func (b *Bus) IsPerson(name string) bool {
 	n, err := canon(name)
 	if err != nil {
@@ -202,7 +202,7 @@ func (b *Bus) IsPerson(name string) bool {
 // The two tests are the daemon's own: a profile it holds and a record it
 // holds. Never how a name is spelled — a name that looks like a test fixture
 // and belongs to somebody is a person, and a tidy-looking name with nothing
-// behind it is not (docs/01-identity.md#person-records).
+// behind it is not (docs/01-identity-and-roles.md#users-and-profiles).
 //
 // The daemon owner's credential is minted by the store rather than by a
 // record, and survives because starting the daemon writes the owner a profile.
@@ -299,7 +299,7 @@ func (b *Bus) owns(name string) bool {
 
 // vouchedFor refuses to let a name in a realm somebody vouches for be brought
 // into existence by asking. In such a realm you become the name by proving a
-// key the directory publishes ([proving possession](docs/01-identity.md#proving-possession)),
+// key the directory publishes ([proving possession](docs/02-access.md#proving-possession)),
 // and every path that creates a name has to say so — registration and
 // configuration alike, because both of them create. Caller holds b.mu.
 func (b *Bus) vouchedFor(name string) error {
@@ -317,13 +317,13 @@ func (b *Bus) vouchedFor(name string) error {
 //
 // Registering a record for an owner the daemon knows nothing about would leave
 // it owned by nobody — the wreckage the
-// [deletion rule](docs/01-identity.md#when-the-owner-is-gone) exists to clean
+// [deletion rule](docs/01-identity-and-roles.md#orphaned-records) exists to clean
 // up — so it is refused, and refusing it is what makes that rule's premise true
 // rather than aspirational.
 //
 // There is no longer a clause letting an unknown name create itself. It was
 // here because one caller legitimately needs it — a newcomer a realm vouched
-// for, whose [enrolment](docs/01-identity.md#proving-possession) writes it a
+// for, whose [enrolment](docs/02-access.md#proving-possession) writes it a
 // self-owned record — and separating that caller from an ordinary one asking
 // for the same thing was not possible while the gate's answer was stale by the
 // time this ran. Now that it is not, enrolment says so for itself (the

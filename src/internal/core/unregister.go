@@ -12,7 +12,7 @@ import (
 // A removed name is not reserved and not reclaimable: the address is gone and
 // so is the credential the face drops with it. Protecting a removed name is
 // [R1.2 work](../../Plans/R1.2/README.md#removed-names), deliberately not
-// MVP's. See docs/01-identity.md#unregistering.
+// MVP's. See docs/01-identity-and-roles.md#unregistering.
 func (b *Bus) Unregister(name, caller string) error {
 	return b.UnregisterAnd(name, caller, nil)
 }
@@ -60,7 +60,7 @@ func (b *Bus) UnregisterAnd(name, caller string, forget func(string) error) erro
 	// Removing the record that makes a name a principal, while that name still
 	// owns others, leaves every one of them owned by somebody the daemon no
 	// longer knows: the wreckage the deletion rule exists for
-	// (docs/01-identity.md#when-the-owner-is-gone), made by an ordinary call.
+	// (docs/01-identity-and-roles.md#orphaned-records), made by an ordinary call.
 	// Refused like a queue that is not empty, and for the same reason — there
 	// is somebody here to tell, and what to do about it is theirs to choose.
 	//
@@ -83,7 +83,7 @@ func (b *Bus) UnregisterAnd(name, caller string, forget func(string) error) erro
 	// exception, and not for the same reason: their credential is how they
 	// call at all, and unregistering a record must not log them out. Decided
 	// here, on the same facts the removal is decided on.
-	// See docs/01-identity.md#unregistering.
+	// See docs/01-identity-and-roles.md#unregistering.
 	if _, person := b.users[n]; !person && forget != nil {
 		if err := forget(n); err != nil {
 			return err
@@ -125,7 +125,7 @@ func (b *Bus) forgetName(name string) {
 		}
 	}
 	// **Group membership goes with the name.** A freed name is reclaimable by
-	// anybody (docs/01-identity.md#unregistering), so a membership left
+	// anybody (docs/01-identity-and-roles.md#unregistering), so a membership left
 	// behind is not a dangling row — it is inherited. Whoever registers the
 	// name next is in every group the old one was, and reaches every record
 	// those groups allow.

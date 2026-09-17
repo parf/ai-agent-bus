@@ -135,7 +135,7 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	groups := get("/groups")
 	// Groups are not deleted at all, so no group offers it — the protected one
 	// because core refuses it outright, the rest because deletion is not how a
-	// group is retired. See docs/01-identity.md#groups-and-maintainers.
+	// group is retired. See docs/01-identity-and-roles.md#groups.
 	if strings.Contains(groups, "value=delete") {
 		t.Error("the groups page still offers a deletion")
 	}

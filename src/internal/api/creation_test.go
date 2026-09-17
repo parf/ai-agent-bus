@@ -18,7 +18,7 @@ func (publishedKeys) Keys(string) ([]string, error) { return []string{"ssh-ed255
 // and obeys what creation obeys. It did not: a name registration refused for
 // being in a vouched realm could be taken by configuring it instead, and then
 // issued a credential, with no key ever proved — in a realm whose whole point
-// is that you prove one (docs/01-identity.md#proving-possession).
+// is that you prove one (docs/02-access.md#proving-possession).
 func TestConfiguringDoesNotCreateWhatRegisteringRefuses(t *testing.T) {
 	b := core.New()
 	b.Directories(map[string]ports.Directory{"vouched": publishedKeys{}}, nil)

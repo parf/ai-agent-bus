@@ -24,7 +24,7 @@ there is.
 
 **Order is the design.** The key line is written first because it is the half
 that can be taken back; a user is never deleted
-([user lifecycle](../../../docs/01-identity.md#user-lifecycle)), so the
+([user lifecycle](../../../docs/01-identity-and-roles.md#user-states)), so the
 irreversible half goes last and the reversible one is undone when it refuses.
 The outcome is both or neither.
 

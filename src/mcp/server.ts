@@ -356,7 +356,7 @@ function sessionTitle(): string | undefined {
 }
 
 // The same derivation the launcher uses for a session address
-// (docs/01-identity.md#names), so a rename here and a restart there agree on
+// (docs/01-identity-and-roles.md#names), so a rename here and a restart there agree on
 // the name. The separator is whatever this session already registered with.
 function derive(title: string): string {
   return defaultName(

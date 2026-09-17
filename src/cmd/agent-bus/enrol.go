@@ -2,7 +2,7 @@
 // vouches for: the bus says what to sign, the key on this machine signs it,
 // and the bus checks the answer against what the directory publishes.
 // Fetching a public key proves nothing on its own — this is the step that
-// does. See docs/01-identity.md#registration.
+// does. See docs/01-identity-and-roles.md#registration.
 package main
 
 import (

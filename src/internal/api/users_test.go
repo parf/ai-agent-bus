@@ -81,7 +81,7 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	// A service identity is *not* independent of its owner's access, which is
 	// what H.5.7 changed: kept is not accepted, so while the state lasts the
 	// credential grants nothing, theirs or their services'
-	// (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned). The
+	// (docs/01-identity-and-roles.md#user-states). The
 	// credential itself survives — the call below proves it works again once
 	// the state is lifted, so nothing was revoked.
 	call("svc@h", "GET", "/status", "", 403)

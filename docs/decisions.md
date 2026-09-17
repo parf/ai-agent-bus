@@ -1,5 +1,7 @@
 # MVP decisions
 
+📌 **TL;DR:** Decision index; linked contracts define the rule and implementation status.
+
 ## Settled
 
 Migrated 2026-09-13. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
@@ -8,8 +10,8 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 |---|---|---|
 | Plain-text ACL editing | [ACL editing](05-discovery.md#acl-editing) | 2026-09-16 owner instruction; display glyphs are not input syntax |
 | Entity labels in web and CLI | [display labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-16 owner-selected glyphs for web and human-readable CLI output |
-| Protected identity fields in self-service profile editing | [profile permissions](01-owners-and-maintainers.md#users-and-profile-editing) | 2026-09-16 owner clarification; accepted, implementation pending |
-| Separate administrative and resource-maintenance roles | [role names](01-owners-and-maintainers.md#role-names-and-scopes), [shared management](01-owners-and-maintainers.md#shared-service-management) | 2026-09-16 owner clarification; replaces the shared daemon/service “Maintainer” terminology. Earlier dated rows retain historical wording |
+| Protected identity fields in self-service profile editing | [profile permissions](01-identity-and-roles.md#users-and-profiles) | 2026-09-16 owner clarification; accepted, implementation pending |
+| Separate administrative and resource-maintenance roles | [role names](01-identity-and-roles.md#role-names-and-scopes), [shared management](01-identity-and-roles.md#groups) | 2026-09-16 owner clarification; replaces the shared daemon/service “Maintainer” terminology. Earlier dated rows retain historical wording |
 | Retained exchange correlation preserves references and qualifies inferred responses | [retained exchanges](05-discovery.md#retained-exchanges) | 2026-09-15 authorized web implementation; F.13.5 partial |
 | A full queue answers `429`, not `503` | [overflow](04-messaging.md#overflow) | 2026-09-15 owner instruction; `503` is left to a service that is briefly unavailable |
 | Dashboard is a loopback address, not a borrowed hostname | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction; the name's certificate had expired |
@@ -26,8 +28,8 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | MVP administrative crash-recovery decision gate | [policy status](04-messaging.md#administrative-crash-recovery) | 2026-09-13 owner-approved review; the guarantee was settled 2026-09-15 |
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
 | Human-readable CLI listings | [CLI listing](05-discovery.md#cli-listing) | 2026-09-13 owner instruction |
-| Manual removal of idle registry addresses | [unregistering](01-identity.md#unregistering) | 2026-09-13 owner request |
-| A removed name keeps nothing; a name is protected by retiring it | [unregistering](01-identity.md#unregistering), [R1.1 retirement](../Plans/R1.1/records.md#down-and-retired) | 2026-09-15 owner revision |
+| Manual removal of idle registry addresses | [unregistering](01-identity-and-roles.md#unregistering) | 2026-09-13 owner request |
+| A removed name keeps nothing; a name is protected by retiring it | [unregistering](01-identity-and-roles.md#unregistering), [R1.1 retirement](../Plans/R1.1/records.md#down-and-retired) | 2026-09-15 owner revision |
 | Launcher address follows renamed session on restart | [session names](08-runner-role.md#session-names) | 2026-09-13 owner revision |
 | Launcher addresses use template and instance naming | [session names](08-runner-role.md#session-names) | 2026-09-13 owner instruction |
 | Credential lifetime across releases | [token lifetime](02-access.md#token-lifetime) | 2026-09-13 owner instruction |
@@ -38,22 +40,22 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Versioning | [definition](../CLAUDE.md#versioning) | D1 |
 | Build information | [definition](09-setup.md#build-information) | D2 |
 | Process titles | [definition](11-processes.md#process-titles) | D3 |
-| Names | [definition](01-identity.md#names) | D4, D5, D67, D68, D116, D126, D127 |
+| Names | [definition](01-identity-and-roles.md#names) | D4, D5, D67, D68, D116, D126, D127 |
 | The two accounts | [definition](09-setup.md#the-two-accounts) | D8, D14, D195 |
 | The programs | [definition](09-setup.md#the-programs) | D9, D10, D13 |
 | Getting a token | [definition](02-access.md#getting-a-token) | D11, D43, D44, D47 |
-| Proving possession | [definition](01-identity.md#proving-possession) | D12, D33, D34, D35 |
-| Acl | [definition](01-identity.md#acl) | D15, D25, D36 |
-| Registration | [definition](01-identity.md#registration) | D16, D17 |
-| Conditional new-name registration | [definition](01-identity.md#registration) | 2026-09-13; enforces the owner's concurrent-session uniqueness requirement |
-| Profile fields | [definition](01-identity.md#profile-fields) | D19, D248 |
-| Who may write a record | [definition](01-identity.md#who-may-write-a-record) | D20, D21 |
-| Every identifying field is unique | [definition](01-identity.md#every-identifying-field-is-unique) | D22 |
+| Proving possession | [definition](02-access.md#proving-possession) | D12, D33, D34, D35 |
+| Acl | [definition](02-access.md#acl) | D15, D25, D36 |
+| Registration | [definition](01-identity-and-roles.md#registration) | D16, D17 |
+| Conditional new-name registration | [definition](01-identity-and-roles.md#registration) | 2026-09-13; enforces the owner's concurrent-session uniqueness requirement |
+| Profile fields | [definition](01-identity-and-roles.md#users-and-profiles) | D19, D248 |
+| Who may write a record | [definition](01-identity-and-roles.md#users-and-profiles) | D20, D21 |
+| Every identifying field is unique | [definition](01-identity-and-roles.md#users-and-profiles) | D22 |
 | Audience | [definition](05-discovery.md#audience) | D31 |
-| Encrypted sessions | [definition](02-access.md#encrypted-sessions) | D32 |
-| Ownership | [definition](01-identity.md#ownership) | D39, D52 |
+| Encrypted sessions | [definition](02-access.md#trust-boundary) | D32 |
+| Ownership | [definition](01-identity-and-roles.md#ownership) | D39, D52 |
 | What a call carries | [definition](02-access.md#what-a-call-carries) | D42 |
-| Token scope | [definition](02-access.md#token-scope) | D45 |
+| Token scope | [definition](02-access.md#what-a-call-carries) | D45 |
 | Local socket | [definition](02-access.md#local-socket) | D48, D56, D57 |
 | Token lifetime | [definition](02-access.md#token-lifetime) | D49, D50, D51 |
 | Storage | [definition](09-setup.md#storage) | D53 |
@@ -99,7 +101,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | The rule | [definition](11-processes.md#the-rule) | D190, D193 |
 | The processes | [definition](11-processes.md#the-processes) | D191 |
 | Nothing the daemon runs may exec | [definition](11-processes.md#nothing-the-daemon-runs-may-exec) | D194 |
-| The three doors | [definition](02-access.md#the-three-doors) | D196 |
+| The three doors | [definition](02-access.md#what-a-call-carries) | D196 |
 | Why the supervisor holds cap_chown | [definition](11-processes.md#why-the-supervisor-holds-cap_chown) | D214 |
 | Goal | [definition](00-overview.md#goal) | D218 |
 | Sandboxing | [definition](08-runner-role.md#sandboxing) | D223, D224 |
@@ -115,29 +117,29 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Date | Decision | Why | Substance |
 |---|---|---|---|
 | 2026-09-13 | Required administrative dashboard | Owner confirms missing requirements and the MVP/R1 split | [required tabs](05-discovery.md#required-tabs) |
-| 2026-09-13 | Owner and maintainers in MVP | Owner explicitly retains the authority model in required scope | [groups and maintainers](01-identity.md#groups-and-maintainers) |
+| 2026-09-13 | Owner and maintainers in MVP | Owner explicitly retains the authority model in required scope | [groups and maintainers](01-identity-and-roles.md#groups) |
 
 ## Service owner authority
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-13 | Full control of owned services | Owner clarifies that ordinary users need no daemon administration role to manage their services | [owner control](01-identity.md#owner-control) |
+| 2026-09-13 | Full control of owned services | Owner clarifies that ordinary users need no daemon administration role to manage their services | [owner control](01-identity-and-roles.md#services) |
 
 ## Dashboard implementation defaults
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-13 | Local user administration before AUTH | Implement the accepted owner/maintainer hierarchy with a protected flat group; resolves Q29 | [groups and maintainers](01-identity.md#groups-and-maintainers) |
-| 2026-09-13 | Profile identifier normalization | Initial implementation default without provider alias merging; resolves Q28 | [identifier uniqueness](01-identity.md#every-identifying-field-is-unique) |
-| 2026-09-13 | User pause and ban behavior | Initial implementation default preserves credentials and queued work; resolves Q37 | [user lifecycle](01-identity.md#user-lifecycle) |
+| 2026-09-13 | Local user administration before AUTH | Implement the accepted owner/maintainer hierarchy with a protected flat group; resolves Q29 | [groups and maintainers](01-identity-and-roles.md#groups) |
+| 2026-09-13 | Profile identifier normalization | Initial implementation default without provider alias merging; resolves Q28 | [identifier uniqueness](01-identity-and-roles.md#users-and-profiles) |
+| 2026-09-13 | User pause and ban behavior | Initial implementation default preserves credentials and queued work; resolves Q37 | [user lifecycle](01-identity-and-roles.md#user-states) |
 | 2026-09-13 | Bounded dashboard history | Initial implementation default keeps collection independent of page visits; resolves Q38 | [activity history](05-discovery.md#activity-history) |
 | 2026-09-15 | A person's credential lasts as long as they are a registered user | It is how they call at all, so nothing underneath it ends it; registration is what does | [token lifetime](02-access.md#token-lifetime) |
 | 2026-09-15 | A credential nobody owns is dropped at daemon start; resolves Q51 | A sweep at a known moment, not expiry — tokens still never retire for being old or idle; this clears what the old outlives-the-address rule left behind | [ownerless credentials](02-access.md#ownerless-credentials) |
 | 2026-09-15 | Node-wide counters are visible to anyone who may ask; resolves Q50 | They describe the daemon, not the caller, so there is no narrower audience; no access is the whole restriction, and a page must label node scope against caller scope | [dashboard](05-discovery.md#dashboard) |
 | 2026-09-15 | A certificate asked for and missing refuses the start; resolves Q52 | Somebody who wanted HTTPS would otherwise get a log line they do not read and a page that is not encrypted; refusing is the only answer they cannot miss | [where it listens](05-discovery.md#where-it-listens) |
 | 2026-09-15 | An acknowledged ban, group removal or ACL restriction holds until explicitly lifted; resolves Q39 | Acknowledging is a promise, and a crash is not a way out of one; if the durability cannot be promised the acknowledgement must not be given | [administrative crash recovery](04-messaging.md#administrative-crash-recovery) |
-| 2026-09-15 | A service whose owner is not a user is deleted at once, with its credential and all its queues; resolves Q40, and Q53 with it | Every owner is a user and a user is never deleted, so this is wreckage rather than a state to run in — nothing can be told to drain a queue addressed to something no principal answers for, and a name nothing holds is free | [when the owner is gone](01-identity.md#when-the-owner-is-gone) |
-| 2026-09-15 | A service owned by a paused or banned user refuses calls, in the daemon | The state is about what that person's names may do, and a page that labelled the owner while the service still answered would describe a rule nobody applied; it deletes nothing and kills nothing, or a ban could not be lifted | [services of a user who is paused or banned](01-identity.md#services-of-a-user-who-is-paused-or-banned) |
+| 2026-09-15 | A service whose owner is not a user is deleted at once, with its credential and all its queues; resolves Q40, and Q53 with it | Every owner is a user and a user is never deleted, so this is wreckage rather than a state to run in — nothing can be told to drain a queue addressed to something no principal answers for, and a name nothing holds is free | [when the owner is gone](01-identity-and-roles.md#orphaned-records) |
+| 2026-09-15 | A service owned by a paused or banned user refuses calls, in the daemon | The state is about what that person's names may do, and a page that labelled the owner while the service still answered would describe a rule nobody applied; it deletes nothing and kills nothing, or a ban could not be lifted | [services of a user who is paused or banned](01-identity-and-roles.md#user-states) |
 | 2026-09-15 | The daemon may run `ssh-keygen`; the boundary is no user services, not no exec; resolves Q30 | A fixed verifier the daemon ships and calls with its own arguments is not a stranger's program, and what a user supplied is what the rule is about | [nothing the daemon runs may exec](11-processes.md#nothing-the-daemon-runs-may-exec) |
 | 2026-09-15 | MVP installs by its own script only, with no npm path; resolves Q10 | One supported way in is what installation acceptance can be run against; npm publication stays R1 | [install](09-setup.md#install) |
 | 2026-09-15 | The account map is administered by operator SSH key or user token, and nothing new; resolves Q9 | The entitlement is already the principal in the key's entry, so who may edit the map is answered by what answers everything else | [administering the account map](09-setup.md#administering-the-account-map) |
@@ -147,16 +149,16 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | 2026-09-16 | The dashboard ships **one design and no themes**: a single light palette, no scheme control, no density control and no stored preference; supersedes Q61 and settles Q62's control half | Owner instruction: *one good design for admin panels, no themes*. Two schemes are two designs to keep in step, and the second was never the thing that made the interface good. One palette means one contrast obligation instead of a doubled one, no preferences route, no cookie, no persistence scope, and no page whose appearance depends on state the daemon does not hold. Light, because an operations console sits beside other light tooling and every system this plan borrows patterns from defaults that way. The container query stays: it answers the width a table has, which is a fact about the layout rather than a preference about the person | [colour](../Plans/MVP/web/tokens.md#colour), [theme and density controls](../Plans/MVP/web/visual-design.md#theme-and-density-controls) |
 | 2026-09-16 | The daemon owner owns the dashboard token file; resolves Q62 | The recorded risk is *amateur if nobody owns typography and density*, and it is conditional on the ownership rather than on the tokens. The five acceptance checks make a lapse visible; they cannot create the ownership. An existing role rather than a new appointment means no post to leave vacant, and one design rather than two makes the post small enough to actually hold | [risk, recorded](../Plans/MVP/web/visual-design.md#risk-recorded) |
 | 2026-09-16 | The web panel acts on the visitor's token and on nothing else | Owner instruction. What the dashboard can do is what the signed-in person could do from the CLI: no privileged fallback when a call is refused, no authority held between requests, and permissions rendered from what the daemon answered rather than recomputed in the face — two implementations of the access rules disagree, and the disagreement that matters is a page offering an action the daemon will refuse | [web authority](11-processes.md#web-authority-boundary) |
-| 2026-09-15 | No registration, no access | The record is what access hangs on; a credential whose record is gone has nothing left to hold, and the page said the opposite | [unregistering](01-identity.md#unregistering) |
-| 2026-09-15 | A group is neither deleted nor given states; a group is retired by emptying its membership; resolves Q54 | Removing a name other records point at silently changes what they mean, and a group is not a principal to pause — *inactive* could only mean its members stop counting, which an empty list already says, with no second concept | [groups and maintainers](01-identity.md#groups-and-maintainers) |
+| 2026-09-15 | No registration, no access | The record is what access hangs on; a credential whose record is gone has nothing left to hold, and the page said the opposite | [unregistering](01-identity-and-roles.md#unregistering) |
+| 2026-09-15 | A group is neither deleted nor given states; a group is retired by emptying its membership; resolves Q54 | Removing a name other records point at silently changes what they mean, and a group is not a principal to pause — *inactive* could only mean its members stop counting, which an empty list already says, with no second concept | [groups and maintainers](01-identity-and-roles.md#groups) |
 | 2026-09-15 | A suspended owner's service answers `403 suspended`, the caller's own reason widened rather than a second one; resolves Q55 | It is one suspension seen from two sides, and the caller can act on neither: no credential and no grant makes a suspended name answer, which is what `403` already tells them | [refusals](05-discovery.md#refusals) |
 | 2026-09-15 | An ownerless credential may be removed by hand by the daemon owner or a maintainer, and the start-of-day sweep stays; resolves Q56 | Maintainers already administer users and this is the user directory; the access order does not settle it, because a credential nobody owns is not a level below anybody | [ownerless credentials](02-access.md#ownerless-credentials) |
-| 2026-09-15 | Who the caller is, and what they may do to what they are touching, is settled under the hold the operation writes under — not at the gate, and not before the write | The gate released the registry before core took it, so every verb was a check-then-act on a stale answer: a caller whose record was removed mid-request registered itself back into existence, a caller paused after the gate was served, and `/token` established ownership before minting, so a transfer in between handed the former owner the current owner’s credential. Closing it for one verb would have left the class, so it is closed at the predicates every verb goes through, and the two operations that write in two places — issuing, and removing an address with its credential — became single held operations | [what a call carries](02-access.md#what-a-call-carries), [getting a token](02-access.md#getting-a-token), [unregistering](01-identity.md#unregistering) |
+| 2026-09-15 | Who the caller is, and what they may do to what they are touching, is settled under the hold the operation writes under — not at the gate, and not before the write | The gate released the registry before core took it, so every verb was a check-then-act on a stale answer: a caller whose record was removed mid-request registered itself back into existence, a caller paused after the gate was served, and `/token` established ownership before minting, so a transfer in between handed the former owner the current owner’s credential. Closing it for one verb would have left the class, so it is closed at the predicates every verb goes through, and the two operations that write in two places — issuing, and removing an address with its credential — became single held operations | [what a call carries](02-access.md#what-a-call-carries), [getting a token](02-access.md#getting-a-token), [unregistering](01-identity-and-roles.md#unregistering) |
 | 2026-09-15 | A credential alone is not a principal: an unregistered name is refused `401` on everything, and is not issued a credential in the first place; resolves Q57 | Unknown was reading as active, so a name the daemon held nothing for could call and could leave a service owned by nobody — the wreckage the deletion rule exists to clean up, created by an ordinary call. Owner instruction: an unregistered name can do nothing at all, self-registration included, so the bootstrap is closed at the source rather than left as an exception: a name is created by somebody already here, and only then holds a credential | [what a call carries](02-access.md#what-a-call-carries), [getting a token](02-access.md#getting-a-token) |
-| 2026-09-15 | A record is not removed while its name still owns others, unless that name is a registered user | Removing a name's only standing while it owns services strands each of them under an owner nothing answers for; refusing names what is in the way, and a user survives losing a record because the user is still somebody | [unregistering](01-identity.md#unregistering) |
-| 2026-09-15 | Keep non-user identities visible and distinguish them from registered users | Cleanup needs visible evidence rather than a directory that hides debris | [person records](01-identity.md#person-records) |
-| 2026-09-16 | An owner is known by having a profile or a record of its own; the question is asked one step and never walked to a person | A self-owned record with no user behind it is a principal the daemon supports — it authenticates, may be handed a record by transfer and may register records of its own — so reachability to a user would delete names the daemon had just accepted | [when the owner is gone](01-identity.md#when-the-owner-is-gone) |
-| 2026-09-16 | A deleted name's group membership goes with it | A freed name is reclaimable by anybody, so a membership left behind is inherited rather than stale: whoever registers the name next arrives in every group the old holder was in, and reaches every record those groups allow | [unregistering](01-identity.md#unregistering) |
+| 2026-09-15 | A record is not removed while its name still owns others, unless that name is a registered user | Removing a name's only standing while it owns services strands each of them under an owner nothing answers for; refusing names what is in the way, and a user survives losing a record because the user is still somebody | [unregistering](01-identity-and-roles.md#unregistering) |
+| 2026-09-15 | Keep non-user identities visible and distinguish them from registered users | Cleanup needs visible evidence rather than a directory that hides debris | [person records](01-identity-and-roles.md#users-and-profiles) |
+| 2026-09-16 | An owner is known by having a profile or a record of its own; the question is asked one step and never walked to a person | A self-owned record with no user behind it is a principal the daemon supports — it authenticates, may be handed a record by transfer and may register records of its own — so reachability to a user would delete names the daemon had just accepted | [when the owner is gone](01-identity-and-roles.md#orphaned-records) |
+| 2026-09-16 | A deleted name's group membership goes with it | A freed name is reclaimable by anybody, so a membership left behind is inherited rather than stale: whoever registers the name next arrives in every group the old holder was in, and reaches every record those groups allow | [unregistering](01-identity-and-roles.md#unregistering) |
 | 2026-09-16 | A node publishes a closed list — release, build, host name, daemon owner, uptime and calls served — to anybody, signed in or not, in the shell every page shares and on the sign-in page | Owner-asked. Somebody who reaches a bus they hold no credential for should be able to tell what it is and whose it is without asking anybody, which is precisely the person a sign-in page leaves with nothing. Each cost was put to the owner and accepted, the traffic figures explicitly: an unauthenticated visitor learns the host's name, who runs the node, how long it has been up and how much it carries. The list was cut back at 0.5.39, when the owner removed the host load average and the message counters in favour of the daemon's own served-call counts. Nothing else becomes readable — no record, no principal, no refusal count — and the face gains no privilege, since the daemon answers this list to any caller | [what a node says about itself](05-discovery.md#what-a-node-says-about-itself), [web authority boundary](11-processes.md#web-authority-boundary) |
 | 2026-09-16 | The header prints a window's label without its measured span | Owner decision at 0.5.40, taken with the cost stated: readings are a minute apart, so `minute:` usually covers more than a minute and the header no longer says how much. `uptime:` beside it shows how young the node is and was judged enough for a glance. The measurement is unchanged and `observed` still travels on `GET /identity`, so this narrows what the page shows, not what the daemon knows | [what a node says about itself](05-discovery.md#what-a-node-says-about-itself) |
 
@@ -168,15 +170,15 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Earlier design | Replacement |
 |---|---|
-| The shared owner/maintainer/user vocabulary for daemon and resource authority (2026-09-15) | [Scoped role names](01-owners-and-maintainers.md#role-names-and-scopes) — replaced by owner clarification on 2026-09-16 |
+| The shared owner/maintainer/user vocabulary for daemon and resource authority (2026-09-15) | [Scoped role names](01-identity-and-roles.md#role-names-and-scopes) — replaced by owner clarification on 2026-09-16 |
 | The dashboard is `https://agent-bus.localhost.direct`, with a certificate under that name, port 443 and an 8443 fallback | [where it listens](05-discovery.md#where-it-listens) |
 | MVP dashboard permits only sign-in/out; basic groups and activity charts wait for R1 | [required tabs](05-discovery.md#required-tabs) |
 | The dashboard ships both colour schemes, carried by the token layer from the start (2026-09-16, resolving Q61) | [one design, no themes](../Plans/MVP/web/tokens.md#colour) — owner instruction the same day |
-| Maintainers require AUTH and are absent from MVP | [groups and maintainers](01-identity.md#groups-and-maintainers) |
-| An unregistered name stays reserved to its owner and keeps a valid credential | [unregistering](01-identity.md#unregistering); protecting a name is now [R1.1 retirement](../Plans/R1.1/records.md#down-and-retired) |
-| A record whose owner nobody answers to stays alive and waits for the daemon owner to adopt it | [when the owner is gone](01-identity.md#when-the-owner-is-gone) |
-| A change to a user's state leaves the services they own answering | [services of a user who is paused or banned](01-identity.md#services-of-a-user-who-is-paused-or-banned) |
-| A group is retired by an *inactive* or *banned* state, as a person is | [groups and maintainers](01-identity.md#groups-and-maintainers) |
+| Maintainers require AUTH and are absent from MVP | [groups and maintainers](01-identity-and-roles.md#groups) |
+| An unregistered name stays reserved to its owner and keeps a valid credential | [unregistering](01-identity-and-roles.md#unregistering); protecting a name is now [R1.1 retirement](../Plans/R1.1/records.md#down-and-retired) |
+| A record whose owner nobody answers to stays alive and waits for the daemon owner to adopt it | [when the owner is gone](01-identity-and-roles.md#orphaned-records) |
+| A change to a user's state leaves the services they own answering | [services of a user who is paused or banned](01-identity-and-roles.md#user-states) |
+| A group is retired by an *inactive* or *banned* state, as a person is | [groups and maintainers](01-identity-and-roles.md#groups) |
 
 ## Open
 

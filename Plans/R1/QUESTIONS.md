@@ -64,7 +64,7 @@ settled here and the trigger is not. *Settled by:* owner, with R1.
 
 ❓ **Who vouches for `runner@<edge>` when that host runs no daemon.** A
 `user@host` realm is vouched for by that host's `agent-busd`
-([identity § names](../../docs/01-identity.md#names)), and an edge box has none — so the
+([identity § names](../../docs/01-identity-and-roles.md#names)), and an edge box has none — so the
 name it registers under is the one case the realm rule does not already
 answer. *Settled by:* owner, with the runner.
 
@@ -85,7 +85,7 @@ not synchronised. *Settled by:* owner.
 
 ❓ **A namespace and a service template both want the `/`.** A name holds at
 most one, and it already means *template* / *instance*
-([identity § names](../../docs/01-identity.md#names)), so `team/ci@realm` parses as
+([identity § names](../../docs/01-identity-and-roles.md#names)), so `team/ci@realm` parses as
 template `team`. Either a chaining namespace *is* the template part, or
 chaining needs a separator of its own. *Settled by:* the owner, when chaining
 is designed.

@@ -23,7 +23,7 @@ import (
 func runSupervisor(c config) {
 	// Bodies are plaintext until R1, so loopback or an SSH tunnel,
 	// never a public interface.
-	// See docs/02-access.md#encrypted-sessions.
+	// See docs/02-access.md#trust-boundary.
 	if err := loopbackOnly(c.addr); err != nil {
 		log.Fatal(err)
 	}

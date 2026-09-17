@@ -1,5 +1,7 @@
 # Setup and operation
 
+📌 **TL;DR:** Build, install, provision users and operate the node.
+
 ## Status
 
 | MVP | Scope |
@@ -36,13 +38,13 @@ the daemon already holds a profile or a record for
 ([getting a token](02-access.md#getting-a-token)), so writing the
 `authorized_keys` line alone would leave a key whose forced command is refused
 — which is no way in at all. The verb writes the line and creates the user, and
-`--admin` additionally grants [Administrator membership](01-identity.md#groups-and-maintainers). Authority is granted
+`--admin` additionally grants [Administrator membership](01-identity-and-roles.md#groups). Authority is granted
 only where it was asked for: Administrator standing is membership, derived by the
 daemon, never a field a caller may claim.
 
 The two halves are kept together. The key line is written first because it is
 the half that can be taken back — a user is never deleted
-([user lifecycle](01-identity.md#user-lifecycle)) — and it is removed again if
+([user lifecycle](01-identity-and-roles.md#user-states)) — and it is removed again if
 the daemon refuses. **The daemon has to be running**: with no way to create the
 name, `user add` refuses rather than leaving a key that works before the name
 exists. Start the daemon and run it again.
@@ -55,7 +57,7 @@ part of this grammar.
 ## Administrator name migration
 
 Upgrading from the old administrative name migrates membership to the
-[protected Administrator group](01-identity.md#groups-and-maintainers).
+[protected Administrator group](01-identity-and-roles.md#groups).
 Existing service Maintainer assignments and ACL references follow the rename.
 
 If an ordinary group already uses the destination name, it is preserved as
@@ -157,7 +159,7 @@ credentials**:
 | Config field | Purpose |
 |---|---|
 | local account | the OS account on this host; resolved to its uid |
-| bus username | the principal it *is* — `parf@localhost`, `parf@github`, `parf@realmo` ([identity § names](01-identity.md#names)) |
+| bus username | the principal it *is* — `parf@localhost`, `parf@github`, `parf@realmo` ([identity § names](01-identity-and-roles.md#names)) |
 
 From that the daemon opens one socket per user
 ([access § local socket](02-access.md#local-socket)) and knows who is calling
@@ -165,7 +167,7 @@ on every request.
 
 Result: a bus with AUTH off that **serves every user on the host at once**, so
 service ACLs apply per user with nothing for anyone to configure. The person
-who ran setup **holds master** ([identity § acl](01-identity.md#acl)).
+who ran setup **holds master** ([identity § acl](02-access.md#acl)).
 ## Storage
 
 | Built store | Holds |

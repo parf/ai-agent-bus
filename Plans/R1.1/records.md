@@ -2,7 +2,7 @@
 
 Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-questions).
 
-Manual removal of idle addresses is now [built in MVP](../../docs/01-identity.md#unregistering).
+Manual removal of idle addresses is now [built in MVP](../../docs/01-identity-and-roles.md#unregistering).
 Automatic lifetime and removal while served remain future scope below.
 
 ## Down and retired
@@ -14,7 +14,7 @@ on ([where a member says it is](../R1/discovery.md#where-a-member-says-it-is)).
 
 | Declared | Means | What a caller should do | Answer |
 |---|---|---|---|
-| **down** | out of service, back eventually — this is [today's disabled record](../../docs/01-identity.md#owner-control), not a state beside it | back off hard; roughly one retry an hour, not a loop | `409` |
+| **down** | out of service, back eventually — this is [today's disabled record](../../docs/01-identity-and-roles.md#services), not a state beside it | back off hard; roughly one retry an hour, not a loop | `409` |
 | **retired** | gone for good | stop, and fix the code that still sends here | `410` |
 
 *"Not today"* and *"not ever"* are different, and a caller can act on the
@@ -23,16 +23,16 @@ owner knew and the caller did not.
 
 **Both are the record's owner or its assigned maintainers, in both
 directions** — the [record management
-authority](../../docs/01-identity.md#groups-and-maintainers) that already
+authority](../../docs/01-identity-and-roles.md#groups) that already
 disables and deletes. Declaring and undoing are the same authority: whoever may
 retire a name may bring it back. That adds no new authority, needs no new
 group, and leaves nobody able to make a change they cannot reverse. The daemon
 owner is not named here because over a record with a living owner it has no
 authority to name: record management is the owner, the record's own principal,
-or the group it names ([authority](../../docs/01-identity.md#groups-and-maintainers)),
+or the group it names ([authority](../../docs/01-identity-and-roles.md#groups)),
 and `manages` has no clause for the daemon owner — not for this or for
 anything else. A record nobody can reach is not an exception either: it is
-[deleted, not adopted](../../docs/01-identity.md#when-the-owner-is-gone), so
+[deleted, not adopted](../../docs/01-identity-and-roles.md#orphaned-records), so
 there is no record left to hold authority over.
 
 **The daemon does not retry on anybody's behalf.** These say what a caller
@@ -56,7 +56,7 @@ resource is in* is what an administrative state is.
 
 **Nothing new accumulates is not the same as nothing is there.** A backlog
 already in the inbox is kept; what is refused is anything new. That is exactly
-what disabling does today ([owner control](../../docs/01-identity.md#owner-control)),
+what disabling does today ([owner control](../../docs/01-identity-and-roles.md#services)),
 and it holds for retirement too: work somebody already accepted is not thrown
 away because the name it was for has been given up. Nothing is kept forever by
 it either — what is in a queue is subject to the TTL it already had
@@ -79,7 +79,7 @@ and `down` already has an answer of its own there. Retirement needs one too;
 which code it is belongs to whoever writes it.
 
 **A retired name keeps no credential.** It is dropped with the address, exactly
-as [unregistering](../../docs/01-identity.md#unregistering) drops it, and for
+as [unregistering](../../docs/01-identity-and-roles.md#unregistering) drops it, and for
 the reason MVP found: a credential per given-up name is what filled a person's
 list. Holding the name costs the record that is already there; holding a
 working credential is the expensive half, and this does not.
@@ -162,7 +162,7 @@ no cooperation from a process that is not running.
 
 ### Retired is not the reservation that was removed
 
-[MVP removed name reservation](../../docs/01-identity.md#unregistering) because
+[MVP removed name reservation](../../docs/01-identity-and-roles.md#unregistering) because
 every `unregister` bought one, including for every throwaway launcher address.
 Retirement is the opposite shape: somebody decides, on a record that already
 exists, and nothing accumulates on its own. Unregistering still keeps nothing
@@ -217,7 +217,7 @@ authority is not. But deleting a served record is narrower than it looks:
   child ([processes](../../docs/11-processes.md#processes-and-privileges)). Deleting forgets the record; the
   process keeps running, blind, and sends to it refuse as *no such name*.
 - **It comes back if that process restarts**, because a service re-registers on
-  every start ([identity § ownership](../../docs/01-identity.md#ownership)).
+  every start ([identity § ownership](../../docs/01-identity-and-roles.md#ownership)).
 
 So for something running, the honest order is **stop it, then delete it**, and
 delete-while-served is the escape hatch rather than the path.

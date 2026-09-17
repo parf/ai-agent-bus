@@ -15,7 +15,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 ### Effective Maintainer membership
 
-⁉️ The [owner-control requirement](../../docs/01-owners-and-maintainers.md#services)
+⁉️ The [owner-control requirement](../../docs/01-identity-and-roles.md#services)
 needs protection when an Administrator can edit a group granting maintenance
 authority. Nested subgroup edits can also change effective membership. Shared
 groups can be assigned by several resource owners.

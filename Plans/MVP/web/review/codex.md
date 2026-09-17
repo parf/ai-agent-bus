@@ -63,7 +63,7 @@ configuration write landed. Put each where that question is being asked.
 | Historical W01/W10/W11/W12 used as if still wholly open | Current shell already has sign-out, viewport, focus treatment and distinct recovery branches. Re-audit remaining paths; root `/ls` failures and local form errors still bypass that recovery ([inventory](current-state.md#errors-and-recovery)) |
 
 The required-tabs paragraph still names group deletion, while the owning
-[group decision](../../../../docs/01-identity.md#groups-and-maintainers) forbids
+[group decision](../../../../docs/01-identity-and-roles.md#groups) forbids
 it. This is a current-doc reconciliation item, not a reason to restore a button.
 The inventory marks the residual handler separately from visible controls.
 

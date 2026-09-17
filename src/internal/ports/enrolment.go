@@ -1,7 +1,7 @@
 package ports
 
 // What enrolment needs from outside, in two pieces on purpose.
-// See docs/01-identity.md#registration.
+// See docs/01-identity-and-roles.md#registration.
 
 // Directory is a lookup and nothing more: which public keys a login
 // publishes. **Fetching a key is not authentication** — proving the caller

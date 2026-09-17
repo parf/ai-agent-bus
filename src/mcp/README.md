@@ -17,7 +17,7 @@ scope: [stages § MVP](../../Plans/MVP/README.md#scope).
 | | |
 |---|---|
 | `AGENT_BUS_TOKEN` | **required.** Same token the CLI uses ([access § getting a token](../../docs/02-access.md#getting-a-token)) |
-| `AGENT_BUS_NAME` | this session's `user@realm`. Defaults to `<runtime>.<cwd>@<host>`, trimmed to the name rule ([identity § names](../../docs/01-identity.md#names)) — a plugin manifest cannot know it, so it is derived |
+| `AGENT_BUS_NAME` | this session's `user@realm`. Defaults to `<runtime>.<cwd>@<host>`, trimmed to the name rule ([identity § names](../../docs/01-identity-and-roles.md#names)) — a plugin manifest cannot know it, so it is derived |
 | `AGENT_BUS_ADDR` | the daemon's socket path, or `http://host:port`. Defaults to `$XDG_RUNTIME_DIR/agent-bus/bus.sock` |
 | `AGENT_BUS_PUSH` | `claude`, `codex` or `off` (default) |
 | `AGENT_BUS_DESCR` | what `ls` shows for this session |

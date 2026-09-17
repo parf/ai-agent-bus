@@ -15,7 +15,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 	// "owner" is the one where the reader itself is untouched: reader@h is
 	// active and still on the ACL, and the read ends anyway because the
 	// service stopped answering under it
-	// (docs/01-identity.md#services-of-a-user-who-is-paused-or-banned).
+	// (docs/01-identity-and-roles.md#user-states).
 	for _, change := range []string{"disable", "acl", "membership", "user", "owner"} {
 		t.Run(change, func(t *testing.T) {
 			b := New()

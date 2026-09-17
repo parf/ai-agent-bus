@@ -49,7 +49,7 @@ var (
 	ErrNotAllow    = errors.New("not on that service's allow list")
 	ErrEnrol       = errors.New("enrolment")
 	// A group is retired by emptying its membership
-	// (docs/01-identity.md#groups-and-maintainers), so there is no removal to
+	// (docs/01-identity-and-roles.md#groups), so there is no removal to
 	// ask for. A request that asks anyway is refused rather than read as a
 	// membership change: emptying a group leaves every record that names it
 	// alone, and unmapping the name would not have.
@@ -115,10 +115,10 @@ type Bus struct {
 	// What the bus has seen lately, bodies struck out — the dashboard's
 	// only source. See docs/05-discovery.md#dashboard.
 	recent []protocol.Envelope
-	// Who holds the master ACL. See docs/01-identity.md#acl.
+	// Who holds the master ACL. See docs/02-access.md#acl.
 	masters map[string]bool
 	// Which realms are backed by a directory, what verifies a signature,
-	// and the challenges outstanding. See docs/01-identity.md#registration.
+	// and the challenges outstanding. See docs/01-identity-and-roles.md#registration.
 	dirs    map[string]ports.Directory
 	sigs    ports.Signatures
 	pending map[string]challenge
@@ -137,7 +137,7 @@ func New() *Bus {
 
 // Register states a record. A name in a realm a directory backs cannot be
 // created this way — it has to be enrolled, or the first caller to ask for a
-// name would become it. See docs/01-identity.md#registration.
+// name would become it. See docs/01-identity-and-roles.md#registration.
 func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	return b.register(r, false, false)
 }
@@ -160,7 +160,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	}
 	// A registration that names no owner is the name answering for itself,
 	// which is what registering one has always meant where no realm vouches
-	// for it (docs/01-identity.md#registration). Defaulted here beside the
+	// for it (docs/01-identity-and-roles.md#registration). Defaulted here beside the
 	// others, so that "owned by nobody" is not a state a record can be in.
 	if r.Owner == "" {
 		r.Owner = name
@@ -181,7 +181,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	defer b.mu.Unlock()
 	// Enrolment is the one caller that legitimately registers a name the
 	// daemon does not yet know — it has just proved the realm's key for it
-	// (docs/01-identity.md#proving-possession) — and it says so here rather
+	// (docs/02-access.md#proving-possession) — and it says so here rather
 	// than through a clause in mayOwn that every other caller could reach.
 	if !enrolled {
 		if err := b.mayOwn(r.Owner, name); err != nil {
@@ -194,7 +194,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	// Refusing a *new* name in a vouched-for realm is what turns "the owner
 	// of a record may have its credential" from a hole into a rule: you
 	// become the name by proving you hold its key, not by asking first.
-	// See docs/01-identity.md#registration.
+	// See docs/01-identity-and-roles.md#registration.
 	if _, known := b.records[name]; !known && !enrolled {
 		if err := b.vouchedFor(name); err != nil {
 			return protocol.Record{}, err
@@ -231,7 +231,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	// to its owner, and to the record itself — a service registering on
 	// every start is not a stranger to its own name, and it is the only
 	// other principal that could hold that name's credential.
-	// See docs/01-identity.md#ownership.
+	// See docs/01-identity-and-roles.md#ownership.
 	if old, known := b.record(name); known {
 		caller := r.Owner // the face puts the caller here, not a claim
 		if old.Owner != "" && !b.manages(caller, old) {
@@ -319,7 +319,7 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		// them applied was not a rule: a name /register refused for being in
 		// a vouched realm could be taken by configuring it instead, and then
 		// issued a credential, with no key ever proved.
-		// See docs/01-identity.md#registration.
+		// See docs/01-identity-and-roles.md#registration.
 		if err := b.vouchedFor(n); err != nil {
 			return protocol.Record{}, err
 		}
@@ -380,7 +380,7 @@ func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 	r, ok := b.records[n]
 	// A name you may not see does not exist as far as you are concerned:
 	// hiding it and refusing it are different answers, and discovery is the
-	// half that hides. See docs/01-identity.md#acl.
+	// half that hides. See docs/02-access.md#acl.
 	if !ok || !b.may(caller, r) {
 		return protocol.Record{}, false
 	}
@@ -528,7 +528,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	// Writing goes through the same two layers as reading: a principal that
 	// may not see a service may not enqueue to it either, and is told so
-	// rather than left to wonder. See docs/01-identity.md#acl.
+	// rather than left to wonder. See docs/02-access.md#acl.
 	if !b.may(from, rec) {
 		return protocol.Envelope{}, fmt.Errorf("%s may not send to %s: %w", from, to, ErrNotAllow)
 	}
@@ -692,7 +692,7 @@ func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) 
 	}
 	r, known := b.records[n]
 	// A topic you may not see does not exist as far as you are concerned,
-	// exactly as a lookup answers. See docs/01-identity.md#acl.
+	// exactly as a lookup answers. See docs/02-access.md#acl.
 	if !known || !b.may(who, r) {
 		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
 	}

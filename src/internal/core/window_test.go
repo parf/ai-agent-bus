@@ -356,7 +356,7 @@ func TestARemovedPrincipalsBlockedReadIsReleased(t *testing.T) {
 // The listings answer with what the caller may see, and a caller that may not
 // act may see nothing. They have no error to return, so the refusal is the
 // empty answer — which is the same thing discovery does with a name you are not
-// allowed to know about (docs/01-identity.md#acl).
+// allowed to know about (docs/02-access.md#acl).
 func TestListingsShowNothingToACallerThatMayNotAct(t *testing.T) {
 	for _, caller := range []string{"nobody@h", "paused@h"} {
 		t.Run(caller, func(t *testing.T) {

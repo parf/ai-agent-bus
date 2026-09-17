@@ -1,5 +1,7 @@
 # Foreground runner
 
+📌 **TL;DR:** Run scripts per message; connect agent sessions through launchers.
+
 ## Status
 
 | MVP | Scope |
@@ -57,7 +59,7 @@ to run it, a service that dies loses only the work already in flight; the rest
 is still queued for whatever reads that inbox next.
 
 Stopping leaves the registration in place; remove an idle address with
-[unregister](01-identity.md#unregistering).
+[unregister](01-identity-and-roles.md#unregistering).
 
 ## What the child is told
 
@@ -163,7 +165,7 @@ captured at startup; a later working-directory change does not rename the sessio
 | Runtime-assigned session name | Preferred human-readable label and basis for a derived bus name when no explicit bus name was supplied; obtain it from the session being launched or resumed |
 | No assigned name available | Fall back to runtime and launch directory; Legacy-V1's `claude(/rd/)` illustrates the human-readable form |
 
-Human-readable labels and [canonical bus names](01-identity.md#names) serve
+Human-readable labels and [canonical bus names](01-identity-and-roles.md#names) serve
 different purposes: preserve the label for discovery, and derive a valid bus
 name for routing. A title is not a credential or a unique session identifier.
 The `ab-*` launchers derive `runtime/instance@realm`, with `claude`, `codex`
@@ -177,7 +179,7 @@ When changing addresses, the session's own previous registration does not
 compete for its label.
 Allocation checks the visible registry and holds local locks; normalization
 and truncation collisions are checked on the resulting canonical name.
-The daemon's [conditional registration](01-identity.md#registration) arbitrates
+The daemon's [conditional registration](01-identity-and-roles.md#registration) arbitrates
 simultaneous new claims, including launchers with separate local state directories.
 
 Bind the selected identity to the runtime's actual session, consistently across
@@ -187,7 +189,7 @@ On restart, `ab-claude` and `ab-codex` derive a new address if the session title
 has changed its normalized base; an explicit bus name stays fixed. Otherwise
 resume reuses the saved address, including any collision suffix. This restart
 behavior belongs only to these launchers, not other bus clients.
-After claiming the new address, the launcher [unregisters](01-identity.md#unregistering)
+After claiming the new address, the launcher [unregisters](01-identity-and-roles.md#unregistering)
 the old one if idle. If removal is refused, it reports the retained address;
 old queued messages stay there and are not moved to the new inbox.
 Claude's explicit name option and saved title metadata supply its label;

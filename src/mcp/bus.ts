@@ -24,7 +24,7 @@ export type Envelope = {
 export type Record_ = { name: string; kind: string; addr?: string; descr?: string; owner: string;
   // Who may see and use it. A listing already leaves out what its caller may
   // not, so this is what a record says about itself, not a filter to apply
-  // here (docs/01-identity.md#acl).
+  // here (docs/02-access.md#acl).
   allow?: string[]; no_master?: boolean;
   // How to call it, and whether anything is actually serving it. A registry
   // entry says a name exists; these say whether a call through the bus will
@@ -132,7 +132,7 @@ export class Bus {
 // A session that was launched by a plugin manifest cannot be told its own
 // name, so it derives one: runtime plus where it is working, which is how a
 // human refers to a session anyway. The NATS version names channels the same way.
-// The rule is docs/01-identity.md#names — a-z0-9._- either side, 64 total.
+// The rule is docs/01-identity-and-roles.md#names — a-z0-9._- either side, 64 total.
 export function defaultName(env: NodeJS.ProcessEnv = process.env, separator: "." | "/" = "."): string {
   const realm = slug(env.AGENT_BUS_REALM || hostname());
   const runtime = slug(env.AGENT_BUS_RUNTIME || "agent");

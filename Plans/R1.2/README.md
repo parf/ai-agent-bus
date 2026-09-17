@@ -19,5 +19,5 @@ Execution prerequisites are in [TODO](TODO.md#objective).
 protection this topic was holding a place for — by the owner's decision rather
 than as a reservation bought by every removal. Nothing is left here to schedule.
 
-MVP [unregistering](../../docs/01-identity.md#unregistering) is unchanged: it
+MVP [unregistering](../../docs/01-identity-and-roles.md#unregistering) is unchanged: it
 keeps nothing, and a name nobody retired is free for whoever asks next.

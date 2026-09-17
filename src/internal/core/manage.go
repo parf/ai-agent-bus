@@ -37,13 +37,13 @@ func (b *Bus) SetDaemonOwner(owner string) {
 }
 
 // administratorsAreUsers keeps daemon roles nested: an owner is an Administrator
-// and an Administrator is a user (docs/01-identity.md#groups-and-maintainers). Somebody
+// and an Administrator is a user (docs/01-identity-and-roles.md#groups). Somebody
 // given authority over users who was not one themselves would be a principal
 // the user administration cannot see, and a credential the ownerless sweep
 // would take (docs/02-access.md#ownerless-credentials). Caller holds b.mu.
 //
 // Being taken out of the group does not take the profile away again: a user is
-// never deleted, only made inactive (docs/01-identity.md#user-lifecycle).
+// never deleted, only made inactive (docs/01-identity-and-roles.md#user-states).
 func (b *Bus) administratorsAreUsers() {
 	for _, name := range b.groups[AdministratorsGroup] {
 		if _, known := b.users[name]; !known {

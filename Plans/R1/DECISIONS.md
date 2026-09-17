@@ -75,7 +75,7 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
 | Earlier design | Replacement |
 |---|---|
-| Basic groups, maintainers and activity graphs deferred to R1 | [MVP groups](../../docs/01-identity.md#groups-and-maintainers), [required dashboard](../../docs/05-discovery.md#required-tabs) |
+| Basic groups, maintainers and activity graphs deferred to R1 | [MVP groups](../../docs/01-identity-and-roles.md#groups), [required dashboard](../../docs/05-discovery.md#required-tabs) |
 | Clock-based derived-key lifecycle and its overlap window | [Credential lifetime policy](../../docs/02-access.md#token-lifetime); key sources remain in [key modes](access.md#key-modes) |
 | Epoch-bound authorization freshness | [AUTH consistency](auth.md#consistency-window); replacement propagation rules remain open |
 

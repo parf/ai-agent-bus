@@ -201,7 +201,7 @@ them, and a page that introduces a value instead of using one is theirs to
 refuse.
 
 It is an existing role rather than a new appointment
-([groups and maintainers](../../../docs/01-identity.md#groups-and-maintainers)),
+([groups and maintainers](../../../docs/01-identity-and-roles.md#groups)),
 which is what makes it durable: there is no post to leave vacant, and whoever
 holds the daemon holds this. **One design makes the post affordable** — there is
 a single palette, six sizes and one space scale to keep, not two schemes to keep

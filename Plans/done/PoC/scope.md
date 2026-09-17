@@ -9,9 +9,9 @@ to be true.
 |---|---|
 | daemon | one process, listening on a **unix socket and HTTP** |
 | language | daemon and CLI in **Go**; the MCP face and adapters in **TypeScript on bun** ([modules § languages](../../../docs/10-modules.md#languages)) |
-| identity | **one master token**, reaching every service — no per-service anything ([identity § acl](../../../docs/01-identity.md#acl)). It authenticates *the host's owner*, who may use any name: PoC is single-tenant, and per-user tokens arrive with the per-user sockets at MVP |
+| identity | **one master token**, reaching every service — no per-service anything ([identity § acl](../../../docs/02-access.md#acl)). It authenticates *the host's owner*, who may use any name: PoC is single-tenant, and per-user tokens arrive with the per-user sockets at MVP |
 | tokens | issued **over SSH** — `ssh agent-busd@<node> token` ([access § getting a token](../../../docs/02-access.md#getting-a-token)). Kept even in PoC because it **costs us nothing**: sshd does the authentication against a key the user already has, and our side is a forced command |
-| encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](../../../docs/02-access.md#encrypted-sessions)) |
+| encryption | **none — no sessions at all.** Bodies travel plaintext, the `encryption: off` path the design already has for development ([access § encrypted sessions](../../../docs/02-access.md#trust-boundary)) |
 | services | **basic request/reply** ([messaging § request and reply](../../../docs/04-messaging.md#request-and-reply)): a service consumes its inbox, `ack`s it (got it), does the work and replies; a caller sends and waits for that reply. The reply stands in for `done`, which comes at MVP |
 | services from scripts | `agent-bus start <name> --algo=json\|args <script> [-N]` — a shell script becomes a service, `-N` of them running at once, no bus code inside it ([runner § script services](../../../docs/08-runner-role.md#script-services)) |
 | mcp | **basic MCP face** — list what is registered, send, consume. Unfiltered: the master token sees everything ([discovery § faces](../../../docs/05-discovery.md#faces)) |
@@ -81,5 +81,5 @@ filtering, npm.
 What plaintext costs: in PoC the daemon, its logs and anyone on the host
 can read message bodies, so *"the bus never reads payloads"* is not yet true.
 It is not true at MVP either — that stage does not claim it ([access §
-encrypted sessions](../../../docs/02-access.md#encrypted-sessions)); the keys that make it
+encrypted sessions](../../../docs/02-access.md#trust-boundary)); the keys that make it
 true are R1.

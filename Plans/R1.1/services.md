@@ -16,11 +16,11 @@ will not.
 | | |
 |---|---|
 | **no daemon change, ever** | if a bundled service needs the bus to learn something, that is the signal to stop and design rather than to build. The catalogue is a test of the design as much as a set of tools |
-| **danger is per name, because access is** | the ACL is attached to a name ([identity § acl](../../docs/01-identity.md#acl)), so anything you would grant to different people must **be** a different name. `shell@h` and `root-shell@h`; `billing-ro@db1` and `billing-rw@db1`. Never one service with a privilege flag on the call — a flag cannot be granted, only a name can. **Spend divides the same way**: generation and embeddings are two names because a team may be allowed one and not the other |
-| **none of them enforces access** | the ACL is on the record and **`agent-busd` applies it before a call is delivered** ([identity § acl](../../docs/01-identity.md#acl)). A bundled service that checks who is calling is writing a second, weaker copy of something already done — and this is the single biggest reason most of these are a hundred lines rather than a project |
+| **danger is per name, because access is** | the ACL is attached to a name ([identity § acl](../../docs/02-access.md#acl)), so anything you would grant to different people must **be** a different name. `shell@h` and `root-shell@h`; `billing-ro@db1` and `billing-rw@db1`. Never one service with a privilege flag on the call — a flag cannot be granted, only a name can. **Spend divides the same way**: generation and embeddings are two names because a team may be allowed one and not the other |
+| **none of them enforces access** | the ACL is on the record and **`agent-busd` applies it before a call is delivered** ([identity § acl](../../docs/02-access.md#acl)). A bundled service that checks who is calling is writing a second, weaker copy of something already done — and this is the single biggest reason most of these are a hundred lines rather than a project |
 | **inbound is a publisher, outbound is a call** | every *send/read* pair is two shapes, not one service with two verbs: reading Slack **publishes into a topic** and has no caller ([messaging § push and pull](../../docs/04-messaging.md#push-and-pull)); sending is request/reply. One pattern for Slack, Telegram, SMS, mail and webhooks |
 | **secrets are the instance's** | a bot token or a database password is an `env` file under `runner/`, never in the checkout ([runner § the three env layers](../R1/runner.md#the-three-env-layers)). `service.d` is world-readable by construction |
-| **one template, many instances** | `slack/team-a@pool1`, `mysql/billing@db1` — configured copies of one thing, which the naming already carries ([identity § names](../../docs/01-identity.md#names)) |
+| **one template, many instances** | `slack/team-a@pool1`, `mysql/billing@db1` — configured copies of one thing, which the naming already carries ([identity § names](../../docs/01-identity-and-roles.md#names)) |
 | **the form is part of the design** | a picture service is `--algo=std`, a database gateway is `--algo=msgpack` (binary values, the envelope in-band, and a kept process is what holds the connection), a tail is `--algo=jsonl`, a notification is `--algo=args` ([runner § script services](../../docs/08-runner-role.md#script-services)) |
 | **confinement is not what makes the risky ones safe** | a shell service's whole job is to run what it is told, so sandboxing it confines the thing you asked for ([runner § sandboxing](../../docs/08-runner-role.md#sandboxing)). What contains it is the ACL and the account it runs as — nothing else pretends otherwise |
 | **no layer of ours between a caller and the tool** | no retry policy, no cache, no request rewriting, no validation of what is being asked. Each of those is the caller's decision, and one made silently inside a gateway is one nobody can debug from outside. If a retry or a cache is wanted it is **a service with a name of its own**, which is this catalogue's rule for everything else too |
@@ -34,8 +34,8 @@ These are many tools and should feel like one set. What makes them one is the
 
 | The same for every tool | |
 |---|---|
-| how it is addressed | a name and an inbox, `template/instance@realm` where there are several copies ([identity § names](../../docs/01-identity.md#names)) |
-| who may call it | the record's ACL, applied by the daemon before delivery ([identity § acl](../../docs/01-identity.md#acl)) |
+| how it is addressed | a name and an inbox, `template/instance@realm` where there are several copies ([identity § names](../../docs/01-identity-and-roles.md#names)) |
+| who may call it | the record's ACL, applied by the daemon before delivery ([identity § acl](../../docs/02-access.md#acl)) |
 | what it needs | `env.dist`, the declared surface — which is also what makes an upload checkable and says whether an instance is required at all ([runner § the three env layers](../R1/runner.md#the-three-env-layers)) |
 | what it costs | counters per (principal, service), the same pair everywhere ([discovery § stats](../R1/discovery.md#stats)) |
 | what it is | the version it answers with, when that arrives ([Plans/R1](../R1/TODO.md#todo-r1)) |
@@ -68,7 +68,7 @@ Every row is two services, one each way.
 | **mail** | owner | **IMAP** in, **SMTP** out. The design's own running example is a mail reader ([runner § what an instance is](../R1/runner.md#what-an-instance-is)), and it is the one channel every business already has |
 | **webhook** | proposed | an inbound URL that publishes what it receives, and an outbound that calls one. The highest-leverage entry here: with it, the next SaaS integration is configuration rather than a new service |
 | **im** | owner | the **router** in front of the rows above. Give it a *person* — by name, or by any alias they are known by — and it delivers to the first destination on their list that takes it |
-| **user-locator** | owner | *who is this?* — a name, a partial one, a real name, one of several emails, a nick, and back come the principals that might be meant, **each with a confidence**. It reads the daemon's own records ([identity § registration](../../docs/01-identity.md#registration)) and invents no directory of its own |
+| **user-locator** | owner | *who is this?* — a name, a partial one, a real name, one of several emails, a nick, and back come the principals that might be meant, **each with a confidence**. It reads the daemon's own records ([identity § registration](../../docs/01-identity-and-roles.md#registration)) and invents no directory of its own |
 
 **`im` is the one that knows who somebody is.** Every other row speaks one
 service and takes an address that service understands; this one takes a person
@@ -84,9 +84,9 @@ and picks. Two things it adds, and nothing else here does:
 | | |
 |---|---|
 | **a ranked guess, never a decision** | it returns `user@realm` values with a confidence, which is the shape of the question — *parf* is not an identity, and two people may answer to it. **Nothing authorises on a locator answer**: it turns human input into a name that then has to hold a token like anyone else ([identity § how to reach a person](people.md#how-to-reach-a-person)) |
-| **an official name outranks everything else** | a hit on the registered `user@realm` ([identity § names](../../docs/01-identity.md#names)) comes first, then the rest — a real name, a nick, one of several emails, an alias from somewhere else. Those are how people are *found*; the username is what they **are**, and a nick that happens to match somebody else's real name must not outrank the person actually called that |
+| **an official name outranks everything else** | a hit on the registered `user@realm` ([identity § names](../../docs/01-identity-and-roles.md#names)) comes first, then the rest — a real name, a nick, one of several emails, an alias from somewhere else. Those are how people are *found*; the username is what they **are**, and a nick that happens to match somebody else's real name must not outrank the person actually called that |
 | **the asker narrows it, when they ask for that** | a request may say *rank by who I share a realm or a group with*, which is what makes `parf` mean `parf@realmo` to somebody on that team and something else elsewhere. It is a **ranking input**, not a permission: what a requester may see at all is the ordinary ACL question |
-| **one human, two names** | `parf@realmo` and `parf@github` are two principals and may be one person, which is what the record's aliases and its `GithubUser` are for ([identity § registration](../../docs/01-identity.md#registration)). **A link counts only if both sides state it** — otherwise claiming somebody as an alias of mine is how I become findable as them. Nothing proves such a link before R1.1 is done, so until then it is a **hint offered to the asker**, never a reason to rank one answer above another |
+| **one human, two names** | `parf@realmo` and `parf@github` are two principals and may be one person, which is what the record's aliases and its `GithubUser` are for ([identity § registration](../../docs/01-identity-and-roles.md#registration)). **A link counts only if both sides state it** — otherwise claiming somebody as an alias of mine is how I become findable as them. Nothing proves such a link before R1.1 is done, so until then it is a **hint offered to the asker**, never a reason to rank one answer above another |
 | **`im` is its first caller** | `im` needs *this alias is that person*; the locator answers *these people might be meant*. The exact case is the locator's top answer with nothing close behind it, so one of them is not a special case of the other — but the second is where the first gets its data |
 
 **`im` and `alerter` are one delivery with two front doors.** The alerter is
@@ -147,7 +147,7 @@ something up beforehand is how that question goes unanswered.
 | **one contract, not a second one** | ring for the past, topic for the future, the poll the common one — exactly what `logwatch` does and for the same reason ([reading the box](#reading-the-box)). A level is an instance of its own, so a flood of warnings cannot push the errors out of theirs |
 | **the ring needs nothing new in the daemon** | the daemon already publishes its own events onto a topic — a key that does not match is written down that way today ([access § key confirmation](../R1/access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the service is only what **remembers** them |
 | **the alerter delivers nothing** | it speaks no SMTP, no Telegram API, nothing. Each hop out is an ordinary call to `notify`, `telegram`, `sms`, `mail` or `slack`, so a new way to reach people is a new instance of something already here and not a change to this service. An alerter that learned to send mail would be a second, worse copy of `mail` |
-| **an alert names a person, not a channel** | which is the same identity everything else uses ([identity § names](../../docs/01-identity.md#names)). Turning `parf@srv1` into *telegram first, then SMS* **is** the whole job, and it is the reason this is a service rather than a rule in whoever raised the alert |
+| **an alert names a person, not a channel** | which is the same identity everything else uses ([identity § names](../../docs/01-identity-and-roles.md#names)). Turning `parf@srv1` into *telegram first, then SMS* **is** the whole job, and it is the reason this is a service rather than a rule in whoever raised the alert |
 | **the order is per person and per severity, and it is not the alerter's** | the list is part of the person's record in the daemon ([identity § how to reach a person](people.md#how-to-reach-a-person)), because it is the person's: several alerters reach the same human, and a phone that changed has to change once |
 | **it routes and does not judge** | the level was set by whoever published the line, and it is the level that picks the list. The alerter never re-rates a message, and never drops one for being noisy — that is the publisher's call, and silently overruling it is how an outage gets missed |
 | **a bus that is down takes the ring with it** | it is a service, and pretending otherwise would put a log inside the daemon. The journal is still the daemon's own record ([setup § the two units](../../docs/09-setup.md#the-two-units)); this is for everything the bus carries, which is the part no journal sees |
@@ -225,7 +225,7 @@ is the access model above it.
 | | |
 |---|---|
 | **the personal one** | every service has one, without registering anything and without being granted anything. It is **not sharable** — there is no ACL on it to widen, so nothing can be given away by accident, and a service always has somewhere to put state with nobody to ask |
-| **a registered instance** | a service *or* a person registers one, with a name and an `allow` like every other record ([identity § acl](../../docs/01-identity.md#acl)). This is the **only** way two principals share a key, which is what makes sharing something you can see in the registry rather than infer |
+| **a registered instance** | a service *or* a person registers one, with a name and an `allow` like every other record ([identity § acl](../../docs/02-access.md#acl)). This is the **only** way two principals share a key, which is what makes sharing something you can see in the registry rather than infer |
 
 | | |
 |---|---|
@@ -273,7 +273,7 @@ was built for.
 **Minimal is the word that matters.** A gateway holds the key, counts, and
 passes the call through as it was made. It writes **no access control at all** —
 the daemon refused the call before it ever arrived
-([identity § acl](../../docs/01-identity.md#acl)) — which is what makes minimal possible:
+([identity § acl](../../docs/02-access.md#acl)) — which is what makes minimal possible:
 the hard half was done by the bus. It does **not** normalise
 one provider's API into another's — a caller that wants one API over many uses
 `openrouter`, which is a product that already does it, and a caller that names
@@ -281,7 +281,7 @@ a provider wants that provider's own shape.
 
 Which is also why this is **not** ten programs. Most of that list speaks the
 OpenAI API, so it is one service template configured into instances that differ
-by a base URL and a key ([identity § names](../../docs/01-identity.md#names)); code of its
+by a base URL and a key ([identity § names](../../docs/01-identity-and-roles.md#names)); code of its
 own is written only where the API genuinely differs — Anthropic, Google, Bedrock
 and the retrieval pair.
 

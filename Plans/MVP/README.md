@@ -9,15 +9,15 @@ MVP is active; completion still depends on [remaining work and installed accepta
 
 ![A user obtains a token through an authenticated local socket, an entitled SSH key or key-possession proof. A launching runner uses the owner's credential to register a service and obtain its separate token, then switches to the service identity.](getting-tokens.svg)
 
-User token acquisition follows [access](../../docs/02-access.md#getting-a-token). Ownership authorizes service-token acquisition ([token scope](../../docs/02-access.md#token-scope)); the foreground runner obtains that credential before serving ([script services](../../docs/08-runner-role.md#script-services)).
+User token acquisition follows [access](../../docs/02-access.md#getting-a-token). Ownership authorizes service-token acquisition ([token scope](../../docs/02-access.md#what-a-call-carries)); the foreground runner obtains that credential before serving ([script services](../../docs/08-runner-role.md#script-services)).
 
 ## User to service
 
 ![User sends a request with their token to the bus; the service reads with its own token and receives the verified sender and message, without the user's token.](user-to-service.svg)
 
-The daemon authenticates the caller and enforces the destination's access policy before delivery ([token scope](../../docs/02-access.md#token-scope), [ACL](../../docs/01-identity.md#acl)). The service receives the message through its authenticated inbox read ([delivery](../../docs/04-messaging.md#push-and-pull)); replies use the [reply route](../../docs/04-messaging.md#reply-routing).
+The daemon authenticates the caller and enforces the destination's access policy before delivery ([token scope](../../docs/02-access.md#what-a-call-carries), [ACL](../../docs/02-access.md#acl)). The service receives the message through its authenticated inbox read ([delivery](../../docs/04-messaging.md#push-and-pull)); replies use the [reply route](../../docs/04-messaging.md#reply-routing).
 
-Mapped local accounts can authenticate through their [own socket](../../docs/02-access.md#local-socket). The diagram's plaintext boundary is defined in [access](../../docs/02-access.md#encrypted-sessions).
+Mapped local accounts can authenticate through their [own socket](../../docs/02-access.md#local-socket). The diagram's plaintext boundary is defined in [access](../../docs/02-access.md#trust-boundary).
 
 ## Scope
 
@@ -25,7 +25,7 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 
 | Area | Status | Canonical contract |
 |---|---|---|
-| Identity, credentials and local isolation | Built and pending; see linked status | [identity](../../docs/01-identity.md#status), [access](../../docs/02-access.md#status) |
+| Identity, credentials and local isolation | Built and pending; see linked status | [identity](../../docs/01-identity-and-roles.md#scope), [access](../../docs/02-access.md#scope) |
 | Registry, topics and private configuration | Built | [services](../../docs/03-services-and-topics.md#status) |
 | Messaging and restart persistence | Built | [messaging](../../docs/04-messaging.md#status) |
 | API, CLI, MCP and dashboard | Built and pending; see linked status | [discovery](../../docs/05-discovery.md#status) |
@@ -35,7 +35,7 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 
 ## Boundaries
 
-The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02-access.md#encrypted-sessions)). Distributed identity, managed services and encryption are proposed in [R1](../R1/README.md#scope). Other follow-up is indexed in [future work](FUTURE.md#follow-up).
+The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02-access.md#trust-boundary)). Distributed identity, managed services and encryption are proposed in [R1](../R1/README.md#scope). Other follow-up is indexed in [future work](FUTURE.md#follow-up).
 
 ## Evidence
 

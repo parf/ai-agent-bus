@@ -25,7 +25,7 @@ The [access contract](../../../docs/02-access.md#what-a-call-carries) and
 | Paused/banned owners' service credentials need propagation | Authentication checks the service name's state, without the owner's state | Existing H.5.7 requirement remains pending; no new policy question |
 
 Enrolment remains the separately documented
-[proof-of-key path](../../../docs/01-identity.md#proving-possession), backed by an
+[proof-of-key path](../../../docs/02-access.md#proving-possession), backed by an
 operator-configured directory. The review did not replace it with an anonymous
 self-registration exception. No user-delete operation was added.
 

@@ -9,7 +9,7 @@ service cannot be replayed at another. The proposed SSH request is
 `ssh agent-busd@<node> token <service>`; the authenticated key identifies the
 caller. This is not the current helper's entitlement grammar.
 
-Current credential issue and scope remain in [access](../../docs/02-access.md#token-scope).
+Current credential issue and scope remain in [access](../../docs/02-access.md#what-a-call-carries).
 Disambiguating the proposed service argument from asking for a name the caller
 owns is an [open question](QUESTIONS.md#access-context).
 
@@ -66,7 +66,7 @@ replay protection. Never use `access_key` raw as the cipher key.
   key exposes recorded sessions.
 - Payload encoding is the envelope's ([target payload](#payload)).
 
-The [MVP trust boundary](../../docs/02-access.md#encrypted-sessions) remains unchanged
+The [MVP trust boundary](../../docs/02-access.md#trust-boundary) remains unchanged
 until this design is implemented. The dashboard continues to use the
 [body-free feed](../../docs/05-discovery.md#dashboard); that restriction is not
 proof of encryption or a claim that the current daemon cannot read bodies.

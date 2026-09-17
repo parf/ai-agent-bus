@@ -9,7 +9,7 @@ import (
 
 // Envelope is what the bus reads, counts and routes. The body is carried but
 // not interpreted; from R1 it is ciphertext.
-// See docs/02-access.md#encrypted-sessions.
+// See docs/02-access.md#trust-boundary.
 type Envelope struct {
 	ID    string    `json:"message_id"`
 	From  string    `json:"from"`
@@ -120,7 +120,7 @@ type Record struct {
 	// can authenticate; empty means the service gives no answer and the
 	// master layer decides. NoMaster is the one flag that takes the last
 	// word back from the node.
-	// See docs/01-identity.md#acl.
+	// See docs/02-access.md#acl.
 	Allow    []string `json:"allow,omitempty"`
 	NoMaster bool     `json:"no_master,omitempty"`
 

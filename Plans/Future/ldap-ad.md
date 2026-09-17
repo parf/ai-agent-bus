@@ -2,7 +2,7 @@
 
 **Not in MVP.** MVP registration is manual (`username + person name + pubkey +
 optional details`) plus GitHub — see
-[identity § registration](../../docs/01-identity.md#registration). This file records
+[identity § registration](../../docs/01-identity-and-roles.md#registration). This file records
 the design so it does not have to be rediscovered.
 
 ## One source, not two

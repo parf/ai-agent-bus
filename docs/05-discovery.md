@@ -1,5 +1,7 @@
 # Discovery
 
+📌 **TL;DR:** Discover accessible records and inspect what the daemon actually knows.
+
 ## Status
 
 | MVP | Scope |
@@ -66,12 +68,12 @@ tools configured and callable in the session.
 These are minimum capabilities, not a restriction on the remaining tools.
 The tools and launcher wiring are built; full live-runtime and fresh-host
 acceptance remains pending. Both capabilities use the caller's existing
-[ACL](01-identity.md#acl); loading the tools grants no additional authority.
+[ACL](02-access.md#acl); loading the tools grants no additional authority.
 
 ## Audience
 
 The daemon filters, because it holds the records and enforces the
-[ACL](01-identity.md#acl). A face requests the caller's view and adds no
+[ACL](02-access.md#acl). A face requests the caller's view and adds no
 independent access policy. There are no chained catalogs or group expressions
 in the MVP.
 
@@ -112,15 +114,15 @@ what the daemon permits. “All” means all visible to that visitor.
 
 | Tab | Required functionality |
 |---|---|
-| Registered services | My / all; active / inactive filters; details and [owner controls](01-identity.md#owner-control), with owner, maintainers group, access, reader presence and queue statistics. Administrative availability and serving / offline are distinct observations |
+| Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, maintainers group, access, reader presence and queue statistics. Administrative availability and serving / offline are distinct observations |
 | Users | List and details; add, edit, activate, pause and ban; show owned services, group membership and administrative authority |
-| Groups | List and details; create, edit and manage flat membership; basic service and channel access. Include the daemon Administrator group and each record's assigned maintainers group under the [authority rules](01-identity.md#groups-and-maintainers); retire groups by emptying them, with no delete control |
+| Groups | List and details; create, edit and manage flat membership; basic service and channel access. Include the daemon Administrator group and each record's assigned maintainers group under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
 | Registered pub/sub channels | List and details for pub/sub and queue topics; create, edit and remove; subscriptions, owner, maintainers group, permissions, TTL, capacity and overflow policy |
 
-[Administrative and record authority](01-identity.md#groups-and-maintainers) applies
+[Administrative and record authority](01-identity-and-roles.md#groups) applies
 to every control and to direct API calls. Membership and policy changes must
-survive restart. User lifecycle effects are [daemon policy](01-identity.md#user-lifecycle),
+survive restart. User lifecycle effects are [daemon policy](01-identity-and-roles.md#user-states),
 not merely labels on the Users page.
 
 Keep the [built views](#what-it-shows), including inboxes holding messages, exchanges,
@@ -234,7 +236,7 @@ and from then on the browser carries that id and nothing else.
 | the cookie | the session id alone — `HttpOnly`, `Secure`, `SameSite=Strict`, idle timeout. Never the token, never in a URL |
 | a web-child restart | logs nobody out, because the child was holding nothing. A session map inside it would be a second store, of the worst possible contents: every signed-in person's live credential in the one child that is restarted with backoff |
 | what the child holds | nothing. It stops reaching the bus over the owner's socket the moment people sign in — a web child with the owner's authority is a credential mint ([access § getting a token](02-access.md#getting-a-token)) |
-| enrolling | not here. The proof is a signature made by the host's own `ssh-keygen` ([identity § proving possession](01-identity.md#proving-possession)) and a page with no JavaScript cannot make one, so what the dashboard does for a stranger is print the command |
+| enrolling | not here. The proof is a signature made by the host's own `ssh-keygen` ([identity § proving possession](02-access.md#proving-possession)) and a page with no JavaScript cannot make one, so what the dashboard does for a stranger is print the command |
 
 
 A bus restart invalidates browser sessions: their map is not persisted.
@@ -242,7 +244,7 @@ A bus restart invalidates browser sessions: their map is not persisted.
 **So does removing the credential they came from.** A session is a credential
 without being a token, so one that outlived its token would leave a name
 answering for up to the idle timeout after the daemon decided it answers for
-nothing — [no registration, no access](01-identity.md#unregistering) not
+nothing — [no registration, no access](01-identity-and-roles.md#unregistering) not
 holding, quietly. Unregistering, deleting a service and the
 [ownerless sweep](02-access.md#ownerless-credentials) all end that name's
 sessions with its token.
@@ -255,11 +257,11 @@ sessions with its token.
 | **registry**, as this caller may see it: kind, owner, protocol, description, `reading`/`queued`/`in`/`out`, when the record was last written, the configuration's digest | Built | — it is `/ls` |
 | **inboxes holding messages** — a backlog, oldest first, marked when the queue is at its bound and when no unfiltered read is outstanding. Holding is not being stuck, and `reading` excludes a filtered read, so neither is stated as more than it is. The one view an incident actually needs | Built | — `oldest` and `reading` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **exchanges** — retained messages and referenced receipt evidence | Built | [correlation and limits](#retained-exchanges) |
-| **my names** — what I hold a credential for, whose it is and what it is for, its fingerprint, when it was issued and last used, and how to rotate it | Built | — the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)). A person's own identity is distinguished from the services they registered. A credential [goes with its address](01-identity.md#unregistering), so the list stays names something answers on |
+| **my names** — what I hold a credential for, whose it is and what it is for, its fingerprint, when it was issued and last used, and how to rotate it | Built | — the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)). A person's own identity is distinguished from the services they registered. A credential [goes with its address](01-identity-and-roles.md#unregistering), so the list stays names something answers on |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | Built | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | Built | The built page shows only refusal reasons that occurred; counters are on `status` ([refusals](#refusals)) |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | Built | — `status` carries the unclean-restart fact |
-| **people** — identities, profiles, local avatars, authority, state, group membership and owned services | Built | [person records](01-identity.md#person-records) and [user lifecycle](01-identity.md#user-lifecycle) |
+| **people** — identities, profiles, local avatars, authority, state, group membership and owned services | Built | [person records](01-identity-and-roles.md#users-and-profiles) and [user lifecycle](01-identity-and-roles.md#user-states) |
 
 ### Retained exchanges
 
@@ -302,14 +304,14 @@ handler runs, and a failure of ours, which is a `500`.
 | Reason | | |
 |---|---|---|
 | `credential` | `401` | the token is not one, none came at all, or it backs a name the daemon knows nothing about — all three are *who are you*, and none of them is a state anybody can lift ([access § what a call carries](02-access.md#what-a-call-carries)) |
-| `acl` | `403` | the service, the record's owner, or a private configuration said no ([identity § acl](01-identity.md#acl)) |
-| `suspended` | `403` | a user state is in the way: the caller's own, or that of the owner of the name being called ([user lifecycle](01-identity.md#user-lifecycle), [services of a paused or banned user](01-identity.md#services-of-a-user-who-is-paused-or-banned)) |
-| `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](01-identity.md#proving-possession)) |
+| `acl` | `403` | the service, the record's owner, or a private configuration said no ([identity § acl](02-access.md#acl)) |
+| `suspended` | `403` | a user state is in the way: the caller's own, or that of the owner of the name being called ([user lifecycle](01-identity-and-roles.md#user-states), [services of a paused or banned user](01-identity-and-roles.md#user-states)) |
+| `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](02-access.md#proving-possession)) |
 | `unknown` | `404` | no such name ([messaging § verbs](04-messaging.md#verbs)) |
-| `disabled` | `409` | the receiver's record is turned off by its owner ([owner control](01-identity.md#owner-control)) |
-| `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity.md#unregistering)), or a credential is backed by a user, record or retained service ([cleanup](02-access.md#ownerless-credentials)) |
+| `disabled` | `409` | the receiver's record is turned off by its owner ([owner control](01-identity-and-roles.md#services)) |
+| `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-roles.md#unregistering)), or a credential is backed by a user, record or retained service ([cleanup](02-access.md#ownerless-credentials)) |
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
-| `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity.md#registration)) |
+| `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity-and-roles.md#registration)) |
 | `full` | `429` | the receiver's queue is at its bound and refuses rather than loses ([messaging § overflow](04-messaging.md#overflow)) |
 | `malformed` | `400` | the caller got the request wrong. One reason, not eight: *"you sent nonsense"* is a single answer however many ways there are to send it |
 
@@ -386,7 +388,7 @@ and human-readable CLI output, use:
 
 These glyphs label entity types, not authority or health. Keep the visible text
 beside the glyph; Owner, Administrator, Maintainer and Member remain separate
-[role labels](01-owners-and-maintainers.md#role-names-and-scopes). Use the identity
+[role labels](01-identity-and-roles.md#role-names-and-scopes). Use the identity
 and record facts returned by the daemon rather than guessing type from a name.
 This vocabulary is for displayed labels; it does not rename API kinds, alter
 JSON output or prescribe MCP output.
@@ -400,6 +402,6 @@ labels or read-only views. Saving an ACL preserves its syntax and does not add
 display symbols to it. The same rule applies to CLI command arguments and
 copyable ACL examples.
 
-The [current ACL contract](01-identity.md#acl) defines implemented access terms.
+The [current ACL contract](02-access.md#acl) defines implemented access terms.
 The [proposed role syntax](../Plans/R1/identity.md#sigils) remains separately
 identified as proposed; this display rule does not introduce new parser syntax.

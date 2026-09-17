@@ -6,7 +6,7 @@ Shipped in 0.5.33. Evidence for the acceptance in
 ## Scope
 
 The contract was settled and written down
-([identity § a group is not deleted](../../../docs/01-identity.md#groups-and-maintainers)):
+([identity § a group is not deleted](../../../docs/01-identity-and-roles.md#groups)):
 a group is retired by emptying its membership, because removing a name other
 records point at silently changes what every one of them means. The code had
 not caught up. `SetGroup` still carried a `remove` parameter and a
