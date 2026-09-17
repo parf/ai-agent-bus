@@ -658,7 +658,7 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := m.bus.SetGroup("admin@h", core.MaintainersGroup, []string{"admin@h", "maint@h"}); err != nil {
+	if err := m.bus.SetGroup("admin@h", core.AdministratorsGroup, []string{"admin@h", "maint@h"}); err != nil {
 		t.Fatal(err)
 	}
 	// Something only its owner and a maintainer may see, so "visible to you"

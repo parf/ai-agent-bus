@@ -2243,13 +2243,13 @@ orph_checks() {
   # and not stable: dropping the trailing comma when the owner happens to be
   # last would leave JSON the start refuses to read, which checks nothing.
   OWNROW="{\"name\":\"$OWNER\",\"state\":\"[a-z]*\",\"kind\":\"\"}"
-  sed -i "s|$OWNROW,||; s|,$OWNROW||; s|\"@maintainers\":\[\"$OWNER\"\]|\"@maintainers\":[]|" "$D/orph/dump.json"
+  sed -i "s|$OWNROW,||; s|,$OWNROW||; s|\"@administrators\":\[\"$OWNER\"\]|\"@administrators\":[]|" "$D/orph/dump.json"
   # Each read once and checked for shape first: a sed that matched nothing hands
   # back an empty string, which `lacks` accepts as proof of anything.
   EDUSERS=$(sed -n 's/.*\("Users":\[[^]]*\]\).*/\1/p' "$D/orph/dump.json")
   EDGROUPS=$(sed -n 's/.*\("Groups":{[^}]*}\).*/\1/p' "$D/orph/dump.json")
   has "the edited store still lists the users it kept" "$EDUSERS" 'keeper@srv1'
-  has "and still has a maintainers group to read" "$EDGROUPS" '"@maintainers":'
+  has "and still has a maintainers group to read" "$EDGROUPS" '"@administrators":'
   lacks "but no profile for the daemon owner, as a hand-edited store may not" \
     "$EDUSERS" "$OWNER"
   lacks "nor a line in the group a reload would rebuild one from" "$EDGROUPS" "$OWNER"

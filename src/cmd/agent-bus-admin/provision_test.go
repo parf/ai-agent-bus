@@ -54,7 +54,7 @@ func (d *daemon) serve(t *testing.T) string {
 			w.WriteHeader(code)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string][]string{core.MaintainersGroup: d.members})
+		json.NewEncoder(w).Encode(map[string][]string{core.AdministratorsGroup: d.members})
 	})
 	mux.HandleFunc("POST /group", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
@@ -137,13 +137,13 @@ func TestUserAddCreatesTheUserItAdds(t *testing.T) {
 		t.Fatal("the user was created without the key: nothing in authorized_keys reaches the token command")
 	}
 	if d.maintains("newcomer@h") {
-		t.Fatal("authority nobody granted: newcomer@h became a maintainer without --admin")
+		t.Fatal("authority nobody granted: newcomer@h became a administrator without --admin")
 	}
 }
 
 // --admin is the only thing that grants authority, and it grants it by
 // membership rather than by asking for a field the daemon would ignore.
-func TestAdminFlagGrantsMaintainerAndNothingElseDoes(t *testing.T) {
+func TestAdminFlagGrantsAdministratorAndNothingElseDoes(t *testing.T) {
 	key := testHome(t)
 	d := newDaemon()
 	t.Setenv("AGENT_BUS_ADDR", d.serve(t))
@@ -155,12 +155,12 @@ func TestAdminFlagGrantsMaintainerAndNothingElseDoes(t *testing.T) {
 		t.Fatal("the key was added without the user")
 	}
 	if !d.maintains("boss@h") {
-		t.Fatal("--admin did not grant maintainer authority")
+		t.Fatal("--admin did not grant administrator authority")
 	}
 	// The owner must survive being added to, or the daemon would refuse the
 	// whole group write and the authority would silently not be granted.
 	if !d.maintains("owner@h") {
-		t.Fatal("the existing maintainers were replaced rather than added to")
+		t.Fatal("the existing administrators were replaced rather than added to")
 	}
 }
 

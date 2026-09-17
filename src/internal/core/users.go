@@ -11,7 +11,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-const MaintainersGroup = "@maintainers"
+const AdministratorsGroup = "@administrators"
 
 func (b *Bus) active(name string) bool {
 	state := b.users[name].State
@@ -170,13 +170,13 @@ func (b *Bus) knows(name string) error {
 	}
 	return nil
 }
-func (b *Bus) isMaintainer(name string) bool {
-	return name == b.admin || b.member(name, MaintainersGroup)
+func (b *Bus) isAdministrator(name string) bool {
+	return name == b.admin || b.member(name, AdministratorsGroup)
 }
-func (b *Bus) IsMaintainer(name string) bool {
+func (b *Bus) IsAdministrator(name string) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.acting(name) == nil && b.isMaintainer(name)
+	return b.acting(name) == nil && b.isAdministrator(name)
 }
 
 // IsPerson says whether a name is somebody's identity rather than a service
@@ -263,7 +263,7 @@ func (b *Bus) RemoveOwnerless(caller, name string, forget func(string) error) er
 	if err := b.acting(who); err != nil {
 		return err
 	}
-	if !b.isMaintainer(who) {
+	if !b.isAdministrator(who) {
 		return ErrNotOwner
 	}
 	if !b.ownerless(n) {
@@ -340,7 +340,7 @@ func (b *Bus) mayOwn(owner, name string) error {
 }
 
 func (b *Bus) mayEditUser(caller, name string) bool {
-	return b.acting(caller) == nil && (caller == b.admin || b.isMaintainer(caller) && caller != name && !b.isMaintainer(name))
+	return b.acting(caller) == nil && (caller == b.admin || b.isAdministrator(caller) && caller != name && !b.isAdministrator(name))
 }
 
 func normalizedProfile(in protocol.User) (protocol.User, error) {
@@ -384,7 +384,7 @@ func normalizedProfile(in protocol.User) (protocol.User, error) {
 		}
 	}
 	in.Kind = ""
-	in.Maintainer, in.DaemonOwner, in.CanEdit, in.CanActivate, in.CanRemove = false, false, false, false, false
+	in.Administrator, in.DaemonOwner, in.CanEdit, in.CanActivate, in.CanRemove = false, false, false, false, false
 	in.Groups, in.Services = nil, nil
 	return in, nil
 }
@@ -468,10 +468,10 @@ func (b *Bus) userView(caller, name string) protocol.User {
 		u.State = "active"
 	}
 	u.DaemonOwner = name == b.admin
-	u.Maintainer = b.isMaintainer(name)
+	u.Administrator = b.isAdministrator(name)
 	u.CanEdit = u.Kind == protocol.DirectoryUser && b.mayEditUser(caller, name)
 	u.CanActivate = u.CanEdit && (u.State != "banned" || caller == b.admin)
-	u.CanRemove = b.acting(caller) == nil && b.isMaintainer(caller) && b.ownerless(name)
+	u.CanRemove = b.acting(caller) == nil && b.isAdministrator(caller) && b.ownerless(name)
 	for group, members := range b.groups {
 		for _, member := range members {
 			if member == name {
@@ -515,7 +515,7 @@ func (b *Bus) Users(caller string, credentialNames []string) []protocol.User {
 	}
 	out := []protocol.User{}
 	for name := range names {
-		if caller == name || b.acting(caller) == nil && b.isMaintainer(caller) {
+		if caller == name || b.acting(caller) == nil && b.isAdministrator(caller) {
 			out = append(out, b.userView(caller, name))
 		}
 	}

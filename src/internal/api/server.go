@@ -137,7 +137,7 @@ func (s *Server) Dashboard(url string) {
 }
 
 func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
-	bus.Administrator(owner)
+	bus.SetDaemonOwner(owner)
 	return &Server{bus: bus, tokens: tokens, owner: owner}
 }
 
@@ -327,7 +327,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.
 		You           string `json:"you"`
 		Administrator bool   `json:"administrator,omitempty"`
 		DaemonOwner   bool   `json:"daemon_owner,omitempty"`
-	}{Status: s.bus.Status(), You: caller.String(), Administrator: s.bus.IsMaintainer(caller.String()), DaemonOwner: caller.String() == s.owner})
+	}{Status: s.bus.Status(), You: caller.String(), Administrator: s.bus.IsAdministrator(caller.String()), DaemonOwner: caller.String() == s.owner})
 }
 
 // subscribe puts the caller on a pub/sub topic, or takes it off. The caller

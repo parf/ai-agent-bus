@@ -18,7 +18,7 @@ import (
 // boundary rather than trusting the spelling.
 func TestSuspensionDidNotSettleTheDrainQuestion(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	b.Masters([]string{"admin@h"})
 	for _, who := range []string{"alice@h", "sender@h"} {
 		if _, err := b.SetUser("admin@h", protocol.User{Name: who}, true); err != nil {

@@ -45,6 +45,7 @@ func (b *Bus) Snapshot() ports.Snapshot {
 func (b *Bus) Restore(s ports.Snapshot) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	s = migrateAdministrators(s)
 	b.unclean = !s.Clean
 	for _, user := range s.Users {
 		b.users[user.Name] = user
@@ -52,9 +53,9 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	for name, members := range s.Groups {
 		b.groups[name] = append([]string{}, members...)
 	}
-	// A snapshot written before maintainers had to be users can hold one who
+	// A snapshot written before administrators had to be users can hold one who
 	// is not; the invariant is restored rather than trusted.
-	b.maintainersAreUsers()
+	b.administratorsAreUsers()
 	for _, r := range s.Records {
 		b.records[r.Name] = r
 	}

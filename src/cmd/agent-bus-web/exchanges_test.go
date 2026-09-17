@@ -225,7 +225,7 @@ func TestExchangeRenderingPreservesEvidenceAndMissingHistory(t *testing.T) {
 
 func TestRedirectedExchangeEvidenceIsScopedToTheViewer(t *testing.T) {
 	b := core.New()
-	b.Administrator("owner@h")
+	b.SetDaemonOwner("owner@h")
 	b.Masters([]string{"owner@h"})
 	for _, name := range []string{"alice@h", "worker@h", "third@h"} {
 		if _, err := b.Register(protocol.Record{Name: name, Owner: "owner@h", Allow: []string{"*"}}); err != nil {

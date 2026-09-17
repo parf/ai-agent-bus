@@ -90,7 +90,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 		} {
 			t.Run(v.name+"/"+caller.who, func(t *testing.T) {
 				b := New()
-				b.Administrator("admin@h")
+				b.SetDaemonOwner("admin@h")
 				known(t, b, "target@h", "sub@h")
 				provision(t, b, protocol.Record{
 					Name: "news@h", Kind: protocol.KindTopic, Mode: protocol.ModePubSub,
@@ -100,7 +100,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 				if _, err := b.SetUser("admin@h", protocol.User{Name: "paused@h"}, true); err != nil {
 					t.Fatal(err)
 				}
-				if err := b.SetGroup("admin@h", MaintainersGroup, []string{"admin@h", "paused@h"}); err != nil {
+				if err := b.SetGroup("admin@h", AdministratorsGroup, []string{"admin@h", "paused@h"}); err != nil {
 					t.Fatal(err)
 				}
 				if _, err := b.SetUserState("admin@h", "paused@h", "paused"); err != nil {
@@ -119,7 +119,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 // make it somebody again.
 func TestARemovedCallerCannotRegisterItselfBack(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	known(t, b, "gone@h")
 	if err := b.Unregister("gone@h", "gone@h"); err != nil {
 		t.Fatal(err)
@@ -144,7 +144,7 @@ func TestARemovedCallerCannotRegisterItselfBack(t *testing.T) {
 // the credential of the owner it now has.
 func TestIssuingDoesNotHandOverACredentialOwnershipHasMovedOn(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	known(t, b, "first@h", "second@h")
 	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "first@h"}); err != nil {
 		t.Fatal(err)
@@ -177,7 +177,7 @@ func TestIssuingDoesNotHandOverACredentialOwnershipHasMovedOn(t *testing.T) {
 // and showing the transfer cannot proceed meanwhile.
 func TestIssuingHoldsTheRegistryWhileItDecidesAndMints(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	known(t, b, "first@h", "second@h")
 	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "first@h"}); err != nil {
 		t.Fatal(err)
@@ -221,7 +221,7 @@ func TestIssuingHoldsTheRegistryWhileItDecidesAndMints(t *testing.T) {
 // who can answer for it now — not merely one who was registered once.
 func TestATransferCannotHandARecordToSomebodyWhoCannotAct(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	known(t, b, "owner@h")
 	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
@@ -247,7 +247,7 @@ func TestATransferCannotHandARecordToSomebodyWhoCannotAct(t *testing.T) {
 // gone and a credential answering for it.
 func TestRemovingAnAddressAndItsCredentialIsOneOperation(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	known(t, b, "svc@h")
 	refuse := errors.New("the credential store is not writable")
 	if err := b.UnregisterAnd("svc@h", "svc@h", func(string) error { return refuse }); !errors.Is(err, refuse) {
@@ -293,7 +293,7 @@ func TestRemovingAnAddressAndItsCredentialIsOneOperation(t *testing.T) {
 // credential dropped instead.
 func TestRemovingHoldsTheRegistryWhileItDropsTheCredential(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	known(t, b, "svc@h", "other@h")
 	forgetting, release := make(chan struct{}), make(chan struct{})
 	removed := make(chan error, 1)
@@ -331,7 +331,7 @@ func TestRemovingHoldsTheRegistryWhileItDropsTheCredential(t *testing.T) {
 // removed while reading is being served on standing nobody has any more.
 func TestARemovedPrincipalsBlockedReadIsReleased(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	known(t, b, "reader@h")
 	provision(t, b, protocol.Record{Name: "shared@h", Owner: "admin@h"})
 	stopped := make(chan error, 1)
@@ -361,14 +361,14 @@ func TestListingsShowNothingToACallerThatMayNotAct(t *testing.T) {
 	for _, caller := range []string{"nobody@h", "paused@h"} {
 		t.Run(caller, func(t *testing.T) {
 			b := New()
-			b.Administrator("admin@h")
+			b.SetDaemonOwner("admin@h")
 			known(t, b, "svc@h")
 			if _, err := b.SetUser("admin@h", protocol.User{Name: "paused@h"}, true); err != nil {
 				t.Fatal(err)
 			}
 			// A maintainer, so that what it is refused cannot be mistaken for
 			// never having had the authority.
-			if err := b.SetGroup("admin@h", MaintainersGroup, []string{"admin@h", "paused@h"}); err != nil {
+			if err := b.SetGroup("admin@h", AdministratorsGroup, []string{"admin@h", "paused@h"}); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := b.SetUserState("admin@h", "paused@h", "paused"); err != nil {

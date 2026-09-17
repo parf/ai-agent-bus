@@ -291,9 +291,8 @@ Role terminology and intended authority are defined in the
 management follows [explicit group assignments](01-owners-and-maintainers.md#shared-service-management).
 
 **Built representation.** Flat groups support daemon administration and
-service/topic maintenance. The protected `@maintainers` group currently holds
-**Administrators**; its stored name and the code's older terminology have not
-been renamed. The configured daemon owner is always a member. Only the daemon
+service/topic maintenance. The protected `@administrators` group holds
+**Administrators**. Older installations are [migrated on upgrade](09-setup.md#administrator-name-migration). The configured daemon owner is always a member. Only the daemon
 owner changes that group, which cannot be deleted or have the owner removed.
 An added Administrator becomes a registered user; removing the assignment keeps
 the profile. Ordinary group membership does not create user profiles.
@@ -319,7 +318,7 @@ Owning a service alone does not grant daemon user/group administration.
 
 **A group is not deleted, and it is given no states either.** Removing a name
 other records point at silently changes what every one of them means, so
-deletion is out; `@maintainers` could never be deleted and now none of them can.
+deletion is out for every group.
 But *inactive* and *banned* are not what replaces it.
 
 **A group is not a principal.** It holds no credential, authenticates nothing
@@ -334,7 +333,7 @@ still means what it meant — an ACL still reads `@ops`, `@ops` is now nobody, a
 putting a member back brings it back. Nothing about the record changed, which is
 the whole reason deletion was refused.
 
-`@maintainers` is the one that cannot be emptied, because the daemon owner stays
+`@administrators` is the one that cannot be emptied, because the daemon owner stays
 in it ([above](#groups-and-maintainers)) — the same rule that stops it being
 deleted, from the same direction.
 

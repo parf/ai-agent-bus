@@ -40,7 +40,7 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "smoke/person@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.SetGroup("owner@h", core.MaintainersGroup, []string{"owner@h", "maintainer@h"}); err != nil {
+	if err := b.SetGroup("owner@h", core.AdministratorsGroup, []string{"owner@h", "maintainer@h"}); err != nil {
 		t.Fatal(err)
 	}
 	known(t, b, "self@h")
@@ -132,6 +132,20 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 		t.Fatal("missing user table")
 	}
 	people, _, _ := strings.Cut(tables, "</tbody>")
+	var adminRow string
+	for _, candidate := range strings.Split(people, "<tr>") {
+		if strings.Contains(candidate, "maintainer@h") {
+			adminRow = candidate
+			break
+		}
+	}
+	if !strings.Contains(adminRow, "Daemon administrator") || strings.Contains(people, "Daemon maintainer") {
+		t.Fatal("directory does not distinguish daemon Administrator from service Maintainer")
+	}
+	detail, _ := request("owner@h", "/user?name=maintainer@h", "", nil, 200)
+	if !strings.Contains(detail, "Daemon administrator") || strings.Contains(detail, "Daemon maintainer") {
+		t.Fatal("identity detail retained the old administrative role label")
+	}
 	if !strings.Contains(people, "smoke/person@h") || strings.Contains(people, "unused-") || strings.Contains(people, "self@h") {
 		t.Error("users table hides a real user or labels other identities as users")
 	}

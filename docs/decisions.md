@@ -162,6 +162,8 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | 2026-09-16 | Use an inline bus mark derived from the project artwork in the shared page header | Owner-requested; no external asset or additional public route | [what a node says about itself](05-discovery.md#what-a-node-says-about-itself) |
 
+| 2026-09-16 | Implement the Administrator naming distinction | Preserve existing grants during the terminology change | [upgrade migration](09-setup.md#administrator-name-migration) |
+
 ## Superseded
 
 | Earlier design | Replacement |

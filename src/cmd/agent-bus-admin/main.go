@@ -221,7 +221,7 @@ func userAdd(args []string) error {
 	}
 	fmt.Printf("%s may now ask for its credential over ssh %s@<host>\n", n, svcAccount)
 	if admin {
-		fmt.Printf("%s is a maintainer\n", n)
+		fmt.Printf("%s is a administrator\n", n)
 	}
 	return nil
 }
@@ -250,27 +250,27 @@ func provision(n protocol.Name, admin bool) error {
 		return nil
 	}
 	// Authority is granted only where it was asked for, and it is granted by
-	// membership rather than by a field: `Maintainer` is derived by the daemon
+	// membership rather than by a field: `Administrator` is derived by the daemon
 	// and never accepted as a claim. SetGroup replaces the list, so the
 	// current one is read and added to.
-	members, err := maintainers()
+	members, err := administrators()
 	if err != nil {
-		return fmt.Errorf("%s is added but is not a maintainer: %w", n, err)
+		return fmt.Errorf("%s is added but is not a administrator: %w", n, err)
 	}
 	for _, m := range members {
 		if m == n.String() {
 			return nil
 		}
 	}
-	if _, code, err := call("POST", "/group", map[string]any{"name": core.MaintainersGroup, "members": append(members, n.String())}); err != nil {
-		return fmt.Errorf("%s is added but is not a maintainer: %w", n, err)
+	if _, code, err := call("POST", "/group", map[string]any{"name": core.AdministratorsGroup, "members": append(members, n.String())}); err != nil {
+		return fmt.Errorf("%s is added but is not a administrator: %w", n, err)
 	} else if code >= 400 {
-		return fmt.Errorf("%s is added but is not a maintainer: the daemon refused (%s)", n, http.StatusText(code))
+		return fmt.Errorf("%s is added but is not a administrator: the daemon refused (%s)", n, http.StatusText(code))
 	}
 	return nil
 }
 
-func maintainers() ([]string, error) {
+func administrators() ([]string, error) {
 	out, code, err := call("GET", "/groups", nil)
 	if err != nil {
 		return nil, err
@@ -282,7 +282,7 @@ func maintainers() ([]string, error) {
 	if err := json.Unmarshal(out, &groups); err != nil {
 		return nil, err
 	}
-	return groups[core.MaintainersGroup], nil
+	return groups[core.AdministratorsGroup], nil
 }
 
 // call reaches the daemon on this account's own socket, which is the

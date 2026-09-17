@@ -205,7 +205,7 @@ var peoplePage = template.Must(template.New("people").Parse(shell("users", "User
 <p>Showing {{.Start}}–{{.End}} of {{.Matched}} matching identities.</p>
 <section aria-labelledby=people-heading><h2 id=people-heading>Registered users</h2>
 <table><thead><tr><th scope=col>Person / identity</th><th scope=col>Authority</th><th scope=col>State</th></tr></thead><tbody>
-{{range .People}}<tr><td>{{with .PersonName}}<strong>{{.}}</strong><br>{{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Maintainer}}Daemon maintainer{{else}}User{{end}}</td><td>{{.State}}</td></tr>
+{{range .People}}<tr><td>{{with .PersonName}}<strong>{{.}}</strong><br>{{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</td><td>{{.State}}</td></tr>
 {{else}}<tr><td colspan=3>No registered users on this page.</td></tr>{{end}}</tbody></table></section>
 <section aria-labelledby=other-heading><h2 id=other-heading>Other identities — review and cleanup</h2>
 <table><thead><tr><th scope=col>Identity</th><th scope=col>What it is</th><th scope=col>Why it is here / next step</th></tr></thead><tbody>
@@ -227,7 +227,7 @@ var personPage = template.Must(template.New("person").Parse(shell("users", "Iden
 {{if .User.CanRemove}}<h2>Remove unused credential</h2><p>Removal ends access through this name’s current token, previous token and browser sessions. It does not delete a user or service. If the name becomes registered before submission, removal will be refused.</p>
 <form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=remove-credential style="max-width:100%;overflow-wrap:anywhere">Remove credential for {{.User.Name}}</button></form>{{end}}
 {{else}}
-{{if not .New}}<p>State: {{.User.State}} · {{if .User.DaemonOwner}}Daemon owner{{else if .User.Maintainer}}Daemon maintainer{{else}}User{{end}}</p>
+{{if not .New}}<p>State: {{.User.State}} · {{if .User.DaemonOwner}}Daemon owner{{else if .User.Administrator}}Daemon administrator{{else}}User{{end}}</p>
 <h2>Groups</h2>{{range .User.Groups}}<p>{{.}}</p>{{else}}<p>No group memberships</p>{{end}}{{end}}
 {{if or .New .User.CanEdit}}<h2>Profile</h2><form method=post action=/user><input type=hidden name=return value="{{.Return}}">
 {{if .New}}<label>Identity <input name=name required placeholder="user@realm"></label><input type=hidden name=action value=create>{{else}}<input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=action value=save>{{end}}

@@ -14,7 +14,7 @@ import (
 func restored(t *testing.T, records ...protocol.Record) *Bus {
 	t.Helper()
 	b := New()
-	b.Administrator("owner@h")
+	b.SetDaemonOwner("owner@h")
 	for _, who := range []string{"active@h", "other@h", "paused@h", "banned@h"} {
 		if _, err := b.SetUser("owner@h", protocol.User{Name: who}, true); err != nil {
 			t.Fatal(err)

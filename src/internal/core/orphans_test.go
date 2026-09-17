@@ -327,10 +327,10 @@ func TestAnOwnershipCycleSurvives(t *testing.T) {
 // that gives the daemon owner their standing on a restart.
 func TestAMaintainerInTheStoreIsAUser(t *testing.T) {
 	b := New()
-	b.Administrator("owner@h")
+	b.SetDaemonOwner("owner@h")
 	b.Restore(ports.Snapshot{
 		Clean:   true,
-		Groups:  map[string][]string{MaintainersGroup: {"owner@h", "vouched@h"}},
+		Groups:  map[string][]string{AdministratorsGroup: {"owner@h", "vouched@h"}},
 		Records: []protocol.Record{wreck("theirs@h", "vouched@h")},
 	})
 	if k := b.identityKind("vouched@h"); k != protocol.DirectoryUser {

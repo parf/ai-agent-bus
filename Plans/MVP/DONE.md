@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Administrator naming | Administrative role, protected group and client labels renamed; existing membership and explicit record grants migrated | [migration evidence](done/administrator-names.md#checks) |
 | H.5.5, H.5.4 | A start deletes every record whose owner it knows nothing about, to a fixed point, and then drops the credentials that answered for them; the interim guard between the two sweeps is gone. Group membership now goes with a deleted name, which it did not | [orphan services](done/orphan-services.md#checks) |
 | G.1.1 | The daemon never executes what a user supplied: registrations, configurations and message bodies stay data, and enrolment still runs the shipped verifier. An application boundary, not an OS-enforced one | [exec boundary](done/exec-boundary.md#what-proves-it) |
 | H.5.10 | Every refusal an endpoint decides is counted once, on one shared path; the router's rejections and our own failures stay outside the totals, because neither is a caller being turned away | [refusal counting](done/refusal-counting.md#what-proves-it) |

@@ -26,26 +26,26 @@ type Management struct {
 	Full        *string   `json:"overflow,omitempty"`
 }
 
-func (b *Bus) Administrator(owner string) {
+func (b *Bus) SetDaemonOwner(owner string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.admin = owner
-	if !b.member(owner, MaintainersGroup) {
-		b.groups[MaintainersGroup] = append(b.groups[MaintainersGroup], owner)
+	if !b.member(owner, AdministratorsGroup) {
+		b.groups[AdministratorsGroup] = append(b.groups[AdministratorsGroup], owner)
 	}
-	b.maintainersAreUsers()
+	b.administratorsAreUsers()
 }
 
-// maintainersAreUsers keeps the levels nested: an owner is a maintainer and a
-// maintainer is a user (docs/01-identity.md#groups-and-maintainers). Somebody
+// administratorsAreUsers keeps daemon roles nested: an owner is an Administrator
+// and an Administrator is a user (docs/01-identity.md#groups-and-maintainers). Somebody
 // given authority over users who was not one themselves would be a principal
 // the user administration cannot see, and a credential the ownerless sweep
 // would take (docs/02-access.md#ownerless-credentials). Caller holds b.mu.
 //
 // Being taken out of the group does not take the profile away again: a user is
 // never deleted, only made inactive (docs/01-identity.md#user-lifecycle).
-func (b *Bus) maintainersAreUsers() {
-	for _, name := range b.groups[MaintainersGroup] {
+func (b *Bus) administratorsAreUsers() {
+	for _, name := range b.groups[AdministratorsGroup] {
 		if _, known := b.users[name]; !known {
 			b.users[name] = protocol.User{Name: name, State: "active"}
 		}
@@ -75,12 +75,16 @@ func groupName(n string) bool {
 	return true
 }
 
-// Groups are daemon-local flat sets. Only the daemon owner changes membership;
-// record ownership never confers organization administration.
+// Groups are daemon-local flat sets. Administrators edit ordinary groups; only
+// the daemon owner changes administrative membership. Record ownership does
+// not grant daemon administration.
 func (b *Bus) SetGroup(caller, name string, members []string) error {
 	who, err := canon(caller)
 	if err != nil {
 		return err
+	}
+	if name == legacyAdministratorsGroup {
+		return fmt.Errorf("%w: %s was renamed to %s", ErrBadName, name, AdministratorsGroup)
 	}
 	if !groupName(name) {
 		return fmt.Errorf("%w: invalid group", ErrBadName)
@@ -99,10 +103,10 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	if err := b.acting(who); err != nil {
 		return err
 	}
-	if !b.isMaintainer(who) {
+	if !b.isAdministrator(who) {
 		return ErrNotOwner
 	}
-	if name == MaintainersGroup {
+	if name == AdministratorsGroup {
 		if who != b.admin {
 			return ErrNotOwner
 		}
@@ -113,12 +117,12 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 			}
 		}
 		if !includesOwner {
-			return fmt.Errorf("%w: owner must remain a maintainer", ErrNotOwner)
+			return fmt.Errorf("%w: owner must remain an administrator", ErrNotOwner)
 		}
 	}
 	b.groups[name] = normalized
-	if name == MaintainersGroup {
-		b.maintainersAreUsers()
+	if name == AdministratorsGroup {
+		b.administratorsAreUsers()
 	}
 	b.recheckReaders()
 	return nil
@@ -134,7 +138,7 @@ func (b *Bus) Groups(caller string) map[string][]string {
 	for group, members := range b.groups {
 		// Names are available for assignment. Membership lists are administrative.
 		out[group] = []string{}
-		if b.isMaintainer(caller) {
+		if b.isAdministrator(caller) {
 			out[group] = append(out[group], members...)
 		}
 	}

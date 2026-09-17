@@ -27,17 +27,17 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	call("admin@h", "POST", "/user", `{"name":"alice@h","person_name":"Alice","email":" Alice@Example.COM ","github_user":"Alice-Code","create":true}`, 200)
 	call("admin@h", "POST", "/user", `{"name":"maint@h","person_name":"Maintainer","create":true}`, 200)
 	call("admin@h", "POST", "/user", `{"name":"peer@h","person_name":"Peer","create":true}`, 200)
-	call("admin@h", "POST", "/group", `{"name":"@maintainers","members":["admin@h","maint@h","peer@h"]}`, 200)
+	call("admin@h", "POST", "/group", `{"name":"@administrators","members":["admin@h","maint@h","peer@h"]}`, 200)
 	call("maint@h", "POST", "/user", `{"name":"alice@h","person_name":"Vouched","email":"alice@example.com","github_user":"alice-code"}`, 200)
 	for _, target := range []string{"maint@h", "peer@h", "admin@h"} {
 		call("maint@h", "POST", "/user", `{"name":"`+target+`","person_name":"forged"}`, 403)
 	}
 	call("alice@h", "POST", "/user", `{"name":"alice@h","person_name":"self-vouched"}`, 403)
-	call("maint@h", "POST", "/group", `{"name":"@maintainers","members":["maint@h"]}`, 403)
-	call("admin@h", "POST", "/group", `{"name":"@maintainers","members":[]}`, 403)
+	call("maint@h", "POST", "/group", `{"name":"@administrators","members":["maint@h"]}`, 403)
+	call("admin@h", "POST", "/group", `{"name":"@administrators","members":[]}`, 403)
 	// Not 403 any more: the removal is refused before anyone asks whose group
 	// it is, so the daemon owner is refused it on the same terms as everybody.
-	call("admin@h", "POST", "/group", `{"name":"@maintainers","remove":true}`, 400)
+	call("admin@h", "POST", "/group", `{"name":"@administrators","remove":true}`, 400)
 	call("admin@h", "POST", "/user/state", `{"name":"admin@h","state":"paused"}`, 403)
 	call("admin@h", "POST", "/user", `{"name":"duplicate@h","email":"ALICE@EXAMPLE.COM","create":true}`, 400)
 	call("admin@h", "POST", "/user", `{"name":"duplicate@h","github_user":"ALICE-CODE","create":true}`, 400)
@@ -108,6 +108,6 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	call("admin@h", "POST", "/user/state", `{"name":"alice@h","state":"active"}`, 200)
 	call("alice@h", "GET", "/status", "", 200)
 	// Removing a maintainer affects an already issued credential.
-	call("admin@h", "POST", "/group", `{"name":"@maintainers","members":["admin@h","peer@h"]}`, 200)
+	call("admin@h", "POST", "/group", `{"name":"@administrators","members":["admin@h","peer@h"]}`, 200)
 	call("maint@h", "POST", "/user", `{"name":"alice@h","person_name":"stale authority"}`, 403)
 }

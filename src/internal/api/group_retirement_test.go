@@ -62,7 +62,7 @@ func TestNoPathRemovesAGroup(t *testing.T) {
 	//
 	// The fixture matters: @ops is nonempty and named by no record, which is
 	// exactly the case the old deletion branch allowed. A referenced group or
-	// @maintainers would have been refused with the verb still present, so
+	// @administrators would have been refused with the verb still present, so
 	// either would pass this test against the code it is meant to reject.
 	members := bus.Groups("admin@h")["@ops"]
 	if len(members) != 1 || members[0] != "maint@h" {
@@ -162,15 +162,15 @@ func TestEmptyingAGroupLeavesTheRecordsThatNameIt(t *testing.T) {
 	}
 }
 
-// @maintainers refuses to be emptied, because the daemon owner stays in it.
+// @administrators refuses to be emptied, because the daemon owner stays in it.
 // Retirement is for ordinary groups; the one group that defines a level is not
 // retirable by either route.
-func TestTheMaintainersGroupIsNeitherEmptiedNorRemoved(t *testing.T) {
+func TestTheAdministratorsGroupIsNeitherEmptiedNorRemoved(t *testing.T) {
 	_, s, token := groupFixture(t)
-	if code, body := post(t, s, token, "admin@h", "/group", `{"name":"@maintainers","members":[]}`); code != 403 {
+	if code, body := post(t, s, token, "admin@h", "/group", `{"name":"@administrators","members":[]}`); code != 403 {
 		t.Errorf("the maintainers group was emptied: %d %s", code, body)
 	}
-	if code, body := post(t, s, token, "admin@h", "/group", `{"name":"@maintainers","remove":true}`); code != 400 {
+	if code, body := post(t, s, token, "admin@h", "/group", `{"name":"@administrators","remove":true}`); code != 400 {
 		t.Errorf("the maintainers group answered a removal %d, want 400: %s", code, body)
 	}
 }

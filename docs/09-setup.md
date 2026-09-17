@@ -36,7 +36,7 @@ the daemon already holds a profile or a record for
 ([getting a token](02-access.md#getting-a-token)), so writing the
 `authorized_keys` line alone would leave a key whose forced command is refused
 — which is no way in at all. The verb writes the line and creates the user, and
-`--admin` additionally puts the name in `@maintainers`. Authority is granted
+`--admin` additionally grants [Administrator membership](01-identity.md#groups-and-maintainers). Authority is granted
 only where it was asked for: Administrator standing is membership, derived by the
 daemon, never a field a caller may claim.
 
@@ -51,6 +51,28 @@ The implemented admin verbs are `user add`, `user list`, `user remove` and
 `token`. The token operation is delegated to the token helper. Console and SSH
 use the same program. Bundle administration and regeneration of keys are not
 part of this grammar.
+
+## Administrator name migration
+
+Upgrading from the old administrative name migrates membership to the
+[protected Administrator group](01-identity.md#groups-and-maintainers).
+Existing service Maintainer assignments and ACL references follow the rename.
+
+If an ordinary group already uses the destination name, it is preserved as
+`@administrators-legacy` (with a numeric suffix when necessary), and its existing
+references follow it. Neither existing groups nor unresolved record references
+are reused for that preserved name. Its members do not become Administrators.
+The former administrative name cannot be recreated; subsequent starts leave
+the migrated groups unchanged.
+
+Upgrade the daemon and its clients together: the user directory's administrative
+flag is now `administrator`, replacing `maintainer`. Service/channel Maintainer
+assignments retain their meaning.
+
+**Downgrade:** an older daemon does not recognize the renamed group as granting
+non-owner administrative standing. Its members still retain the access and
+service maintenance granted through ordinary group references. Downgrading does
+not restore the old name automatically.
 
 ## Install
 

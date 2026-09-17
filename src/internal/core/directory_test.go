@@ -11,13 +11,13 @@ import (
 
 func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 	b := New()
-	b.Administrator("owner@h")
+	b.SetDaemonOwner("owner@h")
 	b.Restore(ports.Snapshot{Users: []protocol.User{
 		{Name: "smoke/person@h"}, // blank fields, test-like name, no record
 		{Name: "paused@h", State: "paused"},
 		{Name: "banned@h", State: "banned"},
 	}})
-	if err := b.SetGroup("owner@h", MaintainersGroup, []string{"owner@h", "maintainer@h"}); err != nil {
+	if err := b.SetGroup("owner@h", AdministratorsGroup, []string{"owner@h", "maintainer@h"}); err != nil {
 		t.Fatal(err)
 	}
 	known(t, b, "session@h")
@@ -108,7 +108,7 @@ func TestCleanupSerializesRegistrationWithCredentialRemoval(t *testing.T) {
 	for _, shape := range []string{"record", "profile"} {
 		t.Run(shape, func(t *testing.T) {
 			b := New()
-			b.Administrator("owner@h")
+			b.SetDaemonOwner("owner@h")
 			entered, finish := make(chan struct{}), make(chan struct{})
 			removed := make(chan error, 1)
 			go func() {

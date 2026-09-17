@@ -13,7 +13,7 @@ import (
 func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	b := core.New()
 	s, token := serverFor(t, b, "owner@h")
-	if err := b.SetGroup("owner@h", core.MaintainersGroup, []string{"owner@h", "maintainer@h"}); err != nil {
+	if err := b.SetGroup("owner@h", core.AdministratorsGroup, []string{"owner@h", "maintainer@h"}); err != nil {
 		t.Fatal(err)
 	}
 	call := func(who, method, path, body string, want int) []byte {

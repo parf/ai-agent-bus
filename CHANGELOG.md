@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.43 — 2026-09-16
+
+Name daemon user/group managers Administrators, with the protected `@administrators` group and matching API, CLI and web labels. Migrate prior administrative membership and explicit service grants without promoting members of an existing ordinary group at the new name; service/channel Maintainer roles remain separate.
+
 ## 0.5.42 — 2026-09-16
 
 Turn the header bus logo to face right.

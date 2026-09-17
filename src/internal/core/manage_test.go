@@ -19,7 +19,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 	for _, change := range []string{"disable", "acl", "membership", "user", "owner"} {
 		t.Run(change, func(t *testing.T) {
 			b := New()
-			b.Administrator("admin@h")
+			b.SetDaemonOwner("admin@h")
 			known(t, b, "owner@h")
 			if _, err := b.SetUser("admin@h", protocol.User{Name: "reader@h"}, true); err != nil {
 				t.Fatal(err)
@@ -109,7 +109,7 @@ func TestCanceledReaderCannotRecreateRemovedInbox(t *testing.T) {
 
 func TestChannelManagersCanRemoveButStrangersCannot(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	known(t, b, "owner@h")
 	b.Register(protocol.Record{Name: "news@h", Owner: "owner@h", Kind: "topic", Mode: "pubsub"})
 	known(t, b, "subscriber@h", "stranger@h", "maint@h")

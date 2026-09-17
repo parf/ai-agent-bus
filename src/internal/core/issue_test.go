@@ -12,7 +12,7 @@ import (
 // rather than by racing and hoping to land in the window.
 func TestIssuingHoldsTheRegistryWhileItMints(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	known(t, b, "svc@h")
 	minting, release := make(chan struct{}), make(chan struct{})
 	issued := make(chan error, 1)
@@ -54,7 +54,7 @@ func TestIssuingHoldsTheRegistryWhileItMints(t *testing.T) {
 // And the decision itself: nobody is minted for.
 func TestIssuingRefusesANameTheDaemonDoesNotKnow(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	called := false
 	mint := func(string) (string, error) { called = true; return "credential", nil }
 	if _, err := b.IssueFor("admin@h", "ghost@h", mint); err == nil || called {

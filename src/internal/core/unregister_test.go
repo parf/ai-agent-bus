@@ -128,7 +128,7 @@ func TestUnregisterClearsConfigurationAndSubscriptions(t *testing.T) {
 // refused like a queue that is not empty rather than cascading.
 func TestUnregisteringDoesNotOrphanWhatItOwns(t *testing.T) {
 	b := New()
-	b.Administrator("admin@h")
+	b.SetDaemonOwner("admin@h")
 	known(t, b, "alice@h")
 	for _, r := range []protocol.Record{
 		{Name: "child@h", Owner: "alice@h"},

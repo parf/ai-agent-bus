@@ -32,7 +32,7 @@ func suspendedOwnerFixture(t *testing.T) suspendFixture {
 			t.Fatal(err)
 		}
 	}
-	if err := bus.SetGroup("admin@h", core.MaintainersGroup, []string{"admin@h", "maint@h"}); err != nil {
+	if err := bus.SetGroup("admin@h", core.AdministratorsGroup, []string{"admin@h", "maint@h"}); err != nil {
 		t.Fatal(err)
 	}
 	f := suspendFixture{bus, s, token, t}
@@ -94,7 +94,7 @@ func TestASuspendedOwnersServiceRefusesEveryCaller(t *testing.T) {
 	for _, state := range []string{"paused", "banned"} {
 		f.state("alice@h", state)
 
-		// A stranger on the ACL, a daemon maintainer, the daemon owner, and
+		// A stranger on the ACL, a daemon administrator, the daemon owner, and
 		// the service's own principal. Not one of them is the suspended
 		// person, which is the point: the check is on the called name.
 		for _, who := range []string{"bystander@h", "maint@h", "admin@h"} {

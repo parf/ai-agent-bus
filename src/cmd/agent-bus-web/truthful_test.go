@@ -144,7 +144,7 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	if !strings.Contains(groups, "value=save") {
 		t.Error("the groups page lost membership editing, so the check above proves nothing")
 	}
-	for _, group := range []string{"@maintainers", "@ops"} {
+	for _, group := range []string{"@administrators", "@ops"} {
 		if !strings.Contains(groups, group) {
 			t.Errorf("%s is not on the page at all", group)
 		}

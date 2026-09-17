@@ -16,7 +16,7 @@ import (
 // fixtures whose records were long gone, every one of them listed as a user.
 func TestOwnerlessIsNoRecordAndNoUser(t *testing.T) {
 	b := New()
-	b.Administrator("owner@h")
+	b.SetDaemonOwner("owner@h")
 
 	// A service, owned by the owner. Its credential answers for the record.
 	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h"}); err != nil {
@@ -50,7 +50,7 @@ func TestTheSweepNeedsRestoreAndTheOwnerFirst(t *testing.T) {
 	// Before Restore: the records and users are not there yet, so everything
 	// reads as ownerless.
 	early := New()
-	early.Administrator("owner@h")
+	early.SetDaemonOwner("owner@h")
 	if got := early.Ownerless([]string{"person@h", "svc@h"}); len(got) != 2 {
 		t.Errorf("before restore %v is ownerless; the test cannot show the ordering matters", got)
 	}
@@ -69,7 +69,7 @@ func TestTheSweepNeedsRestoreAndTheOwnerFirst(t *testing.T) {
 	if got := cold.Ownerless([]string{"owner@h"}); len(got) != 1 {
 		t.Fatal("the owner is already a user before anybody said so; the check below proves nothing")
 	}
-	cold.Administrator("owner@h")
+	cold.SetDaemonOwner("owner@h")
 	if got := cold.Ownerless([]string{"owner@h"}); len(got) != 0 {
 		t.Errorf("the daemon owner's own credential is ownerless: %v", got)
 	}
@@ -83,7 +83,7 @@ func TestTheSweepNeedsRestoreAndTheOwnerFirst(t *testing.T) {
 // went. See docs/02-access.md#ownerless-credentials.
 func TestTheTwoSweepsAgreeAboutOneName(t *testing.T) {
 	b := New()
-	b.Administrator("owner@h")
+	b.SetDaemonOwner("owner@h")
 	// absent@h holds no record and no profile, and owns a service. Restored
 	// rather than registered: registering a record owned by a name the daemon
 	// knows nothing about is refused now
