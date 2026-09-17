@@ -340,6 +340,23 @@ func (b *Bus) mayEditUser(caller, name string) bool {
 	return b.acting(caller) == nil && (caller == b.admin || b.isAdministrator(caller) && caller != name && !b.isAdministrator(name))
 }
 
+func normalizedEmail(raw string) (string, error) {
+	email := strings.ToLower(strings.TrimSpace(raw))
+	if email == "" {
+		return "", nil
+	}
+	parsed, err := mail.ParseAddress(email)
+	if err != nil || parsed.Address != email || parsed.Name != "" || len(email) > 254 {
+		return "", fmt.Errorf("%w: invalid email", ErrProfile)
+	}
+	for _, c := range email {
+		if c > 127 {
+			return "", fmt.Errorf("%w: email must use ASCII spelling", ErrProfile)
+		}
+	}
+	return email, nil
+}
+
 func normalizedProfile(in protocol.User) (protocol.User, error) {
 	name, err := canon(in.Name)
 	if err != nil {
@@ -347,7 +364,10 @@ func normalizedProfile(in protocol.User) (protocol.User, error) {
 	}
 	in.Name = name
 	in.PersonName = strings.TrimSpace(in.PersonName)
-	in.Email = strings.ToLower(strings.TrimSpace(in.Email))
+	in.Email, err = normalizedEmail(in.Email)
+	if err != nil {
+		return protocol.User{}, err
+	}
 	in.GithubUser = strings.ToLower(strings.TrimSpace(in.GithubUser))
 	parsedName, _ := protocol.ParseName(in.Name)
 	if parsedName.Realm == "github" {
@@ -358,17 +378,6 @@ func normalizedProfile(in protocol.User) (protocol.User, error) {
 	}
 	if len(in.PersonName) > 200 {
 		return protocol.User{}, fmt.Errorf("%w: person name is too long", ErrProfile)
-	}
-	if in.Email != "" {
-		parsed, err := mail.ParseAddress(in.Email)
-		if err != nil || parsed.Address != in.Email || parsed.Name != "" || len(in.Email) > 254 {
-			return protocol.User{}, fmt.Errorf("%w: invalid email", ErrProfile)
-		}
-		for _, c := range in.Email {
-			if c > 127 {
-				return protocol.User{}, fmt.Errorf("%w: email must use ASCII spelling", ErrProfile)
-			}
-		}
 	}
 	if in.GithubUser != "" {
 		if len(in.GithubUser) > 39 || in.GithubUser[0] == '-' || in.GithubUser[len(in.GithubUser)-1] == '-' {
@@ -381,13 +390,49 @@ func normalizedProfile(in protocol.User) (protocol.User, error) {
 		}
 	}
 	in.Kind = ""
-	in.Administrator, in.DaemonOwner, in.CanEdit, in.CanActivate, in.CanRemove = false, false, false, false, false
+	in.Administrator, in.DaemonOwner, in.CanEdit, in.CanSetEmail, in.CanActivate, in.CanRemove = false, false, false, false, false, false
 	in.Groups, in.Services = nil, nil
 	return in, nil
 }
 
-// SetUser is the sole profile/lifecycle write path. Registration cannot vouch
-// for a person's fields, change their state or promote their authority.
+// EditOwnEmail is deliberately narrower than SetUser. The credential supplies
+// the identity, and the operation carries only the one profile field a user
+// may vouch for themselves. Person name and GitHub identity keep their trusted
+// sources (docs/01-identity-and-roles.md#users-and-profiles).
+func (b *Bus) EditOwnEmail(caller, raw string) (protocol.User, error) {
+	who, err := canon(caller)
+	if err != nil {
+		return protocol.User{}, err
+	}
+	email, err := normalizedEmail(raw)
+	if err != nil {
+		return protocol.User{}, err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return protocol.User{}, err
+	}
+	u, exists := b.users[who]
+	if !exists {
+		return protocol.User{}, ErrUnknown
+	}
+	for name, other := range b.users {
+		if name != who && email != "" && other.Email == email {
+			return protocol.User{}, fmt.Errorf("%w: identifying field already belongs to another user", ErrProfile)
+		}
+	}
+	u.Email = email
+	b.users[who] = u
+	if err := b.checkpoint(false); err != nil {
+		return protocol.User{}, err
+	}
+	return b.userView(who, who), nil
+}
+
+// SetUser is the administrative profile/lifecycle write path. Registration
+// cannot vouch for a person's fields, change their state or promote their
+// authority; EditOwnEmail is the separate narrow self-service path.
 func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.User, error) {
 	who, err := canon(caller)
 	if err != nil {
@@ -429,7 +474,7 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 	if in.Name == b.admin && in.State != "active" {
 		return protocol.User{}, fmt.Errorf("%w: the daemon owner must remain active", ErrNotOwner)
 	}
-	if old.State == "banned" && in.State != "banned" && who != b.admin {
+	if old.State == "banned" && in.State != "banned" && who != b.admin && !b.isAdministrator(who) {
 		return protocol.User{}, ErrNotOwner
 	}
 	for name, user := range b.users {
@@ -470,7 +515,8 @@ func (b *Bus) userView(caller, name string) protocol.User {
 	u.DaemonOwner = name == b.admin
 	u.Administrator = b.isAdministrator(name)
 	u.CanEdit = u.Kind == protocol.DirectoryUser && b.mayEditUser(caller, name)
-	u.CanActivate = u.CanEdit && (u.State != "banned" || caller == b.admin)
+	u.CanSetEmail = u.Kind == protocol.DirectoryUser && caller == name && b.acting(caller) == nil
+	u.CanActivate = u.CanEdit
 	u.CanRemove = b.acting(caller) == nil && b.isAdministrator(caller) && b.ownerless(name)
 	for group, members := range b.groups {
 		for _, member := range members {
@@ -549,7 +595,7 @@ func (b *Bus) SetUserState(caller, name, state string) (protocol.User, error) {
 			return protocol.User{}, ErrUnknown
 		}
 	}
-	if name == b.admin && state != "active" || u.State == "banned" && state != "banned" && who != b.admin {
+	if name == b.admin && state != "active" || u.State == "banned" && state != "banned" && who != b.admin && !b.isAdministrator(who) {
 		return protocol.User{}, ErrNotOwner
 	}
 	u.Name, u.State = name, state

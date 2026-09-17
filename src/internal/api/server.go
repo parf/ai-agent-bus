@@ -166,6 +166,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /groups", g(s.groups))
 	mux.HandleFunc("GET /users", g(s.users))
 	mux.HandleFunc("POST /user", g(s.user))
+	mux.HandleFunc("POST /profile", g(s.profile))
 	mux.HandleFunc("POST /user/state", g(s.userState))
 	mux.HandleFunc("POST /identity/remove", g(s.removeIdentity))
 	mux.HandleFunc("GET /activity", g(s.activity))
@@ -651,6 +652,19 @@ func (s *Server) reply(w http.ResponseWriter, v any, err error) {
 // shared decoding path for JSON request bodies.
 func (s *Server) read(w http.ResponseWriter, r *http.Request, v any) bool {
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(v); err != nil {
+		s.refuse(w, http.StatusBadRequest, "malformed", "bad json: "+err.Error())
+		return false
+	}
+	return true
+}
+
+// readStrict is for narrow operations whose body is also an authority
+// boundary. Ignoring a protected field there would make a request appear to
+// change something the operation can never change.
+func (s *Server) readStrict(w http.ResponseWriter, r *http.Request, v any) bool {
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(v); err != nil {
 		s.refuse(w, http.StatusBadRequest, "malformed", "bad json: "+err.Error())
 		return false
 	}

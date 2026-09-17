@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Profile authority | Users edit only their own email; Administrators unban ordinary users without gaining authority over peers or the Owner | [0.5.56 evidence](done/profile-authority.md#checks) |
 | 0.5.55 live rollout | Legacy owner establishment, public identity, mapped Owner access, confined web and peer reconnection verified without transferring live ownership | [live postflight](done/daemon-owner.md#live-postflight) |
 | Daemon Owner authority | Required first-run seed, durable transfer, node-wide resource management without Administrator inheritance or ACL widening | [0.5.55 evidence](done/daemon-owner.md#checks) |
 | 0.5.54 live rollout | Public identity, WEB and human CLI labels, raw JSON vocabulary, confinement and peer reconnection verified without registry changes | [live postflight](done/identity-display-labels.md#live-postflight) |

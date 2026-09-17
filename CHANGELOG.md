@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.56 — 2026-09-17
+
+Let users edit or clear only their own email, with protected profile fields
+kept outside the self-service request. Administrators may now unban ordinary
+users without gaining authority over peers or the daemon Owner.
+
 ## 0.5.55 — 2026-09-17
 
 Persist daemon ownership and let the current Owner manage every service and

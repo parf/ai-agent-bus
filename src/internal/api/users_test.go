@@ -103,10 +103,11 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 		t.Fatal("pause lost queued work")
 	}
 	call("maint@h", "POST", "/user/state", `{"name":"alice@h","state":"banned"}`, 200)
-	call("maint@h", "POST", "/user/state", `{"name":"alice@h","state":"active"}`, 403)
-	call("maint@h", "POST", "/user", `{"name":"alice@h","state":"active"}`, 403)
 	call("alice@h", "POST", "/register", `{"name":"another@h"}`, 403)
-	call("admin@h", "POST", "/user/state", `{"name":"alice@h","state":"active"}`, 200)
+	call("maint@h", "POST", "/user/state", `{"name":"alice@h","state":"active"}`, 200)
+	call("alice@h", "GET", "/status", "", 200)
+	call("maint@h", "POST", "/user/state", `{"name":"alice@h","state":"banned"}`, 200)
+	call("maint@h", "POST", "/user", `{"name":"alice@h","person_name":"Vouched","email":"alice@example.com","github_user":"alice-code","state":"active"}`, 200)
 	call("alice@h", "GET", "/status", "", 200)
 	// Removing a maintainer affects an already issued credential.
 	call("admin@h", "POST", "/group", `{"name":"@administrators","members":["admin@h","peer@h"]}`, 200)

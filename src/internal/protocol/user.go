@@ -19,6 +19,7 @@ type User struct {
 	Administrator bool     `json:"administrator,omitempty"`
 	DaemonOwner   bool     `json:"daemon_owner,omitempty"`
 	CanEdit       bool     `json:"can_edit,omitempty"`
+	CanSetEmail   bool     `json:"can_set_email,omitempty"`
 	CanActivate   bool     `json:"can_activate,omitempty"`
 	Groups        []string `json:"groups,omitempty"`
 	Services      []string `json:"services,omitempty"`

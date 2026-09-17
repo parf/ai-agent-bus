@@ -72,7 +72,8 @@ func TestRequiredDashboardTabs(t *testing.T) {
 	if body := request("/users", nil, 200); !strings.Contains(body, "Alice") {
 		t.Fatal("user was not listed")
 	}
-	if body := request("/user?name=alice@h", nil, 200); !strings.Contains(body, "alice@example.com") || !strings.Contains(body, ">Ban</button>") {
+	if body := request("/user?name=alice@h", nil, 200); !strings.Contains(body, "alice@example.com") || !strings.Contains(body, ">Ban</button>") ||
+		!strings.Contains(body, "Administrators may lift a ban on an ordinary user") || strings.Contains(body, "Only the daemon owner can lift a ban") {
 		t.Fatal("missing profile or lifecycle controls")
 	}
 	request("/user", url.Values{"action": {"save"}, "name": {"alice@h"}, "person_name": {"Alice Updated"}, "email": {"alice@example.com"}}, 303)

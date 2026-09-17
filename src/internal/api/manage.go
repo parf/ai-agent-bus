@@ -69,6 +69,16 @@ func (s *Server) user(w http.ResponseWriter, r *http.Request, caller protocol.Na
 	}
 }
 
+func (s *Server) profile(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	var in struct {
+		Email string `json:"email"`
+	}
+	if s.readStrict(w, r, &in) {
+		user, err := s.bus.EditOwnEmail(caller.String(), in.Email)
+		s.reply(w, user, err)
+	}
+}
+
 func (s *Server) userState(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct{ Name, State string }
 	if s.read(w, r, &in) {

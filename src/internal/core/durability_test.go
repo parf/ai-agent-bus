@@ -98,6 +98,12 @@ func administrativeChanges() []durableChange {
 	}
 	return []durableChange{
 		{"ban", func(b *Bus) error { _, e := b.SetUserState("admin@h", "bob@h", "banned"); return e }, banned},
+		{"self-email", func(b *Bus) error { _, e := b.EditOwnEmail("bob@h", "new@example.com"); return e }, func(t *testing.T, b *Bus) {
+			users := b.Users("bob@h", nil)
+			if len(users) != 1 || users[0].Email != "new@example.com" {
+				t.Fatalf("acknowledged self email was not recovered: %+v", users)
+			}
+		}},
 		{"profile-ban", func(b *Bus) error {
 			_, e := b.SetUser("admin@h", protocol.User{Name: "bob@h", State: "banned"}, false)
 			return e

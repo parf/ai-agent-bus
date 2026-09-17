@@ -100,16 +100,17 @@ gain no node-wide resource authority from their administrative position.
 
 Administrators manage ordinary users and groups, but cannot edit the daemon
 owner or peer Administrators, or grant those positions. The accepted model
-allows ordinary-user unbanning; **today only the owner can lift a ban**.
+allows ordinary-user unbanning; this is built, while the Owner retains authority
+over every level.
 Service/channel management requires the [resource assignment](#services).
 
 ## Users and profiles
 
-Users can register services and channels and become their owners. The accepted
-profile rule allows editing email, but protects username, person name and GitHub
-name; person names come from Linux passwd, GitHub or an Administrator.
-**Self-editing and name-source changes are pending: today only an authorized
-Administrator or Owner edits profile fields.**
+Users can register services and channels and become their owners. A user may
+edit or clear only their own email; username, person name, GitHub name, state
+and authority stay protected. Administrators and the Owner edit profiles below
+their level. Administrator-entered person names are built; trusted imports from
+Linux passwd and GitHub remain pending.
 
 <details>
 <summary>Profile fields and the user directory</summary>
@@ -121,6 +122,9 @@ Administrator or Owner edits profile fields.**
   plus-addresses are not merged. Person names need not be unique.
 * A GitHub identity retains its own GitHub username. Proving cross-provider
   aliases is [later work](../Plans/R1.2/QUESTIONS.md#open-questions).
+* Self-email editing derives the target from the credential and carries no
+  identity or protected field. Email remains normalized and unique by the same
+  rule as an administrative edit.
 * Administrators see the user directory; ordinary callers see their own details.
   Administrators edit below their level; the Owner may edit every level.
 * The directory separates users, self-owned records and credential-only names.

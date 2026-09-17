@@ -41,7 +41,7 @@ the current contract rather than copied between forms:
 |---|---|
 | Remove a service | The address goes and its credential goes with it; nothing answers to the name afterwards. A person's own credential stays — it is not a record's to drop ([unregistering](../../../docs/01-identity-and-roles.md#unregistering)) |
 | Transfer ownership | The new owner must be a registered principal who may act. Credentials already held are not revoked by a transfer |
-| Ban a user | They keep their record and their services; they can do nothing until the state is lifted, and only the daemon owner can lift a ban |
+| Ban a user | They keep their record and their services; they can do nothing until the state is lifted. Administrators may lift an ordinary user's ban; the daemon Owner controls protected authority levels |
 | Remove an unused credential | The credential stops authenticating. It is removed because nothing answers for it |
 
 Remove-a-service and transfer are the two whose help text was wrong in opposite

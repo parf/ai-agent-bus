@@ -157,9 +157,9 @@ func TestSuspensionDestroysNothing(t *testing.T) {
 		t.Error("the ban removed the user record")
 	}
 
-	// Only the daemon owner lifts a ban: a maintainer who could pause cannot.
-	f.call("maint@h", "POST", "/user/state", `{"name":"alice@h","state":"active"}`, 403)
-	f.state("alice@h", "active")
+	// An Administrator may lift an ordinary user's ban. The credentials and
+	// queue below were retained across that Administrator-authorized lift.
+	f.call("maint@h", "POST", "/user/state", `{"name":"alice@h","state":"active"}`, 200)
 
 	// Both credentials still work, and these are the bytes held before the
 	// ban rather than freshly minted ones, so this is kept-not-revoked rather

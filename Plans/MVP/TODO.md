@@ -111,8 +111,7 @@ Implement the pending changes in the [authority specification](../../docs/01-ide
 
 | Work | Acceptance |
 |---|---|
-| Profile editing and provenance | Enforce the [profile rules](../../docs/01-identity-and-roles.md#users-and-profiles), including protected names and permitted PersonName sources |
+| PersonName import adapters | Import Linux passwd GECOS through a trusted setup/account path and GitHub profile data through the directory adapter already bound to key enrolment; neither source may be a caller claim. Administrator entry and email-only self editing are built |
 | Historical smoke fixture cleanup | Review existing `plain@srv1`, `chief@srv1` and `piped@srv1` live identities and chief's administrative standing before revoking/removing anything; [escaped provisioning evidence](done/administrator-names.md#live-verification-and-harness-correction) |
-| Administrator unbanning | Administrator can unban an ordinary user, but cannot edit peer Administrators or the owner |
 | Nested groups | Resolve nested membership with defined cycle handling; current membership is flat |
 | Service-defined roles | Store and return service-defined labels without interpreting their application meaning while preserving owner-only assignment of the reserved Maintainer role; syntax/transport proposals are not automatically adopted |

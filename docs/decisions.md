@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Self-email editing and Administrator unban | [profile permissions](01-identity-and-roles.md#users-and-profiles), [user states](01-identity-and-roles.md#user-states) | 2026-09-17 implementation; users control only their own email, Administrators may unban only ordinary users |
 | Durable daemon ownership and node-wide management | [daemon owner](01-identity-and-roles.md#daemon-owner), [setup upgrade](09-setup.md#daemon-ownership-upgrade) | 2026-09-17 implementation; required setup seed, durable transfer to an active registered User, Owner-only resource override without inherited Administrator authority |
 | Web resource confinement | [web resource limits](11-processes.md#web-resource-limits) | 2026-09-17 G.1.2 implementation; delegated web-only cgroup, fail closed without delegation |
 | Web filesystem and process confinement | [web authority boundary](11-processes.md#web-authority-boundary) | 2026-09-17 G.1.3 implementation; explicit input mounts and environment, no unconfined fallback |
@@ -27,7 +28,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Owner-tagged Personal services | [web grouping and assignment limits](03-services-and-topics.md#personal-and-shared) | 2026-09-16 instruction, clarified 2026-09-17; stored classification and assignment limits built in 0.5.50, web grouping built in 0.5.51; ordinary access policy retained |
 | Plain-text ACL editing | [ACL editing](05-discovery.md#acl-editing) | 2026-09-16 owner instruction; display glyphs are not input syntax |
 | Entity labels in web and CLI | [display labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-16 owner-selected glyphs for web and human-readable CLI output; implemented in 0.5.54 from daemon-stated kinds, with plain machine values retained |
-| Protected identity fields in self-service profile editing | [profile permissions](01-identity-and-roles.md#users-and-profiles) | 2026-09-16 owner clarification; accepted, implementation pending |
+| Protected identity fields in self-service profile editing | [profile permissions](01-identity-and-roles.md#users-and-profiles) | 2026-09-16 owner clarification; implemented in 0.5.56, while trusted Linux/GitHub person-name imports remain pending |
 | Separate administrative and resource-maintenance roles | [role names](01-identity-and-roles.md#role-names-and-scopes), [shared management](01-identity-and-roles.md#groups) | 2026-09-16 owner clarification; replaces the shared daemon/service “Maintainer” terminology. Earlier dated rows retain historical wording |
 | Retained exchange correlation preserves references and qualifies inferred responses | [retained exchanges](05-discovery.md#retained-exchanges) | 2026-09-15 authorized web implementation; F.13.5 partial |
 | A full queue answers `429`, not `503` | [overflow](04-messaging.md#overflow) | 2026-09-15 owner instruction; `503` is left to a service that is briefly unavailable |
