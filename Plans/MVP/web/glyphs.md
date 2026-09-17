@@ -33,10 +33,15 @@ plain text.
 |---|---|---|---|
 | 👤 | `U+1F464` | User | one registered person |
 | 👥 | `U+1F465` | Group | a group or team |
-| 🤖 | `U+1F916` | Agent | an agent identity |
+| 👾 | `U+1F47E` | Agent | an agent identity |
 | ⚙️ | `U+2699 U+FE0F` | Service | a service identity |
 | 🪪 | `U+1FAAA` | Identity | an identity as such, without asserting its entity type or credential |
 | 🔑 | `U+1F511` | Credentials | credentials used to prove an identity; never the secret value itself |
+
+`👾` is owner-selected for Agent. Its common uses also include games and bugs;
+inside AgentBus human output it means Agent only. The visible word remains on
+full labels, while compact directory rows carry the same word in their
+accessible label.
 
 User, Agent and Service are the implemented shared web/CLI entity labels. WEB
 directory rows put their glyph directly before the identity name, and WEB group

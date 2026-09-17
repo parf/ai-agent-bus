@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.61 — 2026-09-17
+
+Use `👾` for Agent in WEB and human CLI output. Keep the shared display
+mapping as the sole source and retain plain machine values.
+
 ## 0.5.60 — 2026-09-17
 
 Put entity glyphs directly before identity and group names in the web

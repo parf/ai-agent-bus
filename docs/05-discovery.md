@@ -405,7 +405,7 @@ owns the installed exercise and mutation checks.
 | Label | Entity |
 |---|---|
 | 👤 User | Registered person |
-| 🤖 Agent | Agent identity |
+| 👾 Agent | Agent identity |
 | ⚙️ Service | Service identity |
 | 👥 Group | Group or team |
 

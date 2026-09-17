@@ -624,7 +624,7 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	body := m.get("/users")
 	for _, kind := range []struct{ name, says string }{
 		{"person@h", `aria-label="👤 User">👤</span> <a`},
-		{"named@h", `aria-label="🤖 Agent">🤖</span> <a`},
+		{"named@h", `aria-label="👾 Agent">👾</span> <a`},
 		{"junk@h", "<td>Credential with no registered name</td>"},
 	} {
 		if !strings.Contains(m.row(body, kind.name), kind.says) {
@@ -638,7 +638,7 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	// with a slash in it is a runtime session on this bus and is a registered
 	// name like any other.
 	m.own("claude/one@h")
-	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, "<td>Registered name</td>") || !strings.Contains(row, `aria-label="🤖 Agent">🤖</span> <a`) {
+	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, "<td>Registered name</td>") || !strings.Contains(row, `aria-label="👾 Agent">👾</span> <a`) {
 		t.Error("a slashed name is not named the same way as any other record")
 	}
 	if strings.Contains(m.get("/users"), "Unclassified") {
@@ -664,17 +664,17 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	}
 
 	services := m.get("/services")
-	for name, want := range map[string]string{"svc@h": "⚙️ Service", "bot@h": "🤖 Agent"} {
+	for name, want := range map[string]string{"svc@h": "⚙️ Service", "bot@h": "👾 Agent"} {
 		if row := m.row(services, name); !strings.Contains(row, want) {
 			t.Errorf("%s has no %q label: %s", name, want, row)
 		}
 	}
-	for _, plain := range []string{`value=generic>⚙️ Service`, `value=agent>🤖 Agent`} {
+	for _, plain := range []string{`value=generic>⚙️ Service`, `value=agent>👾 Agent`} {
 		if !strings.Contains(services, plain) {
 			t.Errorf("create form does not keep a plain kind value beside %q", plain)
 		}
 	}
-	if strings.Contains(services, `value="⚙️`) || strings.Contains(services, `value="🤖`) {
+	if strings.Contains(services, `value="⚙️`) || strings.Contains(services, `value="👾`) {
 		t.Error("a display glyph entered a form value")
 	}
 
@@ -682,12 +682,12 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	if !strings.Contains(detail, "Type: <strong>⚙️ Service</strong>") || !strings.Contains(detail, `name=allow value="peer@h"`) {
 		t.Errorf("detail lost its label or plain ACL value: %s", detail)
 	}
-	if strings.Contains(detail, `name=allow value="⚙️`) || strings.Contains(detail, `name=allow value="🤖`) {
+	if strings.Contains(detail, `name=allow value="⚙️`) || strings.Contains(detail, `name=allow value="👾`) {
 		t.Error("a display glyph entered the editable ACL")
 	}
 
 	diagnostics := m.get("/")
-	for name, want := range map[string]string{"svc@h": "⚙️ Service", "bot@h": "🤖 Agent", "jobs@h": "Channel"} {
+	for name, want := range map[string]string{"svc@h": "⚙️ Service", "bot@h": "👾 Agent", "jobs@h": "Channel"} {
 		if row := m.row(diagnostics, name); !strings.Contains(row, want) {
 			t.Errorf("diagnostics labels %s inconsistently: %s", name, row)
 		}

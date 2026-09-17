@@ -262,11 +262,11 @@ func ls(args []string) error {
 
 func cliEntityLabel(kind string) string {
 	label := display.Entity(kind)
-	// tabwriter counts code points while terminals render the robot as two
+	// tabwriter counts code points while terminals render the alien as two
 	// columns. An explicit zero-width variation selector gives both the same
 	// width model, keeping the next column aligned with ⚙️ Service.
 	if kind == "agent" {
-		return strings.Replace(label, "🤖", "🤖️", 1)
+		return strings.Replace(label, "👾", "👾️", 1)
 	}
 	return label
 }

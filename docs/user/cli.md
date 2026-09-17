@@ -150,7 +150,7 @@ agent-bus unsubscribe alerts@demo
 | `queue` | **one** consumer, and waits until somebody takes it |
 | `pubsub` | **every** current subscriber, and is kept for nobody |
 
-## 🤖 Running a script as a service
+## ⚙️ Running a script as a service
 
 The shortest way to put something on the bus: one command line, and your
 script is a service.
