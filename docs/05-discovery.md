@@ -407,15 +407,20 @@ owns the installed exercise and mutation checks.
 | 👤 User | Registered person |
 | 🤖 Agent | Agent identity |
 | ⚙️ Service | Service identity |
+| 👥 Group | Group or team |
 
-These glyphs label entity types, not authority or health. Keep the visible text
-beside the glyph; Owner, Administrator, Maintainer and Member remain separate
+These glyphs label entity types, not authority or health. Directory rows put the
+glyph directly before the identity name: `👤 chief@srv1`. The directory's
+headings, authority column and introductory key carry the words, so the row does
+not repeat `👤 User` underneath the same name. Group headings use the same compact
+form: `👥 @group`. Other contexts keep the visible type word beside the glyph.
+Owner, Administrator, Maintainer and Member remain separate
 [role labels](01-identity-and-roles.md#role-names-and-scopes). Use the identity
 and record facts returned by the daemon rather than guessing type from a name.
 This vocabulary is for displayed labels; it does not rename API kinds, alter
 JSON output or prescribe MCP output.
 
-WEB applies the same kind-to-label function to directory, service, Personal,
+WEB applies the same daemon-kind mapping to directory, service, Personal,
 detail and diagnostics views. A directory row with no caller-visible record
 kind stays unlabeled; the face does not infer a glyph from its name or
 credential. Channel remains the web term for a topic. Human `agent-bus ls -h`

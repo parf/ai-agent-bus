@@ -38,9 +38,11 @@ plain text.
 | 🪪 | `U+1FAAA` | Identity | an identity as such, without asserting its entity type or credential |
 | 🔑 | `U+1F511` | Credentials | credentials used to prove an identity; never the secret value itself |
 
-User, Agent and Service are the implemented shared web/CLI entity labels. Group
-Identity and Credentials record the selected vocabulary; their exact placements
-remain part of the unsettled web proposal below.
+User, Agent and Service are the implemented shared web/CLI entity labels. WEB
+directory rows put their glyph directly before the identity name, and WEB group
+headings put Group directly before the group name; the surrounding page states
+the meanings in words. Identity and Credentials record the selected vocabulary;
+their exact placements remain part of the unsettled web proposal below.
 
 ## Rendering: a proposal, not a settled decision
 

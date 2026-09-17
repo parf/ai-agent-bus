@@ -133,6 +133,12 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	}
 
 	groups := get("/groups")
+	for _, group := range []string{"@administrators", "@ops"} {
+		row := strings.SplitN(groups, "<code>"+group+"</code>", 2)[0]
+		if !strings.HasSuffix(row, `<span role=img aria-label="Group">👥</span> `) {
+			t.Errorf("group %s has no group glyph immediately before its name", group)
+		}
+	}
 	// Groups are not deleted at all, so no group offers it — the protected one
 	// because core refuses it outright, the rest because deletion is not how a
 	// group is retired. See docs/01-identity-and-roles.md#groups.

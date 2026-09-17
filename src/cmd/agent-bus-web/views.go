@@ -35,6 +35,14 @@ func entityLabel(kind string) string {
 	return display.Entity(kind)
 }
 
+func entityGlyph(kind string) string {
+	return display.EntityGlyph(kind)
+}
+
+func groupGlyph() string {
+	return display.GroupGlyph
+}
+
 type view struct {
 	pageInfo
 	You string

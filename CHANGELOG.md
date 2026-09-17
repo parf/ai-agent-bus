@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.60 — 2026-09-17
+
+Put entity glyphs directly before identity and group names in the web
+directory. Remove the redundant second-line type label while keeping machine
+values and editable syntax plain.
+
 ## 0.5.59 — 2026-09-17
 
 Persist the local OS-account map and let the daemon Owner or Administrators

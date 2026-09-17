@@ -1,5 +1,10 @@
 # Identity display labels
 
+> **Superseded for WEB directory presentation in 0.5.60:** the same
+> daemon-stated glyph now precedes the identity name and the repeated type line
+> is gone. Group headings similarly use `👥` before the name. This file records
+> what 0.5.54 shipped; see [compact labels](compact-web-glyphs.md).
+
 📌 **TL;DR:** 0.5.54 gives User, Agent and Service one shared human label in
 WEB and `agent-bus ls -h`, without changing machine syntax.
 

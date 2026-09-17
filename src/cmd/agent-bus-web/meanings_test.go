@@ -623,22 +623,22 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	}
 	body := m.get("/users")
 	for _, kind := range []struct{ name, says string }{
-		{"person@h", "👤 User"},
-		{"named@h", "🤖 Agent"},
+		{"person@h", `aria-label="👤 User">👤</span> <a`},
+		{"named@h", `aria-label="🤖 Agent">🤖</span> <a`},
 		{"junk@h", "<td>Credential with no registered name</td>"},
 	} {
 		if !strings.Contains(m.row(body, kind.name), kind.says) {
 			t.Errorf("%s is not named as %q: %s", kind.name, kind.says, m.row(body, kind.name))
 		}
 	}
-	if row := m.row(body, "junk@h"); strings.Contains(row, "👤") || strings.Contains(row, "🤖") || strings.Contains(row, "⚙️") {
-		t.Errorf("credential-only identity was given a guessed glyph: %s", row)
+	if row := m.row(body, "junk@h"); !strings.HasPrefix(row, `<td><a `) {
+		t.Errorf("credential-only identity was given a prefix before its stated name: %s", row)
 	}
 	// Named from what the daemon holds, never read off the spelling. A name
 	// with a slash in it is a runtime session on this bus and is a registered
 	// name like any other.
 	m.own("claude/one@h")
-	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, "<td>Registered name</td>") || !strings.Contains(row, "🤖 Agent") {
+	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, "<td>Registered name</td>") || !strings.Contains(row, `aria-label="🤖 Agent">🤖</span> <a`) {
 		t.Error("a slashed name is not named the same way as any other record")
 	}
 	if strings.Contains(m.get("/users"), "Unclassified") {
@@ -656,7 +656,7 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	m.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue})
 
 	users := m.get("/users?kind=users")
-	if row := m.row(users, "person@h"); !strings.Contains(row, "👤 User") {
+	if row := m.row(users, "person@h"); !strings.Contains(row, `aria-label="👤 User">👤</span> <a`) || strings.Contains(row, `<span class=muted>👤 User</span>`) {
 		t.Errorf("registered user has no identity label: %s", row)
 	}
 	if !strings.Contains(users, `value=users selected>👤 Users`) || strings.Contains(users, `value="👤`) {

@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Compact WEB glyph labels | Directory identity glyphs and Group glyphs directly prefix names without entering machine or editable values | [0.5.60 evidence](done/compact-web-glyphs.md#checks) |
 | H.5.1 | Owner/Administrators durably edit the local-account map through existing credentials; a full restart applies listener identity changes without disturbing unrelated mappings | [0.5.59 evidence](done/account-map.md#checks) |
 | PersonName imports | Linux account names enter through the setup/admin adapter; GitHub names are retained with verified enrolment keys; neither path accepts caller profile text | [0.5.58 evidence](done/person-name-imports.md#checks) |
 | 0.5.57 live rollout | Upgrade preflight, public identity, direct-only Administrator refusal without mutation, mapped access and confined web verified | [live postflight](done/nested-groups.md#live-postflight) |

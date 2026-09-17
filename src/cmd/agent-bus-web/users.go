@@ -35,6 +35,16 @@ func identityLabel(u protocol.User, recordKinds map[string]string) string {
 	return ""
 }
 
+func identityGlyph(u protocol.User, recordKinds map[string]string) string {
+	if u.Kind == protocol.DirectoryUser {
+		return entityGlyph(protocol.DirectoryUser)
+	}
+	if u.Kind == protocol.DirectoryRecord {
+		return entityGlyph(recordKinds[u.Name])
+	}
+	return ""
+}
+
 func directoryReturn(raw string) string {
 	u, err := url.Parse(local(raw))
 	if err != nil || u.Path != "/users" {
@@ -210,7 +220,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 	})
 }
 
-var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityLabel": identityLabel}).Parse(shell("users", "Users") + `
+var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityGlyph": identityGlyph, "identityLabel": identityLabel}).Parse(shell("users", "Users") + `
 <h1>Users and other identities</h1>
 <p>{{.PeopleCount}} registered users · {{.OtherCount}} other identities visible to you.</p>
 <p class=muted>Those two are counted <em>by this page</em> over the identities you may
@@ -228,11 +238,11 @@ var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"id
 <p>Showing {{.Start}}–{{.End}} of {{.Matched}} matching identities.</p>
 <section aria-labelledby=people-heading><h2 id=people-heading>Registered users</h2>
 <table><thead><tr><th scope=col>Person / identity</th><th scope=col>Authority</th><th scope=col>State</th></tr></thead><tbody>
-{{range .People}}<tr><td>{{with .PersonName}}<strong>{{.}}</strong><br>{{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a><br><span class=muted>{{identityLabel . $.RecordKinds}}</span></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</td><td>{{.State}}</td></tr>
+{{range .People}}<tr><td>{{with .PersonName}}<strong>{{.}}</strong><br>{{end}}{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</td><td>{{.State}}</td></tr>
 {{else}}<tr><td colspan=3>No registered users on this page.</td></tr>{{end}}</tbody></table></section>
 <section aria-labelledby=other-heading><h2 id=other-heading>Other identities — review and cleanup</h2>
 <table><thead><tr><th scope=col>Identity</th><th scope=col>What it is</th><th scope=col>Why it is here / next step</th></tr></thead><tbody>
-{{range .Other}}<tr><td><a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a>{{with identityLabel . $.RecordKinds}}<br><span class=muted>{{.}}</span>{{end}}</td>
+{{range .Other}}<tr><td>{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td>
 <td>{{if eq .Kind "record"}}Registered name{{else}}Credential with no registered name{{end}}</td>
 <td>{{if eq .Kind "record"}}A self-owned record, not a user profile. <a href="/service?name={{.Name}}">Inspect the record</a> before deciding whether it is needed.
 {{else}}No user profile and no registered record. {{if .CanRemove}}<a href="/user?name={{.Name}}&return={{$.Return}}">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}{{end}}</td></tr>
