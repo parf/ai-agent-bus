@@ -111,5 +111,5 @@ Implement the pending changes in the [authority specification](../../docs/01-ide
 
 | Work | Acceptance |
 |---|---|
-| Historical smoke fixture cleanup | Review existing `plain@srv1`, `chief@srv1` and `piped@srv1` live identities and chief's administrative standing before revoking/removing anything; [escaped provisioning evidence](done/administrator-names.md#live-verification-and-harness-correction) |
+| Historical smoke fixture cleanup | [Read-only provenance review](live-fixture-cleanup.md#measured-state) completed: all three remain active profiles/self-owned Agent records without stored SSH keys or tokens, and `chief@srv1` remains a direct Administrator. Cleanup awaits the Owner's authority decision; revoke or remove nothing implicitly |
 | Service-defined roles | Store and return service-defined labels without interpreting their application meaning while preserving owner-only assignment of the reserved Maintainer role; syntax/transport proposals are not automatically adopted |
