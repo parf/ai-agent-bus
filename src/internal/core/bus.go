@@ -47,6 +47,7 @@ var (
 	ErrBusy        = errors.New("cannot unregister a busy inbox")
 	ErrPrivate     = errors.New("a configuration is private to the service it belongs to")
 	ErrNotAllow    = errors.New("not on that service's allow list")
+	ErrPersonal    = errors.New("a personal service may name only direct service identities in its ACL and cannot have maintainers")
 	ErrEnrol       = errors.New("enrolment")
 	// A group is retired by emptying its membership
 	// (docs/01-identity-and-roles.md#groups), so there is no removal to
@@ -153,6 +154,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 	if err != nil {
 		return protocol.Record{}, err
 	}
+	r.Name = name
 	if owner, err := canon(r.Owner); err == nil {
 		r.Owner = owner
 	}
@@ -242,6 +244,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 		r.Owner = old.Owner
 		r.Subs = old.Subs
 		r.Maintainers, r.Disabled = old.Maintainers, old.Disabled
+		// Personal is the owner's classification. A service refreshes its own
+		// metadata on every start and cannot clear or set that owner choice.
+		r.Personal = old.Personal
 		// Metadata refreshes must not erase grants or lift a master refusal.
 		// Explicit ACLs still replace the policy; Manage can clear either field.
 		if r.Allow == nil {
@@ -249,7 +254,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool) (protocol.R
 			r.NoMaster = r.NoMaster || old.NoMaster
 		}
 	}
-	r.Name = name
+	if err := b.validatePersonal(r); err != nil {
+		return protocol.Record{}, err
+	}
 	r.At = time.Now()
 
 	if enrolled {

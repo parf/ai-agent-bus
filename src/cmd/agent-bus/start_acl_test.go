@@ -17,15 +17,16 @@ func TestRunnerSharingIsExplicit(t *testing.T) {
 		args     []string
 		entries  int
 		noMaster bool
+		personal bool
 	}{
-		{[]string{"svc@h", "echo ok"}, 0, false},
-		{[]string{"svc@h", "echo ok", "--allow", "peer@h", "--no-master"}, 1, true},
+		{[]string{"svc@h", "echo ok"}, 0, false, false},
+		{[]string{"svc@h", "echo ok", "--allow", "peer@h", "--no-master", "--personal"}, 1, true, true},
 	} {
 		svc, err := describe(tc.args)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(svc.Allow) != tc.entries || svc.NoMaster != tc.noMaster {
+		if len(svc.Allow) != tc.entries || svc.NoMaster != tc.noMaster || svc.Personal != tc.personal {
 			t.Fatalf("sharing settings: %+v", svc)
 		}
 		if tc.entries != 0 && svc.Allow[0] != "peer@h" {
@@ -56,10 +57,10 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			}))
 			defer server.Close()
 			transport = func() (*http.Client, string) { return server.Client(), server.URL }
-			args := []string{"svc@h", "echo ok", "--allow", "peer@h", "--no-master"}
+			args := []string{"svc@h", "echo ok", "--allow", "peer@h", "--no-master", "--personal"}
 			if jsonInput {
 				path := filepath.Join(t.TempDir(), "service.json")
-				if err := os.WriteFile(path, []byte(`{"name":"svc@h","script":"echo ok","allow":["peer@h"],"no_master":true}`), 0600); err != nil {
+				if err := os.WriteFile(path, []byte(`{"name":"svc@h","script":"echo ok","allow":["peer@h"],"no_master":true,"personal":true}`), 0600); err != nil {
 					t.Fatal(err)
 				}
 				input, err := os.Open(path)
@@ -76,9 +77,33 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "fixture stops after registration") || seen != 1 {
 				t.Fatalf("start did not reach exactly one registration: calls=%d err=%v", seen, err)
 			}
-			if got.Name != "svc@h" || len(got.Allow) != 1 || got.Allow[0] != "peer@h" || !got.NoMaster {
+			if got.Name != "svc@h" || len(got.Allow) != 1 || got.Allow[0] != "peer@h" || !got.NoMaster || !got.Personal {
 				t.Fatalf("registration lost explicit sharing: %+v", got)
 			}
 		})
+	}
+}
+
+func TestRegisterCarriesPersonal(t *testing.T) {
+	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
+	savedTransport := transport
+	defer func() { transport = savedTransport }()
+	var got protocol.Record
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/register" || r.Method != "POST" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Error(err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	transport = func() (*http.Client, string) { return server.Client(), server.URL }
+	if err := register([]string{"svc@h", "--allow", "peer@h", "--personal"}); err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "svc@h" || !got.Personal || len(got.Allow) != 1 || got.Allow[0] != "peer@h" {
+		t.Fatalf("register lost Personal classification: %+v", got)
 	}
 }

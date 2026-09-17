@@ -109,17 +109,21 @@ type Record struct {
 	TTL   string `json:"ttl,omitempty"`
 	Bound int    `json:"bound,omitempty"`
 
-	Owner       string    `json:"owner"`
-	Maintainers string    `json:"maintainers,omitempty"`
-	Disabled    bool      `json:"disabled,omitempty"`
-	At          time.Time `json:"at"`
+	Owner       string `json:"owner"`
+	Maintainers string `json:"maintainers,omitempty"`
+	// Personal groups a service in the owner's web view. It changes neither
+	// delivery nor access; core only enforces which authority assignments may
+	// coexist with it. See docs/03-services-and-topics.md#personal-and-shared.
+	Personal bool      `json:"personal,omitempty"`
+	Disabled bool      `json:"disabled,omitempty"`
+	At       time.Time `json:"at"`
 
 	// Allow is the service ACL: who may see and use this. It is a field on
 	// the record, not something inside Config, because the daemon enforces
 	// it and will not read a private configuration. `*` means anyone who
-	// can authenticate; empty means the service gives no answer and the
-	// master layer decides. NoMaster is the one flag that takes the last
-	// word back from the node.
+	// can authenticate; empty means only management authority and the record's
+	// own principal. NoMaster prevents the master layer from adding access to
+	// a non-empty ACL.
 	// See docs/02-access.md#acl.
 	Allow    []string `json:"allow,omitempty"`
 	NoMaster bool     `json:"no_master,omitempty"`

@@ -33,7 +33,7 @@ const usage = `agent-bus — talk to agent-busd
 
   agent-bus --version
   agent-bus status
-  agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict]
+  agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict] [--personal]
                             [--allow a@b,c@d | --allow '*'] [--no-master]  who may see and use it
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to call it; unset = this bus
@@ -52,7 +52,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus publish --topic <name> <text>
   agent-bus subscribe <topic>     receive a copy of everything published there
   agent-bus unsubscribe <topic>
-  agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*] [--no-master]
+  agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*] [--no-master] [--personal]
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]
@@ -182,7 +182,7 @@ func register(args []string) error {
 		Name: pos[0], Kind: flags["kind"], Addr: flags["addr"], Descr: flags["descr"],
 		Full: flags["overflow"], Proto: flags["protocol"],
 		TTL: flags["ttl"], Bound: n,
-		Allow: allow(flags), NoMaster: has(flags, "no-master"),
+		Allow: allow(flags), NoMaster: has(flags, "no-master"), Personal: has(flags, "personal"),
 	})
 }
 
@@ -857,7 +857,7 @@ func warn(format string, a ...any) {
 // is recorded as present and empty.
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
-var onOff = map[string]bool{"follow": true, "no-master": true, "share": true, "network": true}
+var onOff = map[string]bool{"follow": true, "no-master": true, "personal": true, "share": true, "network": true}
 
 // allow is the service ACL as stated on the command line: a comma-separated
 // list, `*` for anyone who can authenticate, absent for no answer of its own.

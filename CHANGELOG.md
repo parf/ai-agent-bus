@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.50 — 2026-09-17
+
+Persist an owner-controlled Personal classification for services. Personal
+services keep ordinary authorization and delivery while refusing user, group,
+wildcard and Maintainer assignments; metadata refresh preserves the owner's
+choice and combined policy changes validate atomically.
+
 ## 0.5.49 — 2026-09-17
 
 Confine the supervised dashboard and its wrapper to one CPU, 256 MiB memory,

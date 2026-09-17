@@ -39,6 +39,7 @@ type service struct {
 	Name      string   `json:"name"`
 	Allow     []string `json:"allow,omitempty"`
 	NoMaster  bool     `json:"no_master,omitempty"`
+	Personal  bool     `json:"personal,omitempty"`
 	Algo      string   `json:"algo"`      // json: envelope on stdin · args: body as argv[1]
 	Script    string   `json:"script"`    // the program to run
 	Descr     string   `json:"descr"`     // what ls and the MCP catalog show
@@ -78,7 +79,7 @@ func start(args []string) error {
 	}
 	if err := postQuiet("/register", protocol.Record{
 		Name: svc.Name, Kind: "generic", Addr: svc.Script, Descr: svc.Descr,
-		Allow: svc.Allow, NoMaster: svc.NoMaster,
+		Allow: svc.Allow, NoMaster: svc.NoMaster, Personal: svc.Personal,
 	}); err != nil {
 		return err
 	}
@@ -215,6 +216,9 @@ func describe(args []string) (service, error) {
 	}
 	if has(flags, "no-master") {
 		svc.NoMaster = true
+	}
+	if has(flags, "personal") {
+		svc.Personal = true
 	}
 	if has(flags, "network") {
 		svc.Network = true

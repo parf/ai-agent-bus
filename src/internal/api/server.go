@@ -616,6 +616,7 @@ var codes = []struct {
 	{core.ErrBusy, http.StatusConflict, "busy"},
 	{core.ErrPrivate, http.StatusForbidden, "acl"},
 	{core.ErrNotAllow, http.StatusForbidden, "acl"},
+	{core.ErrPersonal, http.StatusBadRequest, "malformed"},
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
 	{core.ErrNoRemoval, http.StatusBadRequest, "malformed"},
 	{core.ErrUnknown, http.StatusNotFound, "unknown"},

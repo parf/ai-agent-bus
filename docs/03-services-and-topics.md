@@ -6,8 +6,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Registry records, protocol hints, private registry configuration and queue/pubsub topics. A service's method information is its [description](#service-and-template). |
-| Pending | [Personal services](#personal-and-shared): owner tagging, restricted ACL entries and dedicated web views. |
+| Built | Registry records, protocol hints, private registry configuration, queue/pubsub topics and [Personal classification](#personal-and-shared). A service's method information is its [description](#service-and-template). |
+| Pending | The dedicated Personal-service web views and main-page filtering. |
 
 ## Service kinds
 
@@ -47,7 +47,8 @@ registry for whoever is choosing what to call
 An owner may tag their service **Personal**. Without that tag, it is
 **non-Personal**. The tag hides personal services from the main web pages to
 reduce clutter; access works exactly as for a normal service.
-**Accepted; implementation pending.**
+The stored classification and its assignment limits are built; the web views
+remain pending.
 
 | Rule | Requirement |
 |---|---|
@@ -64,6 +65,25 @@ The tag introduces no separate access policy or service kind. Apart from these
 assignment restrictions and web grouping, ordinary [access rules](02-access.md#acl),
 ownership and service behavior remain unchanged. Hiding a service from the main
 web pages does not revoke authorized access or remove it from the registry.
+
+The MVP applies Personal only to Services. Users, Agents and Channels cannot
+carry it. Extending the classification to another kind needs an explicit owner
+decision.
+
+<details>
+<summary>How the stored classification changes</summary>
+
+Only the service owner changes Personal. A new registration may state it; a
+service refreshing its metadata preserves the owner's stored choice. A request
+that changes Personal and its assignments is checked as one final record, so
+an owner can remove sharing while enabling Personal, or disable Personal while
+adding sharing, in one operation.
+
+Assignment validity is checked when a record is written. If an allowed service
+is later removed, the name remains stored but grants nobody; the next write must
+remove it or restore the service before the Personal record can be saved again.
+
+</details>
 
 ## Service and template
 

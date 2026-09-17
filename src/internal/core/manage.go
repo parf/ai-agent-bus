@@ -20,6 +20,7 @@ type Management struct {
 	NoMaster    *bool     `json:"no_master,omitempty"`
 	Disabled    *bool     `json:"disabled,omitempty"`
 	Maintainers *string   `json:"maintainers,omitempty"`
+	Personal    *bool     `json:"personal,omitempty"`
 	Owner       *string   `json:"owner,omitempty"`
 	TTL         *string   `json:"ttl,omitempty"`
 	Bound       *int      `json:"bound,omitempty"`
@@ -54,6 +55,36 @@ func (b *Bus) administratorsAreUsers() {
 
 func (b *Bus) manages(caller string, r protocol.Record) bool {
 	return b.acting(caller) == nil && (caller == r.Owner || caller == r.Name || b.member(caller, r.Maintainers))
+}
+
+// Personal is a grouping tag, not an access mode. Its assignment limits are
+// checked when the final record is written: later removal of a named service
+// makes that ACL entry inert rather than retroactively changing the tag.
+// Caller holds b.mu.
+func (b *Bus) validatePersonal(r protocol.Record) error {
+	if !r.Personal {
+		return nil
+	}
+	if r.Kind != "generic" {
+		return fmt.Errorf("%w: only services may be personal", ErrPersonal)
+	}
+	if _, user := b.users[r.Name]; user {
+		return fmt.Errorf("%w: a user identity is not a personal service", ErrPersonal)
+	}
+	if r.Maintainers != "" {
+		return fmt.Errorf("%w: remove maintainers first", ErrPersonal)
+	}
+	for _, name := range r.Allow {
+		if name == "*" || strings.HasPrefix(name, "@") || name == r.Name {
+			return fmt.Errorf("%w: %s is not another service", ErrPersonal, name)
+		}
+		other, known := b.records[name]
+		_, user := b.users[name]
+		if !known || user || other.Kind != "generic" {
+			return fmt.Errorf("%w: %s is not a registered service", ErrPersonal, name)
+		}
+	}
+	return nil
 }
 func (b *Bus) member(caller, group string) bool {
 	for _, n := range b.groups[group] {
@@ -166,7 +197,7 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	if !b.manages(who, r) {
 		return protocol.Record{}, ErrNotOwner
 	}
-	if (change.Owner != nil || change.Maintainers != nil) && who != r.Owner {
+	if (change.Owner != nil || change.Maintainers != nil || change.Personal != nil) && who != r.Owner {
 		return protocol.Record{}, ErrNotOwner
 	}
 	if change.Owner != nil {
@@ -198,6 +229,9 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 			}
 		}
 		r.Maintainers = *change.Maintainers
+	}
+	if change.Personal != nil {
+		r.Personal = *change.Personal
 	}
 	if change.Allow != nil {
 		allow := make([]string, 0, len(*change.Allow))
@@ -254,6 +288,9 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 			return protocol.Record{}, ErrOverflow
 		}
 		r.Full = *change.Full
+	}
+	if err := b.validatePersonal(r); err != nil {
+		return protocol.Record{}, err
 	}
 	r.At = time.Now()
 	b.records[name] = r
