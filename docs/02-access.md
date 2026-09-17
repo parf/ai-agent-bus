@@ -17,6 +17,20 @@ A token identifies one principal; an account socket can supply that identity
 locally. The daemon checks that the caller is known, active and authorized.
 Sending a name alongside a credential cannot change who is calling.
 
+```mermaid
+flowchart LR
+    Token[Token] --> Caller[Authenticated identity]
+    Socket[Account socket] --> Caller
+    Caller --> Standing{Known and active?}
+    Standing -- No --> Refused[Refused]
+    Standing -- Yes --> Authority{Authorized for this operation?}
+    Authority -- No --> Refused
+    Authority -- Yes --> Operation[Operation checks]
+```
+
+Protected requests follow this path; authority is rechecked when the operation acts.
+Public exceptions are listed below.
+
 <details>
 <summary>Authentication boundaries and public exceptions</summary>
 
@@ -25,6 +39,8 @@ Sending a name alongside a credential cannot change who is calling.
 | Token | The credential on the API request |
 | Local account socket | The principal mapped to that listener |
 | SSH token/admin command | The key's forced-command entitlement |
+
+![A user calls through the bus; the service receives the message and verified sender, never the user token.](../Plans/MVP/user-to-service.svg)
 
 * A principal needs a profile or registry record. A bad token or unknown identity
   receives `401`; suspension receives `403 suspended`.
@@ -69,6 +85,8 @@ The key path uses [the enrolment proof](#proving-possession), including for a
 previously enrolled identity retrieving its credential again. No path issues a
 token for an unknown identity without first establishing that identity.
 
+![User credentials and the separate service credential obtained during owner-authorized startup.](../Plans/MVP/getting-tokens.svg)
+
 </details>
 
 ## Proving possession
@@ -80,10 +98,21 @@ a self-owned record and a credential. Fetching somebody's public key is not proo
 <details>
 <summary>Challenge exchange and provider outages</summary>
 
-1. Claim a login in a configured realm.
-2. The daemon fetches and retains the published keys, then issues a nonce.
-3. The newcomer signs it with their private key using `ssh-keygen`.
-4. The daemon verifies against the retained keys and issues the identity and token.
+```mermaid
+sequenceDiagram
+    participant C as Newcomer
+    participant B as Daemon
+    participant D as Realm directory
+    C->>B: Claim login
+    B->>D: Fetch published keys
+    D-->>B: Public keys
+    Note over B: Retain these keys for this challenge
+    B-->>C: Nonce
+    Note over C: Sign locally with ssh-keygen
+    C->>B: Signed challenge
+    B->>B: Verify against retained keys
+    B-->>C: Identity and token on successful proof
+```
 
 The proof needs no prior token; the signature establishes entitlement. Unanswered
 challenges expire, and successful ones are spent. Registration cannot create a

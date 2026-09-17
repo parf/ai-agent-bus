@@ -38,3 +38,16 @@ separately during reference migration. Literal old paths in the earlier
 historical labels. Ignored frozen smoke copies (`*.local.sh`) and scratch logs
 also retain their original comments: they are evidence, not current source.
 No runtime test rerun or version change was needed for this documentation pass.
+
+## Diagram follow-up
+
+At the owner's request, six Mermaid diagrams now illustrate role scopes,
+authorization, enrolment, configuration privacy, topic delivery and receipts
+across docs 01–04. Supporting diagrams sit in expandable details. OpenCode
+reviewed their semantics; all six rendered in mdhouse and screenshots were
+inspected. The link check covered 2,728 local references with no errors.
+
+Access also embeds the existing `getting-tokens.svg` and `user-to-service.svg`.
+Both loaded in the browser. Their asset home remains `Plans/MVP` deliberately;
+moving that directory must update these image references as well. The originals
+were not lost in consolidation and remain linked from the MVP README.

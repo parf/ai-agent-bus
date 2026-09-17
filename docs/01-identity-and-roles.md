@@ -49,13 +49,24 @@ separate names, inboxes and configurations.
 explicitly assigned service or channel. These are separate positions; a
 resource **Member** has basic access and can be a user or another service.
 
-| Scope | Highest authority | Delegated management | Basic access |
-|---|---|---|---|
-| Daemon | Owner | Administrator | User |
-| Service or channel | Owner | Maintainer | Member |
+<details>
+<summary>Diagram: separate role scopes</summary>
 
-Higher roles include lower permissions within their scope. The daemon-owner
-override is explicit, not inherited by Administrators.
+```mermaid
+flowchart TB
+    subgraph Node[Daemon]
+        DO[Owner] --> DA[Administrator] --> DU[User]
+    end
+    subgraph Resource[Service / channel]
+        RO[Owner] --> RM[Maintainer] --> Member[Member]
+    end
+    DO -. "Node-wide control: pending" .-> RO
+```
+
+Solid arrows show permission inheritance within each scope. The dashed override
+is pending and belongs only to the daemon Owner, never to Administrators.
+
+</details>
 
 ## Daemon owner
 

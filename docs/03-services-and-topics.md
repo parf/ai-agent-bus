@@ -95,6 +95,21 @@ the same way; the template prefix is not what makes one configurable.
 
 ### Why a digest at all
 
+<details>
+<summary>Diagram: configuration goes in; only the service reads it back</summary>
+
+```mermaid
+flowchart LR
+    Writer[Authorized manager] -->|Write JSON| Store[Stored configuration]
+    Store -->|Read as the service| Service[Service]
+    Store -->|Digest only| Listing[Caller-visible record]
+```
+
+The digest lets a caller compare configurations without reading their contents.
+This is an access boundary, not encryption from the daemon.
+
+</details>
+
 **So that anything watching can tell whether a service's setup has been
 changed by someone, without ever being shown it.** A configuration cannot be
 read back — not even by its owner — so the only other way to answer "is this
@@ -140,6 +155,28 @@ registry. Two kinds — the Redis model:
 |---|---|---|---|---|
 | **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded; overflow per mode | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
 | **pub/sub** | a **copy** to every subscriber, into that subscriber's own inbox ([messaging § subscribers](04-messaging.md#subscribers)) | none of its own — each copy is kept by the inbox it is in | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
+
+<details>
+<summary>Diagram: one consumer versus subscriber copies</summary>
+
+```mermaid
+flowchart LR
+    subgraph Queue[Queue topic]
+        P1[Publisher] --> Q[Shared queue]
+        Q -->|Each message| One[One of the consumers]
+    end
+    subgraph Pubsub[Pub/sub topic]
+        P2[Publisher] --> T[Topic]
+        T -->|Eligible copy| A[Subscriber A inbox]
+        T -->|Eligible copy| B[Subscriber B inbox]
+    end
+```
+
+Each subscriber is checked again at publication. A copy that its inbox refuses
+is dropped; other subscribers still receive theirs. With no eligible
+subscribers, the pub/sub topic retains nothing.
+
+</details>
 
 A topic **declares its kind, TTL, bound and overflow mode at creation**:
 

@@ -159,6 +159,39 @@ match sound, and why `call` generates one rather than reusing a label.
 
 ## Receipts
 
+Transport delivery and the receiver's report are separate steps.
+
+<details>
+<summary>Diagram: delivery, receipt and completion</summary>
+
+```mermaid
+sequenceDiagram
+    participant C as Caller
+    participant B as Bus
+    participant S as Service
+    C->>B: Send request
+    B-->>C: Send accepted
+    S->>B: Consume
+    B-->>S: Request removed from inbox
+    Note over B,S: Dequeue does not prove the work finished
+    opt Receiver sends an ack
+        S->>B: ack
+        C->>B: Consume receipt
+        B-->>C: ack
+    end
+    Note over S: Process request
+    opt Receiver sends a result or done
+        S->>B: Reply, or done without an answer
+        C->>B: Consume response
+        B-->>C: Reply or done
+    end
+```
+
+Example with successful delivery and no `reply-to` override. Receipts are
+ordinary messages from the receiver; their absence leaves the outcome unknown.
+
+</details>
+
 Optional, and **both emitted by the receiver** — the service, not the bus:
 
 | Receipt | Means |
