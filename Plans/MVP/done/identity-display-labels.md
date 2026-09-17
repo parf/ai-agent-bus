@@ -52,3 +52,22 @@ errors.
 These labels describe identity type only. They say nothing about authority,
 health or activity. They do not create parser syntax, and an older answer that
 does not expose a caller-visible kind remains unlabeled rather than guessed.
+
+## Live postflight
+
+Commit `f92e277` was pushed before deployment. `src/build.sh` stamped all Go
+programs as **0.5.54**, `parf@parf.us 2026-09-17 11:38:17`; the live
+`agent-busd.service` restarted at 11:38 EDT.
+
+The public identity and anonymous header reported 0.5.54. Human
+`agent-bus ls -h` rendered the five caller-visible records as Agent and kept
+the following columns aligned; raw `ls` retained `kind: agent` with no glyphs.
+Signed-in WEB service and diagnostics pages rendered those same records as
+Agent, while the directory rendered all four profile-backed rows as User. Its
+filter value remained plain `users`, and no record was created or changed to
+manufacture a live Service row; Service remains covered by the unit,
+integration and mutation fixtures.
+
+The web child retained zero effective capabilities, `NoNewPrivileges`, 256 MiB
+memory, zero swap, one CPU and 64 tasks. OpenCode replied from the same session
+after the restart, the eleventh consecutive measured peer-path reconnection.
