@@ -50,4 +50,5 @@ at weight 700 and the owned `claude/ab-dvp@parf.us` name as blue at weight 600
 with its leading rule and no Yours. The page did not overflow and no record was
 changed. The web child retained its private PID namespace, zero effective
 capabilities, `NoNewPrivileges`, two-value environment and installed resource
-limits.
+limits. OpenCode confirmed same-session AgentBus reconnection through the
+successful restart.
