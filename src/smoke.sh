@@ -1972,8 +1972,11 @@ has "the login version tooltip identifies the daemon build once" "$ANON" 'title=
 lacks "identical builds are not repeated" "$ANON" 'Daemon build:\|Web build:'
 # Node identity and sampled request counts are public; registry contents stay private.
 # See docs/05-discovery.md#what-a-node-says-about-itself.
+# Asked of the catalogue path itself: root is Overview and carries no records
+# for anybody now, so a check there could no longer fail the way it must.
 is_empty "and no records or registry totals" \
-  "$(printf '%s' "$ANON" | grep -oE 'watched by the board|[0-9]+ records')"
+  "$(printf '%s\n%s' "$ANON" "$(curl -s "$WEB/services")" \
+     | grep -oE 'watched by the board|[0-9]+ records')"
 has "health still answers an empty 200" \
   "$(curl -s -o /dev/null -w '%{http_code}:%{size_download}' "$WEB/healthz")" '^200:0$'
 # One message however it failed: telling a bad credential from an unknown
@@ -2000,17 +2003,24 @@ has "and the browser carries a session" \
   "$(awk '/agent_bus_session/{print $NF}' "$JAR")" '^[0-9a-f]\{48\}$'
 is_empty "which is never the token itself" "$(grep -o "$TOKEN" "$JAR")"
 PAGE=$(curl -s -b "$JAR" "$WEB/")
-has "the dashboard renders the envelope" "$(sect exchanges "$PAGE")" 'board-svc@srv1'
-has "and the record it was for" "$PAGE" 'watched by the board'
-is_empty "and no body reaches the page" "$(printf '%s' "$PAGE" | grep -o "$SECRET")"
+# Root is Overview and is allowed to be short; the retained envelopes are on
+# Diagnostics and the registry catalogue on Services
+# (Plans/MVP/web/pages.md#overview).
+DIAG=$(curl -s -b "$JAR" "$WEB/diagnostics")
+RECS=$(curl -s -b "$JAR" "$WEB/services")
+has "the dashboard renders the envelope" "$(sect exchanges "$DIAG")" 'board-svc@srv1'
+has "and the record it was for" "$RECS" 'watched by the board'
+is_empty "and no body reaches the page" \
+  "$(printf '%s\n%s\n%s' "$PAGE" "$DIAG" "$RECS" | grep -o "$SECRET")"
 # Two principals, one URL, different pages. The resource owner sees its record;
 # the daemon Owner sees it for management even though it has no implicit
 # message access. The earlier send check pins that visibility does not grant use.
 OJAR=$D/web-owner.jar; rm -f "$OJAR"
 curl -s -c "$OJAR" -o /dev/null -X POST -d "token=$(tok acl-owner@srv1)" "$WEB/signin"
-has "a second principal gets their own page" "$(curl -s -b "$OJAR" "$WEB/")" 'direct access only'
+has "a second principal gets their own page" \
+  "$(curl -s -b "$OJAR" "$WEB/services")" 'direct access only'
 has "and the daemon Owner sees that ACL-restricted record for management" \
-  "$PAGE" 'direct access only'
+  "$RECS" 'direct access only'
 
 # The views the MVP owes, each a reshape of what the bus already answered
 # THIS caller: the ordering, the grouping and the late mark are the page's
@@ -2047,7 +2057,8 @@ sleep 2
 ab parf@localhost register burst-svc@srv1 --allow '*' --descr "a burst" >/dev/null
 for n in 1 2 3; do ab parf@localhost send burst-svc@srv1 "burst $n" >/dev/null; done
 VIEWS=$(curl -s -b "$JAR" "$WEB/")
-STUCK=$(sect stuck "$VIEWS")
+DIAGV=$(curl -s -b "$JAR" "$WEB/diagnostics")
+STUCK=$(sect stuck "$DIAGV")
 has "a backlog is listed as stuck" "$STUCK" 'slow-svc@srv1'
 is_empty "and a service with a reader and nothing waiting is not" \
   "$(printf '%s' "$STUCK" | grep -o 'busy-svc@srv1')"
@@ -2062,28 +2073,35 @@ is_empty "and one with room is not" \
   "$(printf '%s' "$STUCK" | grep 'slow-svc@srv1' | grep -o 'at capacity')"
 ab parf@localhost send busy-svc@srv1 "go" >/dev/null
 wait $busy_pid 2>/dev/null
-LOSS=$(sect loss "$VIEWS")
+LOSS=$(sect loss "$DIAGV")
 has "loss is shown against the name that suffered it" "$LOSS" 'lossy-svc@srv1'
 is_empty "and not against a name that lost nothing" \
   "$(printf '%s' "$LOSS" | grep -o 'slow-svc@srv1')"
-XCH=$(sect exchanges "$VIEWS")
+XCH=$(sect exchanges "$DIAGV")
 has "a request and its ack are one exchange, not two lines" \
   "$(printf '%s' "$XCH" | grep 'job' | grep '77')" '>2<'
 NODE_VIEW=$(sect node "$VIEWS")
-has "a signed-in caller is told how long the node has been up" "$NODE_VIEW" 'uptime [0-9]'
+has "a signed-in caller is told how long the node has been up" \
+  "$NODE_VIEW" '>Uptime</span><strong>[0-9]'
 # Only the reasons that have happened: a reason with a zero beside it is
 # noise on every other node. See docs/05-discovery.md#refusals.
 tcode not-a-token /ls >/dev/null
-has "and what the node is refusing" "$(sect node "$(curl -s -b "$JAR" "$WEB/")")" 'credential'
-is_empty "and never a reason with a zero beside it" \
-  "$(printf '%s' "$NODE_VIEW" | grep -oE '<code>[a-z-]+</code> 0([^0-9]|$)')"
+REFUSALS=$(sect refusals "$(curl -s -b "$JAR" "$WEB/diagnostics")")
+has "and what the node is refusing" "$REFUSALS" 'credential'
+has "including a reason that has not happened, as a measured zero" \
+  "$(printf '%s' "$REFUSALS" | grep -o '<td class=num>0' | wc -l | tr -d ' ')" '^[1-9]'
+is_empty "and the short Overview carries none of that detail" \
+  "$(printf '%s' "$NODE_VIEW" | grep -o 'credential')"
 # A fingerprint names a credential without being one, which is the whole
 # reason a page may show it. See docs/02-access.md#token-lifetime.
 FP=$(tbody "$TOKEN" /names | sed -n 's/.*"fingerprint":"\([0-9a-f]*\)".*/\1/p' | head -1)
 WEB_ACCOUNT_PAGE=$(curl -s -b "$JAR" "$WEB/account")
 has "a caller's own credential is named by its fingerprint" "$WEB_ACCOUNT_PAGE" "$FP"
-is_empty "and the page carries no token anywhere on it" \
-  "$(printf '%s\n%s' "$VIEWS" "$WEB_ACCOUNT_PAGE" | grep -o "$TOKEN")"
+# Every page family the old single wall stood for, because the split left this
+# check looking at Overview alone.
+is_empty "and no page carries the token anywhere on it" \
+  "$(printf '%s\n%s\n%s\n%s' "$VIEWS" "$DIAGV" "$RECS" "$WEB_ACCOUNT_PAGE" \
+     | grep -o "$TOKEN")"
 # The session lives in the bus, so the child has nothing to lose. A session
 # map inside the child passes every check above and fails this one.
 kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
@@ -2092,10 +2110,10 @@ AGENT_BUS_ADDR=$D/bus.sock \
 WPID=$!
 for _ in $(seq 1 50); do curl -s -o /dev/null "$WEB/" && break; sleep 0.1; done
 has "a web child restarted mid-session logs nobody out" \
-  "$(curl -s -b "$JAR" "$WEB/")" 'watched by the board'
+  "$(curl -s -b "$JAR" "$WEB/services")" 'watched by the board'
 curl -s -b "$JAR" -o /dev/null -X POST "$WEB/signout"
 is_empty "and signing out ends the session" \
-  "$(curl -s -b "$JAR" "$WEB/" | grep -o 'watched by the board')"
+  "$(curl -s -b "$JAR" "$WEB/services" | grep -o 'watched by the board')"
 kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
 # HTTPS is not the default any more, but it is still there for somebody who
 # has a certificate: supply one and the dashboard serves it. The suite makes
@@ -2115,7 +2133,10 @@ TJAR=$D/tls.jar; rm -f "$TJAR"
 curl -sS --cacert "$D/tls/crt" -c "$TJAR" -o /dev/null -X POST -d "token=$TOKEN" \
   "https://localhost:$((PORT+11))/signin"
 has "a session cookie made over https is marked secure" "$(cat "$TJAR")" 'TRUE.*agent_bus_session'
-TLSPAGE=$(curl -sS --cacert "$D/tls/crt" -b "$TJAR" "https://localhost:$((PORT+11))/" 2>&1)
+# Diagnostics, because that is where the retained envelopes are now
+# (Plans/MVP/web/pages.md#overview-); the point here is the certificate, the
+# cookie and the absent body, not which page carries them.
+TLSPAGE=$(curl -sS --cacert "$D/tls/crt" -b "$TJAR" "https://localhost:$((PORT+11))/diagnostics" 2>&1)
 # curl verifies the chain and the hostname against that file alone — no -k —
 # so an answer at all is the certificate being the one it was handed.
 has "the dashboard answers https when it is given a certificate" \
@@ -2475,12 +2496,12 @@ for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+12))/" &
 # The record is there and the page still will not say so: a supervised child
 # has no more authority than one started by hand.
 is_empty "so it names nobody until somebody signs in" \
-  "$(curl -s "http://127.0.0.1:$((PORT+12))/" | grep -o 'seen through the supervisor')"
+  "$(curl -s "http://127.0.0.1:$((PORT+12))/services" | grep -o 'seen through the supervisor')"
 SJAR=$D/sup/jar; rm -f "$SJAR"
 curl -s -c "$SJAR" -o /dev/null -X POST -d "token=$(awk '{print $2}' "$D/sup/token" | head -1)" \
   "http://127.0.0.1:$((PORT+12))/signin"
 has "and what a signed-in caller sees came from the bus behind it" \
-  "$(curl -s -b "$SJAR" "http://127.0.0.1:$((PORT+12))/")" 'seen through the supervisor'
+  "$(curl -s -b "$SJAR" "http://127.0.0.1:$((PORT+12))/services")" 'seen through the supervisor'
 BUSPID=$(pgrep -P "$SUP" -x agent-busd)
 INODE=$(stat -c %i "$D/sup/user-$ACCOUNT.sock")
 kill -9 "$BUSPID" 2>/dev/null

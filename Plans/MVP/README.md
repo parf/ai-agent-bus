@@ -45,4 +45,4 @@ The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02
 
 ## Web redesign
 
-The [web interface proposal](web-interfaces.md#proposal) covers requirements, page structure, data gaps and Go tooling, grounded in the [browser and source review](done/web-review.md#scope). Owner-requested slices are built; the remaining redesign awaits F.13.0, the owner’s specification review. [F.13 work](TODO.md#web-redesign) tracks that gate and subsequent acceptance.
+The [web interface proposal](web-interfaces.md#proposal) covers requirements, page structure, data gaps and Go tooling, grounded in the [browser and source review](done/web-review.md#scope). The owner reviewed the design through rendered pages and iterative corrections; [F.13 work](TODO.md#web-redesign) now tracks only remaining acceptance.

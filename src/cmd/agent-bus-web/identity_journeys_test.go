@@ -77,7 +77,10 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 	if !strings.Contains(account, " Account</h1>") || !strings.Contains(account, `class=account-link href=/account aria-current=page`) || !strings.Contains(account, "Fingerprint") || !strings.Contains(account, "agent-bus-token admin@h --rotate") || !strings.Contains(account, "outer-service@h") {
 		t.Fatal("profile-backed account lacks its identity or credential journey")
 	}
-	if strings.Contains(m.get("/"), ">My names</h2>") {
+	// Root was the diagnostics wall when this was written, so it asked "/".
+	// Diagnostics is its own page now and is where a duplicate would come
+	// back, which is what the failure below has always said.
+	if strings.Contains(m.get("/diagnostics"), ">My names</h2>") {
 		t.Fatal("credentials remain duplicated on Diagnostics")
 	}
 	if !strings.Contains(m.get("/services"), `class=account-link href=/account`) {

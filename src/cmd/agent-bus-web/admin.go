@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html/template"
+	"log"
 	"net/http"
 	"net/url"
 	"sort"
@@ -47,9 +48,9 @@ func fail(w http.ResponseWriter, r *http.Request, you string, err error) {
 		// separate process (docs/11-processes.md#the-processes) and is not
 		// answering. Saying "sign in" here would be a lie about whose fault it
 		// is, and is what the anonymous page used to say.
+		log.Printf("dashboard bus unavailable: %v", err)
 		show(w, http.StatusBadGateway, problem{You: you,
 			Title:  "The bus is not answering",
-			Detail: err.Error(),
 			Advice: "The dashboard is running; the daemon behind it is not reachable, so there is nothing to show and nothing was changed. It comes back on its own when the daemon does.",
 		}, r)
 		return
@@ -145,6 +146,7 @@ type adminView struct {
 	Query, Kind     string
 	Mode            string
 	Readers         string
+	Work            string
 	Sort            string
 	OwnerFilter     string
 	Current         string
@@ -167,6 +169,7 @@ type adminView struct {
 	KindLinks       []viewLink
 	ModeLinks       []viewLink
 	ReaderLinks     []viewLink
+	WorkLinks       []viewLink
 	Form            formState
 }
 
@@ -249,18 +252,40 @@ func retainedForm(action, message string, values url.Values, names ...string) fo
 	return f
 }
 
-func formRefusal(err error) (int, string, bool) {
-	var bad *busError
-	if !errors.As(err, &bad) {
-		return 0, "", false
-	}
+// busMessage is the daemon's own wording for a refusal, unwrapped from the
+// JSON body it answers with. It is the only part of a failed call that may be
+// shown: everything else is transport text naming the backend address.
+func busMessage(bad *busError) string {
 	message := strings.TrimSpace(bad.message)
 	var payload struct {
 		Error string `json:"error"`
 	}
 	if json.Unmarshal([]byte(message), &payload) == nil && payload.Error != "" {
-		message = payload.Error
+		return payload.Error
 	}
+	return message
+}
+
+// feedProblem is what Diagnostics may say when only the envelope section
+// failed. A refusal the daemon worded is caller-facing and is shown; anything
+// else is a transport failure whose text carries the socket or TCP address
+// this child talks to, so it is logged here and replaced. The whole-page path
+// does the same in fail().
+func feedProblem(err error) string {
+	var bad *busError
+	if !errors.As(err, &bad) {
+		log.Printf("dashboard feed unavailable: %v", err)
+		return "the daemon did not answer"
+	}
+	return busMessage(bad)
+}
+
+func formRefusal(err error) (int, string, bool) {
+	var bad *busError
+	if !errors.As(err, &bad) {
+		return 0, "", false
+	}
+	message := busMessage(bad)
 	return bad.code, message, bad.code == http.StatusBadRequest || bad.code == http.StatusNotFound || bad.code == http.StatusConflict || bad.code == http.StatusPreconditionFailed || bad.code == http.StatusTooManyRequests
 }
 
@@ -439,7 +464,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		v.Mine, v.State = r.URL.Query().Get("scope"), r.URL.Query().Get("state")
 		v.Query = strings.TrimSpace(r.URL.Query().Get("q"))
 		v.Kind, v.Mode = r.URL.Query().Get("kind"), r.URL.Query().Get("mode")
-		v.Readers, v.Sort = r.URL.Query().Get("readers"), r.URL.Query().Get("sort")
+		v.Readers, v.Work, v.Sort = r.URL.Query().Get("readers"), r.URL.Query().Get("work"), r.URL.Query().Get("sort")
 		if v.Mine != "my" {
 			v.Mine = ""
 		}
@@ -454,6 +479,9 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		}
 		if v.Readers != "present" && v.Readers != "none" && v.Readers != "unavailable" {
 			v.Readers = ""
+		}
+		if v.Work != "held" {
+			v.Work = ""
 		}
 		if v.Sort != "updated" && v.Sort != "queued" {
 			v.Sort = ""
@@ -531,6 +559,9 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			if !matchesReaderFilter(record.Readers, v.Readers) {
 				continue
 			}
+			if v.Work == "held" && record.Queued == 0 {
+				continue
+			}
 			if !v.Channels {
 				if v.Kind == "agent" && record.Kind != "agent" || v.Kind == "service" && record.Kind != "generic" {
 					continue
@@ -563,6 +594,9 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		}
 		if v.Readers != "" {
 			stateQuery.Set("readers", v.Readers)
+		}
+		if v.Work != "" {
+			stateQuery.Set("work", v.Work)
 		}
 		if v.Sort != "" {
 			stateQuery.Set("sort", v.Sort)
@@ -603,6 +637,9 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		}
 		if v.Readers != "" {
 			filterBase.Set("readers", v.Readers)
+		}
+		if v.Work != "" {
+			filterBase.Set("work", v.Work)
 		}
 		if v.Sort != "" {
 			filterBase.Set("sort", v.Sort)
@@ -646,6 +683,15 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			{Href: queryWith(filterPath, readerBase, "readers", "present"), Label: "Reading now", Current: v.Readers == "present"},
 			{Href: queryWith(filterPath, readerBase, "readers", "none"), Label: "No reader now", Current: v.Readers == "none"},
 			{Href: queryWith(filterPath, readerBase, "readers", "unavailable"), Label: "Unavailable", Current: v.Readers == "unavailable"},
+		}
+		workBase := cloneValues(filterBase)
+		workBase.Del("work")
+		if v.State != "" {
+			workBase.Set("state", v.State)
+		}
+		v.WorkLinks = []viewLink{
+			{Href: pageURL(filterPath, cloneValues(workBase)), Label: "All", Current: v.Work == ""},
+			{Href: queryWith(filterPath, workBase, "work", "held"), Label: "Holding work", Current: v.Work == "held"},
 		}
 		for owner := range owners {
 			v.Owners = append(v.Owners, owner)
@@ -711,7 +757,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			clearQuery.Set("owner", v.OwnerFilter)
 		}
 		v.ClearFilters = pageURL(filterPath, clearQuery)
-		v.HasFilters = v.Query != "" || v.State != "" || v.Kind != "" || v.Mode != "" || v.Readers != "" || v.Sort != ""
+		v.HasFilters = v.Query != "" || v.State != "" || v.Kind != "" || v.Mode != "" || v.Readers != "" || v.Work != "" || v.Sort != ""
 		render(w, serviceList, v)
 	}
 	mux.HandleFunc("GET /services", listing)
@@ -1147,15 +1193,16 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 {{if .Channels}}<li>Queue channels hold work for one reader; pub/sub channels copy each accepted message to subscribers and hold no topic backlog.</li>{{end}}
 <li>Enabled is a stored delivery setting. It does not establish that a send will be accepted; the owner&rsquo;s access and ACL are checked separately.</li>
 <li>Readers counts outstanding filtered and unfiltered reads. Zero may be between reads; a positive count proves neither a matching message nor completed work.</li>
+<li>Accepted and Dequeued are cumulative across restarts. Dequeued means handed to a reader, not completed.</li>
 <li>Reached external is a caller-supplied hint. None of it is health; the daemon does not observe whether a process is alive.</li>
 </ul></div>
 <nav class=section-nav aria-label="{{if .Channels}}Channel{{else}}Service{{end}} views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true class="{{.Class}}">{{else}}<a href="{{.Href}}" class="{{.Class}}">{{end}}{{.Label}}{{if .Counted}} ({{number .Count}}){{end}}</a>{{end}}</nav>
-{{if .PersonalPage}}{{if .DaemonOwner}}<form method=get><label>Owner <select name=owner><option value="">All visible owners</option>{{range .Owners}}<option {{if eq . $.OwnerFilter}}selected{{end}}>{{.}}</option>{{end}}</select></label>{{with .State}}<input type=hidden name=state value="{{.}}">{{end}}{{with .Readers}}<input type=hidden name=readers value="{{.}}">{{end}}{{with .Query}}<input type=hidden name=q value="{{.}}">{{end}}{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}{{with .Sort}}<input type=hidden name=sort value="{{.}}">{{end}} <button>Choose owner</button></form>{{else}}<p>Owned by <code>{{.You}}</code></p>{{end}}{{end}}
+{{if .PersonalPage}}{{if .DaemonOwner}}<form method=get><label>Owner <select name=owner><option value="">All visible owners</option>{{range .Owners}}<option {{if eq . $.OwnerFilter}}selected{{end}}>{{.}}</option>{{end}}</select></label>{{with .State}}<input type=hidden name=state value="{{.}}">{{end}}{{with .Readers}}<input type=hidden name=readers value="{{.}}">{{end}}{{with .Work}}<input type=hidden name=work value="{{.}}">{{end}}{{with .Query}}<input type=hidden name=q value="{{.}}">{{end}}{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}{{with .Sort}}<input type=hidden name=sort value="{{.}}">{{end}} <button>Choose owner</button></form>{{else}}<p>Owned by <code>{{.You}}</code></p>{{end}}{{end}}
 <div class=record-toolbar>
 <form class=record-search method=get action="{{if .Channels}}/channels{{else if .PersonalPage}}/personal{{else}}/services{{end}}">
 <label for=record-query class=visually-hidden>Search records</label><input id=record-query type=search name=q value="{{.Query}}" placeholder="Search by name, owner, or description">
-{{with .Mine}}<input type=hidden name=scope value="{{.}}">{{end}}{{with .State}}<input type=hidden name=state value="{{.}}">{{end}}{{with .Readers}}<input type=hidden name=readers value="{{.}}">{{end}}{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}{{with .Mode}}<input type=hidden name=mode value="{{.}}">{{end}}{{with .OwnerFilter}}<input type=hidden name=owner value="{{.}}">{{end}}
-<div class=record-choices><nav class=filter-nav aria-label="Delivery filter"><span><span aria-hidden=true>🔛</span> Delivery</span>{{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Reader filter"><span>Readers</span>{{range .ReaderLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{with .KindLinks}}<nav class=filter-nav aria-label="Kind filter"><span>Kind</span>{{range .}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}{{with .ModeLinks}}<nav class=filter-nav aria-label="Delivery mode filter"><span>Mode</span>{{range .}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}</div>
+{{with .Mine}}<input type=hidden name=scope value="{{.}}">{{end}}{{with .State}}<input type=hidden name=state value="{{.}}">{{end}}{{with .Readers}}<input type=hidden name=readers value="{{.}}">{{end}}{{with .Work}}<input type=hidden name=work value="{{.}}">{{end}}{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}{{with .Mode}}<input type=hidden name=mode value="{{.}}">{{end}}{{with .OwnerFilter}}<input type=hidden name=owner value="{{.}}">{{end}}
+<div class=record-choices><nav class=filter-nav aria-label="Delivery filter"><span><span aria-hidden=true>🔛</span> Delivery</span>{{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Reader filter"><span>Readers</span>{{range .ReaderLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Queue filter"><span>Queue</span>{{range .WorkLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{with .KindLinks}}<nav class=filter-nav aria-label="Kind filter"><span>Kind</span>{{range .}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}{{with .ModeLinks}}<nav class=filter-nav aria-label="Delivery mode filter"><span>Mode</span>{{range .}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}</div>
 <label for=record-sort>Sort</label><select id=record-sort name=sort data-submit-on-change><option value="" {{if eq .Sort ""}}selected{{end}}>Name (A&ndash;Z)</option><option value=updated {{if eq .Sort "updated"}}selected{{end}}>Recently updated</option><option value=queued {{if eq .Sort "queued"}}selected{{end}}>{{if .Channels}}Work{{else}}Queued{{end}} (high&ndash;low)</option></select><noscript><button>Apply</button></noscript>
 </form>
 </div>
@@ -1169,12 +1216,12 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 <p>Showing {{number .Start}}&ndash;{{number .End}} of {{number .Matched}} matching records.{{if .HasFilters}} <a href="{{.ClearFilters}}">Clear filters</a>{{end}}</p>
 {{if eq .Matched 0}}<section class="empty-state editor-card"><h2>No records match these filters</h2><p>Change the active filters above or <a href="{{.ClearFilters}}">clear filters</a>.</p></section>{{else}}
 <table class=record-table><caption>Caller-visible records on this page, not a count of this node</caption>
-{{if .Channels}}<thead><tr><th scope=col>Channel<th scope=col>Delivery mode<th scope=col>Owner<th scope=col>Delivery<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Work<th scope=col class=num>Subscribers<th scope=col>Updated</tr></thead>
-{{else}}<thead><tr><th scope=col>Service<th scope=col>Type<th scope=col>Owner<th scope=col>Delivery<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Queued<th scope=col>Updated</tr></thead>{{end}}
+{{if .Channels}}<thead><tr><th scope=col>Channel<th scope=col>Delivery mode<th scope=col>Owner<th scope=col>Delivery<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Held<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Subscribers<th scope=col>Updated</tr></thead>
+{{else}}<thead><tr><th scope=col>Service<th scope=col>Type<th scope=col>Owner<th scope=col>Delivery<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Queued<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col>Updated</tr></thead>{{end}}
 <tbody>
 {{range .Records}}<tr><td class="record-name-cell{{if eq .Owner $.You}} owned-record{{end}}{{if .Personal}} personal-record{{end}}"><a class=record-name href="{{if $.Channels}}/channel{{else}}/service{{end}}?name={{.Name}}&return={{$.Return}}">{{if .Descr}}<span class=record-description>{{.Descr}}</span><code>{{.Name}}</code>{{else}}<code class=record-description>{{.Name}}</code>{{end}}</a>{{if .Personal}} <span class=personal-marker>Personal</span>{{end}}
-{{if $.Channels}}<td data-label="Delivery mode">{{if eq .Mode "pubsub"}}Pub/sub · copy to each{{else}}Queue · one at a time{{end}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Work>{{if eq .Mode "pubsub"}}{{number .In}} <span class=muted>accepted</span>{{else}}{{number .Queued}} <span class=muted>queued</span>{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}{{end}}<td class=num data-label=Subscribers>{{if eq .Mode "pubsub"}}{{number (len .Subs)}}{{else}}<span class=muted>&mdash;</span>{{end}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
-{{else}}<td data-label=Type>{{entityLabel .Kind}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Queued>{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}{{end}}</tr>{{end}}
+{{if $.Channels}}<td data-label="Delivery mode">{{if eq .Mode "pubsub"}}Pub/sub · copy to each{{else}}Queue · one at a time{{end}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Held>{{if eq .Mode "pubsub"}}<span class=muted>&mdash;</span>{{else}}{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td class=num data-label=Subscribers>{{if eq .Mode "pubsub"}}{{number (len .Subs)}}{{else}}<span class=muted>&mdash;</span>{{end}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
+{{else}}<td data-label=Type>{{entityLabel .Kind}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Queued>{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}{{end}}</tr>{{end}}
 </tbody></table>
 {{end}}
 <nav aria-label="Record pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>

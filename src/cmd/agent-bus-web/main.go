@@ -85,7 +85,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		io.WriteString(w, uiScript)
 	})
 
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+	loadView := func(w http.ResponseWriter, r *http.Request) (view, bool) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		cred := cookie(r)
 		// Whose page this is comes from the bus, not from the child: the
@@ -94,7 +94,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 
 		if cred == "" {
 			signIn(w, r, "")
-			return
+			return view{}, false
 		}
 		// And a bus that is not answering is a different fact, which this
 		// used to swallow: every failed status request became the anonymous
@@ -104,26 +104,40 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		node, err := bus.status(r)
 		if err != nil {
 			fail(w, r, "", err)
-			return
+			return view{}, false
 		}
 		v := view{pageInfo: requestInfo(r), You: node.You, At: time.Now().Format("2006-01-02 15:04:05"), Status: node.Status, Refusals: refusals(node.Refused)}
 		if err := bus.get(cred, "/ls", &v.Records); err != nil {
 			fail(w, r, node.You, err)
+			return view{}, false
+		}
+		v.Backlogs, v.Losses = stuck(v.Records), lost(v.Records)
+		return v, true
+	}
+
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		v, ok := loadView(w, r)
+		if !ok {
 			return
 		}
-		// Three views off one listing, each answering a different question
-		// of the same records — and each one the caller's own, because the
-		// bus filtered the listing before it got here.
-		v.Backlogs, v.Losses = stuck(v.Records), lost(v.Records)
+		v.Attention = attentionItems(v.Status, v.Records)
+		render(w, overviewPage, v)
+	})
+
+	mux.HandleFunc("GET /diagnostics", func(w http.ResponseWriter, r *http.Request) {
+		v, ok := loadView(w, r)
+		if !ok {
+			return
+		}
 		// A caller who may not read the feed, or has no credential of its
 		// own to be told about, still gets the rest of the page.
 		var feed []protocol.Envelope
-		if err := bus.get(cred, "/recent", &feed); err != nil {
-			v.NoFeed = err.Error()
+		if err := bus.get(cookie(r), "/recent", &feed); err != nil {
+			v.NoFeed = feedProblem(err)
 		} else {
 			v.Exchanges = exchanges(feed)
 		}
-		render(w, page, v)
+		render(w, diagnosticsPage, v)
 	})
 
 	// Signing in is the one moment a token is handled here, and it is not
@@ -499,6 +513,18 @@ button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
 .dashboard-section{margin-top:1.5rem}
 .dashboard-section>.page-title h2{margin:0}
 .dashboard-section table{margin-top:.55rem}
+.attention-list{display:grid;gap:.65rem;max-width:64rem;margin:1rem 0}
+.attention-item{padding:.8rem 1rem;border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:4px;background:var(--surface-2)}
+.attention-item.attention-red{border-left-color:var(--red)}
+.attention-item.attention-blue{border-left-color:var(--accent)}
+.attention-item.attention-empty{border-left-color:var(--border)}
+.attention-item h3{margin:0;font-size:1rem}
+.attention-item p{margin:.35rem 0 0}
+.node-strip{display:grid;grid-template-columns:repeat(4,minmax(8rem,1fr));gap:1px;max-width:64rem;margin:1rem 0;background:var(--border)}
+.node-fact{padding:1rem;background:var(--surface-2)}
+.node-fact span{display:block;color:var(--text-2);font-size:.8rem;font-weight:600}
+.node-fact strong{display:block;margin-top:.15rem;font-size:1.55rem;font-variant-numeric:tabular-nums}
+.overview-links{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin-top:1rem}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem 1.25rem}
 .form-field{display:flex;flex-direction:column;gap:.3rem;font-weight:600}
 .form-field input{width:100%;min-height:2.45rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-1)}
@@ -545,7 +571,8 @@ button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
   .group-table td:first-child{width:100%;max-width:none}
   .record-table td[data-label]::before{content:attr(data-label) ": ";font-weight:600;color:var(--text-2)}
   .record-table td.num{text-align:left}
-  .record-name-cell{min-width:0}
+ .record-name-cell{min-width:0}
+	.node-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
   .form-grid{grid-template-columns:1fr}
   .form-field-wide{grid-column:auto}
   .service-dashboard{grid-template-columns:1fr}
@@ -560,12 +587,13 @@ button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
 // diagnostics page and adminNav on every other — which is how sign-out came to
 // exist on one page only (Plans/MVP/done/web-review.md W01).
 var navItems = []struct{ Href, Label, Key string }{
+	{"/", "Overview", "overview"},
 	{"/services", "Services", "services"},
 	{"/channels", "Channels", "channels"},
 	{"/users", "Users", "users"},
 	{"/groups", "Groups", "groups"},
 	{"/activity", "Activity", "activity"},
-	{"/", "Diagnostics", "diagnostics"},
+	{"/diagnostics", "Diagnostics", "diagnostics"},
 }
 
 // shell is the head, title and navigation a signed-in page shares. Most pages
@@ -633,50 +661,39 @@ var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark"
  <code>ssh agent-busd@&lt;node&gt; token</code> from anywhere your key reaches.
 `))
 
-// page is the signed-in view, refreshed by the browser. Seven sections in the
-// order an incident wants them: what the node is doing and who it is turning
-// away, then the inboxes holding messages, then the traffic, and the registry
-// and the credentials last. Every one of them is what the bus answered **this
-// caller** (docs/05-discovery.md#what-it-shows).
-// The page no longer refreshes itself. A reader has to be able to stop moving
-// content, and a whole-page reload every five seconds also threw away whatever
-// they were part-way through reading (Plans/MVP/done/web-review.md W11).
-var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCount": readerCount, "entityLabel": entityLabel, "titleMark": titleMark, "number": number}).Parse(shell("diagnostics", "Diagnostics") + `<div class=page-title><h1>{{titleMark "diagnostics"}} Diagnostics</h1><button type=button class=help-button popovertarget=diagnostics-help aria-label="About diagnostics" data-tooltip="Operational facts visible to you. Node totals and caller-visible tables have different scopes; envelopes never include message bodies.">ⓘ</button></div><div popover id=diagnostics-help class=context-help><h2>Diagnostics scope</h2><ul><li>Node totals describe the whole daemon; each table contains only records visible to you.</li><li>History is bounded and process-local.</li><li>Envelope metadata may be shown, but message bodies never are.</li></ul></div>
+var overviewPage = template.Must(template.New("overview").Funcs(template.FuncMap{"titleMark": titleMark, "number": number}).Parse(shell("overview", "Overview") + `<div class=page-title><h1>{{titleMark "overview"}} Overview</h1><button type=button class=help-button popovertarget=overview-help aria-label="About Overview" data-tooltip="Only enumerated observations appear. An empty list does not claim the node is healthy.">ⓘ</button></div><div popover id=overview-help class=context-help><h2>Overview scope</h2><ul><li>Attention items cover the conditions the daemon reports over records visible to you, plus node-wide refusals and the previous-stop marker.</li><li>A backlog by itself is ordinary work and is not called unhealthy.</li><li>The node totals and your caller-visible lists have different scopes and never have to agree.</li></ul></div>
 <p><a href=/>Refresh</a> <span class=muted>· as of {{.At}}</span></p>
 
-<section class=dashboard-section><div class=page-title><h2 id=node>Node</h2><button type=button class=help-button popovertarget=node-help aria-label="About node totals and refusals" data-tooltip="These are whole-node totals. Tables below are caller-visible subsets. Refusals count handled API refusals since process start, not router misses or internal failures.">ⓘ</button></div>
-<div popover id=node-help class=context-help><h2>Node totals and refusals</h2><ul><li>Node totals cover the whole daemon; the lists below contain only records visible to you. They never have to agree.</li><li>The refusal reason set is closed, so zero is a measurement: absence from the sparse daemon map becomes a measured zero here.</li><li>Refusals count handled API refusals since this daemon started, whatever the caller&rsquo;s standing, including malformed requests and bad credentials.</li><li>A request the router rejected before any handler ran is not a caller refusal; internal failures are not counted either.</li><li>A total cannot say how quickly refusals are rising.</li></ul></div>
-<p>uptime {{.Status.Up}} · <b>node-wide:</b> {{number .Status.Services}} records ·
- {{number .Status.Queued}} queued · {{number .Status.Waiting}} waiting · {{number .Status.Dropped}} dropped ·
- {{number .Status.Expired}} expired</p>
-{{if .Status.Unclean}}<p class=warn>the last stop was not clean — what was in
- memory at the time was not written down</p>{{end}}
-<table><caption>Refusals since this daemon started, by reason</caption>
-<thead><tr><th scope=col>reason<th scope=col class=num>count</tr></thead>
-<tbody>{{range .Refusals}}<tr><td><code>{{.Reason}}</code><td class=num>{{number .Count}}</tr>{{end}}</tbody></table></section>
+<section class=dashboard-section aria-labelledby=attention><h2 id=attention>Needs attention</h2>
+{{if .Attention}}<div class=attention-list>{{range .Attention}}<article class="attention-item attention-{{.Level}}"><h3>{{.Title}}</h3>
+{{if eq .Kind "refusal"}}<p><code>{{.Reason}}</code> · {{number .Count}} since this daemon started</p>
+{{else if eq .Kind "record"}}<p><code>{{.Name}}</code> · {{number .Queued}} held now{{with .Oldest}} · oldest {{.}}{{end}}{{if .Disabled}} · delivery off{{end}}{{if .AtBound}} · at capacity{{end}}{{with .Overflow}} · {{.}}{{end}}{{if .Dropped}} · {{number .Dropped}} dropped{{end}}{{if .Expired}} · {{number .Expired}} expired{{end}}</p>
+{{else}}<p>Memory from the previous run may not have reached the snapshot.</p>{{end}}
+<p class=muted>Observed as of {{$.At}} · <a href="{{.Href}}">{{.Link}}</a></p></article>{{end}}</div>
+{{else}}<div class="attention-item attention-empty"><strong>No observed attention conditions in this view, as of {{.At}}.</strong><p class=muted>This covers the conditions the daemon reports. It is not a statement that everything is working.</p></div>{{end}}</section>
+
+<section class=dashboard-section aria-labelledby=node><div class=page-title><h2 id=node>This node</h2><button type=button class=help-button popovertarget=node-help aria-label="About node totals" data-tooltip="Whole-node values. Caller-visible lists may show a smaller set.">ⓘ</button></div><div popover id=node-help class=context-help><h2>Node totals</h2><ul><li>These four values cover the whole daemon.</li><li>Services, Channels and Users contain only what you may see, so their counts never have to agree with this strip.</li><li>Readers counts outstanding consume requests, not processes, sessions or health.</li></ul></div>
+<div class=node-strip><div class=node-fact><span>Uptime</span><strong>{{.Status.Up}}</strong></div><div class=node-fact><span>Records</span><strong>{{number .Status.Services}}</strong></div><div class=node-fact><span>Queued</span><strong>{{number .Status.Queued}}</strong></div><div class=node-fact><span>Readers</span><strong>{{number .Status.Waiting}}</strong></div></div>
+<p class=muted>Node-wide. The lists linked below contain only records visible to you; the two never have to agree.</p></section>
+<nav class=overview-links aria-label="Find records"><strong>Find</strong><a href="/services?sort=queued&amp;work=held">Services holding work</a><a href="/channels?sort=queued&amp;work=held">Channels holding work</a><a href=/users>Users</a><a href=/diagnostics>Diagnostics</a></nav>
+`))
+
+// Diagnostics stays detailed and caller-scoped. It no longer duplicates the
+// registry catalogue; Services and Channels now carry every record fact that
+// table uniquely exposed.
+var diagnosticsPage = template.Must(template.New("diagnostics").Funcs(template.FuncMap{"readerCount": readerCount, "recordHref": recordHref, "titleMark": titleMark, "number": number}).Parse(shell("diagnostics", "Diagnostics") + `<div class=page-title><h1>{{titleMark "diagnostics"}} Diagnostics</h1><button type=button class=help-button popovertarget=diagnostics-help aria-label="About diagnostics" data-tooltip="Caller-visible queues, loss and retained envelope evidence. Bodies are never shown.">ⓘ</button></div><div popover id=diagnostics-help class=context-help><h2>Diagnostics scope</h2><ul><li>Refusal counts cover the whole daemon; queue, loss and envelope sections contain only facts visible to you.</li><li>History is bounded and process-local.</li><li>Envelope metadata may be shown, but message bodies never are.</li></ul></div>
+<p><a href=/diagnostics>Refresh</a> <span class=muted>· as of {{.At}}</span></p>
+
+<section class=dashboard-section><div class=page-title><h2 id=refusals>Refusals</h2><button type=button class=help-button popovertarget=refusals-help aria-label="About refusal counts" data-tooltip="Whole-node handled API refusals since process start. Zero is measured; router misses and internal failures are excluded.">ⓘ</button></div>
+<div popover id=refusals-help class=context-help><h2>Refusal counts</h2><ul><li>The reason set is closed, so absence from the sparse daemon map becomes a zero measurement here.</li><li>Counts include handled API refusals whatever the caller&rsquo;s standing, including malformed requests and bad credentials.</li><li>A request the router rejected before any handler ran is not a caller refusal; internal failures are not counted either.</li><li>These lifetime values cannot say how quickly refusals are rising.</li></ul></div>
+<table><caption>Refusals since this daemon started, by reason</caption><thead><tr><th scope=col>reason<th scope=col class=num>count</tr></thead><tbody>{{range .Refusals}}<tr><td><code>{{.Reason}}</code><td class=num>{{number .Count}}</tr>{{end}}</tbody></table></section>
 
 <section class=dashboard-section><div class=page-title><h2 id=stuck>Inboxes holding messages</h2><button type=button class=help-button popovertarget=backlog-help aria-label="About held messages" data-tooltip="A held message is not automatically stuck. Readers counts current requests, not health; expired work may remain until pruning; capacity is only what was true when observed.">ⓘ</button></div><div popover id=backlog-help class=context-help><h2>Held messages</h2><ul><li>A scheduled reader may simply be between pulls.</li><li>This observation does not prune first, so held work may already have outlived its TTL.</li><li>At capacity records what was true when observed, never the next send.</li><li>Readers counts outstanding reads, filtered and unfiltered together. Zero is not health, and a positive count promises neither a match nor completed work.</li></ul></div>
-<table><caption>Inboxes holding messages, longest wait first — visible to you</caption>
-<thead><tr><th scope=col>name<th scope=col class=num>readers<th scope=col class=num>held now<th scope=col class=num>oldest held<th scope=col>capacity</tr></thead>
-<tbody>
-{{range .Backlogs}}<tr><td><code>{{.Name}}</code><td class=num>{{readerCount .Readers}}<td class=num>{{number .Queued}}<td class=num>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{if .AtBound}}<b class=warn>at capacity when observed</b>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>
-{{else}}<tr><td colspan=5 class=muted>every queue you can see is empty</tr>{{end}}
-</tbody></table></section>
+<table><caption>Inboxes holding messages, longest wait first — visible to you</caption><thead><tr><th scope=col>name<th scope=col class=num>readers<th scope=col class=num>held now<th scope=col class=num>oldest held<th scope=col>capacity</tr></thead><tbody>
+{{range .Backlogs}}<tr><td><a href="{{recordHref .}}"><code>{{.Name}}</code></a><td class=num>{{readerCount .Readers}}<td class=num>{{number .Queued}}<td class=num>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{if .AtBound}}<b class=warn>at capacity when observed</b>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>
+{{else}}<tr><td colspan=5 class=muted>every queue you can see is empty</tr>{{end}}</tbody></table></section>
 
 ` + exchangesTemplate + `
-<section class=dashboard-section><div class=page-title><h2 id=registry>Registry</h2><button type=button class=help-button popovertarget=registry-help aria-label="About registry counters" data-tooltip="Caller-visible records only. Accepted and Dequeued survive restart; Dequeued means handed to a reader, not completed.">ⓘ</button></div><div popover id=registry-help class=context-help><h2>Registry counters</h2><ul><li>This table contains records visible to you, not the node-wide total.</li><li>Accepted and Dequeued are cumulative across restarts because they return from the snapshot.</li><li>Dequeued means handed to a reader, which is not the same as the work being done.</li></ul></div>
-<table><caption>Records visible to you — not the node-wide count above</caption>
-<thead><tr><th scope=col>name<th scope=col>kind<th scope=col>description<th scope=col class=num>readers<th scope=col class=num>held now<th scope=col class=num>accepted<th scope=col class=num>dequeued<th scope=col>config</tr></thead>
-<tbody>
-{{range .Records}}<tr><td><code>{{.Name}}</code><td>{{entityLabel .Kind}}<td>{{.Descr}}
- <td class=num>{{readerCount .Readers}}<td class=num>{{number .Queued}}<td class=num>{{number .In}}<td class=num>{{number .Out}}
- <td><code class=muted>{{.ConfigSHA}}</code></tr>
-{{else}}<tr><td colspan=8 class=muted>nothing you can see is registered</tr>{{end}}
-</tbody></table></section>
-
 <section class=dashboard-section><div class=page-title><h2 id=loss>Loss by name</h2><button type=button class=help-button popovertarget=loss-help aria-label="About message loss" data-tooltip="Dropped is queue overflow; Expired is retention. Only caller-visible records appear.">ⓘ</button></div><div popover id=loss-help class=context-help><h2>Message loss</h2><ul><li>Dropped counts overflow decisions for the named inbox.</li><li>Expired counts messages removed by retention.</li><li>Only records visible to you appear here.</li></ul></div>
-<table><tr><th>name<th class=num>dropped<th class=num>expired</tr>
-{{range .Losses}}<tr><td><code>{{.Name}}</code><td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}</tr>
-{{else}}<tr><td colspan=3 class=muted>nothing lost</tr>{{end}}</table></section>
-
+<table><thead><tr><th scope=col>name<th scope=col class=num>dropped<th scope=col class=num>expired</tr></thead><tbody>{{range .Losses}}<tr><td><a href="{{recordHref .}}"><code>{{.Name}}</code></a><td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}</tr>{{else}}<tr><td colspan=3 class=muted>nothing lost</tr>{{end}}</tbody></table></section>
 `))

@@ -142,9 +142,11 @@ preflight: 7 records, 4 profiles, unchanged.
 ## What this is not
 
 Not F.13.2, for the reasons its
-[predecessor gives](node-identity.md#what-this-is-not) — and F.13.0, the owner's
-design review, still gates that task. No new task ID: this is owner direction
-inside an existing plan.
+[predecessor gives](node-identity.md#what-this-is-not). F.13.0, the owner's
+design review, gated that task when this shipped and has since completed
+([review evidence](web-design-owner-review.md#evidence)); F.13.2 remains open
+on its own terms. No new task ID: this is owner direction inside an existing
+plan.
 
 The counter is **not** a metric system, an SLO, or a record of work done. It is
 one number the process already kept, published with its limits attached.

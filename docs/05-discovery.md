@@ -259,12 +259,33 @@ transfer and removal remain in the red Danger Zone. User detail separates the
 profile editor from identity, authority, groups, lifecycle and owned resources.
 Groups use a compact Group/Members table. Selecting a name opens one group;
 the full-width membership textarea appears only when the caller may edit it.
-Diagnostics retains every existing table and scope boundary without the former
-visible paragraph walls.
+Diagnostics keeps refusal, held-work, retained-envelope and loss evidence
+without duplicating the full registry catalogue or its former paragraph walls.
+The Services and Channels tables carry their own accepted/dequeued counters.
 
 Human-facing integer counts use grouped decimal figures, including the compact
 footer, registry, diagnostics and Activity totals. JSON, URLs, form values and
 editable syntax remain unchanged plain values.
+
+### Overview and diagnostics
+
+**Built in 0.5.80.** Overview is the short signed-in landing page. It enumerates
+only supported attention conditions: an unclean prior stop, nonzero refusal
+reasons, queue capacity, loss, and disabled records still holding work. Ordinary
+backlog is work rather than an alarm. One record produces one item while the
+item retains every supporting fact; an empty list explicitly makes no health
+claim.
+
+The node strip is node-wide. Attention and record links contain only facts the
+caller may see, so their scopes need not agree. Direct links open Services or
+Channels holding work, Users, and Diagnostics. Holding-work links are real URL
+filters rather than preselected prose.
+
+Diagnostics retains the detailed refusal, held-work, bounded envelope and loss
+evidence. Record names link to their visible Service or Channel detail. It no
+longer repeats the registry catalogue; Services and Channels are its searchable
+home. A daemon failure renders a recovery page without exposing the socket or
+other backend address.
 
 ### Activity history
 
@@ -407,7 +428,7 @@ sessions with its token.
 | **exchanges** — retained messages and referenced receipt evidence | Built | [correlation and limits](#retained-exchanges) |
 | **my names** — what I hold a credential for, whose it is and what it is for, its fingerprint, when it was issued and last used, and how to rotate it | Built | — the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)). A person's own identity is distinguished from the services they registered. A credential [goes with its address](01-identity-and-roles.md#unregistering), so the list stays names something answers on |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | Built | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
-| **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | Built | The built page shows only refusal reasons that occurred; counters are on `status` ([refusals](#refusals)) |
+| **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | Built | Diagnostics shows every supported reason, including measured zero; counters are on `status` ([refusals](#refusals)) |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | Built | — `status` carries the unclean-restart fact |
 | **people** — identities, profiles, local avatars, authority, state, group membership and owned services | Built | [person records](01-identity-and-roles.md#users-and-profiles) and [user lifecycle](01-identity-and-roles.md#user-states) |
 
@@ -482,11 +503,12 @@ never the same answer. Declared states beyond `disabled` are
 [R1.1 work](../Plans/R1.1/records.md#down-and-retired) and would each bring
 their own reason rather than borrow one.
 
-**Only reasons that have happened appear** — a reason with a zero beside it is
-noise on every other node. And a fault of the daemon's own is a 500 and is
-**not** in here: refusing a caller and failing one are different things to be
-told about, and folding them together would answer *"how often am I refusing
-callers?"* with a number that includes our bugs.
+**Every supported reason appears**, including measured zero. This keeps the
+reason vocabulary inspectable without making zero a health claim. A fault of
+the daemon's own is a 500 and is **not** in here: refusing a caller and failing
+one are different things to be told about, and folding them together would
+answer *"how often am I refusing callers?"* with a number that includes our
+bugs.
 
 ### Where it listens
 

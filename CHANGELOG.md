@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.80 — 2026-09-18
+
+Separate a short evidence-based Overview from detailed Diagnostics. Add direct
+held-work filters, keep delivery counters with Services and Channels, state
+attention levels and overflow policy as the page spec accepts them, and hide
+backend addresses from both the unavailable-bus page and a failed envelope
+section.
+
 ## 0.5.79 — 2026-09-18
 
 Complete the User, Group and Account browser journeys. Add caller-scoped

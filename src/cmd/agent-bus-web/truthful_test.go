@@ -98,9 +98,9 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	marks := map[string]string{
 		"/": "<a href=/ aria-current=page>", "/services": "<a href=/services aria-current=page>",
 		"/personal": "<a href=/services aria-current=page>", "/channels": "<a href=/channels aria-current=page>", "/users": "<a href=/users aria-current=page>",
-		"/groups": "<a href=/groups aria-current=page>", "/activity": "<a href=/activity aria-current=page>",
+		"/groups": "<a href=/groups aria-current=page>", "/activity": "<a href=/activity aria-current=page>", "/diagnostics": "<a href=/diagnostics aria-current=page>",
 	}
-	for _, path := range []string{"/", "/services", "/personal", "/channels", "/users", "/groups", "/activity"} {
+	for _, path := range []string{"/", "/services", "/personal", "/channels", "/users", "/groups", "/activity", "/diagnostics"} {
 		body := get(path)
 		for _, want := range []string{
 			`<html lang=en>`,
@@ -125,7 +125,7 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 		}
 	}
 	// Each page names itself, so a tab and a history entry can be told apart.
-	titles := map[string]string{"/": "Diagnostics", "/services": "Services", "/users": "Users", "/groups": "Groups"}
+	titles := map[string]string{"/": "Overview", "/diagnostics": "Diagnostics", "/services": "Services", "/users": "Users", "/groups": "Groups"}
 	for path, title := range titles {
 		if want := "<title>" + title + " \u00b7 agent-bus</title>"; !strings.Contains(get(path), want) {
 			t.Errorf("%s is not titled %q", path, title)
@@ -313,6 +313,9 @@ func TestRefusalsRecoverInsteadOfDeadEnding(t *testing.T) {
 	}
 	if !strings.Contains(string(offline), "The bus is not answering") {
 		t.Errorf("an unreachable bus is not named as one: %s", offline)
+	}
+	if strings.Contains(string(offline), dead.URL) {
+		t.Error("the recovery page exposes the backend address")
 	}
 	if strings.Contains(string(offline), "action=/signin") {
 		t.Error("an unreachable bus is still presented as not being signed in")

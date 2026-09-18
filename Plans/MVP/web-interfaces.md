@@ -12,7 +12,7 @@ particular is superseded by the owner's decisions on
 
 ## Proposal
 
-Status: individually requested slices are built; the remaining redesign depends on F.13.0, the owner’s specification review. [Completed slices](DONE.md#done--mvp) do not close the remaining [acceptance work](TODO.md#web-redesign). Replace the collection of administrative forms with one coherent interface for finding services, understanding delivery, and managing access. Keep Go rendering, make existing information discoverable, and fix misleading states before adding more telemetry. The owner should be able to recognise a session, identify a stalled inbox, and understand the consequence of an administrative action without interpreting API terminology.
+Status: individually requested slices are built; F.13.0, the owner’s specification review, completed on 2026-09-18 ([review evidence](done/web-design-owner-review.md#evidence)), and the remaining redesign now depends on F.13.2 and F.13.6. [Completed slices](DONE.md#done--mvp) do not close the remaining [acceptance work](TODO.md#web-redesign). Replace the collection of administrative forms with one coherent interface for finding services, understanding delivery, and managing access. Keep Go rendering, make existing information discoverable, and fix misleading states before adding more telemetry. The owner should be able to recognise a session, identify a stalled inbox, and understand the consequence of an administrative action without interpreting API terminology.
 
 Read the [audit](done/web-review.md#findings) for evidence, [data coverage](#data-coverage) for what is actually available, and [execution plan](TODO.md#web-redesign) for dependencies and falsifiable acceptance. Recommendations here are not settled product contracts; acceptance promotes them through the [document lifecycle](../../CLAUDE.md#working-rules).
 
@@ -130,7 +130,7 @@ A compact operations application: neutral surfaces, strong text hierarchy, a res
 | Quiet state | A brief factual statement with a next action; do not give empty tables or flat charts most of the screen |
 | Refresh | A visible observation time and Refresh action. Optional full-page refresh must be explicitly enabled and pausable; never reload a form or unexpectedly move focus |
 
-Validate the proposed design with populated, empty, unavailable, denied and long-name examples before implementation. The current production data is too quiet to validate incident presentation. Produce reviewable page designs in F.13.0; this document does not pretend a new visual design has already been tested.
+Validate the proposed design with populated, empty, unavailable, denied and long-name examples before implementation. The current production data is too quiet to validate incident presentation. Reviewable page designs were produced and reviewed in F.13.0 ([visual options](web/visual-options.md#selected-direction)); this document does not pretend the whole redesign has since been accepted, which is F.13.6.
 
 ## Architecture recommendation
 

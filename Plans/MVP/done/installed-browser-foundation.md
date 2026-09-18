@@ -80,6 +80,10 @@ The manifest and slow log are under `tmp/installed-browser-final/`.
 Run the installed browser as daemon Owner, Administrator, resource
 Owner/Maintainer and ordinary user through service, channel, user and group
 success and denial paths. Add the approved redesigned journeys and their
-desktop, narrow and zoomed checks after F.13.0/F.13.6. Exercise HTTPS cookie
+desktop, narrow and zoomed checks after F.13.6. Exercise HTTPS cookie
 behavior under the installed TLS configuration. This foundation does not close
 those rows.
+
+Status correction 2026-09-18: this paragraph named F.13.0 as a gate too.
+F.13.0 completed ([review evidence](web-design-owner-review.md#evidence)), so
+F.13.6 is the only one left. The measured results above are unchanged.

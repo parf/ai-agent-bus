@@ -117,7 +117,8 @@ func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 		m.register(record)
 	}
 	pages := map[string]string{
-		"/":                              `</svg> Diagnostics</h1>`,
+		"/":                              `</svg> Overview</h1>`,
+		"/diagnostics":                   `</svg> Diagnostics</h1>`,
 		"/services":                      `⚙️</span> Services</h1>`,
 		"/personal":                      `⚙️</span> Personal services</h1>`,
 		"/channels":                      `</svg> Channels</h1>`,

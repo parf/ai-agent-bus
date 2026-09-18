@@ -33,7 +33,8 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	page := m.get("/channels")
 	for _, want := range []string{
 		`<title>Channels · agent-bus</title>`, `<th scope=col>Channel`,
-		`<th scope=col>Delivery mode`, `<th scope=col class=num>Work`,
+		`<th scope=col>Delivery mode`, `<th scope=col class=num>Held`,
+		`<th scope=col class=num>Accepted`, `<th scope=col class=num>Dequeued`,
 		`<th scope=col class=num>Subscribers`,
 	} {
 		if !strings.Contains(page, want) {
@@ -44,13 +45,13 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 		t.Error("Channels page still uses the Service table vocabulary")
 	}
 	queue := m.row(page, "jobs@h")
-	for _, want := range []string{"Queue · one at a time", `>2 <span class=muted>queued</span>`, `data-label=Subscribers><span class=muted>&mdash;</span>`} {
+	for _, want := range []string{"Queue · one at a time", `data-label=Held>2`, `data-label=Accepted>2`, `data-label=Subscribers><span class=muted>&mdash;</span>`} {
 		if !strings.Contains(queue, want) {
 			t.Errorf("queue channel row lacks %q: %s", want, queue)
 		}
 	}
 	pubsub := m.row(page, "news@h")
-	for _, want := range []string{"Pub/sub · copy to each", `>3 <span class=muted>accepted</span>`, `data-label=Subscribers>1`, `/channel?name=news%40h`} {
+	for _, want := range []string{"Pub/sub · copy to each", `data-label=Held><span class=muted>&mdash;</span>`, `data-label=Accepted>3`, `data-label=Subscribers>1`, `/channel?name=news%40h`} {
 		if !strings.Contains(pubsub, want) {
 			t.Errorf("pub/sub channel row lacks %q: %s", want, pubsub)
 		}

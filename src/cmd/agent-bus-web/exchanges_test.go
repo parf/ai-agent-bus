@@ -187,7 +187,7 @@ func TestExchangeRenderingPreservesEvidenceAndMissingHistory(t *testing.T) {
 	renderView := func(v view) string {
 		t.Helper()
 		var out bytes.Buffer
-		if err := page.Execute(&out, v); err != nil {
+		if err := diagnosticsPage.Execute(&out, v); err != nil {
 			t.Fatal(err)
 		}
 		return out.String()

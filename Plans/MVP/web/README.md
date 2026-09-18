@@ -1,6 +1,8 @@
 # Web redesign
 
-Design phase. **No web code is written while this is open**, by anyone.
+Implementation and acceptance phase. The owner reviewed the design through
+rendered pages and directed the implementation iteratively; the remaining work
+is tracked in the MVP TODO rather than behind a design-approval gate.
 
 The owner opened this on 2026-09-16 asking for: modern Go libraries, modern web
 design, every page reviewed for an advanced UI carrying every required function
@@ -103,8 +105,11 @@ keep in step.
 conditional on nobody owning typography; that condition is now closed by a role
 rather than by an appointment.
 
-The specifications have not yet been read by the owner; that remains
-[F.13.0](../TODO.md#objective).
+The owner selected the visual structure of [Option 2](visual-options.md#option-2)
+with the operational content of Option 1, then reviewed and corrected the
+implemented pages in the browser. The review record maps that iterative process
+to F.13.0 without pretending it was a single document-signoff event
+([evidence](../done/web-design-owner-review.md#evidence)).
 
 ### Dissent
 

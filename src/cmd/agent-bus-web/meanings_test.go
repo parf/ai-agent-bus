@@ -246,9 +246,9 @@ func TestNumericTableColumnsAreRightAligned(t *testing.T) {
 	for path, wants := range map[string][]string{
 		"/services": {`th.num,td.num{text-align:right`, `<th scope=col class=num>Readers`, `<th scope=col class=num>Queued`, `<td class=num data-label=Readers>0`},
 		"/activity": {`<th scope=col class=num>Accepted`, `<th scope=col class=num>Refused`, `<td class=num>0`},
-		"/": {`<th scope=col class=num>count`, `<th scope=col class=num>readers`, `<th scope=col class=num>held now`,
-			`<th scope=col class=num>oldest held`, `<th scope=col class=num>Envelopes`, `<th scope=col class=num>accepted`,
-			`<th class=num>dropped`, `<th class=num>expired`, `<td class=num>0`, `<td class=num data-label="Envelopes">1`},
+		"/diagnostics": {`<th scope=col class=num>count`, `<th scope=col class=num>readers`, `<th scope=col class=num>held now`,
+			`<th scope=col class=num>oldest held`, `<th scope=col class=num>Envelopes`,
+			`<th scope=col class=num>dropped`, `<th scope=col class=num>expired`, `<td class=num>0`, `<td class=num data-label="Envelopes">1`},
 	} {
 		body := m.get(path)
 		for _, want := range wants {
@@ -314,9 +314,8 @@ func TestQueueCountersSayTheirScopeAndNeverSayCompleted(t *testing.T) {
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "held"}); err != nil {
 		t.Fatal(err)
 	}
-	// The registry table names its own columns, read out of that table. Two
-	// of the four words head a column of the stuck-inbox table above it, so
-	// a page-wide match is satisfied by a registry with no headings at all.
+	// The Services table now owns these record counters; Diagnostics no longer
+	// duplicates the registry catalogue.
 	// Three accepted and one dequeued, so accepted and dequeued cannot be
 	// swapped without the numbers saying so. Equal counters make the column
 	// names unfalsifiable.
@@ -328,19 +327,19 @@ func TestQueueCountersSayTheirScopeAndNeverSayCompleted(t *testing.T) {
 	if _, err := m.bus.ConsumeAs(context.Background(), "quiet@h", "quiet@h", "", "", false, false); err != nil {
 		t.Fatal(err)
 	}
-	head := m.section(m.get("/"), "registry")
-	for _, col := range []string{"<th scope=col class=num>readers", "<th scope=col class=num>held now",
-		"<th scope=col class=num>accepted", "<th scope=col class=num>dequeued"} {
+	head := m.get("/services")
+	for _, col := range []string{"<th scope=col class=num>Readers", "<th scope=col class=num>Queued",
+		"<th scope=col class=num>Accepted", "<th scope=col class=num>Dequeued"} {
 		if !strings.Contains(head, col) {
-			t.Errorf("the registry table has no %q column: %s", col, head)
+			t.Errorf("the Services table has no %q column: %s", col, head)
 		}
 	}
 	// held now 2, accepted 3, dequeued 1 — in that order, so the columns are
 	// named for the numbers under them rather than the other way round.
-	if got := m.row(head, "quiet@h"); !strings.Contains(got, "<td class=num>2<td class=num>3<td class=num>1") {
-		t.Errorf("the registry's counters do not line up with their columns: %s", got)
+	if got := m.row(head, "quiet@h"); !strings.Contains(got, "data-label=Queued>2<td class=num data-label=Accepted>3<td class=num data-label=Dequeued>1") {
+		t.Errorf("the Services counters do not line up with their columns: %s", got)
 	}
-	for _, page := range []string{"/", "/service?name=quiet@h"} {
+	for _, page := range []string{"/services", "/service?name=quiet@h"} {
 		body := m.get(page)
 		if !strings.Contains(body, "accepted") && !strings.Contains(body, "Accepted") {
 			t.Errorf("%s does not name what In counts", page)
@@ -461,7 +460,7 @@ func TestEverySupportedRefusalReasonIsDrawnIncludingItsZero(t *testing.T) {
 	if after := m.bus.Status().Refused["unknown"]; after != before+1 {
 		t.Fatalf("a lookup refusal moved the counter %d to %d, want one more", before, after)
 	}
-	body := m.get("/")
+	body := m.get("/diagnostics")
 	reasons := api.Reasons()
 	if len(reasons) < 5 {
 		t.Fatalf("the daemon's reason set looks wrong: %v", reasons)
@@ -529,13 +528,13 @@ func TestQueueObservationsSayWhenTheyWereTrue(t *testing.T) {
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "held"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, page := range []string{"/", "/service?name=quiet@h"} {
+	for _, page := range []string{"/diagnostics", "/service?name=quiet@h"} {
 		body := m.get(page)
 		if !strings.Contains(body, "does not prune") {
 			t.Errorf("%s does not say held may include messages already past their TTL", page)
 		}
 	}
-	if !strings.Contains(m.get("/"), "what was true when observed") {
+	if !strings.Contains(m.get("/diagnostics"), "what was true when observed") {
 		t.Error("the page does not date the capacity observation")
 	}
 	// And the row itself says it, on a queue that really is at its bound —
@@ -547,7 +546,7 @@ func TestQueueObservationsSayWhenTheyWereTrue(t *testing.T) {
 	// On every surface that shows it. Dropping the label from the listing and
 	// the detail page alone left the diagnostics page still saying it.
 	for _, where := range []struct{ page, what string }{
-		{"/", "the backlog table"}, {"/services", "the listing"},
+		{"/diagnostics", "the backlog table"}, {"/services", "the listing"},
 	} {
 		full := m.row(m.get(where.page), "tiny@h")
 		if !strings.Contains(full, "at capacity when observed") {
@@ -562,7 +561,7 @@ func TestQueueObservationsSayWhenTheyWereTrue(t *testing.T) {
 		t.Error("the detail page does not say the queue is at its bound")
 	}
 	// And a queue below its bound says nothing, so the label is a distinction.
-	if strings.Contains(m.row(m.get("/"), "quiet@h"), "at capacity") {
+	if strings.Contains(m.row(m.get("/diagnostics"), "quiet@h"), "at capacity") {
 		t.Error("a queue below its bound is called at capacity")
 	}
 	// An empty age is not a zero age: the daemon says nothing about whether
@@ -720,12 +719,6 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 		t.Error("a display glyph entered the editable ACL")
 	}
 
-	diagnostics := m.get("/")
-	for name, want := range map[string]string{"svc@h": "⚙️ Service", "bot@h": "👾 Agent", "jobs@h": "Channel"} {
-		if row := m.row(diagnostics, name); !strings.Contains(row, want) {
-			t.Errorf("diagnostics labels %s inconsistently: %s", name, row)
-		}
-	}
 }
 
 // A figure the face worked out and a figure the daemon reported are not the
@@ -859,7 +852,7 @@ func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 	}
 	m.attachReader("reading@h")
 	// The diagnostics page lists a queue with no read on it.
-	body := m.get("/")
+	body := m.get("/diagnostics")
 	if !strings.Contains(m.row(body, "quiet@h"), "<td class=num>0<td class=num>1<td class=num>") {
 		t.Errorf("the backlog does not show readers=0 and held=1: %s", m.row(body, "quiet@h"))
 	}
@@ -873,18 +866,18 @@ func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 		t.Fatal(err)
 	}
 	taken := n.attachReader("reading@h", "other")
-	row := n.row(n.get("/"), "reading@h")
+	row := n.row(n.get("/diagnostics"), "reading@h")
 	if !strings.Contains(row, "<td class=num>1<td class=num>1<td class=num>") {
 		t.Errorf("the filtered read and held message are not both reported: %s", row)
 	}
 	for _, phrase := range []string{"filtered and unfiltered together", "positive count promises neither"} {
-		if !strings.Contains(n.get("/"), phrase) {
+		if !strings.Contains(n.get("/diagnostics"), phrase) {
 			t.Errorf("the page omits the count boundary %q", phrase)
 		}
 	}
 	// And it does not say they will not take anything, which is false: a
 	// matching filtered waiter is served ahead of an unfiltered one.
-	for _, page := range []string{"/", "/services", "/service?name=reading@h"} {
+	for _, page := range []string{"/diagnostics", "/services", "/service?name=reading@h"} {
 		if strings.Contains(n.get(page), "will not take") {
 			t.Errorf("%s says a filtered read will not take a message, which deliver disproves", page)
 		}

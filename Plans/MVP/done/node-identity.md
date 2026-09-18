@@ -115,8 +115,10 @@ the script changed.
 
 This is **not** F.13.2. That task wants navigation, deep-link return, form-input
 preservation, shared not-found presentation and distinct recovery states, and
-none of those is claimed here. It is also gated on **F.13.0**, the owner's
-review of the page designs, which has not happened. What this ships is the
+none of those is claimed here. It was also gated on **F.13.0**, the owner's
+review of the page designs, which had not happened when this shipped; F.13.0
+completed on 2026-09-18 ([review evidence](web-design-owner-review.md#evidence))
+and F.13.2 is the gate that remains. What this ships is the
 shared shell's header and footer and the public call behind them — groundwork
 F.13.2 will build on, and evidence for that task when it is taken up.
 

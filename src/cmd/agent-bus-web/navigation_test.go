@@ -218,7 +218,8 @@ func TestDensePagesUseCardsAndImmediateHelpWithoutLosingActions(t *testing.T) {
 		"/user?name=alice@h":            {`class=person-layout`, `class=person-sidebar`, `popovertarget=user-access-help`, `>Save profile</button>`, `name=company`, `name=location`, `name=twitter`},
 		"/groups":                       {`<table class="record-table group-table">`, `href="/group?name=%40administrators"`, `<th scope=col>Members</th>`},
 		"/group?name=%40administrators": {`class="editor-card group-card"`, `textarea name=members rows=8`, `>Save members</button>`},
-		"/":                             {`class=dashboard-section`, `popovertarget=node-help`, `popovertarget=registry-help`},
+		"/":                             {`class=dashboard-section`, `popovertarget=overview-help`, `class=node-strip`},
+		"/diagnostics":                  {`class=dashboard-section`, `popovertarget=refusals-help`, `popovertarget=exchanges-help`},
 		"/account":                      {` Account</h1>`, `popovertarget=account-help`, `>Credentials</h2>`, `agent-bus-token admin@h --rotate`},
 		"/service?name=quiet@h":         {`class=service-dashboard`, `Queue &amp; counters`, `popovertarget=policy-help`, `summary id=settings>Edit settings`},
 	} {

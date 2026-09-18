@@ -11,6 +11,7 @@ package main
 
 import (
 	"html/template"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -173,9 +174,112 @@ type view struct {
 	Records   []protocol.Record // registry, as this caller may see it
 	Backlogs  []protocol.Record // inboxes holding messages, longest wait first
 	Losses    []protocol.Record // loss by name
+	Attention []attention       // enumerated conditions for the short Overview
 	Refusals  []refusal
 	Exchanges []exchange
 	NoFeed    string // this caller may not read the feed
+}
+
+// attention is an observed condition, never a health verdict. A record gets at
+// most one item even when several facts apply; the item keeps every supporting
+// value so Overview does not hide a loss behind a current queue condition.
+type attention struct {
+	Kind, Level, Title string
+	Href, Link         string
+	Name, Reason       string
+	Count              int
+	Queued             int
+	Oldest             string
+	Overflow           string // the configured policy, stated as a setting
+	Dropped, Expired   int
+	Disabled, AtBound  bool
+}
+
+func recordHref(r protocol.Record) string {
+	path := "/service"
+	if r.Kind == protocol.KindTopic {
+		path = "/channel"
+	}
+	return path + "?name=" + url.QueryEscape(r.Name)
+}
+
+// attentionItems enumerates only conditions the daemon answer supports. A
+// backlog on its own is ordinary work and therefore stays out of this list.
+// whenFull states the configured overflow policy in the words the record page
+// already uses. It is a setting, never a prediction about the next send: the
+// observation path does not prune, so at capacity now says nothing about what
+// the send path will do (Plans/MVP/web/glyphs.md#what-an-observation-is-worth).
+func whenFull(r protocol.Record) string {
+	if r.Full == protocol.OverflowRing {
+		return "when full: drop the oldest"
+	}
+	return "when full: refuse"
+}
+
+func attentionItems(status core.Status, records []protocol.Record) []attention {
+	var out []attention
+	if status.Unclean {
+		// Overview owns the node strip, and uptime there is the one further
+		// fact about this restart the daemon actually answers. Diagnostics
+		// has no node section to send them to.
+		out = append(out, attention{Kind: "unclean", Level: "red", Title: "The previous stop was not clean", Href: "/#node", Link: "View node totals"})
+	}
+	for _, item := range refusals(status.Refused) {
+		if item.Count == 0 {
+			continue
+		}
+		// Informational: a lifetime total cannot say anything is wrong now,
+		// and it cannot be climbing (Plans/MVP/web/pages.md#overview).
+		out = append(out, attention{Kind: "refusal", Level: "blue", Title: "Requests were refused", Reason: item.Reason, Count: item.Count, Href: "/diagnostics#refusals", Link: "View refusal reasons"})
+	}
+	for _, r := range records {
+		if !r.AtBound && r.Dropped+r.Expired == 0 && !(r.Disabled && r.Queued > 0) {
+			continue
+		}
+		item := attention{
+			Kind: "record", Level: "orange", Name: r.Name, Href: recordHref(r), Link: "View record",
+			Queued: r.Queued, Oldest: r.Oldest, Dropped: r.Dropped, Expired: r.Expired,
+			Disabled: r.Disabled, AtBound: r.AtBound,
+		}
+		// Precedence is the spec's, and it is not severity order: a disabled
+		// record at its bound is not urgent, because nothing is being
+		// accepted and capacity is not what is wrong with it. The condition
+		// that explains the other wins, and the rest stay as supporting
+		// facts (Plans/MVP/web/glyphs.md#attention-levels).
+		switch {
+		case r.Disabled && r.Queued > 0:
+			item.Title = "Delivery is off and work is held"
+			if r.AtBound {
+				item.Overflow = whenFull(r)
+			}
+		case r.AtBound:
+			item.Level, item.Title, item.Overflow = "red", "Queue at capacity when observed", whenFull(r)
+		default:
+			item.Title = "Messages were lost from this inbox"
+		}
+		out = append(out, item)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		// red, then orange, then informational: one ordered enum, the order
+		// the level vocabulary defines.
+		weight := func(level string) int {
+			switch level {
+			case "red":
+				return 0
+			case "orange":
+				return 1
+			}
+			return 2
+		}
+		if a, b := weight(out[i].Level), weight(out[j].Level); a != b {
+			return a < b
+		}
+		if out[i].Title != out[j].Title {
+			return out[i].Title < out[j].Title
+		}
+		return out[i].Name+out[i].Reason < out[j].Name+out[j].Reason
+	})
+	return out
 }
 
 // stuck is the backlogs, **oldest first**: a count alone cannot say whether a
