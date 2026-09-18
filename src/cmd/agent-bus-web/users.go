@@ -209,6 +209,38 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		}
 		http.Error(w, "no such user", 404)
 	})
+	renderUserFormError := func(w http.ResponseWriter, r *http.Request, action string, code int, message string, field ...string) bool {
+		p, ok := load(w, r)
+		if !ok {
+			return true
+		}
+		p.Return = directoryReturn(r.PostForm.Get("return"))
+		p.Form = retainedForm(action, message, r.PostForm, "name", "person_name", "email", "github_user", "return")
+		if len(field) != 0 {
+			p.Form.Field = field[0]
+		}
+		if action == "create" {
+			if !p.Administrator {
+				return false
+			}
+			p.New = true
+			p.User = protocol.User{Name: r.PostForm.Get("name"), Kind: protocol.DirectoryUser, PersonName: r.PostForm.Get("person_name"), Email: r.PostForm.Get("email"), GithubUser: r.PostForm.Get("github_user")}
+			renderForm(w, code, personPage, p)
+			return true
+		}
+		if action == "save" {
+			for _, u := range p.Users {
+				if u.Name != r.PostForm.Get("name") {
+					continue
+				}
+				u.PersonName, u.Email, u.GithubUser = r.PostForm.Get("person_name"), r.PostForm.Get("email"), r.PostForm.Get("github_user")
+				p.User = u
+				renderForm(w, code, personPage, p)
+				return true
+			}
+		}
+		return false
+	}
 	mux.HandleFunc("POST /user", func(w http.ResponseWriter, r *http.Request) {
 		if !sameOrigin(r, tls) {
 			http.Error(w, "same-origin form required", 403)
@@ -220,7 +252,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "invalid form", 400)
+			localProblem(w, r, v.You, http.StatusBadRequest, "The submitted form could not be read.")
 			return
 		}
 		var err error
@@ -237,10 +269,19 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		case "active", "paused", "banned":
 			err = c.post(cookie(r), "/user/state", map[string]string{"name": r.PostForm.Get("name"), "state": r.PostForm.Get("action")})
 		default:
-			http.Error(w, "unknown action", 400)
+			localProblem(w, r, v.You, http.StatusBadRequest, "That user action is not available.")
 			return
 		}
 		if err != nil {
+			if code, message, preserve := formRefusal(err); preserve {
+				field := ""
+				if action == "create" && code == http.StatusPreconditionFailed {
+					field = "name"
+				}
+				if renderUserFormError(w, r, action, code, message, field) {
+					return
+				}
+			}
 			fail(w, r, v.You, err)
 			return
 		}
@@ -283,7 +324,7 @@ var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"id
 `))
 var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"identityLabel": identityLabel, "titleMark": titleMark}).Parse(shell("users", "Identity details") + `
 <p><a href="{{.Return}}">Back to directory</a></p>
-<div class=page-title><h1 style="overflow-wrap:anywhere">{{if or .New (eq .User.Kind "user")}}{{titleMark "user"}}{{else}}{{titleMark "identity"}}{{end}} {{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1></div>
+<div class=page-title><h1 style="overflow-wrap:anywhere">{{if or .New (eq .User.Kind "user")}}{{titleMark "user"}}{{else}}{{titleMark "identity"}}{{end}} {{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1></div>` + formErrorSummary + `
 {{if not .New}}{{with identityLabel .User .RecordKinds}}<p>Type: <strong>{{.}}</strong></p>{{end}}{{end}}
 {{if and (not .New) (ne .User.Kind "user")}}
 <h2>{{if eq .User.Kind "record"}}Registered name{{else}}Credential with no registered name{{end}}</h2>
@@ -295,11 +336,11 @@ var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"id
 {{else}}
 {{if not .New}}<p>State: {{.User.State}} · {{if .User.DaemonOwner}}Daemon owner{{else if .User.Administrator}}Daemon administrator{{else}}User{{end}}</p>
 <h2>Groups</h2>{{range .User.Groups}}<p>{{.}}</p>{{else}}<p>No group memberships</p>{{end}}{{end}}
-{{if or .New .User.CanEdit}}<h2>Profile</h2><form method=post action=/user><input type=hidden name=return value="{{.Return}}">
-{{if .New}}<label>Identity <input name=name required placeholder="user@realm"></label><input type=hidden name=action value=create>{{else}}<input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=action value=save>{{end}}
+{{if or .New .User.CanEdit}}<h2>Profile</h2><form id="form-{{if .New}}create{{else}}save{{end}}" method=post action=/user><input type=hidden name=return value="{{.Return}}">
+{{if .New}}<label>Identity <input name=name required placeholder="user@realm" value="{{.User.Name}}" aria-invalid="{{if .Form.Invalid "name"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "name"}}profile-error{{end}}"></label><input type=hidden name=action value=create>{{else}}<input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=action value=save>{{end}}
 <p><label>Person name <input name=person_name value="{{.User.PersonName}}"></label></p>
-<p><label>Email <input type=email name=email value="{{.User.Email}}"></label></p>
-<p><label>GitHub login <input name=github_user value="{{.User.GithubUser}}"></label></p><button>Save profile</button></form>
+<p><label>Email <input type=email name=email value="{{.User.Email}}" aria-invalid="{{if .Form.Invalid "email"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "email"}}profile-error{{end}}"></label></p>
+<p><label>GitHub login <input name=github_user value="{{.User.GithubUser}}"></label></p>{{if or (.Form.Is "create") (.Form.Is "save")}}<p class=warn id=profile-error>{{.Form.Error}}</p>{{end}}<button>Save profile</button></form>
 {{if and (not .New) (not .User.DaemonOwner)}}<h2>Access</h2><p>Pause and ban block this user's bus access and new deliveries to their inbox. Queued work is retained. Their running service processes are not stopped. Administrators may lift a ban on an ordinary user; the daemon Owner controls protected authority levels.</p><form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}">{{if .User.CanActivate}}<button name=action value=active>Activate</button>{{end}}<button name=action value=paused>Pause</button><button name=action value=banned>Ban</button></form>{{end}}
 {{else}}<p>{{.User.PersonName}}</p><p>{{.User.Email}}</p><p>{{.User.GithubUser}}</p><p>Trusted profile fields are edited by a daemon administrator.</p>{{end}}
 {{end}}

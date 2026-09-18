@@ -138,7 +138,9 @@ There is no server-rendered preservation of nonsensitive submitted fields.
 | Remove unused credential, non-user with CanRemove | Hidden `name`, `return`; button `action=remove-credential` | POST `/user` → POST `/identity/remove`: name; explicit removal consequences above form | [users:168][U152], [users:223][U214] |
 
 User actions return to a validated `/users` URL with retained query state.
-Failures use a separate problem page and do not re-render the submitted form.
+Since 0.5.70, attributable input refusals re-render the submitted form with an
+allowlist of nonsensitive values. Other failures keep the separate problem
+page; tokens and configuration are never repopulated.
 
 ## Errors and recovery
 
@@ -153,12 +155,13 @@ Failures use a separate problem page and do not re-render the submitted form.
 | Transport error through fail | 502 problem page, error detail, unreachable-daemon advice | [admin:38][A38] |
 | Root listing failure | Plain 502 text, bypassing fail | [main:109][M85] |
 | Feed/names failure | Scoped NoFeed/NoNames text; remainder of diagnostics remains | [main:119][M85] |
-| Local parse/origin/action failures | Plain error responses at handler branches; no consistent form recovery | [admin:223][A223], [users:152][U152], [main:175][M175] |
+| Local parse/action failures | Shared-shell problem page stating that no daemon request ran; cross-origin refusal stays a plain boundary response | [form recovery](../../../../docs/05-discovery.md#form-recovery-and-keyboard-entry) |
+| Attributable form refusal | Service, Channel, User or Group form with safe values, alert summary and only evidence-backed field attribution; hidden/missing target still uses the shared not-found page | [form recovery](../../../../docs/05-discovery.md#form-recovery-and-keyboard-entry) |
 
-GET problems offer Try again at the same URL. POST problems use a same-host
-referrer as Back to the page when available. That recovers navigation, not
-server-preserved input. Advice saying nothing changed is not a general proof
-of mutation outcome after a transport failure.
+GET problems offer Try again at the same URL. Non-form POST problems use a
+same-host referrer as Back to the page when available. Refused forms preserve
+only their named safe inputs. Advice saying nothing changed is not a general
+proof of mutation outcome after a transport failure.
 
 ## Existing data omitted or misplaced
 

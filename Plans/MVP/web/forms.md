@@ -133,6 +133,13 @@ authorization.
 This bounded form and confirmation flow is built in 0.5.63. Other Service and
 Channel journey work in this proposal remains pending.
 
+The shared invalid-input return is built in 0.5.70 for current Service,
+Channel, User and Group forms. It preserves only allowlisted nonsensitive
+values, keeps private configuration empty, shows an alert summary and marks a
+field invalid only when the face can attribute it without interpreting daemon
+prose. The planned split of the remaining combined Service/Channel editors is
+still pending.
+
 No group-delete form. The handler accepts the action and no template renders it;
 removing the verb from core and the API is [H.5.6](../TODO.md#objective).
 

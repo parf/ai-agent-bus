@@ -448,6 +448,29 @@ defaulting to the address above; empty serves no root at all. The redirect is
 permanent because the root will never grow a page of its own, so a browser may
 stop asking: moving the dashboard afterwards is a thing to clear from a cache.
 
+## Form recovery and keyboard entry
+
+**Built in 0.5.70.** Public and signed-in pages start with a keyboard skip link
+to the main content. It becomes visible when focused; the ordinary shell still
+supplies the page title, landmarks, current navigation and signed-in identity.
+
+A refused Service, Channel, User or Group submission returns its form when the
+face can still render that target. The page keeps only an explicit allowlist of
+nonsensitive values, including line-preserving ACL, Maintainer and Group
+textareas. Tokens, unknown submitted fields and private configuration never
+enter presentation state; a configuration replacement is empty even after a
+refusal. The page shows one alert summary and associates an input only when the
+face can identify that field without guessing from daemon prose. A missing or
+newly hidden edited target still uses the ordinary indistinguishable not-found
+page.
+
+The daemon remains the validator. Its JSON error envelope is rendered as a
+human message, not raw JSON. A malformed or retired browser action that never
+reaches the daemon says so on the shared shell rather than attributing the
+refusal to the daemon. This is the recovery portion of
+[F.13.2](../Plans/MVP/TODO.md#web-redesign); the remaining page redesign and
+typed-component migration stay pending.
+
 ## Browser acceptance
 
 **Required MVP, pending installed acceptance.** Verify the dashboard in a real

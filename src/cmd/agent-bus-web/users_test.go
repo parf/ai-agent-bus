@@ -69,6 +69,35 @@ func TestRequiredDashboardTabs(t *testing.T) {
 		request(path, nil, 200)
 	}
 	request("/user", url.Values{"action": {"create"}, "name": {"alice@h"}, "person_name": {"Alice"}, "email": {"ALICE@example.com"}}, 303)
+	refusedProfile := request("/user", url.Values{
+		"action":      {"create"},
+		"name":        {"duplicate@h"},
+		"person_name": {"Duplicate & retained"},
+		"email":       {"ALICE@example.com"},
+		"github_user": {"duplicate-login"},
+		"return":      {"/users?q=duplicate"},
+		"token":       {"UNEXPECTED-PROFILE-SECRET"},
+	}, 400)
+	for _, retained := range []string{
+		"Check this form",
+		`<section class=form-error role=alert`,
+		`href="#form-create"`,
+		`value="duplicate@h" aria-invalid="false"`,
+		`value="Duplicate &amp; retained"`,
+		`value="ALICE@example.com"`,
+		`value="duplicate-login"`,
+		`value="/users?q=duplicate"`,
+	} {
+		if !strings.Contains(refusedProfile, retained) {
+			t.Fatalf("refused profile lost safe input %q", retained)
+		}
+	}
+	if strings.Contains(refusedProfile, `value="duplicate@h" aria-invalid="true"`) {
+		t.Fatal("duplicate email was incorrectly attributed to the identity field")
+	}
+	if strings.Contains(refusedProfile, "UNEXPECTED-PROFILE-SECRET") || strings.Contains(refusedProfile, `&#34;error&#34;`) {
+		t.Fatal("refused profile exposed an unrecognised field or raw API error")
+	}
 	if body := request("/users", nil, 200); !strings.Contains(body, "Alice") {
 		t.Fatal("user was not listed")
 	}
@@ -88,7 +117,12 @@ func TestRequiredDashboardTabs(t *testing.T) {
 		t.Fatal("local avatar absent")
 	}
 	request("/service", url.Values{"action": {"create"}, "name": {"news@h"}, "kind": {"topic"}, "mode": {"pubsub"}, "descr": {"News"}}, 303)
-	request("/service", url.Values{"action": {"create"}, "name": {"news@h"}, "kind": {"topic"}, "mode": {"pubsub"}, "descr": {"Overwrite"}}, 412)
+	refusedChannel := request("/service", url.Values{"action": {"create"}, "name": {"news@h"}, "kind": {"topic"}, "mode": {"pubsub"}, "descr": {"Overwrite & retained"}, "allow": {"alice@h\n*"}}, 412)
+	for _, retained := range []string{"Check this form", `<section class=form-error role=alert`, `href="#form-create"`, `value="news@h" aria-invalid="true"`, `value="Overwrite &amp; retained"`, ">alice@h\n*</textarea>"} {
+		if !strings.Contains(refusedChannel, retained) {
+			t.Fatalf("refused channel registration lost safe input %q", retained)
+		}
+	}
 	// Register the administrator's own inbox before subscribing it.
 	request("/service", url.Values{"action": {"create"}, "name": {"admin@h"}, "kind": {"agent"}}, 303)
 	request("/service", url.Values{"action": {"subscribe"}, "name": {"news@h"}}, 303)

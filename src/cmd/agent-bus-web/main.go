@@ -338,6 +338,10 @@ const head = `<!doctype html>
  code{font:13px ui-monospace,monospace;overflow-wrap:anywhere}
  .muted{color:#6b6b6b}
  .warn{color:#b00}
+ .skip-link{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+ .skip-link:focus{left:1rem;top:1rem;width:auto;height:auto;overflow:visible;z-index:10;background:#fff;padding:.5rem;border:2px solid #253c66}
+ .form-error{border-left:4px solid #b00;background:#fff4f2;padding:.75rem 1rem;margin:1rem 0}
+ [aria-invalid=true]{border-color:#b00}
  a.danger{color:#b00;font-weight:600}
  .page-title{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
  .page-title h1{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;min-width:0;margin-right:auto}
@@ -420,6 +424,7 @@ func shell(key, title string) string {
 	nav.WriteString(template.HTMLEscapeString(title))
 	nav.WriteString(" \u00b7 agent-bus</title>\n")
 	// Sign out belongs beside the name it signs out, on every page.
+	nav.WriteString(`<a class=skip-link href=#main>Skip to main content</a>` + "\n")
 	nav.WriteString(frameHeader)
 	nav.WriteString(`<div class=node-navigation><form method=post action=/signout class=who><code>{{.You}}</code> <button type=submit>sign out</button></form>` + "\n")
 	nav.WriteString("<nav aria-label=\"sections\">")
@@ -437,7 +442,7 @@ func shell(key, title string) string {
 		}
 		nav.WriteString(">" + item.Label + "</a>")
 	}
-	nav.WriteString("</nav></div>\n" + frameHeaderEnd + "<main>\n")
+	nav.WriteString("</nav></div>\n" + frameHeaderEnd + "<main>\n<a id=main tabindex=-1></a>\n")
 	return nav.String()
 }
 
@@ -449,8 +454,9 @@ type signin struct {
 	Return  string
 }
 
-var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(head + `<title>Sign in · agent-bus</title>` + frameHeader + frameHeaderEnd + `
+var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(head + `<title>Sign in · agent-bus</title><a class=skip-link href=#main>Skip to main content</a>` + frameHeader + frameHeaderEnd + `
 <main>
+<a id=main tabindex=-1></a>
 <div class=page-title><h1>{{titleMark "credentials"}} Sign in to AgentBus</h1></div>
 <form method=post action=/signin>
 {{with .Return}}<input type=hidden name=return value="{{.}}">{{end}}

@@ -16,6 +16,34 @@ import (
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
+func TestRetainedFormKeepsOnlyNamedSafeFields(t *testing.T) {
+	form := retainedForm("save", "refused", url.Values{
+		"descr": {"safe description"},
+		"token": {"must never enter presentation state"},
+	}, "descr")
+	if form.Value("descr") != "safe description" {
+		t.Fatal("named safe field was not retained")
+	}
+	if form.Value("token") != "" || len(form.Values) != 1 {
+		t.Fatal("unrecognised field entered presentation state")
+	}
+}
+
+func TestDangerZoneNeverRendersRetainedConfiguration(t *testing.T) {
+	const secret = "CONFIGURATION-MUST-STAY-EMPTY"
+	w := httptest.NewRecorder()
+	render(w, serviceDanger, adminView{
+		You: "owner@h",
+		Record: protocol.Record{
+			Name: "svc@h", Owner: "owner@h", Kind: "generic", CanManage: true, CanTransfer: true,
+		},
+		Form: formState{Action: "configure", Target: "configure", Field: "config", Error: "refused", Values: map[string]string{"config": secret}},
+	})
+	if strings.Contains(w.Body.String(), secret) {
+		t.Fatal("Danger Zone rendered retained private configuration")
+	}
+}
+
 func TestDashboardOwnerControls(t *testing.T) {
 	b := core.New()
 	tokens, err := auth.Load(memory.NewTokens(), "admin@h")
@@ -105,11 +133,51 @@ func TestDashboardOwnerControls(t *testing.T) {
 			t.Fatalf("ordinary detail exposed dangerous action %q", hidden)
 		}
 	}
+	refusedSettings := request("owner@h", "POST", "/service", web.URL, url.Values{
+		"action":     {"save"},
+		"name":       {"svc@h"},
+		"descr":      {"Changed & retained"},
+		"addr":       {"local://kept"},
+		"protocol":   {"fixture"},
+		"ttl":        {"2h"},
+		"overflow":   {"ring"},
+		"bound":      {"not-a-number"},
+		"edit_allow": {"1"},
+		"allow":      {"other@h\n*"},
+		"token":      {"UNEXPECTED-FORM-SECRET"},
+	}, 400)
+	for _, retained := range []string{
+		"Check this form",
+		`<section class=form-error role=alert`,
+		`href="#form-save"`,
+		`value="Changed &amp; retained"`,
+		`value="local://kept"`,
+		`value="fixture"`,
+		`value="2h"`,
+		`value="not-a-number" aria-invalid="true"`,
+		">other@h\n*</textarea>",
+	} {
+		if !strings.Contains(refusedSettings, retained) {
+			t.Fatalf("refused settings lost safe input %q", retained)
+		}
+	}
+	if strings.Contains(refusedSettings, "UNEXPECTED-FORM-SECRET") {
+		t.Fatal("unrecognised submitted field was reflected into the form")
+	}
 	danger := request("owner@h", "GET", "/service-danger?name=svc@h", "", nil, 200)
 	for _, label := range []string{"Replace configuration", "Transfer ownership", "Remove registration"} {
 		if !strings.Contains(danger, label) {
 			t.Fatalf("Danger Zone missing owner control: %s", label)
 		}
+	}
+	const refusedSecret = "REFUSED-CONFIG-MUST-NOT-RETURN"
+	refusedConfig := request("owner@h", "POST", "/service", web.URL, url.Values{
+		"action": {"configure"}, "name": {"svc@h"}, "config": {`{"secret":"` + refusedSecret},
+	}, 400)
+	if !strings.Contains(refusedConfig, "submitted configuration is not shown again") ||
+		strings.Contains(refusedConfig, refusedSecret) ||
+		!strings.Contains(refusedConfig, `name=config rows=6 cols=60 required autocomplete=off`) {
+		t.Fatal("refused private configuration was not cleared safely")
 	}
 	page = request("admin@h", "GET", "/service?name=svc@h", "", nil, 200)
 	if !strings.Contains(page, "Danger Zone") || strings.Contains(page, "Replace configuration") {
@@ -166,23 +234,51 @@ func TestDashboardOwnerControls(t *testing.T) {
 	request("owner@h", "POST", "/groups", web.URL, group, 403)
 	request("admin@h", "POST", "/groups", web.URL, group, 303)
 	groups := request("admin@h", "GET", "/groups", "", nil, 200)
-	if !strings.Contains(groups, `<textarea name=members rows=6>admin@h
+	if !strings.Contains(groups, `<textarea name=members rows=6`) || !strings.Contains(groups, `>admin@h
 other@h</textarea>`) || strings.Contains(groups, `<input name=members`) {
 		t.Fatalf("group membership did not round-trip through its line editor: %s", groups)
+	}
+	refusedGroup := request("admin@h", "POST", "/groups", web.URL, url.Values{
+		"action": {"save"}, "name": {"@administrators"}, "members": {"admin@h\n@ops"},
+	}, 400)
+	if !strings.Contains(refusedGroup, "Check this form") ||
+		!strings.Contains(refusedGroup, ">admin@h\n@ops</textarea>") ||
+		!strings.Contains(refusedGroup, `aria-invalid="true"`) {
+		t.Fatal("refused group edit did not preserve its line list and error state")
 	}
 	// A group is retired by emptying it, so "delete" is not an action here
 	// even for the daemon owner, and even from a request that is otherwise
 	// entirely in order — right origin, right session, real group
 	// (docs/01-identity-and-roles.md#groups).
-	request("admin@h", "POST", "/groups", web.URL, url.Values{"action": {"delete"}, "name": {"@ops"}}, 400)
+	retiredDelete := request("admin@h", "POST", "/groups", web.URL, url.Values{"action": {"delete"}, "name": {"@ops"}}, 400)
+	if !strings.Contains(retiredDelete, "That request was not understood") ||
+		!strings.Contains(retiredDelete, "Nothing was sent to the daemon") ||
+		!strings.Contains(retiredDelete, `<a class=skip-link href=#main>`) {
+		t.Fatal("retired group action did not use scoped browser recovery")
+	}
 	// And the members it carried were not applied on the way out: a rejected
 	// action does nothing, rather than doing the save it was not asked for.
 	request("admin@h", "POST", "/groups", web.URL, url.Values{"action": {"delete"}, "name": {"@ops"}, "members": {"admin@h"}}, 400)
 	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"maintainers"}, "name": {"svc@h"}, "maintainers": {"@ops\nadmin@h"}}, 303)
 	page = request("owner@h", "GET", "/service?name=svc@h", "", nil, 200)
-	if !strings.Contains(page, `<textarea name=maintainers rows=5>@ops
+	if !strings.Contains(page, `<textarea name=maintainers rows=5`) || !strings.Contains(page, `>@ops
 admin@h</textarea>`) {
 		t.Fatalf("Maintainers list did not round-trip through its line editor: %s", page)
+	}
+	legacyMaintainers := request("owner@h", "POST", "/service", web.URL, url.Values{
+		"action": {"maintainers"}, "name": {"svc@h"}, "maintainers": {"missing@h\n@ops"},
+	}, 404)
+	if !strings.Contains(legacyMaintainers, `href="#form-personal"`) ||
+		!strings.Contains(legacyMaintainers, ">missing@h\n@ops</textarea>") ||
+		!strings.Contains(legacyMaintainers, ">owner@h</textarea>") {
+		t.Fatal("former Maintainers-only action did not recover into the atomic owner form")
+	}
+	refusedMaintainers := request("owner@h", "POST", "/service", web.URL, url.Values{
+		"action": {"personal"}, "name": {"svc@h"}, "allow": {"owner@h"}, "maintainers": {"missing@h\n@ops"},
+	}, 404)
+	if !strings.Contains(refusedMaintainers, "Check this form") ||
+		!strings.Contains(refusedMaintainers, ">missing@h\n@ops</textarea>") {
+		t.Fatal("refused Maintainers edit did not preserve its line list and error state")
 	}
 	page = request("other@h", "GET", "/service?name=svc@h", "", nil, 200)
 	if !strings.Contains(page, "Save settings") || !strings.Contains(page, "Danger Zone") || strings.Contains(page, "Transfer ownership") {

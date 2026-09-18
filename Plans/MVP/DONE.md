@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Web form recovery and keyboard entry | Refused forms retain only safe input in the shared shell; secrets stay empty and public/signed pages have a keyboard skip target | [0.5.70 evidence](done/web-form-recovery.md#checks) |
 | H.1.1 upgrade and recovery | A populated packaged node stages, switches and verifies one release; failed or interrupted upgrades restore the previous release with its matching whole state tree | [0.5.69 evidence](done/upgrade-recovery.md#checks) |
 | H.1 fresh installation | One verified archive installs every program and face through the root-only setup script; a real fresh systemd host starts the daemon/dashboard and completes a service call | [0.5.68 evidence](done/fresh-install.md#checks) |
 | Web form and table conventions | Group members use the shared line-list textarea; numeric table columns align right with tabular figures | [evidence](done/group-editors-and-numeric-tables.md#checks) |

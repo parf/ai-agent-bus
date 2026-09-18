@@ -110,6 +110,18 @@ func show(w http.ResponseWriter, code int, p problem, r *http.Request) {
 	render(w, problemPage, p)
 }
 
+// localProblem is for browser input rejected by the web face before it calls
+// the daemon. Keeping that distinction out of fail avoids claiming that the
+// daemon refused a request it never received.
+func localProblem(w http.ResponseWriter, r *http.Request, you string, code int, detail string) {
+	show(w, code, problem{
+		You:    you,
+		Title:  "That request was not understood",
+		Detail: detail,
+		Advice: "Nothing was sent to the daemon. Return to the page and use the action shown there.",
+	}, r)
+}
+
 var problemPage = template.Must(template.New("problem").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shell("", "Problem") + `<div class=page-title><h1>{{titleMark "problem"}} {{.Title}}</h1></div>
 {{with .Detail}}<p class=warn>{{.}}</p>{{end}}
 <p>{{.Advice}}</p>
@@ -134,7 +146,62 @@ type adminView struct {
 	Activity      activityPresentation
 	SectionLinks  []viewLink
 	FilterLinks   []viewLink
+	Form          formState
 }
+
+// formState carries only fields that are safe to render back after a refused
+// submission. Tokens and private configuration never enter it. The daemon is
+// still the validator; this is presentation state for the one response only.
+type formState struct {
+	Action string
+	Target string
+	Field  string
+	Error  string
+	Values map[string]string
+}
+
+func (f formState) Is(action string) bool { return f.Action == action && f.Error != "" }
+func (f formState) Value(name string) string {
+	if f.Values == nil {
+		return ""
+	}
+	return f.Values[name]
+}
+func (f formState) Checked(name string) bool { return f.Value(name) == "on" }
+func (f formState) Invalid(name string) bool { return f.Error != "" && f.Field == name }
+func (f formState) Matches(action, name, value string) bool {
+	return f.Is(action) && f.Value(name) == value
+}
+func retainedForm(action, message string, values url.Values, names ...string) formState {
+	f := formState{Action: action, Target: action, Error: message, Values: make(map[string]string, len(names))}
+	for _, name := range names {
+		f.Values[name] = values.Get(name)
+	}
+	return f
+}
+
+func formRefusal(err error) (int, string, bool) {
+	var bad *busError
+	if !errors.As(err, &bad) {
+		return 0, "", false
+	}
+	message := strings.TrimSpace(bad.message)
+	var payload struct {
+		Error string `json:"error"`
+	}
+	if json.Unmarshal([]byte(message), &payload) == nil && payload.Error != "" {
+		message = payload.Error
+	}
+	return bad.code, message, bad.code == http.StatusBadRequest || bad.code == http.StatusNotFound || bad.code == http.StatusConflict || bad.code == http.StatusPreconditionFailed || bad.code == http.StatusTooManyRequests
+}
+
+func renderForm(w http.ResponseWriter, code int, t *template.Template, value any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(code)
+	render(w, t, value)
+}
+
+const formErrorSummary = `{{if $.Form.Error}}<section class=form-error role=alert aria-labelledby=form-error-title><h2 id=form-error-title>Check this form</h2><p>{{$.Form.Error}}</p><p><a href="#form-{{$.Form.Target}}">Review the submitted fields</a></p></section>{{end}}`
 
 type viewLink struct {
 	Href, Label string
@@ -248,6 +315,23 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			v.Current = "personal"
 		default:
 			v.Current = "services"
+		}
+		return true
+	}
+	loadServiceDetails := func(w http.ResponseWriter, r *http.Request, v *adminView, name string) bool {
+		if !loadRecord(w, r, v, name) {
+			return false
+		}
+		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
+			fail(w, r, v.You, err)
+			return false
+		}
+		var points []core.ActivityPoint
+		if err := c.get(cookie(r), "/activity?name="+url.QueryEscape(v.Record.Name), &points); err != nil {
+			v.Activity = activityView(nil, v.Record.Name, v.Status.Up, false)
+			v.Activity.Unavailable = err.Error()
+		} else {
+			v.Activity = activityView(points, v.Record.Name, v.Status.Up, false)
 		}
 		return true
 	}
@@ -397,19 +481,8 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if !ok {
 			return
 		}
-		if !loadRecord(w, r, &v, r.URL.Query().Get("name")) {
+		if !loadServiceDetails(w, r, &v, r.URL.Query().Get("name")) {
 			return
-		}
-		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
-			fail(w, r, v.You, err)
-			return
-		}
-		var points []core.ActivityPoint
-		if err := c.get(cookie(r), "/activity?name="+url.QueryEscape(v.Record.Name), &points); err != nil {
-			v.Activity = activityView(nil, v.Record.Name, v.Status.Up, false)
-			v.Activity.Unavailable = err.Error()
-		} else {
-			v.Activity = activityView(points, v.Record.Name, v.Status.Up, false)
 		}
 		render(w, serviceDetail, v)
 	})
@@ -469,11 +542,85 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 			if err := r.ParseForm(); err != nil {
-				http.Error(w, "invalid form", http.StatusBadRequest)
+				localProblem(w, r, v.You, http.StatusBadRequest, "The submitted form could not be read.")
 				return
 			}
 			next(w, r, v)
 		}
+	}
+	renderServiceFormError := func(w http.ResponseWriter, r *http.Request, v adminView, action string, code int, message string, field ...string) bool {
+		setField := func(form formState) formState {
+			if len(field) != 0 {
+				form.Field = field[0]
+			}
+			return form
+		}
+		switch action {
+		case "create":
+			v.Channels = r.PostForm.Get("kind") == protocol.KindTopic
+			if v.Channels {
+				v.Current = "channels"
+			} else {
+				v.Current = "services"
+			}
+			v.Form = setField(retainedForm(action, message, r.PostForm, "name", "descr", "kind", "mode", "personal", "allow"))
+			renderForm(w, code, serviceNew, v)
+			return true
+		case "save":
+			if !loadServiceDetails(w, r, &v, r.PostForm.Get("name")) {
+				return true
+			}
+			v.Form = setField(retainedForm(action, message, r.PostForm, "descr", "addr", "protocol", "ttl", "overflow", "bound", "no_master", "allow", "edit_allow"))
+			renderForm(w, code, serviceDetail, v)
+			return true
+		case "maintainers":
+			if !loadServiceDetails(w, r, &v, r.PostForm.Get("name")) {
+				return true
+			}
+			if v.Record.Kind == "generic" && v.Record.CanTransfer {
+				// The current Generic-service editor changes classification,
+				// access and Maintainers atomically. A refusal from the former
+				// Maintainers-only action returns to that real form with the
+				// other two values filled from the fresh record, so retrying
+				// cannot clear either by accident.
+				values := url.Values{
+					"allow":       {strings.Join(v.Record.Allow, "\n")},
+					"maintainers": {r.PostForm.Get("maintainers")},
+				}
+				if v.Record.Personal {
+					values.Set("personal", "on")
+				}
+				v.Form = setField(retainedForm("personal", message, values, "personal", "allow", "maintainers"))
+			} else {
+				v.Form = setField(retainedForm(action, message, r.PostForm, "maintainers"))
+			}
+			renderForm(w, code, serviceDetail, v)
+			return true
+		case "personal":
+			if !loadServiceDetails(w, r, &v, r.PostForm.Get("name")) {
+				return true
+			}
+			v.Form = setField(retainedForm(action, message, r.PostForm, "personal", "allow", "maintainers"))
+			renderForm(w, code, serviceDetail, v)
+			return true
+		case "configure", "transfer":
+			if !loadRecord(w, r, &v, r.PostForm.Get("name")) {
+				return true
+			}
+			if !v.Record.CanManage {
+				return false
+			}
+			// Configuration is deliberately absent: a rejected replacement is
+			// still a secret and must not return in HTML.
+			keys := []string(nil)
+			if action == "transfer" {
+				keys = []string{"owner"}
+			}
+			v.Form = setField(retainedForm(action, message, r.PostForm, keys...))
+			renderForm(w, code, serviceDanger, v)
+			return true
+		}
+		return false
 	}
 	mux.HandleFunc("POST /service-confirm", mutate(func(w http.ResponseWriter, r *http.Request, v adminView) {
 		name, action := r.PostForm.Get("name"), r.PostForm.Get("action")
@@ -489,7 +636,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			}
 			confirm.NewOwner = strings.TrimSpace(r.PostForm.Get("owner"))
 			if confirm.NewOwner == "" {
-				http.Error(w, "new owner is required", http.StatusBadRequest)
+				renderServiceFormError(w, r, v, action, http.StatusBadRequest, "New owner is required.", "owner")
 				return
 			}
 		case "delete":
@@ -498,7 +645,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				return
 			}
 		default:
-			http.Error(w, "unknown confirmation action", http.StatusBadRequest)
+			localProblem(w, r, v.You, http.StatusBadRequest, "That confirmation action is not available.")
 			return
 		}
 		render(w, serviceConfirm, confirm)
@@ -540,7 +687,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			descr, addr, proto, ttl, overflow := r.PostForm.Get("descr"), r.PostForm.Get("addr"), r.PostForm.Get("protocol"), r.PostForm.Get("ttl"), r.PostForm.Get("overflow")
 			bound, parseErr := strconv.Atoi(r.PostForm.Get("bound"))
 			if parseErr != nil {
-				http.Error(w, "invalid queue capacity", 400)
+				renderServiceFormError(w, r, v, action, http.StatusBadRequest, "Queue capacity must be a whole number.", "bound")
 				return
 			}
 			noMaster := r.PostForm.Get("no_master") == "on"
@@ -571,7 +718,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		case "configure":
 			cfg := json.RawMessage(r.PostForm.Get("config"))
 			if !json.Valid(cfg) {
-				http.Error(w, "configuration must be valid JSON", 400)
+				renderServiceFormError(w, r, v, action, http.StatusBadRequest, "Configuration must be valid JSON. The submitted configuration is not shown again.", "config")
 				return
 			}
 			err = c.post(cookie(r), "/configure", struct {
@@ -581,7 +728,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		case "create":
 			kind, mode := r.PostForm.Get("kind"), r.PostForm.Get("mode")
 			if kind != "generic" && kind != "agent" && kind != "topic" {
-				http.Error(w, "invalid record kind", 400)
+				renderServiceFormError(w, r, v, action, http.StatusBadRequest, "Choose a valid record kind.", "kind")
 				return
 			}
 			err = c.post(cookie(r), "/register", protocol.Record{Name: name, Kind: kind, Mode: mode, Descr: r.PostForm.Get("descr"), Allow: strings.Fields(r.PostForm.Get("allow")), Personal: r.PostForm.Get("personal") == "on"})
@@ -601,10 +748,22 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			targetChannel = record.Kind == protocol.KindTopic
 			err = c.post(cookie(r), "/unregister", map[string]string{"name": name})
 		default:
-			http.Error(w, "unknown action", 400)
+			localProblem(w, r, v.You, http.StatusBadRequest, "That service action is not available.")
 			return
 		}
 		if err != nil {
+			if code, message, preserve := formRefusal(err); preserve {
+				field := ""
+				switch {
+				case action == "create" && code == http.StatusPreconditionFailed:
+					field = "name"
+				case action == "maintainers":
+					field = "maintainers"
+				}
+				if renderServiceFormError(w, r, v, action, code, message, field) {
+					return
+				}
+			}
 			fail(w, r, v.You, err)
 			return
 		}
@@ -634,7 +793,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		// default so that an old bookmark is refused instead of silently
 		// saving whatever members the form carried.
 		if action := r.PostForm.Get("action"); action != "save" {
-			http.Error(w, "unknown action", 400)
+			localProblem(w, r, v.You, http.StatusBadRequest, "That group action is not available.")
 			return
 		}
 		err := c.post(cookie(r), "/group", struct {
@@ -642,6 +801,26 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			Members []string
 		}{r.PostForm.Get("name"), strings.Fields(r.PostForm.Get("members"))})
 		if err != nil {
+			if code, message, preserve := formRefusal(err); preserve {
+				v.Form = retainedForm("save", message, r.PostForm, "name", "members", "new")
+				if r.PostForm.Get("new") == "1" {
+					v.Current = "groups"
+					renderForm(w, code, groupNew, v)
+					return
+				}
+				v.Form.Field = "members"
+				if groupsErr := c.get(cookie(r), "/groups", &v.Groups); groupsErr != nil {
+					fail(w, r, v.You, groupsErr)
+					return
+				}
+				v.SectionLinks = []viewLink{{Href: "/groups", Label: "All groups", Count: len(v.Groups), Counted: true, Current: true}}
+				if v.Administrator {
+					v.SectionLinks = append(v.SectionLinks, viewLink{Href: "/groups/new", Label: "Register group"})
+				}
+				v.Form.Target = "group-" + r.PostForm.Get("name")
+				renderForm(w, code, groupList, v)
+				return
+			}
 			fail(w, r, v.You, err)
 			return
 		}
@@ -671,12 +850,12 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 var serviceNew = template.Must(template.New("service-new").Funcs(template.FuncMap{"entityLabel": entityLabel, "titleMark": titleMark}).Parse(shell("records", "Register") + `
 <p><a href="{{if .Channels}}/channels{{else}}/services{{end}}">Back to {{if .Channels}}Channels{{else}}Services{{end}}</a></p>
 <div class=page-title><h1>{{if .Channels}}{{titleMark "channels"}}{{else}}{{titleMark "services"}}{{end}} Register {{if .Channels}}channel{{else}}service{{end}}</h1></div>
-<form method=post action=/service><input type=hidden name=action value=create>
-<label>Name <input name=name required placeholder="name@realm"></label><p><label>Description <input name=descr></label></p>
-{{if .Channels}}<input type=hidden name=kind value=topic><fieldset><legend>Delivery</legend><label><input type=radio name=mode value=pubsub checked> Pub/sub</label> <label><input type=radio name=mode value=queue> Queue</label></fieldset>{{else}}<fieldset><legend>Kind</legend><label><input type=radio name=kind value=generic checked> {{entityLabel "generic"}}</label> <label><input type=radio name=kind value=agent> {{entityLabel "agent"}}</label></fieldset><p><label>Personal <input type=checkbox name=personal></label></p>{{end}}
-<p><label>Allow, one name or <code>*</code> per line <textarea name=allow rows=5></textarea></label> Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>{{if not .Channels}}<p class=muted>A Personal service may name only other registered services directly. Users, groups, <code>*</code>, itself and Maintainers are refused.</p>{{end}}<button>Register</button></form>`))
+` + formErrorSummary + `<form id=form-create method=post action=/service><input type=hidden name=action value=create>
+<label>Name <input id=create-name name=name required placeholder="name@realm" value="{{.Form.Value "name"}}" aria-invalid="{{if .Form.Invalid "name"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "name"}}create-error{{end}}"></label><p><label>Description <input name=descr value="{{.Form.Value "descr"}}"></label></p>
+{{if .Channels}}<input type=hidden name=kind value=topic><fieldset><legend>Delivery</legend><label><input type=radio name=mode value=pubsub {{if or (not (.Form.Is "create")) (eq (.Form.Value "mode") "pubsub")}}checked{{end}}> Pub/sub</label> <label><input type=radio name=mode value=queue {{if eq (.Form.Value "mode") "queue"}}checked{{end}}> Queue</label></fieldset>{{else}}<fieldset aria-invalid="{{if .Form.Invalid "kind"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "kind"}}create-error{{end}}"><legend>Kind</legend><label><input type=radio name=kind value=generic {{if or (not (.Form.Is "create")) (eq (.Form.Value "kind") "generic")}}checked{{end}}> {{entityLabel "generic"}}</label> <label><input type=radio name=kind value=agent {{if eq (.Form.Value "kind") "agent"}}checked{{end}}> {{entityLabel "agent"}}</label></fieldset><p><label>Personal <input type=checkbox name=personal {{if .Form.Checked "personal"}}checked{{end}}></label></p>{{end}}
+<p><label>Allow, one name or <code>*</code> per line <textarea name=allow rows=5>{{.Form.Value "allow"}}</textarea></label> Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>{{if .Form.Is "create"}}<p class=warn id=create-error>{{.Form.Error}}</p>{{end}}{{if not .Channels}}<p class=muted>A Personal service may name only other registered services directly. Users, groups, <code>*</code>, itself and Maintainers are refused.</p>{{end}}<button>Register</button></form>`))
 var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel, "titleMark": titleMark}).Parse(shell("records", "Service") + `
-{{with .Record}}<div class=page-title><h1>{{titleMark .Kind}} {{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1></div><p>Type: <strong>{{entityLabel .Kind}}</strong> · Owner: {{.Owner}}{{with .Maintainers}} · Maintainers: {{join . ", "}}{{end}}{{if .Mode}} · Delivery: {{if eq .Mode "pubsub"}}a copy to each subscriber{{else}}one at a time{{end}}{{end}}</p>
+{{with .Record}}<div class=page-title><h1>{{titleMark .Kind}} {{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1></div>` + formErrorSummary + `<p>Type: <strong>{{entityLabel .Kind}}</strong> · Owner: {{.Owner}}{{with .Maintainers}} · Maintainers: {{join . ", "}}{{end}}{{if .Mode}} · Delivery: {{if eq .Mode "pubsub"}}a copy to each subscriber{{else}}one at a time{{end}}{{end}}</p>
 <h2>Delivery setting</h2>
 <p>Delivery: <strong>{{if .Disabled}}Disabled{{else}}Enabled{{end}}</strong>{{if .Disabled}} <span class=muted>— the bit does not say whether the owner turned it off or the name stopped being active</span>{{end}}</p>
 <p class=muted>Not under either heading below, because it is neither: the daemon
@@ -714,33 +893,33 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 {{range .Subs}}<p>{{.}}{{if $.Record.CanManage}}<form method=post action=/service><input type=hidden name=name value="{{$.Record.Name}}"><input type=hidden name=subscriber value="{{.}}"><button name=action value=remove-subscriber>Remove subscription</button></form>{{end}}</p>{{else}}<p>No subscribers</p>{{end}}
 <form method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value=subscribe>Subscribe my inbox</button><button name=action value=unsubscribe>Unsubscribe my inbox</button></form>{{end}}
 {{if .CanManage}}
-<h2 id=settings>Settings</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=save>
-<p><label>Description <input name=descr value="{{.Descr}}"></label></p>
-<p><label>Address <input name=addr value="{{.Addr}}"></label></p>
-<p><label>Protocol <input name=protocol value="{{.Proto}}"></label></p>
-{{if .Personal}}<p class=muted>Personal classification, Allow and Maintainers are changed together in the owner form below.</p>{{else}}<input type=hidden name=edit_allow value=1><p><label>Allow, one name or <code>*</code> per line <textarea name=allow rows=5>{{join .Allow "\n"}}</textarea></label></p><p>Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>{{end}}
-<p><label>Refuse master access <input type=checkbox name=no_master {{if .NoMaster}}checked{{end}}></label></p>
-<p><label>Queue TTL <input name=ttl value="{{.TTL}}" placeholder="default"></label></p>
-<p><label>Queue capacity (0 uses default) <input type=number min=0 name=bound value="{{.Bound}}"></label></p>
-<p><label>Overflow <select name=overflow><option value=strict>Refuse</option><option value=ring {{if eq .Full "ring"}}selected{{end}}>Drop oldest</option></select></label></p><button>Save settings</button></form>
+<h2 id=settings>Settings</h2><form id=form-save method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=save>
+<p><label>Description <input name=descr value="{{if $.Form.Is "save"}}{{$.Form.Value "descr"}}{{else}}{{.Descr}}{{end}}"></label></p>
+<p><label>Address <input name=addr value="{{if $.Form.Is "save"}}{{$.Form.Value "addr"}}{{else}}{{.Addr}}{{end}}"></label></p>
+<p><label>Protocol <input name=protocol value="{{if $.Form.Is "save"}}{{$.Form.Value "protocol"}}{{else}}{{.Proto}}{{end}}"></label></p>
+{{if .Personal}}<p class=muted>Personal classification, Allow and Maintainers are changed together in the owner form below.</p>{{else}}<input type=hidden name=edit_allow value=1><p><label>Allow, one name or <code>*</code> per line <textarea name=allow rows=5>{{if $.Form.Is "save"}}{{$.Form.Value "allow"}}{{else}}{{join .Allow "\n"}}{{end}}</textarea></label></p><p>Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>{{end}}
+<p><label>Refuse master access <input type=checkbox name=no_master {{if $.Form.Is "save"}}{{if $.Form.Checked "no_master"}}checked{{end}}{{else}}{{if .NoMaster}}checked{{end}}{{end}}></label></p>
+<p><label>Queue TTL <input name=ttl value="{{if $.Form.Is "save"}}{{$.Form.Value "ttl"}}{{else}}{{.TTL}}{{end}}" placeholder="default"></label></p>
+<p><label>Queue capacity (0 uses default) <input type=number min=0 name=bound value="{{if $.Form.Is "save"}}{{$.Form.Value "bound"}}{{else}}{{.Bound}}{{end}}" aria-invalid="{{if $.Form.Invalid "bound"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "bound"}}save-error{{end}}"></label></p>
+<p><label>Overflow <select name=overflow><option value=strict {{if and ($.Form.Is "save") (eq ($.Form.Value "overflow") "strict")}}selected{{end}}>Refuse</option><option value=ring {{if $.Form.Is "save"}}{{if eq ($.Form.Value "overflow") "ring"}}selected{{end}}{{else}}{{if eq .Full "ring"}}selected{{end}}{{end}}>Drop oldest</option></select></label></p>{{if $.Form.Is "save"}}<p class=warn id=save-error>{{$.Form.Error}}</p>{{end}}<button>Save settings</button></form>
 <form method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value="{{if .Disabled}}enable{{else}}disable{{end}}">{{if .Disabled}}Enable{{else}}Disable{{end}}</button></form>
-{{if .CanTransfer}}{{if eq .Kind "generic"}}<h2>Classification and sharing</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=personal><p><label>Personal <input type=checkbox name=personal {{if .Personal}}checked{{end}}></label> Groups this service in the owner&rsquo;s Personal services page; it does not change access.</p><p><label>Allow, one name or <code>*</code> per line <textarea name=allow rows=5>{{join .Allow "\n"}}</textarea></label></p><p><label>Maintainers, one user, group, agent or service per line <textarea name=maintainers rows=5>{{join .Maintainers "\n"}}</textarea></label></p><p class=muted>When Personal is checked, Allow may name only other registered services directly. Users, groups, <code>*</code>, this service and Maintainers are refused. Clear Personal in this same form before adding any of them.</p><button>Save classification and sharing</button></form>{{else}}<h2>Maintainers</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=maintainers><label>One user, group, agent or service per line <textarea name=maintainers rows=5>{{join .Maintainers "\n"}}</textarea></label><button>Assign</button></form>{{end}}
+{{if .CanTransfer}}{{if eq .Kind "generic"}}<h2>Classification and sharing</h2><form id=form-personal method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=personal><p><label>Personal <input type=checkbox name=personal {{if $.Form.Is "personal"}}{{if $.Form.Checked "personal"}}checked{{end}}{{else}}{{if .Personal}}checked{{end}}{{end}}></label> Groups this service in the owner&rsquo;s Personal services page; it does not change access.</p><p><label>Allow, one name or <code>*</code> per line <textarea name=allow rows=5>{{if $.Form.Is "personal"}}{{$.Form.Value "allow"}}{{else}}{{join .Allow "\n"}}{{end}}</textarea></label></p><p><label>Maintainers, one user, group, agent or service per line <textarea name=maintainers rows=5 aria-invalid="{{if $.Form.Is "personal"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Is "personal"}}personal-error{{end}}">{{if $.Form.Is "personal"}}{{$.Form.Value "maintainers"}}{{else}}{{join .Maintainers "\n"}}{{end}}</textarea></label></p>{{if $.Form.Is "personal"}}<p class=warn id=personal-error>{{$.Form.Error}}</p>{{end}}<p class=muted>When Personal is checked, Allow may name only other registered services directly. Users, groups, <code>*</code>, this service and Maintainers are refused. Clear Personal in this same form before adding any of them.</p><button>Save classification and sharing</button></form>{{else}}<h2>Maintainers</h2><form id=form-maintainers method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=maintainers><label>One user, group, agent or service per line <textarea name=maintainers rows=5 aria-invalid="{{if $.Form.Is "maintainers"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Is "maintainers"}}maintainers-error{{end}}">{{if $.Form.Is "maintainers"}}{{$.Form.Value "maintainers"}}{{else}}{{join .Maintainers "\n"}}{{end}}</textarea></label>{{if $.Form.Is "maintainers"}}<p class=warn id=maintainers-error>{{$.Form.Error}}</p>{{end}}<button>Assign</button></form>{{end}}
 {{end}}
 <p><a class=danger href="/service-danger?name={{.Name}}">Danger Zone</a></p>
 {{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}` + activityViewTemplate))
 var serviceDanger = template.Must(template.New("service-danger").Funcs(template.FuncMap{"readerCount": readerCount, "titleMark": titleMark}).Parse(shell("records", "Danger Zone") + `
 {{with .Record}}<p><a href="/service?name={{.Name}}">Back to {{.Name}}</a></p>
-<div class=page-title><h1>{{titleMark "problem"}} Danger Zone · {{.Name}}</h1></div>
-<h2>Replace configuration</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=configure><label>New configuration <textarea name=config rows=6 cols=60 required autocomplete=off></textarea></label><p>Existing private configuration is never displayed.</p><button>Replace configuration</button></form>
-{{if .CanTransfer}}{{if ne .Name .Owner}}<h2>Transfer ownership</h2><form method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=transfer><label>New owner <input name=owner required></label><p>The new owner must have a registered identity. Existing service credentials remain valid; transfer does not revoke copies already held.</p><button>Continue to confirmation</button></form>{{end}}{{end}}
+<div class=page-title><h1>{{titleMark "problem"}} Danger Zone · {{.Name}}</h1></div>` + formErrorSummary + `
+<h2>Replace configuration</h2><form id=form-configure method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=configure><label>New configuration <textarea name=config rows=6 cols=60 required autocomplete=off aria-invalid="{{if $.Form.Invalid "config"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "config"}}configure-error{{end}}"></textarea></label><p>Existing private configuration and a refused replacement are never displayed.</p>{{if $.Form.Is "configure"}}<p class=warn id=configure-error>{{$.Form.Error}}</p>{{end}}<button>Replace configuration</button></form>
+{{if .CanTransfer}}{{if ne .Name .Owner}}<h2>Transfer ownership</h2><form id=form-transfer method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=transfer><label>New owner <input name=owner required value="{{if $.Form.Is "transfer"}}{{$.Form.Value "owner"}}{{end}}" aria-invalid="{{if $.Form.Invalid "owner"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "owner"}}transfer-error{{end}}"></label>{{if $.Form.Is "transfer"}}<p class=warn id=transfer-error>{{$.Form.Error}}</p>{{end}}<p>The new owner must have a registered identity. Existing service credentials remain valid; transfer does not revoke copies already held.</p><button>Continue to confirmation</button></form>{{end}}{{end}}
 <h2>Remove registration</h2><form method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=delete><p><strong>No registration, no access:</strong> the credential goes with the address. Drain the queue and stop readers first; the confirmation page re-reads both before describing the consequence.</p><button>Continue to confirmation</button></form>{{end}}`))
 var serviceConfirm = template.Must(template.New("service-confirm").Funcs(template.FuncMap{"readerSnapshot": readerSnapshot, "readerCount": readerCount, "titleMark": titleMark}).Parse(shell("records", "Confirm action") + `
 {{with .Record}}<p><a href="/service-danger?name={{.Name}}">Back to the Danger Zone</a></p>
 {{if eq $.Action "transfer"}}<div class=page-title><h1>{{titleMark "problem"}} Confirm ownership transfer</h1></div><p>Transfer <code>{{.Name}}</code> from <code>{{.Owner}}</code> to <code>{{$.NewOwner}}</code>?</p><p>The new owner must still be registered and active when the daemon applies this. Credentials already held are not revoked.</p><form method=post action=/service><input type=hidden name=action value=transfer><input type=hidden name=name value="{{.Name}}"><input type=hidden name=owner value="{{$.NewOwner}}"><input type=hidden name=expected_owner value="{{.Owner}}"><input type=hidden name=confirmed value=1><button>Transfer ownership</button></form>
 {{else}}<div class=page-title><h1>{{titleMark "problem"}} Confirm removal</h1></div><p>Remove <code>{{.Name}}</code>? It currently holds <strong>{{.Queued}}</strong> messages and has <strong>{{readerCount .Readers}}</strong> outstanding reads.</p><p>The address and its credential go with it; nothing answers to this name afterwards. A person&rsquo;s own credential stays because it is not this record&rsquo;s to remove.</p><form method=post action=/service><input type=hidden name=action value=delete><input type=hidden name=name value="{{.Name}}"><input type=hidden name=expected_owner value="{{.Owner}}"><input type=hidden name=expected_queued value="{{.Queued}}"><input type=hidden name=expected_readers value="{{readerSnapshot .Readers}}"><input type=hidden name=confirmed value=1><button>Remove registration</button></form>{{end}}{{end}}`))
 var groupList = template.Must(template.New("groups").Funcs(template.FuncMap{"join": strings.Join, "groupGlyph": groupGlyph, "titleMark": titleMark}).Parse(shell("groups", "Groups") + `
-<div class=page-title><h1>{{titleMark "groups"}} Groups</h1></div><nav class=section-nav aria-label="Group views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}{{if .Counted}} ({{.Count}}){{end}}</a>{{end}}</nav>{{range $name,$members := .Groups}}<h2><span role=img aria-label="Group">{{groupGlyph}}</span> <code>{{$name}}</code></h2>{{if and $.Administrator (or $.DaemonOwner (ne $name "@administrators"))}}<form method=post action=/groups><input type=hidden name=name value="{{$name}}"><p><label>Members, one identity or group per line <textarea name=members rows=6>{{join $members "\n"}}</textarea></label></p><button name=action value=save>Save members</button></form>{{if eq $name "@administrators"}}<p class=muted>The daemon owner stays in this group.</p>{{end}}{{end}}{{else}}<p>No groups registered.</p>{{end}}
+<div class=page-title><h1>{{titleMark "groups"}} Groups</h1></div>` + formErrorSummary + `<nav class=section-nav aria-label="Group views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}{{if .Counted}} ({{.Count}}){{end}}</a>{{end}}</nav>{{range $name,$members := .Groups}}<h2><span role=img aria-label="Group">{{groupGlyph}}</span> <code>{{$name}}</code></h2>{{if and $.Administrator (or $.DaemonOwner (ne $name "@administrators"))}}<form id="form-group-{{$name}}" method=post action=/groups><input type=hidden name=name value="{{$name}}"><p><label>Members, one identity or group per line <textarea name=members rows=6 aria-invalid="{{if and ($.Form.Matches "save" "name" $name) ($.Form.Invalid "members")}}true{{else}}false{{end}}" aria-describedby="{{if and ($.Form.Matches "save" "name" $name) ($.Form.Invalid "members")}}group-error{{end}}">{{if $.Form.Matches "save" "name" $name}}{{$.Form.Value "members"}}{{else}}{{join $members "\n"}}{{end}}</textarea></label></p>{{if $.Form.Matches "save" "name" $name}}<p class=warn id=group-error>{{$.Form.Error}}</p>{{end}}<button name=action value=save>Save members</button></form>{{if eq $name "@administrators"}}<p class=muted>The daemon owner stays in this group.</p>{{end}}{{end}}{{else}}<p>No groups registered.</p>{{end}}
 {{if not .Administrator}}<p>Daemon administrators manage group membership. Only the daemon owner changes the administrators group. Service owners can assign an existing group to their own services.</p>{{end}}`))
 var groupNew = template.Must(template.New("group-new").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shell("groups", "Register group") + `
 <p><a href=/groups>Back to Groups</a></p><div class=page-title><h1>{{titleMark "groups"}} Register group</h1></div>
-<form method=post action=/groups><input type=hidden name=action value=save><label>Name <input name=name placeholder="@operators" required></label><p><label>Members, one identity or group per line <textarea name=members rows=6 placeholder="user@realm"></textarea></label></p><button>Register group</button></form>`))
+` + formErrorSummary + `<form id=form-save method=post action=/groups><input type=hidden name=action value=save><input type=hidden name=new value=1><label>Name <input name=name placeholder="@operators" required value="{{.Form.Value "name"}}" aria-invalid="{{if .Form.Is "save"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Is "save"}}group-new-error{{end}}"></label><p><label>Members, one identity or group per line <textarea name=members rows=6 placeholder="user@realm">{{.Form.Value "members"}}</textarea></label></p>{{if .Form.Is "save"}}<p class=warn id=group-new-error>{{.Form.Error}}</p>{{end}}<button>Register group</button></form>`))

@@ -69,6 +69,10 @@ func TestEveryHTMLPageCarriesNodeIdentity(t *testing.T) {
 			if strings.Count(body, "<main>") != 1 || strings.Count(body, "</main>") != 1 {
 				t.Error("page landmarks are unbalanced")
 			}
+			if strings.Count(body, `<a class=skip-link href=#main>Skip to main content</a>`) != 1 ||
+				strings.Count(body, `<a id=main tabindex=-1></a>`) != 1 {
+				t.Error("page lacks one shared keyboard skip target")
+			}
 		})
 	}
 }

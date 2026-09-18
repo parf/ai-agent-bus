@@ -76,8 +76,13 @@ func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 	}
 	public, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK || !strings.Contains(string(public), `🔑</span> Sign in to AgentBus</h1>`) {
+	publicPage := string(public)
+	if resp.StatusCode != http.StatusOK || !strings.Contains(publicPage, `🔑</span> Sign in to AgentBus</h1>`) {
 		t.Fatal("public sign-in page lost its credential title")
+	}
+	if strings.Count(publicPage, `<a class=skip-link href=#main>Skip to main content</a>`) != 1 ||
+		strings.Count(publicPage, `<a id=main tabindex=-1></a>`) != 1 {
+		t.Fatal("public sign-in page lacks one keyboard skip target")
 	}
 	for _, record := range []protocol.Record{
 		{Name: "service@h", Owner: "admin@h", Kind: "generic"},

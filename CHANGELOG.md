@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.70 — 2026-09-17
+
+Return refused web submissions to their form with safe values and accessible
+error context while keeping credentials and private configuration empty. Add a
+keyboard skip target to public and signed-in pages.
+
 ## 0.5.69 — 2026-09-17
 
 Upgrade a populated packaged node through a verified staged release, consistent
