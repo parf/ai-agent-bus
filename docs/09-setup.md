@@ -6,8 +6,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Distributable archive, installer, administration, token helper, accounts, daemon unit and stamped builds; fresh-host installation acceptance. |
-| Pending | [Upgrade/recovery](#installation-acceptance) and installed runtime/browser acceptance. |
+| Built | Distributable archive, installer, administration, token helper, accounts, daemon unit and stamped builds; fresh-host installation and populated upgrade/recovery acceptance. |
+| Pending | Installed runtime/browser acceptance. |
 
 ## The programs
 
@@ -192,9 +192,10 @@ real binaries back. Daemon state under `/var/lib/agent-bus` is untouched.
 
 The current link changes by one atomic rename after the complete release and
 all stable command links exist. A failed first install is recovered by running
-the same setup again; an identical release is reused. This layout prepares an
-upgrade but does not define or accept one. Upgrade/recovery remains
-[H.1.1](../Plans/MVP/TODO.md#remaining-work).
+the same setup again; an identical release is reused. Plain setup refuses to
+replace a different release. The standalone package instructions define the
+`--upgrade` and interrupted `--recover` paths; their populated-node behavior is
+accepted under [H.1.1](../Plans/MVP/done/upgrade-recovery.md#checks).
 
 ## Administering the account map
 
@@ -244,19 +245,23 @@ fails before accounts, state, unit or current release exist. The retained
 [H.1 evidence](../Plans/MVP/done/fresh-install.md#checks) records the host and
 claim limits.
 
-**Upgrade/recovery remains required.** An upgrade must preserve credentials,
-registry and queued state, access policy, local account mappings and operator
-configuration. Every running component must use the intended release.
-Instructions must cover recovery from an interrupted upgrade and restoring a
-consistent set of credentials and state. This requirement does not select the
-future runner backup mechanism.
+**Upgrade/recovery is built and accepted.** The installer verifies and stages
+the next release while the old daemon serves, then stops cleanly, backs up the
+whole daemon home, switches `current`, starts and checks both public identity
+and the unit's real process tree. The existing unit and drop-ins remain byte
+identical. A failed start restores the prior release with its matching snapshot,
+credentials and SSH authorization; an interrupted transaction leaves a durable
+marker for the documented `--recover` command. The retained
+[H.1.1 evidence](../Plans/MVP/done/upgrade-recovery.md#checks) covers credentials,
+registry, queued state, ACLs, local mappings and operator configuration. This
+does not select the future runner backup mechanism.
 
 SSH onboarding is accepted through an actual sshd installation for both
 ordinary and operator keys, including the documented token command,
 entitlement enforcement and restricted access. Checking generated
 `authorized_keys` text alone is insufficient. The [SSH onboarding evidence](../Plans/MVP/done/ssh-onboarding.md#checks) records the real-sshd exercise and its environment limits.
 
-[H.1.1](../Plans/MVP/TODO.md#remaining-work) retains upgrade/recovery acceptance;
+[H.1.1](../Plans/MVP/done/upgrade-recovery.md#checks) records completed upgrade/recovery acceptance;
 [H.5.2](../Plans/MVP/done/ssh-onboarding.md#checks) records the completed SSH exercise.
 
 ## Build information

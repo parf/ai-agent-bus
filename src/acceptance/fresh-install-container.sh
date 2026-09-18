@@ -38,7 +38,8 @@ mutate_missing mcp mcp/server.js
 mutate_missing launcher launchers/launcher.js
 
 cd /root/valid
-./agent-bus-setup --owner owner@fresh >/evidence/setup.log
+printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIownerfixture owner@fresh' >/root/owner-key.pub
+./agent-bus-setup --owner owner@fresh --key /root/owner-key.pub >/evidence/setup.log
 systemctl is-active --quiet agent-busd || fail "installed unit is inactive"
 for _ in $(seq 1 100); do
   curl -fsS http://127.0.0.1:6767/identity >/dev/null 2>&1 && break
@@ -52,6 +53,8 @@ main_uid=$(awk '/^Uid:/{print $2}' "/proc/$main_pid/status")
 [ "$main_uid" = "$(id -u agent-busd)" ] || fail "daemon uid is $main_uid, not agent-busd"
 [ "$(stat -c '%U:%G %a' /var/lib/agent-bus/daemon)" = "agent-busd:agent-busd 700" ] || fail "daemon state ownership or mode"
 pass "real generated systemd unit runs under its service account and starts API plus dashboard"
+grep -q 'agent-bus-admin owner@fresh' /var/lib/agent-bus/daemon/.ssh/authorized_keys || fail "first operator key was not installed after socket readiness"
+pass "first-user provisioning waits for the daemon account credential socket"
 
 for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web; do
   [ -L "/usr/local/bin/$command" ] || fail "$command is not a stable link"

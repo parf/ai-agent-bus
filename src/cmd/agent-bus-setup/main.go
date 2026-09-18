@@ -14,6 +14,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -70,9 +71,40 @@ func setup() error {
 	keyF := fs.String("key", "", "the installer's public `key`, to be the first user; defaults to their id_ed25519.pub")
 	printUnit := fs.Bool("print-unit", false, "write the unit to stdout and change nothing")
 	dry := fs.Bool("dry-run", false, "say what would be done and change nothing")
+	upgrade := fs.Bool("upgrade", false, "upgrade an existing packaged installation, preserving configuration and state")
+	recover := fs.Bool("recover", false, "roll back an interrupted packaged upgrade")
 	var users list
 	fs.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
 	fs.Parse(os.Args[1:])
+	if *upgrade || *recover {
+		if *upgrade && *recover {
+			return fmt.Errorf("choose one of --upgrade or --recover")
+		}
+		var contrary []string
+		fs.Visit(func(f *flag.Flag) {
+			if f.Name != "upgrade" && f.Name != "recover" {
+				contrary = append(contrary, "--"+f.Name)
+			}
+		})
+		if len(contrary) != 0 {
+			return fmt.Errorf("%s cannot be combined with %s", map[bool]string{true: "--upgrade", false: "--recover"}[*upgrade], strings.Join(contrary, ", "))
+		}
+		if os.Geteuid() != 0 {
+			return fmt.Errorf("%s needs root; run sudo %s", map[bool]string{true: "--upgrade", false: "--recover"}[*upgrade], strings.Join(os.Args, " "))
+		}
+		if *recover {
+			return recoverUpgrade()
+		}
+		self, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		bundle, err := checkBundle(filepath.Dir(self))
+		if err != nil {
+			return err
+		}
+		return upgradeBundle(bundle)
+	}
 	me, err := protocol.ParseName(*owner)
 	if err != nil {
 		return fmt.Errorf("--owner: %w", err)
@@ -201,6 +233,13 @@ func setup() error {
 	// job — setup does not learn a second way to do it.
 	// See docs/09-setup.md#the-programs.
 	if *keyF != "" {
+		// systemctl reports the supervisor active before it has necessarily
+		// created and handed the account listeners to the bus child. The first
+		// administrative call must use the daemon account's credential socket,
+		// never race into an anonymous fallback.
+		if err := waitForSocket(api.UserSocket(api.SystemRuntimeDir, svcAccount), 10*time.Second); err != nil {
+			return err
+		}
 		admin := filepath.Join(filepath.Dir(*exe), "agent-bus-admin")
 		// The key is read here, by root, and handed over on stdin: the admin
 		// program runs as agent-busd, and a key sitting in a person's 0700
@@ -228,6 +267,17 @@ func setup() error {
 	fmt.Printf("agent-busd runs as %s, owned by %s, state in %s; services are %s's, in %s\n",
 		svcAccount, me, svcHome, runAccount, svcDir)
 	return nil
+}
+
+func waitForSocket(path string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if info, err := os.Stat(path); err == nil && info.Mode()&os.ModeSocket != 0 {
+			return nil
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return fmt.Errorf("daemon account socket did not become ready: %s", path)
 }
 
 // Do not overwrite an operator's custom shell when repairing the old default.

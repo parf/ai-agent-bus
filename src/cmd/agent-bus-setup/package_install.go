@@ -39,6 +39,17 @@ type checkedBundle struct {
 }
 
 func checkBundle(root string) (checkedBundle, error) {
+	b, err := checkBundleVersion(root, version.String)
+	if err != nil {
+		return checkedBundle{}, err
+	}
+	return b, nil
+}
+
+// checkBundleVersion verifies the exact package allow-list. An empty expected
+// version is used only for an already-installed release: an upgrade has to
+// verify the old release before it can trust it as a rollback target.
+func checkBundleVersion(root, expectedVersion string) (checkedBundle, error) {
 	var b checkedBundle
 	b.root = root
 	manifestPath := filepath.Join(root, "MANIFEST.sha256")
@@ -100,11 +111,12 @@ func checkBundle(root string) (checkedBundle, error) {
 	if err != nil {
 		return b, err
 	}
-	if strings.TrimSpace(string(v)) != version.String {
-		return b, fmt.Errorf("package version %q does not match setup %q", strings.TrimSpace(string(v)), version.String)
+	bundleVersion := strings.TrimSpace(string(v))
+	if expectedVersion != "" && bundleVersion != expectedVersion {
+		return b, fmt.Errorf("package version %q does not match setup %q", bundleVersion, expectedVersion)
 	}
 	digest := sha256.Sum256(manifest)
-	b.releaseID = version.String + "-" + hex.EncodeToString(digest[:])
+	b.releaseID = bundleVersion + "-" + hex.EncodeToString(digest[:])
 	return b, nil
 }
 
@@ -122,6 +134,24 @@ func fileSHA256(path string) (string, error) {
 }
 
 func installBundle(b checkedBundle) (string, error) {
+	if current, err := currentReleaseID(); err == nil && current != b.releaseID {
+		return "", fmt.Errorf("release %s is already installed; use --upgrade to select %s", current, b.releaseID)
+	} else if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+	if _, err := stageBundle(b); err != nil {
+		return "", err
+	}
+	if err := installCommandLinks(); err != nil {
+		return "", err
+	}
+	return selectBundle(b.releaseID)
+}
+
+// stageBundle installs and verifies immutable release content without selecting
+// it. Upgrade uses this before stopping the old daemon, so a bad package cannot
+// turn a running node into downtime.
+func stageBundle(b checkedBundle) (string, error) {
 	releases := filepath.Join(installRoot, "releases")
 	final := filepath.Join(releases, b.releaseID)
 	if err := preflightCommandLinks(); err != nil {
@@ -152,12 +182,18 @@ func installBundle(b checkedBundle) (string, error) {
 		if _, err := checkBundle(stage); err != nil {
 			return "", fmt.Errorf("verify staged release: %w", err)
 		}
+		if err := syncTree(stage); err != nil {
+			return "", err
+		}
 		// MkdirTemp deliberately starts private. The immutable release itself is
 		// public executable content; daemon and runner accounts must traverse it.
 		if err := os.Chmod(stage, 0o755); err != nil {
 			return "", err
 		}
 		if err := os.Rename(stage, final); err != nil {
+			return "", err
+		}
+		if err := syncDir(releases); err != nil {
 			return "", err
 		}
 		keep = true
@@ -167,25 +203,40 @@ func installBundle(b checkedBundle) (string, error) {
 		return "", fmt.Errorf("installed release %s is damaged: %w", b.releaseID, err)
 	}
 
-	// These links point through current. Create or repair every one before the
-	// single release-selection flip. A first-install interruption can therefore
-	// leave only harmless dangling links; an upgrade keeps the old current.
-	if err := installCommandLinks(); err != nil {
-		return "", err
-	}
+	return final, nil
+}
+
+func selectBundle(releaseID string) (string, error) {
 	if err := os.MkdirAll(installRoot, 0o755); err != nil {
 		return "", err
 	}
 	tmp := filepath.Join(installRoot, fmt.Sprintf(".current-%d", os.Getpid()))
 	_ = os.Remove(tmp)
-	if err := os.Symlink(filepath.Join("releases", b.releaseID), tmp); err != nil {
+	if err := os.Symlink(filepath.Join("releases", releaseID), tmp); err != nil {
 		return "", err
 	}
 	if err := os.Rename(tmp, filepath.Join(installRoot, "current")); err != nil {
 		_ = os.Remove(tmp)
 		return "", err
 	}
+	if err := syncDir(installRoot); err != nil {
+		return "", err
+	}
 	return filepath.Join(installRoot, "current"), nil
+}
+
+func currentReleaseID() (string, error) {
+	current := filepath.Join(installRoot, "current")
+	target, err := os.Readlink(current)
+	if err != nil {
+		return "", err
+	}
+	clean := filepath.Clean(target)
+	wantDir := filepath.Join("releases", filepath.Base(clean))
+	if filepath.IsAbs(target) || clean != wantDir {
+		return "", fmt.Errorf("%s has unsafe target %q", current, target)
+	}
+	return filepath.Base(clean), nil
 }
 
 func copyBundleFile(srcRoot, dstRoot, name string) error {
@@ -208,11 +259,49 @@ func copyBundleFile(srcRoot, dstRoot, name string) error {
 		return err
 	}
 	_, copyErr := io.Copy(out, in)
+	if copyErr == nil {
+		copyErr = out.Sync()
+	}
 	closeErr := out.Close()
 	if copyErr != nil {
 		return copyErr
 	}
 	return closeErr
+}
+
+func syncTree(root string) error {
+	var dirs []string
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			dirs = append(dirs, path)
+			return nil
+		}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		err = f.Sync()
+		closeErr := f.Close()
+		if err != nil {
+			return err
+		}
+		return closeErr
+	})
+	if err != nil {
+		return err
+	}
+	for i := len(dirs) - 1; i >= 0; i-- {
+		if err := syncDir(dirs[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func commandLinks() map[string]string {

@@ -21,6 +21,10 @@ var requiredBundleContract = []string{
 }
 
 func fixtureBundle(t *testing.T, suffix string) string {
+	return fixtureBundleVersion(t, version.String, suffix)
+}
+
+func fixtureBundleVersion(t *testing.T, bundleVersion, suffix string) string {
 	t.Helper()
 	root := t.TempDir()
 	var lines []string
@@ -30,7 +34,7 @@ func fixtureBundle(t *testing.T, suffix string) string {
 		}
 		body := []byte("artifact " + name + " " + suffix + "\n")
 		if name == "internal/version/VERSION" {
-			body = []byte(version.String + "\n")
+			body = []byte(bundleVersion + "\n")
 		}
 		mode := os.FileMode(0o644)
 		if executableFiles[name] {
@@ -47,6 +51,20 @@ func fixtureBundle(t *testing.T, suffix string) string {
 		t.Fatal(err)
 	}
 	return root
+}
+
+func TestInstalledRollbackBundleMayHaveThePreviousVersion(t *testing.T) {
+	root := fixtureBundleVersion(t, "0.5.68", "old")
+	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("incoming old-version bundle: %v", err)
+	}
+	b, err := checkBundleVersion(root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(b.releaseID, "0.5.68-") {
+		t.Fatalf("rollback release id=%s", b.releaseID)
+	}
 }
 
 func withInstallPaths(t *testing.T) (root, bin string) {
@@ -150,7 +168,7 @@ func TestInstallBundleSwitchesOneCompleteReleaseAndIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestDifferentBundleOfSameVersionBecomesCurrent(t *testing.T) {
+func TestDifferentBundleRequiresExplicitUpgradeSelection(t *testing.T) {
 	root, _ := withInstallPaths(t)
 	first, err := checkBundle(fixtureBundle(t, "first"))
 	if err != nil {
@@ -166,12 +184,22 @@ func TestDifferentBundleOfSameVersionBecomesCurrent(t *testing.T) {
 	if _, err := installBundle(first); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := installBundle(second); err != nil {
-		t.Fatal(err)
+	if _, err := installBundle(second); err == nil || !strings.Contains(err.Error(), "--upgrade") {
+		t.Fatalf("ordinary setup selected a different release: %v", err)
 	}
 	target, err := os.Readlink(filepath.Join(root, "current"))
-	if err != nil || target != filepath.Join("releases", second.releaseID) {
+	if err != nil || target != filepath.Join("releases", first.releaseID) {
 		t.Fatalf("current target=%q err=%v", target, err)
+	}
+	if _, err := stageBundle(second); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := selectBundle(second.releaseID); err != nil {
+		t.Fatal(err)
+	}
+	target, err = os.Readlink(filepath.Join(root, "current"))
+	if err != nil || target != filepath.Join("releases", second.releaseID) {
+		t.Fatalf("upgrade target=%q err=%v", target, err)
 	}
 }
 

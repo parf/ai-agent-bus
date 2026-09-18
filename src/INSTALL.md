@@ -71,6 +71,38 @@ agent-bus call "$service" --wait 5s 'installation works'
 
 The answer contains `fresh reply: installation works`.
 
-The versioned release layout makes a later atomic upgrade possible, but this
-MVP procedure only specifies a fresh installation. Follow the repository's
-separate upgrade instructions before replacing an existing populated node.
+## Upgrade and recover
+
+Verify and unpack the new archive beside the installed node, then run its setup
+program in upgrade mode. Do not repeat first-install flags: ownership, account
+mappings and operator configuration come from the installed node.
+
+```sh
+sha256sum -c agent-bus-*.tar.gz.sha256
+mkdir agent-bus-upgrade
+tar -xzf agent-bus-*.tar.gz -C agent-bus-upgrade --strip-components=1
+sudo ./agent-bus-upgrade/agent-bus-setup --upgrade
+```
+
+Upgrade verifies and stages the complete new release while the old daemon is
+still serving. It then stops the daemon cleanly, copies the whole daemon state
+tree — snapshot, credentials and SSH authorization together — into
+`/var/lib/agent-bus/backups`, atomically switches `current`, and starts the new
+release. The existing unit and its drop-ins are preserved byte for byte. Setup
+waits for the public identity and verifies that the supervisor, bus and web
+processes all run from the selected release before reporting success.
+
+A failed start restores the prior release and its matching state automatically.
+If setup itself is killed or the host stops while an upgrade is in progress,
+run recovery from the same unpacked new archive before retrying:
+
+```sh
+sudo ./agent-bus-upgrade/agent-bus-setup --recover
+sudo ./agent-bus-upgrade/agent-bus-setup --upgrade
+```
+
+Recovery refuses if the installed unit changed after the interrupted upgrade
+began; inspect that operator change before choosing which configuration to keep.
+Do not delete the newest backup until the upgraded node has been checked. Plain
+setup reuses an identical release for first-install repair and refuses to select
+a different one; release replacement always uses `--upgrade`.

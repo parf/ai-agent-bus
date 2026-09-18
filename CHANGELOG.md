@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.69 — 2026-09-17
+
+Upgrade a populated packaged node through a verified staged release, consistent
+state backup and bounded health check. Failed or interrupted upgrades restore
+the prior release and its matching credentials, queues and registry state.
+
 ## 0.5.68 — 2026-09-17
 
 Ship a verified self-contained archive and make `agent-bus-setup` install one
