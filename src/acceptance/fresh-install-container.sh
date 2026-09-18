@@ -89,8 +89,12 @@ useradd --create-home --shell /bin/sh alice
 useradd --create-home --shell /bin/sh bob
 printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIalicefixture alice@fresh' >/root/alice-key.pub
 printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIbobfixture bob@fresh' >/root/bob-key.pub
-agent-bus-admin user add alice@fresh - </root/alice-key.pub >/evidence/add-alice.log
+printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIcarolfixture carol@fresh' >/root/carol-key.pub
+printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIdavefixture dave@fresh' >/root/dave-key.pub
+agent-bus-admin user add alice@fresh - --admin </root/alice-key.pub >/evidence/add-alice.log
 agent-bus-admin user add bob@fresh - </root/bob-key.pub >/evidence/add-bob.log
+agent-bus-admin user add carol@fresh - </root/carol-key.pub >/evidence/add-carol.log
+agent-bus-admin user add dave@fresh - </root/dave-key.pub >/evidence/add-dave.log
 agent-bus-admin account set alice alice@fresh >/evidence/map-alice.log
 agent-bus-admin account set bob bob@fresh >/evidence/map-bob.log
 grep -q 'restart agent-busd' /evidence/map-alice.log || fail "alice mapping did not require the listener restart"
@@ -159,6 +163,32 @@ agent-bus-admin token owner@fresh >/root/owner.token
 python /fixture/browser.py --base http://127.0.0.1:6780 --token /root/owner.token --supervisor "$main_pid" --evidence /evidence
 pass "real installed browser follows sign-in, web-restart, bus-restart and sign-out session semantics"
 
+agent-bus-admin token alice@fresh >/root/alice.token
+agent-bus-admin token bob@fresh >/root/bob.token
+agent-bus-admin token carol@fresh >/root/carol.token
+agent-bus-admin token dave@fresh >/root/dave.token
+cat >/root/fresh-echo.sh <<'SH'
+#!/bin/sh
+printf 'fresh reply: %s\n' "$1"
+SH
+chmod 0755 /root/fresh-echo.sh
+/usr/local/bin/agent-bus start fresh-echo@fresh --algo=args --allow owner@fresh /root/fresh-echo.sh >/evidence/service.log 2>&1 &
+service_pid=$!
+trap 'kill "$service_pid" 2>/dev/null || true; wait "$service_pid" 2>/dev/null || true' EXIT
+for _ in $(seq 1 100); do
+  /usr/local/bin/agent-bus ls fresh-echo@fresh >/dev/null 2>&1 && break
+  sleep .1
+done
+/usr/local/bin/agent-bus register owner@fresh --kind agent --allow fresh-echo@fresh >/evidence/reply-grant.log
+reply=$(/usr/local/bin/agent-bus call fresh-echo@fresh --wait 5s 'installation works')
+grep -q 'fresh reply: installation works' <<<"$reply" || fail "installed service call did not return its unique reply"
+pass "new user calls a real service using only installed programs"
+python /fixture/browser-roles.py --base http://127.0.0.1:6780 \
+  --owner-token /root/owner.token --administrator-token /root/alice.token \
+  --resource-owner-token /root/bob.token --maintainer-token /root/carol.token \
+  --ordinary-token /root/dave.token --evidence /evidence
+pass "real installed browser exercises the authority/action matrix, origin refusal and activity graph"
+
 for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web; do
   [ -L "/usr/local/bin/$command" ] || fail "$command is not a stable link"
   target=$(readlink "/usr/local/bin/$command")
@@ -180,23 +210,6 @@ for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-to
   case $(readlink "/usr/local/bin/$command") in /usr/local/lib/agent-bus/current/*) ;; *) fail "$command escaped the installed tree" ;; esac
 done
 pass "complete stamped release is installed without build-host paths"
-
-cat >/root/fresh-echo.sh <<'SH'
-#!/bin/sh
-printf 'fresh reply: %s\n' "$1"
-SH
-chmod 0755 /root/fresh-echo.sh
-/usr/local/bin/agent-bus start fresh-echo@fresh --algo=args --allow owner@fresh /root/fresh-echo.sh >/evidence/service.log 2>&1 &
-service_pid=$!
-trap 'kill "$service_pid" 2>/dev/null || true; wait "$service_pid" 2>/dev/null || true' EXIT
-for _ in $(seq 1 100); do
-  /usr/local/bin/agent-bus ls fresh-echo@fresh >/dev/null 2>&1 && break
-  sleep .1
-done
-/usr/local/bin/agent-bus register owner@fresh --kind agent --allow fresh-echo@fresh >/evidence/reply-grant.log
-reply=$(/usr/local/bin/agent-bus call fresh-echo@fresh --wait 5s 'installation works')
-grep -q 'fresh reply: installation works' <<<"$reply" || fail "installed service call did not return its unique reply"
-pass "new user calls a real service using only installed programs"
 
 before=$(readlink /usr/local/lib/agent-bus/current)
 ./agent-bus-setup --owner owner@fresh >/evidence/reinstall.log

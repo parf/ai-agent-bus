@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| F.12 partial: installed browser authority matrix | Five real Chromium sessions exercise current service/channel, user and group controls, rendered denials, foreign-origin refusal and a real activity graph | [evidence](done/installed-browser-role-matrix.md#checks) |
 | F.12 partial: installed browser foundation | Real Chromium signs in/out, checks the cookie boundary, visits current required pages, retains a session across web restart and loses it across bus restart | [evidence](done/installed-browser-foundation.md#checks) |
 | Installed shared-host boundary | A package-only real-systemd host proves service-account state, two actual users' isolated sockets, and supervisor-only `CAP_CHOWN` with five installed mutations | [evidence](done/installed-shared-host.md#checks) |
 | GitHub profile metadata and local photos | Login changes and explicit refresh atomically import provider fields; bounded local thumbnails render in User and caller-visible owner views without hotlinks or per-row bus reads | [0.5.71 evidence](done/github-profile.md#checks) |
