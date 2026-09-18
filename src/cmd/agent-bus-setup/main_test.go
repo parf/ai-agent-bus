@@ -11,6 +11,7 @@ func TestUnitDelegatesOnlyTheWebControllers(t *testing.T) {
 		"Delegate=cpu memory pids",
 		"DelegateSubgroup=supervisor",
 		"CapabilityBoundingSet=CAP_CHOWN",
+		" -web",
 	} {
 		if strings.Count(unit, want) != 1 {
 			t.Errorf("generated unit has %d copies of %q", strings.Count(unit, want), want)

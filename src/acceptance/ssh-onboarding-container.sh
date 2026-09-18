@@ -35,7 +35,7 @@ usermod --shell /bin/bash agent-busd
 shell_is agent-busd /bin/bash "upgrade preserves a custom shell"
 usermod --shell /bin/sh agent-busd
 chown agent-busd:agent-busd /run/agent-bus
-read -r -a daemon_command <<<"$(sed -n 's/^ExecStart=//p' /etc/systemd/system/agent-busd.service)"
+read -r -a daemon_command <<<"$(sed -n 's/^ExecStart=//p' /etc/systemd/system/agent-busd.service | sed 's/ -web//')"
 setpriv --reuid agent-busd --regid agent-busd --init-groups --inh-caps +chown --ambient-caps +chown "${daemon_command[@]}" >/evidence/bus.log 2>&1 &
 bus_pid=$!
 trap 'kill "$bus_pid" ${ssh_pid:-} 2>/dev/null || true; wait || true' EXIT

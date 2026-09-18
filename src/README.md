@@ -6,7 +6,7 @@ against [MVP work](../Plans/MVP/TODO.md#objective).
 | | |
 |---|---|
 | `cmd/agent-busd` | the daemon: unix socket and loopback TCP, one token per principal |
-| `cmd/agent-bus-setup` | the root-only installer: two accounts, the tree, the unit |
+| `cmd/agent-bus-setup` | the root-only installer: verified release, two accounts, tree and unit |
 | `cmd/agent-bus-admin` | what edits the `agent-busd` account's files |
 | `cmd/agent-bus-web` | the dashboard, a separate process speaking the API |
 | `cmd/agent-bus` | the CLI — `agent-bus help` lists every verb |
@@ -31,12 +31,15 @@ Build requirements and version output follow
 Release numbering follows [working rules § versioning](../CLAUDE.md#versioning).
 
 With an output-directory argument, the build also bundles the MCP face and
-launchers with Bun, copies the release version and license, and exposes launcher
-entry points at the output root. Move that whole directory together; running it
-requires Bun and the selected AI runtime, but no checkout or npm dependencies.
+launchers with Bun, copies the release version, license and standalone install
+guide, and exposes launcher entry points at the output root. `package.sh` adds
+the exact artifact manifest and produces the supported tar archive plus its
+portable SHA-256 file. Running a launcher requires Bun and the selected AI
+runtime; the installed daemon and dashboard do not.
 
 ```sh
 bash ./build.sh       # build every Go program with build information
+bash ./package.sh     # self-contained Linux archive under ../tmp/dist
 go test -race ./...
 ./smoke.sh            # fast: everything under a second, for the edit-run loop
 ./smoke.sh --slow     # all of it, plus the race detector — what a change is measured against

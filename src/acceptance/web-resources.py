@@ -77,7 +77,7 @@ def unit_text(delegated=True):
     text=text.replace('/var/lib/agent-bus/daemon',str(state)).replace('StateDirectory=agent-bus/daemon','StateDirectory='+name).replace('/run/agent-bus',str(runtime)).replace('RuntimeDirectory=agent-bus\n','RuntimeDirectory='+name+'\n')
     lines=[]
     for line in text.splitlines():
-        if line.startswith('ExecStart='): line+=' -web -dump-every 0'
+        if line.startswith('ExecStart='): line+=' -dump-every 0'
         if not delegated and line.startswith(('Delegate=','DelegateSubgroup=')): continue
         lines.append(line)
     # Outer safety cap remains above the helper's finite allocation, so it

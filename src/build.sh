@@ -19,4 +19,5 @@ if [ "$out" != . ]; then
     ln -sf launchers/ab-codex "$out/ab-codex"
     ln -sf launchers/ab-opencode "$out/ab-opencode"
     cp ../LICENSE.md "$out/LICENSE.md"
+    cp INSTALL.md "$out/INSTALL.md"
 fi

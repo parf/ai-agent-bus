@@ -13,10 +13,10 @@ whole [MVP scope](Plans/MVP/README.md#scope), with built and pending explicit.
 
 | Built | Still pending |
 |---|---|
-| Principal credentials, local sockets and service ACL | Person profiles and maintainer editing |
+| Principal credentials, local sockets, service ACL, profiles and Maintainers | — |
 | Registry, topics, calls and restart snapshots | — |
-| Foreground scripts, MCP, runtime adapters and launchers | [Live-runtime acceptance](docs/08-runner-role.md#runtime-integration-delivery), release packaging and fresh-host acceptance |
-| Signed-in dashboard and process split | People view and installed isolation verification |
+| Foreground scripts, MCP, runtime adapters, launchers and fresh-host package | [Live-runtime, upgrade and installed browser acceptance](Plans/MVP/TODO.md#remaining-work) |
+| Signed-in dashboard, people view and process split | Installed browser acceptance |
 
 [Current docs](docs/00-overview.md#document-ownership) own the contracts;
 [remaining work](Plans/MVP/TODO.md#objective) owns acceptance.
@@ -27,8 +27,8 @@ New here? The [user guide](docs/user/README.md) is the shortest path from
 nothing to a running service.
 
 Build and development setup are in [source instructions](src/README.md#build-and-check).
-The packaged installation is pending; [setup](docs/09-setup.md#install) describes
-what is built. A configured local account uses its assigned socket as its credential
+The self-contained archive and installer are built; [setup](docs/09-setup.md#install)
+describes the path and its prerequisites. A configured local account uses its assigned socket as its credential
 ([access](docs/02-access.md#local-socket)).
 
 ### CLI example

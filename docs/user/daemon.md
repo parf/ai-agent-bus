@@ -10,6 +10,9 @@ Most people never run it by hand. This page is for whoever looks after it.
 
 ## 📦 Installing it, once
 
+Verify and unpack the release archive, then follow its standalone `INSTALL.md`.
+The final installation command is:
+
 ```sh
 sudo ./agent-bus-setup
 ```

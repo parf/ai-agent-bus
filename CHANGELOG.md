@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.68 — 2026-09-17
+
+Ship a verified self-contained archive and make `agent-bus-setup` install one
+digest-addressed release atomically. Fresh-host acceptance now exercises the
+real generated systemd unit, dashboard and an end-to-end service call.
+
 ## 0.5.67 — 2026-09-17
 
 Embed compact record-scoped Activity graphs on service and channel detail.

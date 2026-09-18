@@ -6,8 +6,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Installer, administration, token helper, accounts and daemon unit; stamped Go builds. |
-| Pending | Distributable package including [runtime integrations and launchers](08-runner-role.md#runtime-integration-delivery) and [installation acceptance](#installation-acceptance). |
+| Built | Distributable archive, installer, administration, token helper, accounts, daemon unit and stamped builds; fresh-host installation acceptance. |
+| Pending | [Upgrade/recovery](#installation-acceptance) and installed runtime/browser acceptance. |
 
 ## The programs
 
@@ -164,16 +164,24 @@ a development run, use a transient **user** service with `Delegate=cpu`,
 `AGENT_BUS_WEB_USER_DELEGATION=1`; the supervisor still verifies ownership,
 controllers, subgroup name and writability before starting web.
 
-**Built:** build the programs, then run `sudo agent-bus-setup`. Setup creates
-the accounts and tree, writes/enables the daemon unit, and installs the first
-user's key through the admin program. Without root it refuses and prints the
-command to run. `--dry-run` and `--print-unit` are read-only and need no root.
+**Built:** `src/package.sh [output-directory]` creates one version/platform/
+architecture archive and a portable SHA-256 file. The archive contains all six
+Go programs, the MCP face, three runtime launchers, their shared adapter,
+license, exact artifact manifest and standalone `INSTALL.md`. Build it, verify
+and unpack it, then run `sudo ./agent-bus-setup`. Setup validates the complete
+manifest before changing the host, installs a digest-addressed release under
+`/usr/local/lib/agent-bus`, creates stable commands under `/usr/local/bin`,
+creates the accounts and tree, writes/enables the daemon plus dashboard unit,
+and installs the first user's key through the admin program. Without root it
+refuses and prints the command to run. `--dry-run` and `--print-unit` are
+read-only and need no root.
 
-**MVP ships its own install script and nothing else.** No `npm install` path,
-no package registry: the programs are built and `agent-bus-setup` puts them in
-place. Publishing the MCP face to npm stays [R1](../Plans/R1/distribution.md#container-runtime)
-work. One supported way in is what the [installation acceptance](#installation-acceptance)
-below can actually be run against.
+**MVP ships its own install script and nothing else.** The tar archive is a
+transport for that script, not a second installer. There is no `npm install`
+path or package registry; publishing the MCP face or a container stays
+[R1](../Plans/R1/distribution.md#container-runtime) work. The packaged
+`INSTALL.md` is the standalone supported path exercised by
+[installation acceptance](#installation-acceptance).
 
 **Development install.** `src/git-install.sh` symlinks the built programs into
 `/usr/local/bin` instead of copying them, so a change is a build and a restart
@@ -182,11 +190,11 @@ behind `ProtectHome=yes` and cannot exec a binary in a home directory at all.
 The script refuses one that does and says where to move it; `--revert` copies
 real binaries back. Daemon state under `/var/lib/agent-bus` is untouched.
 
-**Pending:** the intended package installation is not implemented, and in MVP
-it is not meant to be: [one script is the whole way in](#install), and a package
-format is [R1 distribution](../Plans/R1/distribution.md#container-runtime).
-A fresh-host install and the running service account must still be verified as
-[stage gates](../Plans/MVP/TODO.md#installed-stage-gate).
+The current link changes by one atomic rename after the complete release and
+all stable command links exist. A failed first install is recovered by running
+the same setup again; an identical release is reused. This layout prepares an
+upgrade but does not define or accept one. Upgrade/recovery remains
+[H.1.1](../Plans/MVP/TODO.md#remaining-work).
 
 ## Administering the account map
 
@@ -228,13 +236,20 @@ before rollback; they may describe an earlier identity assignment.
 
 ## Installation acceptance
 
-**Required MVP, pending.** Installation includes operation of an existing node:
-an upgrade preserves credentials, registry and queued state, access policy,
-local account mappings and operator configuration. Every running component
-must use the intended release. Instructions must cover recovery from an
-interrupted upgrade and restoring a consistent set of credentials and state.
-Package format is not an MVP choice at all — [one script](#install) is, and packaging is [R1](../Plans/R1/distribution.md#container-runtime).
-This requirement does not select the future runner backup mechanism.
+**Fresh installation is built and accepted.** A disposable host with real
+systemd, cgroup v2 and bubblewrap installs from only the archive and standalone
+instructions, starts the generated daemon/dashboard unit and completes a real
+service call. Removing a daemon binary, MCP face or launcher face separately
+fails before accounts, state, unit or current release exist. The retained
+[H.1 evidence](../Plans/MVP/done/fresh-install.md#checks) records the host and
+claim limits.
+
+**Upgrade/recovery remains required.** An upgrade must preserve credentials,
+registry and queued state, access policy, local account mappings and operator
+configuration. Every running component must use the intended release.
+Instructions must cover recovery from an interrupted upgrade and restoring a
+consistent set of credentials and state. This requirement does not select the
+future runner backup mechanism.
 
 SSH onboarding is accepted through an actual sshd installation for both
 ordinary and operator keys, including the documented token command,

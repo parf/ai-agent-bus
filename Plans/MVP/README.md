@@ -31,8 +31,8 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 | Registry, topics and private configuration | Built, including Personal classification and web grouping | [services](../../docs/03-services-and-topics.md#status) |
 | Messaging and restart persistence | Built, including administrative crash durability and explicit inbox selection | [messaging](../../docs/04-messaging.md#status) |
 | API, CLI, MCP and dashboard | Built and pending; see linked status | [discovery](../../docs/05-discovery.md#status) |
-| Foreground services and adapters | Built, including launchers; live-runtime and fresh-host acceptance pending | [runner](../../docs/08-runner-role.md#status) |
-| Installation and service account | Setup built; package and installed acceptance pending | [setup](../../docs/09-setup.md#status) |
+| Foreground services and adapters | Built, including launchers; installed live-runtime acceptance pending | [runner](../../docs/08-runner-role.md#status) |
+| Installation and service account | Package, setup and fresh-host service call accepted; upgrade and broader installed acceptance pending | [setup](../../docs/09-setup.md#status) |
 | Process isolation | Split, web authority isolation and resource limits built; installed capability checks pending | [processes](../../docs/11-processes.md#status) |
 
 ## Boundaries

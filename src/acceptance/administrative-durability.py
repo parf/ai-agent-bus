@@ -82,7 +82,7 @@ unit = unit.replace("/var/lib/agent-bus/daemon", str(state))
 unit = unit.replace("StateDirectory=agent-bus/daemon", f"StateDirectory={name}")
 unit = unit.replace("/run/agent-bus", str(runtime))
 unit = unit.replace("RuntimeDirectory=agent-bus\n", f"RuntimeDirectory={name}\n")
-unit = "\n".join(line + " -dump-every 0" if line.startswith("ExecStart=") else line
+unit = "\n".join(line.replace(" -web", "") + " -dump-every 0" if line.startswith("ExecStart=") else line
                  for line in unit.splitlines()) + "\n"
 (out / "unit.service").write_text(unit)
 try:

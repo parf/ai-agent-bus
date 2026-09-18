@@ -94,7 +94,7 @@ unit = unit.replace("RuntimeDirectory=agent-bus\n", f"RuntimeDirectory={name}\n"
 lines = []
 for line in unit.splitlines():
     if line.startswith("ExecStart="):
-        line += " -web -dump-every 0"
+        line += " -dump-every 0"
     lines.append(line)
 unit = "\n".join(lines).replace("[Install]", f"""Environment=AGENT_BUS_WEB_ADDR=127.0.0.1:{port}
 Environment=AGENT_BUS_TOKEN=unrelated-inherited-canary

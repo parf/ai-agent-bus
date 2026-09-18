@@ -66,7 +66,7 @@ func setup() error {
 	fs := flag.CommandLine
 	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: `user@realm`")
 	addr := fs.String("addr", "127.0.0.1:6767", "the daemon's loopback `address`")
-	exe := fs.String("exec", "", "`path` to agent-busd; defaults to the one beside this binary")
+	exe := fs.String("exec", "", "source-build or package-less acceptance `path` to agent-busd; bypasses package installation")
 	keyF := fs.String("key", "", "the installer's public `key`, to be the first user; defaults to their id_ed25519.pub")
 	printUnit := fs.Bool("print-unit", false, "write the unit to stdout and change nothing")
 	dry := fs.Bool("dry-run", false, "say what would be done and change nothing")
@@ -88,12 +88,25 @@ func setup() error {
 	// the split made concrete.
 	// See docs/09-setup.md#the-two-units.
 	users = append(users, runAccount+"=runner@"+me.Realm)
-	if *exe == "" {
+	explicitExe := *exe != ""
+	if !explicitExe {
 		self, err := os.Executable()
 		if err != nil {
 			return err
 		}
-		*exe = filepath.Join(filepath.Dir(self), "agent-busd")
+		if *printUnit || *dry || os.Geteuid() != 0 {
+			*exe = filepath.Join(filepath.Dir(self), "agent-busd")
+		} else {
+			bundle, err := checkBundle(filepath.Dir(self))
+			if err != nil {
+				return err
+			}
+			installed, err := installBundle(bundle)
+			if err != nil {
+				return fmt.Errorf("install package: %w", err)
+			}
+			*exe = filepath.Join(installed, "agent-busd")
+		}
 	}
 	unit := unitFor(*exe, *addr, me.String(), users)
 	if *printUnit {
@@ -109,6 +122,9 @@ func setup() error {
 	}
 	for _, d := range dirs {
 		steps = append(steps, fmt.Sprintf("make %s %s's own, %#o", d.path, d.owner, d.mode))
+	}
+	if !explicitExe {
+		steps = append([]string{"install the complete release under " + installRoot}, steps...)
 	}
 	steps = append(steps,
 		fmt.Sprintf("write %s", unitPath),
@@ -185,10 +201,7 @@ func setup() error {
 	// job — setup does not learn a second way to do it.
 	// See docs/09-setup.md#the-programs.
 	if *keyF != "" {
-		self, err := os.Executable()
-		if err != nil {
-			return err
-		}
+		admin := filepath.Join(filepath.Dir(*exe), "agent-bus-admin")
 		// The key is read here, by root, and handed over on stdin: the admin
 		// program runs as agent-busd, and a key sitting in a person's 0700
 		// home is precisely what that account cannot open.
@@ -196,7 +209,7 @@ func setup() error {
 		if err != nil {
 			return err
 		}
-		if err := runIn(key, filepath.Join(filepath.Dir(self), "agent-bus-admin"),
+		if err := runIn(key, admin,
 			"user", "add", me.String(), "-", "--admin"); err != nil {
 			return err
 		}
@@ -206,7 +219,7 @@ func setup() error {
 		// key-backed user. With no key this onboarding step is skipped; the same
 		// import-local verb remains available to the operator later.
 		if who := invoker(); who != "" {
-			if err := run(filepath.Join(filepath.Dir(self), "agent-bus-admin"),
+			if err := run(admin,
 				"user", "import-local", me.String(), who); err != nil {
 				return err
 			}
@@ -274,7 +287,7 @@ StateDirectoryMode=0700
 RuntimeDirectory=%[5]s
 # 0711: everyone walks through to their own socket, nobody reads the rest.
 RuntimeDirectoryMode=0711
-ExecStart=%[3]s -addr %[4]s -socket %[6]s -token-file %[2]s/token -dump-file %[2]s/dump.json -owner %[7]s`,
+ExecStart=%[3]s -addr %[4]s -socket %[6]s -token-file %[2]s/token -dump-file %[2]s/dump.json -owner %[7]s -web`,
 		svcAccount, svcHome, exe, addr, filepath.Base(api.SystemRuntimeDir), api.SystemSocket(), owner)
 	for _, u := range users {
 		fmt.Fprintf(&b, " -user %s", u)
