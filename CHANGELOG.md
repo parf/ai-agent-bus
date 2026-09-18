@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.65 — 2026-09-17
+
+Add a decorative category image or glyph to every web page title. Move the
+long Services and Users definitions into accessible native help popovers.
+
 ## 0.5.64 — 2026-09-17
 
 Add counted section navigation and dedicated registration pages for Services,

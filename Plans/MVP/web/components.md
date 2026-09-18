@@ -30,6 +30,10 @@ Pages do not lead with instructional paragraphs. The title may carry one short
 factual subtitle; definitions, limits and usage guidance move behind a visible
 `ⓘ` help control beside the title or the section it explains.
 
+The shared native control is built in 0.5.65 on Services, Channels, Personal
+and Users, replacing their leading definition walls. Other planned placements
+remain with their owning page journeys.
+
 The control is a real button using the native popover mechanism. It has an
 accessible name such as *About service views*, works by keyboard and touch, and
 opens a panel containing a heading and a short bulleted list. Bullets are one

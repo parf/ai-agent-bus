@@ -338,6 +338,12 @@ const head = `<!doctype html>
  .muted{color:#6b6b6b}
  .warn{color:#b00}
  a.danger{color:#b00;font-weight:600}
+ .page-title{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+ .page-title h1{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;min-width:0;margin-right:auto}
+ .page-title-mark{display:inline-block;flex:none;vertical-align:middle;font-size:1em;line-height:1}
+ .help-button{width:auto;border:1px solid #777;border-radius:50%;background:transparent;padding:.1rem .4rem;font-weight:700}
+ .context-help{max-width:30rem;border:1px solid #777;padding:1rem;box-shadow:0 .25rem 1rem #0003}
+ .context-help h2{margin-top:0}.context-help li+li{margin-top:.45rem}
  .section-nav,.filter-nav{display:flex;flex-wrap:wrap;gap:.35rem 1rem;margin:.5rem 0 1rem}
  .section-nav a[aria-current],.filter-nav a[aria-current]{font-weight:700;text-decoration:none;border-bottom:2px solid currentColor}
  .owned-marker{font-weight:600;color:#253c66;white-space:nowrap}
@@ -422,9 +428,9 @@ type signin struct {
 	Return  string
 }
 
-var anon = template.Must(template.New("anon").Parse(head + `<title>Sign in · agent-bus</title>` + frameHeader + frameHeaderEnd + `
+var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(head + `<title>Sign in · agent-bus</title>` + frameHeader + frameHeaderEnd + `
 <main>
-<h1>agent-bus</h1>
+<div class=page-title><h1>{{titleMark "credentials"}} Sign in to AgentBus</h1></div>
 <form method=post action=/signin>
 {{with .Return}}<input type=hidden name=return value="{{.}}">{{end}}
  <p><label>token <input type=password name=token autofocus></label>
@@ -444,7 +450,7 @@ var anon = template.Must(template.New("anon").Parse(head + `<title>Sign in · ag
 // The page no longer refreshes itself. A reader has to be able to stop moving
 // content, and a whole-page reload every five seconds also threw away whatever
 // they were part-way through reading (Plans/MVP/done/web-review.md W11).
-var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCount": readerCount, "entityLabel": entityLabel}).Parse(shell("diagnostics", "Diagnostics") + `<h1>agent-bus</h1>
+var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCount": readerCount, "entityLabel": entityLabel, "titleMark": titleMark}).Parse(shell("diagnostics", "Diagnostics") + `<div class=page-title><h1>{{titleMark "diagnostics"}} Diagnostics</h1></div>
 <p><a href=/>Refresh</a> <span class=muted>· as of {{.At}}</span></p>
 
 <h2 id=node>node</h2>

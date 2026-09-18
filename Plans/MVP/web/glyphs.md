@@ -77,6 +77,10 @@ and self-contained: no external asset, icon font, hotlink or extra public route.
 Detail pages choose only from daemon-stated kind; an absent kind gets the
 section image rather than a guessed entity glyph.
 
+**Built in 0.5.65 for every current page route.** The local photo planned for
+User detail remains a separate data-backed feature; its current title uses the
+User fallback.
+
 ## Rendering: a proposal, not a settled decision
 
 **Proposed: adopt the semantics, render them as CSS shape plus colour plus

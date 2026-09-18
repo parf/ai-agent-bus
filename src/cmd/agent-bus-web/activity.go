@@ -68,8 +68,8 @@ func (c *caller) activityRoutes(mux *http.ServeMux) {
 	})
 }
 
-var activityPage = template.Must(template.New("activity").Parse(shell("activity", "Activity graphs") + `
-<h1>Activity graphs</h1>
+var activityPage = template.Must(template.New("activity").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shell("activity", "Activity graphs") + `
+<div class=page-title><h1>{{titleMark "activity"}} Activity graphs</h1></div>
 <form method=get><label>Service or channel <select name=name><option value="">All visible</option>{{range .Records}}<option value="{{.Name}}" {{if eq .Name $.Name}}selected{{end}}>{{.Name}}</option>{{end}}</select></label><button>Filter</button></form>
 <p>Counts per sample, approximately one minute, for the last hour. The final sample is still in progress. History starts when the daemon starts. Dequeued means handed to a reader, not successful execution.</p>
 {{if .Points}}{{range .Graphs}}<h2>{{.Label}}</h2><svg viewBox="0 0 600 110" role=img aria-label="{{.Label}}; maximum {{.Max}} per sample" style="width:100%;max-height:160px"><path d="M10 10 V100 H590" fill=none stroke="#888"/><polyline points="{{.Points}}" fill=none stroke="#2255aa" stroke-width=2/></svg><p>Maximum: {{.Max}}</p>{{end}}

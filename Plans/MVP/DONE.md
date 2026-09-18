@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Web title marks and compact help | Every current title has one decorative category mark; Services and Users definitions move from prose walls into native accessible help | [0.5.65 evidence](done/web-title-help.md#checks) |
 | Web section navigation | Counted Services/Channels/Users/Groups links, dedicated registration pages, small-choice links/radios and separate Yours/Edit signals | [0.5.64 evidence](done/web-section-navigation.md#checks) |
 | Service and Channel Danger Zone | Configuration replacement, ownership transfer and removal moved off ordinary detail; transfer/removal re-read facts on server-rendered confirmation pages | [0.5.63 evidence](done/service-danger-zone.md#checks) |
 | Maintainers list | Owner-assigned User, Group, Agent and Service terms replace the single-group field; nested authority, migration and one-way array output retain existing boundaries | [0.5.62 evidence](done/maintainers-list.md#checks) |

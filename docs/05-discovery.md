@@ -163,6 +163,20 @@ buttons. An owned Service or Channel row says **Yours**; **Edit** follows the
 daemon's returned management capability independently, so an assigned
 Maintainer may edit without being labelled as owner.
 
+### Page titles and compact help
+
+**Built in 0.5.65.** Every page title starts with one decorative image or
+glyph and keeps its visible text. Static pages use their section category;
+record detail uses the daemon-stated kind, with the Service section mark as the
+fallback. The marks are fixed inline markup, never an external asset, caller
+text or a machine-readable value.
+
+The Services, Channels, Personal and Users collections keep their definitions
+behind a visible `ⓘ` button using the browser's native popover. The button has
+an accessible name, the panel uses a heading and short list, and both work
+without script. Current scope, counts, filters, form constraints, refusals and
+dangerous consequences remain visible where they affect a decision.
+
 [Administrative and record authority](01-identity-and-roles.md#groups) applies
 to every control and to direct API calls. Membership and policy changes must
 survive restart. User lifecycle effects are [daemon policy](01-identity-and-roles.md#user-states),

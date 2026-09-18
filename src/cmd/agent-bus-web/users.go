@@ -252,17 +252,17 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 	})
 }
 
-var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityGlyph": identityGlyph, "identityLabel": identityLabel}).Parse(shell("users", "Users") + `
-<h1>Users and other identities</h1>
+var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityGlyph": identityGlyph, "identityLabel": identityLabel, "titleMark": titleMark}).Parse(shell("users", "Users") + `
+<div class=page-title><h1>{{titleMark "users"}} Users and other identities</h1><button type=button class=help-button popovertarget=identity-types-help aria-label="About identity types">ⓘ</button></div>
+<div popover id=identity-types-help class=context-help><h2>About identity types</h2><ul>
+<li>Registered users have a profile.</li>
+<li>Registered names have a record of their own and no user profile.</li>
+<li>A credential with no registered name has neither profile nor registered record.</li>
+<li>Those counts are computed by this page over identities visible to you before search and kind filters. They are not figures the daemon reported and not a count of the credential store.</li>
+<li>Nothing is inferred from how a name is spelled.</li>
+</ul></div>
 <nav class=section-nav aria-label="User views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}{{if .Counted}} ({{.Count}}){{end}}</a>{{end}}</nav>
 <p>{{.PeopleCount}} registered users · {{.OtherCount}} other identities visible to you.</p>
-<p class=muted>Those two are counted <em>by this page</em> over the identities you may
- see, before any search. They are not figures the daemon reported, unlike the owned
- records and memberships below them, and they are not a count of the credential store.</p>
-<p>Three kinds, named rather than guessed: a <strong>registered user</strong> has a
- profile, a <strong>registered name</strong> has a record of its own and no profile, and a
- <strong>credential with no registered name</strong> has neither. Nothing here is inferred
- from how a name is spelled.</p>
 <form method=get action=/users>
 <label>Search <input type=search name=q value="{{.Query}}" placeholder="Name, identity, email or GitHub login"></label>
 {{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}<button>Search</button> <a href=/users>Clear filters</a></form>
@@ -281,9 +281,9 @@ var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"id
 {{else}}<tr><td colspan=3>No other identities on this page.</td></tr>{{end}}</tbody></table></section>
 <nav aria-label="Directory pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
 `))
-var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"identityLabel": identityLabel}).Parse(shell("users", "Identity details") + `
+var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"identityLabel": identityLabel, "titleMark": titleMark}).Parse(shell("users", "Identity details") + `
 <p><a href="{{.Return}}">Back to directory</a></p>
-<h1 style="overflow-wrap:anywhere">{{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1>
+<div class=page-title><h1 style="overflow-wrap:anywhere">{{if or .New (eq .User.Kind "user")}}{{titleMark "user"}}{{else}}{{titleMark "identity"}}{{end}} {{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1></div>
 {{if not .New}}{{with identityLabel .User .RecordKinds}}<p>Type: <strong>{{.}}</strong></p>{{end}}{{end}}
 {{if and (not .New) (ne .User.Kind "user")}}
 <h2>{{if eq .User.Kind "record"}}Registered name{{else}}Credential with no registered name{{end}}</h2>

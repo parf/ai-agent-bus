@@ -10,8 +10,10 @@
 package main
 
 import (
+	"html/template"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
@@ -20,6 +22,47 @@ import (
 	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
+
+var titleBusLogo = template.HTML(strings.NewReplacer(
+	"class=node-logo", "class=page-title-mark",
+	`width="80" height="58"`, `width="32" height="24"`,
+).Replace(nodeLogo))
+
+// titleMark returns only fixed, repository-owned markup. Callers may select a
+// category, including one stated by the daemon, but no caller text enters the
+// result. The adjacent h1 text names the page, so every mark is decorative.
+func titleMark(category string) template.HTML {
+	const (
+		channel     = `<svg class=page-title-mark width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8h5l7-4v16l-7-4H4Z" fill="#3d718e" stroke="#172b3a" stroke-width="1.5"/><path d="M18 8c2 2 2 6 0 8" fill="none" stroke="#e83b32" stroke-width="2" stroke-linecap="round"/></svg>`
+		activity    = `<svg class=page-title-mark width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 20V4M3 20h18" fill="none" stroke="#172b3a" stroke-width="1.5"/><path d="m5 16 4-5 4 2 6-7" fill="none" stroke="#2255aa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+		diagnostics = `<svg class=page-title-mark width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="6" fill="none" stroke="#3d718e" stroke-width="2"/><path d="m15 15 6 6" stroke="#172b3a" stroke-width="2.5" stroke-linecap="round"/><path d="M7 10h6M10 7v6" stroke="#e83b32" stroke-width="1.5"/></svg>`
+		problem     = `<svg class=page-title-mark width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 22 21H2Z" fill="#ffdf83" stroke="#b00" stroke-width="1.5"/><path d="M12 8v6m0 3v.2" stroke="#172b3a" stroke-width="2" stroke-linecap="round"/></svg>`
+	)
+	switch category {
+	case "overview":
+		return titleBusLogo
+	case "credentials":
+		return `<span class=page-title-mark aria-hidden=true>🔑</span>`
+	case "agent":
+		return `<span class=page-title-mark aria-hidden=true>👾</span>`
+	case "channels", protocol.KindTopic:
+		return channel
+	case "activity":
+		return activity
+	case "users", "user":
+		return `<span class=page-title-mark aria-hidden=true>👤</span>`
+	case "groups":
+		return `<span class=page-title-mark aria-hidden=true>👥</span>`
+	case "identity":
+		return `<span class=page-title-mark aria-hidden=true>🪪</span>`
+	case "diagnostics":
+		return diagnostics
+	case "problem":
+		return problem
+	default:
+		return `<span class=page-title-mark aria-hidden=true>⚙️</span>`
+	}
+}
 
 func readerCount(readers *int) string {
 	if readers == nil {
