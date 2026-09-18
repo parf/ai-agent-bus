@@ -205,8 +205,27 @@ two against the strengthened smoke checks, one reintroducing the credentials
 duplication on Diagnostics, and one confirming the TLS assertion's route. The
 focused TLS reproduction passed 5/0.
 
-## Pending
+## Live postflight
 
-The live postflight has not happened. A deployed version string, its build
-stamp and a repeat of the browser checks against the running node belong here
-when it does.
+Commit `6d34dde` "Complete web overview and diagnostics" deployed as **0.5.80**.
+The public identity reports `v0.5.80` with build
+`parf@parf.us 2026-09-18 17:35:17`. Polled every two seconds across the restart,
+the dashboard answered 0.5.79 at t+0, t+2 and t+4 and 0.5.80 by t+10, so it was
+unavailable or still old for under about ten seconds and returned on its own.
+The AgentBus face reconnected in the same session without being restarted.
+
+Signed in against the running node, read-only, with no live registry mutation:
+Overview is short and carries no Refusals section; Diagnostics carries Refusals
+and Exchanges and no Registry; Services shows Accepted and Dequeued; the
+`work=held` filter renders as selected; and no backend address appears on
+Overview, Diagnostics or Services.
+
+The web child runs with `CapEff` all zero, and its environment is exactly
+`AGENT_BUS_ADDR=/bus.sock` and `PWD=/`.
+
+**Who measured what.** The version string, the build stamp, the restart window
+and the reconnect were observed here against the anonymous page. `CapEff` was
+read here from the supervised child's `/proc` entry. The signed-in page contents
+and the environment listing are codex's measurements: the pages need a
+credential for the live node, which is not mine to handle, and that process's
+`environ` is not readable by this account.
