@@ -53,3 +53,19 @@ This measured result was filled into the evidence after the immutable run.
 This advances the remaining F.13.4 journeys. It does not expose group
 references, complete role/browser acceptance, make provider metadata mandatory,
 or weaken GitHub-login uniqueness. Page rendering still never calls GitHub.
+
+## Live postflight
+
+Commit `1bf7790` was built and deployed as 0.5.75 with build
+`parf@parf.us 2026-09-18 13:51:22`. The live Groups page renders one linked
+Group/Members table with no inline editor; `@sample-group` opens its editable
+detail with Groups current in navigation.
+
+The previously refused live update now saves `github_user=parf` for
+`parf@parf` with a 303 redirect. User detail labels public provider data
+unfetched and shows no lookup error. An explicit Refresh still returns 400 for
+the unavailable lookup and preserves both the login and the unfetched state.
+
+The web child retains zero effective capabilities, `NoNewPrivileges`, its
+explicit `AGENT_BUS_ADDR=/bus.sock` and `PWD=/` environment, and its 256 MiB
+memory, zero-swap, 64-task and one-CPU limits.
