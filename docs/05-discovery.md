@@ -159,11 +159,14 @@ continues to work.
 
 Two- and three-value URL filters are visible links whose active state and plain
 values remain in the URL. Two-value creation choices are labelled radio
-buttons. **Built in 0.5.66:** an owned Service or Channel row says **Yours**,
-uses a blue leading rule and emphasizes its linked name. A Personal row
-separately says **Personal** in orange and emphasizes its name; a row carrying
-both facts keeps both signals. Ownership comes only from the returned Owner,
-and Personal only from the returned tag; the protocol hint changes neither.
+buttons. An owned Service or Channel row uses a blue leading rule and blue
+semibold linked name; the **My** category link uses the same blue. The row does
+not repeat a **Yours** label. A Personal row keeps the visible **Personal** word
+and uses stronger orange, bold emphasis shared by the **Personal** category
+link. Orange overrides blue when both facts apply. Ownership comes only from
+the returned Owner, and Personal only from the returned tag; the protocol hint
+changes neither. The compact row treatment began in 0.5.66 and its labels were
+refined without a version bump on 2026-09-17.
 
 The linked name is the single route to read-first detail and any controls the
 daemon authorizes there; the former duplicate Edit column is gone. List update

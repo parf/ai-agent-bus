@@ -4,6 +4,11 @@
 conflating the facts, removes the duplicate Edit destination and compacts list
 update time.
 
+> **Superseded on 2026-09-17:** ownership still uses the blue leading rule and
+> emphasized name, but the repeated **Yours** word is removed. The **My** link
+> uses the same blue; Personal remains labelled and its stronger orange
+> treatment overrides blue. This minor visual refinement has no version bump.
+
 ## Result
 
 Service and Channel collections derive **Yours** only from the returned Owner

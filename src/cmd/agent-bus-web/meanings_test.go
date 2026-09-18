@@ -780,7 +780,7 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 	// And the caller's own record is theirs to manage, whoever they are, so
 	// the check above is about authority rather than about rank.
 	plain := m.as("plain@h")
-	if row := m.row(plain.get("/services"), "plain@h"); !strings.Contains(row, `class=owned-marker>Yours</span>`) || !strings.Contains(plain.get("/service?name=plain@h"), `id=settings`) {
+	if row := m.row(plain.get("/services"), "plain@h"); !strings.Contains(row, `class="record-name-cell owned-record"`) || strings.Contains(row, "Yours") || !strings.Contains(plain.get("/service?name=plain@h"), `id=settings`) {
 		t.Error("an ordinary caller is offered no control over their own record")
 	}
 }

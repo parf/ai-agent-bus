@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Service row color key | My and Personal links match their row treatments; Personal overrides ownership and the repeated Yours word is removed | [evidence](done/service-row-color.md#checks) |
 | Service row emphasis | Owned and Personal facts keep separate visible/color treatments; name is the single detail route and update time is compact | [0.5.66 evidence](done/service-row-emphasis.md#checks) |
 | Web title marks and compact help | Every current title has one decorative category mark; Services and Users definitions move from prose walls into native accessible help | [0.5.65 evidence](done/web-title-help.md#checks) |
 | Web section navigation | Counted Services/Channels/Users/Groups links, dedicated registration pages, small-choice links/radios and separate Yours/Edit signals | [0.5.64 evidence](done/web-section-navigation.md#checks) |

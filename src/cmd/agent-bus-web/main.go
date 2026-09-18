@@ -346,12 +346,14 @@ const head = `<!doctype html>
  .context-help h2{margin-top:0}.context-help li+li{margin-top:.45rem}
  .section-nav,.filter-nav{display:flex;flex-wrap:wrap;gap:.35rem 1rem;margin:.5rem 0 1rem}
  .section-nav a[aria-current],.filter-nav a[aria-current]{font-weight:700;text-decoration:none;border-bottom:2px solid currentColor}
+ .section-nav .my-view{color:#1d5fa8}
+ .section-nav .personal-view{color:#8a5000;font-weight:700}
  .record-name-cell{border-left:3px solid transparent}
  .record-name-cell.owned-record{border-left-color:#1d5fa8}
- .record-name-cell.owned-record .record-name,.record-name-cell.personal-record .record-name{font-weight:600}
- .record-name-cell.personal-record .record-name,.personal-marker{color:#8a5000}
- .owned-marker{font-weight:600;color:#1d5fa8;white-space:nowrap}
- .personal-marker{font-weight:600;white-space:nowrap}
+ .record-name-cell.owned-record .record-name{color:#1d5fa8;font-weight:600}
+ .record-name-cell.personal-record{border-left-color:#8a5000}
+ .record-name-cell.personal-record .record-name,.personal-marker{color:#8a5000;font-weight:700}
+ .personal-marker{white-space:nowrap}
  .activity-chart{display:block;width:100%;height:auto;max-height:14rem}
  .activity-axis{fill:none;stroke:#87847b;stroke-width:1;vector-effect:non-scaling-stroke}
  .activity-line{fill:none;stroke-width:2.5;vector-effect:non-scaling-stroke}

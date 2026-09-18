@@ -6,6 +6,9 @@ dedicated section pages and distinguishes ownership from edit authority.
 > **Superseded in 0.5.66:** the visible ownership distinction remains, but the
 > duplicate list Edit link was removed. The linked name now provides the one
 > route to detail and its daemon-authorized controls.
+>
+> **Further refined on 2026-09-17:** the repeated **Yours** word is removed;
+> the blue **My** and orange **Personal** links now key the row treatments.
 
 ## Result
 

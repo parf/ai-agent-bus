@@ -97,7 +97,7 @@ decided here, which is why it is not built second.
   ⚙️ Services  ⓘ                                      [Refresh]
   Caller-visible services
 
-  All (231)  [My (12)]  Personal (3)  Register service
+  All (231)  [My (12) blue]  Personal (3) orange  Register service
 
   ┌──────────────────────────────────────────────────────────┐
   │ Search ▢─────────────────────  State [Any] Enabled Disabled│ surface-3
@@ -108,7 +108,7 @@ decided here, which is why it is not built second.
 
    │  SERVICE                 OWNER         READER     QUEUED │  text-xs 600
    ├──────────────────────────────────────────────────────────┤
-   │▌ Invoice intake  [Yours]  parf@parf.us attached      512 │  red bar
+   │▌ Invoice intake           parf@parf.us attached      512 │  blue rule/name
    │  billing/invoices@parf.us              at capacity       │  mono, text-2
    ├──────────────────────────────────────────────────────────┤
    │▌ Document intake         ops@parf.us   no reader      48 │  orange bar
@@ -138,10 +138,11 @@ expose their two or three values directly and preserve them in the URL. The
 larger sort list remains a select. Register service is section navigation, not a
 form appended below the table.
 
-**Yours is never colour alone.** The label and row shape remain in All, My,
-Personal and filtered results. Personal has its own visible word and orange
-treatment; a row may carry both. The service name is the single route to
-read-first detail and any controls authorized there.
+Owned rows use a blue leading rule and semibold blue name without repeating
+**Yours**; the blue **My** link is their key. Personal keeps its visible word
+and uses the stronger orange bold treatment, matched by the **Personal** link.
+On a caller-owned Personal row, orange overrides blue. The service name is the
+single route to read-first detail and any controls authorized there.
 
 **No cell truncates a value that has no other route to it.** The draft ellipsed
 owners to `parf@…` and offered no recovery, which without script means the value

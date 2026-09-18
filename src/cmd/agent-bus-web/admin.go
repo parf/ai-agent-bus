@@ -138,6 +138,7 @@ type adminView struct {
 
 type viewLink struct {
 	Href, Label string
+	Class       string
 	Count       int
 	Counted     bool
 	Current     bool
@@ -347,8 +348,8 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			}
 			v.SectionLinks = []viewLink{
 				{Href: pageURL("/services", allQuery), Label: "All", Count: allServices, Counted: true, Current: !v.PersonalPage && v.Mine == ""},
-				{Href: pageURL("/services", myQuery), Label: "My", Count: myServices, Counted: true, Current: !v.PersonalPage && v.Mine == "my"},
-				{Href: pageURL("/personal", personalQuery), Label: "Personal", Count: personalServices, Counted: true, Current: v.PersonalPage},
+				{Href: pageURL("/services", myQuery), Label: "My", Class: "my-view", Count: myServices, Counted: true, Current: !v.PersonalPage && v.Mine == "my"},
+				{Href: pageURL("/personal", personalQuery), Label: "Personal", Class: "personal-view", Count: personalServices, Counted: true, Current: v.PersonalPage},
 				{Href: "/services/new", Label: "Register service"},
 			}
 		}
@@ -657,14 +658,14 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 <li>Readers counts outstanding filtered and unfiltered reads. Zero may be between reads; a positive count proves neither a matching message nor completed work.</li>
 <li>Reached external is a caller-supplied hint. None of it is health; the daemon does not observe whether a process is alive.</li>
 </ul></div>
-<nav class=section-nav aria-label="{{if .Channels}}Channel{{else}}Service{{end}} views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}{{if .Counted}} ({{.Count}}){{end}}</a>{{end}}</nav>
+<nav class=section-nav aria-label="{{if .Channels}}Channel{{else}}Service{{end}} views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true class="{{.Class}}">{{else}}<a href="{{.Href}}" class="{{.Class}}">{{end}}{{.Label}}{{if .Counted}} ({{.Count}}){{end}}</a>{{end}}</nav>
 {{if .PersonalPage}}{{if .DaemonOwner}}<form method=get><label>Owner <select name=owner><option value="">All visible owners</option>{{range .Owners}}<option {{if eq . $.OwnerFilter}}selected{{end}}>{{.}}</option>{{end}}</select></label>{{with .State}}<input type=hidden name=state value="{{.}}">{{end}} <button>Choose owner</button></form>{{else}}<p>Owned by <code>{{.You}}</code></p>{{end}}{{end}}
 <nav class=filter-nav aria-label="Delivery filter">Delivery: {{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>
 {{if .PersonalPage}}<p class=muted>{{if .DaemonOwner}}This per-owner view contains only Personal services visible through your normal access; it is not a node-wide inventory.{{else}}Your Personal services.{{end}}</p>{{end}}
 <table><caption>Records visible to you — not a count of this node</caption>
 <thead><tr><th scope=col>Name<th scope=col>Type<th scope=col>Owner<th scope=col>Delivery<th scope=col>Readers<th scope=col>Reached<th scope=col>Queued<th scope=col>Updated</tr></thead>
 <tbody>
-{{range .Records}}<tr><td class="record-name-cell{{if eq .Owner $.You}} owned-record{{end}}{{if .Personal}} personal-record{{end}}"><a class=record-name href="/service?name={{.Name}}">{{.Name}}</a>{{if eq .Owner $.You}} <span class=owned-marker>Yours</span>{{end}}{{if .Personal}} <span class=personal-marker>Personal</span>{{end}}<td>{{entityLabel .Kind}}<td>{{.Owner}}<td>{{if .Disabled}}Disabled{{else}}Enabled{{end}}<td>{{readerCount .Readers}}<td>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{.Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}</tr>{{else}}<tr><td colspan=8>No matching records</tr>{{end}}
+{{range .Records}}<tr><td class="record-name-cell{{if eq .Owner $.You}} owned-record{{end}}{{if .Personal}} personal-record{{end}}"><a class=record-name href="/service?name={{.Name}}">{{.Name}}</a>{{if .Personal}} <span class=personal-marker>Personal</span>{{end}}<td>{{entityLabel .Kind}}<td>{{.Owner}}<td>{{if .Disabled}}Disabled{{else}}Enabled{{end}}<td>{{readerCount .Readers}}<td>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{.Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}</tr>{{else}}<tr><td colspan=8>No matching records</tr>{{end}}
 </tbody></table>
 `))
 var serviceNew = template.Must(template.New("service-new").Funcs(template.FuncMap{"entityLabel": entityLabel, "titleMark": titleMark}).Parse(shell("records", "Register") + `

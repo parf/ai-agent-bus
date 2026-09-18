@@ -67,10 +67,10 @@ func TestSectionNavigationCountsOnlyCallerVisibleCategories(t *testing.T) {
 	ordinary := m.as("viewer@h")
 	services := ordinary.get("/services?scope=my&state=inactive")
 	for _, want := range []string{
-		`href="/services?state=inactive">All (3)</a>`,
-		`href="/services?scope=my&amp;state=inactive" aria-current=true>My (1)</a>`,
-		`href="/personal?state=inactive">Personal (1)</a>`,
-		`href="/services/new">Register service</a>`,
+		`href="/services?state=inactive" class="">All (3)</a>`,
+		`href="/services?scope=my&amp;state=inactive" aria-current=true class="my-view">My (1)</a>`,
+		`href="/personal?state=inactive" class="personal-view">Personal (1)</a>`,
+		`href="/services/new" class="">Register service</a>`,
 		`href="/services?scope=my">All</a>`,
 		`href="/services?scope=my&amp;state=active">Enabled</a>`,
 	} {
@@ -82,7 +82,7 @@ func TestSectionNavigationCountsOnlyCallerVisibleCategories(t *testing.T) {
 		t.Error("service navigation counted a hidden or another owner's Personal record")
 	}
 	channels := ordinary.get("/channels")
-	if !strings.Contains(channels, `aria-current=true>All channels (1)</a>`) || !strings.Contains(channels, `href="/channels/new">Register channel</a>`) {
+	if !strings.Contains(channels, `aria-current=true class="">All channels (1)</a>`) || !strings.Contains(channels, `href="/channels/new" class="">Register channel</a>`) {
 		t.Error("channel section navigation or count is wrong")
 	}
 }
@@ -106,26 +106,34 @@ func TestOwnedRowsAreMarkedAndEditFollowsDaemonAuthority(t *testing.T) {
 	own := m.row(page, "own@h")
 	managed := m.row(page, "managed@h")
 	view := m.row(page, "view@h")
-	if !strings.Contains(own, `class="record-name-cell owned-record"`) || !strings.Contains(own, `class=owned-marker>Yours</span>`) || !strings.Contains(own, `<td>external`) {
+	if !strings.Contains(own, `class="record-name-cell owned-record"`) || strings.Contains(own, "Yours") || !strings.Contains(own, `<td>external`) {
 		t.Error("remote owned row lacks its visible ownership treatment")
 	}
-	if strings.Contains(managed, "owned-record") || strings.Contains(managed, ">Yours</span>") {
+	if strings.Contains(managed, "owned-record") || strings.Contains(managed, "Yours") {
 		t.Error("Maintainer row confused management with ownership")
 	}
-	if strings.Contains(view, "owned-record") || strings.Contains(view, ">Yours</span>") {
+	if strings.Contains(view, "owned-record") || strings.Contains(view, "Yours") {
 		t.Error("view-only row was marked owned")
 	}
 	if strings.Contains(page, ">Edit</a>") || strings.Contains(page, "<th scope=col>Controls") {
 		t.Error("the service name and a duplicate Edit column both route to detail")
 	}
 	for _, want := range []string{
+		`.section-nav .my-view{color:#1d5fa8}`,
+		`.section-nav .personal-view{color:#8a5000;font-weight:700}`,
 		`.record-name-cell.owned-record{border-left-color:#1d5fa8}`,
-		`.record-name-cell.owned-record .record-name,.record-name-cell.personal-record .record-name{font-weight:600}`,
-		`.record-name-cell.personal-record .record-name,.personal-marker{color:#8a5000}`,
+		`.record-name-cell.owned-record .record-name{color:#1d5fa8;font-weight:600}`,
+		`.record-name-cell.personal-record{border-left-color:#8a5000}`,
+		`.record-name-cell.personal-record .record-name,.personal-marker{color:#8a5000;font-weight:700}`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("service-row treatment missing %q", want)
 		}
+	}
+	ownedRule := `.record-name-cell.owned-record{border-left-color:#1d5fa8}`
+	personalRule := `.record-name-cell.personal-record{border-left-color:#8a5000}`
+	if strings.Index(page, ownedRule) >= strings.Index(page, personalRule) {
+		t.Error("Personal styling does not override the owned treatment")
 	}
 }
 

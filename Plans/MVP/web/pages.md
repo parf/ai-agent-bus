@@ -160,7 +160,7 @@ defect is real. codex's [S14](review/codex.md#specification-review-round-one).
 | Kind | **A filter wherever the list is already narrowed to one kind**, because a per-row category is then redundant with the control that got you there. **A column on any list that is not** — an unfiltered or mixed-kind list must still say what each row is, and no filter is supplying that. This governs the [mockups](layouts.md#services--the-page-the-density-is-tuned-against) as much as this table; the draft's flat "filter only" was wrong and the two documents disagreed — codex |
 | Delivery mode (channel list) | **new.** The channel question |
 | Owner | keep |
-| Owned by the caller | **always mark.** A visible *Yours* label plus blue leading rule and emphasized name survives All, My, Personal and filtered results. Personal independently uses a visible *Personal* label, orange and an emphasized name; combined rows retain both |
+| Owned by the caller | **always mark.** A blue leading rule and blue semibold name survive All, My, Personal and filtered results without repeating *Yours*; the My category link uses the same blue. Personal independently keeps its visible *Personal* word with stronger orange bold emphasis and category link; orange overrides blue on combined rows |
 | Enabled / Disabled | **relabel** from Active/Inactive. Administrative state, not liveness. Disabled is a decision, not a failure |
 | Reader: *attached* / *no unfiltered reader* / *external* | **relabel** from Serving/Offline/External. `Proto` is a caller-supplied hint meaning "expect no local reader", not proof of anything |
 | Queued | keep on the service list. **Mode-aware on the channel list**: a pub/sub topic keeps no queue of its own — `Send` hands it to `fanout` and nothing waits on the topic — so a Queued cell there is structurally zero. Pub/sub rows show accepted; queue rows show queued; or the cell reads `—` |
@@ -182,8 +182,10 @@ navigation count describe a different category.
 
 **Built in 0.5.64:** these category links and counts, dedicated Service and
 Channel registration routes, Delivery links, create-time Kind/Delivery radios,
-and the separate **Yours** and daemon-authorized detail controls. 0.5.66 adds
-owned/Personal emphasis, one name-to-detail route and compact update time.
+and the separate ownership and daemon-authorized detail controls. 0.5.66 adds
+owned/Personal emphasis, one name-to-detail route and compact update time; the
+2026-09-17 refinement removes the repeated Yours word and matches the My and
+Personal link colors without a version bump.
 0.5.67 embeds the record-scoped Activity graph and its link to the complete
 filtered view.
 Search, sort, paging and read-first detail disclosures remain pending.

@@ -109,7 +109,7 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 	if !strings.Contains(personal, `<a href=/personal aria-current=page>`) || strings.Count(personal, "aria-current=page>") != 1 {
 		t.Fatal("Personal navigation is not the one current entry")
 	}
-	if !strings.Contains(personal, `class="record-name-cell owned-record personal-record"`) || !strings.Contains(personal, `class=owned-marker>Yours</span>`) || !strings.Contains(personal, `class=personal-marker>Personal</span>`) {
+	if !strings.Contains(personal, `class="record-name-cell owned-record personal-record"`) || strings.Contains(personal, "Yours") || !strings.Contains(personal, `class=personal-marker>Personal</span>`) {
 		t.Fatal("caller-owned Personal row does not keep both visible distinctions")
 	}
 	_, header := p.request("alice@h", "GET", "/personal?owner=bob%40h", nil, http.StatusSeeOther)
@@ -129,7 +129,7 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 	if !strings.Contains(admin, "alice-personal@h") || strings.Contains(admin, "bob-personal@h") || !strings.Contains(admin, "only Personal services visible through your normal access") {
 		t.Fatalf("daemon-owner visible-only owner view is misstated: %s", admin)
 	}
-	if !strings.Contains(admin, `class="record-name-cell personal-record"`) || strings.Contains(admin, `class="record-name-cell owned-record personal-record"`) || !strings.Contains(admin, `class=personal-marker>Personal</span>`) {
+	if !strings.Contains(admin, `class="record-name-cell personal-record"`) || strings.Contains(admin, `class="record-name-cell owned-record personal-record"`) || strings.Contains(admin, "Yours") || !strings.Contains(admin, `class=personal-marker>Personal</span>`) {
 		t.Fatal("a visible Personal row owned by somebody else was confused with Yours")
 	}
 }

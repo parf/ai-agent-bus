@@ -49,10 +49,11 @@ evidence the person must discover before acting.
 
 Every caller-owned record is marked wherever it appears in a human list,
 including All, My, Personal, search results and related-record lists. The mark
-combines a visible **Yours** label with shape or border emphasis; colour is
-reinforcement, never the only signal. It does not change ordering, access or
-kind. A Personal record separately carries the visible **Personal** word and
-orange treatment. A caller-owned Personal record keeps both signals.
+uses a blue leading rule and blue semibold name; the **My** category link uses
+the same blue. It does not repeat **Yours**. A Personal record separately
+carries the visible **Personal** word with orange bold emphasis, matched by the
+**Personal** category link. Personal overrides the owned treatment when both
+facts apply. None of these marks changes ordering, access or kind.
 
 The record name is the one route to its read-first detail page. Controls on
 that page follow the daemon's returned authority; the list does not duplicate
