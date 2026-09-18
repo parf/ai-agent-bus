@@ -63,3 +63,18 @@ Codex and OpenCode records after their real fixture exchanges.
 inbox remains governed by that inbox's own ACL. The term does not create a
 group listing, grant a credential, infer a human owner through a chain or alter
 Personal classification.
+
+## Live postflight
+
+Commit `fc236ed` is live as the stamped 0.5.74 build. The preflight snapshot
+contained no stored `@owner` group; the restart therefore performed no data
+migration. Public identity, supervisor and web health report the new release.
+Authenticated Service and Group pages explain the runtime term, the exact
+Service page has no master control, and its raw record has no `no_master`
+field.
+
+The web child remains under `NoNewPrivileges` with zero effective
+capabilities, 256 MiB memory, zero swap, 64 tasks and one CPU. Existing
+long-lived agent records keep their explicit ACL until their launcher next
+registers; the installed-launcher acceptance proves that Claude, Codex and
+OpenCode then merge `@owner` without erasing those grants.
