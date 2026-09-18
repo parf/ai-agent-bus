@@ -49,3 +49,19 @@ the snapshot key was renamed atomically to `@sample-group`, preserving file
 ownership and mode. After restart, `/groups` reported `@administrators` and the
 empty `@sample-group`; the legacy name was absent. This changes no group
 deletion rule and grants no authority.
+
+## Live postflight
+
+Commit `35f4fe4` deployed in the same restart as the already committed 0.5.68
+fresh-install slice. Public identity reports 0.5.68 with build
+`parf@parf.us 2026-09-17 21:59:07`. Real Chromium at 375 px repeated the source
+checks against port 6780: the two line-list editors, empty `@sample-group`,
+absent legacy name, right-aligned tabular Readers and Queued values, and no page
+overflow.
+
+The web child remains inside its private PID namespace with zero effective
+capabilities and `NoNewPrivileges`; its live cgroup retains 256 MiB memory,
+zero swap, 64 tasks and one CPU. The development node intentionally continues
+to select the git-install checkout. The standalone package/install path is
+proved by the fresh-host acceptance rather than by replacing this node's
+development layout.
