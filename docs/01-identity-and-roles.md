@@ -132,6 +132,8 @@ name and never overwrite an existing one.
 * Setting or changing a GitHub login attempts to fetch the public profile, but
   provider availability does not block the login field. Unfetched provider
   fields stay absent; an explicit refresh reports failure without mutation.
+  The trusted public-profile adapter is available independently of whether an
+  enrolment realm uses GitHub keys; enabling one never enables the other.
   Unrelated edits do not contact GitHub. Clearing the login clears provider
   metadata and its photo while retaining imported person name and Email.
 * GitHub imagery is fetched only by the trusted adapter, constrained to the

@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -81,19 +82,9 @@ func runBus(c config) {
 	// A realm somebody vouches for can only be entered by proving you hold
 	// a key it publishes. Realms nobody vouches for stay open, as they were.
 	// See docs/01-identity-and-roles.md#registration.
-	dirs := map[string]ports.Directory{}
-	for _, v := range c.vouch {
-		realm, what, ok := strings.Cut(v, "=")
-		if !ok || realm == "" || what == "" {
-			log.Fatalf("--directory wants realm=github or realm=/path/to/keys, not %q", v)
-		}
-		if what == "github" {
-			dirs[realm] = github.New()
-		} else {
-			dirs[realm] = dirfile.New(what)
-		}
+	if err := configureDirectories(bus, c.vouch, github.New()); err != nil {
+		log.Fatal(err)
 	}
-	bus.Directories(dirs, sshkeygen.New())
 	face := api.New(bus, tokens, owner)
 	face.LocalAccounts(ownerAccount(), validateLocalAccount)
 	face.Dashboard(c.dash)
@@ -221,6 +212,33 @@ func runBus(c config) {
 	// The sockets themselves are the supervisor's to remove.
 	save(true)
 	log.Print("bus stopped")
+}
+
+type githubDirectory interface {
+	ports.Directory
+	ports.ProfileDirectory
+}
+
+// configureDirectories keeps two independent choices independent. Directory
+// flags decide which realms require key-possession enrolment. Public GitHub
+// profile metadata is optional decoration for any user profile and is always
+// available through the trusted adapter, even when no realm is GitHub-backed.
+func configureDirectories(bus *core.Bus, specs []string, profiles githubDirectory) error {
+	dirs := map[string]ports.Directory{}
+	for _, v := range specs {
+		realm, what, ok := strings.Cut(v, "=")
+		if !ok || realm == "" || what == "" {
+			return fmt.Errorf("--directory wants realm=github or realm=/path/to/keys, not %q", v)
+		}
+		if what == "github" {
+			dirs[realm] = profiles
+		} else {
+			dirs[realm] = dirfile.New(what)
+		}
+	}
+	bus.Directories(dirs, sshkeygen.New())
+	bus.ProfileDirectory(profiles)
+	return nil
 }
 
 // a listener the supervisor opened, and the principal it speaks for — empty

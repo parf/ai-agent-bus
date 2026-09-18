@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.76 — 2026-09-18
+
+Make trusted public GitHub profile lookup available without enabling GitHub as
+an enrolment realm. Keep profile metadata optional and page rendering local.
+
 ## 0.5.75 — 2026-09-18
 
 Show Groups as a compact linked table with authority-scoped detail editors.

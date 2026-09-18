@@ -45,6 +45,16 @@ func (b *Bus) Directories(dirs map[string]ports.Directory, sigs ports.Signatures
 	b.pending = map[string]challenge{}
 }
 
+// ProfileDirectory selects the trusted source for optional public profile
+// metadata. It is deliberately separate from Directories: reading a GitHub
+// login's public profile must not make the github realm directory-backed, and
+// therefore must not change how names in that realm are registered.
+func (b *Bus) ProfileDirectory(directory ports.ProfileDirectory) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.github = directory
+}
+
 // Challenge starts an enrolment: it looks the login up, keeps what it found,
 // and hands back the nonce to sign. The directory facts are held with the
 // challenge so that the proof and imported profile use what was published

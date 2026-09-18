@@ -87,7 +87,7 @@ The flags:
 |---|---|
 | `-owner user@realm` | whose daemon this is. The owner is always an administrator |
 | `-user account=user@realm` | first-current-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
-| `-directory realm=github` | a realm and what vouches for it. `realm=/path/to/keys` for a directory of key files |
+| `-directory realm=github` | a realm and what vouches for enrolment. `realm=/path/to/keys` for a directory of key files; public GitHub profile metadata does not require this flag |
 | `-addr` · `-socket` | the loopback address and the unix socket path |
 | `-token-file` | the token store; created if missing |
 | `-dump-file` · `-dump-every` | where the snapshot goes, and how often. `0` turns the periodic dump off |
