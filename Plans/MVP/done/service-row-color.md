@@ -34,5 +34,20 @@ Fast smoke passed **488/0**. Final slow smoke passed **609/0**, including vet
 and race. All **205** frozen source hashes remained unchanged. The tracked and
 frozen smoke scripts both had SHA-256
 `5af2a0bd6b940be7c842244215d7205f5c24037c7d6049d261fc02986ad8d1ac`.
-Documentation validation checked **157 files** and **2,859 local links** with
+Documentation validation checked **158 files** and **2,859 local links** with
 zero errors. OpenCode reviewed the corrected source and found no issue.
+
+## Live postflight
+
+Commit `8a4c6bd` deployed without changing 0.5.67. Public identity reported
+build `parf@parf.us 2026-09-17 21:12:12`. The first unprivileged systemd
+restart request timed out before stopping the old process; status and public
+identity proved the old build was still serving, so it received no deployment
+credit. The privileged retry started a new unit at 21:13.
+
+Real Chromium at 375 px measured the live My link as blue, Personal as orange
+at weight 700 and the owned `claude/ab-dvp@parf.us` name as blue at weight 600
+with its leading rule and no Yours. The page did not overflow and no record was
+changed. The web child retained its private PID namespace, zero effective
+capabilities, `NoNewPrivileges`, two-value environment and installed resource
+limits.
