@@ -50,3 +50,16 @@ This changes adapter availability, not trust. Public profile facts remain
 optional metadata; GitHub key possession remains a separate enrolment proof.
 No public endpoint, wire field, browser fetch or automatic enrolment realm was
 added.
+
+## Live postflight
+
+Commit `3f38751` was built and deployed as 0.5.76 with build
+`parf@parf.us 2026-09-18 14:07:20`. Explicitly refreshing the already-saved
+`parf` login for `parf@parf` fetched the real public profile, a fetch timestamp
+and a normalized local GitHub photo; the User page no longer shows the
+unfetched warning or lookup error.
+
+A public enrolment challenge for a fresh `@github` name still returns 403 with
+`nothing backs the realm "github"`, proving that profile availability did not
+enable GitHub-backed enrolment. The peer session reconnected through the
+restart.
