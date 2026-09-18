@@ -162,9 +162,14 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if body := request("owner@h", "GET", "/services?scope=my&state=inactive", "", nil, 200); !strings.Contains(body, "svc@h") {
 		t.Fatal("disabled service missing")
 	}
-	group := url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"other@h"}}
+	group := url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"other@h\nadmin@h"}}
 	request("owner@h", "POST", "/groups", web.URL, group, 403)
 	request("admin@h", "POST", "/groups", web.URL, group, 303)
+	groups := request("admin@h", "GET", "/groups", "", nil, 200)
+	if !strings.Contains(groups, `<textarea name=members rows=6>admin@h
+other@h</textarea>`) || strings.Contains(groups, `<input name=members`) {
+		t.Fatalf("group membership did not round-trip through its line editor: %s", groups)
+	}
 	// A group is retired by emptying it, so "delete" is not an action here
 	// even for the daemon owner, and even from a request that is otherwise
 	// entirely in order — right origin, right session, real group

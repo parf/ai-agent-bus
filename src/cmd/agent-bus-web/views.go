@@ -352,6 +352,7 @@ const exchangesTemplate = `
   .exchanges tr{margin-bottom:1rem;padding:.8rem;border:1px solid #ddd;border-radius:.3rem}
   .exchanges td{border:0;padding:.25rem 0}
   .exchanges td::before{content:attr(data-label);display:block;font-weight:600;color:#555}
+  .exchanges td.num::before{text-align:left}
  }
 </style>
 <h2 id=exchanges>Exchanges in retained history</h2>
@@ -364,9 +365,9 @@ missing messages or receipts do not prove failure or unfinished work. Times incl
 route matches suggest a response but do not prove it or completion. Untagged messages get no inferred links.
 Receipts sent by topic subscribers or queue workers remain separate when their identity differs from the addressed topic.</p></details>
 <table class=exchanges><caption>Messages and explicitly referenced receipts</caption>
-<thead><tr><th scope=col>Observed message<th scope=col>Route and conversation<th scope=col>Envelopes<th scope=col>Evidence</tr></thead>
+<thead><tr><th scope=col>Observed message<th scope=col>Route and conversation<th scope=col class=num>Envelopes<th scope=col>Evidence</tr></thead>
 <tbody>
-{{range .Exchanges}}<tr id="message-{{.ID}}"><td data-label="Observed message"><time>{{.At.Format "2006-01-02 15:04:05Z07:00"}}</time><br><code>{{.ID}}</code><td data-label="Route and conversation"><code>{{.From}}</code> → <code>{{.To}}</code><br>Topic: <code>{{if .Topic}}{{.Topic}}{{else}}not supplied{{end}}</code> · Tag: <code>{{if .Tag}}{{.Tag}}{{else}}not supplied{{end}}</code>{{with .ReplyTo}}<br>Reply route: <code>{{.Service}}</code> · Topic: <code>{{.Topic}}</code> · Tag: <code>{{.Tag}}</code>{{end}}<td data-label="Envelopes">{{.N}}</td><td data-label="Evidence">
+{{range .Exchanges}}<tr id="message-{{.ID}}"><td data-label="Observed message"><time>{{.At.Format "2006-01-02 15:04:05Z07:00"}}</time><br><code>{{.ID}}</code><td data-label="Route and conversation"><code>{{.From}}</code> → <code>{{.To}}</code><br>Topic: <code>{{if .Topic}}{{.Topic}}{{else}}not supplied{{end}}</code> · Tag: <code>{{if .Tag}}{{.Tag}}{{else}}not supplied{{end}}</code>{{with .ReplyTo}}<br>Reply route: <code>{{.Service}}</code> · Topic: <code>{{.Topic}}</code> · Tag: <code>{{.Tag}}</code>{{end}}<td class=num data-label="Envelopes">{{.N}}</td><td data-label="Evidence">
 {{if .Receipt}}<strong>{{.Receipt}} receipt</strong>{{with .Re}} about <code>{{.}}</code>{{end}}<p>{{.Notice}}</p>{{else}}
 {{if .Ack}}<p>Acknowledgement observed.</p>{{end}}
 {{if .Done}}<p>Completion receipt observed.</p>{{else}}<p class=muted>No completion receipt observed in retained history.</p>{{end}}

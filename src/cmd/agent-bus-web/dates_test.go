@@ -92,7 +92,7 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 	// A column added to the table has to be added to its empty row too, or
 	// "no matching records" stops spanning the table it is in. Counted rather
 	// than written down, so widening the table cannot quietly pass this.
-	want := fmt.Sprintf("colspan=%d", strings.Count(listing, "<th scope=col>"))
+	want := fmt.Sprintf("colspan=%d", strings.Count(listing, "<th scope=col"))
 	if body := get("/services?scope=my&state=inactive"); strings.Contains(body, "No matching records") && !strings.Contains(body, want) {
 		t.Fatalf("the empty row does not span the widened table: want %s", want)
 	}

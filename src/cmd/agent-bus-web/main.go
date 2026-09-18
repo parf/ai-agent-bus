@@ -333,6 +333,7 @@ const head = `<!doctype html>
  body{font:14px system-ui,sans-serif;margin:2rem;max-width:60rem}
  table{border-collapse:collapse;width:100%;margin-bottom:2rem}
  th,td{text-align:left;padding:.3rem .6rem;border-bottom:1px solid #ddd}
+ th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
  th{font-weight:600;color:#555}
  code{font:13px ui-monospace,monospace;overflow-wrap:anywhere}
  .muted{color:#6b6b6b}
@@ -482,8 +483,8 @@ var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCoun
 {{if .Status.Unclean}}<p class=warn>the last stop was not clean — what was in
  memory at the time was not written down</p>{{end}}
 <table><caption>Refusals since this daemon started, by reason</caption>
-<thead><tr><th scope=col>reason<th scope=col>count</tr></thead>
-<tbody>{{range .Refusals}}<tr><td><code>{{.Reason}}</code><td>{{.Count}}</tr>{{end}}</tbody></table>
+<thead><tr><th scope=col>reason<th scope=col class=num>count</tr></thead>
+<tbody>{{range .Refusals}}<tr><td><code>{{.Reason}}</code><td class=num>{{.Count}}</tr>{{end}}</tbody></table>
 <p class=muted>The reason set is closed, so a <code>0</code> here is a measurement
  and not a gap. Counted since this daemon started; how fast it is rising is not
  something this page can say.</p>
@@ -494,9 +495,9 @@ var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCoun
 
 <h2 id=stuck>inboxes holding messages</h2>
 <table><caption>Inboxes holding messages, longest wait first — visible to you</caption>
-<thead><tr><th scope=col>name<th scope=col>readers<th scope=col>held now<th scope=col>oldest held<th scope=col>capacity</tr></thead>
+<thead><tr><th scope=col>name<th scope=col class=num>readers<th scope=col class=num>held now<th scope=col class=num>oldest held<th scope=col>capacity</tr></thead>
 <tbody>
-{{range .Backlogs}}<tr><td><code>{{.Name}}</code><td>{{readerCount .Readers}}<td>{{.Queued}}<td>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{if .AtBound}}<b class=warn>at capacity when observed</b>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>
+{{range .Backlogs}}<tr><td><code>{{.Name}}</code><td class=num>{{readerCount .Readers}}<td class=num>{{.Queued}}<td class=num>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{if .AtBound}}<b class=warn>at capacity when observed</b>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>
 {{else}}<tr><td colspan=5 class=muted>every queue you can see is empty</tr>{{end}}
 </tbody></table>
 <p class=muted>Holding messages is not being stuck: a reader that pulls on a
@@ -510,10 +511,10 @@ var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCoun
 ` + exchangesTemplate + `
 <h2 id=registry>registry</h2>
 <table><caption>Records visible to you — not the node-wide count above</caption>
-<thead><tr><th scope=col>name<th scope=col>kind<th scope=col>description<th scope=col>readers<th scope=col>held now<th scope=col>accepted<th scope=col>dequeued<th scope=col>config</tr></thead>
+<thead><tr><th scope=col>name<th scope=col>kind<th scope=col>description<th scope=col class=num>readers<th scope=col class=num>held now<th scope=col class=num>accepted<th scope=col class=num>dequeued<th scope=col>config</tr></thead>
 <tbody>
 {{range .Records}}<tr><td><code>{{.Name}}</code><td>{{entityLabel .Kind}}<td>{{.Descr}}
- <td>{{readerCount .Readers}}<td>{{.Queued}}<td>{{.In}}<td>{{.Out}}
+ <td class=num>{{readerCount .Readers}}<td class=num>{{.Queued}}<td class=num>{{.In}}<td class=num>{{.Out}}
  <td><code class=muted>{{.ConfigSHA}}</code></tr>
 {{else}}<tr><td colspan=8 class=muted>nothing you can see is registered</tr>{{end}}
 </tbody></table>
@@ -522,8 +523,8 @@ var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCoun
  same as the work being done.</p>
 
 <h2 id=loss>loss by name</h2>
-<table><tr><th>name<th>dropped<th>expired</tr>
-{{range .Losses}}<tr><td><code>{{.Name}}</code><td>{{.Dropped}}<td>{{.Expired}}</tr>
+<table><tr><th>name<th class=num>dropped<th class=num>expired</tr>
+{{range .Losses}}<tr><td><code>{{.Name}}</code><td class=num>{{.Dropped}}<td class=num>{{.Expired}}</tr>
 {{else}}<tr><td colspan=3 class=muted>nothing lost</tr>{{end}}</table>
 
 <h2 id=names>my names</h2>

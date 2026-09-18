@@ -92,8 +92,8 @@ the world moved between the question and the answer.
 | Remove registration | Service, Channel | — | **Danger Zone** only; **confirm**, then the list it came from |
 | Subscribe / Unsubscribe | Channel, pub/sub | — | the subscribers section |
 | Remove a subscriber | Channel, pub/sub | subscriber | the subscribers section |
-| Register a group | `/groups/new` | name, members | the new group's page |
-| Edit members | Group | members | the group's members section |
+| Register a group | `/groups/new` | name; one identity or nested group per textarea line | the new group's page |
+| Edit members | Group | one identity or nested group per textarea line | the group's members section |
 | Register a user | `/users/new` | name, person name, email, GitHub login | the new user's page |
 | Edit profile | User | person name, email, GitHub login | the profile section |
 | Refresh GitHub profile | User with a GitHub login | — | the same profile with provider fields and local photo refreshed |

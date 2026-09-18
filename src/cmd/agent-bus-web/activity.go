@@ -112,7 +112,7 @@ const activityViewTemplate = `{{define "activity-help"}}<ul><li>The daemon keeps
 <ul class=activity-legend>{{range .Series}}<li><span class="activity-swatch {{.Class}}" aria-hidden=true></span>{{.Label}}: {{.Total}} in the shown samples</li>{{end}}</ul></figure>
 {{else}}<p>All five observed activity series are measured zero in this window.</p>{{end}}
 {{with .Zero}}<p class=muted>Measured zero throughout: {{join . ", "}}.</p>{{end}}
-{{if .ShowTable}}<details><summary>Sample values</summary><table><thead><tr><th scope=col>Time<th scope=col>Accepted<th scope=col>Dequeued<th scope=col>Dropped<th scope=col>Expired<th scope=col>Refused</tr></thead><tbody>{{range .Points}}<tr><td>{{.At.Format "Jan 2 15:04:05"}}<td>{{.In}}<td>{{.Out}}<td>{{.Dropped}}<td>{{.Expired}}<td>{{.Refused}}</tr>{{end}}</tbody></table></details>{{end}}
+{{if .ShowTable}}<details><summary>Sample values</summary><table><thead><tr><th scope=col>Time<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Dropped<th scope=col class=num>Expired<th scope=col class=num>Refused</tr></thead><tbody>{{range .Points}}<tr><td>{{.At.Format "Jan 2 15:04:05"}}<td class=num>{{.In}}<td class=num>{{.Out}}<td class=num>{{.Dropped}}<td class=num>{{.Expired}}<td class=num>{{.Refused}}</tr>{{end}}</tbody></table></details>{{end}}
 {{else}}<p>Activity history is not observed yet. Collecting the first sample after this daemon restart{{if .Uptime}} (uptime: {{.Uptime}}){{end}}; no zero series is inferred.</p>{{end}}
 {{end}}{{end}}`
 

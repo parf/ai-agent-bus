@@ -6,6 +6,7 @@ gates are in [TODO](TODO.md#objective).
 | Work | Result | Evidence |
 |---|---|---|
 | H.1 fresh installation | One verified archive installs every program and face through the root-only setup script; a real fresh systemd host starts the daemon/dashboard and completes a service call | [0.5.68 evidence](done/fresh-install.md#checks) |
+| Web form and table conventions | Group members use the shared line-list textarea; numeric table columns align right with tabular figures | [evidence](done/group-editors-and-numeric-tables.md#checks) |
 | Service row color key | My and Personal links match their row treatments; Personal overrides ownership and the repeated Yours word is removed | [evidence](done/service-row-color.md#checks) |
 | Service row emphasis | Owned and Personal facts keep separate visible/color treatments; name is the single detail route and update time is compact | [0.5.66 evidence](done/service-row-emphasis.md#checks) |
 | Web title marks and compact help | Every current title has one decorative category mark; Services and Users definitions move from prose walls into native accessible help | [0.5.65 evidence](done/web-title-help.md#checks) |

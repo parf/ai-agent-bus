@@ -84,7 +84,7 @@ func TestRecordActivityEmbedsChartAndFullViewKeepsValues(t *testing.T) {
 		t.Fatal("compact detail exposed the full table or a message body")
 	}
 	full := m.get("/activity?name=svc%40h")
-	for _, want := range []string{`selected>svc@h</option>`, "<summary>Sample values</summary>", "<th scope=col>Accepted", "About activity history"} {
+	for _, want := range []string{`selected>svc@h</option>`, "<summary>Sample values</summary>", "<th scope=col class=num>Accepted", "About activity history"} {
 		if !strings.Contains(full, want) {
 			t.Errorf("full Activity view lacks %q", want)
 		}

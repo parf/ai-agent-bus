@@ -151,6 +151,9 @@ caller-visible total. Users and Groups show their visible directory totals.
 These are counts computed from the page's existing daemon answers, not
 node-wide metrics and not additional reads.
 
+Every numeric column in a web table aligns its header and values to the right
+and uses tabular figures. Prose-embedded counts remain part of their sentence.
+
 Registration opens dedicated `/services/new`, `/channels/new`, `/users/new`
 and `/groups/new` pages from the matching section navigation. User and Group
 entries appear only when the daemon says the visitor is an Administrator;
@@ -494,6 +497,10 @@ refused line is reported against that line and the submitted text is preserved.
 Keep glyphs in surrounding labels or read-only views. Saving an ACL preserves
 its terms and does not add display symbols to it. The same rule applies to CLI
 command arguments and copyable ACL examples.
+
+Maintainers and Group membership use the same line-list textarea. Each
+Maintainer term occupies one line; each direct Group member, including a nested
+group, occupies one line. Display glyphs never enter these editable values.
 
 The [ACL contract](02-access.md#acl) defines access terms and their implementation status.
 The [proposed role syntax](../Plans/R1/identity.md#sigils) remains separately

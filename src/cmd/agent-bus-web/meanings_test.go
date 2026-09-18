@@ -215,14 +215,37 @@ func TestReadersAreObservedAndNeverCalledOfflineOrServing(t *testing.T) {
 			t.Errorf("the listing says %q, which is health language the daemon does not supply", banned)
 		}
 	}
-	if !strings.Contains(m.row(body, "reading@h"), "Enabled<td>1<td>") {
+	if !strings.Contains(m.row(body, "reading@h"), "Enabled<td class=num>1<td>") {
 		t.Errorf("the outstanding read is not counted: %s", m.row(body, "reading@h"))
 	}
-	if !strings.Contains(m.row(body, "quiet@h"), "Enabled<td>0<td>") {
+	if !strings.Contains(m.row(body, "quiet@h"), "Enabled<td class=num>0<td>") {
 		t.Errorf("the measured zero is not shown: %s", m.row(body, "quiet@h"))
 	}
 	if !strings.Contains(body, "None of it is health") {
 		t.Error("the page does not say this is not health")
+	}
+}
+
+func TestNumericTableColumnsAreRightAligned(t *testing.T) {
+	m := meaningFixture(t)
+	m.shapes()
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "table alignment"}); err != nil {
+		t.Fatal(err)
+	}
+	m.bus.SampleActivity(time.Now())
+	for path, wants := range map[string][]string{
+		"/services": {`th.num,td.num{text-align:right`, `<th scope=col class=num>Readers`, `<th scope=col class=num>Queued`, `<td class=num>0`},
+		"/activity": {`<th scope=col class=num>Accepted`, `<th scope=col class=num>Refused`, `<td class=num>0`},
+		"/": {`<th scope=col class=num>count`, `<th scope=col class=num>readers`, `<th scope=col class=num>held now`,
+			`<th scope=col class=num>oldest held`, `<th scope=col class=num>Envelopes`, `<th scope=col class=num>accepted`,
+			`<th class=num>dropped`, `<th class=num>expired`, `<td class=num>0`, `<td class=num data-label="Envelopes">1`},
+	} {
+		body := m.get(path)
+		for _, want := range wants {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s does not right-align numeric table markup %q", path, want)
+			}
+		}
 	}
 }
 
@@ -264,7 +287,7 @@ func TestExternalDoesNotStandInForTheReaderObservation(t *testing.T) {
 	if !strings.Contains(row, "external") {
 		t.Error("the external record's own row does not say so")
 	}
-	if !strings.Contains(row, "Enabled<td>1<td>external") {
+	if !strings.Contains(row, "Enabled<td class=num>1<td>external") {
 		t.Errorf("the external record's row does not keep the separate reader count: %s", row)
 	}
 	if !strings.Contains(m.get("/service?name=elsewhere@h"), "not proof of anything") {
@@ -296,15 +319,15 @@ func TestQueueCountersSayTheirScopeAndNeverSayCompleted(t *testing.T) {
 		t.Fatal(err)
 	}
 	head := m.section(m.get("/"), "registry")
-	for _, col := range []string{"<th scope=col>readers", "<th scope=col>held now",
-		"<th scope=col>accepted", "<th scope=col>dequeued"} {
+	for _, col := range []string{"<th scope=col class=num>readers", "<th scope=col class=num>held now",
+		"<th scope=col class=num>accepted", "<th scope=col class=num>dequeued"} {
 		if !strings.Contains(head, col) {
 			t.Errorf("the registry table has no %q column: %s", col, head)
 		}
 	}
 	// held now 2, accepted 3, dequeued 1 — in that order, so the columns are
 	// named for the numbers under them rather than the other way round.
-	if got := m.row(head, "quiet@h"); !strings.Contains(got, "<td>2<td>3<td>1") {
+	if got := m.row(head, "quiet@h"); !strings.Contains(got, "<td class=num>2<td class=num>3<td class=num>1") {
 		t.Errorf("the registry's counters do not line up with their columns: %s", got)
 	}
 	for _, page := range []string{"/", "/service?name=quiet@h"} {
@@ -443,7 +466,7 @@ func TestEverySupportedRefusalReasonIsDrawnIncludingItsZero(t *testing.T) {
 	// Read against what the daemon reports rather than against a literal, so
 	// the check is that the page shows the count rather than that the fixture
 	// produced a particular number of refusals.
-	held := fmt.Sprintf("<td>%d", m.bus.Status().Refused["unknown"])
+	held := fmt.Sprintf("<td class=num>%d", m.bus.Status().Refused["unknown"])
 	if m.bus.Status().Refused["unknown"] == 0 {
 		t.Fatal("the fixture produced no counted refusal")
 	}
@@ -451,7 +474,7 @@ func TestEverySupportedRefusalReasonIsDrawnIncludingItsZero(t *testing.T) {
 		t.Errorf("a counted reason is not shown with its count (want %s): %s", held, got)
 	}
 	// And a reason nothing produced is a zero rather than a blank or a dash.
-	if got := m.row(body, "malformed"); !strings.Contains(got, "<td>0<") && !strings.HasSuffix(got, "<td>0") {
+	if got := m.row(body, "malformed"); !strings.Contains(got, "<td class=num>0<") && !strings.HasSuffix(got, "<td class=num>0") {
 		t.Errorf("a reason nothing produced is not drawn as a measured zero: %s", got)
 	}
 	// And the page says what the figures cover, which is now every refusal an
@@ -827,10 +850,10 @@ func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 	m.attachReader("reading@h")
 	// The diagnostics page lists a queue with no read on it.
 	body := m.get("/")
-	if !strings.Contains(m.row(body, "quiet@h"), "<td>0<td>1<td>") {
+	if !strings.Contains(m.row(body, "quiet@h"), "<td class=num>0<td class=num>1<td class=num>") {
 		t.Errorf("the backlog does not show readers=0 and held=1: %s", m.row(body, "quiet@h"))
 	}
-	if !strings.Contains(m.row(m.get("/services"), "reading@h"), "Enabled<td>1<td>") {
+	if !strings.Contains(m.row(m.get("/services"), "reading@h"), "Enabled<td class=num>1<td>") {
 		t.Error("an unfiltered read is not counted")
 	}
 	// A read restricted to a topic is counted while a nonmatching backlog stays.
@@ -841,7 +864,7 @@ func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 	}
 	taken := n.attachReader("reading@h", "other")
 	row := n.row(n.get("/"), "reading@h")
-	if !strings.Contains(row, "<td>1<td>1<td>") {
+	if !strings.Contains(row, "<td class=num>1<td class=num>1<td class=num>") {
 		t.Errorf("the filtered read and held message are not both reported: %s", row)
 	}
 	for _, phrase := range []string{"filtered and unfiltered together", "positive count promises neither"} {
