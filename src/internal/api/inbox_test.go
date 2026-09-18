@@ -16,7 +16,7 @@ func TestInboxSelectionIsIndependentOfMessageFilters(t *testing.T) {
 		{Name: "reader@h", Owner: "admin@h", Allow: []string{"admin@h"}},
 		{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Allow: []string{"reader@h", "admin@h"}},
 		{Name: "filter@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Allow: []string{"reader@h", "admin@h"}},
-		{Name: "secret@h", Owner: "admin@h", Allow: []string{"admin@h"}, NoMaster: true},
+		{Name: "secret@h", Owner: "admin@h", Allow: []string{"admin@h"}},
 	} {
 		if _, err := c.bus.Register(record); err != nil {
 			t.Fatal(err)

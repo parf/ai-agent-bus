@@ -1,5 +1,14 @@
 import os from "node:os";
 
+export const ownerACL = "@owner";
+
+// ab-* identities always admit the Owner's other Services and Agents. Keep
+// explicit grants an owner already added; registration is a merge, not a
+// reason to erase them on launcher restart or rename.
+export function withOwnerACL(allow: string[] | undefined): string[] {
+  return [...new Set([...(allow ?? []), ownerACL])];
+}
+
 // The daemon, as seen from TypeScript. Every call carries a token and nothing
 // else, as any other client does — docs/02-access.md#what-a-call-carries.
 // HTTP+JSON over a unix socket or loopback TCP: bun's fetch speaks both.
@@ -29,7 +38,7 @@ export type Record_ = { name: string; kind: string; addr?: string; descr?: strin
   // Who may see and use it. A listing already leaves out what its caller may
   // not, so this is what a record says about itself, not a filter to apply
   // here (docs/02-access.md#acl).
-  allow?: string[]; no_master?: boolean;
+  allow?: string[];
   // How to call it, and whether anything is actually serving it. A registry
   // entry says a name exists; these say whether a call through the bus will
   // reach anyone (docs/05-discovery.md#what-a-listing-answers).
@@ -98,7 +107,7 @@ export class Bus {
     return text ? JSON.parse(text) : null;
   }
 
-  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; no_master?: boolean }, createOnly = false): Promise<Record_> {
+  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[] }, createOnly = false): Promise<Record_> {
     return this.#call("POST", "/register", rec, undefined, createOnly ? { "If-None-Match": "*" } : {});
   }
 

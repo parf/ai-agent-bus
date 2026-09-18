@@ -26,7 +26,6 @@ func suspendedOwnerFixture(t *testing.T) suspendFixture {
 	t.Helper()
 	bus := core.New()
 	s, token := serverFor(t, bus, "admin@h")
-	bus.Masters([]string{"admin@h"})
 	for _, who := range []string{"alice@h", "maint@h", "bystander@h", "steady@h"} {
 		if _, err := bus.SetUser("admin@h", protocol.User{Name: who}, true); err != nil {
 			t.Fatal(err)
@@ -184,8 +183,8 @@ func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 	if !strings.Contains(body, "suspended") {
 		t.Errorf("a third-party read was refused without saying why: %s", body)
 	}
-	// The daemon owner's master access is read authority, and it does not
-	// exempt them from this either.
+	// The daemon owner is explicitly listed, and owner suspension still
+	// blocks that otherwise-valid read authority.
 	f.call("admin@h", "GET", "/consume?inbox=jobs@h&wait=0s", "", 403)
 
 	// The work is still there when the state is lifted; nothing was drained

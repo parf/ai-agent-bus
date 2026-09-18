@@ -63,10 +63,10 @@ func TestDaemonOwnerManagesAndSeesEveryResourceWithoutOpeningItsACL(t *testing.T
 	}
 }
 
-func TestDaemonOwnerTransferMovesRootAndImplicitMasterOnly(t *testing.T) {
+func TestDaemonOwnerTransferMovesRootWithoutOpeningResourceACLs(t *testing.T) {
 	b := ownerFixture(t)
-	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "svc@h", Body: "before"}); err != nil {
-		t.Fatalf("current owner's implicit master: %v", err)
+	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "svc@h", Body: "before"}); !errors.Is(err, ErrNotAllow) {
+		t.Fatalf("node owner unexpectedly inherited message access: %v", err)
 	}
 	if _, err := b.TransferDaemonOwner("owner@h", "owner@h"); !errors.Is(err, ErrBadName) {
 		t.Fatalf("self transfer: %v", err)
@@ -96,15 +96,18 @@ func TestDaemonOwnerTransferMovesRootAndImplicitMasterOnly(t *testing.T) {
 		t.Fatalf("new owner lacks node-wide controls: %+v, %v", r, ok)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "svc@h", Body: "old"}); !errors.Is(err, ErrNotAllow) {
-		t.Fatalf("former owner retained implicit master: %v", err)
+		t.Fatalf("former owner gained message access: %v", err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "next@h", To: "svc@h", Body: "after"}); err != nil {
-		t.Fatalf("new owner lacks implicit master: %v", err)
+	if _, err := b.Send(protocol.Envelope{From: "next@h", To: "svc@h", Body: "after"}); !errors.Is(err, ErrNotAllow) {
+		t.Fatalf("new owner unexpectedly inherited message access: %v", err)
 	}
-	if got := b.Recent("owner@h"); len(got) != 1 || got[0].From != "owner@h" {
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "svc@h", Body: "record event"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := b.Recent("owner@h"); len(got) != 0 {
 		t.Fatalf("former owner retained node-wide recent view: %+v", got)
 	}
-	if got := b.Recent("next@h"); len(got) != 2 {
+	if got := b.Recent("next@h"); len(got) != 1 || got[0].From != "alice@h" {
 		t.Fatalf("new owner lacks node-wide recent view: %+v", got)
 	}
 }

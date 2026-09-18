@@ -78,10 +78,6 @@ func runBus(c config) {
 		}
 	}
 	save(false)
-	// Explicit masters are configuration. The durable current owner holds the
-	// implicit owner grant in core, so a transfer takes effect without changing
-	// setup's flags or the supervisor's account-socket mapping.
-	bus.Masters(c.hold)
 	// A realm somebody vouches for can only be entered by proving you hold
 	// a key it publishes. Realms nobody vouches for stay open, as they were.
 	// See docs/01-identity-and-roles.md#registration.

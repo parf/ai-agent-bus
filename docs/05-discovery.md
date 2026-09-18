@@ -111,7 +111,8 @@ anywhere.
 Bodies are struck out **in the bus**, where the feed is written — so no reader
 has to be trusted to leave them alone. The feed and the records beside it are
 both filtered per caller: you see the exchanges you were **party to**, sent or
-addressed to you, and master sees the node's.
+addressed to you, and the daemon Owner sees the node's through node-wide
+authority.
 
 **The node's own counters are the node's, not the caller's.** Uptime, the
 registry's totals and the [refusal counts](#refusals) describe the daemon, and
@@ -235,8 +236,8 @@ is described as collecting after restart rather than as zero. The displayed
 window, current uptime and partial final sample are stated beside the graph.
 
 The four delivery series on the unfiltered view cover records currently visible
-to the caller. Refused is node-wide for the daemon Owner and configured masters,
-and covers visible records for other callers. A named view is record-scoped for
+to the caller. Refused is node-wide for the daemon Owner and covers visible
+records for other callers. A named view is record-scoped for
 all five series. Dequeued means handed to a reader, never completed work.
 
 The bus samples record counters every ten minutes, independently of dashboard
@@ -248,8 +249,8 @@ History is in memory and starts fresh after restart. Export remains
 Graphs and their accessible value table report accepted, dequeued, dropped,
 expired and refused counts. Aggregates include only currently visible records;
 pub/sub copies count in the subscriber inboxes that accept them. Per-record
-refusals count failed sends and reads; the daemon owner and configured masters
-also see node refusal totals, on the terms [refusals](#refusals) sets — every
+refusals count failed sends and reads; the daemon Owner also sees node refusal
+totals, on the terms [refusals](#refusals) sets — every
 endpoint refusal, including authentication failures and malformed requests, and
 not the router's rejections or our own failures. Bodies never
 enter this history.
@@ -546,7 +547,10 @@ even when their visible option label carries a glyph.
 ### ACL editing
 
 ACL textareas use the project's plain-text ACL syntax, not the display glyphs.
-Each ACL term occupies one line: a user, group, agent, service or `*`. Users
+Each ACL term occupies one line: a user, ordinary group, agent, service,
+runtime `@owner` term or `*`. `@owner` means the record's direct Owner and the
+Services and Agents directly owned by that Owner; it is not an editable group.
+Users
 must not need to type Unicode to identify one. Blank lines are ignored; a
 refused line is reported against that line and the submitted text is preserved.
 Keep glyphs in surrounding labels or read-only views. Saving an ACL preserves

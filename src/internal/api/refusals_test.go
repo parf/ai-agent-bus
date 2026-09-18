@@ -154,7 +154,7 @@ func TestAHiddenNameCountsAsAMissingOneDoes(t *testing.T) {
 	if _, err := c.bus.SetUser("admin@h", protocol.User{Name: "stranger@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.bus.Register(protocol.Record{Name: "secret@h", Owner: "admin@h", Kind: protocol.KindTopic, Allow: []string{"admin@h"}, NoMaster: true}); err != nil {
+	if _, err := c.bus.Register(protocol.Record{Name: "secret@h", Owner: "admin@h", Kind: protocol.KindTopic, Allow: []string{"admin@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	outsider := c.as("stranger@h")

@@ -31,7 +31,7 @@ unconfigured capability. Personal is an owner-selected
 | Canonical name | Routing identity | [definition](01-identity-and-roles.md#names) |
 | Token | Principal credential | [definition](02-access.md#what-a-call-carries) |
 | Local socket | Account credential | [definition](02-access.md#local-socket) |
-| Service ACL and master | Visibility and use policy | [definition](02-access.md#acl) |
+| Service ACL | Visibility and use policy, including runtime `@owner` | [definition](02-access.md#acl) |
 | Owner | Highest authority within the named scope | [definition](01-identity-and-roles.md#role-names-and-scopes) |
 | Daemon Owner | Root-like authority over the node; assigned through setup | [definition](01-identity-and-roles.md#daemon-owner) |
 | Administrator | Manages daemon users and groups | [definition](01-identity-and-roles.md#daemon-administrators) |

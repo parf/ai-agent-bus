@@ -1726,26 +1726,27 @@ out=$(eab enrol squatter@vouched --key "$D/enr/mine" 2>&1); rc=$?
 bad_exit "while nobody new can enrol while it is gone" $rc
 kill $EPID 2>/dev/null; wait $EPID 2>/dev/null
 
-sec "who may reach what: the service answers first, then master"
+sec "who may reach what: direct grants and the owner's service cohort"
 users acl-owner@srv1
-# Two services alike in everything but the one flag, so what is being
-# measured is the policy and not the request.
 # See docs/02-access.md#acl.
-ab acl-owner@srv1 register open-svc@srv1 --descr "takes master" --allow acl-owner@srv1 >/dev/null
-ab acl-owner@srv1 register shut-svc@srv1 --descr "refuses master" --allow acl-owner@srv1 --no-master >/dev/null
+ab acl-owner@srv1 register direct-svc@srv1 --descr "direct access only" --allow acl-owner@srv1 >/dev/null
+ab acl-owner@srv1 register owner-cohort@srv1 --descr "owner cohort" --allow '@owner' >/dev/null
+ab acl-owner@srv1 register sibling-svc@srv1 --descr "same direct owner" >/dev/null
 ab acl-owner@srv1 register any-svc@srv1 --descr "open to all" --allow '*' >/dev/null
-has "the daemon's owner holds master, so it reaches a service that takes it" \
-  "$(post_code $OWNER /send '{"to":"open-svc@srv1","body":"by master"}')" '200'
-has "and is refused by the one that refuses it" \
-  "$(post_code $OWNER /send '{"to":"shut-svc@srv1","body":"by master"}')" '403'
-has "with a refusal of its own, not a 404" \
-  "$(post_body $OWNER /send '{"to":"shut-svc@srv1","body":"by master"}')" 'may not send to'
-has "a principal on neither list is refused by both" \
-  "$(post_code alice@srv1 /send '{"to":"open-svc@srv1","body":"by nobody"}')" '403'
-has "and by the second as well" \
-  "$(post_code alice@srv1 /send '{"to":"shut-svc@srv1","body":"by nobody"}')" '403'
-has "while the owner of both still reaches them" \
-  "$(post_code acl-owner@srv1 /send '{"to":"shut-svc@srv1","body":"mine"}')" '200'
+has "the daemon Owner has no implicit message-access layer" \
+  "$(post_code $OWNER /send '{"to":"direct-svc@srv1","body":"not an ACL grant"}')" '403'
+has "and the refusal is its own, not a hidden lookup" \
+  "$(post_body $OWNER /send '{"to":"direct-svc@srv1","body":"not an ACL grant"}')" 'may not send to'
+has "a principal absent from a direct ACL is refused" \
+  "$(post_code alice@srv1 /send '{"to":"direct-svc@srv1","body":"by nobody"}')" '403'
+has "while the resource owner still reaches it" \
+  "$(post_code acl-owner@srv1 /send '{"to":"direct-svc@srv1","body":"mine"}')" '200'
+has "@owner admits a service with the same direct owner" \
+  "$(post_code sibling-svc@srv1 /send '{"to":"owner-cohort@srv1","body":"sibling"}')" '200'
+has "@owner also admits the direct owner" \
+  "$(post_code acl-owner@srv1 /send '{"to":"owner-cohort@srv1","body":"owner"}')" '200'
+has "@owner does not admit an unrelated user" \
+  "$(post_code alice@srv1 /send '{"to":"owner-cohort@srv1","body":"unrelated"}')" '403'
 has "and allow * means anyone who can authenticate" \
   "$(post_code alice@srv1 /send '{"to":"any-svc@srv1","body":"by anyone"}')" '200'
 # A record is always its owner's and its own, list or no list: a service
@@ -1760,19 +1761,19 @@ is_empty "while a stranger sees neither" \
 # Seeing and using are the same question, so a service you may not use is
 # not in your listing and does not answer a lookup either.
 is_empty "a service that will not have you is not in your listing" \
-  "$(ab alice@srv1 ls | grep -o 'refuses master')"
-has "though it is in its owner's" "$(ab acl-owner@srv1 ls)" 'refuses master'
+  "$(ab alice@srv1 ls | grep -o 'direct access only')"
+has "though it is in its owner's" "$(ab acl-owner@srv1 ls)" 'direct access only'
 has "and a lookup of it says no such name" \
-  "$(code alice@srv1 "/lookup?name=shut-svc@srv1")" '404'
+  "$(code alice@srv1 "/lookup?name=direct-svc@srv1")" '404'
 has "while its owner gets the record" \
-  "$(code acl-owner@srv1 "/lookup?name=shut-svc@srv1")" '200'
+  "$(code acl-owner@srv1 "/lookup?name=direct-svc@srv1")" '200'
 # One check per write verb: a shared guard passes the whole set while any
 # one path is still open.
 ab acl-owner@srv1 topic create shut-topic@srv1 --descr "not yours" --allow acl-owner@srv1 >/dev/null
 has "publishing to a topic that will not have you is refused" \
   "$(post_code alice@srv1 /send '{"to":"shut-topic@srv1","topic":"anything","body":"by nobody"}')" '403'
 has "and so is registering over its name" \
-  "$(post_code alice@srv1 /register '{"name":"shut-svc@srv1","kind":"generic"}')" '403'
+  "$(post_code alice@srv1 /register '{"name":"direct-svc@srv1","kind":"generic"}')" '403'
 
 sec "the installer makes a service account, and it is not the installer's"
 # The privileged step cannot run here, so what is checked is everything it
@@ -1924,10 +1925,10 @@ has "the daemon remembers the envelope it routed" "$FEED" "$MSG"
 has "and who it was between" "$FEED" '"to":"board-svc@srv1"'
 is_empty "and never the body" "$(printf '%s' "$FEED" | grep -o "$SECRET")"
 # The feed is each caller's own, not the operator's: what you were party to,
-# and for master the node's. Refusing everyone but master made the exchanges
+# and for the daemon Owner the node's. Refusing everyone else made the exchanges
 # view impossible to show anybody (docs/05-discovery.md#what-it-shows).
 ALICE_FEED=$(code alice@srv1 /recent)
-has "a caller who is not master may read the feed" "$ALICE_FEED" '200'
+has "an ordinary caller may read their scoped feed" "$ALICE_FEED" '200'
 ab alice@srv1 register alice-svc@srv1 --allow '*' --descr "hers" >/dev/null
 ab alice@srv1 register alice@srv1 --allow '*' --descr "alice herself" >/dev/null
 # Party to it BOTH ways: one she sent, and one addressed to her. A feed that
@@ -1938,14 +1939,14 @@ MINE=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $alice" "http:
 has "and sees an exchange they were party to" "$MINE" "$ASENT"
 has "and one addressed to them, not only what they sent" "$MINE" "$AGOT"
 # The control that matters: seeing your own is worthless if you also see
-# everyone else's, which is what the master-only rule was protecting.
+# everyone else's, which is what the daemon-Owner-only rule protects.
 is_empty "but not one between two other names" \
   "$(printf '%s' "$MINE" | grep -o "$MSG")"
-# Master's view is the NODE's, so it has to hold an exchange master was no
-# part of — the earlier feed is all master's own traffic and would pass
+# The daemon Owner's view is the NODE's, so it has to hold an exchange the
+# Owner was no part of — the earlier feed is all the Owner's own traffic and would pass
 # whatever the rule became.
 NODE=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/recent")
-has "while master sees an exchange between two other names" "$NODE" "$ASENT"
+has "while the daemon Owner sees an exchange between two other names" "$NODE" "$ASENT"
 # The child is given NO credential and the shared socket rather than the
 # owner's: on the owner's own socket every page it rendered would be the
 # owner's, served to whoever connected, and a child with the owner's
@@ -2003,13 +2004,13 @@ has "the dashboard renders the envelope" "$(sect exchanges "$PAGE")" 'board-svc@
 has "and the record it was for" "$PAGE" 'watched by the board'
 is_empty "and no body reaches the page" "$(printf '%s' "$PAGE" | grep -o "$SECRET")"
 # Two principals, one URL, different pages. The resource owner sees its record;
-# the daemon Owner sees it for management even though its master access is
-# refused. The earlier send check pins that visibility does not grant message use.
+# the daemon Owner sees it for management even though it has no implicit
+# message access. The earlier send check pins that visibility does not grant use.
 OJAR=$D/web-owner.jar; rm -f "$OJAR"
 curl -s -c "$OJAR" -o /dev/null -X POST -d "token=$(tok acl-owner@srv1)" "$WEB/signin"
-has "a second principal gets their own page" "$(curl -s -b "$OJAR" "$WEB/")" 'refuses master'
-has "and the daemon Owner sees a master-refusing record for management" \
-  "$PAGE" 'refuses master'
+has "a second principal gets their own page" "$(curl -s -b "$OJAR" "$WEB/")" 'direct access only'
+has "and the daemon Owner sees that ACL-restricted record for management" \
+  "$PAGE" 'direct access only'
 
 # The views the MVP owes, each a reshape of what the bus already answered
 # THIS caller: the ordering, the grouping and the late mark are the page's

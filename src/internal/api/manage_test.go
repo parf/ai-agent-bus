@@ -14,7 +14,6 @@ import (
 func TestOwnerControlThroughAPI(t *testing.T) {
 	bus := core.New()
 	s, token := serverFor(t, bus, "admin@h")
-	bus.Masters([]string{"admin@h"})
 	call := func(who, path, body string, want int) string {
 		t.Helper()
 		method := "POST"
@@ -43,7 +42,7 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	call("bob@h", "/manage", `{"name":"svc@h","owner":"bob@h"}`, 403)
 	call("alice@h", "/group", `{"name":"@ops","members":["alice@h"]}`, 403)
 	call("admin@h", "/group", `{"name":"@ops","members":["maint@h"]}`, 200)
-	managed := call("alice@h", "/manage", `{"name":"svc@h","maintainers":"@ops","no_master":true,"bound":2,"ttl":"1h","overflow":"strict","descr":"owned"}`, 200)
+	managed := call("alice@h", "/manage", `{"name":"svc@h","maintainers":"@ops","bound":2,"ttl":"1h","overflow":"strict","descr":"owned"}`, 200)
 	if !strings.Contains(managed, `"maintainers":["@ops"]`) || strings.Contains(managed, `"maintainers":"@ops"`) {
 		t.Fatalf("legacy management input was not answered with the array spelling: %s", managed)
 	}

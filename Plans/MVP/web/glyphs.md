@@ -153,7 +153,7 @@ Corrections applied from codex and home-parf, each of which I had wrong:
   signal is buildable on Activity. It is simply not something the Overview's
   basis can say, and sampled history does not survive a restart. codex's scope
   qualifier, accepted: that series carries **node-wide** refusals only on the
-  unfiltered admin or master view (activity.go:98–99) and is a sum over
+  unfiltered daemon-Owner view (activity.go:98–99) and is a sum over
   visible records otherwise, so the two must never be labelled alike.
 - *"backlog with no reader"* is **not** severity. A queue worker between pulls
   is exactly that shape and nothing is wrong.

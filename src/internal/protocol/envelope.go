@@ -146,11 +146,10 @@ type Record struct {
 	// the record, not something inside Config, because the daemon enforces
 	// it and will not read a private configuration. `*` means anyone who
 	// can authenticate; empty means only management authority and the record's
-	// own principal. NoMaster prevents the master layer from adding access to
-	// a non-empty ACL.
+	// own principal. `@owner` means the direct Owner's Service and Agent
+	// principals; it is resolved at use time rather than stored as a group.
 	// See docs/02-access.md#acl.
-	Allow    []string `json:"allow,omitempty"`
-	NoMaster bool     `json:"no_master,omitempty"`
+	Allow []string `json:"allow,omitempty"`
 
 	// Subs is who receives a copy of what is published to a pub/sub topic.
 	// A subscription is a record, so it lives here rather than in a

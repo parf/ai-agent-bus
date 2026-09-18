@@ -87,7 +87,6 @@ The flags:
 |---|---|
 | `-owner user@realm` | whose daemon this is. The owner is always an administrator |
 | `-user account=user@realm` | first-current-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
-| `-master user@realm` | a principal that reaches **every** service which has not refused it. Repeatable ⚠️ use sparingly |
 | `-directory realm=github` | a realm and what vouches for it. `realm=/path/to/keys` for a directory of key files |
 | `-addr` · `-socket` | the loopback address and the unix socket path |
 | `-token-file` | the token store; created if missing |
@@ -164,7 +163,7 @@ Not one blob. A small supervisor with least-privilege children:
 |---|---|
 | the supervisor | one capability, **no state** |
 | bus | the registry and the queues |
-| auth | the master secret — and it is the **only** one that does |
+| auth | principal token secrets — and it is the **only** one that does |
 | web, health | no secrets at all |
 
 They talk over unix sockets and passed file descriptors, nothing shared

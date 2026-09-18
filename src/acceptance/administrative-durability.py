@@ -106,7 +106,7 @@ try:
         check(api("/group", owner, {"name": "@readers", "members": list(creds)})[0] == 200,
               kind + " group setup")
         target = kind + "@durability"
-        check(api("/register", owner, {"name": target, "allow": ["@readers"], "no_master": True})[0] == 200,
+        check(api("/register", owner, {"name": target, "allow": ["@readers"]})[0] == 200,
               kind + " service setup")
         body = {"to": target, "body": "disposable access probe"}
         status, data = api("/session", victim, {})

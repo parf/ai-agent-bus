@@ -89,10 +89,10 @@ A current snapshot with a missing, invalid, inactive or unknown Owner fails
 startup rather than silently restoring the seed.
 
 Root management includes discovery, settings, ACL, Maintainers, ownership,
-configuration and removal. It does not itself grant message use. The current
-Owner separately holds the [master grant](02-access.md#acl), which still needs
-a non-empty ACL and remains subject to explicit master refusal. Administrators
-gain no node-wide resource authority from their administrative position.
+configuration and removal. It does not itself grant message use: the Owner
+uses a resource only through its resource authority or [ACL](02-access.md#acl).
+Administrators gain no node-wide resource authority from their administrative
+position.
 
 </details>
 
@@ -300,9 +300,8 @@ names. Ordinary re-registration instead permits authorized updates under the
 
 Re-registration preserves ownership, private configuration, subscriptions,
 assigned Maintainers and the disabled setting. Omitting the ACL retains its
-grants and master refusal; an explicit ACL replaces those settings. An explicit
-master refusal can tighten access without replacing the ACL. Use management to
-deliberately clear grants or the master refusal.
+grants; an explicit ACL replaces them. Use management to deliberately clear
+grants.
 
 </details>
 

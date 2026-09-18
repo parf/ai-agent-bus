@@ -144,11 +144,18 @@ not admit anonymous, unknown or suspended callers. A
 [Personal service](03-services-and-topics.md#personal-and-shared) cannot use
 this grant because its ACL cannot grant access to users.
 
+**`@owner` is a runtime ACL term for the record's direct Owner and every
+registered Service or Agent directly owned by that Owner.** Ownership is one
+step: a service owned by another service does not inherit the human owner's
+cohort. Channels are not cohort members. The term follows current registry
+ownership, grants access rather than management, and is not a stored group: it
+cannot be created, nested in a group or assigned as a Maintainer.
+
 Faces cannot widen these permissions. Enter ACLs in the project's
 [plain-text syntax](05-discovery.md#acl-editing), not display glyphs.
 
 <details>
-<summary>Grants, master access and upgrade behavior</summary>
+<summary>Grants and upgrade behavior</summary>
 
 Version 0.5.44 replaces the former open-empty default, including on restored
 records. See the [upgrade note](09-setup.md#empty-acl-upgrade).
@@ -157,18 +164,20 @@ records. See the [upgrade note](09-setup.md#empty-acl-upgrade).
 |---|---|
 | Resource management authority | Owner, resource's own principal and assigned Maintainers have access |
 | Empty allow list | No additional access beyond resource management authority |
-| Matching name, group or `*` | Grants access |
-| Master | ~~Grants access with a non-empty ACL unless the record refuses master~~ — **pending removal**, owner decision 2026-09-18 ([G.4](../Plans/MVP/TODO.md#remaining-work)). Still built and still granting until that lands |
+| Matching name, ordinary group or `*` | Grants access |
+| `@owner` | Grants access to the direct Owner and the Owner's directly owned Services and Agents |
 
-The daemon owner holds master; additional masters are configured at startup.
-Master grants access, not ownership or management. The daemon Owner separately
-has [node-wide management](01-identity-and-roles.md#daemon-owner); that lets the
-Owner discover and edit an empty-ACL resource without opening its message access.
-Allow lists and master refusal are registry settings, never values taken from
-private service configuration. Queries, sends, consumes and writes still obey
-their applicable state and authority checks.
+Version 0.5.74 removes the former master layer, including its flag and record
+field. The daemon Owner keeps
+[node-wide management](01-identity-and-roles.md#daemon-owner), which permits
+discovery and editing without opening a resource's message interface. See the
+[release note](09-setup.md#owner-acl-and-master-removal).
 
-ACLs can name users, services and groups. Group resolution follows
+Allow lists are registry settings, never values taken from private service
+configuration. Queries, sends, consumes and writes still obey their applicable
+state and authority checks.
+
+ACLs can name users, services, ordinary groups and `@owner`. Ordinary group resolution follows
 [nested membership](01-identity-and-roles.md#groups), including cycle-safe and
 later-populated group references.
 User/Agent/Service glyphs are

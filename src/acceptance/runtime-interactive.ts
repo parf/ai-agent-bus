@@ -52,7 +52,7 @@ try {
   const ownerEnv = { ...env, AGENT_BUS_ADDR: join(out, "bus.sock"), AGENT_BUS_NAME: "owner@fixture", AGENT_BUS_TOKEN: token };
   const owner = new Bus(ownerEnv);
   await owner.register({ name: "echo@fixture", allow: slots.map(s => s.name) });
-  await owner.register({ name: "forbidden@fixture", allow: ["nobody@fixture"], no_master: true });
+  await owner.register({ name: "forbidden@fixture", allow: ["nobody@fixture"] });
   const service = await owner.as("echo@fixture");
   const peers = [];
   for (const s of slots) {

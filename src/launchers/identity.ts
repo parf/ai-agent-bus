@@ -1,4 +1,4 @@
-import { Bus, BusError } from "../mcp/bus.ts";
+import { Bus, BusError, withOwnerACL } from "../mcp/bus.ts";
 import { sleep } from "../mcp/push.ts";
 import { Bindings, numberedName } from "./sessions.ts";
 
@@ -45,7 +45,8 @@ export async function claimIdentity(owner: Bus, bindings: Bindings, base: string
     const used = new Set(records.filter(r => r.name !== name && r.name !== previous).map(r => r.descr));
     for (let n = 2; used.has(label) || !bindings.lock(`label:${label}`); n++) label = `${title} #${n}`;
     try {
-      await owner.register({ name, kind: "agent", descr: label }, !saved);
+      const existing = records.find(r => r.name === name);
+      await owner.register({ name, kind: "agent", descr: label, allow: withOwnerACL(existing?.allow) }, !saved);
       return { name, label };
     } catch (e) {
       if (saved || !(e instanceof BusError) || e.status !== 412) throw e;

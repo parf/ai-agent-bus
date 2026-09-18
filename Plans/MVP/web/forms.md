@@ -84,7 +84,7 @@ the world moved between the question and the answer.
 | Register a channel | `/channels/new` | name, description, delivery mode, allow | the new channel's page |
 | Edit metadata | Service, Channel | description, address, protocol | the identity section |
 | Edit queue policy | Service, Channel | TTL, capacity, overflow | the queue section |
-| Edit access | Service, Channel | one plain ACL term per textarea line; refuse master | the access section |
+| Edit access | Service, Channel | one plain ACL term per textarea line; `@owner` stays plain syntax | the access section |
 | Replace configuration | Service, Channel | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
 | Assign maintainers | Service, Channel | one named user, group, agent or service per textarea line | the identity section |
 | Enable / Disable | Service, Channel | — | the identity section |
@@ -120,7 +120,8 @@ action. Two different authorities in one section, named separately
 ([S06](review/codex.md#specification-review-round-one)).
 
 ACL and Maintainers share the same textarea and line handling. ACL additionally
-accepts `*`; Maintainers accepts named users, groups, agents and services. The
+accepts `*` and runtime `@owner`; Maintainers accepts named users, groups,
+agents and services but never `@owner`. The
 built Maintainers list is defined by the
 [authority contract](../../../docs/01-identity-and-roles.md#services); the web
 must not flatten it back into a single-group field.

@@ -35,7 +35,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus --version
   agent-bus status
   agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict] [--personal]
-                            [--allow a@b,c@d | --allow '*'] [--no-master]  who may see and use it
+                            [--allow a@b,c@d | --allow '*' | --allow '@owner']  who may see and use it
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to call it; unset = this bus
   agent-bus ls [<name>] [--kind k] [-h]   -h: human-readable table
@@ -53,7 +53,7 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus publish --topic <name> <text>
   agent-bus subscribe <topic>     receive a copy of everything published there
   agent-bus unsubscribe <topic>
-  agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*] [--no-master] [--personal]
+  agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*|@owner] [--personal]
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]
@@ -172,6 +172,9 @@ func tokenFor(name string) (string, error) {
 
 func register(args []string) error {
 	pos, flags := split(args)
+	if err := only(flags, "kind", "addr", "descr", "overflow", "personal", "allow", "ttl", "bound", "protocol"); err != nil {
+		return err
+	}
 	if len(pos) != 1 {
 		return fmt.Errorf("register wants one name")
 	}
@@ -183,7 +186,7 @@ func register(args []string) error {
 		Name: pos[0], Kind: flags["kind"], Addr: flags["addr"], Descr: flags["descr"],
 		Full: flags["overflow"], Proto: flags["protocol"],
 		TTL: flags["ttl"], Bound: n,
-		Allow: allow(flags), NoMaster: has(flags, "no-master"), Personal: has(flags, "personal"),
+		Allow: allow(flags), Personal: has(flags, "personal"),
 	})
 }
 
@@ -497,7 +500,7 @@ func topic(args []string) error {
 	return post("/register", protocol.Record{
 		Name: pos[0], Kind: protocol.KindTopic, Mode: mode, Descr: flags["descr"],
 		Full: flags["overflow"], TTL: flags["ttl"], Bound: n,
-		Allow: allow(flags), NoMaster: has(flags, "no-master"),
+		Allow: allow(flags),
 	})
 }
 
@@ -864,7 +867,7 @@ func warn(format string, a ...any) {
 // is recorded as present and empty.
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
-var onOff = map[string]bool{"follow": true, "no-master": true, "personal": true, "share": true, "network": true}
+var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true}
 
 // allow is the service ACL as stated on the command line: a comma-separated
 // list, `*` for anyone who can authenticate, absent for no answer of its own.
@@ -884,6 +887,19 @@ func allow(flags map[string]string) []string {
 }
 
 func has(flags map[string]string, k string) bool { _, ok := flags[k]; return ok }
+
+func only(flags map[string]string, allowed ...string) error {
+	known := map[string]bool{}
+	for _, name := range allowed {
+		known[name] = true
+	}
+	for name := range flags {
+		if !known[name] {
+			return fmt.Errorf("unknown option --%s", name)
+		}
+	}
+	return nil
+}
 
 func split(args []string) ([]string, map[string]string) {
 	pos := []string{}

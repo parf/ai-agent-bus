@@ -17,7 +17,6 @@ type Management struct {
 	Addr        *string                  `json:"addr,omitempty"`
 	Proto       *string                  `json:"protocol,omitempty"`
 	Allow       *[]string                `json:"allow,omitempty"`
-	NoMaster    *bool                    `json:"no_master,omitempty"`
 	Disabled    *bool                    `json:"disabled,omitempty"`
 	Maintainers *protocol.MaintainerList `json:"maintainers,omitempty"`
 	Personal    *bool                    `json:"personal,omitempty"`
@@ -200,6 +199,9 @@ func (b *Bus) normalizeMaintainers(in protocol.MaintainerList) (protocol.Maintai
 		var term string
 		if strings.HasPrefix(strings.TrimSpace(raw), "@") {
 			term = strings.TrimSpace(raw)
+			if term == OwnerGroup {
+				return nil, fmt.Errorf("%w: %s is runtime ACL access, not a Maintainer group", ErrBadName, OwnerGroup)
+			}
 			if !groupName(term) {
 				return nil, fmt.Errorf("%w: invalid maintainers group %q", ErrBadName, raw)
 			}
@@ -242,12 +244,18 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	if name == legacyAdministratorsGroup {
 		return fmt.Errorf("%w: %s was renamed to %s", ErrBadName, name, AdministratorsGroup)
 	}
+	if name == OwnerGroup {
+		return fmt.Errorf("%w: %s is a runtime ACL term and cannot be created", ErrBadName, OwnerGroup)
+	}
 	if !groupName(name) {
 		return fmt.Errorf("%w: invalid group", ErrBadName)
 	}
 	normalized := []string{}
 	for _, m := range members {
 		m = strings.TrimSpace(m)
+		if m == OwnerGroup {
+			return fmt.Errorf("%w: %s is direct ACL syntax and cannot be nested in a group", ErrBadName, OwnerGroup)
+		}
 		n := m
 		if !groupName(m) {
 			n, err = canon(m)
@@ -406,8 +414,10 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		for _, a := range *change.Allow {
 			if a != "*" {
 				if strings.HasPrefix(a, "@") {
-					if _, ok := b.groups[a]; !ok {
-						return protocol.Record{}, fmt.Errorf("%w: ACL group", ErrUnknown)
+					if a != OwnerGroup {
+						if _, ok := b.groups[a]; !ok {
+							return protocol.Record{}, fmt.Errorf("%w: ACL group", ErrUnknown)
+						}
 					}
 				} else {
 					var err error
@@ -429,9 +439,6 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	}
 	if change.Proto != nil {
 		r.Proto = *change.Proto
-	}
-	if change.NoMaster != nil {
-		r.NoMaster = *change.NoMaster
 	}
 	if change.Disabled != nil {
 		r.Disabled = *change.Disabled

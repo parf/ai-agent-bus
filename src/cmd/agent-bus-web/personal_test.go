@@ -31,7 +31,6 @@ func personalWebFixture(t *testing.T) *personalWeb {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b.Masters([]string{"admin@h"})
 	backend := httptest.NewServer(api.New(b, tokens, "admin@h").Handler())
 	t.Cleanup(backend.Close)
 	web := httptest.NewServer(dashboard(&caller{client: backend.Client(), base: backend.URL}, false))

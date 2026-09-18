@@ -15,13 +15,12 @@ import (
 func TestSuspensionDidNotSettleTheDrainQuestion(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	b.Masters([]string{"admin@h"})
 	for _, who := range []string{"alice@h", "sender@h"} {
 		if _, err := b.SetUser("admin@h", protocol.User{Name: who}, true); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "alice@h", Allow: ptr([]string{"sender@h"})}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "alice@h", Allow: ptr([]string{"sender@h", "admin@h"})}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "sender@h", To: "alice@h", Body: "to the person"}); err != nil {
@@ -37,7 +36,7 @@ func TestSuspensionDidNotSettleTheDrainQuestion(t *testing.T) {
 	defer cancel()
 	e, err := b.ConsumeAs(ctx, "admin@h", "alice@h", "", "", false, false)
 	if err != nil {
-		t.Fatalf("a master could no longer drain a paused person's inbox: %v", err)
+		t.Fatalf("an explicitly authorized caller could no longer drain a paused person's inbox: %v", err)
 	}
 	if !strings.Contains(e.Body, "to the person") {
 		t.Fatalf("wrong message: %+v", e)

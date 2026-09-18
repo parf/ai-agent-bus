@@ -136,6 +136,23 @@ Fresh automatic registrations by faces and launchers also follow the default;
 configured sharing survives [metadata re-registration](01-identity-and-roles.md#registration).
 Script runners can state grants with [their start options](08-runner-role.md#script-services).
 
+## Owner ACL and master removal
+
+From 0.5.74, `@owner` in an ACL means the record's direct Owner and registered
+Services or Agents directly owned by that Owner. It is evaluated from current
+registry ownership and is never stored as a group. The `ab-claude`, `ab-codex`
+and `ab-opencode` launchers add it while preserving existing explicit grants;
+already-running launcher sessions acquire it when next restarted.
+
+`@owner` has no stored-group form. Creating or nesting it is refused, and a
+snapshot containing a group with that reserved name fails closed.
+
+The same release removes `-master`, `no_master` and the implicit master ACL
+grant. A daemon Owner still
+discovers and manages every resource through
+[node-wide authority](01-identity-and-roles.md#daemon-owner), but message access
+now comes only from resource authority or the record's ACL.
+
 ## Daemon ownership upgrade
 
 `--owner user@realm` (or `AGENT_BUS_OWNER`) is required; the daemon no longer
@@ -307,7 +324,8 @@ on every request.
 Result: a bus with AUTH off that **serves every user on the host at once**, so
 service ACLs apply per user with nothing for anyone to configure. Setup's
 initial principal is the first daemon Owner; after transfer, the stored current
-Owner holds master ([identity § acl](02-access.md#acl)).
+Owner holds node-wide management authority
+([identity § daemon owner](01-identity-and-roles.md#daemon-owner)).
 ## Storage
 
 | Built store | Holds |

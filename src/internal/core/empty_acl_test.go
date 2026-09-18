@@ -15,7 +15,7 @@ func restrictedFixture(t *testing.T, restored bool) *Bus {
 	t.Helper()
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	for _, name := range []string{"alice@h", "maintainer@h", "outsider@h", "master@h", "paused@h"} {
+	for _, name := range []string{"alice@h", "maintainer@h", "outsider@h", "unrelated@h", "paused@h"} {
 		if _, err := b.SetUser("admin@h", protocol.User{Name: name}, true); err != nil {
 			t.Fatal(err)
 		}
@@ -55,7 +55,6 @@ func restrictedFixture(t *testing.T, restored bool) *Bus {
 		b.Restore(snapshot)
 		b.SetDaemonOwner("admin@h")
 	}
-	b.Masters([]string{"admin@h", "master@h"})
 	return b
 }
 
@@ -67,7 +66,7 @@ func TestEmptyACLRestrictsUseAndVisibilityOnNewAndRestoredRecords(t *testing.T) 
 		}
 		t.Run(label, func(t *testing.T) {
 			b := restrictedFixture(t, restored)
-			for _, who := range []string{"alice@h", "maintainer@h", "svc@h", "outsider@h", "peer@h", "admin@h", "master@h"} {
+			for _, who := range []string{"alice@h", "maintainer@h", "svc@h", "outsider@h", "peer@h", "admin@h", "unrelated@h"} {
 				t.Run(who, func(t *testing.T) {
 					allowed := who == "alice@h" || who == "maintainer@h" || who == "svc@h"
 					r, visible := b.Lookup(who, "svc@h")
@@ -123,9 +122,13 @@ func TestExplicitGrantsStillShareAndRemovingWildcardClosesAccess(t *testing.T) {
 		if _, err := b.Send(protocol.Envelope{From: who, To: "svc@h"}); err != nil {
 			t.Fatal(err)
 		}
-		// Explicit ACLs retain the configured master grant; empty ACLs do not.
-		if _, err := b.Send(protocol.Envelope{From: "master@h", To: "svc@h"}); err != nil {
-			t.Fatal(err)
+		_, err := b.Send(protocol.Envelope{From: "unrelated@h", To: "svc@h"})
+		if allow[0] == "*" {
+			if err != nil {
+				t.Fatalf("wildcard excluded a registered caller: %v", err)
+			}
+		} else if !errors.Is(err, ErrNotAllow) {
+			t.Fatalf("an unrelated caller bypassed an explicit ACL: %v", err)
 		}
 	}
 	if _, err := b.Send(protocol.Envelope{From: "peer@h", To: "svc@h"}); err != nil {
@@ -180,7 +183,7 @@ func TestOwnInboxReadDoesNotNeedAnACLEntryButStillObeysState(t *testing.T) {
 
 func TestRegistrationRefreshPreservesACLUnlessExplicitlyReplaced(t *testing.T) {
 	b := restrictedFixture(t, false)
-	_, err := b.Register(protocol.Record{Name: "svc@h", Owner: "alice@h", Allow: []string{"outsider@h"}, NoMaster: true})
+	_, err := b.Register(protocol.Record{Name: "svc@h", Owner: "alice@h", Allow: []string{"outsider@h"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,10 +193,10 @@ func TestRegistrationRefreshPreservesACLUnlessExplicitlyReplaced(t *testing.T) {
 	if _, ok := b.Lookup("outsider@h", "svc@h"); !ok {
 		t.Fatal("metadata refresh erased the explicit grant")
 	}
-	if _, ok := b.Lookup("master@h", "svc@h"); ok {
-		t.Fatal("metadata refresh lifted master refusal")
+	if _, ok := b.Lookup("unrelated@h", "svc@h"); ok {
+		t.Fatal("metadata refresh opened the ACL to an unrelated caller")
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "alice@h", Allow: []string{"peer@h"}, NoMaster: true}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "alice@h", Allow: []string{"peer@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := b.Lookup("peer@h", "svc@h"); !ok {
@@ -210,20 +213,5 @@ func TestRegistrationRefreshPreservesACLUnlessExplicitlyReplaced(t *testing.T) {
 	}
 	if _, ok := b.Lookup("peer@h", "svc@h"); ok {
 		t.Fatal("restart restored a deliberately cleared grant")
-	}
-	if _, err := b.Manage("alice@h", Management{Name: "svc@h", Allow: ptr([]string{"peer@h"}), NoMaster: ptr(false)}); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := b.Lookup("master@h", "svc@h"); !ok {
-		t.Fatal("explicit master-refusal clear did not take effect")
-	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "svc@h", NoMaster: true}); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := b.Lookup("master@h", "svc@h"); ok {
-		t.Fatal("refresh ignored an explicit master refusal")
-	}
-	if _, ok := b.Lookup("peer@h", "svc@h"); !ok {
-		t.Fatal("tightening master refusal erased the peer grant")
 	}
 }

@@ -121,7 +121,7 @@ func TestSectionNavigationCountsOnlyCallerVisibleCategories(t *testing.T) {
 	m.register(protocol.Record{Name: "viewer@h", Owner: "ordinary@h", Kind: "generic"})
 	m.register(protocol.Record{Name: "mine@h", Owner: "viewer@h", Kind: "generic"})
 	m.register(protocol.Record{Name: "shared@h", Owner: "other@h", Kind: "generic", Allow: []string{"viewer@h"}})
-	m.register(protocol.Record{Name: "hidden@h", Owner: "other@h", Kind: "generic", Allow: []string{"other@h"}, NoMaster: true})
+	m.register(protocol.Record{Name: "hidden@h", Owner: "other@h", Kind: "generic", Allow: []string{"other@h"}})
 	m.register(protocol.Record{Name: "personal-mine@h", Owner: "viewer@h", Kind: "generic", Personal: true})
 	m.register(protocol.Record{Name: "personal-other@h", Owner: "other@h", Kind: "generic", Personal: true, Allow: []string{"viewer@h"}})
 	m.register(protocol.Record{Name: "jobs@h", Owner: "other@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Allow: []string{"viewer@h"}})

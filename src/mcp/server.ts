@@ -10,7 +10,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { Bus, BusError, defaultName, type Envelope, type Record_ } from "./bus.ts";
+import { Bus, BusError, defaultName, type Envelope, type Record_, withOwnerACL } from "./bus.ts";
 import { catalogue } from "./catalogue.ts";
 import { startPush, type Push } from "./push.ts";
 import { Codex } from "./codex.ts";
@@ -287,7 +287,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         try {
           // New address first: a failure here leaves the session exactly where
           // it was, which is the only safe direction to fail in.
-          await previous.register({ name: next, kind: "agent", descr: title }, true);
+          await previous.register({ name: next, kind: "agent", descr: title, allow: withOwnerACL(undefined) }, true);
           moved = await previous.as(next);
         } catch (err) {
           readInbox();
@@ -424,10 +424,12 @@ async function refreshSession(): Promise<void> {
 
 // Registering on start is what makes "find each other by name" possible: the
 // name is this session's address for as long as it runs.
+const currentRecord = (await bus.ls()).find(r => r.name === bus.name);
 await bus.register({
   name: bus.name,
   kind: "agent",
   descr: process.env.AGENT_BUS_DESCR ?? `${process.env.AGENT_BUS_RUNTIME ?? "agent"} session`,
+  allow: withOwnerACL(currentRecord?.allow),
 });
 
 await server.connect(new StdioServerTransport());

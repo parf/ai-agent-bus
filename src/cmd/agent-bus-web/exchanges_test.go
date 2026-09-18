@@ -226,7 +226,6 @@ func TestExchangeRenderingPreservesEvidenceAndMissingHistory(t *testing.T) {
 func TestRedirectedExchangeEvidenceIsScopedToTheViewer(t *testing.T) {
 	b := core.New()
 	b.SetDaemonOwner("owner@h")
-	b.Masters([]string{"owner@h"})
 	for _, name := range []string{"alice@h", "worker@h", "third@h"} {
 		if _, err := b.Register(protocol.Record{Name: name, Owner: "owner@h", Allow: []string{"*"}}); err != nil {
 			t.Fatal(err)
@@ -240,9 +239,9 @@ func TestRedirectedExchangeEvidenceIsScopedToTheViewer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	master := exchanges(b.Recent("owner@h"))
-	if len(master) != 1 || !master[0].Done {
-		t.Fatal("master with both envelopes lost correlation")
+	ownerHistory := exchanges(b.Recent("owner@h"))
+	if len(ownerHistory) != 1 || !ownerHistory[0].Done {
+		t.Fatal("daemon owner with both envelopes lost correlation")
 	}
 	requester := exchanges(b.Recent("alice@h"))
 	if len(requester) != 1 || requester[0].ID != request.ID || requester[0].Done {

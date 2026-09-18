@@ -38,7 +38,6 @@ import (
 type service struct {
 	Name      string   `json:"name"`
 	Allow     []string `json:"allow,omitempty"`
-	NoMaster  bool     `json:"no_master,omitempty"`
 	Personal  bool     `json:"personal,omitempty"`
 	Algo      string   `json:"algo"`      // json: envelope on stdin · args: body as argv[1]
 	Script    string   `json:"script"`    // the program to run
@@ -79,7 +78,7 @@ func start(args []string) error {
 	}
 	if err := postQuiet("/register", protocol.Record{
 		Name: svc.Name, Kind: "generic", Addr: svc.Script, Descr: svc.Descr,
-		Allow: svc.Allow, NoMaster: svc.NoMaster, Personal: svc.Personal,
+		Allow: svc.Allow, Personal: svc.Personal,
 	}); err != nil {
 		return err
 	}
@@ -159,6 +158,9 @@ func scriptDir(script string) []string {
 func describe(args []string) (service, error) {
 	var svc service
 	pos, flags := split(args)
+	if err := only(flags, "algo", "descr", "sandbox", "allow", "personal", "network"); err != nil {
+		return svc, err
+	}
 
 	// -5 means five at a time. It is not a --flag, so it arrives as a
 	// positional; the first one that looks like a count is taken out before
@@ -176,7 +178,9 @@ func describe(args []string) (service, error) {
 	if len(pos) == 0 {
 		// The JSON form, `-5` on its own included: the flag then overrides
 		// what stdin says (docs/08-runner-role.md#script-services).
-		if err := json.NewDecoder(os.Stdin).Decode(&svc); err != nil {
+		decoder := json.NewDecoder(os.Stdin)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&svc); err != nil {
 			return svc, fmt.Errorf("bad service JSON on stdin: %w", err)
 		}
 	} else {
@@ -213,9 +217,6 @@ func describe(args []string) (service, error) {
 	}
 	if has(flags, "allow") {
 		svc.Allow = allow(flags)
-	}
-	if has(flags, "no-master") {
-		svc.NoMaster = true
 	}
 	if has(flags, "personal") {
 		svc.Personal = true

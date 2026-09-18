@@ -90,7 +90,7 @@ func TestRecordActivityEmbedsChartAndFullViewKeepsValues(t *testing.T) {
 		}
 	}
 	all := m.get("/activity")
-	if !strings.Contains(all, "Scope: visible records") || !strings.Contains(all, "Refused is node-wide for the daemon Owner or a configured master and covers visible records for other callers") {
+	if !strings.Contains(all, "Scope: visible records") || !strings.Contains(all, "Refused is node-wide for the daemon Owner and covers visible records for other callers") {
 		t.Fatal("unfiltered activity did not state its caller-dependent refusal scope")
 	}
 }
@@ -121,7 +121,7 @@ func TestRecordActivityAttemptsOnceAndDegradesWithoutLeakingHiddenRecord(t *test
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h", Allow: []string{"owner@h"}, NoMaster: true}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h", Allow: []string{"owner@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	var activityCalls atomic.Int32

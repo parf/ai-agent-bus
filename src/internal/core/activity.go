@@ -98,7 +98,7 @@ func (b *Bus) Activity(caller, name string) ([]ActivityPoint, error) {
 			c.Expired += v.Expired
 			c.Refused += v.Refused
 		}
-		if name == "" && (caller == b.admin || b.masters[caller]) {
+		if name == "" && caller == b.admin {
 			c.Refused = s.refused
 		}
 		return c

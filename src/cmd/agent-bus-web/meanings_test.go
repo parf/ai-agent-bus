@@ -752,7 +752,7 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 	}
 	// Something only its owner and a maintainer may see, so "visible to you"
 	// is a different set for each of the three.
-	m.register(protocol.Record{Name: "private@h", Owner: "admin@h", Allow: []string{"admin@h"}, NoMaster: true})
+	m.register(protocol.Record{Name: "private@h", Owner: "admin@h", Allow: []string{"admin@h"}})
 
 	seen := map[string]bool{}
 	for _, who := range []string{"admin@h", "maint@h", "plain@h"} {
@@ -966,11 +966,27 @@ func TestACLFormsExplainRestrictedEmptyLists(t *testing.T) {
 	m.register(protocol.Record{Name: "private@h", Owner: "admin@h"})
 	for _, page := range []string{"/services/new", "/service?name=private@h"} {
 		body := m.get(page)
-		if !strings.Contains(body, "Empty allows only the owner and assigned Maintainers. Add names or * to share.") {
+		if !strings.Contains(body, "Empty allows only the owner and assigned Maintainers.") || !strings.Contains(body, "shares with every admitted principal") {
 			t.Errorf("%s does not explain the restricted default and explicit sharing", page)
+		}
+		if !strings.Contains(body, "adds Services and Agents directly owned by this record") || !strings.Contains(body, "runtime ACL syntax, not an editable group") {
+			t.Errorf("%s does not explain the runtime @owner term", page)
 		}
 		if strings.Contains(body, "Empty allows every authenticated caller") {
 			t.Errorf("%s still promises open access", page)
+		}
+		if strings.Contains(body, "Master access") || strings.Contains(body, "no_master") {
+			t.Errorf("%s still renders the retired master layer", page)
+		}
+	}
+}
+
+func TestGroupPagesExplainThatOwnerIsRuntimeACLSyntax(t *testing.T) {
+	m := meaningFixture(t)
+	for _, page := range []string{"/groups", "/groups/new"} {
+		body := m.get(page)
+		if !strings.Contains(body, "@owner") || !strings.Contains(body, "runtime ACL syntax") {
+			t.Errorf("%s presents @owner as an ordinary group name", page)
 		}
 	}
 }

@@ -11,7 +11,7 @@ const owner = new Bus();
 const peerName = `launcher-peer-${process.pid}@srv1`;
 await owner.register({ name: peerName, kind: "generic", allow: ["*"] });
 const deniedName = `launcher-denied-${process.pid}@srv1`;
-await owner.register({ name: deniedName, kind: "generic", allow: ["nobody@srv1"], no_master: true });
+await owner.register({ name: deniedName, kind: "generic", allow: ["nobody@srv1"] });
 const peer = await owner.as(peerName);
 const stop = new AbortController();
 const serve = (async () => {
@@ -90,6 +90,8 @@ try {
     const identity = rows.find(r => r.kind === "identity")?.data.name;
     const registered = (await owner.ls()).find(r => r.name === identity);
     check(`${runtime} uses its assigned title`, !!registered && registered.name.includes("named-session") && !!registered.descr?.startsWith("Named session"));
+    if (!registered?.allow?.includes("@owner")) console.log(`${runtime} registered ACL: ${JSON.stringify(registered?.allow)}`);
+    check(`${runtime} registers with the runtime @owner ACL term`, registered?.allow?.includes("@owner") === true);
     // The claim is about the address. A label suffix here only means an
     // earlier runtime in this run still holds the same label, which the
     // collision checks below own.

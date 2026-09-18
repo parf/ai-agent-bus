@@ -378,10 +378,9 @@ func TestListingsShowNothingToACallerThatMayNotAct(t *testing.T) {
 			if _, err := b.Send(protocol.Envelope{From: "svc@h", To: "svc@h", Body: "x"}); err != nil {
 				t.Fatal(err)
 			}
-			// On the master ACL, so that the history question is asked of a
-			// caller the filter would otherwise answer for: a master sees
-			// every exchange, which is the standing this is about losing.
-			b.Masters([]string{caller})
+			// Administrative standing does not bypass inactivity. The history
+			// question is asked of a caller whose role would otherwise expose
+			// the node feed, which is the standing this is about losing.
 			if got := b.List(caller, ""); len(got) != 0 {
 				t.Errorf("list: %+v", got)
 			}

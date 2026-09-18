@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.74 — 2026-09-18
+
+Add runtime `@owner` ACL sharing for an Owner's directly owned Services and
+Agents, including automatic launcher registration. Remove the former master
+access layer while retaining daemon-Owner management and observability.
+
 ## 0.5.73 — 2026-09-18
 
 Unify dense web administration pages around responsive cards, field grids and

@@ -12,7 +12,13 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-const AdministratorsGroup = "@administrators"
+const (
+	AdministratorsGroup = "@administrators"
+	// OwnerGroup is a contextual ACL term, never a stored group. On a record,
+	// it means that record's direct Owner and the Service or Agent principals
+	// the same Owner directly owns.
+	OwnerGroup = "@owner"
+)
 
 func (b *Bus) active(name string) bool {
 	state := b.users[name].State

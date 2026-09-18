@@ -19,7 +19,6 @@ func groupFixture(t *testing.T) (*core.Bus, *Server, func(string) string) {
 	t.Helper()
 	bus := core.New()
 	s, token := serverFor(t, bus, "admin@h")
-	bus.Masters([]string{"admin@h"})
 	for _, who := range []string{"alice@h", "maint@h", "plain@h"} {
 		if _, err := bus.SetUser("admin@h", protocol.User{Name: who}, true); err != nil {
 			t.Fatal(err)

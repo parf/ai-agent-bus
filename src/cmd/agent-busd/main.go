@@ -38,7 +38,7 @@ type config struct {
 	dash                             string
 	every                            time.Duration
 	users                            accounts
-	hold, vouch                      masters
+	vouch                            values
 	web                              bool
 }
 
@@ -56,7 +56,6 @@ func main() {
 	flag.BoolVar(&c.web, "web", false, "run the dashboard as a child too (docs/05-discovery.md#dashboard)")
 	flag.StringVar(&c.dash, "dashboard", env("AGENT_BUS_DASHBOARD", dashboard.URL), "where a browser opening the API `url` is sent; empty serves no root at all")
 	flag.Var(&c.vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
-	flag.Var(&c.hold, "master", "a principal that reaches every service which has not refused it: `user@realm`; repeatable")
 	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
 	flag.Parse()
 	if _, err := requiredOwner(c.owner); err != nil {
@@ -231,12 +230,11 @@ func env(k, def string) string {
 	return def
 }
 
-// masters is a repeatable flag, and nothing more: who holds the master ACL
-// is the daemon's own configuration. See docs/02-access.md#acl.
-type masters []string
+// values is a small repeatable string flag used for directory sources.
+type values []string
 
-func (m *masters) String() string     { return strings.Join(*m, ",") }
-func (m *masters) Set(v string) error { *m = append(*m, v); return nil }
+func (m *values) String() string     { return strings.Join(*m, ",") }
+func (m *values) Set(v string) error { *m = append(*m, v); return nil }
 
 func defaultDumpFile() string {
 	home, _ := os.UserHomeDir()

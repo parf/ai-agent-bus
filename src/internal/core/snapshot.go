@@ -137,6 +137,11 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		b.groups[name] = append([]string{}, members...)
 	}
 	if b.ownerRestoreErr == nil {
+		if _, stored := b.groups[OwnerGroup]; stored {
+			b.ownerRestoreErr = fmt.Errorf("snapshot contains runtime ACL term %s as a stored group", OwnerGroup)
+		}
+	}
+	if b.ownerRestoreErr == nil {
 		for _, member := range b.groups[AdministratorsGroup] {
 			if groupName(member) {
 				b.ownerRestoreErr = fmt.Errorf("snapshot %s contains nested group %s; administrative membership is direct-only", AdministratorsGroup, member)

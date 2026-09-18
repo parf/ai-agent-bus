@@ -60,7 +60,7 @@ func durabilityFixture(t *testing.T) *Bus {
 		t.Fatal(err)
 	}
 	for _, r := range []protocol.Record{
-		{Name: "svc@h", Owner: "alice@h", Allow: []string{"@readers"}, NoMaster: true},
+		{Name: "svc@h", Owner: "alice@h", Allow: []string{"@readers"}},
 		{Name: "topic@h", Owner: "alice@h", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Allow: []string{"*"}},
 	} {
 		if _, err := b.Register(r); err != nil {

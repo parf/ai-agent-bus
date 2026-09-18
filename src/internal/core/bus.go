@@ -129,8 +129,6 @@ type Bus struct {
 	// What the bus has seen lately, bodies struck out — the dashboard's
 	// only source. See docs/05-discovery.md#dashboard.
 	recent []protocol.Envelope
-	// Who holds the master ACL. See docs/02-access.md#acl.
-	masters map[string]bool
 	// Which realms are backed by a directory, what verifies a signature,
 	// and the challenges outstanding. See docs/01-identity-and-roles.md#registration.
 	dirs    map[string]ports.Directory
@@ -260,11 +258,10 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		// Personal is the owner's classification. A service refreshes its own
 		// metadata on every start and cannot clear or set that owner choice.
 		r.Personal = old.Personal
-		// Metadata refreshes must not erase grants or lift a master refusal.
-		// Explicit ACLs still replace the policy; Manage can clear either field.
+		// Metadata refreshes must not erase grants. Explicit ACLs still replace
+		// the policy; Manage can clear it deliberately.
 		if r.Allow == nil {
 			r.Allow = old.Allow
-			r.NoMaster = r.NoMaster || old.NoMaster
 		}
 	}
 	if err := b.validatePersonal(r); err != nil {
