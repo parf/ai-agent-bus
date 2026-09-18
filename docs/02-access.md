@@ -158,7 +158,7 @@ records. See the [upgrade note](09-setup.md#empty-acl-upgrade).
 | Resource management authority | Owner, resource's own principal and assigned Maintainers have access |
 | Empty allow list | No additional access beyond resource management authority |
 | Matching name, group or `*` | Grants access |
-| Master | Grants access with a non-empty ACL unless the record refuses master |
+| Master | ~~Grants access with a non-empty ACL unless the record refuses master~~ — **pending removal**, owner decision 2026-09-18 ([G.4](../Plans/MVP/TODO.md#remaining-work)). Still built and still granting until that lands |
 
 The daemon owner holds master; additional masters are configured at startup.
 Master grants access, not ownership or management. The daemon Owner separately
