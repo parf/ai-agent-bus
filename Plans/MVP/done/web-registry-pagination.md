@@ -50,3 +50,16 @@ zero errors.
 This advances F.13.3 without claiming the remaining populated role journeys,
 the Overview/diagnostics work, installed browser acceptance or any daemon and
 wire change.
+
+## Live postflight
+
+Commit `98bf992` was pushed before deployment. The live supervisor, bus and
+public identity report **0.5.77**, stamped `parf@parf.us 2026-09-18 14:28:34`.
+A signed-in production request to Services with measured-zero Readers and
+Enabled delivery filters renders all four reader choices, the selected state,
+matching range and Clear filters. No registry record was changed.
+
+The restarted web child retains zero effective capabilities,
+`NoNewPrivileges`, 256 MiB memory, zero swap, 64 tasks and one CPU. The
+post-restart AgentBus accepted the OpenCode review/reconnection probe; delivery
+alone is not credited as a peer reply.
