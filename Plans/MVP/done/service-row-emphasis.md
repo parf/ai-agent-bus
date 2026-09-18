@@ -46,3 +46,17 @@ frozen smoke scripts both had SHA-256
 
 This slice does not implement description search, sorting, paging, owner
 photos, activity placement or the remaining service-detail redesign.
+
+## Live postflight
+
+Commit `6d5c4ba` was built and deployed as 0.5.66 with matching daemon/web
+build `parf@parf.us 2026-09-17 20:31:16`. Public identity reported the new
+version and anonymous daemon status remained 401. Live Chromium repeated the
+375 px assertion on `claude/ab-dvp@parf.us`: blue ownership rule, weight 600,
+visible Yours, external kept separately, `2d ago`, no Controls/Edit and no
+page-level overflow. No live record changed.
+
+The web child retained zero effective capabilities, environment
+`AGENT_BUS_ADDR=/bus.sock` plus `PWD=/`, and its 256 MiB memory, zero-swap,
+64-process and one-CPU limits. The peer AgentBus path reconnected after the
+restart.
