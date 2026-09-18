@@ -440,7 +440,7 @@ var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"id
 {{end}}</tbody></table>{{else}}<p class=muted>No other identities match this view. Use the Other filter when its count is nonzero.</p>{{end}}</section>
 <nav aria-label="Directory pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
 `))
-var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "registrationUpdated": registrationUpdated, "githubProfileURL": githubProfileURL, "twitterProfileURL": twitterProfileURL, "recordPath": recordPath}).Parse(shell("users", "Identity details") + `
+var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "registrationUpdated": registrationUpdated, "githubProfileURL": githubProfileURL, "twitterProfileURL": twitterProfileURL, "recordPath": recordPath}).Parse(shellTitle("users", `{{if .New}}Add user{{else}}{{.User.Name}}{{end}}`) + `
 <p><a href="{{.Return}}">Back to directory</a></p>
 <div class=page-title><h1 style="overflow-wrap:anywhere">{{if .New}}{{titleMark "user"}}{{else if eq .User.Kind "user"}}{{with photoData .User}}<img class=profile-photo-large src="{{.}}" alt="">{{else}}<span class=profile-initial-large aria-hidden=true>{{profileInitial .User}}</span>{{end}}{{else}}{{titleMark "identity"}}{{end}} {{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1></div>` + formErrorSummary + `
 {{if .New}}
@@ -469,7 +469,7 @@ var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"id
 {{end}}
 `))
 
-var userBanPage = template.Must(template.New("user-ban").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shell("users", "Confirm ban") + `
+var userBanPage = template.Must(template.New("user-ban").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shellTitle("users", `Confirm ban · {{.User.Name}}`) + `
 <p><a href="/user?name={{.User.Name}}&return={{.Return}}">Back to user</a></p>
 <div class=page-title><h1>{{titleMark "problem"}} Confirm ban</h1></div>
 <section class="editor-card compact-card"><p>Ban <code>{{.User.Name}}</code>?</p><ul><li>Bus access and new inbox deliveries stop.</li><li>Queued work stays, and running processes are not stopped.</li></ul>
@@ -477,7 +477,7 @@ var userBanPage = template.Must(template.New("user-ban").Funcs(template.FuncMap{
 <form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action name=action value=banned>Ban user</button> <a href="/user?name={{.User.Name}}&return={{.Return}}">Cancel</a></form></section>
 `))
 
-var credentialRemovePage = template.Must(template.New("credential-remove").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shell("users", "Confirm credential removal") + `
+var credentialRemovePage = template.Must(template.New("credential-remove").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shellTitle("users", `Confirm credential removal · {{.User.Name}}`) + `
 <p><a href="/user?name={{.User.Name}}&return={{.Return}}">Back to identity</a></p>
 <div class=page-title><h1>{{titleMark "problem"}} Confirm credential removal</h1></div>
 <section class="editor-card compact-card"><p>Remove the credential for <code>{{.User.Name}}</code>?</p><ul><li>The current and previous credentials stop authenticating.</li><li>Every browser session for this identity ends.</li><li>No user or registered record is removed by this action.</li></ul>

@@ -64,7 +64,7 @@ func (c *caller) accountRoute(mux *http.ServeMux) {
 			}
 		}
 		if err := c.get(cookie(r), "/names", &v.Names); err != nil {
-			v.NoNames = err.Error()
+			v.NoNames = sectionProblem("held credentials", err)
 		}
 		for _, held := range v.Names {
 			if held.Owner != "" && held.Owner != base.You {

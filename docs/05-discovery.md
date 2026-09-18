@@ -285,7 +285,8 @@ Diagnostics retains the detailed refusal, held-work, bounded envelope and loss
 evidence. Record names link to their visible Service or Channel detail. It no
 longer repeats the registry catalogue; Services and Channels are its searchable
 home. A daemon failure renders a recovery page without exposing the socket or
-other backend address.
+other backend address, which is the general rule in
+[shell and recovery](#shell-and-recovery).
 
 ### Activity history
 
@@ -535,7 +536,33 @@ defaulting to the address above; empty serves no root at all. The redirect is
 permanent because the root will never grow a page of its own, so a browser may
 stop asking: moving the dashboard afterwards is a thing to clear from a cache.
 
-## Form recovery and keyboard entry
+## Shell and recovery
+
+**Built in 0.5.81.** Every signed-in page carries the same shell: header and
+footer landmarks, one main landmark, the keyboard skip link and its target, the
+signed-in name linking to Account, sign out, and exactly one marked navigation
+entry. A refusal page belongs under no section and marks none. Public sign-in
+carries the landmarks and the skip link, and none of the account controls.
+
+Each page names itself in one document title, and no two pages share one. A
+detail, confirmation or refusal page names the record, identity, group, action
+or refusal it is about, so two open tabs of the same kind are two titles. The
+two not-found answers are the deliberate exception: they share one title
+because [hidden and absent are one answer](#refusals).
+
+Four failures read as four different things to do next: never signed in,
+a session that ended, a refusal for want of permission, and a daemon that is
+not answering. A permission refusal never offers a credential, because one
+cannot help.
+
+**A failed section is not an empty one.** When part of a page cannot be read
+and the rest is still true, that part says so. A refusal the daemon worded is
+shown as its message rather than its JSON envelope; anything else is logged and
+replaced, because the transport text names the socket or address this child
+talks to. No page renders that address. A failed whole-page read is a refusal,
+never a page reporting that nothing is registered.
+
+### Form recovery and keyboard entry
 
 **Built in 0.5.70.** Public and signed-in pages start with a keyboard skip link
 to the main content. It becomes visible when focused; the ordinary shell still
@@ -554,9 +581,9 @@ page.
 The daemon remains the validator. Its JSON error envelope is rendered as a
 human message, not raw JSON. A malformed or retired browser action that never
 reaches the daemon says so on the shared shell rather than attributing the
-refusal to the daemon. This is the recovery portion of
-[F.13.2](../Plans/MVP/TODO.md#web-redesign); the remaining page redesign and
-typed-component migration stay pending.
+refusal to the daemon. [F.13.2](../Plans/MVP/done/web-shell-recovery.md#checks)
+is complete; the remaining page redesign and typed-component migration stay
+pending.
 
 ## Browser acceptance
 

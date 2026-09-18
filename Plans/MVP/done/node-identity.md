@@ -118,9 +118,14 @@ preservation, shared not-found presentation and distinct recovery states, and
 none of those is claimed here. It was also gated on **F.13.0**, the owner's
 review of the page designs, which had not happened when this shipped; F.13.0
 completed on 2026-09-18 ([review evidence](web-design-owner-review.md#evidence))
-and F.13.2 is the gate that remains. What this ships is the
+and F.13.2 was the gate that remained. What this ships is the
 shared shell's header and footer and the public call behind them — groundwork
-F.13.2 will build on, and evidence for that task when it is taken up.
+F.13.2 built on, and evidence for that task.
+
+**Status correction, 2026-09-18.** This slice did not itself complete F.13.2.
+F.13.2 completed later, in 0.5.81
+([shell and recovery](web-shell-recovery.md#checks)). Nothing measured above
+changes; only the sentence about what remained open.
 
 No new task ID was allocated: this is an owner request delivered inside an
 existing plan, not a new unit of work.

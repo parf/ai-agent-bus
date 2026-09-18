@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| F.13.2 Shared shell and recovery | Every signed-in page carries the same shell, names itself in a title no other page shares except the deliberately indistinguishable refusals, and tells four failures apart; a section that cannot be read says so instead of printing the backend address or reading as empty | [0.5.81 evidence](done/web-shell-recovery.md#checks) |
 | F.13.0 Web design owner review | The owner selected the compact visual direction, retained the fuller operational content and iteratively corrected every principal page family in rendered browser views | [review evidence](done/web-design-owner-review.md#evidence) |
 | F.13.5 Overview and diagnostics | A short evidence-based Overview replaces the duplicated landing page; detailed diagnostics keep refusals, held work, retained envelopes and loss without repeating the registry. The suspended-owner attention item stays tracked as F.13.7 | [0.5.80 evidence](done/web-overview-diagnostics.md#checks) |
 | F.13.4 User, Group and Account journeys | Own identity and credentials have one Account page; User lifecycle and record links follow daemon facts; Group detail shows caller-visible impact; GitHub-populated profile details are ordinary editable User fields | [0.5.79 evidence](done/user-group-account-journeys.md#checks) |

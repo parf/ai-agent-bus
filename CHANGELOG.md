@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.81 — 2026-09-18
+
+Stop the record and Account pages printing the backend address when one section
+of them fails, and route every degraded section through the same replacement.
+Give each detail, confirmation and refusal page a title that names its record,
+identity, group, action or refusal, so two tabs of the same kind are no longer
+one title.
+
 ## 0.5.80 — 2026-09-18
 
 Separate a short evidence-based Overview from detailed Diagnostics. Add direct

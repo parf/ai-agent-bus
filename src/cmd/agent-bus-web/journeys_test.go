@@ -72,7 +72,7 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	}
 
 	owner := m.get("/channel?name=news@h&return=%2Fchannels%3Freaders%3Dnone%26page%3D2")
-	if !strings.Contains(owner, `<title>Channel · agent-bus</title>`) || !strings.Contains(owner, `href="/channels?readers=none&amp;page=2"`) || !strings.Contains(owner, `id=settings`) {
+	if !strings.Contains(owner, `<title>Channel news@h · agent-bus</title>`) || !strings.Contains(owner, `href="/channels?readers=none&amp;page=2"`) || !strings.Contains(owner, `id=settings`) {
 		t.Error("owner Channel detail lost its title, exact return or daemon-authorized editor")
 	}
 	visitor := m.as("visitor@h").get("/channel?name=news@h")
@@ -118,10 +118,10 @@ func TestRecordDetailDocumentTitleFollowsStatedKind(t *testing.T) {
 	m := meaningFixture(t)
 	m.register(protocol.Record{Name: "worker@h", Owner: "admin@h", Kind: "agent"})
 	m.register(protocol.Record{Name: "api@h", Owner: "admin@h", Kind: "generic"})
-	if body := m.get("/service?name=worker@h"); !strings.Contains(body, `<title>Agent · agent-bus</title>`) {
+	if body := m.get("/service?name=worker@h"); !strings.Contains(body, `<title>Agent worker@h · agent-bus</title>`) {
 		t.Error("Agent detail retained the generic Service document title")
 	}
-	if body := m.get("/service?name=api@h"); !strings.Contains(body, `<title>Service · agent-bus</title>`) {
+	if body := m.get("/service?name=api@h"); !strings.Contains(body, `<title>Service api@h · agent-bus</title>`) {
 		t.Error("Service detail lost its document title")
 	}
 }

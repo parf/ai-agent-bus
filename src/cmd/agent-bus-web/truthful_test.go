@@ -263,7 +263,7 @@ func TestRefusalsRecoverInsteadOfDeadEnding(t *testing.T) {
 	if code != http.StatusNotFound {
 		t.Errorf("an unknown name answered %d, want 404", code)
 	}
-	for _, want := range []string{"No such name", "<main>", "action=/signout", "<title>Problem"} {
+	for _, want := range []string{"No such name", "<main>", "action=/signout", "<title>No such name · agent-bus"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the not-found page has no %s: %s", want, body)
 		}

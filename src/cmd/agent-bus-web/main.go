@@ -133,7 +133,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		// own to be told about, still gets the rest of the page.
 		var feed []protocol.Envelope
 		if err := bus.get(cookie(r), "/recent", &feed); err != nil {
-			v.NoFeed = feedProblem(err)
+			v.NoFeed = sectionProblem("recent envelopes", err)
 		} else {
 			v.Exchanges = exchanges(feed)
 		}
@@ -597,9 +597,13 @@ var navItems = []struct{ Href, Label, Key string }{
 }
 
 // shell is the head, title and navigation a signed-in page shares. Most pages
-// know their title when the template is parsed. A shared template whose title
+// know their title when the template is parsed, and that literal is escaped
+// here because it is built into the template source. A page whose title
 // follows daemon-returned or route state uses shellTitle with a fixed,
-// repository-owned template expression; caller text never reaches that path.
+// repository-owned template expression: the actions in it are escaped by the
+// template in title context, so a record or identity may name itself there
+// without the expression itself ever coming from a caller. Two open tabs on
+// two services are two different titles because of it.
 func shell(key, title string) string {
 	return shellTitle(key, template.HTMLEscapeString(title))
 }
