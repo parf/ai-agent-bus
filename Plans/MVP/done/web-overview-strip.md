@@ -206,6 +206,64 @@ scroll rather than creating one, and the document itself still does not scroll
 sideways at either width. Diagnostics sits further out of the initial view at
 375 than it did.
 
+## Live postflight
+
+Measured on the deployed node after `67816d9`, not on a fixture. Daemon
+`agent-busd 0.5.82`, build `parf@parf.us 2026-09-18 19:14:48`, systemd main PID
+2226725, active since 19:15:47. Signed in as `claude/ab-dvp@parf.us` with that
+identity's own credential — the owner's browser session was neither used nor
+needed, because the strip is node-wide and any signed-in principal sees it.
+
+| Postflight item | 1280 | 375 |
+|---|---|---|
+| node facts in the strip | 7 | 7 |
+| `Services + Agents + Channels` | 11 | 11 |
+| `Calls, minute` / `hour` / `total` | 49 / 49 / 49 | present |
+| strip rows, and figure baselines | 1 row, 1 baseline | 4 rows, 4 baselines |
+| `🏠` on the Overview title and menu entry | yes | yes |
+| menu entries carrying a mark | 7/7, all `aria-hidden="true"` | 7/7 |
+| occurrences of `as of` in the page text | 1 | 1 |
+| footer | `Owner parf@parf Uptime 3m56s` | same |
+| `Calls` anywhere in the footer | no | no |
+| document scrolls horizontally | no | no |
+
+One baseline per row is the alignment fix holding: at 375 there are four rows
+and four baselines, not seven.
+
+**Anonymous, on the live node:** title `Sign in · agent-bus`, no `.node-strip`,
+the word `Calls` nowhere in the page, the sign-in form present, and the footer
+still `Owner parf@parf Uptime`. `GET /identity` over the daemon socket with no
+credential still answers `calls` with both windows available. Both halves of the
+placement change hold in production.
+
+**Every element overflowing its viewport is inside the scrolling navigation**,
+and nothing outside it, at either narrow width:
+
+| Width | nav scrollWidth / clientWidth | overflowing elements | all inside nav | document scrolls |
+|---|---|---|---|---|
+| 1280 | 743 / 743 | 0 | — | no |
+| 768 | 743 / 379 | 1 | yes | no |
+| 375 | 695 / 279 | 12 | yes | no |
+
+The live figures match the disposable-fixture measurement exactly, which is the
+point of recording both.
+
+### Confinement, rechecked after the restart
+
+Read from the live cgroup and the sandboxed child's own `/proc` entry.
+
+| | Required | Measured |
+|---|---|---|
+| `memory.max` | 256 MiB | `268435456` |
+| `memory.swap.max` | 0 | `0` |
+| `pids.max` | 64 | `64` |
+| `cpu.max` | 1 CPU | `100000 100000` |
+| `CapEff` / `CapPrm` / `CapBnd` | empty | `0000000000000000` for all three |
+| `NoNewPrivs` | set | `1` |
+| PID namespace | private | `pid:[4026534004]` against init's `pid:[4026531836]` |
+| user namespace | private | `user:[4026534005]` against init's `user:[4026531837]` |
+| what the child's root contains | the binary and the socket only | `agent-bus-web bus.sock dev etc proc tmp` |
+
 ## Not implemented
 
 - Whether the nav should wrap or collapse at narrow widths. It scrolls today and
