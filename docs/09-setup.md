@@ -352,6 +352,11 @@ for existing references; a second unit is not installed in the MVP.
 | `Restart=on-failure` | Restart a failed daemon |
 | `AmbientCapabilities=CAP_CHOWN`, bounded to that capability | Own the per-user sockets without running the daemon as root |
 
+The packaged [installed shared-host checks](../Plans/MVP/done/installed-shared-host.md#checks)
+run two actual mapped accounts through their own sockets, refuse both cross-
+account attempts, and verify from `/proc` that only the supervisor retains the
+capability.
+
 The installer also maps the prepared runner account to a local socket. The
 future runner unit is defined in [R1 operations](../Plans/R1/operations.md#runner-unit).
 

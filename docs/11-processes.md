@@ -6,8 +6,7 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Supervisor, bus child, optional confined web child, inherited listeners and versioned process titles. |
-| Pending | Installed capability acceptance, including mutation checks. See [MVP work](../Plans/MVP/TODO.md#remaining-work) and [installed gates](../Plans/MVP/TODO.md#installed-stage-gate). |
+| Built | Supervisor, bus child, optional confined web child, inherited listeners and versioned process titles. Installed account, socket and capability placement is accepted on a package-only real-systemd host. |
 
 ## The rule
 
@@ -74,7 +73,9 @@ future AUTH child is not what settles this; the distinction is.
 Per-account socket ownership needs this capability. The installed unit grants
 it only to the supervisor; the supervisor clears ambient capabilities before
 starting its children. A developer run without the capability cannot prove
-that boundary. Read the actual process capabilities under the installed unit.
+that boundary. The [installed checks](../Plans/MVP/done/installed-shared-host.md#checks)
+exercise two actual account sockets and mutations that remove the grant or let
+the bus inherit it.
 
 The supervisor reports a failed ownership change. That does not certify that
 another account can use the intended socket.

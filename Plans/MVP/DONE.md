@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Installed shared-host boundary | A package-only real-systemd host proves service-account state, two actual users' isolated sockets, and supervisor-only `CAP_CHOWN` with five installed mutations | [evidence](done/installed-shared-host.md#checks) |
 | GitHub profile metadata and local photos | Login changes and explicit refresh atomically import provider fields; bounded local thumbnails render in User and caller-visible owner views without hotlinks or per-row bus reads | [0.5.71 evidence](done/github-profile.md#checks) |
 | Web form recovery and keyboard entry | Refused forms retain only safe input in the shared shell; secrets stay empty and public/signed pages have a keyboard skip target | [0.5.70 evidence](done/web-form-recovery.md#checks) |
 | H.1.1 upgrade and recovery | A populated packaged node stages, switches and verifies one release; failed or interrupted upgrades restore the previous release with its matching whole state tree | [0.5.69 evidence](done/upgrade-recovery.md#checks) |

@@ -1,6 +1,6 @@
 # TODO MVP
 
-📌 **TL;DR:** Finish accepted behavior, close shared-host safety gaps, then prove the installed release.
+📌 **TL;DR:** Finish accepted behavior and the remaining browser/runtime journeys on the installed release.
 
 ## Objective
 
@@ -52,13 +52,12 @@ Local mapping administration is the operator key or a user token ([administering
 
 The package, setup and supervisor are built. Continue the remaining checks on isolated systemd hosts; development checks alone do not close installed runtime or browser gates.
 
-The [development-host inspection](installed-acceptance.md#inspection) records partial positive evidence; mutation checks and independent-host acceptance remain open.
+The service-account, per-user-socket and capability rows are complete on a
+[package-only real-systemd host](done/installed-shared-host.md#checks). The
+remaining rows concern broader operational and runtime/browser acceptance.
 
 | Gate | Dependencies | Required evidence and mutation |
 |---|---|---|
-| Account and state | H.2–H.4 built; [setup contract](../../docs/09-setup.md#the-two-accounts) | Inspect running uid, home and state ownership. Start as the installing user instead and the check fails |
-| Per-user sockets | B.2 and G.1 built; account gate | Two actual OS accounts can use their own sockets and cannot use each other's. Wrong ownership or permissive mode must fail a negative check while each positive call still succeeds |
-| Capabilities | Account gate; [capability boundary](../../docs/11-processes.md#why-the-supervisor-holds-cap_chown) | Inspect the live supervisor and bus capability sets under the unit. Giving the bus the supervisor's capability or removing it from the supervisor must fail; an unprivileged development run is not evidence |
 | Operational acceptance | H.5.2–H.5.3, H.9.5–H.9.6, F.12, G.1.2–G.1.3; [H.1.1 complete](done/upgrade-recovery.md#checks) | Retain each task's installed evidence and named mutation failure; fixture-only results cannot close an installed or live-runtime requirement |
 | Fresh installed release | [H.1 package exercise complete](done/fresh-install.md#checks); H.8 and H.9–H.9.6, browser and operational acceptance remain | Run the remaining browser and runtime integration acceptance on a host without `/rd` or the checkout; retain commands, results, runtime versions and host conditions in the completion evidence |
 

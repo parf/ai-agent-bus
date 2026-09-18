@@ -5,14 +5,16 @@
 Historical observation on `parf.us`, 2026-09-13, from a read-only inspection of
 the active `agent-busd.service`. This is the development host, not a clean
 installation. The installed binary reported `0.5.6`; the checkout reported
-`0.5.7`. These observations do not certify installation of the checkout.
-The [active gates](TODO.md#installed-stage-gate) retain acceptance ownership.
+`0.5.7`. These observations did not certify installation of that checkout.
+The missing account, socket and capability evidence is now complete on a
+[packaged disposable host](done/installed-shared-host.md#checks); the table is
+retained as the earlier observation, not current status.
 
 | Check | Observed result | Remaining evidence |
 |---|---|---|
-| Account and state | Supervisor, bus and web ran as `agent-busd`; account home and unit working directory agreed. State directory was owned by that account with mode `0700` | Wrong-account mutation; fresh-host exercise |
-| Local socket | Runtime directory mode `0711`; mapped `parf` socket owned by `parf`, mode `0600`; a status call authenticated as `parf@parf` | Two actual user accounts, positive calls and cross-account refusals; ownership/mode mutations |
-| Capabilities | Supervisor permitted, effective and ambient sets contained only `CAP_CHOWN`; bus and web had zero permitted, effective and ambient capabilities. All three had `NoNewPrivs=1` | Installed mutations that remove the supervisor capability or give it to a child |
+| Account and state | Supervisor, bus and web ran as `agent-busd`; account home and unit working directory agreed. State directory was owned by that account with mode `0700` | Completed by the packaged-host checks |
+| Local socket | Runtime directory mode `0711`; mapped `parf` socket owned by `parf`, mode `0600`; a status call authenticated as `parf@parf` | Completed with two actual accounts, cross-account refusals and mutations |
+| Capabilities | Supervisor permitted, effective and ambient sets contained only `CAP_CHOWN`; bus and web had zero permitted, effective and ambient capabilities. All three had `NoNewPrivs=1` | Completed with removal and child-inheritance mutations |
 
 The children's inheritable and bounding sets still contained `CAP_CHOWN`.
 The observation is about their permitted, effective and ambient sets, not a

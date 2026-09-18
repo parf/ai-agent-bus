@@ -33,7 +33,7 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 | API, CLI, MCP and dashboard | Built and pending; see linked status | [discovery](../../docs/05-discovery.md#status) |
 | Foreground services and adapters | Built, including launchers; installed live-runtime acceptance pending | [runner](../../docs/08-runner-role.md#status) |
 | Installation and service account | Package, setup and fresh-host service call accepted; upgrade and broader installed acceptance pending | [setup](../../docs/09-setup.md#status) |
-| Process isolation | Split, web authority isolation and resource limits built; installed capability checks pending | [processes](../../docs/11-processes.md#status) |
+| Process isolation | Split, web authority isolation, resource limits and installed account/socket/capability acceptance built | [processes](../../docs/11-processes.md#status) |
 
 ## Boundaries
 
