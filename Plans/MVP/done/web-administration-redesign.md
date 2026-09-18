@@ -46,3 +46,7 @@ their frozen hashes after the run; the evidence result was then filled in.
 This advances F.13.3–F.13.5 presentation and responsive acceptance. It does not
 claim the pending reader filter, pagination, complete role journeys, Overview,
 installed five-role rerun or a template-engine migration.
+
+The later [Group table and detail slice](group-detail-and-github-availability.md#checks)
+supersedes the inline Group cards while retaining their line-list editor on the
+selected Group page.

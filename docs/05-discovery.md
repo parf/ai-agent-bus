@@ -218,9 +218,10 @@ fact row, followed by Activity. Authorized settings and Maintainers stay closed
 until chosen or until a refused submission must reopen them; configuration,
 transfer and removal remain in the red Danger Zone. User detail separates the
 profile editor from identity, authority, groups, lifecycle and owned resources.
-Groups use one card and full-width membership textarea per group. Diagnostics
-retains every existing table and scope boundary without the former visible
-paragraph walls.
+Groups use a compact Group/Members table. Selecting a name opens one group;
+the full-width membership textarea appears only when the caller may edit it.
+Diagnostics retains every existing table and scope boundary without the former
+visible paragraph walls.
 
 Human-facing integer counts use grouped decimal figures, including the compact
 footer, registry, diagnostics and Activity totals. JSON, URLs, form values and

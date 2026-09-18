@@ -57,7 +57,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 	client := web.Client()
 	client.CheckRedirect = func(r *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }
 	sessions := map[string]*http.Cookie{}
-	for _, who := range []string{"owner@h", "other@h", "admin@h"} {
+	for _, who := range []string{"owner@h", "other@h", "operator@h", "admin@h"} {
 		// Registered before signing in, not after: a name the daemon holds
 		// nothing for but a credential cannot sign in at all
 		// (docs/02-access.md#what-a-call-carries).
@@ -75,6 +75,9 @@ func TestDashboardOwnerControls(t *testing.T) {
 			t.Fatal("sign in did not return session")
 		}
 		sessions[who] = resp.Cookies()[0]
+	}
+	if err := b.SetGroup("admin@h", core.AdministratorsGroup, []string{"admin@h", "operator@h"}); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h", Descr: "service", Allow: []string{"owner@h"}}); err != nil {
 		t.Fatal(err)
@@ -234,10 +237,31 @@ func TestDashboardOwnerControls(t *testing.T) {
 	request("owner@h", "POST", "/groups", web.URL, group, 403)
 	request("admin@h", "POST", "/groups", web.URL, group, 303)
 	groups := request("admin@h", "GET", "/groups", "", nil, 200)
-	if !strings.Contains(groups, `<textarea name=members rows=6`) || !strings.Contains(groups, `>admin@h
-other@h</textarea>`) || strings.Contains(groups, `<input name=members`) {
-		t.Fatalf("group membership did not round-trip through its line editor: %s", groups)
+	if !strings.Contains(groups, `<table class=record-table>`) || !strings.Contains(groups, `href="/group?name=%40ops"`) || strings.Contains(groups, `<textarea name=members`) {
+		t.Fatalf("group listing did not become a linked membership table: %s", groups)
 	}
+	groupDetail := request("admin@h", "GET", "/group?name=%40ops", "", nil, 200)
+	if !strings.Contains(groupDetail, `<textarea name=members rows=8`) || !strings.Contains(groupDetail, `>admin@h
+other@h</textarea>`) || strings.Contains(groupDetail, `<input name=members`) {
+		t.Fatalf("group membership did not round-trip through its line editor: %s", groupDetail)
+	}
+	ordinaryGroup := request("other@h", "GET", "/group?name=%40ops", "", nil, 200)
+	if strings.Contains(ordinaryGroup, `<textarea name=members`) || !strings.Contains(ordinaryGroup, `Membership is not visible to you.`) {
+		t.Fatalf("ordinary user either gained the group editor or lost visible membership: %s", ordinaryGroup)
+	}
+	ordinaryGroups := request("other@h", "GET", "/groups", "", nil, 200)
+	if !strings.Contains(ordinaryGroups, `Not visible to you`) || strings.Contains(ordinaryGroups, `No members`) {
+		t.Fatalf("ordinary group list represented hidden membership as empty: %s", ordinaryGroups)
+	}
+	operatorGroup := request("operator@h", "GET", "/group?name=%40ops", "", nil, 200)
+	if !strings.Contains(operatorGroup, `<textarea name=members rows=8`) {
+		t.Fatal("Administrator lost ordinary-group editing")
+	}
+	protectedGroup := request("operator@h", "GET", "/group?name=%40administrators", "", nil, 200)
+	if strings.Contains(protectedGroup, `<textarea name=members`) || !strings.Contains(protectedGroup, `Only the daemon owner changes this protected group.`) {
+		t.Fatal("Administrator was offered the protected-group editor")
+	}
+	request("admin@h", "GET", "/group?name=%40missing", "", nil, 404)
 	refusedGroup := request("admin@h", "POST", "/groups", web.URL, url.Values{
 		"action": {"save"}, "name": {"@administrators"}, "members": {"admin@h\n@ops"},
 	}, 400)

@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Group detail and GitHub availability | Groups are a compact linked table with authority-scoped detail editors; a valid unique GitHub login survives unavailable optional profile metadata while explicit refresh remains atomic | [0.5.75 evidence](done/group-detail-and-github-availability.md#checks) |
 | Compact web administration pages | Registration, User detail, Groups, Diagnostics and record detail share responsive cards, immediate help and grouped human-facing counts | [0.5.73 evidence](done/web-administration-redesign.md#checks) |
 | Compact web registry and service detail | Selected Option 2 structure with Option 1 operational content; responsive User editor; compact help; about one day of Activity at ten-minute intervals | [0.5.72 evidence](done/web-registry-redesign.md#checks) |
 | F.12 partial: installed browser authority matrix | Five real Chromium sessions exercise current service/channel, user and group controls, rendered denials, foreign-origin refusal and a real activity graph | [evidence](done/installed-browser-role-matrix.md#checks) |

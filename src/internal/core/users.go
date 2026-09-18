@@ -476,10 +476,12 @@ func (b *Bus) applyGithubProfile(u *protocol.User, p ports.DirectoryProfile, nam
 	return nil
 }
 
-// githubChange performs the network half of a GitHub-login change without
-// holding the bus mutex. It first checks authority so an untrusted caller
-// cannot turn the daemon into a provider request proxy. The observed login is
-// compared again at commit to refuse stale overwrites.
+// githubChange performs the optional network half of a GitHub-login change
+// without holding the bus mutex. It first checks authority so an untrusted
+// caller cannot turn the daemon into a provider request proxy. Provider
+// metadata is decoration: an unavailable lookup leaves it unobserved but does
+// not refuse a valid, unique login. The observed login is compared again at
+// commit to refuse stale overwrites.
 func (b *Bus) githubChange(caller, name, login string) (ports.DirectoryProfile, string, bool, error) {
 	b.mu.Lock()
 	if err := b.acting(caller); err != nil {
@@ -500,11 +502,11 @@ func (b *Bus) githubChange(caller, name, login string) (ports.DirectoryProfile, 
 		return ports.DirectoryProfile{}, oldLogin, true, nil
 	}
 	if provider == nil {
-		return ports.DirectoryProfile{}, oldLogin, false, fmt.Errorf("%w: GitHub profile lookup is unavailable", ErrProfile)
+		return ports.DirectoryProfile{}, oldLogin, true, nil
 	}
 	p, err := provider.Profile(login)
 	if err != nil {
-		return ports.DirectoryProfile{}, oldLogin, false, fmt.Errorf("%w: GitHub profile: %s", ErrProfile, err)
+		return ports.DirectoryProfile{}, oldLogin, true, nil
 	}
 	return p, oldLogin, true, nil
 }

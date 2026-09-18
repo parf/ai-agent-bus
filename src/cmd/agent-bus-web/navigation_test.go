@@ -92,15 +92,16 @@ func TestCompactSelectorsSubmitOnChange(t *testing.T) {
 func TestDensePagesUseCardsAndImmediateHelpWithoutLosingActions(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h", PersonName: "Alice"}, true); err != nil {
+	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h", PersonName: "Alice", GithubUser: "parf"}, true); err != nil {
 		t.Fatal(err)
 	}
 	for path, wants := range map[string][]string{
-		"/services/new":         {`class="editor-card task-card"`, `class=form-grid`, `popovertarget=create-access-help`, `data-tooltip="One identity per line.`},
-		"/user?name=alice@h":    {`class=person-layout`, `class=person-sidebar`, `popovertarget=user-access-help`, `>Save profile</button>`},
-		"/groups":               {`class=group-grid`, `class="editor-card group-card"`, `textarea name=members rows=6`},
-		"/":                     {`class=dashboard-section`, `popovertarget=node-help`, `popovertarget=registry-help`, `popovertarget=names-help`},
-		"/service?name=quiet@h": {`class=service-dashboard`, `Queue &amp; counters`, `popovertarget=policy-help`, `summary id=settings>Edit settings`},
+		"/services/new":                 {`class="editor-card task-card"`, `class=form-grid`, `popovertarget=create-access-help`, `data-tooltip="One identity per line.`},
+		"/user?name=alice@h":            {`class=person-layout`, `class=person-sidebar`, `popovertarget=user-access-help`, `>Save profile</button>`, `Public profile data has not been fetched yet.`},
+		"/groups":                       {`<table class=record-table>`, `href="/group?name=%40administrators"`, `<th scope=col>Members</th>`},
+		"/group?name=%40administrators": {`class="editor-card group-card"`, `textarea name=members rows=8`, `>Save members</button>`},
+		"/":                             {`class=dashboard-section`, `popovertarget=node-help`, `popovertarget=registry-help`, `popovertarget=names-help`},
+		"/service?name=quiet@h":         {`class=service-dashboard`, `Queue &amp; counters`, `popovertarget=policy-help`, `summary id=settings>Edit settings`},
 	} {
 		body := m.get(path)
 		for _, want := range wants {
@@ -308,6 +309,12 @@ func TestRegistrationLivesOnDedicatedSectionPages(t *testing.T) {
 	})
 	if status != http.StatusSeeOther || location != "/user?name=new%40h" {
 		t.Fatalf("user creation returned %d %q, want new detail", status, location)
+	}
+	location, status = postAs(t, m, "/groups", url.Values{
+		"action": {"save"}, "new": {"1"}, "name": {"@new-group"}, "members": {"admin@h"},
+	})
+	if status != http.StatusSeeOther || location != "/group?name=%40new-group" {
+		t.Fatalf("group creation returned %d %q, want new detail", status, location)
 	}
 }
 

@@ -479,11 +479,12 @@ is decorative (`alt=""`); the adjacent text remains the accessible name. The
 same rule applies to the detail-title photo because its `h1` already names the
 user.
 
-GitHub refresh is never implicit page I/O. It runs only when the login field is
-created or changed, or when an authorized person invokes **Refresh GitHub
-profile**. The update is atomic around the required profile response: failure
-keeps the prior login and provider metadata. Photo import remains optional and
-may fall back without refusing that otherwise valid update.
+GitHub refresh is never implicit page I/O. It is attempted when the login field
+is created or changed, or when an authorized person invokes **Refresh GitHub
+profile**. Provider availability never blocks a valid unique login; an
+unfetched profile is labelled as such, and explicit Refresh reports failure
+without mutation. Photo import remains optional and may fall back without
+refusing that otherwise valid update.
 
 There is no delete-user control and there will not be one: a user is never
 deleted, only made inactive
@@ -510,7 +511,7 @@ inline editor. The register entry is conditional on caller authority.
 | Field | Decision |
 |---|---|
 | Group name | keep |
-| Members | **fix.** Membership renders only inside the editor today, so an ordinary caller sees a heading with no members and no explanation ([C05](review/codex.md#junk-and-misleading-content)). Say *not visible to you* — never an empty array shown as a zero count |
+| Members | **Built.** The list shows the caller-visible answer in a compact column; a hidden membership says *not visible to you*. The linked detail shows the line editor only when daemon-returned authority permits it |
 | Records referencing the group | **new.** This is [W08](../done/web-review.md#findings): there is nowhere today to see which records a membership change will affect. The draft motivated it as *why removal is refused*, two rows above prohibiting deletion — codex's [S14](review/codex.md#specification-review-round-one). The real use is live: editing members changes who may manage every record listed here, and that blast radius is otherwise invisible |
 | Protected state of `@maintainers` | **keep**, stated as protection, with no delete control offered |
 | Delete | **no control.** The handler accepts it and nothing renders it; removing the verb is [H.5.6](../TODO.md#objective), not a UI feature to restore |
@@ -524,9 +525,8 @@ A dedicated registration form reached from the Groups section navigation.
 Success lands on the new group detail page; invalid input returns the same form
 with its values and field errors.
 
-The conditional route and form are built in 0.5.64. Until the planned Group
-detail exists, success returns to Groups; that remaining destination and
-invalid-input preservation are not claimed by this slice.
+The conditional route and form are built. Success lands on Group detail;
+invalid input returns the registration form with its safe values and errors.
 
 ---
 

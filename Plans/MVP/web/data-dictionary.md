@@ -139,13 +139,14 @@ Visibility follows the existing user-directory answer; these fields do not
 create a public profile endpoint.
 
 The fetch is tied to the GitHub-login field: creating or changing
-`github_user` fetches and validates the public GitHub profile before the field
-change commits. A provider-profile transport, status or decode failure refuses
-that field update and leaves the old login and metadata unchanged. Saving an
+`github_user` attempts to fetch and validate the public GitHub profile. A
+provider transport, status or decode failure does not block the login field;
+provider facts remain unobserved until a later successful fetch. Saving an
 unrelated profile field does not contact GitHub. **Refresh GitHub profile** is
-the explicit way to fetch the current login again. Clearing `github_user`
-clears GitHub metadata and the imported photo, but keeps Person name and Email:
-after fill-blank import they are ordinary AgentBus fields, not mirrors.
+the explicit way to fetch the current login again and reports failure without
+mutation. Clearing `github_user` clears GitHub metadata and the imported photo,
+but keeps Person name and Email: after fill-blank import they are ordinary
+AgentBus fields, not mirrors.
 
 ### User photo
 

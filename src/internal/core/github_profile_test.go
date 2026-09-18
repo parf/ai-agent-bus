@@ -129,26 +129,47 @@ func TestGithubLoginChangeRejectsCallerClaimedProviderFacts(t *testing.T) {
 	}
 }
 
-func TestGithubProfileFailureAndEmailCollisionDoNotPartiallyCommit(t *testing.T) {
+func TestGithubProfileFailureDoesNotBlockLoginAndEmailCollisionDoesNotBlockImport(t *testing.T) {
 	d := &trackingGithub{err: errors.New("provider down")}
 	b := githubProfileFixture(t, d)
-	before := userNamed(t, b, "alice@h")
-	if _, err := b.SetUser("owner@h", protocol.User{Name: "alice@h", PersonName: "Uncommitted", GithubUser: "alice"}, false); !errors.Is(err, ErrProfile) {
-		t.Fatalf("profile failure: %v", err)
+	got, err := b.SetUser("owner@h", protocol.User{Name: "alice@h", PersonName: "Committed", GithubUser: "alice"}, false)
+	if err != nil {
+		t.Fatalf("optional profile failure blocked login: %v", err)
 	}
-	after := userNamed(t, b, "alice@h")
-	if !reflect.DeepEqual(before, after) {
-		t.Fatalf("failed provider lookup partially changed profile: before=%+v after=%+v", before, after)
+	if got.GithubUser != "alice" || got.PersonName != "Committed" || !got.GithubProfileAt.IsZero() || got.GithubCompany != "" {
+		t.Fatalf("unavailable provider did not leave an honest unfetched profile: %+v", got)
+	}
+	beforeRefresh := got
+	if _, err := b.RefreshGithub("owner@h", "alice@h"); !errors.Is(err, ErrProfile) {
+		t.Fatalf("explicit refresh hid provider failure: %v", err)
+	}
+	if after := userNamed(t, b, "alice@h"); !reflect.DeepEqual(beforeRefresh, after) {
+		t.Fatalf("failed explicit refresh changed profile: before=%+v after=%+v", beforeRefresh, after)
 	}
 
 	d.err = nil
 	d.profile = ports.DirectoryProfile{PersonName: "Provider", Email: "BOB@EXAMPLE.COM", Company: "Kept", FetchedAt: time.Now()}
-	got, err := b.SetUser("owner@h", protocol.User{Name: "alice@h", GithubUser: "alice"}, false)
+	got, err = b.RefreshGithub("owner@h", "alice@h")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Email != "" || got.PersonName != "Provider" || got.GithubCompany != "Kept" {
+	if got.Email != "" || got.PersonName != "Committed" || got.GithubCompany != "Kept" {
 		t.Fatalf("optional duplicate email blocked or imported: %+v", got)
+	}
+}
+
+func TestGithubLoginCanBeSetWithoutProfileAdapter(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("owner@h")
+	if _, err := b.SetUser("owner@h", protocol.User{Name: "alice@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	got, err := b.SetUser("owner@h", protocol.User{Name: "alice@h", GithubUser: "parf"}, false)
+	if err != nil {
+		t.Fatalf("missing optional adapter blocked login: %v", err)
+	}
+	if got.GithubUser != "parf" || !got.GithubProfileAt.IsZero() || got.GithubCompany != "" || len(got.PhotoPNG) != 0 {
+		t.Fatalf("missing adapter fabricated provider data: %+v", got)
 	}
 }
 

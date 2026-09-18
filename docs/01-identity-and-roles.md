@@ -129,10 +129,11 @@ name and never overwrite an existing one.
   successful proof imports both from that lookup. A public GitHub email fills
   only a blank Email and is skipped on a uniqueness collision. Fetching any of
   these facts remains evidence from GitHub, not authentication by itself.
-* Setting or changing a GitHub login fetches the complete public profile before
-  the atomic profile write. An explicit refresh does the same; unrelated edits
-  do not contact GitHub. Clearing the login clears provider metadata and its
-  photo while retaining imported person name and Email.
+* Setting or changing a GitHub login attempts to fetch the public profile, but
+  provider availability does not block the login field. Unfetched provider
+  fields stay absent; an explicit refresh reports failure without mutation.
+  Unrelated edits do not contact GitHub. Clearing the login clears provider
+  metadata and its photo while retaining imported person name and Email.
 * GitHub imagery is fetched only by the trusted adapter, constrained to the
   provider host set, bounded before decode and re-encoded as a 96-pixel PNG.
   Photo failure keeps the prior local thumbnail or initials and never blocks an

@@ -157,11 +157,12 @@ not the remote URL. GitHub's public email is different: it fills the existing
 Email only when blank, after which the ordinary AgentBus email-editing rules
 apply. There is no separate GitHub-email control.
 
-Setting or changing GitHub login fetches the provider profile before the update
-commits. A provider-profile failure returns the form with the old login and
-metadata intact; optional photo failure falls back without refusing the login.
-Saving unrelated profile fields performs no provider call. Clearing the login
-clears provider metadata and the local photo but retains Person name and Email.
+Setting or changing GitHub login attempts to fetch the provider profile. A
+provider-profile failure still saves the valid unique login and leaves provider
+facts unfetched; explicit Refresh reports a failure without mutation. Optional
+photo failure falls back without refusing the login. Saving unrelated profile
+fields performs no provider call. Clearing the login clears provider metadata
+and the local photo but retains Person name and Email.
 
 ## Where the current forms stop making sense
 

@@ -134,7 +134,7 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 
 	groups := get("/groups")
 	for _, group := range []string{"@administrators", "@ops"} {
-		want := `<span role=img aria-label="Group">👥</span> <code>` + group + `</code>`
+		want := `<span role=img aria-label="Group">👥</span> <a href="/group?name=` + url.QueryEscape(group) + `"><code>` + group + `</code></a>`
 		if !strings.Contains(groups, want) {
 			t.Errorf("group %s has no group glyph immediately before its name", group)
 		}
@@ -147,8 +147,8 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	}
 	// Positive control: the form itself is still there, so the check above
 	// cannot pass by the page having lost its controls altogether.
-	if !strings.Contains(groups, "value=save") {
-		t.Error("the groups page lost membership editing, so the check above proves nothing")
+	if detail := get("/group?name=%40ops"); !strings.Contains(detail, "value=save") {
+		t.Error("the linked group detail lost membership editing, so the check above proves nothing")
 	}
 	for _, group := range []string{"@administrators", "@ops"} {
 		if !strings.Contains(groups, group) {

@@ -80,6 +80,11 @@ existing key-possession proof remains the authentication fact. The
 [snapshot upgrade note](../../../docs/09-setup.md#github-profile-snapshot-upgrade)
 records how an older daemon treats the new optional fields.
 
+The later [0.5.75 availability correction](group-detail-and-github-availability.md#checks)
+supersedes this release's required-profile behavior: a valid unique login now
+commits when optional provider metadata is unavailable, while explicit Refresh
+still fails atomically.
+
 ## Live postflight
 
 Commit `c81cb69` was built and deployed as 0.5.71 with build

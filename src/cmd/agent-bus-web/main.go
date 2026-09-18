@@ -473,9 +473,10 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
 .access-actions{display:flex;flex-wrap:wrap;gap:.5rem}
 .access-actions form{margin:0}
 .access-actions .danger-action{color:#fff;background:var(--red);border-color:var(--red)}
-.group-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(24rem,100%),1fr));gap:1rem;align-items:start}
 .group-card{margin:0;max-width:none}
 .group-card textarea{display:block;width:100%;min-height:9rem;margin-top:.4rem;padding:.55rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-1)}
+.member-line{display:block;line-height:1.6}
+.member-list{display:grid;gap:.15rem}
 .service-dashboard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;max-width:82rem;margin:1rem 0;align-items:start}
 .fact-card{min-width:0;padding:1rem;border:1px solid var(--border);border-radius:6px;background:var(--surface-1)}
 .fact-card .page-title{margin:0}

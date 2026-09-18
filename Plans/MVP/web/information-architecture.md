@@ -57,9 +57,9 @@ The planned page map follows. `⚠` marks a page that does not exist today.
 | Users | `/users` | Find a person or an identity | exists |
 | User | `/user?name=` | Profile, authority, memberships, owned records | exists |
 | Register user | `/users/new` | Create one | built in 0.5.64; the legacy empty `/user` route remains |
-| Groups | `/groups` | Groups, membership, references | list and inline forms only |
-| Group | `/group?name=` | One group: members, and what uses it | ⚠ new |
-| Register group | `/groups/new` | Create one | built in 0.5.64; Group detail remains pending |
+| Groups | `/groups` | Groups and caller-visible membership | linked compact table |
+| Group | `/group?name=` | One group: members and authority-scoped editor | built |
+| Register group | `/groups/new` | Create one | built; success opens Group detail |
 | Account | `/account` | Own identity, own credentials, how to rotate | ⚠ new; lives on the diagnostics page |
 | Sign in | `/signin` | Token, and how to get one | exists |
 | Problem | — | Refusal, expired session, unavailable bus, not found | one page for all four |
@@ -195,6 +195,4 @@ them is safe to give.
 - Whether Channels is its own destination or a filter on Services. Separate
   here because delivery mode is the question channels are asked, and a shared
   template is what buried it — but it doubles the page set.
-- Whether Groups needs a detail page in MVP, or whether membership and
-  references fit on the list.
 - Whether Diagnostics and Activity are two pages or two sections of one.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.75 — 2026-09-18
+
+Show Groups as a compact linked table with authority-scoped detail editors.
+Allow valid unique GitHub logins when optional provider metadata is unavailable.
+
 ## 0.5.74 — 2026-09-18
 
 Add runtime `@owner` ACL sharing for an Owner's directly owned Services and
