@@ -73,6 +73,30 @@ of it, if periodic dumping is off.
 
 Prometheus `/metrics` first (Grafana reads it); OTLP / StatsD secondary.
 
+## One front door
+
+**Owner idea, 2026-09-18, for discussion — nothing here is settled.** Recorded
+as raised; the open choice is [Q72](QUESTIONS.md#open-questions).
+
+Four related proposals, which stand or fall largely together:
+
+| Proposal | What it would change |
+|---|---|
+| **one port for web and API** | today they are separate listeners ([where it listens](../../docs/05-discovery.md#where-it-listens)). One port means one thing to expose, one certificate, one firewall rule |
+| **a homepage** | a public page about the service itself — what it is, images, links to the repository and the API documentation. Today an anonymous visitor gets the sign-in page and the node identity line, and nothing explaining what the software *is* |
+| **sign-in moves to `/admin/`** | the token form stops being the front page and becomes the entrance to the administrative area |
+| **the admin is an on-demand Bun service on a socket** | the dashboard stops being a always-running Go child and becomes a process started when somebody asks for it |
+
+### What has to be answered before any of it
+
+| Question | Why it is not obvious |
+|---|---|
+| does one port weaken the split? | the separation is not only cosmetic: the web child is the least-trusted process and holds no credential ([process boundary](../../docs/11-processes.md#the-rule)). Sharing a listener must not share authority, and the API must not become reachable by anything that can reach the homepage |
+| what does a homepage publish? | it is a **public** page, so its contents are the same kind of decision as [what a node says about itself](../../docs/05-discovery.md#what-a-node-says-about-itself) — a closed list the owner sets, not whatever is convenient |
+| what starts the admin, and as whom? | on-demand start is a supervision question before it is a performance one. Who starts it, under which account, what happens to a request that arrives while it is starting, and what stops it |
+| Bun, for a process that faces the network | the dashboard rule today is [no JavaScript, no CDN, no external asset](../../docs/05-discovery.md#rules-it-is-built-to), and the Go child was chosen partly so the exposed surface stays small. A Bun admin is a different dependency and a different attack surface, and [module boundaries](modules.md#modules) owns that call |
+| what happens to the built dashboard? | the MVP dashboard is built and its redesign is mid-flight. This proposal would replace its host process, so the two need sequencing rather than racing |
+
 ## Dashboard extensions
 
 Optional for MVP; assigned to R1 by the owner on 2026-09-13. The

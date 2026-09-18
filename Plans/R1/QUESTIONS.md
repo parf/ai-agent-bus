@@ -103,3 +103,13 @@ answers. Decide when cached permissions are refreshed, how an explicit
 revocation reaches replicas and live sessions, and what a disconnected caller
 may do. This is authorization freshness, not a reopened token-expiry decision.
 *Settled by:* owner, with R1.
+
+Q72: the owner has proposed a single front door — one port serving both web and
+API, a public homepage describing the service with repository and API links,
+sign-in moved to `/admin/`, and the administrative dashboard run as an
+on-demand Bun service on a socket rather than an always-running Go child.
+Raised 2026-09-18 for discussion. Decide whether to take it, and in what order
+against the in-flight dashboard work; the questions it must answer first are in
+[one front door](discovery.md#one-front-door). It is four proposals, and they
+need not all be accepted.
+*Settled by:* owner.
