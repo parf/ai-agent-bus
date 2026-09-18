@@ -237,7 +237,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 	request("owner@h", "POST", "/groups", web.URL, group, 403)
 	request("admin@h", "POST", "/groups", web.URL, group, 303)
 	groups := request("admin@h", "GET", "/groups", "", nil, 200)
-	if !strings.Contains(groups, `<table class=record-table>`) || !strings.Contains(groups, `href="/group?name=%40ops"`) || strings.Contains(groups, `<textarea name=members`) {
+	if !strings.Contains(groups, `<table class="record-table group-table">`) || !strings.Contains(groups, `href="/group?name=%40ops"`) || !strings.Contains(groups, `<code>admin@h</code>, <code>other@h</code>`) || strings.Contains(groups, `<textarea name=members`) {
 		t.Fatalf("group listing did not become a linked membership table: %s", groups)
 	}
 	groupDetail := request("admin@h", "GET", "/group?name=%40ops", "", nil, 200)
@@ -258,7 +258,7 @@ other@h</textarea>`) || strings.Contains(groupDetail, `<input name=members`) {
 		t.Fatal("Administrator lost ordinary-group editing")
 	}
 	protectedGroup := request("operator@h", "GET", "/group?name=%40administrators", "", nil, 200)
-	if strings.Contains(protectedGroup, `<textarea name=members`) || !strings.Contains(protectedGroup, `Only the daemon owner changes this protected group.`) {
+	if strings.Contains(protectedGroup, `<textarea name=members`) || !strings.Contains(protectedGroup, `Only the daemon owner changes this protected group.`) || !strings.Contains(protectedGroup, `popovertarget=administrators-help`) || !strings.Contains(protectedGroup, `does not automatically grant management`) {
 		t.Fatal("Administrator was offered the protected-group editor")
 	}
 	request("admin@h", "GET", "/group?name=%40missing", "", nil, 404)

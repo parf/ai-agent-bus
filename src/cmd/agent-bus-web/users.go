@@ -34,6 +34,41 @@ func photoData(u protocol.User) template.URL {
 func githubProfileURL(login string) string { return "https://github.com/" + url.PathEscape(login) }
 func twitterProfileURL(name string) string { return "https://x.com/" + url.PathEscape(name) }
 
+func profileFromForm(r *http.Request) protocol.User {
+	return protocol.User{
+		Name: r.PostForm.Get("name"), PersonName: r.PostForm.Get("person_name"),
+		Email: r.PostForm.Get("email"), GithubUser: r.PostForm.Get("github_user"),
+		GithubCompany: r.PostForm.Get("company"), GithubLocation: r.PostForm.Get("location"),
+		GithubTwitterUsername: r.PostForm.Get("twitter"),
+	}
+}
+
+func recordPath(name string, kinds map[string]string) string {
+	return recordKindPath(name, kinds[name])
+}
+
+func recordKindPath(name, kind string) string {
+	path := "/service"
+	if kind == protocol.KindTopic {
+		path = "/channel"
+	}
+	return path + "?name=" + url.QueryEscape(name)
+}
+
+// The directory answer may name every record a user owns. Detail navigation
+// follows the separately authorized listing, so a directory-visible person
+// never becomes an oracle for record names hidden from this caller.
+func visibleUserResources(u protocol.User, kinds map[string]string) protocol.User {
+	services := make([]string, 0, len(u.Services))
+	for _, name := range u.Services {
+		if _, visible := kinds[name]; visible {
+			services = append(services, name)
+		}
+	}
+	u.Services = services
+	return u
+}
+
 type peopleView struct {
 	adminView
 	Users                                        []protocol.User
@@ -136,6 +171,7 @@ func (p *peopleView) directory(r *http.Request) {
 }
 
 func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
+	c.accountRoute(mux)
 	load := func(w http.ResponseWriter, r *http.Request) (peopleView, bool) {
 		v, ok := c.signedIn(w, r)
 		p := peopleView{adminView: v}
@@ -206,10 +242,50 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		}
 		for _, u := range p.Users {
 			if u.Name == name {
-				p.User = u
+				p.User = visibleUserResources(u, p.RecordKinds)
 				render(w, personPage, p)
 				return
 			}
+		}
+		fail(w, r, p.You, &busError{code: http.StatusNotFound})
+	})
+	mux.HandleFunc("GET /user-ban", func(w http.ResponseWriter, r *http.Request) {
+		p, ok := load(w, r)
+		if !ok {
+			return
+		}
+		p.Return = directoryReturn(r.URL.Query().Get("return"))
+		for _, u := range p.Users {
+			if u.Name != r.URL.Query().Get("name") {
+				continue
+			}
+			if u.Kind != protocol.DirectoryUser || u.DaemonOwner || !u.CanActivate || u.State == "banned" {
+				fail(w, r, p.You, &busError{code: http.StatusForbidden, message: "that user cannot be banned by you in their current state"})
+				return
+			}
+			p.User = u
+			render(w, userBanPage, p)
+			return
+		}
+		fail(w, r, p.You, &busError{code: http.StatusNotFound})
+	})
+	mux.HandleFunc("GET /credential-remove", func(w http.ResponseWriter, r *http.Request) {
+		p, ok := load(w, r)
+		if !ok {
+			return
+		}
+		p.Return = directoryReturn(r.URL.Query().Get("return"))
+		for _, u := range p.Users {
+			if u.Name != r.URL.Query().Get("name") {
+				continue
+			}
+			if u.Kind == protocol.DirectoryUser || !u.CanRemove {
+				fail(w, r, p.You, &busError{code: http.StatusForbidden, message: "that credential cannot be removed by you"})
+				return
+			}
+			p.User = visibleUserResources(u, p.RecordKinds)
+			render(w, credentialRemovePage, p)
+			return
 		}
 		fail(w, r, p.You, &busError{code: http.StatusNotFound})
 	})
@@ -238,7 +314,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			return true
 		}
 		p.Return = directoryReturn(r.PostForm.Get("return"))
-		p.Form = retainedForm(action, message, r.PostForm, "name", "person_name", "email", "github_user", "return")
+		p.Form = retainedForm(action, message, r.PostForm, "name", "person_name", "email", "github_user", "company", "location", "twitter", "return")
 		if len(field) != 0 {
 			p.Form.Field = field[0]
 		}
@@ -247,7 +323,8 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 				return false
 			}
 			p.New = true
-			p.User = protocol.User{Name: r.PostForm.Get("name"), Kind: protocol.DirectoryUser, PersonName: r.PostForm.Get("person_name"), Email: r.PostForm.Get("email"), GithubUser: r.PostForm.Get("github_user")}
+			p.User = profileFromForm(r)
+			p.User.Kind = protocol.DirectoryUser
 			renderForm(w, code, personPage, p)
 			return true
 		}
@@ -256,8 +333,10 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 				if u.Name != r.PostForm.Get("name") {
 					continue
 				}
-				u.PersonName, u.Email, u.GithubUser = r.PostForm.Get("person_name"), r.PostForm.Get("email"), r.PostForm.Get("github_user")
-				p.User = u
+				form := profileFromForm(r)
+				u.PersonName, u.Email, u.GithubUser = form.PersonName, form.Email, form.GithubUser
+				u.GithubCompany, u.GithubLocation, u.GithubTwitterUsername = form.GithubCompany, form.GithubLocation, form.GithubTwitterUsername
+				p.User = visibleUserResources(u, p.RecordKinds)
 				renderForm(w, code, personPage, p)
 				return true
 			}
@@ -284,11 +363,12 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		case "remove-credential":
 			err = c.post(cookie(r), "/identity/remove", map[string]string{"name": r.PostForm.Get("name")})
 		case "save", "create":
-			u := protocol.User{Name: r.PostForm.Get("name"), PersonName: r.PostForm.Get("person_name"), Email: r.PostForm.Get("email"), GithubUser: r.PostForm.Get("github_user")}
+			u := profileFromForm(r)
 			err = c.post(cookie(r), "/user", struct {
 				protocol.User
-				Create bool
-			}{u, r.PostForm.Get("action") == "create"})
+				Create            bool `json:"create,omitempty"`
+				ProfileDetailsSet bool `json:"profile_details_set"`
+			}{u, r.PostForm.Get("action") == "create", true})
 		case "refresh-github":
 			err = c.post(cookie(r), "/user/github-refresh", map[string]string{"name": r.PostForm.Get("name")})
 		case "active", "paused", "banned":
@@ -309,7 +389,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 						p.Return = directoryReturn(r.PostForm.Get("return"))
 						for _, u := range p.Users {
 							if u.Name == r.PostForm.Get("name") {
-								p.User, p.Form = u, formState{Action: action, Target: action, Error: message}
+								p.User, p.Form = visibleUserResources(u, p.RecordKinds), formState{Action: action, Target: action, Error: message}
 								renderForm(w, code, personPage, p)
 								return
 							}
@@ -330,7 +410,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 	})
 }
 
-var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityGlyph": identityGlyph, "identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number}).Parse(shell("users", "Users") + `
+var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityGlyph": identityGlyph, "identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number, "recordPath": recordPath}).Parse(shell("users", "Users") + `
 <div class=page-title><h1>{{titleMark "users"}} Users and other identities</h1><button type=button class=help-button popovertarget=identity-types-help aria-label="About identity types">ⓘ</button></div>
 <div popover id=identity-types-help class=context-help><h2>About identity types</h2><ul>
 <li>Registered users have a profile.</li>
@@ -351,15 +431,16 @@ var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"id
 {{range .People}}<tr><td><span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<span>{{with .PersonName}}<strong>{{.}}</strong><br>{{end}}{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a>{{with .GithubCompany}}<br><span class=muted>{{.}}</span>{{end}}</span></span></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</td><td>{{.State}}</td></tr>
 {{else}}<tr><td colspan=3>No registered users on this page.</td></tr>{{end}}</tbody></table></section>
 <section aria-labelledby=other-heading><h2 id=other-heading>Other identities — review and cleanup</h2>
+{{if .Other}}
 <table><thead><tr><th scope=col>Identity</th><th scope=col>What it is</th><th scope=col>Why it is here / next step</th></tr></thead><tbody>
 {{range .Other}}<tr><td>{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td>
 <td>{{if eq .Kind "record"}}Registered name{{else}}Credential with no registered name{{end}}</td>
-<td>{{if eq .Kind "record"}}A self-owned record, not a user profile. <a href="/service?name={{.Name}}">Inspect the record</a> before deciding whether it is needed.
+<td>{{if eq .Kind "record"}}A self-owned record, not a user profile. <a href="{{recordPath .Name $.RecordKinds}}">Inspect the record</a> before deciding whether it is needed.
 {{else}}No user profile and no registered record. {{if .CanRemove}}<a href="/user?name={{.Name}}&return={{$.Return}}">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}{{end}}</td></tr>
-{{else}}<tr><td colspan=3>No other identities on this page.</td></tr>{{end}}</tbody></table></section>
+{{end}}</tbody></table>{{else}}<p class=muted>No other identities match this view. Use the Other filter when its count is nonzero.</p>{{end}}</section>
 <nav aria-label="Directory pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
 `))
-var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "registrationUpdated": registrationUpdated, "githubProfileURL": githubProfileURL, "twitterProfileURL": twitterProfileURL}).Parse(shell("users", "Identity details") + `
+var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "registrationUpdated": registrationUpdated, "githubProfileURL": githubProfileURL, "twitterProfileURL": twitterProfileURL, "recordPath": recordPath}).Parse(shell("users", "Identity details") + `
 <p><a href="{{.Return}}">Back to directory</a></p>
 <div class=page-title><h1 style="overflow-wrap:anywhere">{{if .New}}{{titleMark "user"}}{{else if eq .User.Kind "user"}}{{with photoData .User}}<img class=profile-photo-large src="{{.}}" alt="">{{else}}<span class=profile-initial-large aria-hidden=true>{{profileInitial .User}}</span>{{end}}{{else}}{{titleMark "identity"}}{{end}} {{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1></div>` + formErrorSummary + `
 {{if .New}}
@@ -367,22 +448,39 @@ var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"id
 {{if .New}}<label class="form-field form-field-wide">Identity <input name=name required placeholder="user@realm" value="{{.User.Name}}" aria-invalid="{{if .Form.Invalid "name"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "name"}}profile-error{{end}}"><small>The principal name used by AgentBus.</small></label><input type=hidden name=action value=create>{{else}}<input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=action value=save>{{end}}
 <label class=form-field>Person name <input name=person_name value="{{.User.PersonName}}"><small>The name shown to people.</small></label>
 <label class=form-field>Email <input type=email name=email value="{{.User.Email}}" aria-invalid="{{if .Form.Invalid "email"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "email"}}profile-error{{end}}"><small>A public GitHub email fills this only when it is blank.</small></label>
-<label class=form-field>GitHub login <input name=github_user value="{{.User.GithubUser}}"><small>Setting or changing it attempts to refresh public profile data.</small></label></div>{{if or (.Form.Is "create") (.Form.Is "save")}}<p class=warn id=profile-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>Save profile</button></div></form></section>
+<label class=form-field>GitHub login <input name=github_user value="{{.User.GithubUser}}"><small>Setting or changing it attempts to import public values.</small></label>
+<label class=form-field>Company <input name=company value="{{.User.GithubCompany}}"></label>
+<label class=form-field>Location <input name=location value="{{.User.GithubLocation}}"></label>
+<label class=form-field>Twitter/X <input name=twitter value="{{.User.GithubTwitterUsername}}" placeholder="handle"></label></div>{{if or (.Form.Is "create") (.Form.Is "save")}}<p class=warn id=profile-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>Save profile</button></div></form></section>
 <aside class=credential-note aria-labelledby=ssh-access-heading><div class=page-title><h2 id=ssh-access-heading><span aria-hidden=true>🔑</span> SSH access</h2><button type=button class=help-button popovertarget=ssh-access-help aria-label="How to add an SSH public key" data-tooltip="Public keys are installed on the host after the profile is saved; they are not profile fields.">ⓘ</button></div><p>Public keys are added on the host after the profile is saved.</p></aside><div popover id=ssh-access-help class=context-help><h2>Add an SSH public key</h2><ul><li>The key belongs to host onboarding, not to the user profile.</li><li>An Administrator runs <code>agent-bus-admin user add &lt;user@realm&gt; &lt;key.pub&gt;</code>.</li><li>The command installs a forced SSH command and provisions the AgentBus user together.</li></ul></div>
 {{else if ne .User.Kind "user"}}
 <div class=detail-meta>{{with identityLabel .User .RecordKinds}}<span class=fact-pill>{{.}}</span>{{end}}<span>No user lifecycle state</span></div>
-<section class="editor-card compact-card"><div class=page-title><h2>{{if eq .User.Kind "record"}}Registered name{{else}}Credential only{{end}}</h2><button type=button class=help-button popovertarget=non-user-help aria-label="About this identity" data-tooltip="This name has no user profile. Inspect any self-owned record before removing a credential.">ⓘ</button></div>{{if eq .User.Kind "record"}}<p>A self-owned record exists. <a href="/service?name={{.User.Name}}">Inspect its registration and queues</a>.</p>{{range .User.Services}}<p><a href="/service?name={{.}}">{{.}}</a></p>{{end}}{{else}}<p>No registered record remains for this credential.</p>{{end}}{{if .User.CanRemove}}<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action name=action value=remove-credential>Remove credential for {{.User.Name}}</button></form>{{end}}</section>
+<section class="editor-card compact-card"><div class=page-title><h2>{{if eq .User.Kind "record"}}Registered name{{else}}Credential only{{end}}</h2><button type=button class=help-button popovertarget=non-user-help aria-label="About this identity" data-tooltip="This name has no user profile. Inspect any self-owned record before removing a credential.">ⓘ</button></div>{{if eq .User.Kind "record"}}<p>A self-owned record exists. <a href="{{recordPath .User.Name .RecordKinds}}">Inspect its registration and queues</a>.</p>{{range .User.Services}}<p><a href="{{recordPath . $.RecordKinds}}">{{.}}</a></p>{{end}}{{else}}<p>No registered record remains for this credential.</p>{{end}}{{if .User.CanRemove}}<form method=get action=/credential-remove><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action>Review credential removal…</button></form>{{end}}</section>
 <div popover id=non-user-help class=context-help><h2>About this identity</h2><ul><li>This is not a registered user, so no user lifecycle state is assigned.</li><li>Credential removal ends the current token, previous token and browser sessions.</li><li>It never deletes a user or service, and is refused if the name becomes registered first.</li></ul></div>
 {{else}}
 <div class=person-layout><div class=person-main>
 {{if .User.CanEdit}}<section class=editor-card aria-labelledby=profile-heading><h2 id=profile-heading>Profile</h2><form id=form-save method=post action=/user><input type=hidden name=return value="{{.Return}}"><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=action value=save><div class=form-grid>
-<label class=form-field>Person name <input name=person_name value="{{.User.PersonName}}"><small>The name shown to people.</small></label><label class=form-field>Email <input type=email name=email value="{{.User.Email}}" aria-invalid="{{if .Form.Invalid "email"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "email"}}profile-error{{end}}"><small>A public GitHub email fills this only when blank.</small></label><label class=form-field>GitHub login <input name=github_user value="{{.User.GithubUser}}"><small>Changing it attempts to refresh public profile data.</small></label></div>{{if .Form.Is "save"}}<p class=warn id=profile-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>Save profile</button></div></form></section>{{else}}<section class="editor-card compact-card"><h2>Profile</h2><dl>{{with .User.PersonName}}<dt>Person name</dt><dd>{{.}}</dd>{{end}}{{with .User.Email}}<dt>Email</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubUser}}<dt>GitHub login</dt><dd>{{.}}</dd>{{end}}</dl><p class=muted>Trusted profile fields are edited by a daemon administrator.</p></section>{{end}}
-{{if .User.GithubUser}}<section class="editor-card compact-card"><div class=page-title><h2>GitHub profile</h2><button type=button class=help-button popovertarget=github-profile-help aria-label="About imported GitHub data" data-tooltip="Public profile data is optional. It is imported when available after the login is set, changed, or explicitly refreshed.">ⓘ</button></div><dl><dt>GitHub</dt><dd><a href="{{githubProfileURL .User.GithubUser}}">@{{.User.GithubUser}}</a></dd>{{with .User.GithubCompany}}<dt>Company</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubLocation}}<dt>Location</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubTwitterUsername}}<dt>Twitter/X</dt><dd><a href="{{twitterProfileURL .}}">@{{.}}</a></dd>{{end}}{{with .User.GithubGravatarID}}<dt>Gravatar ID</dt><dd><code>{{.}}</code></dd>{{end}}{{with .User.PhotoSource}}<dt>Photo source</dt><dd>{{if eq . "github"}}GitHub{{else}}Gravatar{{end}}</dd>{{end}}{{if not .User.GithubProfileAt.IsZero}}<dt>Fetched</dt><dd><time datetime="{{.User.GithubProfileAt.Format "2006-01-02T15:04:05Z07:00"}}">{{registrationUpdated .User.GithubProfileAt}}</time></dd>{{end}}</dl>{{if .User.GithubProfileAt.IsZero}}<p class=muted>Public profile data has not been fetched yet.</p>{{end}}{{if .User.CanEdit}}<form id=form-refresh-github method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=refresh-github>Refresh GitHub profile</button>{{if .Form.Is "refresh-github"}}<p class=warn>{{.Form.Error}}</p>{{end}}</form>{{end}}</section><div popover id=github-profile-help class=context-help><h2>Imported GitHub data</h2><p>Company, location, Twitter/X, photo source and fetched time come from the trusted daemon adapter when it is available. Page rendering never fetches GitHub.</p></div>{{end}}
+<label class=form-field>Person name <input name=person_name value="{{.User.PersonName}}"><small>The name shown to people.</small></label><label class=form-field>Email <input type=email name=email value="{{.User.Email}}" aria-invalid="{{if .Form.Invalid "email"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "email"}}profile-error{{end}}"><small>A public GitHub email fills this only when blank.</small></label><label class=form-field>GitHub login <input name=github_user value="{{.User.GithubUser}}"><small>Changing it attempts to import public values.</small></label><label class=form-field>Company <input name=company value="{{.User.GithubCompany}}"></label><label class=form-field>Location <input name=location value="{{.User.GithubLocation}}"></label><label class=form-field>Twitter/X <input name=twitter value="{{.User.GithubTwitterUsername}}" placeholder="handle"></label></div>{{if .Form.Is "save"}}<p class=warn id=profile-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>Save profile</button></div></form>{{if .User.GithubUser}}<form id=form-refresh-github method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=refresh-github>Refresh fields from GitHub</button>{{if .Form.Is "refresh-github"}}<p class=warn>{{.Form.Error}}</p>{{end}}</form>{{end}}</section>{{else}}<section class="editor-card compact-card"><div class=page-title><h2>Profile</h2><button type=button class=help-button popovertarget=profile-source-help aria-label="About profile fields" data-tooltip="These are AgentBus User fields. GitHub may supply initial or refreshed values; authorized profile edits can change them.">ⓘ</button></div><dl>{{with .User.PersonName}}<dt>Person name</dt><dd>{{.}}</dd>{{end}}{{with .User.Email}}<dt>Email</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubUser}}<dt>GitHub login</dt><dd><a href="{{githubProfileURL .}}">@{{.}}</a></dd>{{end}}{{with .User.GithubCompany}}<dt>Company</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubLocation}}<dt>Location</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubTwitterUsername}}<dt>Twitter/X</dt><dd><a href="{{twitterProfileURL .}}">@{{.}}</a></dd>{{end}}</dl><p class=muted>Trusted profile fields are edited by a daemon administrator.</p></section><div popover id=profile-source-help class=context-help><h2>Profile fields</h2><p>These values belong to the AgentBus User profile. Public GitHub data may fill or refresh them, but GitHub is not a separate profile on this page.</p></div>{{end}}
 </div><aside class=person-sidebar>
-<section class="editor-card compact-card"><h2>Identity</h2><p>State: {{.User.State}}</p><div class=detail-meta>{{with identityLabel .User .RecordKinds}}<span class=fact-pill>{{.}}</span>{{end}}<span class=fact-pill>{{if .User.DaemonOwner}}Daemon owner{{else if .User.Administrator}}Daemon administrator{{else}}User{{end}}</span></div><h2>Groups</h2><div class=choice-row>{{range .User.Groups}}<span class=group-chip>{{.}}</span>{{else}}<span class=muted>No memberships</span>{{end}}</div></section>
-{{if not .User.DaemonOwner}}<section class="editor-card compact-card"><div class=page-title><h2>Access</h2><button type=button class=help-button popovertarget=user-access-help aria-label="About user access states" data-tooltip="Pause and ban block bus access and new inbox deliveries; queued work stays and running processes are not stopped.">ⓘ</button></div><form class=access-actions method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}">{{if .User.CanActivate}}<button name=action value=active>Activate</button>{{end}}<button name=action value=paused>Pause</button><button class=danger-action name=action value=banned>Ban</button></form></section><div popover id=user-access-help class=context-help><h2>User access states</h2><ul><li>Pause and ban block bus access and new deliveries to this user's inbox.</li><li>Queued work is retained and running service processes are not stopped.</li><li>Administrators may lift a ban on an ordinary user; the daemon Owner controls protected authority levels.</li></ul></div>{{end}}
-<section class="editor-card compact-card"><h2>Owned services</h2>{{range .User.Services}}<p><a href="/service?name={{.}}">{{.}}</a></p>{{else}}<p class=muted>None</p>{{end}}</section>
+<section class="editor-card compact-card"><h2>Identity</h2><div class=detail-meta>{{with identityLabel .User .RecordKinds}}<span class=fact-pill>{{.}}</span>{{end}}<span class=fact-pill>{{if .User.DaemonOwner}}Daemon owner{{else if .User.Administrator}}Daemon administrator{{else}}User{{end}}</span></div><h2>Groups</h2><div class=choice-row>{{range .User.Groups}}<a class=group-chip href="/group?name={{.}}">{{.}}</a>{{else}}<span class=muted>No memberships</span>{{end}}</div></section>
+<section class="editor-card compact-card"><div class=page-title><h2>Access</h2><button type=button class=help-button popovertarget=user-access-help aria-label="About user access states" data-tooltip="Pause and ban block bus access and new inbox deliveries; queued work stays and running processes are not stopped.">ⓘ</button></div><p>Current: {{if eq .User.State "active"}}<span class="user-state user-state-active"><span aria-hidden=true>●</span> Active</span>{{else if eq .User.State "paused"}}<span class="user-state user-state-paused"><span aria-hidden=true>●</span> Paused</span>{{else}}<span class="user-state user-state-banned"><span aria-hidden=true>●</span> Banned</span>{{end}}</p>{{if and (not .User.DaemonOwner) .User.CanActivate}}<details class=access-change><summary>Change</summary><div class=access-actions>{{if ne .User.State "active"}}<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=active>Activate</button></form>{{end}}{{if eq .User.State "active"}}<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=paused>Pause</button></form>{{end}}{{if ne .User.State "banned"}}<form method=get action=/user-ban><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action>Ban…</button></form>{{end}}</div></details>{{end}}</section><div popover id=user-access-help class=context-help><h2>User access states</h2><ul><li>Pause and ban block bus access and new deliveries to this user's inbox.</li><li>Queued work is retained and running service processes are not stopped.</li><li>Administrators may lift a ban on an ordinary user; the daemon Owner controls protected authority levels.</li></ul></div>
+<section class="editor-card compact-card"><h2>Owned records</h2>{{range .User.Services}}<p><a href="{{recordPath . $.RecordKinds}}">{{.}}</a></p>{{else}}<p class=muted>None</p>{{end}}</section>
 </aside></div>
 {{end}}
+`))
+
+var userBanPage = template.Must(template.New("user-ban").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shell("users", "Confirm ban") + `
+<p><a href="/user?name={{.User.Name}}&return={{.Return}}">Back to user</a></p>
+<div class=page-title><h1>{{titleMark "problem"}} Confirm ban</h1></div>
+<section class="editor-card compact-card"><p>Ban <code>{{.User.Name}}</code>?</p><ul><li>Bus access and new inbox deliveries stop.</li><li>Queued work stays, and running processes are not stopped.</li></ul>
+{{if .User.Administrator}}<p>Only the daemon Owner can activate this Administrator later.</p>{{else}}<p>An authorized Administrator or the daemon Owner can activate this user later.</p>{{end}}
+<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action name=action value=banned>Ban user</button> <a href="/user?name={{.User.Name}}&return={{.Return}}">Cancel</a></form></section>
+`))
+
+var credentialRemovePage = template.Must(template.New("credential-remove").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shell("users", "Confirm credential removal") + `
+<p><a href="/user?name={{.User.Name}}&return={{.Return}}">Back to identity</a></p>
+<div class=page-title><h1>{{titleMark "problem"}} Confirm credential removal</h1></div>
+<section class="editor-card compact-card"><p>Remove the credential for <code>{{.User.Name}}</code>?</p><ul><li>The current and previous credentials stop authenticating.</li><li>Every browser session for this identity ends.</li><li>No user or registered record is removed by this action.</li></ul>
+<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action name=action value=remove-credential>Remove credential</button> <a href="/user?name={{.User.Name}}&return={{.Return}}">Cancel</a></form></section>
 `))
 var avatarPage = template.Must(template.New("avatar").Parse(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#e5eaf4"/><text x="16" y="22" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#253c66">{{.}}</text></svg>`))

@@ -456,18 +456,15 @@ help and never invents a web-writable key field.
 | Identity | Locally served profile photo or initials, name, person name, state, daemon authority |
 | Memberships | Groups, or an explicit no-memberships statement |
 | Owned records | Linked, or an explicit none |
-| Profile | AgentBus person name, user-managed email and GitHub login; editable only under the existing field authorities. Setting/changing login fetches GitHub; an explicit Refresh action updates an unchanged login |
-| GitHub profile | Read-only provider fields: company, location, Twitter/X handle, photo source and legacy Gravatar ID. The section is absent for a non-GitHub profile; individual blank fields are omitted |
-| Lifecycle | Separate from the summary. **Only the transitions that apply** — an already-active user is offered Activate beside Pause and Ban today, all looking alike ([C12](review/codex.md#junk-and-misleading-content)). Ban is consequential and confirmed |
+| Profile | AgentBus person name, email, GitHub login, company, location and Twitter/X handle; editable only under the existing field authorities. Setting/changing login can fill public values; **Refresh fields from GitHub** replaces them |
+| Lifecycle | **Built in 0.5.79.** Current state is always visible as a word and colour. Applicable daemon-authorized actions sit behind the red **Change** disclosure: active offers Pause/Ban, paused offers Activate/Ban and banned offers Activate. Ban is consequential and confirmed |
 
-The GitHub section labels its source and freshness. It uses the retained daemon
-answer only: the visible photo is a locally imported, normalized thumbnail; no
-browser request to GitHub or Gravatar, no remote `<img>`, and no inference
-that a missing public email or location is private, empty, or current beyond the
-last successful provider lookup. `name` continues to feed Person name under the
-existing fill-blank rule. GitHub's public `email` likewise fills the existing
-Email only when empty: no second email field is rendered, and an existing value
-is never replaced.
+The page presents one AgentBus Profile, not a second GitHub profile. Provider
+source and fetch-time bookkeeping are not profile fields and are not rendered.
+The visible photo is a locally imported, normalized thumbnail; no browser
+request goes to GitHub or Gravatar. `name` and public `email` retain their
+fill-blank rules; Company, Location and Twitter/X may be edited locally or
+deliberately replaced with **Refresh fields from GitHub**.
 
 The Users list receives all visible thumbnails in the directory answer or one
 bounded batch read and embeds/serves them locally. It must not call the daemon
@@ -479,11 +476,10 @@ same rule applies to the detail-title photo because its `h1` already names the
 user.
 
 GitHub refresh is never implicit page I/O. It is attempted when the login field
-is created or changed, or when an authorized person invokes **Refresh GitHub
-profile**. Provider availability never blocks a valid unique login; an
-unfetched profile is labelled as such, and explicit Refresh reports failure
-without mutation. Photo import remains optional and may fall back without
-refusing that otherwise valid update.
+is created or changed, or when an authorized person invokes **Refresh fields
+from GitHub**. Provider availability never blocks a valid unique login, and
+explicit Refresh reports failure without mutation. Photo import remains
+optional and may fall back without refusing that otherwise valid update.
 
 There is no delete-user control and there will not be one: a user is never
 deleted, only made inactive
@@ -510,9 +506,9 @@ inline editor. The register entry is conditional on caller authority.
 | Field | Decision |
 |---|---|
 | Group name | keep |
-| Members | **Built.** The list shows the caller-visible answer in a compact column; a hidden membership says *not visible to you*. The linked detail shows the line editor only when daemon-returned authority permits it |
-| Records referencing the group | **new.** This is [W08](../done/web-review.md#findings): there is nowhere today to see which records a membership change will affect. The draft motivated it as *why removal is refused*, two rows above prohibiting deletion — codex's [S14](review/codex.md#specification-review-round-one). The real use is live: editing members changes who may manage every record listed here, and that blast radius is otherwise invisible |
-| Protected state of `@maintainers` | **keep**, stated as protection, with no delete control offered |
+| Members | **Built.** The list keeps comma-separated members beside each linked group; a hidden membership says *not visible to you*. The linked detail shows the line editor only when daemon-returned authority permits it |
+| Records referencing the group | **Built in 0.5.79.** Caller-visible records show direct ACL/Maintainers references and nested paths such as `ACL via @outer`; hidden records never enter the list. Editing members changes who may use or manage every listed record |
+| Protected state of `@administrators` | **keep**, stated as protection with purpose help and no delete control offered |
 | Delete | **no control.** The handler accepts it and nothing renders it; removing the verb is [H.5.6](../TODO.md#objective), not a UI feature to restore |
 
 The detail page earns its place on the references alone — they are what makes a
@@ -530,6 +526,11 @@ invalid input returns the registration form with its safe values and errors.
 ---
 
 ## Account `/account`
+
+**Built in 0.5.79.** The signed-in name opens Account; credential facts moved
+off Diagnostics. One caller-visible join supplies the optional profile, own
+record and owned records, while `/names` supplies only credentials the caller
+holds. A service principal without a directory row still has an Account page.
 
 **Answers:** who am I here, what do I hold, and how do I rotate it?
 

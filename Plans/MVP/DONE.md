@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| F.13.4 User, Group and Account journeys | Own identity and credentials have one Account page; User lifecycle and record links follow daemon facts; Group detail shows caller-visible impact; GitHub-populated profile details are ordinary editable User fields | [0.5.79 evidence](done/user-group-account-journeys.md#checks) |
 | F.13.3 Service and Channel journeys | Populated Queue and Pub/sub views use distinct titles, mode-aware work, subscriber facts, retained URL state and resource-local owner/visitor returns | [0.5.78 evidence](done/service-channel-journeys.md#checks) |
 | Web registry reader filter and pagination | Services, Personal and Channels independently filter live Readers observations and page one caller-visible answer while retaining URL state through detail | [0.5.77 evidence](done/web-registry-pagination.md#checks) |
 | Default GitHub profile adapter | Public profile metadata can be fetched without changing which realms require key-possession enrolment | [0.5.76 evidence](done/default-github-profile-adapter.md#checks) |
@@ -63,7 +64,7 @@ gates are in [TODO](TODO.md#objective).
 | F.13.5 partial | Referenced receipt correlation and qualified response links built; record detail and complete Activity share honest real-time graphs; overview, remaining diagnostics and installed acceptance remain open | [exchange evidence](done/exchange-evidence.md#checks), [activity evidence](done/service-activity.md#checks) |
 | H.5.8 | The caller, its state and its authority over the target are settled under the hold the operation writes under; issuing and removal each became one held operation | [gate window](done/gate-window.md#scope) |
 | Access review and smoke migration | Explicit fixture provisioning; initial unknown-principal gates checked; concurrent creation and issuance gaps reported | [access evidence](done/access-review.md#scope) |
-| F.13.1/F.13.4 partial | The directory slice, before the meanings pass: user/other-identity classification, bounded directory, explicit credential cleanup and session revocation built; remaining journeys and installed acceptance stay open | [directory evidence](done/identity-cleanup.md#verification) |
+| Identity directory foundation | User/other-identity classification, bounded directory, explicit credential cleanup and session revocation | [directory evidence](done/identity-cleanup.md#verification) |
 | F.13.1 | Declared state, observed state and health are three different things on every page, and a value the daemon did not report is not guessed | [meanings evidence](done/web-meanings.md#what-proves-it) |
 | F.6, F.6.1 and F.7–F.11 | Required dashboard tabs, user administration, protected maintainers, owner controls and activity graphs built | [owner-control evidence](done/owner-controls.md#verification) |
 | A | Call, receipt, deadline and shared-reader behavior built | [wave evidence](done/wave-evidence.md#done--mvp) |

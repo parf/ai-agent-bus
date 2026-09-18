@@ -110,7 +110,9 @@ being old.
 | group members, withheld | the caller may not see them | **not visible to you** | an empty array shown as zero members |
 | `PeopleCount`, `OtherCount` | counts over the caller-visible directory before search | labelled with that scope, **and marked as the face's own** — they are fields of `peopleView` in the web child, not daemon answers, and sit beside `Services` and `Groups`, which are | presenting a face-computed figure and a daemon-reported one as the same kind of fact. Provenance is the same class of distinction as declared-versus-observed, and this file's rule covers it |
 
-### GitHub profile
+<a id="github-profile"></a>
+
+### GitHub imports
 
 **Built in 0.5.71.** The GitHub directory adapter retains the public profile
 response with the User and returns it through the existing caller-visible
@@ -118,19 +120,21 @@ directory answer. A template never fetches GitHub itself.
 
 | GitHub field | Profile meaning | Display and absence |
 |---|---|---|
-| `login` | GitHub login; already stored as `github_user` | link label for the GitHub profile |
+| `login` | GitHub login; already stored as `github_user` | link to the external GitHub account |
 | `name` | trusted person name; already fills a blank `person_name` without overwriting an explicit value | ordinary Person name; omit when blank |
 | `avatar_url` | provider photo location | primary source for a locally imported profile photo; never emitted as a browser-hotlinked image |
 | `gravatar_id` | legacy provider avatar identifier | fallback source when the GitHub photo cannot be imported; never fetched by the browser |
-| `company` | provider-published organization or employer | Company; omit when blank |
-| `location` | provider-published location text | Location; omit when blank |
+| `company` | initial or refreshed value for the editable AgentBus Company field | Company; omit when blank |
+| `location` | initial or refreshed value for the editable AgentBus Location field | Location; omit when blank |
 | `email` | provider-published public email | fills the existing AgentBus `email` only when it is empty; there is no separate GitHub-email field |
-| `twitter_username` | provider-published Twitter/X handle | linked handle; omit when blank |
+| `twitter_username` | initial or refreshed value for the editable AgentBus Twitter/X field | linked handle; omit when blank |
 
-Provider metadata is read-only in AgentBus. A successful GitHub lookup replaces
-the retained provider fields, including clearing values the provider no longer
-publishes. `name` and `email` are imports into the existing Person name and Email
-fields: each fills a blank and never overwrites a value already stored. Email
+Company, Location and Twitter/X are ordinary editable AgentBus User fields.
+Setting or changing a GitHub login fills them from a successful lookup unless
+that same edit supplies an explicit nonblank value. **Refresh from GitHub**
+deliberately replaces them, including clearing values the provider no longer
+publishes. `name` and `email` each fill a blank and never overwrite a value
+already stored. Email
 also uses the existing cross-profile uniqueness rule. If another profile already
 owns the normalized public email, enrolment still succeeds and the blank stays
 blank; optional provider metadata does not become an authentication gate. Once
@@ -143,11 +147,10 @@ The fetch is tied to the GitHub-login field: creating or changing
 `github_user` attempts to fetch and validate the public GitHub profile. A
 provider transport, status or decode failure does not block the login field;
 provider facts remain unobserved until a later successful fetch. Saving an
-unrelated profile field does not contact GitHub. **Refresh GitHub profile** is
+unrelated profile field does not contact GitHub. **Refresh fields from GitHub** is
 the explicit way to fetch the current login again and reports failure without
-mutation. Clearing `github_user` clears GitHub metadata and the imported photo,
-but keeps Person name and Email: after fill-blank import they are ordinary
-AgentBus fields, not mirrors.
+mutation. Clearing `github_user` clears provider provenance and the imported
+photo, but keeps the ordinary AgentBus profile fields.
 
 ### User photo
 

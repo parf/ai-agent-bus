@@ -137,8 +137,8 @@ what the daemon permits. “All” means all visible to that visitor.
 |---|---|
 | Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal services, which have their own tab. Administrative availability and reader observation are distinct facts |
 | Personal services | Owner-tagged services grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
-| Users | List and details; add, edit, activate, pause and ban; show owned services, group membership and administrative authority |
-| Groups | List and details; create, edit and manage direct entries, including nested ordinary groups; basic service and channel access. Include the daemon Administrator group and groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control |
+| Users | List and details; add, edit, activate, pause and ban; show caller-visible owned records, linked group membership and administrative authority. Current state stays visible; applicable daemon-authorized actions sit behind **Change**. Ban and unused-credential removal use consequence confirmations |
+| Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
 | Registered pub/sub channels | List and details for pub/sub and queue topics; create, edit and remove; subscriptions, owner, Maintainers list, permissions, TTL, capacity and overflow policy |
 
@@ -151,6 +151,12 @@ The [Personal Services view](03-services-and-topics.md#personal-and-shared) is b
 caller-visible total. Users and Groups show their visible directory totals.
 These are counts computed from the page's existing daemon answers, not
 node-wide metrics and not additional reads.
+
+**Built in 0.5.79.** The signed-in identity links to Account outside the section
+row. Account shows its optional user profile or own record, caller-visible owned
+records, held credential fingerprints and command-line rotation help. A service
+principal does not need a user-directory row. Diagnostics no longer duplicates
+credential facts.
 
 ### Registry filters and paging
 

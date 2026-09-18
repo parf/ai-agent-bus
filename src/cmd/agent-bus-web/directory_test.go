@@ -162,12 +162,17 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	}
 	for _, name := range []string{"self@h", "holds@h"} {
 		page, _ := request("owner@h", "/user?name="+name, "", nil, 200)
-		if strings.Contains(page, "State: active") || strings.Contains(page, "Save profile") || strings.Contains(page, "value=remove-credential") {
+		page = section(t, page, "<main>", "</main>")
+		if strings.Contains(page, "user-state-active") || strings.Contains(page, "Save profile") || strings.Contains(page, "value=remove-credential") {
 			t.Errorf("non-user %s has fabricated user controls or unsafe cleanup", name)
 		}
 		if name == "holds@h" && !strings.Contains(page, "service@h") {
 			t.Error("retained identity gives no service to investigate")
 		}
+	}
+	hiddenRecords, _ := request("maintainer@h", "/user?name=holds@h", "", nil, 200)
+	if strings.Contains(hiddenRecords, "service@h") {
+		t.Error("directory-visible user detail exposed a record hidden from this caller")
 	}
 	filtered := "/users?kind=other&page=2&q=unused"
 	page, _ = request("owner@h", filtered, "", nil, 200)
@@ -175,8 +180,12 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 		t.Error("directory search/filter/paging failed")
 	}
 	page, _ = request("maintainer@h", "/user?name=unused-29@h&return="+url.QueryEscape(filtered), "", nil, 200)
-	if !strings.Contains(page, "Remove credential for unused-29@h") {
+	if !strings.Contains(page, "Review credential removal…") || strings.Contains(page, `name=action value=remove-credential`) {
 		t.Fatal("maintainer cannot review cleanup")
+	}
+	confirmation, _ := request("maintainer@h", "/credential-remove?name=unused-29@h&return="+url.QueryEscape(filtered), "", nil, 200)
+	if !strings.Contains(confirmation, "Confirm credential removal") || !strings.Contains(confirmation, `name=action value=remove-credential`) || !strings.Contains(confirmation, "Every browser session") {
+		t.Fatal("credential cleanup bypasses or loses its consequence confirmation")
 	}
 	form := url.Values{"action": {"remove-credential"}, "name": {"unused-29@h"}, "return": {filtered}}
 	request("maintainer@h", "/user", "https://foreign.invalid", form, 403)

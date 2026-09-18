@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.79 — 2026-09-18
+
+Complete the User, Group and Account browser journeys. Add caller-scoped
+credential inspection, applicable lifecycle actions and visible group impact.
+Treat GitHub-populated Company, Location and Twitter/X as editable User fields.
+Strip caller-specific and computed User fields when restoring durable state.
+
 ## 0.5.78 — 2026-09-18
 
 Complete the distinct Service and Channel browser journeys. Give Channels its

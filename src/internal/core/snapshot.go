@@ -131,6 +131,9 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	}
 	b.unclean = !s.Clean
 	for _, user := range s.Users {
+		// A snapshot may come from another version or an embedding caller.
+		// Derived answers belong to this process and its current visitor.
+		clearDerivedUser(&user)
 		b.users[user.Name] = user
 	}
 	for name, members := range s.Groups {

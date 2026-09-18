@@ -113,9 +113,33 @@ func TestGithubProfileAndPhotoStayLocalAndVisibilityBounded(t *testing.T) {
 		t.Fatalf("local embedded thumbnail is blocked by CSP: %q", listHeader.Get("Content-Security-Policy"))
 	}
 	detail, _ := request("owner@h", "GET", "/user?name=alice@h", nil, 200)
-	for _, want := range []string{"Example Company", "New York", `href="https://github.com/alice"`, `href="https://x.com/alice_x"`, "@alice_x", "legacy", "Photo source", "Refresh GitHub profile", "data:image/png;base64,"} {
+	for _, want := range []string{"Example Company", "New York", `name=company`, `name=location`, `name=twitter`, "alice_x", "Refresh fields from GitHub", "data:image/png;base64,"} {
 		if !bytes.Contains(detail, []byte(want)) {
 			t.Fatalf("user detail lacks %q: %s", want, detail)
+		}
+	}
+	for _, hidden := range []string{"Photo source", ">Fetched<", "Gravatar ID", "GitHub profile"} {
+		if bytes.Contains(detail, []byte(hidden)) {
+			t.Fatalf("user detail exposes provider bookkeeping %q: %s", hidden, detail)
+		}
+	}
+	_, _ = request("owner@h", "POST", "/user", url.Values{
+		"action": {"save"}, "name": {"alice@h"}, "github_user": {"alice"},
+		"company": {"Local Company"}, "location": {"Wellesley"}, "twitter": {"local_handle"},
+	}, 303)
+	detail, _ = request("owner@h", "GET", "/user?name=alice@h", nil, 200)
+	for _, want := range []string{"Local Company", "Wellesley", "local_handle"} {
+		if !bytes.Contains(detail, []byte(want)) {
+			t.Fatalf("editable AgentBus profile field was not saved: %q", want)
+		}
+	}
+	_, _ = request("owner@h", "POST", "/user", url.Values{
+		"action": {"save"}, "name": {"alice@h"}, "github_user": {"alice"},
+	}, 303)
+	detail, _ = request("owner@h", "GET", "/user?name=alice@h", nil, 200)
+	for _, cleared := range []string{"Local Company", "Wellesley", "local_handle"} {
+		if bytes.Contains(detail, []byte(cleared)) {
+			t.Fatalf("web profile form could not clear editable field %q", cleared)
 		}
 	}
 	avatar, header := request("owner@h", "GET", "/avatar?name=alice@h", nil, 200)
@@ -134,13 +158,13 @@ func TestGithubProfileAndPhotoStayLocalAndVisibilityBounded(t *testing.T) {
 		t.Fatalf("page renders contacted provider %d times", provider.calls.Load())
 	}
 
-	provider.profile.Company = "Updated Company"
+	provider.profile.Company, provider.profile.Location, provider.profile.TwitterUsername = "Updated Company", "Boston", "refreshed"
 	_, _ = request("owner@h", "POST", "/user", url.Values{"action": {"refresh-github"}, "name": {"alice@h"}, "return": {"/users"}}, 303)
 	if provider.calls.Load() != 2 {
 		t.Fatalf("explicit refresh calls = %d, want 2 total", provider.calls.Load())
 	}
 	detail, _ = request("owner@h", "GET", "/user?name=alice@h", nil, 200)
-	if !bytes.Contains(detail, []byte("Updated Company")) || provider.calls.Load() != 2 {
+	if !bytes.Contains(detail, []byte("Updated Company")) || !bytes.Contains(detail, []byte("Boston")) || !bytes.Contains(detail, []byte("refreshed")) || provider.calls.Load() != 2 {
 		t.Fatal("explicit refresh did not update locally or page render refetched")
 	}
 }

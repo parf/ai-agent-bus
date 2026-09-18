@@ -14,9 +14,9 @@ type User struct {
 	PersonName string `json:"person_name,omitempty"`
 	Email      string `json:"email,omitempty"`
 	GithubUser string `json:"github_user,omitempty"`
-	// GitHubProfileAt dates the provider answer below. PersonName and Email are
-	// imports into the ordinary profile fields above; they are not mirrors and
-	// are deliberately not cleared when the provider later omits them.
+	// GitHubProfileAt dates the provider answer. PersonName, Email, company,
+	// location and Twitter/X are ordinary editable profile fields after import;
+	// they are not provenance claims.
 	GithubProfileAt       time.Time `json:"github_profile_at,omitempty,omitzero"`
 	GithubCompany         string    `json:"github_company,omitempty"`
 	GithubLocation        string    `json:"github_location,omitempty"`

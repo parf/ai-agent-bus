@@ -123,9 +123,6 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		} else {
 			v.Exchanges = exchanges(feed)
 		}
-		if err := bus.get(cred, "/names", &v.Names); err != nil {
-			v.NoNames = err.Error()
-		}
 		render(w, page, v)
 	})
 
@@ -397,7 +394,7 @@ const head = `<!doctype html>
  nav{line-height:2}
  nav a[aria-current=page]{font-weight:700;text-decoration:none}
  :focus-visible{outline:2px solid #253c66;outline-offset:2px}
- :root{--surface-1:#fbfbf9;--surface-2:#f2f2ee;--surface-3:#e8e7e2;--border:#d2d0c9;--border-strong:#87847b;--text-1:#1a1a17;--text-2:#56544c;--accent:#1d5fa8;--red:#a8271b;--orange:#8a5000}
+ :root{--surface-1:#fbfbf9;--surface-2:#f2f2ee;--surface-3:#e8e7e2;--border:#d2d0c9;--border-strong:#87847b;--text-1:#1a1a17;--text-2:#56544c;--accent:#1d5fa8;--red:#a8271b;--orange:#8a5000;--green:#2d6a3f}
  *{box-sizing:border-box}
  html{background:var(--surface-1);color:var(--text-1)}
  body{margin:0;max-width:none;background:var(--surface-1);color:var(--text-1);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -411,7 +408,8 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
  .node-navigation nav a{color:var(--text-1);text-decoration:none;border-bottom:3px solid transparent}
  .node-navigation nav a[aria-current=page]{color:var(--accent);border-bottom-color:var(--accent)}
  .who{float:none;order:2;margin:0 0 0 auto;font-size:.875rem}
- .who button{margin-left:.5rem}
+.who button{margin-left:.5rem}
+.account-link[aria-current=page]{font-weight:700;text-decoration:none}
 .site-footer{max-width:104rem;margin:2rem auto 0;padding:1rem;border-color:var(--border);color:var(--text-2)}
 .footer-node{display:flex;flex-wrap:wrap;gap:.35rem 1.25rem;margin-bottom:.35rem}
 .build-tip{text-decoration:underline dotted;text-underline-offset:.2em;cursor:help}
@@ -465,6 +463,8 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
 .detail-meta{display:flex;flex-wrap:wrap;gap:.4rem .65rem;align-items:center;margin:.4rem 0 1rem;color:var(--text-2)}
 .fact-pill,.group-chip{display:inline-flex;align-items:center;padding:.2rem .5rem;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:.8rem}
 .person-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(18rem,1fr);gap:1rem;max-width:82rem;align-items:start}
+.account-summary{display:grid;grid-template-columns:minmax(20rem,1fr) minmax(20rem,1fr);gap:1rem;max-width:82rem;align-items:start}
+.account-summary .editor-card{width:100%;max-width:none;margin-top:0}
 .person-main,.person-sidebar{min-width:0}
 .person-sidebar .editor-card,.person-main .editor-card{margin-top:0;width:100%}
 .compact-card{padding:1rem}
@@ -473,10 +473,20 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
 .access-actions{display:flex;flex-wrap:wrap;gap:.5rem}
 .access-actions form{margin:0}
 .access-actions .danger-action{color:#fff;background:var(--red);border-color:var(--red)}
+button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
+.user-state{display:inline-flex;align-items:center;gap:.35rem;font-weight:700}
+.user-state-active{color:var(--green)}
+.user-state-paused{color:var(--orange)}
+.user-state-banned{color:var(--red)}
+.access-change{margin-top:.8rem;padding-top:.65rem;border-top:1px solid var(--border)}
+.access-change summary{color:var(--red);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:.2em}
+.access-change[open] summary{margin-bottom:.75rem}
 .group-card{margin:0;max-width:none}
 .group-card textarea{display:block;width:100%;min-height:9rem;margin-top:.4rem;padding:.55rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-1)}
 .member-line{display:block;line-height:1.6}
 .member-list{display:grid;gap:.15rem}
+.group-table th:first-child,.group-table td:first-child{width:22rem;max-width:22rem}
+.group-table td[data-label=Members]{text-align:left}
 .service-dashboard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;max-width:82rem;margin:1rem 0;align-items:start}
 .fact-card{min-width:0;padding:1rem;border:1px solid var(--border);border-radius:6px;background:var(--surface-1)}
 .fact-card .page-title{margin:0}
@@ -507,6 +517,7 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
  .record-search{grid-template-columns:minmax(16rem,1fr) auto minmax(10rem,auto) auto}
  .record-choices{grid-column:1/-1;grid-row:2}
  .person-layout{grid-template-columns:1fr}
+ .account-summary{grid-template-columns:1fr}
  .service-dashboard{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 /* A phone is not a narrow desktop: the gutter shrinks and only a genuinely
@@ -531,6 +542,7 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
   .record-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
   .record-table tr{border-bottom:1px solid var(--border);padding:.5rem 0}
   .record-table td{border:0;padding:.2rem .6rem;text-align:left}
+  .group-table td:first-child{width:100%;max-width:none}
   .record-table td[data-label]::before{content:attr(data-label) ": ";font-weight:600;color:var(--text-2)}
   .record-table td.num{text-align:left}
   .record-name-cell{min-width:0}
@@ -573,7 +585,11 @@ func shellTitle(key, titleTemplate string) string {
 	// Sign out belongs beside the name it signs out, on every page.
 	nav.WriteString(`<a class=skip-link href=#main>Skip to main content</a>` + "\n")
 	nav.WriteString(frameHeader)
-	nav.WriteString(`<div class=node-navigation><form method=post action=/signout class=who><code>{{.You}}</code> <button type=submit>sign out</button></form>` + "\n")
+	accountCurrent := ""
+	if key == "account" {
+		accountCurrent = " aria-current=page"
+	}
+	nav.WriteString(`<div class=node-navigation><form method=post action=/signout class=who><a class=account-link href=/account` + accountCurrent + `><code>{{.You}}</code></a> <button type=submit>sign out</button></form>` + "\n")
 	nav.WriteString("<nav aria-label=\"sections\">")
 	for _, item := range navItems {
 		if key == "records" && (item.Key == "services" || item.Key == "personal" || item.Key == "channels") {
@@ -663,15 +679,4 @@ var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCoun
 {{range .Losses}}<tr><td><code>{{.Name}}</code><td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}</tr>
 {{else}}<tr><td colspan=3 class=muted>nothing lost</tr>{{end}}</table></section>
 
-<section class=dashboard-section><div class=page-title><h2 id=names>My names</h2><button type=button class=help-button popovertarget=names-help aria-label="About credentials and fingerprints" data-tooltip="Fingerprints identify credentials without revealing them. Unregistered names are legacy leftovers; rotate with agent-bus-token --rotate.">ⓘ</button></div><div popover id=names-help class=context-help><h2>Credentials and fingerprints</h2><ul><li>A credential goes when its address does, so an unregistered name is a legacy leftover.</li><li>A fingerprint names a credential without being one.</li><li>Rotate with <code>agent-bus-token &lt;user@realm&gt; --rotate</code>; the replaced credential remains valid until the next rotation.</li></ul></div>
-{{if .NoNames}}<p class=muted>{{.NoNames}}</p>{{else}}
-<table><tr><th>name<th>kind<th>owner<th>fingerprint<th>issued<th>last used</tr>
-{{range .Names}}<tr><td><code>{{.Name}}</code>
- <td>{{if eq .Kind "unregistered"}}<span class=warn>unregistered</span>{{else}}{{entityLabel .Kind}}{{end}}
- <td><code class=muted>{{.Owner}}</code><td><code>{{.Fingerprint}}</code>
- <td>{{if .Issued.IsZero}}{{else}}{{.Issued.Format "2006-01-02 15:04"}}{{end}}
- <td>{{if .Used.IsZero}}<span class=muted>not this run</span>{{else}}{{.Used.Format "15:04:05"}}{{end}}</tr>
-{{else}}<tr><td colspan=6 class=muted>you hold no credential</tr>{{end}}</table>
-{{end}}
-</section>
 `))

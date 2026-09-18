@@ -116,10 +116,10 @@ name and never overwrite an existing one.
 <details>
 <summary>Profile fields and the user directory</summary>
 
-* Profiles contain person name, email and GitHub login. A GitHub login also
-  retains the provider's company, location, Twitter/X name, photo-source facts,
-  fetch time and one bounded local thumbnail; a blank profile is still a
-  registered user.
+* Profiles contain person name, email, GitHub login, company, location and a
+  Twitter/X name. GitHub may populate these ordinary editable fields. The
+  daemon separately retains trusted photo/provenance data and one bounded local
+  thumbnail; a blank profile is still a registered user.
 * Email and GitHub login are syntax-checked, trimmed, compared in lowercase
   ASCII and unique across profiles. Provider aliases such as dots and
   plus-addresses are not merged. Person names need not be unique.
@@ -130,12 +130,14 @@ name and never overwrite an existing one.
   only a blank Email and is skipped on a uniqueness collision. Fetching any of
   these facts remains evidence from GitHub, not authentication by itself.
 * Setting or changing a GitHub login attempts to fetch the public profile, but
-  provider availability does not block the login field. Unfetched provider
-  fields stay absent; an explicit refresh reports failure without mutation.
+  provider availability does not block the login field. An explicit Company,
+  Location or Twitter/X value in that edit wins; otherwise the provider value
+  fills it. Explicit refresh replaces those fields and reports failure without
+  mutation.
   The trusted public-profile adapter is available independently of whether an
   enrolment realm uses GitHub keys; enabling one never enables the other.
   Unrelated edits do not contact GitHub. Clearing the login clears provider
-  metadata and its photo while retaining imported person name and Email.
+  provenance and its photo while retaining ordinary profile fields.
 * GitHub imagery is fetched only by the trusted adapter, constrained to the
   provider host set, bounded before decode and re-encoded as a 96-pixel PNG.
   Photo failure keeps the prior local thumbnail or initials and never blocks an

@@ -2080,9 +2080,10 @@ is_empty "and never a reason with a zero beside it" \
 # A fingerprint names a credential without being one, which is the whole
 # reason a page may show it. See docs/02-access.md#token-lifetime.
 FP=$(tbody "$TOKEN" /names | sed -n 's/.*"fingerprint":"\([0-9a-f]*\)".*/\1/p' | head -1)
-has "a caller's own credential is named by its fingerprint" "$(sect names "$VIEWS")" "$FP"
+WEB_ACCOUNT_PAGE=$(curl -s -b "$JAR" "$WEB/account")
+has "a caller's own credential is named by its fingerprint" "$WEB_ACCOUNT_PAGE" "$FP"
 is_empty "and the page carries no token anywhere on it" \
-  "$(printf '%s' "$VIEWS" | grep -o "$TOKEN")"
+  "$(printf '%s\n%s' "$VIEWS" "$WEB_ACCOUNT_PAGE" | grep -o "$TOKEN")"
 # The session lives in the bus, so the child has nothing to lose. A session
 # map inside the child passes every check above and fails this one.
 kill $WPID 2>/dev/null; wait $WPID 2>/dev/null

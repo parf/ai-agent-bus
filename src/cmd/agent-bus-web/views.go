@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
-	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -176,10 +175,7 @@ type view struct {
 	Losses    []protocol.Record // loss by name
 	Refusals  []refusal
 	Exchanges []exchange
-	Names     []auth.Held
-
-	NoFeed  string // this caller may not read the feed
-	NoNames string // nor its own credentials
+	NoFeed    string // this caller may not read the feed
 }
 
 // stuck is the backlogs, **oldest first**: a count alone cannot say whether a

@@ -99,17 +99,18 @@ func TestGithubLoginChangeImportsProviderProfileOnce(t *testing.T) {
 		t.Fatalf("provider calls = %d, want 1", d.count())
 	}
 
-	// Saving an unrelated field must preserve provider facts without I/O.
-	got, err = b.SetUser("owner@h", protocol.User{Name: "alice@h", PersonName: "Administrator Name", Email: got.Email, GithubUser: got.GithubUser}, false)
+	// Saving editable profile fields must not perform provider I/O. Provider
+	// provenance and image data survive while the AgentBus fields may change.
+	got, err = b.SetUser("owner@h", protocol.User{Name: "alice@h", PersonName: "Administrator Name", Email: got.Email, GithubUser: got.GithubUser, GithubCompany: "Local Company", GithubLocation: "Boston", GithubTwitterUsername: "local"}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.count() != 1 || got.PersonName != "Administrator Name" || got.GithubCompany != "Example Inc" || !bytes.Equal(got.PhotoPNG, []byte("normalized-png")) {
-		t.Fatalf("unrelated edit fetched or lost provider data: calls=%d user=%+v", d.count(), got)
+	if d.count() != 1 || got.PersonName != "Administrator Name" || got.GithubCompany != "Local Company" || got.GithubLocation != "Boston" || got.GithubTwitterUsername != "local" || !bytes.Equal(got.PhotoPNG, []byte("normalized-png")) {
+		t.Fatalf("profile edit fetched or lost trusted decoration: calls=%d user=%+v", d.count(), got)
 	}
 }
 
-func TestGithubLoginChangeRejectsCallerClaimedProviderFacts(t *testing.T) {
+func TestGithubLoginChangeKeepsEditableFieldsButRejectsClaimedProvenance(t *testing.T) {
 	at := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	d := &trackingGithub{profile: ports.DirectoryProfile{
 		Company: "Provider Company", AvatarURL: "https://avatars.githubusercontent.com/u/1", FetchedAt: at,
@@ -124,8 +125,8 @@ func TestGithubLoginChangeRejectsCallerClaimedProviderFacts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.GithubCompany != "Provider Company" || !got.GithubProfileAt.Equal(at) || len(got.PhotoPNG) != 0 || got.PhotoSource != "" || !got.PhotoFetchedAt.IsZero() {
-		t.Fatalf("caller claimed provider facts: %+v", got)
+	if got.GithubCompany != "Caller Claim" || !got.GithubProfileAt.Equal(at) || len(got.PhotoPNG) != 0 || got.PhotoSource != "" || !got.PhotoFetchedAt.IsZero() {
+		t.Fatalf("editable field or trusted provider boundary is wrong: %+v", got)
 	}
 }
 
@@ -170,6 +171,28 @@ func TestGithubLoginCanBeSetWithoutProfileAdapter(t *testing.T) {
 	}
 	if got.GithubUser != "parf" || !got.GithubProfileAt.IsZero() || got.GithubCompany != "" || len(got.PhotoPNG) != 0 {
 		t.Fatalf("missing adapter fabricated provider data: %+v", got)
+	}
+}
+
+func TestProfileDetailPresencePreservesOldWritersAndAllowsExplicitClear(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("owner@h")
+	if _, err := b.SetUser("owner@h", protocol.User{Name: "alice@h", GithubCompany: "Company", GithubLocation: "Place", GithubTwitterUsername: "handle"}, true); err != nil {
+		t.Fatal(err)
+	}
+	got, err := b.SetUserWithProfileDetails("owner@h", protocol.User{Name: "alice@h", PersonName: "Alice"}, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.GithubCompany != "Company" || got.GithubLocation != "Place" || got.GithubTwitterUsername != "handle" {
+		t.Fatalf("old writer erased profile details: %+v", got)
+	}
+	got, err = b.SetUserWithProfileDetails("owner@h", protocol.User{Name: "alice@h", PersonName: "Alice"}, false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.GithubCompany != "" || got.GithubLocation != "" || got.GithubTwitterUsername != "" {
+		t.Fatalf("explicit clear retained profile details: %+v", got)
 	}
 }
 

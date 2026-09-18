@@ -13,7 +13,7 @@ rules all of them obey.
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
 | Never echo a secret | Not a token, not private configuration. The configuration field is always empty and `autocomplete=off` |
 | Success returns to what changed | The section that changed, with a specific result. Service and Channel registration and ordinary edits return to the affected resource; removal returns to the matching collection ([C06](review/codex.md#junk-and-misleading-content)) |
-| Only offer transitions that apply | An active user is offered Activate today, beside Pause and Ban, all styled alike ([C12](review/codex.md#junk-and-misleading-content)) |
+| Only offer transitions that apply | Built in 0.5.79: active offers Pause/Ban, paused offers Activate/Ban and banned offers Activate only when daemon-returned authority permits it |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
 | Show small choices | Two or three values use labelled radio buttons, not a select. URL-backed filters use the [link/button rule](components.md#small-choice-controls) instead |
 | One name per line | ACL and Maintainers use the same line-list textarea component with plain terms, never glyphs or comma-separated chips. Errors identify the refused line and preserve all submitted lines |
@@ -49,6 +49,9 @@ the current contract rather than copied between forms:
 Remove-a-service and transfer are the two whose help text was wrong in opposite
 directions in the audited build; each now derives from its own contract section
 and neither borrows the other's wording ([W05](../done/web-review.md#findings)).
+
+Ban and unused-credential removal use the same server-rendered confirmation
+rule as of 0.5.79. The final request still relies on daemon authorization.
 
 ## When the recheck refuses after you confirmed
 
@@ -94,9 +97,9 @@ the world moved between the question and the answer.
 | Remove a subscriber | Channel, pub/sub | subscriber | the subscribers section |
 | Register a group | `/groups/new` | name; one identity or nested group per textarea line | the new group's page |
 | Edit members | Group | one identity or nested group per textarea line | the group's members section |
-| Register a user | `/users/new` | name, person name, email, GitHub login | the new user's page |
-| Edit profile | User | person name, email, GitHub login | the profile section |
-| Refresh GitHub profile | User with a GitHub login | — | the same profile with provider fields and local photo refreshed |
+| Register a user | `/users/new` | name, person name, email, GitHub login, company, location, Twitter/X | the new user's page |
+| Edit profile | User | person name, email, GitHub login, company, location, Twitter/X | the profile section |
+| Refresh fields from GitHub | User with a GitHub login | — | editable Company, Location and Twitter/X fields plus the local photo refreshed |
 | Change state | User | the applicable transitions only | the identity section; **confirm** for ban |
 | Remove a credential | User, non-user identity | — | **confirm**, then the directory |
 
@@ -150,20 +153,19 @@ removing the verb from core and the API is [H.5.6](../TODO.md#objective).
 No message composer. It needs a separately accepted body-handling workflow, and
 this dashboard is for discovery, administration and envelope diagnostics.
 
-GitHub company, location, Twitter/X handle and the photo-source metadata are
-provider facts, not form fields. They are imported by the trusted directory path
-and rendered read-only; neither a user nor an Administrator can restate them
-through the web form. The visible photo is the locally normalized thumbnail,
-not the remote URL. GitHub's public email is different: it fills the existing
-Email only when blank, after which the ordinary AgentBus email-editing rules
-apply. There is no separate GitHub-email control.
+Company, Location and Twitter/X are editable AgentBus User fields. GitHub may
+fill them when its login is set or changed; **Refresh fields from GitHub**
+deliberately replaces them. Provider provenance, remote image facts and local
+photo bytes are never form fields. The visible photo is the locally normalized
+thumbnail, not the remote URL. GitHub's public email fills the existing Email
+only when blank. There is no separate GitHub-email control.
 
 Setting or changing GitHub login attempts to fetch the provider profile. A
-provider-profile failure still saves the valid unique login and leaves provider
-facts unfetched; explicit Refresh reports a failure without mutation. Optional
+provider-profile failure still saves the valid unique login; explicit Refresh
+reports a failure without mutation. Optional
 photo failure falls back without refusing the login. Saving unrelated profile
-fields performs no provider call. Clearing the login clears provider metadata
-and the local photo but retains Person name and Email.
+fields performs no provider call. Clearing the login clears provider provenance
+and the local photo but retains ordinary User fields.
 
 ## Remaining form work
 

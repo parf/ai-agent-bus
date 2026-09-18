@@ -60,7 +60,7 @@ The planned page map follows. `⚠` marks a page that does not exist today.
 | Groups | `/groups` | Groups and caller-visible membership | linked compact table |
 | Group | `/group?name=` | One group: members and authority-scoped editor | built |
 | Register group | `/groups/new` | Create one | built; success opens Group detail |
-| Account | `/account` | Own identity, own credentials, how to rotate | ⚠ new; lives on the diagnostics page |
+| Account | `/account` | Own identity, own credentials, how to rotate | built in 0.5.79; the signed-in name opens it |
 | Sign in | `/signin` | Token, and how to get one | exists |
 | Problem | — | Refusal, expired session, unavailable bus, not found | one page for all four |
 
@@ -90,7 +90,8 @@ The shared `shell()` gives every signed-in page its navigation and sign-out
 ([inventory](review/current-state.md#routes-and-templates)). Since 0.5.78 the
 Channels collection also carries its own document title, heading, active
 navigation entry and canonical Channel detail links; the historical C06 defect
-is closed.
+is closed. Since 0.5.79 the signed-in name links to Account and credential facts
+no longer occupy the Diagnostics page.
 
 The current location is marked. Every page carries the same shell; the shell is
 one thing in one place.

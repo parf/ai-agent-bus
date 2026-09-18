@@ -100,10 +100,12 @@ func (s *Server) users(w http.ResponseWriter, r *http.Request, caller protocol.N
 func (s *Server) user(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {
 		protocol.User
-		Create bool `json:"create,omitempty"`
+		Create            bool `json:"create,omitempty"`
+		ProfileDetailsSet bool `json:"profile_details_set,omitempty"`
 	}
 	if s.read(w, r, &in) {
-		user, err := s.bus.SetUser(caller.String(), in.User, in.Create)
+		details := in.ProfileDetailsSet || in.GithubCompany != "" || in.GithubLocation != "" || in.GithubTwitterUsername != ""
+		user, err := s.bus.SetUserWithProfileDetails(caller.String(), in.User, in.Create, details)
 		s.reply(w, user, err)
 	}
 }

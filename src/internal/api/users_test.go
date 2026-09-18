@@ -25,7 +25,7 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 		}
 		return w.Body.String()
 	}
-	call("admin@h", "POST", "/user", `{"name":"alice@h","person_name":"Alice","email":" Alice@Example.COM ","github_user":"Alice-Code","create":true}`, 200)
+	call("admin@h", "POST", "/user", `{"name":"alice@h","person_name":"Alice","email":" Alice@Example.COM ","github_user":"Alice-Code","github_company":"Local Company","github_location":"Boston","github_twitter_username":"alice","profile_details_set":true,"create":true}`, 200)
 	call("admin@h", "POST", "/user", `{"name":"maint@h","person_name":"Maintainer","create":true}`, 200)
 	call("admin@h", "POST", "/user", `{"name":"peer@h","person_name":"Peer","create":true}`, 200)
 	call("admin@h", "POST", "/group", `{"name":"@administrators","members":["admin@h","maint@h","peer@h"]}`, 200)
@@ -44,9 +44,20 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	call("admin@h", "POST", "/user", `{"name":"duplicate@h","github_user":"ALICE-CODE","create":true}`, 400)
 	call("admin@h", "POST", "/user", `{"name":"distinct@h","email":"alice+alerts@example.com","create":true}`, 200)
 	var users []protocol.User
+	users = nil
 	json.Unmarshal([]byte(call("alice@h", "GET", "/users", "", 200)), &users)
-	if len(users) != 1 || users[0].Name != "alice@h" || users[0].Email != "alice@example.com" {
+	if len(users) != 1 || users[0].Name != "alice@h" || users[0].Email != "alice@example.com" || users[0].GithubCompany != "Local Company" || users[0].GithubLocation != "Boston" || users[0].GithubTwitterUsername != "alice" {
 		t.Fatalf("unfiltered or unnormalized people view: %+v", users)
+	}
+	var cleared protocol.User
+	json.Unmarshal([]byte(call("maint@h", "POST", "/user", `{"name":"alice@h","person_name":"Vouched","email":"alice@example.com","github_user":"alice-code","profile_details_set":true}`, 200)), &cleared)
+	if cleared.GithubCompany != "" || cleared.GithubLocation != "" || cleared.GithubTwitterUsername != "" {
+		t.Fatalf("explicit profile detail clear response retained fields: %+v", cleared)
+	}
+	users = nil
+	json.Unmarshal([]byte(call("alice@h", "GET", "/users", "", 200)), &users)
+	if users[0].GithubCompany != "" || users[0].GithubLocation != "" || users[0].GithubTwitterUsername != "" {
+		t.Fatalf("explicit profile detail clear was ignored: %+v", users[0])
 	}
 	call("alice@h", "POST", "/register", `{"name":"svc@h"}`, 200)
 	call("alice@h", "POST", "/manage", `{"name":"alice@h","allow":["admin@h"]}`, 200)

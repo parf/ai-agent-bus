@@ -386,6 +386,12 @@ func normalizedProfile(in protocol.User) (protocol.User, error) {
 	if len(in.PersonName) > 200 {
 		return protocol.User{}, fmt.Errorf("%w: person name is too long", ErrProfile)
 	}
+	in.GithubCompany = strings.TrimSpace(in.GithubCompany)
+	in.GithubLocation = strings.TrimSpace(in.GithubLocation)
+	in.GithubTwitterUsername = strings.TrimPrefix(strings.TrimSpace(in.GithubTwitterUsername), "@")
+	if len(in.GithubCompany) > 200 || len(in.GithubLocation) > 200 || len(in.GithubTwitterUsername) > 64 {
+		return protocol.User{}, fmt.Errorf("%w: profile field is too long", ErrProfile)
+	}
 	if in.GithubUser != "" {
 		if len(in.GithubUser) > 39 || in.GithubUser[0] == '-' || in.GithubUser[len(in.GithubUser)-1] == '-' {
 			return protocol.User{}, fmt.Errorf("%w: invalid GitHub login", ErrProfile)
@@ -396,23 +402,28 @@ func normalizedProfile(in protocol.User) (protocol.User, error) {
 			}
 		}
 	}
-	in.Kind = ""
-	// Provider fields are daemon-derived. A caller may restate editable profile
-	// fields, but can never claim what GitHub answered or supply image bytes.
+	// Company, location and Twitter/X are ordinary editable profile fields that
+	// GitHub may populate. Provider provenance and image data remain derived: a
+	// caller can never claim what GitHub answered or supply image bytes.
 	in.GithubProfileAt = time.Time{}
-	in.GithubCompany, in.GithubLocation, in.GithubTwitterUsername = "", "", ""
 	in.GithubAvatarURL, in.GithubGravatarID = "", ""
 	in.PhotoPNG, in.PhotoSource, in.PhotoFetchedAt = nil, "", time.Time{}
-	in.Administrator, in.DaemonOwner, in.CanEdit, in.CanSetEmail, in.CanActivate, in.CanRemove = false, false, false, false, false, false
-	in.Groups, in.Services = nil, nil
+	clearDerivedUser(&in)
 	return in, nil
 }
 
-func copyGithubProfile(dst *protocol.User, src protocol.User) {
+// clearDerivedUser keeps caller-specific and computed answers out of stored
+// profiles. userView reconstructs them for the current caller. Durable profile,
+// lifecycle and trusted-provider fields survive unchanged.
+func clearDerivedUser(u *protocol.User) {
+	u.Kind = ""
+	u.Administrator, u.DaemonOwner = false, false
+	u.CanEdit, u.CanSetEmail, u.CanActivate, u.CanRemove = false, false, false, false
+	u.Groups, u.Services = nil, nil
+}
+
+func copyGithubDecoration(dst *protocol.User, src protocol.User) {
 	dst.GithubProfileAt = src.GithubProfileAt
-	dst.GithubCompany = src.GithubCompany
-	dst.GithubLocation = src.GithubLocation
-	dst.GithubTwitterUsername = src.GithubTwitterUsername
 	dst.GithubAvatarURL = src.GithubAvatarURL
 	dst.GithubGravatarID = src.GithubGravatarID
 	dst.PhotoPNG = append([]byte(nil), src.PhotoPNG...)
@@ -420,16 +431,17 @@ func copyGithubProfile(dst *protocol.User, src protocol.User) {
 	dst.PhotoFetchedAt = src.PhotoFetchedAt
 }
 
-func clearGithubProfile(u *protocol.User) {
+func clearGithubDecoration(u *protocol.User) {
 	u.GithubProfileAt = time.Time{}
-	u.GithubCompany, u.GithubLocation, u.GithubTwitterUsername = "", "", ""
 	u.GithubAvatarURL, u.GithubGravatarID = "", ""
 	u.PhotoPNG, u.PhotoSource, u.PhotoFetchedAt = nil, "", time.Time{}
 }
 
 // applyGithubProfile imports one trusted provider answer. Caller holds b.mu.
 // PersonName and Email fill blanks and then become ordinary AgentBus fields;
-// provider metadata is a mirror and is replaced on every successful lookup.
+// company, location and Twitter/X are editable profile fields. A successful
+// explicit refresh replaces them; a login setup fills them unless the same
+// administrative write supplied an explicit nonblank value.
 func (b *Bus) applyGithubProfile(u *protocol.User, p ports.DirectoryProfile, name string) error {
 	if p.Login == "" && p.FetchedAt.IsZero() {
 		return nil
@@ -550,6 +562,14 @@ func (b *Bus) EditOwnEmail(caller, raw string) (protocol.User, error) {
 // cannot vouch for a person's fields, change their state or promote their
 // authority; EditOwnEmail is the separate narrow self-service path.
 func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.User, error) {
+	return b.SetUserWithProfileDetails(caller, in, create, true)
+}
+
+// SetUserWithProfileDetails preserves company, location and Twitter/X for
+// older writers that do not carry those editable fields. A writer setting
+// profileDetails explicitly replaces the complete three-field set, including
+// clearing it. SetUser is the in-process full-profile form.
+func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create, profileDetails bool) (protocol.User, error) {
 	who, err := canon(caller)
 	if err != nil {
 		return protocol.User{}, err
@@ -575,6 +595,9 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 		return protocol.User{}, ErrNotOwner
 	}
 	old, exists := b.users[in.Name]
+	if exists && !profileDetails {
+		in.GithubCompany, in.GithubLocation, in.GithubTwitterUsername = old.GithubCompany, old.GithubLocation, old.GithubTwitterUsername
+	}
 	if githubChanged && old.GithubUser != observedGithub {
 		return protocol.User{}, fmt.Errorf("%w: GitHub login changed while its profile was being fetched; retry", ErrBusy)
 	}
@@ -609,9 +632,9 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 		}
 	}
 	if !githubChanged {
-		copyGithubProfile(&in, old)
+		copyGithubDecoration(&in, old)
 	} else if in.GithubUser == "" {
-		clearGithubProfile(&in)
+		clearGithubDecoration(&in)
 	} else {
 		// Photo import is optional even when the login changes. Seed only the
 		// last normalized thumbnail so a failed fetch retains that fallback;
@@ -619,8 +642,18 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 		// new provider answer. No other old provider fact crosses the change.
 		in.PhotoPNG = append([]byte(nil), old.PhotoPNG...)
 		in.PhotoSource, in.PhotoFetchedAt = old.PhotoSource, old.PhotoFetchedAt
+		company, location, twitter := in.GithubCompany, in.GithubLocation, in.GithubTwitterUsername
 		if err := b.applyGithubProfile(&in, providerProfile, in.Name); err != nil {
 			return protocol.User{}, err
+		}
+		if company != "" {
+			in.GithubCompany = company
+		}
+		if location != "" {
+			in.GithubLocation = location
+		}
+		if twitter != "" {
+			in.GithubTwitterUsername = twitter
 		}
 	}
 	// A vouched realm still requires key-possession proof before its name can

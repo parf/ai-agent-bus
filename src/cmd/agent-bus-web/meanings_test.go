@@ -913,7 +913,7 @@ func TestTheUnclassifiedCategoryReadsTheSameWayEmptyAsPopulated(t *testing.T) {
 	if !strings.Contains(empty, "credential with no registered name") {
 		t.Error("with none of them present the directory does not name the category at all")
 	}
-	if !strings.Contains(empty, "No other identities on this page") {
+	if !strings.Contains(empty, "No other identities match this view") {
 		t.Error("an empty section is dropped rather than said to be empty")
 	}
 	// And the same words survive one arriving, so the empty page is not a
@@ -925,7 +925,7 @@ func TestTheUnclassifiedCategoryReadsTheSameWayEmptyAsPopulated(t *testing.T) {
 	if !strings.Contains(full, "credential with no registered name") {
 		t.Error("the category is named only while empty")
 	}
-	if strings.Contains(full, "No other identities on this page") {
+	if strings.Contains(full, "No other identities match this view") {
 		t.Error("the section still says it is empty while holding a row")
 	}
 }
