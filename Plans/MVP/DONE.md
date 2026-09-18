@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| F.12 partial: installed browser foundation | Real Chromium signs in/out, checks the cookie boundary, visits current required pages, retains a session across web restart and loses it across bus restart | [evidence](done/installed-browser-foundation.md#checks) |
 | Installed shared-host boundary | A package-only real-systemd host proves service-account state, two actual users' isolated sockets, and supervisor-only `CAP_CHOWN` with five installed mutations | [evidence](done/installed-shared-host.md#checks) |
 | GitHub profile metadata and local photos | Login changes and explicit refresh atomically import provider fields; bounded local thumbnails render in User and caller-visible owner views without hotlinks or per-row bus reads | [0.5.71 evidence](done/github-profile.md#checks) |
 | Web form recovery and keyboard entry | Refused forms retain only safe input in the shared shell; secrets stay empty and public/signed pages have a keyboard skip target | [0.5.70 evidence](done/web-form-recovery.md#checks) |

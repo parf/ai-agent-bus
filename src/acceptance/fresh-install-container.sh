@@ -152,6 +152,13 @@ assert_process_boundary "$web_pid" web 0000000000000000
 } >/evidence/process-boundary.txt
 pass "supervisor alone holds CAP_CHOWN; bus and web hold none; all run as agent-busd with NoNewPrivs"
 
+# F.12's installed-browser foundation uses a real distribution browser against
+# this packaged host. Keep the credential inside the disposable container; the
+# driver records cookie properties and screenshots, never the token value.
+agent-bus-admin token owner@fresh >/root/owner.token
+python /fixture/browser.py --base http://127.0.0.1:6780 --token /root/owner.token --supervisor "$main_pid" --evidence /evidence
+pass "real installed browser follows sign-in, web-restart, bus-restart and sign-out session semantics"
+
 for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web; do
   [ -L "/usr/local/bin/$command" ] || fail "$command is not a stable link"
   target=$(readlink "/usr/local/bin/$command")

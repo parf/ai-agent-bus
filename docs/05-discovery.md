@@ -7,7 +7,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), [web authority isolation](11-processes.md#web-authority-boundary) and resource limits. |
-| Pending | Installed [browser acceptance](#browser-acceptance). |
+| Pending | Full installed [browser acceptance](#browser-acceptance); the session and restart foundation is built. |
 
 ## What a listing answers
 
@@ -473,10 +473,14 @@ typed-component migration stay pending.
 
 ## Browser acceptance
 
-**Required MVP, pending installed acceptance.** Verify the dashboard in a real
-browser under its installed scheme, hostname and cookie policy. Exercise
-sign-in/out, the required controls, activity graphs and denial paths at each
-authority level. Web and bus restarts follow the [session contract](#signing-in).
+**Required MVP; session foundation built, role/action matrix pending.** Real
+Chromium on the package-only host signs in and out through visible controls,
+checks the cookie boundary, visits the current required tabs, retains its
+session across a real web-child restart and loses it across a real bus-child
+restart ([evidence](../Plans/MVP/done/installed-browser-foundation.md#checks)).
+Complete the required controls, activity graphs and denial paths at each
+authority level under the installed scheme and hostname. Web and bus restarts
+continue to follow the [session contract](#signing-in).
 HTTP handler tests and command-line cookie jars remain useful evidence but
 do not establish this browser workflow. [F.12](../Plans/MVP/TODO.md#remaining-work)
 owns the installed exercise and mutation checks.
