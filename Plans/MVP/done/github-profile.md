@@ -79,3 +79,18 @@ changing the GitHub-login field, while photo availability is optional. The
 existing key-possession proof remains the authentication fact. The
 [snapshot upgrade note](../../../docs/09-setup.md#github-profile-snapshot-upgrade)
 records how an older daemon treats the new optional fields.
+
+## Live postflight
+
+Commit `c81cb69` was built and deployed as 0.5.71 with build
+`parf@parf.us 2026-09-18 00:20:11`. The supervisor, bus and web child report
+the new version. The four existing caller-visible User profiles have no GitHub
+login, provider fetch time or local photo, and the raw answer omits those
+unobserved fields rather than publishing zero timestamps. No live profile was
+changed or refreshed.
+
+Real Chromium at 375 px repeated the initials fallback on the User list, User
+title and caller-visible service owner, found no remote image request and found
+no overflow. The web child retains a private PID namespace, zero effective
+capabilities, `NoNewPrivileges`, environment `AGENT_BUS_ADDR=/bus.sock` plus
+`PWD=/`, and its 256 MiB memory, zero-swap, 64-task and one-CPU limits.
