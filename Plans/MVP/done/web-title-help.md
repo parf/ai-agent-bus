@@ -52,3 +52,14 @@ and frozen smoke scripts both had SHA-256
 This slice does not add the planned local User photo, owner photos on resource
 detail, service activity placement, remaining collection search/sort/paging or
 compact help on pages whose journey is still pending.
+
+## Live postflight
+
+Commit `f1878e0` was built and deployed as 0.5.65. The daemon and web child
+report build `parf@parf.us 2026-09-17 20:17:20`; anonymous daemon access to
+`/status` remains 401. Real Chromium repeated the 13-route 375 px check against
+the live web listener, including both native-help states and the no-overflow
+assertion. The web child retained zero effective capabilities, environment
+`AGENT_BUS_ADDR=/bus.sock` plus `PWD=/`, and its 256 MiB memory, zero-swap,
+64-process and one-CPU limits. The peer AgentBus path reconnected after the
+restart.
