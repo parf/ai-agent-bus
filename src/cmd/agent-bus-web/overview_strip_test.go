@@ -95,22 +95,29 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	}
 }
 
-// The observation time is one fact about one page load. It was printed beside
-// Refresh, again in the empty state, and again on every attention item, always
-// the same value.
-func TestTheObservationTimeIsStatedOnce(t *testing.T) {
+// The generation time is one fact about one page load. It was printed beside
+// Refresh, again in the empty state and again on every attention item; the
+// owner cut the repeats, then cut Refresh and moved the time to the shared
+// footer, where one line covers the whole page.
+func TestTheGenerationTimeIsStatedOnceAndOnlyInTheFooter(t *testing.T) {
 	m := meaningFixture(t)
-	// Empty: no attention items at all.
 	empty := m.get("/")
-	at := section(t, empty, "· as of ", "</span>")
+	footer := section(t, empty, "<footer ", "</footer>")
+	at := section(t, footer, "<strong>Generated</strong> ", "</span>")
 	if strings.TrimSpace(at) == "" {
-		t.Fatal("Overview does not state when it was observed")
+		t.Fatal("no page says when it was generated")
 	}
 	if n := strings.Count(empty, at); n != 1 {
-		t.Errorf("an empty Overview states the observation time %d times, want 1", n)
+		t.Errorf("a quiet Overview states the generation time %d times, want 1", n)
 	}
-	if !strings.Contains(empty, "No observed attention conditions in this view.") {
-		t.Errorf("the empty state lost its wording: %s", empty)
+	body := section(t, empty, "<main>", "</main>")
+	if strings.Contains(body, at) || strings.Contains(body, "as of") {
+		t.Errorf("the page body still carries its own time: %s", body)
+	}
+	// Refresh went with it: the owner reads the time in the footer and
+	// reloads with the browser.
+	if strings.Contains(body, ">Refresh</a>") {
+		t.Errorf("Overview still offers a Refresh link: %s", body)
 	}
 
 	// Populated: two records that each raise an item, so a per-item repeat
@@ -130,13 +137,55 @@ func TestTheObservationTimeIsStatedOnce(t *testing.T) {
 	if !strings.Contains(full, ">tiny@h<") || !strings.Contains(full, ">small@h<") {
 		t.Fatal("the fixture did not raise both items")
 	}
-	now := section(t, full, "· as of ", "</span>")
+	now := section(t, section(t, full, "<footer ", "</footer>"), "<strong>Generated</strong> ", "</span>")
 	if n := strings.Count(full, now); n != 1 {
-		t.Errorf("a populated Overview states the observation time %d times, want 1", n)
+		t.Errorf("a populated Overview states the generation time %d times, want 1", n)
 	}
 	// The item keeps its way through; only the repeated time went.
 	if !strings.Contains(full, `<p class=muted><a href="/service?name=tiny%40h">View record</a></p>`) {
 		t.Errorf("an attention item lost its link with the repeated time: %s", full)
+	}
+	// Every page carries the footer, so every page is dated, not just this one.
+	for _, route := range []string{"/services", "/channels", "/users", "/groups", "/diagnostics", "/activity"} {
+		page := m.get(route)
+		stamp := section(t, section(t, page, "<footer ", "</footer>"), "<strong>Generated</strong> ", "</span>")
+		if strings.TrimSpace(stamp) == "" {
+			t.Errorf("%s does not say when it was generated", route)
+		}
+	}
+}
+
+// An Overview with nothing to report says nothing rather than saying so. The
+// block existed to make no health claim; the owner's answer is that a heading
+// with an explanation under it is itself a claim on the reader's attention.
+func TestNeedsAttentionAppearsOnlyWhenSomethingWasObserved(t *testing.T) {
+	m := meaningFixture(t)
+	quiet := m.get("/")
+	// Element forms, not class names: every class in this list also appears
+	// in the inline stylesheet that every page carries.
+	for _, gone := range []string{">Needs attention<", "<div class=attention-list>", "attention-empty\">", "No observed attention conditions"} {
+		if strings.Contains(quiet, gone) {
+			t.Errorf("a quiet Overview still carries %q: %s", gone, quiet)
+		}
+	}
+	// The rest of the page is untouched, so the check above cannot pass on
+	// an Overview that failed to render at all.
+	if !strings.Contains(quiet, "<div class=node-strip>") {
+		t.Fatalf("the quiet Overview did not render its node strip: %s", quiet)
+	}
+
+	m.register(protocol.Record{Name: "tiny@h", Owner: "admin@h", Bound: 1})
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "tiny@h", Body: "fills it"}); err != nil {
+		t.Fatal(err)
+	}
+	raised := m.get("/")
+	for _, want := range []string{"id=attention>Needs attention", "<div class=attention-list>", "Queue at capacity when observed"} {
+		if !strings.Contains(raised, want) {
+			t.Errorf("an Overview with an observed condition lacks %q: %s", want, raised)
+		}
+	}
+	if strings.Contains(raised, "attention-empty\">") {
+		t.Errorf("a populated Overview rendered the empty state too: %s", raised)
 	}
 }
 

@@ -986,10 +986,29 @@ func TestACLFormsExplainRestrictedEmptyLists(t *testing.T) {
 
 func TestGroupPagesExplainThatOwnerIsRuntimeACLSyntax(t *testing.T) {
 	m := meaningFixture(t)
-	for _, page := range []string{"/groups", "/groups/new"} {
-		body := m.get(page)
-		if !strings.Contains(body, "@owner") || !strings.Contains(body, "runtime ACL syntax") {
-			t.Errorf("%s presents @owner as an ordinary group name", page)
-		}
+	// The Groups collection carries the explanation as standing help, where
+	// somebody reading about groups will meet it.
+	if body := m.get("/groups"); !strings.Contains(body, "@owner") || !strings.Contains(body, "runtime ACL syntax") {
+		t.Error("/groups presents @owner as an ordinary group name")
+	}
+	// The register form does not: the owner removed a standing warning about
+	// one reserved word from a form that accepts every other name. It is
+	// said when it applies, which is when that name is what was submitted.
+	blank := m.get("/groups/new")
+	if strings.Contains(blank, "runtime ACL syntax") {
+		t.Errorf("the empty register form warns about a name nobody typed: %s", blank)
+	}
+	attempted, _ := postBody(t, m, "/groups", url.Values{
+		"action": {"save"}, "new": {"1"}, "name": {"@owner"}, "members": {"admin@h"},
+	})
+	if !strings.Contains(attempted, "runtime ACL syntax") {
+		t.Errorf("registering @owner was refused without saying why: %s", attempted)
+	}
+	// An ordinary refused name gets its own error and not this one.
+	other, _ := postBody(t, m, "/groups", url.Values{
+		"action": {"save"}, "new": {"1"}, "name": {"not-a-group"}, "members": {"admin@h"},
+	})
+	if strings.Contains(other, "runtime ACL syntax") {
+		t.Errorf("an unrelated refused name was blamed on @owner: %s", other)
 	}
 }

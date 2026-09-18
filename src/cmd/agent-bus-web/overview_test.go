@@ -24,14 +24,38 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 
 	overview := m.get("/")
 	for _, want := range []string{
-		`id=attention>Needs attention`, `class=node-strip`,
+		`class=node-strip`,
 		`🏠</span> Overview</h1>`,
 		`Node-wide. The lists linked below contain only records visible to you; the two never have to agree.`,
 		`href="/services?sort=queued&amp;work=held"`, `href="/channels?sort=queued&amp;work=held"`,
-		`No observed attention conditions in this view`, `It is not a statement that everything is working`,
 	} {
 		if !strings.Contains(overview, want) {
 			t.Errorf("Overview lacks %q", want)
+		}
+	}
+	// This fixture raises nothing, and an Overview with nothing to report
+	// carries no attention section at all rather than a block saying so.
+	// TestNeedsAttentionAppearsOnlyWhenSomethingWasObserved holds both halves.
+	for _, gone := range []string{
+		`id=attention>Needs attention`,
+		`No observed attention conditions in this view`,
+		`It is not a statement that everything is working`,
+	} {
+		if strings.Contains(overview, gone) {
+			t.Errorf("a quiet Overview still carries %q", gone)
+		}
+	}
+	// The Find row offers only what the menu cannot: two filtered views.
+	// Users and Diagnostics are menu entries and were repeated here.
+	find := section(t, overview, `<nav class=overview-links aria-label="Find records">`, "</nav>")
+	for _, kept := range []string{"Services holding work", "Channels holding work"} {
+		if !strings.Contains(find, kept) {
+			t.Errorf("the Find row lost %q: %s", kept, find)
+		}
+	}
+	for _, duplicated := range []string{">Users</a>", ">Diagnostics</a>"} {
+		if strings.Contains(find, duplicated) {
+			t.Errorf("the Find row repeats a menu entry, %q: %s", duplicated, find)
 		}
 	}
 	for _, detail := range []string{"Refusals since this daemon started", "Exchanges in retained history", "Registry", "quiet@h"} {

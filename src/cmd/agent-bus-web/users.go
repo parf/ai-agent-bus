@@ -75,8 +75,10 @@ type peopleView struct {
 	User                                         protocol.User
 	New                                          bool
 	People, Other                                []protocol.User
-	Query, Kind, Return, Previous, Next          string
+	Query, Kind, State, Return, Previous, Next   string
 	PeopleCount, OtherCount, Matched, Start, End int
+	ActiveCount, PausedCount, BannedCount        int
+	StateLinks                                   []viewLink
 	RecordKinds                                  map[string]string
 }
 
@@ -112,21 +114,64 @@ func directoryReturn(raw string) string {
 	return u.RequestURI()
 }
 
+// userState normalises a directory entry's lifecycle state. A blank value is
+// an active user, which is how the detail page reads it too.
+func userState(u protocol.User) string {
+	if u.State == "" {
+		return "active"
+	}
+	return u.State
+}
+
+// stateBadge is the marker shown after a name that is not active. Active users
+// get nothing: marking the ordinary majority marks nothing
+// (Plans/MVP/web/glyphs.md#the-rule-that-matters-most).
+func stateBadge(u protocol.User) template.HTML {
+	switch userState(u) {
+	case "paused":
+		return `<span class="state-badge state-inactive">INACTIVE</span>`
+	case "banned":
+		return `<span class="state-badge state-banned">BANNED</span>`
+	}
+	return ""
+}
+
 func (p *peopleView) directory(r *http.Request) {
 	p.Query = strings.TrimSpace(r.URL.Query().Get("q"))
 	p.Kind = r.URL.Query().Get("kind")
 	if p.Kind != "users" && p.Kind != "other" {
 		p.Kind = ""
 	}
+	// Active is the default view. The filter applies to registered users,
+	// which are the only entries with a lifecycle state; a credential with
+	// no profile is not inactive, it has no state to be in, so the Other
+	// section is unaffected by this choice.
+	p.State = r.URL.Query().Get("state")
+	switch p.State {
+	case "paused", "banned", "all":
+	default:
+		p.State = "active"
+	}
 	var matched []protocol.User
 	for _, u := range p.Users {
 		person := u.Kind == protocol.DirectoryUser
 		if person {
 			p.PeopleCount++
+			switch u.State {
+			case "paused":
+				p.PausedCount++
+			case "banned":
+				p.BannedCount++
+			default:
+				p.ActiveCount++
+			}
 		} else {
 			p.OtherCount++
 		}
 		if p.Kind == "users" && !person || p.Kind == "other" && person {
+			continue
+		}
+		if person && p.State != "all" && userState(u) != p.State {
 			continue
 		}
 		if !strings.Contains(strings.ToLower(u.Name+" "+u.PersonName+" "+u.Email+" "+u.GithubUser+" "+u.GithubCompany+" "+u.GithubLocation+" "+u.GithubTwitterUsername), strings.ToLower(p.Query)) {
@@ -146,6 +191,9 @@ func (p *peopleView) directory(r *http.Request) {
 		}
 		if p.Kind != "" {
 			q.Set("kind", p.Kind)
+		}
+		if p.State != "active" {
+			q.Set("state", p.State)
 		}
 		q.Set("page", strconv.Itoa(n))
 		return "/users?" + q.Encode()
@@ -211,6 +259,16 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			{Href: pageURL("/users", cloneValues(filterBase)), Label: "All", Count: p.PeopleCount + p.OtherCount, Counted: true, Current: p.Kind == ""},
 			{Href: queryWith("/users", filterBase, "kind", "users"), Label: "👤 Users", Count: p.PeopleCount, Counted: true, Current: p.Kind == "users"},
 			{Href: queryWith("/users", filterBase, "kind", "other"), Label: "Other", Count: p.OtherCount, Counted: true, Current: p.Kind == "other"},
+		}
+		stateBase := cloneValues(filterBase)
+		if p.Kind != "" {
+			stateBase.Set("kind", p.Kind)
+		}
+		p.StateLinks = []viewLink{
+			{Href: pageURL("/users", cloneValues(stateBase)), Label: "Active", Count: p.ActiveCount, Counted: true, Current: p.State == "active"},
+			{Href: queryWith("/users", stateBase, "state", "paused"), Label: "Inactive", Count: p.PausedCount, Counted: true, Current: p.State == "paused"},
+			{Href: queryWith("/users", stateBase, "state", "banned"), Label: "Banned", Count: p.BannedCount, Counted: true, Current: p.State == "banned"},
+			{Href: queryWith("/users", stateBase, "state", "all"), Label: "All states", Count: p.PeopleCount, Counted: true, Current: p.State == "all"},
 		}
 		render(w, peoplePage, p)
 	})
@@ -410,7 +468,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 	})
 }
 
-var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityGlyph": identityGlyph, "identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number, "recordPath": recordPath}).Parse(shell("users", "Users") + `
+var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityGlyph": identityGlyph, "identityLabel": identityLabel, "userState": userState, "stateBadge": stateBadge, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number, "recordPath": recordPath}).Parse(shell("users", "Users") + `
 <div class=page-title><h1>{{titleMark "users"}} Users and other identities</h1><button type=button class=help-button popovertarget=identity-types-help aria-label="About identity types">ⓘ</button></div>
 <div popover id=identity-types-help class=context-help><h2>About identity types</h2><ul>
 <li>Registered users have a profile.</li>
@@ -425,11 +483,12 @@ var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"id
 <label>Search <input type=search name=q value="{{.Query}}" placeholder="Name, identity, email or GitHub login"></label>
 {{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}<button>Search</button> <a href=/users>Clear filters</a></form>
 <nav class=filter-nav aria-label="Identity type filter">Show: {{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}} ({{number .Count}})</a>{{end}}</nav>
+<nav class=filter-nav aria-label="User state filter">State: {{range .StateLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}} ({{number .Count}})</a>{{end}}</nav>
 <p>Showing {{number .Start}}–{{number .End}} of {{number .Matched}} matching identities.</p>
 <section aria-labelledby=people-heading><h2 id=people-heading>Registered users</h2>
-<table><thead><tr><th scope=col>Person / identity</th><th scope=col>Authority</th><th scope=col>State</th></tr></thead><tbody>
-{{range .People}}<tr><td><span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<span>{{with .PersonName}}<strong>{{.}}</strong><br>{{end}}{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a>{{with .GithubCompany}}<br><span class=muted>{{.}}</span>{{end}}</span></span></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</td><td>{{.State}}</td></tr>
-{{else}}<tr><td colspan=3>No registered users on this page.</td></tr>{{end}}</tbody></table></section>
+<table><thead><tr><th scope=col>Person / identity</th><th scope=col>Authority</th></tr></thead><tbody>
+{{range .People}}<tr><td><span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<span>{{$struck := ne (userState .) "active"}}{{with .PersonName}}<strong>{{if $struck}}<s>{{.}}</s>{{else}}{{.}}{{end}}</strong><br>{{end}}{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{if $struck}}<s>{{.Name}}</s>{{else}}{{.Name}}{{end}}</code></a> {{stateBadge .}}{{with .GithubCompany}}<br><span class=muted>{{.}}</span>{{end}}</span></span></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</td></tr>
+{{else}}<tr><td colspan=2>No registered users on this page.</td></tr>{{end}}</tbody></table></section>
 <section aria-labelledby=other-heading><h2 id=other-heading>Other identities — review and cleanup</h2>
 {{if .Other}}
 <table><thead><tr><th scope=col>Identity</th><th scope=col>What it is</th><th scope=col>Why it is here / next step</th></tr></thead><tbody>
@@ -447,7 +506,7 @@ var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"id
 <section class="editor-card task-card" aria-labelledby=profile-heading><h2 id=profile-heading>Profile</h2><form id=form-create method=post action=/user><input type=hidden name=return value="{{.Return}}"><div class=form-grid>
 {{if .New}}<label class="form-field form-field-wide">Identity <input name=name required placeholder="user@realm" value="{{.User.Name}}" aria-invalid="{{if .Form.Invalid "name"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "name"}}profile-error{{end}}"><small>The principal name used by AgentBus.</small></label><input type=hidden name=action value=create>{{else}}<input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=action value=save>{{end}}
 <label class=form-field>Person name <input name=person_name value="{{.User.PersonName}}"><small>The name shown to people.</small></label>
-<label class=form-field>Email <input type=email name=email value="{{.User.Email}}" aria-invalid="{{if .Form.Invalid "email"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "email"}}profile-error{{end}}"><small>A public GitHub email fills this only when it is blank.</small></label>
+<label class=form-field>Email <input type=email name=email value="{{.User.Email}}" aria-invalid="{{if .Form.Invalid "email"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "email"}}profile-error{{end}}"></label>
 <label class=form-field>GitHub login <input name=github_user value="{{.User.GithubUser}}"><small>Setting or changing it attempts to import public values.</small></label>
 <label class=form-field>Company <input name=company value="{{.User.GithubCompany}}"></label>
 <label class=form-field>Location <input name=location value="{{.User.GithubLocation}}"></label>
@@ -460,7 +519,7 @@ var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"id
 {{else}}
 <div class=person-layout><div class=person-main>
 {{if .User.CanEdit}}<section class=editor-card aria-labelledby=profile-heading><h2 id=profile-heading>Profile</h2><form id=form-save method=post action=/user><input type=hidden name=return value="{{.Return}}"><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=action value=save><div class=form-grid>
-<label class=form-field>Person name <input name=person_name value="{{.User.PersonName}}"><small>The name shown to people.</small></label><label class=form-field>Email <input type=email name=email value="{{.User.Email}}" aria-invalid="{{if .Form.Invalid "email"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "email"}}profile-error{{end}}"><small>A public GitHub email fills this only when blank.</small></label><label class=form-field>GitHub login <input name=github_user value="{{.User.GithubUser}}"><small>Changing it attempts to import public values.</small></label><label class=form-field>Company <input name=company value="{{.User.GithubCompany}}"></label><label class=form-field>Location <input name=location value="{{.User.GithubLocation}}"></label><label class=form-field>Twitter/X <input name=twitter value="{{.User.GithubTwitterUsername}}" placeholder="handle"></label></div>{{if .Form.Is "save"}}<p class=warn id=profile-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>Save profile</button></div></form>{{if .User.GithubUser}}<form id=form-refresh-github method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=refresh-github>Refresh fields from GitHub</button>{{if .Form.Is "refresh-github"}}<p class=warn>{{.Form.Error}}</p>{{end}}</form>{{end}}</section>{{else}}<section class="editor-card compact-card"><div class=page-title><h2>Profile</h2><button type=button class=help-button popovertarget=profile-source-help aria-label="About profile fields" data-tooltip="These are AgentBus User fields. GitHub may supply initial or refreshed values; authorized profile edits can change them.">ⓘ</button></div><dl>{{with .User.PersonName}}<dt>Person name</dt><dd>{{.}}</dd>{{end}}{{with .User.Email}}<dt>Email</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubUser}}<dt>GitHub login</dt><dd><a href="{{githubProfileURL .}}">@{{.}}</a></dd>{{end}}{{with .User.GithubCompany}}<dt>Company</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubLocation}}<dt>Location</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubTwitterUsername}}<dt>Twitter/X</dt><dd><a href="{{twitterProfileURL .}}">@{{.}}</a></dd>{{end}}</dl><p class=muted>Trusted profile fields are edited by a daemon administrator.</p></section><div popover id=profile-source-help class=context-help><h2>Profile fields</h2><p>These values belong to the AgentBus User profile. Public GitHub data may fill or refresh them, but GitHub is not a separate profile on this page.</p></div>{{end}}
+<label class=form-field>Person name <input name=person_name value="{{.User.PersonName}}"><small>The name shown to people.</small></label><label class=form-field>Email <input type=email name=email value="{{.User.Email}}" aria-invalid="{{if .Form.Invalid "email"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "email"}}profile-error{{end}}"></label><label class=form-field>GitHub login <input name=github_user value="{{.User.GithubUser}}"><small>Changing it attempts to import public values.</small></label><label class=form-field>Company <input name=company value="{{.User.GithubCompany}}"></label><label class=form-field>Location <input name=location value="{{.User.GithubLocation}}"></label><label class=form-field>Twitter/X <input name=twitter value="{{.User.GithubTwitterUsername}}" placeholder="handle"></label></div>{{if .Form.Is "save"}}<p class=warn id=profile-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>Save profile</button></div></form></section>{{else}}<section class="editor-card compact-card"><div class=page-title><h2>Profile</h2><button type=button class=help-button popovertarget=profile-source-help aria-label="About profile fields" data-tooltip="These are AgentBus User fields. GitHub may supply initial or refreshed values; authorized profile edits can change them.">ⓘ</button></div><dl>{{with .User.PersonName}}<dt>Person name</dt><dd>{{.}}</dd>{{end}}{{with .User.Email}}<dt>Email</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubUser}}<dt>GitHub login</dt><dd><a href="{{githubProfileURL .}}">@{{.}}</a></dd>{{end}}{{with .User.GithubCompany}}<dt>Company</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubLocation}}<dt>Location</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubTwitterUsername}}<dt>Twitter/X</dt><dd><a href="{{twitterProfileURL .}}">@{{.}}</a></dd>{{end}}</dl><p class=muted>Trusted profile fields are edited by a daemon administrator.</p></section><div popover id=profile-source-help class=context-help><h2>Profile fields</h2><p>These values belong to the AgentBus User profile. Public GitHub data may fill or refresh them, but GitHub is not a separate profile on this page.</p></div>{{end}}
 </div><aside class=person-sidebar>
 <section class="editor-card compact-card"><h2>Identity</h2><div class=detail-meta>{{with identityLabel .User .RecordKinds}}<span class=fact-pill>{{.}}</span>{{end}}<span class=fact-pill>{{if .User.DaemonOwner}}Daemon owner{{else if .User.Administrator}}Daemon administrator{{else}}User{{end}}</span></div><h2>Groups</h2><div class=choice-row>{{range .User.Groups}}<a class=group-chip href="/group?name={{.}}">{{.}}</a>{{else}}<span class=muted>No memberships</span>{{end}}</div></section>
 <section class="editor-card compact-card"><div class=page-title><h2>Access</h2><button type=button class=help-button popovertarget=user-access-help aria-label="About user access states" data-tooltip="Pause and ban block bus access and new inbox deliveries; queued work stays and running processes are not stopped.">ⓘ</button></div><p>Current: {{if eq .User.State "active"}}<span class="user-state user-state-active"><span aria-hidden=true>●</span> Active</span>{{else if eq .User.State "paused"}}<span class="user-state user-state-paused"><span aria-hidden=true>●</span> Paused</span>{{else}}<span class="user-state user-state-banned"><span aria-hidden=true>●</span> Banned</span>{{end}}</p>{{if and (not .User.DaemonOwner) .User.CanActivate}}<details class=access-change><summary>Change</summary><div class=access-actions>{{if ne .User.State "active"}}<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=active>Activate</button></form>{{end}}{{if eq .User.State "active"}}<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=paused>Pause</button></form>{{end}}{{if ne .User.State "banned"}}<form method=get action=/user-ban><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action>Ban…</button></form>{{end}}</div></details>{{end}}</section><div popover id=user-access-help class=context-help><h2>User access states</h2><ul><li>Pause and ban block bus access and new deliveries to this user's inbox.</li><li>Queued work is retained and running service processes are not stopped.</li><li>Administrators may lift a ban on an ordinary user; the daemon Owner controls protected authority levels.</li></ul></div>

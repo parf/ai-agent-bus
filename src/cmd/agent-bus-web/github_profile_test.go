@@ -113,9 +113,17 @@ func TestGithubProfileAndPhotoStayLocalAndVisibilityBounded(t *testing.T) {
 		t.Fatalf("local embedded thumbnail is blocked by CSP: %q", listHeader.Get("Content-Security-Policy"))
 	}
 	detail, _ := request("owner@h", "GET", "/user?name=alice@h", nil, 200)
-	for _, want := range []string{"Example Company", "New York", `name=company`, `name=location`, `name=twitter`, "alice_x", "Refresh fields from GitHub", "data:image/png;base64,"} {
+	for _, want := range []string{"Example Company", "New York", `name=company`, `name=location`, `name=twitter`, "alice_x", "data:image/png;base64,"} {
 		if !bytes.Contains(detail, []byte(want)) {
 			t.Fatalf("user detail lacks %q: %s", want, detail)
+		}
+	}
+	// The owner removed both at 0.5.83: the refresh control, and the hint
+	// that a public GitHub email fills a blank address. The refresh itself
+	// is unchanged and is still exercised below through POST /user.
+	for _, removed := range []string{"Refresh fields from GitHub", "A public GitHub email fills this"} {
+		if bytes.Contains(detail, []byte(removed)) {
+			t.Fatalf("user detail still carries %q: %s", removed, detail)
 		}
 	}
 	for _, hidden := range []string{"Photo source", ">Fetched<", "Gravatar ID", "GitHub profile"} {

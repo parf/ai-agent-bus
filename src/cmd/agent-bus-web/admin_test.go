@@ -258,7 +258,7 @@ other@h</textarea>`) || strings.Contains(groupDetail, `<input name=members`) {
 		t.Fatal("Administrator lost ordinary-group editing")
 	}
 	protectedGroup := request("operator@h", "GET", "/group?name=%40administrators", "", nil, 200)
-	if strings.Contains(protectedGroup, `<textarea name=members`) || !strings.Contains(protectedGroup, `Only the daemon owner changes this protected group.`) || !strings.Contains(protectedGroup, `popovertarget=administrators-help`) || !strings.Contains(protectedGroup, `does not automatically grant management`) {
+	if strings.Contains(protectedGroup, `<textarea name=members`) || !strings.Contains(protectedGroup, `Only the daemon owner changes this protected group.`) || !strings.Contains(protectedGroup, `popovertarget=administrators-help`) || !strings.Contains(protectedGroup, `Administering the node is not managing its resources.`) {
 		t.Fatal("Administrator was offered the protected-group editor")
 	}
 	request("admin@h", "GET", "/group?name=%40missing", "", nil, 404)

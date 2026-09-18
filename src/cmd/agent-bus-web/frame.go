@@ -21,6 +21,11 @@ type nodeStatus struct {
 
 type pageInfo struct {
 	Node *protocol.NodeIdentity
+	// At is when this page was built, stated once in the shared footer. No
+	// page refreshes itself, so every page has to say how old what you are
+	// reading is; one value per request keeps the body and the footer from
+	// disagreeing.
+	At string
 }
 
 // An embedded method lets every HTML view share the frame without changing
@@ -32,7 +37,7 @@ type pageInfoKey struct{}
 // The node publishes this subset to everyone. No session or privileged
 // fallback is sent, including on sign-in and error pages.
 func (c *caller) pageRequest(r *http.Request) *http.Request {
-	p := &pageInfo{}
+	p := &pageInfo{At: time.Now().Format("2006-01-02 15:04:05")}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "GET", c.base+"/identity", nil)
@@ -80,6 +85,6 @@ const frameHeaderEnd = `</header>
 
 var frameFooter = template.Must(template.New("footer").Funcs(template.FuncMap{"number": number}).Parse(`</main>
 <footer class=site-footer aria-label="Node and build information">
-{{with .Node}}<div class=footer-node><span><strong>Owner</strong> <code>{{if .Owner}}{{.Owner}}{{else}}unavailable{{end}}</code></span><span><strong>Uptime</strong> {{if .Up}}{{.Up}}{{else}}unavailable{{end}}</span></div>{{else}}<div class=footer-node><span>Node information unavailable</span></div>{{end}}
+{{with .Node}}<div class=footer-node><span><strong>Owner</strong> <code>{{if .Owner}}{{.Owner}}{{else}}unavailable{{end}}</code></span><span><strong>Uptime</strong> {{if .Up}}{{.Up}}{{else}}unavailable{{end}}</span>{{with $.At}}<span><strong>Generated</strong> {{.}}</span>{{end}}</div>{{else}}<div class=footer-node><span>Node information unavailable</span>{{with .At}}<span><strong>Generated</strong> {{.}}</span>{{end}}</div>{{end}}
 </footer>
 </html>`))

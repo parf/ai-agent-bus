@@ -106,7 +106,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 			fail(w, r, "", err)
 			return view{}, false
 		}
-		v := view{pageInfo: requestInfo(r), You: node.You, At: time.Now().Format("2006-01-02 15:04:05"), Status: node.Status, Refusals: refusals(node.Refused)}
+		v := view{pageInfo: requestInfo(r), You: node.You, Status: node.Status, Refusals: refusals(node.Refused)}
 		if err := bus.get(cred, "/ls", &v.Records); err != nil {
 			fail(w, r, node.You, err)
 			return view{}, false
@@ -525,7 +525,10 @@ button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
 .node-fact{display:flex;flex-direction:column;flex:1 1 8rem;padding:1rem;background:var(--surface-2)}
 .node-fact-note{font-size:.95rem;font-weight:600;color:var(--text-2)}
 .node-fact span{display:block;color:var(--text-2);font-size:.8rem;font-weight:600}
-.node-fact strong{display:block;margin-top:auto;padding-top:.15rem;font-size:1.55rem;font-variant-numeric:tabular-nums}
+.node-fact strong{display:block;margin-top:auto;padding-top:.15rem;font-size:1.55rem;font-variant-numeric:tabular-nums;text-align:right}
+.state-badge{display:inline-block;padding:0 .35rem;border-radius:2px;font-size:.72rem;font-weight:700;letter-spacing:.04em;vertical-align:.08em}
+.state-inactive{color:var(--text-2);border:1px solid var(--border-strong)}
+.state-banned{background:var(--red);color:#ffd83d}
 .overview-links{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin-top:1rem}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem 1.25rem}
 .form-field{display:flex;flex-direction:column;gap:.3rem;font-weight:600}
@@ -671,28 +674,27 @@ var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark"
 `))
 
 var overviewPage = template.Must(template.New("overview").Funcs(template.FuncMap{"titleMark": titleMark, "number": number}).Parse(shell("overview", "Overview") + `<div class=page-title><h1>{{titleMark "overview"}} Overview</h1><button type=button class=help-button popovertarget=overview-help aria-label="About Overview" data-tooltip="Only enumerated observations appear. An empty list does not claim the node is healthy.">ⓘ</button></div><div popover id=overview-help class=context-help><h2>Overview scope</h2><ul><li>Attention items cover the conditions the daemon reports over records visible to you, plus node-wide refusals and the previous-stop marker.</li><li>A backlog by itself is ordinary work and is not called unhealthy.</li><li>The node totals and your caller-visible lists have different scopes and never have to agree.</li></ul></div>
-<p><a href=/>Refresh</a> <span class=muted>· as of {{.At}}</span></p>
 
-<section class=dashboard-section aria-labelledby=attention><h2 id=attention>Needs attention</h2>
-{{if .Attention}}<div class=attention-list>{{range .Attention}}<article class="attention-item attention-{{.Level}}"><h3>{{.Title}}</h3>
+{{if .Attention}}<section class=dashboard-section aria-labelledby=attention><h2 id=attention>Needs attention</h2>
+<div class=attention-list>{{range .Attention}}<article class="attention-item attention-{{.Level}}"><h3>{{.Title}}</h3>
 {{if eq .Kind "refusal"}}<p><code>{{.Reason}}</code> · {{number .Count}} since this daemon started</p>
 {{else if eq .Kind "record"}}<p><code>{{.Name}}</code> · {{number .Queued}} held now{{with .Oldest}} · oldest {{.}}{{end}}{{if .Disabled}} · delivery off{{end}}{{if .AtBound}} · at capacity{{end}}{{with .Overflow}} · {{.}}{{end}}{{if .Dropped}} · {{number .Dropped}} dropped{{end}}{{if .Expired}} · {{number .Expired}} expired{{end}}</p>
 {{else}}<p>Memory from the previous run may not have reached the snapshot.</p>{{end}}
 <p class=muted><a href="{{.Href}}">{{.Link}}</a></p></article>{{end}}</div>
-{{else}}<div class="attention-item attention-empty"><strong>No observed attention conditions in this view.</strong><p class=muted>This covers the conditions the daemon reports. It is not a statement that everything is working.</p></div>{{end}}</section>
+</section>{{end}}
 
 <section class=dashboard-section aria-labelledby=node><div class=page-title><h2 id=node>This node</h2><button type=button class=help-button popovertarget=node-help aria-label="About node totals" data-tooltip="Whole-node values. Caller-visible lists may show a smaller set.">ⓘ</button></div><div popover id=node-help class=context-help><h2>Node totals</h2><ul><li>These values cover the whole daemon.</li><li>Agents are listed with Services. That page, Channels and Users contain only what you may see, so their counts never have to agree with this strip.</li><li>Readers counts outstanding consume requests, not processes, sessions or health.</li><li>Calls counts HTTP requests reaching the daemon, node-wide, including refused ones. A window the daemon has not observed yet says so rather than reading zero.</li></ul></div>
 <div class=node-strip><div class=node-fact><span>Uptime</span><strong>{{.Status.Up}}</strong></div><div class=node-fact><span>Services + Agents + Channels</span><strong>{{number .Status.Services}}</strong></div><div class=node-fact><span>Queued</span><strong>{{number .Status.Queued}}</strong></div><div class=node-fact><span>Readers</span><strong>{{number .Status.Waiting}}</strong></div>
 {{with .Frame.Node}}{{with .Calls}}{{range .Windows}}<div class=node-fact><span>Calls, {{if eq .Window "1m"}}minute{{else}}hour{{end}}</span>{{if .Available}}<strong>{{number .Count}}</strong>{{else}}<strong class=node-fact-note>collecting history</strong>{{end}}</div>{{end}}<div class=node-fact><span>Calls, total</span><strong>{{number .Total}}</strong></div>{{else}}<div class=node-fact><span>Calls</span><strong class=node-fact-note>unavailable</strong></div>{{end}}{{else}}<div class=node-fact><span>Calls</span><strong class=node-fact-note>unavailable</strong></div>{{end}}</div>
 <p class=muted>Node-wide. The lists linked below contain only records visible to you; the two never have to agree.</p></section>
-<nav class=overview-links aria-label="Find records"><strong>Find</strong><a href="/services?sort=queued&amp;work=held">Services holding work</a><a href="/channels?sort=queued&amp;work=held">Channels holding work</a><a href=/users>Users</a><a href=/diagnostics>Diagnostics</a></nav>
+<nav class=overview-links aria-label="Find records"><strong>Find</strong><a href="/services?sort=queued&amp;work=held">Services holding work</a><a href="/channels?sort=queued&amp;work=held">Channels holding work</a></nav>
 `))
 
 // Diagnostics stays detailed and caller-scoped. It no longer duplicates the
 // registry catalogue; Services and Channels now carry every record fact that
 // table uniquely exposed.
 var diagnosticsPage = template.Must(template.New("diagnostics").Funcs(template.FuncMap{"readerCount": readerCount, "recordHref": recordHref, "titleMark": titleMark, "number": number}).Parse(shell("diagnostics", "Diagnostics") + `<div class=page-title><h1>{{titleMark "diagnostics"}} Diagnostics</h1><button type=button class=help-button popovertarget=diagnostics-help aria-label="About diagnostics" data-tooltip="Caller-visible queues, loss and retained envelope evidence. Bodies are never shown.">ⓘ</button></div><div popover id=diagnostics-help class=context-help><h2>Diagnostics scope</h2><ul><li>Refusal counts cover the whole daemon; queue, loss and envelope sections contain only facts visible to you.</li><li>History is bounded and process-local.</li><li>Envelope metadata may be shown, but message bodies never are.</li></ul></div>
-<p><a href=/diagnostics>Refresh</a> <span class=muted>· as of {{.At}}</span></p>
+<p><a href=/diagnostics>Refresh</a></p>
 
 <section class=dashboard-section><div class=page-title><h2 id=refusals>Refusals</h2><button type=button class=help-button popovertarget=refusals-help aria-label="About refusal counts" data-tooltip="Whole-node handled API refusals since process start. Zero is measured; router misses and internal failures are excluded.">ⓘ</button></div>
 <div popover id=refusals-help class=context-help><h2>Refusal counts</h2><ul><li>The reason set is closed, so absence from the sparse daemon map becomes a zero measurement here.</li><li>Counts include handled API refusals whatever the caller&rsquo;s standing, including malformed requests and bad credentials.</li><li>A request the router rejected before any handler ran is not a caller refusal; internal failures are not counted either.</li><li>These lifetime values cannot say how quickly refusals are rising.</li></ul></div>

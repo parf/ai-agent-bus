@@ -2022,8 +2022,26 @@ NAV=$(printf '%s' "$PAGE" | grep 'nav aria-label=.sections.')
 has "the Overview menu entry carries its house mark" "$NAV" '>🏠</span>Overview</a>'
 has "and Diagnostics carries its own drawn one" "$NAV" '</svg>Diagnostics</a>'
 lacks "no menu entry is left unmarked" "$NAV" '<a href=/groups>Groups</a>'
-has "the observation time is stated once" \
-  "$(printf '%s' "$PAGE" | grep -o '· as of ' | wc -l | tr -d ' ')" '^1$'
+# One page load is one observation, and the shared footer dates every page
+# (docs/05-discovery.md#overview-and-diagnostics). The body states no time and
+# offers no Refresh link; the browser already has one.
+has "the page states when it was generated, exactly once" \
+  "$(printf '%s' "$PAGE" | grep -o '<strong>Generated</strong>' | wc -l | tr -d ' ')" '^1$'
+has "and states it in the shared footer" \
+  "$(printf '%s' "$PAGE" | grep 'class=footer-node')" '<strong>Generated</strong>'
+lacks "Overview offers no Refresh link of its own" "$PAGE" '>Refresh</a>'
+# The Administrators group is the one group whose membership is an authority,
+# so its page states that authority. No other group page makes the claim
+# (docs/01-identity-and-roles.md#daemon-administrators).
+curl -s -b "$JAR" -o /dev/null -H "Origin: $WEB" \
+  -d 'action=save&name=%40smoke-ops&members=' "$WEB/groups"
+ADMGRP=$(curl -s -b "$JAR" "$WEB/group?name=%40administrators")
+has "the Administrators page states what membership grants" "$ADMGRP" '<h2>What membership grants</h2>'
+has "and what it does not" "$ADMGRP" '<h2>What it does not grant</h2>'
+has "resource management is not part of it" "$ADMGRP" 'Administering the node is not managing its resources.'
+ORDGRP=$(curl -s -b "$JAR" "$WEB/group?name=%40smoke-ops")
+has "the ordinary group page renders, so the next check can fail" "$ORDGRP" '<code>@smoke-ops</code>'
+lacks "an ordinary group claims no authority of its own" "$ORDGRP" 'What membership grants'
 # Root is Overview and is allowed to be short; the retained envelopes are on
 # Diagnostics and the registry catalogue on Services
 # (Plans/MVP/web/pages.md#overview).

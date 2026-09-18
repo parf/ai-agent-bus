@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.83 — 2026-09-18
+
+Move the page's generation time to the shared footer and drop the Overview
+Refresh link. Hide the Needs attention section entirely when nothing was
+observed. Leave only the two holding-work filters under Find, since Users and
+Diagnostics are menu entries. State a record listing's count and its scope in
+one line, as the table's caption. State on the `@administrators` group page what
+its membership grants and the three things it does not. Open the user directory
+on active users, marking a struck-through name `INACTIVE` or `BANNED` instead of
+keeping a state column, behind counted state filters. Drop the GitHub refresh
+control and the blank-field note from a user's page. Give `/groups/new` the
+shared form layout, and show the `@owner` note only against a submitted `@owner`.
+Range the node-strip figures right in tabular numerals.
+
 ## 0.5.82 — 2026-09-18
 
 Move the call counters out of the shared footer into the signed-in Overview

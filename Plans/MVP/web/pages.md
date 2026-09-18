@@ -105,10 +105,19 @@ Two structural rules, both opencode's:
 | **One queue, one item** | Each record yields a single item, at its worst level. No claim about which conditions co-occur is needed or made: two drafts attached one to this rule and both were unsupported, and the rule never required either — codex |
 | **Never counted twice** | Losses and refusals appear as attention items and in Diagnostics. They do **not** also appear in the node strip, or the strip and the items disagree with each other on the same page |
 
-**Empty state:** *"No observed attention conditions in this view."*, with the
-scope stated. The observation time was in this sentence until 0.5.82, when the
-owner cut every repeat of it: the page states it once, beside Refresh, and one
-page load is one observation. **Not** *"nothing needs attention"*, which was
+**Empty state: none.** At 0.5.83 the owner removed the section entirely when
+nothing was observed — no heading, no explanation, nothing to read. Two earlier
+rounds cut the observation time from this sentence and then the sentence itself.
+
+The reasoning the empty block carried is retained and is not contradicted: it
+existed so that absence of an item could not be read as *nothing is wrong*
+(codex's [S03](review/codex.md#specification-review-round-one)), and a page that
+says nothing makes no such claim. What the owner rejected is a heading and a
+paragraph spending attention to report that there is nothing to report. The
+admitted set is still a handful of conditions the daemon reports, and absence is
+still absence of *these* observations — that is now [stated in the
+documentation](../../../docs/05-discovery.md#overview-and-diagnostics) rather
+than on the page. **Not** *"nothing needs attention"*, which was
 the draft's wording and is unbounded — codex's
 [S03](review/codex.md#specification-review-round-one). The admitted set is a
 handful of conditions the daemon reports; a reader whose process died leaves a
@@ -434,7 +443,8 @@ separate primary action beside the directory heading.
 |---|---|
 | `PeopleCount` / `OtherCount` | **keep**, with scope labelled: caller-visible directory, before the search |
 | Search, kind filter, paging, `Matched`, clear-filters | keep |
-| Person name, full name, GitHub login, authority, state | keep |
+| Person name, full name, GitHub login, authority | keep |
+| User state | **0.5.83: not a column.** Nearly every row reads active, so the column spent width on the answer nobody is looking for. A person whose state is not active is struck through and carries a marker beside the name &mdash; `INACTIVE` quiet, `BANNED` loud &mdash; and the directory opens on **Active**, with counted **Active**, **Inactive**, **Banned** and **All states** filters so the hidden rows are declared. The filter applies to the person directory only: a credential-only identity has no lifecycle state to filter on |
 | Search over GitHub metadata | include company, location and Twitter/X handle from the daemon; the existing Email search covers an imported public email. No browser-side provider lookup |
 | Empty cleanup table plus its explanation | **collapse** to a count and a link while empty; expand only when candidates exist ([C10](review/codex.md#junk-and-misleading-content)) |
 | Classification of an unclassified identity | **keep as a word.** Never a colour, never inferred from a slash or a runtime prefix in a name |
@@ -465,8 +475,9 @@ The page presents one AgentBus Profile, not a second GitHub profile. Provider
 source and fetch-time bookkeeping are not profile fields and are not rendered.
 The visible photo is a locally imported, normalized thumbnail; no browser
 request goes to GitHub or Gravatar. `name` and public `email` retain their
-fill-blank rules; Company, Location and Twitter/X may be edited locally or
-deliberately replaced with **Refresh fields from GitHub**.
+fill-blank rules, which the form no longer explains to the person filling it in
+— the owner cut that hint at 0.5.83. Company, Location and Twitter/X are edited
+locally.
 
 The Users list receives all visible thumbnails in the directory answer or one
 bounded batch read and embeds/serves them locally. It must not call the daemon
@@ -478,9 +489,11 @@ same rule applies to the detail-title photo because its `h1` already names the
 user.
 
 GitHub refresh is never implicit page I/O. It is attempted when the login field
-is created or changed, or when an authorized person invokes **Refresh fields
-from GitHub**. Provider availability never blocks a valid unique login, and
-explicit Refresh reports failure without mutation. Photo import remains
+is created or changed, and from 0.5.83 that is the only way a page causes it:
+the **Refresh fields from GitHub** control was removed by owner instruction, and
+`POST /user/github-refresh` remains for an authorized caller. Provider
+availability never blocks a valid unique login, and an explicit refresh reports
+failure without mutation. Photo import remains
 optional and may fall back without refusing that otherwise valid update.
 
 There is no delete-user control and there will not be one: a user is never
@@ -524,6 +537,11 @@ with its values and field errors.
 
 The conditional route and form are built. Success lands on Group detail;
 invalid input returns the registration form with its safe values and errors.
+
+**0.5.83:** the form uses the shared editor-card and `form-grid` layout that
+every other registration form uses, instead of bare stacked fields. The note
+that `@owner` is runtime ACL syntax and cannot be registered appears only
+against a submitted name of `@owner`, not as standing advice on an empty form.
 
 ---
 

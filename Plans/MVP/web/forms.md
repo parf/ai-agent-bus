@@ -99,7 +99,6 @@ the world moved between the question and the answer.
 | Edit members | Group | one identity or nested group per textarea line | the group's members section |
 | Register a user | `/users/new` | name, person name, email, GitHub login, company, location, Twitter/X | the new user's page |
 | Edit profile | User | person name, email, GitHub login, company, location, Twitter/X | the profile section |
-| Refresh fields from GitHub | User with a GitHub login | — | editable Company, Location and Twitter/X fields plus the local photo refreshed |
 | Change state | User | the applicable transitions only | the identity section; **confirm** for ban |
 | Remove a credential | User, non-user identity | — | **confirm**, then the directory |
 
@@ -154,8 +153,10 @@ No message composer. It needs a separately accepted body-handling workflow, and
 this dashboard is for discovery, administration and envelope diagnostics.
 
 Company, Location and Twitter/X are editable AgentBus User fields. GitHub may
-fill them when its login is set or changed; **Refresh fields from GitHub**
-deliberately replaces them. Provider provenance, remote image facts and local
+fill them when its login is set or changed. **The web form no longer offers a
+refresh control**: the owner removed it at 0.5.83, so setting or changing the
+login is the one thing on this page that contacts the provider. `POST
+/user/github-refresh` is unchanged for an authorized caller. Provider provenance, remote image facts and local
 photo bytes are never form fields. The visible photo is the locally normalized
 thumbnail, not the remote URL. GitHub's public email fills the existing Email
 only when blank. There is no separate GitHub-email control.

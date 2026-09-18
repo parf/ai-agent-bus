@@ -39,7 +39,6 @@ answer to *where am I* survives the collapse.
 
 ```
   🏠 Overview
-  Refresh · as of 14:22                     ← stated once, here only
 
   ┌──────────────────────────────────────────────────────────┐
   │ ▌ Queue at capacity when observed                          │   red bar, surface-2
@@ -55,24 +54,32 @@ answer to *where am I* survives the collapse.
   ┌──────────┬──────────────┬────────┬─────────┬─────────────┬───────────┬────────────┐
   │ Uptime   │ Services +   │ Queued │ Readers │ Calls,      │ Calls,    │ Calls,     │
   │          │ Agents +     │        │         │ minute      │ hour      │ total      │
-  │ 6d 4h    │ Channels     │ 604    │ 12      │ 1,204       │ 58,003    │ 4,910,220  │
-  │          │ 231          │        │         │             │           │            │
+  │     6d 4h│ Channels     │    604 │      12 │       1,204 │    58,003 │  4,910,220 │
+  │          │          231 │        │         │             │           │            │
   └──────────┴──────────────┴────────┴─────────┴─────────────┴───────────┴────────────┘
   Node-wide. A list below shows only what you may see; the two
   never have to agree.
 
-  Find ▸ Services holding work   Channels holding work   Users   Diagnostics
+  Find ▸ Services holding work   Channels holding work
 ```
 
-**Seven facts, and the figures sit on one baseline.** The strip wraps rather
-than gridding, because a fixed four-column grid with seven cells leaves an empty
-cell showing as a block of border colour. The record count names the three kinds
+**Seven facts, and the figures sit on one baseline, ranged right.** The strip
+wraps rather than gridding, because a fixed four-column grid with seven cells
+leaves an empty cell showing as a block of border colour. From 0.5.83 each
+figure is right-aligned in tabular numerals, so the digits of adjacent cells
+line up by place value instead of drifting with the width of the number. The record count names the three kinds
 it sums — it is every registered record — and the call counters moved here from
 the shared footer at 0.5.82 ([what a node says about
 itself](../../../docs/05-discovery.md#what-a-node-says-about-itself)).
 
-**The observation time is stated once**, beside Refresh. One page load is one
-observation; it was on the heading, on the empty state and on every item.
+**When the page was generated is stated once, in the shared footer**, and there
+is no Refresh link. One page load is one observation: it was on the heading, on
+the empty state and on every item, then beside Refresh alone, and at 0.5.83 it
+moved to the footer that every page already carries.
+
+**The attention section is absent when nothing was observed.** The block below
+is what the page looks like with something to report; with nothing, the heading
+and the list are simply not there.
 
 **Refusals are deliberately not in that strip.** The draft put them there,
 against this specification's own *never counted twice* rule — refusals and
@@ -85,19 +92,9 @@ the values it rests on, when, and one link. The coloured bar is 3px of
 `--red`/`--orange` on the leading edge and never the only carrier — the heading
 text states the condition in words ([glyphs](glyphs.md#the-rule-that-matters-most)).
 
-Empty:
-
-```
-  ┌────────────────────────────────────────────────────────────┐
-  │ No observed attention conditions in this view.              │
-  │ This covers the conditions the daemon reports, over the    │
-  │ records you may see. It is not a statement that everything │
-  │ is working.                                                │
-  └────────────────────────────────────────────────────────────┘
-```
-
-One bordered line, `--text-2`, no illustration, no green. It does not get a
-third of the screen for saying nothing.
+Empty: nothing at all. No heading, no bordered line, no illustration and no
+green. It does not get a third of the screen, or a line of it, for saying
+nothing — [page spec](pages.md#overview-).
 
 ## Services — the page the density is tuned against
 

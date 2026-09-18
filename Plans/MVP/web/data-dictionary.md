@@ -147,9 +147,9 @@ The fetch is tied to the GitHub-login field: creating or changing
 `github_user` attempts to fetch and validate the public GitHub profile. A
 provider transport, status or decode failure does not block the login field;
 provider facts remain unobserved until a later successful fetch. Saving an
-unrelated profile field does not contact GitHub. **Refresh fields from GitHub** is
+unrelated profile field does not contact GitHub. `POST /user/github-refresh` is
 the explicit way to fetch the current login again and reports failure without
-mutation. Clearing `github_user` clears provider provenance and the imported
+mutation; the web page stopped offering a control for it at 0.5.83. Clearing `github_user` clears provider provenance and the imported
 photo, but keeps the ordinary AgentBus profile fields.
 
 ### User photo

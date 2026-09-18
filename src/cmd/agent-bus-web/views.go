@@ -162,10 +162,7 @@ func groupGlyph() string {
 
 type view struct {
 	pageInfo
-	You string
-	// At is when this page was built. The page no longer refreshes itself, so
-	// it has to say how old what you are reading is.
-	At     string
+	You    string
 	Status core.Status
 
 	Records   []protocol.Record // registry, as this caller may see it

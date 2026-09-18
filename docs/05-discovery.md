@@ -137,8 +137,8 @@ what the daemon permits. “All” means all visible to that visitor.
 |---|---|
 | Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal services, which have their own tab. Administrative availability and reader observation are distinct facts |
 | Personal services | Owner-tagged services grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
-| Users | List and details; add, edit, activate, pause and ban; show caller-visible owned records, linked group membership and administrative authority. Current state stays visible; applicable daemon-authorized actions sit behind **Change**. Ban and unused-credential removal use consequence confirmations |
-| Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control |
+| Users | List and details; add, edit, activate, pause and ban; show caller-visible owned records, linked group membership and administrative authority. The directory opens on active users; **Active**, **Inactive**, **Banned** and **All states** are counted filters, and a state other than active is marked beside the name rather than in a column of its own. Applicable daemon-authorized actions sit behind **Change**. Ban and unused-credential removal use consequence confirmations |
+| Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
 | Registered pub/sub channels | List and details for pub/sub and queue topics; create, edit and remove; subscriptions, owner, Maintainers list, permissions, TTL, capacity and overflow policy |
 
@@ -273,17 +273,23 @@ editable syntax remain unchanged plain values.
 only supported attention conditions: an unclean prior stop, nonzero refusal
 reasons, queue capacity, loss, and disabled records still holding work. Ordinary
 backlog is work rather than an alarm. One record produces one item while the
-item retains every supporting fact; an empty list explicitly makes no health
-claim.
+item retains every supporting fact. **From 0.5.83 an Overview with nothing to
+report carries no attention section at all**: by owner instruction the heading
+and its explanation are hidden rather than shown empty, so absence is absence
+rather than a block that has to be read to learn it says nothing. The page still
+makes no health claim, because it now makes no claim.
 
 The node strip is node-wide. **From 0.5.82 it also carries the call counters**
 moved out of the shared footer, and the count of registered records is labelled
 `Services + Agents + Channels` because it sums every kind
-([status](#what-a-node-says-about-itself)). The observation time is stated once,
-beside Refresh, and not repeated on each attention item. Attention and record
-links contain only facts the caller may see, so their scopes need not agree. Direct links open Services or
-Channels holding work, Users, and Diagnostics. Holding-work links are real URL
-filters rather than preselected prose.
+([status](#what-a-node-says-about-itself)). **When the page was generated is
+stated once, in the shared footer**, and there is no Refresh link: both were
+owner decisions at 0.5.83, and the footer is on every page, so every page is
+dated by one line rather than each page dating itself. Attention and record
+links contain only facts the caller may see, so their scopes need not agree. The Find row links the two
+holding-work views and nothing else: Users and Diagnostics are navigation
+entries, and repeating them there was duplication the owner removed at 0.5.83.
+Holding-work links are real URL filters rather than preselected prose.
 
 Diagnostics retains the detailed refusal, held-work, bounded envelope and loss
 evidence. Record names link to their visible Service or Channel detail. It no
@@ -354,7 +360,7 @@ credential, and the closed list below is still the closed list.
 | | |
 |---|---|
 | what is published | release, host name, daemon owner name, uptime, **calls served** — and the build. **Nothing else**: no record names, no principals, no refusal counts, nothing about who is using it |
-| where each one shows | **the header has a two-row bus mark** derived from the [project artwork](img/agent-bus.png) at the far left. Beside it, `AgentBus v<release> @ <host>` carries build detail in the Version tooltip; navigation sits below. The compact footer carries owner and uptime; the call counts sit in the signed-in Overview node strip from 0.5.82. No separate build line or web-build value appears |
+| where each one shows | **the header has a two-row bus mark** derived from the [project artwork](img/agent-bus.png) at the far left. Beside it, `AgentBus v<release> @ <host>` carries build detail in the Version tooltip; navigation sits below. The compact footer carries owner and uptime, and from 0.5.83 the time the page was generated, which is a fact about the page rather than about the node; the call counts sit in the signed-in Overview node strip from 0.5.82. No separate build line or web-build value appears |
 | to whom | any caller that reaches the face, with no credential and no session |
 | host name | the machine's hostname as the OS reports it, `srv1`. The daemon has no node name of its own, so this is a new field rather than a restatement of one; it is not the realm, which the owner's name already carries |
 | uptime | a plain figure behind an explicit label, `uptime: 1h23m`, as the owner asked. It is what was true when the page rendered, and the page does not refresh itself |
