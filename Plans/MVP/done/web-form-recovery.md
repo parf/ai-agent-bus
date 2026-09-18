@@ -69,3 +69,18 @@ pending `templ` migration, owner approval of the full redesign, remaining page
 journeys or installed multi-role browser acceptance. Same-origin rejection
 remains a plain boundary response and avatar 404 remains an image-route response;
 neither is an interactive HTML page.
+
+## Live postflight
+
+Commit `27073c6` was pushed, stamped as 0.5.70 with build
+`parf@parf.us 2026-09-17 23:23:03` and deployed through the authorized unit
+restart. Public identity, supervisor and bus process titles reported 0.5.70.
+Live Chromium repeated the public and signed keyboard skip journey at 375 px
+without submitting a live form or changing registry data.
+
+The web child retained zero effective capabilities, `NoNewPrivs`, environment
+`AGENT_BUS_ADDR=/bus.sock` plus `PWD=/`, and limits of one CPU, 256 MiB memory,
+zero swap and 64 tasks. The first unprivileged environment/cgroup read was
+denied by the installed protection and receives no measurement credit; the
+authorized read-only retry supplied the recorded values. The peer AgentBus
+path accepted a post-restart message.
