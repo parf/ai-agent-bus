@@ -127,7 +127,7 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 				t.Errorf("removed metric still on page: %s", old)
 			}
 		}
-		for _, fact := range []string{"<strong>Owner</strong> <code>owner&lt;&amp;&gt;@h</code>", "<strong>Uptime</strong> 1h23m", "<strong>Calls</strong> minute: 7; hour: 0; total: 4321"} {
+		for _, fact := range []string{"<strong>Owner</strong> <code>owner&lt;&amp;&gt;@h</code>", "<strong>Uptime</strong> 1h23m", "<strong>Calls</strong> minute: 7; hour: 0; total: 4,321"} {
 			if !strings.Contains(footer, fact) {
 				t.Errorf("footer lacks %q: %s", fact, footer)
 			}

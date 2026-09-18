@@ -74,8 +74,8 @@ func TestServiceExplanationsUseImmediateTooltipsAndStructuredPopovers(t *testing
 	page := m.get("/service?name=svc@h")
 	for _, want := range []string{
 		`popovertarget=delivery-help aria-label="About delivery state" data-tooltip="Stored setting only.`,
-		`popovertarget=policy-help aria-label="About record policy" data-tooltip="External is a caller hint.`,
-		`popovertarget=observed-help aria-label="About observed counters" data-tooltip="Readers are outstanding requests`,
+		`popovertarget=policy-help aria-label="About record policy" data-tooltip="Queue values are this record's stored policy.`,
+		`popovertarget=observed-help aria-label="About live counters" data-tooltip="Readers are outstanding requests`,
 		`popovertarget=record-activity-help aria-label="About this activity history" data-tooltip="About 24 hours`,
 		`.help-button[data-tooltip]:hover::after`,
 	} {

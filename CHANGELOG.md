@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.73 — 2026-09-18
+
+Unify dense web administration pages around responsive cards, field grids and
+immediate contextual help. Group human-facing counts with thousands separators.
+
 ## 0.5.72 — 2026-09-18
 
 Redesign the web registry and detail forms around the selected compact visual

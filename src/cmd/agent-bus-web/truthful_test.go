@@ -134,8 +134,8 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 
 	groups := get("/groups")
 	for _, group := range []string{"@administrators", "@ops"} {
-		row := strings.SplitN(groups, "<code>"+group+"</code>", 2)[0]
-		if !strings.HasSuffix(row, `<span role=img aria-label="Group">👥</span> `) {
+		want := `<span role=img aria-label="Group">👥</span> <code>` + group + `</code>`
+		if !strings.Contains(groups, want) {
 			t.Errorf("group %s has no group glyph immediately before its name", group)
 		}
 	}

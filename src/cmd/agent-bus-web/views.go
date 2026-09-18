@@ -68,7 +68,38 @@ func readerCount(readers *int) string {
 	if readers == nil {
 		return "unavailable"
 	}
-	return strconv.Itoa(*readers)
+	return number(*readers)
+}
+
+// number keeps dense operational figures readable without changing any
+// machine-facing value. HTML is the only consumer: JSON, URLs and form values
+// remain plain decimal strings.
+func number(value any) string {
+	var raw string
+	switch n := value.(type) {
+	case int:
+		raw = strconv.Itoa(n)
+	case int64:
+		raw = strconv.FormatInt(n, 10)
+	case uint:
+		raw = strconv.FormatUint(uint64(n), 10)
+	case uint64:
+		raw = strconv.FormatUint(n, 10)
+	default:
+		return ""
+	}
+	negative := strings.HasPrefix(raw, "-")
+	digits := raw
+	if negative {
+		digits = raw[1:]
+	}
+	for i := len(digits) - 3; i > 0; i -= 3 {
+		digits = digits[:i] + "," + digits[i:]
+	}
+	if negative {
+		return "-" + digits
+	}
+	return digits
 }
 
 // registrationUpdated keeps recent list entries scannable without pretending
@@ -355,19 +386,14 @@ const exchangesTemplate = `
   .exchanges td.num::before{text-align:left}
  }
 </style>
-<h2 id=exchanges>Exchanges in retained history</h2>
-<p class=muted>Only envelopes visible to you in this daemon run. History is bounded;
-missing messages or receipts do not prove failure or unfinished work. Times include their UTC offset.</p>
+<section class=dashboard-section><div class=page-title><h2 id=exchanges>Exchanges in retained history</h2><button type=button class=help-button popovertarget=exchanges-help aria-label="About retained exchanges" data-tooltip="Visible envelopes from this daemon run only. Missing history or receipts prove neither failure nor unfinished work; bodies are never shown.">ⓘ</button></div>
+<div popover id=exchanges-help class=context-help><h2>Retained exchanges</h2><ul><li>Only envelopes visible to you in this daemon run appear here; message bodies never do.</li><li>History is bounded, so missing messages or receipts prove neither failure nor unfinished work.</li><li>Times include their UTC offset.</li><li>Receipts name their original message. Route matches are clues, not proof of response or completion.</li><li>Untagged messages get no inferred links, and receipts from a different subscriber or worker stay separate.</li></ul></div>
 {{if .NoFeed}}<p class=warn>Envelope history unavailable: {{.NoFeed}}</p>{{else}}
 {{if .Exchanges}}
-<details><summary>How to read this history</summary>
-<p class=muted>Receipts name their original message. Ordinary messages remain separate;
-route matches suggest a response but do not prove it or completion. Untagged messages get no inferred links.
-Receipts sent by topic subscribers or queue workers remain separate when their identity differs from the addressed topic.</p></details>
 <table class=exchanges><caption>Messages and explicitly referenced receipts</caption>
 <thead><tr><th scope=col>Observed message<th scope=col>Route and conversation<th scope=col class=num>Envelopes<th scope=col>Evidence</tr></thead>
 <tbody>
-{{range .Exchanges}}<tr id="message-{{.ID}}"><td data-label="Observed message"><time>{{.At.Format "2006-01-02 15:04:05Z07:00"}}</time><br><code>{{.ID}}</code><td data-label="Route and conversation"><code>{{.From}}</code> → <code>{{.To}}</code><br>Topic: <code>{{if .Topic}}{{.Topic}}{{else}}not supplied{{end}}</code> · Tag: <code>{{if .Tag}}{{.Tag}}{{else}}not supplied{{end}}</code>{{with .ReplyTo}}<br>Reply route: <code>{{.Service}}</code> · Topic: <code>{{.Topic}}</code> · Tag: <code>{{.Tag}}</code>{{end}}<td class=num data-label="Envelopes">{{.N}}</td><td data-label="Evidence">
+{{range .Exchanges}}<tr id="message-{{.ID}}"><td data-label="Observed message"><time>{{.At.Format "2006-01-02 15:04:05Z07:00"}}</time><br><code>{{.ID}}</code><td data-label="Route and conversation"><code>{{.From}}</code> → <code>{{.To}}</code><br>Topic: <code>{{if .Topic}}{{.Topic}}{{else}}not supplied{{end}}</code> · Tag: <code>{{if .Tag}}{{.Tag}}{{else}}not supplied{{end}}</code>{{with .ReplyTo}}<br>Reply route: <code>{{.Service}}</code> · Topic: <code>{{.Topic}}</code> · Tag: <code>{{.Tag}}</code>{{end}}<td class=num data-label="Envelopes">{{number .N}}</td><td data-label="Evidence">
 {{if .Receipt}}<strong>{{.Receipt}} receipt</strong>{{with .Re}} about <code>{{.}}</code>{{end}}<p>{{.Notice}}</p>{{else}}
 {{if .Ack}}<p>Acknowledgement observed.</p>{{end}}
 {{if .Done}}<p>Completion receipt observed.</p>{{else}}<p class=muted>No completion receipt observed in retained history.</p>{{end}}
@@ -378,4 +404,5 @@ Receipts sent by topic subscribers or queue workers remain separate when their i
 </tbody></table>
 {{else}}<p class=muted>No envelopes in your retained history. This is not a count of all traffic.</p>{{end}}
 {{end}}
+</section>
 `

@@ -187,7 +187,7 @@ text or a machine-readable value.
 
 The Services, Channels, Personal and Users collections keep their definitions
 behind a visible `ⓘ` button using the browser's native popover. Service detail
-uses the same pattern for Delivery, Policy, Observed and Activity: hovering or
+uses the same pattern for Delivery, Policy, Queue & counters and Activity: hovering or
 focusing the adjacent button shows the explanation immediately, while clicking
 opens the structured list. The button has an accessible name and the panel uses
 a heading and short list. Current scope, counts, filters, form constraints,
@@ -202,6 +202,28 @@ Keep the [built views](#what-it-shows), including inboxes holding messages, exch
 credential fingerprints, losses, refusals and node status, accessible in the
 new navigation. Their existing functionality is not deferred by this split.
 [Optional additions](../Plans/R1/discovery.md#dashboard-extensions) belong to R1.
+
+### Compact administration pages
+
+**Built in 0.5.73.** Service and Channel registration, User detail, Groups,
+Diagnostics and record detail share the same cards, responsive field grids and
+line-list textareas. Current facts, form labels, errors and actions stay visible.
+Definitions and caveats that do not change the immediate decision use the
+adjacent `ⓘ` control: hover or keyboard focus shows them immediately and click
+opens the structured native popover.
+
+Record detail presents Delivery, Policy and Queue & counters as one compact
+fact row, followed by Activity. Authorized settings and Maintainers stay closed
+until chosen or until a refused submission must reopen them; configuration,
+transfer and removal remain in the red Danger Zone. User detail separates the
+profile editor from identity, authority, groups, lifecycle and owned resources.
+Groups use one card and full-width membership textarea per group. Diagnostics
+retains every existing table and scope boundary without the former visible
+paragraph walls.
+
+Human-facing integer counts use grouped decimal figures, including the compact
+footer, registry, diagnostics and Activity totals. JSON, URLs, form values and
+editable syntax remain unchanged plain values.
 
 ### Activity history
 

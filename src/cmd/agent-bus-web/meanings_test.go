@@ -362,7 +362,7 @@ func TestUnsetQueueSettingsAreStatedAsInheritanceRatherThanGuessed(t *testing.T)
 		"not readable here",               // and the resolved number is not ours to show
 		"no queue-imposed expiry",         // TTL has no default to inherit
 		"a message may still specify its", // and the sender's half of it
-		"When full: refuse",               // normalised at registration
+		"<dt>When full<dd>refuse",         // normalised at registration
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the detail page does not say %q", want)
@@ -379,7 +379,7 @@ func TestUnsetQueueSettingsAreStatedAsInheritanceRatherThanGuessed(t *testing.T)
 	// form below carries both values in its inputs, so a page-wide match is
 	// satisfied by a detail page that displays neither.
 	set := m.get("/service?name=bounded@h")
-	for _, want := range []string{"Queue bound: 7", "Retention: 1m", "When full: drop the oldest"} {
+	for _, want := range []string{"<dt>Queue bound<dd>7", "<dt>Retention<dd>1m", "<dt>When full<dd>drop the oldest"} {
 		if !strings.Contains(set, want) {
 			t.Errorf("a record that carries its own settings does not state %q", want)
 		}
@@ -393,7 +393,7 @@ func TestUnsetQueueSettingsAreStatedAsInheritanceRatherThanGuessed(t *testing.T)
 		t.Fatal(err)
 	}
 	visitor := m.as("reader@h").get("/service?name=bounded@h")
-	for _, want := range []string{"Queue bound: 7", "Retention: 1m"} {
+	for _, want := range []string{"<dt>Queue bound<dd>7", "<dt>Retention<dd>1m"} {
 		if !strings.Contains(visitor, want) {
 			t.Errorf("a read-only visitor is not told %q", want)
 		}
@@ -560,14 +560,14 @@ func TestQueueObservationsSayWhenTheyWereTrue(t *testing.T) {
 	// first version of this looked for lowercase "oldest held: 0" against a
 	// page that says "Oldest held:", so it could not have fired.
 	empty := m.get("/service?name=off@h")
-	if strings.Contains(empty, "Oldest held: 0") {
+	if strings.Contains(empty, "<dt>Oldest held<dd>0") {
 		t.Error("an absent oldest is rendered as a measured zero")
 	}
-	if !strings.Contains(empty, "Oldest held: <span class=muted>&mdash;</span>") {
-		t.Errorf("an absent oldest is not shown as absent: %s", empty[max(0, strings.Index(empty, "Oldest held:")):max(0, strings.Index(empty, "Oldest held:"))+60])
+	if !strings.Contains(empty, "<dt>Oldest held<dd><span class=muted>&mdash;</span>") {
+		t.Errorf("an absent oldest is not shown as absent")
 	}
 	// The positive control, so the field is readable when there is one.
-	if !strings.Contains(m.get("/service?name=quiet@h"), "Oldest held: 0s") {
+	if !strings.Contains(m.get("/service?name=quiet@h"), "<dt>Oldest held<dd>0s") {
 		t.Error("a queue that is holding something does not say how long it has")
 	}
 }
@@ -703,7 +703,7 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	}
 
 	detail := m.get("/service?name=svc@h")
-	if !strings.Contains(detail, "Type: <strong>⚙️ Service</strong>") || !strings.Contains(detail, `<textarea name=allow rows=5>peer@h</textarea>`) {
+	if !strings.Contains(detail, "class=fact-pill>⚙️ Service") || !strings.Contains(detail, `<textarea name=allow rows=5>peer@h</textarea>`) {
 		t.Errorf("detail lost its label or plain ACL value: %s", detail)
 	}
 	if strings.Contains(detail, `<textarea name=allow rows=5>⚙️`) || strings.Contains(detail, `<textarea name=allow rows=5>👾`) {

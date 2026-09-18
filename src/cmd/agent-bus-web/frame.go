@@ -78,8 +78,8 @@ const frameHeader = `<header class=site-header aria-label="Site header">
 const frameHeaderEnd = `</header>
 `
 
-var frameFooter = template.Must(template.New("footer").Parse(`</main>
+var frameFooter = template.Must(template.New("footer").Funcs(template.FuncMap{"number": number}).Parse(`</main>
 <footer class=site-footer aria-label="Node and build information">
-{{with .Node}}<div class=footer-node><span><strong>Owner</strong> <code>{{if .Owner}}{{.Owner}}{{else}}unavailable{{end}}</code></span><span><strong>Uptime</strong> {{if .Up}}{{.Up}}{{else}}unavailable{{end}}</span>{{with .Calls}}<span class=call-counts><strong>Calls</strong> {{range .Windows}}{{if eq .Window "1m"}}minute{{else}}hour{{end}}: {{if .Available}}{{.Count}}{{else}}collecting history{{end}}; {{end}}total: {{.Total}}</span>{{else}}<span><strong>Calls</strong> minute: unavailable; hour: unavailable; total: unavailable</span>{{end}}</div>{{else}}<div class=footer-node><span>Node information unavailable</span></div>{{end}}
+{{with .Node}}<div class=footer-node><span><strong>Owner</strong> <code>{{if .Owner}}{{.Owner}}{{else}}unavailable{{end}}</code></span><span><strong>Uptime</strong> {{if .Up}}{{.Up}}{{else}}unavailable{{end}}</span>{{with .Calls}}<span class=call-counts><strong>Calls</strong> {{range .Windows}}{{if eq .Window "1m"}}minute{{else}}hour{{end}}: {{if .Available}}{{number .Count}}{{else}}collecting history{{end}}; {{end}}total: {{number .Total}}</span>{{else}}<span><strong>Calls</strong> minute: unavailable; hour: unavailable; total: unavailable</span>{{end}}</div>{{else}}<div class=footer-node><span>Node information unavailable</span></div>{{end}}
 </footer>
 </html>`))

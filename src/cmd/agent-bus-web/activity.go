@@ -102,20 +102,21 @@ func activityView(points []core.ActivityPoint, scope, uptime string, table bool)
 
 const activityViewTemplate = `{{define "activity-help"}}<ul><li>The daemon keeps about 24 hours of in-memory history and starts fresh after restart.</li><li>Samples are usually about ten minutes apart; the visible timestamps are the measured interval.</li><li>The current, partial interval may be shorter than ten minutes.</li><li>On an unfiltered view, Refused is node-wide for the daemon Owner or a configured master and covers visible records for other callers.</li><li>Dequeued means handed to a reader, not completed.</li><li>Zero is measured; collecting history means no interval has been observed yet.</li></ul>{{end}}
 {{define "activity-view"}}{{with .Activity}}
-{{if not .ShowTable}}<div class=page-title><h2>Activity</h2><button type=button class=help-button popovertarget=record-activity-help aria-label="About this activity history" data-tooltip="About 24 hours in memory, sampled about every 10 minutes and reset on restart. The final interval may be shorter; Dequeued is not completion.">ⓘ</button></div><div popover id=record-activity-help class=context-help><h2>About activity</h2>{{template "activity-help" .}}</div>{{end}}
+{{if not .ShowTable}}<section class="fact-card activity-fact"><div class=page-title><h2>Activity</h2><button type=button class=help-button popovertarget=record-activity-help aria-label="About this activity history" data-tooltip="About 24 hours in memory, sampled about every 10 minutes and reset on restart. The final interval may be shorter; Dequeued is not completion.">ⓘ</button></div><div popover id=record-activity-help class=context-help><h2>About activity</h2>{{template "activity-help" .}}</div>{{end}}
 {{if .Unavailable}}<p class=muted>Activity unavailable: {{.Unavailable}}</p>
 {{else if .Points}}
 <p>{{if .Named}}Scope: <code>{{.Scope}}</code> · {{else}}Scope: visible records · {{end}}Observed {{.Start}} to {{.End}} ({{.Observed}}) · final interval partial.</p>
 {{if .ShowTable}}<p class=muted>Cadence: about 10 minutes · Window: up to 24 hours · Uptime: {{if .Uptime}}{{.Uptime}}{{else}}unavailable{{end}}.</p>{{end}}
-{{if .Series}}<figure class=activity-figure><svg class=activity-chart viewBox="0 0 640 170" role=img aria-label="Activity per sample from {{.Start}} to {{.End}}; shared maximum {{.Max}} over the displayed nonzero series">
-<path class=activity-axis d="M50 25 V125 H610"/><text x=10 y=30>{{.Max}}</text><text x=34 y=130>0</text><text x=50 y=152>{{.Start}}</text><text x=610 y=152 text-anchor=end>{{.End}}</text>
+{{if .Series}}<figure class=activity-figure><svg class=activity-chart viewBox="0 0 640 170" role=img aria-label="Activity per sample from {{.Start}} to {{.End}}; shared maximum {{number .Max}} over the displayed nonzero series">
+<path class=activity-axis d="M50 25 V125 H610"/><text x=10 y=30>{{number .Max}}</text><text x=34 y=130>0</text><text x=50 y=152>{{.Start}}</text><text x=610 y=152 text-anchor=end>{{.End}}</text>
 {{range .Series}}<polyline class="activity-line {{.Class}}" points="{{.Points}}"/>{{if .Single}}<circle class="activity-point {{.Class}}" cx="{{.X}}" cy="{{.Y}}" r=4/>{{end}}{{end}}</svg>
-<figcaption>Shared scale: 0–{{.Max}} per sample over the displayed nonzero series.</figcaption>
-<ul class=activity-legend>{{range .Series}}<li><span class="activity-swatch {{.Class}}" aria-hidden=true></span>{{.Label}}: {{.Total}} in the shown samples</li>{{end}}</ul></figure>
+<figcaption>Shared scale: 0–{{number .Max}} per sample over the displayed nonzero series.</figcaption>
+<ul class=activity-legend>{{range .Series}}<li><span class="activity-swatch {{.Class}}" aria-hidden=true></span>{{.Label}}: {{number .Total}} in the shown samples</li>{{end}}</ul></figure>
 {{else}}<p>All five series: <strong>0</strong> in this window.</p>{{end}}
 {{if not .AllZero}}{{with .Zero}}<p class=muted>Measured zero: {{join . ", "}}.</p>{{end}}{{end}}
-{{if .ShowTable}}<details><summary>Sample values</summary><table><thead><tr><th scope=col>Time<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Dropped<th scope=col class=num>Expired<th scope=col class=num>Refused</tr></thead><tbody>{{range .Points}}<tr><td>{{.At.Format "Jan 2 15:04:05"}}<td class=num>{{.In}}<td class=num>{{.Out}}<td class=num>{{.Dropped}}<td class=num>{{.Expired}}<td class=num>{{.Refused}}</tr>{{end}}</tbody></table></details>{{end}}
+{{if .ShowTable}}<details><summary>Sample values</summary><table><thead><tr><th scope=col>Time<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Dropped<th scope=col class=num>Expired<th scope=col class=num>Refused</tr></thead><tbody>{{range .Points}}<tr><td>{{.At.Format "Jan 2 15:04:05"}}<td class=num>{{number .In}}<td class=num>{{number .Out}}<td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}<td class=num>{{number .Refused}}</tr>{{end}}</tbody></table></details>{{end}}
 {{else}}<p>Activity history is not observed yet. Collecting the first sample after this daemon restart{{if .Uptime}} (uptime: {{.Uptime}}){{end}}; no zero series is inferred.</p>{{end}}
+{{if not .ShowTable}}</section>{{end}}
 {{end}}{{end}}`
 
 func (c *caller) activityRoutes(mux *http.ServeMux) {
@@ -143,7 +144,7 @@ func (c *caller) activityRoutes(mux *http.ServeMux) {
 	})
 }
 
-var activityPage = template.Must(template.New("activity").Funcs(template.FuncMap{"join": strings.Join, "titleMark": titleMark}).Parse(shell("activity", "Activity graphs") + `
+var activityPage = template.Must(template.New("activity").Funcs(template.FuncMap{"join": strings.Join, "titleMark": titleMark, "number": number}).Parse(shell("activity", "Activity graphs") + `
 <div class=page-title><h1>{{titleMark "activity"}} Activity graphs</h1><button type=button class=help-button popovertarget=activity-help aria-label="About activity history">ⓘ</button></div>
 <div popover id=activity-help class=context-help><h2>About activity</h2>{{template "activity-help" .}}</div>
 <form method=get><label>Service or channel <select name=name data-submit-on-change><option value="">All visible</option>{{range .Records}}<option value="{{.Name}}" {{if eq .Name $.Name}}selected{{end}}>{{.Name}}</option>{{end}}</select></label><noscript><button>Apply</button></noscript></form>

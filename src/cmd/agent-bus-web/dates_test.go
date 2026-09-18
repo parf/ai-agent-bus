@@ -123,3 +123,20 @@ func TestRegistrationUpdatedUsesAgeThenCompactCalendarDate(t *testing.T) {
 		})
 	}
 }
+
+func TestHumanNumbersUseThousandsSeparators(t *testing.T) {
+	for _, test := range []struct {
+		value any
+		want  string
+	}{
+		{0, "0"}, {999, "999"}, {1000, "1,000"}, {123456789, "123,456,789"},
+		{int64(-12000), "-12,000"}, {uint64(5000000), "5,000,000"},
+	} {
+		if got := number(test.value); got != test.want {
+			t.Errorf("number(%v) = %q, want %q", test.value, got, test.want)
+		}
+	}
+	if got := number("1000"); got != "" {
+		t.Fatalf("unsupported machine-shaped value was reformatted as %q", got)
+	}
+}

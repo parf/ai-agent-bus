@@ -54,7 +54,7 @@ func TestCompactUserEditorExplainsSSHOnboarding(t *testing.T) {
 	m := meaningFixture(t)
 	page := m.get("/users/new")
 	for _, want := range []string{
-		`class=editor-card`, `class=form-grid`, `class="form-field form-field-wide"`,
+		`class="editor-card task-card"`, `class=form-grid`, `class="form-field form-field-wide"`,
 		`name=person_name`, `type=email name=email`, `name=github_user`,
 		`🔑</span> SSH access`, `Public keys are added on the host after the profile is saved.`,
 		`agent-bus-admin user add &lt;user@realm&gt; &lt;key.pub&gt;`,
@@ -86,6 +86,28 @@ func TestCompactSelectorsSubmitOnChange(t *testing.T) {
 	script, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK || !strings.Contains(string(script), `control.form.requestSubmit()`) || !strings.Contains(resp.Header.Get("Content-Type"), "text/javascript") {
 		t.Fatalf("local selector behavior unavailable: status=%d type=%q body=%q", resp.StatusCode, resp.Header.Get("Content-Type"), script)
+	}
+}
+
+func TestDensePagesUseCardsAndImmediateHelpWithoutLosingActions(t *testing.T) {
+	m := meaningFixture(t)
+	m.shapes()
+	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h", PersonName: "Alice"}, true); err != nil {
+		t.Fatal(err)
+	}
+	for path, wants := range map[string][]string{
+		"/services/new":         {`class="editor-card task-card"`, `class=form-grid`, `popovertarget=create-access-help`, `data-tooltip="One identity per line.`},
+		"/user?name=alice@h":    {`class=person-layout`, `class=person-sidebar`, `popovertarget=user-access-help`, `>Save profile</button>`},
+		"/groups":               {`class=group-grid`, `class="editor-card group-card"`, `textarea name=members rows=6`},
+		"/":                     {`class=dashboard-section`, `popovertarget=node-help`, `popovertarget=registry-help`, `popovertarget=names-help`},
+		"/service?name=quiet@h": {`class=service-dashboard`, `Queue &amp; counters`, `popovertarget=policy-help`, `summary id=settings>Edit settings`},
+	} {
+		body := m.get(path)
+		for _, want := range wants {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s lacks %q", path, want)
+			}
+		}
 	}
 }
 

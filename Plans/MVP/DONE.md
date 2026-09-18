@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Compact web administration pages | Registration, User detail, Groups, Diagnostics and record detail share responsive cards, immediate help and grouped human-facing counts | [0.5.73 evidence](done/web-administration-redesign.md#checks) |
 | Compact web registry and service detail | Selected Option 2 structure with Option 1 operational content; responsive User editor; compact help; about one day of Activity at ten-minute intervals | [0.5.72 evidence](done/web-registry-redesign.md#checks) |
 | F.12 partial: installed browser authority matrix | Five real Chromium sessions exercise current service/channel, user and group controls, rendered denials, foreign-origin refusal and a real activity graph | [evidence](done/installed-browser-role-matrix.md#checks) |
 | F.12 partial: installed browser foundation | Real Chromium signs in/out, checks the cookie boundary, visits current required pages, retains a session across web restart and loses it across bus restart | [evidence](done/installed-browser-foundation.md#checks) |

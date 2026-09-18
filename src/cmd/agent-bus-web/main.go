@@ -454,19 +454,59 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
  .status-glyph{font-size:1rem;line-height:1;white-space:nowrap}
 .editor-card{max-width:64rem;margin:1rem 0;padding:1.25rem;border:1px solid var(--border);border-radius:6px;background:var(--surface-1)}
  .editor-card h2{margin-top:0;font-size:1.1rem}
+.task-card{max-width:72rem;background:var(--surface-2)}
+.task-card fieldset{margin:0;padding:.8rem 1rem;border:1px solid var(--border);border-radius:4px;background:var(--surface-1)}
+.choice-row{display:flex;flex-wrap:wrap;gap:.7rem 1.5rem;align-items:center}
+.choice-row label{display:inline-flex;align-items:center;gap:.35rem;font-weight:600}
+.choice-row input{width:auto}
+.field-heading{display:flex;align-items:center;gap:.45rem;margin-bottom:.3rem;font-weight:600}
+.field-heading .help-button{font-weight:700}
+.form-field textarea{width:100%;min-height:8rem;padding:.55rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-1)}
+.detail-meta{display:flex;flex-wrap:wrap;gap:.4rem .65rem;align-items:center;margin:.4rem 0 1rem;color:var(--text-2)}
+.fact-pill,.group-chip{display:inline-flex;align-items:center;padding:.2rem .5rem;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);font-size:.8rem}
+.person-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(18rem,1fr);gap:1rem;max-width:82rem;align-items:start}
+.person-main,.person-sidebar{min-width:0}
+.person-sidebar .editor-card,.person-main .editor-card{margin-top:0;width:100%}
+.compact-card{padding:1rem}
+.compact-card .page-title h2{margin:0}
+.compact-card p:last-child{margin-bottom:0}
+.access-actions{display:flex;flex-wrap:wrap;gap:.5rem}
+.access-actions form{margin:0}
+.access-actions .danger-action{color:#fff;background:var(--red);border-color:var(--red)}
+.group-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(24rem,100%),1fr));gap:1rem;align-items:start}
+.group-card{margin:0;max-width:none}
+.group-card textarea{display:block;width:100%;min-height:9rem;margin-top:.4rem;padding:.55rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-1)}
+.service-dashboard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;max-width:82rem;margin:1rem 0;align-items:start}
+.fact-card{min-width:0;padding:1rem;border:1px solid var(--border);border-radius:6px;background:var(--surface-1)}
+.fact-card .page-title{margin:0}
+.fact-card .page-title h2{margin:0;font-size:1rem}
+.fact-card p{margin:.65rem 0 0}
+.fact-card dl{display:grid;grid-template-columns:auto 1fr;gap:.35rem .7rem;margin:.65rem 0 0}
+.fact-card dt{color:var(--text-2)}
+.fact-card dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.activity-fact{grid-column:1/-1}
+.dashboard-section{margin-top:1.5rem}
+.dashboard-section>.page-title h2{margin:0}
+.dashboard-section table{margin-top:.55rem}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem 1.25rem}
 .form-field{display:flex;flex-direction:column;gap:.3rem;font-weight:600}
- .form-field input{width:100%;min-height:2.45rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-1)}
- .form-field small{font-weight:400;color:var(--text-2)}
+.form-field input{width:100%;min-height:2.45rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-1)}
+.form-field select{width:100%;min-height:2.45rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-1)}
+.form-field small{font-weight:400;color:var(--text-2)}
 .form-field-wide{grid-column:1/-1}
 .form-actions{display:flex;align-items:center;gap:.75rem;margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)}
  .form-actions button{color:#fff;background:var(--accent);border:1px solid var(--accent);border-radius:3px;font-weight:600;padding:.5rem 1rem}
 .credential-note{max-width:64rem;margin:1rem 0;padding:.9rem 1rem;border-left:4px solid var(--accent);background:var(--surface-2)}
- .credential-note p{margin:.25rem 0}
+.credential-note p{margin:.25rem 0}
+.editor-card>summary{cursor:pointer;font-weight:700;font-size:1rem}
+.editor-card[open]>summary{margin-bottom:1rem;padding-bottom:.65rem;border-bottom:1px solid var(--border)}
+.record-state-action{max-width:64rem;margin:.75rem 0}
 .visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 @media (max-width:70rem){
  .record-search{grid-template-columns:minmax(16rem,1fr) auto minmax(10rem,auto) auto}
  .record-choices{grid-column:1/-1;grid-row:2}
+ .person-layout{grid-template-columns:1fr}
+ .service-dashboard{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 /* A phone is not a narrow desktop: the gutter shrinks and only a genuinely
     wide table scrolls, rather than the whole page.
@@ -494,6 +534,9 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
   .record-name-cell{min-width:0}
   .form-grid{grid-template-columns:1fr}
   .form-field-wide{grid-column:auto}
+  .service-dashboard{grid-template-columns:1fr}
+  .activity-fact{grid-column:auto}
+  .task-card{padding:1rem}
   table:not(.record-table){display:block;overflow-x:auto}
  }
 </style>
@@ -576,63 +619,45 @@ var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark"
 // The page no longer refreshes itself. A reader has to be able to stop moving
 // content, and a whole-page reload every five seconds also threw away whatever
 // they were part-way through reading (Plans/MVP/done/web-review.md W11).
-var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCount": readerCount, "entityLabel": entityLabel, "titleMark": titleMark}).Parse(shell("diagnostics", "Diagnostics") + `<div class=page-title><h1>{{titleMark "diagnostics"}} Diagnostics</h1></div>
+var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCount": readerCount, "entityLabel": entityLabel, "titleMark": titleMark, "number": number}).Parse(shell("diagnostics", "Diagnostics") + `<div class=page-title><h1>{{titleMark "diagnostics"}} Diagnostics</h1><button type=button class=help-button popovertarget=diagnostics-help aria-label="About diagnostics" data-tooltip="Operational facts visible to you. Node totals and caller-visible tables have different scopes; envelopes never include message bodies.">ⓘ</button></div><div popover id=diagnostics-help class=context-help><h2>Diagnostics scope</h2><ul><li>Node totals describe the whole daemon; each table contains only records visible to you.</li><li>History is bounded and process-local.</li><li>Envelope metadata may be shown, but message bodies never are.</li></ul></div>
 <p><a href=/>Refresh</a> <span class=muted>· as of {{.At}}</span></p>
 
-<h2 id=node>node</h2>
-<p>uptime {{.Status.Up}} · <b>node-wide:</b> {{.Status.Services}} records ·
- {{.Status.Queued}} queued · {{.Status.Waiting}} waiting · {{.Status.Dropped}} dropped ·
- {{.Status.Expired}} expired</p>
-<p class=muted>These count the whole node. Every list below is what <em>you</em> may
- see, so the two never have to agree.</p>
+<section class=dashboard-section><div class=page-title><h2 id=node>Node</h2><button type=button class=help-button popovertarget=node-help aria-label="About node totals and refusals" data-tooltip="These are whole-node totals. Tables below are caller-visible subsets. Refusals count handled API refusals since process start, not router misses or internal failures.">ⓘ</button></div>
+<div popover id=node-help class=context-help><h2>Node totals and refusals</h2><ul><li>Node totals cover the whole daemon; the lists below contain only records visible to you. They never have to agree.</li><li>The refusal reason set is closed, so zero is a measurement: absence from the sparse daemon map becomes a measured zero here.</li><li>Refusals count handled API refusals since this daemon started, whatever the caller&rsquo;s standing, including malformed requests and bad credentials.</li><li>A request the router rejected before any handler ran is not a caller refusal; internal failures are not counted either.</li><li>A total cannot say how quickly refusals are rising.</li></ul></div>
+<p>uptime {{.Status.Up}} · <b>node-wide:</b> {{number .Status.Services}} records ·
+ {{number .Status.Queued}} queued · {{number .Status.Waiting}} waiting · {{number .Status.Dropped}} dropped ·
+ {{number .Status.Expired}} expired</p>
 {{if .Status.Unclean}}<p class=warn>the last stop was not clean — what was in
  memory at the time was not written down</p>{{end}}
 <table><caption>Refusals since this daemon started, by reason</caption>
 <thead><tr><th scope=col>reason<th scope=col class=num>count</tr></thead>
-<tbody>{{range .Refusals}}<tr><td><code>{{.Reason}}</code><td class=num>{{.Count}}</tr>{{end}}</tbody></table>
-<p class=muted>The reason set is closed, so a <code>0</code> here is a measurement
- and not a gap. Counted since this daemon started; how fast it is rising is not
- something this page can say.</p>
-<p class=muted>The totals count API refusals, including bad credentials and malformed
- requests, whatever the caller&rsquo;s standing. What the router rejected before any
- handler ran is not included. Internal failures are not caller refusals and are
- not counted either.</p>
+<tbody>{{range .Refusals}}<tr><td><code>{{.Reason}}</code><td class=num>{{number .Count}}</tr>{{end}}</tbody></table></section>
 
-<h2 id=stuck>inboxes holding messages</h2>
+<section class=dashboard-section><div class=page-title><h2 id=stuck>Inboxes holding messages</h2><button type=button class=help-button popovertarget=backlog-help aria-label="About held messages" data-tooltip="A held message is not automatically stuck. Readers counts current requests, not health; expired work may remain until pruning; capacity is only what was true when observed.">ⓘ</button></div><div popover id=backlog-help class=context-help><h2>Held messages</h2><ul><li>A scheduled reader may simply be between pulls.</li><li>This observation does not prune first, so held work may already have outlived its TTL.</li><li>At capacity records what was true when observed, never the next send.</li><li>Readers counts outstanding reads, filtered and unfiltered together. Zero is not health, and a positive count promises neither a match nor completed work.</li></ul></div>
 <table><caption>Inboxes holding messages, longest wait first — visible to you</caption>
 <thead><tr><th scope=col>name<th scope=col class=num>readers<th scope=col class=num>held now<th scope=col class=num>oldest held<th scope=col>capacity</tr></thead>
 <tbody>
-{{range .Backlogs}}<tr><td><code>{{.Name}}</code><td class=num>{{readerCount .Readers}}<td class=num>{{.Queued}}<td class=num>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{if .AtBound}}<b class=warn>at capacity when observed</b>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>
+{{range .Backlogs}}<tr><td><code>{{.Name}}</code><td class=num>{{readerCount .Readers}}<td class=num>{{number .Queued}}<td class=num>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{if .AtBound}}<b class=warn>at capacity when observed</b>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>
 {{else}}<tr><td colspan=5 class=muted>every queue you can see is empty</tr>{{end}}
-</tbody></table>
-<p class=muted>Holding messages is not being stuck: a reader that pulls on a
- schedule is between pulls here. The observation does not prune first, so some of
- what is held may already have outlived its TTL.
- <em>At capacity</em> is what was true when observed, never a prediction about the next send.
- <em>Readers</em> counts outstanding consume requests, filtered and unfiltered
- together. Zero is not health; a process may be between reads. A positive count
- promises neither a match for a held message nor completed work.</p>
+</tbody></table></section>
 
 ` + exchangesTemplate + `
-<h2 id=registry>registry</h2>
+<section class=dashboard-section><div class=page-title><h2 id=registry>Registry</h2><button type=button class=help-button popovertarget=registry-help aria-label="About registry counters" data-tooltip="Caller-visible records only. Accepted and Dequeued survive restart; Dequeued means handed to a reader, not completed.">ⓘ</button></div><div popover id=registry-help class=context-help><h2>Registry counters</h2><ul><li>This table contains records visible to you, not the node-wide total.</li><li>Accepted and Dequeued are cumulative across restarts because they return from the snapshot.</li><li>Dequeued means handed to a reader, which is not the same as the work being done.</li></ul></div>
 <table><caption>Records visible to you — not the node-wide count above</caption>
 <thead><tr><th scope=col>name<th scope=col>kind<th scope=col>description<th scope=col class=num>readers<th scope=col class=num>held now<th scope=col class=num>accepted<th scope=col class=num>dequeued<th scope=col>config</tr></thead>
 <tbody>
 {{range .Records}}<tr><td><code>{{.Name}}</code><td>{{entityLabel .Kind}}<td>{{.Descr}}
- <td class=num>{{readerCount .Readers}}<td class=num>{{.Queued}}<td class=num>{{.In}}<td class=num>{{.Out}}
+ <td class=num>{{readerCount .Readers}}<td class=num>{{number .Queued}}<td class=num>{{number .In}}<td class=num>{{number .Out}}
  <td><code class=muted>{{.ConfigSHA}}</code></tr>
 {{else}}<tr><td colspan=8 class=muted>nothing you can see is registered</tr>{{end}}
-</tbody></table>
-<p class=muted>Accepted and dequeued are cumulative across restarts — they come
- back from the snapshot. Dequeued means handed to a reader, which is not the
- same as the work being done.</p>
+</tbody></table></section>
 
-<h2 id=loss>loss by name</h2>
+<section class=dashboard-section><div class=page-title><h2 id=loss>Loss by name</h2><button type=button class=help-button popovertarget=loss-help aria-label="About message loss" data-tooltip="Dropped is queue overflow; Expired is retention. Only caller-visible records appear.">ⓘ</button></div><div popover id=loss-help class=context-help><h2>Message loss</h2><ul><li>Dropped counts overflow decisions for the named inbox.</li><li>Expired counts messages removed by retention.</li><li>Only records visible to you appear here.</li></ul></div>
 <table><tr><th>name<th class=num>dropped<th class=num>expired</tr>
-{{range .Losses}}<tr><td><code>{{.Name}}</code><td class=num>{{.Dropped}}<td class=num>{{.Expired}}</tr>
-{{else}}<tr><td colspan=3 class=muted>nothing lost</tr>{{end}}</table>
+{{range .Losses}}<tr><td><code>{{.Name}}</code><td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}</tr>
+{{else}}<tr><td colspan=3 class=muted>nothing lost</tr>{{end}}</table></section>
 
-<h2 id=names>my names</h2>
+<section class=dashboard-section><div class=page-title><h2 id=names>My names</h2><button type=button class=help-button popovertarget=names-help aria-label="About credentials and fingerprints" data-tooltip="Fingerprints identify credentials without revealing them. Unregistered names are legacy leftovers; rotate with agent-bus-token --rotate.">ⓘ</button></div><div popover id=names-help class=context-help><h2>Credentials and fingerprints</h2><ul><li>A credential goes when its address does, so an unregistered name is a legacy leftover.</li><li>A fingerprint names a credential without being one.</li><li>Rotate with <code>agent-bus-token &lt;user@realm&gt; --rotate</code>; the replaced credential remains valid until the next rotation.</li></ul></div>
 {{if .NoNames}}<p class=muted>{{.NoNames}}</p>{{else}}
 <table><tr><th>name<th>kind<th>owner<th>fingerprint<th>issued<th>last used</tr>
 {{range .Names}}<tr><td><code>{{.Name}}</code>
@@ -642,13 +667,5 @@ var page = template.Must(template.New("dash").Funcs(template.FuncMap{"readerCoun
  <td>{{if .Used.IsZero}}<span class=muted>not this run</span>{{else}}{{.Used.Format "15:04:05"}}{{end}}</tr>
 {{else}}<tr><td colspan=6 class=muted>you hold no credential</tr>{{end}}</table>
 {{end}}
-<p class=muted>A credential goes when its address does, so a name here answers
- for something. One marked <span class=warn>unregistered</span> is a leftover from
- before that was true.</p>
-
-<p class=muted>A fingerprint names a credential without being one. Rotate with
- <code>agent-bus-token &lt;user@realm&gt; --rotate</code>; the one it replaces
- keeps working until the next rotation.</p>
-
-<p class=muted>Envelopes only — bodies are never shown.</p>
+</section>
 `))

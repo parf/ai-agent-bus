@@ -32,6 +32,21 @@
 - The browser console reported no messages after navigation and interaction.
 - Activity visibly states an approximately ten-minute cadence and up-to-24-hour window. The existing pre-deploy daemon history remains honestly timestamped at its measured span.
 
+## Dense administration follow-up
+
+The 0.5.73 pass reviewed the owner-flagged Service registration, User detail,
+Groups, Diagnostics and `claude/home-parf@parf.us` detail pages against the
+live read-only daemon through a source-built preview. It replaced paragraph
+forms with the same card/grid system, moved definition walls into immediate
+help, and grouped human-facing counts without changing JSON or form values.
+
+All five pages were inspected at 1440 px and 375 px. Each narrow page measured
+`scrollWidth == clientWidth`; the browser console was empty. Hovering the Policy
+help exposed its complete tooltip immediately, the click target remained a
+native popover, and the service page retained Delivery, Policy, Queue & counters,
+Activity, both authorized editors and the Danger Zone. Lighthouse snapshot on
+the populated service detail reported 100 Accessibility and 100 Best Practices.
+
 ## Intentional differences from the mock
 
 - Counts and rows come from caller-visible live data rather than fabricated examples.
