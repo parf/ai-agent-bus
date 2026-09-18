@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| F.13.3 Service and Channel journeys | Populated Queue and Pub/sub views use distinct titles, mode-aware work, subscriber facts, retained URL state and resource-local owner/visitor returns | [0.5.78 evidence](done/service-channel-journeys.md#checks) |
 | Web registry reader filter and pagination | Services, Personal and Channels independently filter live Readers observations and page one caller-visible answer while retaining URL state through detail | [0.5.77 evidence](done/web-registry-pagination.md#checks) |
 | Default GitHub profile adapter | Public profile metadata can be fetched without changing which realms require key-possession enrolment | [0.5.76 evidence](done/default-github-profile-adapter.md#checks) |
 | Group detail and GitHub availability | Groups are a compact linked table with authority-scoped detail editors; a valid unique GitHub login survives unavailable optional profile metadata while explicit refresh remains atomic | [0.5.75 evidence](done/group-detail-and-github-availability.md#checks) |

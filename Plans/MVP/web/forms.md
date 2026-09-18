@@ -7,12 +7,12 @@ rules all of them obey.
 
 | | |
 |---|---|
-| One concern per form | A form asks one question. `/service` today is eight concerns in one page of always-open editors ([C02](review/codex.md#junk-and-misleading-content)) |
+| One concern per form | A form asks one question. Record detail keeps facts visible and puts each editing concern in its own disclosure or Danger Zone journey ([C02](review/codex.md#junk-and-misleading-content)) |
 | The form posts as the person | The web child has no write path of its own. It forwards the visitor's session and requires an exact matching Origin ([rules](../../../docs/05-discovery.md#rules-it-is-built-to)) |
 | The form's visibility is not the decision | The daemon authorizes at submission. A rendered control is a convenience, never a grant |
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
 | Never echo a secret | Not a token, not private configuration. The configuration field is always empty and `autocomplete=off` |
-| Success returns to what changed | The section that changed, with a specific result. Not a list, and not `/services?scope=my`, which is where every service and channel action lands today ([C06](review/codex.md#junk-and-misleading-content)) |
+| Success returns to what changed | The section that changed, with a specific result. Service and Channel registration and ordinary edits return to the affected resource; removal returns to the matching collection ([C06](review/codex.md#junk-and-misleading-content)) |
 | Only offer transitions that apply | An active user is offered Activate today, beside Pause and Ban, all styled alike ([C12](review/codex.md#junk-and-misleading-content)) |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
 | Show small choices | Two or three values use labelled radio buttons, not a select. URL-backed filters use the [link/button rule](components.md#small-choice-controls) instead |
@@ -133,8 +133,9 @@ page hides those forms again. Transfer and removal still use their separate,
 fresh confirmation pages; the extra step changes presentation, not daemon
 authorization.
 
-This bounded form and confirmation flow is built in 0.5.63. Other Service and
-Channel journey work in this proposal remains pending.
+This bounded form and confirmation flow is built in 0.5.63. The populated
+Service and Channel journeys, including resource-specific returns, are complete
+in 0.5.78.
 
 The shared invalid-input return is built in 0.5.70 for current Service,
 Channel, User and Group forms. It preserves only allowlisted nonsensitive
@@ -164,15 +165,10 @@ photo failure falls back without refusing the login. Saving unrelated profile
 fields performs no provider call. Clearing the login clears provider metadata
 and the local photo but retains Person name and Email.
 
-## Where the current forms stop making sense
+## Remaining form work
 
 | | |
 |---|---|
-| Eight concerns, one page, all editors open at once | Service detail |
-| Every success leaves the page it acted on | all service and channel actions |
-| A channel subscription answers by returning to Services | subscribe, unsubscribe, remove-subscriber |
 | Both Subscribe and Unsubscribe offered regardless of state | channel detail |
 | Activate offered to an already-active user | user detail |
-| Removal offered with no confirmation step | service removal |
-| An invalid name returns JSON and discards the description | register |
 | Members editable only where they are visible, so an ordinary caller sees neither | groups |

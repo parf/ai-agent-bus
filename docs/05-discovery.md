@@ -167,6 +167,27 @@ counts remain category totals before toolbar filters, rather than page counts.
 Every numeric column in a web table aligns its header and values to the right
 and uses tabular figures. Prose-embedded counts remain part of their sentence.
 
+### Service and channel journeys
+
+**Built in 0.5.78.** Services and Channels share the compact registry frame but
+answer different questions. Services identify a daemon-stated Service or Agent
+and show queued inbox work. Channels have their own document title, heading,
+canonical `/channel` detail link and delivery-mode filter.
+
+Channel rows state **Queue · one at a time** or **Pub/sub · copy to each**. The
+single **Work** column is mode-aware: a queue reports messages held for a
+reader; pub/sub reports messages accepted for fan-out and never suggests a
+topic backlog. Pub/sub also reports its subscriber count; queue subscriber
+count is not applicable. Readers remains the live count of outstanding consume
+requests and is independent of mode.
+
+Search, delivery, mode, Readers, sort and page remain plain URL state through
+channel detail and back. A successful channel registration or ordinary edit
+returns to that channel. Caller-visible operational facts remain readable while
+edit controls appear only when the daemon grants management authority. An empty
+Channels category explains channels and offers registration; a filtered empty
+result instead keeps its filters and offers to clear them.
+
 Registration opens dedicated `/services/new`, `/channels/new`, `/users/new`
 and `/groups/new` pages from the matching section navigation. User and Group
 entries appear only when the daemon says the visitor is an Administrator;

@@ -556,15 +556,19 @@ var navItems = []struct{ Href, Label, Key string }{
 	{"/", "Diagnostics", "diagnostics"},
 }
 
-// shell is the head, title and navigation a signed-in page shares. It is built
-// per page rather than carried in each handler's data, because which page this
-// is, is known when the template is parsed and never changes afterwards. That
-// keeps the current entry marked without every view growing a field for it.
+// shell is the head, title and navigation a signed-in page shares. Most pages
+// know their title when the template is parsed. A shared template whose title
+// follows daemon-returned or route state uses shellTitle with a fixed,
+// repository-owned template expression; caller text never reaches that path.
 func shell(key, title string) string {
+	return shellTitle(key, template.HTMLEscapeString(title))
+}
+
+func shellTitle(key, titleTemplate string) string {
 	var nav strings.Builder
 	nav.WriteString(head)
 	nav.WriteString("<title>")
-	nav.WriteString(template.HTMLEscapeString(title))
+	nav.WriteString(titleTemplate)
 	nav.WriteString(" \u00b7 agent-bus</title>\n")
 	// Sign out belongs beside the name it signs out, on every page.
 	nav.WriteString(`<a class=skip-link href=#main>Skip to main content</a>` + "\n")

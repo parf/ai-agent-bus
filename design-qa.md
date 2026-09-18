@@ -55,3 +55,18 @@ the populated service detail reported 100 Accessibility and 100 Best Practices.
 - Rows without descriptions remain one line instead of receiving invented copy.
 
 final result: passed
+
+## Service and Channel journey follow-up
+
+The 0.5.78 pass began with screenshots of the deployed 0.5.77 Channels list and
+Service detail. The live empty Channels page exposed the remaining split defect:
+its browser title said Services, its first column said Service, and its generic
+empty result did not explain a Channel.
+
+A current-source fixture then rendered a populated queue, a populated pub/sub
+channel, owner and visitor detail, and the Channels list at desktop and 375 px.
+The corrected pages have their own titles and vocabulary; queue work reads held
+messages, pub/sub work reads accepted messages and subscriber count, and the
+visitor sees the same readable facts without owner editors. Delivery-mode
+filters remain visible at both widths. Every inspected page measured zero
+page-level horizontal overflow, and no production record was changed.

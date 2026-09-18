@@ -146,13 +146,8 @@ node-wide, the other is what this caller may see
 Two destinations, **one component family**. A channel's first question is how it
 delivers and who subscribes; a service's is whether anything is reading and what
 is queued. One table answering both is what buried delivery mode
-([C03](review/codex.md#junk-and-misleading-content)). Each page renders its own
-heading and marks its own navigation entry. **Precisely:** the `h1` is already
-correct — it switches on `.Channels` — but both routes share
-`shell("services", "Registered services")`, so Channels carries the Services
-document title and highlights the Services nav entry (admin.go:324). The
-draft's "renders under the Services heading" overstated it; the title and nav
-defect is real. codex's [S14](review/codex.md#specification-review-round-one).
+([C03](review/codex.md#junk-and-misleading-content)). Since 0.5.78 each page has
+its own document title, heading, navigation state, columns and detail route.
 
 | Column | Decision |
 |---|---|
@@ -190,8 +185,9 @@ Personal link colors without a version bump.
 filtered view.
 0.5.72 builds search and sort. 0.5.77 adds the independent Readers filter,
 25-row paging, matching counts, clear-filters action and exact list-state
-return from detail. The remaining populated visitor/owner journeys and
-read-first disclosure review stay pending.
+return from detail. 0.5.78 completes the populated owner/visitor Service and
+Channel journeys: delivery-mode filtering, mode-aware Work, subscriber facts,
+distinct empty states and resource-local registration/edit returns.
 
 The title's `ⓘ` help contains the category definitions as bullets — All is
 caller-visible non-Personal services, My is the caller-owned subset, Personal
@@ -222,8 +218,8 @@ rather than an incidental one.
 
 | | |
 |---|---|
-| No records at all | what a service is, and the link to register one |
-| No channels at all | **what a channel is and how one is created** — without this the Services/Channels split reads as a bug |
+| No services at all | what a service is, and the link to register one |
+| No channels at all | what a channel is and how one is created — without this the Services/Channels split reads as a bug |
 | No matches | the active filters, and one action to clear them |
 
 ---

@@ -57,7 +57,11 @@ func TestDangerZoneUsesFreshConfirmationAndResourceReturnPaths(t *testing.T) {
 				t.Fatalf("%s Danger Zone omitted %q", name, heading)
 			}
 		}
-		if !strings.Contains(danger, `/service?name=`+url.QueryEscape(name)) {
+		detailPath := "/service"
+		if name == "jobs@h" {
+			detailPath = "/channel"
+		}
+		if !strings.Contains(danger, detailPath+`?name=`+url.QueryEscape(name)) {
 			t.Fatalf("%s Danger Zone lost its return state", name)
 		}
 		if strings.Count(danger, `action=/service-confirm`) != 2 || strings.Count(danger, `action=/service>`) != 1 {
@@ -88,13 +92,13 @@ func TestDangerZoneUsesFreshConfirmationAndResourceReturnPaths(t *testing.T) {
 	_, header := p.request("alice@h", "POST", "/service", url.Values{
 		"action": {"configure"}, "name": {"jobs@h"}, "config": {`{"changed":true}`},
 	}, http.StatusSeeOther)
-	if header.Get("Location") != "/service?name=jobs%40h" {
+	if header.Get("Location") != "/channel?name=jobs%40h" {
 		t.Fatalf("channel configuration returned to %q", header.Get("Location"))
 	}
 	_, header = p.request("alice@h", "POST", "/service", url.Values{
 		"action": {"save"}, "name": {"jobs@h"}, "bound": {"0"}, "overflow": {"strict"},
 	}, http.StatusSeeOther)
-	if header.Get("Location") != "/service?name=jobs%40h" {
+	if header.Get("Location") != "/channel?name=jobs%40h" {
 		t.Fatalf("routine channel edit returned to %q", header.Get("Location"))
 	}
 	_, header = p.request("alice@h", "POST", "/service", url.Values{

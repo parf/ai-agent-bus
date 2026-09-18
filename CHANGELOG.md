@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.78 — 2026-09-18
+
+Complete the distinct Service and Channel browser journeys. Give Channels its
+own titles, delivery-mode filtering, mode-aware work facts and local returns.
+
 ## 0.5.77 — 2026-09-18
 
 Add independent reader-state filtering and bounded pagination to Services,

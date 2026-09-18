@@ -86,13 +86,11 @@ control is looked for.
 `Overview · Services · Channels · Activity · Users · Groups · Diagnostics` —
 then, separately, the signed-in name → Account, and Sign out.
 
-Correction to my earlier draft, from codex: the shared `shell()` already gives
-every signed-in page its navigation and sign-out
-([inventory](review/current-state.md#routes-and-templates)). W01 described the
-dashboard before that landed and I repeated it stale. What survives of W01 is
-narrower: the current page is marked, but the destinations themselves are the
-old set, and Channels renders under the Services heading and highlights
-Services in the navigation ([C06](review/codex.md#junk-and-misleading-content)).
+The shared `shell()` gives every signed-in page its navigation and sign-out
+([inventory](review/current-state.md#routes-and-templates)). Since 0.5.78 the
+Channels collection also carries its own document title, heading, active
+navigation entry and canonical Channel detail links; the historical C06 defect
+is closed.
 
 The current location is marked. Every page carries the same shell; the shell is
 one thing in one place.
@@ -144,7 +142,7 @@ the shape it takes here.
 | `Maximum: 0` repeated down the activity page | Remove ([W09](../done/web-review.md#findings)) |
 | blank labels for unset values | Replace with the fact **only where the absence changes a decision** — uses the daemon default, not observed, none queued. Where it does not, drop the label with the value. codex's correction: stating every absence is its own wall of noise |
 | `/avatar` endpoint | Reachable and authenticated; simply referenced by no current template ([inventory](review/current-state.md#routes-and-templates)). That is what the source establishes — my earlier "loaded gun" was an overclaim, no defect is shown. Decide deliberately: use it on Users, or remove it |
-| every service POST returning to `/services?scope=my` | Return to the thing that changed. A channel subscription currently answers by leaving the channel ([W13](../done/web-review.md#findings)) |
+| every service POST returning to `/services?scope=my` | **Built in 0.5.78:** registration and ordinary edits return to the affected Service or Channel; removal returns to the matching collection ([W13](../done/web-review.md#findings)) |
 | group membership visible only inside the editor | A non-administrator sees a group name with no members and no explanation of why. Say which it is: empty, or hidden from you |
 | registry iteration order | Replace with stable ordering ([W16](../done/web-review.md#findings)) |
 | in / out | Rename to accepted / dequeued. Dequeued is not completed |
@@ -192,7 +190,4 @@ them is safe to give.
 
 ## Open
 
-- Whether Channels is its own destination or a filter on Services. Separate
-  here because delivery mode is the question channels are asked, and a shared
-  template is what buried it — but it doubles the page set.
 - Whether Diagnostics and Activity are two pages or two sections of one.
