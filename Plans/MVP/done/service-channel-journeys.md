@@ -54,3 +54,22 @@ zero errors.
 This completes F.13.3 without changing daemon, API or wire behavior. The
 Overview/diagnostics journey, Users/Groups/Account journey, whole-redesign
 acceptance and installed five-role acceptance remain open.
+
+## Live postflight
+
+Commit `fdb8538` was pushed and deployed as **0.5.78**, stamped
+`parf@parf.us 2026-09-18 15:01:05`. Public identity reports that version,
+build and the unchanged daemon Owner.
+
+A fresh signed-in production session renders `/channels` with the Channels
+document title and heading, delivery-mode filter, distinct no-channels
+explanation and Channel registration link; it contains no Service table
+heading. `/services` retains its Services title. Production had no visible
+Channel record, so populated Queue/Pub/sub and visitor-detail claims remain
+fixture-proven rather than inferred from the empty live page. No production
+record was changed.
+
+The restarted web child has zero effective capabilities, `NoNewPrivileges`,
+256 MiB memory, zero swap, 64 tasks and one CPU in its delegated cgroup. A
+post-restart AgentBus message to the OpenCode peer was accepted; delivery alone
+is not credited as a peer reply.
