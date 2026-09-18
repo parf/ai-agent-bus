@@ -16,6 +16,7 @@ documents at all levels before implementation.
 | This file | Scope, principles, settled direction, review status |
 | [Information architecture](information-architecture.md#pages) | Pages, navigation, URL map, what moves where |
 | [Pages](pages.md#overview-) | Page-by-page purpose, content, actions and states |
+| [Visual options](visual-options.md#web-visual-options) | Three reviewable Services-page directions before implementation |
 | [Components](components.md#the-set) | Shell, tables, toolbars, forms, status, empty and error states |
 | [Data dictionary](data-dictionary.md#fields) | Every field: source, meaning, label, and when it is not shown |
 | [Glyphs](glyphs.md#the-rule-that-matters-most) | The state vocabulary, and where it is allowed to appear |
