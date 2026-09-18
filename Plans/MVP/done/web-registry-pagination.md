@@ -42,7 +42,7 @@ vet and race. All 400 frozen tracked files match after the run; the foreign
 `.gitignore` edit and this measured evidence file were deliberately outside the
 manifest. The tracked smoke script retains SHA-256
 `a21ad6a6a022acecc28ec87162c2a009d2b9c9fe6c94362a0079915742bec1e5`.
-Documentation validation checks **174 files** and **2,912 local links** with
+Documentation validation checks **175 files** and **2,912 local links** with
 zero errors.
 
 ## Scope
