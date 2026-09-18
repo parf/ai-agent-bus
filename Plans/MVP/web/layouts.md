@@ -38,29 +38,41 @@ answer to *where am I* survives the collapse.
 ## Overview — the only page allowed to be short
 
 ```
-  Overview                                             [Refresh]
-  What needs attention on this node, as of 14:22
+  🏠 Overview
+  Refresh · as of 14:22                     ← stated once, here only
 
   ┌──────────────────────────────────────────────────────────┐
   │ ▌ Queue at capacity when observed                          │   red bar, surface-2
-  │   billing/invoices@parf.us · 512 of 512 held · overflow:   │
-  │   refuse · observed 14:22                    → the queue   │
+  │   billing/invoices@parf.us · 512 held now · at capacity ·   │
+  │   when full: refuse                          → View record │
   ├──────────────────────────────────────────────────────────┤
   │ ▌ Delivery is off and work is held                         │   orange bar
-  │   ocr/intake@parf.us · 48 held · oldest 3h 12m             │
-  │   Nothing is arriving while it stays off.    → the record   │
+  │   ocr/intake@parf.us · 48 held now · oldest 3h12m          │
+  │   Nothing is arriving while it stays off.     → View record │
   └──────────────────────────────────────────────────────────┘
 
-  This node                                    ← labelled node-wide, always
-  ┌──────────┬──────────┬──────────┬──────────┐
-  │ Uptime   │ Records  │ Queued   │ Readers  │
-  │ 6d 4h    │ 231      │ 604      │ 12       │   text-2xl, tabular
-  └──────────┴──────────┴──────────┴──────────┘
+  This node  ⓘ                              ← labelled node-wide, always
+  ┌──────────┬──────────────┬────────┬─────────┬─────────────┬───────────┬────────────┐
+  │ Uptime   │ Services +   │ Queued │ Readers │ Calls,      │ Calls,    │ Calls,     │
+  │          │ Agents +     │        │         │ minute      │ hour      │ total      │
+  │ 6d 4h    │ Channels     │ 604    │ 12      │ 1,204       │ 58,003    │ 4,910,220  │
+  │          │ 231          │        │         │             │           │            │
+  └──────────┴──────────────┴────────┴─────────┴─────────────┴───────────┴────────────┘
   Node-wide. A list below shows only what you may see; the two
   never have to agree.
 
-  Find ▸ Services   Channels   Users
+  Find ▸ Services holding work   Channels holding work   Users   Diagnostics
 ```
+
+**Seven facts, and the figures sit on one baseline.** The strip wraps rather
+than gridding, because a fixed four-column grid with seven cells leaves an empty
+cell showing as a block of border colour. The record count names the three kinds
+it sums — it is every registered record — and the call counters moved here from
+the shared footer at 0.5.82 ([what a node says about
+itself](../../../docs/05-discovery.md#what-a-node-says-about-itself)).
+
+**The observation time is stated once**, beside Refresh. One page load is one
+observation; it was on the heading, on the empty state and on every item.
 
 **Refusals are deliberately not in that strip.** The draft put them there,
 against this specification's own *never counted twice* rule — refusals and
@@ -77,7 +89,7 @@ Empty:
 
 ```
   ┌────────────────────────────────────────────────────────────┐
-  │ No observed attention conditions in this view, as of 14:22.│
+  │ No observed attention conditions in this view.              │
   │ This covers the conditions the daemon reports, over the    │
   │ records you may see. It is not a statement that everything │
   │ is working.                                                │

@@ -14,13 +14,16 @@ func TestTitleMarksAreFixedDecorativePageCategories(t *testing.T) {
 	for category, visible := range map[string]string{
 		"credentials": "🔑", "services": "⚙️", "agent": "👾",
 		"users": "👤", "groups": "👥", "identity": "🪪",
+		// Overview is a glyph rather than the bus mark: the header already
+		// carries that logo, so the title repeated it instead of naming a page.
+		"overview": "🏠",
 	} {
 		got := string(titleMark(category))
 		if !strings.Contains(got, visible) || !strings.Contains(got, "aria-hidden=true") {
 			t.Errorf("%s title mark = %q", category, got)
 		}
 	}
-	for _, category := range []string{"overview", "channels", "activity", "diagnostics", "problem"} {
+	for _, category := range []string{"channels", "activity", "diagnostics", "problem"} {
 		got := string(titleMark(category))
 		if !strings.Contains(got, "<svg") || !strings.Contains(got, "aria-hidden=") || !strings.Contains(got, `focusable="false"`) || !strings.Contains(got, "page-title-mark") {
 			t.Errorf("%s title mark is not a decorative inline image: %q", category, got)
@@ -117,7 +120,7 @@ func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 		m.register(record)
 	}
 	pages := map[string]string{
-		"/":                              `</svg> Overview</h1>`,
+		"/":                              `🏠</span> Overview</h1>`,
 		"/diagnostics":                   `</svg> Diagnostics</h1>`,
 		"/services":                      `⚙️</span> Services</h1>`,
 		"/personal":                      `⚙️</span> Personal services</h1>`,

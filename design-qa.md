@@ -52,6 +52,7 @@ the populated service detail reported 100 Accessibility and 100 Best Practices.
 - Counts and rows come from caller-visible live data rather than fabricated examples.
 - The table retains Readers, Reached and queue facts required by the accepted service contract.
 - The header version/build, footer Owner/Uptime/Calls and current Agent glyph use project vocabulary and live daemon facts.
+  *Correction, 2026-09-18 (0.5.82):* the call counts left the footer for the signed-in Overview node strip by owner instruction, so the footer observed here now carries Owner and Uptime only ([what a node says about itself](docs/05-discovery.md#what-a-node-says-about-itself)). The measurement above is what was observed at the time and is not restated.
 - Rows without descriptions remain one line instead of receiving invented copy.
 
 final result: passed

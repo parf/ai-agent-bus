@@ -24,7 +24,8 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 
 	overview := m.get("/")
 	for _, want := range []string{
-		`</svg> Overview</h1>`, `id=attention>Needs attention`, `class=node-strip`,
+		`id=attention>Needs attention`, `class=node-strip`,
+		`🏠</span> Overview</h1>`,
 		`Node-wide. The lists linked below contain only records visible to you; the two never have to agree.`,
 		`href="/services?sort=queued&amp;work=held"`, `href="/channels?sort=queued&amp;work=held"`,
 		`No observed attention conditions in this view`, `It is not a statement that everything is working`,

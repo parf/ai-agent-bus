@@ -23,11 +23,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-var titleBusLogo = template.HTML(strings.NewReplacer(
-	"class=node-logo", "class=page-title-mark",
-	`width="80" height="58"`, `width="32" height="24"`,
-).Replace(nodeLogo))
-
 // titleMark returns only fixed, repository-owned markup. Callers may select a
 // category, including one stated by the daemon, but no caller text enters the
 // result. The adjacent h1 text names the page, so every mark is decorative.
@@ -40,7 +35,9 @@ func titleMark(category string) template.HTML {
 	)
 	switch category {
 	case "overview":
-		return titleBusLogo
+		// Not the bus mark: the header already carries it, so the page title
+		// repeated the logo rather than naming the page.
+		return `<span class=page-title-mark aria-hidden=true>🏠</span>`
 	case "credentials":
 		return `<span class=page-title-mark aria-hidden=true>🔑</span>`
 	case "agent":

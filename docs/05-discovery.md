@@ -276,8 +276,12 @@ backlog is work rather than an alarm. One record produces one item while the
 item retains every supporting fact; an empty list explicitly makes no health
 claim.
 
-The node strip is node-wide. Attention and record links contain only facts the
-caller may see, so their scopes need not agree. Direct links open Services or
+The node strip is node-wide. **From 0.5.82 it also carries the call counters**
+moved out of the shared footer, and the count of registered records is labelled
+`Services + Agents + Channels` because it sums every kind
+([status](#what-a-node-says-about-itself)). The observation time is stated once,
+beside Refresh, and not repeated on each attention item. Attention and record
+links contain only facts the caller may see, so their scopes need not agree. Direct links open Services or
 Channels holding work, Users, and Diagnostics. Holding-work links are real URL
 filters rather than preselected prose.
 
@@ -332,23 +336,30 @@ maintainers can remove a subscription; they cannot force another inbox to subscr
 
 ### What a node says about itself
 
-**Owner-settled, 2026-09-16.** A short closed list of facts about the node is
-published to **anybody who can reach the dashboard, signed in or not**: what it
-is, where it runs, whose it is, how long it has been up and how many calls it
-has served. They appear in the shell every page shares and on the **sign-in page**,
-which is the whole point — somebody who arrives at a bus they do not have a
-credential for should be able to tell what it is and whose it is without asking
-anybody.
+**Owner-settled, 2026-09-16; where the call counts show revised 2026-09-18.** A
+short closed list of facts about the node is published to **anybody who can
+reach the dashboard, signed in or not**: what it is, where it runs, whose it is
+and how long it has been up. They appear in the shell every page shares and on
+the **sign-in page**, which is the whole point — somebody who arrives at a bus
+they do not have a credential for should be able to tell what it is and whose it
+is without asking anybody.
+
+**Calls served is the one that moved.** By owner instruction at 0.5.82 the
+dashboard prints the counters in the signed-in [Overview node
+strip](#overview-and-diagnostics) instead of the shared footer, so an
+unauthenticated visitor no longer reads them from a page. What the daemon
+publishes is unchanged: `GET /identity` still answers them to any caller with no
+credential, and the closed list below is still the closed list.
 
 | | |
 |---|---|
 | what is published | release, host name, daemon owner name, uptime, **calls served** — and the build. **Nothing else**: no record names, no principals, no refusal counts, nothing about who is using it |
-| where each one shows | **the header has a two-row bus mark** derived from the [project artwork](img/agent-bus.png) at the far left. Beside it, `AgentBus v<release> @ <host>` carries build detail in the Version tooltip; navigation sits below. The compact footer carries owner, uptime and calls served. No separate build line or web-build value appears |
+| where each one shows | **the header has a two-row bus mark** derived from the [project artwork](img/agent-bus.png) at the far left. Beside it, `AgentBus v<release> @ <host>` carries build detail in the Version tooltip; navigation sits below. The compact footer carries owner and uptime; the call counts sit in the signed-in Overview node strip from 0.5.82. No separate build line or web-build value appears |
 | to whom | any caller that reaches the face, with no credential and no session |
 | host name | the machine's hostname as the OS reports it, `srv1`. The daemon has no node name of its own, so this is a new field rather than a restatement of one; it is not the realm, which the owner's name already carries |
 | uptime | a plain figure behind an explicit label, `uptime: 1h23m`, as the owner asked. It is what was true when the page rendered, and the page does not refresh itself |
 | calls served | the count of **HTTP requests the bus process has served**, over the **last minute** and **the last hour**, plus the **total since the daemon started**. Every request on every listener, gated or refused or served — it is counted before the handler runs, so it is traffic reaching the daemon rather than work it agreed to do. A node-wide figure, not this caller's. **No host reading is published**: the owner asked for the daemon's own calls only, and an OS load average is a fact about the machine rather than about this node |
-| what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The call counts are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal, no endpoint and no direction of business |
+| what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The call counts are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal, no endpoint and no direction of business. From 0.5.82 the cost is paid at the API rather than on a page: `GET /identity` still answers the counts to anybody, and no dashboard page shows them before sign-in |
 | how it is read | **`GET /identity`**, a public daemon call answering these fields and nothing else to a caller with no credential. There was no such call: every route but enrolment and a root redirect sits behind the token gate, and `GET /status` is authenticated and answers refusals and the caller's own standing besides. So this is a new endpoint rather than a relaxation of `/status`, which keeps its gate and its contents |
 | the face's part | it asks as anybody does. The face still holds no credential and still acts as the visitor for everything else ([web authority boundary](11-processes.md#web-authority-boundary)): this is a fact the daemon publishes, not a privileged call the face makes |
 

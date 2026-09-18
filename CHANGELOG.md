@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.82 — 2026-09-18
+
+Move the call counters out of the shared footer into the signed-in Overview
+node strip, and label its record count `Services + Agents + Channels` because
+it sums every kind. State the observation time once instead of on every
+attention item. Start each navigation entry with its section's title mark, and
+give Overview a house mark in place of the AgentBus logo the header already
+carries.
+
 ## 0.5.81 — 2026-09-18
 
 Stop the record and Account pages printing the backend address when one section

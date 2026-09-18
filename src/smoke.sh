@@ -1962,9 +1962,12 @@ has "the login header includes its inline bus logo" "$ANON" '<svg class=node-log
 has "the login header names the node release" "$ANON" "AgentBus <span class=build-tip.*>v$(cat internal/version/VERSION)</span>"
 has "the login footer names the daemon owner" "$ANON" "<strong>Owner</strong> <code>$OWNER</code>"
 has "the login footer shows uptime" "$ANON" '<strong>Uptime</strong> [0-9][0-9a-z.]*</span>'
-has "the login footer reports sampled minute calls" "$ANON" '<strong>Calls</strong> minute: [0-9][0-9]*'
-has "the login footer reports sampled hour calls" "$ANON" 'hour: [0-9][0-9]*'
-has "the login footer reports total calls" "$ANON" 'total: [0-9][0-9]*'
+# The counts moved to the signed-in Overview strip at 0.5.82 by owner
+# instruction; the daemon still answers them to anybody on GET /identity, but no
+# page shows them before sign-in. See docs/05-discovery.md#what-a-node-says-about-itself.
+lacks "the login footer no longer publishes call counts" "$ANON" '<strong>Calls</strong>'
+lacks "nor the strip's wording for them" "$ANON" 'Calls, minute\|Calls, hour\|Calls, total'
+lacks "nor an anonymous node strip" "$ANON" '<div class=node-strip>'
 lacks "observed spans stay out of the header" "$ANON" '(observed '
 lacks "the footer has no About section or repeated version" "$ANON" 'About call counts\|Web <code>v'
 lacks "OS and inbox readings are removed" "$ANON" 'Host load\|About load readings\|accepted /\|dequeued'
@@ -2003,6 +2006,24 @@ has "and the browser carries a session" \
   "$(awk '/agent_bus_session/{print $NF}' "$JAR")" '^[0-9a-f]\{48\}$'
 is_empty "which is never the token itself" "$(grep -o "$TOKEN" "$JAR")"
 PAGE=$(curl -s -b "$JAR" "$WEB/")
+# Where the counts went. Node-wide facts sit in one strip in the middle of
+# Overview (docs/05-discovery.md#overview-and-diagnostics), and the record
+# count names the kinds it sums because it is every registered record.
+NODE=$(sect node "$PAGE")
+has "Overview carries the node strip" "$NODE" '<div class=node-strip>'
+has "the strip reports sampled minute calls" "$NODE" '<span>Calls, minute</span><strong>[0-9]'
+has "the strip reports sampled hour calls" "$NODE" '<span>Calls, hour</span><strong>[0-9]'
+has "the strip reports total calls" "$NODE" '<span>Calls, total</span><strong>[0-9]'
+has "the strip names the kinds its record count sums" "$NODE" '<span>Services + Agents + Channels</span>'
+lacks "and no longer calls that sum Records" "$NODE" '<span>Records</span>'
+lacks "the signed-in footer does not repeat the counts" \
+  "$(printf '%s' "$PAGE" | grep 'class=footer-node')" 'Calls'
+NAV=$(printf '%s' "$PAGE" | grep 'nav aria-label=.sections.')
+has "the Overview menu entry carries its house mark" "$NAV" '>🏠</span>Overview</a>'
+has "and Diagnostics carries its own drawn one" "$NAV" '</svg>Diagnostics</a>'
+lacks "no menu entry is left unmarked" "$NAV" '<a href=/groups>Groups</a>'
+has "the observation time is stated once" \
+  "$(printf '%s' "$PAGE" | grep -o '· as of ' | wc -l | tr -d ' ')" '^1$'
 # Root is Overview and is allowed to be short; the retained envelopes are on
 # Diagnostics and the registry catalogue on Services
 # (Plans/MVP/web/pages.md#overview).

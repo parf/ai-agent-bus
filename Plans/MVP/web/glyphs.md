@@ -59,7 +59,7 @@ already supplies its name.
 
 | Page | Title image or glyph |
 |---|---|
-| Overview | the inline AgentBus mark |
+| Overview | 🏠 |
 | Services and generic-service detail | ⚙️ Service |
 | Agent detail | 👾 Agent |
 | Channels and channel detail | a small inline channel SVG |
@@ -80,6 +80,27 @@ section image rather than a guessed entity glyph.
 **Built in 0.5.65 for every current page route.** The local photo planned for
 User detail remains a separate data-backed feature; its current title uses the
 User fallback.
+
+Overview's mark was the inline AgentBus mark until 0.5.82, when the owner
+replaced it with 🏠: the header carries that logo on every page, so the title
+was repeating the product rather than naming the page.
+
+### The same marks in the navigation
+
+Second owner-selected exception, 0.5.82: **every top-level navigation entry
+starts with its own section's title mark.** It is the same mark, not a second
+symbol for one thing, and it is decorative to assistive technology for the same
+reason — the link text beside it already names the section.
+
+This does not reopen the quiet-glyph rule. That rule is about **data rows**,
+where marking every row turns a signal into a column heading. The navigation is
+a fixed seven-item wayfinding row that carries no status and no measurement, so
+there is no attention budget to spend and nothing a reader could mistake for a
+judgment. The rule that still applies is the one below it: every glyph sits
+beside a word, and here every one does.
+
+Nothing else in the shell is marked. The header keeps the single bus mark and
+the footer stays plain.
 
 ## Rendering: a proposal, not a settled decision
 
@@ -225,6 +246,7 @@ value rather than being replaced by a symbol.
 | Screen | Allowed | Not allowed |
 |---|---|---|
 | Page title | one page-category image or glyph beside the title text | status, inferred entity type, or multiple decorative marks |
+| Section navigation | each entry's own [section mark](#the-same-marks-in-the-navigation), decorative, beside the label | status, counts, or a mark that differs from that section's title mark |
 | Overview attention items | severity, one per item — that page is nothing but exceptions | — |
 | Services and Channels lists | **one** judgment column, lit only on exceptional rows | the kind column (a category: use a filter); the enabled column while most rows are enabled; anything green |
 | Service and Channel detail | queue condition; refusal reason | section headings |

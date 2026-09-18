@@ -105,8 +105,10 @@ Two structural rules, both opencode's:
 | **One queue, one item** | Each record yields a single item, at its worst level. No claim about which conditions co-occur is needed or made: two drafts attached one to this rule and both were unsupported, and the rule never required either — codex |
 | **Never counted twice** | Losses and refusals appear as attention items and in Diagnostics. They do **not** also appear in the node strip, or the strip and the items disagree with each other on the same page |
 
-**Empty state:** *"No observed attention conditions in this view, as of
-14:22"*, with the scope stated. **Not** *"nothing needs attention"*, which was
+**Empty state:** *"No observed attention conditions in this view."*, with the
+scope stated. The observation time was in this sentence until 0.5.82, when the
+owner cut every repeat of it: the page states it once, beside Refresh, and one
+page load is one observation. **Not** *"nothing needs attention"*, which was
 the draft's wording and is unbounded — codex's
 [S03](review/codex.md#specification-review-round-one). The admitted set is a
 handful of conditions the daemon reports; a reader whose process died leaves a

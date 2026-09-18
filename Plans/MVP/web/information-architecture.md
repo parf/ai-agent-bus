@@ -84,7 +84,9 @@ row — it sits with the principal's name at the top right, where an account
 control is looked for.
 
 `Overview · Services · Channels · Activity · Users · Groups · Diagnostics` —
-then, separately, the signed-in name → Account, and Sign out.
+then, separately, the signed-in name → Account, and Sign out. Since 0.5.82 each
+entry also starts with its section's own [title mark](glyphs.md#the-same-marks-in-the-navigation),
+decorative beside the label it repeats.
 
 The shared `shell()` gives every signed-in page its navigation and sign-out
 ([inventory](review/current-state.md#routes-and-templates)). Since 0.5.78 the

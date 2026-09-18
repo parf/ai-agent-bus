@@ -58,13 +58,18 @@ func TestEveryHTMLPageCarriesNodeIdentity(t *testing.T) {
 				t.Error("navigation is not in the second header row")
 			}
 			footer := section(t, body, "<footer ", "</footer>")
-			for _, fact := range []string{"<strong>Owner</strong> <code>admin@h</code>", "<strong>Uptime</strong>", "<strong>Calls</strong>"} {
+			for _, fact := range []string{"<strong>Owner</strong> <code>admin@h</code>", "<strong>Uptime</strong>"} {
 				if !strings.Contains(footer, fact) {
 					t.Errorf("footer lacks %q: %s", fact, footer)
 				}
 			}
-			if strings.Index(footer, "<strong>Owner") > strings.Index(footer, "<strong>Uptime") || strings.Index(footer, "<strong>Uptime") > strings.Index(footer, "<strong>Calls") {
+			if strings.Index(footer, "<strong>Owner") > strings.Index(footer, "<strong>Uptime") {
 				t.Errorf("footer operational facts are out of order: %s", footer)
+			}
+			// Calls moved to the Overview node strip in 0.5.82. The footer
+			// identifies the node; it no longer measures it.
+			if strings.Contains(footer, "<strong>Calls</strong>") {
+				t.Errorf("the footer still carries the call counters: %s", footer)
 			}
 			if strings.Count(body, "<main>") != 1 || strings.Count(body, "</main>") != 1 {
 				t.Error("page landmarks are unbalanced")
@@ -127,7 +132,7 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 				t.Errorf("removed metric still on page: %s", old)
 			}
 		}
-		for _, fact := range []string{"<strong>Owner</strong> <code>owner&lt;&amp;&gt;@h</code>", "<strong>Uptime</strong> 1h23m", "<strong>Calls</strong> minute: 7; hour: 0; total: 4,321"} {
+		for _, fact := range []string{"<strong>Owner</strong> <code>owner&lt;&amp;&gt;@h</code>", "<strong>Uptime</strong> 1h23m"} {
 			if !strings.Contains(footer, fact) {
 				t.Errorf("footer lacks %q: %s", fact, footer)
 			}
@@ -142,20 +147,38 @@ func TestLoginUsesOnlyPublicDaemonFactsAndSeparatesBuilds(t *testing.T) {
 	if reads != 2 {
 		t.Fatalf("%d public reads for two pages", reads)
 	}
+	// A visitor who has not signed in gets no call counts at all: they moved
+	// to the Overview node strip, which is a signed-in page. The three states
+	// a bound counter can be in are checked there
+	// (TestTheStripReportsCallsInTheThreeStatesTheDaemonCanBeIn).
 	collecting = true
 	pending := httptest.NewRecorder()
 	h.ServeHTTP(pending, httptest.NewRequest("GET", "/", nil))
-	pendingFooter := section(t, pending.Body.String(), "<footer ", "</footer>")
-	if !strings.Contains(pendingFooter, "minute: collecting history") || !strings.Contains(pendingFooter, "hour: collecting history") || !strings.Contains(pendingFooter, "total: 9") || strings.Contains(pendingFooter, "minute: 0") || strings.Contains(pendingFooter, "hour: 0") {
-		t.Fatalf("unobserved windows fabricated a value: %s", pendingFooter)
+	public := pending.Body.String()
+	for _, leaked := range []string{"collecting history", "<strong>Calls</strong>", "Calls, minute", "<div class=node-strip>", "total: 9"} {
+		if strings.Contains(public, leaked) {
+			t.Fatalf("the public page publishes %q: %s", leaked, public)
+		}
+	}
+	// Positive control: it is still the public page, with the node facts it
+	// does publish, so the loop above cannot pass on an empty response.
+	if !strings.Contains(public, "action=/signin") || !strings.Contains(public, "<strong>Uptime</strong>") {
+		t.Fatalf("the public page lost its form or its node facts: %s", public)
 	}
 	collecting = false
 	legacy = true
 	old := httptest.NewRecorder()
 	h.ServeHTTP(old, httptest.NewRequest("GET", "/", nil))
-	for _, missing := range []string{"AgentBus <span class=build-tip tabindex=0 title=\"Build daemon old daemon build\">v9.8.7</span>", "<strong>Calls</strong> minute: unavailable; hour: unavailable; total: unavailable"} {
-		if !strings.Contains(old.Body.String(), missing) {
-			t.Errorf("missing legacy value fabricated: %s", old.Body.String())
+	if !strings.Contains(old.Body.String(), "AgentBus <span class=build-tip tabindex=0 title=\"Build daemon old daemon build\">v9.8.7</span>") {
+		t.Errorf("missing legacy value fabricated: %s", old.Body.String())
+	}
+	// An older daemon answers no call counts. The public page shows none
+	// either way now, so what matters is that none were invented; the
+	// unbound-counter state on the strip is checked in
+	// TestTheStripReportsCallsInTheThreeStatesTheDaemonCanBeIn.
+	for _, invented := range []string{"Calls, minute", "Calls, total", "collecting history"} {
+		if strings.Contains(old.Body.String(), invented) {
+			t.Errorf("an older daemon's missing counter was fabricated as %q", invented)
 		}
 	}
 	legacy = false

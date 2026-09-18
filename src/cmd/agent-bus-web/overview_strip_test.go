@@ -1,0 +1,270 @@
+package main
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/auth"
+	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/store/memory"
+)
+
+// The node strip is where the owner reads the node's numbers, so the call
+// counters belong in it rather than in the footer, and the record count has to
+// say what it counted. "Records" did not: the value is len(b.records), which is
+// every registered record whatever its kind.
+func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
+	m := meaningFixture(t)
+	for _, record := range []protocol.Record{
+		{Name: "svc@h", Owner: "admin@h", Kind: "generic"},
+		{Name: "bot@h", Owner: "admin@h", Kind: "agent"},
+		{Name: "news@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue},
+	} {
+		m.register(record)
+	}
+	overview := m.get("/")
+	strip := section(t, overview, "<div class=node-strip>", "</div></div>")
+
+	// One label for the three kinds it sums, because a reader comparing it
+	// with the Services and Channels pages must know an Agent is in it too.
+	if !strings.Contains(strip, "<span>Services + Agents + Channels</span>") {
+		t.Errorf("the record count does not name the kinds it sums: %s", strip)
+	}
+	if strings.Contains(strip, "<span>Records</span>") {
+		t.Error("the strip still calls the sum Records without saying what a record is here")
+	}
+	// Three kinds registered, and the count is all of them.
+	if !strings.Contains(strip, "<span>Services + Agents + Channels</span><strong>3</strong>") {
+		t.Errorf("the count is not the whole registry: %s", strip)
+	}
+
+	// The counters live in the strip now; the states they can be in are
+	// exercised separately below, against a bound counter.
+	if !strings.Contains(strip, "Calls") {
+		t.Errorf("the node strip carries no call counters at all: %s", strip)
+	}
+
+	// Moved, not copied. The shared footer keeps the two node facts it
+	// publishes to anybody and no longer carries the counters beside them.
+	footer := section(t, overview, "<div class=footer-node>", "</div>")
+	if !strings.Contains(footer, "<strong>Owner</strong>") || !strings.Contains(footer, "<strong>Uptime</strong>") {
+		t.Errorf("the footer lost the node facts it still publishes: %s", footer)
+	}
+	if strings.Contains(footer, "Calls") {
+		t.Errorf("the counters are in the footer and the strip at once: %s", footer)
+	}
+
+	// The help beside the strip must not outlive it. It counted the facts
+	// ("These four values") while the strip now carries seven, and listed
+	// the filtered pages without Agents while the label beside the count
+	// names them.
+	help := section(t, overview, "<div popover id=node-help class=context-help>", "</div>")
+	facts := strings.Count(strip, "<div class=node-fact>")
+	if facts < 5 {
+		t.Fatalf("the fixture strip carries %d facts, so a stale cardinality would not be wrong here: %s", facts, strip)
+	}
+	// Asserted as the sentence rather than as a list of wrong numbers: a
+	// blocklist of cardinalities lets the next one through, which is the
+	// brittleness being removed.
+	if !strings.Contains(help, "These values cover the whole daemon.") {
+		t.Errorf("the node help counts the strip's %d facts instead of describing them: %s", facts, help)
+	}
+	// Where Agents are, not merely the word. There is no Agents page: they
+	// are rows on Services, so naming one among the filtered pages would
+	// send a reader to a destination the menu does not have.
+	for _, item := range navItems {
+		if item.Label == "Agents" {
+			t.Fatal("there is an Agents section now, so this check and the help both need rewriting")
+		}
+	}
+	if !strings.Contains(help, "Agents are listed with Services.") {
+		t.Errorf("the node help does not say where the Agents in its count are listed: %s", help)
+	}
+	if strings.Contains(help, "Agents, Channels and Users pages") || strings.Contains(help, "Agents page") {
+		t.Errorf("the node help sends a reader to an Agents page that does not exist: %s", help)
+	}
+	if !strings.Contains(help, "Calls") {
+		t.Errorf("the node help does not explain the call counters it now sits beside: %s", help)
+	}
+}
+
+// The observation time is one fact about one page load. It was printed beside
+// Refresh, again in the empty state, and again on every attention item, always
+// the same value.
+func TestTheObservationTimeIsStatedOnce(t *testing.T) {
+	m := meaningFixture(t)
+	// Empty: no attention items at all.
+	empty := m.get("/")
+	at := section(t, empty, "· as of ", "</span>")
+	if strings.TrimSpace(at) == "" {
+		t.Fatal("Overview does not state when it was observed")
+	}
+	if n := strings.Count(empty, at); n != 1 {
+		t.Errorf("an empty Overview states the observation time %d times, want 1", n)
+	}
+	if !strings.Contains(empty, "No observed attention conditions in this view.") {
+		t.Errorf("the empty state lost its wording: %s", empty)
+	}
+
+	// Populated: two records that each raise an item, so a per-item repeat
+	// would show up as three or more.
+	m.register(protocol.Record{Name: "tiny@h", Owner: "admin@h", Bound: 1})
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "tiny@h", Body: "fills it"}); err != nil {
+		t.Fatal(err)
+	}
+	m.register(protocol.Record{Name: "small@h", Owner: "admin@h", Bound: 1})
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "small@h", Body: "fills it"}); err != nil {
+		t.Fatal(err)
+	}
+	full := m.get("/")
+	if !strings.Contains(full, "Queue at capacity when observed") {
+		t.Fatalf("the fixture raised no attention item, so this check proves nothing: %s", full)
+	}
+	if !strings.Contains(full, ">tiny@h<") || !strings.Contains(full, ">small@h<") {
+		t.Fatal("the fixture did not raise both items")
+	}
+	now := section(t, full, "· as of ", "</span>")
+	if n := strings.Count(full, now); n != 1 {
+		t.Errorf("a populated Overview states the observation time %d times, want 1", n)
+	}
+	// The item keeps its way through; only the repeated time went.
+	if !strings.Contains(full, `<p class=muted><a href="/service?name=tiny%40h">View record</a></p>`) {
+		t.Errorf("an attention item lost its link with the repeated time: %s", full)
+	}
+}
+
+// Every menu entry carries its section's own mark, and it is the same mark the
+// section's page title uses rather than a second symbol for one thing.
+func TestEveryMenuEntryCarriesItsSectionMark(t *testing.T) {
+	m := meaningFixture(t)
+	page := m.get("/")
+	menu := section(t, page, `<nav aria-label="sections">`, "</nav>")
+	for _, item := range navItems {
+		mark := strings.Join(strings.Fields(string(titleMark(item.Key))), " ")
+		if !strings.Contains(menu, mark+item.Label+"</a>") {
+			t.Errorf("the %s menu entry does not carry its section mark: %s", item.Label, menu)
+		}
+		// Decorative, and asserted per entry: the link text beside it
+		// already names the section, and one entry can lose this on its
+		// own while the rest of the row still carries the attribute.
+		if !strings.Contains(mark, "aria-hidden") || strings.Contains(mark, "aria-hidden=false") {
+			t.Errorf("the %s menu mark is read out beside the word it repeats: %s", item.Label, mark)
+		}
+	}
+	// Overview's mark is not the bus logo. The header carries that already,
+	// and a title repeating it named the product, not the page.
+	logo := section(t, page, "<svg class=node-logo", "</svg>")
+	if strings.Contains(menu, "node-logo") {
+		t.Error("the menu repeats the node logo")
+	}
+	if mark := string(titleMark("overview")); strings.Contains(mark, "<svg") || !strings.Contains(mark, "🏠") {
+		t.Errorf("the Overview mark is still a drawn bus mark: %q", mark)
+	}
+	if strings.Count(page, "<svg class=node-logo") != 1 || logo == "" {
+		t.Error("the header lost the one node logo it should carry")
+	}
+}
+
+// Calls moved out of the footer and into the strip, and kept the three states
+// the footer distinguished: a measured count, a window with no sample yet, and
+// a counter this process never bound. An unbound counter is unavailable, never
+// a fabricated zero (internal/api/identity.go:13).
+func TestTheStripReportsCallsInTheThreeStatesTheDaemonCanBeIn(t *testing.T) {
+	for _, probe := range []struct {
+		name  string
+		stats *protocol.CallStats
+		want  []string
+		gone  []string
+	}{
+		{
+			name: "measured",
+			stats: &protocol.CallStats{Total: 4210, Windows: []protocol.CallWindow{
+				{Window: "1m", Available: true, Count: 17},
+				{Window: "1h", Available: true, Count: 908},
+			}},
+			want: []string{
+				"<span>Calls, minute</span><strong>17</strong>",
+				"<span>Calls, hour</span><strong>908</strong>",
+				"<span>Calls, total</span><strong>4,210</strong>",
+			},
+			gone: []string{"collecting history", "unavailable"},
+		},
+		{
+			name: "one window has no sample yet",
+			stats: &protocol.CallStats{Total: 9, Windows: []protocol.CallWindow{
+				{Window: "1m", Available: false},
+				{Window: "1h", Available: true, Count: 9},
+			}},
+			want: []string{
+				"<span>Calls, minute</span><strong class=node-fact-note>collecting history</strong>",
+				"<span>Calls, hour</span><strong>9</strong>",
+				"<span>Calls, total</span><strong>9</strong>",
+			},
+			// A window with no sample must not read as a measured zero.
+			gone: []string{"<span>Calls, minute</span><strong>0</strong>"},
+		},
+		{
+			name:  "counter never bound",
+			stats: nil,
+			want:  []string{"<span>Calls</span><strong class=node-fact-note>unavailable</strong>"},
+			gone:  []string{"<span>Calls, total</span>", "<strong>0</strong></div><div class=node-fact><span>Calls"},
+		},
+	} {
+		t.Run(probe.name, func(t *testing.T) {
+			m := callsFixture(t, probe.stats)
+			strip := section(t, m.get("/"), "<div class=node-strip>", "</div></div>")
+			for _, want := range probe.want {
+				if !strings.Contains(strip, want) {
+					t.Errorf("the strip has no %s: %s", want, strip)
+				}
+			}
+			for _, gone := range probe.gone {
+				if strings.Contains(strip, gone) {
+					t.Errorf("the strip still says %s: %s", gone, strip)
+				}
+			}
+		})
+	}
+}
+
+// callsFixture is meaningFixture with the daemon's request counter bound to a
+// fixed snapshot, which the ordinary fixture leaves unbound.
+func callsFixture(t *testing.T, stats *protocol.CallStats) *meanings {
+	t.Helper()
+	b := core.New()
+	tokens, err := auth.Load(memory.NewTokens(), "admin@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	face := api.New(b, tokens, "admin@h")
+	if stats != nil {
+		face.Calls(func(time.Time) protocol.CallStats { return *stats })
+	}
+	backend := httptest.NewServer(face.Handler())
+	t.Cleanup(backend.Close)
+	web := httptest.NewServer(dashboard(&caller{client: backend.Client(), base: backend.URL}, false))
+	t.Cleanup(web.Close)
+	client := web.Client()
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	token, err := tokens.Issue("admin@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := client.PostForm(web.URL+"/signin", url.Values{"token": {token}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if len(resp.Cookies()) != 1 {
+		t.Fatal("sign in did not return a session")
+	}
+	return &meanings{t: t, bus: b, tokens: tokens, backend: backend, web: web,
+		session: resp.Cookies()[0], client: client, lsCalls: new(atomic.Int64)}
+}
