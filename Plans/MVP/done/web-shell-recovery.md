@@ -245,3 +245,26 @@ before](web-overview-diagnostics.md#browser-evidence).
 Per-record titles stop at the resource name. A record whose name is long is not
 truncated for the tab, and no page states its own filter state in the title.
 Neither is required by the clause.
+
+## Live deployment
+
+Commit `5902ba6` was pushed and deployed as **0.5.81**, stamped
+`parf@parf.us 2026-09-18 18:31:19`. The daemon, bus child and sandboxed web
+child returned under the existing systemd unit. The live identity reported the
+same version and build stamp.
+
+A signed-in, read-only Chromium postflight at 1280 px and 375 px opened
+Overview, Diagnostics, Services, Account and the live
+`claude/ab-dvp@parf.us` Agent detail. Every page had its exact route title, one
+header, main, footer, skip link and skip target, exactly one current navigation
+entry, no document-level horizontal overflow and no backend address in the
+document. A forged stale session returned 401 with *that session has ended*
+rather than the first-visit instruction at both widths. No live record was
+changed.
+
+The web child remained in its delegated cgroup with 256 MiB memory, no swap,
+64 PIDs and one CPU; its effective capability mask was zero and its process was
+PID 2 inside the private namespace. The first postflight harness run receives
+no credit: it expected the skip target on `<main>`, while the built shell puts
+the target anchor inside `<main>`. The corrected run checks both elements and
+is the measurement above.
