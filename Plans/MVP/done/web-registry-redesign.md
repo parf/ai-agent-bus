@@ -63,6 +63,21 @@ checks, with all **33** candidate source, test, documentation and evidence
 hashes unchanged. The tracked smoke script and the frozen candidate both have
 SHA-256 `3a86c82453ac06c77bbe325afd60adc72f4ac53526b12958e5f3420a628d5137`.
 
+## Live postflight
+
+The 0.5.72 restart reports the stamped build `parf@parf.us 2026-09-18
+02:21:16`; both supervisor and bus process titles carry 0.5.72. Read-only,
+authenticated production requests verify the four immediate service-detail
+tooltips, collapsed editors, Delivery glyph, both automatic selectors and the
+ten-minute / 24-hour Activity wording.
+
+The web child still runs with no effective capabilities and
+`NoNewPrivileges`; its delegated cgroup retains `memory.max=268435456`,
+`memory.swap.max=0`, `pids.max=64` and `cpu.max=100000 100000`. Postflight did
+not apply pressure or change registry data. The AgentBus accepted the
+deployment notice for the OpenCode peer after restart; delivery alone is not
+credited as a peer review or reconnection confirmation.
+
 ## Scope
 
 This completes the owner-selected Services visual direction and the Activity
