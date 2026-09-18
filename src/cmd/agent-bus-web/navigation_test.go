@@ -94,7 +94,7 @@ func TestOwnedRowsAreMarkedAndEditFollowsDaemonAuthority(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	m.register(protocol.Record{Name: "own@h", Owner: "alice@h", Allow: []string{"alice@h"}})
+	m.register(protocol.Record{Name: "own@h", Owner: "alice@h", Allow: []string{"alice@h"}, Proto: "remote"})
 	m.register(protocol.Record{Name: "managed@h", Owner: "bob@h", Allow: []string{"alice@h"}})
 	maintainers := protocol.MaintainerList{"alice@h"}
 	if _, err := m.bus.Manage("bob@h", core.Management{Name: "managed@h", Maintainers: &maintainers}); err != nil {
@@ -106,14 +106,26 @@ func TestOwnedRowsAreMarkedAndEditFollowsDaemonAuthority(t *testing.T) {
 	own := m.row(page, "own@h")
 	managed := m.row(page, "managed@h")
 	view := m.row(page, "view@h")
-	if !strings.Contains(own, `class=owned-marker>Yours</span>`) || !strings.Contains(own, `#settings">Edit</a>`) {
-		t.Error("owned row lacks its visible marker or Edit action")
+	if !strings.Contains(own, `class="record-name-cell owned-record"`) || !strings.Contains(own, `class=owned-marker>Yours</span>`) || !strings.Contains(own, `<td>external`) {
+		t.Error("remote owned row lacks its visible ownership treatment")
 	}
-	if strings.Contains(managed, ">Yours</span>") || !strings.Contains(managed, `#settings">Edit</a>`) {
-		t.Error("Maintainer row confused ownership with daemon-returned management")
+	if strings.Contains(managed, "owned-record") || strings.Contains(managed, ">Yours</span>") {
+		t.Error("Maintainer row confused management with ownership")
 	}
-	if strings.Contains(view, ">Yours</span>") || strings.Contains(view, `#settings">Edit</a>`) {
-		t.Error("view-only row was marked owned or editable")
+	if strings.Contains(view, "owned-record") || strings.Contains(view, ">Yours</span>") {
+		t.Error("view-only row was marked owned")
+	}
+	if strings.Contains(page, ">Edit</a>") || strings.Contains(page, "<th scope=col>Controls") {
+		t.Error("the service name and a duplicate Edit column both route to detail")
+	}
+	for _, want := range []string{
+		`.record-name-cell.owned-record{border-left-color:#1d5fa8}`,
+		`.record-name-cell.owned-record .record-name,.record-name-cell.personal-record .record-name{font-weight:600}`,
+		`.record-name-cell.personal-record .record-name,.personal-marker{color:#8a5000}`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("service-row treatment missing %q", want)
+		}
 	}
 }
 

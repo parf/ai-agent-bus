@@ -109,7 +109,7 @@ decided here, which is why it is not built second.
    │  SERVICE                 OWNER         READER     QUEUED │  text-xs 600
    ├──────────────────────────────────────────────────────────┤
    │▌ Invoice intake  [Yours]  parf@parf.us attached      512 │  red bar
-   │  billing/invoices@parf.us              at capacity [Edit]│  mono, text-2
+   │  billing/invoices@parf.us              at capacity       │  mono, text-2
    ├──────────────────────────────────────────────────────────┤
    │▌ Document intake         ops@parf.us   no reader      48 │  orange bar
    │  ocr/intake@parf.us                       delivery is off│
@@ -139,8 +139,9 @@ larger sort list remains a select. Register service is section navigation, not a
 form appended below the table.
 
 **Yours is never colour alone.** The label and row shape remain in All, My,
-Personal and filtered results. The service name opens its detail; Edit is a
-separate action that opens the same detail with an editor exposed.
+Personal and filtered results. Personal has its own visible word and orange
+treatment; a row may carry both. The service name is the single route to
+read-first detail and any controls authorized there.
 
 **No cell truncates a value that has no other route to it.** The draft ellipsed
 owners to `parf@…` and offered no recovery, which without script means the value

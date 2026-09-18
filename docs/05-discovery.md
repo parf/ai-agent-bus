@@ -159,9 +159,17 @@ continues to work.
 
 Two- and three-value URL filters are visible links whose active state and plain
 values remain in the URL. Two-value creation choices are labelled radio
-buttons. An owned Service or Channel row says **Yours**; **Edit** follows the
-daemon's returned management capability independently, so an assigned
-Maintainer may edit without being labelled as owner.
+buttons. **Built in 0.5.66:** an owned Service or Channel row says **Yours**,
+uses a blue leading rule and emphasizes its linked name. A Personal row
+separately says **Personal** in orange and emphasizes its name; a row carrying
+both facts keeps both signals. Ownership comes only from the returned Owner,
+and Personal only from the returned tag; the protocol hint changes neither.
+
+The linked name is the single route to read-first detail and any controls the
+daemon authorizes there; the former duplicate Edit column is gone. List update
+times read `now`, whole minutes, hours or days while under 30 days old, then
+`Jan 1` within the current year or `Jan 12, 2025` across years. Detail retains
+the full registration-update timestamp. Missing time remains unavailable.
 
 ### Page titles and compact help
 

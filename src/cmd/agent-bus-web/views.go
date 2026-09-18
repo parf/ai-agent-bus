@@ -71,6 +71,39 @@ func readerCount(readers *int) string {
 	return strconv.Itoa(*readers)
 }
 
+// registrationUpdated keeps recent list entries scannable without pretending
+// their write time is an observation or health signal. Detail pages retain the
+// full timestamp. Future clock skew is rendered as now rather than a negative
+// age.
+func registrationUpdatedAt(at, now time.Time) string {
+	if at.IsZero() {
+		return ""
+	}
+	at = at.In(now.Location())
+	age := now.Sub(at)
+	if age < 0 {
+		age = 0
+	}
+	switch {
+	case age < time.Minute:
+		return "now"
+	case age < time.Hour:
+		return strconv.Itoa(int(age/time.Minute)) + "m ago"
+	case age < 24*time.Hour:
+		return strconv.Itoa(int(age/time.Hour)) + "h ago"
+	case age < 30*24*time.Hour:
+		return strconv.Itoa(int(age/(24*time.Hour))) + "d ago"
+	case at.Year() == now.Year():
+		return at.Format("Jan 2")
+	default:
+		return at.Format("Jan 2, 2006")
+	}
+}
+
+func registrationUpdated(at time.Time) string {
+	return registrationUpdatedAt(at, time.Now())
+}
+
 func entityLabel(kind string) string {
 	if kind == protocol.KindTopic {
 		return "Channel"

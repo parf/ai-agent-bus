@@ -51,13 +51,13 @@ Every caller-owned record is marked wherever it appears in a human list,
 including All, My, Personal, search results and related-record lists. The mark
 combines a visible **Yours** label with shape or border emphasis; colour is
 reinforcement, never the only signal. It does not change ordering, access or
-kind.
+kind. A Personal record separately carries the visible **Personal** word and
+orange treatment. A caller-owned Personal record keeps both signals.
 
-The record name opens its read-first detail page. An owned row also carries an
-explicit **Edit** link or button to the same detail page with the relevant
-editor opened. Non-owned rows receive an Edit action only when the daemon's
-returned authority says the caller may manage them; ownership is a reliable
-positive case, not a second authorization system.
+The record name is the one route to its read-first detail page. Controls on
+that page follow the daemon's returned authority; the list does not duplicate
+the same destination with an Edit link or infer edit authority from the visual
+ownership mark. This compact treatment is built in 0.5.66.
 
 ## Small choice controls
 

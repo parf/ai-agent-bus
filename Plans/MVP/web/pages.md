@@ -160,13 +160,13 @@ defect is real. codex's [S14](review/codex.md#specification-review-round-one).
 | Kind | **A filter wherever the list is already narrowed to one kind**, because a per-row category is then redundant with the control that got you there. **A column on any list that is not** — an unfiltered or mixed-kind list must still say what each row is, and no filter is supplying that. This governs the [mockups](layouts.md#services--the-page-the-density-is-tuned-against) as much as this table; the draft's flat "filter only" was wrong and the two documents disagreed — codex |
 | Delivery mode (channel list) | **new.** The channel question |
 | Owner | keep |
-| Owned by the caller | **always mark.** A visible *Yours* label plus non-colour emphasis survives All, My, Personal and filtered results; owned rows also expose an Edit action |
+| Owned by the caller | **always mark.** A visible *Yours* label plus blue leading rule and emphasized name survives All, My, Personal and filtered results. Personal independently uses a visible *Personal* label, orange and an emphasized name; combined rows retain both |
 | Enabled / Disabled | **relabel** from Active/Inactive. Administrative state, not liveness. Disabled is a decision, not a failure |
 | Reader: *attached* / *no unfiltered reader* / *external* | **relabel** from Serving/Offline/External. `Proto` is a caller-supplied hint meaning "expect no local reader", not proof of anything |
 | Queued | keep on the service list. **Mode-aware on the channel list**: a pub/sub topic keeps no queue of its own — `Send` hands it to `fanout` and nothing waits on the topic — so a Queued cell there is structurally zero. Pub/sub rows show accepted; queue rows show queued; or the cell reads `—` |
 | Subscribers (channel list, pub/sub) | **new** |
 | One judgment column | **new.** Lit only on exceptional rows ([glyphs](glyphs.md#where-a-glyph-is-allowed)) |
-| Updated `At` | **demote** to detail. It consumes a column and answers a question nobody on a list is asking |
+| Updated `At` | **compact on the list, full on detail.** Under 30 days use whole-unit age; older values use `Jan 1` in the current year or `Jan 12, 2025` across years |
 | `Controls: Manage / View` | **drop.** Inert text shaped like a control ([C01](review/codex.md#junk-and-misleading-content)) |
 | `ConfigSHA` | **move** to the configuration section of the detail page |
 | `In` / `Out` | **move** to detail, **relabelled** accepted / dequeued. Dequeued is not completed |
@@ -182,8 +182,9 @@ navigation count describe a different category.
 
 **Built in 0.5.64:** these category links and counts, dedicated Service and
 Channel registration routes, Delivery links, create-time Kind/Delivery radios,
-and the separate **Yours** and daemon-authorized **Edit** signals. Search, sort,
-paging and read-first detail disclosures remain pending.
+and the separate **Yours** and daemon-authorized detail controls. 0.5.66 adds
+owned/Personal emphasis, one name-to-detail route and compact update time.
+Search, sort, paging and read-first detail disclosures remain pending.
 
 The title's `ⓘ` help contains the category definitions as bullets — All is
 caller-visible non-Personal services, My is the caller-owned subset, Personal
@@ -197,11 +198,10 @@ than selects. All state is in the URL as GET parameters, retained through paging
 and through a visit to a detail page and back. Result count and active filters
 are shown, with one action to clear them.
 
-**Rows have two destinations.** The name opens the read-first service or channel
-view. A caller-owned row is always visually marked and carries an explicit Edit
-action, which opens that view with its editor exposed. A non-owned row may also
-offer Edit when the daemon reports management authority; the face never derives
-permission from the visual marker.
+**Rows have one destination.** The name opens the read-first service or channel
+view, where daemon-returned authority decides whether controls appear. A
+caller-owned row is always visually marked, but the face never derives
+permission from that marker.
 
 **Ordering is stable and named.** Core's `List` iterates a map, so order out of
 the daemon is not stable — but **the services and channels list already sorts by

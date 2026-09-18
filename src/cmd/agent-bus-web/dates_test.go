@@ -71,20 +71,22 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 		return string(body)
 	}
 
-	// The minute the record was written, as the page spells it. Reading the
-	// clock again would be a different test on a minute boundary.
+	// Detail retains the full write time. Lists use the compact form tested
+	// below, where this new record is "now" rather than a second timestamp.
 	stamp := before.Format("2006-01-02 15:04")
-	for _, page := range []string{"/services", "/channels", "/service?name=svc@h"} {
-		body := get(page)
-		if !strings.Contains(body, stamp) {
-			t.Fatalf("%s does not carry the record's date %q", page, stamp)
+	if body := get("/service?name=svc@h"); !strings.Contains(body, stamp) {
+		t.Fatalf("detail does not carry the record's date %q", stamp)
+	}
+	for _, page := range []string{"/services", "/channels"} {
+		if body := get(page); !strings.Contains(body, "<td>now") {
+			t.Fatalf("%s does not render the new record as updated now", page)
 		}
 	}
 	// Named as what it is rather than as "date": the record's own registration
 	// update, which is not an observation time and not a sample time
 	// (Plans/MVP/web/data-dictionary.md#time).
 	listing := get("/services")
-	if !strings.Contains(listing, "<th scope=col>Registration updated") {
+	if !strings.Contains(listing, "<th scope=col>Updated") {
 		t.Fatal("the listing has no column for the date it now shows")
 	}
 	// A column added to the table has to be added to its empty row too, or
@@ -93,5 +95,31 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 	want := fmt.Sprintf("colspan=%d", strings.Count(listing, "<th scope=col>"))
 	if body := get("/services?scope=my&state=inactive"); strings.Contains(body, "No matching records") && !strings.Contains(body, want) {
 		t.Fatalf("the empty row does not span the widened table: want %s", want)
+	}
+}
+
+func TestRegistrationUpdatedUsesAgeThenCompactCalendarDate(t *testing.T) {
+	now := time.Date(2026, time.September, 17, 20, 0, 0, 0, time.FixedZone("EDT", -4*60*60))
+	for _, test := range []struct {
+		name string
+		at   time.Time
+		want string
+	}{
+		{"zero", time.Time{}, ""},
+		{"future skew", now.Add(time.Minute), "now"},
+		{"future year", now.AddDate(1, 0, 0), "now"},
+		{"seconds", now.Add(-59 * time.Second), "now"},
+		{"minutes", now.Add(-17 * time.Minute), "17m ago"},
+		{"hours", now.Add(-9 * time.Hour), "9h ago"},
+		{"days", now.Add(-29 * 24 * time.Hour), "29d ago"},
+		{"thirty day boundary", now.Add(-30 * 24 * time.Hour), "Aug 18"},
+		{"same year", time.Date(2026, time.January, 1, 8, 0, 0, 0, time.UTC), "Jan 1"},
+		{"other year", time.Date(2025, time.January, 12, 8, 0, 0, 0, time.UTC), "Jan 12, 2025"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := registrationUpdatedAt(test.at, now); got != test.want {
+				t.Fatalf("got %q, want %q", got, test.want)
+			}
+		})
 	}
 }

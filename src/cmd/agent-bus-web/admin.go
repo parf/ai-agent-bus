@@ -639,7 +639,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	}))
 }
 
-var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{"readerCount": readerCount, "entityLabel": entityLabel, "titleMark": titleMark}).Parse(shell("records", "Registered services") + `
+var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{"readerCount": readerCount, "registrationUpdated": registrationUpdated, "entityLabel": entityLabel, "titleMark": titleMark}).Parse(shell("records", "Registered services") + `
 <div class=page-title><h1>{{if .Channels}}{{titleMark "channels"}} Registered channels{{else}}{{titleMark "services"}} {{if .PersonalPage}}Personal services{{else}}Registered services{{end}}{{end}}</h1><button type=button class=help-button popovertarget=service-views-help aria-label="About service views">ⓘ</button></div>
 <div popover id=service-views-help class=context-help><h2>About these records</h2><ul>
 {{if .Channels}}<li>All channels counts the caller-visible Channel records.</li>{{else}}<li>All and My omit Personal services; My is the caller-owned subset. Personal is an owner-set grouping tag and does not change access.</li>{{end}}
@@ -653,9 +653,9 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 <nav class=filter-nav aria-label="Delivery filter">Delivery: {{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>
 {{if .PersonalPage}}<p class=muted>{{if .DaemonOwner}}This per-owner view contains only Personal services visible through your normal access; it is not a node-wide inventory.{{else}}Your Personal services.{{end}}</p>{{end}}
 <table><caption>Records visible to you — not a count of this node</caption>
-<thead><tr><th scope=col>Name<th scope=col>Type<th scope=col>Owner<th scope=col>Delivery<th scope=col>Readers<th scope=col>Reached<th scope=col>Queued<th scope=col>Registration updated<th scope=col>Controls</tr></thead>
+<thead><tr><th scope=col>Name<th scope=col>Type<th scope=col>Owner<th scope=col>Delivery<th scope=col>Readers<th scope=col>Reached<th scope=col>Queued<th scope=col>Updated</tr></thead>
 <tbody>
-{{range .Records}}<tr><td><a href="/service?name={{.Name}}">{{.Name}}</a>{{if eq .Owner $.You}} <span class=owned-marker>Yours</span>{{end}}<td>{{entityLabel .Kind}}<td>{{.Owner}}<td>{{if .Disabled}}Disabled{{else}}Enabled{{end}}<td>{{readerCount .Readers}}<td>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{.Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{.At.Format "2006-01-02 15:04"}}{{end}}<td>{{if .CanManage}}<a href="/service?name={{.Name}}#settings">Edit</a>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>{{else}}<tr><td colspan=9>No matching records</tr>{{end}}
+{{range .Records}}<tr><td class="record-name-cell{{if eq .Owner $.You}} owned-record{{end}}{{if .Personal}} personal-record{{end}}"><a class=record-name href="/service?name={{.Name}}">{{.Name}}</a>{{if eq .Owner $.You}} <span class=owned-marker>Yours</span>{{end}}{{if .Personal}} <span class=personal-marker>Personal</span>{{end}}<td>{{entityLabel .Kind}}<td>{{.Owner}}<td>{{if .Disabled}}Disabled{{else}}Enabled{{end}}<td>{{readerCount .Readers}}<td>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{.Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}</tr>{{else}}<tr><td colspan=8>No matching records</tr>{{end}}
 </tbody></table>
 `))
 var serviceNew = template.Must(template.New("service-new").Funcs(template.FuncMap{"entityLabel": entityLabel, "titleMark": titleMark}).Parse(shell("records", "Register") + `

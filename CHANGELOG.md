@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.66 — 2026-09-17
+
+Emphasize caller-owned and Personal service rows without conflating the two.
+Remove the duplicate list Edit column and compact registration-update times.
+
 ## 0.5.65 — 2026-09-17
 
 Add a decorative category image or glyph to every web page title. Move the

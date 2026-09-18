@@ -3,6 +3,10 @@
 📌 **TL;DR:** 0.5.64 makes small list choices visible, moves registration to
 dedicated section pages and distinguishes ownership from edit authority.
 
+> **Superseded in 0.5.66:** the visible ownership distinction remains, but the
+> duplicate list Edit link was removed. The linked name now provides the one
+> route to detail and its daemon-authorized controls.
+
 ## Result
 
 Services now exposes counted **All**, **My** and **Personal** links; Channels,

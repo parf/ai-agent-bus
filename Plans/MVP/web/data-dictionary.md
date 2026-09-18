@@ -190,6 +190,11 @@ labelled as what it is rather than as "date":
 registration update · observation time · credential issued · credential last
 used · history interval · sample time.
 
+Service lists compact a registration update as `now`, then whole minutes,
+hours or days while it is under 30 days old. Older values use `Jan 1` in the
+current display year or `Jan 12, 2025` across years. A future value caused by
+clock skew reads `now`; detail retains the full timestamp.
+
 ## Not available, and not invented
 
 Named so nobody fills them with a green badge, a zero, or a guess:

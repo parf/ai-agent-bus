@@ -754,25 +754,33 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 	if seen["plain@h"] {
 		t.Error("an ordinary caller sees a record restricted away from them")
 	}
-	// Manage controls follow authority, and the words do not. Read off the
-	// row for one record everybody can see, because an ordinary caller has a
-	// record of their own on the same page that they may rightly manage.
+	// Management controls live on detail rather than being duplicated in the
+	// list. The detail still follows authority, and the words do not.
 	// Authority over a record is the record's own: its owner, the name
 	// itself, and the group the record names. Standing in the daemon's
 	// maintainer group is not one of them (core/manage.go manages), so a
 	// maintainer reads admin@h's record exactly as any other caller does —
 	// which is the point, since the words did not change either.
-	for _, who := range []struct{ caller, offered string }{
-		{"admin@h", `#settings">Edit</a>`}, {"maint@h", `<span class=muted>&mdash;</span>`}, {"plain@h", `<span class=muted>&mdash;</span>`},
+	for _, who := range []struct {
+		caller       string
+		getsSettings bool
+	}{
+		{"admin@h", true}, {"maint@h", false}, {"plain@h", false},
 	} {
-		row := m.row(m.as(who.caller).get("/services"), "quiet@h")
-		if !strings.Contains(row, who.offered) {
-			t.Errorf("%s is offered the wrong control over a record owned by admin@h: %s", who.caller, row)
+		as := m.as(who.caller)
+		row := m.row(as.get("/services"), "quiet@h")
+		if strings.Contains(row, ">Edit</a>") {
+			t.Errorf("%s sees the duplicate list Edit action", who.caller)
+		}
+		detail := as.get("/service?name=quiet@h")
+		if strings.Contains(detail, `id=settings`) != who.getsSettings {
+			t.Errorf("%s receives the wrong detail authority", who.caller)
 		}
 	}
 	// And the caller's own record is theirs to manage, whoever they are, so
 	// the check above is about authority rather than about rank.
-	if row := m.row(m.as("plain@h").get("/services"), "plain@h"); !strings.Contains(row, `#settings">Edit</a>`) || !strings.Contains(row, `class=owned-marker>Yours</span>`) {
+	plain := m.as("plain@h")
+	if row := m.row(plain.get("/services"), "plain@h"); !strings.Contains(row, `class=owned-marker>Yours</span>`) || !strings.Contains(plain.get("/service?name=plain@h"), `id=settings`) {
 		t.Error("an ordinary caller is offered no control over their own record")
 	}
 }

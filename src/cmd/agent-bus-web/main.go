@@ -346,7 +346,12 @@ const head = `<!doctype html>
  .context-help h2{margin-top:0}.context-help li+li{margin-top:.45rem}
  .section-nav,.filter-nav{display:flex;flex-wrap:wrap;gap:.35rem 1rem;margin:.5rem 0 1rem}
  .section-nav a[aria-current],.filter-nav a[aria-current]{font-weight:700;text-decoration:none;border-bottom:2px solid currentColor}
- .owned-marker{font-weight:600;color:#253c66;white-space:nowrap}
+ .record-name-cell{border-left:3px solid transparent}
+ .record-name-cell.owned-record{border-left-color:#1d5fa8}
+ .record-name-cell.owned-record .record-name,.record-name-cell.personal-record .record-name{font-weight:600}
+ .record-name-cell.personal-record .record-name,.personal-marker{color:#8a5000}
+ .owned-marker{font-weight:600;color:#1d5fa8;white-space:nowrap}
+ .personal-marker{font-weight:600;white-space:nowrap}
  h2{font-size:15px;margin:1.6rem 0 .4rem}
  .who{float:right;font-size:13px}
  input{font:13px ui-monospace,monospace;padding:.3rem;width:26rem;max-width:100%;box-sizing:border-box}
