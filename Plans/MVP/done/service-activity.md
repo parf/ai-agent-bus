@@ -54,6 +54,24 @@ unchanged. The tracked and frozen smoke scripts both had SHA-256
 Documentation validation checked **157 files** and **2,858 local links** with
 zero errors.
 
+## Live postflight
+
+Commit `a6d624e` deployed as 0.5.67 with build
+`parf@parf.us 2026-09-17 20:57:12`. Public identity reported the same version
+and build; anonymous `/ls` remained 401.
+
+Real Chromium at 375 px rendered the live `opencode/oab@parf.us` detail and
+complete Activity views. The detail showed one combined chart with actual
+observed timestamps, a shared 0–1 scale, labelled nonzero series, an explicit
+zero-series summary, closed/open native help and the filtered complete-view
+link. The complete view retained that filter and graph. Neither page overflowed
+horizontally, and no live record was changed.
+
+The web child remained in its private PID namespace with zero effective
+capabilities, `NoNewPrivileges`, its two-value environment and the installed
+memory, swap, process and CPU limits. OpenCode confirmed same-session AgentBus
+reconnection through the restart.
+
 ## Limits
 
 This slice does not complete the planned Overview, remaining envelope
