@@ -184,6 +184,8 @@ navigation count describe a different category.
 Channel registration routes, Delivery links, create-time Kind/Delivery radios,
 and the separate **Yours** and daemon-authorized detail controls. 0.5.66 adds
 owned/Personal emphasis, one name-to-detail route and compact update time.
+0.5.67 embeds the record-scoped Activity graph and its link to the complete
+filtered view.
 Search, sort, paging and read-first detail disclosures remain pending.
 
 The title's `ⓘ` help contains the category definitions as bullets — All is
@@ -238,7 +240,7 @@ then focused edits.
 | Access | Allow list, master-refusal, and what that means in a sentence | same |
 | Subscribers (pub/sub only) | Each subscriber, linked where the caller may inspect it | same |
 | Configuration | Whether one is set, and its digest as evidence. **Never its contents** | same |
-| Activity | Compact record-scoped graphs for accepted and dequeued traffic; exceptional dropped, expired and refused series when non-zero; a link to `/activity?name=` for the complete graphs and sample table | same |
+| Activity | Compact record-scoped graph for accepted and dequeued traffic; exceptional dropped, expired and refused series when non-zero; a link to `/activity?name=` for the complete graph and sample table | same |
 
 **The read sections do not depend on edit permission.** Address, protocol, ACL
 and queue policy are already in the daemon's answer to this caller and today are
@@ -250,7 +252,7 @@ returned metadata is not.
 and channel detail request the same bounded history as
 `/activity?name=<record>`. The compact section states the observed window and
 restart boundary, summarises zero-only series instead of giving each a full
-graph, and links to **View all activity** for all five graphs and the accessible
+graph, and links to **View all activity** for the complete graph and accessible
 sample table. Users and groups get no inferred roll-up: the activity API does
 not provide a user- or group-scoped series.
 
@@ -362,13 +364,19 @@ typed is gone ([C13](review/codex.md#junk-and-misleading-content)).
 
 **Answers:** what traffic was observed, over what window?
 
+**Built in 0.5.67.** The complete page and compact record detail now share one
+presentation: actual sample-time positions, one maximum over the displayed
+nonzero series, explicit measured-zero and collecting states, restart/uptime
+context, and a partial-final-sample label. The complete page keeps the sample
+table; record detail links back with its filter retained.
+
 | Decision | |
 |---|---|
-| Shared time range across all series | five independently scaled graphs today ([C07](review/codex.md#junk-and-misleading-content)) |
-| Labelled axes, in real timestamps | evenly spaced sample indices today ([W09](../done/web-review.md#findings)) |
-| Stated units, interval, restart boundary and partial bucket | |
-| Zero series summarised, not given equal height | a zero series uses as much space as real traffic today |
-| `Maximum: 0` repeated down the page | **drop** |
+| Shared time range across all series | **built in 0.5.67**, replacing the five independently scaled graphs ([C07](review/codex.md#junk-and-misleading-content)) |
+| Labelled axes, in real timestamps | **built in 0.5.67**, replacing evenly spaced sample indices ([W09](../done/web-review.md#findings)) |
+| Stated units, interval, restart boundary and partial bucket | **built in 0.5.67** |
+| Zero series summarised, not given equal height | **built in 0.5.67** |
+| `Maximum: 0` repeated down the page | **removed in 0.5.67** |
 | Value table beside the graphs | **keep** — it is the accessible path to the numbers |
 | Absence vocabulary in the table | `0` measured zero, `¿` not observed. Before the last restart is `¿`, not `0` |
 

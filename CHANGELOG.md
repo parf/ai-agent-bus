@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.67 — 2026-09-17
+
+Embed compact record-scoped Activity graphs on service and channel detail.
+Use actual sample times, one shared scale and explicit zero/absence states.
+
 ## 0.5.66 — 2026-09-17
 
 Emphasize caller-owned and Personal service rows without conflating the two.

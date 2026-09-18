@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Record-scoped activity on resource detail | [activity history](05-discovery.md#activity-history) | 2026-09-17 owner instruction; compact detail and complete filtered view share real-time positions, scale and absence semantics in 0.5.67 |
 | Trusted person-name imports | [profiles](01-identity-and-roles.md#users-and-profiles) | 2026-09-17 implementation; local names come from the OS account database and GitHub names from the directory lookup retained with key enrolment; imports fill blanks only |
 | Nested group resolution | [group authority](01-identity-and-roles.md#groups), [upgrade behavior](09-setup.md#nested-group-upgrade) | 2026-09-17 implementation; graph reachability with cycle termination, direct-only protected Administrator membership |
 | Self-email editing and Administrator unban | [profile permissions](01-identity-and-roles.md#users-and-profiles), [user states](01-identity-and-roles.md#user-states) | 2026-09-17 implementation; users control only their own email, Administrators may unban only ordinary users |

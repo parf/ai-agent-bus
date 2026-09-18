@@ -197,6 +197,18 @@ new navigation. Their existing functionality is not deferred by this split.
 
 ### Activity history
 
+**Built in 0.5.67.** Service and channel detail embeds one compact,
+record-scoped graph and links to the same filtered `/activity` view with its
+sample table. Both views use actual sample timestamps and one scale across the
+displayed nonzero series. Zero-only series are summarized; no retained sample
+is described as collecting after restart rather than as zero. The displayed
+window, current uptime and partial final sample are stated beside the graph.
+
+The four delivery series on the unfiltered view cover records currently visible
+to the caller. Refused is node-wide for the daemon Owner and configured masters,
+and covers visible records for other callers. A named view is record-scoped for
+all five series. Dequeued means handed to a reader, never completed work.
+
 The bus samples record counters once a minute, independently of dashboard visits.
 It keeps one hour plus the baseline for differences; the dashboard also includes
 the current partial interval. History is in memory and starts fresh after restart.

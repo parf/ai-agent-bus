@@ -352,6 +352,19 @@ const head = `<!doctype html>
  .record-name-cell.personal-record .record-name,.personal-marker{color:#8a5000}
  .owned-marker{font-weight:600;color:#1d5fa8;white-space:nowrap}
  .personal-marker{font-weight:600;white-space:nowrap}
+ .activity-chart{display:block;width:100%;height:auto;max-height:14rem}
+ .activity-axis{fill:none;stroke:#87847b;stroke-width:1;vector-effect:non-scaling-stroke}
+ .activity-line{fill:none;stroke-width:2.5;vector-effect:non-scaling-stroke}
+ .activity-point{fill:#fff;stroke-width:3;vector-effect:non-scaling-stroke}
+ .activity-accepted{stroke:#1d5fa8;border-top-color:#1d5fa8}
+ .activity-output{stroke:#8a5000;border-top-color:#8a5000;stroke-dasharray:8 4}
+ .activity-dropped{stroke:#a8271b;border-top-color:#a8271b}
+ .activity-expired{stroke:#a8271b;border-top-color:#a8271b;stroke-dasharray:8 4}
+ .activity-refused{stroke:#1d5fa8;border-top-color:#1d5fa8;stroke-dasharray:2 4}
+ .activity-legend{display:flex;flex-wrap:wrap;gap:.35rem 1.25rem;padding:0;list-style:none}
+ .activity-swatch{display:inline-block;width:1.5rem;border-top:3px solid;margin-right:.35rem;vertical-align:middle}
+ .activity-swatch.activity-output,.activity-swatch.activity-expired{border-top-style:dashed}
+ .activity-swatch.activity-refused{border-top-style:dotted}
  h2{font-size:15px;margin:1.6rem 0 .4rem}
  .who{float:right;font-size:13px}
  input{font:13px ui-monospace,monospace;padding:.3rem;width:26rem;max-width:100%;box-sizing:border-box}

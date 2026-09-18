@@ -130,6 +130,8 @@ type adminView struct {
 	Owners        []string
 	Channels      bool
 	PersonalPage  bool
+	Status        core.Status
+	Activity      activityPresentation
 	SectionLinks  []viewLink
 	FilterLinks   []viewLink
 }
@@ -207,7 +209,7 @@ func (c *caller) signedIn(w http.ResponseWriter, r *http.Request) (adminView, bo
 		return v, false
 	}
 	v.pageInfo = requestInfo(r)
-	v.You, v.Administrator, v.DaemonOwner = node.You, node.Administrator, node.DaemonOwner
+	v.You, v.Administrator, v.DaemonOwner, v.Status = node.You, node.Administrator, node.DaemonOwner, node.Status
 	return v, true
 }
 
@@ -400,6 +402,13 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
 			fail(w, r, v.You, err)
 			return
+		}
+		var points []core.ActivityPoint
+		if err := c.get(cookie(r), "/activity?name="+url.QueryEscape(v.Record.Name), &points); err != nil {
+			v.Activity = activityView(nil, v.Record.Name, v.Status.Up, false)
+			v.Activity.Unavailable = err.Error()
+		} else {
+			v.Activity = activityView(points, v.Record.Name, v.Status.Up, false)
 		}
 		render(w, serviceDetail, v)
 	})
@@ -698,6 +707,8 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
  <span class=muted>— cumulative across restarts, restored from the snapshot. Dequeued is handed to a reader, which is not completed</span></p>
 <p>Registration updated: {{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{.At.Format "2006-01-02 15:04:05"}}{{end}}</p>
 <p>Configuration digest: <code>{{.ConfigSHA}}</code></p>
+{{template "activity-view" $}}
+<p><a href="/activity?name={{.Name}}">View all activity and sample values</a></p>
 {{if eq .Mode "pubsub"}}<h2>Subscriptions</h2>
 {{range .Subs}}<p>{{.}}{{if $.Record.CanManage}}<form method=post action=/service><input type=hidden name=name value="{{$.Record.Name}}"><input type=hidden name=subscriber value="{{.}}"><button name=action value=remove-subscriber>Remove subscription</button></form>{{end}}</p>{{else}}<p>No subscribers</p>{{end}}
 <form method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value=subscribe>Subscribe my inbox</button><button name=action value=unsubscribe>Unsubscribe my inbox</button></form>{{end}}
@@ -715,7 +726,7 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 {{if .CanTransfer}}{{if eq .Kind "generic"}}<h2>Classification and sharing</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=personal><p><label>Personal <input type=checkbox name=personal {{if .Personal}}checked{{end}}></label> Groups this service in the owner&rsquo;s Personal services page; it does not change access.</p><p><label>Allow, one name or <code>*</code> per line <textarea name=allow rows=5>{{join .Allow "\n"}}</textarea></label></p><p><label>Maintainers, one user, group, agent or service per line <textarea name=maintainers rows=5>{{join .Maintainers "\n"}}</textarea></label></p><p class=muted>When Personal is checked, Allow may name only other registered services directly. Users, groups, <code>*</code>, this service and Maintainers are refused. Clear Personal in this same form before adding any of them.</p><button>Save classification and sharing</button></form>{{else}}<h2>Maintainers</h2><form method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=maintainers><label>One user, group, agent or service per line <textarea name=maintainers rows=5>{{join .Maintainers "\n"}}</textarea></label><button>Assign</button></form>{{end}}
 {{end}}
 <p><a class=danger href="/service-danger?name={{.Name}}">Danger Zone</a></p>
-{{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}`))
+{{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}` + activityViewTemplate))
 var serviceDanger = template.Must(template.New("service-danger").Funcs(template.FuncMap{"readerCount": readerCount, "titleMark": titleMark}).Parse(shell("records", "Danger Zone") + `
 {{with .Record}}<p><a href="/service?name={{.Name}}">Back to {{.Name}}</a></p>
 <div class=page-title><h1>{{titleMark "problem"}} Danger Zone · {{.Name}}</h1></div>
