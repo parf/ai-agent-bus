@@ -106,8 +106,8 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 	if !strings.Contains(personal, "alice-personal@h") || strings.Contains(personal, "alice-normal@h") || strings.Contains(personal, "bob-personal@h") {
 		t.Fatalf("ordinary Personal page is not the owner's Personal-only view: %s", personal)
 	}
-	if !strings.Contains(personal, `<a href=/personal aria-current=page>`) || strings.Count(personal, "aria-current=page>") != 1 {
-		t.Fatal("Personal navigation is not the one current entry")
+	if !strings.Contains(personal, `<a href=/services aria-current=page>`) || strings.Count(personal, "aria-current=page>") != 1 {
+		t.Fatal("Services navigation is not the one current entry for its Personal subview")
 	}
 	if !strings.Contains(personal, `class="record-name-cell owned-record personal-record"`) || strings.Contains(personal, "Yours") || !strings.Contains(personal, `class=personal-marker>Personal</span>`) {
 		t.Fatal("caller-owned Personal row does not keep both visible distinctions")
@@ -121,7 +121,7 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 		t.Fatal("Personal grouping changed channels or their current navigation")
 	}
 	detail, _ := p.request("alice@h", "GET", "/service?name=alice-personal%40h", nil, 200)
-	if !strings.Contains(detail, "alice-personal@h") || !strings.Contains(detail, "· Personal") || !strings.Contains(detail, `<a href=/personal aria-current=page>`) {
+	if !strings.Contains(detail, "alice-personal@h") || !strings.Contains(detail, "· Personal") || !strings.Contains(detail, `<a href=/services aria-current=page>`) {
 		t.Fatal("direct Personal detail is not reachable and labelled")
 	}
 

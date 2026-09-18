@@ -91,12 +91,11 @@ Four, and the fourth is the one that is usually forgotten.
 Empty is designed per page, not once: an empty Channels page must explain what a
 channel is, or the Services/Channels split reads as a bug.
 
-## Interaction without script
+## Native interaction and the one local behavior
 
-The owner has settled that there is no enhancement layer
-([README](README.md#settled-direction)). That is not the 2023 version of the
-constraint — the declarative pieces landed since then, and the plan uses them by
-name rather than reinventing them:
+The dashboard has no enhancement layer. One repository-owned script submits
+marked selectors on change; without it, the same GET form exposes an Apply
+button. Everything else uses native controls:
 
 | Native | Used for |
 |---|---|

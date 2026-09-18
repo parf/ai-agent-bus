@@ -392,7 +392,7 @@ labelled, and the third is a defect rather than a limit:
 
 | | |
 |---|---|
-| **The window is one hour, hard** | 61 minute-samples. Any claim about a trend is a claim about at most sixty minutes and must say so. Nothing longer is answerable from this data |
+| **The window is about 24 hours** | 145 readings at a ten-minute cadence: one baseline plus up to 144 intervals. The current partial interval may be shorter. No sub-minute trend is claimed |
 | **A restart empties the history** | `Restore` puts records and queue counters back and **never restores `b.activity`** — activity_test.go:50–53 asserts exactly that. So a restart leaves the series *absent*, not zero: there is no earlier sample to take a delta against, and everything before the boundary is `¿`. The face still needs `Status.Up` to say where the boundary was, because a short series and a quiet hour look alike. **The draft said a restart clamps to a zero bucket; it does not** — codex's correction of a claim I took from review without checking it against the one already in our own dictionary |
 | **A removed record vanishes retroactively** | `total()` iterates the **current** `b.records` for every sample, so a removed record leaves the whole series at once — past buckets included. Two records contributing 2 and 1: remove the first and the historical aggregate reads 1 where it read 3, with nothing marking the change. Stated within one process, which is the only place retained history exists — a restart illustration would contradict itself, since a restart clears the history entirely. **It does not produce a negative delta or a clamped zero**: `prev` and `next` are computed over the same population, so the aggregate simply steps down. I attributed the `max(0, …)` clamp first to restarts and then to removals; neither holds, and the clamp needs no explanation here — codex |
 | **The scope switches inside one series** | `total()` sums `Refused` over records the caller may see, but for an unfiltered admin or master view node-wide `s.refused` **replaces** that sum (activity.go:98–99). One series, two meanings, chosen by who is looking. A single static label is wrong for one of the two audiences — and it is invisible when an admin tests it. The label is computed from the view, never fixed in the template |
@@ -446,6 +446,9 @@ A dedicated registration form reached from the Users section navigation.
 Fields and results are owned by the [forms inventory](forms.md#the-set).
 The route, conditional entry and new-user detail redirect are built in 0.5.64;
 field-level invalid-input preservation remains part of the larger journey.
+SSH public keys are host onboarding state rather than profile fields. The form
+links that fact to `agent-bus-admin user add <user@realm> <key.pub>` in compact
+help and never invents a web-writable key field.
 
 ## User `/user?name=`
 

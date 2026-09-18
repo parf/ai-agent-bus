@@ -1958,16 +1958,16 @@ for _ in $(seq 1 50); do curl -s -o /dev/null "$WEB/" && break; sleep 0.1; done
 ANON=$(curl -s "$WEB/")
 has "an anonymous visitor gets the sign-in form" "$ANON" 'name=token'
 has "the login header includes its inline bus logo" "$ANON" '<svg class=node-logo'
-has "the login header names the node release" "$ANON" "AgentBus V$(cat internal/version/VERSION)"
-has "the login header names the daemon owner" "$ANON" "owner: <code>$OWNER</code>"
-has "the login header shows uptime" "$ANON" '<strong>uptime</strong>: [0-9][0-9a-z.]*</span>'
-has "the login header reports sampled minute calls" "$ANON" '<strong>calls</strong>: minute: [0-9][0-9]*'
-has "the login header reports sampled hour calls" "$ANON" 'hour: [0-9][0-9]*'
-has "the login header reports total calls" "$ANON" 'total: [0-9][0-9]*'
+has "the login header names the node release" "$ANON" "AgentBus <span class=build-tip.*>v$(cat internal/version/VERSION)</span>"
+has "the login footer names the daemon owner" "$ANON" "<strong>Owner</strong> <code>$OWNER</code>"
+has "the login footer shows uptime" "$ANON" '<strong>Uptime</strong> [0-9][0-9a-z.]*</span>'
+has "the login footer reports sampled minute calls" "$ANON" '<strong>Calls</strong> minute: [0-9][0-9]*'
+has "the login footer reports sampled hour calls" "$ANON" 'hour: [0-9][0-9]*'
+has "the login footer reports total calls" "$ANON" 'total: [0-9][0-9]*'
 lacks "observed spans stay out of the header" "$ANON" '(observed '
 lacks "the footer has no About section or repeated version" "$ANON" 'About call counts\|Web <code>v'
 lacks "OS and inbox readings are removed" "$ANON" 'Host load\|About load readings\|accepted /\|dequeued'
-has "the login footer identifies the shared build once" "$ANON" 'Build: <code>'
+has "the login version tooltip identifies the daemon build once" "$ANON" 'title="Build daemon [^"]*"'
 lacks "identical builds are not repeated" "$ANON" 'Daemon build:\|Web build:'
 # Node identity and sampled request counts are public; registry contents stay private.
 # See docs/05-discovery.md#what-a-node-says-about-itself.

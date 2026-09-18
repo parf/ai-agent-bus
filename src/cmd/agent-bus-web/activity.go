@@ -22,6 +22,7 @@ type activitySeries struct {
 type activityPresentation struct {
 	Scope, Start, End, Observed, Uptime string
 	Named, ShowTable                    bool
+	AllZero                             bool
 	Max                                 int
 	Series                              []activitySeries
 	Zero                                []string
@@ -76,6 +77,7 @@ func activityView(points []core.ActivityPoint, scope, uptime string, table bool)
 			v.Zero = append(v.Zero, metric.label)
 		}
 	}
+	v.AllZero = len(v.Zero) == len(activityMetrics)
 	for i, metric := range activityMetrics {
 		if maxima[i] == 0 {
 			continue
@@ -98,20 +100,20 @@ func activityView(points []core.ActivityPoint, scope, uptime string, table bool)
 	return v
 }
 
-const activityViewTemplate = `{{define "activity-help"}}<ul><li>The daemon keeps at most one hour of in-memory history and starts fresh after restart.</li><li>Samples are usually about one minute apart; the visible timestamps are the measured interval.</li><li>Dequeued means handed to a reader, not completed work.</li><li>Zero is measured; collecting history means no interval has been observed yet.</li></ul>{{end}}
+const activityViewTemplate = `{{define "activity-help"}}<ul><li>The daemon keeps about 24 hours of in-memory history and starts fresh after restart.</li><li>Samples are usually about ten minutes apart; the visible timestamps are the measured interval.</li><li>The current, partial interval may be shorter than ten minutes.</li><li>On an unfiltered view, Refused is node-wide for the daemon Owner or a configured master and covers visible records for other callers.</li><li>Dequeued means handed to a reader, not completed.</li><li>Zero is measured; collecting history means no interval has been observed yet.</li></ul>{{end}}
 {{define "activity-view"}}{{with .Activity}}
-{{if not .ShowTable}}<div class=page-title><h2>Activity</h2><button type=button class=help-button popovertarget=record-activity-help aria-label="About this activity history">ⓘ</button></div><div popover id=record-activity-help class=context-help><h2>About activity</h2>{{template "activity-help" .}}</div>{{end}}
+{{if not .ShowTable}}<div class=page-title><h2>Activity</h2><button type=button class=help-button popovertarget=record-activity-help aria-label="About this activity history" data-tooltip="About 24 hours in memory, sampled about every 10 minutes and reset on restart. The final interval may be shorter; Dequeued is not completion.">ⓘ</button></div><div popover id=record-activity-help class=context-help><h2>About activity</h2>{{template "activity-help" .}}</div>{{end}}
 {{if .Unavailable}}<p class=muted>Activity unavailable: {{.Unavailable}}</p>
 {{else if .Points}}
-<p>{{if .Named}}Scope: <code>{{.Scope}}</code>{{else}}Scope: currently visible records. On this unfiltered view, Refused is node-wide for the daemon Owner or a configured master and covers visible records for other callers{{end}}. Observed {{.Start}} to {{.End}} ({{.Observed}}). Counts are per sample; the final sample is partial.</p>
-<p class=muted>History starts fresh after a daemon restart; current uptime is {{if .Uptime}}{{.Uptime}}{{else}}unavailable{{end}}. Dequeued means handed to a reader, not completed.</p>
+<p>{{if .Named}}Scope: <code>{{.Scope}}</code> · {{else}}Scope: visible records · {{end}}Observed {{.Start}} to {{.End}} ({{.Observed}}) · final interval partial.</p>
+{{if .ShowTable}}<p class=muted>Cadence: about 10 minutes · Window: up to 24 hours · Uptime: {{if .Uptime}}{{.Uptime}}{{else}}unavailable{{end}}.</p>{{end}}
 {{if .Series}}<figure class=activity-figure><svg class=activity-chart viewBox="0 0 640 170" role=img aria-label="Activity per sample from {{.Start}} to {{.End}}; shared maximum {{.Max}} over the displayed nonzero series">
 <path class=activity-axis d="M50 25 V125 H610"/><text x=10 y=30>{{.Max}}</text><text x=34 y=130>0</text><text x=50 y=152>{{.Start}}</text><text x=610 y=152 text-anchor=end>{{.End}}</text>
 {{range .Series}}<polyline class="activity-line {{.Class}}" points="{{.Points}}"/>{{if .Single}}<circle class="activity-point {{.Class}}" cx="{{.X}}" cy="{{.Y}}" r=4/>{{end}}{{end}}</svg>
 <figcaption>Shared scale: 0–{{.Max}} per sample over the displayed nonzero series.</figcaption>
 <ul class=activity-legend>{{range .Series}}<li><span class="activity-swatch {{.Class}}" aria-hidden=true></span>{{.Label}}: {{.Total}} in the shown samples</li>{{end}}</ul></figure>
-{{else}}<p>All five observed activity series are measured zero in this window.</p>{{end}}
-{{with .Zero}}<p class=muted>Measured zero throughout: {{join . ", "}}.</p>{{end}}
+{{else}}<p>All five series: <strong>0</strong> in this window.</p>{{end}}
+{{if not .AllZero}}{{with .Zero}}<p class=muted>Measured zero: {{join . ", "}}.</p>{{end}}{{end}}
 {{if .ShowTable}}<details><summary>Sample values</summary><table><thead><tr><th scope=col>Time<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Dropped<th scope=col class=num>Expired<th scope=col class=num>Refused</tr></thead><tbody>{{range .Points}}<tr><td>{{.At.Format "Jan 2 15:04:05"}}<td class=num>{{.In}}<td class=num>{{.Out}}<td class=num>{{.Dropped}}<td class=num>{{.Expired}}<td class=num>{{.Refused}}</tr>{{end}}</tbody></table></details>{{end}}
 {{else}}<p>Activity history is not observed yet. Collecting the first sample after this daemon restart{{if .Uptime}} (uptime: {{.Uptime}}){{end}}; no zero series is inferred.</p>{{end}}
 {{end}}{{end}}`
@@ -144,5 +146,5 @@ func (c *caller) activityRoutes(mux *http.ServeMux) {
 var activityPage = template.Must(template.New("activity").Funcs(template.FuncMap{"join": strings.Join, "titleMark": titleMark}).Parse(shell("activity", "Activity graphs") + `
 <div class=page-title><h1>{{titleMark "activity"}} Activity graphs</h1><button type=button class=help-button popovertarget=activity-help aria-label="About activity history">ⓘ</button></div>
 <div popover id=activity-help class=context-help><h2>About activity</h2>{{template "activity-help" .}}</div>
-<form method=get><label>Service or channel <select name=name><option value="">All visible</option>{{range .Records}}<option value="{{.Name}}" {{if eq .Name $.Name}}selected{{end}}>{{.Name}}</option>{{end}}</select></label><button>Filter</button></form>
+<form method=get><label>Service or channel <select name=name data-submit-on-change><option value="">All visible</option>{{range .Records}}<option value="{{.Name}}" {{if eq .Name $.Name}}selected{{end}}>{{.Name}}</option>{{end}}</select></label><noscript><button>Apply</button></noscript></form>
 {{template "activity-view" .}}` + activityViewTemplate))

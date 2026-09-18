@@ -194,7 +194,7 @@ func runBus(c config) {
 		}()
 	}
 	bus.SampleActivity(time.Now())
-	activityTick := time.NewTicker(time.Minute)
+	activityTick := time.NewTicker(core.ActivityInterval)
 	activityDone := make(chan struct{})
 	go func() {
 		for {

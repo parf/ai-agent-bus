@@ -80,6 +80,10 @@ func dashboard(bus *caller, tls bool) http.Handler {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+	mux.HandleFunc("GET /ui.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		io.WriteString(w, uiScript)
+	})
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -172,7 +176,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
 		if r.Method == http.MethodPost {
 			if r.Header.Get("Origin") != "" && !sameOrigin(r, tls) {
 				http.Error(w, "same-origin form required", http.StatusForbidden)
@@ -180,7 +184,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		}
-		if r.URL.Path != "/healthz" && r.URL.Path != "/avatar" && r.URL.Path != "/signout" {
+		if r.URL.Path != "/healthz" && r.URL.Path != "/ui.js" && r.URL.Path != "/avatar" && r.URL.Path != "/signout" {
 			r = bus.pageRequest(r)
 		}
 		mux.ServeHTTP(w, r)
@@ -321,14 +325,18 @@ func env(k, def string) string {
 	return def
 }
 
-// No JavaScript, no assets, nothing fetched from anywhere: a view of the bus
-// should not need a build step to read, and the first external asset added
-// for a chart would inherit a signed-in master's whole envelope feed.
-// See docs/05-discovery.md#rules-it-is-built-to.
+// This repository-owned behavior submits compact selectors as soon as their
+// value changes. State still lives in ordinary URLs and server-rendered forms.
+const uiScript = `document.addEventListener("change", function (event) {
+  var control = event.target.closest("[data-submit-on-change]");
+  if (control && control.form) control.form.requestSubmit();
+});`
+
 const head = `<!doctype html>
 <html lang=en>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script defer src=/ui.js></script>
 <style>
  body{font:14px system-ui,sans-serif;margin:2rem;max-width:60rem}
  table{border-collapse:collapse;width:100%;margin-bottom:2rem}
@@ -344,21 +352,17 @@ const head = `<!doctype html>
  [aria-invalid=true]{border-color:#b00}
  a.danger{color:#b00;font-weight:600}
  .page-title{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
- .page-title h1{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;min-width:0;margin-right:auto}
+ .page-title h1{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;min-width:0}
  .page-title-mark{display:inline-block;flex:none;vertical-align:middle;font-size:1em;line-height:1}
- .help-button{width:auto;border:1px solid #777;border-radius:50%;background:transparent;padding:.1rem .4rem;font-weight:700}
+ .help-button{position:relative;width:auto;border:1px solid #777;border-radius:50%;background:transparent;padding:.1rem .4rem;font-weight:700}
+ .help-button:hover::after,.help-button:focus-visible::after{content:attr(aria-label);position:absolute;z-index:20;left:calc(100% + .45rem);top:50%;transform:translateY(-50%);width:max-content;max-width:18rem;padding:.3rem .5rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--text-1);color:var(--surface-1);font-size:.75rem;font-weight:500;line-height:1.3;text-align:left;pointer-events:none}
+ .help-button[data-tooltip]:hover::after,.help-button[data-tooltip]:focus-visible::after{content:attr(data-tooltip);width:24rem;max-width:min(24rem,70vw);white-space:normal}
  .context-help{max-width:30rem;border:1px solid #777;padding:1rem;box-shadow:0 .25rem 1rem #0003}
  .context-help h2{margin-top:0}.context-help li+li{margin-top:.45rem}
- .section-nav,.filter-nav{display:flex;flex-wrap:wrap;gap:.35rem 1rem;margin:.5rem 0 1rem}
- .section-nav a[aria-current],.filter-nav a[aria-current]{font-weight:700;text-decoration:none;border-bottom:2px solid currentColor}
- .section-nav .my-view{color:#1d5fa8}
- .section-nav .personal-view{color:#8a5000;font-weight:700}
- .record-name-cell{border-left:3px solid transparent}
- .record-name-cell.owned-record{border-left-color:#1d5fa8}
- .record-name-cell.owned-record .record-name{color:#1d5fa8;font-weight:600}
- .record-name-cell.personal-record{border-left-color:#8a5000}
- .record-name-cell.personal-record .record-name,.personal-marker{color:#8a5000;font-weight:700}
- .personal-marker{white-space:nowrap}
+.section-nav,.filter-nav{display:flex;flex-wrap:wrap;gap:.35rem 1rem;margin:.5rem 0 1rem}
+.section-nav a[aria-current],.filter-nav a[aria-current]{font-weight:700;text-decoration:none;border-bottom:2px solid currentColor}
+.record-name-cell{border-left:3px solid transparent}
+.personal-marker{white-space:nowrap}
  .identity-with-photo{display:flex;align-items:center;gap:.55rem}
  .profile-photo,.profile-initial{width:2rem;height:2rem;border-radius:50%;flex:none}
  .profile-photo{object-fit:cover}
@@ -393,14 +397,104 @@ const head = `<!doctype html>
  nav{line-height:2}
  nav a[aria-current=page]{font-weight:700;text-decoration:none}
  :focus-visible{outline:2px solid #253c66;outline-offset:2px}
- /* A phone is not a narrow desktop: the gutter shrinks and only a genuinely
+ :root{--surface-1:#fbfbf9;--surface-2:#f2f2ee;--surface-3:#e8e7e2;--border:#d2d0c9;--border-strong:#87847b;--text-1:#1a1a17;--text-2:#56544c;--accent:#1d5fa8;--red:#a8271b;--orange:#8a5000}
+ *{box-sizing:border-box}
+ html{background:var(--surface-1);color:var(--text-1)}
+ body{margin:0;max-width:none;background:var(--surface-1);color:var(--text-1);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+ a{color:var(--accent)}
+main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
+.site-header{grid-template-columns:64px minmax(0,1fr);column-gap:1rem;margin:0;padding:.75rem max(1rem,calc((100vw - 104rem)/2 + 1rem));border-color:var(--border);background:var(--surface-1);overflow:visible}
+ .node-logo{width:64px;height:auto}
+ .node-summary{gap:.5rem 1rem;margin:0;font-size:.875rem;overflow-x:auto}
+ .node-navigation{display:flex;align-items:center;gap:1.5rem;min-width:0}
+ .node-navigation nav{display:flex;align-items:center;gap:1.5rem;line-height:2.4;overflow-x:auto}
+ .node-navigation nav a{color:var(--text-1);text-decoration:none;border-bottom:3px solid transparent}
+ .node-navigation nav a[aria-current=page]{color:var(--accent);border-bottom-color:var(--accent)}
+ .who{float:none;order:2;margin:0 0 0 auto;font-size:.875rem}
+ .who button{margin-left:.5rem}
+.site-footer{max-width:104rem;margin:2rem auto 0;padding:1rem;border-color:var(--border);color:var(--text-2)}
+.footer-node{display:flex;flex-wrap:wrap;gap:.35rem 1.25rem;margin-bottom:.35rem}
+.build-tip{text-decoration:underline dotted;text-underline-offset:.2em;cursor:help}
+.page-title{margin-bottom:.5rem}
+ .page-title h1{font-size:1.75rem;line-height:1.2;margin:.5rem 0}
+ .page-title-mark{font-size:1.35em}
+ .help-button{border-color:var(--border-strong);color:var(--text-2);cursor:pointer}
+ .context-help{border-color:var(--border-strong);border-radius:6px;background:var(--surface-1);box-shadow:none}
+ .section-nav{gap:.5rem 1.5rem;margin:.25rem 0 1.25rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+ .section-nav a,.filter-nav a{font-weight:600;text-underline-offset:.2em}
+.section-nav a[aria-current],.filter-nav a[aria-current]{border-bottom:3px solid currentColor}
+.section-nav .my-view{color:var(--accent);font-weight:600}
+.section-nav .personal-view{color:var(--orange);font-weight:600}
+.record-name-cell.owned-record{border-left-color:var(--accent)}
+.record-name-cell.personal-record{border-left-color:var(--orange)}
+.record-toolbar{margin:0 0 1rem;padding:1rem;border-radius:6px;background:var(--surface-2)}
+.record-search{display:grid;grid-template-columns:minmax(18rem,1fr) auto auto minmax(10rem,auto) auto;align-items:center;gap:.75rem;margin:0}
+ .record-search input[type=search]{width:100%;font:inherit;background:var(--surface-1)}
+ .record-search input,.record-search select,.record-search button{min-height:2.35rem;border:1px solid var(--border-strong);border-radius:3px}
+ .record-search button{color:#fff;background:var(--accent);border-color:var(--accent);font-weight:600;padding-inline:1rem}
+.record-choices{display:flex;flex-wrap:wrap;gap:.35rem 1.5rem;align-items:center}
+ .filter-nav{align-items:center;gap:.35rem;margin:0}
+ .filter-nav>span{font-weight:600;color:var(--text-2);margin-right:.25rem}
+ .filter-nav a{padding:.28rem .65rem;border:1px solid var(--border);border-radius:3px;text-decoration:none;background:var(--surface-1)}
+ .filter-nav a[aria-current]{color:#fff;background:var(--accent);border-color:var(--accent)}
+ table{margin-bottom:2rem}
+ caption{text-align:left;color:var(--text-2);padding:.25rem 0 .65rem}
+ th{font-size:.75rem;letter-spacing:.02em;color:var(--text-2);background:var(--surface-3)}
+ th,td{padding:.55rem .7rem;border-color:var(--border);vertical-align:middle}
+ .record-table{font-size:.875rem}
+ .record-table tbody tr:hover{background:var(--surface-2)}
+ .record-name-cell{min-width:15rem;padding-left:.9rem}
+ .record-name{display:inline-flex;flex-direction:column;gap:.08rem;text-decoration:none}
+ .record-name:hover .record-description{text-decoration:underline}
+ .record-description{font:600 .9rem/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:inherit}
+ .record-name code{font-size:.75rem;line-height:1.3;color:var(--text-2)}
+ .record-name-cell.owned-record .record-name{color:var(--accent);font-weight:600}
+ .record-name-cell.personal-record .record-name,.personal-marker{color:var(--orange);font-weight:600}
+ .personal-marker{display:inline-block;margin-top:.2rem;font-size:.75rem}
+ .status-glyph{font-size:1rem;line-height:1;white-space:nowrap}
+.editor-card{max-width:64rem;margin:1rem 0;padding:1.25rem;border:1px solid var(--border);border-radius:6px;background:var(--surface-1)}
+ .editor-card h2{margin-top:0;font-size:1.1rem}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem 1.25rem}
+.form-field{display:flex;flex-direction:column;gap:.3rem;font-weight:600}
+ .form-field input{width:100%;min-height:2.45rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-1)}
+ .form-field small{font-weight:400;color:var(--text-2)}
+.form-field-wide{grid-column:1/-1}
+.form-actions{display:flex;align-items:center;gap:.75rem;margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)}
+ .form-actions button{color:#fff;background:var(--accent);border:1px solid var(--accent);border-radius:3px;font-weight:600;padding:.5rem 1rem}
+.credential-note{max-width:64rem;margin:1rem 0;padding:.9rem 1rem;border-left:4px solid var(--accent);background:var(--surface-2)}
+ .credential-note p{margin:.25rem 0}
+.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+@media (max-width:70rem){
+ .record-search{grid-template-columns:minmax(16rem,1fr) auto minmax(10rem,auto) auto}
+ .record-choices{grid-column:1/-1;grid-row:2}
+}
+/* A phone is not a narrow desktop: the gutter shrinks and only a genuinely
     wide table scrolls, rather than the whole page.
     See docs/05-discovery.md#rules-it-is-built-to. */
  @media (max-width:40rem){
-  body{margin:1rem}
-  .who{float:none;display:block;margin-bottom:.5rem}
-  input{width:100%}
-  table{display:block;overflow-x:auto}
+  body{margin:0}
+  main{padding:1rem}
+  .site-header{grid-template-columns:48px minmax(0,1fr);padding:.75rem 1rem}
+  .node-logo{width:48px}
+  .node-summary{white-space:nowrap}
+  .node-navigation{display:block}
+  .node-navigation nav{gap:1rem}
+  .who{display:block;margin:.25rem 0}
+ input{width:100%}
+ .record-search{grid-template-columns:1fr auto}
+ .record-search input[type=search]{grid-column:1/-1}
+ .record-choices{grid-column:1/-1;grid-row:auto}
+  .record-search label{justify-self:start}
+  .record-table,.record-table tbody,.record-table tr,.record-table td{display:block;width:100%}
+  .record-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  .record-table tr{border-bottom:1px solid var(--border);padding:.5rem 0}
+  .record-table td{border:0;padding:.2rem .6rem;text-align:left}
+  .record-table td[data-label]::before{content:attr(data-label) ": ";font-weight:600;color:var(--text-2)}
+  .record-table td.num{text-align:left}
+  .record-name-cell{min-width:0}
+  .form-grid{grid-template-columns:1fr}
+  .form-field-wide{grid-column:auto}
+  table:not(.record-table){display:block;overflow-x:auto}
  }
 </style>
 `
@@ -409,12 +503,11 @@ const head = `<!doctype html>
 // diagnostics page and adminNav on every other — which is how sign-out came to
 // exist on one page only (Plans/MVP/done/web-review.md W01).
 var navItems = []struct{ Href, Label, Key string }{
-	{"/services", "Registered services", "services"},
-	{"/personal", "Personal services", "personal"},
+	{"/services", "Services", "services"},
 	{"/channels", "Channels", "channels"},
 	{"/users", "Users", "users"},
 	{"/groups", "Groups", "groups"},
-	{"/activity", "Activity graphs", "activity"},
+	{"/activity", "Activity", "activity"},
 	{"/", "Diagnostics", "diagnostics"},
 }
 
@@ -433,12 +526,13 @@ func shell(key, title string) string {
 	nav.WriteString(frameHeader)
 	nav.WriteString(`<div class=node-navigation><form method=post action=/signout class=who><code>{{.You}}</code> <button type=submit>sign out</button></form>` + "\n")
 	nav.WriteString("<nav aria-label=\"sections\">")
-	for i, item := range navItems {
-		if i > 0 {
-			nav.WriteString(" \u00b7 ")
-		}
+	for _, item := range navItems {
 		if key == "records" && (item.Key == "services" || item.Key == "personal" || item.Key == "channels") {
-			nav.WriteString(`{{if eq .Current "` + item.Key + `"}}<a href=` + item.Href + ` aria-current=page>{{else}}<a href=` + item.Href + `>{{end}}` + item.Label + `</a>`)
+			if item.Key == "services" {
+				nav.WriteString(`{{if or (eq .Current "services") (eq .Current "personal")}}<a href=` + item.Href + ` aria-current=page>{{else}}<a href=` + item.Href + `>{{end}}` + item.Label + `</a>`)
+			} else {
+				nav.WriteString(`{{if eq .Current "` + item.Key + `"}}<a href=` + item.Href + ` aria-current=page>{{else}}<a href=` + item.Href + `>{{end}}` + item.Label + `</a>`)
+			}
 			continue
 		}
 		nav.WriteString("<a href=" + item.Href)

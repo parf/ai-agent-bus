@@ -114,7 +114,7 @@ with slight letter-spacing rather than a third weight or a fourth colour.
 interacts badly with the 200% zoom requirement — the viewport-relative term
 resists the zoom it is supposed to respond to — and a table's density should
 follow its container, which is what container queries are for
-([components](components.md#interaction-without-script)). Fixed steps, container
+([components](components.md#native-interaction-and-the-one-local-behavior)). Fixed steps, container
 queries for density.
 
 **Tabular figures everywhere numbers are compared**: `font-variant-numeric:

@@ -17,5 +17,10 @@ rhythm.
 
 ![Option 3 — Services page](img/services-option-3.png)
 
-Choose one option as the visual target, or name parts to combine before
-implementation.
+## Selected direction
+
+Option 2 is the visual target. Option 1 supplies the denser operational content.
+The implemented direction keeps description then routing name, My/Personal
+colour hierarchy, delivery glyphs, a near-full-width table, compact help, and
+node version/build identity in the shared shell. Build detail is the Version
+tooltip; owner, uptime and calls remain compact operational facts.

@@ -176,7 +176,7 @@ func TestDeliveryIsEnabledOrDisabledAndNeverInactive(t *testing.T) {
 	// listing that labels every record Enabled.
 	listing := m.get("/services")
 	for _, want := range []struct{ name, cell string }{
-		{"off@h", "<td>Disabled"}, {"quiet@h", "<td>Enabled"},
+		{"off@h", "aria-label=Disabled"}, {"quiet@h", "aria-label=Enabled"},
 	} {
 		if !strings.Contains(m.row(listing, want.name), want.cell) {
 			t.Errorf("%s has no %q cell: %s", want.name, want.cell, m.row(listing, want.name))
@@ -215,10 +215,10 @@ func TestReadersAreObservedAndNeverCalledOfflineOrServing(t *testing.T) {
 			t.Errorf("the listing says %q, which is health language the daemon does not supply", banned)
 		}
 	}
-	if !strings.Contains(m.row(body, "reading@h"), "Enabled<td class=num>1<td>") {
+	if !strings.Contains(m.row(body, "reading@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>1") {
 		t.Errorf("the outstanding read is not counted: %s", m.row(body, "reading@h"))
 	}
-	if !strings.Contains(m.row(body, "quiet@h"), "Enabled<td class=num>0<td>") {
+	if !strings.Contains(m.row(body, "quiet@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>0") {
 		t.Errorf("the measured zero is not shown: %s", m.row(body, "quiet@h"))
 	}
 	if !strings.Contains(body, "None of it is health") {
@@ -234,7 +234,7 @@ func TestNumericTableColumnsAreRightAligned(t *testing.T) {
 	}
 	m.bus.SampleActivity(time.Now())
 	for path, wants := range map[string][]string{
-		"/services": {`th.num,td.num{text-align:right`, `<th scope=col class=num>Readers`, `<th scope=col class=num>Queued`, `<td class=num>0`},
+		"/services": {`th.num,td.num{text-align:right`, `<th scope=col class=num>Readers`, `<th scope=col class=num>Queued`, `<td class=num data-label=Readers>0`},
 		"/activity": {`<th scope=col class=num>Accepted`, `<th scope=col class=num>Refused`, `<td class=num>0`},
 		"/": {`<th scope=col class=num>count`, `<th scope=col class=num>readers`, `<th scope=col class=num>held now`,
 			`<th scope=col class=num>oldest held`, `<th scope=col class=num>Envelopes`, `<th scope=col class=num>accepted`,
@@ -287,7 +287,7 @@ func TestExternalDoesNotStandInForTheReaderObservation(t *testing.T) {
 	if !strings.Contains(row, "external") {
 		t.Error("the external record's own row does not say so")
 	}
-	if !strings.Contains(row, "Enabled<td class=num>1<td>external") {
+	if !strings.Contains(row, "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>1<td data-label=Reached>external") {
 		t.Errorf("the external record's row does not keep the separate reader count: %s", row)
 	}
 	if !strings.Contains(m.get("/service?name=elsewhere@h"), "not proof of anything") {
@@ -833,7 +833,7 @@ func TestPubSubAndQueueDeliveryAreNamedAndNeitherIsGuessed(t *testing.T) {
 	// Both records are enabled, so the declared mode cannot be being read off
 	// the disabled bit that the listing calls Delivery.
 	for _, name := range []string{"fanout@h", "onebyone@h"} {
-		if !strings.Contains(m.row(m.get("/channels"), name), "<td>Enabled") {
+		if !strings.Contains(m.row(m.get("/channels"), name), "aria-label=Enabled") {
 			t.Errorf("%s is not enabled, so its mode and its delivery state are not separable here", name)
 		}
 	}
@@ -853,7 +853,7 @@ func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 	if !strings.Contains(m.row(body, "quiet@h"), "<td class=num>0<td class=num>1<td class=num>") {
 		t.Errorf("the backlog does not show readers=0 and held=1: %s", m.row(body, "quiet@h"))
 	}
-	if !strings.Contains(m.row(m.get("/services"), "reading@h"), "Enabled<td class=num>1<td>") {
+	if !strings.Contains(m.row(m.get("/services"), "reading@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>1") {
 		t.Error("an unfiltered read is not counted")
 	}
 	// A read restricted to a topic is counted while a nonmatching backlog stays.
@@ -938,10 +938,10 @@ func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "svc@h", Body: "x"}); err == nil {
 		t.Fatal("the fixture's send was accepted, so there is nothing to misreport")
 	}
-	if !strings.Contains(m.get("/service?name=svc@h"), "Delivery: <strong>Enabled</strong>") {
+	if !strings.Contains(m.get("/service?name=svc@h"), "aria-label=\"Enabled\" title=\"Enabled\">🔛") {
 		t.Fatal("the fixture no longer produces an enabled record whose sends are refused")
 	}
-	if !strings.Contains(m.row(m.get("/services"), "svc@h"), "<td>Enabled") {
+	if !strings.Contains(m.row(m.get("/services"), "svc@h"), "aria-label=Enabled") {
 		t.Fatal("the listing no longer shows the record as enabled")
 	}
 	// On both pages. Correcting the detail page and leaving the listing's

@@ -24,28 +24,27 @@ What it buys is that the *structural* obligations stop being discipline.
 | | |
 |---|---|
 | Cost | One codegen step in `build.sh`, one dependency, one migration of nine templates |
-| Not affected | The rendered output, the no-script rule, the process boundary, the wire |
+| Not affected | The rendered output, the process boundary, the wire |
 | If refused | `html/template` with a strict partial contract. The design is identical; consistency becomes discipline rather than a guarantee |
 
-**This was deliberately decided apart from the script question.** `templ` is
-server-side rendering and buys no JavaScript. Both peers raised, independently,
-that "modern Go" must not be allowed to smuggle in a relaxation of the script
-rule, and the owner's two answers were taken separately for that reason.
+**This was deliberately decided apart from browser behavior.** `templ` is
+server-side rendering and does not require client JavaScript.
 
 ## Script
 
-None. The [no-script rule](../../../docs/05-discovery.md#rules-it-is-built-to)
-stands unchanged, and no page, component or asset introduces one.
+One small repository-owned script submits marked `<select>` controls on change.
+It reads no page data, stores nothing, makes no request of its own and has no
+third-party dependency. The same GET forms expose Apply inside `noscript`.
 
 The reasoning that decided it, beyond the rule's own: not one of the seventeen
 audit findings or sixteen inventory findings is fixed by partial DOM updates.
 They are information architecture, form design, state language and data shape.
-An enhancement layer would have bought motion on a dashboard whose problems are
-all about what it says.
+An enhancement layer would still buy motion on a dashboard whose problems are
+mostly about what it says, so none is adopted.
 
 The declarative platform has also moved. Menus, disclosures and modals are
 authorable without script since invoker commands reached cross-browser support
-in December 2025 ([components](components.md#interaction-without-script)). The
+in December 2025 ([components](components.md#native-interaction-and-the-one-local-behavior)). The
 2023 cost of this rule — losing those components — is largely gone.
 
 ## Routing and structure

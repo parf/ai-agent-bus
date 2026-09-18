@@ -102,7 +102,9 @@ the world moved between the question and the answer.
 
 The current Service/Channel Delivery filters and User kind filter use links,
 and Service Kind and Channel delivery mode use radios, as of 0.5.64. Other
-small-choice conversions remain scoped to the page that owns them.
+small-choice conversions remain scoped to the page that owns them. A marked
+selector submits on change through the repository-owned script and exposes an
+Apply button through `noscript`; query values remain plain URL state.
 
 **Configuration stays on channels.** The draft gave Replace configuration to
 Service only; the shared detail template already offers it on any managed record

@@ -70,7 +70,7 @@ func TestRecordActivityEmbedsChartAndFullViewKeepsValues(t *testing.T) {
 	}
 	detail := m.get("/service?name=svc@h")
 	for _, want := range []string{
-		"<h2>Activity</h2>", `aria-label="About this activity history"`, `<li>The daemon keeps at most one hour`, `class=activity-chart`, "Accepted: 1 in the shown samples",
+		"<h2>Activity</h2>", `aria-label="About this activity history"`, `<li>The daemon keeps about 24 hours`, `Samples are usually about ten minutes apart`, `class=activity-chart`, "Accepted: 1 in the shown samples",
 		`<circle class="activity-point activity-accepted"`,
 		"Shared scale: 0–1 per sample over the displayed nonzero series.",
 		"Dequeued means handed to a reader, not completed.",
@@ -90,7 +90,7 @@ func TestRecordActivityEmbedsChartAndFullViewKeepsValues(t *testing.T) {
 		}
 	}
 	all := m.get("/activity")
-	if !strings.Contains(all, "Scope: currently visible records. On this unfiltered view, Refused is node-wide for the daemon Owner or a configured master and covers visible records for other callers") {
+	if !strings.Contains(all, "Scope: visible records") || !strings.Contains(all, "Refused is node-wide for the daemon Owner or a configured master and covers visible records for other callers") {
 		t.Fatal("unfiltered activity did not state its caller-dependent refusal scope")
 	}
 }
@@ -104,7 +104,7 @@ func TestRecordActivityDistinguishesAbsentAndMeasuredZero(t *testing.T) {
 	}
 	m.bus.SampleActivity(time.Now().Add(-time.Minute))
 	zero := m.get("/service?name=svc@h")
-	if !strings.Contains(zero, "All five observed activity series are measured zero") || !strings.Contains(zero, "Measured zero throughout: Accepted, Dequeued, Dropped, Expired, Refused") || strings.Contains(zero, "class=activity-chart") {
+	if !strings.Contains(zero, "All five series: <strong>0</strong> in this window") || strings.Contains(zero, "Measured zero:") || strings.Contains(zero, "class=activity-chart") {
 		t.Fatal("measured zero was confused with absent history")
 	}
 }

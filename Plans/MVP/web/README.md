@@ -44,7 +44,7 @@ reused ([question namespace](../../../CLAUDE.md#working-rules)).
 
 | | Answer | Consequence |
 |---|---|---|
-| Q58 What "advanced" means | **Density and honest states, no script.** | The [no-script rule](../../../docs/05-discovery.md#rules-it-is-built-to) stands unchanged. Advanced is information design, not partial DOM updates. Sort, filter and paging are page round-trips |
+| Q58 What "advanced" means | **Density and honest states.** | Superseded only for one local selector-submit behavior on 2026-09-18. Advanced remains information design, not partial DOM updates; sort, filter and paging are full page round-trips with URL state |
 | Q59 Design system | **A house layer: tokens plus layout primitives plus hand-authored ops components.** | No framework adopted. See [visual design](visual-design.md#tokens) for what ships and codex's [dissent](#dissent) |
 | Q60 Go rendering | **Adopt `templ`.** | Build-time codegen, server-rendered, no bearing on the script rule. See [technology](technology.md#rendering) |
 | Q61 Dark mode | **Dropped — superseded 2026-09-16.** | One design, no themes: a single light palette, no scheme control and nothing to store ([colour](tokens.md#colour)). The earlier answer was to ship both schemes; maintaining two good designs is not the same job as building one |

@@ -2,8 +2,13 @@ package core
 
 import "time"
 
-// One hour of minute samples plus the baseline needed for the first delta.
-const activityKept = 61
+// ActivityInterval is the process-driven sampling cadence. ActivityWindow is
+// the longest window a caller can observe in the in-memory history.
+const (
+	ActivityInterval = 10 * time.Minute
+	ActivityWindow   = 24 * time.Hour
+	activityKept     = int(ActivityWindow/ActivityInterval) + 1
+)
 
 type Counts struct {
 	In      int `json:"in"`
@@ -99,7 +104,7 @@ func (b *Bus) Activity(caller, name string) ([]ActivityPoint, error) {
 		return c
 	}
 	for i := 1; i < len(samples); i++ {
-		if time.Since(samples[i].at) > time.Hour {
+		if time.Since(samples[i].at) > ActivityWindow {
 			continue
 		}
 		prev, next := total(samples[i-1]), total(samples[i])

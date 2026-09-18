@@ -1,0 +1,42 @@
+# Design QA — compact AgentBus web redesign
+
+## Source of truth
+
+- Selected visual direction: `Plans/MVP/web/img/services-option-2.png`
+- Selected content direction: Option 1 in `Plans/MVP/web/visual-options.md`
+- Implemented desktop capture: `tmp/services-option2-implementation-052.png`
+- Side-by-side comparison: `tmp/services-option2-comparison-052.png`
+- Comparison viewport: 1487 × 1058 CSS pixels at device scale 1
+- State: signed-in Owner view against the live read-only AgentBus registry; no registry mutation was made
+
+## Visual passes
+
+1. The first implementation kept the old 76 rem content cap and wrapped the filter toolbar. This made the table visibly narrower and taller than Option 2. The frame now uses a 104 rem operational canvas and keeps the desktop controls on one row.
+2. The second capture used a different viewport from the source image. The final capture uses the same 1487 × 1058 dimensions for both sides.
+3. The final comparison matches the selected neutral shell, compact header, title and section-link hierarchy, control density, broad table and operational footer. It retains the requested Option 1 facts rather than the mock data.
+
+## Five-surface review
+
+- **Typography:** compact system typography, strong page title, semibold descriptions and monospaced routing names preserve the selected hierarchy. My and Personal use the established blue/orange hierarchy; Personal wins when both apply.
+- **Layout:** header, counted view links, search/filter/sort toolbar, full-width records table and compact footer follow Option 2. The service-detail editors are collapsed disclosures. The user editor uses a responsive card and field grid.
+- **Colour:** the implementation uses the existing accessible house palette. Ownership and Personal states keep structural signals as well as colour. Numeric fields use tabular figures and right alignment.
+- **Images and marks:** the existing bus mark and established page-title/entity glyph vocabulary are reused. No external image or new decorative asset was added.
+- **Copy and content:** service descriptions lead, routing names appear once, delivery uses status glyphs, and long explanations move to immediate hover/focus tooltips with structured click popovers. The SSH note names the actual host onboarding command instead of inventing a profile field.
+
+## Interaction and responsive verification
+
+- Changing the Services sort and Activity record selectors submits their GET forms and keeps URL state; a `noscript` Apply fallback remains.
+- Hovering a service-detail information button immediately exposes the full explanation; clicking it opens the structured native popover.
+- Desktop and 375 px service-detail checks report zero page-level horizontal overflow.
+- The narrow view retains the header, navigation, title, facts, disclosures and Danger Zone route without losing content.
+- The browser console reported no messages after navigation and interaction.
+- Activity visibly states an approximately ten-minute cadence and up-to-24-hour window. The existing pre-deploy daemon history remains honestly timestamped at its measured span.
+
+## Intentional differences from the mock
+
+- Counts and rows come from caller-visible live data rather than fabricated examples.
+- The table retains Readers, Reached and queue facts required by the accepted service contract.
+- The header version/build, footer Owner/Uptime/Calls and current Agent glyph use project vocabulary and live daemon facts.
+- Rows without descriptions remain one line instead of receiving invented copy.
+
+final result: passed

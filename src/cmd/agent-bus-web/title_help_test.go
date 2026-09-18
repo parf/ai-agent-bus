@@ -68,6 +68,31 @@ func TestListHelpUsesVisibleAccessiblePopoverControls(t *testing.T) {
 	}
 }
 
+func TestServiceExplanationsUseImmediateTooltipsAndStructuredPopovers(t *testing.T) {
+	m := meaningFixture(t)
+	m.register(protocol.Record{Name: "svc@h", Owner: "admin@h"})
+	page := m.get("/service?name=svc@h")
+	for _, want := range []string{
+		`popovertarget=delivery-help aria-label="About delivery state" data-tooltip="Stored setting only.`,
+		`popovertarget=policy-help aria-label="About record policy" data-tooltip="External is a caller hint.`,
+		`popovertarget=observed-help aria-label="About observed counters" data-tooltip="Readers are outstanding requests`,
+		`popovertarget=record-activity-help aria-label="About this activity history" data-tooltip="About 24 hours`,
+		`.help-button[data-tooltip]:hover::after`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("service detail lacks immediate help %q", want)
+		}
+	}
+	for _, id := range []string{"delivery-help", "policy-help", "observed-help", "record-activity-help"} {
+		if !strings.Contains(page, `<div popover id=`+id+` class=context-help>`) {
+			t.Errorf("service detail lost structured %s popover", id)
+		}
+	}
+	if !strings.Contains(page, `<summary id=settings>Edit settings</summary>`) || !strings.Contains(page, `<summary>Classification and sharing</summary>`) {
+		t.Error("infrequent service editors are not collapsed")
+	}
+}
+
 func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 	m := meaningFixture(t)
 	resp, err := m.client.Get(m.web.URL + "/signin")
@@ -93,9 +118,9 @@ func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 	}
 	pages := map[string]string{
 		"/":                              `</svg> Diagnostics</h1>`,
-		"/services":                      `⚙️</span> Registered services</h1>`,
+		"/services":                      `⚙️</span> Services</h1>`,
 		"/personal":                      `⚙️</span> Personal services</h1>`,
-		"/channels":                      `</svg> Registered channels</h1>`,
+		"/channels":                      `</svg> Channels</h1>`,
 		"/users":                         `👤</span> Users and other identities</h1>`,
 		"/groups":                        `👥</span> Groups</h1>`,
 		"/activity":                      `</svg> Activity graphs</h1>`,

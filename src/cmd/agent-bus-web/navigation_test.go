@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
@@ -47,6 +48,45 @@ func postAs(t *testing.T, m *meanings, path string, form url.Values) (string, in
 	}
 	defer resp.Body.Close()
 	return resp.Header.Get("Location"), resp.StatusCode
+}
+
+func TestCompactUserEditorExplainsSSHOnboarding(t *testing.T) {
+	m := meaningFixture(t)
+	page := m.get("/users/new")
+	for _, want := range []string{
+		`class=editor-card`, `class=form-grid`, `class="form-field form-field-wide"`,
+		`name=person_name`, `type=email name=email`, `name=github_user`,
+		`🔑</span> SSH access`, `Public keys are added on the host after the profile is saved.`,
+		`agent-bus-admin user add &lt;user@realm&gt; &lt;key.pub&gt;`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("user editor lacks %q", want)
+		}
+	}
+	if strings.Contains(page, `name=ssh`) || strings.Contains(page, `<textarea`) {
+		t.Error("profile editor invented a web-writable SSH key field")
+	}
+}
+
+func TestCompactSelectorsSubmitOnChange(t *testing.T) {
+	m := meaningFixture(t)
+	services := m.get("/services")
+	if !strings.Contains(services, `<span aria-hidden=true>🔛</span> Delivery`) || !strings.Contains(services, `name=sort data-submit-on-change`) || strings.Contains(services, `<button>Filter</button>`) {
+		t.Fatal("service filters lack the delivery glyph or retain a visible Filter button")
+	}
+	activity := m.get("/activity")
+	if !strings.Contains(activity, `name=name data-submit-on-change`) || strings.Contains(activity, `<button>Filter</button>`) {
+		t.Fatal("activity selector does not apply on change")
+	}
+	resp, err := m.client.Get(m.web.URL + "/ui.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	script, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK || !strings.Contains(string(script), `control.form.requestSubmit()`) || !strings.Contains(resp.Header.Get("Content-Type"), "text/javascript") {
+		t.Fatalf("local selector behavior unavailable: status=%d type=%q body=%q", resp.StatusCode, resp.Header.Get("Content-Type"), script)
+	}
 }
 
 func TestSectionNavigationCountsOnlyCallerVisibleCategories(t *testing.T) {
@@ -106,7 +146,7 @@ func TestOwnedRowsAreMarkedAndEditFollowsDaemonAuthority(t *testing.T) {
 	own := m.row(page, "own@h")
 	managed := m.row(page, "managed@h")
 	view := m.row(page, "view@h")
-	if !strings.Contains(own, `class="record-name-cell owned-record"`) || strings.Contains(own, "Yours") || !strings.Contains(own, `<td>external`) {
+	if !strings.Contains(own, `class="record-name-cell owned-record"`) || strings.Contains(own, "Yours") || !strings.Contains(own, `<td data-label=Reached>external`) {
 		t.Error("remote owned row lacks its visible ownership treatment")
 	}
 	if strings.Contains(managed, "owned-record") || strings.Contains(managed, "Yours") {
@@ -119,21 +159,86 @@ func TestOwnedRowsAreMarkedAndEditFollowsDaemonAuthority(t *testing.T) {
 		t.Error("the service name and a duplicate Edit column both route to detail")
 	}
 	for _, want := range []string{
-		`.section-nav .my-view{color:#1d5fa8}`,
-		`.section-nav .personal-view{color:#8a5000;font-weight:700}`,
-		`.record-name-cell.owned-record{border-left-color:#1d5fa8}`,
-		`.record-name-cell.owned-record .record-name{color:#1d5fa8;font-weight:600}`,
-		`.record-name-cell.personal-record{border-left-color:#8a5000}`,
-		`.record-name-cell.personal-record .record-name,.personal-marker{color:#8a5000;font-weight:700}`,
+		`.section-nav .my-view{color:var(--accent);font-weight:600}`,
+		`.section-nav .personal-view{color:var(--orange);font-weight:600}`,
+		`.record-name-cell.owned-record{border-left-color:var(--accent)}`,
+		`.record-name-cell.owned-record .record-name{color:var(--accent);font-weight:600}`,
+		`.record-name-cell.personal-record{border-left-color:var(--orange)}`,
+		`.record-name-cell.personal-record .record-name,.personal-marker{color:var(--orange);font-weight:600}`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("service-row treatment missing %q", want)
 		}
 	}
-	ownedRule := `.record-name-cell.owned-record{border-left-color:#1d5fa8}`
-	personalRule := `.record-name-cell.personal-record{border-left-color:#8a5000}`
+	ownedRule := `.record-name-cell.owned-record{border-left-color:var(--accent)}`
+	personalRule := `.record-name-cell.personal-record{border-left-color:var(--orange)}`
 	if strings.Index(page, ownedRule) >= strings.Index(page, personalRule) {
 		t.Error("Personal styling does not override the owned treatment")
+	}
+}
+
+func TestServiceListSearchKindSortAndCompactNames(t *testing.T) {
+	m := meaningFixture(t)
+	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	m.register(protocol.Record{Name: "alpha@h", Owner: "alice@h", Kind: "generic", Descr: "Billing API", Allow: []string{"admin@h"}})
+	time.Sleep(time.Millisecond)
+	m.register(protocol.Record{Name: "bot@h", Owner: "admin@h", Kind: "agent", Allow: []string{"admin@h"}})
+	time.Sleep(time.Millisecond)
+	m.register(protocol.Record{Name: "zeta@h", Owner: "admin@h", Kind: "generic", Descr: "Archive", Allow: []string{"admin@h"}})
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "alpha@h", Body: "one"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "alpha@h", Body: "two"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "bot@h", Body: "one"}); err != nil {
+		t.Fatal(err)
+	}
+
+	byDescription := m.get("/services?q=bILLing")
+	if !strings.Contains(byDescription, ">Billing API<") || !strings.Contains(byDescription, ">alpha@h<") || strings.Contains(byDescription, ">bot@h<") {
+		t.Fatal("case-insensitive description search did not isolate its record")
+	}
+	if row := m.row(byDescription, "alpha@h"); strings.Count(row, ">alpha@h<") != 1 {
+		t.Fatalf("described service name is visibly duplicated: %s", row)
+	}
+	byOwner := m.get("/services?q=ALICE%40H")
+	if !strings.Contains(byOwner, ">alpha@h<") || strings.Contains(byOwner, ">bot@h<") {
+		t.Fatal("case-insensitive owner search did not isolate its record")
+	}
+
+	agents := m.get("/services?kind=agent")
+	if !strings.Contains(agents, ">bot@h<") || strings.Contains(agents, ">alpha@h<") || !strings.Contains(agents, `aria-label="Kind filter"`) || !strings.Contains(agents, `aria-current=true>👾 Agent</a>`) {
+		t.Fatal("agent kind filter or its glyph label is wrong")
+	}
+	if row := m.row(agents, "bot@h"); strings.Count(row, ">bot@h<") != 1 {
+		t.Fatalf("service without a description has a duplicated visible name: %s", row)
+	}
+
+	updated := m.get("/services?sort=updated")
+	if strings.Index(updated, ">zeta@h<") > strings.Index(updated, ">bot@h<") || strings.Index(updated, ">bot@h<") > strings.Index(updated, ">alpha@h<") {
+		t.Fatal("recently-updated sorting is not newest first")
+	}
+	queued := m.get("/services?sort=queued")
+	if strings.Index(queued, ">alpha@h<") > strings.Index(queued, ">bot@h<") || strings.Index(queued, ">bot@h<") > strings.Index(queued, ">zeta@h<") {
+		t.Fatal("queued sorting is not high to low with name ties")
+	}
+
+	state := m.get("/services?kind=agent&q=bot&scope=my&sort=queued&state=active")
+	for _, want := range []string{
+		`name=q value="bot"`,
+		`name=scope value="my"`,
+		`name=state value="active"`,
+		`name=kind value="agent"`,
+		`value=queued selected`,
+		`href="/services?kind=agent&amp;q=bot&amp;sort=queued&amp;state=active" class="">All`,
+		`href="/services?kind=agent&amp;q=bot&amp;scope=my&amp;sort=queued&amp;state=active" aria-current=true class="my-view">My`,
+	} {
+		if !strings.Contains(state, want) {
+			t.Errorf("listing state lost %q", want)
+		}
 	}
 }
 

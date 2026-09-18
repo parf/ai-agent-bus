@@ -186,10 +186,12 @@ fallback. The marks are fixed inline markup, never an external asset, caller
 text or a machine-readable value.
 
 The Services, Channels, Personal and Users collections keep their definitions
-behind a visible `ⓘ` button using the browser's native popover. The button has
-an accessible name, the panel uses a heading and short list, and both work
-without script. Current scope, counts, filters, form constraints, refusals and
-dangerous consequences remain visible where they affect a decision.
+behind a visible `ⓘ` button using the browser's native popover. Service detail
+uses the same pattern for Delivery, Policy, Observed and Activity: hovering or
+focusing the adjacent button shows the explanation immediately, while clicking
+opens the structured list. The button has an accessible name and the panel uses
+a heading and short list. Current scope, counts, filters, form constraints,
+refusals and dangerous consequences remain visible where they affect a decision.
 
 [Administrative and record authority](01-identity-and-roles.md#groups) applies
 to every control and to direct API calls. Membership and policy changes must
@@ -215,10 +217,10 @@ to the caller. Refused is node-wide for the daemon Owner and configured masters,
 and covers visible records for other callers. A named view is record-scoped for
 all five series. Dequeued means handed to a reader, never completed work.
 
-The bus samples record counters once a minute, independently of dashboard visits.
-It keeps one hour plus the baseline for differences; the dashboard also includes
-the current partial interval. History is in memory and starts fresh after restart.
-These are the initial implementation defaults; longer history and export remain
+The bus samples record counters every ten minutes, independently of dashboard
+visits. It keeps about 24 hours plus the baseline for differences; the dashboard
+also includes the current partial interval, which may be shorter than ten minutes.
+History is in memory and starts fresh after restart. Export remains
 [R1](../Plans/R1/discovery.md#dashboard-extensions).
 
 Graphs and their accessible value table report accepted, dequeued, dropped,
@@ -239,7 +241,7 @@ maintainers can remove a subscription; they cannot force another inbox to subscr
 |---|---|
 | **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the sign-in form, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
-| **No JavaScript, no CDN, no external asset** | A signed-in master is looking at the node's whole envelope feed, and the first `<script src=…>` added for a chart inherits that. Graphs are inline SVG or nothing; an avatar is served from this node, never hotlinked, or every page view tells the provider who is looking |
+| **One repository-owned script; no CDN or external asset** | The local script only submits marked selectors on change. It reads no page data, stores nothing and makes no request of its own. Pages remain ordinary URL-backed forms, with a `noscript` Apply control. Graphs stay inline SVG; avatars are served from this node, never hotlinked |
 | **The web child writes nothing of its own.** A form posts *as the person*, never as the child | It is the least trusted process and the design gives it no write path ([processes § the processes](11-processes.md#the-processes)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
 | **The sign-in form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
 
@@ -256,7 +258,7 @@ anybody.
 | | |
 |---|---|
 | what is published | release, host name, daemon owner name, uptime, **calls served** — and the build. **Nothing else**: no record names, no principals, no refusal counts, nothing about who is using it |
-| where each one shows | **the header has a two-row bus mark** derived from the [project artwork](img/agent-bus.png) at the far left. To its right, one line carries release, `@` host, owner, **`uptime:`**, then **`calls:`** with `minute:`, `hour:` and `total:`; the navigation sits below that line, beside the logo. **The footer carries the build and nothing else** — one line, no explanatory text. The owner set the one-line identity and footer rules, chose those three figures (a five-minute and a day window were each tried and removed), and set the labels |
+| where each one shows | **the header has a two-row bus mark** derived from the [project artwork](img/agent-bus.png) at the far left. Beside it, `AgentBus v<release> @ <host>` carries build detail in the Version tooltip; navigation sits below. The compact footer carries owner, uptime and calls served. No separate build line or web-build value appears |
 | to whom | any caller that reaches the face, with no credential and no session |
 | host name | the machine's hostname as the OS reports it, `srv1`. The daemon has no node name of its own, so this is a new field rather than a restatement of one; it is not the realm, which the owner's name already carries |
 | uptime | a plain figure behind an explicit label, `uptime: 1h23m`, as the owner asked. It is what was true when the page rendered, and the page does not refresh itself |
@@ -319,7 +321,7 @@ and from then on the browser carries that id and nothing else.
 | the cookie | the session id alone — `HttpOnly`, `Secure`, `SameSite=Strict`, idle timeout. Never the token, never in a URL |
 | a web-child restart | logs nobody out, because the child was holding nothing. A session map inside it would be a second store, of the worst possible contents: every signed-in person's live credential in the one child that is restarted with backoff |
 | what the child holds | nothing. It stops reaching the bus over the owner's socket the moment people sign in — a web child with the owner's authority is a credential mint ([access § getting a token](02-access.md#getting-a-token)) |
-| enrolling | not here. The proof is a signature made by the host's own `ssh-keygen` ([identity § proving possession](02-access.md#proving-possession)) and a page with no JavaScript cannot make one, so what the dashboard does for a stranger is print the command |
+| enrolling | not here. The proof is a signature made by the host's own `ssh-keygen` ([identity § proving possession](02-access.md#proving-possession)); the local selector script neither reads keys nor signs. The dashboard prints the host onboarding command |
 
 
 A bus restart invalidates browser sessions: their map is not persisted.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.72 — 2026-09-18
+
+Redesign the web registry and detail forms around the selected compact visual
+direction. Keep about 24 hours of Activity at ten-minute intervals.
+
 ## 0.5.71 — 2026-09-18
 
 Import GitHub profile metadata and bounded local photos when a login is set or

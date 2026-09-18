@@ -97,7 +97,7 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	// anywhere on the page passes without any entry being marked at all.
 	marks := map[string]string{
 		"/": "<a href=/ aria-current=page>", "/services": "<a href=/services aria-current=page>",
-		"/personal": "<a href=/personal aria-current=page>", "/channels": "<a href=/channels aria-current=page>", "/users": "<a href=/users aria-current=page>",
+		"/personal": "<a href=/services aria-current=page>", "/channels": "<a href=/channels aria-current=page>", "/users": "<a href=/users aria-current=page>",
 		"/groups": "<a href=/groups aria-current=page>", "/activity": "<a href=/activity aria-current=page>",
 	}
 	for _, path := range []string{"/", "/services", "/personal", "/channels", "/users", "/groups", "/activity"} {
@@ -125,7 +125,7 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 		}
 	}
 	// Each page names itself, so a tab and a history entry can be told apart.
-	titles := map[string]string{"/": "Diagnostics", "/services": "Registered services", "/users": "Users", "/groups": "Groups"}
+	titles := map[string]string{"/": "Diagnostics", "/services": "Services", "/users": "Users", "/groups": "Groups"}
 	for path, title := range titles {
 		if want := "<title>" + title + " \u00b7 agent-bus</title>"; !strings.Contains(get(path), want) {
 			t.Errorf("%s is not titled %q", path, title)

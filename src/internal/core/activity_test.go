@@ -9,6 +9,9 @@ import (
 )
 
 func TestActivityIsBoundedAndFiltered(t *testing.T) {
+	if ActivityInterval != 10*time.Minute || ActivityWindow != 24*time.Hour || activityKept != 145 {
+		t.Fatalf("activity cadence/window changed: interval=%s window=%s kept=%d", ActivityInterval, ActivityWindow, activityKept)
+	}
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "alice@h", "bob@h")
@@ -41,7 +44,7 @@ func TestActivityIsBoundedAndFiltered(t *testing.T) {
 	if _, err := b.Activity("alice@h", "hidden@h"); err != ErrUnknown {
 		t.Fatal("forbidden graph returned")
 	}
-	for i := 0; i < 100; i++ {
+	for i := 0; i < activityKept+20; i++ {
 		b.SampleActivity(start.Add(time.Duration(i+2)*time.Millisecond + time.Minute))
 	}
 	if len(b.activity) != activityKept {
