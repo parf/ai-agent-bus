@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -390,9 +391,116 @@ func normalizedProfile(in protocol.User) (protocol.User, error) {
 		}
 	}
 	in.Kind = ""
+	// Provider fields are daemon-derived. A caller may restate editable profile
+	// fields, but can never claim what GitHub answered or supply image bytes.
+	in.GithubProfileAt = time.Time{}
+	in.GithubCompany, in.GithubLocation, in.GithubTwitterUsername = "", "", ""
+	in.GithubAvatarURL, in.GithubGravatarID = "", ""
+	in.PhotoPNG, in.PhotoSource, in.PhotoFetchedAt = nil, "", time.Time{}
 	in.Administrator, in.DaemonOwner, in.CanEdit, in.CanSetEmail, in.CanActivate, in.CanRemove = false, false, false, false, false, false
 	in.Groups, in.Services = nil, nil
 	return in, nil
+}
+
+func copyGithubProfile(dst *protocol.User, src protocol.User) {
+	dst.GithubProfileAt = src.GithubProfileAt
+	dst.GithubCompany = src.GithubCompany
+	dst.GithubLocation = src.GithubLocation
+	dst.GithubTwitterUsername = src.GithubTwitterUsername
+	dst.GithubAvatarURL = src.GithubAvatarURL
+	dst.GithubGravatarID = src.GithubGravatarID
+	dst.PhotoPNG = append([]byte(nil), src.PhotoPNG...)
+	dst.PhotoSource = src.PhotoSource
+	dst.PhotoFetchedAt = src.PhotoFetchedAt
+}
+
+func clearGithubProfile(u *protocol.User) {
+	u.GithubProfileAt = time.Time{}
+	u.GithubCompany, u.GithubLocation, u.GithubTwitterUsername = "", "", ""
+	u.GithubAvatarURL, u.GithubGravatarID = "", ""
+	u.PhotoPNG, u.PhotoSource, u.PhotoFetchedAt = nil, "", time.Time{}
+}
+
+// applyGithubProfile imports one trusted provider answer. Caller holds b.mu.
+// PersonName and Email fill blanks and then become ordinary AgentBus fields;
+// provider metadata is a mirror and is replaced on every successful lookup.
+func (b *Bus) applyGithubProfile(u *protocol.User, p ports.DirectoryProfile, name string) error {
+	if p.Login == "" && p.FetchedAt.IsZero() {
+		return nil
+	}
+	if p.Login != "" && !strings.EqualFold(p.Login, u.GithubUser) {
+		return fmt.Errorf("%w: GitHub profile answered for another login", ErrProfile)
+	}
+	personName := strings.TrimSpace(p.PersonName)
+	if len(personName) > 200 {
+		return fmt.Errorf("%w: person name is too long", ErrProfile)
+	}
+	company, location := strings.TrimSpace(p.Company), strings.TrimSpace(p.Location)
+	twitter := strings.TrimPrefix(strings.TrimSpace(p.TwitterUsername), "@")
+	if len(company) > 200 || len(location) > 200 || len(twitter) > 64 || len(p.AvatarURL) > 2048 || len(p.GravatarID) > 200 {
+		return fmt.Errorf("%w: GitHub profile field is too long", ErrProfile)
+	}
+	if u.PersonName == "" {
+		u.PersonName = personName
+	}
+	if u.Email == "" && p.Email != "" {
+		if email, err := normalizedEmail(p.Email); err == nil {
+			available := true
+			for other, profile := range b.users {
+				if other != name && profile.Email == email {
+					available = false
+					break
+				}
+			}
+			if available {
+				u.Email = email
+			}
+		}
+	}
+	u.GithubProfileAt = p.FetchedAt
+	u.GithubCompany, u.GithubLocation, u.GithubTwitterUsername = company, location, twitter
+	u.GithubAvatarURL, u.GithubGravatarID = strings.TrimSpace(p.AvatarURL), strings.TrimSpace(p.GravatarID)
+	switch {
+	case len(p.PhotoPNG) != 0:
+		u.PhotoPNG = append([]byte(nil), p.PhotoPNG...)
+		u.PhotoSource, u.PhotoFetchedAt = p.PhotoSource, p.PhotoFetchedAt
+	case p.ClearPhoto:
+		u.PhotoPNG, u.PhotoSource, u.PhotoFetchedAt = nil, "", time.Time{}
+	}
+	return nil
+}
+
+// githubChange performs the network half of a GitHub-login change without
+// holding the bus mutex. It first checks authority so an untrusted caller
+// cannot turn the daemon into a provider request proxy. The observed login is
+// compared again at commit to refuse stale overwrites.
+func (b *Bus) githubChange(caller, name, login string) (ports.DirectoryProfile, string, bool, error) {
+	b.mu.Lock()
+	if err := b.acting(caller); err != nil {
+		b.mu.Unlock()
+		return ports.DirectoryProfile{}, "", false, err
+	}
+	if !b.mayEditUser(caller, name) {
+		b.mu.Unlock()
+		return ports.DirectoryProfile{}, "", false, ErrNotOwner
+	}
+	oldLogin := b.users[name].GithubUser
+	provider := b.github
+	b.mu.Unlock()
+	if oldLogin == login {
+		return ports.DirectoryProfile{}, oldLogin, false, nil
+	}
+	if login == "" {
+		return ports.DirectoryProfile{}, oldLogin, true, nil
+	}
+	if provider == nil {
+		return ports.DirectoryProfile{}, oldLogin, false, fmt.Errorf("%w: GitHub profile lookup is unavailable", ErrProfile)
+	}
+	p, err := provider.Profile(login)
+	if err != nil {
+		return ports.DirectoryProfile{}, oldLogin, false, fmt.Errorf("%w: GitHub profile: %s", ErrProfile, err)
+	}
+	return p, oldLogin, true, nil
 }
 
 // EditOwnEmail is deliberately narrower than SetUser. The credential supplies
@@ -442,6 +550,10 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 	if err != nil {
 		return protocol.User{}, err
 	}
+	providerProfile, observedGithub, githubChanged, err := b.githubChange(who, in.Name, in.GithubUser)
+	if err != nil {
+		return protocol.User{}, err
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	// Before the authority question, because "you are nobody" and "you are
@@ -455,6 +567,9 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 		return protocol.User{}, ErrNotOwner
 	}
 	old, exists := b.users[in.Name]
+	if githubChanged && old.GithubUser != observedGithub {
+		return protocol.User{}, fmt.Errorf("%w: GitHub login changed while its profile was being fetched; retry", ErrBusy)
+	}
 	if create && (exists || b.records[in.Name].Name != "") {
 		return protocol.User{}, ErrExists
 	}
@@ -485,6 +600,21 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 			return protocol.User{}, fmt.Errorf("%w: identifying field already belongs to another user", ErrProfile)
 		}
 	}
+	if !githubChanged {
+		copyGithubProfile(&in, old)
+	} else if in.GithubUser == "" {
+		clearGithubProfile(&in)
+	} else {
+		// Photo import is optional even when the login changes. Seed only the
+		// last normalized thumbnail so a failed fetch retains that fallback;
+		// applyGithubProfile replaces or explicitly clears it from the complete
+		// new provider answer. No other old provider fact crosses the change.
+		in.PhotoPNG = append([]byte(nil), old.PhotoPNG...)
+		in.PhotoSource, in.PhotoFetchedAt = old.PhotoSource, old.PhotoFetchedAt
+		if err := b.applyGithubProfile(&in, providerProfile, in.Name); err != nil {
+			return protocol.User{}, err
+		}
+	}
 	// A vouched realm still requires key-possession proof before its name can
 	// be created. Editing an existing enrolled profile does not repeat proof.
 	if _, known := b.records[in.Name]; !known {
@@ -501,6 +631,68 @@ func (b *Bus) SetUser(caller string, in protocol.User, create bool) (protocol.Us
 		return protocol.User{}, err
 	}
 	return b.userView(who, in.Name), nil
+}
+
+// RefreshGithub re-reads an existing GitHub login without treating an
+// ordinary profile save as provider I/O. Required profile failure changes
+// nothing; optional photo failure retains the previous normalized thumbnail.
+func (b *Bus) RefreshGithub(caller, name string) (protocol.User, error) {
+	who, err := canon(caller)
+	if err != nil {
+		return protocol.User{}, err
+	}
+	name, err = canon(name)
+	if err != nil {
+		return protocol.User{}, err
+	}
+	b.mu.Lock()
+	if err := b.acting(who); err != nil {
+		b.mu.Unlock()
+		return protocol.User{}, err
+	}
+	if !b.mayEditUser(who, name) {
+		b.mu.Unlock()
+		return protocol.User{}, ErrNotOwner
+	}
+	old, exists := b.users[name]
+	provider := b.github
+	b.mu.Unlock()
+	if !exists {
+		return protocol.User{}, ErrUnknown
+	}
+	if old.GithubUser == "" {
+		return protocol.User{}, fmt.Errorf("%w: user has no GitHub login", ErrProfile)
+	}
+	if provider == nil {
+		return protocol.User{}, fmt.Errorf("%w: GitHub profile lookup is unavailable", ErrProfile)
+	}
+	p, err := provider.Profile(old.GithubUser)
+	if err != nil {
+		return protocol.User{}, fmt.Errorf("%w: GitHub profile: %s", ErrProfile, err)
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return protocol.User{}, err
+	}
+	if !b.mayEditUser(who, name) {
+		return protocol.User{}, ErrNotOwner
+	}
+	current, exists := b.users[name]
+	if !exists {
+		return protocol.User{}, ErrUnknown
+	}
+	if current.GithubUser != old.GithubUser {
+		return protocol.User{}, fmt.Errorf("%w: GitHub login changed while its profile was being fetched; retry", ErrBusy)
+	}
+	if err := b.applyGithubProfile(&current, p, name); err != nil {
+		return protocol.User{}, err
+	}
+	b.users[name] = current
+	if err := b.checkpoint(false); err != nil {
+		return protocol.User{}, err
+	}
+	return b.userView(who, name), nil
 }
 
 func (b *Bus) userView(caller, name string) protocol.User {

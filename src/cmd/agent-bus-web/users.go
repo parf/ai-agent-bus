@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -10,6 +11,28 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
+
+func profileInitial(u protocol.User) string {
+	label := u.PersonName
+	if label == "" {
+		label = u.Name
+	}
+	initial, _ := utf8.DecodeRuneInString(label)
+	return strings.ToUpper(string(initial))
+}
+
+// photoData is safe template.URL only because the scheme and media type are
+// fixed here and the payload is base64 over adapter-normalized local PNG.
+// No provider URL or caller text enters the result.
+func photoData(u protocol.User) template.URL {
+	if len(u.PhotoPNG) == 0 {
+		return ""
+	}
+	return template.URL("data:image/png;base64," + base64.StdEncoding.EncodeToString(u.PhotoPNG))
+}
+
+func githubProfileURL(login string) string { return "https://github.com/" + url.PathEscape(login) }
+func twitterProfileURL(name string) string { return "https://x.com/" + url.PathEscape(name) }
 
 type peopleView struct {
 	adminView
@@ -71,7 +94,7 @@ func (p *peopleView) directory(r *http.Request) {
 		if p.Kind == "users" && !person || p.Kind == "other" && person {
 			continue
 		}
-		if !strings.Contains(strings.ToLower(u.Name+" "+u.PersonName+" "+u.Email+" "+u.GithubUser), strings.ToLower(p.Query)) {
+		if !strings.Contains(strings.ToLower(u.Name+" "+u.PersonName+" "+u.Email+" "+u.GithubUser+" "+u.GithubCompany+" "+u.GithubLocation+" "+u.GithubTwitterUsername), strings.ToLower(p.Query)) {
 			continue
 		}
 		matched = append(matched, u)
@@ -197,13 +220,13 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		}
 		for _, u := range p.Users {
 			if u.Name == r.URL.Query().Get("name") {
-				label := u.PersonName
-				if label == "" {
-					label = u.Name
+				if len(u.PhotoPNG) != 0 {
+					w.Header().Set("Content-Type", "image/png")
+					w.Write(u.PhotoPNG)
+					return
 				}
-				initial, _ := utf8.DecodeRuneInString(label)
 				w.Header().Set("Content-Type", "image/svg+xml")
-				render(w, avatarPage, strings.ToUpper(string(initial)))
+				render(w, avatarPage, profileInitial(u))
 				return
 			}
 		}
@@ -266,6 +289,8 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 				protocol.User
 				Create bool
 			}{u, r.PostForm.Get("action") == "create"})
+		case "refresh-github":
+			err = c.post(cookie(r), "/user/github-refresh", map[string]string{"name": r.PostForm.Get("name")})
 		case "active", "paused", "banned":
 			err = c.post(cookie(r), "/user/state", map[string]string{"name": r.PostForm.Get("name"), "state": r.PostForm.Get("action")})
 		default:
@@ -278,7 +303,19 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 				if action == "create" && code == http.StatusPreconditionFailed {
 					field = "name"
 				}
-				if renderUserFormError(w, r, action, code, message, field) {
+				if action == "refresh-github" {
+					p, loaded := load(w, r)
+					if loaded {
+						p.Return = directoryReturn(r.PostForm.Get("return"))
+						for _, u := range p.Users {
+							if u.Name == r.PostForm.Get("name") {
+								p.User, p.Form = u, formState{Action: action, Target: action, Error: message}
+								renderForm(w, code, personPage, p)
+								return
+							}
+						}
+					}
+				} else if renderUserFormError(w, r, action, code, message, field) {
 					return
 				}
 			}
@@ -293,7 +330,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 	})
 }
 
-var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityGlyph": identityGlyph, "identityLabel": identityLabel, "titleMark": titleMark}).Parse(shell("users", "Users") + `
+var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"identityGlyph": identityGlyph, "identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial}).Parse(shell("users", "Users") + `
 <div class=page-title><h1>{{titleMark "users"}} Users and other identities</h1><button type=button class=help-button popovertarget=identity-types-help aria-label="About identity types">ⓘ</button></div>
 <div popover id=identity-types-help class=context-help><h2>About identity types</h2><ul>
 <li>Registered users have a profile.</li>
@@ -311,7 +348,7 @@ var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"id
 <p>Showing {{.Start}}–{{.End}} of {{.Matched}} matching identities.</p>
 <section aria-labelledby=people-heading><h2 id=people-heading>Registered users</h2>
 <table><thead><tr><th scope=col>Person / identity</th><th scope=col>Authority</th><th scope=col>State</th></tr></thead><tbody>
-{{range .People}}<tr><td>{{with .PersonName}}<strong>{{.}}</strong><br>{{end}}{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</td><td>{{.State}}</td></tr>
+{{range .People}}<tr><td><span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<span>{{with .PersonName}}<strong>{{.}}</strong><br>{{end}}{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a>{{with .GithubCompany}}<br><span class=muted>{{.}}</span>{{end}}</span></span></td><td>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</td><td>{{.State}}</td></tr>
 {{else}}<tr><td colspan=3>No registered users on this page.</td></tr>{{end}}</tbody></table></section>
 <section aria-labelledby=other-heading><h2 id=other-heading>Other identities — review and cleanup</h2>
 <table><thead><tr><th scope=col>Identity</th><th scope=col>What it is</th><th scope=col>Why it is here / next step</th></tr></thead><tbody>
@@ -322,9 +359,9 @@ var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"id
 {{else}}<tr><td colspan=3>No other identities on this page.</td></tr>{{end}}</tbody></table></section>
 <nav aria-label="Directory pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
 `))
-var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"identityLabel": identityLabel, "titleMark": titleMark}).Parse(shell("users", "Identity details") + `
+var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "registrationUpdated": registrationUpdated, "githubProfileURL": githubProfileURL, "twitterProfileURL": twitterProfileURL}).Parse(shell("users", "Identity details") + `
 <p><a href="{{.Return}}">Back to directory</a></p>
-<div class=page-title><h1 style="overflow-wrap:anywhere">{{if or .New (eq .User.Kind "user")}}{{titleMark "user"}}{{else}}{{titleMark "identity"}}{{end}} {{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1></div>` + formErrorSummary + `
+<div class=page-title><h1 style="overflow-wrap:anywhere">{{if .New}}{{titleMark "user"}}{{else if eq .User.Kind "user"}}{{with photoData .User}}<img class=profile-photo-large src="{{.}}" alt="">{{else}}<span class=profile-initial-large aria-hidden=true>{{profileInitial .User}}</span>{{end}}{{else}}{{titleMark "identity"}}{{end}} {{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1></div>` + formErrorSummary + `
 {{if not .New}}{{with identityLabel .User .RecordKinds}}<p>Type: <strong>{{.}}</strong></p>{{end}}{{end}}
 {{if and (not .New) (ne .User.Kind "user")}}
 <h2>{{if eq .User.Kind "record"}}Registered name{{else}}Credential with no registered name{{end}}</h2>
@@ -341,8 +378,10 @@ var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"id
 <p><label>Person name <input name=person_name value="{{.User.PersonName}}"></label></p>
 <p><label>Email <input type=email name=email value="{{.User.Email}}" aria-invalid="{{if .Form.Invalid "email"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "email"}}profile-error{{end}}"></label></p>
 <p><label>GitHub login <input name=github_user value="{{.User.GithubUser}}"></label></p>{{if or (.Form.Is "create") (.Form.Is "save")}}<p class=warn id=profile-error>{{.Form.Error}}</p>{{end}}<button>Save profile</button></form>
+{{if and (not .New) .User.GithubUser}}<form id=form-refresh-github method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=refresh-github>Refresh GitHub profile</button>{{if .Form.Is "refresh-github"}}<p class=warn>{{.Form.Error}}</p>{{end}}</form>{{end}}
 {{if and (not .New) (not .User.DaemonOwner)}}<h2>Access</h2><p>Pause and ban block this user's bus access and new deliveries to their inbox. Queued work is retained. Their running service processes are not stopped. Administrators may lift a ban on an ordinary user; the daemon Owner controls protected authority levels.</p><form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}">{{if .User.CanActivate}}<button name=action value=active>Activate</button>{{end}}<button name=action value=paused>Pause</button><button name=action value=banned>Ban</button></form>{{end}}
-{{else}}<p>{{.User.PersonName}}</p><p>{{.User.Email}}</p><p>{{.User.GithubUser}}</p><p>Trusted profile fields are edited by a daemon administrator.</p>{{end}}
+{{else}}<dl>{{with .User.PersonName}}<dt>Person name</dt><dd>{{.}}</dd>{{end}}{{with .User.Email}}<dt>Email</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubUser}}<dt>GitHub login</dt><dd>{{.}}</dd>{{end}}</dl><p>Trusted profile fields are edited by a daemon administrator.</p>{{end}}
+{{if .User.GithubUser}}<h2>GitHub profile</h2><dl><dt>GitHub</dt><dd><a href="{{githubProfileURL .User.GithubUser}}">@{{.User.GithubUser}}</a></dd>{{with .User.GithubCompany}}<dt>Company</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubLocation}}<dt>Location</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubTwitterUsername}}<dt>Twitter/X</dt><dd><a href="{{twitterProfileURL .}}">@{{.}}</a></dd>{{end}}{{with .User.GithubGravatarID}}<dt>Gravatar ID</dt><dd><code>{{.}}</code></dd>{{end}}{{with .User.PhotoSource}}<dt>Photo source</dt><dd>{{if eq . "github"}}GitHub{{else}}Gravatar{{end}}</dd>{{end}}{{if not .User.GithubProfileAt.IsZero}}<dt>Fetched</dt><dd><time datetime="{{.User.GithubProfileAt.Format "2006-01-02T15:04:05Z07:00"}}">{{registrationUpdated .User.GithubProfileAt}}</time></dd>{{end}}</dl>{{end}}
 {{end}}
 {{if not .New}}<h2>Owned services</h2>{{range .User.Services}}<p><a href="/service?name={{.}}">{{.}}</a></p>{{else}}<p>No owned services</p>{{end}}{{end}}
 `))

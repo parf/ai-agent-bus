@@ -12,6 +12,7 @@ import (
 
 func TestUserAdministrationAndLifecycle(t *testing.T) {
 	b := core.New()
+	enableGithubProfiles(b)
 	s, tok := serverFor(t, b, "admin@h")
 	call := func(who, method, path, body string, want int) string {
 		t.Helper()

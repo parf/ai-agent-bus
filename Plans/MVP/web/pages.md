@@ -434,7 +434,7 @@ separate primary action beside the directory heading.
 | `PeopleCount` / `OtherCount` | **keep**, with scope labelled: caller-visible directory, before the search |
 | Search, kind filter, paging, `Matched`, clear-filters | keep |
 | Person name, full name, GitHub login, authority, state | keep |
-| Search over GitHub metadata | include company, location and Twitter/X handle once the daemon publishes them; the existing Email search covers an imported public email. No browser-side provider lookup |
+| Search over GitHub metadata | include company, location and Twitter/X handle from the daemon; the existing Email search covers an imported public email. No browser-side provider lookup |
 | Empty cleanup table plus its explanation | **collapse** to a count and a link while empty; expand only when candidates exist ([C10](review/codex.md#junk-and-misleading-content)) |
 | Classification of an unclassified identity | **keep as a word.** Never a colour, never inferred from a slash or a runtime prefix in a name |
 | Photo | **use.** Show the locally imported GitHub photo, then Gravatar fallback, then generated initials. The list uses a small thumbnail beside the name; no remote browser request and no per-row daemon lookup ([W07](../done/web-review.md#findings)) |

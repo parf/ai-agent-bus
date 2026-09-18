@@ -12,6 +12,7 @@ import (
 
 func TestSelfProfileRouteCarriesOnlyEmail(t *testing.T) {
 	b := core.New()
+	enableGithubProfiles(b)
 	s, tok := serverFor(t, b, "owner@h")
 	for _, u := range []protocol.User{
 		{Name: "alice@h", PersonName: "Alice", Email: "old@example.com", GithubUser: "alice-gh"},

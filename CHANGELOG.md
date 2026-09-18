@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.71 — 2026-09-18
+
+Import GitHub profile metadata and bounded local photos when a login is set or
+explicitly refreshed. Show local photos in User and caller-visible owner views
+without provider hotlinks or per-row bus reads.
+
 ## 0.5.70 — 2026-09-17
 
 Return refused web submissions to their form with safe values and accessible

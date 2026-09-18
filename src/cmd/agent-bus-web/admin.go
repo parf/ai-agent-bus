@@ -135,6 +135,7 @@ type adminView struct {
 	Administrator bool   `json:"administrator"`
 	Records       []protocol.Record
 	Record        protocol.Record
+	OwnerUser     *protocol.User
 	Groups        map[string][]string
 	Mine, State   string
 	OwnerFilter   string
@@ -325,6 +326,19 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
 			fail(w, r, v.You, err)
 			return false
+		}
+		// One directory answer supplies the caller-visible owner profile and its
+		// local thumbnail. A hidden owner stays absent, and no page render ever
+		// performs a provider or per-photo daemon lookup.
+		var users []protocol.User
+		if err := c.get(cookie(r), "/users", &users); err == nil {
+			for i := range users {
+				if users[i].Kind == protocol.DirectoryUser && users[i].Name == v.Record.Owner {
+					owner := users[i]
+					v.OwnerUser = &owner
+					break
+				}
+			}
 		}
 		var points []core.ActivityPoint
 		if err := c.get(cookie(r), "/activity?name="+url.QueryEscape(v.Record.Name), &points); err != nil {
@@ -854,8 +868,8 @@ var serviceNew = template.Must(template.New("service-new").Funcs(template.FuncMa
 <label>Name <input id=create-name name=name required placeholder="name@realm" value="{{.Form.Value "name"}}" aria-invalid="{{if .Form.Invalid "name"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "name"}}create-error{{end}}"></label><p><label>Description <input name=descr value="{{.Form.Value "descr"}}"></label></p>
 {{if .Channels}}<input type=hidden name=kind value=topic><fieldset><legend>Delivery</legend><label><input type=radio name=mode value=pubsub {{if or (not (.Form.Is "create")) (eq (.Form.Value "mode") "pubsub")}}checked{{end}}> Pub/sub</label> <label><input type=radio name=mode value=queue {{if eq (.Form.Value "mode") "queue"}}checked{{end}}> Queue</label></fieldset>{{else}}<fieldset aria-invalid="{{if .Form.Invalid "kind"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "kind"}}create-error{{end}}"><legend>Kind</legend><label><input type=radio name=kind value=generic {{if or (not (.Form.Is "create")) (eq (.Form.Value "kind") "generic")}}checked{{end}}> {{entityLabel "generic"}}</label> <label><input type=radio name=kind value=agent {{if eq (.Form.Value "kind") "agent"}}checked{{end}}> {{entityLabel "agent"}}</label></fieldset><p><label>Personal <input type=checkbox name=personal {{if .Form.Checked "personal"}}checked{{end}}></label></p>{{end}}
 <p><label>Allow, one name or <code>*</code> per line <textarea name=allow rows=5>{{.Form.Value "allow"}}</textarea></label> Empty allows only the owner and assigned Maintainers. Add names or * to share.</p>{{if .Form.Is "create"}}<p class=warn id=create-error>{{.Form.Error}}</p>{{end}}{{if not .Channels}}<p class=muted>A Personal service may name only other registered services directly. Users, groups, <code>*</code>, itself and Maintainers are refused.</p>{{end}}<button>Register</button></form>`))
-var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel, "titleMark": titleMark}).Parse(shell("records", "Service") + `
-{{with .Record}}<div class=page-title><h1>{{titleMark .Kind}} {{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1></div>` + formErrorSummary + `<p>Type: <strong>{{entityLabel .Kind}}</strong> · Owner: {{.Owner}}{{with .Maintainers}} · Maintainers: {{join . ", "}}{{end}}{{if .Mode}} · Delivery: {{if eq .Mode "pubsub"}}a copy to each subscriber{{else}}one at a time{{end}}{{end}}</p>
+var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial}).Parse(shell("records", "Service") + `
+{{with .Record}}<div class=page-title><h1>{{titleMark .Kind}} {{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1></div>` + formErrorSummary + `<p>Type: <strong>{{entityLabel .Kind}}</strong> · Owner: {{with $.OwnerUser}}<span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<a href="/user?name={{.Name}}"><code>{{.Name}}</code></a></span>{{else}}{{.Owner}}{{end}}{{with .Maintainers}} · Maintainers: {{join . ", "}}{{end}}{{if .Mode}} · Delivery: {{if eq .Mode "pubsub"}}a copy to each subscriber{{else}}one at a time{{end}}{{end}}</p>
 <h2>Delivery setting</h2>
 <p>Delivery: <strong>{{if .Disabled}}Disabled{{else}}Enabled{{end}}</strong>{{if .Disabled}} <span class=muted>— the bit does not say whether the owner turned it off or the name stopped being active</span>{{end}}</p>
 <p class=muted>Not under either heading below, because it is neither: the daemon

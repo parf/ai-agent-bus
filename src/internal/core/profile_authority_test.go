@@ -11,6 +11,7 @@ func profileAuthorityFixture(t *testing.T) *Bus {
 	t.Helper()
 	b := New()
 	b.SetDaemonOwner("owner@h")
+	enableGithubProfiles(b)
 	for _, u := range []protocol.User{
 		{Name: "admin@h", PersonName: "Admin"},
 		{Name: "peer@h", PersonName: "Peer"},

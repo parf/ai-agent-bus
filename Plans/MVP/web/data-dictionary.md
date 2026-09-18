@@ -109,14 +109,13 @@ being old.
 | group members, withheld | the caller may not see them | **not visible to you** | an empty array shown as zero members |
 | `PeopleCount`, `OtherCount` | counts over the caller-visible directory before search | labelled with that scope, **and marked as the face's own** — they are fields of `peopleView` in the web child, not daemon answers, and sit beside `Services` and `Groups`, which are | presenting a face-computed figure and a daemon-reported one as the same kind of fact. Provenance is the same class of distinction as declared-versus-observed, and this file's rule covers it |
 
-### GitHub profile — planned
+### GitHub profile
 
-The GitHub directory adapter already retrieves the public profile response but
-the daemon currently retains only the login and `name`. The remaining fields
-need persistent profile and wire support before the web can render them; a
-template must never fetch GitHub itself.
+**Built in 0.5.71.** The GitHub directory adapter retains the public profile
+response with the User and returns it through the existing caller-visible
+directory answer. A template never fetches GitHub itself.
 
-| GitHub field | Planned profile meaning | Display and absence |
+| GitHub field | Profile meaning | Display and absence |
 |---|---|---|
 | `login` | GitHub login; already stored as `github_user` | link label for the GitHub profile |
 | `name` | trusted person name; already fills a blank `person_name` without overwriting an explicit value | ordinary Person name; omit when blank |
@@ -148,7 +147,9 @@ the explicit way to fetch the current login again. Clearing `github_user`
 clears GitHub metadata and the imported photo, but keeps Person name and Email:
 after fill-blank import they are ordinary AgentBus fields, not mirrors.
 
-### User photo — planned
+### User photo
+
+**Built in 0.5.71.**
 
 The user photo source order is GitHub `avatar_url`, then `gravatar_id`, then
 locally generated initials. The trusted provider adapter fetches remote image

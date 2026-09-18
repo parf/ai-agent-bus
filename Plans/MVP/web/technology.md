@@ -63,7 +63,7 @@ in December 2025 ([components](components.md#interaction-without-script)). The
 No database, no cross-user cache, no new wire design. Presentation problems are
 solved in presentation.
 
-The planned GitHub profile fields and photos are a data dependency, not a
+The built GitHub profile fields and photos are a daemon answer, not a
 presentation workaround: `protocol.User`, snapshot persistence, the trusted
 directory result and an authorized thumbnail read must carry them before the
 user page may show them. The trusted adapter downloads, validates and re-encodes

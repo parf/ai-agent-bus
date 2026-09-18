@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -135,6 +134,7 @@ type Bus struct {
 	// Which realms are backed by a directory, what verifies a signature,
 	// and the challenges outstanding. See docs/01-identity-and-roles.md#registration.
 	dirs    map[string]ports.Directory
+	github  ports.ProfileDirectory
 	sigs    ports.Signatures
 	pending map[string]challenge
 }
@@ -156,15 +156,15 @@ func New() *Bus {
 // created this way — it has to be enrolled, or the first caller to ask for a
 // name would become it. See docs/01-identity-and-roles.md#registration.
 func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
-	return b.register(r, false, false, "")
+	return b.register(r, false, false, ports.DirectoryProfile{})
 }
 
 // RegisterNew claims a name without replacing even the caller's own record.
 func (b *Bus) RegisterNew(r protocol.Record) (protocol.Record, error) {
-	return b.register(r, false, true, "")
+	return b.register(r, false, true, ports.DirectoryProfile{})
 }
 
-func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, personName string) (protocol.Record, error) {
+func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile ports.DirectoryProfile) (protocol.Record, error) {
 	name, err := canon(r.Name)
 	if err != nil {
 		return protocol.Record{}, err
@@ -275,26 +275,23 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, personName 
 	if enrolled {
 		user := b.users[name]
 		user.Name = name
-		// The directory is a trusted source, but it does not outrank an
-		// Administrator's explicit profile edit. Re-enrolment fills a blank and
-		// never overwrites a non-empty person name.
-		if user.PersonName == "" {
-			user.PersonName = strings.TrimSpace(personName)
-			if len(user.PersonName) > 200 {
-				return protocol.Record{}, fmt.Errorf("%w: person name is too long", ErrProfile)
-			}
-		}
-		if user.State == "" {
-			user.State = "active"
-		}
 		parsed, _ := protocol.ParseName(name)
 		if parsed.Realm == "github" {
-			for other, profile := range b.users {
-				if other != name && profile.GithubUser == parsed.Local {
+			for other, existing := range b.users {
+				if other != name && existing.GithubUser == parsed.Local {
 					return protocol.Record{}, fmt.Errorf("%w: GitHub login already belongs to another profile", ErrProfile)
 				}
 			}
 			user.GithubUser = parsed.Local
+		}
+		// The directory is a trusted source, but it does not outrank an
+		// Administrator's explicit profile edit. Re-enrolment fills a blank and
+		// never overwrites a non-empty person name.
+		if err := b.applyGithubProfile(&user, profile, name); err != nil {
+			return protocol.Record{}, err
+		}
+		if user.State == "" {
+			user.State = "active"
 		}
 		b.users[name] = user
 	}

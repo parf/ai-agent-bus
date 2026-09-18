@@ -1,5 +1,7 @@
 package ports
 
+import "time"
+
 // What enrolment needs from outside, in two pieces on purpose.
 // See docs/01-identity-and-roles.md#registration.
 
@@ -7,8 +9,29 @@ package ports
 // but when present it comes from the same trusted adapter as Keys rather than
 // from the caller asking to enrol.
 type DirectoryEntry struct {
-	Keys       []string
-	PersonName string
+	Keys    []string
+	Profile DirectoryProfile
+}
+
+// DirectoryProfile is a provider's trusted public profile answer. PhotoPNG is
+// already a bounded, decoded and re-encoded local thumbnail. ClearPhoto means
+// the complete provider answer named no photo source; an attempted source
+// which could not be imported leaves both fields empty so a prior thumbnail is
+// retained instead of being destroyed by an optional fetch failure.
+type DirectoryProfile struct {
+	Login           string
+	PersonName      string
+	Email           string
+	Company         string
+	Location        string
+	TwitterUsername string
+	AvatarURL       string
+	GravatarID      string
+	FetchedAt       time.Time
+	PhotoPNG        []byte
+	PhotoSource     string
+	PhotoFetchedAt  time.Time
+	ClearPhoto      bool
 }
 
 // Directory is a lookup and nothing more: which public keys and optional
@@ -18,6 +41,13 @@ type DirectoryEntry struct {
 // lookup to write and not a protocol to get right.
 type Directory interface {
 	Lookup(login string) (DirectoryEntry, error)
+}
+
+// ProfileDirectory exposes the non-authentication half of a provider lookup.
+// It is used only when a trusted administrator sets or explicitly refreshes a
+// provider login; key possession remains Directory.Lookup plus Signatures.
+type ProfileDirectory interface {
+	Profile(login string) (DirectoryProfile, error)
 }
 
 // Signatures says whether a message was signed by the holder of one of keys.

@@ -118,6 +118,16 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request, caller protocol
 	}
 }
 
+func (s *Server) githubRefresh(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	var in struct {
+		Name string `json:"name"`
+	}
+	if s.readStrict(w, r, &in) {
+		user, err := s.bus.RefreshGithub(caller.String(), in.Name)
+		s.reply(w, user, err)
+	}
+}
+
 func (s *Server) userState(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct{ Name, State string }
 	if s.read(w, r, &in) {

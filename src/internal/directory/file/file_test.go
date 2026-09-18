@@ -15,7 +15,7 @@ func TestLookupPublishesKeysWithoutInventingAProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entry.Keys) != 2 || entry.PersonName != "" {
+	if len(entry.Keys) != 2 || entry.Profile.PersonName != "" {
 		t.Fatalf("manual directory entry: %+v", entry)
 	}
 }

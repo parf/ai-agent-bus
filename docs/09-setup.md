@@ -83,6 +83,15 @@ non-owner administrative standing. Its members still retain the access and
 service maintenance granted through ordinary group references. Downgrading does
 not restore the old name automatically.
 
+## GitHub profile snapshot upgrade
+
+From 0.5.71, User profiles may retain public provider metadata and one bounded
+local PNG thumbnail. An older daemon ignores those unknown snapshot fields and
+drops them on its next snapshot write. Imported Person name and Email remain
+because they use the existing profile fields. The packaged rollback restores
+the matching earlier snapshot; do not run an older binary directly against a
+0.5.71 snapshot if retaining the optional provider fields matters.
+
 ## Maintainers-list upgrade
 
 From 0.5.62, a resource stores a list of Maintainers rather than one group.

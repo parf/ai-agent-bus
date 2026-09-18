@@ -20,11 +20,11 @@ import (
 const challengeLife = 2 * time.Minute
 
 type challenge struct {
-	name       string
-	login      string
-	keys       []string
-	personName string
-	at         time.Time
+	name    string
+	login   string
+	keys    []string
+	profile ports.DirectoryProfile
+	at      time.Time
 }
 
 // Directories says which realms are backed by a directory, and what verifies
@@ -35,6 +35,13 @@ func (b *Bus) Directories(dirs map[string]ports.Directory, sigs ports.Signatures
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.dirs, b.sigs = dirs, sigs
+	b.github = nil
+	for _, directory := range dirs {
+		if provider, ok := directory.(ports.ProfileDirectory); ok {
+			b.github = provider
+			break
+		}
+	}
 	b.pending = map[string]challenge{}
 }
 
@@ -72,7 +79,7 @@ func (b *Bus) Challenge(name string) (string, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.forget(time.Now())
-	b.pending[nonce] = challenge{name: n.String(), login: n.Local, keys: entry.Keys, personName: entry.PersonName, at: time.Now()}
+	b.pending[nonce] = challenge{name: n.String(), login: n.Local, keys: entry.Keys, profile: entry.Profile, at: time.Now()}
 	return nonce, nil
 }
 
@@ -98,7 +105,7 @@ func (b *Bus) Enrol(nonce, signature string) (protocol.Record, error) {
 	b.mu.Lock()
 	delete(b.pending, nonce)
 	b.mu.Unlock()
-	return b.register(protocol.Record{Name: c.name, Kind: "agent", Owner: c.name}, true, false, c.personName)
+	return b.register(protocol.Record{Name: c.name, Kind: "agent", Owner: c.name}, true, false, c.profile)
 }
 
 // forget drops challenges nobody answered. Caller holds the lock.

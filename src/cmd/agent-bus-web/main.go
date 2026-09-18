@@ -172,7 +172,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
 		if r.Method == http.MethodPost {
 			if r.Header.Get("Origin") != "" && !sameOrigin(r, tls) {
 				http.Error(w, "same-origin form required", http.StatusForbidden)
@@ -359,6 +359,11 @@ const head = `<!doctype html>
  .record-name-cell.personal-record{border-left-color:#8a5000}
  .record-name-cell.personal-record .record-name,.personal-marker{color:#8a5000;font-weight:700}
  .personal-marker{white-space:nowrap}
+ .identity-with-photo{display:flex;align-items:center;gap:.55rem}
+ .profile-photo,.profile-initial{width:2rem;height:2rem;border-radius:50%;flex:none}
+ .profile-photo{object-fit:cover}
+ .profile-initial,.profile-initial-large{display:inline-flex;align-items:center;justify-content:center;background:#e5eaf4;color:#253c66;font-weight:700}
+ .profile-photo-large,.profile-initial-large{width:3rem;height:3rem;border-radius:50%;object-fit:cover;flex:none;font-size:1.25rem}
  .activity-chart{display:block;width:100%;height:auto;max-height:14rem}
  .activity-axis{fill:none;stroke:#87847b;stroke-width:1;vector-effect:non-scaling-stroke}
  .activity-line{fill:none;stroke-width:2.5;vector-effect:non-scaling-stroke}

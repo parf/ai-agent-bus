@@ -178,6 +178,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /groups", g(s.groups))
 	mux.HandleFunc("GET /users", g(s.users))
 	mux.HandleFunc("POST /user", g(s.user))
+	mux.HandleFunc("POST /user/github-refresh", g(s.githubRefresh))
 	mux.HandleFunc("POST /profile", g(s.profile))
 	mux.HandleFunc("POST /user/state", g(s.userState))
 	mux.HandleFunc("POST /identity/remove", g(s.removeIdentity))
