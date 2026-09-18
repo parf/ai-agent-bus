@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.77 — 2026-09-18
+
+Add independent reader-state filtering and bounded pagination to Services,
+Personal and Channels while retaining URL state through record details.
+
 ## 0.5.76 — 2026-09-18
 
 Make trusted public GitHub profile lookup available without enabling GitHub as

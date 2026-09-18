@@ -296,18 +296,14 @@ This is [only offer transitions that apply](forms.md#rules) doing real work: the
 control is absent, and the reason stands where the control would have been.
 
 **The confirmation shows observations; it does not certify eligibility**, and
-the draft's *"which is what makes this available at all"* claimed it did.
-`withLiveness` sets `Reading` only for an **unfiltered** waiter (bus.go:425–429),
-while `UnregisterAnd` refuses on **any** waiter (unregister.go:78). codex
-reproduced it. Note the wording that survives: **not** "no reader attached",
-which the counterexample directly contradicts — there *is* a reader attached, it
-is filtered, and the field does not report it. The line says what the field
-actually answers and names what it omits.
+the draft's *"which is what makes this available at all"* claimed it did. The
+numeric `Readers` observation includes filtered and unfiltered waits, but it is
+still a momentary read: a waiter can arrive after the confirmation or leave
+before submission. The daemon rechecks removal itself.
 
-**And a refusal here is not the conditions-changed state.** That was the draft's
-next sentence and it is wrong in exactly this case: the filtered waiter existed
-before the confirmation was drawn, was never observable through that field, and
-still exists at submission. *Nothing changed.* It is the ordinary current-state
+**And a refusal here is not automatically the conditions-changed state.** A
+waiter can exist outside the page's last read or another current condition can
+refuse removal. Without a structured changed-fact answer it remains the ordinary current-state
 refusal — 409, with the daemon's message
 ([Problem](pages.md#problem--recovery-by-what-the-face-actually-knows)).
 

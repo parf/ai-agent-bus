@@ -162,7 +162,7 @@ defect is real. codex's [S14](review/codex.md#specification-review-round-one).
 | Owner | keep |
 | Owned by the caller | **always mark.** A blue leading rule and blue semibold name survive All, My, Personal and filtered results without repeating *Yours*; the My category link uses the same blue. Personal independently keeps its visible *Personal* word with stronger orange bold emphasis and category link; orange overrides blue on combined rows |
 | Enabled / Disabled | **relabel** from Active/Inactive. Administrative state, not liveness. Disabled is a decision, not a failure |
-| Reader: *attached* / *no unfiltered reader* / *external* | **relabel** from Serving/Offline/External. `Proto` is a caller-supplied hint meaning "expect no local reader", not proof of anything |
+| Readers | **numeric observation.** Count every outstanding filtered and unfiltered read; keep measured zero separate from unavailable. `Proto` remains an independent caller-supplied external hint |
 | Queued | keep on the service list. **Mode-aware on the channel list**: a pub/sub topic keeps no queue of its own — `Send` hands it to `fanout` and nothing waits on the topic — so a Queued cell there is structurally zero. Pub/sub rows show accepted; queue rows show queued; or the cell reads `—` |
 | Subscribers (channel list, pub/sub) | **new** |
 | One judgment column | **new.** Lit only on exceptional rows ([glyphs](glyphs.md#where-a-glyph-is-allowed)) |
@@ -188,7 +188,10 @@ owned/Personal emphasis, one name-to-detail route and compact update time; the
 Personal link colors without a version bump.
 0.5.67 embeds the record-scoped Activity graph and its link to the complete
 filtered view.
-Search, sort, paging and read-first detail disclosures remain pending.
+0.5.72 builds search and sort. 0.5.77 adds the independent Readers filter,
+25-row paging, matching counts, clear-filters action and exact list-state
+return from detail. The remaining populated visitor/owner journeys and
+read-first disclosure review stay pending.
 
 The title's `ⓘ` help contains the category definitions as bullets — All is
 caller-visible non-Personal services, My is the caller-owned subset, Personal

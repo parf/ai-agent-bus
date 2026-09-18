@@ -241,11 +241,11 @@ already read "disabled" as "broken".
 
 | Today | Becomes |
 |---|---|
-| `<b class=warn>nobody</b>` in the reader column | *no unfiltered reader*, unmarked. It is not, by itself, a problem, and it is not a claim that nobody is attached — a reader waiting on one topic is not counted (current bit; the [accepted Readers count](../../../docs/05-discovery.md#readers) is pending) |
+| `<b class=warn>nobody</b>` in the reader column | the numeric **Readers** count, unmarked. Explicit zero is not, by itself, a problem or a claim that a process is dead ([Readers](../../../docs/05-discovery.md#readers)) |
 | `<b class=warn>full</b>` | red status, text *at bound* |
 | `Maximum: 0` repeated down the page | removed; `0` and `¿` in the value table carry it |
 | blank cell for an unset value | one of the four markers, or the label goes too |
-| `Serving` / `Offline` | *reader attached* / *no unfiltered reader* / *external* |
+| `Serving` / `Offline` | numeric **Readers**; keep the independent external hint in its own field |
 
 ## Open
 

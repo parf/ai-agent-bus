@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| Web registry reader filter and pagination | Services, Personal and Channels independently filter live Readers observations and page one caller-visible answer while retaining URL state through detail | [0.5.77 evidence](done/web-registry-pagination.md#checks) |
 | Default GitHub profile adapter | Public profile metadata can be fetched without changing which realms require key-possession enrolment | [0.5.76 evidence](done/default-github-profile-adapter.md#checks) |
 | Group detail and GitHub availability | Groups are a compact linked table with authority-scoped detail editors; a valid unique GitHub login survives unavailable optional profile metadata while explicit refresh remains atomic | [0.5.75 evidence](done/group-detail-and-github-availability.md#checks) |
 | Compact web administration pages | Registration, User detail, Groups, Diagnostics and record detail share responsive cards, immediate help and grouped human-facing counts | [0.5.73 evidence](done/web-administration-redesign.md#checks) |

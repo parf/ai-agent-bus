@@ -526,7 +526,8 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
  .record-search input[type=search]{grid-column:1/-1}
  .record-choices{grid-column:1/-1;grid-row:auto}
   .record-search label{justify-self:start}
-  .record-table,.record-table tbody,.record-table tr,.record-table td{display:block;width:100%}
+ .record-table,.record-table tbody,.record-table tr,.record-table td{display:block;width:100%}
+	.record-table caption{display:block;width:100%}
   .record-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
   .record-table tr{border-bottom:1px solid var(--border);padding:.5rem 0}
   .record-table td{border:0;padding:.2rem .6rem;text-align:left}

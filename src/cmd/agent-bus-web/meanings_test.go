@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,6 +34,7 @@ type meanings struct {
 	web     *httptest.Server
 	session *http.Cookie
 	client  *http.Client
+	lsCalls *atomic.Int64
 }
 
 func meaningFixture(t *testing.T) *meanings {
@@ -42,7 +44,14 @@ func meaningFixture(t *testing.T) *meanings {
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend := httptest.NewServer(api.New(b, tokens, "admin@h").Handler())
+	m := &meanings{t: t, bus: b, tokens: tokens, lsCalls: new(atomic.Int64)}
+	apiHandler := api.New(b, tokens, "admin@h").Handler()
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/ls" {
+			m.lsCalls.Add(1)
+		}
+		apiHandler.ServeHTTP(w, r)
+	}))
 	t.Cleanup(backend.Close)
 	web := httptest.NewServer(dashboard(&caller{client: backend.Client(), base: backend.URL}, false))
 	t.Cleanup(web.Close)
@@ -60,7 +69,8 @@ func meaningFixture(t *testing.T) *meanings {
 	if len(resp.Cookies()) != 1 {
 		t.Fatal("sign in did not return a session")
 	}
-	return &meanings{t, b, tokens, backend, web, resp.Cookies()[0], client}
+	m.backend, m.web, m.session, m.client = backend, web, resp.Cookies()[0], client
+	return m
 }
 
 // as returns the same fixture signed in as somebody else. Every meaning check

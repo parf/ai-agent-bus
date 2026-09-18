@@ -71,6 +71,19 @@ func readerCount(readers *int) string {
 	return number(*readers)
 }
 
+func matchesReaderFilter(readers *int, filter string) bool {
+	switch filter {
+	case "present":
+		return readers != nil && *readers > 0
+	case "none":
+		return readers != nil && *readers == 0
+	case "unavailable":
+		return readers == nil
+	default:
+		return true
+	}
+}
+
 // number keeps dense operational figures readable without changing any
 // machine-facing value. HTML is the only consumer: JSON, URLs and form values
 // remain plain decimal strings.

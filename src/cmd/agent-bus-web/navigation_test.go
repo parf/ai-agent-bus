@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,123 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
+
+func TestReaderFiltersKeepMeasuredZeroSeparateFromUnavailable(t *testing.T) {
+	zero, two := 0, 2
+	for _, tc := range []struct {
+		name   string
+		value  *int
+		filter string
+		want   bool
+	}{
+		{"present", &two, "present", true},
+		{"zero-is-not-present", &zero, "present", false},
+		{"measured-zero", &zero, "none", true},
+		{"missing-is-not-zero", nil, "none", false},
+		{"missing", nil, "unavailable", true},
+		{"measured-is-available", &zero, "unavailable", false},
+		{"all-includes-missing", nil, "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := matchesReaderFilter(tc.value, tc.filter); got != tc.want {
+				t.Fatalf("matchesReaderFilter(%v, %q)=%v, want %v", tc.value, tc.filter, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestServiceReaderFilterIsIndependentFromDelivery(t *testing.T) {
+	m := meaningFixture(t)
+	m.shapes()
+	m.attachReader("reading@h")
+
+	present := m.get("/services?readers=present")
+	if !strings.Contains(present, ">reading@h<") || strings.Contains(present, ">quiet@h<") || !strings.Contains(present, `aria-current=true>Reading now</a>`) {
+		t.Fatal("positive Readers filter does not isolate the outstanding request")
+	}
+	none := m.get("/services?readers=none")
+	if strings.Contains(none, ">reading@h<") || !strings.Contains(none, ">quiet@h<") {
+		t.Fatal("measured-zero Readers filter collapsed with a positive count")
+	}
+	disabled := m.get("/services?readers=none&state=inactive")
+	if !strings.Contains(disabled, ">off@h<") || strings.Contains(disabled, ">quiet@h<") || !strings.Contains(disabled, `/services?readers=none&amp;state=active`) {
+		t.Fatal("reader and delivery filters do not compose or retain each other")
+	}
+}
+
+func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
+	for _, tc := range []struct {
+		path     string
+		kind     string
+		mode     string
+		stem     string
+		personal bool
+	}{
+		{"/services", "generic", "", "svc", false},
+		{"/personal", "generic", "", "personal", true},
+		{"/channels", protocol.KindTopic, protocol.ModeQueue, "channel", false},
+	} {
+		t.Run(tc.stem, func(t *testing.T) {
+			m := meaningFixture(t)
+			for i := 0; i < 30; i++ {
+				m.register(protocol.Record{Name: fmt.Sprintf("%s-%02d@h", tc.stem, i), Owner: "admin@h", Kind: tc.kind, Mode: tc.mode, Personal: tc.personal})
+			}
+			path := tc.path + "?q=" + tc.stem + "&readers=none&sort=updated&state=active&page=2"
+			before := m.lsCalls.Load()
+			page := m.get(path)
+			if got := m.lsCalls.Load() - before; got != 1 {
+				t.Fatalf("%s listing made %d /ls calls, want one", tc.path, got)
+			}
+			if !strings.Contains(page, "Showing 26&ndash;30 of 30 matching records") || !strings.Contains(page, "Previous page") || strings.Contains(page, "Next page") || !strings.Contains(page, "Clear filters") {
+				t.Fatalf("%s did not render the bounded second page: %s", tc.path, page)
+			}
+			if !strings.Contains(page, `.record-table caption{display:block;width:100%}`) {
+				t.Fatalf("%s table caption collapses at the narrow breakpoint", tc.path)
+			}
+			if strings.Count(page, `class="record-name-cell`) != 5 {
+				t.Fatalf("%s paged before filtering or used the wrong page size", tc.path)
+			}
+			previous := `href="` + tc.path + `?page=1&amp;q=` + tc.stem + `&amp;readers=none&amp;sort=updated&amp;state=active">Previous page</a>`
+			if !strings.Contains(page, previous) {
+				t.Errorf("%s Previous link lost listing state: want %s", tc.path, previous)
+			}
+			for _, want := range []string{"q=" + tc.stem, "readers=none", "sort=updated", "state=active", "page=1"} {
+				if !strings.Contains(page, want) {
+					t.Errorf("%s pager lost %q", tc.path, want)
+				}
+			}
+			category := "All (30)</a>"
+			if tc.path == "/channels" {
+				category = "All channels (30)</a>"
+			} else if tc.path == "/personal" {
+				category = "Personal (30)</a>"
+			}
+			if !strings.Contains(page, category) {
+				t.Errorf("%s category count was replaced by a page count", tc.path)
+			}
+			if !strings.Contains(page, `return=`) || !strings.Contains(page, `page%3d2`) {
+				t.Errorf("%s detail link lost its exact listing page: %s", tc.path, page)
+			}
+			clamped := m.get(tc.path + "?q=" + tc.stem + "&page=999")
+			if !strings.Contains(clamped, "Showing 26&ndash;30 of 30 matching records") {
+				t.Errorf("%s did not bound an out-of-range page", tc.path)
+			}
+		})
+	}
+}
+
+func TestServiceDetailReturnIsLocalAndStateful(t *testing.T) {
+	m := meaningFixture(t)
+	m.register(protocol.Record{Name: "return@h", Owner: "admin@h"})
+	stateful := m.get("/service?name=return@h&return=%2Fservices%3Freaders%3Dnone%26page%3D2")
+	if !strings.Contains(stateful, `href="/services?readers=none&amp;page=2"`) {
+		t.Fatal("service detail did not retain its local listing URL")
+	}
+	foreign := m.get("/service?name=return@h&return=https%3A%2F%2Fevil.example%2Fservices")
+	if !strings.Contains(foreign, `href="/services"`) || strings.Contains(foreign, "evil.example") {
+		t.Fatal("service detail accepted a foreign return URL")
+	}
+}
 
 func getAs(t *testing.T, m *meanings, path string) (string, int) {
 	t.Helper()

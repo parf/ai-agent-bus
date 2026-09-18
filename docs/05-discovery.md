@@ -152,6 +152,18 @@ caller-visible total. Users and Groups show their visible directory totals.
 These are counts computed from the page's existing daemon answers, not
 node-wide metrics and not additional reads.
 
+### Registry filters and paging
+
+**Built in 0.5.77.** Services, Personal and Channels filter delivery and live
+reader observations independently. Reader choices distinguish a positive
+count, measured zero and an unavailable observation; none is a health claim.
+Search, kind, owner and sort remain URL state beside those filters.
+
+The web face filters and sorts one caller-visible `/ls` answer, then shows at
+most 25 rows. It reports the matching count, bounds invalid page numbers and
+retains the exact page and filters through record detail and back. Section
+counts remain category totals before toolbar filters, rather than page counts.
+
 Every numeric column in a web table aligns its header and values to the right
 and uses tabular figures. Prose-embedded counts remain part of their sentence.
 

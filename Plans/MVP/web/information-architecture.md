@@ -148,7 +148,7 @@ the shape it takes here.
 | group membership visible only inside the editor | A non-administrator sees a group name with no members and no explanation of why. Say which it is: empty, or hidden from you |
 | registry iteration order | Replace with stable ordering ([W16](../done/web-review.md#findings)) |
 | in / out | Rename to accepted / dequeued. Dequeued is not completed |
-| Serving / Offline | Replace with reader attached / no unfiltered reader. Offline claims a process is dead from a read observation ([W03](../done/web-review.md#findings)), and *no reader waiting* claims nobody is attached from a bit that excludes filtered reads |
+| Serving / Offline | Replace with the numeric **Readers** observation. Explicit zero, a positive count and unavailable stay distinct; none claims process health ([W03](../done/web-review.md#findings)) |
 | Active / Inactive | Enabled / Disabled — an administrative state, not liveness |
 
 ## Overview, and the two guards on it
