@@ -132,14 +132,17 @@ inbox still holds messages is refused as well.
 
 ## The live node, 2026-09-19
 
+Run on the owner's instruction the same day, following the procedure above.
+
 | | |
 |---|---|
-| Daemon | `agent-busd 0.5.84`, so the upgrade is still ahead of it |
-| Records | 11, **every one `agent`** — no `generic` and no `topic` anywhere |
-| Queues | empty |
-| Six properties | two records carry a non-default allow list; none carries Maintainers, Personal or a configuration |
+| Before | `agent-busd 0.5.84`, 11 records, **every one `agent`**, four queues drained, nothing this version refuses |
+| The transform changed | four names and nothing else: `parf@parf`, `chief@srv1`, `plain@srv1`, `piped@srv1`, each a person's own inbox, `agent` → 👤 `user` |
+| Checked before installing | the transformed file differs from the original in those four `kind` values alone — users, groups, accounts, daemon owner and all four queues byte-identical |
+| After | `0.6.9` serving, 7 👾 and 4 👤, **zero differences** in Owner, ACL, Maintainers, Personal, Config and queued work; the accepted and dequeued counters came across (305, 393, 564, 10) |
+| Faces | six of the seven agent faces reconnected by themselves; `opencode/oab@parf.us` has no reader and waits on its launcher |
+| Rollback kept | `dump.before.json` beside the live snapshot |
 
-So this version would restore that snapshot as it stands: there is nothing it
-refuses. The only change the enum asks for is the four names that are people's
-own inboxes, which are stored `agent` and should be 👤 `user`. That is J.13's
-decision and its work; nothing here has been run against the live node.
+The `@owner` cohort is unaffected by the four conversions: a caller that **is**
+the owner matches before the kind is looked at, and a 👤 was never part of that
+cohort anyway ([ACL](../../docs/02-access.md#acl)).
