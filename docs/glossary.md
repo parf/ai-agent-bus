@@ -29,7 +29,7 @@ One glyph per meaning, and this table is where a meaning is fixed.
 [Web glyphs](../Plans/MVP/web/glyphs.md#the-rule-that-matters-most) owns where a
 glyph may appear, how it renders and what it must never carry on its own.
 
-| Glyph | Code point | Name | Means | |
+| Glyph | Code point | Name | Means | Status |
 |---|---|---|---|---|
 | 👤 | `U+1F464` | User | one registered person | built |
 | 👥 | `U+1F465` | Group | a group or team | built |
