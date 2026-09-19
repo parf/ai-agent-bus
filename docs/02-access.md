@@ -7,7 +7,7 @@ For ownership and management, see [Identity and roles](01-identity-and-roles.md#
 ## Scope
 
 Tokens, key-possession enrolment, account sockets, rotation, browser sessions,
-ACLs and nested groups are built. Service-role expressions remain
+ACLs and nested groups are built. Record-role expressions remain
 [pending](../Plans/MVP/TODO.md#authority-model). Startup revocation remains
 [best effort](#ownerless-credentials); further hardening is deferred. Future encryption is separate.
 The [Owner-and-Maintainers empty ACL rule](#acl) applies to new and restored records.
@@ -41,16 +41,16 @@ Public exceptions are listed below.
 | Local account socket | The principal mapped to that listener |
 | SSH token/admin command | The key's forced-command entitlement |
 
-![A user calls through the bus; the service receives the message and verified sender, never the user token.](../Plans/MVP/user-to-service.svg)
+![A user calls through the bus; the agent receives the message and verified sender, never the user token.](../Plans/MVP/user-to-service.svg)
 
 * A principal needs a profile or registry record. A bad token or unknown identity
   receives `401`; suspension receives `403 suspended`.
 * Authority is rechecked when an operation acts, not trusted from an earlier
   gate or page. Token issuance and record removal also check authority together
   with their credential-store writes.
-* Tokens authenticate to the daemon, not one target service. Routed messages
-  carry the verified sender identity, never the sender's token. The receiving
-  service uses its own credential.
+* Tokens authenticate to the daemon, not one target name. Routed messages
+  carry the verified sender identity, never the sender's token. Whatever reads
+  the receiving queue uses its own credential.
 * `AGENT_BUS_NAME` tells a process and its children what they serve; it does not
   authenticate to the daemon. `status` reports the authenticated caller.
 * [Public node identity](05-discovery.md#what-a-node-says-about-itself) and
@@ -86,7 +86,7 @@ The key path uses [the enrolment proof](#proving-possession), including for a
 previously enrolled identity retrieving its credential again. No path issues a
 token for an unknown identity without first establishing that identity.
 
-![User credentials and the separate service credential obtained during owner-authorized startup.](../Plans/MVP/getting-tokens.svg)
+![User credentials and the separate agent credential obtained during owner-authorized startup.](../Plans/MVP/getting-tokens.svg)
 
 </details>
 
@@ -129,25 +129,31 @@ provider answers. Private keys stay with the signing tool.
 
 ## ACL
 
-**ACL governs other principals' access to a service.** The service does not
+**ACL governs other principals' access to a record**, whichever of the five
+[kinds](03-services-and-topics.md#five-record-kinds) it is. A record does not
 need to list itself in its own ACL: it may read its own inbox independently.
-Caller standing, owner suspension and the service's Disabled setting still apply.
+Caller standing, owner suspension and the record's Disabled setting still apply.
+On a 📡 the list governs who may **read** the record — its address, protocol,
+description and [secret](03-services-and-topics.md#service-secrets) — because a
+service has no delivery to govern.
 
 **For other principals, an empty ACL means access only for the record's Owner
 and assigned Maintainers.** This default
-applies to Personal and non-Personal services alike.
+applies to Personal and non-Personal records alike.
 Being a user alone grants no access: Owner and Maintainer are the relevant
 resource roles, not additional entries that must be placed in the ACL.
 
 To allow **any registered user**, explicitly add **`*`** to the ACL. This does
 not admit anonymous, unknown or suspended callers. A
-[Personal service](03-services-and-topics.md#personal-and-shared) cannot use
+[Personal agent](03-services-and-topics.md#personal-and-shared) cannot use
 this grant because its ACL cannot grant access to users.
 
-**`@owner` is a runtime ACL term for the record's direct Owner and every
-registered Service or Agent directly owned by that Owner.** Ownership is one
-step: a service owned by another service does not inherit the human owner's
-cohort. Channels are not cohort members. The term follows current registry
+**`@owner` is a runtime ACL term for the record's direct Owner and every 👾
+`agent` directly owned by that Owner.** No other
+[kind](03-services-and-topics.md#five-record-kinds) joins the cohort: a 📮, a
+📣 and a 👤 are destinations or people rather than callers acting for an owner,
+and a 📡 calls nothing here at all. Ownership is one step: an agent owned by
+another agent does not inherit the human owner's cohort. The term follows current registry
 ownership, grants access rather than management, and is not a stored group: it
 cannot be created, nested in a group or assigned as a Maintainer.
 
@@ -165,7 +171,7 @@ records. See the [upgrade note](09-setup.md#empty-acl-upgrade).
 | Resource management authority | Owner, resource's own principal and assigned Maintainers have access |
 | Empty allow list | No additional access beyond resource management authority |
 | Matching name, ordinary group or `*` | Grants access |
-| `@owner` | Grants access to the direct Owner and the Owner's directly owned Services and Agents |
+| `@owner` | Grants access to the direct Owner and the agents that Owner directly owns |
 
 Version 0.5.74 removes the former master layer, including its flag and record
 field. The daemon Owner keeps
@@ -173,14 +179,14 @@ field. The daemon Owner keeps
 discovery and editing without opening a resource's message interface. See the
 [release note](09-setup.md#owner-acl-and-master-removal).
 
-Allow lists are registry settings, never values taken from private service
-configuration. Queries, sends, consumes and writes still obey their applicable
+Allow lists are registry settings, never values taken from private
+[registry configuration](03-services-and-topics.md#configuring-a-template). Queries, sends, consumes and writes still obey their applicable
 state and authority checks.
 
-ACLs can name users, services, ordinary groups and `@owner`. Ordinary group resolution follows
+ACLs can name any registered record, ordinary groups and `@owner`. Ordinary
+group resolution follows
 [nested membership](01-identity-and-roles.md#groups), including cycle-safe and
-later-populated group references.
-User/Agent/Service glyphs are
+later-populated group references. Entity glyphs are
 [display labels](05-discovery.md#identity-labels-in-web-and-cli), not ACL input.
 
 </details>

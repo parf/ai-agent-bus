@@ -18,10 +18,18 @@ Current naming index. Canonical values and definitions remain in the linked sect
 
 ## Vocabulary
 
-Use service discovery for the overall capability, registration for one operation.
-Use realm for the name's authority namespace, and service template for the
-unconfigured capability. Personal is an owner-selected
-[service classification](03-services-and-topics.md#personal-and-shared), not a record kind.
+Use service discovery for the overall capability, registration for one
+operation. Use realm for the name's authority namespace, and service template
+for the unconfigured capability.
+
+**Service means the external case and nothing else.** From 0.6.3 it is one of
+the [five record kinds](03-services-and-topics.md#five-record-kinds): a card
+describing something this bus does not run. Anything running behind a bus name
+is an **agent**. Say record for a registered name whose kind does not matter to
+the sentence. Personal is an owner-selected
+[agent classification](03-services-and-topics.md#personal-and-shared), not a
+kind. `generic`, `topic` as a kind, and delivery *mode* named kinds before
+0.6.3 and name nothing now.
 
 ## Glyphs
 
@@ -40,15 +48,17 @@ glyph may appear, how it renders and what it must never carry on its own.
 | 🔑 | `U+1F511` | Credentials | credentials proving an identity; never the secret value | built |
 | 🔱 | `U+1F531` | Daemon owner | the one authority on a node that cannot be delegated | built in 0.6.2 |
 | 👮 | `U+1F46E` | Maintainers | the named list that may edit a record's settings and ACL | built in 0.6.2 |
-| ⚙️ | `U+2699 U+FE0F` | Service | a service identity | built, and **retiring** |
-| 📡 | `U+1F4E1` | Service | something external, not on this bus | pending |
-| 📮 | `U+1F4EE` | Queue | a registered queue | pending |
-| 📣 | `U+1F4E3` | PubSub | a pub/sub topic | pending |
+| ⚙️ | `U+2699 U+FE0F` | Daemon | the daemon itself, never a record | reserved; labels nothing yet |
+| 📡 | `U+1F4E1` | Service | something external, not on this bus | built in 0.6.3 |
+| 📮 | `U+1F4EE` | Queue | a registered queue | built in 0.6.3 |
+| 📣 | `U+1F4E3` | PubSub | a pub/sub topic | built in 0.6.3 |
 
-Pending rows arrive with [five record kinds](03-services-and-topics.md#five-record-kinds)
-in [0.6.0](../Plans/MVP/0.6.0-TODO.md#the-enum), where `📡` takes Service from
-`⚙️` and `⚙️` stops labelling a record at all, staying with the daemon.
-`📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by `👾` in 0.6.1.
+`📡`, `📮` and `📣` arrived with the
+[five record kinds](03-services-and-topics.md#five-record-kinds) in 0.6.3, where
+`📡` took Service from `⚙️`. `⚙️` labels no record now and is held for the
+daemon; nothing carries it yet.
+History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
+`👾` in 0.6.1.
 
 ## Terms
 
@@ -58,29 +68,29 @@ in [0.6.0](../Plans/MVP/0.6.0-TODO.md#the-enum), where `📡` takes Service from
 | Canonical name | Routing identity | [definition](01-identity-and-roles.md#names) |
 | Token | Principal credential | [definition](02-access.md#what-a-call-carries) |
 | Local socket | Account credential | [definition](02-access.md#local-socket) |
-| Service ACL | Visibility and use policy, including runtime `@owner` | [definition](02-access.md#acl) |
+| Record ACL | Visibility and use policy, including runtime `@owner` | [definition](02-access.md#acl) |
 | Owner | Highest authority within the named scope | [definition](01-identity-and-roles.md#role-names-and-scopes) |
 | Daemon Owner | Root-like authority over the node; assigned through setup | [definition](01-identity-and-roles.md#daemon-owner) |
 | Administrator | Manages daemon users and groups | [definition](01-identity-and-roles.md#daemon-administrators) |
-| Maintainer | Explicitly assigned to manage a service or channel | [definition](01-identity-and-roles.md#services) |
+| Maintainer | Explicitly assigned to manage a record | [definition](01-identity-and-roles.md#services) |
 | User | Registered person | [definition](01-identity-and-roles.md#users-and-profiles) |
-| Member | Basic access to a service/channel | [definition](01-identity-and-roles.md#role-names-and-scopes) |
+| Member | Basic access to a record | [definition](01-identity-and-roles.md#role-names-and-scopes) |
 | Person profile | Identifying and descriptive information | [definition](01-identity-and-roles.md#users-and-profiles) |
-| Service and service template | Configured service and its unconfigured source | [definition](03-services-and-topics.md#service-and-template) |
-| Personal service | Owner-tagged service classification with a dedicated web view; access remains ordinary service access | [definition](03-services-and-topics.md#personal-and-shared) |
+| Service template | The unconfigured source a configured name was made from | [definition](03-services-and-topics.md#service-and-template) |
+| Personal agent | Owner-tagged agent classification with a dedicated web view; access remains ordinary record access | [definition](03-services-and-topics.md#personal-and-shared) |
 | Protocol hint | How a caller reaches an external service | [definition](03-services-and-topics.md#how-to-call-it) |
-| Registry configuration | Private setup fetched by its service | [definition](03-services-and-topics.md#configuring-a-template) |
+| Registry configuration | Private setup fetched by the record it belongs to | [definition](03-services-and-topics.md#configuring-a-template) |
 | Record kind | What a record is, as one of five stored values | [definition](03-services-and-topics.md#five-record-kinds) |
 | Service secret | Credential held on an external service record, read by principals it admits | [definition](03-services-and-topics.md#service-secrets) |
-| Channel | Service-like entity without an actual service process | [definition](01-identity-and-roles.md#channels) |
-| Topic | Delivery term for a channel | [definition](03-services-and-topics.md#topics) |
-| Inbox | Queue belonging to a registered name | [definition](04-messaging.md#inbox-queues) |
+| Channel | A 📮 queue or 📣 pub/sub topic: a record nobody acts as | [definition](01-identity-and-roles.md#channels) |
+| Topic | Delivery term for a queue or pub/sub record | [definition](03-services-and-topics.md#topics) |
+| Inbox | Queue belonging to a registered name; the four kinds that are not 📡 have one | [definition](04-messaging.md#inbox-queues) |
 | Receipt | Receiver acknowledgement of progress | [definition](04-messaging.md#receipts) |
 | Envelope | Message routing and body container | [definition](04-messaging.md#envelope) |
 | Shared reader | Member of an explicit consumer pool | [definition](04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | Audience | Callers allowed to see and use a name | [definition](05-discovery.md#audience) |
 | Listing observations | Daemon-observed state | [definition](05-discovery.md#what-a-listing-answers) |
-| Foreground runner | User-launched script service | [definition](08-runner-role.md#script-services) |
+| Foreground runner | User-launched script agent | [definition](08-runner-role.md#script-services) |
 | Adapter | Runtime transport or port implementation | [definition](08-runner-role.md#adapters) |
 | Supervisor and bus | Listener lifetime and request processing roles | [definition](11-processes.md#the-processes) |
 | Port and face | Dependency seam and entry point | [definition](10-modules.md#the-rule) |

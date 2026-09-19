@@ -73,7 +73,7 @@ Completed in 0.5.44; see [implementation and checks](done/empty-acl.md#checks).
 The anchor stays for existing references. Personal tagging and the authority
 changes below remain separate work.
 
-## Personal services
+## Personal agents
 
 Completed in 0.5.50–0.5.51; see [core checks](done/personal-services-core.md#checks)
 and [web checks](done/personal-services-web.md#checks). The owner classification,

@@ -15,13 +15,13 @@ relevant; [implementation work](../Plans/MVP/TODO.md#authority-model) and
 
 A **User** is a registered person. A **principal** is the identity a credential
 represents; it must have a user profile or a registry record to use the bus.
-A record describes a service or channel, whose inbox outlives the process serving it.
+A record is one of [five kinds](03-services-and-topics.md#five-record-kinds). The four that are not 📡 have an inbox, and it outlives whatever reads it.
 
 ## Names
 
 Names look like `alice@host` or `template/instance@host`. The realm after the
 last `@` identifies a namespace, not the process's physical location. Names are
-lowercase; the runner completes a bare service name with the local hostname.
+lowercase; the runner completes a bare name with the local hostname.
 
 <details>
 <summary>Name syntax and examples</summary>
@@ -39,15 +39,15 @@ lowercase; the runner completes a bare service name with the local hostname.
 `parf@comfi.com`, realm `srv1`. The bus does not treat that instance as a mailbox.
 ` PARF@Localhost ` and `parf@localhost` identify the same principal. Two instances
 of a [service template](03-services-and-topics.md#service-and-template) have
-separate names, inboxes and configurations.
+separate names, records and configurations.
 
 </details>
 
 ## Role names and scopes
 
 **Administrator** manages daemon users and groups. **Maintainer** manages an
-explicitly assigned service or channel. These are separate positions; a
-resource **Member** has basic access and can be a user or another service.
+explicitly assigned record. These are separate positions; a resource **Member**
+has basic access and can be a user or another record.
 
 <details>
 <summary>Diagram: separate role scopes</summary>
@@ -57,7 +57,7 @@ flowchart TB
     subgraph Node[Daemon]
         DO[Owner] --> DA[Administrator] --> DU[User]
     end
-    subgraph Resource[Service / channel]
+    subgraph Resource[Any record]
         RO[Owner] --> RM[Maintainer] --> Member[Member]
     end
     DO -. "Node-wide management" .-> RO
@@ -75,7 +75,7 @@ owner; the daemon then stores that position and a transfer survives restart.
 
 * Assign and revoke Administrators; edit, activate, pause and ban them.
 * Manage users and all groups.
-* Edit any service or channel, including its ACL, Maintainers and owner.
+* Edit any record, including its ACL, Maintainers and owner.
 * Transfer daemon ownership to another user.
 
 <details>
@@ -102,11 +102,11 @@ Administrators manage ordinary users and groups, but cannot edit the daemon
 owner or peer Administrators, or grant those positions. The accepted model
 allows ordinary-user unbanning; this is built, while the Owner retains authority
 over every level.
-Service/channel management requires the [resource assignment](#services).
+Record management requires the [resource assignment](#services).
 
 ## Users and profiles
 
-Users can register services and channels and become their owners. A user may
+Users can register records of any kind and become their owners. A user may
 edit or clear only their own email; username, person name, GitHub name, state
 and authority stay protected. Administrators and the Owner edit profiles below
 their level. Person names come from an Administrator, the trusted local-account
@@ -166,7 +166,7 @@ name and never overwrite an existing one.
 ## User states
 
 **Active** users may use their granted access. **Paused** and **banned** users
-cannot; their directly owned services are suspended too. Suspension keeps
+cannot; the records they directly own are suspended too. Suspension keeps
 credentials and queued work, stops no process, and is reversible. Users are
 not deleted in MVP.
 
@@ -181,15 +181,15 @@ remain refused. This is existing behavior.
   calls are refused as `403 suspended`. The daemon owner must remain active.
 * An authorized Administrator can reactivate a paused ordinary user. Ban-lifting
   authority follows the [Administrator rule](#daemon-administrators).
-* State changes cancel blocked reads that lose authority. Services' own
-  credentials are refused too; direct-owner suspension is checked for delivery,
+* State changes cancel blocked reads that lose authority. A record's own
+  credential is refused too; direct-owner suspension is checked for delivery,
   reading and new subscriptions. Unsubscribing remains possible for an active
   caller. Already delivered work cannot be recalled.
 * Suspension follows the **direct owner**, not an ownership chain. If Alice owns
-  service A and A owns B, pausing Alice suspends A, not B.
+  agent A and A owns B, pausing Alice suspends A, not B.
 * Credentials are kept, not rotated or revoked. Lifting the state restores their
   use. Stored state survives restart; queued messages keep their existing expiry.
-* Draining still requires access and obeys the stored Disabled setting. A service
+* Draining still requires access and obeys the stored Disabled setting. A record
   whose separate owner is suspended remains unreadable under the direct-owner
   suspension rule; permission to drain an inactive identity does not bypass it.
 
@@ -197,18 +197,22 @@ remain refused. This is existing behavior.
 
 ## Services
 
-A service has one Owner, explicitly assigned Maintainers and Members with
+**These rules are about a record, whichever of the
+[five kinds](03-services-and-topics.md#five-record-kinds) it is**; the section
+keeps its older name for its inbound links.
+
+A record has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
-The following model is built except for **service-defined roles**.
-Maintainers is a list of named users, groups, agents and services. Only the
+The following model is built except for **record-defined roles**.
+Maintainers is a list of named users, groups and records. Only the
 resource Owner or daemon Owner replaces it; group entries use ordinary nested
 membership. Human editors use one plain term per line, as ACL editors do.
 
 | Role | Authority |
 |---|---|
 | Owner | All Maintainer/Member permissions; assign/revoke Maintainers and transfer ownership |
-| Maintainer | Edit settings and ACL; assign/revoke service-defined roles except Maintainer |
-| Member | Use the service |
+| Maintainer | Edit settings and ACL; assign/revoke record-defined roles except Maintainer |
+| Member | Use the record |
 
 <details>
 <summary>Management boundaries and availability</summary>
@@ -217,16 +221,17 @@ membership. Human editors use one plain term per line, as ACL editors do.
   of its Maintainers list can manage it. Only the resource Owner or daemon Owner
   may replace the list; only they may transfer ownership. Naming a group
   delegates its membership to [group administration](#groups); it does not give
-  the service owner control over who Administrators add to it.
+  the record's owner control over who Administrators add to it.
 * Disabling refuses deliveries and inbox reads, cancels blocked reads, and
-  retains queued messages. Enabling does not start a process. Removing access
+  retains queued messages. A 📡 takes no Disabled setting, having no delivery
+  to turn off. Enabling does not start a process. Removing access
   cancels reads relying on it; delivered work is not recalled.
 * Re-registration retains the [protected settings](#registration).
 * Management includes configuration, access, availability and removal, subject
-  to [removal conditions](#unregistering). Only the service itself may fetch its
+  to [removal conditions](#unregistering). Only the record itself may fetch its
   [private configuration](03-services-and-topics.md#configuring-a-template).
   Managed runtime start/stop remains [runner work](../Plans/R1/runner.md#what-the-runner-does).
-* Service-defined role labels will be stored/resolved without interpreting their
+* Record-defined role labels will be stored/resolved without interpreting their
   meaning; Maintainer is the reserved management role. They must not let a
   Maintainer remove or replace another Maintainer through ACL editing.
 
@@ -234,20 +239,21 @@ membership. Human editors use one plain term per line, as ACL editors do.
 
 ## Channels
 
-A channel is a service-like entity **without an actual service process**. Its
-creator owns it, and the [service authority rules](#services) apply. The daemon
-provides queue or pub/sub delivery; joining, publishing or reading grants no
-ownership of the channel or another subscriber's inbox.
-[Delivery modes](03-services-and-topics.md#topics) are defined with messaging behavior.
+A channel is a 📮 `queue` or a 📣 `pubsub` record: a name **nobody acts as**.
+Its creator owns it, and the [record authority rules](#services) apply. The
+daemon provides queue or pub/sub delivery; joining, publishing or reading grants
+no ownership of the channel or another subscriber's inbox.
+[The two topic kinds](03-services-and-topics.md#topics) are defined with
+messaging behavior.
 
 ## Groups
 
 For shared management, create a group and add it to each resource's Maintainers
-list. A list may instead name a User, Agent or Service directly. There is no
-automatic global assignment.
+list. A list may instead name a record directly. There is no automatic global
+assignment.
 **Administrators control ordinary group membership**, including groups assigned
 as Maintainers. They may add themselves or another user they create, without
-additional approval from the service owner. Choosing the group accepts those
+additional approval from the record's owner. Choosing the group accepts those
 membership changes on every resource using it. This is intended, built behavior.
 Retire an ordinary group by emptying it; groups are not deleted, paused or banned.
 Ordinary groups may contain principals and other groups. Their membership
@@ -265,11 +271,11 @@ until populated, and any path to a principal grants effective membership.
   credential. Emptying a group preserves references to its name; adding members
   later makes those references effective again. The protected group cannot be emptied.
 * Group names are available for resource-owner assignments; full membership
-  lists are visible to Administrators. Owning a service grants no daemon
+  lists are visible to Administrators. Owning a record grants no daemon
   user/group administration.
 * Nested membership is built in 0.5.57. Stored group lists show direct entries;
   user views report effective membership. ACL and Maintainer checks use the
-  same reachability rule. Service-role storage remains
+  same reachability rule. Record-role storage remains
   [pending](../Plans/MVP/TODO.md#authority-model); proposed expression syntax
   remains in [R1](../Plans/R1/identity.md#groups-and-roles).
 * `@administrators` accepts direct user identities only; the Owner remains a
@@ -296,7 +302,11 @@ becomes its owner. Creating a name in a directory-backed realm requires
 A credential-only unknown name cannot bootstrap itself by registering. A name
 must first be created by an existing authorized principal or through enrolment.
 An owner must have a profile or record of its own. Enrolment creates a profile
-and self-owned record; ordinary registration creates a service record.
+and self-owned record. Ordinary registration that states no `kind` creates a 📡
+`service`, which is why it must also carry an address and a protocol; a caller
+meaning one of the other four
+[kinds](03-services-and-topics.md#five-record-kinds) says so, and `--personal`
+says `agent`.
 
 A conditional creation refuses an existing canonical name, even for its owner;
 claim and insertion happen together. Launchers use this for unique session
@@ -312,7 +322,7 @@ grants.
 
 ## Ownership
 
-Changing a service or channel's owner requires its current owner's or the daemon
+Changing a record's owner requires its current owner's or the daemon
 Owner's authority. Transfer changes who may manage the record and request its
 credential; it does not revoke existing tokens.
 
@@ -344,7 +354,7 @@ is required. Drain live queued work and stop all readers first.
   live work or any reader still blocks removal, so even a refused removal can
   prune expired messages.
 * A non-user name cannot unregister while it owns other records; transfer or
-  remove those first. A registered user keeps its profile and owned services
+  remove those first. A registered user keeps its profile and owned records
   when its own record is removed.
 * A non-user loses its credential and group membership; reads it held elsewhere
   end too. Credential-store failure abandons the removal. A registered user

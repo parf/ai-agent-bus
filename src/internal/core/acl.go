@@ -34,10 +34,12 @@ func (b *Bus) may(caller string, r protocol.Record) bool {
 	return false
 }
 
-// sameResourceOwner resolves @owner in the target record's context. Ownership
-// is deliberately one step: a Service owned by another Service does not join
-// the human owner's cohort through a chain. Channels are destinations, not
-// members of this runtime ACL term.
+// sameResourceOwner resolves @owner in the target record's context. Only an
+// agent joins its owner's cohort: a queue, a pub/sub topic and a user are
+// destinations or people rather than callers acting for an owner, and a
+// service is external and calls nothing here. Ownership is deliberately one
+// step, so an agent owned by another agent does not join through a chain.
+// See docs/02-access.md#acl.
 func (b *Bus) sameResourceOwner(caller, owner string) bool {
 	if caller == owner {
 		return true

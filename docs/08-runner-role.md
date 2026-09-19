@@ -6,16 +6,23 @@
 
 | MVP | Scope |
 |---|---|
-| Built | Script services, bounded parallel execution, graceful stop, logs, optional systemd sandbox, runtime adapters and smart launchers with MCP tools. |
+| Built | Script agents, bounded parallel execution, graceful stop, logs, optional systemd sandbox, runtime adapters and smart launchers with MCP tools. |
 | Pending | Full live-runtime and fresh-host acceptance of [runtime integration delivery](#runtime-integration-delivery), including [sidecar isolation and recovery](#runtime-isolation-and-recovery). |
 
 ## What the runner does
 
-`agent-bus start` stays in the foreground, registers a service, obtains its
-credential and reads its inbox. It runs the script once per message. It does
+`agent-bus start` stays in the foreground, registers an 👾
+[agent](03-services-and-topics.md#five-record-kinds) — the kind that has a
+queue here — obtains its credential and reads that queue. It runs the script once per message. It does
 not manage installed instances, autostart, reload or restart policies.
 
 ## Script services
+
+A script service is a **script behind an 👾 agent record**: the name is an
+agent because that is the kind with a queue to read
+([records § five record kinds](03-services-and-topics.md#five-record-kinds)).
+The section keeps its older name; a 📡 `service` is the external case and
+nothing runs behind one here.
 
 | Form | Input | Output |
 |---|---|---|
@@ -36,27 +43,27 @@ cat service.json | agent-bus start -5
 | Nonzero exit | Log failure and send no answer; no retry |
 | Expired caller deadline | Skip the script; message TTL is enforced separately in the daemon |
 | Stop | Stop taking work and wait for scripts already running; leave the registry record and queue intact |
-| Work directory | One per service; the script starts there |
-| Credentials | The launcher must be allowed to obtain the service's credential; it cannot become somebody else's service |
-| Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the direct Owner's Services and Agents. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-roles.md#registration). Reply inboxes need their own grants |
+| Work directory | One per agent; the script starts there |
+| Credentials | The launcher must be allowed to obtain that agent's credential; it cannot become somebody else's agent |
+| Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the records the direct Owner owns. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-roles.md#registration). Reply inboxes need their own grants |
 
 ### Stopping it and reading what it said
 
-The daemon does not know **where** a script service runs: the registry holds a
-description of it, not a handle to it. So a running service leaves a note of
+The daemon does not know **where** a script agent runs: the registry holds a
+description of it, not a handle to it. So a running agent leaves a note of
 itself in **its owner's own state directory**, and the two verbs read that.
 Which is also what makes *only whoever started it may stop it* true with no
 check in it — nobody else can see the file.
 
 | | |
 |---|---|
-| `agent-bus stop <name>` | `SIGTERM`, and then it **waits**. Stopping is graceful, so the verb does not report a stop that has not finished, and it ends one service without touching its siblings |
-| `agent-bus logs <name> [--lines N] [--follow]` | what that service and its scripts wrote. The log outlives the run on purpose: what a run said is most wanted once the run has ended |
-| a note with no process behind it | is cleared, not reported as a running service — a service killed outright leaves its note behind |
+| `agent-bus stop <name>` | `SIGTERM`, and then it **waits**. Stopping is graceful, so the verb does not report a stop that has not finished, and it ends one agent without touching its siblings |
+| `agent-bus logs <name> [--lines N] [--follow]` | what that agent and its scripts wrote. The log outlives the run on purpose: what a run said is most wanted once the run has ended |
+| a note with no process behind it | is cleared, not reported as running — an agent killed outright leaves its note behind |
 | starting a name that is already running here | is refused; the foreground `start` command has no shared-start mode |
 
 Because a message is taken from the daemon only when a script process is free
-to run it, a service that dies loses only the work already in flight; the rest
+to run it, an agent that dies loses only the work already in flight; the rest
 is still queued for whatever reads that inbox next.
 
 Stopping leaves the registration in place; remove an idle address with

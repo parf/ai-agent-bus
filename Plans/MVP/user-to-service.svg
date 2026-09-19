@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title description">
-  <title id="title">MVP: a user calls a service through the bus</title>
-  <desc id="description">The user sends a request and their token to the bus. The bus authenticates the user, checks the destination service ACL and queues the message. The service reads its inbox using its own token. The bus delivers the verified sender identity and message body, without forwarding the user's token. Replies and calls to other services authenticate as the service. MVP message bodies are plaintext.</desc>
+  <title id="title">MVP: a user calls an agent through the bus</title>
+  <desc id="description">The user sends a request and their token to the bus. The bus authenticates the user, checks the destination record's ACL and queues the message. The agent reads its inbox using its own token. The bus delivers the verified sender identity and message body, without forwarding the user's token. Replies and calls to other names authenticate as the agent. MVP message bodies are plaintext.</desc>
   <defs>
     <marker id="user-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 5 L0 10 Z" fill="#2563eb"/>
@@ -14,8 +14,8 @@
   </defs>
   <rect width="1200" height="680" rx="18" fill="#f8fafc"/>
   <g font-family="Arial, Helvetica, sans-serif" fill="#0f172a">
-    <text x="40" y="48" font-size="28" font-weight="700">MVP · User to service</text>
-    <text x="40" y="79" font-size="18" fill="#475569">The bus checks credentials. Services receive messages and the verified sender identity.</text>
+    <text x="40" y="48" font-size="28" font-weight="700">MVP · User to agent</text>
+    <text x="40" y="79" font-size="18" fill="#475569">The bus checks credentials. Agents receive messages and the verified sender identity.</text>
 
     <rect x="40" y="108" width="280" height="104" rx="12" fill="#eff6ff" stroke="#93c5fd"/>
     <text x="180" y="147" text-anchor="middle" font-size="24" font-weight="700">User</text>
@@ -26,8 +26,8 @@
     <text x="600" y="179" text-anchor="middle" font-size="18" fill="#475569">Authenticates · authorizes · queues</text>
 
     <rect x="880" y="108" width="280" height="104" rx="12" fill="#ecfdf5" stroke="#6ee7b7"/>
-    <text x="1020" y="147" text-anchor="middle" font-size="24" font-weight="700">Service</text>
-    <text x="1020" y="179" text-anchor="middle" font-size="18" fill="#087f6b">Holds its own service token</text>
+    <text x="1020" y="147" text-anchor="middle" font-size="24" font-weight="700">Agent</text>
+    <text x="1020" y="179" text-anchor="middle" font-size="18" fill="#087f6b">Holds its own agent token</text>
 
     <g stroke="#cbd5e1" stroke-width="2" stroke-dasharray="5 7">
       <path d="M180 224 V526"/>
@@ -38,12 +38,12 @@
     <text x="210" y="254" font-size="20" font-weight="700" fill="#1d4ed8">1  Request + user token</text>
     <path d="M180 274 H590" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#user-arrow)"/>
     <rect x="447" y="289" width="306" height="58" rx="9" fill="#ffffff" stroke="#cbd5e1"/>
-    <text x="600" y="313" text-anchor="middle" font-size="17">Verify user · check service ACL</text>
-    <text x="600" y="335" text-anchor="middle" font-size="17" fill="#475569">Queue until the service reads</text>
+    <text x="600" y="313" text-anchor="middle" font-size="17">Verify user · check the record's ACL</text>
+    <text x="600" y="335" text-anchor="middle" font-size="17" fill="#475569">Queue until the agent reads</text>
 
-    <text x="645" y="377" font-size="20" font-weight="700" fill="#087f6b">2  Read inbox + service token</text>
+    <text x="645" y="377" font-size="20" font-weight="700" fill="#087f6b">2  Read inbox + agent token</text>
     <path d="M1020 397 H610" stroke="#087f6b" stroke-width="3" fill="none" marker-end="url(#service-arrow)"/>
-    <text x="600" y="422" text-anchor="middle" font-size="17" fill="#475569">Authenticate the service</text>
+    <text x="600" y="422" text-anchor="middle" font-size="17" fill="#475569">Authenticate the agent</text>
 
     <text x="645" y="466" font-size="20" font-weight="700">3  Verified sender + message body</text>
     <path d="M600 486 H1010" stroke="#334155" stroke-width="3" fill="none" marker-end="url(#delivery-arrow)"/>
@@ -51,7 +51,7 @@
     <text x="810" y="524" text-anchor="middle" font-size="18" font-weight="700">The user token is not forwarded</text>
 
     <rect x="40" y="558" width="1120" height="82" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
-    <text x="60" y="587" font-size="18">A reply or a call to another service goes through the bus, authenticated as the service.</text>
+    <text x="60" y="587" font-size="18">A reply or a call to another name goes through the bus, authenticated as the agent.</text>
     <text x="60" y="617" font-size="18" fill="#475569">MVP bodies are plaintext: the bus can read them. This diagram shows the token-authenticated path.</text>
     <text x="40" y="665" font-size="16" fill="#64748b">Time flows downward · Each arrow is a request or delivery, not a shared credential.</text>
   </g>

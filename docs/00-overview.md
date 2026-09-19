@@ -14,10 +14,10 @@ Values have one owning section; other pages link to it.
 |---|---|
 | [Identity and roles](01-identity-and-roles.md#identities) | Names, users, roles, groups and resource lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
-| [Services](03-services-and-topics.md#service-kinds) | Registration, configuration and topic properties |
+| [Records and topics](03-services-and-topics.md#five-record-kinds) | Record kinds, registration, configuration and topic properties |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and snapshots |
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
-| [Runner](08-runner-role.md#script-services) | Foreground script services, push adapters, pending runtime integrations and launchers, sandboxing |
+| [Runner](08-runner-role.md#script-services) | Foreground script agents, push adapters, pending runtime integrations and launchers, sandboxing |
 | [Setup](09-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
 | [Modules](10-modules.md#the-rule) | Implementation boundaries, languages and dependency rules |
 | [Processes](11-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |

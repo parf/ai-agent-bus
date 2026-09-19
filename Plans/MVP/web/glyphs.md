@@ -40,7 +40,7 @@ Those records stay with the channels, which the same 0.5.84 decision settled and
 this does not touch. The visible word remains on full labels, while compact
 directory rows carry the same word in their accessible label.
 
-User and Agent are the implemented shared web/CLI entity labels, and Service is `⚙️` until `📡` replaces it. WEB
+User, Agent, Service, Queue and PubSub are the implemented shared web/CLI entity labels. WEB
 directory rows put their glyph directly before the identity name, and WEB group
 headings put Group directly before the group name; the surrounding page states
 the meanings in words. Identity and Credentials record the selected vocabulary;
@@ -57,7 +57,7 @@ already supplies its name.
 | Page | Title image or glyph |
 |---|---|
 | Overview | 🏠 |
-| Services and service detail | ⚙️ Service; 📡 Service pending [0.6.0](../0.6.0-TODO.md#the-enum) |
+| Services and service detail | 📡 Service, built in 0.6.3 |
 | Agent record detail | 👾 Agent |
 | Channels and channel detail | a small inline channel SVG |
 | Activity | a small inline graph SVG |

@@ -76,10 +76,10 @@ host.
 export AGENT_BUS_TOKEN=$(./agent-bus-token echo@$(hostname -s))
 ```
 
-**2 — a service.** A service *is* a name, so the shell that answers takes it:
+**2 — an agent.** An agent *is* a name, so the shell that answers takes it:
 
 ```sh
-./agent-bus register echo@$(hostname -s) --kind generic --descr "answers"
+./agent-bus register echo@$(hostname -s) --kind agent --descr "answers"
 ./agent-bus consume --wait 5m          # prints the envelope, with its message_id
 ./agent-bus ack   <message-id>         # got it
 ./agent-bus reply <message-id> "42"    # the answer

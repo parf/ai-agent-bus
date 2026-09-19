@@ -22,7 +22,7 @@ remain separate.
 | Supervisor | Listening sockets, socket ownership and child restart | `agent-busd` |
 | Bus | Registry, queues, tokens and browser sessions | Same executable, bus role |
 | Web | HTTP rendering, no credential store | `agent-bus-web`, enabled with `-web` |
-| Foreground script runner | Its service's inbox reader and script children | User-launched CLI; outside the daemon |
+| Foreground script runner | Its agent's inbox reader and script children | User-launched CLI; outside the daemon |
 
 The web child is optional and not started by default. AUTH and health are not
 implemented children.
@@ -39,7 +39,7 @@ any work. The MCP entry point accepts the same flag via
 |---|---|---|
 | Supervisor | `agent-busd <version> ; supervisor` | No counter; it serves no requests |
 | Bus child | `agent-busd <version> ; Calls: <count> ; bus` | HTTP requests received across every listener, including refusals and requests still in progress |
-| Foreground script runner | `agent-bus-runner <version> ; Calls: <count> ; <service>` | Inbox messages taken, including work that later fails or is skipped |
+| Foreground script runner | `agent-bus-runner <version> ; Calls: <count> ; <name>` | Inbox messages taken, including work that later fails or is skipped |
 
 Counts are cumulative for the process lifetime, start at zero, and reset on
 restart. Titles are set at start and refreshed once a second; the request path
@@ -54,17 +54,17 @@ build requirements live in [setup § build information](09-setup.md#build-inform
 ## Nothing the daemon runs may exec
 
 This is the target privilege boundary for bus and web: they must not execute
-user services. The supervisor necessarily executes its children. User scripts
+user programs. The supervisor necessarily executes its children. User scripts
 run in the separate foreground runner.
 
-**`ssh-keygen` is allowed, and the boundary is about user services.** The bus
+**`ssh-keygen` is allowed, and the boundary is about user programs.** The bus
 runs it to check a signature at enrolment, and that stays. What the rule forbids
-is executing **what a user supplied** — a service, a script, anything whose
+is executing **what a user supplied** — a script behind an agent, anything whose
 contents somebody else chose. A fixed verifier the daemon ships and invokes with
 arguments it built is a different thing from running a stranger's program, and
 collapsing the two would have bought nothing but a literal claim.
 
-So the boundary is not *no exec*, it is **no user services**, and the check is
+So the boundary is not *no exec*, it is **no user programs**, and the check is
 what decides the argument rather than how the code is reached. An unavailable
 future AUTH child is not what settles this; the distinction is.
 

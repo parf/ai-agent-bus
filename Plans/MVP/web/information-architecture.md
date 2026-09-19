@@ -112,9 +112,9 @@ not a form appended to a list and not an unrelated heading action:
 | Users | All identities (`#`) · Register user |
 | Groups | All groups · Register group |
 
-The current entry is marked. Service counts cover the records in each
+The current entry is marked. Agent counts cover the records in each
 caller-visible category before search, state and kind filters: All and My omit
-Personal services; Personal uses the established owner-scoped Personal view.
+Personal agents; Personal uses the established owner-scoped Personal view.
 All and My overlap deliberately: My is the caller-owned subset of All. Personal
 is separated from both.
 

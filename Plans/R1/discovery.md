@@ -50,7 +50,7 @@ service that states nothing keeps exactly today's behavior.
 Itself an agent: registered, replicated 2×, holds a `health` role on the
 services it probes.
 
-- **generic** → probe per the registered hints.
+- **service** → probe the external thing per its registered address and protocol.
 - **agent** → heartbeat; K missed → down.
 
 A record its owner declared down or retired is not probed and not counted
@@ -61,7 +61,7 @@ against: what this reports is observed, and that is stated
 ## Stats
 
 Agent heartbeats carry a small metrics blob; probe results (latency, up/down)
-are the stats for generic services; queue depth and rates for topics.
+are the stats for external services; queue depth and rates for the two topic kinds.
 
 Kept in memory — ring buffers, last N hours, fixed resolution — and dumped with
 the queues ([messaging § durability](../../docs/04-messaging.md#durability)), so a

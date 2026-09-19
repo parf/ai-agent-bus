@@ -38,10 +38,9 @@ Where a value's meaning depends on when it was computed, this file says so.
 |---|---|---|---|
 | `Name` | full routing address, `user@realm` | the name, in monospace | never hidden — it disambiguates sessions |
 | `Descr` | caller-supplied display text | the description, shown first | absent: the name stands alone, no empty label |
-| `Kind` | generic, agent or topic | Service, Inbox, Channel | — |
-| `Mode` | queue or pub/sub, topics only | delivery: one at a time, or a copy each | not a topic. An inbox stores none and reads as a queue |
+| `Kind` | one of the [five](../../../docs/03-services-and-topics.md#five-record-kinds): `user`, `agent`, `queue`, `pubsub`, `service` | 👤 User, 👾 Agent, 📮 Queue, 📣 PubSub, 📡 Service | — |
 | `Owner` | the principal who owns the record | owner | — |
-| `Maintainers` | list of named users, groups, agents and services with management authority | maintainers | **empty: the label goes too** |
+| `Maintainers` | list of named users, groups and records with management authority | maintainers | **empty: the label goes too** |
 
 ### State
 

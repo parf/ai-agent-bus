@@ -12,15 +12,15 @@
 ## What a listing answers
 
 **Being in the registry and being callable are different facts.** "There is a
-MySQL on `db1:3306`" is a complete registration ([services § service
-kinds](03-services-and-topics.md#service-kinds)) and nothing on this bus
+MySQL on `db1:3306`" is a complete 📡 registration ([records § five record
+kinds](03-services-and-topics.md#five-record-kinds)) and nothing on this bus
 answers for it; a service template is registered and deliberately does not run
-([services § service and template](03-services-and-topics.md#service-and-template)).
+([records § service and template](03-services-and-topics.md#service-and-template)).
 So a caller reading a listing needs more than a name:
 
 | Field | Says | Absent means |
 |---|---|---|
-| **`protocol`** | how to call it, when that is not through the bus ([services § how to call it](03-services-and-topics.md#how-to-call-it)) | an ordinary bus service: send to the name |
+| **`protocol`** | how to call a 📡, which is not through the bus ([records § how to call it](03-services-and-topics.md#how-to-call-it)) | one of the four kinds that has a queue here: send to the name |
 | **`readers`** | how many consume requests are outstanding now, filtered and unfiltered together | unavailable; a current daemon publishes measured zero explicitly |
 | **`reading`** | compatibility-only flag: an unfiltered read is outstanding now. Human faces render `readers`; new consumers should use it | no unfiltered read observed; this does not mean nobody is attached |
 | **`queued`** | how many messages are waiting in it | none are |
@@ -32,12 +32,16 @@ So a caller reading a listing needs more than a name:
 These are **observations attached to the listing**, not values a registrant
 may state. Traffic and loss counters survive through snapshots; `readers` and
 `reading` do not ([overview § principles](00-overview.md#principles)). They
-describe the observed inbox, not service health or a guarantee that a
-particular request will be handled.
+describe the observed inbox, not health or a guarantee that a particular
+request will be handled.
+
+**A 📡 answers none of them.** It has no queue here, so the daemon states no
+reader count and no queued total for one rather than reporting a zero it never
+measured ([records § five record kinds](03-services-and-topics.md#five-record-kinds)).
 
 An inbox that was drained and one nobody ever wrote to both read as empty.
 `in` and `out` are what tell them apart, and they are per name: a busy bus
-does not make a quiet service look busy.
+does not make a quiet name look busy.
 
 ## Readers
 
@@ -46,13 +50,13 @@ visible inbox: all currently outstanding consume requests, filtered and
 unfiltered together. No separate counters or breakdown by filter type.
 
 This helps an operator see whether anything is waiting to read. Zero means no
-read is outstanding at that instant, not that the service is dead; a reader may
-be processing a message between reads. A positive count does not promise that
+read is outstanding at that instant, not that whatever reads the queue is gone;
+a reader may be processing a message between reads. A positive count does not promise that
 a particular message matches, or that any work has finished. Count waiting
 requests, not processes, sessions or completed reads.
 
 The compatibility `reading` flag cannot provide this count and is not rendered
-by WEB, CLI or MCP. Normal service behavior follows the [full-inbox reading
+by WEB, CLI or MCP. Ordinary reading follows the [full-inbox reading
 rule](04-messaging.md#one-reader-per-inbox).
 
 ## CLI listing
@@ -60,9 +64,10 @@ rule](04-messaging.md#one-reader-per-inbox).
 **Built:** `agent-bus ls -h` renders a table; plain `ls` retains JSON.
 Both accept a single name or `--kind` filtering through the same API calls.
 The table shows name, kind, owner, Readers count, queued count and description.
-A current daemon reports a numeric Readers value for every row, including a
-record with an external protocol; a missing older answer renders as
-`unavailable`. Protocol and inbox observation are separate facts. It is the
+A current daemon reports a numeric Readers and queued value for every row that
+has a queue, and `-` for a 📡, which has none; a missing older answer renders as
+`unavailable`, which is a different fact from not applying, and the table's
+legend says which `-` is which. It is the
 [listing observation](#what-a-listing-answers), not a health check.
 An empty result says `No matching records.`; lookup errors remain errors.
 
@@ -82,8 +87,8 @@ tools configured and callable in the session.
 
 | Capability | Required outcome | Existing implementation |
 |---|---|---|
-| List the bus | Discover registered agents, services and topics through the caller's [catalogue view](#audience) | `ab_ls` in the [MCP face](../src/mcp/server.ts) |
-| Call a service on the bus | Send to a named service and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
+| List the bus | Discover registered agents, queues, topics and external services through the caller's [catalogue view](#audience) | `ab_ls` in the [MCP face](../src/mcp/server.ts) |
+| Call a name on the bus | Send to an agent, user or queue and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion. A 📡 is not sent to: the catalogue gives its address and the caller speaks to it itself | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
 
 These are minimum capabilities, not a restriction on the remaining tools.
 The tools and launcher wiring are built; full live-runtime and fresh-host
@@ -135,35 +140,38 @@ what the daemon permits. “All” means all visible to that visitor.
 
 | Tab | Required functionality |
 |---|---|
-| Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal services, which have their own tab, and from 0.5.84 excludes agent inboxes, which are not services and are listed with the channels. Administrative availability and reader observation are distinct facts |
-| Personal services | Owner-tagged services grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
+| Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which have their own tab. Administrative availability and reader observation are distinct facts |
+| Services | 📡 records alone — something [external](03-services-and-topics.md#five-record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
+| Personal | Owner-tagged agents grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
 | Users | List and details; add, edit, activate, pause and ban; show caller-visible owned records, linked group membership and administrative authority. The directory opens on active users; **Active**, **Inactive**, **Banned** and **All states** are counted filters, and a state other than active is marked beside the name rather than in a column of its own. Applicable daemon-authorized actions sit behind **Change**. Ban and unused-credential removal use consequence confirmations |
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
-| Registered pub/sub channels | List and details for pub/sub and queue topics; create, edit and remove; subscriptions, owner, Maintainers list, permissions, TTL, capacity and overflow policy. **From 0.5.84 the page also lists agent inboxes**, which [messaging](04-messaging.md#inbox-queues) defines as implicit queue topics; a Kind filter separates Channel from Inbox |
+| Channels | List and details for 📮 queue and 📣 pub/sub records; create, edit and remove; subscriptions, owner, Maintainers list, permissions, TTL, capacity and overflow policy. A Type column states each row's kind, and the Kind filter offers only the kinds the page lists. From 0.6.3 agent records are on Agents instead |
 
-The [Personal Services view](03-services-and-topics.md#personal-and-shared) is built.
+The [Personal view](03-services-and-topics.md#personal-and-shared) is built.
 
 ### Section navigation and registration
 
-**Built in 0.5.64.** Services shows caller-visible **All**, **My** and
-**Personal** category counts before the delivery filter; Channels shows its
-caller-visible total. Users and Groups show their visible directory totals.
-These are counts computed from the page's existing daemon answers, not
+**Built in 0.5.64, reassigned to Agents in 0.6.3.** Agents shows caller-visible
+**All**, **My** and **Personal** category counts; Services and Channels show
+their caller-visible totals. Users and Groups show their visible directory
+totals. These are counts computed from the page's existing daemon answers, not
 node-wide metrics and not additional reads.
 
 **Built in 0.5.79.** The signed-in identity links to Account outside the section
 row. Account shows its optional user profile or own record, caller-visible owned
-records, held credential fingerprints and command-line rotation help. A service
-principal does not need a user-directory row. Diagnostics no longer duplicates
-credential facts.
+records, held credential fingerprints and command-line rotation help. A
+non-user principal does not need a user-directory row. Diagnostics no longer
+duplicates credential facts.
 
 ### Registry filters and paging
 
-**Built in 0.5.77.** Services, Personal and Channels filter delivery and live
-reader observations independently. Reader choices distinguish a positive
-count, measured zero and an unavailable observation; none is a health claim.
-Search, kind, owner and sort remain URL state beside those filters.
+**Built in 0.5.77.** Agents, Personal and Channels filter work held and live
+reader observations independently. Reader choices distinguish a positive count,
+measured zero and an unavailable observation; none is a health claim. Search,
+kind, owner and sort remain URL state beside those filters. Services offers
+none of the three: they are observations of a queue, and a
+[service has none](03-services-and-topics.md#five-record-kinds).
 
 The web face filters and sorts one caller-visible `/ls` answer, then shows at
 most 25 rows. It reports the matching count, bounds invalid page numbers and
@@ -173,42 +181,39 @@ counts remain category totals before toolbar filters, rather than page counts.
 Every numeric column in a web table aligns its header and values to the right
 and uses tabular figures. Prose-embedded counts remain part of their sentence.
 
-### Service and channel journeys
+### Agent, service and channel journeys
 
-**Built in 0.5.78.** Services and Channels share the compact registry frame but
-answer different questions. Services identify a daemon-stated Service and show
-queued inbox work. Channels have their own document title, heading, canonical
-`/channel` detail link and delivery-mode filter.
+**Built in 0.5.78, split by kind in 0.6.3.** The three registry pages share the
+compact frame and answer different questions. Agents identify a daemon-stated
+👾 and show queued inbox work. Services identify a 📡 and show where it is:
+address, protocol and description, and nothing about a queue. Channels have
+their own document title, heading and canonical `/channel` detail link, and
+carry the 📮 and 📣 records.
 
-**From 0.5.84 Channels also lists agent inboxes** and states each row's kind in
-a Type column, with a Kind filter separating Channel from Inbox. An inbox stores
-no delivery mode and reads and filters as a queue, which is what
-[inbox queues](04-messaging.md#inbox-queues) defines it to be. Services holds
-`generic` records alone and no longer offers a Kind filter.
+Each Channel row states its kind in a Type column, and the Kind filter offers
+only the two kinds the page lists. Channel rows state **Queue · one at a time**
+or **Pub/sub · copy to each**. The single **Work** column follows that kind: a
+queue reports messages held for a reader; pub/sub reports messages accepted for
+fan-out and never suggests a topic backlog. Pub/sub also reports its subscriber
+count; queue subscriber count is not applicable. Readers remains the live count
+of outstanding consume requests and is the same fact for both.
 
-Channel rows state **Queue · one at a time** or **Pub/sub · copy to each**. The
-single **Work** column is mode-aware: a queue reports messages held for a
-reader; pub/sub reports messages accepted for fan-out and never suggests a
-topic backlog. Pub/sub also reports its subscriber count; queue subscriber
-count is not applicable. Readers remains the live count of outstanding consume
-requests and is independent of mode.
-
-Search, delivery, mode, Readers, sort and page remain plain URL state through
+Search, delivery, kind, Readers, sort and page remain plain URL state through
 channel detail and back. A successful channel registration or ordinary edit
 returns to that channel. Caller-visible operational facts remain readable while
 edit controls appear only when the daemon grants management authority. An empty
 Channels category explains channels and offers registration; a filtered empty
 result instead keeps its filters and offers to clear them.
 
-Registration opens dedicated `/services/new`, `/channels/new`, `/users/new`
-and `/groups/new` pages from the matching section navigation. User and Group
+Registration opens dedicated `/agents/new`, `/services/new`, `/channels/new`,
+`/users/new` and `/groups/new` pages from the matching section navigation. User and Group
 entries appear only when the daemon says the visitor is an Administrator;
 the routes repeat that authority check. The old empty `/user` registration URL
 continues to work.
 
 Two- and three-value URL filters are visible links whose active state and plain
 values remain in the URL. Two-value creation choices are labelled radio
-buttons. An owned Service or Channel row uses a blue leading rule and blue
+buttons. An owned row on any registry page uses a blue leading rule and blue
 semibold linked name; the **My** category link uses the same blue. The row does
 not repeat a **Yours** label. A Personal row keeps the visible **Personal** word
 and uses stronger orange, bold emphasis shared by the **Personal** category
@@ -628,18 +633,26 @@ owns the installed exercise and mutation checks.
 
 ## Identity labels in web and CLI
 
-**Built in 0.5.54.** In the web interface and human-readable CLI output, use:
+**Built in 0.5.54, one label per stored kind since 0.6.3.** In the web interface
+and human-readable CLI output, use:
 
 | Label | Entity |
 |---|---|
 | 👤 User | Registered person |
-| 👾 Agent | An agent, and the queue named after it. `📥 Inbox` held this row in 0.5.84, while nothing distinguished an agent's record from a service's; restored in 0.6.1. Those records stay with the channels |
-| ⚙️ Service | Service identity |
+| 👾 Agent | An agent, and the queue named after it |
+| 📮 Queue | A queue registered for its own sake |
+| 📣 PubSub | A pub/sub topic |
+| 📡 Service | Something [external](03-services-and-topics.md#five-record-kinds), not on this bus |
 | 👥 Group | Group or team |
 
-**Pending.** [Five record kinds](03-services-and-topics.md#five-record-kinds)
-gives a queue, a pub/sub topic and an external service each a kind of their own,
-after which a label names a stored kind rather than an inference.
+Every row above names a [stored kind](03-services-and-topics.md#five-record-kinds),
+so a label states what the daemon said rather than what a page inferred. A kind
+the daemon did not state stays unlabeled.
+
+History: `📥 Inbox` held the Agent row in 0.5.84, while nothing distinguished an
+agent's record from a service's, and `👾` was restored in 0.6.1. `⚙️` labelled
+Service until `📡` took it in 0.6.3 and it stopped labelling a record at all
+([glossary § glyphs](glossary.md#glyphs)).
 
 These glyphs label entity types, not health. Directory rows put the
 glyph directly before the identity name: `👤 chief@srv1`. The directory's
@@ -659,12 +672,12 @@ and record facts returned by the daemon rather than guessing type from a name.
 This vocabulary is for displayed labels; it does not rename API kinds, alter
 JSON output or prescribe MCP output.
 
-WEB applies the same daemon-kind mapping to directory, service, Personal,
-detail and diagnostics views. A directory row with no caller-visible record
-kind stays unlabeled; the face does not infer a glyph from its name or
-credential. Channel remains the web term for a topic. Human `agent-bus ls -h`
-uses the same identity labels and keeps the stated `topic` kind; raw `ls` keeps
-the daemon's JSON unchanged. Filter and form values remain plain vocabulary
+WEB applies the same daemon-kind mapping to directory, agent, service,
+Personal, detail and diagnostics views. A directory row with no caller-visible
+record kind stays unlabeled; the face does not infer a glyph from its name or
+credential. Channel remains the web term for a 📮 or 📣 record. Human
+`agent-bus ls -h` uses the same identity labels; raw `ls` keeps the daemon's
+JSON unchanged. Filter and form values remain plain vocabulary
 even when their visible option label carries a glyph.
 
 ### ACL editing
@@ -672,7 +685,7 @@ even when their visible option label carries a glyph.
 ACL textareas use the project's plain-text ACL syntax, not the display glyphs.
 Each ACL term occupies one line: a user, ordinary group, agent, service,
 runtime `@owner` term or `*`. `@owner` means the record's direct Owner and the
-Services and Agents directly owned by that Owner; it is not an editable group.
+records directly owned by that Owner; it is not an editable group.
 Users
 must not need to type Unicode to identify one. Blank lines are ignored; a
 refused line is reported against that line and the submitted text is preserved.

@@ -82,12 +82,13 @@ the world moved between the question and the answer.
 |---|---|---|---|
 | Sign in | Sign in | token; validated local return | the page asked for |
 | Sign out | shell | — | root |
-| Filter a list | Services, Channels, Users, Activity | GET only; search, view, state, kind or mode, sort, page | the same list, filters in the URL |
-| Register a service | `/services/new` | name, description, kind, allow | the new service's page |
-| Register a channel | `/channels/new` | name, description, delivery mode, allow | the new channel's page |
-| Edit metadata | Service, Channel | description, address, protocol | the identity section |
-| Edit queue policy | Service, Channel | TTL, capacity, overflow | the queue section |
-| Edit access | Service, Channel | one plain ACL term per textarea line; `@owner` stays plain syntax | the access section |
+| Filter a list | Agents, Services, Channels, Users, Activity | GET only; search, view, state, kind, sort, page | the same list, filters in the URL |
+| Register an agent | `/agents/new` | name, description, allow | the new agent's page |
+| Register a service | `/services/new` | name, description, address, protocol, allow | the new service's page |
+| Register a channel | `/channels/new` | name, description, kind, allow | the new channel's page |
+| Edit metadata | Agent, Service, Channel | description; address and protocol on a 📡 only | the identity section |
+| Edit queue policy | Agent, Channel | TTL, capacity, overflow; a 📡 has no queue, so it offers none | the queue section |
+| Edit access | Agent, Service, Channel | one plain ACL term per textarea line; `@owner` stays plain syntax | the access section |
 | Replace configuration | Service, Channel | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
 | Assign maintainers | Service, Channel | one named user, group, agent or service per textarea line | the identity section |
 | Enable / Disable | Service, Channel | — | the identity section |
@@ -102,8 +103,8 @@ the world moved between the question and the answer.
 | Change state | User | the applicable transitions only | the identity section; **confirm** for ban |
 | Remove a credential | User, non-user identity | — | **confirm**, then the directory |
 
-The current Service/Channel Delivery filters and User kind filter use links,
-and Service Kind and Channel delivery mode use radios, as of 0.5.64. Other
+The current work and Readers filters and the User kind filter use links, and
+the Channel kind choice uses radios, as of 0.5.64. Other
 small-choice conversions remain scoped to the page that owns them. A marked
 selector submits on change through the repository-owned script and exposes an
 Apply button through `noscript`; query values remain plain URL state.

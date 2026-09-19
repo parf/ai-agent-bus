@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** Messages wait in bounded inboxes; dequeue is not completion.
 
-<svg viewBox="0 0 760 300" role="img" aria-label="Request and reply circle between a caller and a service, through their inboxes" style="max-width:760px;width:100%;height:auto;font-family:sans-serif">
+<svg viewBox="0 0 760 300" role="img" aria-label="Request and reply circle between a caller and an agent, through their inboxes" style="max-width:760px;width:100%;height:auto;font-family:sans-serif">
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
@@ -11,24 +11,24 @@
   <!-- caller -->
   <rect x="30" y="128" width="110" height="44" rx="6" fill="#ffffff" stroke="#172b3a" stroke-width="1.5"/>
   <text x="85" y="155" text-anchor="middle" font-size="15" font-weight="600" fill="#1a1a17">Caller</text>
-  <!-- service -->
+  <!-- agent -->
   <rect x="620" y="128" width="110" height="44" rx="6" fill="#ffffff" stroke="#172b3a" stroke-width="1.5"/>
-  <text x="675" y="155" text-anchor="middle" font-size="15" font-weight="600" fill="#1a1a17">Service</text>
-  <!-- service inbox (cylinder) -->
+  <text x="675" y="155" text-anchor="middle" font-size="15" font-weight="600" fill="#1a1a17">Agent</text>
+  <!-- agent inbox (cylinder) -->
   <path d="M330,44 L330,71 A50,9 0 0 0 430,71 L430,44" fill="#f2f2ee" stroke="#87847b" stroke-width="1.5"/>
   <ellipse cx="380" cy="44" rx="50" ry="9" fill="#f2f2ee" stroke="#87847b" stroke-width="1.5"/>
-  <text x="380" y="62" text-anchor="middle" font-size="13" fill="#1a1a17">Service inbox</text>
+  <text x="380" y="62" text-anchor="middle" font-size="13" fill="#1a1a17">Agent inbox</text>
   <!-- caller inbox (cylinder) -->
   <path d="M330,234 L330,261 A50,9 0 0 0 430,261 L430,234" fill="#f2f2ee" stroke="#87847b" stroke-width="1.5"/>
   <ellipse cx="380" cy="234" rx="50" ry="9" fill="#f2f2ee" stroke="#87847b" stroke-width="1.5"/>
   <text x="380" y="252" text-anchor="middle" font-size="13" fill="#1a1a17">Caller inbox</text>
-  <!-- request: caller -> service inbox -->
+  <!-- request: caller -> agent inbox -->
   <path d="M142,126 C205,102 262,64 326,48" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
   <text x="212" y="70" text-anchor="middle" font-size="13" fill="#475569">send request</text>
-  <!-- consume: service inbox -> service -->
+  <!-- consume: agent inbox -> agent -->
   <path d="M434,48 C498,64 555,102 618,126" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
   <text x="548" y="70" text-anchor="middle" font-size="13" fill="#475569">consume</text>
-  <!-- reply: service -> caller inbox -->
+  <!-- reply: agent -> caller inbox -->
   <path d="M618,174 C555,198 498,236 434,250" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
   <text x="548" y="234" text-anchor="middle" font-size="13" fill="#475569">send reply</text>
   <!-- consume reply: caller inbox -> caller -->
@@ -71,8 +71,8 @@ the whole difference from an ephemeral channel.
 
 | Verb | Target | Lands in | Allowed if |
 |---|---|---|---|
-| **`send`** | a known receiver, `service@realm` | exactly that queue | you may talk to that principal |
-| **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([services § topics](03-services-and-topics.md#topics)) | the topic's [access policy](02-access.md#acl) permits the caller; delivery-state checks still apply |
+| **`send`** | a known receiver with a queue here, `name@realm` | exactly that queue | you may talk to that principal. A 📡 is refused: it is [external](03-services-and-topics.md#five-record-kinds) and has no queue |
+| **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([records § topics](03-services-and-topics.md#topics)) | the topic's [access policy](02-access.md#acl) permits the caller; delivery-state checks still apply |
 
 **A message is addressed to a name, and a name that is registered nowhere is
 refused at `send`** — there is no label to send to and nothing accepts on
@@ -88,23 +88,23 @@ and who?" to anyone whose access allows the lookup.
 
 ## Request and reply
 
-A service call is not a third verb. It is a **`send` whose reply comes back on
+Calling a name is not a third verb. It is a **`send` whose reply comes back on
 the same topic + tag**, and the caller waits for it:
 
 | Side | Does |
 |---|---|
 | caller | **states its own record** if it has none — an answer needs an address to arrive at ([identity § registration](01-identity-and-roles.md#registration)) — then `send` and wait on its own queue for a message with that topic + tag. A plain `send` does **not** require this: a sender's name is checked for shape, not for registration, so fire-and-forget works from anyone and an answer to an unregistered sender is refused as *no such name*. Wanting a reply is what makes the record necessary |
-| service | `consume` its inbox, optionally `ack` (got it), do the work, `reply` — and `done` if the sender asked for it |
-| deadline | the caller's, and it **travels with the request** so the service can give up early — see below. The message's TTL is a different bound, and is what stops a late answer arriving |
+| receiver | `consume` its inbox, optionally `ack` (got it), do the work, `reply` — and `done` if the sender asked for it |
+| deadline | the caller's, and it **travels with the request** so the receiver can give up early — see below. The message's TTL is a different bound, and is what stops a late answer arriving |
 
 The bus adds nothing here — matching is the topic + tag it already carries, the
 wait is an ordinary `consume`, and a caller that does not want to wait simply
-does not. A service may answer twice (`ack` now, result later) or hand the
+does not. A receiver may answer twice (`ack` now, result later) or hand the
 answer to a third party with `reply-to`.
 
 **The caller's deadline travels.** A request states how long its caller will
-wait, and the bus turns that into a moment on the envelope the service
-consumes. A service that sees the moment already past **does not do the
+wait, and the bus turns that into a moment on the envelope the receiver
+consumes. A receiver that sees the moment already past **does not do the
 work**: nobody is waiting for it. Without the field the two parties time out
 independently and the work is done for a caller who has gone.
 
@@ -116,11 +116,11 @@ is what each one belongs to:
 | **TTL** ([message ttl](#message-ttl)) | the message | yes — the receiver owns its retention | yes: it stops delivering |
 | **deadline** | the caller | no — it is not the receiver's to shorten | no: it only carries it |
 
-So a message whose caller has gone is **still delivered**. Only the service
+So a message whose caller has gone is **still delivered**. Only the receiver
 knows whether the work is worth doing for somebody else — a third party on
 `reply-to`, a cache, an audit — and the bus does not guess. What the bus does
 guarantee is that the moment is its own: the caller states a **duration** and
-never an instant, so the service is not reading the caller's clock.
+never an instant, so the receiver is not reading the caller's clock.
 
 ## Inbox selection and filters
 
@@ -148,7 +148,7 @@ agent-bus consume --inbox jobs@host --topic MyTopic --tag result
 
 Each option requires a value when present. Reading without filters takes the
 next message from the selected inbox. “Own inbox” refers to the caller's
-identity, not the service's Personal classification.
+identity, not the record's Personal classification.
 
 Before 0.5.52, a topic without a tag could implicitly select a registered
 topic's inbox. Such callers must now select it explicitly. An address-shaped
@@ -158,8 +158,8 @@ topic is an ordinary filter value: if it matches nothing, the wait ends empty.
 
 ## One reader per inbox
 
-A typical service must read its whole inbox, without a topic/tag filter.
-Filtered waits serve specific exchanges; they do not replace the service's
+A typical agent must read its whole inbox, without a topic/tag filter.
+Filtered waits serve specific exchanges; they do not replace that agent's
 general reader. The web's [Readers count](05-discovery.md#readers) shows all
 outstanding reads together.
 
@@ -196,7 +196,7 @@ once; the first message wakes one of them.
 |---|---|
 | how the daemon tells the two apart | it is asked. A pool passes one word; an accident cannot pass it by accident |
 | a reader that does not ask | keeps the whole old guarantee, **in both directions**: it is refused beside a pool, and a pool member is refused beside it. Wanting the inbox to yourself is still something you get |
-| what this does not change | competing consumers, which already worked — while there is a backlog, N readers take turns and no message goes to two of them ([services § topics](03-services-and-topics.md#topics)). What sharing adds is the **empty** inbox, which is a pool's steady state |
+| what this does not change | competing consumers, which already worked — while there is a backlog, N readers take turns and no message goes to two of them ([records § topics](03-services-and-topics.md#topics)). What sharing adds is the **empty** inbox, which is a pool's steady state |
 | what it deliberately is not | a lease, a group or a registration. Nothing is remembered between reads, so a worker that dies leaves nothing behind to clean up |
 
 So the guarantee is stated precisely: **filtered and unfiltered readers on
@@ -238,7 +238,7 @@ Transport delivery and the receiver's report are separate steps.
 sequenceDiagram
     participant C as Caller
     participant B as Bus
-    participant S as Service
+    participant S as Agent
     C->>B: Send request
     B-->>C: Send accepted
     S->>B: Consume
@@ -262,12 +262,12 @@ ordinary messages from the receiver; their absence leaves the outcome unknown.
 
 </details>
 
-Optional, and **both emitted by the receiver** — the service, not the bus:
+Optional, and **both emitted by the receiver**, not the bus:
 
 | Receipt | Means |
 |---|---|
-| **`ack`** | the service **got** the message |
-| **`done`** | the service **finished processing** it |
+| **`ack`** | the receiver **got** the message |
+| **`done`** | the receiver **finished processing** it |
 
 Together they are what a sender actually wants to know — **`ack`: received.
 `done`: the work finished** — and both can only come from the receiver,
@@ -283,7 +283,7 @@ And **no receipt means unknown** — the request, the work or the receipt may
 be late or lost — never proof of loss. Receipts remove a layer of guessing,
 not the uncertainty itself.
 
-**`done` ends a caller's wait.** A service that replies has plainly finished,
+**`done` ends a caller's wait.** A receiver that replies has plainly finished,
 so it sends no `done`; therefore a `done` that does arrive says *finished, and
 no answer is coming*. A caller blocked on the answer stops there rather than
 sitting out its deadline for something that will never be sent — and says
@@ -313,7 +313,7 @@ cannot tell an operator which they have.
 ## Reply routing
 
 To the sender's queue with the same topic + tag — unless the request sets
-`reply-to: {service, topic, tag}`.
+`reply-to: {name, topic, tag}`.
 
 **A request that expects a reply needs a reply address that exists.** The
 route is the requester's own name plus the exchange's topic and tag, or an
@@ -364,7 +364,7 @@ an inbox rather than hand it to whoever is connected.
 | asked again at **every publish** | access taken away stops the copies. Checking only at subscribe would make a subscription a way to go on reading a topic that stopped allowing you |
 | whose bound, TTL and overflow apply | the **subscriber's**, because the copy is in the subscriber's inbox |
 | a subscriber that is **turned off** | is skipped, and the skipped copy is counted as its drop. Nothing is queued for it and the publisher is told nothing, so its own count is the only place the gap can show. A subscriber the topic stopped allowing is **not** counted: it is no longer entitled to the copy, which is a different fact from being unable to take it |
-| a subscriber that will not read | loses its own copies and **stops nothing**: the publish still succeeds for everyone else, and the copy that would not fit is counted as a drop ([overflow](#overflow)). A publisher one stopped reader can block is a queue topic, which is the other mode and is what that caller wanted |
+| a subscriber that will not read | loses its own copies and **stops nothing**: the publish still succeeds for everyone else, and the copy that would not fit is counted as a drop ([overflow](#overflow)). A publisher one stopped reader can block is a queue topic, which is the other kind and is what that caller wanted |
 
 ## Overflow
 
@@ -377,7 +377,7 @@ Declared per topic at creation, inboxes included:
 
 **A rejected send answers `429`.** A full queue is the sender outrunning the
 reader, which is what that code is for — and deliberately not `503`, which
-would say the service itself is unavailable and is left to mean only that
+would say the record itself is unavailable and is left to mean only that
 ([R1.1 declared state](../Plans/R1.1/records.md#coming-back-in-a-moment-is-not-one-of-them)).
 It is counted as `full` either way ([refusals](05-discovery.md#refusals)).
 

@@ -65,7 +65,7 @@ part of this grammar.
 
 Upgrading from the old administrative name migrates membership to the
 [protected Administrator group](01-identity-and-roles.md#groups).
-Existing service Maintainer assignments and ACL references follow the rename.
+Existing record Maintainer assignments and ACL references follow the rename.
 
 If an ordinary group already uses the destination name, it is preserved as
 `@administrators-legacy` (with a numeric suffix when necessary), and its existing
@@ -75,12 +75,12 @@ The former administrative name cannot be recreated; subsequent starts leave
 the migrated groups unchanged.
 
 Upgrade the daemon and its clients together: the user directory's administrative
-flag is now `administrator`, replacing `maintainer`. Service/channel Maintainer
+flag is now `administrator`, replacing `maintainer`. Record Maintainer
 assignments retain their meaning.
 
 **Downgrade:** an older daemon does not recognize the renamed group as granting
 non-owner administrative standing. Its members still retain the access and
-service maintenance granted through ordinary group references. Downgrading does
+record maintenance granted through ordinary group references. Downgrading does
 not restore the old name automatically.
 
 ## GitHub profile snapshot upgrade
@@ -115,7 +115,7 @@ permission carried by the containing group.
 
 Cycles terminate without granting anybody unless another path reaches them;
 unknown groups remain inert. `@administrators` stays direct-only and a snapshot
-that nests a group inside it is refused at startup. Personal services still
+that nests a group inside it is refused at startup. Personal agents still
 reject group ACL entries and Maintainer assignments, so this upgrade does not
 widen their assignment rules.
 
@@ -138,8 +138,8 @@ Script runners can state grants with [their start options](08-runner-role.md#scr
 
 ## Owner ACL and master removal
 
-From 0.5.74, `@owner` in an ACL means the record's direct Owner and registered
-Services or Agents directly owned by that Owner. It is evaluated from current
+From 0.5.74, `@owner` in an ACL means the record's direct Owner and the agents
+directly owned by that Owner. It is evaluated from current
 registry ownership and is never stored as a group. The `ab-claude`, `ab-codex`
 and `ab-opencode` launchers add it while preserving existing explicit grants;
 already-running launcher sessions acquire it when next restarted.
@@ -266,7 +266,7 @@ before rollback; they may describe an earlier identity assignment.
 **Fresh installation is built and accepted.** A disposable host with real
 systemd, cgroup v2 and bubblewrap installs from only the archive and standalone
 instructions, starts the generated daemon/dashboard unit and completes a real
-service call. Removing a daemon binary, MCP face or launcher face separately
+call over the bus. Removing a daemon binary, MCP face or launcher face separately
 fails before accounts, state, unit or current release exist. The retained
 [H.1 evidence](../Plans/MVP/done/fresh-install.md#checks) records the host and
 claim limits.
@@ -322,7 +322,7 @@ From that the daemon opens one socket per user
 on every request.
 
 Result: a bus with AUTH off that **serves every user on the host at once**, so
-service ACLs apply per user with nothing for anyone to configure. Setup's
+record ACLs apply per user with nothing for anyone to configure. Setup's
 initial principal is the first daemon Owner; after transfer, the stored current
 Owner holds node-wide management authority
 ([identity § daemon owner](01-identity-and-roles.md#daemon-owner)).
@@ -347,7 +347,7 @@ installed; the second account and directories prepare a later runner.
 |---|---|---|---|
 | `daemon/` | `agent-busd` | 700 | Daemon home, credentials and snapshots |
 | `runner/` | `agent-bus-runner` | 700 | Prepared runner home; no managed instances installed |
-| `service.d/` | `agent-bus-runner` | 755 | Prepared shareable service-code directory |
+| `service.d/` | `agent-bus-runner` | 755 | Prepared shareable script directory |
 
 The daemon account uses `/bin/sh` because sshd runs even forced commands through
 the account shell; each issued key is restricted to its named helper, without

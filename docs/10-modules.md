@@ -55,8 +55,8 @@ wire-format invention.
 
 ### HTTP is built in
 
-Use the built-in HTTP client for API and public-key requests. Shell services
-may use `curl`, because that is their ordinary client.
+Use the built-in HTTP client for API and public-key requests. A shell script
+behind an agent may use `curl`, because that is its ordinary client.
 
 ### What we do shell out to
 

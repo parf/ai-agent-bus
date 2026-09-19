@@ -185,7 +185,7 @@ so MVP withdrew that phrase from every face.
 ## How long a record lives
 
 **A record is `kept` or `ephemeral`, and that is a different axis from its
-kind.** Kind says what the thing is ([service kinds](../../docs/03-services-and-topics.md#service-kinds));
+kind.** Kind says what the thing is ([service kinds](../../docs/03-services-and-topics.md#five-record-kinds));
 this says whether the registry is meant to hold it after nobody is using it.
 
 | | Registered by | Expires |

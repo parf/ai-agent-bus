@@ -24,7 +24,7 @@ whole [MVP scope](Plans/MVP/README.md#scope), with built and pending explicit.
 ## Using it
 
 New here? The [user guide](docs/user/README.md) is the shortest path from
-nothing to a running service.
+nothing to a running agent.
 
 Build and development setup are in [source instructions](src/README.md#build-and-check).
 The self-contained archive and installer are built; [setup](docs/09-setup.md#install)
@@ -36,7 +36,7 @@ describes the path and its prerequisites. A configured local account uses its as
 On a configured bus, with permission to register these names:
 
 ```sh
-agent-bus register mysql-prod@srv1 --kind generic --addr host:3306
+agent-bus register mysql-prod@srv1 --addr host:3306 --protocol mysql
 agent-bus topic create alerts.prod@srv1 --kind pubsub
 agent-bus topic create build-jobs@srv1 --kind queue --ttl 1h --bound 1000
 agent-bus ls

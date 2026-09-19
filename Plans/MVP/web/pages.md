@@ -197,7 +197,7 @@ that. Services then held `generic` records alone and dropped its Kind filter.
 service, or All (`#`) · Register channel or inbox. It is the second row beneath the
 global navigation and follows the shared
 [section-navigation rule](information-architecture.md#navigation). All and My
-exclude Personal services, preserving the accepted dedicated Personal grouping;
+exclude Personal agents, preserving the accepted dedicated Personal grouping;
 My is the caller-owned subset of All. Counts are caller-visible category totals
 before the search, state and kind filters, so changing a filter does not make a
 navigation count describe a different category.
@@ -217,7 +217,7 @@ Channel journeys: delivery-mode filtering, mode-aware Work, subscriber facts,
 distinct empty states and resource-local registration/edit returns.
 
 The title's `ⓘ` help contains the category definitions as bullets — All is
-caller-visible non-Personal services, My is the caller-owned subset, Personal
+caller-visible non-Personal agents, My is the caller-owned subset, Personal
 is the separately grouped owner view — instead of placing those paragraphs
 above the table.
 
@@ -263,7 +263,7 @@ then focused edits.
 
 | Section | Content | Visible to |
 |---|---|---|
-| Identity | Description, full name, **address**, **protocol**, kind or delivery mode, owner, the owner's caller-visible local photo when the owner is a User, maintainers, enabled state, **updated time** | anyone who may see the record |
+| Identity | Description, full name, **address**, **protocol**, kind, owner, the owner's caller-visible local photo when the owner is a User, maintainers, enabled state, **updated time** | anyone who may see the record |
 | Queue | Queued, oldest, accepted, dequeued, dropped, expired, at-bound, **overflow policy**, TTL and capacity with inheritance stated per field | same |
 | Access | Allow list, including the runtime `@owner` term, and what that means in a sentence | same |
 | Subscribers (pub/sub only) | Each subscriber, linked where the caller may inspect it | same |
@@ -375,8 +375,7 @@ or to replace the consequence text.
 **Answers:** how do I create one?
 
 A dedicated page reached from the section's second-level navigation, not a form
-stapled beneath a list. Fields: name, description, kind or delivery mode,
-initial allow list. **From 0.5.84 each page registers only what it lists**:
+stapled beneath a list. Fields: name, description, kind, initial allow list. **From 0.5.84 each page registers only what it lists**:
 `/services/new` registers a service and offers no kind choice, and
 `/channels/new` chooses between a queue and a pub/sub topic. A form that
 registered a record the page could not then show was the reclassification's

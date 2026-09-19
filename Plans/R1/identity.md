@@ -95,7 +95,7 @@ groups before AUTH. R1 adds [managed runner controls](runner.md#what-the-runner-
 and the distributed record behavior below.
 
 - **A record that owns itself is somebody; one owned by another name is
-  something they run.** Personal services being owned by their user is what
+  something they run.** A Personal agent being owned by its user is what
   makes that read: it is the whole difference the people view needs
   ([discovery § what it shows](../../docs/05-discovery.md#what-it-shows)), and it costs
   no flag that can go stale against the owner field beside it.
