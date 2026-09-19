@@ -83,6 +83,21 @@ non-owner administrative standing. Its members still retain the access and
 record maintenance granted through ordinary group references. Downgrading does
 not restore the old name automatically.
 
+## Record kind upgrade
+
+From 0.6.0 `kind` is a closed set of five
+([records](03-records.md#five-record-kinds)). `generic`, `topic` and the `mode`
+field are gone, and **a daemon of this line refuses to start on a snapshot
+holding any of them**, naming the record rather than converting it. There is no
+compatibility obligation before 1.1, so nothing is migrated at load time.
+
+Upgrading a node that has run an earlier line therefore means editing its
+snapshot while the daemon is stopped: the procedure, the mapping and what it
+was verified against are in the
+[cutover runbook](../Plans/MVP/cutover.md#the-procedure). Two things to expect
+even where the kinds look right: a record that becomes 📡 must lose the queue
+settings every old record carried, and its inbox must be empty.
+
 ## GitHub profile snapshot upgrade
 
 From 0.5.71, User profiles may retain public provider metadata and one bounded
