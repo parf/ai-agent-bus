@@ -102,6 +102,23 @@ Useful extras when you register:
 ℹ️ `unregister` removes the **entry**, not the process. If something is still
 serving that name, it will register itself again.
 
+### 🔐 The credential for something outside
+
+A 📡 [service](../06-services.md#what-a-service-is) is called by you rather
+than by the bus, and reaching it usually takes a password or a token. Keep it
+on the record, and whoever that record already admits can read it:
+
+```sh
+agent-bus secret db@demo 'PGPASSWORD=s3cret'   # set it
+agent-bus secret db@demo - < .env              # or from a file
+password=$(agent-bus secret db@demo)           # read it back
+```
+
+What you wrote is what comes back, byte for byte — the bus stores it and never
+looks inside. 🔍 Nobody else is shown it: every listing, every record answer
+and the web page carry a **digest** of it instead, so you can see that it
+changed without being handed it. Only a 📡 has one.
+
 ## ✉️ Sending and receiving
 
 Three shapes, and the difference is only how long you wait:

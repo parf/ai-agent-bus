@@ -175,6 +175,21 @@ type Record struct {
 	// handing the configuration to anyone.
 	ConfigSHA string `json:"config_sha,omitempty"`
 
+	// Secret is the credential for reaching a 📡, and lives on that kind
+	// alone. It is opaque bytes: `KEY=value` is what callers agree to write
+	// and the daemon never parses it, so blank lines, comments, `export`,
+	// duplicate keys and an invalid identifier are all the caller's business
+	// (Q77). Unlike Config it exists to be read back — by whoever the
+	// record's own ACL admits, with no second list. Every answer that is not
+	// that read carries SecretSHA in its place.
+	// See docs/06-services.md#secrets.
+	Secret string `json:"secret,omitempty"`
+
+	// SecretSHA is what every other answer gets: enough to see that a
+	// service has a credential, that a write landed, and that two hosts
+	// hold the same one, without handing it out.
+	SecretSHA string `json:"secret_sha,omitempty"`
+
 	// Live state, filled in on the way out of a query and never stored:
 	// a registry record says a name exists, while these fields report what
 	// the daemon observes now. A registration is only a
@@ -240,6 +255,15 @@ func (r Record) Public() Record {
 		sum := sha256.Sum256(r.Config)
 		r.ConfigSHA = hex.EncodeToString(sum[:])
 		r.Config = nil
+	}
+	// The secret leaves by its own read and by nothing else. Redacting here
+	// is what makes every listing, lookup and page safe by construction
+	// rather than by each of them remembering.
+	// See docs/06-services.md#secrets.
+	if len(r.Secret) > 0 {
+		sum := sha256.Sum256([]byte(r.Secret))
+		r.SecretSHA = hex.EncodeToString(sum[:])
+		r.Secret = ""
 	}
 	return r
 }

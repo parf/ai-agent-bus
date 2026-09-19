@@ -1504,6 +1504,84 @@ has "a service may configure itself, on a record it does not own" \
 has "a read works with no terminal on stdin" \
   "$(ab code-review/cfg@rdvp agent-template code-review/cfg@rdvp </dev/null)" '"depth":3'
 
+sec "a service's secret"
+# The credential for reaching something outside, and the one private field
+# that exists to be read back: by whoever the record's own allow list admits,
+# with no second list. See docs/06-services.md#secrets.
+ab owner@srv1 register vault@srv1 --addr db.example:5432 --protocol postgresql --allow reader@srv1 >/dev/null
+stored=$(ab owner@srv1 secret vault@srv1 'PGPASSWORD=hunter2')
+has "setting one answers with its digest" "$stored" '"secret_sha":"[0-9a-f]\{64\}"'
+lacks "and never with the bytes that were just sent" "$stored" 'hunter2'
+has "the record's own allow list is who reads it back" \
+  "$(ab reader@srv1 secret vault@srv1)" '^PGPASSWORD=hunter2$'
+has "and its owner, who is not on that list" \
+  "$(ab owner@srv1 secret vault@srv1)" '^PGPASSWORD=hunter2$'
+# Aimed at a service that exists and holds one: a refusal about a name that
+# was never registered would read the same with no access check at all.
+has "a caller it does not admit is told only that there is no such name" \
+  "$(ab nosy@srv1 secret vault@srv1 2>&1)" 'no such name'
+# It leaves by that read and by nothing else.
+lacks "no listing carries the bytes" "$(ab reader@srv1 ls)" 'hunter2'
+lacks "not even to the one caller who may read them" \
+  "$(ab reader@srv1 ls vault@srv1)" 'hunter2'
+is_empty "and no record answer carries a secret field at all" \
+  "$(ab reader@srv1 ls vault@srv1 | grep -o '"secret":[^,}]*')"
+# What every ordinary answer carries instead, so that "has this credential
+# changed?" can be asked without anyone being handed it — by a monitor, a
+# deploy check or a second host comparing its own.
+has "while a query for one service carries its digest" \
+  "$(ab reader@srv1 ls vault@srv1)" '"secret_sha":"[0-9a-f]\{64\}"'
+# Compared as strings and not as a pattern: two answers that both carry no
+# digest at all match each other, which is how the same check about a
+# configuration would pass with the field deleted.
+one=$(ab reader@srv1 ls vault@srv1 | grep -o '"secret_sha":"[0-9a-f]\{64\}"')
+all=$(ab reader@srv1 ls | grep -o '"name":"vault@srv1"[^}]*' | grep -o '"secret_sha":"[0-9a-f]\{64\}"')
+has "and it is the same digest the whole listing gives" \
+  "$(if [ -n "$all" ] && [ "$one" = "$all" ]; then echo same; fi)" 'same'
+rotated=$(ab owner@srv1 secret vault@srv1 'PGPASSWORD=rotated' | grep -o '"secret_sha":"[0-9a-f]*"')
+has "rotating it moves the digest" \
+  "$(if [ "$rotated" != "$(echo "$stored" | grep -o '"secret_sha":"[0-9a-f]*"')" ]; then echo moved; fi)" 'moved'
+has "and the new bytes are what comes back" \
+  "$(ab reader@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
+# Reading and writing are different authorities, as they are for a
+# configuration: the allow list says who may use the credential, not who may
+# replace it.
+has "someone the list admits may read it and not write it" \
+  "$(ab reader@srv1 secret vault@srv1 'PGPASSWORD=theirs' 2>&1)" 'belongs to someone else'
+has "and what is stored is untouched by that attempt" \
+  "$(ab reader@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
+# A registration carries neither half: the bytes would let anyone claim a
+# credential, and the digest would let anyone claim to hold one.
+post_code thief@srv1 /register '{"name":"smuggled@srv1","addr":"h:1","protocol":"https","secret":"K=stolen"}' >/dev/null
+has "a registration may not smuggle a secret in" \
+  "$(ab thief@srv1 secret smuggled@srv1 2>&1)" 'holds no secret'
+is_empty "nor a digest claiming there is one" \
+  "$(ab thief@srv1 ls smuggled@srv1 | grep -o '"secret_sha":[^,}]*')"
+# The other direction of the same rule: a service that re-registers to
+# refresh its description must not lose the credential it was given.
+ab owner@srv1 register vault@srv1 --addr db.example:5432 --protocol postgresql --allow reader@srv1 --descr "refreshed" >/dev/null
+has "and a re-registration keeps the one already stored" \
+  "$(ab reader@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
+# Never given one is a different answer from given an empty one, and the
+# second is refused so that the two cannot be confused.
+ab owner@srv1 register keyless@srv1 --addr h:1 --protocol https --allow '*' >/dev/null
+has "a service that was never given one says so" \
+  "$(ab owner@srv1 secret keyless@srv1 2>&1)" 'holds no secret'
+is_empty "and carries no digest to suggest otherwise" \
+  "$(ab owner@srv1 ls keyless@srv1 | grep -o '"secret_sha":[^,}]*')"
+has "an empty secret is the absence of one, not a secret" \
+  "$(post_body owner@srv1 /secret '{"name":"keyless@srv1","secret":""}')" 'holds no secret'
+# Every other kind is reached by sending to its name, so there is nothing
+# outside for a credential to unlock and the field would say something untrue.
+has "a kind with a queue here cannot hold one" \
+  "$(ab owner@srv1 secret plain@srv1 'K=v' 2>&1)" 'on a service and on no other kind'
+is_empty "and nothing was stored on it by the attempt" \
+  "$(ab owner@srv1 ls plain@srv1 | grep -o '"secret[^,}]*')"
+# The last place bytes escape from is the log of the process that holds them,
+# and nothing here writes a request body down.
+lacks "and the daemon's own log never holds a secret" \
+  "$(cat "$D/daemon.log")" 'hunter2\|rotated'
+
 
 if slow; then
   sec "a backlog says how long its oldest message has been waiting"
@@ -2105,6 +2183,17 @@ lacks "which the pub/sub filter excludes" \
 lacks "and the channels page offers no filter for a kind it never lists" \
   "$CHANS" 'kind=agent'
 
+# A credential is read by the caller that needs it, not looked at in a
+# browser: the page carries the digest so that a change is visible, and the
+# bytes appear on no page at all. See docs/06-services.md#secrets.
+SVCPAGE=$(curl -s -b "$JAR" "$WEB/service?name=vault%40srv1")
+has "the external service page names the record it is about" "$SVCPAGE" 'vault@srv1'
+has "and states the digest of the secret it holds" \
+  "$SVCPAGE" '<dt>Secret<dd><code>[0-9a-f]\{64\}</code>'
+lacks "while the secret itself is on no page" "$SVCPAGE" 'PGPASSWORD\|rotated'
+has "a service with no secret says so rather than showing a stale digest" \
+  "$(curl -s -b "$JAR" "$WEB/service?name=keyless%40srv1")" '<dt>Secret<dd><span class=muted>none'
+
 # Diagnostics and the registry catalogue on Agents, which is where a record
 # registered as one is listed (Plans/MVP/web/pages.md#overview).
 DIAG=$(curl -s -b "$JAR" "$WEB/diagnostics")
@@ -2312,6 +2401,12 @@ is_empty "a drained queue stays drained — nothing is delivered twice" "$out"
 ok_exit "and an empty queue is an answer, not an error" $rc
 has "while the record that owned it is still there" "$(dab ls keeper@srv1)" 'keeps things'
 has "and both reads are still counted" "$(dsvc out)" '^2$'
+# A secret is acknowledged only once it is durable, and a graceful stop would
+# have written it down whether the write did or not. Set here, before the
+# message that dies with the process, because writing it checkpoints.
+# See docs/06-services.md#secrets.
+dab register vault@srv1 --addr db.example:5432 --protocol postgresql --allow '*' >/dev/null
+dab secret vault@srv1 'PGPASSWORD=survives-the-kill' >/dev/null
 # SIGKILL: no dump is written, so the snapshot on disk is the one the start
 # wrote, and its own flag is what says the run ended badly.
 dab send keeper@srv1 "lost with the process" >/dev/null
@@ -2329,6 +2424,8 @@ has "and says from when it is missing traffic" "$(cat "$D/dur/third.log")" 'anyt
 has "and status still says so, not only the log" "$(dab status)" '"unclean":true'
 is_empty "the message that died with the process is not invented back" \
   "$(dkeep consume --wait 0s 2>&1)"
+has "while a secret written before the kill is there after it" \
+  "$(dab secret vault@srv1)" '^PGPASSWORD=survives-the-kill$'
 dur_down -TERM
 
 # Loss is state like the counters: a restart puts it back on the inbox that

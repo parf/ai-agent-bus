@@ -192,6 +192,8 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /subscriber/remove", g(s.removeSubscriber))
 	mux.HandleFunc("POST /configure", g(s.configure))
 	mux.HandleFunc("GET /config", g(s.config))
+	mux.HandleFunc("POST /secret", g(s.setSecret))
+	mux.HandleFunc("GET /secret", g(s.secret))
 	mux.HandleFunc("POST /send", g(s.send))
 	mux.HandleFunc("GET /consume", g(s.consume))
 	mux.HandleFunc("POST /token", g(s.token))
@@ -410,6 +412,37 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 	s.reply(w, rec, err)
 }
 
+// setSecret stores a 📡's credential. The body carries the name and the
+// secret, which stays opaque all the way down: nothing parses it.
+// See docs/06-services.md#secrets.
+func (s *Server) setSecret(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	var in struct {
+		Name   string `json:"name"`
+		Secret string `json:"secret"`
+	}
+	if !s.read(w, r, &in) {
+		return
+	}
+	// The answer is the redacted record, so setting a secret hands back its
+	// digest and never the bytes that were just sent.
+	rec, err := s.bus.SetSecret(in.Name, caller.String(), in.Secret)
+	s.reply(w, rec, err)
+}
+
+// secret hands one back to whoever the record's ACL admits. No listing and no
+// record answer carries it, so this is the only route to the bytes.
+func (s *Server) secret(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	value, err := s.bus.Secret(r.URL.Query().Get("name"), caller.String())
+	if err != nil {
+		s.reply(w, nil, err)
+		return
+	}
+	// Written as a plain body, not wrapped in JSON: a credential goes into a
+	// shell or an environment, and re-quoting it is a chance to mangle it.
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write([]byte(value))
+}
+
 // config hands one back. A listing never carries a configuration, so this is
 // the only route to it, and it is the owner's or the service's own.
 func (s *Server) config(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
@@ -607,6 +640,8 @@ var codes = []struct {
 	{core.ErrOverflow, http.StatusBadRequest, "malformed"},
 	{core.ErrKind, http.StatusBadRequest, "malformed"},
 	{core.ErrConfig, http.StatusBadRequest, "malformed"},
+	{core.ErrSecret, http.StatusBadRequest, "malformed"},
+	{core.ErrNoSecret, http.StatusNotFound, "unknown"},
 	{core.ErrReceipt, http.StatusBadRequest, "malformed"},
 	{core.ErrTTL, http.StatusBadRequest, "malformed"},
 	{core.ErrWait, http.StatusBadRequest, "malformed"},

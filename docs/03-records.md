@@ -54,7 +54,8 @@ existing records are registered again under the kind they should carry.
 Restore asks the same shape question registration does, and **refuses** a record
 this version could not have registered: an unknown kind, a
 [service](06-services.md#it-has-no-queue-here) without an address or a protocol,
-a service carrying queue settings or a queue, or
+a service carrying queue settings or a queue, a
+[secret](06-services.md#secrets) on anything but a service, or
 [Personal](#personal-and-shared) on anything but an agent. The daemon names the
 record and the reason rather than converting it or coming up pretending.
 

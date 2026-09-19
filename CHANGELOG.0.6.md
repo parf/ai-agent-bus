@@ -2,6 +2,14 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.8 — 2026-09-19
+
+An external 📡 service holds a **secret**: the credential for reaching it,
+opaque bytes the daemon never parses, read back by whoever the record's own
+allow list already admits. `agent-bus secret <name>` reads it and
+`agent-bus secret <name> -` sets it; every other answer carries `secret_sha`
+in its place, and a registration carries neither half.
+
 ## 0.6.7 — 2026-09-19
 
 **Breaking:** the 📮 and 📣 record is a **channel**, and `topic` is a label on

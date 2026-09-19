@@ -63,6 +63,9 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus agent-template <name> -         configure it, JSON on stdin
   agent-bus agent-template <name> '{"k":1}' the same, inline
   agent-bus agent-template <name>           print that configuration
+  agent-bus secret <name> -                 set a service's secret, bytes on stdin
+  agent-bus secret <name> 'TOKEN=abc'       the same, inline
+  agent-bus secret <name>                   print it
   agent-bus enrol <user@realm> [--key ~/.ssh/id_ed25519]
                             prove you hold a key that realm publishes for you
 
@@ -125,6 +128,8 @@ func main() {
 		err = channel(rest)
 	case "agent-template":
 		err = agentTemplate(rest)
+	case "secret":
+		err = secret(rest)
 	case "publish":
 		err = publish(rest)
 	case "subscribe":
@@ -440,10 +445,6 @@ func bound(flags map[string]string) (int, error) {
 	return n, nil
 }
 
-// A channel is a record like any other; `channel create` is the sugar that
-// says so. The verb is `channel` and not `topic` because an envelope's
-// `topic` is a label on one message, which is a different thing.
-// See docs/07-channels.md.
 // agentTemplate configures an agent template into a configured record, and
 // reads that configuration back. One verb, because the direction is
 // obvious from whether a configuration was handed to it — and a hyphenated
@@ -487,6 +488,47 @@ func agentTemplate(args []string) error {
 	}{name, json.RawMessage(raw)})
 }
 
+// secret sets the credential for reaching an external service, and reads it
+// back. One verb for the same reason agent-template is one: the direction is
+// whether a secret was handed to it.
+//
+// What is written is bytes and nothing checks inside them; what is read is
+// written to stdout exactly as stored, with no trailing newline, because a
+// credential goes into a shell or an environment and every byte added on the
+// way is one whatever uses it has to strip off again.
+// See docs/06-services.md#secrets.
+func secret(args []string) error {
+	pos, _ := split(args)
+	if len(pos) == 0 || len(pos) > 2 {
+		return fmt.Errorf("secret wants a service name, and a secret to set one:\n" +
+			"  cat .env | agent-bus secret <name@host> -\n" +
+			"  agent-bus secret <name@host> 'TOKEN=abc'\n" +
+			"  agent-bus secret <name@host>")
+	}
+	name := pos[0]
+	if len(pos) == 1 {
+		q := url.Values{}
+		q.Set("name", name)
+		return get("/secret", q)
+	}
+	raw := []byte(pos[1])
+	if pos[1] == "-" {
+		var err error
+		if raw, err = io.ReadAll(os.Stdin); err != nil {
+			return fmt.Errorf("reading the secret from stdin: %w", err)
+		}
+	}
+	// The answer is the redacted record, so what comes back is the digest.
+	return post("/secret", struct {
+		Name   string `json:"name"`
+		Secret string `json:"secret"`
+	}{name, string(raw)})
+}
+
+// A channel is a record like any other; `channel create` is the sugar that
+// says so. The verb is `channel` and not `topic` because an envelope's
+// `topic` is a label on one message, which is a different thing.
+// See docs/07-channels.md.
 func channel(args []string) error {
 	if len(args) == 0 || args[0] != "create" {
 		return fmt.Errorf("the only channel verb is: channel create <name> [--kind queue|pubsub]")

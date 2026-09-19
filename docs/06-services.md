@@ -6,8 +6,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | The [record](#what-a-service-is), its required address and [protocol](#how-to-call-it), the [refusals](#it-has-no-queue-here) that follow from having no queue, and restore asking the same question. |
-| Pending | [Secrets](#secrets), the last of [0.6.0](../Plans/MVP/0.6.0-TODO.md#objective). Their shape is settled: opaque bytes. |
+| Built | The [record](#what-a-service-is), its required address and [protocol](#how-to-call-it), the [refusals](#it-has-no-queue-here) that follow from having no queue, restore asking the same question, and [secrets](#secrets). |
+| Pending | Nothing here. |
 
 ## What a service is
 
@@ -75,10 +75,36 @@ not see the name learns only that.
 
 ## Secrets
 
-**Pending, planned in [0.6.0](../Plans/MVP/0.6.0-TODO.md#remaining-work).**
 Reaching an external thing usually needs a credential. A secret is that
 credential, held on the record and handed to whoever its
 [ACL](02-access.md#acl) already admits.
+
+| | |
+|---|---|
+| `agent-bus secret <name>` | print it |
+| `cat .env \| agent-bus secret <name> -` | set it, bytes on stdin |
+| `agent-bus secret <name> 'TOKEN=abc'` | the same, inline |
+
+One verb, and the direction is whether a secret was handed to it — the shape
+[agent-template](03-records.md#configuring-a-template) uses. The read writes
+the bytes to stdout exactly as stored, with no trailing newline: a credential
+goes into a shell or an environment, and every byte added on the way is one
+whatever uses it has to strip off again. Setting one answers with the record,
+so what comes back is the digest and never what was just sent.
+
+| Rule | |
+|---|---|
+| who may write it | the principals with [record management authority](01-identity-and-roles.md#groups), as for a configuration. A registration carries **neither half** — not the bytes, and not the digest — and a re-registration keeps the one already stored |
+| who may read it | whoever the record's [ACL](02-access.md#acl) admits, with no second list. Asked before the kind and before the secret exists, so a caller the list does not admit learns only that there is no such name |
+| which kinds hold one | 📡 `service` alone. Every other kind is reached by sending to its name, so there is nothing outside for a credential to unlock — refused at the verb, and a snapshot holding one is refused at [restore](03-records.md#restoring-a-record) |
+| what a query gets | **`secret_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record, and on the service's own page. The bytes are on no listing, no record answer, no page and no log |
+| nothing to store | an empty secret is refused, because it reads back exactly like never having set one |
+| when it is acknowledged | once it is durable. A credential the caller was told was stored, and which a restart then loses, is worse than a refusal |
+
+The digest answers the same questions a configuration's does
+([why a digest at all](03-records.md#why-a-digest-at-all)): whether a service
+has a credential, whether a write landed, whether it has been rotated since,
+and whether two hosts hold the same one.
 
 **A secret is not [registry configuration](03-records.md#configuring-a-template).**
 They are the same shape — an opaque blob the daemon never reads inside, absent
@@ -89,7 +115,7 @@ mechanics differ at every other point:
 |---|---|---|
 | Content | JSON, checked for being JSON | **opaque bytes**; `KEY=value` is the caller's convention and the daemon never parses it |
 | Belongs to | any record configured from an [agent template](03-records.md#agent-templates) | a `service` record and no other kind |
-| Who reads it | the named record alone, its owner included refused | whoever the record's [ACL](02-access.md#acl) admits; no second list |
+| Who reads it | the named record alone, and its owner is refused too | whoever the record's [ACL](02-access.md#acl) admits; no second list |
 | What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
 
 **The daemon does not read inside a secret.** `KEY=value` lines are what

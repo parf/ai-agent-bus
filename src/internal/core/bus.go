@@ -46,6 +46,8 @@ var (
 	ErrExists      = errors.New("that name is already registered")
 	ErrBusy        = errors.New("cannot unregister a busy inbox")
 	ErrPrivate     = errors.New("a configuration is private to the service it belongs to")
+	ErrSecret      = errors.New("a secret is stored on a service and on no other kind")
+	ErrNoSecret    = errors.New("that service holds no secret")
 	ErrNotAllow    = errors.New("not on that service's allow list")
 	ErrPersonal    = errors.New("a personal service may name only direct service identities in its ACL and cannot have maintainers")
 	ErrEnrol       = errors.New("enrolment")
@@ -177,6 +179,13 @@ func validateKind(r protocol.Record) error {
 		return fmt.Errorf("%w: %q is not one of %s", ErrKind, r.Kind, protocol.KindNames())
 	}
 	if onBus(r) {
+		// A credential for reaching something outside means nothing on a kind
+		// that is reached by sending to its name, and a snapshot holding one
+		// is state this daemon cannot describe.
+		// See docs/06-services.md#secrets.
+		if r.Secret != "" || r.SecretSHA != "" {
+			return fmt.Errorf("%w: a %s has nothing outside to authenticate to, so it holds no secret", ErrKind, r.Kind)
+		}
 		return nil
 	}
 	if r.Addr == "" || r.Proto == "" {
@@ -283,7 +292,12 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	if r.Bound < 0 {
 		return protocol.Record{}, fmt.Errorf("%w, not %d", ErrBound, r.Bound)
 	}
+	// A registration carries neither half of either private field: not the
+	// bytes, and not the digest, which is derived from them and would
+	// otherwise let anyone claim any setup or any credential. Each has one
+	// verb that writes it. See docs/06-services.md#secrets.
 	r.Config, r.ConfigSHA, r.Subs = nil, "", nil
+	r.Secret, r.SecretSHA = "", ""
 	r.Maintainers, r.Disabled = nil, false
 	clearLiveRecord(&r)
 	// Publishing a name is open to anyone; changing one that exists belongs
@@ -297,6 +311,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 			return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, name, old.Owner)
 		}
 		r.Config = old.Config
+		// Kept for the same reason a configuration is: a service refreshing
+		// its metadata on every start must not lose its credential.
+		r.Secret = old.Secret
 		r.Owner = old.Owner
 		r.Subs = old.Subs
 		r.Maintainers, r.Disabled = append(protocol.MaintainerList(nil), old.Maintainers...), old.Disabled
@@ -453,6 +470,88 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 		return nil, fmt.Errorf("%w: only %s may read it", ErrPrivate, n)
 	}
 	return r.Config, nil
+}
+
+// SetSecret stores the credential for reaching a 📡. It is opaque bytes: the
+// daemon never parses it, so `KEY=value` is the caller's convention and not a
+// grammar anything checks (Q77). Only an empty secret is refused, because it
+// reads back exactly like never having set one.
+//
+// A secret lives on a service and on no other kind. Every other kind is
+// reached by sending to its name, so there is nothing for a credential here
+// to unlock, and storing one would be a field that says something untrue.
+// See docs/06-services.md#secrets.
+func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
+	n, err := canon(name)
+	if err != nil {
+		return protocol.Record{}, err
+	}
+	who, err := canon(caller)
+	if err != nil {
+		return protocol.Record{}, err
+	}
+	if secret == "" {
+		return protocol.Record{}, fmt.Errorf("%w, and an empty one is the absence of one", ErrNoSecret)
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return protocol.Record{}, err
+	}
+	r, known := b.record(n)
+	if !known {
+		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
+	}
+	if onBus(r) {
+		return protocol.Record{}, fmt.Errorf("%w: %s is %s", ErrSecret, n, r.Kind)
+	}
+	// Writing is the owner's and the record's own, exactly as a configuration
+	// is: a credential is not something any caller may overwrite.
+	if !b.manages(who, r) {
+		return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, n, r.Owner)
+	}
+	r.Secret = secret
+	r.At = time.Now()
+	b.records[n] = r
+	// Acknowledged only once it is durable: a credential the caller was told
+	// was stored, and which a restart then loses, is worse than a refusal.
+	if err := b.checkpoint(false); err != nil {
+		return protocol.Record{}, err
+	}
+	return r.Public(), nil
+}
+
+// Secret reads one back. Unlike a configuration, a secret exists to be read:
+// it is returned to whoever the record's own [ACL](docs/02-access.md#acl)
+// already admits, with no second list to keep in step with the first.
+// See docs/06-services.md#secrets.
+func (b *Bus) Secret(name, caller string) (string, error) {
+	n, err := canon(name)
+	if err != nil {
+		return "", err
+	}
+	who, err := canon(caller)
+	if err != nil {
+		return "", err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := b.acting(who); err != nil {
+		return "", err
+	}
+	r, known := b.records[n]
+	// Asked before the kind and before the secret exists, so a caller who may
+	// not see the name learns only that — the same order Send uses.
+	if !known || !b.may(who, r) {
+		return "", fmt.Errorf("%w: %s", ErrUnknown, n)
+	}
+	if onBus(r) {
+		return "", fmt.Errorf("%w: %s is %s", ErrSecret, n, r.Kind)
+	}
+	if r.Secret == "" {
+		return "", fmt.Errorf("%w: %s", ErrNoSecret, n)
+	}
+	return r.Secret, nil
 }
 
 // Lookup answers what a name is, so a face can tell a channel from a filter
