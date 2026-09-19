@@ -39,6 +39,30 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 
 Code changes require `src/smoke.sh --slow` green; it runs vet and race tests. The fast subset is edit-loop feedback only. Break each behavioral fix and watch its named check fail; reproduce review findings before accepting them. For a documentation-only change, check internal paths and anchors, scope/status consistency and question/decision migration; no version bump or runtime test rerun is required solely for prose edits.
 
+### Mutation first, then belief
+
+**A green check is evidence of nothing until it has been seen to fail**, and a
+mutant credited by a build failure takes no credit — it must compile and fail on
+an assertion. Every shape below was actually found in this repository:
+
+| Shape | The check that had it |
+|---|---|
+| taking the sender's word for a delivery | `ab_reply` said it replied; the routing was nonsense |
+| counting nothing | a doubled delivery passed a check that only looked at the last one |
+| grepping output that is non-empty either way | `$(cmd; echo -n nothing)` contains *nothing* whatever `cmd` did |
+| grepping a word the success answer also contains | a refused receipt and an accepted one both say `receipt` |
+| exercising a different path than the one it names | a *waiting reader* check whose inbox still held a message never blocked, so it measured the queued path twice |
+| leaning on the refusal to end the command | `start` exits when refused and runs forever when not, so removing the refusal hung the check instead of failing it — bound anything whose success does not return |
+| signalling the wrong process | `f() { ...; } &` backgrounds a subshell, so the service never got the signal |
+| asking a dead process what it left behind | an orphan is reparented to init the moment its parent dies, so `pgrep -P <that parent>` is empty however badly it left — take the pids *before* the kill |
+| matching a class name in the inline stylesheet | every page carries the stylesheet, so assert the element form |
+| asserting an identity is absent from a listing | the signed-in name is in the page header, so assert the listing's own row |
+
+**Naming a shape does not remove it.** Sweep for repeats as part of the fix, not
+as a later tidy. Every mutation is measured against `--slow`: a mutant that
+survives because its check was skipped is the worst kind of green. `src/smoke.sh`
+is read by byte offset while it runs — never edit it mid-run.
+
 ## Writing conventions
 
 - Small files, main ideas only, tables over prose; terse English.

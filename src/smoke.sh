@@ -7,7 +7,7 @@
 #
 # The fast run is for the edit-run loop. **A change is measured against
 # --slow**, and so is every mutation: a check that did not run caught
-# nothing (Plans/done/PoC/README.md#mutation-first-then-belief).
+# nothing (CLAUDE.md#mutation-first-then-belief).
 set -u
 cd "$(dirname "$0")"
 # This run builds its own fixture: whatever bus the caller is already talking
@@ -83,7 +83,7 @@ pass=0; fail=0; skipped=0
 # Anything that takes more than a second is opt-in: the default run is the
 # one a person waits for. `SLOW=1` (or --slow) runs everything, and the
 # mutation harness always does — a mutant that survives because its check was skipped is the
-# worst kind of green (Plans/done/PoC/README.md#mutation-first-then-belief).
+# worst kind of green (CLAUDE.md#mutation-first-then-belief).
 SLOW=${SLOW:-0}
 [ "${1:-}" = "--slow" ] && SLOW=1
 slow() { [ "$SLOW" = 1 ]; }
