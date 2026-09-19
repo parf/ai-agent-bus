@@ -23,7 +23,7 @@ stated, and the answer to *which of these four is the odd one out*.
 ## Method metadata
 
 Status: proposed, not built. The MVP carries a service's method information in
-its [description](../../docs/03-services-and-topics.md#service-and-template) —
+its [description](../../docs/03-records.md#agent-templates) —
 one sentence, written by whoever registered it, and the only thing a listing or
 the MCP catalog can show. That is enough to recognise a service and not enough
 to call one: a caller cannot learn a verb's arguments from it, nothing marks the

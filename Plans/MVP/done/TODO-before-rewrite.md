@@ -42,10 +42,10 @@ wave stands on it.
 | the whole stage | what MVP contains | [stages § MVP](../README.md#scope) |
 | the rest of E | what else lives in SQLite | [setup § storage](../../../docs/09-setup.md#storage) |
 | H.1 | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../../docs/09-setup.md#install) |
-| F.2 | what carries a service's method information | [services § service and template](../../../docs/03-services-and-topics.md#service-and-template) |
+| F.2 | what carries a service's method information | [services § service and template](../../../docs/03-records.md#agent-templates) |
 | F.6 | where the ACL and the user-to-account map are edited — the dashboard shows them and `agent-bus-admin` writes them | [setup § the programs](../../../docs/09-setup.md#the-programs) |
 | the CLI | whether reading an inbox and filtering one become separate options | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
-| G | what happens to a running service when its configuration changes | [services § configuring a template](../../../docs/03-services-and-topics.md#configuring-a-template) |
+| G | what happens to a running service when its configuration changes | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
 
 Five were raised by this plan; four are settled and the fifth went to R1
 with wave D:
@@ -83,7 +83,7 @@ already survives receipts, and the daemon already accepts a `done` receipt.
 |---|---|---|
 | A.1 | ✅ _done_ — a `done` verb, an `ab_receipt` tool, the runner emitting one on silent success, and a caller's wait ending on it ([messaging § receipts](../../../docs/04-messaging.md#receipts)) |
 | A.2 | ✅ _done_ — a request carries how long its caller will wait, the bus turns that into a moment, and a service that sees it already past does not do the work ([messaging § request and reply](../../../docs/04-messaging.md#request-and-reply)). It is a second pair beside the TTL and not a spelling of it: the queue bounds a TTL and not this, and the bus carries this and acts on the TTL |
-| A.3 | ✅ _done_ — a record carries `--ttl` and `--bound`, a message carries its own `--ttl`, and the record's bounds it: asking for longer than the queue keeps does not get it, and a shorter one on the message still wins ([services § topics](../../../docs/03-services-and-topics.md#topics)). Neither is a daemon-wide constant any more |
+| A.3 | ✅ _done_ — a record carries `--ttl` and `--bound`, a message carries its own `--ttl`, and the record's bounds it: asking for longer than the queue keeps does not get it, and a shorter one on the message still wins ([services § topics](../../../docs/03-records.md#topics)). Neither is a daemon-wide constant any more |
 | A.4 | ✅ _done_ — `reply-to`, refused at accept when the address is not registered; the CLI, runner and face all read the route off the envelope ([messaging § reply routing](../../../docs/04-messaging.md#reply-routing)) |
 | A.5 | ✅ _done_ — a reader that asks to **share** the inbox is one of a pool, and any number of those may block on an empty one; a reader that does not ask keeps the old refusal in both directions ([messaging § several readers may wait when they say so](../../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so)). Asking is how the daemon tells a pool from a session's accidental second reader, and it remembers nothing between reads |
 | A.6 | ✅ _done_ — `in` and `out` per name, counted in memory, attached to a listing and cleared off anything a caller states ([discovery § what a listing answers](../../../docs/05-discovery.md#what-a-listing-answers)) |
@@ -252,7 +252,7 @@ That is a product decision, not a technical one.
 | ID | Task | Notes |
 |---|---|---|
 | F.1 | ✅ _done_ — the daemon filters, so `ab_ls` and `/ls` answer two principals differently, and each answer matches what that principal may actually send to. The face adds nothing: it asks, like every other client |
-| F.2 | generated docs | **blocked**: nothing on a record carries method information, and the shape is the ❓ in [services § service and template](../../../docs/03-services-and-topics.md#service-and-template) |
+| F.2 | generated docs | **blocked**: nothing on a record carries method information, and the shape is the ❓ in [services § service and template](../../../docs/03-records.md#agent-templates) |
 | F.4 | ✅ _done_ — the anonymous page answers what the bus would answer a caller it cannot name: a title, a form and where a credential comes from, with no uptime, no counts and no names ([discovery § rules it is built to](../../../docs/05-discovery.md#rules-it-is-built-to)). `/healthz` is an empty 200, because anything that varies is something a stranger can sit and watch. No page renders a credential, nothing is fetched from anywhere, and the child writes nothing of its own |
 | F.5 | ✅ _done_ — the caller signs in with the token they already have, it is spent on a session the **bus** holds, and the browser carries only that session's id ([discovery § signing in](../../../docs/05-discovery.md#signing-in)). One lookup resolves both kinds of credential, so no route checks tokens and forgets sessions. The supervisor gives the child the **shared** socket and no credential of its own: on the owner's socket every page it rendered would be the owner's, served to whoever connected |
 | F.6 | ⚠️ _seven of eight_ — registry, stuck inboxes, exchanges, my names, loss by name, refusals and node are one signed-in page, each a reshape of what the bus already answered **that caller** ([discovery § what it shows](../../../docs/05-discovery.md#what-it-shows)). Backlogs are ranked oldest first, because depth alone cannot tell a burst from an outage, and a queue at its bound is marked — the daemon answering that, since a record declaring no bound takes the daemon's. A request and its receipts are one row. **people** is what is left, and it is the one row that needs the daemon to start keeping something: the credential store answering *which names*, and the person fields |

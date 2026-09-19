@@ -15,7 +15,7 @@ relevant; [implementation work](../Plans/MVP/TODO.md#authority-model) and
 
 A **User** is a registered person. A **principal** is the identity a credential
 represents; it must have a user profile or a registry record to use the bus.
-A record is one of [five kinds](03-services-and-topics.md#five-record-kinds). The four that are not 📡 have an inbox, and it outlives whatever reads it.
+A record is one of [five kinds](03-records.md#five-record-kinds): 👤 `user`, 👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service`.
 
 ## Names
 
@@ -38,7 +38,7 @@ lowercase; the runner completes a bare name with the local hostname.
 `mail-sender/parf@comfi.com@srv1` names template `mail-sender`, instance
 `parf@comfi.com`, realm `srv1`. The bus does not treat that instance as a mailbox.
 ` PARF@Localhost ` and `parf@localhost` identify the same principal. Two instances
-of a [service template](03-services-and-topics.md#service-and-template) have
+of an [agent template](03-records.md#agent-templates) have
 separate names, records and configurations.
 
 </details>
@@ -198,7 +198,7 @@ remain refused. This is existing behavior.
 ## Services
 
 **These rules are about a record, whichever of the
-[five kinds](03-services-and-topics.md#five-record-kinds) it is**; the section
+[five kinds](03-records.md#five-record-kinds) it is**; the section
 keeps its older name for its inbound links.
 
 A record has one Owner, explicitly assigned Maintainers and Members with
@@ -229,7 +229,7 @@ membership. Human editors use one plain term per line, as ACL editors do.
 * Re-registration retains the [protected settings](#registration).
 * Management includes configuration, access, availability and removal, subject
   to [removal conditions](#unregistering). Only the record itself may fetch its
-  [private configuration](03-services-and-topics.md#configuring-a-template).
+  [private configuration](03-records.md#configuring-a-template).
   Managed runtime start/stop remains [runner work](../Plans/R1/runner.md#what-the-runner-does).
 * Record-defined role labels will be stored/resolved without interpreting their
   meaning; Maintainer is the reserved management role. They must not let a
@@ -243,7 +243,7 @@ A channel is a 📮 `queue` or a 📣 `pubsub` record: a name **nobody acts as**
 Its creator owns it, and the [record authority rules](#services) apply. The
 daemon provides queue or pub/sub delivery; joining, publishing or reading grants
 no ownership of the channel or another subscriber's inbox.
-[The two topic kinds](03-services-and-topics.md#topics) are defined with
+[The two topic kinds](03-records.md#topics) are defined with
 messaging behavior.
 
 ## Groups
@@ -305,7 +305,7 @@ An owner must have a profile or record of its own. Enrolment creates a profile
 and self-owned record. Ordinary registration that states no `kind` creates a 📡
 `service`, which is why it must also carry an address and a protocol; a caller
 meaning one of the other four
-[kinds](03-services-and-topics.md#five-record-kinds) says so, and `--personal`
+[kinds](03-records.md#five-record-kinds) says so, and `--personal`
 says `agent`.
 
 A conditional creation refuses an existing canonical name, even for its owner;

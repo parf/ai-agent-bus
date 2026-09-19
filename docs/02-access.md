@@ -130,11 +130,11 @@ provider answers. Private keys stay with the signing tool.
 ## ACL
 
 **ACL governs other principals' access to a record**, whichever of the five
-[kinds](03-services-and-topics.md#five-record-kinds) it is. A record does not
+[kinds](03-records.md#five-record-kinds) it is. A record does not
 need to list itself in its own ACL: it may read its own inbox independently.
 Caller standing, owner suspension and the record's Disabled setting still apply.
 On a 📡 the list governs who may **read** the record — its address, protocol,
-description and [secret](03-services-and-topics.md#service-secrets) — because a
+description and [secret](06-services.md#secrets) — because a
 service has no delivery to govern.
 
 **For other principals, an empty ACL means access only for the record's Owner
@@ -145,12 +145,12 @@ resource roles, not additional entries that must be placed in the ACL.
 
 To allow **any registered user**, explicitly add **`*`** to the ACL. This does
 not admit anonymous, unknown or suspended callers. A
-[Personal agent](03-services-and-topics.md#personal-and-shared) cannot use
+[Personal agent](03-records.md#personal-and-shared) cannot use
 this grant because its ACL cannot grant access to users.
 
 **`@owner` is a runtime ACL term for the record's direct Owner and every 👾
 `agent` directly owned by that Owner.** No other
-[kind](03-services-and-topics.md#five-record-kinds) joins the cohort: a 📮, a
+[kind](03-records.md#five-record-kinds) joins the cohort: a 📮, a
 📣 and a 👤 are destinations or people rather than callers acting for an owner,
 and a 📡 calls nothing here at all. Ownership is one step: an agent owned by
 another agent does not inherit the human owner's cohort. The term follows current registry
@@ -180,7 +180,7 @@ discovery and editing without opening a resource's message interface. See the
 [release note](09-setup.md#owner-acl-and-master-removal).
 
 Allow lists are registry settings, never values taken from private
-[registry configuration](03-services-and-topics.md#configuring-a-template). Queries, sends, consumes and writes still obey their applicable
+[registry configuration](03-records.md#configuring-a-template). Queries, sends, consumes and writes still obey their applicable
 state and authority checks.
 
 ACLs can name any registered record, ordinary groups and `@owner`. Ordinary

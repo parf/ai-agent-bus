@@ -45,7 +45,7 @@ export type Record_ = { name: string; kind: string; addr?: string; descr?: strin
   protocol?: string; reading?: boolean; readers?: number; queued?: number;
   // The digest of a configuration, never the configuration itself: it is
   // how a caller sees that a service is configured, and that its setup
-  // still matches the one it knew (docs/03-services-and-topics.md#why-a-digest-at-all).
+  // still matches the one it knew (docs/03-records.md#why-a-digest-at-all).
   config_sha?: string };
 
 export class BusError extends Error {

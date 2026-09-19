@@ -280,7 +280,7 @@ one provider's API into another's — a caller that wants one API over many uses
 a provider wants that provider's own shape.
 
 Which is also why this is **not** ten programs. Most of that list speaks the
-OpenAI API, so it is one service template configured into instances that differ
+OpenAI API, so it is one agent template configured into instances that differ
 by a base URL and a key ([identity § names](../../docs/01-identity-and-roles.md#names)); code of its
 own is written only where the API genuinely differs — Anthropic, Google, Bedrock
 and the retrieval pair.

@@ -177,7 +177,7 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		// it asks the same question registration asks rather than a weaker one
 		// — an unknown kind and a service with no address are equally records
 		// this version cannot serve.
-		// See docs/03-services-and-topics.md#five-record-kinds.
+		// See docs/03-records.md#five-record-kinds.
 		if b.recordRestoreErr == nil {
 			if err := validateKind(r); err != nil {
 				b.recordRestoreErr = fmt.Errorf("snapshot record %s cannot be restored: %w", r.Name, err)
@@ -200,7 +200,7 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		// A queue under a service name is a snapshot this version could not
 		// have written, and restoring it would leave messages nothing can
 		// ever read. Refused rather than dropped, for the same reason an
-		// unknown kind is. See docs/03-services-and-topics.md#five-record-kinds.
+		// unknown kind is. See docs/03-records.md#five-record-kinds.
 		if r, known := b.records[q.Name]; known && !onBus(r) && b.recordRestoreErr == nil {
 			b.recordRestoreErr = fmt.Errorf("snapshot queue %s cannot be restored: %w: a service has no queue here", q.Name, ErrKind)
 		}

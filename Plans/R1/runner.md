@@ -17,7 +17,7 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
   the one place the runner **cares what kind of child it has**, and it is the
   price of keeping a process alive.
 - **Represent** — registers each child as a **service**
-  ([services § service and template](../../docs/03-services-and-topics.md#service-and-template)),
+  ([services § service and template](../../docs/03-records.md#agent-templates)),
   heartbeats and reports stats for it, holds and injects the child's identity
   and private config. Children need not know the bus exists — a script under
   `agent-bus start` never handles a credential at all, and a service that links
@@ -115,7 +115,7 @@ of it. A client that wants the same fan-in gets it the same way.
 Owner-settled, 2026-09-16: routing does not apply to pub/sub. A subscriber
 receives its copy into its own inbox whatever its `route` says, because
 `fanout` is a separate delivery path rather than a send to the subscriber's
-name ([topics](../../docs/03-services-and-topics.md#topics)).
+name ([topics](../../docs/03-records.md#topics)).
 
 The cost is real and is accepted rather than argued away: **a runner whose
 children subscribe still reads one inbox per subscribed child**, so routing
@@ -452,7 +452,7 @@ A service's **environment** arrives injected before exec — never as a path the
 child could open. It is assembled from three files that overlay in one order.
 This is the runner's half, and it is not the registry's configuration, which a
 service fetches for itself and which the daemon holds
-([services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template)):
+([services § configuring a template](../../docs/03-records.md#configuring-a-template)):
 
 | | Carries | Wins |
 |---|---|---|

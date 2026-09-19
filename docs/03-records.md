@@ -6,8 +6,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | [Five record kinds](#five-record-kinds) closing `kind`, registry records, [protocol hints](#how-to-call-it), private registry configuration and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](#service-and-template). |
-| Pending | [Service secrets](#service-secrets), the last of [0.6.0](../Plans/MVP/0.6.0-TODO.md#objective). |
+| Built | [Five record kinds](#five-record-kinds) closing `kind`, registry records, [agent templates](#agent-templates), private registry configuration, [topics](#topics) and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](#agent-templates). |
+| Pending | Nothing here. The external case has its own page: [services](06-services.md#status). |
 
 ## Five record kinds
 
@@ -20,7 +20,7 @@ inferring it from which fields happen to be filled in.
 | 👾 | `agent` | the queue an agent reads | its launcher, or the agent itself at startup | the agent |
 | 📮 | `queue` | a queue created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
 | 📣 | `pubsub` | a [pub/sub topic](#topics): it keeps nothing and copies each publication to every subscriber | a user or an agent | nobody |
-| 📡 | `service` | a description of something **external**, not on this bus | a user or an agent | nobody here |
+| 📡 | `service` | a description of something [**external**](06-services.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
 
 Registering with no kind stores `service`, because describing something outside
 is the case a bare `register` is usually for. `--personal` names an `agent`.
@@ -41,27 +41,10 @@ principal describes what the record is *for*, not a reader the daemon enforces.
 Splitting that list into a write side and a delivery side is a separate,
 undecided question ([directional access](../Plans/Future/acl-direction.md#where-direction-is-needed)).
 
-**A service is the external case, and has no queue here.** What runs behind a
-name on this bus is an agent, so `service` keeps the word for the thing a
-registration only describes. The record is **information for the people and
-agents its [allow list](02-access.md#acl) admits**: where the thing is, how to
-speak to it, what it is for, and the [credential](#service-secrets) to use. It
-requires an `addr` and a [protocol](#how-to-call-it), and the daemon reaches
-none of them.
-
-| A service | |
-|---|---|
-| is | a description read by whoever the allow list admits |
-| is not | a destination: nothing is sent to it, nothing subscribes it, nothing consumes from it |
-| carries | `addr`, `protocol`, description, configuration and its secret |
-| carries no | queue, and therefore no TTL, capacity, overflow policy, delivery switch, reader count or backlog |
-
-Each of the three doors into a queue — send, subscribe, consume — refuses a
-service by its kind, after the allow list has been asked, so a caller who may
-not see the name learns only that. The daemon states no reader count and no
-queued total for one: a zero there would be an observation of something that
-does not exist. A snapshot holding a queue under a service name is refused for
-the same reason [an unknown kind is](#restoring-a-record).
+**A service is the external case, and everything about it lives on its own
+page.** It has no queue here, so nothing is sent to it, nothing subscribes it
+and nothing consumes from it; it carries an address and a protocol instead, and
+the daemon reaches neither. See [services](06-services.md#what-a-service-is).
 
 Before 1.1 there is no compatibility obligation, so no migration is written:
 existing records are registered again under the kind they should carry.
@@ -69,8 +52,9 @@ existing records are registered again under the kind they should carry.
 ### Restoring a record
 
 Restore asks the same shape question registration does, and **refuses** a record
-this version could not have registered: an unknown kind, a service without an
-address or a protocol, a service carrying queue settings or a queue, or
+this version could not have registered: an unknown kind, a
+[service](06-services.md#it-has-no-queue-here) without an address or a protocol,
+a service carrying queue settings or a queue, or
 [Personal](#personal-and-shared) on anything but an agent. The daemon names the
 record and the reason rather than converting it or coming up pretending.
 
@@ -81,71 +65,11 @@ The kind says how a name is reached, and there are only two answers.
 | Kind | How a caller reaches it |
 |---|---|
 | 👤 👾 📮 📣 | **send to the name.** The daemon puts the message in the [queue](04-messaging.md#inbox-queues) belonging to it, and whoever reads that queue takes it |
-| 📡 | **call it directly**, at `addr`, speaking `protocol`. The bus is not in the path at all |
+| 📡 | **call it directly**, at its own address — [services § how to call it](06-services.md#how-to-call-it) owns that half |
 
-A service's `addr` and `protocol` are the registration's own words, stored raw
-and **never interpreted**. The daemon does not implement a second protocol and
-does not proxy. They are facts in the registry for whoever is choosing what to
-call ([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)).
+## Agent Templates
 
-**`/etc/services` is the suggested vocabulary for `protocol`, and only a
-suggestion.** Use the name from it where there is one, so two people registering
-the same kind of thing write the same word. It is not a checked set and cannot
-become one: the file is outdated and incomplete — half of what anyone registers
-here (`mcp`, `grpc`, an in-house protocol) is not in it, and refusing those would
-make the field useless to the people who need it most.
-
-A thing outside that somebody wants reachable **over** the bus is not this case:
-register an 👾 for whatever reads its queue, and let that agent call the
-outside thing ([runner § adapters](08-runner-role.md#adapters)).
-
-## Personal and shared
-
-An owner may tag their agent **Personal**. Without that tag, it is
-**non-Personal**. The tag hides personal agents from the main web pages to
-reduce clutter; access works exactly as for any other record.
-The stored classification, assignment limits and web grouping are built.
-
-| Rule | Requirement |
-|---|---|
-| Carried by | an 👾 `agent` and nothing else; the tag is not a kind ([five record kinds](#five-record-kinds)) |
-| ACL entries | Only other agents; a user's own queue does not turn that user into one |
-| Groups | Not valid ACL entries, even when every member is an agent |
-| Runtime `@owner` | Not valid; a Personal agent lists the agents it admits directly |
-| Sharing with users | Requires making the agent non-Personal; a user entry cannot coexist with the Personal tag |
-| Maintainers | Cannot be assigned while the agent is Personal; shared maintenance requires making it non-Personal |
-| Broad access | The [wildcard grant](02-access.md#acl) is not valid for a Personal agent |
-| Main web pages | Exclude Personal agents; find them in the dedicated tab instead |
-| User's web view | A **Personal** tab shows that user's Personal agents |
-| Daemon owner's web view | Personal agents can be filtered per owner across the node-wide inventory visible through Owner management |
-
-The tag introduces no separate access policy and no sixth kind. Apart from
-these assignment restrictions and web grouping, ordinary
-[access rules](02-access.md#acl), ownership and delivery are unchanged. Hiding
-an agent from the main web pages does not revoke authorized access or remove it
-from the registry.
-
-Users, queues, pub/sub topics and services cannot carry Personal. Extending the
-classification to another kind needs an explicit owner decision.
-
-<details>
-<summary>How the stored classification changes</summary>
-
-Only the owner changes Personal. A new registration may state it; an agent
-refreshing its metadata preserves the owner's stored choice. A request that
-changes Personal and its assignments is checked as one final record, so an
-owner can remove sharing while enabling Personal, or disable Personal while
-adding sharing, in one operation.
-
-Assignment validity is checked when a record is written. If an allowed agent is
-later removed, the name remains stored but grants nobody; the next write must
-remove it or restore that agent before the Personal record can be saved again.
-
-</details>
-
-## Service and template
-
-`name@realm` stands alone; `template/instance@realm` says which **service
+`name@realm` stands alone; `template/instance@realm` says which **agent
 template** that instance was configured from. The prefix is naming, not a group
 and not an instruction to fan out: the parser accepts it for a name of any
 [kind](#five-record-kinds) and reads no meaning out of it. Each complete name is
@@ -162,14 +86,14 @@ better representation is proposed in
 
 ## Configuring a template
 
-Configuring a service template **is** what produces a configured name. One
-verb does it, and reads it back:
+Configuring an agent template **is** what produces a configured name. One verb
+does it, and reads it back:
 
 | | |
 |---|---|
-| `cat cfg.json \| agent-bus service-template <template/instance@realm> -` | configure it, JSON on stdin |
-| `agent-bus service-template <template/instance@realm> '{"k":"v"}'` | the same, inline |
-| `agent-bus service-template <template/instance@realm>` | print that configuration |
+| `cat cfg.json \| agent-bus agent-template <template/instance@realm> -` | configure it, JSON on stdin |
+| `agent-bus agent-template <template/instance@realm> '{"k":"v"}'` | the same, inline |
+| `agent-bus agent-template <template/instance@realm>` | print that configuration |
 
 The direction is decided by whether a configuration was handed to it, and
 setting one answers with its digest rather than with what was set. The verb
@@ -245,30 +169,8 @@ the *registry's* configuration, not the runner's environment, which is the
 other thing that word names ([glossary § terms](glossary.md#terms)):
 
 ```sh
-cfg=$(agent-bus service-template "$AGENT_BUS_NAME")
+cfg=$(agent-bus agent-template "$AGENT_BUS_NAME")
 ```
-
-## Service secrets
-
-**Pending, planned in [0.6.0](../Plans/MVP/0.6.0-TODO.md#remaining-work).** A
-`service` describes something this bus does not run, and reaching it usually
-needs a credential. A secret is that credential, held on the record and handed
-to whoever its [ACL](02-access.md#acl) already admits.
-
-**A secret is not [registry configuration](#configuring-a-template).** They are
-the same shape — an opaque blob the daemon never reads inside, absent from every
-listing, represented by a digest in any ordinary answer — and their mechanics
-differ at every other point:
-
-| | Configuration | Secret |
-|---|---|---|
-| Content | JSON, checked for being JSON | shell `KEY=value` lines |
-| Belongs to | any record configured from a [service template](#service-and-template) | a `service` record and no other kind |
-| Who reads it | the named record alone, its owner included refused | whoever the record's [ACL](02-access.md#acl) admits; no second list |
-| What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
-
-The rule that configuration never leaves the daemon for anyone but its own
-record is unchanged by this.
 
 ## Topics
 
@@ -313,3 +215,47 @@ A topic **declares its kind, TTL, bound and overflow policy at creation**:
 | Observations | [Listing state](05-discovery.md#what-a-listing-answers) |
 
 Inboxes belong to registered names ([messaging § inbox queues](04-messaging.md#inbox-queues)). Signed records and upstream namespaces are proposed in [R1 registry](../Plans/R1/registry.md#registry-sync) and [federation](../Plans/R1/federation.md#chaining).
+
+## Personal and shared
+
+An owner may tag their agent **Personal**. Without that tag, it is
+**non-Personal**. The tag hides personal agents from the main web pages to
+reduce clutter; access works exactly as for any other record.
+The stored classification, assignment limits and web grouping are built.
+
+| Rule | Requirement |
+|---|---|
+| Carried by | an 👾 `agent` and nothing else; the tag is not a kind ([five record kinds](#five-record-kinds)) |
+| ACL entries | Only other agents; a user's own queue does not turn that user into one |
+| Groups | Not valid ACL entries, even when every member is an agent |
+| Runtime `@owner` | Not valid; a Personal agent lists the agents it admits directly |
+| Sharing with users | Requires making the agent non-Personal; a user entry cannot coexist with the Personal tag |
+| Maintainers | Cannot be assigned while the agent is Personal; shared maintenance requires making it non-Personal |
+| Broad access | The [wildcard grant](02-access.md#acl) is not valid for a Personal agent |
+| Main web pages | Exclude Personal agents; find them in the dedicated tab instead |
+| User's web view | A **Personal** tab shows that user's Personal agents |
+| Daemon owner's web view | Personal agents can be filtered per owner across the node-wide inventory visible through Owner management |
+
+The tag introduces no separate access policy and no sixth kind. Apart from
+these assignment restrictions and web grouping, ordinary
+[access rules](02-access.md#acl), ownership and delivery are unchanged. Hiding
+an agent from the main web pages does not revoke authorized access or remove it
+from the registry.
+
+Users, queues, pub/sub topics and services cannot carry Personal. Extending the
+classification to another kind needs an explicit owner decision.
+
+<details>
+<summary>How the stored classification changes</summary>
+
+Only the owner changes Personal. A new registration may state it; an agent
+refreshing its metadata preserves the owner's stored choice. A request that
+changes Personal and its assignments is checked as one final record, so an
+owner can remove sharing while enabling Personal, or disable Personal while
+adding sharing, in one operation.
+
+Assignment validity is checked when a record is written. If an allowed agent is
+later removed, the name remains stored but grants nobody; the next write must
+remove it or restore that agent before the Personal record can be saved again.
+
+</details>

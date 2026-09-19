@@ -80,7 +80,8 @@ Read the owning section before changing a boundary:
 | Authentication and identity | [access](docs/02-access.md#what-a-call-carries), [names](docs/01-identity-and-roles.md#names) |
 | Credential lifetime in every release | [token lifetime](docs/02-access.md#token-lifetime) |
 | Visibility and use | [ACL](docs/02-access.md#acl) |
-| Private configuration | [configuration](docs/03-services-and-topics.md#configuring-a-template) |
+| Private configuration | [configuration](docs/03-records.md#configuring-a-template) |
+| What an external service is and is not | [services](docs/06-services.md#what-a-service-is) |
 | Body trust and persistence | [trust boundary](docs/02-access.md#trust-boundary), [durability](docs/04-messaging.md#durability) |
 | Process privilege and exec | [process boundary](docs/11-processes.md#the-rule) |
 

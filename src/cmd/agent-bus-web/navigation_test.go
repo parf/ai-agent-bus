@@ -65,7 +65,7 @@ func TestServiceReaderFilterIsIndependentFromDelivery(t *testing.T) {
 func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
 	// A service has no queue here, so its listing carries no reader or delivery
 	// filter to retain; the pages that do keep theirs across paging.
-	// See docs/03-services-and-topics.md#five-record-kinds.
+	// See docs/03-records.md#five-record-kinds.
 	queueFilters := []string{"readers=none", "state=active"}
 	for _, tc := range []struct {
 		path     string

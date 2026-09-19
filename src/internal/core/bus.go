@@ -162,7 +162,7 @@ func New() *Bus {
 // names something on this bus reads; a service is reached at its own address by
 // whoever wants it, so nothing is delivered to it, nothing is consumed from it,
 // and it never has a queue to hold, bound or expire.
-// See docs/03-services-and-topics.md#five-record-kinds.
+// See docs/03-records.md#five-record-kinds.
 func onBus(r protocol.Record) bool { return r.Kind != protocol.KindService }
 
 // validateKind is what every stored record must satisfy, whichever path
@@ -171,7 +171,7 @@ func onBus(r protocol.Record) bool { return r.Kind != protocol.KindService }
 // name with nothing behind it and no way to find out. For the same reason it
 // carries no queue settings and no delivery switch — there is no queue for
 // them to be about.
-// See docs/03-services-and-topics.md#five-record-kinds.
+// See docs/03-records.md#five-record-kinds.
 func validateKind(r protocol.Record) error {
 	if !protocol.ValidKind(r.Kind) {
 		return fmt.Errorf("%w: %q is not one of %s", ErrKind, r.Kind, protocol.KindNames())
@@ -215,7 +215,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// A caller that states nothing gets the external case: registering by
 	// hand is how a thing that is not on this bus gets described, and every
 	// caller that means one of the other four says so.
-	// See docs/03-services-and-topics.md#five-record-kinds.
+	// See docs/03-records.md#five-record-kinds.
 	if r.Kind == "" {
 		r.Kind = protocol.KindService
 	}
@@ -264,7 +264,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// Registering refreshes a description. It is not a way to take a record
 	// over or to throw its configuration away: a service registers itself on
 	// every start, and that must not destroy what it was configured with.
-	// See docs/03-services-and-topics.md#configuring-a-template.
+	// See docs/03-records.md#configuring-a-template.
 	//
 	// A registration also never carries either half of a configuration:
 	// the bytes have one write path and this is not it, and the digest is
@@ -354,7 +354,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 // exist yet: configuring a service template is what produces a configured
 // name. What it creates is an agent, the kind that has a queue from the moment
 // it exists — a service could not be created here, having no address to be
-// registered with. See docs/03-services-and-topics.md#five-record-kinds.
+// registered with. See docs/03-records.md#five-record-kinds.
 //
 // The configuration is opaque. The only thing checked is that it is JSON —
 // the same "stored raw, shape-checked only" rule the MCP method info follows
@@ -363,7 +363,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 // A configuration is the one field that can hold a secret, so unlike a
 // registration it is not something any caller may overwrite: an existing
 // record belongs to its owner. See
-// docs/03-services-and-topics.md#configuring-a-template.
+// docs/03-records.md#configuring-a-template.
 func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Record, error) {
 	n, err := canon(name)
 	if err != nil {
@@ -456,7 +456,7 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 }
 
 // Lookup answers what a name is, so a face can tell a topic from a filter
-// without guessing. See docs/03-services-and-topics.md.
+// without guessing. See docs/03-records.md.
 func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 	n, err := canon(name)
 	if err != nil {
@@ -644,7 +644,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 		return protocol.Envelope{}, ErrDisabled
 	}
 	// Asked after the ACL, so a caller who may not see the name is told that
-	// and not which kind it is. See docs/03-services-and-topics.md#five-record-kinds.
+	// and not which kind it is. See docs/03-records.md#five-record-kinds.
 	if !onBus(rec) {
 		return protocol.Envelope{}, fmt.Errorf("%w: %s is external — call it at %s, it is not sent to over this bus", ErrKind, to, rec.Addr)
 	}

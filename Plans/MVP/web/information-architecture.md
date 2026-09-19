@@ -16,7 +16,7 @@ Three structural faults follow from that, and no amount of styling fixes them:
 |---|---|
 | No page answers "is anything wrong?" | The operator reads seven sections and decides for themselves |
 | Detail and administration are the same page | `/service` is a read view followed by six stacked forms ([W04](../done/web-review.md#findings)) |
-| Things that are not alike share a page | Fixed in 0.6.3: agents, external services and channels each have a list of their own, and the [five kinds](../../../docs/03-services-and-topics.md#five-record-kinds) say which page a record is on |
+| Things that are not alike share a page | Fixed in 0.6.3: agents, external services and channels each have a list of their own, and the [five kinds](../../../docs/03-records.md#five-record-kinds) say which page a record is on |
 
 ## Journeys
 

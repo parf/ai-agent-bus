@@ -105,21 +105,21 @@ func (m *MaintainerList) UnmarshalJSON(data []byte) error {
 
 // Record is one registered name, of one of the five kinds below. Registering
 // is pushing a description; the thing itself need not know the bus exists.
-// See docs/03-services-and-topics.md#five-record-kinds.
+// See docs/03-records.md#five-record-kinds.
 type Record struct {
 	Name string `json:"name"`
 	Kind string `json:"kind"`           // one of Kinds; a closed set
 	Addr string `json:"addr,omitempty"` // host:port, a path, a URL
 
 	// Proto says HOW to call this, where Addr says where. Empty is the
-	// answer for almost everything: no protocol means an ordinary agent-bus
-	// service — send to its name and the daemon delivers to its inbox.
-	// Anything else names a protocol the *caller* speaks directly: a hint
+	// answer for almost everything: no protocol means one of the four kinds
+	// with a queue here — send to its name and the daemon delivers to its
+	// inbox. A service names a protocol the *caller* speaks directly: a hint
 	// in the registry, not something the daemon implements or checks.
 	// /etc/services is the suggested vocabulary and cannot be more than
 	// that — it is outdated and incomplete, and much of what gets
 	// registered here is not in it.
-	// See docs/03-services-and-topics.md#how-to-call-it.
+	// See docs/06-services.md#how-to-call-it.
 	Proto string `json:"protocol,omitempty"`
 
 	Descr string `json:"descr,omitempty"`    // what ls and the MCP catalog show
@@ -129,7 +129,7 @@ type Record struct {
 	// how long anything in it is worth keeping, and how much of it there
 	// may be. Both unset take the daemon's defaults. A message may ask for
 	// less than TTL and never for more.
-	// See docs/03-services-and-topics.md#topics.
+	// See docs/03-records.md#topics.
 	TTL   string `json:"ttl,omitempty"`
 	Bound int    `json:"bound,omitempty"`
 
@@ -137,7 +137,7 @@ type Record struct {
 	Maintainers MaintainerList `json:"maintainers,omitempty"`
 	// Personal groups a service in the owner's web view. It changes neither
 	// delivery nor access; core only enforces which authority assignments may
-	// coexist with it. See docs/03-services-and-topics.md#personal-and-shared.
+	// coexist with it. See docs/03-records.md#personal-and-shared.
 	Personal bool      `json:"personal,omitempty"`
 	Disabled bool      `json:"disabled,omitempty"`
 	At       time.Time `json:"at"`
@@ -164,7 +164,7 @@ type Record struct {
 	// user, mailbox or credential is looked for. It leaves the daemon for
 	// one caller only, the service it belongs to; every other answer
 	// carries ConfigSHA in its place.
-	// See docs/03-services-and-topics.md#configuring-a-template.
+	// See docs/03-records.md#configuring-a-template.
 	Config json.RawMessage `json:"config,omitempty"`
 
 	// ConfigSHA is what a query gets instead: enough to see that a service
@@ -231,7 +231,7 @@ type AccountMappings struct {
 // `sha256sum cfg.json` will not match one that has whitespace in it. Being a
 // digest of the bytes, a SHORT, GUESSABLE configuration is recoverable by
 // trying candidates; the answer to that is sealing, not a longer hash.
-// See docs/03-services-and-topics.md#configuring-a-template.
+// See docs/03-records.md#configuring-a-template.
 func (r Record) Public() Record {
 	if len(r.Config) > 0 {
 		sum := sha256.Sum256(r.Config)
@@ -258,7 +258,7 @@ const (
 // Record kinds: a closed set, so the daemon answers what a record is rather
 // than a reader inferring it. A queue and a pub/sub topic are kinds of their
 // own, which is why no separate mode is stored.
-// See docs/03-services-and-topics.md#five-record-kinds.
+// See docs/03-records.md#five-record-kinds.
 const (
 	KindUser    = "user"    // the queue a person reads
 	KindAgent   = "agent"   // the queue an agent reads

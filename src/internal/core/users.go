@@ -29,7 +29,7 @@ func (b *Bus) active(name string) bool {
 // it to suspend. Only a user's queue and an agent's do: a queue, a pub/sub
 // topic and an external service are not somebody, so a user record that
 // happens to share a name says nothing about them and must not pause them.
-// See docs/03-services-and-topics.md#five-record-kinds.
+// See docs/03-records.md#five-record-kinds.
 func (b *Bus) carriesUserState(name string) bool {
 	r, known := b.records[name]
 	if !known {

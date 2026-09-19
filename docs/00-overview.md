@@ -14,7 +14,8 @@ Values have one owning section; other pages link to it.
 |---|---|
 | [Identity and roles](01-identity-and-roles.md#identities) | Names, users, roles, groups and resource lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
-| [Records and topics](03-services-and-topics.md#five-record-kinds) | Record kinds, registration, configuration and topic properties |
+| [Records and topics](03-records.md#five-record-kinds) | Record kinds, registration, agent templates, configuration and topic properties |
+| [Services](06-services.md#what-a-service-is) | The external 📡 case: address, protocol, secrets and what it has no queue for |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and snapshots |
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
 | [Runner](08-runner-role.md#script-services) | Foreground script agents, push adapters, pending runtime integrations and launchers, sandboxing |

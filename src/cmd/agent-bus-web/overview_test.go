@@ -56,7 +56,7 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 	}
 	// A service has no queue here, so there is no such thing as one holding
 	// work and no filter on the Services page that would answer for it.
-	// See docs/03-services-and-topics.md#five-record-kinds.
+	// See docs/03-records.md#five-record-kinds.
 	for _, impossible := range []string{"Services holding work", "/services?sort=queued"} {
 		if strings.Contains(find, impossible) {
 			t.Errorf("the Find row offers %q, which a service cannot do: %s", impossible, find)

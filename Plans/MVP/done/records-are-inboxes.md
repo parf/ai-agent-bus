@@ -6,7 +6,7 @@ did not.
 
 Owner-steered correction to the [service and channel
 journeys](web-review.md#findings) built in 0.5.78. The contracts are [service
-kinds](../../../docs/03-services-and-topics.md#service-kinds), [inbox
+kinds](../../../docs/03-records.md#service-kinds), [inbox
 queues](../../../docs/04-messaging.md#inbox-queues) and [display
 labels](../../../docs/05-discovery.md#identity-labels-in-web-and-cli). No
 requirement row closed here.

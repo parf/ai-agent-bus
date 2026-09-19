@@ -8,18 +8,18 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| An external service has no queue here (Q78) | [five record kinds](03-services-and-topics.md#five-record-kinds) | 2026-09-19 owner decision; a 📡 is an information card its [ACL](02-access.md#acl) admits people and agents to read — address, protocol, description and secret — so send, subscribe and consume refuse it, no snapshot may restore a queue under one, and no face reports a reader count or backlog it never measured |
+| An external service has no queue here (Q78) | [services § it has no queue here](06-services.md#it-has-no-queue-here) | 2026-09-19 owner decision; a 📡 is an information card its [ACL](02-access.md#acl) admits people and agents to read — address, protocol, description and secret — so send, subscribe and consume refuse it, no snapshot may restore a queue under one, and no face reports a reader count or backlog it never measured |
 | The daemon owner and a record's Maintainers carry a glyph | [identity labels](05-discovery.md#identity-labels-in-web-and-cli), [glyphs](glossary.md#glyphs) | 2026-09-18 owner instruction; the first authorities to be marked. Neither can appear on enough rows to violate the no-glyph default, which a daemon administrator, a record Owner and a Member would |
 | A publication a disabled subscriber cannot take counts as its drop | [subscribers](04-messaging.md#subscribers) | 2026-09-18 owner decision; the skip was silent, so a subscriber turned off during a publish learnt nothing of the gap on return. A subscriber the topic stopped allowing is not counted, being no longer entitled to the copy |
 | Disabling a record stops it both ways and keeps its queue | [user states](01-identity-and-roles.md#user-states), [ACL](02-access.md#acl) | 2026-09-18 owner decision, confirming existing behaviour; the per-record switch stays because a principal's state cannot turn off one record among several, and it refuses sends and reads alike so the service is stopped rather than merely starved. Queued work is preserved, not discarded. Distinct from draining a suspended identity's inbox, which is somebody else's state rather than a deliberate pause |
-| A record's own user state is asked only of kinds that can have one | [five record kinds](03-services-and-topics.md#five-record-kinds) | 2026-09-18 owner decision; a queue, a pub/sub topic and an external service have no user state, and the enum is what makes that answerable |
-| A service secret is read by the record's ACL | [service secrets](03-services-and-topics.md#service-secrets) | 2026-09-18 owner decision; supersedes the separate-grant reasoning recorded for R1.1 |
+| A record's own user state is asked only of kinds that can have one | [five record kinds](03-records.md#five-record-kinds) | 2026-09-18 owner decision; a queue, a pub/sub topic and an external service have no user state, and the enum is what makes that answerable |
+| A service secret is read by the record's ACL | [service secrets](06-services.md#secrets) | 2026-09-18 owner decision; supersedes the separate-grant reasoning recorded for R1.1 |
 | An agent's record is labelled `👾` | [identity labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-18 owner decision; supersedes the `📥 Inbox` label of 0.5.84 while the channels placement that decision also made stands. Built in 0.6.1 |
-| Record kinds are a closed set of five | [five record kinds](03-services-and-topics.md#five-record-kinds) | 2026-09-18 owner decision; a page was inferring what a record is because nothing stored it |
-| A service is external; what runs on this bus is an agent | [five record kinds](03-services-and-topics.md#five-record-kinds) | 2026-09-18 owner decision; the word was doing two jobs, and the one it keeps is the thing a registration only describes. Built in 0.6.3 |
-| Personal is a flag on an agent, not a kind | [five record kinds](03-services-and-topics.md#five-record-kinds), [personal and shared](03-services-and-topics.md#personal-and-shared) | 2026-09-18 owner decision; the classification was never a kind and the field already exists beside one |
-| A service holds secrets, separately from its configuration | [service secrets](03-services-and-topics.md#service-secrets) | 2026-09-18 owner decision; brought forward from R1.1 because reaching an external thing needs a credential and configuration was built for a different purpose |
-| No compatibility obligation before 1.1 | [five record kinds](03-services-and-topics.md#five-record-kinds) | 2026-09-18 owner decision; no migration feature is written. The upgrade still needs a stated restore rule and a cutover, which are [J.11 and J.12](../Plans/MVP/0.6.0-TODO.md#remaining-work) |
+| Record kinds are a closed set of five | [five record kinds](03-records.md#five-record-kinds) | 2026-09-18 owner decision; a page was inferring what a record is because nothing stored it |
+| A service is external; what runs on this bus is an agent | [five record kinds](03-records.md#five-record-kinds) | 2026-09-18 owner decision; the word was doing two jobs, and the one it keeps is the thing a registration only describes. Built in 0.6.3 |
+| Personal is a flag on an agent, not a kind | [five record kinds](03-records.md#five-record-kinds), [personal and shared](03-records.md#personal-and-shared) | 2026-09-18 owner decision; the classification was never a kind and the field already exists beside one |
+| A service holds secrets, separately from its configuration | [service secrets](06-services.md#secrets) | 2026-09-18 owner decision; brought forward from R1.1 because reaching an external thing needs a credential and configuration was built for a different purpose |
+| No compatibility obligation before 1.1 | [five record kinds](03-records.md#five-record-kinds) | 2026-09-18 owner decision; no migration feature is written. The upgrade still needs a stated restore rule and a cutover, which are [J.11 and J.12](../Plans/MVP/0.6.0-TODO.md#remaining-work) |
 | Editable GitHub-populated profile details | [profiles](01-identity-and-roles.md#users-and-profiles), [web data](../Plans/MVP/web/data-dictionary.md#github-profile) | 2026-09-18 owner clarification; Company, Location and Twitter/X are AgentBus User fields, editable by existing profile authority, with GitHub as an import/refresh source rather than a second profile |
 | GitHub profile imports and local photos | [profiles](01-identity-and-roles.md#users-and-profiles), [web data](../Plans/MVP/web/data-dictionary.md#github-profile) | 2026-09-17 owner instruction; public provider fields fill blanks where specified, locally imported photo is preferred over initials, no browser hotlink; implemented in 0.5.71 |
 | Record-scoped activity on resource detail | [activity history](05-discovery.md#activity-history) | 2026-09-17 owner instruction; compact detail and complete filtered view share real-time positions, scale and absence semantics in 0.5.67 |
@@ -31,8 +31,8 @@ An indexed target may still be pending implementation. The linked substance wins
 | Web filesystem and process confinement | [web authority boundary](11-processes.md#web-authority-boundary) | 2026-09-17 G.1.3 implementation; explicit input mounts and environment, no unconfined fallback |
 | SSH forced-command execution and entitlement | [SSH administration](09-setup.md#ssh-admin), [account shell](09-setup.md#the-two-accounts) | 2026-09-17 H.5.2 implementation; repairs the previously blocked token delegation and forced-command execution |
 | Metadata refresh preserves omitted ACL settings | [registration](01-identity-and-roles.md#registration) | 2026-09-17 implementation review; explicit replacement and management clearing retained in 0.5.44 |
-| Personal ACLs exclude groups | [Personal assignment limits](03-services-and-topics.md#personal-and-shared) | 2026-09-17 owner clarification; including groups composed only of services; enforced in 0.5.50 |
-| Personal is service-only in the MVP | [Personal assignment limits](03-services-and-topics.md#personal-and-shared) | 2026-09-17 implementation boundary: Users, Agents and Channels are excluded; extension needs an owner decision |
+| Personal ACLs exclude groups | [Personal assignment limits](03-records.md#personal-and-shared) | 2026-09-17 owner clarification; including groups composed only of services; enforced in 0.5.50 |
+| Personal is service-only in the MVP | [Personal assignment limits](03-records.md#personal-and-shared) | 2026-09-17 implementation boundary: Users, Agents and Channels are excluded; extension needs an owner decision |
 | ACL governs access by other principals | [access rules](02-access.md#acl) | 2026-09-17 owner confirmation; own-inbox right retained in the 0.5.44 default change |
 | Resource owners choose groups; Administrators control membership | [group authority](01-identity-and-roles.md#groups) | 2026-09-17 owner decision; confirms existing indirect acquisition of resource authority |
 | Broader transfer-recipient eligibility deferred | [ownership](01-identity-and-roles.md#ownership) | 2026-09-17 owner direction; rare case, existing conditions retained |
@@ -42,7 +42,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | Draining an inactive identity's inbox | [user-state access](01-identity-and-roles.md#user-states) | 2026-09-17 owner decision; confirming existing behavior |
 | Explicit wildcard for broad user access | [ACL grants](02-access.md#acl) | 2026-09-16 owner clarification |
 | Empty ACL retains resource-management access | [ACL default](02-access.md#acl) | 2026-09-16 owner correction; implemented in 0.5.44 |
-| Owner-tagged Personal services | [web grouping and assignment limits](03-services-and-topics.md#personal-and-shared) | 2026-09-16 instruction, clarified 2026-09-17; stored classification and assignment limits built in 0.5.50, web grouping built in 0.5.51; ordinary access policy retained |
+| Owner-tagged Personal services | [web grouping and assignment limits](03-records.md#personal-and-shared) | 2026-09-16 instruction, clarified 2026-09-17; stored classification and assignment limits built in 0.5.50, web grouping built in 0.5.51; ordinary access policy retained |
 | Plain-text ACL editing | [ACL editing](05-discovery.md#acl-editing) | 2026-09-16 owner instruction; display glyphs are not input syntax |
 | Entity labels in web and CLI | [display labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-17 owner-selected `👾` for Agent, superseded 2026-09-18 by `📥 Inbox`; implemented from the shared daemon-kind display mapping in 0.5.61. Compact WEB name prefixes and Group landed in 0.5.60; plain machine values retained |
 | Protected identity fields in self-service profile editing | [profile permissions](01-identity-and-roles.md#users-and-profiles) | 2026-09-16 owner clarification; self-service protection implemented in 0.5.56 and trusted person-name imports in 0.5.58 |
@@ -51,7 +51,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | A full queue answers `429`, not `503` | [overflow](04-messaging.md#overflow) | 2026-09-15 owner instruction; `503` is left to a service that is briefly unavailable |
 | Dashboard is a loopback address, not a borrowed hostname | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction; the name's certificate had expired |
 | The API root's redirect to the dashboard is permanent | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction |
-| Service method information is the description | [service and template](03-services-and-topics.md#service-and-template) | 2026-09-15 owner instruction |
+| Service method information is the description | [service and template](03-records.md#agent-templates) | 2026-09-15 owner instruction |
 | Coordinated runtime and bus rename | [explicit session rename](08-runner-role.md#explicit-session-rename) | 2026-09-13 owner clarification |
 | Launcher terminal titles, palettes and restoration | [terminal appearance](08-runner-role.md#terminal-appearance) | 2026-09-13 owner instruction |
 | OpenCode explicit session binding | [adapters](08-runner-role.md#adapters) | 2026-09-13 installed launcher verification |
@@ -95,10 +95,10 @@ An indexed target may still be pending implementation. The linked substance wins
 | Token lifetime | [definition](02-access.md#token-lifetime) | D49, D50, D51 |
 | Storage | [definition](09-setup.md#storage) | D53 |
 | Durability | [definition](04-messaging.md#durability) | D54, D55 |
-| Service and template | [definition](03-services-and-topics.md#service-and-template) | D70, D71, D76, D77 |
-| Configuring a template | [definition](03-services-and-topics.md#configuring-a-template) | D72, D73, D74, D184 |
-| Why a digest at all | [definition](03-services-and-topics.md#why-a-digest-at-all) | D75 |
-| Topics | [definition](03-services-and-topics.md#topics) | D78 |
+| Agent templates | [definition](03-records.md#agent-templates) | D70, D71, D76, D77 |
+| Configuring a template | [definition](03-records.md#configuring-a-template) | D72, D73, D74, D184 |
+| Why a digest at all | [definition](03-records.md#why-a-digest-at-all) | D75 |
+| Topics | [definition](03-records.md#topics) | D78 |
 | Inbox queues | [definition](04-messaging.md#inbox-queues) | D81, D185, D231 |
 | Verbs | [definition](04-messaging.md#verbs) | D82, D237 |
 | Message fields | [definition](04-messaging.md#message-fields) | D83 |
@@ -131,7 +131,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | External tools | [definition](10-modules.md#external-tools) | D180, D182, D216 |
 | Http is built in | [definition](10-modules.md#external-tools) | D181 |
 | Our own small module | [definition](10-modules.md#external-tools) | D183 |
-| How to call it | [definition](03-services-and-topics.md#how-to-call-it) | D186, D187 |
+| How to call it | [definition](06-services.md#how-to-call-it) | D186, D187 |
 | The rule | [definition](10-modules.md#the-rule) | D189, D215, D217 |
 | The rule | [definition](11-processes.md#the-rule) | D190, D193 |
 | The processes | [definition](11-processes.md#the-processes) | D191 |

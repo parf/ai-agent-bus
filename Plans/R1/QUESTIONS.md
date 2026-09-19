@@ -15,8 +15,8 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q16 | How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](access.md#token-scope) |
 | Q17 | How `protocol` is specified for five client languages | owner, with data models | [future clients](modules.md#modules) |
 | Q18 | Final R1 scope | owner | [R1 scope](README.md#scope) |
-| Q19 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../docs/03-services-and-topics.md#configuring-a-template) |
-| Q20 | A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](federation.md#chaining) |
+| Q19 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../docs/03-records.md#configuring-a-template) |
+| Q20 | A chaining namespace and an agent template both want the `/` | owner, with chaining | [overview § chaining](federation.md#chaining) |
 | Q33 | Whether backup is a runner verb, a bundled service, or neither | owner | [context](runner.md#backing-it-up) |
 | Q35 | How authorization caches observe policy changes and explicit revocations, including disconnected peers and live sessions | owner, with R1 | [AUTH consistency](auth.md#consistency-window) |
 
@@ -83,7 +83,7 @@ not synchronised. *Settled by:* owner.
 
 ## Federation context
 
-❓ **A namespace and a service template both want the `/`.** A name holds at
+❓ **A namespace and an agent template both want the `/`.** A name holds at
 most one, and it already means *template* / *instance*
 ([identity § names](../../docs/01-identity-and-roles.md#names)), so `team/ci@realm` parses as
 template `team`. Either a chaining namespace *is* the template part, or

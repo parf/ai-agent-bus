@@ -4,7 +4,7 @@
 
 ## Result
 
-0.5.51 completes the web half of [Personal services](../../../docs/03-services-and-topics.md#personal-and-shared):
+0.5.51 completes the web half of [Personal services](../../../docs/03-records.md#personal-and-shared):
 
 | Surface | Result |
 |---|---|

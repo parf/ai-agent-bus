@@ -553,7 +553,7 @@ func TestAConfigurationIsStoredCompacted(t *testing.T) {
 
 // A digest a caller made up is worse than no digest: the whole point of it is
 // that someone holding a service's setup can tell whether it still matches
-// (docs/03-services-and-topics.md#why-a-digest-at-all).
+// (docs/03-records.md#why-a-digest-at-all).
 func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
 	b := New()
 	known(t, b, "parf@srv1")
@@ -922,7 +922,7 @@ func TestOnlyAKindWithSomebodyBehindItCarriesTheirState(t *testing.T) {
 // An external service is a card saying where something outside is and how to
 // speak to it, readable by whoever its ACL admits. It is not on this bus, so
 // none of the three doors into a queue opens on it and none of the settings a
-// queue has may be stored. See docs/03-services-and-topics.md#five-record-kinds.
+// queue has may be stored. See docs/03-records.md#five-record-kinds.
 func TestAnExternalServiceHasNoQueueHere(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")

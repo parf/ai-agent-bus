@@ -87,15 +87,15 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A service name is its address and its inbox | [identity § names](../../../docs/01-identity-and-roles.md#names) |
 | Where the host is split off, and how wide an instance name may be | [identity § names](../../../docs/01-identity-and-roles.md#names) |
 | One service on many hosts, and scatter-gather over them, is R1 | [stages § R1](../../R1/README.md#scope) |
-| A service is always configured; the unconfigured capability is a service template | [services § service and template](../../../docs/03-services-and-topics.md#service-and-template) |
-| Config is arbitrary and separate from the name; nothing is parsed out of an address | [services § service and template](../../../docs/03-services-and-topics.md#service-and-template) |
-| One verb configures a template and reads that configuration back | [services § configuring a template](../../../docs/03-services-and-topics.md#configuring-a-template) |
-| What a configuration is, who may write it, and where it never appears | [services § configuring a template](../../../docs/03-services-and-topics.md#configuring-a-template) |
-| A configuration is private to its service; a query gets a digest of it | [services § configuring a template](../../../docs/03-services-and-topics.md#configuring-a-template) |
-| Why the digest exists: detecting a changed setup without seeing it | [services § why a digest at all](../../../docs/03-services-and-topics.md#why-a-digest-at-all) |
-| MCP tool info stored raw, shape-checked | [services § service and template](../../../docs/03-services-and-topics.md#service-and-template) |
-| Destructive methods are a hint in the description, enforced by nobody | [services § service and template](../../../docs/03-services-and-topics.md#service-and-template) |
-| Topics are first-class records; kind, TTL, bound, overflow declared at creation | [services § topics](../../../docs/03-services-and-topics.md#topics) |
+| A service is always configured; the unconfigured capability is a service template | [services § service and template](../../../docs/03-records.md#agent-templates) |
+| Config is arbitrary and separate from the name; nothing is parsed out of an address | [services § service and template](../../../docs/03-records.md#agent-templates) |
+| One verb configures a template and reads that configuration back | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
+| What a configuration is, who may write it, and where it never appears | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
+| A configuration is private to its service; a query gets a digest of it | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
+| Why the digest exists: detecting a changed setup without seeing it | [services § why a digest at all](../../../docs/03-records.md#why-a-digest-at-all) |
+| MCP tool info stored raw, shape-checked | [services § service and template](../../../docs/03-records.md#agent-templates) |
+| Destructive methods are a hint in the description, enforced by nobody | [services § service and template](../../../docs/03-records.md#agent-templates) |
+| Topics are first-class records; kind, TTL, bound, overflow declared at creation | [services § topics](../../../docs/03-records.md#topics) |
 | Peer registry sync is git push/pull on start; newer record wins per entry | [services § registry sync](../../R1/registry.md#registry-sync) |
 | Chaining queries an upstream, never replicates it | [overview § chaining](../../R1/federation.md#chaining) |
 | Per-agent queue on start; the address outlives the process | [messaging § inbox queues](../../../docs/04-messaging.md#inbox-queues) |
@@ -201,10 +201,10 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | HTTP is a first-class citizen and always the built-in client, never a subprocess — unless the caller is a script | [modules § HTTP is built in](../../../docs/10-modules.md#external-tools) |
 | The per-message hot path stays in-process: a well-known library, never our own primitives | [modules § the hot path](../../R1/modules.md#the-hot-path) |
 | Plumbing written a third time becomes one small internal module, preferred over a dependency | [modules § our own small module](../../../docs/10-modules.md#external-tools) |
-| A registration never carries a configuration or its digest; the digest is derived | [services § configuring a template](../../../docs/03-services-and-topics.md#configuring-a-template) |
+| A registration never carries a configuration or its digest; the digest is derived | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
 | An inbox belongs to a registered name: consuming as an unregistered one is refused | [messaging § inbox queues](../../../docs/04-messaging.md#inbox-queues) |
-| A registration says how to call it; no protocol means an ordinary bus service | [services § how to call it](../../../docs/03-services-and-topics.md#how-to-call-it) |
-| `/etc/services` is the suggested protocol vocabulary and is never enforced | [services § how to call it](../../../docs/03-services-and-topics.md#how-to-call-it) |
+| A registration says how to call it; no protocol means an ordinary bus service | [services § how to call it](../../../docs/03-records.md#how-to-call-it) |
+| `/etc/services` is the suggested protocol vocabulary and is never enforced | [services § how to call it](../../../docs/03-records.md#how-to-call-it) |
 | A query says whether anything is serving a name, as live state that is never stored | [discovery § what a listing answers](../../../docs/05-discovery.md#what-a-listing-answers) |
 | Modular by layer: protocol, ports, core, adapters, faces; dependencies point inward | [modules § the rule](../../../docs/10-modules.md#the-rule) |
 | Process layout follows systemd: a supervisor that holds nothing, plus small single-task children | [processes § the rule](../../../docs/11-processes.md#the-rule) |
@@ -284,7 +284,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](../../R1/auth.md#ssh-admin) |
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](../../R1/registry.md#registry-sync) |
 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
-| What carries a service's method information | owner, with the MVP faces | [services § service and template](../../../docs/03-services-and-topics.md#service-and-template) |
+| What carries a service's method information | owner, with the MVP faces | [services § service and template](../../../docs/03-records.md#agent-templates) |
 | What else lives in the store, and whether RocksDB replaces it — holding the daemon's and the runner's data encrypted and replicating itself, linked in or a unit of its own | owner | [setup § storage](../../../docs/09-setup.md#storage) |
 | Where the ACL and the user-to-account map are edited | owner | [setup § the programs](../../../docs/09-setup.md#the-programs) |
 | npm install vs Go-first for the first release | owner | [setup § install](../../../docs/09-setup.md#install) |
@@ -296,7 +296,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](../../../docs/02-access.md#what-a-call-carries) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](../../../docs/10-modules.md#layers-and-modules) |
 | MVP and R1 contents | owner | [stages](../../../docs/12-stages.md#stages) |
-| What happens to a running service when its configuration changes | owner | [services § configuring a template](../../../docs/03-services-and-topics.md#configuring-a-template) |
+| What happens to a running service when its configuration changes | owner | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
 | A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](../../R1/federation.md#chaining) |
 | Whether reading an inbox and filtering one become separate options | owner, with the MVP CLI | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | Whether a service holds a key of its own, and where shared secrets and a locking KV live | owner, after R1.1 | [future/1.2-UNDECIDED.md](../../R1.2/exploration.md#later-exploration) |
@@ -335,7 +335,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A call carries exactly two parameters, `user@realm` + token | the token alone: it already backs exactly one principal, so a name beside it is redundancy, not information — [access § what a call carries](../../../docs/02-access.md#what-a-call-carries) |
 | A name is checked against the credential it arrived with, and a mismatch told apart from a bad token | no name arrives to check. What that check caught was a typo in a config, not somebody trying to be somebody else — [access § what a call carries](../../../docs/02-access.md#what-a-call-carries) |
 | A name never holds a slash: a name is not a path | one slash is allowed, between service template and instance name — the realm still never holds one — [identity § names](../../../docs/01-identity-and-roles.md#names) |
-| "Service" = the kind, "instance" = a running copy of it | "service" means the **configured** thing; the kind is a **service template** — [services § service and template](../../../docs/03-services-and-topics.md#service-and-template) |
+| "Service" = the kind, "instance" = a running copy of it | "service" means the **configured** thing; the kind is a **service template** — [services § service and template](../../../docs/03-records.md#agent-templates) |
 | Local access needs no credential at all | the socket hides the credentials, it does not remove them — [access § local socket](../../../docs/02-access.md#local-socket) |
 | Socket in each user's `/run/user/<uid>/` | the daemon's own directory, one socket per user — [access § local socket](../../../docs/02-access.md#local-socket) |
 | Setup takes local username + gh-username | local account + bus username; the username carries its realm — [setup § local users](../../../docs/09-setup.md#local-users) |

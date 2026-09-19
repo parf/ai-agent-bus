@@ -394,7 +394,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 
 // configure stores a service's configuration. The body carries the name and
 // the configuration itself, which stays opaque all the way down: it is only
-// checked for being JSON. See docs/03-services-and-topics.md#configuring-a-template.
+// checked for being JSON. See docs/03-records.md#configuring-a-template.
 func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {
 		Name   string          `json:"name"`
@@ -428,7 +428,7 @@ func (s *Server) config(w http.ResponseWriter, r *http.Request, caller protocol.
 // lookup answers about one name. A caller asking "am I registered?" would
 // otherwise pull the whole registry down to find out: List plus its JSON is
 // milliseconds and megabytes at ten thousand records, while this is a map
-// read. See docs/03-services-and-topics.md.
+// read. See docs/03-records.md.
 func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	name := r.URL.Query().Get("name")
 	rec, known := s.bus.Lookup(caller.String(), name)

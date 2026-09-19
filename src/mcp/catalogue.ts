@@ -4,7 +4,7 @@ import type { Record_ } from "./bus.ts";
 // external and has no queue here, so it reports where it is and nothing about
 // readers or backlog; for the rest, missing reader data is not a measured
 // zero, because it can be an older daemon answering a newer face.
-// See docs/03-services-and-topics.md#five-record-kinds.
+// See docs/03-records.md#five-record-kinds.
 export function catalogue(r: Record_): string {
   const external = r.kind === "service";
   const notes = [

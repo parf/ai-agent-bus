@@ -161,7 +161,7 @@ func entityLabel(kind string) string { return display.Entity(kind) }
 // the services. Four of the five kinds are names on this bus that something is
 // delivered to; only a service is external, and it is the one thing nothing is
 // served from here.
-// See docs/03-services-and-topics.md#five-record-kinds.
+// See docs/03-records.md#five-record-kinds.
 func channelRecord(kind string) bool {
 	return kind != protocol.KindService && kind != protocol.KindAgent
 }
@@ -225,7 +225,7 @@ func deliveryMode(record protocol.Record) string {
 // and it is the kind that must carry an address and a protocol; a populated
 // endpoint on anything else is not evidence that the thing is external, so the
 // kind is what the page reads.
-// See docs/03-services-and-topics.md#five-record-kinds.
+// See docs/03-records.md#five-record-kinds.
 func external(record protocol.Record) bool { return record.Kind == protocol.KindService }
 
 // copies reports whether a kind delivers a copy to every subscriber. Only
