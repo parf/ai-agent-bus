@@ -47,10 +47,10 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	}
 	session := resp.Cookies()[0]
 
-	if _, err := b.Register(protocol.Record{Name: "admin@h", Owner: "admin@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "admin@h", Owner: "admin@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "admin@h", Descr: "service"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "admin@h", Descr: "service"}); err != nil {
 		t.Fatal(err)
 	}
 	// An ordinary group beside the protected one, so "no delete button" cannot
@@ -97,10 +97,10 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	// anywhere on the page passes without any entry being marked at all.
 	marks := map[string]string{
 		"/": "<a href=/ aria-current=page>", "/services": "<a href=/services aria-current=page>",
-		"/personal": "<a href=/services aria-current=page>", "/channels": "<a href=/channels aria-current=page>", "/users": "<a href=/users aria-current=page>",
+		"/agents": "<a href=/agents aria-current=page>", "/personal": "<a href=/agents aria-current=page>", "/channels": "<a href=/channels aria-current=page>", "/users": "<a href=/users aria-current=page>",
 		"/groups": "<a href=/groups aria-current=page>", "/activity": "<a href=/activity aria-current=page>", "/diagnostics": "<a href=/diagnostics aria-current=page>",
 	}
-	for _, path := range []string{"/", "/services", "/personal", "/channels", "/users", "/groups", "/activity", "/diagnostics"} {
+	for _, path := range []string{"/", "/agents", "/services", "/personal", "/channels", "/users", "/groups", "/activity", "/diagnostics"} {
 		body := get(path)
 		for _, want := range []string{
 			`<html lang=en>`,

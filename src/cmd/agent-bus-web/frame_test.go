@@ -28,7 +28,7 @@ func section(t *testing.T, page, start, end string) string {
 
 func TestEveryHTMLPageCarriesNodeIdentity(t *testing.T) {
 	m := meaningFixture(t)
-	if _, err := m.bus.Register(protocol.Record{Name: "svc@h", Owner: "admin@h"}); err != nil {
+	if _, err := m.bus.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "admin@h"}); err != nil {
 		t.Fatal(err)
 	}
 	for _, path := range []string{"/", "/diagnostics", "/services", "/personal", "/channels", "/service?name=svc@h", "/groups", "/users", "/user?name=admin@h", "/user?new=1", "/activity", "/service?name=missing@h"} {

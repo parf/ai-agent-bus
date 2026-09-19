@@ -150,7 +150,7 @@ node-wide, the other is what this caller may see
 
 ---
 
-## Services `/services` · Channels `/channels`
+## Agents `/agents` · Services `/services` · Channels `/channels`
 
 **Answers:** what can I use, who owns it, and is it in trouble?
 
@@ -160,15 +160,21 @@ is queued. One table answering both is what buried delivery mode
 ([C03](review/codex.md#junk-and-misleading-content)). Since 0.5.78 each page has
 its own document title, heading, navigation state, columns and detail route.
 
-**0.5.84: an agent's record is an inbox and belongs to the channels page.** It
-carries no address and no protocol, so nothing is served from it; the
-[messaging rule](../../../docs/04-messaging.md#inbox-queues) already calls it an
-implicit queue topic named after the agent, and listing it under Services
-contradicted that. Services now holds `generic` records alone and drops its
-Kind filter, which had one remaining value. Channels holds two kinds, so it
-gains the Kind column and filter the Kind row below requires, and an inbox reads
-as a queue wherever delivery mode is asked for &mdash; it stores no mode, and an
-absent mode is not a third kind of delivery.
+**0.6.3: one listing per thing a record is**, decided by the [five
+kinds](../../../docs/03-services-and-topics.md#five-record-kinds) and superseding
+the 0.5.84 arrangement below. Agents is first in the menu and holds 👾 alone,
+because agents are what the bus exists to carry messages between; Services holds
+📡 alone, which is the external case; Channels holds 📮 📣 👤 and keeps the Kind
+column and filter. Personal is a view of the agents, since Personal is
+agent-only. Delivery mode is no longer a field, so the mode filter is gone: a
+queue and a pub/sub topic are kinds of their own.
+
+*History, superseded by the paragraph above.* **0.5.84: an agent's record is an
+inbox and belongs to the channels page.** It carried no address and no protocol,
+so nothing was served from it; the [messaging
+rule](../../../docs/04-messaging.md#inbox-queues) already called it an implicit
+queue topic named after the agent, and listing it under Services contradicted
+that. Services then held `generic` records alone and dropped its Kind filter.
 
 | Column | Decision |
 |---|---|
@@ -245,7 +251,7 @@ rather than an incidental one.
 
 ---
 
-## Service `/service?name=` · Channel `/channel?name=`
+## Agent `/agent?name=` · Service `/service?name=` · Channel `/channel?name=`
 
 **Answers:** what is this, is it working, who may use it — and then, separately,
 what may I change?
@@ -364,7 +370,7 @@ or to replace the consequence text.
 
 ---
 
-## Register `/services/new` · `/channels/new`
+## Register `/agents/new` · `/services/new` · `/channels/new`
 
 **Answers:** how do I create one?
 
@@ -372,9 +378,12 @@ A dedicated page reached from the section's second-level navigation, not a form
 stapled beneath a list. Fields: name, description, kind or delivery mode,
 initial allow list. **From 0.5.84 each page registers only what it lists**:
 `/services/new` registers a service and offers no kind choice, and
-`/channels/new` chooses between a channel &mdash; with its delivery mode &mdash;
-and an inbox. A form that registered a record the page could not then show was
-the reclassification's loose end. A choice with only two or three values uses radio buttons.
+`/channels/new` chooses between a queue and a pub/sub topic. A form that
+registered a record the page could not then show was the reclassification's
+loose end. **From 0.6.3** there are three forms, one per listing: `/agents/new`
+registers 👾 and offers the Personal checkbox, `/services/new` registers 📡 and
+**requires an address and a protocol**, because the daemon refuses a service
+without both. A choice with only two or three values uses radio buttons.
 Help beside the name field states the
 `user@realm` shape; help beside allow follows the
 [ACL contract](../../../docs/02-access.md#acl). The form explains the built restricted default and runtime

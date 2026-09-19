@@ -57,8 +57,8 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	// (docs/01-identity-and-roles.md#orphaned-records) because nothing reachable
 	// creates it. The classification is what keeps it safe.
 	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
-		{Name: "holds@h", Owner: "holds@h", Kind: "generic", Full: protocol.OverflowStrict},
-		{Name: "service@h", Owner: "holds@h", Kind: "generic", Full: protocol.OverflowStrict},
+		{Name: "holds@h", Owner: "holds@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict},
+		{Name: "service@h", Owner: "holds@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict},
 	}})
 	for i := 0; i < 30; i++ {
 		if _, err := tokens.Issue(fmt.Sprintf("unused-%02d@h", i)); err != nil {

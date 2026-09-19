@@ -47,16 +47,16 @@ func TestServiceReaderFilterIsIndependentFromDelivery(t *testing.T) {
 	m.shapes()
 	m.attachReader("reading@h")
 
-	present := m.get("/services?readers=present")
+	present := m.get("/agents?readers=present")
 	if !strings.Contains(present, ">reading@h<") || strings.Contains(present, ">quiet@h<") || !strings.Contains(present, `aria-current=true>Reading now</a>`) {
 		t.Fatal("positive Readers filter does not isolate the outstanding request")
 	}
-	none := m.get("/services?readers=none")
+	none := m.get("/agents?readers=none")
 	if strings.Contains(none, ">reading@h<") || !strings.Contains(none, ">quiet@h<") {
 		t.Fatal("measured-zero Readers filter collapsed with a positive count")
 	}
-	disabled := m.get("/services?readers=none&state=inactive")
-	if !strings.Contains(disabled, ">off@h<") || strings.Contains(disabled, ">quiet@h<") || !strings.Contains(disabled, `/services?readers=none&amp;state=active`) {
+	disabled := m.get("/agents?readers=none&state=inactive")
+	if !strings.Contains(disabled, ">off@h<") || strings.Contains(disabled, ">quiet@h<") || !strings.Contains(disabled, `/agents?readers=none&amp;state=active`) {
 		t.Fatal("reader and delivery filters do not compose or retain each other")
 	}
 }
@@ -65,18 +65,17 @@ func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
 	for _, tc := range []struct {
 		path     string
 		kind     string
-		mode     string
 		stem     string
 		personal bool
 	}{
-		{"/services", "generic", "", "svc", false},
-		{"/personal", "generic", "", "personal", true},
-		{"/channels", protocol.KindTopic, protocol.ModeQueue, "channel", false},
+		{"/services", protocol.KindService, "svc", false},
+		{"/personal", protocol.KindAgent, "personal", true},
+		{"/channels", protocol.KindQueue, "channel", false},
 	} {
 		t.Run(tc.stem, func(t *testing.T) {
 			m := meaningFixture(t)
 			for i := 0; i < 30; i++ {
-				m.register(protocol.Record{Name: fmt.Sprintf("%s-%02d@h", tc.stem, i), Owner: "admin@h", Kind: tc.kind, Mode: tc.mode, Personal: tc.personal})
+				m.register(protocol.Record{Name: fmt.Sprintf("%s-%02d@h", tc.stem, i), Owner: "admin@h", Kind: tc.kind, Addr: "a", Proto: "p", Personal: tc.personal})
 			}
 			path := tc.path + "?q=" + tc.stem + "&readers=none&sort=updated&state=active&page=2"
 			before := m.lsCalls.Load()
@@ -122,13 +121,13 @@ func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
 
 func TestServiceDetailReturnIsLocalAndStateful(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Name: "return@h", Owner: "admin@h"})
-	stateful := m.get("/service?name=return@h&return=%2Fservices%3Freaders%3Dnone%26page%3D2")
-	if !strings.Contains(stateful, `href="/services?readers=none&amp;page=2"`) {
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "return@h", Owner: "admin@h"})
+	stateful := m.get("/agent?name=return@h&return=%2Fagents%3Freaders%3Dnone%26page%3D2")
+	if !strings.Contains(stateful, `href="/agents?readers=none&amp;page=2"`) {
 		t.Fatal("service detail did not retain its local listing URL")
 	}
-	foreign := m.get("/service?name=return@h&return=https%3A%2F%2Fevil.example%2Fservices")
-	if !strings.Contains(foreign, `href="/services"`) || strings.Contains(foreign, "evil.example") {
+	foreign := m.get("/agent?name=return@h&return=https%3A%2F%2Fevil.example%2Fservices")
+	if !strings.Contains(foreign, `href="/agents"`) || strings.Contains(foreign, "evil.example") {
 		t.Fatal("service detail accepted a foreign return URL")
 	}
 }
@@ -237,43 +236,48 @@ func TestSectionNavigationCountsOnlyCallerVisibleCategories(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	m.register(protocol.Record{Name: "viewer@h", Owner: "ordinary@h", Kind: "generic"})
-	m.register(protocol.Record{Name: "mine@h", Owner: "viewer@h", Kind: "generic"})
-	m.register(protocol.Record{Name: "shared@h", Owner: "other@h", Kind: "generic", Allow: []string{"viewer@h"}})
-	m.register(protocol.Record{Name: "hidden@h", Owner: "other@h", Kind: "generic", Allow: []string{"other@h"}})
-	m.register(protocol.Record{Name: "personal-mine@h", Owner: "viewer@h", Kind: "generic", Personal: true})
-	m.register(protocol.Record{Name: "personal-other@h", Owner: "other@h", Kind: "generic", Personal: true, Allow: []string{"viewer@h"}})
-	m.register(protocol.Record{Name: "jobs@h", Owner: "other@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Allow: []string{"viewer@h"}})
-	// An inbox counts with the channels, so the service totals beside it must
+	m.register(protocol.Record{Name: "viewer@h", Owner: "ordinary@h", Kind: protocol.KindAgent})
+	m.register(protocol.Record{Name: "mine@h", Owner: "viewer@h", Kind: protocol.KindAgent})
+	m.register(protocol.Record{Name: "shared@h", Owner: "other@h", Kind: protocol.KindAgent, Allow: []string{"viewer@h"}})
+	m.register(protocol.Record{Name: "hidden@h", Owner: "other@h", Kind: protocol.KindAgent, Allow: []string{"other@h"}})
+	m.register(protocol.Record{Name: "personal-mine@h", Owner: "viewer@h", Kind: protocol.KindAgent, Personal: true})
+	m.register(protocol.Record{Name: "personal-other@h", Owner: "other@h", Kind: protocol.KindAgent, Personal: true, Allow: []string{"viewer@h"}})
+	m.register(protocol.Record{Name: "jobs@h", Owner: "other@h", Kind: protocol.KindQueue, Allow: []string{"viewer@h"}})
+	// A channel counts with the channels, so the agent totals beside it must
 	// not move when one is registered.
-	m.register(protocol.Record{Name: "bot@h", Owner: "other@h", Kind: "agent", Allow: []string{"viewer@h"}})
+	m.register(protocol.Record{Name: "db@h", Owner: "other@h", Kind: protocol.KindService, Addr: "h:1", Proto: "https", Allow: []string{"viewer@h"}})
 
 	ordinary := m.as("viewer@h")
-	services := ordinary.get("/services?scope=my&state=inactive")
+	agents := ordinary.get("/agents?scope=my&state=inactive")
 	for _, want := range []string{
-		`href="/services?state=inactive" class="">All (3)</a>`,
-		`href="/services?scope=my&amp;state=inactive" aria-current=true class="my-view">My (1)</a>`,
+		`href="/agents?state=inactive" class="">All (3)</a>`,
+		`href="/agents?scope=my&amp;state=inactive" aria-current=true class="my-view">My (1)</a>`,
 		`href="/personal?state=inactive" class="personal-view">Personal (1)</a>`,
-		`href="/services/new" class="">Register service</a>`,
-		`href="/services?scope=my">All</a>`,
-		`href="/services?scope=my&amp;state=active">Enabled</a>`,
+		`href="/agents/new" class="">Register agent</a>`,
+		`href="/agents?scope=my">All</a>`,
+		`href="/agents?scope=my&amp;state=active">Enabled</a>`,
 	} {
-		if !strings.Contains(services, want) {
-			t.Errorf("service navigation missing %q", want)
+		if !strings.Contains(agents, want) {
+			t.Errorf("agent navigation missing %q", want)
 		}
 	}
-	if strings.Contains(services, "hidden@h") || strings.Contains(services, "Personal (2)") {
-		t.Error("service navigation counted a hidden or another owner's Personal record")
+	if strings.Contains(agents, "hidden@h") || strings.Contains(agents, "Personal (2)") {
+		t.Error("agent navigation counted a hidden or another owner's Personal record")
 	}
-	if strings.Contains(services, ">bot@h<") {
-		t.Error("an inbox was listed among the services")
+	for _, elsewhere := range []string{">jobs@h<", ">db@h<"} {
+		if strings.Contains(agents, elsewhere) {
+			t.Errorf("%s was listed among the agents", elsewhere)
+		}
 	}
 	channels := ordinary.get("/channels")
-	if !strings.Contains(channels, `aria-current=true class="">All (2)</a>`) || !strings.Contains(channels, `href="/channels/new" class="">Register channel or inbox</a>`) {
+	if !strings.Contains(channels, `aria-current=true class="">All (1)</a>`) || !strings.Contains(channels, `href="/channels/new" class="">Register channel</a>`) {
 		t.Error("channel section navigation or count is wrong")
 	}
-	if !strings.Contains(channels, ">bot@h<") || !strings.Contains(channels, ">jobs@h<") {
-		t.Error("the channels page does not hold both a channel and an inbox")
+	if !strings.Contains(channels, ">jobs@h<") || strings.Contains(channels, ">mine@h<") {
+		t.Error("the channels page lost its channel or gained an agent")
+	}
+	if services := ordinary.get("/services"); !strings.Contains(services, ">db@h<") || strings.Contains(services, ">mine@h<") {
+		t.Error("the services page lost its external service or gained an agent")
 	}
 }
 
@@ -284,15 +288,15 @@ func TestOwnedRowsAreMarkedAndEditFollowsDaemonAuthority(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	m.register(protocol.Record{Name: "own@h", Owner: "alice@h", Allow: []string{"alice@h"}, Proto: "remote"})
-	m.register(protocol.Record{Name: "managed@h", Owner: "bob@h", Allow: []string{"alice@h"}})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "own@h", Owner: "alice@h", Allow: []string{"alice@h"}, Proto: "remote"})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "managed@h", Owner: "bob@h", Allow: []string{"alice@h"}})
 	maintainers := protocol.MaintainerList{"alice@h"}
 	if _, err := m.bus.Manage("bob@h", core.Management{Name: "managed@h", Maintainers: &maintainers}); err != nil {
 		t.Fatal(err)
 	}
-	m.register(protocol.Record{Name: "view@h", Owner: "bob@h", Allow: []string{"alice@h"}})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "view@h", Owner: "bob@h", Allow: []string{"alice@h"}})
 
-	page := m.as("alice@h").get("/services")
+	page := m.as("alice@h").get("/agents")
 	own := m.row(page, "own@h")
 	managed := m.row(page, "managed@h")
 	view := m.row(page, "view@h")
@@ -332,11 +336,11 @@ func TestServiceListSearchKindSortAndCompactNames(t *testing.T) {
 	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	m.register(protocol.Record{Name: "alpha@h", Owner: "alice@h", Kind: "generic", Descr: "Billing API", Allow: []string{"admin@h"}})
+	m.register(protocol.Record{Name: "alpha@h", Owner: "alice@h", Kind: protocol.KindAgent, Descr: "Billing API", Allow: []string{"admin@h"}})
 	time.Sleep(time.Millisecond)
-	m.register(protocol.Record{Name: "bot@h", Owner: "admin@h", Kind: "generic", Allow: []string{"admin@h"}})
+	m.register(protocol.Record{Name: "bot@h", Owner: "admin@h", Kind: protocol.KindAgent, Allow: []string{"admin@h"}})
 	time.Sleep(time.Millisecond)
-	m.register(protocol.Record{Name: "zeta@h", Owner: "admin@h", Kind: "generic", Descr: "Archive", Allow: []string{"admin@h"}})
+	m.register(protocol.Record{Name: "zeta@h", Owner: "admin@h", Kind: protocol.KindAgent, Descr: "Archive", Allow: []string{"admin@h"}})
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "alpha@h", Body: "one"}); err != nil {
 		t.Fatal(err)
 	}
@@ -347,30 +351,31 @@ func TestServiceListSearchKindSortAndCompactNames(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	byDescription := m.get("/services?q=bILLing")
+	byDescription := m.get("/agents?q=bILLing")
 	if !strings.Contains(byDescription, ">Billing API<") || !strings.Contains(byDescription, ">alpha@h<") || strings.Contains(byDescription, ">bot@h<") {
 		t.Fatal("case-insensitive description search did not isolate its record")
 	}
 	if row := m.row(byDescription, "alpha@h"); strings.Count(row, ">alpha@h<") != 1 {
 		t.Fatalf("described service name is visibly duplicated: %s", row)
 	}
-	byOwner := m.get("/services?q=ALICE%40H")
+	byOwner := m.get("/agents?q=ALICE%40H")
 	if !strings.Contains(byOwner, ">alpha@h<") || strings.Contains(byOwner, ">bot@h<") {
 		t.Fatal("case-insensitive owner search did not isolate its record")
 	}
 
-	if row := m.row(m.get("/services"), "bot@h"); strings.Count(row, ">bot@h<") != 1 {
-		t.Fatalf("service without a description has a duplicated visible name: %s", row)
+	if row := m.row(m.get("/agents"), "bot@h"); strings.Count(row, ">bot@h<") != 1 {
+		t.Fatalf("an agent without a description has a duplicated visible name: %s", row)
 	}
-	// Services lists one kind, so it offers no control for narrowing to one.
-	if plain := m.get("/services"); strings.Contains(plain, `aria-label="Kind filter"`) {
-		t.Fatal("Services still offers a Kind filter for the single kind it lists")
+	// Agents and services are each one kind, so neither offers a control for
+	// narrowing to one.
+	if plain := m.get("/agents"); strings.Contains(plain, `aria-label="Kind filter"`) {
+		t.Fatal("Agents still offers a Kind filter for the single kind it lists")
 	}
-	if forced := m.get("/services?kind=agent"); !strings.Contains(forced, ">alpha@h<") {
-		t.Fatal("a kind query the Services page no longer offers still filtered it")
+	if forced := m.get("/agents?kind=queue"); !strings.Contains(forced, ">alpha@h<") {
+		t.Fatal("a kind query the Agents page no longer offers still filtered it")
 	}
 
-	updated := m.get("/services?sort=updated")
+	updated := m.get("/agents?sort=updated")
 	if strings.Index(updated, ">zeta@h<") > strings.Index(updated, ">bot@h<") || strings.Index(updated, ">bot@h<") > strings.Index(updated, ">alpha@h<") {
 		t.Fatal("recently-updated sorting is not newest first")
 	}
@@ -396,7 +401,7 @@ func TestServiceListSearchKindSortAndCompactNames(t *testing.T) {
 
 func TestRegistrationLivesOnDedicatedSectionPages(t *testing.T) {
 	m := meaningFixture(t)
-	for _, listing := range []string{"/services", "/channels", "/users", "/groups"} {
+	for _, listing := range []string{"/agents", "/services", "/channels", "/users", "/groups"} {
 		body := m.get(listing)
 		if strings.Contains(body, `name=action value=create`) || strings.Contains(body, "<h2>Create group</h2>") {
 			t.Errorf("%s still embeds a registration form", listing)
@@ -406,15 +411,26 @@ func TestRegistrationLivesOnDedicatedSectionPages(t *testing.T) {
 	// Each registration page offers only what its listing shows, so a form
 	// cannot register a record that page would not then display.
 	service := m.get("/services/new")
-	if !strings.Contains(service, `<input type=hidden name=kind value=generic>`) || strings.Contains(service, `name=kind value=agent`) {
+	if !strings.Contains(service, `<input type=hidden name=kind value=service>`) || strings.Contains(service, `name=kind value=agent`) {
 		t.Error("service registration still offers a kind the Services page does not list")
 	}
+	// A service is external, so the two fields that say where it is and how to
+	// reach it are the ones the daemon will not register it without.
+	if !strings.Contains(service, `<input name=addr required`) || !strings.Contains(service, `<input name=protocol required`) {
+		t.Error("service registration does not require the address and protocol a service needs")
+	}
+	agent := m.get("/agents/new")
+	if !strings.Contains(agent, `<input type=hidden name=kind value=agent>`) || strings.Contains(agent, `name=addr`) {
+		t.Error("agent registration offers the wrong kind or an address it has no use for")
+	}
 	channel := m.get("/channels/new")
-	if !strings.Contains(channel, `name=kind value=topic`) || !strings.Contains(channel, `name=kind value=agent`) || strings.Contains(channel, `<select name=kind>`) {
+	if !strings.Contains(channel, `name=kind value=queue`) || !strings.Contains(channel, `name=kind value=pubsub`) || strings.Contains(channel, `<select name=kind>`) {
 		t.Error("channel registration does not use plain-valued Kind radios")
 	}
-	if !strings.Contains(channel, `name=mode value=pubsub`) || !strings.Contains(channel, `name=mode value=queue`) || strings.Contains(channel, `<select name=mode>`) {
-		t.Error("channel registration does not use plain-valued Delivery radios")
+	// Delivery is no longer a second answer beside the kind: the kind is the
+	// delivery, so a form that still asked twice could disagree with itself.
+	if strings.Contains(channel, `name=mode`) {
+		t.Error("channel registration still asks for a delivery mode beside the kind")
 	}
 	if !strings.Contains(m.get("/users/new"), `name=action value=create`) || !strings.Contains(m.get("/user"), `name=action value=create`) {
 		t.Error("dedicated or legacy user registration route is missing")
@@ -522,7 +538,7 @@ func TestTheMarkedAuthoritiesAreMarkedOnEveryPageThatStatesThem(t *testing.T) {
 	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	m.register(protocol.Record{Name: "kept@h", Owner: "admin@h", Allow: []string{"alice@h"}})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "kept@h", Owner: "admin@h", Allow: []string{"alice@h"}})
 	maintainers := protocol.MaintainerList{"alice@h"}
 	if _, err := m.bus.Manage("admin@h", core.Management{Name: "kept@h", Maintainers: &maintainers}); err != nil {
 		t.Fatal(err)

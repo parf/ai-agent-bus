@@ -48,11 +48,7 @@ func recordPath(name string, kinds map[string]string) string {
 }
 
 func recordKindPath(name, kind string) string {
-	path := "/service"
-	if channelRecord(kind) {
-		path = "/channel"
-	}
-	return path + "?name=" + url.QueryEscape(name)
+	return detailPathFor(kind) + "?name=" + url.QueryEscape(name)
 }
 
 // The directory answer may name every record a user owns. Detail navigation
@@ -87,8 +83,7 @@ func identityLabel(u protocol.User, recordKinds map[string]string) string {
 		return entityLabel(protocol.DirectoryUser)
 	}
 	if u.Kind == protocol.DirectoryRecord {
-		kind := recordKinds[u.Name]
-		if kind == "agent" || kind == "generic" || kind == protocol.KindTopic {
+		if kind := recordKinds[u.Name]; protocol.ValidKind(kind) {
 			return entityLabel(kind)
 		}
 	}

@@ -101,7 +101,7 @@ try {
   await peer.register({ name: peerName, kind: "agent", allow: ["*"] });
   await shareFixtureInbox(await owner.as(me));
   const otherInbox = "push-shared@srv1";
-  await peer.register({ name: otherInbox, kind: "generic", allow: [me, peerName] });
+  await peer.register({ name: otherInbox, kind: "agent", allow: [me, peerName] });
   await peer.send({ to: otherInbox, body: "read beside own push" });
   const besidePush = await call("ab_consume", { inbox: otherInbox, wait: "5s" });
   check("an explicit other inbox can be read while push holds my own", !besidePush.isError && besidePush.text.includes("read beside own push"), besidePush.text);

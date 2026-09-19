@@ -55,7 +55,7 @@ func TestGithubProfileAndPhotoStayLocalAndVisibilityBounded(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Register(protocol.Record{Name: "reports@h", Owner: "alice@h", Allow: []string{"visitor@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "reports@h", Owner: "alice@h", Allow: []string{"visitor@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	backend := httptest.NewServer(api.New(b, tokens, "owner@h").Handler())

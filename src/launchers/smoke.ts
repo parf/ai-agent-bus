@@ -9,9 +9,9 @@ mkdirSync(root, { recursive: true });
 const dir = mkdtempSync(join(root, "run-"));
 const owner = new Bus();
 const peerName = `launcher-peer-${process.pid}@srv1`;
-await owner.register({ name: peerName, kind: "generic", allow: ["*"] });
+await owner.register({ name: peerName, kind: "agent", allow: ["*"] });
 const deniedName = `launcher-denied-${process.pid}@srv1`;
-await owner.register({ name: deniedName, kind: "generic", allow: ["nobody@srv1"] });
+await owner.register({ name: deniedName, kind: "agent", allow: ["nobody@srv1"] });
 const peer = await owner.as(peerName);
 const stop = new AbortController();
 const serve = (async () => {

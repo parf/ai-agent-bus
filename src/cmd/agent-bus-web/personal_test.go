@@ -86,27 +86,27 @@ func (p *personalWeb) request(who, method, path string, form url.Values, want in
 func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 	p := personalWebFixture(t)
 	for _, record := range []protocol.Record{
-		{Name: "peer-service@h", Owner: "peer@h"},
-		{Name: "alice-normal@h", Owner: "alice@h", Allow: []string{"peer-service@h"}},
-		{Name: "alice-personal@h", Owner: "alice@h", Allow: []string{"peer-service@h"}, Personal: true},
-		{Name: "bob-personal@h", Owner: "bob@h", Allow: []string{"peer-service@h"}, Personal: true},
-		{Name: "jobs@h", Owner: "alice@h", Kind: protocol.KindTopic, Mode: "queue"},
+		{Kind: protocol.KindAgent, Name: "peer-service@h", Owner: "peer@h"},
+		{Kind: protocol.KindAgent, Name: "alice-normal@h", Owner: "alice@h", Allow: []string{"peer-service@h"}},
+		{Kind: protocol.KindAgent, Name: "alice-personal@h", Owner: "alice@h", Allow: []string{"peer-service@h"}, Personal: true},
+		{Kind: protocol.KindAgent, Name: "bob-personal@h", Owner: "bob@h", Allow: []string{"peer-service@h"}, Personal: true},
+		{Name: "jobs@h", Owner: "alice@h", Kind: protocol.KindQueue},
 	} {
 		if _, err := p.bus.Register(record); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	services, _ := p.request("alice@h", "GET", "/services?scope=my", nil, 200)
+	services, _ := p.request("alice@h", "GET", "/agents?scope=my", nil, 200)
 	if !strings.Contains(services, "alice-normal@h") || strings.Contains(services, "alice-personal@h") {
-		t.Fatalf("main services did not exclude even the visitor's own Personal service: %s", services)
+		t.Fatalf("the agents page did not exclude even the visitor's own Personal agent: %s", services)
 	}
 	personal, _ := p.request("alice@h", "GET", "/personal", nil, 200)
 	if !strings.Contains(personal, "alice-personal@h") || strings.Contains(personal, "alice-normal@h") || strings.Contains(personal, "bob-personal@h") {
 		t.Fatalf("ordinary Personal page is not the owner's Personal-only view: %s", personal)
 	}
-	if !strings.Contains(personal, `<a href=/services aria-current=page>`) || strings.Count(personal, "aria-current=page>") != 1 {
-		t.Fatal("Services navigation is not the one current entry for its Personal subview")
+	if !strings.Contains(personal, `<a href=/agents aria-current=page>`) || strings.Count(personal, "aria-current=page>") != 1 {
+		t.Fatal("Agents navigation is not the one current entry for its Personal subview")
 	}
 	if !strings.Contains(personal, `class="record-name-cell owned-record personal-record"`) || strings.Contains(personal, "Yours") || !strings.Contains(personal, `class=personal-marker>Personal</span>`) {
 		t.Fatal("caller-owned Personal row does not keep both visible distinctions")
@@ -119,13 +119,13 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 	if !strings.Contains(channels, "jobs@h") || !strings.Contains(channels, `<a href=/channels aria-current=page>`) {
 		t.Fatal("Personal grouping changed channels or their current navigation")
 	}
-	detail, _ := p.request("alice@h", "GET", "/service?name=alice-personal%40h", nil, 200)
-	if !strings.Contains(detail, "alice-personal@h") || !strings.Contains(detail, "· Personal") || !strings.Contains(detail, `<a href=/services aria-current=page>`) {
+	detail, _ := p.request("alice@h", "GET", "/agent?name=alice-personal%40h", nil, 200)
+	if !strings.Contains(detail, "alice-personal@h") || !strings.Contains(detail, "· Personal") || !strings.Contains(detail, `<a href=/agents aria-current=page>`) {
 		t.Fatal("direct Personal detail is not reachable and labelled")
 	}
 
 	admin, _ := p.request("admin@h", "GET", "/personal?owner=alice%40h", nil, 200)
-	if !strings.Contains(admin, "alice-personal@h") || strings.Contains(admin, "bob-personal@h") || !strings.Contains(admin, "only Personal services visible through your normal access") {
+	if !strings.Contains(admin, "alice-personal@h") || strings.Contains(admin, "bob-personal@h") || !strings.Contains(admin, "only Personal agents visible through your normal access") {
 		t.Fatalf("daemon-owner visible-only owner view is misstated: %s", admin)
 	}
 	if !strings.Contains(admin, `class="record-name-cell personal-record"`) || strings.Contains(admin, `class="record-name-cell owned-record personal-record"`) || strings.Contains(admin, "Yours") || !strings.Contains(admin, `class=personal-marker>Personal</span>`) {
@@ -138,23 +138,23 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 	if err := p.bus.SetGroup("admin@h", "@ops", []string{"bob@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := p.bus.Register(protocol.Record{Name: "peer-service@h", Owner: "peer@h"}); err != nil {
+	if _, err := p.bus.Register(protocol.Record{Kind: protocol.KindAgent, Name: "peer-service@h", Owner: "peer@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := p.bus.Register(protocol.Record{Name: "toggle@h", Owner: "alice@h", Allow: []string{"peer-service@h"}}); err != nil {
+	if _, err := p.bus.Register(protocol.Record{Kind: protocol.KindAgent, Name: "toggle@h", Owner: "alice@h", Allow: []string{"peer-service@h"}}); err != nil {
 		t.Fatal(err)
 	}
 
 	enable := url.Values{"action": {"personal"}, "name": {"toggle@h"}, "personal": {"on"}, "allow": {"peer-service@h"}}
 	_, header := p.request("alice@h", "POST", "/service", enable, http.StatusSeeOther)
-	if header.Get("Location") != "/service?name=toggle%40h" {
+	if header.Get("Location") != "/agent?name=toggle%40h" {
 		t.Fatalf("Personal update returned to %q", header.Get("Location"))
 	}
 	record, ok := p.bus.Lookup("alice@h", "toggle@h")
 	if !ok || !record.Personal || len(record.Maintainers) != 0 || strings.Join(record.Allow, " ") != "peer-service@h" {
 		t.Fatalf("atomic Personal enable: %+v", record)
 	}
-	page, _ := p.request("alice@h", "GET", "/service?name=toggle%40h", nil, 200)
+	page, _ := p.request("alice@h", "GET", "/agent?name=toggle%40h", nil, 200)
 	if strings.Count(page, `name=allow`) != 1 || !strings.Contains(page, "Classification and sharing") || !strings.Contains(page, "Personal classification, Allow and Maintainers are changed together") {
 		t.Fatal("Personal detail exposes two Allow edit doors")
 	}
@@ -171,7 +171,7 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 	if !ok || record.Personal || strings.Join(record.Maintainers, " ") != "@ops" || strings.Join(record.Allow, " ") != "bob@h" {
 		t.Fatalf("atomic Personal disable and sharing: %+v", record)
 	}
-	maintainer, _ := p.request("bob@h", "GET", "/service?name=toggle%40h", nil, 200)
+	maintainer, _ := p.request("bob@h", "GET", "/agent?name=toggle%40h", nil, 200)
 	if strings.Contains(maintainer, "Classification and sharing") {
 		t.Fatal("a Maintainer received the owner-only classification control")
 	}
@@ -179,18 +179,20 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 
 func TestPersonalCreationUsesCoreValidation(t *testing.T) {
 	p := personalWebFixture(t)
-	if _, err := p.bus.Register(protocol.Record{Name: "peer-service@h", Owner: "peer@h"}); err != nil {
+	if _, err := p.bus.Register(protocol.Record{Kind: protocol.KindAgent, Name: "peer-service@h", Owner: "peer@h"}); err != nil {
 		t.Fatal(err)
 	}
-	create := url.Values{"action": {"create"}, "name": {"new-personal@h"}, "kind": {"generic"}, "personal": {"on"}, "allow": {"peer-service@h"}}
+	create := url.Values{"action": {"create"}, "name": {"new-personal@h"}, "kind": {protocol.KindAgent}, "personal": {"on"}, "allow": {"peer-service@h"}}
 	_, header := p.request("alice@h", "POST", "/service", create, http.StatusSeeOther)
-	if header.Get("Location") != "/service?name=new-personal%40h" {
+	if header.Get("Location") != "/agent?name=new-personal%40h" {
 		t.Fatalf("Personal creation returned to %q", header.Get("Location"))
 	}
 	if got, ok := p.bus.Lookup("alice@h", "new-personal@h"); !ok || !got.Personal {
 		t.Fatalf("web creation lost Personal: %+v, %v", got, ok)
 	}
-	bad := url.Values{"action": {"create"}, "name": {"bad-personal@h"}, "kind": {"generic"}, "personal": {"on"}, "allow": {"bob@h"}}
+	// A Personal agent shares with named agents only, so the wildcard is the
+	// refusal the face must not talk the daemon out of.
+	bad := url.Values{"action": {"create"}, "name": {"bad-personal@h"}, "kind": {protocol.KindAgent}, "personal": {"on"}, "allow": {"*"}}
 	p.request("alice@h", "POST", "/service", bad, http.StatusBadRequest)
 	if _, ok := p.bus.Lookup("alice@h", "bad-personal@h"); ok {
 		t.Fatal("web bypassed core Personal validation")

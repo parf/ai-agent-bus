@@ -48,10 +48,10 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 	session := resp.Cookies()[0]
 
 	before := time.Now()
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h", Descr: "service"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h", Descr: "service"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "chan@h", Owner: "owner@h", Kind: protocol.KindTopic, Mode: "pubsub"}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "chan@h", Owner: "owner@h", Kind: protocol.KindQueue}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -77,7 +77,7 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 	if body := get("/service?name=svc@h"); !strings.Contains(body, stamp) {
 		t.Fatalf("detail does not carry the record's date %q", stamp)
 	}
-	for _, page := range []string{"/services", "/channels"} {
+	for _, page := range []string{"/agents", "/channels"} {
 		if body := get(page); !strings.Contains(body, "<td data-label=Updated>now") {
 			t.Fatalf("%s does not render the new record as updated now", page)
 		}
@@ -85,7 +85,7 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 	// Named as what it is rather than as "date": the record's own registration
 	// update, which is not an observation time and not a sample time
 	// (Plans/MVP/web/data-dictionary.md#time).
-	listing := get("/services")
+	listing := get("/agents")
 	if !strings.Contains(listing, "<th scope=col>Updated") {
 		t.Fatal("the listing has no column for the date it now shows")
 	}
@@ -93,7 +93,7 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 	// "no matching records" stops spanning the table it is in. Counted rather
 	// than written down, so widening the table cannot quietly pass this.
 	want := fmt.Sprintf("colspan=%d", strings.Count(listing, "<th scope=col"))
-	if body := get("/services?scope=my&state=inactive"); strings.Contains(body, "No matching records") && !strings.Contains(body, want) {
+	if body := get("/agents?scope=my&state=inactive"); strings.Contains(body, "No matching records") && !strings.Contains(body, want) {
 		t.Fatalf("the empty row does not span the widened table: want %s", want)
 	}
 }

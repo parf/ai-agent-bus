@@ -23,18 +23,18 @@ import (
 func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	m := meaningFixture(t)
 	for _, record := range []protocol.Record{
-		{Name: "svc@h", Owner: "admin@h", Kind: "generic"},
+		{Name: "svc@h", Owner: "admin@h", Kind: protocol.KindAgent},
 		{Name: "bot@h", Owner: "admin@h", Kind: "agent"},
-		{Name: "news@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue},
+		{Name: "news@h", Owner: "admin@h", Kind: protocol.KindQueue},
 	} {
 		m.register(record)
 	}
 	overview := m.get("/")
 	strip := section(t, overview, "<div class=node-strip>", "</div></div>")
 
-	// One label for the three kinds it sums, because a reader comparing it
-	// with the Services and Channels pages must know an Inbox is in it too.
-	if !strings.Contains(strip, "<span>Services + Inboxes + Channels</span>") {
+	// One label naming every page it sums, because a reader comparing it with
+	// any one of them must know what else is in the number.
+	if !strings.Contains(strip, "<span>Agents + Services + Channels + Users</span>") {
 		t.Errorf("the record count does not name the kinds it sums: %s", strip)
 	}
 	// The figures are read down a column, so they are ranged right in tabular
@@ -52,7 +52,7 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 		t.Error("the strip still calls the sum Records without saying what a record is here")
 	}
 	// Three kinds registered, and the count is all of them.
-	if !strings.Contains(strip, "<span>Services + Inboxes + Channels</span><strong>3</strong>") {
+	if !strings.Contains(strip, "<span>Agents + Services + Channels + Users</span><strong>3</strong>") {
 		t.Errorf("the count is not the whole registry: %s", strip)
 	}
 
@@ -87,16 +87,20 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	if !strings.Contains(help, "These values cover the whole daemon.") {
 		t.Errorf("the node help counts the strip's %d facts instead of describing them: %s", facts, help)
 	}
-	// Where Agents are, not merely the word. There is no Agents page: they
-	// are rows on Services, so naming one among the filtered pages would
-	// send a reader to a destination the menu does not have.
+	// The help names the pages a reader can actually open, so every page it
+	// names has to be in the menu. Written from navItems rather than listed
+	// again here, so adding or removing a section cannot leave this behind.
+	named := 0
 	for _, item := range navItems {
-		if item.Label == "Agents" || item.Label == "Inboxes" {
-			t.Fatal("there is a section for inboxes now, so this check and the help both need rewriting")
+		if strings.Contains(help, item.Label+",") || strings.Contains(help, item.Label+" and") || strings.Contains(help, "and "+item.Label) {
+			named++
 		}
 	}
-	if !strings.Contains(help, "Inboxes are listed with Channels.") {
-		t.Errorf("the node help does not say where the Inboxes in its count are listed: %s", help)
+	if named < 4 {
+		t.Errorf("the node help names %d menu sections for a count that spans every record: %s", named, help)
+	}
+	if !strings.Contains(help, "This number is every record on the node") {
+		t.Errorf("the node help does not say what its record count covers: %s", help)
 	}
 	if strings.Contains(help, "Inboxes page") || strings.Contains(help, "Agents page") {
 		t.Errorf("the node help sends a reader to a page that does not exist: %s", help)
@@ -133,11 +137,11 @@ func TestTheGenerationTimeIsStatedOnceAndOnlyInTheFooter(t *testing.T) {
 
 	// Populated: two records that each raise an item, so a per-item repeat
 	// would show up as three or more.
-	m.register(protocol.Record{Name: "tiny@h", Owner: "admin@h", Bound: 1})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "tiny@h", Owner: "admin@h", Bound: 1})
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "tiny@h", Body: "fills it"}); err != nil {
 		t.Fatal(err)
 	}
-	m.register(protocol.Record{Name: "small@h", Owner: "admin@h", Bound: 1})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "small@h", Owner: "admin@h", Bound: 1})
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "small@h", Body: "fills it"}); err != nil {
 		t.Fatal(err)
 	}
@@ -153,11 +157,11 @@ func TestTheGenerationTimeIsStatedOnceAndOnlyInTheFooter(t *testing.T) {
 		t.Errorf("a populated Overview states the generation time %d times, want 1", n)
 	}
 	// The item keeps its way through; only the repeated time went.
-	if !strings.Contains(full, `<p class=muted><a href="/service?name=tiny%40h">View record</a></p>`) {
+	if !strings.Contains(full, `<p class=muted><a href="/agent?name=tiny%40h">View record</a></p>`) {
 		t.Errorf("an attention item lost its link with the repeated time: %s", full)
 	}
 	// Every page carries the footer, so every page is dated, not just this one.
-	for _, route := range []string{"/services", "/channels", "/users", "/groups", "/diagnostics", "/activity"} {
+	for _, route := range []string{"/agents", "/services", "/channels", "/users", "/groups", "/diagnostics", "/activity"} {
 		page := m.get(route)
 		stamp := section(t, section(t, page, "<footer ", "</footer>"), "<strong>Generated</strong> ", "</span>")
 		if strings.TrimSpace(stamp) == "" {
@@ -185,7 +189,7 @@ func TestNeedsAttentionAppearsOnlyWhenSomethingWasObserved(t *testing.T) {
 		t.Fatalf("the quiet Overview did not render its node strip: %s", quiet)
 	}
 
-	m.register(protocol.Record{Name: "tiny@h", Owner: "admin@h", Bound: 1})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "tiny@h", Owner: "admin@h", Bound: 1})
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "tiny@h", Body: "fills it"}); err != nil {
 		t.Fatal(err)
 	}

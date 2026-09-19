@@ -71,7 +71,7 @@ const tools = [
       "List what is registered on the agent bus: agents, services and topics, with their descriptions. Use it to find who or what to talk to.",
     inputSchema: {
       type: "object",
-      properties: { kind: { type: "string", description: "only this kind: agent, generic or topic" } },
+      properties: { kind: { type: "string", description: "only this kind: user, agent, queue, pubsub or service" } },
     },
   },
   {

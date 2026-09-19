@@ -16,7 +16,7 @@ Three structural faults follow from that, and no amount of styling fixes them:
 |---|---|
 | No page answers "is anything wrong?" | The operator reads seven sections and decides for themselves |
 | Detail and administration are the same page | `/service` is a read view followed by six stacked forms ([W04](../done/web-review.md#findings)) |
-| Things that are not alike share a page | Services and channels share one list and one detail template, so delivery mode is invisible |
+| Things that are not alike share a page | Fixed in 0.6.3: agents, external services and channels each have a list of their own, and the [five kinds](../../../docs/03-services-and-topics.md#five-record-kinds) say which page a record is on |
 
 ## Journeys
 
@@ -25,15 +25,15 @@ The page set is derived from these, not from the data model.
 | Question | Journey | Lands on |
 |---|---|---|
 | Is anything wrong right now? | Overview | attention items, each linking to the thing itself |
-| Why is work not arriving? | Overview → the backlog → that service's queue | Service → Queue |
-| What can I use, and who owns it? | Services → search | Service overview |
-| Is this my named AI session? | Services → agents → description and full address | Service overview |
-| How does this channel deliver? | Channels → mode and subscribers | Channel overview |
-| Who may use my service? | Service → Access → one focused edit | back to Access, with the result |
+| Why is work not arriving? | Overview → the backlog → that record's queue | the record → Queue |
+| What can I use, and who owns it? | Agents, Services or Channels → search | that record's overview |
+| Is this my named AI session? | Agents → description and full address | Agent overview |
+| How does this channel deliver? | Channels → its kind and subscribers | Channel overview |
+| Who may use my record? | the record → Access → one focused edit | back to Access, with the result |
 | Who is this person and what may they administer? | Users → person | User detail |
 | Why can I not do this? | any refusal → explanation and the corrective step | in place, or a problem page |
 | Did **this** message arrive, and was it consumed? | Diagnostics → retained envelopes, scoped to what you may see | **not queue counters.** Totals cannot identify an individual message: accepted and dequeued are aggregate flow, and the [exchange contract](../../../docs/05-discovery.md#retained-exchanges) keeps envelope evidence, receipts and responses as separate things. Where an individual dequeue is not recorded, the page says it cannot be established rather than inferring it — codex's [S09](review/codex.md#specification-review-round-one) |
-| Is work flowing through this queue at all? | Services → the service → Queue | queue counters, as aggregate flow, which is the question they can answer |
+| Is work flowing through this queue at all? | Agents or Channels → the record → Queue | queue counters, as aggregate flow, which is the question they can answer |
 | What credentials do I hold? | Account | Account |
 | What happened to this exchange? | Diagnostics → the envelope feed | Diagnostics |
 
@@ -44,14 +44,18 @@ The planned page map follows. `⚠` marks a page that does not exist today.
 | Page | URL | Purpose | State today |
 |---|---|---|---|
 | Overview | `/` | What needs attention, and nothing else | ⚠ new; `/` is diagnostics |
-| Services | `/services` | Find a caller-visible non-Personal service | shared with channels |
-| My services | `/services?scope=my` | Find a non-Personal service owned by the caller | a filter on Services |
-| Personal services | `/personal` | Find Personal services in the existing owner-scoped view | exists as a separate top-level tab |
-| Service | `/service?name=` | One service: overview, queue, activity, access, configuration | one long form page |
-| Register service | `/services/new` | Create one | built in 0.5.64 |
-| Channels | `/channels` | Find a channel, by delivery mode | shared with services |
-| Channel | `/channel?name=` | One channel: mode, subscribers, queue, activity, access | rendered by the service template |
-| Register channel | `/channels/new` | Create one | built in 0.5.64 |
+| Agents | `/agents` | Find a caller-visible non-Personal agent | built in 0.6.3, first in the menu |
+| My agents | `/agents?scope=my` | Find an agent owned by the caller | a filter on Agents |
+| Personal agents | `/personal` | Find Personal agents in the existing owner-scoped view | a view of Agents; Personal is agent-only |
+| Agent | `/agent?name=` | One agent: overview, queue, activity, access, configuration | the shared record page |
+| Register agent | `/agents/new` | Create one | built in 0.6.3 |
+| Services | `/services` | Find a caller-visible external service | built in 0.6.3; services only |
+| My services | `/services?scope=my` | Find an external service owned by the caller | a filter on Services |
+| Service | `/service?name=` | One service: address, protocol, activity, access, configuration | the shared record page |
+| Register service | `/services/new` | Create one; address and protocol are required | built in 0.5.64, required fields in 0.6.3 |
+| Channels | `/channels` | Find a queue or a pub/sub topic | built in 0.5.64; agents moved out in 0.6.3 |
+| Channel | `/channel?name=` | One channel: subscribers, queue, activity, access | the shared record page |
+| Register channel | `/channels/new` | Create one, as a queue or a pub/sub topic | built in 0.5.64 |
 | Activity | `/activity` | Observed traffic over a stated window | exists |
 | Diagnostics | `/diagnostics` | Retained envelopes, losses, refusals | is the homepage today |
 | Users | `/users` | Find a person or an identity | exists |

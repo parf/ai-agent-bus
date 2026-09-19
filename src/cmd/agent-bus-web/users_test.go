@@ -117,12 +117,26 @@ func TestRequiredDashboardTabs(t *testing.T) {
 	if !strings.Contains(avatar, "<svg") || !strings.Contains(avatar, ">A</text>") {
 		t.Fatal("local avatar absent")
 	}
-	request("/service", url.Values{"action": {"create"}, "name": {"news@h"}, "kind": {"topic"}, "mode": {"pubsub"}, "descr": {"News"}}, 303)
-	refusedChannel := request("/service", url.Values{"action": {"create"}, "name": {"news@h"}, "kind": {"topic"}, "mode": {"pubsub"}, "descr": {"Overwrite & retained"}, "allow": {"alice@h\n*"}}, 412)
+	request("/service", url.Values{"action": {"create"}, "name": {"news@h"}, "kind": {"pubsub"}, "descr": {"News"}}, 303)
+	refusedChannel := request("/service", url.Values{"action": {"create"}, "name": {"news@h"}, "kind": {"pubsub"}, "descr": {"Overwrite & retained"}, "allow": {"alice@h\n*"}}, 412)
 	for _, retained := range []string{"Check this form", `<section class=form-error role=alert`, `href="#form-create"`, `value="news@h" aria-invalid="true"`, `value="Overwrite &amp; retained"`, ">alice@h\n*</textarea>"} {
 		if !strings.Contains(refusedChannel, retained) {
 			t.Fatalf("refused channel registration lost safe input %q", retained)
 		}
+	}
+	// A refusal must not empty the other fields the same form asked for, and it
+	// must come back on the page that was being registered. A service form that
+	// lost the endpoint the daemon requires, or an agent refusal marked under
+	// Services, is the face disagreeing with itself.
+	refusedService := request("/service", url.Values{"action": {"create"}, "name": {"news@h"}, "kind": {"service"}, "addr": {"db.example:5432"}, "protocol": {"postgresql"}}, 412)
+	for _, retained := range []string{`value="db.example:5432"`, `value="postgresql"`} {
+		if !strings.Contains(refusedService, retained) {
+			t.Fatalf("refused service registration lost its endpoint %q", retained)
+		}
+	}
+	refusedAgent := request("/service", url.Values{"action": {"create"}, "name": {"news@h"}, "kind": {"agent"}}, 412)
+	if !strings.Contains(refusedAgent, `<a href=/agents aria-current=page>`) || strings.Count(refusedAgent, "aria-current=page>") != 1 {
+		t.Fatal("a refused agent registration came back under another section")
 	}
 	// Register the administrator's own inbox before subscribing it.
 	request("/service", url.Values{"action": {"create"}, "name": {"admin@h"}, "kind": {"agent"}}, 303)

@@ -35,7 +35,7 @@ func TestDangerZoneNeverRendersRetainedConfiguration(t *testing.T) {
 	render(w, serviceDanger, adminView{
 		You: "owner@h",
 		Record: protocol.Record{
-			Name: "svc@h", Owner: "owner@h", Kind: "generic", CanManage: true, CanTransfer: true,
+			Name: "svc@h", Owner: "owner@h", Kind: protocol.KindAgent, CanManage: true, CanTransfer: true,
 		},
 		Form: formState{Action: "configure", Target: "configure", Field: "config", Error: "refused", Values: map[string]string{"config": secret}},
 	})
@@ -79,7 +79,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if err := b.SetGroup("admin@h", core.AdministratorsGroup, []string{"admin@h", "operator@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h", Descr: "service", Allow: []string{"owner@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h", Descr: "service", Allow: []string{"owner@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Configure("svc@h", "owner@h", json.RawMessage(`{"secret":"NEVER-RENDER-THIS"}`)); err != nil {
@@ -218,8 +218,8 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if !strings.Contains(hidden, "No such name") || hiddenShape != missingShape {
 		t.Fatal("Danger Zone distinguished a hidden record from a missing one")
 	}
-	if body := request("owner@h", "GET", "/services?scope=my&state=active", "", nil, 200); !strings.Contains(body, "svc@h") {
-		t.Fatal("own active service missing")
+	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); !strings.Contains(body, "svc@h") {
+		t.Fatal("own active agent missing")
 	}
 	disable := url.Values{"action": {"disable"}, "name": {"svc@h"}}
 	request("owner@h", "POST", "/service", "https://evil.example", disable, 403)
@@ -230,8 +230,8 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if body := request("owner@h", "GET", "/services?scope=my&state=active", "", nil, 200); strings.Contains(body, "svc@h") {
 		t.Fatal("disabled service appears active")
 	}
-	if body := request("owner@h", "GET", "/services?scope=my&state=inactive", "", nil, 200); !strings.Contains(body, "svc@h") {
-		t.Fatal("disabled service missing")
+	if body := request("owner@h", "GET", "/agents?scope=my&state=inactive", "", nil, 200); !strings.Contains(body, "svc@h") {
+		t.Fatal("disabled agent missing")
 	}
 	group := url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"other@h\nadmin@h"}}
 	request("owner@h", "POST", "/groups", web.URL, group, 403)

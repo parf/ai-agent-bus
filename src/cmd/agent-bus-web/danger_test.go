@@ -15,15 +15,15 @@ import (
 func TestDangerZoneUsesFreshConfirmationAndResourceReturnPaths(t *testing.T) {
 	p := personalWebFixture(t)
 	for _, record := range []protocol.Record{
-		{Name: "svc@h", Owner: "alice@h", Allow: []string{"alice@h"}},
-		{Name: "jobs@h", Owner: "alice@h", Kind: protocol.KindTopic, Mode: "queue", Allow: []string{"alice@h"}},
-		{Name: "busy@h", Owner: "alice@h", Allow: []string{"alice@h"}},
-		{Name: "stale@h", Owner: "alice@h", Allow: []string{"alice@h", "bob@h"}},
-		{Name: "view@h", Owner: "alice@h", Allow: []string{"bob@h"}},
-		{Name: "queue-change@h", Owner: "alice@h", Allow: []string{"alice@h"}},
-		{Name: "reader-change@h", Owner: "alice@h", Allow: []string{"alice@h"}},
-		{Name: "handoff@h", Owner: "alice@h"},
-		{Name: "handoff-channel@h", Owner: "alice@h", Kind: protocol.KindTopic, Mode: "queue"},
+		{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"alice@h"}},
+		{Name: "jobs@h", Owner: "alice@h", Kind: protocol.KindQueue, Allow: []string{"alice@h"}},
+		{Kind: protocol.KindAgent, Name: "busy@h", Owner: "alice@h", Allow: []string{"alice@h"}},
+		{Kind: protocol.KindAgent, Name: "stale@h", Owner: "alice@h", Allow: []string{"alice@h", "bob@h"}},
+		{Kind: protocol.KindAgent, Name: "view@h", Owner: "alice@h", Allow: []string{"bob@h"}},
+		{Kind: protocol.KindAgent, Name: "queue-change@h", Owner: "alice@h", Allow: []string{"alice@h"}},
+		{Kind: protocol.KindAgent, Name: "reader-change@h", Owner: "alice@h", Allow: []string{"alice@h"}},
+		{Kind: protocol.KindAgent, Name: "handoff@h", Owner: "alice@h"},
+		{Name: "handoff-channel@h", Owner: "alice@h", Kind: protocol.KindQueue},
 	} {
 		if _, err := p.bus.Register(record); err != nil {
 			t.Fatal(err)
@@ -57,7 +57,7 @@ func TestDangerZoneUsesFreshConfirmationAndResourceReturnPaths(t *testing.T) {
 				t.Fatalf("%s Danger Zone omitted %q", name, heading)
 			}
 		}
-		detailPath := "/service"
+		detailPath := "/agent"
 		if name == "jobs@h" {
 			detailPath = "/channel"
 		}
@@ -189,7 +189,7 @@ func TestDangerZoneUsesFreshConfirmationAndResourceReturnPaths(t *testing.T) {
 	for _, handoff := range []struct {
 		name, want string
 	}{
-		{"handoff@h", "/services"},
+		{"handoff@h", "/agents"},
 		{"handoff-channel@h", "/channels"},
 	} {
 		_, header = p.request("alice@h", "POST", "/service", url.Values{
@@ -208,14 +208,14 @@ func TestDangerZoneUsesFreshConfirmationAndResourceReturnPaths(t *testing.T) {
 		"action": {"delete"}, "name": {"svc@h"}, "confirmed": {"1"},
 		"expected_owner": {"alice@h"}, "expected_queued": {"0"}, "expected_readers": {"0"},
 	}, http.StatusSeeOther)
-	if header.Get("Location") != "/services" {
-		t.Fatalf("removed service returned to %q", header.Get("Location"))
+	if header.Get("Location") != "/agents" {
+		t.Fatalf("a removed agent returned to %q", header.Get("Location"))
 	}
 }
 
 func TestTransferConfirmationRechecksApplicability(t *testing.T) {
 	p := personalWebFixture(t)
-	if _, err := p.bus.Register(protocol.Record{Name: "svc@h", Owner: "alice@h", Allow: []string{"alice@h"}}); err != nil {
+	if _, err := p.bus.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"alice@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	owner := "bob@h"

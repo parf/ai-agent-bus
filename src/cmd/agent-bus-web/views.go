@@ -40,12 +40,16 @@ func titleMark(category string) template.HTML {
 		return `<span class=page-title-mark aria-hidden=true>🏠</span>`
 	case "credentials":
 		return `<span class=page-title-mark aria-hidden=true>🔑</span>`
-	case "agent":
+	case "agent", "agents", "personal":
 		return `<span class=page-title-mark aria-hidden=true>👾</span>`
-	case "channels", protocol.KindTopic:
+	case "channels", protocol.KindQueue, protocol.KindPubSub:
 		return channel
 	case "activity":
 		return activity
+	case "services", protocol.KindService:
+		// The same mark the rows carry: a title that said something else about
+		// the record under it would be the page disagreeing with its own table.
+		return `<span class=page-title-mark aria-hidden=true>📡</span>`
 	case "users", "user":
 		return `<span class=page-title-mark aria-hidden=true>👤</span>`
 	case "groups":
@@ -151,28 +155,93 @@ func authorityLabel(daemonOwner, administrator bool) string {
 	return display.Authority(daemonOwner, administrator)
 }
 
-func entityLabel(kind string) string {
-	if kind == protocol.KindTopic {
-		return "Channel"
-	}
-	return display.Entity(kind)
-}
+func entityLabel(kind string) string { return display.Entity(kind) }
 
 // channelRecord reports whether a record belongs with the channels rather than
-// the services. An agent's record carries no address and no protocol, so
-// nothing is served from it: messaging § inbox queues defines it as an implicit
-// queue topic named after the agent, and the dashboard lists it accordingly.
+// the services. Four of the five kinds are names on this bus that something is
+// delivered to; only a service is external, and it is the one thing nothing is
+// served from here.
+// See docs/03-services-and-topics.md#five-record-kinds.
 func channelRecord(kind string) bool {
-	return kind == protocol.KindTopic || kind == "agent"
+	return kind != protocol.KindService && kind != protocol.KindAgent
 }
 
-// deliveryMode is the mode a record delivers by. An inbox stores none, and an
-// absent mode is not a third kind of delivery: it is the queue the agent reads.
-func deliveryMode(record protocol.Record) string {
-	if record.Mode == "" {
-		return protocol.ModeQueue
+// agentRecord reports whether a record belongs on the agents page. An agent is
+// the thing this bus exists to carry messages between, so it is listed first
+// and on its own, not mixed in with the queues it reads or with the external
+// services it calls.
+func agentRecord(kind string) bool { return kind == protocol.KindAgent }
+
+// detailPathFor and listPathFor are the one place a kind becomes a URL. Three
+// listings, one per thing a record can be: an agent on this bus, an external
+// service, or a channel something is delivered through.
+func detailPathFor(kind string) string {
+	switch {
+	case agentRecord(kind):
+		return "/agent"
+	case channelRecord(kind):
+		return "/channel"
+	default:
+		return "/service"
 	}
-	return record.Mode
+}
+
+func listPathFor(kind string) string {
+	switch {
+	case agentRecord(kind):
+		return "/agents"
+	case channelRecord(kind):
+		return "/channels"
+	default:
+		return "/services"
+	}
+}
+
+// deliveryMode says how a record delivers, in words rather than in a kind. Only
+// a pub/sub topic copies; everything else on this bus holds one queue, and a
+// service holds nothing at all.
+func deliveryMode(record protocol.Record) string {
+	switch record.Kind {
+	case protocol.KindPubSub:
+		return "a copy to each subscriber"
+	case protocol.KindService:
+		return ""
+	default:
+		return "one at a time"
+	}
+}
+
+// copies reports whether a kind delivers a copy to every subscriber. Only
+// pub/sub does; it is the one kind that keeps no queue of its own, so the page
+// shows subscribers where the others show held work.
+func copies(kind string) bool { return kind == protocol.KindPubSub }
+
+// deliveryLabel is the one-line delivery fact for a listing column, where
+// deliveryMode writes the same fact as a sentence on a detail page.
+func deliveryLabel(record protocol.Record) string {
+	if copies(record.Kind) {
+		return "Pub/sub · copy to each"
+	}
+	return "Queue · one at a time"
+}
+
+// recordNoun is the plain word for a kind, used where a document title needs
+// a noun rather than a labelled glyph.
+func recordNoun(kind string) string {
+	switch kind {
+	case protocol.KindUser:
+		return "User"
+	case protocol.KindAgent:
+		return "Agent"
+	case protocol.KindQueue:
+		return "Queue"
+	case protocol.KindPubSub:
+		return "PubSub"
+	case protocol.KindService:
+		return "Service"
+	default:
+		return "Record"
+	}
 }
 
 func entityGlyph(kind string) string {
@@ -213,12 +282,14 @@ type attention struct {
 }
 
 func recordHref(r protocol.Record) string {
-	path := "/service"
-	if channelRecord(r.Kind) {
-		path = "/channel"
-	}
-	return path + "?name=" + url.QueryEscape(r.Name)
+	return detailPathFor(r.Kind) + "?name=" + url.QueryEscape(r.Name)
 }
+
+// detailPath is the row link's path alone, for a template that writes the
+// query itself. Only the path comes from here: the name and the return state
+// stay separate interpolations so html/template escapes each in its own
+// context, which is what makes the return value a readable round trip.
+func detailPath(r protocol.Record) string { return detailPathFor(r.Kind) }
 
 // attentionItems enumerates only conditions the daemon answer supports. A
 // backlog on its own is ordinary work and therefore stays out of this list.

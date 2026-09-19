@@ -14,10 +14,8 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "visitor@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	m.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Descr: "Jobs", Allow: []string{"*"}})
-	m.register(protocol.Record{Name: "news@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Descr: "News", Allow: []string{"*"}})
-	// An agent's inbox is an implicit queue topic, so it is listed here and
-	// not with the services. It stores no delivery mode of its own.
+	m.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindQueue, Descr: "Jobs", Allow: []string{"*"}})
+	m.register(protocol.Record{Name: "news@h", Owner: "admin@h", Kind: protocol.KindPubSub, Descr: "News", Allow: []string{"*"}})
 	m.register(protocol.Record{Name: "worker@h", Owner: "admin@h", Kind: "agent", Descr: "Worker", Allow: []string{"*"}})
 	if _, err := m.bus.Subscribe("visitor@h", "news@h", true); err != nil {
 		t.Fatal(err)
@@ -47,17 +45,21 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	if strings.Contains(page, `<th scope=col>Service`) {
 		t.Error("Channels page still uses the Service table vocabulary")
 	}
-	inbox := m.row(page, "worker@h")
-	for _, want := range []string{`data-label=Type>👾 Agent`, "Queue · one at a time", `/channel?name=worker%40h`} {
-		if !strings.Contains(inbox, want) {
-			t.Errorf("inbox row lacks %q: %s", want, inbox)
+	agents := m.get("/agents")
+	agent := m.row(agents, "worker@h")
+	for _, want := range []string{`data-label=Type>👾 Agent`, `/agent?name=worker%40h`} {
+		if !strings.Contains(agent, want) {
+			t.Errorf("agent row lacks %q: %s", want, agent)
 		}
 	}
-	if channel := m.row(page, "jobs@h"); !strings.Contains(channel, `data-label=Type>Channel`) {
+	if strings.Contains(page, ">worker@h<") {
+		t.Error("an agent is still listed among the channels")
+	}
+	if channel := m.row(page, "jobs@h"); !strings.Contains(channel, `data-label=Type>📮 Queue`) {
 		t.Errorf("a registered channel is not named one: %s", channel)
 	}
 	if services := m.get("/services"); strings.Contains(services, ">worker@h<") {
-		t.Error("an inbox is still listed among the services")
+		t.Error("an agent is still listed among the services")
 	}
 	queue := m.row(page, "jobs@h")
 	for _, want := range []string{"Queue · one at a time", `data-label=Held>2`, `data-label=Accepted>2`, `data-label=Subscribers><span class=muted>&mdash;</span>`} {
@@ -72,40 +74,28 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 		}
 	}
 	// The page lists two kinds, so it offers the control that narrows to one.
-	inboxOnly := m.get("/channels?kind=agent")
-	if !strings.Contains(inboxOnly, `aria-label="Kind filter"`) || !strings.Contains(inboxOnly, `aria-current=true>👾 Agent</a>`) ||
-		!strings.Contains(inboxOnly, ">worker@h<") || strings.Contains(inboxOnly, ">jobs@h<") || strings.Contains(inboxOnly, ">news@h<") {
-		t.Error("the Inbox kind filter is missing or did not isolate the inboxes")
+	// Delivery is not a second filter beside it: the kind IS the delivery.
+	queueOnly := m.get("/channels?kind=queue")
+	if !strings.Contains(queueOnly, `aria-label="Kind filter"`) || !strings.Contains(queueOnly, `aria-current=true>📮 Queue</a>`) ||
+		!strings.Contains(queueOnly, ">jobs@h<") || strings.Contains(queueOnly, ">news@h<") {
+		t.Error("the Kind filter is missing or did not isolate the queues")
 	}
-	channelsOnly := m.get("/channels?kind=topic")
-	if !strings.Contains(channelsOnly, ">jobs@h<") || !strings.Contains(channelsOnly, ">news@h<") || strings.Contains(channelsOnly, ">worker@h<") {
-		t.Error("the Channel kind filter did not isolate the registered channels")
-	}
-	queueOnly := m.get("/channels?mode=queue")
-	if !strings.Contains(queueOnly, `aria-label="Delivery mode filter"`) || !strings.Contains(queueOnly, `aria-current=true>Queue</a>`) || !strings.Contains(queueOnly, ">jobs@h<") || strings.Contains(queueOnly, ">news@h<") {
-		t.Error("plain-valued Delivery mode filter does not isolate queue channels")
-	}
-	// An inbox stores no mode. It is a queue, so the queue filter keeps it and
-	// the pub/sub filter does not.
-	if !strings.Contains(queueOnly, ">worker@h<") {
-		t.Error("an inbox was dropped by the queue filter because it stores no mode")
-	}
-	if pubsubOnly := m.get("/channels?mode=pubsub"); strings.Contains(pubsubOnly, ">worker@h<") || !strings.Contains(pubsubOnly, ">news@h<") {
-		t.Error("the pub/sub filter admitted an inbox or lost its topic")
+	if pubsubOnly := m.get("/channels?kind=pubsub"); strings.Contains(pubsubOnly, ">jobs@h<") || !strings.Contains(pubsubOnly, ">news@h<") {
+		t.Error("the pub/sub filter admitted a queue or lost its topic")
 	}
 	workOrder := m.get("/channels?sort=queued")
 	if strings.Index(workOrder, ">news@h<") > strings.Index(workOrder, ">jobs@h<") || !strings.Contains(workOrder, ">Work (high&ndash;low)</option>") {
 		t.Error("Channel work sorting did not compare pub/sub accepted with queue held work")
 	}
-	statefulMode := m.get("/channels?mode=pubsub&readers=none&state=active&sort=queued")
-	for _, want := range []string{`name=mode value="pubsub"`, `mode=pubsub&amp;readers=none&amp;sort=queued&amp;state=inactive`, `return=%2fchannels%3fmode%3dpubsub%26page%3d1%26readers%3dnone%26sort%3dqueued%26state%3dactive`, `selected>Work (high&ndash;low)</option>`} {
-		if !strings.Contains(statefulMode, want) {
-			t.Errorf("Channel mode state lost %q", want)
+	statefulKind := m.get("/channels?kind=pubsub&readers=none&state=active&sort=queued")
+	for _, want := range []string{`name=kind value="pubsub"`, `kind=pubsub&amp;readers=none&amp;sort=queued&amp;state=inactive`, `return=%2fchannels%3fkind%3dpubsub%26page%3d1%26readers%3dnone%26sort%3dqueued%26state%3dactive`, `selected>Work (high&ndash;low)</option>`} {
+		if !strings.Contains(statefulKind, want) {
+			t.Errorf("Channel kind state lost %q", want)
 		}
 	}
 
 	owner := m.get("/channel?name=news@h&return=%2Fchannels%3Freaders%3Dnone%26page%3D2")
-	if !strings.Contains(owner, `<title>Channel news@h · agent-bus</title>`) || !strings.Contains(owner, `href="/channels?readers=none&amp;page=2"`) || !strings.Contains(owner, `id=settings`) {
+	if !strings.Contains(owner, `<title>PubSub news@h · agent-bus</title>`) || !strings.Contains(owner, `href="/channels?readers=none&amp;page=2"`) || !strings.Contains(owner, `id=settings`) {
 		t.Error("owner Channel detail lost its title, exact return or daemon-authorized editor")
 	}
 	visitor := m.as("visitor@h").get("/channel?name=news@h")
@@ -119,7 +109,7 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	if !strings.Contains(danger, `href="/channel?name=jobs%40h"`) {
 		t.Error("Channel Danger Zone returns through the generic Service detail")
 	}
-	if location, status := postAs(t, m, "/service", url.Values{"action": {"create"}, "name": {"created@h"}, "kind": {protocol.KindTopic}, "mode": {protocol.ModeQueue}, "allow": {"*"}}); status != http.StatusSeeOther || location != "/channel?name=created%40h" {
+	if location, status := postAs(t, m, "/service", url.Values{"action": {"create"}, "name": {"created@h"}, "kind": {protocol.KindQueue}, "allow": {"*"}}); status != http.StatusSeeOther || location != "/channel?name=created%40h" {
 		t.Fatalf("Channel registration returned to %q with %d, want its Channel detail", location, status)
 	}
 }
@@ -127,7 +117,7 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 func TestRecordListsDistinguishNoCategoryFromNoFilterMatches(t *testing.T) {
 	empty := meaningFixture(t)
 	channels := empty.get("/channels")
-	for _, want := range []string{"No channels or inboxes yet", "A channel routes messages", `href=/channels/new>Register a channel or inbox</a>`} {
+	for _, want := range []string{"No channels yet", "A channel routes messages", `href=/channels/new>Register a channel</a>`} {
 		if !strings.Contains(channels, want) {
 			t.Errorf("empty Channels page lacks %q", want)
 		}
@@ -136,11 +126,15 @@ func TestRecordListsDistinguishNoCategoryFromNoFilterMatches(t *testing.T) {
 		t.Error("empty Channels category was rendered as a filtered empty table")
 	}
 	services := empty.get("/services")
-	if !strings.Contains(services, "No services yet") || !strings.Contains(services, "registered identity with an inbox") || !strings.Contains(services, `href=/services/new>Register a service</a>`) {
+	if !strings.Contains(services, "No services yet") || !strings.Contains(services, `href=/services/new>Register a service</a>`) {
 		t.Error("empty Services category does not explain itself and offer registration")
 	}
+	agents := empty.get("/agents")
+	if !strings.Contains(agents, "No agents yet") || !strings.Contains(agents, "a name on this bus") || !strings.Contains(agents, `href=/agents/new>Register an agent</a>`) {
+		t.Error("empty Agents category does not explain itself and offer registration")
+	}
 
-	empty.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue})
+	empty.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindQueue})
 	filtered := empty.get("/channels?q=absent")
 	if !strings.Contains(filtered, "No records match these filters") || !strings.Contains(filtered, `href="/channels">clear filters</a>`) || strings.Contains(filtered, "No channels yet") {
 		t.Error("zero filter matches were not distinguished from an empty Channels category")
@@ -149,43 +143,41 @@ func TestRecordListsDistinguishNoCategoryFromNoFilterMatches(t *testing.T) {
 
 func TestRecordDetailDocumentTitleFollowsStatedKind(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Name: "worker@h", Owner: "admin@h", Kind: "agent"})
-	m.register(protocol.Record{Name: "api@h", Owner: "admin@h", Kind: "generic"})
-	if body := m.get("/service?name=worker@h"); !strings.Contains(body, `<title>Inbox worker@h · agent-bus</title>`) {
-		t.Error("Inbox detail retained the generic Service document title")
-	}
-	if body := m.get("/service?name=api@h"); !strings.Contains(body, `<title>Service api@h · agent-bus</title>`) {
-		t.Error("Service detail lost its document title")
+	m.register(protocol.Record{Name: "worker@h", Owner: "admin@h", Kind: protocol.KindAgent})
+	m.register(protocol.Record{Name: "api@h", Owner: "admin@h", Kind: protocol.KindService, Addr: "host:1", Proto: "https"})
+	m.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindQueue})
+	m.register(protocol.Record{Name: "news@h", Owner: "admin@h", Kind: protocol.KindPubSub})
+	for name, want := range map[string]string{
+		"worker@h": "Agent", "api@h": "Service", "jobs@h": "Queue", "news@h": "PubSub",
+	} {
+		if body := m.get("/service?name=" + name); !strings.Contains(body, "<title>"+want+" "+name+" · agent-bus</title>") {
+			t.Errorf("%s is not titled %q", name, want)
+		}
 	}
 }
 
-// An inbox is the queue one agent reads, so it has no delivery of its own to
-// choose. The channel form's delivery radio is submitted with every
-// registration, and it must not travel with an inbox.
-func TestRegisteringAnInboxKeepsTheChannelDeliveryChoiceOffIt(t *testing.T) {
+// Delivery is no longer a field a form can set: a queue and a pub/sub topic are
+// kinds of their own, so what the form says the kind is, is what gets stored —
+// and a stray `mode` value left over from the old shape changes nothing.
+func TestTheChannelFormStoresTheKindAndNothingBesideIt(t *testing.T) {
 	m := meaningFixture(t)
 	if location, status := postAs(t, m, "/service", url.Values{
-		"action": {"create"}, "name": {"worker@h"}, "kind": {"agent"},
-		"mode": {protocol.ModePubSub}, "allow": {"*"},
-	}); status != http.StatusSeeOther || location != "/channel?name=worker%40h" {
-		t.Fatalf("inbox registration returned to %q with %d, want its Channel detail", location, status)
+		"action": {"create"}, "name": {"worker@h"}, "kind": {protocol.KindAgent},
+		"mode": {protocol.KindPubSub}, "allow": {"*"},
+	}); status != http.StatusSeeOther || location != "/agent?name=worker%40h" {
+		t.Fatalf("agent registration returned to %q with %d, want its Agent detail", location, status)
 	}
-	record, ok := m.bus.Lookup("admin@h", "worker@h")
-	if !ok {
-		t.Fatal("the inbox was not registered")
+	if record, ok := m.bus.Lookup("admin@h", "worker@h"); !ok || record.Kind != protocol.KindAgent {
+		t.Errorf("the agent stored kind %q, want %s", record.Kind, protocol.KindAgent)
 	}
-	if record.Mode != "" {
-		t.Errorf("the inbox stored a delivery mode %q from the channel form", record.Mode)
-	}
-	// The control itself is falsifiable: the same form does carry the choice
-	// for the kind that has one.
+	// Falsifiable the other way: the same form does register the kind that
+	// copies, when that is the kind it names.
 	if _, status := postAs(t, m, "/service", url.Values{
-		"action": {"create"}, "name": {"news@h"}, "kind": {protocol.KindTopic},
-		"mode": {protocol.ModePubSub}, "allow": {"*"},
+		"action": {"create"}, "name": {"news@h"}, "kind": {protocol.KindPubSub}, "allow": {"*"},
 	}); status != http.StatusSeeOther {
 		t.Fatalf("channel registration returned %d", status)
 	}
-	if channel, ok := m.bus.Lookup("admin@h", "news@h"); !ok || channel.Mode != protocol.ModePubSub {
-		t.Errorf("a registered channel lost its delivery mode: %+v %v", channel, ok)
+	if channel, ok := m.bus.Lookup("admin@h", "news@h"); !ok || channel.Kind != protocol.KindPubSub {
+		t.Errorf("a registered channel stored %q, want %s", channel.Kind, protocol.KindPubSub)
 	}
 }

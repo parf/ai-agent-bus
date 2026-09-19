@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.3 — 2026-09-18
+
+A record states which of five kinds it is — `user`, `agent`, `queue`, `pubsub`
+or `service` — and the separate delivery mode is gone, because a queue and a
+pub/sub topic are kinds of their own. A service is the external case and needs
+an address and a protocol; anything running behind a bus name is an agent. One
+predicate now answers whether a record could have been registered, and
+registration, a settings edit and a restore all ask it.
+
+The dashboard has an Agents section of its own, first in the menu: `/agents`,
+`/agent?name=` and `/agents/new`. Services lists external services only,
+Channels lists queues and pub/sub topics, and Personal is an agent-only
+classification. The service form asks for the address and protocol the daemon
+requires.
+
 ## 0.6.2 — 2026-09-18
 
 The daemon owner is marked `🔱` in the user directory, on a person's page and

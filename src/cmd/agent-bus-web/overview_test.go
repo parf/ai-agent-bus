@@ -45,10 +45,11 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 			t.Errorf("a quiet Overview still carries %q", gone)
 		}
 	}
-	// The Find row offers only what the menu cannot: two filtered views.
-	// Users and Diagnostics are menu entries and were repeated here.
+	// The Find row offers only what the menu cannot: a filtered view of each
+	// listing that holds work, agents first. Users and Diagnostics are menu
+	// entries and were repeated here.
 	find := section(t, overview, `<nav class=overview-links aria-label="Find records">`, "</nav>")
-	for _, kept := range []string{"Services holding work", "Channels holding work"} {
+	for _, kept := range []string{"Agents holding work", "Services holding work", "Channels holding work"} {
 		if !strings.Contains(find, kept) {
 			t.Errorf("the Find row lost %q: %s", kept, find)
 		}
@@ -65,7 +66,7 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 	}
 
 	diagnostics := m.get("/diagnostics")
-	for _, want := range []string{"Refusals since this daemon started", "Inboxes holding messages", "Exchanges in retained history", "Loss by name", `href="/service?name=quiet%40h"`} {
+	for _, want := range []string{"Refusals since this daemon started", "Inboxes holding messages", "Exchanges in retained history", "Loss by name", `href="/agent?name=quiet%40h"`} {
 		if !strings.Contains(diagnostics, want) {
 			t.Errorf("Diagnostics lacks %q", want)
 		}
@@ -80,11 +81,11 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 // Level is the visual meaning, so it drifts silently unless it is asserted.
 func TestAttentionItemsAreEnumeratedAndOnePerRecord(t *testing.T) {
 	items := attentionItems(core.Status{Unclean: true, Refused: map[string]int{"acl": 2}}, []protocol.Record{
-		{Name: "ordinary@h", Queued: 8},
-		{Name: "full@h", Queued: 4, Oldest: "2m", AtBound: true, Disabled: true, Dropped: 3, Expired: 1},
-		{Name: "off@h", Queued: 2, Disabled: true},
-		{Name: "lost@h", Dropped: 1},
-		{Name: "news@h", Kind: protocol.KindTopic, Queued: 1, AtBound: true, Full: protocol.OverflowRing},
+		{Kind: protocol.KindAgent, Name: "ordinary@h", Queued: 8},
+		{Kind: protocol.KindAgent, Name: "full@h", Queued: 4, Oldest: "2m", AtBound: true, Disabled: true, Dropped: 3, Expired: 1},
+		{Kind: protocol.KindAgent, Name: "off@h", Queued: 2, Disabled: true},
+		{Kind: protocol.KindAgent, Name: "lost@h", Dropped: 1},
+		{Name: "news@h", Kind: protocol.KindQueue, Queued: 1, AtBound: true, Full: protocol.OverflowRing},
 	})
 	if len(items) != 6 { // previous stop, one refusal and four exceptional records
 		t.Fatalf("attention count = %d, want 6: %#v", len(items), items)
@@ -155,7 +156,7 @@ func TestHoldingWorkLinksAreRealFilters(t *testing.T) {
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "held"}); err != nil {
 		t.Fatal(err)
 	}
-	page := m.get("/services?sort=queued&work=held")
+	page := m.get("/agents?sort=queued&work=held")
 	if !strings.Contains(page, `aria-label="Queue filter"`) || !strings.Contains(page, `aria-current=true>Holding work</a>`) || !strings.Contains(page, "quiet@h") {
 		t.Fatal("holding-work URL does not render its state and matching record")
 	}
@@ -174,10 +175,10 @@ func TestHoldingWorkLinksAreRealFilters(t *testing.T) {
 func TestEveryAttentionLinkPointsAtASectionThatExists(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	m.register(protocol.Record{Name: "news@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Allow: []string{"*"}})
+	m.register(protocol.Record{Name: "news@h", Owner: "admin@h", Kind: protocol.KindPubSub, Allow: []string{"*"}})
 	items := attentionItems(core.Status{Unclean: true, Refused: map[string]int{"acl": 1}}, []protocol.Record{
-		{Name: "quiet@h", Queued: 1, AtBound: true},
-		{Name: "news@h", Kind: protocol.KindTopic, Dropped: 1},
+		{Kind: protocol.KindAgent, Name: "quiet@h", Queued: 1, AtBound: true},
+		{Name: "news@h", Kind: protocol.KindQueue, Dropped: 1},
 	})
 	if len(items) != 4 {
 		t.Fatalf("fixture produced %d attention items, want 4", len(items))

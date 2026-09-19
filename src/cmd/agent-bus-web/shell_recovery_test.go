@@ -69,7 +69,7 @@ func TestADegradedSectionSaysSoWithoutNamingTheBackend(t *testing.T) {
 		t.Fatal("sign in did not return a session")
 	}
 	session := resp.Cookies()[0]
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "admin@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "admin@h"}); err != nil {
 		t.Fatal(err)
 	}
 	get := func(path string) (int, string) {
@@ -260,11 +260,11 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		}
 	}
 	for _, record := range []protocol.Record{
-		{Name: "service@h", Owner: "admin@h", Kind: "generic"},
-		{Name: "second@h", Owner: "admin@h", Kind: "generic"},
+		{Name: "service@h", Owner: "admin@h", Kind: protocol.KindService, Addr: "host:1", Proto: "https"},
+		{Name: "second@h", Owner: "admin@h", Kind: protocol.KindService, Addr: "host:2", Proto: "https"},
 		{Name: "agent@h", Owner: "admin@h", Kind: "agent"},
-		{Name: "channel@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue},
-		{Name: "other-channel@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue},
+		{Name: "channel@h", Owner: "admin@h", Kind: protocol.KindQueue},
+		{Name: "other-channel@h", Owner: "admin@h", Kind: protocol.KindQueue},
 	} {
 		m.register(record)
 	}
@@ -283,8 +283,10 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		{"/", "<a href=/ aria-current=page>", ""},
 		{"/diagnostics", "<a href=/diagnostics aria-current=page>", ""},
 		{"/services", "<a href=/services aria-current=page>", ""},
-		{"/personal", "<a href=/services aria-current=page>", ""},
+		{"/agents", "<a href=/agents aria-current=page>", ""},
+		{"/personal", "<a href=/agents aria-current=page>", ""},
 		{"/channels", "<a href=/channels aria-current=page>", ""},
+		{"/agents/new", "<a href=/agents aria-current=page>", ""},
 		{"/services/new", "<a href=/services aria-current=page>", ""},
 		{"/channels/new", "<a href=/channels aria-current=page>", ""},
 		{"/users", "<a href=/users aria-current=page>", ""},
@@ -303,15 +305,17 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		{"/account", "<a class=account-link href=/account aria-current=page>", ""},
 		{"/service?name=service@h", "<a href=/services aria-current=page>", ""},
 		{"/service?name=second@h", "<a href=/services aria-current=page>", ""},
-		// An inbox belongs to the Channels section, whichever route reaches it.
-		{"/service?name=agent@h", "<a href=/channels aria-current=page>", ""},
+		// An agent belongs to the Agents section, whichever route reaches it.
+		{"/agent?name=agent@h", "<a href=/agents aria-current=page>", ""},
+		{"/service?name=agent@h", "<a href=/agents aria-current=page>", "Agent agent@h · agent-bus"},
 		{"/channel?name=channel@h", "<a href=/channels aria-current=page>", ""},
 		{"/channel?name=other-channel@h", "<a href=/channels aria-current=page>", ""},
 		{"/service-danger?name=service@h", "<a href=/services aria-current=page>", ""},
 		{"/service-danger?name=second@h", "<a href=/services aria-current=page>", ""},
+		{"/service-danger?name=agent@h", "<a href=/agents aria-current=page>", ""},
 		{"/service-danger?name=channel@h", "<a href=/channels aria-current=page>", ""},
 		// The retained legacy topic URL is the same page at its old address.
-		{"/service?name=channel@h", "<a href=/channels aria-current=page>", "Channel channel@h · agent-bus"},
+		{"/service?name=channel@h", "<a href=/channels aria-current=page>", "Queue channel@h · agent-bus"},
 		{"/service?name=missing@h", "", ""},
 	}
 	seen := map[string]string{}
@@ -385,6 +389,8 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		{"transfer", "<a href=/services aria-current=page>", url.Values{"action": {"transfer"}, "name": {"second@h"}, "owner": {"alice@h"}}},
 		// A Channel reaches the same confirmation and belongs under Channels.
 		{"channel remove", "<a href=/channels aria-current=page>", url.Values{"action": {"delete"}, "name": {"channel@h"}}},
+		// So does an agent, and it belongs under Agents.
+		{"agent remove", "<a href=/agents aria-current=page>", url.Values{"action": {"delete"}, "name": {"agent@h"}}},
 	} {
 		body, code := postBody(t, m, "/service-confirm", action.form)
 		if code != http.StatusOK {

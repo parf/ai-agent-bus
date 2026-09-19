@@ -227,7 +227,7 @@ func TestRedirectedExchangeEvidenceIsScopedToTheViewer(t *testing.T) {
 	b := core.New()
 	b.SetDaemonOwner("owner@h")
 	for _, name := range []string{"alice@h", "worker@h", "third@h"} {
-		if _, err := b.Register(protocol.Record{Name: name, Owner: "owner@h", Allow: []string{"*"}}); err != nil {
+		if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: name, Owner: "owner@h", Allow: []string{"*"}}); err != nil {
 			t.Fatal(err)
 		}
 	}

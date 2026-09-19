@@ -12,7 +12,7 @@ import (
 
 func TestTitleMarksAreFixedDecorativePageCategories(t *testing.T) {
 	for category, visible := range map[string]string{
-		"credentials": "🔑", "services": "⚙️", "agent": "👾",
+		"credentials": "🔑", "services": "📡", "agent": "👾",
 		"users": "👤", "groups": "👥", "identity": "🪪",
 		// Overview is a glyph rather than the bus mark: the header already
 		// carries that logo, so the title repeated it instead of naming a page.
@@ -51,8 +51,12 @@ func TestListHelpUsesVisibleAccessiblePopoverControls(t *testing.T) {
 		t.Error("the former Services prose wall remains in the primary flow")
 	}
 	channels := m.get("/channels")
-	if !strings.Contains(channels, "All counts the caller-visible Channel and Inbox records") || strings.Contains(channels, "All and My omit Personal services") {
-		t.Error("Channel help reused the Service category explanation")
+	if !strings.Contains(channels, "All counts the caller-visible queue and pub/sub records") || strings.Contains(channels, "All and My omit Personal agents") {
+		t.Error("Channel help reused another category's explanation")
+	}
+	agents := m.get("/agents")
+	if !strings.Contains(agents, "All and My omit Personal agents") || strings.Contains(agents, "All counts the caller-visible queue and pub/sub records") {
+		t.Error("Agent help reused another category's explanation")
 	}
 
 	users := m.get("/users")
@@ -73,7 +77,7 @@ func TestListHelpUsesVisibleAccessiblePopoverControls(t *testing.T) {
 
 func TestServiceExplanationsUseImmediateTooltipsAndStructuredPopovers(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Name: "svc@h", Owner: "admin@h"})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "admin@h"})
 	page := m.get("/service?name=svc@h")
 	for _, want := range []string{
 		`popovertarget=delivery-help aria-label="About delivery state" data-tooltip="Stored setting only.`,
@@ -113,26 +117,28 @@ func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 		t.Fatal("public sign-in page lacks one keyboard skip target")
 	}
 	for _, record := range []protocol.Record{
-		{Name: "service@h", Owner: "admin@h", Kind: "generic"},
+		{Name: "service@h", Owner: "admin@h", Kind: protocol.KindService, Addr: "host:1", Proto: "https"},
 		{Name: "agent@h", Owner: "admin@h", Kind: "agent"},
-		{Name: "channel@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue},
+		{Name: "channel@h", Owner: "admin@h", Kind: protocol.KindQueue},
 	} {
 		m.register(record)
 	}
 	pages := map[string]string{
 		"/":                              `🏠</span> Overview</h1>`,
 		"/diagnostics":                   `</svg> Diagnostics</h1>`,
-		"/services":                      `⚙️</span> Services</h1>`,
-		"/personal":                      `⚙️</span> Personal services</h1>`,
+		"/services":                      `📡</span> Services</h1>`,
+		"/agents":                        `👾</span> Agents</h1>`,
+		"/personal":                      `👾</span> Personal agents</h1>`,
 		"/channels":                      `</svg> Channels</h1>`,
 		"/users":                         `👤</span> Users and other identities</h1>`,
 		"/groups":                        `👥</span> Groups</h1>`,
 		"/activity":                      `</svg> Activity graphs</h1>`,
-		"/services/new":                  `⚙️</span> Register service</h1>`,
-		"/channels/new":                  `</svg> Register channel or inbox</h1>`,
+		"/services/new":                  `📡</span> Register service</h1>`,
+		"/channels/new":                  `</svg> Register channel</h1>`,
+		"/agents/new":                    `👾</span> Register agent</h1>`,
 		"/users/new":                     `👤</span> Add user</h1>`,
 		"/groups/new":                    `👥</span> Register group</h1>`,
-		"/service?name=service@h":        `⚙️</span> service@h</h1>`,
+		"/service?name=service@h":        `📡</span> service@h</h1>`,
 		"/service?name=agent@h":          `👾</span> agent@h</h1>`,
 		"/service?name=channel@h":        `</svg> channel@h</h1>`,
 		"/service-danger?name=service@h": `</svg> Danger Zone · service@h</h1>`,

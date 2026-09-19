@@ -81,7 +81,7 @@ try {
   const me = process.env.AGENT_BUS_NAME!;
   const ls = await call("ab_ls");
   check("registered itself on start", ls.text.includes(me), ls.text);
-  check("catalogue renders the generic reader count", ls.text.includes("readers: 0 outstanding"), ls.text);
+  check("catalogue renders the reader count", ls.text.includes("readers: 0 outstanding"), ls.text);
 
   const peerName = process.env.SMOKE_PEER!;
   // The harness mints the credentials it needs as the daemon's owner: a name
@@ -100,7 +100,7 @@ try {
   // each one matching what that principal may actually call.
   // See docs/05-discovery.md#audience.
   const hidden = "peers-only@srv1";
-  await peer.register({ name: hidden, kind: "generic", descr: "for the peer alone", allow: [peerName] });
+  await peer.register({ name: hidden, kind: "agent", descr: "for the peer alone", allow: [peerName] });
   const mine = await call("ab_ls");
   check("the catalog leaves out what its caller may not use", !mine.text.includes(hidden), mine.text);
   const theirs = await peer.ls();

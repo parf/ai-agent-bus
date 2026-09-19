@@ -593,6 +593,7 @@ button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
 // exist on one page only (Plans/MVP/done/web-review.md W01).
 var navItems = []struct{ Href, Label, Key string }{
 	{"/", "Overview", "overview"},
+	{"/agents", "Agents", "agents"},
 	{"/services", "Services", "services"},
 	{"/channels", "Channels", "channels"},
 	{"/users", "Users", "users"},
@@ -632,9 +633,10 @@ func shellTitle(key, titleTemplate string) string {
 		// The section's own title mark, decorative here for the same reason:
 		// the link text beside it already names the section.
 		mark := string(titleMark(item.Key))
-		if key == "records" && (item.Key == "services" || item.Key == "personal" || item.Key == "channels") {
-			if item.Key == "services" {
-				nav.WriteString(`{{if or (eq .Current "services") (eq .Current "personal")}}<a href=` + item.Href + ` aria-current=page>{{else}}<a href=` + item.Href + `>{{end}}` + mark + item.Label + `</a>`)
+		if key == "records" && (item.Key == "agents" || item.Key == "services" || item.Key == "channels") {
+			// Personal is a view of the agents, so it marks that entry.
+			if item.Key == "agents" {
+				nav.WriteString(`{{if or (eq .Current "agents") (eq .Current "personal")}}<a href=` + item.Href + ` aria-current=page>{{else}}<a href=` + item.Href + `>{{end}}` + mark + item.Label + `</a>`)
 			} else {
 				nav.WriteString(`{{if eq .Current "` + item.Key + `"}}<a href=` + item.Href + ` aria-current=page>{{else}}<a href=` + item.Href + `>{{end}}` + mark + item.Label + `</a>`)
 			}
@@ -683,11 +685,11 @@ var overviewPage = template.Must(template.New("overview").Funcs(template.FuncMap
 <p class=muted><a href="{{.Href}}">{{.Link}}</a></p></article>{{end}}</div>
 </section>{{end}}
 
-<section class=dashboard-section aria-labelledby=node><div class=page-title><h2 id=node>This node</h2><button type=button class=help-button popovertarget=node-help aria-label="About node totals" data-tooltip="Whole-node values. Caller-visible lists may show a smaller set.">ⓘ</button></div><div popover id=node-help class=context-help><h2>Node totals</h2><ul><li>These values cover the whole daemon.</li><li>Inboxes are listed with Channels. That page, Services and Users contain only what you may see, so their counts never have to agree with this strip.</li><li>Readers counts outstanding consume requests, not processes, sessions or health.</li><li>Calls counts HTTP requests reaching the daemon, node-wide, including refused ones. A window the daemon has not observed yet says so rather than reading zero.</li></ul></div>
-<div class=node-strip><div class=node-fact><span>Uptime</span><strong>{{.Status.Up}}</strong></div><div class=node-fact><span>Services + Inboxes + Channels</span><strong>{{number .Status.Services}}</strong></div><div class=node-fact><span>Queued</span><strong>{{number .Status.Queued}}</strong></div><div class=node-fact><span>Readers</span><strong>{{number .Status.Waiting}}</strong></div>
+<section class=dashboard-section aria-labelledby=node><div class=page-title><h2 id=node>This node</h2><button type=button class=help-button popovertarget=node-help aria-label="About node totals" data-tooltip="Whole-node values. Caller-visible lists may show a smaller set.">ⓘ</button></div><div popover id=node-help class=context-help><h2>Node totals</h2><ul><li>These values cover the whole daemon.</li><li>This number is every record on the node, whichever of the four pages lists it. Agents, Services, Channels and Users each show only what you may see, so their counts never have to agree with this strip.</li><li>Readers counts outstanding consume requests, not processes, sessions or health.</li><li>Calls counts HTTP requests reaching the daemon, node-wide, including refused ones. A window the daemon has not observed yet says so rather than reading zero.</li></ul></div>
+<div class=node-strip><div class=node-fact><span>Uptime</span><strong>{{.Status.Up}}</strong></div><div class=node-fact><span>Agents + Services + Channels + Users</span><strong>{{number .Status.Services}}</strong></div><div class=node-fact><span>Queued</span><strong>{{number .Status.Queued}}</strong></div><div class=node-fact><span>Readers</span><strong>{{number .Status.Waiting}}</strong></div>
 {{with .Frame.Node}}{{with .Calls}}{{range .Windows}}<div class=node-fact><span>Calls, {{if eq .Window "1m"}}minute{{else}}hour{{end}}</span>{{if .Available}}<strong>{{number .Count}}</strong>{{else}}<strong class=node-fact-note>collecting history</strong>{{end}}</div>{{end}}<div class=node-fact><span>Calls, total</span><strong>{{number .Total}}</strong></div>{{else}}<div class=node-fact><span>Calls</span><strong class=node-fact-note>unavailable</strong></div>{{end}}{{else}}<div class=node-fact><span>Calls</span><strong class=node-fact-note>unavailable</strong></div>{{end}}</div>
 <p class=muted>Node-wide. The lists linked below contain only records visible to you; the two never have to agree.</p></section>
-<nav class=overview-links aria-label="Find records"><strong>Find</strong><a href="/services?sort=queued&amp;work=held">Services holding work</a><a href="/channels?sort=queued&amp;work=held">Channels holding work</a></nav>
+<nav class=overview-links aria-label="Find records"><strong>Find</strong><a href="/agents?sort=queued&amp;work=held">Agents holding work</a><a href="/services?sort=queued&amp;work=held">Services holding work</a><a href="/channels?sort=queued&amp;work=held">Channels holding work</a></nav>
 `))
 
 // Diagnostics stays detailed and caller-scoped. It no longer duplicates the

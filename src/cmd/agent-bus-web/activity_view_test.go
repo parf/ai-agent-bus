@@ -63,7 +63,7 @@ func TestActivityViewMarksOnePartialSample(t *testing.T) {
 
 func TestRecordActivityEmbedsChartAndFullViewKeepsValues(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Name: "svc@h", Owner: "admin@h"})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "admin@h"})
 	m.bus.SampleActivity(time.Now().Add(-2 * time.Minute))
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "svc@h", Body: "not rendered"}); err != nil {
 		t.Fatal(err)
@@ -97,7 +97,7 @@ func TestRecordActivityEmbedsChartAndFullViewKeepsValues(t *testing.T) {
 
 func TestRecordActivityDistinguishesAbsentAndMeasuredZero(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Name: "svc@h", Owner: "admin@h"})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "admin@h"})
 	absent := m.get("/service?name=svc@h")
 	if !strings.Contains(absent, "Activity history is not observed yet. Collecting the first sample after this daemon restart") || !strings.Contains(absent, "no zero series is inferred") || strings.Contains(absent, "class=activity-chart") {
 		t.Fatal("fresh history was rendered as zero, broken or charted")
@@ -121,7 +121,7 @@ func TestRecordActivityAttemptsOnceAndDegradesWithoutLeakingHiddenRecord(t *test
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h", Allow: []string{"owner@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h", Allow: []string{"owner@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	var activityCalls atomic.Int32
