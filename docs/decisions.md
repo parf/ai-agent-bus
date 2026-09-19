@@ -43,7 +43,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | Draining an inactive identity's inbox | [user-state access](01-identity-and-roles.md#user-states) | 2026-09-17 owner decision; confirming existing behavior |
 | Explicit wildcard for broad user access | [ACL grants](02-access.md#acl) | 2026-09-16 owner clarification |
 | Empty ACL retains resource-management access | [ACL default](02-access.md#acl) | 2026-09-16 owner correction; implemented in 0.5.44 |
-| Owner-tagged Personal services | [web grouping and assignment limits](03-records.md#personal-and-shared) | 2026-09-16 instruction, clarified 2026-09-17; stored classification and assignment limits built in 0.5.50, web grouping built in 0.5.51; ordinary access policy retained |
+| Owner-tagged Personal agents | [web grouping and assignment limits](03-records.md#personal-and-shared) | 2026-09-16 instruction, clarified 2026-09-17; stored classification and assignment limits built in 0.5.50, web grouping built in 0.5.51; ordinary access policy retained |
 | Plain-text ACL editing | [ACL editing](05-discovery.md#acl-editing) | 2026-09-16 owner instruction; display glyphs are not input syntax |
 | Entity labels in web and CLI | [display labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-17 owner-selected `👾` for Agent, superseded 2026-09-18 by `📥 Inbox`; implemented from the shared daemon-kind display mapping in 0.5.61. Compact WEB name prefixes and Group landed in 0.5.60; plain machine values retained |
 | Protected identity fields in self-service profile editing | [profile permissions](01-identity-and-roles.md#users-and-profiles) | 2026-09-16 owner clarification; self-service protection implemented in 0.5.56 and trusted person-name imports in 0.5.58 |

@@ -20,10 +20,10 @@ import (
 // can be a host, parf@om.parf.dev. The instance name is wider; see isLocal.
 // The whole name is at most MaxName.
 //
-// The optional template part says which service template this service was
+// The optional template part says which agent template this record was
 // configured from — code-review/claude-2@rdvp. It is part of the identity and
-// the inbox, not a lookup: two services from one template are two services
-// with two inboxes. A service that is its own template omits it.
+// the inbox, not a lookup: two records from one template are two records with
+// two inboxes. A record that is its own template omits it.
 
 // part reports whether s is one component. A hand-written loop rather than a
 // regexp: ParseName runs five times on an ordinary send-and-read pair — the

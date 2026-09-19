@@ -368,7 +368,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 }
 
 // Configure attaches a configuration to a record, creating it if it does not
-// exist yet: configuring a service template is what produces a configured
+// exist yet: configuring an agent template is what produces a configured
 // name. What it creates is an agent, the kind that has a queue from the moment
 // it exists — a service could not be created here, having no address to be
 // registered with. See docs/03-records.md#five-record-kinds.

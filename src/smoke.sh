@@ -34,9 +34,9 @@ trap cleanup EXIT
 # and four times that under -race. Keep Go's cache where it was.
 export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 export XDG_CACHE_HOME=$D/cache
-# A running script service leaves its note, its log and its work directory
+# A running script agent leaves its note, its log and its work directory
 # here (docs/08-runner-role.md#stopping-it-and-reading-what-it-said). Private
-# to the run, or two runs would see each other's services as already running
+# to the run, or two runs would see each other's agents as already running
 # — which is what the mutation harness does, twenty at a time.
 export XDG_STATE_HOME=$D/state
 # A run owns PORT..PORT+14, so two of them need bases fifteen apart — closer
@@ -72,11 +72,11 @@ tok() {
 }
 ab() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 "$D/agent-bus" "${@:2}"; }
 # The same, for `&`: exec so that $! is the binary. Backgrounding the function
-# instead makes $! a subshell, and a signal sent to it leaves the service
-# running — which is how a check that a service stops passed without one.
+# instead makes $! a subshell, and a signal sent to it leaves the agent
+# running — which is how a check that an agent stops passed without one.
 abx() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 exec "$D/agent-bus" "${@:2}"; }
 # Like ab, but bounded. For a verb whose REFUSAL is the point: a mutation that
-# turns the refusal into a foreground service otherwise blocks the whole run,
+# turns the refusal into a foreground agent otherwise blocks the whole run,
 # and a batch that times out loses every mutant after it.
 abt() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 timeout 10 "$D/agent-bus" "${@:2}"; }
 pass=0; fail=0; skipped=0
@@ -95,7 +95,7 @@ delta() { # label expected before after
   if [ "$(( $4 - $3 ))" -eq "$2" ]; then echo "  ok   $1"; pass=$((pass+1));
   else echo "  FAIL $1: expected +$2, got $3 -> $4"; fail=$((fail+1)); fi
 }
-# Per-service counters ride on the record a listing returns, not on the
+# Per-record counters ride on the record a listing returns, not on the
 # daemon-wide status, and omitempty means an absent field reads as zero.
 svc() { local n; n=$(ab parf@localhost ls "$1" | sed -n "s/.*\"$2\":\([0-9]*\).*/\1/p"); echo "${n:-0}"; }
 # Section timing, so "slow" is a measurement and not a hunch.
@@ -126,7 +126,7 @@ tcode() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H 
 post_body() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok "$1")" -d "$3" "http://unix$2"; }
 post_code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok "$1")" -d "$3" "http://unix$2"; }
 
-# Provision people separately from tokens and service records. Drop only their
+# Provision people separately from tokens and records. Drop only their
 # backing inbox, retaining the profile: tests about a sender without an inbox
 # must not accidentally give it one. A failed fixture stops the run, rather
 # than letting a later refusal look like the behavior under test.
@@ -263,7 +263,7 @@ if id -u nobody >/dev/null 2>&1; then
     "$(curl -s --unix-socket "$D/multi/user-$ACCOUNT.sock" "http://unix/status")" "\"you\":\"$OWNER\""
   # The same credential that administers users administers this durable map;
   # the listener itself changes only when the supervisor is restarted. Seed
-  # the replacement principal and one private service so the check proves
+  # the replacement principal and one private agent so the check proves
   # both discovery and use, rather than only echoing /status.
   curl -fsS --unix-socket "$D/multi/user-$ACCOUNT.sock" \
     -d '{"name":"mapped@srv1","create":true}' http://unix/user >/dev/null || exit 1
@@ -271,7 +271,7 @@ if id -u nobody >/dev/null 2>&1; then
   AGENT_BUS_ADDR=$D/multi/bus.sock AGENT_BUS_TOKEN=$mapped_token AGENT_BUS_NAME=mapped@srv1 \
     "$D/agent-bus" register mapped-private@srv1 --kind agent >/dev/null || exit 1
   out=$(AGENT_BUS_ADDR=$D/multi/user-nobody.sock "$D/agent-bus" ls mapped-private@srv1 2>&1); rc=$?
-  bad_exit "the old mapping cannot discover the replacement principal's private service" $rc
+  bad_exit "the old mapping cannot discover the replacement principal's private agent" $rc
   out=$(AGENT_BUS_HOME=$D/admin-home AGENT_BUS_ADDR=$D/multi/user-$ACCOUNT.sock \
     "$D/agent-bus-admin" account set nobody mapped@srv1 2>&1); rc=$?
   ok_exit "the existing administrative credential changes the account map" $rc
@@ -288,7 +288,7 @@ if id -u nobody >/dev/null 2>&1; then
   has "the changed mapping reveals what the replacement principal may see" \
     "$(AGENT_BUS_ADDR=$D/multi/user-nobody.sock "$D/agent-bus" ls mapped-private@srv1)" '"name":"mapped-private@srv1"'
   out=$(AGENT_BUS_ADDR=$D/multi/user-nobody.sock "$D/agent-bus" send mapped-private@srv1 mapped-use 2>&1); rc=$?
-  ok_exit "and it may use that private service through the remapped socket" $rc
+  ok_exit "and it may use that private agent through the remapped socket" $rc
   has "an unrelated account mapping is unchanged" \
     "$(curl -s --unix-socket "$D/multi/user-$ACCOUNT.sock" http://unix/status)" "\"you\":\"$OWNER\""
   out=$(AGENT_BUS_HOME=$D/admin-home AGENT_BUS_ADDR=$D/multi/user-$ACCOUNT.sock \
@@ -323,7 +323,7 @@ has "a principal may get its own" \
 has "but not somebody else's" \
   "$(post_code alice@srv1 /token '{"name":"bob@srv1"}')" '403'
 ab alice@srv1 register alice-svc@srv1 --kind agent --allow '*' --descr "hers" >/dev/null
-has "and may get one for a service it owns" \
+has "and may get one for a record it owns" \
   "$(post_code alice@srv1 /token '{"name":"alice-svc@srv1"}')" '200'
 has "while somebody else may not" \
   "$(post_code bob@srv1 /token '{"name":"alice-svc@srv1"}')" '403'
@@ -415,9 +415,9 @@ kill $OPID 2>/dev/null; wait $OPID 2>/dev/null
 # as a failure of the check rather than the refusal it was looking for.
 out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$bob AGENT_BUS_NAME=bob@srv1 timeout 5 "$D/agent-bus" start alice-svc@srv1 --allow '*' --algo args /bin/echo 2>&1); rc=$?
 if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
-  echo "  ok   and starting a service you do not own is refused"; pass=$((pass+1))
+  echo "  ok   and starting an agent you do not own is refused"; pass=$((pass+1))
 else
-  echo "  FAIL and starting a service you do not own is refused: exit $rc"; fail=$((fail+1))
+  echo "  FAIL and starting an agent you do not own is refused: exit $rc"; fail=$((fail+1))
 fi
 has "because the record is not his to take over" "$out" 'belongs to someone else'
 
@@ -432,7 +432,7 @@ has "the address it stated did not land" "$(ab nobody2@srv1 ls owned@srv1)" 'fir
 has "nor the description" "$(ab nobody2@srv1 ls owned@srv1)" '"descr":"mine"'
 has "its owner may still change it" \
   "$(ab owner@srv1 register owned@srv1 --kind agent --allow '*' --descr "mine" --addr third:3 >/dev/null; ab nobody2@srv1 ls owned@srv1)" 'third:3'
-has "and the record itself may refresh its own, as a service does on every start" \
+has "and the record itself may refresh its own, as an agent does on every start" \
   "$(ab owned@srv1 register owned@srv1 --kind agent --allow '*' --descr "self" --addr third:3 >/dev/null; ab nobody2@srv1 ls owned@srv1)" '"descr":"self"'
 has "while an existing user may publish a new name" \
   "$(ab stranger2@srv1 register brand-new@srv1 --kind agent --allow '*' --descr "open" >/dev/null; ab nobody2@srv1 ls brand-new@srv1)" '"descr":"open"'
@@ -631,12 +631,12 @@ ab holder@srv1 register holder-cold@srv1 --kind agent --allow '*' --descr "owned
 ab alice@srv1 register alice-held@srv1 --kind agent --allow '*' --descr "hers, and it holds one" >/dev/null
 tok alice-held@srv1 >/dev/null
 # Owning a name is not holding a credential for it: one has to be asked for,
-# which is what a service's owner does before starting it.
+# which is what an agent's owner does before starting it.
 tok holder-svc@srv1 >/dev/null
 HTOK=$(tok holder@srv1)
 NAMES=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $HTOK" "http://unix/names")
 has "their own name is there" "$NAMES" '"name":"holder@srv1"'
-has "and a service they own, which has its own credential" "$NAMES" '"name":"holder-svc@srv1"'
+has "and an agent they own, which has its own credential" "$NAMES" '"name":"holder-svc@srv1"'
 # The view answers what you hold, not what you own: a name with no credential
 # has nothing to show and is simply absent.
 is_empty "but not one they own and have never got a credential for" \
@@ -737,7 +737,7 @@ ab asker@srv1 send ' Pad@SRV1 ' --topic pad --tag p "padded name" >/dev/null
 has "a padded, upper-case send reaches it" "$(ab pad@srv1 consume --topic pad --tag p --wait 3s)" 'padded name'
 bad_exit "a non-ASCII name is refused" "$(ab asker@srv1 register 'pärf@srv1' --kind agent --allow '*' >/dev/null 2>&1; echo $?)"
 
-sec "call and ack: a service answers, and says it got the message first"
+sec "call and ack: an agent answers, and says it got the message first"
 ab owner@srv1 register svc@srv1 --allow '*' --kind agent --descr "answers calls" >/dev/null
 (
   msg=$(ab svc@srv1 consume --wait 10s)
@@ -754,7 +754,7 @@ has "call gets the answer, not the receipt" "$out" 'the answer is 42'
 has "the ack was seen and reported" "$(cat "$D/call.err")" 'ack from svc@srv1'
 has "a call to nobody fails" "$(ab caller@srv1 call ghost@nowhere --wait 2s hi 2>&1)" 'no such receiver'
 
-sec "topics: a publisher with no service record, a consumer that was down"
+sec "channels: a publisher with no record of its own, a consumer that was down"
 users reader@srv1
 ab owner@srv1 channel create jobs@srv1 --allow '*' --descr "work queue" >/dev/null
 has "the topic is in ls" "$(ab owner@srv1 ls --kind queue)" 'jobs@srv1'
@@ -798,7 +798,7 @@ if slow; then
     "$(post_code caller@srv1 /send '{"to":"svc@srv1","receipt":"done","re":"0","body":"x"}')" '200'
 
 else skipped=$((skipped+1)); fi
-sec "a shell script is a service"
+sec "a shell script is an agent"
 users greeter@srv1 launcher@srv1
 ab greeter@srv1 register greeter@srv1 --kind agent --allow '*' >/dev/null || exit 1
 for name in hello envelope defaulted; do ab owner@srv1 register "$name@srv1" --kind agent --allow '*' >/dev/null || exit 1; done
@@ -814,7 +814,7 @@ env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN XDG_RUNTIME_DIR=$D/discovery \
   "$D/agent-bus" start local-script@srv1 --allow '*' --algo args "$D/hello-world.sh" --descr "discovered local runner" >"$D/local-start.log" 2>&1 &
 LOCALPID=$!
 for _ in $(seq 1 50); do ab asker@srv1 ls local-script@srv1 2>/dev/null | grep -q 'discovered local runner' && break; sleep 0.1; done
-has "a runner on a discovered user socket switches to its service identity" \
+has "a runner on a discovered user socket switches to its agent identity" \
   "$(ab greeter@srv1 call local-script@srv1 --wait 5s discovery)" 'Hello discovery'
 kill $LOCALPID 2>/dev/null; wait $LOCALPID 2>/dev/null
 
@@ -833,7 +833,7 @@ has "json gets the envelope on stdin and in the environment" \
 kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 
 # The default form, stated in docs/08-runner-role.md#script-services, is what
-# a service gets when it says nothing.
+# an agent gets when it says nothing.
 abx defaulted@srv1 start defaulted@srv1 --allow '*' "$D/envelope.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
 NOFORMPID=$!
 for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'says no form' && break; sleep 0.2; done
@@ -841,13 +841,13 @@ has "no form named is the json form" \
   "$(ab greeter@srv1 call defaulted@srv1 --topic t10 --wait 15s payload)" 'stdin=yes topic=t10'
 kill $NOFORMPID 2>/dev/null; wait $NOFORMPID 2>/dev/null
 
-# A service can be described as JSON on stdin instead of in flags; `-3`
+# An agent can be described as JSON on stdin instead of in flags; `-3`
 # beside it still means three at a time.
 echo "{\"name\":\"fromfile@srv1\",\"algo\":\"args\",\"script\":\"$D/hello-world.sh\",\"descr\":\"from a file\"}" \
   | abx launcher@srv1 start -3 --allow '*' >>"$D/start.log" 2>&1 &
 JPID=$!
 for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'from a file' && break; sleep 0.2; done
-has "a service described as JSON on stdin" "$(ab greeter@srv1 call fromfile@srv1 --wait 15s again)" 'Hello again'
+has "an agent described as JSON on stdin" "$(ab greeter@srv1 call fromfile@srv1 --wait 15s again)" 'Hello again'
 kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
 has "a script and its arguments must be one quoted word" \
   "$(ab launcher@srv1 start x@srv1 --allow '*' --algo args ./greet.sh loudly 2>&1)" 'one script'
@@ -874,17 +874,17 @@ if slow; then
 
   # Fire-and-forget asks for nothing back, so it stays open to a sender that
   # owns no queue. A check that only refuses is a check that refuses too much.
-  ok_exit "a known user without a service inbox may send" \
+  ok_exit "a known user without an inbox of its own may send" \
     "$(ab nobody@srv1 send worker@srv1 --topic rt --tag 3 "no answer wanted" >/dev/null 2>&1; echo $?)"
   has "and it arrives" "$(ab worker@srv1 consume --topic rt --tag 3 --wait 5s)" 'no answer wanted'
 
-  # A script service answers the same way: the runner reads the route off the
+  # A script agent answers the same way: the runner reads the route off the
   # envelope, so receipts and the answer all go to the third party.
   abx launcher@srv1 start relay@srv1 --allow '*' --algo args "$D/hello-world.sh" --descr "relays" >>"$D/start.log" 2>&1 &
   RPID=$!
   for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'relays' && break; sleep 0.2; done
   ab caller@srv1 send relay@srv1 --topic rt4 --tag 1 --reply-to third@srv1 "via a script" >/dev/null
-  has "a script service acks to the third party" \
+  has "a script agent acks to the third party" \
     "$(ab third@srv1 consume --topic rt4 --tag 1 --wait 15s)" '"receipt":"ack"'
   has "and answers it there" \
     "$(ab third@srv1 consume --topic rt4 --tag 1 --wait 15s)" 'Hello via a script'
@@ -902,14 +902,14 @@ if slow; then
   ab caller@srv1 send slow@srv1 --topic w --tag 2 two >/dev/null
   sleep 1
   kill -9 $LPID 2>/dev/null; wait $LPID 2>/dev/null
-  # The service read slow@srv1, not launcher@srv1, or the first message would
+  # The agent read slow@srv1, not launcher@srv1, or the first message would
   # still be here; and with its one worker busy it left the second on the
   # daemon, where killing it cannot lose it.
   has "it read the inbox it registered, not the one that launched it" \
     "$(ab slow@srv1 consume --wait 3s)" 'two'
   is_empty "and took only what it had a worker for" "$(ab slow@srv1 consume --wait 1s)"
 
-  # A service's inbox belongs to its name, not to the process that reads it:
+  # An agent's inbox belongs to its name, not to the process that reads it:
   # register it --kind agent, let nothing run, and the work is still there when something
   # with that name turns up. This is the property Legacy-V1's ephemeral channels did
   # not have — a dead channel took its results with it.
@@ -919,7 +919,7 @@ if slow; then
   APID=$!
   # The ack comes first and is the sender's answer to "picked up, or lost?" —
   # the question Legacy-V1 needed a delivery journal for.
-  has "the late service acks the message it found waiting" \
+  has "the late agent acks the message it found waiting" \
     "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" '"receipt":"ack"'
   has "and answers it" \
     "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" 'Hello waiting for whoever shows up'
@@ -938,7 +938,7 @@ if slow; then
   QPID=$!
   for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'says nothing' && break; sleep 0.2; done
   ab caller@srv1 send quiet@srv1 --topic dn --tag 1 "do it quietly" >/dev/null
-  has "the silent service acks first" \
+  has "the silent agent acks first" \
     "$(ab caller@srv1 consume --topic dn --tag 1 --wait 15s)" '"receipt":"ack"'
   has "and then says it finished" \
     "$(ab caller@srv1 consume --topic dn --tag 1 --wait 15s)" '"receipt":"done"'
@@ -955,7 +955,7 @@ if slow; then
   else echo "  FAIL and returns on the receipt, not at the deadline: waited $((t1-t0))s of 20s"; fail=$((fail+1)); fi
   kill $QPID 2>/dev/null; wait $QPID 2>/dev/null
 
-  # A service that answers skips `done`: the check is that the message after the
+  # An agent that answers skips `done`: the check is that the message after the
   # ack is the answer, so an unconditional `done` turns it red.
   ab launcher@srv1 register loud@srv1 --allow '*' --kind agent >/dev/null
   abx launcher@srv1 start loud@srv1 --allow '*' --algo args "$D/hello-world.sh" --descr "answers" >>"$D/start.log" 2>&1 &
@@ -963,7 +963,7 @@ if slow; then
   for _ in $(seq 1 50); do ab asker@srv1 ls 2>/dev/null | grep -q 'answers' && break; sleep 0.2; done
   ab caller@srv1 send loud@srv1 --topic dn3 --tag 1 "out loud" >/dev/null
   ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s >/dev/null
-  has "a service that answers sends no done" \
+  has "an agent that answers sends no done" \
     "$(ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s)" 'Hello out loud'
   kill $LPID 2>/dev/null; wait $LPID 2>/dev/null
 
@@ -993,17 +993,17 @@ if slow; then
   kill -TERM $TPID 2>/dev/null
   for _ in $(seq 1 50); do kill -0 $TPID 2>/dev/null || break; sleep 0.1; done
   if kill -0 $TPID 2>/dev/null; then
-    echo "  FAIL a stopped service leaves its consume"; fail=$((fail+1)); kill -9 $TPID 2>/dev/null
+    echo "  FAIL a stopped agent leaves its consume"; fail=$((fail+1)); kill -9 $TPID 2>/dev/null
     wait $TPID 2>/dev/null
   else
-    wait $TPID; ok_exit "a stopped service leaves its consume, exit 0" $?
+    wait $TPID; ok_exit "a stopped agent leaves its consume, exit 0" $?
   fi
   ab caller@srv1 send stopper@srv1 --topic w --tag 3 "after the stop" >/dev/null
   sleep 1
   has "and runs nothing after it stopped" "$(ab stopper@srv1 consume --wait 2s)" 'after the stop'
 
-  # What the deadline is FOR: a service handed work nobody is waiting for any
-  # more does not do it. Both messages are queued before the service starts,
+  # What the deadline is FOR: an agent handed work nobody is waiting for any
+  # more does not do it. Both messages are queued before the agent starts,
   # so the only difference between them is the deadline — a runner that
   # ignores it runs both, and a queue TTL cannot be what stops the stale one
   # because neither message has one.
@@ -1018,13 +1018,13 @@ if slow; then
     "$(ab caller@srv1 consume --topic lt --tag fresh --wait 15s)" 'ran fresh'
   is_empty "and one whose caller gave up gets no ack and no answer" \
     "$(ab caller@srv1 consume --topic lt --tag stale --wait 2s)"
-  has "and the service says it dropped it rather than failing quietly" \
+  has "and the agent says it dropped it rather than failing quietly" \
     "$(cat "$D/start.log")" 'after its caller gave up'
   kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
 
 else skipped=$((skipped+1)); fi
 if slow; then
-  sec "a script service is confined, and can be stopped and read"
+  sec "a script agent is confined, and can be stopped and read"
   # One script, three questions, asked through the bus like any other call —
   # so what is checked is the confinement of the process the runner actually
   # started, not of one this file started for the occasion.
@@ -1048,23 +1048,23 @@ if slow; then
   kill $BRPID 2>/dev/null; wait $BRPID 2>/dev/null
 
   ab launcher@srv1 register confined@srv1 --allow '*' --kind agent >/dev/null
-  # The HOST decides whether these run, not the service under test. Asking the
+  # The HOST decides whether these run, not the agent under test. Asking the
   # log whether it was sandboxed would let "confine nothing" skip its own
   # checks and survive, which is the guarded-block shape of a hollow check.
   if systemd-run --user --pipe --collect --quiet /bin/true >/dev/null 2>&1; then
     abx launcher@srv1 start confined@srv1 --allow '*' --algo args "$D/bin/confined.sh" --sandbox on --descr "confined" >>"$D/sbx.log" 2>&1 &
     CFPID=$!
     waitnote confined@srv1 || echo "  WARNING: confined@srv1 never left a note"
-    has "the service says which sandbox it got" "$(cat "$D/sbx.log")" 'sandbox '
+    has "the agent says which sandbox it got" "$(cat "$D/sbx.log")" 'sandbox '
     has "and where it may write" "$(cat "$D/sbx.log")" 'work .*/work/confined@srv1'
-    has "a host that can sandbox gives the service one" "$(cat "$D/sbx.log")" 'sandbox systemd-run'
+    has "a host that can sandbox gives the agent one" "$(cat "$D/sbx.log")" 'sandbox systemd-run'
     # Writing INSIDE has to pass beside the two refusals, or a child that
     # cannot run at all passes the whole set.
     has "a sandboxed script may write in its work directory" \
       "$(ab caller@srv1 call confined@srv1 --wait 20s write-here)" 'inside-ok'
     # And in THE work directory, not merely in one of that name inside its
     # own private /tmp: a write the host cannot see afterwards is a work
-    # directory the service does not really have.
+    # directory the agent does not really have.
     ok_exit "and the file is there on the host afterwards" \
       "$(test -e "$D/state/agent-bus/work/confined@srv1/inside"; echo $?)"
     has "and may not write outside it" \
@@ -1096,7 +1096,7 @@ if slow; then
   abx launcher@srv1 start loose@srv1 --allow '*' --algo args "$D/quick.sh" --sandbox off --descr "loose" >>"$D/loose.log" 2>&1 &
   LOPID=$!
   waitnote loose@srv1 || echo "  WARNING: loose@srv1 never left a note"
-  has "a service asked to run unconfined says so out loud" "$(cat "$D/loose.log")" 'sandbox off'
+  has "an agent asked to run unconfined says so out loud" "$(cat "$D/loose.log")" 'sandbox off'
   out=$(abt launcher@srv1 start loose@srv1 --allow '*' --algo args "$D/quick.sh" 2>&1); rc=$?
   bad_exit "starting a name already running here is refused" $rc
   has "and says which process holds it" "$out" 'already running here as pid'
@@ -1104,14 +1104,14 @@ if slow; then
   bad_exit "a sandbox setting that is neither on nor off is refused" $rc
   has "and says which two settings there are" "$out" 'sandbox is on or off'
 
-  sec "stop ends one service and leaves its siblings"
+  sec "stop ends one agent and leaves its siblings"
   ab launcher@srv1 register twin@srv1 --allow '*' --kind agent >/dev/null
   abx launcher@srv1 start twin@srv1 --allow '*' --algo args "$D/quick.sh" --descr "a twin" >>"$D/twin.log" 2>&1 &
   TWPID=$!
   waitnote twin@srv1 || echo "  WARNING: twin@srv1 never left a note"
   out=$(ab launcher@srv1 stop twin@srv1 2>&1); rc=$?
   ok_exit "stop exits 0" $rc
-  has "and says which service it stopped" "$out" 'twin@srv1 stopped'
+  has "and says which agent it stopped" "$out" 'twin@srv1 stopped'
   is_empty "the process is gone when stop returns, not merely signalled" \
     "$(kill -0 $TWPID 2>/dev/null && echo still-there)"
   # The sibling is the control: one name is one process here, and a stop that
@@ -1120,7 +1120,7 @@ if slow; then
     "$(kill -0 $LOPID 2>/dev/null && echo yes)" 'yes'
   # Stopping is not unregistering: the name still owns its queue, which is
   # the whole point of a name-owned inbox.
-  has "a stopped service is still registered" "$(ab asker@srv1 ls twin@srv1)" 'a twin'
+  has "a stopped agent is still registered" "$(ab asker@srv1 ls twin@srv1)" 'a twin'
   ab caller@srv1 send twin@srv1 "after the stop" >/dev/null
   has "and messages still wait in its queue" "$(ab twin@srv1 consume --wait 3s)" 'after the stop'
   has "logs shows what it wrote, after it has stopped" \
@@ -1132,8 +1132,8 @@ if slow; then
   has "and says so rather than pretending" "$out" 'not running from this account'
   out=$(ab launcher@srv1 logs never-ran@srv1 2>&1); rc=$?
   bad_exit "and so is asking for a log nothing wrote" $rc
-  # A service killed outright leaves its note behind. A note is not a running
-  # service — the process is the thing — so the stale one is reported as gone
+  # An agent killed outright leaves its note behind. A note is not a running
+  # agent — the process is the thing — so the stale one is reported as gone
   # and cleared, not offered as something to stop.
   ab launcher@srv1 register killed@srv1 --allow '*' --kind agent >/dev/null
   abx launcher@srv1 start killed@srv1 --allow '*' --algo args "$D/quick.sh" --descr "killed outright" >/dev/null 2>&1 &
@@ -1141,7 +1141,7 @@ if slow; then
   waitnote killed@srv1 || echo "  WARNING: killed@srv1 never left a note"
   kill -9 $KLPID 2>/dev/null; wait $KLPID 2>/dev/null
   out=$(abt launcher@srv1 stop killed@srv1 2>&1); rc=$?
-  bad_exit "a note with no process behind it is not a running service" $rc
+  bad_exit "a note with no process behind it is not a running agent" $rc
   has "and says the note outlived the process" "$out" 'left a note but no process'
   ok_exit "and the stale note is cleared rather than left to mislead" \
     "$(test ! -e "$D/state/agent-bus/services/killed@srv1.json"; echo $?)"
@@ -1168,18 +1168,18 @@ out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
 
-sec "a service is service@host, or template/instance-name@host"
+sec "a name is name@host, or template/instance-name@host"
 # The template part is part of the identity, so it has to survive the whole
 # trip: registration, the registry listing, a send and a consume. A "/" in a
 # query parameter is where this breaks if anything hand-builds a URL.
 ab owner@srv1 register code-review/claude@rdvp --allow '*' --kind agent >/dev/null
 ab owner@srv1 register code-review/claude-2@rdvp --allow '*' --kind agent >/dev/null
-has "a template-prefixed service registers" \
+has "a template-prefixed record registers" \
   "$(ab owner@srv1 ls)" '"name":"code-review/claude@rdvp"'
 ab sender@srv1 send code-review/claude-2@rdvp "for the second one" >/dev/null
 has "and is addressable by its whole name" \
   "$(ab code-review/claude-2@rdvp consume --wait 2s)" 'for the second one'
-# Two services from one template are two inboxes, not one queue shared by
+# Two records from one template are two inboxes, not one queue shared by
 # prefix: the first must still be empty.
 is_empty "the sibling's inbox is its own, not the template's" \
   "$(ab code-review/claude@rdvp consume --wait 200ms 2>/dev/null)"
@@ -1223,16 +1223,16 @@ has "and the refusal names the verb rather than failing quietly" \
 echo '{"s":1}' | ab owner@srv1 agent-template looked@srv1 - >/dev/null
 is_empty "a lookup never carries a configuration" \
   "$(ab owner@srv1 ls looked@srv1 | grep -o '"config":[^,}]*')"
-# Querying one service is how you check its setup without being able to read
+# Querying one record is how you check its setup without being able to read
 # it, so the digest has to be there — for anyone, not only its owner.
-has "but a query for one service carries its digest" \
+has "but a query for one record carries its digest" \
   "$(ab nobody@srv1 ls looked@srv1)" '"config_sha":"'
 has "and it is the same digest the whole listing gives" \
   "$(ab nobody@srv1 ls looked@srv1 | grep -o '"config_sha":"[a-f0-9]*"')" \
   "$(ab nobody@srv1 ls | grep -o '"name":"looked@srv1"[^}]*' | grep -o '"config_sha":"[a-f0-9]*"')"
 has "asking about one name answers about one name" \
   "$(ab owner@srv1 ls looked@srv1 | grep -o '"name":' | wc -l)" '1'
-has "and says so when there is no such service" \
+has "and says so when there is no such record" \
   "$(ab owner@srv1 ls absent-entirely@srv1 2>&1)" 'no such name'
 
 sec "human listing"
@@ -1350,9 +1350,9 @@ is_empty "a registration cannot claim a configuration digest" \
 has "a kind the daemon does not know is refused by the daemon, not only the CLI" \
   "$(post_code owner@srv1 /register '{"name":"modey@srv1","kind":"topic"}')" '400'
 
-sec "per-service call counters"
+sec "per-record call counters"
 # A drained queue and one nobody ever wrote to both read as empty; these tell
-# them apart. The control service proves the counters are the service's own
+# them apart. The control agent proves the counters are the agent's own
 # and not a daemon-wide total copied onto every record.
 ab owner@srv1 register counted@srv1 --kind agent --allow '*' >/dev/null
 ab owner@srv1 register control@srv1 --kind agent --allow '*' >/dev/null
@@ -1360,12 +1360,12 @@ cin=$(svc counted@srv1 in); cout=$(svc counted@srv1 out)
 kin=$(svc control@srv1 in); kout=$(svc control@srv1 out)
 ab caller@srv1 send counted@srv1 --topic cnt --tag 1 "one" >/dev/null
 ab caller@srv1 send counted@srv1 --topic cnt --tag 2 "two" >/dev/null
-delta "a listing counts what arrived for a service" 2 "$cin" "$(svc counted@srv1 in)"
+delta "a listing counts what arrived for a record" 2 "$cin" "$(svc counted@srv1 in)"
 delta "and nothing handed over while the queue still holds them" 0 "$cout" "$(svc counted@srv1 out)"
 ab counted@srv1 consume --wait 2s >/dev/null
 delta "consuming counts one out" 1 "$cout" "$(svc counted@srv1 out)"
 delta "and does not count it in a second time" 2 "$cin" "$(svc counted@srv1 in)"
-delta "a service nobody wrote to counts nothing in" 0 "$kin" "$(svc control@srv1 in)"
+delta "a record nobody wrote to counts nothing in" 0 "$kin" "$(svc control@srv1 in)"
 delta "nor anything out" 0 "$kout" "$(svc control@srv1 out)"
 # The inbox has to be *empty* for the next leg, or the reader takes the
 # leftover off the queue and never blocks — which is the queued path again,
@@ -1395,7 +1395,7 @@ if slow; then
   # Asserted on the record itself, not on an empty grep: an is_empty that a
   # failed query also satisfies is a check that passes with the daemon down.
   ab owner@srv1 register plain.svc@srv1 --kind agent --allow '*' >/dev/null
-  has "and an ordinary bus service says nothing, because there is nothing to say" \
+  has "and an ordinary bus agent says nothing, because there is nothing to say" \
     "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"name":"plain.svc@srv1"\|"protocol":')" '"name":"plain.svc@srv1"'
   is_empty "so no protocol comes back for it" \
     "$(ab nobody@srv1 ls plain.svc@srv1 | grep -o '"protocol":[^,}]*')"
@@ -1415,12 +1415,12 @@ if slow; then
     "$(ab nobody@srv1 send plain.svc@srv1 "one" >/dev/null; ab nobody@srv1 ls plain.svc@srv1)" '"queued":1'
 
 else skipped=$((skipped+1)); fi
-sec "configuring a service template produces a configured service"
+sec "configuring an agent template produces a configured record"
 users nosy@srv1 thief@srv1 smuggler@srv1
 # The configuration is arbitrary JSON and stays opaque; the one thing that
 # matters to the bus is that it never shows up where it should not.
 echo '{"model":"opus","depth":3}' | ab owner@srv1 agent-template code-review/cfg@rdvp - >/dev/null
-has "the configuration comes back as it went in, to the service" \
+has "the configuration comes back as it went in, to the agent" \
   "$(ab code-review/cfg@rdvp agent-template code-review/cfg@rdvp)" '{"model":"opus","depth":3}'
 has "but not to the owner who set it" \
   "$(ab owner@srv1 agent-template code-review/cfg@rdvp 2>&1)" 'private to the record'
@@ -1442,11 +1442,11 @@ has "reformatting is not a change" \
   "$(printf '{ "secret" : "x" }' | ab owner@srv1 agent-template reformatted@srv1 - | grep -o '"config_sha":"[a-f0-9]*"')" "$sha"
 has "a different configuration is a different digest" \
   "$(if [ "$(echo '{"secret":"y"}' | ab owner@srv1 agent-template other@srv1 - | grep -o '"config_sha":"[a-f0-9]*"')" != "$sha" ]; then echo differs; fi)" 'differs'
-is_empty "an unconfigured service has no digest at all" \
+is_empty "an unconfigured record has no digest at all" \
   "$(ab owner@srv1 register plain@srv1 --kind agent --allow '*' | grep -o '"config_sha":[^,}]*')"
 # A send is refused unless the receiver has a record, so this proves the
 # record was created — the inbox itself is made lazily by the send either way.
-has "configuring creates the service, so it can be sent to" \
+has "configuring creates the record, so it can be sent to" \
   "$(ab owner@srv1 send code-review/cfg@rdvp "it exists" >/dev/null; ab code-review/cfg@rdvp consume --wait 2s)" 'it exists'
 
 has "a stranger may not read it either" \
@@ -1469,7 +1469,7 @@ has "and the daemon refuses an empty one on its own" \
 has "null is not a configuration either" \
   "$(ab owner@srv1 agent-template code-review/cfg@rdvp null 2>&1)" 'null is the absence of one'
 
-# A service registers itself on every start. That must refresh its
+# An agent registers itself on every start. That must refresh its
 # description without destroying what it was configured with, and without
 # handing the record to whoever registered last.
 ab code-review/cfg@rdvp register code-review/cfg@rdvp --allow '*' --kind agent --descr "refreshed" >/dev/null
@@ -1480,7 +1480,7 @@ has "and still refreshes the description" \
   "$(ab owner@srv1 ls)" '"descr":"refreshed"'
 ab thief@srv1 register code-review/cfg@rdvp --allow '*' --kind agent >/dev/null
 # Ownership is observable through a WRITE: nobody can read a configuration
-# but the service, so a read cannot tell us who owns the record.
+# but the agent, so a read cannot tell us who owns the record.
 has "and does not hand the record to whoever registered last" \
   "$(ab thief@srv1 agent-template code-review/cfg@rdvp '{"mine":"now"}' 2>&1)" 'belongs to someone else'
 has "a registration may not smuggle a configuration in" \
@@ -1493,11 +1493,11 @@ post_code smuggler@srv1 /register '{"kind":"agent","name":"fresh@srv1","config":
 has "not even onto a name that is new" \
   "$(ab fresh@srv1 agent-template fresh@srv1)" 'null'
 
-# The service itself is as entitled to configure as its owner: otherwise the
+# The agent itself is as entitled to configure as its owner: otherwise the
 # order of "register" and "configure" decides whether either works. The record
 # has to be owned by SOMEONE ELSE for this to test anything.
 ab keeper@srv1 agent-template theirs@srv1 '{"by":"keeper"}' >/dev/null
-has "a service may configure itself, on a record it does not own" \
+has "an agent may configure itself, on a record it does not own" \
   "$(ab theirs@srv1 agent-template theirs@srv1 '{"by":"itself"}' >/dev/null 2>&1; ab theirs@srv1 agent-template theirs@srv1)" '"by":"itself"'
 
 # Reading must work where it is actually used: a script, with no terminal.
@@ -1712,7 +1712,7 @@ has "and says the message was accepted" "$out" 'do not resend'
 
 sec "the caller's deadline travels to the receiver"
 users asker2@srv1
-# The wait belongs to the CALLER, so a service can see the answer is already
+# The wait belongs to the CALLER, so an agent can see the answer is already
 # too late and not do the work. The moment is the daemon's: a caller states a
 # duration and never an instant, the same way it may not state its own name.
 ab owner@srv1 register clockwatch@srv1 --allow '*' --kind agent >/dev/null
@@ -1720,7 +1720,7 @@ ab owner@srv1 register clockwatch@srv1 --allow '*' --kind agent >/dev/null
 # year is. Matching the key alone passed with the stamping deleted.
 has "a send states a wait and gets the moment it lands on" \
   "$(post_body caller@srv1 /send '{"to":"clockwatch@srv1","topic":"dl","tag":"1","wait":"30s","body":"in time"}')" '"deadline":"20'
-has "and the service reads it off the envelope it consumed" \
+has "and the agent reads it off the envelope it consumed" \
   "$(ab clockwatch@srv1 consume --wait 5s)" '"deadline":"20'
 has "a send with no wait carries no moment" \
   "$(post_body caller@srv1 /send '{"to":"clockwatch@srv1","topic":"dl","tag":"9","body":"whenever"}')" '"deadline":"0001-'
@@ -1742,11 +1742,11 @@ has "the CLI's own call carries its --wait" \
 kill $CLIPID 2>/dev/null; wait $CLIPID 2>/dev/null
 # A deadline is not a TTL. The queue bounds a TTL and does not bound this, and
 # the bus never acts on it: a message whose caller has gone is still delivered,
-# because only the service knows whether the work is worth doing for anyone
+# because only the agent knows whether the work is worth doing for anyone
 # else. Losing that distinction is what makes this its own field.
 post_body caller@srv1 /send '{"to":"clockwatch@srv1","topic":"dl","tag":"3","wait":"1s","body":"long gone"}' >/dev/null
 sleep 1.2
-has "a message past its deadline is still delivered, the judgement being the service's" \
+has "a message past its deadline is still delivered, the judgement being the agent's" \
   "$(ab clockwatch@srv1 consume --wait 5s)" 'long gone'
 # And the TTL is still the receiver's, untouched by the caller's deadline: a
 # generous wait does not keep a message the queue was told to drop.
@@ -1846,7 +1846,7 @@ out=$(eab enrol squatter@vouched --key "$D/enr/mine" 2>&1); rc=$?
 bad_exit "while nobody new can enrol while it is gone" $rc
 kill $EPID 2>/dev/null; wait $EPID 2>/dev/null
 
-sec "who may reach what: direct grants and the owner's service cohort"
+sec "who may reach what: direct grants and the owner's agent cohort"
 users acl-owner@srv1
 # See docs/02-access.md#acl.
 ab acl-owner@srv1 register direct-svc@srv1 --kind agent --descr "direct access only" --allow acl-owner@srv1 >/dev/null
@@ -1861,7 +1861,7 @@ has "a principal absent from a direct ACL is refused" \
   "$(post_code alice@srv1 /send '{"to":"direct-svc@srv1","body":"by nobody"}')" '403'
 has "while the resource owner still reaches it" \
   "$(post_code acl-owner@srv1 /send '{"to":"direct-svc@srv1","body":"mine"}')" '200'
-has "@owner admits a service with the same direct owner" \
+has "@owner admits an agent with the same direct owner" \
   "$(post_code sibling-svc@srv1 /send '{"to":"owner-cohort@srv1","body":"sibling"}')" '200'
 has "@owner also admits the direct owner" \
   "$(post_code acl-owner@srv1 /send '{"to":"owner-cohort@srv1","body":"owner"}')" '200'
@@ -1869,18 +1869,18 @@ has "@owner does not admit an unrelated user" \
   "$(post_code alice@srv1 /send '{"to":"owner-cohort@srv1","body":"unrelated"}')" '403'
 has "and allow * means anyone who can authenticate" \
   "$(post_code alice@srv1 /send '{"to":"any-svc@srv1","body":"by anyone"}')" '200'
-# A record is always its owner's and its own, list or no list: a service
+# A record is always its owner's and its own, list or no list: an agent
 # that could not reach what it registered would not survive its own start.
 ab acl-owner@srv1 register terse-svc@srv1 --kind agent --descr "lists somebody else" --allow alice@srv1 >/dev/null
-has "an owner reaches its own service without being on its list" \
+has "an owner reaches its own agent without being on its list" \
   "$(post_code acl-owner@srv1 /send '{"to":"terse-svc@srv1","body":"mine"}')" '200'
-has "and the service sees itself in its own listing" \
+has "and the agent sees itself in its own listing" \
   "$(ab terse-svc@srv1 ls)" 'lists somebody else'
 is_empty "while a stranger sees neither" \
   "$(ab bob@srv1 ls | grep -o 'lists somebody else')"
-# Seeing and using are the same question, so a service you may not use is
+# Seeing and using are the same question, so an agent you may not use is
 # not in your listing and does not answer a lookup either.
-is_empty "a service that will not have you is not in your listing" \
+is_empty "an agent that will not have you is not in your listing" \
   "$(ab alice@srv1 ls | grep -o 'direct access only')"
 has "though it is in its owner's" "$(ab acl-owner@srv1 ls)" 'direct access only'
 has "and a lookup of it says no such name" \
@@ -2216,7 +2216,7 @@ has "and the daemon Owner sees that ACL-restricted record for management" \
 # THIS caller: the ordering, the grouping and the late mark are the page's
 # and nothing else is. See docs/05-discovery.md#what-it-shows.
 # A backlog only ever grows where nobody is reading — an unfiltered reader
-# is handed the message as it arrives — so a service with a reader is the
+# is handed the message as it arrives — so an agent with a reader is the
 # control that says the list is not just every record over again.
 ab owner@srv1 register busy-svc@srv1 --kind agent --allow '*' --descr "somebody home" >/dev/null
 ab busy-svc@srv1 consume --wait 10s >/dev/null 2>&1 &
@@ -2250,7 +2250,7 @@ VIEWS=$(curl -s -b "$JAR" "$WEB/")
 DIAGV=$(curl -s -b "$JAR" "$WEB/diagnostics")
 STUCK=$(sect stuck "$DIAGV")
 has "a backlog is listed as stuck" "$STUCK" 'slow-svc@srv1'
-is_empty "and a service with a reader and nothing waiting is not" \
+is_empty "and an agent with a reader and nothing waiting is not" \
   "$(printf '%s' "$STUCK" | grep -o 'busy-svc@srv1')"
 has "and the oldest backlog is ahead of a deeper, newer one" \
   "$(first_of "$STUCK" 'slow-svc@srv1' 'burst-svc@srv1')" 'slow-svc@srv1'
@@ -2497,7 +2497,7 @@ orph_checks() {
   for u in keeper@srv1 napping@srv1 barred@srv1; do
     opost /user "{\"name\":\"$u\",\"create\":true}"
   done
-  # ghost@srv1 is a service, not a person: the edit below repoints what it owns,
+  # ghost@srv1 is an agent, not a person: the edit below repoints what it owns,
   # and a name with a profile would still be known however its record reads.
   oab register ghost@srv1 --kind agent --allow '*' >/dev/null
   oas ghost@srv1 register lost@srv1 --kind agent --allow '*' --descr "answers for nobody" >/dev/null
@@ -2516,7 +2516,7 @@ orph_checks() {
   for s in lost@srv1 chain-a@srv1 steady@srv1 napped@srv1 barred-svc@srv1 owner-svc@srv1; do
     oab send "$s" "queued before the stop" >/dev/null
   done
-  # Suspended after the queues exist: a suspended owner's service refuses
+  # Suspended after the queues exist: a suspended owner's agent refuses
   # delivery, so seeding second would seed nothing and the controls would
   # survive with nothing to lose.
   opost /user/state '{"name":"napping@srv1","state":"paused"}'
@@ -2580,10 +2580,10 @@ orph_checks() {
   has "the credential that answered for the wreckage no longer authenticates" \
     "$(ocode "$LOSTTOK")" '401'
   # H.5.4's remaining clause, in the same run: a name that is not a registered
-  # user and *owns services* is collected too, and this is the start that
-  # deleted those services. One run, so the two sweeps cannot disagree about a
+  # user and *owns records* is collected too, and this is the start that
+  # deleted those records. One run, so the two sweeps cannot disagree about a
   # name — the credential goes because the record went, in that order.
-  has "and so does one that was owning services when the start took it" \
+  has "and so does one that was owning records when the start took it" \
     "$(ocode "$CHAINTOK")" '401'
   # Every control keeps its queue. A stopped owner is not a missing one.
   for s in steady@srv1 napped@srv1 barred-svc@srv1 owner-svc@srv1; do
@@ -2603,7 +2603,7 @@ orph_checks() {
   # somebody else now owns.
   has "and the credential the old holder kept does not answer for the new one" \
     "$(ocode "$LOSTTOK")" '401'
-  has "nor does the one that was owning services" "$(ocode "$CHAINTOK")" '401'
+  has "nor does the one that was owning records" "$(ocode "$CHAINTOK")" '401'
   # The snapshot this start wrote at line one predates the sweep. Read off disk
   # rather than through a second restart, because a graceful stop would write a
   # clean dump either way and prove nothing about the save that follows the
@@ -2759,7 +2759,7 @@ if slow; then
 
     # each harness runs its own peer in-process, so there is no start-order race
     # These harnesses ask for credentials before their first record refresh.
-    # Provision their service identities explicitly; no mint creates a name.
+    # Provision their agent identities explicitly; no mint creates a name.
     for name in mcp.session peer peer.third pusher push.session; do
       ab "$OWNER" register "$name@srv1" --kind agent --allow '*' >/dev/null || exit 1
     done
