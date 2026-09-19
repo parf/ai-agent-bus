@@ -34,13 +34,23 @@ require a separate service kind or capability-expression engine.
 absent one becomes `generic`. It becomes a closed set, so the daemon answers
 what a record is instead of a page inferring it.
 
-| Kind | What it is |
-|---|---|
-| `user` | the queue a person reads |
-| `agent` | the queue an agent reads |
-| `queue` | a registered queue, named for its own sake rather than for a principal |
-| `pubsub` | a [pub/sub topic](#topics), which keeps nothing and copies to subscribers |
-| `service` | something **external**, not on this bus; nothing is delivered to it |
+| | Kind | What it is | Registered by | Someone acts as this name |
+|---|---|---|---|---|
+| 👤 | `user` | the queue a person reads | the daemon, when the person is registered | the person |
+| 👾 | `agent` | the queue an agent reads | its launcher, or the agent itself at startup | the agent |
+| 📮 | `queue` | a queue created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
+| 📣 | `pubsub` | a [pub/sub topic](#topics): it keeps nothing and copies each publication to every subscriber | a user or an agent | nobody |
+| 📡 | `service` | a description of something **external**, not on this bus | a user or an agent | nobody here |
+
+**The bus carries work between people and agents.** Those two act: they hold a
+[credential](02-access.md#what-a-call-carries), send under their own name and
+answer. A queue and a pub/sub topic are **passive** — they hold or they copy,
+and a person or an agent does the work at each end. A service does not even do
+that: it is a card saying where something outside is and how to reach it.
+
+The last column says what a name is *for*, not what the daemon refuses: a
+credential can be minted for any registered name its owner asks for, and no
+check consults the kind.
 
 **The kind does not change who may read a record.** One allow list still governs
 a record in both directions ([ACL](02-access.md#acl)), so a kind naming a single
