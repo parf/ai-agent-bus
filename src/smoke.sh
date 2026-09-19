@@ -2165,6 +2165,11 @@ STRIPSUM=$(printf '%s' "$NODE" \
 NODETOTAL=$(tbody "$TOKEN" /status | grep -o '"services":[0-9]*' | grep -o '[0-9]*$')
 has "the daemon states a registry total for them to be checked against" "$NODETOTAL" '^[0-9]\+$'
 has "and the four counts add up to it" "$STRIPSUM" "^$NODETOTAL$"
+# What the node holds leads; how it is running follows on its own row. Asked
+# as the order of the markup, because every cell is on the page either way.
+has "the strip breaks after the counts and before uptime" \
+  "$(printf '%s' "$NODE" | grep -o '<span>Users</span>\|<div class=node-break\|<span>Uptime</span>' | paste -sd,)" \
+  '^<span>Users</span>,<div class=node-break,<span>Uptime</span>$'
 lacks "the signed-in footer does not repeat the counts" \
   "$(printf '%s' "$PAGE" | grep 'class=footer-node')" 'Calls'
 NAV=$(printf '%s' "$PAGE" | grep 'nav aria-label=.sections.')

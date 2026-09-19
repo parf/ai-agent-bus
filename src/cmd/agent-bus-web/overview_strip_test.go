@@ -85,6 +85,30 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 		}
 	}
 
+	// What the node holds comes first and how it is running follows, on its
+	// own row. Asserted as positions rather than as presence: every cell is on
+	// the page either way, and the whole change is which side of the break
+	// each one falls.
+	brk := strings.Index(strip, "<div class=node-break")
+	if brk < 0 {
+		t.Fatalf("the strip has no row break, so the next checks cannot fail: %s", strip)
+	}
+	for _, before := range []string{"<span>Agents</span>", "<span>Services</span>", "<span>Channels</span>", "<span>Users</span>"} {
+		if at := strings.Index(strip, before); at < 0 || at > brk {
+			t.Errorf("%s is not on the first row: %s", before, strip)
+		}
+	}
+	for _, after := range []string{"<span>Uptime</span>", "<span>Queued</span>", "<span>Readers</span>"} {
+		if at := strings.Index(strip, after); at < 0 || at < brk {
+			t.Errorf("%s is not on the second row: %s", after, strip)
+		}
+	}
+	// And the break is a break: a cell-sized element there would read as an
+	// empty figure between the two rows.
+	if !strings.Contains(overview, ".node-break{flex-basis:100%;height:0") {
+		t.Errorf("the row break is not a zero-height full-width flex break: %s", section(t, overview, ".node-break{", "}"))
+	}
+
 	// The counters live in the strip now; the states they can be in are
 	// exercised separately below, against a bound counter.
 	if !strings.Contains(strip, "Calls") {
