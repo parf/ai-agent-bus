@@ -227,3 +227,45 @@ representation in *newer record wins per entry* ([registry sync](../R1/registry.
 a deleted record returns from whichever peer still holds it, and a wrong clock
 stops meaning *a stale record won* and starts meaning *a live service was
 deleted somewhere else*. The open question there gates this one.
+
+## External services and their secrets
+
+Status: proposed, not built. Owner decision of 2026-09-18.
+
+**An `x-service` record is knowledge about something that is not on the bus.**
+It is a directory entry — who runs it, how it is reached, what it is for — and
+the ACL decides who may see and edit that entry. Nothing is routed to it.
+
+**It is inert.** No inbox, and a send to it is refused rather than queued. That
+is the whole difference from a service: a service is a name the daemon delivers
+to, and an `x-service` is a name the daemon only knows about.
+
+<details>
+<summary>What is inert today, and what is not</summary>
+
+MVP has no `x-service`. Its nearest shape is a record whose `protocol` is set,
+and that record is **not** inert: the daemon deliberately does not refuse a send
+to it, because a runner or gateway may be reading the inbox on the thing's
+behalf ([how to call it](../../docs/03-services-and-topics.md#how-to-call-it)).
+So this is a new record that refuses delivery, not a relabelling of the existing
+one, and whether the protocol-bearing form migrates into it or stays beside it
+is part of [Q73](QUESTIONS.md#open-questions).
+
+</details>
+
+**It holds the secrets that reaching the outside needs**, and an ACL-approved
+user or agent may read them. That is the reason the record exists rather than
+living in each caller's own configuration: one place that says how to reach a
+thing, one list of who may learn it, and a credential that stops being copied
+into as many files as there are callers.
+
+Two consequences follow and neither is decided here:
+
+- **Reading a secret is not seeing a record.** Today one allow list governs
+  every use of a record in both directions ([ACL](../../docs/02-access.md#acl)).
+  Secret-reading needs its own grant, or every principal who may see the
+  catalogue entry may also take the credential in it.
+- **Storage, rotation and whether a read is recorded** are open, and the
+  daemon's [private registry configuration](../../docs/03-services-and-topics.md#configuring-a-template)
+  is the nearest thing that already exists. Both sit in
+  [Q73](QUESTIONS.md#open-questions).

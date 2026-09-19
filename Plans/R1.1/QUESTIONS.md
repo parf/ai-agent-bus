@@ -11,6 +11,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q26 | Whether `kv` is optional, given that it is where service configuration would live | owner | [bundled services § data](services.md#data) |
 | Q31 | Who may read contact routes: everyone, administrators, or a narrower service audience | owner | [context](people.md#how-to-reach-a-person) |
 | Q32 | Whether record expiry and service credentials are allowed to change the daemon despite the former whole-stage no-change criterion | owner | [context](README.md#scope) |
+| Q73 | How an `x-service` secret is stored, rotated and granted separately from seeing the record, and whether the MVP protocol-bearing record migrates into this kind or stays beside it | owner | [external services](records.md#external-services-and-their-secrets) |
 
 ## Services context
 

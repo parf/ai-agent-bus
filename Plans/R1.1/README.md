@@ -10,6 +10,7 @@ Proposed, not started. Tools built on the preceding stage. Catalogue entries sho
 | Agent runtimes | [Agent runtimes](services.md#agent-runtimes) |
 | Declared record state | [Down and retired](records.md#down-and-retired) |
 | Record lifetime | [Record lifetime](records.md#how-long-a-record-lives) |
+| External services and their secrets | [External services](records.md#external-services-and-their-secrets) |
 | Service credentials | [Service credentials](access.md#service-to-service) |
 | Contact routes | [Contact routes](people.md#how-to-reach-a-person) |
 | Catalogue image | [Catalogue image](image.md#the-image) |
