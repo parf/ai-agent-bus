@@ -7,7 +7,7 @@ This page preserves navigation from the numbered documentation.
 
 ## PoC
 
-[Completed stage](../Plans/done/PoC/README.md#purpose).
+Completed and archived. Its plan was removed from the tree on 2026-09-18; Git history holds it.
 
 ## MVP
 

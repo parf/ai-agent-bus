@@ -8,7 +8,7 @@ Current development is MVP. Release labels name scope, not separate program vers
 
 | Stage | Status | Knowledge | Work |
 |---|---|---|---|
-| PoC | Complete, archived | [PoC](done/PoC/README.md#poc--agent-bus-v2) | [results](done/PoC/DONE.md#done--poc) |
+| PoC | Complete, removed 2026-09-18 | in Git history | its verification doctrine is promoted to [verification](../CLAUDE.md#mutation-first-then-belief) |
 | MVP | Active, incomplete | [scope](MVP/README.md#scope); [current docs](../docs/00-overview.md#document-ownership) | [remaining work](MVP/TODO.md#objective) |
 | R1 | Proposed, not started | [scope](R1/README.md#scope) | [prerequisites](R1/TODO.md#objective) |
 | R1.1 | Proposed tools stage, not started | [scope](R1.1/README.md#scope) | [prerequisites](R1.1/TODO.md#objective) |

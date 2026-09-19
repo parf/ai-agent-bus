@@ -51,7 +51,7 @@
 | `docs/10-modules.md#modules` | [owner](../../R1/modules.md#modules) |
 | `docs/10-modules.md#the-hot-path` | [owner](../../R1/modules.md#the-hot-path) |
 | `docs/10-modules.md#what-this-buys` | [owner](../../R1/modules.md#what-this-buys) |
-| `docs/12-stages.md#poc` | [owner](../../done/PoC/scope.md#poc) |
+| `docs/12-stages.md#poc` | owner (PoC plan, removed 2026-09-18) |
 | `docs/12-stages.md#r1` | [owner](../../R1/README.md#scope) |
 | `docs/12-stages.md#r11` | [owner](../../R1.1/README.md#scope) |
 | `Plans/MVP/TODO.md#d--the-bus-stops-reading-payloads` | [owner](../../R1/encryption-wave.md#d--the-bus-stops-reading-payloads) |
@@ -172,11 +172,11 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D108 | [owner](../../Future/billing.md#billing-role--future) |
 | D109 | [owner](../../../docs/08-runner-role.md#adapters) |
 | D110 | [owner](../../../docs/12-stages.md#stages) |
-| D111 | [owner](../../done/PoC/scope.md#poc) |
+| D111 | owner (PoC plan, removed 2026-09-18) |
 | D112 | [owner](../../../docs/04-messaging.md#request-and-reply) |
-| D113 | [owner](../../done/PoC/scope.md#poc) |
-| D114 | [owner](../../done/PoC/scope.md#poc) |
-| D115 | [owner](../../done/PoC/scope.md#poc) |
+| D113 | owner (PoC plan, removed 2026-09-18) |
+| D114 | owner (PoC plan, removed 2026-09-18) |
+| D115 | owner (PoC plan, removed 2026-09-18) |
 | D116 | [owner](../../../docs/01-identity-and-roles.md#names) |
 | D117 | [owner](../../../docs/08-runner-role.md#script-services) |
 | D118 | [owner](../../R1/runner.md#additional-script-forms) |
@@ -229,14 +229,14 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D165 | [owner](../../R1.1/services.md#reading-the-box) |
 | D166 | [owner](../../R1.1/services.md#other-buses) |
 | D167 | [owner](../../R1.1/services.md#people-and-the-world-outside) |
-| D168 | [owner](../../done/PoC/scope.md#poc) |
+| D168 | owner (PoC plan, removed 2026-09-18) |
 | D169 | [owner](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | D170 | [owner](../../../docs/04-messaging.md#reply-routing) |
 | D171 | [owner](../../Future/billing.md#billing-role--future) |
 | D172 | [owner](../../../docs/04-messaging.md#one-reader-per-inbox) |
-| D173 | [owner](../../done/PoC/scope.md#poc) |
-| D174 | [owner](../../done/PoC/scope.md#poc) |
-| D175 | [owner](../../done/PoC/scope.md#poc) |
+| D173 | owner (PoC plan, removed 2026-09-18) |
+| D174 | owner (PoC plan, removed 2026-09-18) |
+| D175 | owner (PoC plan, removed 2026-09-18) |
 | D176 | [owner](../../../docs/04-messaging.md#push-and-pull) |
 | D177 | [owner](../../../docs/08-runner-role.md#adapters) |
 | D178 | [owner](../../R1/modules.md#modules) |

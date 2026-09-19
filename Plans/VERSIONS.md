@@ -6,15 +6,15 @@ Credential lifetime follows the same [manual-change policy](../docs/02-access.md
 
 ## PoC
 
-**Prove that agents can discover each other and exchange useful work.** The completed PoC established the working bus, connected live agent sessions and made scripts callable as services. Its achievement was the end-to-end interaction; shared-host administration and operational hardening were left for the next stage ([PoC scope](done/PoC/scope.md#poc), [completion evidence](done/PoC/DONE.md#done--poc)).
+**Prove that agents can discover each other and exchange useful work.** The completed PoC established the working bus, connected live agent sessions and made scripts callable as services. Its achievement was the end-to-end interaction; shared-host administration and operational hardening were left for the next stage (PoC scope (PoC plan, removed 2026-09-18), completion evidence (PoC plan, removed 2026-09-18)).
 
 | Major capability | What the PoC established | Detail |
 |---|---|---|
-| Discovery and delivery | Participants register, find a destination and exchange messages through the bus | [PoC results](done/PoC/DONE.md#done--poc) |
-| Useful conversations | A service takes work and answers; callers correlate the response with the request | [PoC scope](done/PoC/scope.md#poc) |
-| Agent integration | Live sessions can receive work through runtime adapters and answer through the MCP face | [PoC scope](done/PoC/scope.md#poc) |
-| Script services | Existing scripts become callable without implementing a bus client themselves | [PoC scope](done/PoC/scope.md#poc) |
-| Deliberate limits | Owner-operated, trusted-host use; no shared-user policy, restart recovery or dashboard | [PoC boundaries](done/PoC/scope.md#poc) |
+| Discovery and delivery | Participants register, find a destination and exchange messages through the bus | PoC results (PoC plan, removed 2026-09-18) |
+| Useful conversations | A service takes work and answers; callers correlate the response with the request | PoC scope (PoC plan, removed 2026-09-18) |
+| Agent integration | Live sessions can receive work through runtime adapters and answer through the MCP face | PoC scope (PoC plan, removed 2026-09-18) |
+| Script services | Existing scripts become callable without implementing a bus client themselves | PoC scope (PoC plan, removed 2026-09-18) |
+| Deliberate limits | Owner-operated, trusted-host use; no shared-user policy, restart recovery or dashboard | PoC boundaries (PoC plan, removed 2026-09-18) |
 
 ## MVP
 

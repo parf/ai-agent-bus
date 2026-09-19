@@ -16,7 +16,7 @@ somebody other than the author installs it and uses it safely on a shared host.
 from scratch had prior art worth measuring against. This stage is our own
 design carried out; Legacy-V1 is not consulted for it. What does still
 hold is that nothing is believed until it has been watched failing
-([PoC README § mutation first, then belief](../../done/PoC/README.md#mutation-first-then-belief)).
+([PoC README § mutation first, then belief](../../../CLAUDE.md#mutation-first-then-belief)).
 
 **Next step**: **F.2 and H.1**, and both are the owner's — nothing else in
 this plan is waiting on anything but work. Every decision the plan stood on

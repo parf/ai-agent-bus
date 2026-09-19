@@ -9,7 +9,7 @@ active plan is [TODO.md](../TODO.md#todo-mvp); the stage's stable knowledge is
 [README.md](../README.md#mvp).
 
 Everything below was accepted the same way
-([PoC README § mutation first, then belief](../../done/PoC/README.md#mutation-first-then-belief)):
+([PoC README § mutation first, then belief](../../../CLAUDE.md#mutation-first-then-belief)):
 `src/smoke.sh --slow` green, and every rule broken again and watched turning a
 **named** check red.
 
@@ -81,7 +81,7 @@ those are the checks a suite cannot find by passing:
 
 ## Nine harness traps
 
-Recorded in [PoC README](../../done/PoC/README.md#poc--agent-bus-v2) as they were found, because each
+Recorded in PoC README (PoC plan, removed 2026-09-18) as they were found, because each
 one made a batch lie: port spacing between concurrent runs, editing `src/`
 while a batch is copying it, a mutation the daemon cannot start with, a mutant
 that does not compile, a `--slow` section skipped in the fast run, a

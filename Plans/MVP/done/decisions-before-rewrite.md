@@ -128,11 +128,11 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](../../Future/billing.md#billing-role--future) |
 | One push adapter per agent runtime; ChatGPT pull-only | [runner § adapters](../../../docs/08-runner-role.md#adapters) |
 | Development goes PoC → MVP → R1, each ending in something that works end to end | [stages](../../../docs/12-stages.md#stages) |
-| PoC: sockets + HTTP, one master token issued over SSH, a small set of CLI verbs, a basic MCP face, no npm | [stages § PoC](../../done/PoC/scope.md#poc) |
+| PoC: sockets + HTTP, one master token issued over SSH, a small set of CLI verbs, a basic MCP face, no npm | stages § PoC (PoC plan, removed 2026-09-18) |
 | A service call is a `send` whose reply comes back on the same topic and tag; the bus adds no call machinery | [messaging § request and reply](../../../docs/04-messaging.md#request-and-reply) |
-| PoC includes basic service support: consume, `ack`, reply, and a caller that waits | [stages § PoC](../../done/PoC/scope.md#poc) |
-| PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | [stages § PoC](../../done/PoC/scope.md#poc) |
-| Write the simple version first, compare with Legacy-V1, take its solution where it is better; simplicity breaks the tie | [stages § PoC](../../done/PoC/scope.md#poc) |
+| PoC includes basic service support: consume, `ack`, reply, and a caller that waits | stages § PoC (PoC plan, removed 2026-09-18) |
+| PoC has no encrypted sessions at all — bodies plaintext; SSH-issued tokens stay because they cost nothing | stages § PoC (PoC plan, removed 2026-09-18) |
+| Write the simple version first, compare with Legacy-V1, take its solution where it is better; simplicity breaks the tie | stages § PoC (PoC plan, removed 2026-09-18) |
 | Names are canonical, bounded, and one spelling each | [identity § names](../../../docs/01-identity-and-roles.md#names) |
 | A shell script is a service: `start --algo=args\|std\|json\|jsonl\|msgpack [-N]`, stdout is the reply, no bus code in the script | [runner § script services](../../../docs/08-runner-role.md#script-services) |
 | A form names a channel (`args`, `std`), a channel and its payload (`json`), or that payload repeated (`jsonl`) | [runner § script services](../../../docs/08-runner-role.md#script-services) |
@@ -185,14 +185,14 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | `logwatch` keeps a bounded ring of cleaned lines per glob set, answers for the past and publishes the future, and makes the globs the grant | [bundled services § reading the box](../../R1.1/services.md#reading-the-box) |
 | A gateway to Kafka, NATS or RabbitMQ leaves *no external broker* intact: it is a citizen on the far side of a name, not a transport the bus adopted | [bundled services § other buses](../../R1.1/services.md#other-buses) |
 | Reading a channel publishes into a topic; sending is a call — one shape for Slack, SMS, mail and webhooks | [bundled services § people and the world outside](../../R1.1/services.md#people-and-the-world-outside) |
-| V2 code lives in this repo, in `src/` beside `docs/` | [stages § PoC](../../done/PoC/scope.md#poc) |
+| V2 code lives in this repo, in `src/` beside `docs/` | stages § PoC (PoC plan, removed 2026-09-18) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | The daemon keeps no reply state; a client replies from what it consumed, and `reply` is sugar over the routing fields | [messaging § reply routing](../../../docs/04-messaging.md#reply-routing) |
 | Billing is deferred out of every stage, design intact | [future/billing.md](../../Future/billing.md#billing-role--future) |
 | One outstanding unfiltered read per inbox, with filtered waiters served ahead of it; process ownership is convention, not enforcement | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
-| A PoC daemon binds loopback or an SSH tunnel, never a public interface | [stages § PoC](../../done/PoC/scope.md#poc) |
-| A queue topic is an inbox with a name, read by `consume --topic` | [stages § PoC](../../done/PoC/scope.md#poc) |
-| Pub/sub waits for MVP: fan-out is cheap, but a subscription is an ACL capability and PoC has no ACL | [stages § PoC](../../done/PoC/scope.md#poc) |
+| A PoC daemon binds loopback or an SSH tunnel, never a public interface | stages § PoC (PoC plan, removed 2026-09-18) |
+| A queue topic is an inbox with a name, read by `consume --topic` | stages § PoC (PoC plan, removed 2026-09-18) |
+| Pub/sub waits for MVP: fan-out is cheap, but a subscription is an ACL capability and PoC has no ACL | stages § PoC (PoC plan, removed 2026-09-18) |
 | Both listeners speak HTTP and JSON; `consume` long-polls | [messaging § push and pull](../../../docs/04-messaging.md#push-and-pull) |
 | The TypeScript packages run on bun; the Codex App Server is reached over loopback when shared, and spawned on stdio when not | [runner § adapters](../../../docs/08-runner-role.md#adapters) |
 | Go for protocol, core and the CLI; TypeScript for the MCP face and the push adapters; client libs Go, PHP, Rust, JS, Python | [modules § languages](../../../docs/10-modules.md#languages) |

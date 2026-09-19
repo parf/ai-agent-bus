@@ -43,7 +43,7 @@ is [stages § R1](../../R1/README.md#scope) and is planned in
 
 Three code changes, because a decision that only reaches the docs is a decision
 the code will contradict later. Each was watched failing before it was
-believed, per [PoC § mutation first, then belief](../../done/PoC/README.md#mutation-first-then-belief):
+believed, per [PoC § mutation first, then belief](../../../CLAUDE.md#mutation-first-then-belief):
 
 | | |
 |---|---|
