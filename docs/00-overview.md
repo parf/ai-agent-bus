@@ -23,6 +23,7 @@ Values have one owning section; other pages link to it.
 | [Setup](09-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
 | [Modules](10-modules.md#the-rule) | Implementation boundaries, languages and dependency rules |
 | [Processes](11-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |
+| [Daemon API](13-daemon-api.md#how-a-call-is-made) | The HTTP routes, grouped; each one's meaning stays with its topic |
 | [Glossary](glossary.md#names) | Current vocabulary |
 | [Decisions](decisions.md#settled) | Index of current contracts and accepted pending MVP requirements |
 
