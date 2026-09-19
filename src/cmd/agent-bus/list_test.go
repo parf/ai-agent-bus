@@ -62,7 +62,7 @@ func TestHumanListLabelsEntitiesWithoutChangingJSONKinds(t *testing.T) {
 	t.Cleanup(func() { cliAddress, transport = oldAddress, oldTransport })
 
 	human := captureOutput(t, func() error { return ls([]string{"-h"}) })
-	for _, want := range []string{"⚙️ Service", "📥️ Inbox", "jobs@h  topic"} {
+	for _, want := range []string{"⚙️ Service", "👾️ Agent", "jobs@h  topic"} {
 		if !strings.Contains(human, want) {
 			t.Errorf("human listing lacks %q:\n%s", want, human)
 		}
@@ -72,7 +72,7 @@ func TestHumanListLabelsEntitiesWithoutChangingJSONKinds(t *testing.T) {
 	}
 
 	raw := captureOutput(t, func() error { return ls(nil) })
-	if !strings.Contains(raw, `"kind":"generic"`) || !strings.Contains(raw, `"kind":"agent"`) || !strings.Contains(raw, `"maintainers":["alice@h","@ops"]`) || strings.Contains(raw, "⚙️") || strings.Contains(raw, "📥") {
+	if !strings.Contains(raw, `"kind":"generic"`) || !strings.Contains(raw, `"kind":"agent"`) || !strings.Contains(raw, `"maintainers":["alice@h","@ops"]`) || strings.Contains(raw, "⚙️") || strings.Contains(raw, "👾") {
 		t.Errorf("JSON listing changed its machine vocabulary: %s", raw)
 	}
 }

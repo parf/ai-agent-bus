@@ -656,7 +656,7 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	body := m.get("/users")
 	for _, kind := range []struct{ name, says string }{
 		{"person@h", `aria-label="👤 User">👤</span> <a`},
-		{"named@h", `aria-label="📥 Inbox">📥</span> <a`},
+		{"named@h", `aria-label="👾 Agent">👾</span> <a`},
 		{"junk@h", "<td>Credential with no registered name</td>"},
 	} {
 		if !strings.Contains(m.row(body, kind.name), kind.says) {
@@ -670,7 +670,7 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	// with a slash in it is a runtime session on this bus and is a registered
 	// name like any other.
 	m.own("claude/one@h")
-	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, "<td>Registered name</td>") || !strings.Contains(row, `aria-label="📥 Inbox">📥</span> <a`) {
+	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, "<td>Registered name</td>") || !strings.Contains(row, `aria-label="👾 Agent">👾</span> <a`) {
 		t.Error("a slashed name is not named the same way as any other record")
 	}
 	if strings.Contains(m.get("/users"), "Unclassified") {
@@ -699,7 +699,7 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 		t.Errorf("svc@h has no service label: %s", row)
 	}
 	// The inbox is labelled where it is listed, which is with the channels.
-	if row := m.row(m.get("/channels"), "bot@h"); !strings.Contains(row, "📥 Inbox") {
+	if row := m.row(m.get("/channels"), "bot@h"); !strings.Contains(row, "👾 Agent") {
 		t.Errorf("bot@h has no inbox label: %s", row)
 	}
 	create := m.get("/channels/new")
@@ -708,7 +708,7 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 			t.Errorf("create form does not keep a plain kind value beside %q", plain)
 		}
 	}
-	if !strings.Contains(create, "📥 Inbox") || strings.Contains(create, `value="📥`) {
+	if !strings.Contains(create, "👾 Agent") || strings.Contains(create, `value="👾`) {
 		t.Error("a display glyph entered a form value")
 	}
 

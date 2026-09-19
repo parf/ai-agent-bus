@@ -633,7 +633,7 @@ owns the installed exercise and mutation checks.
 | Label | Entity |
 |---|---|
 | 👤 User | Registered person |
-| 👾 Agent | An agent, and the queue named after it. Pending [0.6.0](../Plans/MVP/0.6.0-TODO.md#remaining-work): `📥 Inbox` in 0.5.84 while nothing distinguished the record, and `👾` again once `agent` is a stored kind. The record stays with the channels |
+| 👾 Agent | An agent, and the queue named after it. `📥 Inbox` held this row in 0.5.84, while nothing distinguished an agent's record from a service's; restored in 0.6.1. Those records stay with the channels |
 | ⚙️ Service | Service identity |
 | 👥 Group | Group or team |
 

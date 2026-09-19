@@ -48,7 +48,7 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 		t.Error("Channels page still uses the Service table vocabulary")
 	}
 	inbox := m.row(page, "worker@h")
-	for _, want := range []string{`data-label=Type>📥 Inbox`, "Queue · one at a time", `/channel?name=worker%40h`} {
+	for _, want := range []string{`data-label=Type>👾 Agent`, "Queue · one at a time", `/channel?name=worker%40h`} {
 		if !strings.Contains(inbox, want) {
 			t.Errorf("inbox row lacks %q: %s", want, inbox)
 		}
@@ -73,7 +73,7 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	}
 	// The page lists two kinds, so it offers the control that narrows to one.
 	inboxOnly := m.get("/channels?kind=agent")
-	if !strings.Contains(inboxOnly, `aria-label="Kind filter"`) || !strings.Contains(inboxOnly, `aria-current=true>📥 Inbox</a>`) ||
+	if !strings.Contains(inboxOnly, `aria-label="Kind filter"`) || !strings.Contains(inboxOnly, `aria-current=true>👾 Agent</a>`) ||
 		!strings.Contains(inboxOnly, ">worker@h<") || strings.Contains(inboxOnly, ">jobs@h<") || strings.Contains(inboxOnly, ">news@h<") {
 		t.Error("the Inbox kind filter is missing or did not isolate the inboxes")
 	}

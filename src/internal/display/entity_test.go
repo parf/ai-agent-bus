@@ -4,7 +4,7 @@ import "testing"
 
 func TestEntityUsesDisplayLabelsOnlyForStatedKinds(t *testing.T) {
 	for kind, want := range map[string]string{
-		"user": "👤 User", "person": "👤 User", "agent": "📥 Inbox",
+		"user": "👤 User", "person": "👤 User", "agent": "👾 Agent",
 		"generic": "⚙️ Service", "topic": "topic", "": "", "mystery": "mystery",
 	} {
 		if got := Entity(kind); got != want {
@@ -15,7 +15,7 @@ func TestEntityUsesDisplayLabelsOnlyForStatedKinds(t *testing.T) {
 
 func TestEntityGlyphUsesOnlyStatedKinds(t *testing.T) {
 	for kind, want := range map[string]string{
-		"user": "👤", "person": "👤", "agent": "📥", "generic": "⚙️",
+		"user": "👤", "person": "👤", "agent": "👾", "generic": "⚙️",
 		"topic": "", "": "", "mystery": "",
 	} {
 		if got := EntityGlyph(kind); got != want {

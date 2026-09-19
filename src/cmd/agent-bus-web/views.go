@@ -41,7 +41,7 @@ func titleMark(category string) template.HTML {
 	case "credentials":
 		return `<span class=page-title-mark aria-hidden=true>🔑</span>`
 	case "agent":
-		return `<span class=page-title-mark aria-hidden=true>📥</span>`
+		return `<span class=page-title-mark aria-hidden=true>👾</span>`
 	case "channels", protocol.KindTopic:
 		return channel
 	case "activity":

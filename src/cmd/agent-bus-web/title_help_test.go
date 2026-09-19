@@ -12,7 +12,7 @@ import (
 
 func TestTitleMarksAreFixedDecorativePageCategories(t *testing.T) {
 	for category, visible := range map[string]string{
-		"credentials": "🔑", "services": "⚙️", "agent": "📥",
+		"credentials": "🔑", "services": "⚙️", "agent": "👾",
 		"users": "👤", "groups": "👥", "identity": "🪪",
 		// Overview is a glyph rather than the bus mark: the header already
 		// carries that logo, so the title repeated it instead of naming a page.
@@ -133,7 +133,7 @@ func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 		"/users/new":                     `👤</span> Add user</h1>`,
 		"/groups/new":                    `👥</span> Register group</h1>`,
 		"/service?name=service@h":        `⚙️</span> service@h</h1>`,
-		"/service?name=agent@h":          `📥</span> agent@h</h1>`,
+		"/service?name=agent@h":          `👾</span> agent@h</h1>`,
 		"/service?name=channel@h":        `</svg> channel@h</h1>`,
 		"/service-danger?name=service@h": `</svg> Danger Zone · service@h</h1>`,
 	}

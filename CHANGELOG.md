@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1 — 2026-09-18
+
+A pub/sub copy a disabled subscriber cannot take is counted as that
+subscriber's drop rather than skipped in silence; a subscriber the topic
+stopped allowing is still skipped without a count. An agent's record is
+labelled `👾 Agent` again, replacing the `📥 Inbox` of 0.5.84 now that `agent`
+is becoming a named kind; those records stay with the channels.
+
 ## 0.6.0 — 2026-09-18
 
 Opens the 0.6 line for the record-kind enum: `kind` becomes a closed set of

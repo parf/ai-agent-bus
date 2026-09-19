@@ -41,7 +41,7 @@ plain text.
 `👾` labels an agent and the queue named after it. `📥 Inbox` held that row in
 0.5.84, while nothing distinguished an agent's record from a service's; `agent`
 becoming a stored [record kind](../../../docs/03-services-and-topics.md#five-record-kinds)
-removed the reason, and the owner restored `👾` on 2026-09-18. Those records stay
+removed the reason, and the owner restored `👾` on 2026-09-18, built in 0.6.1. Those records stay
 with the channels, which the same 0.5.84 decision settled and this does not
 touch. `📡` replaces `⚙️`, which stops labelling a record and stays with the
 daemon. The visible word remains on full labels, while compact directory rows
@@ -68,7 +68,7 @@ already supplies its name.
 |---|---|
 | Overview | 🏠 |
 | Services and service detail | ⚙️ Service; 📡 Service pending [0.6.0](../0.6.0-TODO.md#the-enum) |
-| Agent record detail | 📥 Inbox; 👾 Agent pending [0.6.0](../0.6.0-TODO.md#remaining-work) |
+| Agent record detail | 👾 Agent |
 | Channels and channel detail | a small inline channel SVG |
 | Activity | a small inline graph SVG |
 | Users | 👤 User |

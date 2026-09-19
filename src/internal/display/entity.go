@@ -12,7 +12,7 @@ func EntityGlyph(kind string) string {
 	case "user", "person":
 		return "👤"
 	case "agent":
-		return "📥"
+		return "👾"
 	case "generic":
 		return "⚙️"
 	default:
@@ -27,7 +27,7 @@ func Entity(kind string) string {
 	case "user", "person":
 		return "👤 User"
 	case "agent":
-		return "📥 Inbox"
+		return "👾 Agent"
 	case "generic":
 		return "⚙️ Service"
 	default:

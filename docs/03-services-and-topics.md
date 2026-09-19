@@ -19,10 +19,10 @@ registered by its launcher and served by the foreground runner.
 `protocol`, so nothing is served from it: a message sent to the name waits until
 the agent reads it. [Messaging](04-messaging.md#inbox-queues) calls that an
 implicit queue topic named after the agent, which is why the dashboard lists
-these records with the channels and labels them `📥 Inbox` rather than showing
-them among the services. The channels placement stands; the label returns to
-`👾 Agent` with [five record kinds](#five-record-kinds), which give the record a
-stored kind of its own.
+these records with the channels rather than showing them among the services.
+They are labelled `👾 Agent`: `📥 Inbox` held that label in 0.5.84, while nothing
+distinguished an agent's record from a service's, and
+[five record kinds](#five-record-kinds) removes the reason.
 
 Publishing and consuming are operations a principal performs; they do not
 require a separate service kind or capability-expression engine.
