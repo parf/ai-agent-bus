@@ -11,7 +11,7 @@ MVP is active; completion still depends on [remaining work and installed accepta
 
 ![A user obtains a token through an authenticated local socket, an entitled SSH key or key-possession proof. A launching runner uses the owner's credential to register a service and obtain its separate token, then switches to the service identity.](getting-tokens.svg)
 
-User token acquisition follows [access](../../docs/02-access.md#getting-a-token). Ownership authorizes service-token acquisition ([token scope](../../docs/02-access.md#what-a-call-carries)); the foreground runner obtains that credential before serving ([script services](../../docs/08-runner-role.md#script-services)).
+User token acquisition follows [access](../../docs/02-access.md#getting-a-token). Ownership authorizes an agent-token acquisition ([token scope](../../docs/02-access.md#what-a-call-carries)); the foreground runner obtains that credential before serving ([script services](../../docs/08-runner-role.md#script-services)).
 
 ## User to service
 
@@ -28,10 +28,10 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 | Area | Status | Canonical contract |
 |---|---|---|
 | Identity, credentials and local isolation | Built and pending; see linked status | [identity](../../docs/01-identity-and-roles.md#scope), [access](../../docs/02-access.md#scope) |
-| Registry, topics and private configuration | Built, including Personal classification and web grouping | [services](../../docs/03-records.md#status) |
+| Registry, channels and private configuration | Built, including Personal classification and web grouping | [records](../../docs/03-records.md#status) |
 | Messaging and restart persistence | Built, including administrative crash durability and explicit inbox selection | [messaging](../../docs/04-messaging.md#status) |
 | API, CLI, MCP and dashboard | Built and pending; see linked status | [discovery](../../docs/05-discovery.md#status) |
-| Foreground services and adapters | Built, including launchers; installed live-runtime acceptance pending | [runner](../../docs/08-runner-role.md#status) |
+| Foreground agents and adapters | Built, including launchers; installed live-runtime acceptance pending | [runner](../../docs/08-runner-role.md#status) |
 | Installation and service account | Package, setup and fresh-host service call accepted; upgrade and broader installed acceptance pending | [setup](../../docs/09-setup.md#status) |
 | Process isolation | Split, web authority isolation, resource limits and installed account/socket/capability acceptance built | [processes](../../docs/11-processes.md#status) |
 
