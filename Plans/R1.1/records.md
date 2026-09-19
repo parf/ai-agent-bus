@@ -259,13 +259,14 @@ living in each caller's own configuration: one place that says how to reach a
 thing, one list of who may learn it, and a credential that stops being copied
 into as many files as there are callers.
 
-Two consequences follow and neither is decided here:
+**Seeing the entry and reading its secret are the same permission**, decided by
+the owner on 2026-09-18: the record's existing allow list admits both, and no
+second grant is introduced ([service
+secrets](../../docs/03-services-and-topics.md#service-secrets)). The kind and the
+secret were brought forward into MVP at the same time, so this section no longer
+describes work R1.1 starts; it describes the reasoning that led there.
 
-- **Reading a secret is not seeing a record.** Today one allow list governs
-  every use of a record in both directions ([ACL](../../docs/02-access.md#acl)).
-  Secret-reading needs its own grant, or every principal who may see the
-  catalogue entry may also take the credential in it.
-- **Storage, rotation and whether a read is recorded** are open, and the
-  daemon's [private registry configuration](../../docs/03-services-and-topics.md#configuring-a-template)
-  is the nearest thing that already exists. Both sit in
-  [Q73](QUESTIONS.md#open-questions).
+What stays open is narrower than it was: **storage, rotation and whether a read
+is recorded**, with the daemon's [private registry
+configuration](../../docs/03-services-and-topics.md#configuring-a-template) as the
+nearest existing mechanism. That is [Q73](QUESTIONS.md#open-questions).

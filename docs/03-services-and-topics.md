@@ -34,13 +34,19 @@ require a separate service kind or capability-expression engine.
 absent one becomes `generic`. It becomes a closed set, so the daemon answers
 what a record is instead of a page inferring it.
 
-| Kind | What it is | Who receives |
-|---|---|---|
-| `user` | a person's queue | that person |
-| `agent` | an agent's queue | that agent |
-| `queue` | a registered queue | whoever the read side admits |
-| `pubsub` | a [pub/sub topic](#topics) | every admitted subscriber |
-| `service` | something **external**, not on this bus | nothing is delivered |
+| Kind | What it is |
+|---|---|
+| `user` | the queue a person reads |
+| `agent` | the queue an agent reads |
+| `queue` | a registered queue, named for its own sake rather than for a principal |
+| `pubsub` | a [pub/sub topic](#topics), which keeps nothing and copies to subscribers |
+| `service` | something **external**, not on this bus; nothing is delivered to it |
+
+**The kind does not change who may read a record.** One allow list still governs
+a record in both directions ([ACL](02-access.md#acl)), so a kind naming a single
+principal describes what the record is *for*, not a reader the daemon enforces.
+Splitting that list into a write side and a delivery side is a separate,
+undecided question ([directional access](../Plans/Future/acl-direction.md#where-direction-is-needed)).
 
 **A service is the external case.** What runs behind a name on this bus is an
 agent, so `service` keeps the word for the thing a registration only describes:
