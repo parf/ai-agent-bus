@@ -8,7 +8,7 @@ There are five programs. You will use the first one almost always:
 
 | Program | It is for | You are |
 |---|---|---|
-| **`agent-bus`** | 💬 everyday use — register things, send messages, run a service | anyone |
+| **`agent-bus`** | 💬 everyday use — register things, send messages, run an agent | anyone |
 | **`agent-bus-token`** | 🎟️ getting your credential | anyone |
 | **`agent-bus-admin`** | 👤 adding people, handing out credentials | the operator |
 | **`agent-bus-setup`** | 📦 installing the whole thing once | root, once |
@@ -75,15 +75,19 @@ agent-bus unregister echo@demo
 ```
 
 ```
-NAME       KIND     OWNER    READER  QUEUED  DESCRIPTION
-me@demo    generic  me@demo  no      0       just me
-hi@demo    generic  me@demo  yes     0       greets
-echo@demo  generic  me@demo  no      1       says it back
+NAME         KIND        OWNER    READERS  QUEUED  DESCRIPTION
+me@demo      👤 User     me@demo  0        0       just me
+hi@demo      👾 Agent    me@demo  1        0       greets
+echo@demo    👾 Agent    me@demo  0        1       says it back
+alerts@demo  📣 PubSub   me@demo  0        0       shouting
+db@demo      📡 Service  me@demo  -        -       the database
 ```
 
-`READER` says whether anything is actually listening, and `QUEUED` how much is
-waiting for it. A row with `no` and a growing number is the picture of a
-service that has stopped. 🔍
+`READERS` counts reads waiting right now, and `QUEUED` how much is waiting for
+them. A row with `0` and a growing number is the picture of an agent that has
+stopped. 🔍 A 📡 shows `-` for both: it is
+[something outside](../06-services.md#what-a-service-is) with no queue here, so
+there is nothing to count.
 
 Useful extras when you register:
 
@@ -93,7 +97,7 @@ Useful extras when you register:
 | `--allow a@b,c@d` or `--allow '*'` | who may use it. Leave it out and the bus decides |
 | `--ttl 1h` · `--bound 1000` | how long its queue keeps things, and how much of it |
 | `--overflow ring\|strict` | when full: drop the oldest, or refuse new ones |
-| `--addr` · `--protocol` | where it really lives, if it is not an ordinary bus service |
+| `--addr` · `--protocol` | where it really lives — required when the record is a 📡 [service](../06-services.md#how-to-call-it), which is something outside |
 
 ℹ️ `unregister` removes the **entry**, not the process. If something is still
 serving that name, it will register itself again.
@@ -136,24 +140,28 @@ rather than quietly sharing — because a silent second reader looks exactly
 like messages going missing. If you *do* want several workers behind one name,
 say so: `consume --share`.
 
-### 📣 Topics, for one-to-many
+### 📣 Channels, for one-to-many
 
 ```sh
-agent-bus topic create alerts@demo --kind pubsub --descr "shouting"
+agent-bus channel create alerts@demo --kind pubsub --descr "shouting"
 agent-bus subscribe alerts@demo
-agent-bus publish --topic alerts@demo "disk is filling up"
+agent-bus publish --channel alerts@demo "disk is filling up"
 agent-bus unsubscribe alerts@demo
 ```
+
+⚠️ **A channel is not a topic.** The channel is the *name* you publish to; a
+`--topic` on `send` is a **label on one message**, used to match a reply. Two
+words, two things ([channels](../07-channels.md#channel-not-topic)).
 
 | Kind | Goes to |
 |---|---|
 | `queue` | **one** consumer, and waits until somebody takes it |
 | `pubsub` | **every** current subscriber, and is kept for nobody |
 
-## ⚙️ Running a script as a service
+## ⚙️ Running a script as an agent
 
 The shortest way to put something on the bus: one command line, and your
-script is a service.
+script is an agent — the kind with a queue something reads.
 
 ```sh
 agent-bus start hi@demo --algo=args /full/path/to/hi.sh --descr "greets"
@@ -165,7 +173,7 @@ stdout comes back as the answer.
 | Flag | |
 |---|---|
 | `--algo=args` | the message arrives as an **argument** |
-| `--algo=json` | the whole envelope arrives as **JSON on stdin** — use this when you care about who sent it, or the topic |
+| `--algo=json` | the whole envelope arrives as **JSON on stdin** — use this when you care about who sent it, or the message's topic |
 | `-N` (e.g. `-3`) | how many at a time. One by default |
 | `--sandbox on` | confine it. Off unless asked |
 | `--network` | let it reach the network. Not unless asked |
@@ -224,6 +232,6 @@ agent-bus-admin token parf@myhost --rotate
 A key added this way reaches **one command and no shell** — `agent-bus-token`
 for an ordinary person, this program for an operator. Installing the whole
 thing is [setup](../09-setup.md#install), and what the daemon itself wants is
-[the daemon](daemon.md). Putting a script on the bus is [running a
-service](runner.md); talking to a live AI session is [Claude Code, Codex and
+[the daemon](daemon.md). Putting a script on the bus is [running an
+agent](runner.md); talking to a live AI session is [Claude Code, Codex and
 opencode](agents.md).

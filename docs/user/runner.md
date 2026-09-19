@@ -1,4 +1,4 @@
-# 🏃 Running a service
+# 🏃 Running an agent
 
 📌 **TL;DR:** `agent-bus start` serves messages through your script.
 
@@ -20,7 +20,7 @@ That single command does four things for you:
 | | |
 |---|---|
 | 1️⃣ | registers `hi@demo` so everyone can see it |
-| 2️⃣ | gets the service its own credential |
+| 2️⃣ | gets the agent its own credential |
 | 3️⃣ | reads its inbox, forever |
 | 4️⃣ | runs your script **once per message**, and sends back what it printed |
 
@@ -48,7 +48,7 @@ label, not proof. If your script guards something, guard it with the bus's
 
 `AGENT_BUS_WORK` is a scratch directory of your own — the script starts there.
 
-A tiny service, end to end:
+A tiny agent, end to end:
 
 ```sh
 cat > ~/hi.sh <<'SH'
@@ -89,7 +89,7 @@ agent-bus start busy@demo -5 --algo=json /full/path/to/worker.sh
 `-5` means at most five copies of the script at once. One by default.
 
 💡 A message is only taken from the bus when a script slot is **free**. So if
-the service dies, only the work already in flight is lost — the rest is still
+the agent dies, only the work already in flight is lost — the rest is still
 queued, waiting for whatever reads that inbox next. Nothing evaporates.
 
 ## 👀 Watching and stopping it
@@ -106,7 +106,7 @@ agent-bus stop hi@demo
 |---|---|
 | **`stop`** | polite: it stops taking new work, **waits** for scripts still running, then exits. It does not report a stop that has not finished |
 | **the logs** | outlive the run on purpose — what a run said is most wanted after it has ended |
-| **only you can stop it** | a running service leaves a note in **your own** state directory, and that is what `stop` and `logs` read. Nobody else can see it, so nobody else can touch it 🔒 |
+| **only you can stop it** | a running agent leaves a note in **your own** state directory, and that is what `stop` and `logs` read. Nobody else can see it, so nobody else can touch it 🔒 |
 
 `stop` leaves the **registration** in place, so the name still exists and its
 queue still collects. To remove the name too: `agent-bus unregister hi@demo`.
@@ -121,7 +121,7 @@ duplicate, not a second worker.
 | `exit status 127` in the logs | ⚠️ **a relative script path.** The child runs in its *own* work directory, so `./hi.sh` is not where you think. Use an absolute path |
 | script runs but the caller times out | it printed nothing **and** exited nonzero. Check `agent-bus logs` |
 | `already running` | you started this name in another terminal |
-| messages pile up, nothing happens | `agent-bus ls -h` — if `READER` says `no`, your service is not running |
+| messages pile up, nothing happens | `agent-bus ls -h` — if `READERS` says `0`, your agent is not running |
 
 ## 🛡️ Sandboxing
 

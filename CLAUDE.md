@@ -57,6 +57,8 @@ an assertion. Every shape below was actually found in this repository:
 | asking a dead process what it left behind | an orphan is reparented to init the moment its parent dies, so `pgrep -P <that parent>` is empty however badly it left — take the pids *before* the kill |
 | matching a class name in the inline stylesheet | every page carries the stylesheet, so assert the element form |
 | asserting an identity is absent from a listing | the signed-in name is in the page header, so assert the listing's own row |
+| a refusal aimed at a subject that does not exist | `/subscribe` was refused for the *caller* being unregistered, so the check passed whichever field the daemon read |
+| a presence check against a paginated listing | the page holds 25 rows, so it passed or failed on where the name sorted — narrow it with `?q=<name>` |
 
 **Naming a shape does not remove it.** Sweep for repeats as part of the fix, not
 as a later tidy. Every mutation is measured against `--slow`: a mutant that

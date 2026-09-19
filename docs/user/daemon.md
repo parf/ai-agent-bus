@@ -97,7 +97,7 @@ The flags:
 
 | Kind | Where it lives | Survives a restart? |
 |---|---|---|
-| 📇 registry — services, topics, people | its database | ✅ yes |
+| 📇 registry — agents, channels, services, people | its database | ✅ yes |
 | 🎟️ tokens | the token store | ✅ yes |
 | 📬 queued messages, statistics | **memory**, snapshotted to the dump file | ⚠️ across a **graceful** restart, yes |
 | 🔋 liveness — who is reading, who is up | memory | ❌ no, and should not — it is re-learned in a second |
@@ -128,7 +128,7 @@ The counters worth a glance:
 | `expired` | messages that outlived their TTL before anyone took them |
 | `refused` | a call was turned away. A few is normal; a flood is somebody misconfigured. It is counted per reason, and each reason has its own status code ([refusals](../05-discovery.md#refusals)) |
 
-And `agent-bus ls -h` for the picture at a glance — a service with `READER no`
+And `agent-bus ls -h` for the picture at a glance — an agent with `READERS 0`
 and a rising `QUEUED` is one that has stopped.
 
 ## 👤 Letting people in
@@ -185,5 +185,5 @@ runner is a separate program under a separate account, not a child.
 ---
 
 📖 New here? Start with [the command-line tools](cli.md). Putting your own
-script on the bus is [running a service](runner.md); putting an AI session on
+script on the bus is [running an agent](runner.md); putting an AI session on
 it is [Claude Code, Codex and opencode](agents.md).

@@ -7,7 +7,7 @@
 | MVP | Scope |
 |---|---|
 | Built | The [record](#what-a-service-is), its required address and [protocol](#how-to-call-it), the [refusals](#it-has-no-queue-here) that follow from having no queue, and restore asking the same question. |
-| Pending | [Service secrets](#secrets), the last of [0.6.0](../Plans/MVP/0.6.0-TODO.md#objective). |
+| Pending | [Secrets](#secrets), the last of [0.6.0](../Plans/MVP/0.6.0-TODO.md#objective). Their shape is settled: opaque bytes. |
 
 ## What a service is
 
@@ -87,10 +87,18 @@ mechanics differ at every other point:
 
 | | Configuration | Secret |
 |---|---|---|
-| Content | JSON, checked for being JSON | shell `KEY=value` lines |
+| Content | JSON, checked for being JSON | **opaque bytes**; `KEY=value` is the caller's convention and the daemon never parses it |
 | Belongs to | any record configured from an [agent template](03-records.md#agent-templates) | a `service` record and no other kind |
 | Who reads it | the named record alone, its owner included refused | whoever the record's [ACL](02-access.md#acl) admits; no second list |
 | What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
+
+**The daemon does not read inside a secret.** `KEY=value` lines are what
+callers agree to write, not a grammar anything checks: blank lines, comments,
+`export`, duplicate keys and an invalid identifier are all the caller's
+business, and a malformed secret is discovered by whatever uses it. Only an
+empty secret is refused, because it reads back exactly like never having set
+one. This is the promise [configuration](03-records.md#configuring-a-template)
+already makes, and it is the cheaper one to keep.
 
 The rule that configuration never leaves the daemon for anyone but its own
 record is unchanged by this.
