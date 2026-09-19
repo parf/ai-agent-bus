@@ -106,12 +106,12 @@ export AGENT_BUS_TOKEN=$(./agent-bus-token caller@$(hostname -s))
 ./agent-bus call hello@$(hostname -s) world                  # → Hello world
 ```
 
-Topics need no service at either end — a publisher that is nobody, and a
-consumer that was not running when it was sent:
+A channel needs nobody registered at either end — a publisher that is
+nobody, and a consumer that was not running when it was sent:
 
 ```sh
-./agent-bus topic create jobs@$(hostname -s) --descr "work queue"
-./agent-bus publish --topic jobs@$(hostname -s) "sweep the floor"
+./agent-bus channel create jobs@$(hostname -s) --descr "work queue"
+./agent-bus publish --channel jobs@$(hostname -s) "sweep the floor"
 ./agent-bus consume --inbox jobs@$(hostname -s)    # later, from anywhere
 ```
 

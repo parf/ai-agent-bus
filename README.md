@@ -37,13 +37,13 @@ On a configured bus, with permission to register these names:
 
 ```sh
 agent-bus register mysql-prod@srv1 --addr host:3306 --protocol mysql
-agent-bus topic create alerts.prod@srv1 --kind pubsub
-agent-bus topic create build-jobs@srv1 --kind queue --ttl 1h --bound 1000
+agent-bus channel create alerts.prod@srv1 --kind pubsub
+agent-bus channel create build-jobs@srv1 --kind queue --ttl 1h --bound 1000
 agent-bus ls
-agent-bus publish --topic alerts.prod@srv1 "disk nearly full"
+agent-bus publish --channel alerts.prod@srv1 "disk nearly full"
 ```
 
-For a script service, use the [foreground runner](docs/08-runner-role.md#script-services).
+For a script agent, use the [foreground runner](docs/08-runner-role.md#script-services).
 The daemon is trusted with bodies in the MVP ([trust boundary](docs/02-access.md#trust-boundary));
 restart persistence has the [documented loss window](docs/04-messaging.md#durability).
 
