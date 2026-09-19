@@ -17,7 +17,7 @@ import (
 // auth parses a name, the handler decodes, core parses both ends.
 func BenchmarkSendAndConsume(b *testing.B) {
 	bus := core.New()
-	if _, err := bus.Register(protocol.Record{Name: "sink@h", Kind: "generic", Owner: "sink@h"}); err != nil {
+	if _, err := bus.Register(protocol.Record{Name: "sink@h", Kind: protocol.KindAgent, Owner: "sink@h"}); err != nil {
 		b.Fatal(err)
 	}
 	// Two principals, because a token now backs one name: the benchmark

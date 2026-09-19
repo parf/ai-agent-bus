@@ -94,7 +94,7 @@ func TestReadersCountsEveryOutstandingReadAndRemovesEndedWaits(t *testing.T) {
 
 func TestReadersIsNeverRestoredOrPersisted(t *testing.T) {
 	b := New()
-	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{{
+	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{{Kind: protocol.KindAgent, 
 		Name: "svc@h", Owner: "svc@h", Readers: ptr(99), Reading: true,
 	}}})
 	if got, ok := b.Lookup("svc@h", "svc@h"); !ok || got.Readers == nil || *got.Readers != 0 || got.Reading {

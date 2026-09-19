@@ -30,10 +30,10 @@ func maintainersFixture(t *testing.T) *Bus {
 		t.Fatal(err)
 	}
 	for _, record := range []protocol.Record{
-		{Name: "service@h", Owner: "owner@h", Kind: "generic"},
+		{Name: "service@h", Owner: "owner@h", Kind: protocol.KindAgent},
 		{Name: "agent@h", Owner: "owner@h", Kind: "agent"},
-		{Name: "topic@h", Owner: "owner@h", Kind: protocol.KindTopic},
-		{Name: "target@h", Owner: "owner@h", Kind: "generic"},
+		{Name: "topic@h", Owner: "owner@h", Kind: protocol.KindQueue},
+		{Name: "target@h", Owner: "owner@h", Kind: protocol.KindAgent},
 	} {
 		if _, err := b.Register(record); err != nil {
 			t.Fatal(err)
@@ -126,7 +126,7 @@ func TestMaintainersRefreshAndSnapshotUseArrayWithoutAuthorityLoss(t *testing.T)
 	}
 	// Registration never writes Maintainers. A service refresh preserves the
 	// owner's list even when a caller supplies a contrary value.
-	if _, err := b.Register(protocol.Record{Name: "target@h", Owner: "target@h", Maintainers: protocol.MaintainerList{"outsider@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "target@h", Owner: "target@h", Maintainers: protocol.MaintainerList{"outsider@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	got, _ := b.Lookup("owner@h", "target@h")
@@ -148,31 +148,5 @@ func TestMaintainersRefreshAndSnapshotUseArrayWithoutAuthorityLoss(t *testing.T)
 	restarted.Restore(snapshot)
 	if _, err := restarted.Manage("direct@h", Management{Name: "target@h", Descr: ptr("restored")}); err != nil {
 		t.Fatalf("direct Maintainer lost authority after restore: %v", err)
-	}
-}
-
-func TestLegacyMaintainerStringMigratesBeforeAdministratorRename(t *testing.T) {
-	var snapshot ports.Snapshot
-	legacy := `{"Users":[{"name":"owner@h","state":"active"}],"Records":[{"name":"svc@h","kind":"generic","owner":"owner@h","maintainers":"@maintainers"},{"name":"many@h","kind":"generic","owner":"owner@h","maintainers":["owner@h","@maintainers"]}],"Groups":{"@maintainers":["owner@h"]}}`
-	if err := json.Unmarshal([]byte(legacy), &snapshot); err != nil {
-		t.Fatal(err)
-	}
-	b := New()
-	b.Restore(snapshot)
-	b.SetDaemonOwner("owner@h")
-	got, ok := b.Lookup("owner@h", "svc@h")
-	if !ok || !reflect.DeepEqual(got.Maintainers, protocol.MaintainerList{AdministratorsGroup}) {
-		t.Fatalf("legacy Maintainers did not migrate through array form: %+v", got)
-	}
-	many, ok := b.Lookup("owner@h", "many@h")
-	if !ok || !reflect.DeepEqual(many.Maintainers, protocol.MaintainerList{"owner@h", AdministratorsGroup}) {
-		t.Fatalf("migration did not rewrite every Maintainers term: %+v", many)
-	}
-	encoded, err := json.Marshal(b.Snapshot())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(encoded), `"maintainers":["@administrators"]`) {
-		t.Fatalf("migrated snapshot did not write array: %s", encoded)
 	}
 }

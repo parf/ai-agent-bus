@@ -43,5 +43,5 @@ func (b *Bus) sameResourceOwner(caller, owner string) bool {
 		return true
 	}
 	r, ok := b.records[caller]
-	return ok && r.Owner == owner && (r.Kind == "generic" || r.Kind == "agent")
+	return ok && r.Owner == owner && r.Kind == protocol.KindAgent
 }

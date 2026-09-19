@@ -28,13 +28,13 @@ func restored(t *testing.T, records ...protocol.Record) *Bus {
 // left the membership behind, and whoever took the freed name inherited it.
 func TestAnUnregisteredNameKeepsNoGroupMembership(t *testing.T) {
 	b := restored(t)
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "active@h", Kind: "generic"}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "active@h", Kind: protocol.KindAgent}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.SetGroup("owner@h", "@ops", []string{"svc@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "secret@h", Owner: "active@h", Kind: "generic", Allow: []string{"@ops"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "secret@h", Owner: "active@h", Kind: protocol.KindAgent, Allow: []string{"@ops"}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Unregister("svc@h", "active@h"); err != nil {
@@ -45,7 +45,7 @@ func TestAnUnregisteredNameKeepsNoGroupMembership(t *testing.T) {
 	}
 	// Somebody else takes the freed name. Without the strip above they arrive
 	// already in @ops, and reach a record only @ops may reach.
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "other@h", Kind: "generic"}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "other@h", Kind: protocol.KindAgent}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "svc@h", To: "secret@h", Body: "inherited"}); !errors.Is(err, ErrNotAllow) {

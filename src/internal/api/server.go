@@ -602,7 +602,7 @@ var codes = []struct {
 	{core.ErrDisabled, http.StatusConflict, "disabled"},
 	{core.ErrBadName, http.StatusBadRequest, "malformed"},
 	{core.ErrOverflow, http.StatusBadRequest, "malformed"},
-	{core.ErrMode, http.StatusBadRequest, "malformed"},
+	{core.ErrKind, http.StatusBadRequest, "malformed"},
 	{core.ErrConfig, http.StatusBadRequest, "malformed"},
 	{core.ErrReceipt, http.StatusBadRequest, "malformed"},
 	{core.ErrTTL, http.StatusBadRequest, "malformed"},

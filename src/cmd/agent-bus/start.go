@@ -77,7 +77,7 @@ func start(args []string) error {
 		return fmt.Errorf("%s is already running here as pid %d; stop it first", r.Name, r.PID)
 	}
 	if err := postQuiet("/register", protocol.Record{
-		Name: svc.Name, Kind: "generic", Addr: svc.Script, Descr: svc.Descr,
+		Name: svc.Name, Kind: protocol.KindAgent, Addr: svc.Script, Descr: svc.Descr,
 		Allow: svc.Allow, Personal: svc.Personal,
 	}); err != nil {
 		return err

@@ -37,7 +37,7 @@ var (
 	ErrReceipt     = errors.New(`a receipt is "ack" or "done"`)
 	ErrFull        = errors.New("the receiver's queue is full")
 	ErrOverflow    = errors.New("overflow is strict or ring")
-	ErrMode        = errors.New("a topic mode is queue or pubsub")
+	ErrKind        = errors.New("unknown record kind")
 	ErrConfig      = errors.New("a configuration is JSON")
 	ErrTTL         = errors.New("a ttl is a duration, like 30s")
 	ErrWait        = errors.New("a wait is a duration, like 30s")
@@ -116,6 +116,11 @@ type Bus struct {
 	// authority before serving anything.
 	ownerRestored   bool
 	ownerRestoreErr error
+
+	// recordRestoreErr holds a stored record this daemon cannot describe, and
+	// is reported at startup beside the owner checks: coming up on it would
+	// serve state nothing can name.
+	recordRestoreErr error
 	// How many calls were refused, and for what. Counted because a bus that
 	// is quiet and one that is refusing everything look identical from
 	// outside — see docs/05-discovery.md#what-it-shows.
@@ -153,6 +158,21 @@ func New() *Bus {
 // Register states a record. A name in a realm a directory backs cannot be
 // created this way — it has to be enrolled, or the first caller to ask for a
 // name would become it. See docs/01-identity-and-roles.md#registration.
+// validateKind is what every stored record must satisfy, whichever path
+// stores it. A service describes something this bus does not run, so it has to
+// say where that thing is and how to reach it: without both, the record is a
+// name with nothing behind it and no way to find out.
+// See docs/03-services-and-topics.md#five-record-kinds.
+func validateKind(r protocol.Record) error {
+	if !protocol.ValidKind(r.Kind) {
+		return fmt.Errorf("%w: %q is not one of %s", ErrKind, r.Kind, protocol.KindNames())
+	}
+	if r.Kind == protocol.KindService && (r.Addr == "" || r.Proto == "") {
+		return fmt.Errorf("%w: a service needs an address and a protocol", ErrKind)
+	}
+	return nil
+}
+
 func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
 	return b.register(r, false, false, ports.DirectoryProfile{})
 }
@@ -171,8 +191,12 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	if owner, err := canon(r.Owner); err == nil {
 		r.Owner = owner
 	}
+	// A caller that states nothing gets the external case: registering by
+	// hand is how a thing that is not on this bus gets described, and every
+	// caller that means one of the other four says so.
+	// See docs/03-services-and-topics.md#five-record-kinds.
 	if r.Kind == "" {
-		r.Kind = "generic"
+		r.Kind = protocol.KindService
 	}
 	// A registration that names no owner is the name answering for itself,
 	// which is what registering one has always meant where no realm vouches
@@ -187,11 +211,8 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	if r.Full != protocol.OverflowStrict && r.Full != protocol.OverflowRing {
 		return protocol.Record{}, fmt.Errorf("%w, not %q", ErrOverflow, r.Full)
 	}
-	// A mode the daemon does not know reads as a queue, which is the mode a
-	// caller asking for pub/sub least wants. Refused here, like overflow,
-	// rather than only in the CLI.
-	if r.Mode != "" && r.Mode != protocol.ModeQueue && r.Mode != protocol.ModePubSub {
-		return protocol.Record{}, fmt.Errorf("%w, not %q", ErrMode, r.Mode)
+	if err := validateKind(r); err != nil {
+		return protocol.Record{}, err
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -358,7 +379,7 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		}
 		// Same defaults a bare registration gets: configuring is not a
 		// second way to describe a service, only a way to give it config.
-		r = protocol.Record{Name: n, Kind: "generic", Owner: who, Full: protocol.OverflowStrict}
+		r = protocol.Record{Name: n, Kind: protocol.KindAgent, Owner: who, Full: protocol.OverflowStrict}
 	} else if !b.manages(who, r) {
 		// Writing is the owner's, and the service's own. Reading is neither:
 		// see Config.
@@ -632,7 +653,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	// A queue topic is an inbox with a name, so publishing to one is an
 	// ordinary send. A pub/sub topic keeps nothing of its own instead.
-	if rec.Kind == protocol.KindTopic && rec.Mode == protocol.ModePubSub {
+	if rec.Kind == protocol.KindPubSub {
 		return b.fanout(rec, e)
 	}
 	if err := b.deliver(rec, b.ensure(to), e); err != nil {
@@ -759,8 +780,8 @@ func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) 
 	if on && r.Disabled {
 		return protocol.Record{}, ErrDisabled
 	}
-	if r.Kind != protocol.KindTopic || r.Mode != protocol.ModePubSub {
-		return protocol.Record{}, fmt.Errorf("%w: only a pubsub topic has subscribers, and %s is not one", ErrMode, n)
+	if r.Kind != protocol.KindPubSub {
+		return protocol.Record{}, fmt.Errorf("%w: only a pubsub topic has subscribers, and %s is not one", ErrKind, n)
 	}
 	if _, me := b.records[who]; !me {
 		return protocol.Record{}, fmt.Errorf("%w: register %s first, so its copies have somewhere to land", ErrUnknown, who)

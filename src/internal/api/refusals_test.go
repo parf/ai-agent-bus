@@ -102,7 +102,7 @@ func TestARefusalDecidedBeforeTheErrorMapStillCounts(t *testing.T) {
 		reason                          string
 	}{
 		{"an unparseable body", "POST", "/send", "{", tok, 400, "malformed"},
-		{"an invalid name in a token request", "POST", "/token", `{"name":"!"}`, tok, 400, "malformed"},
+		{"an invalid name in a token request", "POST", "/token", `{"kind":"agent","name":"!"}`, tok, 400, "malformed"},
 		{"a lookup of a name the daemon does not hold", "GET", "/lookup?name=missing@h", "", tok, 404, "unknown"},
 		// Unauthenticated, and counted for that reason rather than despite it:
 		// an addressed endpoint's refusals count whatever the caller's
@@ -154,7 +154,7 @@ func TestAHiddenNameCountsAsAMissingOneDoes(t *testing.T) {
 	if _, err := c.bus.SetUser("admin@h", protocol.User{Name: "stranger@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.bus.Register(protocol.Record{Name: "secret@h", Owner: "admin@h", Kind: protocol.KindTopic, Allow: []string{"admin@h"}}); err != nil {
+	if _, err := c.bus.Register(protocol.Record{Name: "secret@h", Owner: "admin@h", Kind: protocol.KindQueue, Allow: []string{"admin@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	outsider := c.as("stranger@h")
@@ -174,7 +174,7 @@ func TestWhatIsNotARefusalIsNotCounted(t *testing.T) {
 	tok := c.as("admin@h")
 	// The consume below omits inbox and therefore reads the caller's own, so
 	// the caller needs a record for that call to be an ordinary empty wait.
-	if _, err := c.bus.Register(protocol.Record{Name: "admin@h", Owner: "admin@h"}); err != nil {
+	if _, err := c.bus.Register(protocol.Record{Kind: protocol.KindAgent, Name: "admin@h", Owner: "admin@h"}); err != nil {
 		t.Fatal(err)
 	}
 	for _, call := range []struct {
@@ -182,7 +182,7 @@ func TestWhatIsNotARefusalIsNotCounted(t *testing.T) {
 		code                     int
 	}{
 		{"a successful listing", "GET", "/ls", "", 200},
-		{"a successful registration", "POST", "/register", `{"name":"fresh@h","owner":"admin@h"}`, 200},
+		{"a successful registration", "POST", "/register", `{"kind":"agent","name":"fresh@h","owner":"admin@h"}`, 200},
 		// Nothing arrives, so the wait ends empty. That is an answer, not a
 		// refusal, and it is the commonest call this daemon serves.
 		{"a consume that waits and finds nothing", "GET", "/consume?wait=1ms", "", 204},
@@ -204,12 +204,12 @@ func TestWhatIsNotARefusalIsNotCounted(t *testing.T) {
 	// Rotate must persist a fresh credential. A store failure is an actual 500,
 	// not an invented handler or an error injected into reply directly.
 	c.store.err = errors.New("credential store unavailable")
-	code, moved := c.call("POST", "/token", `{"name":"admin@h","rotate":true}`, tok)
+	code, moved := c.call("POST", "/token", `{"kind":"agent","name":"admin@h","rotate":true}`, tok)
 	if code != 500 || len(moved) != 0 {
 		t.Errorf("failed credential persistence answered %d, counted %v; want 500 and no refusal", code, moved)
 	}
 	c.store.err = nil
-	code, moved = c.call("POST", "/token", `{"name":"admin@h","rotate":true}`, tok)
+	code, moved = c.call("POST", "/token", `{"kind":"agent","name":"admin@h","rotate":true}`, tok)
 	if code != 200 || len(moved) != 0 {
 		t.Errorf("recovered store answered %d, counted %v; want 200 and no refusal", code, moved)
 	}

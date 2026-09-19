@@ -104,6 +104,11 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			if got.Name != "svc@h" || len(got.Allow) != 1 || got.Allow[0] != "peer@h" || !got.Personal {
 				t.Fatalf("registration lost explicit sharing: %+v", got)
 			}
+			// A script the runner serves is a name on this bus, so it
+			// registers as an agent rather than taking the external default.
+			if got.Kind != protocol.KindAgent {
+				t.Fatalf("runner registered kind %q, want %s", got.Kind, protocol.KindAgent)
+			}
 		})
 	}
 }
@@ -129,5 +134,11 @@ func TestRegisterCarriesPersonal(t *testing.T) {
 	}
 	if got.Name != "svc@h" || !got.Personal || len(got.Allow) != 1 || got.Allow[0] != "peer@h" {
 		t.Fatalf("register lost Personal classification: %+v", got)
+	}
+	// Personal is an agent-only classification, so --personal alone states the
+	// kind. Without this the CLI sends the external default and the daemon
+	// refuses the registration for want of an address.
+	if got.Kind != protocol.KindAgent {
+		t.Fatalf("--personal registered kind %q, want %s", got.Kind, protocol.KindAgent)
 	}
 }

@@ -24,8 +24,8 @@ func restrictedFixture(t *testing.T, restored bool) *Bus {
 		t.Fatal(err)
 	}
 	for _, r := range []protocol.Record{
-		{Name: "svc@h", Owner: "alice@h", Maintainers: protocol.MaintainerList{"@support"}},
-		{Name: "peer@h", Owner: "outsider@h"},
+		{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Maintainers: protocol.MaintainerList{"@support"}},
+		{Kind: protocol.KindAgent, Name: "peer@h", Owner: "outsider@h"},
 	} {
 		if _, err := b.Register(r); err != nil {
 			t.Fatal(err)
@@ -183,11 +183,11 @@ func TestOwnInboxReadDoesNotNeedAnACLEntryButStillObeysState(t *testing.T) {
 
 func TestRegistrationRefreshPreservesACLUnlessExplicitlyReplaced(t *testing.T) {
 	b := restrictedFixture(t, false)
-	_, err := b.Register(protocol.Record{Name: "svc@h", Owner: "alice@h", Allow: []string{"outsider@h"}})
+	_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"outsider@h"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "svc@h", Descr: "restarted"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "svc@h", Descr: "restarted"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := b.Lookup("outsider@h", "svc@h"); !ok {
@@ -196,7 +196,7 @@ func TestRegistrationRefreshPreservesACLUnlessExplicitlyReplaced(t *testing.T) {
 	if _, ok := b.Lookup("unrelated@h", "svc@h"); ok {
 		t.Fatal("metadata refresh opened the ACL to an unrelated caller")
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "alice@h", Allow: []string{"peer@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"peer@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := b.Lookup("peer@h", "svc@h"); !ok {
@@ -208,7 +208,7 @@ func TestRegistrationRefreshPreservesACLUnlessExplicitlyReplaced(t *testing.T) {
 	if _, err := b.Manage("alice@h", Management{Name: "svc@h", Allow: ptr([]string{})}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "svc@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "svc@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := b.Lookup("peer@h", "svc@h"); ok {

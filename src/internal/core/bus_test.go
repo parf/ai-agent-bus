@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -107,7 +108,7 @@ func TestNamesAreCanonical(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Name: "  svc@h  ", Kind: "agent", Owner: "owner@h", Allow: []string{"peer@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "peer@h", Owner: "owner@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "peer@h", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: " peer@h", To: "svc@h ", Body: "hi"}); err != nil {
@@ -231,7 +232,7 @@ func waitForWaiters(t *testing.T, b *Bus, name string, n int) {
 func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv")
-	mustRegister(t, b, protocol.Record{Name: "jobs@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "jobs@srv", Allow: []string{"*"}, Kind: protocol.KindQueue, Owner: "a@srv"})
 	known(t, b, "pub@srv")
 	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "jobs@srv", Topic: "jobs@srv", Body: "work"}); err != nil {
 		t.Fatalf("publish: %v", err)
@@ -249,7 +250,7 @@ func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
 func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv")
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
 	known(t, b, "pub@srv")
 	for _, s := range []string{"one@srv", "two@srv"} {
 		known(t, b, s)
@@ -281,25 +282,25 @@ func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 func TestASubscriptionSurvivesTheTopicBeingRestated(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv")
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
 	known(t, b, "one@srv")
 	if _, err := b.Subscribe("one@srv", "news@srv", true); err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv", Descr: "again"})
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv", Descr: "again"})
 	r, ok := b.Lookup("a@srv", "news@srv")
 	if !ok || len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
 		t.Fatalf("subscribers after a restate: %v", r.Subs)
 	}
 	// And a caller cannot claim one by stating it.
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv", Subs: []string{"intruder@srv"}})
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv", Subs: []string{"intruder@srv"}})
 	r, _ = b.Lookup("a@srv", "news@srv")
 	if len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
 		t.Fatalf("a stated subscriber was taken: %v", r.Subs)
 	}
 	// Nor on a name nobody registered before, where there is no stored
 	// record to restore over it.
-	mustRegister(t, b, protocol.Record{Name: "fresh@srv", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv", Subs: []string{"intruder@srv"}})
+	mustRegister(t, b, protocol.Record{Name: "fresh@srv", Kind: protocol.KindPubSub, Owner: "a@srv", Subs: []string{"intruder@srv"}})
 	if r, _ := b.Lookup("a@srv", "fresh@srv"); len(r.Subs) != 0 {
 		t.Fatalf("a stated subscriber was taken on a new topic: %v", r.Subs)
 	}
@@ -312,8 +313,7 @@ func TestASubscriptionSurvivesTheTopicBeingRestated(t *testing.T) {
 func TestAnAnswerNeverCarriesLivenessItWasHandedIn(t *testing.T) {
 	b := New()
 	known(t, b, "claimer@srv")
-	got := b.withLiveness("claimer@srv", protocol.Record{
-		Name: "claimer@srv", Reading: true, Readers: ptr(9), Queued: 9, In: 9, Out: 9,
+	got := b.withLiveness("claimer@srv", protocol.Record{Kind: protocol.KindAgent, Name: "claimer@srv", Reading: true, Readers: ptr(9), Queued: 9, In: 9, Out: 9,
 		Dropped: 9, Expired: 9, Oldest: "99h",
 	})
 	if got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 || got.In != 0 || got.Out != 0 ||
@@ -345,6 +345,11 @@ func TestAReceiptReachesTheCallersFilteredWait(t *testing.T) {
 
 func mustRegister(t *testing.T, b *Bus, r protocol.Record) {
 	t.Helper()
+	// A fixture that states no kind means a name on this bus, not an external
+	// service: the daemon's own default is the external case.
+	if r.Kind == "" {
+		r.Kind = protocol.KindAgent
+	}
 	if _, err := b.Register(r); err != nil {
 		t.Fatalf("register %s: %v", r.Name, err)
 	}
@@ -430,7 +435,7 @@ func TestConsumedMessagesAreReleased(t *testing.T) {
 // What a ring drops is dropped, not kept in the slack behind the queue.
 func TestRingDropsAreReleased(t *testing.T) {
 	b := New()
-	provision(t, b, protocol.Record{Name: "ringy@h", Allow: []string{"s@h"}, Full: protocol.OverflowRing})
+	provision(t, b, protocol.Record{Kind: protocol.KindAgent, Name: "ringy@h", Allow: []string{"s@h"}, Full: protocol.OverflowRing})
 	known(t, b, "s@h")
 	for i := 0; i < maxQueue+50; i++ {
 		if _, err := b.Send(protocol.Envelope{To: "ringy@h", From: "s@h", Body: bigBody(i)}); err != nil {
@@ -553,7 +558,7 @@ func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
 	b := New()
 	known(t, b, "parf@srv1")
 	rec, err := b.Register(protocol.Record{
-		Name: "plain@h", Kind: "generic", Owner: "parf@srv1",
+		Name: "plain@h", Kind: protocol.KindAgent, Owner: "parf@srv1",
 		Config: []byte(`{"smuggled":true}`), ConfigSHA: "forged-by-the-caller",
 	})
 	if err != nil {
@@ -588,7 +593,7 @@ func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 	if !known {
 		t.Fatal("the configured service is not registered")
 	}
-	again, err := b.Register(protocol.Record{Name: "svc@h", Kind: "generic", Owner: "svc@h", ConfigSHA: "forged"})
+	again, err := b.Register(protocol.Record{Name: "svc@h", Kind: protocol.KindAgent, Owner: "svc@h", ConfigSHA: "forged"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -647,17 +652,35 @@ func TestARegistrationCannotClaimLiveState(t *testing.T) {
 }
 
 // A topic mode the daemon does not know reads as a queue, which is the one
-// thing a caller asking for pub/sub does not want.
-func TestAnUnknownTopicModeIsRefused(t *testing.T) {
+// A kind the daemon does not know is refused at registration, naming the set,
+// because a stored record nothing can describe is worse than a refused one.
+func TestAKindTheDaemonDoesNotKnowIsRefused(t *testing.T) {
 	b := New()
 	known(t, b, "o@h")
-	if _, err := b.Register(protocol.Record{Name: "t@h", Kind: protocol.KindTopic, Mode: "garbage", Owner: "o@h"}); !errors.Is(err, ErrMode) {
-		t.Fatalf("err = %v, want ErrMode", err)
-	}
-	for _, ok := range []string{protocol.ModeQueue, protocol.ModePubSub, ""} {
-		if _, err := b.Register(protocol.Record{Name: "t" + ok + "@h", Kind: protocol.KindTopic, Mode: ok, Owner: "o@h"}); err != nil {
-			t.Fatalf("mode %q refused: %v", ok, err)
+	for _, bad := range []string{"garbage", "generic", "topic"} {
+		if _, err := b.Register(protocol.Record{Name: "t@h", Kind: bad, Owner: "o@h"}); !errors.Is(err, ErrKind) {
+			t.Fatalf("kind %q: err = %v, want ErrKind", bad, err)
 		}
+	}
+	for _, ok := range protocol.Kinds {
+		r := protocol.Record{Name: "t-" + ok + "@h", Kind: ok, Owner: "o@h"}
+		if ok == protocol.KindService {
+			r.Addr, r.Proto = "db.example", "mysql"
+		}
+		if _, err := b.Register(r); err != nil {
+			t.Fatalf("kind %q refused: %v", ok, err)
+		}
+	}
+	// Stating nothing is the external case, and the external case has to say
+	// where it is.
+	if _, err := b.Register(protocol.Record{Name: "bare@h", Owner: "o@h"}); !errors.Is(err, ErrKind) {
+		t.Fatalf("a bare registration: err = %v, want ErrKind", err)
+	}
+	if _, err := b.Register(protocol.Record{Name: "bare@h", Owner: "o@h", Addr: "x", Proto: "https"}); err != nil {
+		t.Fatalf("a bare registration with an address: %v", err)
+	}
+	if r, ok := b.Lookup("o@h", "bare@h"); !ok || r.Kind != protocol.KindService {
+		t.Fatalf("a bare registration stored %q, want %s", r.Kind, protocol.KindService)
 	}
 }
 
@@ -669,7 +692,7 @@ func TestAnUnknownTopicModeIsRefused(t *testing.T) {
 func TestLivenessIsAssignedNotMerged(t *testing.T) {
 	b := New()
 	known(t, b, "svc@h")
-	dirty := protocol.Record{Name: "svc@h", Reading: true, Readers: ptr(99), Queued: 77}
+	dirty := protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Reading: true, Readers: ptr(99), Queued: 77}
 	look := func(name string, r protocol.Record) protocol.Record {
 		b.mu.Lock()
 		defer b.mu.Unlock()
@@ -719,7 +742,7 @@ func TestLivenessIsAssignedNotMerged(t *testing.T) {
 func TestAPublicationASubscriberIsTooDisabledToTakeCountsAsItsDrop(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv", "pub@srv")
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
 	for _, s := range []string{"live@srv", "off@srv", "barred@srv"} {
 		mustRegister(t, b, protocol.Record{Name: s, Allow: []string{"*"}, Kind: "agent", Owner: "a@srv"})
 		if _, err := b.Subscribe(s, "news@srv", true); err != nil {
@@ -752,5 +775,101 @@ func TestAPublicationASubscriberIsTooDisabledToTakeCountsAsItsDrop(t *testing.T)
 		if r.Queued != c.queued || r.Dropped != c.dropped {
 			t.Fatalf("%s holds %d and dropped %d, want %d and %d", c.name, r.Queued, r.Dropped, c.queued, c.dropped)
 		}
+	}
+}
+
+// A record has one shape, and every path that stores one asks the same
+// question about it. Registration refusing a malformed record is not the same
+// protection as a settings edit or a restore refusing it: those were separate
+// code paths, and each one that skipped the check could put back a record the
+// daemon could not serve.
+func TestEveryPathThatStoresARecordAsksTheSameShapeQuestion(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "alice@h")
+	if _, err := b.Register(protocol.Record{
+		Name: "db@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "db.example:5432", Proto: "postgresql",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// Manage names one field at a time, so the record it would leave behind is
+	// what has to be legal, not the field the caller happened to mention.
+	for _, change := range []Management{
+		{Name: "db@h", Addr: ptr("")},
+		{Name: "db@h", Proto: ptr("")},
+	} {
+		if _, err := b.Manage("alice@h", change); !errors.Is(err, ErrKind) {
+			t.Errorf("a settings edit emptied a service endpoint: %+v, %v", change, err)
+		}
+	}
+	// Falsifiable: the same edit through the same path is accepted when what
+	// it leaves behind is still a reachable service.
+	if got, err := b.Manage("alice@h", Management{Name: "db@h", Addr: ptr("db.internal:5432")}); err != nil || got.Addr != "db.internal:5432" {
+		t.Fatalf("a real endpoint change was refused: %+v, %v", got, err)
+	}
+
+	// Restore is the third path. A snapshot is not a caller and gets no
+	// weaker question: EstablishDaemonOwner is where a refused restore stops
+	// the daemon rather than letting it serve state it cannot describe.
+	for name, record := range map[string]protocol.Record{
+		"unknown kind":        {Name: "x@h", Owner: "alice@h", Kind: "generic"},
+		"service, no address": {Name: "x@h", Owner: "alice@h", Kind: protocol.KindService, Proto: "https"},
+		"service, no proto":   {Name: "x@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "h:1"},
+		"personal queue":      {Name: "x@h", Owner: "alice@h", Kind: protocol.KindQueue, Personal: true},
+	} {
+		restarted := New()
+		restarted.Restore(ports.Snapshot{
+			Users:   []protocol.User{{Name: "alice@h", State: "active"}},
+			Records: []protocol.Record{record},
+		})
+		if err := restarted.EstablishDaemonOwner("alice@h"); err == nil {
+			t.Errorf("a snapshot holding a %s record started a daemon", name)
+		}
+	}
+	// Falsifiable: a snapshot of records this version can serve restores.
+	restarted := New()
+	restarted.Restore(ports.Snapshot{
+		Users: []protocol.User{{Name: "alice@h", State: "active"}},
+		Records: []protocol.Record{
+			// The Personal record is listed BEFORE the agent its ACL names, so
+			// this also fails if Personal is validated mid-restore.
+			{Name: "mine@h", Owner: "alice@h", Kind: protocol.KindAgent, Personal: true, Allow: []string{"peer@h"}},
+			{Name: "peer@h", Owner: "alice@h", Kind: protocol.KindAgent},
+			{Name: "db@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "h:1", Proto: "https"},
+		},
+	})
+	if err := restarted.EstablishDaemonOwner("alice@h"); err != nil {
+		t.Fatalf("a restorable snapshot was refused: %v", err)
+	}
+}
+
+// An enrolled person is a person: the realm proved a key for a human login and
+// the daemon makes them a user, so their own queue is a user's, not an agent's.
+func TestEnrolmentRecordsAPersonAsOne(t *testing.T) {
+	b := New()
+	b.Directories(map[string]ports.Directory{"github": &profileDirectory{
+		entry: ports.DirectoryEntry{Keys: []string{"key-one"}, Profile: ports.DirectoryProfile{Login: "alice"}},
+	}}, profileSignatures{})
+	nonce, err := b.Challenge("alice@github")
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := b.Enrol(nonce, "good")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Kind != protocol.KindUser {
+		t.Errorf("enrolment registered kind %q, want %s", record.Kind, protocol.KindUser)
+	}
+	// Falsifiable the other way: the kind follows from being a person, not
+	// from the enrolment path, so an ordinary agent registered beside it stays
+	// an agent.
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "owner@h")
+	if _, err := b.Register(protocol.Record{Name: "bot@h", Owner: "owner@h", Kind: protocol.KindAgent}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := b.Lookup("owner@h", "bot@h"); got.Kind != protocol.KindAgent {
+		t.Errorf("an ordinary agent registered as kind %q", got.Kind)
 	}
 }

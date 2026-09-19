@@ -55,7 +55,7 @@ func TestUserEditsOnlyTheirOwnEmail(t *testing.T) {
 	if _, err := b.EditOwnEmail("alice@h", "not an address"); !errors.Is(err, ErrProfile) {
 		t.Fatalf("invalid self email: %v", err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "alice@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.EditOwnEmail("svc@h", "svc@example.com"); !errors.Is(err, ErrUnknown) {
@@ -74,7 +74,7 @@ func TestUserEditsOnlyTheirOwnEmail(t *testing.T) {
 
 func TestAdministratorUnbansOnlyOrdinaryUsers(t *testing.T) {
 	b := profileAuthorityFixture(t)
-	if _, err := b.Register(protocol.Record{Name: "alice-svc@h", Owner: "alice@h", Allow: []string{"admin@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "alice-svc@h", Owner: "alice@h", Allow: []string{"admin@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.SetUserState("admin@h", "alice@h", "banned"); err != nil {

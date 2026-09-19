@@ -60,8 +60,8 @@ func durabilityFixture(t *testing.T) *Bus {
 		t.Fatal(err)
 	}
 	for _, r := range []protocol.Record{
-		{Name: "svc@h", Owner: "alice@h", Allow: []string{"@readers"}},
-		{Name: "topic@h", Owner: "alice@h", Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Allow: []string{"*"}},
+		{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"@readers"}},
+		{Name: "topic@h", Owner: "alice@h", Kind: protocol.KindPubSub, Allow: []string{"*"}},
 	} {
 		if _, err := b.Register(r); err != nil {
 			t.Fatal(err)
@@ -118,7 +118,7 @@ func administrativeChanges() []durableChange {
 			return e
 		}, hidden},
 		{"refresh-acl", func(b *Bus) error {
-			_, e := b.Register(protocol.Record{Name: "svc@h", Owner: "alice@h", Allow: []string{"friend@h"}})
+			_, e := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"friend@h"}})
 			return e
 		}, hidden},
 		{"unregister", func(b *Bus) error { return b.Unregister("svc@h", "alice@h") }, func(t *testing.T, b *Bus) {

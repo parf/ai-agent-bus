@@ -25,11 +25,11 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 		call func(b *Bus, caller string) error
 	}{
 		{"register", func(b *Bus, c string) error {
-			_, err := b.Register(protocol.Record{Name: "fresh@h", Owner: c})
+			_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "fresh@h", Owner: c})
 			return err
 		}},
 		{"register-self", func(b *Bus, c string) error {
-			_, err := b.Register(protocol.Record{Name: c, Owner: c})
+			_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: c, Owner: c})
 			return err
 		}},
 		{"configure", func(b *Bus, c string) error {
@@ -94,7 +94,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 				b.SetDaemonOwner("admin@h")
 				known(t, b, "target@h", "sub@h")
 				provision(t, b, protocol.Record{
-					Name: "news@h", Kind: protocol.KindTopic, Mode: protocol.ModePubSub,
+					Name: "news@h", Kind: protocol.KindPubSub,
 				})
 				// Paused is a maintainer, so nothing it is refused for can be
 				// mistaken for lacking authority: it had all of it a moment ago.
@@ -126,8 +126,8 @@ func TestARemovedCallerCannotRegisterItselfBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, r := range []protocol.Record{
-		{Name: "gone@h", Owner: "gone@h"},
-		{Name: "gone@h"}, // owner defaulted to the name is the same claim
+		{Kind: protocol.KindAgent, Name: "gone@h", Owner: "gone@h"},
+		{Kind: protocol.KindAgent, Name: "gone@h"}, // owner defaulted to the name is the same claim
 	} {
 		if _, err := b.Register(r); !errors.Is(err, ErrNoPrincipal) {
 			t.Fatalf("a name the daemon no longer knows registered itself back: %v", err)
@@ -135,7 +135,7 @@ func TestARemovedCallerCannotRegisterItselfBack(t *testing.T) {
 	}
 	// And the legitimate caller for that shape still has it: enrolment has
 	// proved a key, and says so rather than borrowing a clause anyone reaches.
-	if _, err := b.register(protocol.Record{Name: "gone@h", Owner: "gone@h"}, true, false, ports.DirectoryProfile{}); err != nil {
+	if _, err := b.register(protocol.Record{Kind: protocol.KindAgent, Name: "gone@h", Owner: "gone@h"}, true, false, ports.DirectoryProfile{}); err != nil {
 		t.Fatalf("enrolment could not write a newcomer its record: %v", err)
 	}
 }
@@ -147,7 +147,7 @@ func TestIssuingDoesNotHandOverACredentialOwnershipHasMovedOn(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "first@h", "second@h")
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "first@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "first@h"}); err != nil {
 		t.Fatal(err)
 	}
 	mint := func(name string) (string, error) { return "credential for " + name, nil }
@@ -180,7 +180,7 @@ func TestIssuingHoldsTheRegistryWhileItDecidesAndMints(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "first@h", "second@h")
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "first@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "first@h"}); err != nil {
 		t.Fatal(err)
 	}
 	minting, release := make(chan struct{}), make(chan struct{})
@@ -224,7 +224,7 @@ func TestATransferCannotHandARecordToSomebodyWhoCannotAct(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "owner@h")
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "banned@h"}, true); err != nil {
@@ -310,7 +310,7 @@ func TestRemovingHoldsTheRegistryWhileItDropsTheCredential(t *testing.T) {
 	claiming, claimed := make(chan struct{}), make(chan error, 1)
 	go func() {
 		close(claiming)
-		_, err := b.Register(protocol.Record{Name: "svc@h", Owner: "other@h"})
+		_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "other@h"})
 		claimed <- err
 	}()
 	<-claiming
@@ -334,7 +334,7 @@ func TestARemovedPrincipalsBlockedReadIsReleased(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "reader@h")
-	provision(t, b, protocol.Record{Name: "shared@h", Owner: "admin@h", Allow: []string{"reader@h"}})
+	provision(t, b, protocol.Record{Kind: protocol.KindAgent, Name: "shared@h", Owner: "admin@h", Allow: []string{"reader@h"}})
 	stopped := make(chan error, 1)
 	go func() {
 		_, err := b.ConsumeAs(context.Background(), "reader@h", "shared@h", "", "", false, false)

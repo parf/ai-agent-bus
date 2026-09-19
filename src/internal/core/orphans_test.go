@@ -19,7 +19,7 @@ import (
 // point, a blocked reader, and the guards an ordinary removal applies.
 
 func wreck(name, owner string) protocol.Record {
-	return protocol.Record{Name: name, Owner: owner, Kind: "generic", Full: protocol.OverflowStrict, Allow: []string{"*"}}
+	return protocol.Record{Name: name, Owner: owner, Kind: protocol.KindAgent, Full: protocol.OverflowStrict, Allow: []string{"*"}}
 }
 
 func listed(t *testing.T, b *Bus, name string) bool {
@@ -100,7 +100,7 @@ func TestAPurgedNameIsFreeAndItsQueueIsGone(t *testing.T) {
 	}
 	b.Orphans()
 
-	if _, err := b.Register(protocol.Record{Name: "wreck@h", Owner: "active@h", Kind: "generic"}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "wreck@h", Owner: "active@h", Kind: protocol.KindAgent}); err != nil {
 		t.Fatalf("the freed name did not register to somebody else: %v", err)
 	}
 	rec, ok := b.Lookup("active@h", "wreck@h")

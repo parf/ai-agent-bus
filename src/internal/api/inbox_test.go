@@ -13,10 +13,10 @@ import (
 func TestInboxSelectionIsIndependentOfMessageFilters(t *testing.T) {
 	c := refusalFixture(t)
 	for _, record := range []protocol.Record{
-		{Name: "reader@h", Owner: "admin@h", Allow: []string{"admin@h"}},
-		{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Allow: []string{"reader@h", "admin@h"}},
-		{Name: "filter@h", Owner: "admin@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Allow: []string{"reader@h", "admin@h"}},
-		{Name: "secret@h", Owner: "admin@h", Allow: []string{"admin@h"}},
+		{Kind: protocol.KindAgent, Name: "reader@h", Owner: "admin@h", Allow: []string{"admin@h"}},
+		{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindQueue, Allow: []string{"reader@h", "admin@h"}},
+		{Name: "filter@h", Owner: "admin@h", Kind: protocol.KindQueue, Allow: []string{"reader@h", "admin@h"}},
+		{Kind: protocol.KindAgent, Name: "secret@h", Owner: "admin@h", Allow: []string{"admin@h"}},
 	} {
 		if _, err := c.bus.Register(record); err != nil {
 			t.Fatal(err)

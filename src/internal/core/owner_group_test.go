@@ -19,17 +19,17 @@ func ownerACLFixture(t *testing.T) *Bus {
 		}
 	}
 	for _, r := range []protocol.Record{
-		{Name: "target@h", Owner: "alice@h", Allow: []string{OwnerGroup}},
-		{Name: "alice-service@h", Owner: "alice@h"},
+		{Kind: protocol.KindAgent, Name: "target@h", Owner: "alice@h", Allow: []string{OwnerGroup}},
+		{Kind: protocol.KindAgent, Name: "alice-service@h", Owner: "alice@h"},
 		{Name: "alice-agent@h", Owner: "alice@h", Kind: "agent"},
-		{Name: "alice-topic@h", Owner: "alice@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue},
-		{Name: "bob-service@h", Owner: "bob@h"},
+		{Name: "alice-topic@h", Owner: "alice@h", Kind: protocol.KindQueue},
+		{Kind: protocol.KindAgent, Name: "bob-service@h", Owner: "bob@h"},
 	} {
 		if _, err := b.Register(r); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Register(protocol.Record{Name: "indirect@h", Owner: "alice-service@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "indirect@h", Owner: "alice-service@h"}); err != nil {
 		t.Fatal(err)
 	}
 	return b

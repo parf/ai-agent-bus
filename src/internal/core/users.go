@@ -663,7 +663,7 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 		if _, backed := b.dirs[parsed.Realm]; backed {
 			return protocol.User{}, ErrEnrol
 		}
-		b.records[in.Name] = protocol.Record{Name: in.Name, Owner: in.Name, Kind: "agent", Full: protocol.OverflowStrict, At: time.Now()}
+		b.records[in.Name] = protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Full: protocol.OverflowStrict, At: time.Now()}
 		b.ensure(in.Name)
 	}
 	b.users[in.Name] = in

@@ -57,6 +57,9 @@ func (b *Bus) EstablishDaemonOwner(seed string) error {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.recordRestoreErr != nil {
+		return b.recordRestoreErr
+	}
 	if b.ownerRestoreErr != nil {
 		return b.ownerRestoreErr
 	}
@@ -131,23 +134,25 @@ func (b *Bus) validatePersonal(r protocol.Record) error {
 	if !r.Personal {
 		return nil
 	}
-	if r.Kind != "generic" {
-		return fmt.Errorf("%w: only services may be personal", ErrPersonal)
+	if r.Kind != protocol.KindAgent {
+		return fmt.Errorf("%w: only an agent may be personal", ErrPersonal)
 	}
+	// An agent record may also be a user's own name, and a person is not
+	// somebody's personal agent.
 	if _, user := b.users[r.Name]; user {
-		return fmt.Errorf("%w: a user identity is not a personal service", ErrPersonal)
+		return fmt.Errorf("%w: a user identity is not a personal agent", ErrPersonal)
 	}
 	if len(r.Maintainers) != 0 {
 		return fmt.Errorf("%w: remove maintainers first", ErrPersonal)
 	}
 	for _, name := range r.Allow {
 		if name == "*" || strings.HasPrefix(name, "@") || name == r.Name {
-			return fmt.Errorf("%w: %s is not another service", ErrPersonal, name)
+			return fmt.Errorf("%w: %s is not another agent", ErrPersonal, name)
 		}
 		other, known := b.records[name]
 		_, user := b.users[name]
-		if !known || user || other.Kind != "generic" {
-			return fmt.Errorf("%w: %s is not a registered service", ErrPersonal, name)
+		if !known || user || other.Kind != protocol.KindAgent {
+			return fmt.Errorf("%w: %s is not a registered agent", ErrPersonal, name)
 		}
 	}
 	return nil
@@ -219,8 +224,8 @@ func (b *Bus) normalizeMaintainers(in protocol.MaintainerList) (protocol.Maintai
 			if !user && !registered {
 				return nil, fmt.Errorf("%w: maintainer %s", ErrUnknown, term)
 			}
-			if !user && record.Kind != "generic" && record.Kind != "agent" {
-				return nil, fmt.Errorf("%w: maintainer %s must be a user, service, agent or group", ErrBadName, term)
+			if !user && record.Kind != protocol.KindAgent {
+				return nil, fmt.Errorf("%w: maintainer %s must be a user, agent or group", ErrBadName, term)
 			}
 		}
 		if seen[term] {
@@ -240,9 +245,6 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	who, err := canon(caller)
 	if err != nil {
 		return err
-	}
-	if name == legacyAdministratorsGroup {
-		return fmt.Errorf("%w: %s was renamed to %s", ErrBadName, name, AdministratorsGroup)
 	}
 	if name == OwnerGroup {
 		return fmt.Errorf("%w: %s is a runtime ACL term and cannot be created", ErrBadName, OwnerGroup)
@@ -464,6 +466,12 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		}
 		r.Full = *change.Full
 	}
+	// The whole record after the change, not the fields the change named: a
+	// settings edit must not be able to leave behind a record that could not
+	// have been registered in that shape.
+	if err := validateKind(r); err != nil {
+		return protocol.Record{}, err
+	}
 	if err := b.validatePersonal(r); err != nil {
 		return protocol.Record{}, err
 	}
@@ -548,8 +556,8 @@ func (b *Bus) RemoveSubscriber(caller, topic, subscriber string) (protocol.Recor
 	if !b.manages(who, r) {
 		return protocol.Record{}, ErrNotOwner
 	}
-	if r.Kind != protocol.KindTopic || r.Mode != protocol.ModePubSub {
-		return protocol.Record{}, ErrMode
+	if r.Kind != protocol.KindPubSub {
+		return protocol.Record{}, ErrKind
 	}
 	r.Subs = drop1(r.Subs, sub)
 	b.records[name] = r

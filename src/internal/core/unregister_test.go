@@ -19,7 +19,7 @@ import (
 func TestUnregisterLeavesNothingBehind(t *testing.T) {
 	b := New()
 	person(b, "owner@h", "stranger@h")
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Unregister("svc@h", "stranger@h"); !errors.Is(err, ErrNotOwner) {
@@ -54,7 +54,7 @@ func TestUnregisterLeavesNothingBehind(t *testing.T) {
 		}
 		// Whoever asks next gets it, previous owner or not. That is the
 		// simplification: nothing is held back for a name nobody serves.
-		if _, err := bus.Register(protocol.Record{Name: "svc@h", Owner: "stranger@h"}); err != nil {
+		if _, err := bus.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "stranger@h"}); err != nil {
 			t.Fatalf("a removed name was still reserved: %v", err)
 		}
 		if err := bus.Unregister("svc@h", "stranger@h"); err != nil {
@@ -98,7 +98,7 @@ func TestUnregisterClearsConfigurationAndSubscriptions(t *testing.T) {
 	if _, err := b.Configure("svc@h", "svc@h", json.RawMessage(`{"private":true}`)); err != nil {
 		t.Fatal(err)
 	}
-	provision(t, b, protocol.Record{Name: "topic@h", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub})
+	provision(t, b, protocol.Record{Name: "topic@h", Allow: []string{"*"}, Kind: protocol.KindPubSub})
 	if _, err := b.Subscribe("svc@h", "topic@h", true); err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestUnregisterClearsConfigurationAndSubscriptions(t *testing.T) {
 		t.Fatal("inbox survived removal")
 	}
 	known(t, b, "keeper@h")
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "keeper@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "keeper@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if cfg, err := b.Config("svc@h", "svc@h"); err != nil || len(cfg) != 0 {
@@ -131,8 +131,8 @@ func TestUnregisteringDoesNotOrphanWhatItOwns(t *testing.T) {
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "alice@h")
 	for _, r := range []protocol.Record{
-		{Name: "child@h", Owner: "alice@h"},
-		{Name: "other@h", Owner: "alice@h"},
+		{Kind: protocol.KindAgent, Name: "child@h", Owner: "alice@h"},
+		{Kind: protocol.KindAgent, Name: "other@h", Owner: "alice@h"},
 	} {
 		if _, err := b.Register(r); err != nil {
 			t.Fatal(err)
@@ -164,10 +164,10 @@ func TestUnregisteringDoesNotOrphanWhatItOwns(t *testing.T) {
 	// The same fact when somebody else owns the name's record. What the guard
 	// weighs is what removal costs the name, not who held it: admin owning
 	// alice's record does not make alice's services safe to strand.
-	if _, err := b.Register(protocol.Record{Name: "carol@h", Owner: "admin@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "carol@h", Owner: "admin@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "hers@h", Owner: "carol@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "hers@h", Owner: "carol@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Unregister("carol@h", "admin@h"); !errors.Is(err, ErrBusy) {
@@ -180,7 +180,7 @@ func TestUnregisteringDoesNotOrphanWhatItOwns(t *testing.T) {
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "dave@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "daves@h", Owner: "dave@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "daves@h", Owner: "dave@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Unregister("dave@h", "dave@h"); err != nil {
@@ -193,7 +193,7 @@ func TestUnregisteringDoesNotOrphanWhatItOwns(t *testing.T) {
 	// Positive control: owning a record is not the same as being one. A record
 	// somebody else owns is removed without this guard ever applying.
 	known(t, b, "bob@h")
-	if _, err := b.Register(protocol.Record{Name: "theirs@h", Owner: "bob@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "theirs@h", Owner: "bob@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Unregister("theirs@h", "bob@h"); err != nil {

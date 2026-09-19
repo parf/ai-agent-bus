@@ -34,10 +34,12 @@ const usage = `agent-bus — talk to agent-busd
 
   agent-bus --version
   agent-bus status
-  agent-bus register <name> [--kind k] [--addr a] [--descr d] [--overflow ring|strict] [--personal]
+  agent-bus register <name> [--kind user|agent|queue|pubsub|service] [--addr a] [--descr d]
+                            [--overflow ring|strict] [--personal]
                             [--allow a@b,c@d | --allow '*' | --allow '@owner']  who may see and use it
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
-                            [--protocol p]  how to call it; unset = this bus
+                            [--protocol p]  how to reach it; a service needs --addr and --protocol
+                            no --kind registers a service: something that is not on this bus
   agent-bus ls [<name>] [--kind k] [-h]   -h: human-readable table
   agent-bus unregister <name>          remove an idle registry entry; does not stop a process
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
@@ -182,8 +184,15 @@ func register(args []string) error {
 	if err != nil {
 		return err
 	}
+	kind := flags["kind"]
+	// --personal names an agent: it is the owner's own agent, grouped in their
+	// view, and no other kind may carry the flag. Stating both is allowed and
+	// stating a different one is the caller's error to see.
+	if kind == "" && has(flags, "personal") {
+		kind = protocol.KindAgent
+	}
 	return post("/register", protocol.Record{
-		Name: pos[0], Kind: flags["kind"], Addr: flags["addr"], Descr: flags["descr"],
+		Name: pos[0], Kind: kind, Addr: flags["addr"], Descr: flags["descr"],
 		Full: flags["overflow"], Proto: flags["protocol"],
 		TTL: flags["ttl"], Bound: n,
 		Allow: allow(flags), Personal: has(flags, "personal"),
@@ -254,24 +263,13 @@ func ls(args []string) error {
 	for _, r := range records {
 		// Protocol is a declared way to call a record; Readers is what the
 		// daemon observes on its inbox. Neither fact cancels the other.
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n", cell(r.Name), cliEntityLabel(r.Kind), cell(r.Owner), readerCount(r.Readers), r.Queued, cell(r.Descr))
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n", cell(r.Name), display.Entity(r.Kind), cell(r.Owner), readerCount(r.Readers), r.Queued, cell(r.Descr))
 	}
 	if err := w.Flush(); err != nil {
 		return err
 	}
 	fmt.Println("\nREADERS  outstanding consume requests, filtered and unfiltered together; an observation, not service health or completed work")
 	return nil
-}
-
-func cliEntityLabel(kind string) string {
-	label := display.Entity(kind)
-	// tabwriter counts code points while terminals render the alien as two
-	// columns. An explicit zero-width variation selector gives both the same
-	// width model, keeping the next column aligned with ⚙️ Service.
-	if kind == "agent" {
-		return strings.Replace(label, "👾", "👾️", 1)
-	}
-	return label
 }
 
 func readerCount(readers *int) string {
@@ -486,19 +484,22 @@ func topic(args []string) error {
 	if len(pos) != 1 {
 		return fmt.Errorf("topic create wants one name")
 	}
-	mode := flags["kind"]
-	if mode == "" {
-		mode = protocol.ModeQueue
+	// A topic is now a record kind rather than a mode on one, so --kind names
+	// the kind directly and there is nothing else to store.
+	// See docs/03-services-and-topics.md#five-record-kinds.
+	kind := flags["kind"]
+	if kind == "" {
+		kind = protocol.KindQueue
 	}
-	if mode != protocol.ModeQueue && mode != protocol.ModePubSub {
-		return fmt.Errorf("a topic is %s or %s", protocol.ModeQueue, protocol.ModePubSub)
+	if kind != protocol.KindQueue && kind != protocol.KindPubSub {
+		return fmt.Errorf("a topic is %s or %s", protocol.KindQueue, protocol.KindPubSub)
 	}
 	n, err := bound(flags)
 	if err != nil {
 		return err
 	}
 	return post("/register", protocol.Record{
-		Name: pos[0], Kind: protocol.KindTopic, Mode: mode, Descr: flags["descr"],
+		Name: pos[0], Kind: kind, Descr: flags["descr"],
 		Full: flags["overflow"], TTL: flags["ttl"], Bound: n,
 		Allow: allow(flags),
 	})

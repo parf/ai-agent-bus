@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -102,12 +103,12 @@ func (m *MaintainerList) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Record is a registered service, agent or topic. Registering is pushing a
-// description; the thing itself need not know the bus exists.
-// See docs/03-services-and-topics.md.
+// Record is one registered name, of one of the five kinds below. Registering
+// is pushing a description; the thing itself need not know the bus exists.
+// See docs/03-services-and-topics.md#five-record-kinds.
 type Record struct {
 	Name string `json:"name"`
-	Kind string `json:"kind"`           // generic, agent, topic
+	Kind string `json:"kind"`           // one of Kinds; a closed set
 	Addr string `json:"addr,omitempty"` // host:port, a path, a URL
 
 	// Proto says HOW to call this, where Addr says where. Empty is the
@@ -122,7 +123,6 @@ type Record struct {
 	Proto string `json:"protocol,omitempty"`
 
 	Descr string `json:"descr,omitempty"`    // what ls and the MCP catalog show
-	Mode  string `json:"mode,omitempty"`     // topics only: queue or pubsub
 	Full  string `json:"overflow,omitempty"` // ring or strict; strict if unset
 
 	// TTL and Bound are the queue's, declared on the record like overflow:
@@ -255,11 +255,31 @@ const (
 	OverflowRing   = "ring"   // drop the oldest to make room
 )
 
-// Topic kinds. A queue topic is an inbox with a name, and the mode is stored
-// rather than a second meaning of subscription being invented.
-// See docs/03-services-and-topics.md#topics.
+// Record kinds: a closed set, so the daemon answers what a record is rather
+// than a reader inferring it. A queue and a pub/sub topic are kinds of their
+// own, which is why no separate mode is stored.
+// See docs/03-services-and-topics.md#five-record-kinds.
 const (
-	KindTopic  = "topic"
-	ModeQueue  = "queue"
-	ModePubSub = "pubsub"
+	KindUser    = "user"    // the queue a person reads
+	KindAgent   = "agent"   // the queue an agent reads
+	KindQueue   = "queue"   // a queue created to be shared
+	KindPubSub  = "pubsub"  // copied to every subscriber, keeps nothing
+	KindService = "service" // something external, not on this bus
 )
+
+// Kinds is the whole set, in the order an error message should name them.
+var Kinds = []string{KindUser, KindAgent, KindQueue, KindPubSub, KindService}
+
+// ValidKind reports whether the daemon knows this kind. An empty kind is not
+// one: a caller that states nothing is given the default before it gets here.
+func ValidKind(kind string) bool {
+	for _, k := range Kinds {
+		if k == kind {
+			return true
+		}
+	}
+	return false
+}
+
+// KindNames lists the set for a refusal, so a caller is told what it may say.
+func KindNames() string { return strings.Join(Kinds, ", ") }

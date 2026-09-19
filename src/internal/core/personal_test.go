@@ -22,9 +22,8 @@ func personalFixture(t *testing.T) *Bus {
 		}
 	}
 	for _, r := range []protocol.Record{
-		{Name: "peer@h", Owner: "alice@h", Kind: "generic"},
-		{Name: "bot@h", Owner: "alice@h", Kind: "agent"},
-		{Name: "jobs@h", Owner: "alice@h", Kind: protocol.KindTopic},
+		{Name: "peer@h", Owner: "alice@h", Kind: protocol.KindAgent},
+		{Name: "jobs@h", Owner: "alice@h", Kind: protocol.KindQueue},
 	} {
 		if _, err := b.Register(r); err != nil {
 			t.Fatal(err)
@@ -39,7 +38,7 @@ func personalFixture(t *testing.T) *Bus {
 	// A profile may sit on a self-owned record whose historical kind is
 	// generic. Personal validation asks about the profile, not its spelling or
 	// record kind, so this remains a user rather than becoming a service.
-	provision(t, b, protocol.Record{Name: "profile@h", Kind: "generic"})
+	provision(t, b, protocol.Record{Name: "profile@h", Kind: protocol.KindAgent})
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "profile@h"}, false); err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +47,7 @@ func personalFixture(t *testing.T) *Bus {
 
 func TestPersonalChangesValidateTheFinalRecordAtomically(t *testing.T) {
 	b := personalFixture(t)
-	if _, err := b.Register(protocol.Record{Name: "reports@h", Owner: "alice@h", Allow: []string{"bob@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "reports@h", Owner: "alice@h", Allow: []string{"bob@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Manage("alice@h", Management{Name: "reports@h", Maintainers: ptr(protocol.MaintainerList{"@ops"})}); err != nil {
@@ -90,7 +89,7 @@ func TestPersonalChangesValidateTheFinalRecordAtomically(t *testing.T) {
 	}
 }
 
-func TestPersonalAcceptsOnlyDirectRegisteredServices(t *testing.T) {
+func TestPersonalAcceptsOnlyDirectRegisteredAgents(t *testing.T) {
 	b := personalFixture(t)
 	for i, tc := range []struct {
 		name  string
@@ -100,7 +99,6 @@ func TestPersonalAcceptsOnlyDirectRegisteredServices(t *testing.T) {
 		{"service-only-group", []string{"@services"}},
 		{"user", []string{"bob@h"}},
 		{"profile-backed", []string{"profile@h"}},
-		{"agent", []string{"bot@h"}},
 		{"channel", []string{"jobs@h"}},
 		{"unknown", []string{"missing@h"}},
 		{"self", []string{"self-7@h"}},
@@ -110,37 +108,47 @@ func TestPersonalAcceptsOnlyDirectRegisteredServices(t *testing.T) {
 			if tc.name == "self" {
 				name = "self-7@h"
 			}
-			_, err := b.Register(protocol.Record{Name: name, Owner: "alice@h", Personal: true, Allow: tc.allow})
+			_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: name, Owner: "alice@h", Personal: true, Allow: tc.allow})
 			if !errors.Is(err, ErrPersonal) {
 				t.Fatalf("registered invalid Personal ACL %v: %v", tc.allow, err)
 			}
 		})
 	}
-	if got, err := b.Register(protocol.Record{
+	if got, err := b.Register(protocol.Record{Kind: protocol.KindAgent, 
 		Name: "valid@h", Owner: "alice@h", Personal: true, Allow: []string{"peer@h"},
 	}); err != nil || !got.Personal {
-		t.Fatalf("direct service ACL refused: %+v, %v", got, err)
+		t.Fatalf("direct agent ACL refused: %+v, %v", got, err)
 	}
 	if _, err := b.Manage("alice@h", Management{Name: "valid@h", Maintainers: ptr(protocol.MaintainerList{"@ops"})}); !errors.Is(err, ErrPersonal) {
 		t.Fatalf("Personal service accepted Maintainers: %v", err)
 	}
 }
 
-func TestPersonalIsAServiceOnlyOwnerChoice(t *testing.T) {
+// Personal is an agent-only owner choice: it groups an owner's own agents in
+// their web view, and the other four kinds have nobody to be personal to.
+func TestPersonalIsAnAgentOnlyOwnerChoice(t *testing.T) {
 	b := personalFixture(t)
 	for _, r := range []protocol.Record{
-		{Name: "personal-agent@h", Owner: "alice@h", Kind: "agent", Personal: true},
-		{Name: "personal-topic@h", Owner: "alice@h", Kind: protocol.KindTopic, Personal: true},
+		{Name: "personal-queue@h", Owner: "alice@h", Kind: protocol.KindQueue, Personal: true},
+		{Name: "personal-pubsub@h", Owner: "alice@h", Kind: protocol.KindPubSub, Personal: true},
+		{Name: "personal-service@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "h:1", Proto: "https", Personal: true},
+		{Name: "personal-user@h", Owner: "alice@h", Kind: protocol.KindUser, Personal: true},
 	} {
 		if _, err := b.Register(r); !errors.Is(err, ErrPersonal) {
 			t.Fatalf("registered Personal %s: %v", r.Kind, err)
 		}
 	}
+	// Falsifiable the other way: the one kind that may be Personal is.
+	if got, err := b.Register(protocol.Record{
+		Name: "personal-agent@h", Owner: "alice@h", Kind: protocol.KindAgent, Personal: true,
+	}); err != nil || !got.Personal {
+		t.Fatalf("an agent was refused Personal: %+v, %v", got, err)
+	}
 	if _, err := b.Manage("profile@h", Management{Name: "profile@h", Personal: ptr(true)}); !errors.Is(err, ErrPersonal) {
 		t.Fatalf("profile-backed record became Personal: %v", err)
 	}
 
-	if _, err := b.Register(protocol.Record{Name: "owned@h", Owner: "alice@h", Allow: []string{"peer@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "owned@h", Owner: "alice@h", Allow: []string{"peer@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Manage("alice@h", Management{Name: "owned@h", Maintainers: ptr(protocol.MaintainerList{"@ops"})}); err != nil {
@@ -153,16 +161,16 @@ func TestPersonalIsAServiceOnlyOwnerChoice(t *testing.T) {
 
 func TestPersonalRefreshPreservesOwnerPolicyAndRejectsInvalidReplacement(t *testing.T) {
 	b := personalFixture(t)
-	if _, err := b.Register(protocol.Record{
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, 
 		Name: "worker@h", Owner: "alice@h", Personal: true, Allow: []string{"peer@h"},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	got, err := b.Register(protocol.Record{Name: "worker@h", Owner: "worker@h", Descr: "restarted"})
+	got, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "worker@h", Owner: "worker@h", Descr: "restarted"})
 	if err != nil || !got.Personal || got.Descr != "restarted" || len(got.Allow) != 1 || got.Allow[0] != "peer@h" {
 		t.Fatalf("refresh lost Personal policy: %+v, %v", got, err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "worker@h", Owner: "worker@h", Allow: []string{"bob@h"}}); !errors.Is(err, ErrPersonal) {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "worker@h", Owner: "worker@h", Allow: []string{"bob@h"}}); !errors.Is(err, ErrPersonal) {
 		t.Fatalf("refresh installed invalid Personal ACL: %v", err)
 	}
 	got, _ = b.Lookup("alice@h", "worker@h")
@@ -173,7 +181,7 @@ func TestPersonalRefreshPreservesOwnerPolicyAndRejectsInvalidReplacement(t *test
 
 func TestPersonalPersistsWithoutChangingAuthorization(t *testing.T) {
 	b := personalFixture(t)
-	if _, err := b.Register(protocol.Record{
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, 
 		Name: "private-tool@h", Owner: "alice@h", Personal: true, Allow: []string{"peer@h"},
 	}); err != nil {
 		t.Fatal(err)

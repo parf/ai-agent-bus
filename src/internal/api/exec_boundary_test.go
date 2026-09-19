@@ -78,7 +78,7 @@ func TestUserServiceInputsRemainData(t *testing.T) {
 		}
 	}
 	var rec protocol.Record
-	call("POST", "/register", "owner@h", protocol.Record{Name: "probe@h", Descr: program, Addr: program, Proto: "exec"}, &rec)
+	call("POST", "/register", "owner@h", protocol.Record{Kind: protocol.KindAgent, Name: "probe@h", Descr: program, Addr: program, Proto: "exec"}, &rec)
 	inert("registration")
 	if rec.Descr != program || rec.Addr != program || rec.Proto != "exec" {
 		t.Fatalf("registration discarded the probe: %+v", rec)

@@ -19,7 +19,7 @@ func TestOwnerlessIsNoRecordAndNoUser(t *testing.T) {
 	b.SetDaemonOwner("owner@h")
 
 	// A service, owned by the owner. Its credential answers for the record.
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
 	}
 	// A person with a profile and no record of their own — SetUser makes one,
@@ -56,7 +56,7 @@ func TestTheSweepNeedsRestoreAndTheOwnerFirst(t *testing.T) {
 	}
 	early.Restore(ports.Snapshot{
 		Users:   []protocol.User{{Name: "person@h", State: "active"}},
-		Records: []protocol.Record{{Name: "svc@h", Owner: "owner@h"}},
+		Records: []protocol.Record{{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h"}},
 	})
 	if got := early.Ownerless([]string{"person@h", "svc@h"}); len(got) != 0 {
 		t.Errorf("after restore %v is still ownerless", got)
@@ -91,7 +91,7 @@ func TestTheTwoSweepsAgreeAboutOneName(t *testing.T) {
 	// only place this state still comes from \u2014 which is the state the sweeps
 	// have to be safe against.
 	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
-		{Name: "theirs@h", Owner: "absent@h", Kind: "generic", Full: protocol.OverflowStrict},
+		{Name: "theirs@h", Owner: "absent@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict},
 	}})
 
 	// Order is the whole of it. Before the records go, the credential is

@@ -27,7 +27,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 			if err := b.SetGroup("admin@h", "@readers", []string{"reader@h"}); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := b.Register(protocol.Record{Name: "queue@h", Owner: "owner@h", Kind: "topic", Allow: []string{"@readers"}}); err != nil {
+			if _, err := b.Register(protocol.Record{Name: "queue@h", Owner: "owner@h", Kind: protocol.KindQueue, Allow: []string{"@readers"}}); err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -79,7 +79,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 func TestManagementRejectsPartialInvalidChanges(t *testing.T) {
 	b := New()
 	known(t, b, "owner@h")
-	b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h", Descr: "original"})
+	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h", Descr: "original"})
 	if _, err := b.Manage("owner@h", Management{Name: "svc@h", Descr: ptr("lost"), Bound: ptr(-1)}); !errors.Is(err, ErrBound) {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestManagementRejectsPartialInvalidChanges(t *testing.T) {
 func TestCanceledReaderCannotRecreateRemovedInbox(t *testing.T) {
 	b := New()
 	known(t, b, "owner@h")
-	b.Register(protocol.Record{Name: "svc@h", Owner: "owner@h"})
+	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h"})
 	w := &waiter{caller: "svc@h", ch: make(chan protocol.Envelope, 1), stopped: make(chan error, 1)}
 	b.inboxes["svc@h"].waiters = append(b.inboxes["svc@h"].waiters, w)
 	if _, err := b.Manage("owner@h", Management{Name: "svc@h", Disabled: ptr(true)}); err != nil {
@@ -113,7 +113,7 @@ func TestChannelManagersCanRemoveButStrangersCannot(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "owner@h")
-	b.Register(protocol.Record{Name: "news@h", Owner: "owner@h", Allow: []string{"*"}, Kind: "topic", Mode: "pubsub"})
+	b.Register(protocol.Record{Name: "news@h", Owner: "owner@h", Allow: []string{"*"}, Kind: protocol.KindPubSub})
 	known(t, b, "subscriber@h", "stranger@h", "maint@h")
 	if _, err := b.Subscribe("subscriber@h", "news@h", true); err != nil {
 		t.Fatal(err)

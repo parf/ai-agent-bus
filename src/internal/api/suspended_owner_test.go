@@ -37,8 +37,8 @@ func suspendedOwnerFixture(t *testing.T) suspendFixture {
 	f := suspendFixture{bus, s, token, t}
 	// alice owns the service under test; steady owns the positive control, so
 	// every refusal below has a service beside it that answers throughout.
-	f.call("alice@h", "POST", "/register", `{"name":"svc@h","allow":["alice@h","bystander@h","maint@h","admin@h"]}`, 200)
-	f.call("steady@h", "POST", "/register", `{"name":"steady-svc@h","allow":["bystander@h"]}`, 200)
+	f.call("alice@h", "POST", "/register", `{"kind":"agent","name":"svc@h","allow":["alice@h","bystander@h","maint@h","admin@h"]}`, 200)
+	f.call("steady@h", "POST", "/register", `{"kind":"agent","name":"steady-svc@h","allow":["bystander@h"]}`, 200)
 	return f
 }
 
@@ -72,7 +72,7 @@ func (f suspendFixture) raw(token, method, path, body string, want int) string {
 
 func (f suspendFixture) state(name, state string) {
 	f.t.Helper()
-	f.call("admin@h", "POST", "/user/state", `{"name":"`+name+`","state":"`+state+`"}`, 200)
+	f.call("admin@h", "POST", "/user/state", `{"kind":"agent","name":"`+name+`","state":"`+state+`"}`, 200)
 }
 
 func (f suspendFixture) refusals() map[string]int {
@@ -158,7 +158,7 @@ func TestSuspensionDestroysNothing(t *testing.T) {
 
 	// An Administrator may lift an ordinary user's ban. The credentials and
 	// queue below were retained across that Administrator-authorized lift.
-	f.call("maint@h", "POST", "/user/state", `{"name":"alice@h","state":"active"}`, 200)
+	f.call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","state":"active"}`, 200)
 
 	// Both credentials still work, and these are the bytes held before the
 	// ban rather than freshly minted ones, so this is kept-not-revoked rather
@@ -175,7 +175,7 @@ func TestSuspensionDestroysNothing(t *testing.T) {
 // topic is how a third party reads a name that is not its own.
 func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 	f := suspendedOwnerFixture(t)
-	f.call("alice@h", "POST", "/register", `{"name":"jobs@h","kind":"topic","allow":["bystander@h","admin@h"],"share":true}`, 200)
+	f.call("alice@h", "POST", "/register", `{"name":"jobs@h","kind":"queue","allow":["bystander@h","admin@h"],"share":true}`, 200)
 	f.call("bystander@h", "POST", "/send", `{"to":"jobs@h","body":"waiting"}`, 200)
 	f.state("alice@h", "paused")
 
@@ -198,7 +198,7 @@ func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 // Joining a suspended owner's channel is a call to it; leaving one is not.
 func TestASuspendedOwnersTopicRefusesNewSubscribersButLetsThemLeave(t *testing.T) {
 	f := suspendedOwnerFixture(t)
-	f.call("alice@h", "POST", "/register", `{"name":"feed@h","kind":"topic","mode":"pubsub","allow":["bystander@h","maint@h"]}`, 200)
+	f.call("alice@h", "POST", "/register", `{"name":"feed@h","kind":"pubsub","allow":["bystander@h","maint@h"]}`, 200)
 	f.call("bystander@h", "POST", "/subscribe", `{"topic":"feed@h"}`, 200)
 	f.state("alice@h", "paused")
 
@@ -217,8 +217,8 @@ func TestASuspendedOwnersTopicRefusesNewSubscribersButLetsThemLeave(t *testing.T
 // assumed.
 func TestSuspensionIsNotTransitive(t *testing.T) {
 	f := suspendedOwnerFixture(t)
-	f.call("alice@h", "POST", "/register", `{"name":"parent@h","allow":["bystander@h","parent@h"]}`, 200)
-	f.call("parent@h", "POST", "/register", `{"name":"child@h","allow":["bystander@h"]}`, 200)
+	f.call("alice@h", "POST", "/register", `{"kind":"agent","name":"parent@h","allow":["bystander@h","parent@h"]}`, 200)
+	f.call("parent@h", "POST", "/register", `{"kind":"agent","name":"child@h","allow":["bystander@h"]}`, 200)
 	f.state("alice@h", "paused")
 
 	f.call("bystander@h", "POST", "/send", `{"to":"parent@h","body":"refused"}`, 403)

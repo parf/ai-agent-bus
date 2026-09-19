@@ -41,7 +41,7 @@ func provision(t *testing.T, b *Bus, records ...protocol.Record) {
 			r.Owner = n
 		}
 		if r.Kind == "" {
-			r.Kind = "generic"
+			r.Kind = protocol.KindAgent
 		}
 		if r.Full == "" {
 			r.Full = protocol.OverflowStrict

@@ -38,30 +38,30 @@ func TestConfiguringDoesNotCreateWhatRegisteringRefuses(t *testing.T) {
 	}
 
 	// The gate registration applies, and the same gate by the other door.
-	if code, body := call("ordinary@h", "/register", `{"name":"victim@vouched"}`); code != 403 {
+	if code, body := call("ordinary@h", "/register", `{"kind":"agent","name":"victim@vouched"}`); code != 403 {
 		t.Fatalf("registering into a vouched realm: %d %s, want 403", code, body)
 	}
-	if code, body := call("ordinary@h", "/configure", `{"name":"victim@vouched","config":{"k":1}}`); code != 403 {
+	if code, body := call("ordinary@h", "/configure", `{"kind":"agent","name":"victim@vouched","config":{"k":1}}`); code != 403 {
 		t.Fatalf("configuring claimed a vouched name: %d %s, want 403", code, body)
 	}
 	if _, taken := b.Lookup("admin@h", "victim@vouched"); taken {
 		t.Fatal("the refused configuration created the record anyway")
 	}
 	// And so the credential that would have followed is not there to mint.
-	if code, body := call("admin@h", "/token", `{"name":"victim@vouched"}`); code != 401 {
+	if code, body := call("admin@h", "/token", `{"kind":"agent","name":"victim@vouched"}`); code != 401 {
 		t.Fatalf("a vouched name nobody proved was issued a credential: %d %s", code, body)
 	}
 
 	// Configuring still creates in an ordinary realm, which is the behaviour
 	// this is not allowed to have broken.
-	if code, body := call("ordinary@h", "/configure", `{"name":"mine@h","config":{"k":1}}`); code != 200 {
+	if code, body := call("ordinary@h", "/configure", `{"kind":"agent","name":"mine@h","config":{"k":1}}`); code != 200 {
 		t.Fatalf("configuring could no longer create an ordinary name: %d %s", code, body)
 	}
 	if _, made := b.Lookup("ordinary@h", "mine@h"); !made {
 		t.Fatal("configuring an ordinary name did not create it")
 	}
 	// And it still configures a record that already exists.
-	if code, body := call("ordinary@h", "/configure", `{"name":"mine@h","config":{"k":2}}`); code != 200 {
+	if code, body := call("ordinary@h", "/configure", `{"kind":"agent","name":"mine@h","config":{"k":2}}`); code != 200 {
 		t.Fatalf("reconfiguring an existing record: %d %s", code, body)
 	}
 }

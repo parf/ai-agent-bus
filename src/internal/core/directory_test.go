@@ -26,7 +26,7 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 	// (docs/01-identity-and-roles.md#orphaned-records). It still arrives from an
 	// older store, which is exactly why the directory has to show it.
 	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
-		{Name: "owned@h", Owner: "unprofiled-owner@h", Kind: "generic", Full: protocol.OverflowStrict},
+		{Name: "owned@h", Owner: "unprofiled-owner@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict},
 	}})
 	credentials := []string{"session@h", "owned@h", "unprofiled-owner@h", "unused@h", "smoke/person@h"}
 	for _, caller := range []string{"owner@h", "maintainer@h"} {
@@ -124,7 +124,7 @@ func TestCleanupSerializesRegistrationWithCredentialRemoval(t *testing.T) {
 			go func() {
 				close(attempted)
 				if shape == "record" {
-					_, err := b.Register(protocol.Record{Name: "unused@h", Owner: "owner@h"})
+					_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "unused@h", Owner: "owner@h"})
 					registered <- err
 				} else {
 					_, err := b.SetUser("owner@h", protocol.User{Name: "unused@h"}, true)

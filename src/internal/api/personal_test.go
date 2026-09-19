@@ -32,8 +32,8 @@ func TestPersonalServiceThroughAPI(t *testing.T) {
 		}
 		return w.Body.String()
 	}
-	call("alice@h", "/register", `{"name":"peer@h"}`, 200)
-	call("alice@h", "/register", `{"name":"reports@h","personal":true,"allow":["peer@h"]}`, 200)
+	call("alice@h", "/register", `{"kind":"agent","name":"peer@h"}`, 200)
+	call("alice@h", "/register", `{"kind":"agent","name":"reports@h","personal":true,"allow":["peer@h"]}`, 200)
 	var got protocol.Record
 	if err := json.Unmarshal([]byte(call("alice@h", "/lookup?name=reports@h", "", 200)), &got); err != nil {
 		t.Fatal(err)
@@ -41,6 +41,6 @@ func TestPersonalServiceThroughAPI(t *testing.T) {
 	if !got.Personal {
 		t.Fatalf("public record lost Personal: %+v", got)
 	}
-	call("alice@h", "/manage", `{"name":"reports@h","allow":["bob@h"]}`, 400)
-	call("alice@h", "/manage", `{"name":"reports@h","personal":false,"allow":["bob@h"]}`, 200)
+	call("alice@h", "/manage", `{"kind":"agent","name":"reports@h","allow":["bob@h"]}`, 400)
+	call("alice@h", "/manage", `{"kind":"agent","name":"reports@h","personal":false,"allow":["bob@h"]}`, 200)
 }

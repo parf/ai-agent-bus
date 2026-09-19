@@ -93,7 +93,6 @@ func (b *Bus) checkpoint(clean bool) error {
 func (b *Bus) Restore(s ports.Snapshot) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	s = migrateAdministrators(s)
 	b.ownerRestored = s.OwnerEstablished || s.Owner != ""
 	b.ownerRestoreErr = nil
 	if s.Owner != "" && !s.OwnerEstablished {
@@ -171,7 +170,31 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		// an embedding caller. Live fields belong to this process and its
 		// current inboxes, never to durable registry state.
 		clearLiveRecord(&r)
+		// A record this daemon would not accept is not silently kept: it would
+		// be state the daemon cannot describe, and describing a record is the
+		// whole reason the set is closed. Nothing before 1.1 carries a
+		// compatibility obligation, so this refuses rather than converts, and
+		// it asks the same question registration asks rather than a weaker one
+		// — an unknown kind and a service with no address are equally records
+		// this version cannot serve.
+		// See docs/03-services-and-topics.md#five-record-kinds.
+		if b.recordRestoreErr == nil {
+			if err := validateKind(r); err != nil {
+				b.recordRestoreErr = fmt.Errorf("snapshot record %s cannot be restored: %w", r.Name, err)
+			}
+		}
 		b.records[r.Name] = r
+	}
+	// Personal validation asks about OTHER records, so it runs once they are
+	// all here: a snapshot does not promise that a Personal record's ACL is
+	// listed after the records it names.
+	for _, r := range s.Records {
+		if b.recordRestoreErr != nil {
+			break
+		}
+		if err := b.validatePersonal(b.records[r.Name]); err != nil {
+			b.recordRestoreErr = fmt.Errorf("snapshot record %s cannot be restored: %w", r.Name, err)
+		}
 	}
 	for _, q := range s.Queues {
 		in := b.ensure(q.Name)

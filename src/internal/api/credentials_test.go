@@ -42,10 +42,10 @@ func TestNamesSayWhoseCredentialAndWhatFor(t *testing.T) {
 		return out
 	}
 
-	call("admin@h", "POST", "/user", `{"name":"alice@h","person_name":"Alice","create":true}`, 200)
+	call("admin@h", "POST", "/user", `{"kind":"agent","name":"alice@h","person_name":"Alice","create":true}`, 200)
 	call("alice@h", "POST", "/register", `{"name":"svc@h","kind":"agent","descr":"a service"}`, 200)
 	var minted struct{ Token string }
-	if err := json.Unmarshal([]byte(call("alice@h", "POST", "/token", `{"name":"svc@h"}`, 200)), &minted); err != nil {
+	if err := json.Unmarshal([]byte(call("alice@h", "POST", "/token", `{"kind":"agent","name":"svc@h"}`, 200)), &minted); err != nil {
 		t.Fatal(err)
 	}
 	svcToken := minted.Token
@@ -67,7 +67,7 @@ func TestNamesSayWhoseCredentialAndWhatFor(t *testing.T) {
 		t.Fatalf("a person's own credential is not marked as theirs: %+v", me)
 	}
 
-	call("alice@h", "POST", "/unregister", `{"name":"svc@h"}`, 200)
+	call("alice@h", "POST", "/unregister", `{"kind":"agent","name":"svc@h"}`, 200)
 
 	// The credential goes with the address, and the test for that is whether
 	// it still authenticates — not whether the name is listed. An

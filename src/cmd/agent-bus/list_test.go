@@ -50,7 +50,9 @@ func captureOutput(t *testing.T, run func() error) string {
 
 func TestHumanListLabelsEntitiesWithoutChangingJSONKinds(t *testing.T) {
 	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
-	answer := `[{"name":"svc@h","kind":"generic","owner":"owner@h","maintainers":["alice@h","@ops"],"readers":0},{"name":"bot@h","kind":"agent","owner":"owner@h","readers":0},{"name":"jobs@h","kind":"topic","owner":"owner@h","readers":0}]`
+	// "generic" is no longer a kind, so it stands in for one the daemon never
+	// stated: an unknown kind is printed as it came and never guessed at.
+	answer := `[{"name":"svc@h","kind":"service","owner":"owner@h","maintainers":["alice@h","@ops"],"readers":0},{"name":"bot@h","kind":"agent","owner":"owner@h","readers":0},{"name":"jobs@h","kind":"queue","owner":"owner@h","readers":0},{"name":"news@h","kind":"pubsub","owner":"owner@h","readers":0},{"name":"alice@h","kind":"user","owner":"owner@h","readers":0},{"name":"old@h","kind":"generic","owner":"owner@h","readers":0}]`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, answer)
@@ -62,17 +64,17 @@ func TestHumanListLabelsEntitiesWithoutChangingJSONKinds(t *testing.T) {
 	t.Cleanup(func() { cliAddress, transport = oldAddress, oldTransport })
 
 	human := captureOutput(t, func() error { return ls([]string{"-h"}) })
-	for _, want := range []string{"⚙️ Service", "👾️ Agent", "jobs@h  topic"} {
+	for _, want := range []string{"📡 Service", "👾 Agent", "📮 Queue", "📣 PubSub", "👤 User", "old@h", "generic"} {
 		if !strings.Contains(human, want) {
 			t.Errorf("human listing lacks %q:\n%s", want, human)
 		}
 	}
-	if strings.Contains(human, "\tgeneric\t") || strings.Contains(human, `"kind"`) {
+	if strings.Contains(human, "\tservice\t") || strings.Contains(human, `"kind"`) {
 		t.Errorf("human listing retained machine kinds: %s", human)
 	}
 
 	raw := captureOutput(t, func() error { return ls(nil) })
-	if !strings.Contains(raw, `"kind":"generic"`) || !strings.Contains(raw, `"kind":"agent"`) || !strings.Contains(raw, `"maintainers":["alice@h","@ops"]`) || strings.Contains(raw, "⚙️") || strings.Contains(raw, "👾") {
+	if !strings.Contains(raw, `"kind":"service"`) || !strings.Contains(raw, `"kind":"agent"`) || !strings.Contains(raw, `"maintainers":["alice@h","@ops"]`) || strings.Contains(raw, "📡") || strings.Contains(raw, "👾") {
 		t.Errorf("JSON listing changed its machine vocabulary: %s", raw)
 	}
 }

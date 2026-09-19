@@ -44,7 +44,7 @@ func TestNoPathRemovesAGroup(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, who := range []string{"admin@h", "maint@h", "plain@h"} {
-		code, body := post(t, s, token, who, "/group", `{"name":"@ops","remove":true}`)
+		code, body := post(t, s, token, who, "/group", `{"kind":"agent","name":"@ops","remove":true}`)
 		if code != 400 {
 			t.Errorf("%s asking to remove a group answered %d, want 400: %s", who, code, body)
 		}
@@ -52,7 +52,7 @@ func TestNoPathRemovesAGroup(t *testing.T) {
 	// Carrying members alongside the removal does not get them applied on the
 	// way out: a refused request does nothing at all, rather than doing the
 	// save it was not asked for.
-	if code, body := post(t, s, token, "admin@h", "/group", `{"name":"@ops","remove":true,"members":["plain@h"]}`); code != 400 {
+	if code, body := post(t, s, token, "admin@h", "/group", `{"kind":"agent","name":"@ops","remove":true,"members":["plain@h"]}`); code != 400 {
 		t.Errorf("a removal carrying members answered %d, want 400: %s", code, body)
 	}
 	// The group is still there, and still has the member it had. A removal
@@ -78,13 +78,13 @@ func TestAnEmptiedGroupSurvivesASnapshotRoundTrip(t *testing.T) {
 	if err := bus.SetGroup("admin@h", "@ops", []string{"maint@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if code, body := post(t, s, token, "alice@h", "/register", `{"name":"svc@h","allow":["alice@h","@ops"]}`); code != 200 {
+	if code, body := post(t, s, token, "alice@h", "/register", `{"kind":"agent","name":"svc@h","allow":["alice@h","@ops"]}`); code != 200 {
 		t.Fatalf("register answered %d: %s", code, body)
 	}
-	if code, body := post(t, s, token, "alice@h", "/manage", `{"name":"svc@h","maintainers":"@ops"}`); code != 200 {
+	if code, body := post(t, s, token, "alice@h", "/manage", `{"kind":"agent","name":"svc@h","maintainers":"@ops"}`); code != 200 {
 		t.Fatalf("assigning maintainers answered %d: %s", code, body)
 	}
-	if code, body := post(t, s, token, "admin@h", "/group", `{"name":"@ops","members":[]}`); code != 200 {
+	if code, body := post(t, s, token, "admin@h", "/group", `{"kind":"agent","name":"@ops","members":[]}`); code != 200 {
 		t.Fatalf("emptying answered %d: %s", code, body)
 	}
 
@@ -114,25 +114,25 @@ func TestEmptyingAGroupLeavesTheRecordsThatNameIt(t *testing.T) {
 	if err := bus.SetGroup("admin@h", "@ops", []string{"maint@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if code, body := post(t, s, token, "alice@h", "/register", `{"name":"svc@h","allow":["alice@h","@ops"]}`); code != 200 {
+	if code, body := post(t, s, token, "alice@h", "/register", `{"kind":"agent","name":"svc@h","allow":["alice@h","@ops"]}`); code != 200 {
 		t.Fatalf("register answered %d: %s", code, body)
 	}
-	if code, body := post(t, s, token, "alice@h", "/manage", `{"name":"svc@h","maintainers":"@ops"}`); code != 200 {
+	if code, body := post(t, s, token, "alice@h", "/manage", `{"kind":"agent","name":"svc@h","maintainers":"@ops"}`); code != 200 {
 		t.Fatalf("assigning maintainers answered %d: %s", code, body)
 	}
 	// The member manages it through the group, which is what emptying revokes.
-	if code, body := post(t, s, token, "maint@h", "/manage", `{"name":"svc@h","descr":"through the group"}`); code != 200 {
+	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"svc@h","descr":"through the group"}`); code != 200 {
 		t.Fatalf("a member could not manage through the group: %d %s", code, body)
 	}
 
-	if code, body := post(t, s, token, "admin@h", "/group", `{"name":"@ops","members":[]}`); code != 200 {
+	if code, body := post(t, s, token, "admin@h", "/group", `{"kind":"agent","name":"@ops","members":[]}`); code != 200 {
 		t.Fatalf("emptying answered %d: %s", code, body)
 	}
 
 	if _, ok := bus.Groups("admin@h")["@ops"]; !ok {
 		t.Error("emptying the membership took the group name with it")
 	}
-	if code, body := post(t, s, token, "maint@h", "/manage", `{"name":"svc@h","descr":"revoked"}`); code != 403 {
+	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"svc@h","descr":"revoked"}`); code != 403 {
 		t.Errorf("a former member still confers management: %d %s", code, body)
 	}
 	// The record still names the emptied group in both places. Deletion
@@ -154,10 +154,10 @@ func TestEmptyingAGroupLeavesTheRecordsThatNameIt(t *testing.T) {
 
 	// Putting one back restores what they confer, so emptying is a state and
 	// not a one-way door.
-	if code, body := post(t, s, token, "admin@h", "/group", `{"name":"@ops","members":["maint@h"]}`); code != 200 {
+	if code, body := post(t, s, token, "admin@h", "/group", `{"kind":"agent","name":"@ops","members":["maint@h"]}`); code != 200 {
 		t.Fatalf("refilling answered %d: %s", code, body)
 	}
-	if code, body := post(t, s, token, "maint@h", "/manage", `{"name":"svc@h","descr":"restored"}`); code != 200 {
+	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"svc@h","descr":"restored"}`); code != 200 {
 		t.Errorf("refilling the group did not restore management: %d %s", code, body)
 	}
 }
@@ -167,10 +167,10 @@ func TestEmptyingAGroupLeavesTheRecordsThatNameIt(t *testing.T) {
 // retirable by either route.
 func TestTheAdministratorsGroupIsNeitherEmptiedNorRemoved(t *testing.T) {
 	_, s, token := groupFixture(t)
-	if code, body := post(t, s, token, "admin@h", "/group", `{"name":"@administrators","members":[]}`); code != 403 {
+	if code, body := post(t, s, token, "admin@h", "/group", `{"kind":"agent","name":"@administrators","members":[]}`); code != 403 {
 		t.Errorf("the maintainers group was emptied: %d %s", code, body)
 	}
-	if code, body := post(t, s, token, "admin@h", "/group", `{"name":"@administrators","remove":true}`); code != 400 {
+	if code, body := post(t, s, token, "admin@h", "/group", `{"kind":"agent","name":"@administrators","remove":true}`); code != 400 {
 		t.Errorf("the maintainers group answered a removal %d, want 400: %s", code, body)
 	}
 }

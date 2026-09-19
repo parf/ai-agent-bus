@@ -27,7 +27,7 @@ func TestPersistenceFailureIsAnHTTPFailureAndCanBeRetried(t *testing.T) {
 	b, s, token := groupFixture(t)
 	d := &failingAdministrativeStore{fail: true}
 	b.Persistence(d)
-	if code, body := post(t, s, token, "admin@h", "/user/state", `{"name":"plain@h","state":"banned"}`); code != 500 {
+	if code, body := post(t, s, token, "admin@h", "/user/state", `{"kind":"agent","name":"plain@h","state":"banned"}`); code != 500 {
 		t.Fatalf("failed persistence answered %d, want 500: %s", code, body)
 	}
 	// No rollback is promised: the applied restriction stays in memory while
@@ -36,7 +36,7 @@ func TestPersistenceFailureIsAnHTTPFailureAndCanBeRetried(t *testing.T) {
 		t.Fatal("failed write silently lifted the in-memory ban")
 	}
 	d.fail = false
-	if code, body := post(t, s, token, "admin@h", "/user/state", `{"name":"plain@h","state":"banned"}`); code != 200 {
+	if code, body := post(t, s, token, "admin@h", "/user/state", `{"kind":"agent","name":"plain@h","state":"banned"}`); code != 200 {
 		t.Fatalf("retry after disk recovery answered %d: %s", code, body)
 	}
 	if d.writes != 1 {

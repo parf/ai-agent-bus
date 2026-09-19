@@ -19,7 +19,7 @@ func nestedGroupsFixture(t *testing.T) *Bus {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Register(protocol.Record{Name: "worker@h", Owner: "alice@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "worker@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.SetGroup("owner@h", AdministratorsGroup, []string{"owner@h", "admin@h"}); err != nil {
@@ -39,10 +39,10 @@ func TestNestedGroupsGrantAccessAndManagement(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@outer", []string{"@middle", "@missing"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "shared@h", Owner: "alice@h", Allow: []string{"@outer"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "shared@h", Owner: "alice@h", Allow: []string{"@outer"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "managed@h", Owner: "alice@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "managed@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Manage("alice@h", Management{Name: "managed@h", Maintainers: ptr(protocol.MaintainerList{"@outer"})}); err != nil {
@@ -82,7 +82,7 @@ func TestNestedGroupsResolveUnknownsCyclesAndRevocation(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@future-edge", []string{"@future"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "future-box@h", Owner: "alice@h", Allow: []string{"@future-edge"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "future-box@h", Owner: "alice@h", Allow: []string{"@future-edge"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "future@h", To: "future-box@h"}); !errors.Is(err, ErrNotAllow) {
@@ -111,7 +111,7 @@ func TestNestedGroupsResolveUnknownsCyclesAndRevocation(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@reader-leaf", []string{"reader@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "wait@h", Owner: "alice@h", Allow: []string{"@nested-reader"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "wait@h", Owner: "alice@h", Allow: []string{"@nested-reader"}}); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -151,7 +151,7 @@ func TestAdministratorMembershipStaysDirect(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@admin-readers", []string{AdministratorsGroup}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "admin-box@h", Owner: "alice@h", Allow: []string{"@admin-readers"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "admin-box@h", Owner: "alice@h", Allow: []string{"@admin-readers"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "admin@h", To: "admin-box@h"}); err != nil {
@@ -170,7 +170,7 @@ func TestNestedGroupsPersistAndDamagedProtectedNestingFailsStartup(t *testing.T)
 	if err := b.SetGroup("admin@h", "@outer", []string{"@leaf"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "persisted@h", Owner: "alice@h", Allow: []string{"@outer"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "persisted@h", Owner: "alice@h", Allow: []string{"@outer"}}); err != nil {
 		t.Fatal(err)
 	}
 

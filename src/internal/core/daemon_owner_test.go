@@ -22,10 +22,10 @@ func ownerFixture(t *testing.T) *Bus {
 	if _, err := b.SetUserState("owner@h", "paused@h", "paused"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "alice@h", Allow: []string{"alice@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"alice@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "news@h", Owner: "alice@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "news@h", Owner: "alice@h", Kind: protocol.KindQueue}); err != nil {
 		t.Fatal(err)
 	}
 	return b
