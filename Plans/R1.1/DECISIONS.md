@@ -9,7 +9,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | How to reach a person | [definition](people.md#how-to-reach-a-person) | D23, D159 |
 | Service to service | [definition](access.md#service-to-service) | D62 |
 | How long a record lives | [definition](records.md#how-long-a-record-lives) | D130, D131, D132 |
-| External services and their secrets | [definition](records.md#external-services-and-their-secrets) | 2026-09-18 owner decision: `x-service` is inert, and it holds the secrets an ACL-approved user or agent may read |
+| External services and their secrets | [promoted to MVP](records.md#external-services-and-their-secrets) | 2026-09-18 owner decision: an external record is inert and holds secrets. Moved into current scope the same day as the `service` kind; R1.1 keeps only the storage mechanics of Q73 |
 | Rules they all obey | [definition](services.md#rules-they-all-obey) | D145, D146, D147, D154 |
 | For the agents themselves | [definition](services.md#for-the-agents-themselves) | D148, D149, D150 |
 | Agent runtimes | [definition](services.md#agent-runtimes) | |

@@ -230,43 +230,19 @@ deleted somewhere else*. The open question there gates this one.
 
 ## External services and their secrets
 
-Status: proposed, not built. Owner decision of 2026-09-18.
+Status: **promoted out of R1.1 on 2026-09-18.** The design is current MVP scope
+and lives in [five record kinds](../../docs/03-services-and-topics.md#five-record-kinds)
+and [service secrets](../../docs/03-services-and-topics.md#service-secrets),
+planned in [0.6.0](../MVP/0.6.0-TODO.md#remaining-work). This section is a
+pointer, not a second copy.
 
-**An `x-service` record is knowledge about something that is not on the bus.**
-It is a directory entry — who runs it, how it is reached, what it is for — and
-the ACL decides who may see and edit that entry. Nothing is routed to it.
+What the owner settled changed the vocabulary this section was written in: the
+kind is `service`, not `x-service`, because a bus-delivered name is an `agent`
+and the word was free; seeing the entry and reading its secret are one
+permission, decided by the record's own ACL; and there is no migration, because
+nothing before 1.1 carries a compatibility obligation.
 
-**It is inert.** No inbox, and a send to it is refused rather than queued. That
-is the whole difference from a service: a service is a name the daemon delivers
-to, and an `x-service` is a name the daemon only knows about.
-
-<details>
-<summary>What is inert today, and what is not</summary>
-
-MVP has no `x-service`. Its nearest shape is a record whose `protocol` is set,
-and that record is **not** inert: the daemon deliberately does not refuse a send
-to it, because a runner or gateway may be reading the inbox on the thing's
-behalf ([how to call it](../../docs/03-services-and-topics.md#how-to-call-it)).
-So this is a new record that refuses delivery, not a relabelling of the existing
-one, and whether the protocol-bearing form migrates into it or stays beside it
-is part of [Q73](QUESTIONS.md#open-questions).
-
-</details>
-
-**It holds the secrets that reaching the outside needs**, and an ACL-approved
-user or agent may read them. That is the reason the record exists rather than
-living in each caller's own configuration: one place that says how to reach a
-thing, one list of who may learn it, and a credential that stops being copied
-into as many files as there are callers.
-
-**Seeing the entry and reading its secret are the same permission**, decided by
-the owner on 2026-09-18: the record's existing allow list admits both, and no
-second grant is introduced ([service
-secrets](../../docs/03-services-and-topics.md#service-secrets)). The kind and the
-secret were brought forward into MVP at the same time, so this section no longer
-describes work R1.1 starts; it describes the reasoning that led there.
-
-What stays open is narrower than it was: **storage, rotation and whether a read
-is recorded**, with the daemon's [private registry
-configuration](../../docs/03-services-and-topics.md#configuring-a-template) as the
-nearest existing mechanism. That is [Q73](QUESTIONS.md#open-questions).
+**What R1.1 still owns** is narrower: how a secret is stored and rotated, and
+whether a read is recorded. That is [Q73](QUESTIONS.md#open-questions). Whether
+the daemon parses the stored bytes at all is a separate MVP question,
+[Q77](../MVP/QUESTIONS.md#open-questions).
