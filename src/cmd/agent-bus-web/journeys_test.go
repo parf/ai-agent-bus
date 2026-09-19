@@ -83,6 +83,14 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	if pubsubOnly := m.get("/channels?kind=pubsub"); strings.Contains(pubsubOnly, ">jobs@h<") || !strings.Contains(pubsubOnly, ">news@h<") {
 		t.Error("the pub/sub filter admitted a queue or lost its topic")
 	}
+	// A kind this page does not list is not a filter it honours: an old
+	// bookmark asking for one would otherwise report no matching records with
+	// no current Kind choice to explain why, and the channels would read as
+	// gone rather than as unfiltered.
+	stale := m.get("/channels?kind=agent")
+	if !strings.Contains(stale, ">jobs@h<") || !strings.Contains(stale, ">news@h<") || strings.Contains(stale, "No records match these filters") {
+		t.Errorf("a kind the channels page never lists emptied it: %s", stale)
+	}
 	workOrder := m.get("/channels?sort=queued")
 	if strings.Index(workOrder, ">news@h<") > strings.Index(workOrder, ">jobs@h<") || !strings.Contains(workOrder, ">Work (high&ndash;low)</option>") {
 		t.Error("Channel work sorting did not compare pub/sub accepted with queue held work")

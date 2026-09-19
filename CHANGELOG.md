@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.4 — 2026-09-19
+
+Pages stop saying things about records that are not true of them. Only a
+service is reported as reached externally, and only a service's settings offer
+an address and a protocol, so an agent can no longer be edited into reading as
+external. A Back link and the redirect after a removal name the listing the
+record is actually on, which for a Personal agent is Personal. Channels accepts
+only a kind it lists, so an old `?kind=agent` no longer empties it, and its
+count explanation names user queues, which it counts. The Personal editor asks
+for agents, which is what the daemon accepts. The Services page says which of
+the two things its Readers and queue numbers are about.
+
 ## 0.6.3 — 2026-09-18
 
 A record states which of five kinds it is — `user`, `agent`, `queue`, `pubsub`

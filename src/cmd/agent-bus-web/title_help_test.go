@@ -42,6 +42,11 @@ func TestListHelpUsesVisibleAccessiblePopoverControls(t *testing.T) {
 		`<div popover id=service-views-help class=context-help>`,
 		`<h2>About these records</h2><ul>`,
 		"None of it is health", "does not establish that a send will be accepted",
+		// The page carries queue columns for a record it calls external, so it
+		// says which of the two each number is about rather than leaving the
+		// reader to decide that the counters contradict the definition.
+		"The daemon still holds a queue under the name",
+		"They say nothing about the external thing itself",
 	} {
 		if !strings.Contains(services, want) {
 			t.Errorf("Services help missing %q", want)
@@ -51,11 +56,11 @@ func TestListHelpUsesVisibleAccessiblePopoverControls(t *testing.T) {
 		t.Error("the former Services prose wall remains in the primary flow")
 	}
 	channels := m.get("/channels")
-	if !strings.Contains(channels, "All counts the caller-visible queue and pub/sub records") || strings.Contains(channels, "All and My omit Personal agents") {
+	if !strings.Contains(channels, "All counts the caller-visible queues, pub/sub topics and user queues") || strings.Contains(channels, "All and My omit Personal agents") {
 		t.Error("Channel help reused another category's explanation")
 	}
 	agents := m.get("/agents")
-	if !strings.Contains(agents, "All and My omit Personal agents") || strings.Contains(agents, "All counts the caller-visible queue and pub/sub records") {
+	if !strings.Contains(agents, "All and My omit Personal agents") || strings.Contains(agents, "All counts the caller-visible queues, pub/sub topics and user queues") {
 		t.Error("Agent help reused another category's explanation")
 	}
 

@@ -186,6 +186,16 @@ func detailPathFor(kind string) string {
 	}
 }
 
+// listPathForRecord is listPathFor asked of a whole record. A Personal agent is
+// excluded from /agents, so a Back link or a post-removal redirect that went
+// there would name a listing which cannot show the record it came from.
+func listPathForRecord(kind string, personal bool) string {
+	if personal && agentRecord(kind) {
+		return "/personal"
+	}
+	return listPathFor(kind)
+}
+
 func listPathFor(kind string) string {
 	switch {
 	case agentRecord(kind):
@@ -210,6 +220,13 @@ func deliveryMode(record protocol.Record) string {
 		return "one at a time"
 	}
 }
+
+// external reports whether a record is reached off this bus. Only a service is,
+// and it is the kind that must carry an address and a protocol; a populated
+// endpoint on anything else is not evidence that the thing is external, so the
+// kind is what the page reads.
+// See docs/03-services-and-topics.md#five-record-kinds.
+func external(record protocol.Record) bool { return record.Kind == protocol.KindService }
 
 // copies reports whether a kind delivers a copy to every subscriber. Only
 // pub/sub does; it is the one kind that keeps no queue of its own, so the page

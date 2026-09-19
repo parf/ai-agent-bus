@@ -144,7 +144,7 @@ func (m *meanings) shapes() {
 	if _, err := m.bus.Manage("admin@h", core.Management{Name: "off@h", Disabled: &off}); err != nil {
 		m.t.Fatal(err)
 	}
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "elsewhere@h", Owner: "admin@h", Descr: "reached another way", Proto: "https"})
+	m.register(protocol.Record{Kind: protocol.KindService, Name: "elsewhere@h", Owner: "admin@h", Descr: "reached another way", Addr: "elsewhere.example", Proto: "https"})
 }
 
 // A read that is actually blocked, so the count is an observation rather than
@@ -197,7 +197,7 @@ func TestDeliveryIsEnabledOrDisabledAndNeverInactive(t *testing.T) {
 			t.Errorf("%s has no %q cell: %s", want.name, want.cell, m.row(listing, want.name))
 		}
 	}
-	for _, page := range []string{"/services", "/service?name=off@h"} {
+	for _, page := range []string{"/agents", "/agent?name=off@h"} {
 		body := m.get(page)
 		if !strings.Contains(body, "Disabled") {
 			t.Errorf("%s does not say delivery is disabled", page)
@@ -286,7 +286,7 @@ func TestExternalDoesNotStandInForTheReaderObservation(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
 	m.attachReader("elsewhere@h")
-	listing := m.get("/agents")
+	listing := m.get("/services")
 	if !strings.Contains(listing, "external") {
 		t.Fatal("the listing does not mark a record reached another way")
 	}
@@ -344,7 +344,7 @@ func TestQueueCountersSayTheirScopeAndNeverSayCompleted(t *testing.T) {
 	if got := m.row(head, "quiet@h"); !strings.Contains(got, "data-label=Queued>2<td class=num data-label=Accepted>3<td class=num data-label=Dequeued>1") {
 		t.Errorf("the Services counters do not line up with their columns: %s", got)
 	}
-	for _, page := range []string{"/services", "/service?name=quiet@h"} {
+	for _, page := range []string{"/agents", "/agent?name=quiet@h"} {
 		body := m.get(page)
 		if !strings.Contains(body, "accepted") && !strings.Contains(body, "Accepted") {
 			t.Errorf("%s does not name what In counts", page)
@@ -894,7 +894,7 @@ func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 	}
 	// And it does not say they will not take anything, which is false: a
 	// matching filtered waiter is served ahead of an unfiltered one.
-	for _, page := range []string{"/diagnostics", "/services", "/service?name=reading@h"} {
+	for _, page := range []string{"/diagnostics", "/agents", "/agent?name=reading@h"} {
 		if strings.Contains(n.get(page), "will not take") {
 			t.Errorf("%s says a filtered read will not take a message, which deliver disproves", page)
 		}
@@ -967,7 +967,7 @@ func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 	// On both pages. Correcting the detail page and leaving the listing's
 	// legend saying the withdrawn thing is the same shape as correcting one
 	// face and leaving its sibling behind.
-	for _, page := range []string{"/service?name=svc@h", "/services"} {
+	for _, page := range []string{"/agent?name=svc@h", "/agents"} {
 		body := m.get(page)
 		if strings.Contains(body, "takes delivery now") {
 			t.Errorf("%s says the record takes delivery now, which this send disproves", page)

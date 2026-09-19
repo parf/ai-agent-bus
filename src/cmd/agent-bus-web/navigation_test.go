@@ -300,8 +300,14 @@ func TestOwnedRowsAreMarkedAndEditFollowsDaemonAuthority(t *testing.T) {
 	own := m.row(page, "own@h")
 	managed := m.row(page, "managed@h")
 	view := m.row(page, "view@h")
-	if !strings.Contains(own, `class="record-name-cell owned-record"`) || strings.Contains(own, "Yours") || !strings.Contains(own, `<td data-label=Reached>external`) {
-		t.Error("remote owned row lacks its visible ownership treatment")
+	if !strings.Contains(own, `class="record-name-cell owned-record"`) || strings.Contains(own, "Yours") {
+		t.Error("owned row lacks its visible ownership treatment")
+	}
+	// own@h carries a protocol and is still an agent, which is the only way
+	// this can fail: an agent is on this bus whatever a stray endpoint says,
+	// and only a service is reached off it.
+	if !strings.Contains(own, `<td data-label=Reached><span class=muted>&mdash;</span>`) {
+		t.Errorf("an agent with a protocol is reported as reached externally: %s", own)
 	}
 	if strings.Contains(managed, "owned-record") || strings.Contains(managed, "Yours") {
 		t.Error("Maintainer row confused management with ownership")

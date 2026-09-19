@@ -85,6 +85,11 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if _, err := b.Configure("svc@h", "owner@h", json.RawMessage(`{"secret":"NEVER-RENDER-THIS"}`)); err != nil {
 		t.Fatal(err)
 	}
+	// An external one beside it: only a service carries an endpoint, so it is
+	// the only record whose settings form has one to lose.
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindService, Name: "db@h", Owner: "owner@h", Descr: "external", Addr: "db.example:5432", Proto: "postgresql", Allow: []string{"owner@h"}}); err != nil {
+		t.Fatal(err)
+	}
 	request := func(who, method, path, origin string, form url.Values, want int) string {
 		t.Helper()
 		var input io.Reader
@@ -140,8 +145,6 @@ func TestDashboardOwnerControls(t *testing.T) {
 		"action":     {"save"},
 		"name":       {"svc@h"},
 		"descr":      {"Changed & retained"},
-		"addr":       {"local://kept"},
-		"protocol":   {"fixture"},
 		"ttl":        {"2h"},
 		"overflow":   {"ring"},
 		"bound":      {"not-a-number"},
@@ -154,8 +157,6 @@ func TestDashboardOwnerControls(t *testing.T) {
 		`<section class=form-error role=alert`,
 		`href="#form-save"`,
 		`value="Changed &amp; retained"`,
-		`value="local://kept"`,
-		`value="fixture"`,
 		`value="2h"`,
 		`value="not-a-number" aria-invalid="true"`,
 		">other@h\n*</textarea>",
@@ -166,6 +167,26 @@ func TestDashboardOwnerControls(t *testing.T) {
 	}
 	if strings.Contains(refusedSettings, "UNEXPECTED-FORM-SECRET") {
 		t.Fatal("unrecognised submitted field was reflected into the form")
+	}
+	// The endpoint is offered where it means something, and a refusal keeps it.
+	if agent := request("owner@h", "GET", "/agent?name=svc@h", "", nil, 200); strings.Contains(agent, "name=addr") || strings.Contains(agent, "name=protocol") {
+		t.Fatal("an agent's settings offer an endpoint, which would make it read as external")
+	}
+	refusedExternal := request("owner@h", "POST", "/service", web.URL, url.Values{
+		"action": {"save"}, "name": {"db@h"}, "descr": {"still external"},
+		"addr": {"db.example:6000"}, "protocol": {"postgresql"}, "bound": {"not-a-number"},
+	}, 400)
+	for _, retained := range []string{`value="db.example:6000"`, `value="postgresql"`} {
+		if !strings.Contains(refusedExternal, retained) {
+			t.Fatalf("refused service settings lost its endpoint %q", retained)
+		}
+	}
+	// Saving an agent cannot clear what its own form never showed.
+	request("owner@h", "POST", "/service", web.URL, url.Values{
+		"action": {"save"}, "name": {"db@h"}, "descr": {"external"}, "bound": {"0"}, "overflow": {"strict"},
+	}, 303)
+	if kept, _ := b.Lookup("owner@h", "db@h"); kept.Addr != "db.example:5432" || kept.Proto != "postgresql" {
+		t.Fatalf("a save with no endpoint fields cleared the endpoint: %+v", kept)
 	}
 	danger := request("owner@h", "GET", "/service-danger?name=svc@h", "", nil, 200)
 	for _, label := range []string{"Replace configuration", "Transfer ownership", "Remove registration"} {

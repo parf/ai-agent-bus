@@ -124,12 +124,32 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 		t.Fatal("direct Personal detail is not reachable and labelled")
 	}
 
+	// A Back link names the listing the record is on. A return pointing at any
+	// other one, however local it is, would send the visitor to a page that
+	// cannot show what they just left.
+	borrowed, _ := p.request("alice@h", "GET", "/agent?name=alice-personal%40h&return=%2fservices", nil, 200)
+	if !strings.Contains(borrowed, `<p><a href="/personal">Back to records</a></p>`) {
+		t.Fatal("a Personal agent offered a Back link to a listing it is not on")
+	}
+	kept, _ := p.request("alice@h", "GET", "/agent?name=alice-normal%40h&return=%2fagents%3fpage%3d1", nil, 200)
+	if !strings.Contains(kept, `<p><a href="/agents?page=1">Back to records</a></p>`) {
+		t.Fatal("the agents list state was lost on the way to a record and back")
+	}
 	admin, _ := p.request("admin@h", "GET", "/personal?owner=alice%40h", nil, 200)
 	if !strings.Contains(admin, "alice-personal@h") || strings.Contains(admin, "bob-personal@h") || !strings.Contains(admin, "only Personal agents visible through your normal access") {
 		t.Fatalf("daemon-owner visible-only owner view is misstated: %s", admin)
 	}
 	if !strings.Contains(admin, `class="record-name-cell personal-record"`) || strings.Contains(admin, `class="record-name-cell owned-record personal-record"`) || strings.Contains(admin, "Yours") || !strings.Contains(admin, `class=personal-marker>Personal</span>`) {
 		t.Fatal("a visible Personal row owned by somebody else was confused with Yours")
+	}
+	// Removing a Personal agent returns to the Personal view, not to Agents,
+	// which excludes it.
+	_, header = p.request("alice@h", "POST", "/service", url.Values{
+		"action": {"delete"}, "name": {"alice-personal@h"}, "confirmed": {"1"},
+		"expected_owner": {"alice@h"}, "expected_queued": {"0"}, "expected_readers": {"0"},
+	}, http.StatusSeeOther)
+	if header.Get("Location") != "/personal" {
+		t.Fatalf("a removed Personal agent returned to %q", header.Get("Location"))
 	}
 }
 

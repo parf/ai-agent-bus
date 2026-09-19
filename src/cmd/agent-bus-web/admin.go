@@ -332,10 +332,16 @@ func queryWith(path string, in url.Values, key, value string) string {
 	return pageURL(path, q)
 }
 
-func recordReturn(raw, fallback string) string {
+// recordReturn keeps the exact list state a visitor came from, but only when
+// that list is the one this record is on. A local URL naming any other listing
+// is a Back link to a page the record cannot appear on, so the record's own
+// listing is used instead; its query, which carries the filters and the page,
+// is kept whole.
+func recordReturn(raw string, kind string, personal bool) string {
+	home := listPathForRecord(kind, personal)
 	u, err := url.Parse(local(raw))
-	if err != nil || u.Path != "/services" && u.Path != "/personal" && u.Path != "/channels" && u.Path != "/agents" {
-		return fallback
+	if err != nil || u.Path != home {
+		return home
 	}
 	u.Fragment = ""
 	return u.RequestURI()
@@ -475,7 +481,10 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if v.State != "active" && v.State != "inactive" {
 			v.State = ""
 		}
-		if !protocol.ValidKind(v.Kind) || v.Kind == protocol.KindService {
+		// Only a kind this page lists: an agent and an external service are each
+		// on a page of their own, so accepting either here would answer a Kind
+		// choice with an empty table and no current filter to explain it.
+		if !channelRecord(v.Kind) || v.Kind == "" {
 			v.Kind = ""
 		}
 		if v.Readers != "present" && v.Readers != "none" && v.Readers != "unavailable" {
@@ -801,11 +810,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if !loadServiceDetails(w, r, &v, r.URL.Query().Get("name")) {
 			return
 		}
-		fallback := listPathFor(v.Record.Kind)
-		if v.Record.Personal {
-			fallback = "/personal"
-		}
-		v.Return = recordReturn(r.URL.Query().Get("return"), fallback)
+		v.Return = recordReturn(r.URL.Query().Get("return"), v.Record.Kind, v.Record.Personal)
 		render(w, serviceDetail, v)
 	}
 	mux.HandleFunc("GET /service", recordDetail) // one page, reached by the name of each listing
@@ -1013,13 +1018,15 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		action := r.PostForm.Get("action")
 		change := core.Management{Name: name}
 		var err error
-		targetKind := ""
+		// The Personal flag travels with the kind because it decides the listing
+		// as much as the kind does: a Personal agent is excluded from /agents.
+		targetKind, targetPersonal := "", false
 		confirmed := r.PostForm.Get("confirmed") == "1"
 		if confirmed && (action == "transfer" || action == "delete") {
 			if !loadRecord(w, r, &v, name) {
 				return
 			}
-			targetKind = v.Record.Kind
+			targetKind, targetPersonal = v.Record.Kind, v.Record.Personal
 			changed := v.Record.Owner != r.PostForm.Get("expected_owner")
 			if action == "transfer" {
 				changed = changed || !v.Record.CanTransfer || v.Record.Name == v.Record.Owner
@@ -1038,17 +1045,24 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				fail(w, r, v.You, lookupErr)
 				return
 			}
-			targetKind = record.Kind
+			targetKind, targetPersonal = record.Kind, record.Personal
 		}
 		switch action {
 		case "save":
-			descr, addr, proto, ttl, overflow := r.PostForm.Get("descr"), r.PostForm.Get("addr"), r.PostForm.Get("protocol"), r.PostForm.Get("ttl"), r.PostForm.Get("overflow")
+			descr, ttl, overflow := r.PostForm.Get("descr"), r.PostForm.Get("ttl"), r.PostForm.Get("overflow")
 			bound, parseErr := strconv.Atoi(r.PostForm.Get("bound"))
 			if parseErr != nil {
 				renderServiceFormError(w, r, v, action, http.StatusBadRequest, "Queue capacity must be a whole number.", "bound")
 				return
 			}
-			change.Descr, change.Addr, change.Proto, change.TTL, change.Full, change.Bound = &descr, &addr, &proto, &ttl, &overflow, &bound
+			change.Descr, change.TTL, change.Full, change.Bound = &descr, &ttl, &overflow, &bound
+			// Only a service carries an endpoint, so only its form offers one.
+			// Sending an empty pair for every other kind would let a form that
+			// never showed the fields clear them.
+			if r.PostForm.Has("addr") || r.PostForm.Has("protocol") {
+				addr, proto := r.PostForm.Get("addr"), r.PostForm.Get("protocol")
+				change.Addr, change.Proto = &addr, &proto
+			}
 			if r.PostForm.Has("edit_allow") {
 				allow := strings.Fields(r.PostForm.Get("allow"))
 				change.Allow = &allow
@@ -1088,7 +1102,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				renderServiceFormError(w, r, v, action, http.StatusBadRequest, "Choose a valid record kind.", "kind")
 				return
 			}
-			targetKind = kind
+			targetKind, targetPersonal = kind, r.PostForm.Get("personal") == "on"
 			err = c.post(cookie(r), "/register", protocol.Record{Name: name, Kind: kind, Addr: r.PostForm.Get("addr"), Proto: r.PostForm.Get("protocol"), Descr: r.PostForm.Get("descr"), Allow: strings.Fields(r.PostForm.Get("allow")), Personal: r.PostForm.Get("personal") == "on"})
 		case "subscribe", "unsubscribe":
 			err = c.post(cookie(r), "/subscribe", struct {
@@ -1103,7 +1117,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				fail(w, r, v.You, lookupErr)
 				return
 			}
-			targetKind = record.Kind
+			targetKind, targetPersonal = record.Kind, record.Personal
 			err = c.post(cookie(r), "/unregister", map[string]string{"name": name})
 		default:
 			localProblem(w, r, v.You, http.StatusBadRequest, "That service action is not available.")
@@ -1131,19 +1145,19 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if targetKind == "" && action != "create" && action != "delete" && action != "transfer" {
 			var current protocol.Record
 			if lookupErr := c.get(cookie(r), "/lookup?name="+url.QueryEscape(name), &current); lookupErr == nil {
-				targetKind = current.Kind
+				targetKind, targetPersonal = current.Kind, current.Personal
 			}
 		}
 		next := detailPathFor(targetKind) + "?name=" + url.QueryEscape(name)
 		switch {
 		case action == "delete":
-			next = listPathFor(targetKind)
+			next = listPathForRecord(targetKind, targetPersonal)
 		case action == "transfer":
 			var current protocol.Record
 			// The redirect below must follow this exact daemon visibility answer;
 			// do not replace it with cached or face-inferred authority.
 			if lookupErr := c.get(cookie(r), "/lookup?name="+url.QueryEscape(name), &current); lookupErr != nil {
-				next = listPathFor(targetKind)
+				next = listPathForRecord(targetKind, targetPersonal)
 			}
 		}
 		http.Redirect(w, r, next, http.StatusSeeOther)
@@ -1195,10 +1209,10 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	}))
 }
 
-var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{"readerCount": readerCount, "registrationUpdated": registrationUpdated, "entityLabel": entityLabel, "copies": copies, "deliveryLabel": deliveryLabel, "titleMark": titleMark, "number": number, "href": detailPath}).Parse(shellTitle("records", `{{if .Channels}}Channels{{else if .Agents}}Agents{{else if .PersonalPage}}Personal agents{{else}}Services{{end}}`) + `
+var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{"readerCount": readerCount, "registrationUpdated": registrationUpdated, "entityLabel": entityLabel, "copies": copies, "deliveryLabel": deliveryLabel, "external": external, "titleMark": titleMark, "number": number, "href": detailPath}).Parse(shellTitle("records", `{{if .Channels}}Channels{{else if .Agents}}Agents{{else if .PersonalPage}}Personal agents{{else}}Services{{end}}`) + `
 <div class=page-title><h1>{{if .Channels}}{{titleMark "channels"}} Channels{{else if .Agents}}{{titleMark "agent"}} Agents{{else if .PersonalPage}}{{titleMark "agent"}} Personal agents{{else}}{{titleMark "services"}} Services{{end}}</h1><button type=button class=help-button popovertarget=service-views-help aria-label="About service views">ⓘ</button></div>
 <div popover id=service-views-help class=context-help><h2>About these records</h2><ul>
-{{if .Channels}}<li>All counts the caller-visible queue and pub/sub records.</li><li>A channel carries messages without a service process of its own.</li>{{else if or .Agents .PersonalPage}}<li>An agent is a name on this bus with a queue something reads. All and My omit Personal agents; My is the caller-owned subset. Personal is an owner-set grouping tag and does not change access.</li>{{else}}<li>A service is external: it is reached at its own address, by its own protocol, and nothing on this bus answers for it.</li>{{end}}
+{{if .Channels}}<li>All counts the caller-visible queues, pub/sub topics and user queues.</li><li>A channel carries messages without a service process of its own.</li>{{else if or .Agents .PersonalPage}}<li>An agent is a name on this bus with a queue something reads. All and My omit Personal agents; My is the caller-owned subset. Personal is an owner-set grouping tag and does not change access.</li>{{else}}<li>A service is external: it is reached at its own address, by its own protocol, and calling it is the caller&rsquo;s own business, not a send.</li><li>The daemon still holds a queue under the name, and that is what Readers, Queued, Accepted and Dequeued report here. They say nothing about the external thing itself.</li>{{end}}
 <li>Category counts use the records visible to you before toolbar filters; they are not node-wide totals or page counts.</li>
 {{if .Channels}}<li>A queue holds work for one reader; a pub/sub topic copies each accepted message to subscribers and holds no backlog of its own.</li>{{end}}
 <li>Enabled is a stored delivery setting. It does not establish that a send will be accepted; the owner&rsquo;s access and ACL are checked separately.</li>
@@ -1230,8 +1244,8 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 {{else}}<thead><tr><th scope=col>{{if or .Agents .PersonalPage}}Agent{{else}}Service{{end}}<th scope=col>Type<th scope=col>Owner<th scope=col>Delivery<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Queued<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col>Updated</tr></thead>{{end}}
 <tbody>
 {{range .Records}}<tr><td class="record-name-cell{{if eq .Owner $.You}} owned-record{{end}}{{if .Personal}} personal-record{{end}}"><a class=record-name href="{{href .}}?name={{.Name}}&return={{$.Return}}">{{if .Descr}}<span class=record-description>{{.Descr}}</span><code>{{.Name}}</code>{{else}}<code class=record-description>{{.Name}}</code>{{end}}</a>{{if .Personal}} <span class=personal-marker>Personal</span>{{end}}
-{{if $.Channels}}<td data-label=Type>{{entityLabel .Kind}}<td data-label="Delivery mode">{{deliveryLabel .}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Held>{{if copies .Kind}}<span class=muted>&mdash;</span>{{else}}{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td class=num data-label=Subscribers>{{if copies .Kind}}{{number (len .Subs)}}{{else}}<span class=muted>&mdash;</span>{{end}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
-{{else}}<td data-label=Type>{{entityLabel .Kind}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if .Proto}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Queued>{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}{{end}}</tr>{{end}}
+{{if $.Channels}}<td data-label=Type>{{entityLabel .Kind}}<td data-label="Delivery mode">{{deliveryLabel .}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if external .}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Held>{{if copies .Kind}}<span class=muted>&mdash;</span>{{else}}{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td class=num data-label=Subscribers>{{if copies .Kind}}{{number (len .Subs)}}{{else}}<span class=muted>&mdash;</span>{{end}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
+{{else}}<td data-label=Type>{{entityLabel .Kind}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if external .}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Queued>{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}{{end}}</tr>{{end}}
 </tbody></table>
 {{end}}
 <nav aria-label="Record pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
@@ -1251,7 +1265,7 @@ var serviceNew = template.Must(template.New("service-new").Funcs(template.FuncMa
 <label class="form-field form-field-wide"><span class=field-heading>Allow list <button type=button class=help-button popovertarget=create-access-help aria-label="About initial access" data-tooltip="One identity per line. Empty is owner and Maintainers only; @owner adds the records the Owner directly owns; * shares with every admitted principal. Personal agents may list agents only.">ⓘ</button></span><textarea name=allow rows=5 placeholder="agent@realm&#10;@group&#10;@owner&#10;*">{{.Form.Value "allow"}}</textarea><small>One identity, group, <code>@owner</code>, or <code>*</code> per line.</small></label></div>
 <div popover id=create-access-help class=context-help><h2>Initial access</h2><ul><li>Empty allows only the owner and assigned Maintainers.</li><li><code>@owner</code> adds records directly owned by this record&rsquo;s Owner. It is runtime ACL syntax, not an editable group.</li><li><code>*</code> shares with every admitted principal.</li>{{if .Agents}}<li>A Personal agent may name only other registered agents directly; users, groups, <code>@owner</code>, <code>*</code>, itself and Maintainers are refused.</li>{{end}}</ul></div>
 {{if .Form.Is "create"}}<p class=warn id=create-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>Register {{if .Agents}}agent{{else if .Channels}}channel{{else}}service{{end}}</button></div></form>`))
-var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel, "copies": copies, "deliveryMode": deliveryMode, "recordNoun": recordNoun, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number}).Parse(shellTitle("records", `{{recordNoun .Record.Kind}} {{.Record.Name}}`) + `
+var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel, "copies": copies, "external": external, "deliveryMode": deliveryMode, "recordNoun": recordNoun, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number}).Parse(shellTitle("records", `{{recordNoun .Record.Kind}} {{.Record.Name}}`) + `
 <p><a href="{{.Return}}">Back to records</a></p>{{with .Record}}<div class=page-title><h1>{{titleMark .Kind}} {{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1></div>` + formErrorSummary + `<div class=detail-meta><span class=fact-pill>{{entityLabel .Kind}}</span><span>Owner: {{with $.OwnerUser}}<span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<a href="/user?name={{.Name}}"><code>{{.Name}}</code></a></span>{{else}}<code>{{.Owner}}</code>{{end}}</span>{{with .Maintainers}}<span>👮 Maintainers: {{join . ", "}}</span>{{end}}{{with deliveryMode .}}<span>Delivery: {{.}}</span>{{end}}</div>
 <div class=service-dashboard><section class=fact-card><div class=page-title><h2>Delivery</h2><button type=button class=help-button popovertarget=delivery-help aria-label="About delivery state" data-tooltip="Stored setting only. The daemon also checks owner access, ACL and queue capacity; Disabled does not reveal why it is off.">ⓘ</button></div>
 <p><strong><span class=status-glyph role=img aria-label="{{if .Disabled}}Disabled{{else}}Enabled{{end}}" title="{{if .Disabled}}Disabled{{else}}Enabled{{end}}">{{if .Disabled}}🚫{{else}}🔛{{end}}</span></strong> {{if .Disabled}}Disabled{{else}}Enabled{{end}}</p>{{if .CanManage}}<form class=record-state-action method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value="{{if .Disabled}}enable{{else}}disable{{end}}">{{if .Disabled}}Enable{{else}}Disable{{end}} delivery</button></form>{{end}}</section>
@@ -1271,15 +1285,15 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 {{if .CanManage}}
 <details class=editor-card {{if $.Form.Is "save"}}open{{end}}><summary id=settings>Edit settings</summary><form id=form-save method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=save><div class=form-grid>
 <label class=form-field>Description <input name=descr value="{{if $.Form.Is "save"}}{{$.Form.Value "descr"}}{{else}}{{.Descr}}{{end}}"></label>
-<label class=form-field>Address <input name=addr value="{{if $.Form.Is "save"}}{{$.Form.Value "addr"}}{{else}}{{.Addr}}{{end}}"></label>
-<label class=form-field>Protocol <input name=protocol value="{{if $.Form.Is "save"}}{{$.Form.Value "protocol"}}{{else}}{{.Proto}}{{end}}"></label>
-<label class=form-field>Queue TTL <input name=ttl value="{{if $.Form.Is "save"}}{{$.Form.Value "ttl"}}{{else}}{{.TTL}}{{end}}" placeholder="default"></label>
+{{if external .}}<label class=form-field>Address <input name=addr required value="{{if $.Form.Is "save"}}{{$.Form.Value "addr"}}{{else}}{{.Addr}}{{end}}"></label>
+<label class=form-field>Protocol <input name=protocol required value="{{if $.Form.Is "save"}}{{$.Form.Value "protocol"}}{{else}}{{.Proto}}{{end}}"></label>
+{{end}}<label class=form-field>Queue TTL <input name=ttl value="{{if $.Form.Is "save"}}{{$.Form.Value "ttl"}}{{else}}{{.TTL}}{{end}}" placeholder="default"></label>
 <label class=form-field>Queue capacity <input type=number min=0 name=bound value="{{if $.Form.Is "save"}}{{$.Form.Value "bound"}}{{else}}{{.Bound}}{{end}}" aria-invalid="{{if $.Form.Invalid "bound"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "bound"}}save-error{{end}}"><small>Enter 0 to select the default.</small></label>
 <label class=form-field>Overflow <select name=overflow><option value=strict {{if and ($.Form.Is "save") (eq ($.Form.Value "overflow") "strict")}}selected{{end}}>Refuse</option><option value=ring {{if $.Form.Is "save"}}{{if eq ($.Form.Value "overflow") "ring"}}selected{{end}}{{else}}{{if eq .Full "ring"}}selected{{end}}{{end}}>Drop oldest</option></select></label>
 {{if .Personal}}<p class="muted form-field-wide">Personal classification, Allow and Maintainers are changed together below.</p>{{else}}<input type=hidden name=edit_allow value=1><label class="form-field form-field-wide"><span class=field-heading>Allow list <button type=button class=help-button popovertarget=settings-access-help aria-label="About the allow list" data-tooltip="One identity per line. Empty is owner and Maintainers only; @owner adds the records the Owner directly owns; * shares with every admitted principal.">ⓘ</button></span><textarea name=allow rows=5>{{if $.Form.Is "save"}}{{$.Form.Value "allow"}}{{else}}{{join .Allow "\n"}}{{end}}</textarea><small>One identity, group, <code>@owner</code>, or <code>*</code> per line.</small></label>{{end}}</div>
 {{if $.Form.Is "save"}}<p class=warn id=save-error>{{$.Form.Error}}</p>{{end}}<div class=form-actions><button>Save settings</button></div></form></details>
 {{if not .Personal}}<div popover id=settings-access-help class=context-help><h2>Allow list</h2><ul><li>Empty allows only the owner and assigned Maintainers.</li><li><code>@owner</code> adds records directly owned by this record&rsquo;s Owner. It is runtime ACL syntax, not an editable group.</li><li><code>*</code> shares with every admitted principal.</li></ul></div>{{end}}
-{{if .CanTransfer}}{{if eq .Kind "agent"}}<details class=editor-card {{if $.Form.Is "personal"}}open{{end}}><summary>Classification and sharing</summary><form id=form-personal method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=personal><div class=form-grid><fieldset class=form-field-wide><legend>Classification</legend><div class=choice-row><label><input type=checkbox name=personal {{if $.Form.Is "personal"}}{{if $.Form.Checked "personal"}}checked{{end}}{{else}}{{if .Personal}}checked{{end}}{{end}}> Personal</label><span class=muted>Groups this service in the owner&rsquo;s Personal view; access is unchanged.</span></div></fieldset><label class=form-field><span class=field-heading>Allow list <button type=button class=help-button popovertarget=personal-help aria-label="About Personal sharing" data-tooltip="Personal services may allow only other registered services directly; users, groups, @owner, wildcard, self and Maintainers are refused.">ⓘ</button></span><textarea name=allow rows=5>{{if $.Form.Is "personal"}}{{$.Form.Value "allow"}}{{else}}{{join .Allow "\n"}}{{end}}</textarea><small>One service identity per line when Personal.</small></label><label class=form-field>Maintainers<textarea name=maintainers rows=5 aria-invalid="{{if $.Form.Is "personal"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Is "personal"}}personal-error{{end}}">{{if $.Form.Is "personal"}}{{$.Form.Value "maintainers"}}{{else}}{{join .Maintainers "\n"}}{{end}}</textarea><small>One user, group, agent or service per line.</small></label></div>{{if $.Form.Is "personal"}}<p class=warn id=personal-error>{{$.Form.Error}}</p>{{end}}<div class=form-actions><button>Save classification and sharing</button></div></form></details><div popover id=personal-help class=context-help><h2>Personal sharing</h2><p>When Personal is checked, Allow may name only other registered services directly. Users, groups, <code>@owner</code>, <code>*</code>, this service and Maintainers are refused. Clear Personal in this same form before adding any of them.</p></div>{{else}}<details class=editor-card {{if $.Form.Is "maintainers"}}open{{end}}><summary>Maintainers</summary><form id=form-maintainers method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=maintainers><label class=form-field>Maintainers<textarea name=maintainers rows=5 aria-invalid="{{if $.Form.Is "maintainers"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Is "maintainers"}}maintainers-error{{end}}">{{if $.Form.Is "maintainers"}}{{$.Form.Value "maintainers"}}{{else}}{{join .Maintainers "\n"}}{{end}}</textarea><small>One user, group, agent or service per line; <code>@owner</code> is ACL-only.</small></label>{{if $.Form.Is "maintainers"}}<p class=warn id=maintainers-error>{{$.Form.Error}}</p>{{end}}<div class=form-actions><button>Assign maintainers</button></div></form></details>{{end}}
+{{if .CanTransfer}}{{if eq .Kind "agent"}}<details class=editor-card {{if $.Form.Is "personal"}}open{{end}}><summary>Classification and sharing</summary><form id=form-personal method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=personal><div class=form-grid><fieldset class=form-field-wide><legend>Classification</legend><div class=choice-row><label><input type=checkbox name=personal {{if $.Form.Is "personal"}}{{if $.Form.Checked "personal"}}checked{{end}}{{else}}{{if .Personal}}checked{{end}}{{end}}> Personal</label><span class=muted>Groups this agent in the owner&rsquo;s Personal view; access is unchanged.</span></div></fieldset><label class=form-field><span class=field-heading>Allow list <button type=button class=help-button popovertarget=personal-help aria-label="About Personal sharing" data-tooltip="A Personal agent may allow only other registered agents directly; users, groups, @owner, wildcard, self and Maintainers are refused.">ⓘ</button></span><textarea name=allow rows=5>{{if $.Form.Is "personal"}}{{$.Form.Value "allow"}}{{else}}{{join .Allow "\n"}}{{end}}</textarea><small>One agent identity per line when Personal.</small></label><label class=form-field>Maintainers<textarea name=maintainers rows=5 aria-invalid="{{if $.Form.Is "personal"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Is "personal"}}personal-error{{end}}">{{if $.Form.Is "personal"}}{{$.Form.Value "maintainers"}}{{else}}{{join .Maintainers "\n"}}{{end}}</textarea><small>One user, group, agent or service per line.</small></label></div>{{if $.Form.Is "personal"}}<p class=warn id=personal-error>{{$.Form.Error}}</p>{{end}}<div class=form-actions><button>Save classification and sharing</button></div></form></details><div popover id=personal-help class=context-help><h2>Personal sharing</h2><p>When Personal is checked, Allow may name only other registered agents directly. Users, groups, <code>@owner</code>, <code>*</code>, this agent and Maintainers are refused. Clear Personal in this same form before adding any of them.</p></div>{{else}}<details class=editor-card {{if $.Form.Is "maintainers"}}open{{end}}><summary>Maintainers</summary><form id=form-maintainers method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=maintainers><label class=form-field>Maintainers<textarea name=maintainers rows=5 aria-invalid="{{if $.Form.Is "maintainers"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Is "maintainers"}}maintainers-error{{end}}">{{if $.Form.Is "maintainers"}}{{$.Form.Value "maintainers"}}{{else}}{{join .Maintainers "\n"}}{{end}}</textarea><small>One user, group, agent or service per line; <code>@owner</code> is ACL-only.</small></label>{{if $.Form.Is "maintainers"}}<p class=warn id=maintainers-error>{{$.Form.Error}}</p>{{end}}<div class=form-actions><button>Assign maintainers</button></div></form></details>{{end}}
 {{end}}
 <p><a class=danger href="/service-danger?name={{.Name}}">Danger Zone</a></p>
 {{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}` + activityViewTemplate))
