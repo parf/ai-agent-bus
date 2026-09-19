@@ -12,6 +12,7 @@ Generic undecided or unassigned plans. This directory is not a release and carri
 | Storage alternatives | [Storage alternatives](storage.md#storage) |
 | Local queue library | [Local queue library](local-queues.md#in-process-queue) |
 | Debug tracing | [Debug tracing](debug.md#debug-mode) |
+| Directional access | [Directional access](acl-direction.md#where-direction-is-needed) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices are in [decisions](DECISIONS.md#recorded-decisions).
 Other candidates are listed in [follow-up](FUTURE.md#candidates).

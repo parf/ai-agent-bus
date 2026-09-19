@@ -10,6 +10,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Storage | [definition](storage.md#storage) | D88 |
 | Debug mode | [definition](debug.md#debug-mode) | D100 |
 | Billing | [definition](billing.md#billing-role--future) | D107, D108, D171 |
+| Directional access | [definition](acl-direction.md#where-direction-is-needed) | 2026-09-18 owner decision: only registered queues and pub/sub channels get separate read and write lists; every other record has one fixed side |
 
 ## Open
 

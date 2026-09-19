@@ -10,6 +10,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q2 | A newcomer with no balance cannot reach `pay` | owner | [future/billing.md](billing.md#billing-role--future) |
 | Q3 | Direct talk bypasses billing | owner | [future/billing.md](billing.md#billing-role--future) |
 | Q8 | What else lives in the store, and whether RocksDB replaces it — holding the daemon's and the runner's data encrypted and replicating itself, linked in or a unit of its own | owner | [storage alternatives](storage.md#storage) |
+| Q74 | Which release carries directional access, and whether an existing single list becomes the read list, the write list or both when it is introduced | owner | [directional access](acl-direction.md#where-direction-is-needed) |
 | Q11 | OpenCode (Z.AI) push path | one spike | [runner § adapters](../../docs/08-runner-role.md#adapters) |
 | Q24 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [public directory](public-directory.md#a-public-directory-of-people-and-their-keys) |
 | Q34 | Which proposed storage engine actually supplies each required encryption and replication property | an engine evaluation and owner decision | [context](storage.md#storage) |
