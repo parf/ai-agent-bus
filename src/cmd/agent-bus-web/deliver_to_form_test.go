@@ -1,0 +1,174 @@
+package main
+
+import (
+	"net/url"
+	"strings"
+	"testing"
+
+	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/protocol"
+)
+
+// editor is the one record editor, from its summary to the end of its form.
+// The whole page will not do: the Deliver-To list is also printed above, so a
+// page-wide search for a name finds it whether or not the form offers it.
+func editorOf(t *testing.T, page string) string {
+	t.Helper()
+	at := strings.Index(page, "id=settings>")
+	if at < 0 {
+		t.Fatal("the page has no record editor")
+	}
+	end := strings.Index(page[at:], "</form>")
+	if end < 0 {
+		t.Fatal("the record editor has no form")
+	}
+	return page[at : at+end]
+}
+
+// A pub/sub topic's two lists are edited in the one record editor, so the
+// Deliver-To field has to come back filled in. A save is a whole replacement:
+// a form that rendered the field empty would empty the list every time
+// somebody changed a description.
+// See docs/04-messaging.md#subscribers.
+func TestTheRecordEditorCarriesTheDeliverToListBackAndForth(t *testing.T) {
+	m := meaningFixture(t)
+	m.register(protocol.Record{Name: "reader@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}})
+	if err := m.bus.SetGroup("admin@h", "@team", []string{"admin@h"}); err != nil {
+		t.Fatal(err)
+	}
+	m.register(protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "admin@h", Descr: "News", Allow: []string{"*"}})
+	if _, err := m.bus.Manage("admin@h", core.Management{Name: "news@h", Subs: &[]string{"reader@h", "@team"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	page := m.get("/service?name=news@h")
+	editor := editorOf(t, page)
+	// The fixture collapses whitespace, so the two lines arrive as one.
+	if !strings.Contains(editor, "reader@h @team</textarea>") {
+		t.Fatalf("the editor did not offer the stored list back: %s", editor)
+	}
+	if !strings.Contains(editor, "name=edit_subs value=1") {
+		t.Fatal("the editor does not state that it carried the Deliver-To field")
+	}
+
+	// Changing something else, with the field as the page rendered it.
+	m.post(t, "/service", url.Values{
+		"action": {"save"}, "name": {"news@h"}, "descr": {"Newsroom"},
+		"edit_allow": {"1"}, "allow": {"*"},
+		"edit_subs": {"1"}, "subs": {"reader@h\n@team"},
+		"ttl": {""}, "bound": {"0"}, "overflow": {"strict"},
+	}, 303)
+	r, _ := m.bus.Lookup("admin@h", "news@h")
+	if r.Descr != "Newsroom" {
+		t.Fatalf("the description was not saved: %q", r.Descr)
+	}
+	if len(r.Subs) != 2 || r.Subs[0] != "reader@h" || r.Subs[1] != "@team" {
+		t.Fatalf("an unrelated save changed the Deliver-To list to %v", r.Subs)
+	}
+
+	// A save that never carried the field at all leaves the list alone. The
+	// editor always renders it, so this is the older bookmarked form and the
+	// hand-written post — and blank below is a different thing entirely.
+	m.post(t, "/service", url.Values{
+		"action": {"save"}, "name": {"news@h"}, "descr": {"Newsroom"},
+		"ttl": {""}, "bound": {"0"}, "overflow": {"strict"},
+	}, 303)
+	if r, _ := m.bus.Lookup("admin@h", "news@h"); len(r.Subs) != 2 {
+		t.Fatalf("a save that never mentioned the list left %v", r.Subs)
+	}
+
+	// And blank is a real value here: it is how a topic stops delivering.
+	m.post(t, "/service", url.Values{
+		"action": {"save"}, "name": {"news@h"}, "descr": {"Newsroom"},
+		"edit_allow": {"1"}, "allow": {"*"},
+		"edit_subs": {"1"}, "subs": {""},
+		"ttl": {""}, "bound": {"0"}, "overflow": {"strict"},
+	}, 303)
+	if r, _ := m.bus.Lookup("admin@h", "news@h"); len(r.Subs) != 0 {
+		t.Fatalf("an emptied field left %v on the list", r.Subs)
+	}
+}
+
+// The field follows the kind, like every other one on this form: only a 📣
+// has a Deliver-To list, and a save from a form that never showed the field
+// must not be refused for a list it could not have sent.
+func TestOnlyAPubSubEditorShowsDeliverToAndOtherKindsStillSave(t *testing.T) {
+	m := meaningFixture(t)
+	m.register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "admin@h", Descr: "Jobs", Allow: []string{"*"}})
+	editor := editorOf(t, m.get("/service?name=jobs@h"))
+	if strings.Contains(editor, "name=subs") || strings.Contains(editor, "edit_subs") {
+		t.Fatal("a queue's editor offers a Deliver-To list")
+	}
+	m.post(t, "/service", url.Values{
+		"action": {"save"}, "name": {"jobs@h"}, "descr": {"Job queue"},
+		"edit_allow": {"1"}, "allow": {"*"},
+		"ttl": {""}, "bound": {"0"}, "overflow": {"strict"},
+	}, 303)
+	if r, _ := m.bus.Lookup("admin@h", "jobs@h"); r.Descr != "Job queue" {
+		t.Fatalf("a queue could not be saved: %q", r.Descr)
+	}
+}
+
+// Registering a topic and saying who it delivers to is one act, so the form
+// that creates it asks — and the created record carries what was asked for,
+// not a list somebody has to add afterwards.
+func TestRegisteringAPubSubTopicCarriesTheDeliverToListItDeclared(t *testing.T) {
+	m := meaningFixture(t)
+	m.register(protocol.Record{Name: "reader@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}})
+	// The exact field, not a prefix of it: name=subs-anything contains
+	// name=subs and would pass a looser search while submitting nothing.
+	const field = "<textarea name=subs "
+	form := m.get("/channels/new?kind=pubsub")
+	if !strings.Contains(form, field) {
+		t.Fatal("the pub/sub registration form does not ask who it delivers to")
+	}
+	if queue := m.get("/channels/new?kind=queue"); strings.Contains(queue, field) {
+		t.Fatal("the queue registration form asks for a Deliver-To list")
+	}
+	m.post(t, "/service", url.Values{
+		"action": {"create"}, "kind": {"pubsub"}, "name": {"feed@h"},
+		"descr": {"Feed"}, "allow": {"*"}, "subs": {"reader@h"},
+	}, 303)
+	r, ok := m.bus.Lookup("admin@h", "feed@h")
+	if !ok {
+		t.Fatal("the topic was not registered")
+	}
+	if len(r.Subs) != 1 || r.Subs[0] != "reader@h" {
+		t.Fatalf("the declared Deliver-To list became %v", r.Subs)
+	}
+}
+
+// Taking your own inbox off is the one thing a recipient may do to the list,
+// so the control appears for a name that is on it under its own name and for
+// nobody else — a name that receives through a group cannot remove itself,
+// and a button that did nothing would be worse than no button.
+func TestTheLeaveControlAppearsOnlyForANameOnTheListItself(t *testing.T) {
+	m := meaningFixture(t)
+	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "visitor@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "grouped@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.bus.SetGroup("admin@h", "@team", []string{"grouped@h"}); err != nil {
+		t.Fatal(err)
+	}
+	m.register(protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "admin@h", Allow: []string{"*"}})
+	if _, err := m.bus.Manage("admin@h", core.Management{Name: "news@h", Subs: &[]string{"visitor@h", "@team"}}); err != nil {
+		t.Fatal(err)
+	}
+	const leave = "value=unsubscribe"
+	if page := m.as("visitor@h").get("/channel?name=news@h"); !strings.Contains(page, leave) {
+		t.Fatal("a name on the list is not offered the way off it")
+	}
+	if page := m.as("grouped@h").get("/channel?name=news@h"); strings.Contains(page, leave) {
+		t.Fatal("a name that receives through a group is offered a removal that would take nothing out")
+	}
+	// And it takes the name off rather than putting one on, which is the
+	// only direction this control has: the two used to be one form.
+	m.as("visitor@h").post(t, "/service", url.Values{"action": {"unsubscribe"}, "name": {"news@h"}}, 303)
+	r, _ := m.bus.Lookup("admin@h", "news@h")
+	if len(r.Subs) != 1 || r.Subs[0] != "@team" {
+		t.Fatalf("the list after the recipient left is %v", r.Subs)
+	}
+}

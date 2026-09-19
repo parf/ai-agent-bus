@@ -690,3 +690,17 @@ func figure(value any) template.HTML {
 }
 
 const noFigure = template.HTML(`<span class=muted>&mdash;</span>`)
+
+// onList reports whether a name is on a stored list under its own name. The
+// Deliver-To control that takes an inbox off the list is offered only then:
+// a name that receives through a group cannot be removed by removing itself,
+// so a button that looked the same would do nothing.
+// See docs/04-messaging.md#subscribers.
+func onList(list []string, who string) bool {
+	for _, s := range list {
+		if s == who {
+			return true
+		}
+	}
+	return false
+}

@@ -195,20 +195,20 @@ func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 	}
 }
 
-// Joining a suspended owner's channel is a call to it; leaving one is not.
-func TestASuspendedOwnersChannelRefusesNewSubscribersButLetsThemLeave(t *testing.T) {
+// Writing a suspended owner's Deliver-To list is a call the owner cannot
+// answer for; a recipient leaving is not.
+func TestASuspendedOwnerCannotWriteDeliverToAndARecipientMayStillLeave(t *testing.T) {
 	f := suspendedOwnerFixture(t)
-	f.call("alice@h", "POST", "/register", `{"name":"feed@h","kind":"pubsub","allow":["bystander@h","maint@h"]}`, 200)
-	f.call("bystander@h", "POST", "/subscribe", `{"channel":"feed@h"}`, 200)
+	f.call("alice@h", "POST", "/register", `{"name":"feed@h","kind":"pubsub","allow":["bystander@h","maint@h"],"subs":["bystander@h"]}`, 200)
 	f.state("alice@h", "paused")
 
-	f.call("maint@h", "POST", "/subscribe", `{"channel":"feed@h"}`, 403)
-	// Already subscribed, and free to go: trapping somebody in a channel they
-	// can no longer use would be a worse answer than letting them leave.
+	f.call("alice@h", "POST", "/manage", `{"name":"feed@h","subs":["bystander@h","maint@h"]}`, 403)
+	// Already on the list, and free to go: trapping somebody in a channel
+	// they can no longer use would be a worse answer than letting them leave.
 	f.call("bystander@h", "POST", "/subscribe", `{"channel":"feed@h","off":true}`, 200)
 
 	f.state("alice@h", "active")
-	f.call("maint@h", "POST", "/subscribe", `{"channel":"feed@h"}`, 200)
+	f.call("alice@h", "POST", "/manage", `{"name":"feed@h","subs":["maint@h"]}`, 200)
 }
 
 // Suspension follows the record's stated owner and does not walk the chain.

@@ -522,7 +522,7 @@ if slow; then
     "$(cat "$D"/pool.[123] | grep -o 'job-[123]' | sort | uniq -d)"
 
 else skipped=$((skipped+1)); fi
-sec "pub/sub: a copy per subscriber, in the subscriber's own inbox"
+sec "pub/sub: a copy per recipient, in that recipient's own inbox"
 users drive-by@srv1 nobody-here@srv1
 # A channel is the 📮/📣 record; an envelope's topic is a label on one
 # message. The verb and the flag say channel from 0.6.7, and the old
@@ -536,27 +536,33 @@ has "and says which flag it wants instead" \
   "$(ab owner@srv1 publish --topic news@srv1 "by the old flag" 2>&1)" 'publish wants --channel'
 ab owner@srv1 register sub-a@srv1 --allow '*' --kind agent >/dev/null
 ab owner@srv1 register sub-b@srv1 --allow '*' --kind agent >/dev/null
+# A 📣 carries two lists. The ACL is who may publish; the Deliver-To list is
+# who receives, and nothing puts itself on it. See docs/04-messaging.md#subscribers.
+deliver_to() { post_body owner@srv1 /manage "{\"name\":\"$1\",\"subs\":$2}"; }
+out=$(ab sub-a@srv1 subscribe news@srv1 2>&1); rc=$?
+bad_exit "a name cannot put itself on a Deliver-To list" $rc
+has "and is told whose list it is" "$out" 'decides who news@srv1 delivers to'
+is_empty "so the topic names nobody" \
+  "$(ab owner@srv1 ls news@srv1 | grep -o '"subs"')"
 # The wire moved too: the field is channel, so an old client's topic field is
 # not read and the daemon is handed an empty name. Both halves are asserted
-# against a subscriber that exists, or the refusal is about the caller instead
+# against a name that exists, or the refusal is about the caller instead
 # and the pair passes whichever field the daemon reads.
 has "and /subscribe no longer reads a topic field" \
   "$(post_body sub-a@srv1 /subscribe '{"topic":"news@srv1"}' 2>&1)" 'has no realm'
-has "while the channel field subscribes for real" \
-  "$(post_body sub-a@srv1 /subscribe '{"channel":"news@srv1"}' 2>&1)" '"subs":\["sub-a@srv1"\]'
-post_body sub-a@srv1 /subscribe '{"channel":"news@srv1","off":true}' >/dev/null
-ab sub-a@srv1 subscribe news@srv1 >/dev/null
-ab sub-b@srv1 subscribe news@srv1 >/dev/null
-has "the channel says who subscribed" "$(ab owner@srv1 ls news@srv1)" '"subs":\["sub-a@srv1","sub-b@srv1"\]'
+has "while the channel field names the channel for real" \
+  "$(post_body sub-a@srv1 /subscribe '{"channel":"news@srv1"}' 2>&1)" 'delivers to'
+deliver_to news@srv1 '["sub-a@srv1","sub-b@srv1"]' >/dev/null
+has "the channel says who it delivers to" "$(ab owner@srv1 ls news@srv1)" '"subs":\["sub-a@srv1","sub-b@srv1"\]'
 ab drive-by@srv1 publish --channel news@srv1 "to everyone" >/dev/null
 # Both, not one: a fan-out that hands the message to whoever reads first is a
 # 📮 channel, and that is the kind this is NOT.
-has "one subscriber gets a copy" "$(ab sub-a@srv1 consume --wait 5s)" 'to everyone'
+has "one recipient gets a copy" "$(ab sub-a@srv1 consume --wait 5s)" 'to everyone'
 has "and so does the other, of the same publication" "$(ab sub-b@srv1 consume --wait 5s)" 'to everyone'
-# The copy is addressed to the subscriber: it is in an inbox, and an inbox
+# The copy is addressed to the recipient: it is in an inbox, and an inbox
 # belongs to a name (docs/04-messaging.md#inbox-queues).
 ab drive-by@srv1 publish --channel news@srv1 "addressed" >/dev/null
-has "and the copy is addressed to the subscriber, not to the channel" \
+has "and the copy is addressed to the recipient, not to the channel" \
   "$(ab sub-a@srv1 consume --wait 5s)" '"to":"sub-a@srv1"'
 ab sub-b@srv1 consume --wait 5s >/dev/null
 # The topic keeps nothing of its own — that is the whole difference from a
@@ -566,55 +572,80 @@ is_empty "while the topic itself keeps nothing" \
 has "though its publications are counted" "$(ab owner@srv1 ls news@srv1)" '"in":2'
 # Nobody listening is not an error, and is not a message kept for later.
 ab owner@srv1 channel create void@srv1 --allow '*' --kind pubsub >/dev/null
-ok_exit "a publish with no subscribers is accepted" \
+ok_exit "a publish with nobody on the list is accepted" \
   "$(ab drive-by@srv1 publish --channel void@srv1 "into the void" >/dev/null 2>&1; echo $?)"
 is_empty "and kept for nobody" "$(ab owner@srv1 ls void@srv1 | grep -o '"queued":[1-9][0-9]*')"
-# Leaving stops the copies, and is not the same as never having joined.
+# Leaving is the one thing a recipient may do to the list, and it stops the
+# copies. Not the same as never having been on it.
 ab sub-b@srv1 unsubscribe news@srv1 >/dev/null
 ab drive-by@srv1 publish --channel news@srv1 "second round" >/dev/null
-has "a subscriber that stayed still gets it" "$(ab sub-a@srv1 consume --wait 5s)" 'second round'
+has "a recipient that stayed still gets it" "$(ab sub-a@srv1 consume --wait 5s)" 'second round'
 is_empty "and one that left gets nothing" "$(ab sub-b@srv1 consume --wait 1s)"
 has "and the topic no longer names it" "$(ab owner@srv1 ls news@srv1)" '"subs":\["sub-a@srv1"\]'
-# A subscriber has to own an inbox for the copy to land in, so it is a
+# A recipient has to own an inbox for the copy to land in, so it is a
 # registered name like any receiver.
-out=$(ab nobody-here@srv1 subscribe news@srv1 2>&1); rc=$?
-bad_exit "a known user without an inbox cannot subscribe" $rc
-has "and says to register it first" "$out" 'so its copies have somewhere to land'
-# A queue topic that EXISTS, so the refusal is about its mode and not about
+has "a known user without an inbox cannot be on the list" \
+  "$(deliver_to news@srv1 '["sub-a@srv1","nobody-here@srv1"]' 2>&1)" 'somewhere to land'
+has "and a refused list stores none of itself" "$(ab owner@srv1 ls news@srv1)" '"subs":\["sub-a@srv1"\]'
+# A queue topic that EXISTS, so the refusal is about its kind and not about
 # the name being unknown.
 ab owner@srv1 channel create work@srv1 --allow '*' --descr "a queue topic" >/dev/null
+has "and a queue has nobody to deliver to" \
+  "$(deliver_to work@srv1 '["sub-a@srv1"]' 2>&1)" 'delivers to nobody'
 out=$(ab sub-a@srv1 subscribe work@srv1 2>&1); rc=$?
-bad_exit "and a queue topic is not something to subscribe to" $rc
-has "refused for its mode, not for being unknown" "$out" 'only a pubsub channel has subscribers'
-# The ACL is the capability here, and it is asked at PUBLISH, not only at
-# subscribe: access taken away has to stop the copies, or subscribing would
-# be a way to go on reading a topic that stopped allowing you.
-ab owner@srv1 channel create members@srv1 --kind pubsub --allow sub-a@srv1 >/dev/null
-out=$(ab sub-b@srv1 subscribe members@srv1 2>&1); rc=$?
-bad_exit "subscribing to a topic you may not see is refused" $rc
-ab sub-a@srv1 subscribe members@srv1 >/dev/null
-ab owner@srv1 publish --channel members@srv1 "members only" >/dev/null
-has "while the one it allows receives it" "$(ab sub-a@srv1 consume --wait 5s)" 'members only'
+bad_exit "nor is a queue topic something to leave" $rc
+has "refused for its kind, not for being unknown" "$out" 'only a pubsub channel has a deliver-to list'
+# The two lists are separate, and that is the whole point: the ACL decides
+# publishing and decides nothing about who receives. Asserted on a topic
+# whose ACL admits ONLY its owner, with somebody else on the Deliver-To list.
 ab owner@srv1 channel create members@srv1 --kind pubsub --allow owner@srv1 >/dev/null
-has "the subscription survives the record being restated" "$(ab owner@srv1 ls members@srv1)" '"subs":\["sub-a@srv1"\]'
-ab owner@srv1 publish --channel members@srv1 "still a member?" >/dev/null
-is_empty "but a subscriber no longer allowed gets no more copies" \
-  "$(ab sub-a@srv1 consume --wait 1s)"
-# One subscriber cannot hold the topic hostage: its own bound applies to its
+deliver_to members@srv1 '["sub-b@srv1"]' >/dev/null
+ab owner@srv1 publish --channel members@srv1 "members only" >/dev/null
+has "a recipient the ACL does not admit still receives" \
+  "$(ab sub-b@srv1 consume --wait 5s)" 'members only'
+out=$(ab sub-b@srv1 publish --channel members@srv1 "may I?" 2>&1); rc=$?
+bad_exit "while that same name may not publish there" $rc
+ab owner@srv1 channel create members@srv1 --kind pubsub --allow owner@srv1 --descr "restated" >/dev/null
+has "the list survives the record being restated" "$(ab owner@srv1 ls members@srv1)" '"subs":\["sub-b@srv1"\]'
+# A @group on the list stands for its members at the publish, so somebody
+# added to the group afterwards receives without the list being touched.
+# Its own names, because everything published here lands in them and a
+# leftover copy is somebody else's check reading the wrong inbox.
+ab owner@srv1 register grp-a@srv1 --allow '*' --kind agent >/dev/null
+ab owner@srv1 register grp-b@srv1 --allow '*' --kind agent >/dev/null
+post_body "$OWNER" /group '{"name":"@smoke-readers","members":["grp-a@srv1"]}' >/dev/null
+deliver_to members@srv1 '["@smoke-readers"]' >/dev/null
+ab owner@srv1 publish --channel members@srv1 "to the group" >/dev/null
+has "a group on the list delivers to its member" "$(ab grp-a@srv1 consume --wait 5s)" 'to the group'
+post_body "$OWNER" /group '{"name":"@smoke-readers","members":["grp-a@srv1","grp-b@srv1"]}' >/dev/null
+ab owner@srv1 publish --channel members@srv1 "and to the new one" >/dev/null
+has "and to a member added after the list was written" \
+  "$(ab grp-b@srv1 consume --wait 5s)" 'and to the new one'
+has "while the stored list is still the group, not its members" \
+  "$(ab owner@srv1 ls members@srv1)" '"subs":\["@smoke-readers"\]'
+# Removing yourself from a group-derived delivery would take nothing out of
+# the list, so it is refused rather than reported as a removal.
+out=$(ab grp-b@srv1 unsubscribe members@srv1 2>&1); rc=$?
+bad_exit "a recipient reached through a group cannot remove itself" $rc
+has "and the refusal names the group to leave instead" "$out" '@smoke-readers'
+ab owner@srv1 publish --channel members@srv1 "still arriving" >/dev/null
+has "so the copies the refusal promised keep arriving" \
+  "$(ab grp-b@srv1 consume --wait 5s)" 'still arriving'
+# One recipient cannot hold the topic hostage: its own bound applies to its
 # own copy, and the others still get theirs.
 ab owner@srv1 register full-sub@srv1 --allow '*' --kind agent --bound 1 >/dev/null
-ab full-sub@srv1 subscribe news@srv1 >/dev/null
+deliver_to news@srv1 '["sub-a@srv1","full-sub@srv1"]' >/dev/null
 ab drive-by@srv1 publish --channel news@srv1 "fills it" >/dev/null
-ok_exit "a publish a full subscriber cannot take still succeeds" \
+ok_exit "a publish a full recipient cannot take still succeeds" \
   "$(ab drive-by@srv1 publish --channel news@srv1 "does not fit" >/dev/null 2>&1; echo $?)"
-has "and the subscriber with room gets both" \
+has "and the recipient with room gets both" \
   "$(ab sub-a@srv1 consume --wait 5s; ab sub-a@srv1 consume --wait 5s)" 'does not fit'
 has "while the copy that would not fit is counted as a loss" \
   "$(ab parf@localhost status)" '"dropped":[1-9]'
-# And against the SUBSCRIBER, whose own bound refused it — not against the
+# And against the RECIPIENT, whose own bound refused it — not against the
 # topic, which keeps nothing and so can lose nothing. The node total rises
 # wherever it is charged, which is exactly why it cannot be the check.
-has "and it is the subscriber's loss, its bound having refused it" \
+has "and it is the recipient's loss, its bound having refused it" \
   "$(ab owner@srv1 ls full-sub@srv1)" '"dropped":[1-9]'
 is_empty "not the topic's, which keeps nothing to lose" \
   "$(ab owner@srv1 ls news@srv1 | grep -o '"dropped":')"
@@ -2251,6 +2282,10 @@ has "the queue form carries its own kind" "$NEWQ" '<input type=hidden name=kind 
 has "the pub/sub form carries its own" "$NEWT" '<input type=hidden name=kind value=pubsub>'
 has "a queue declares the policy of the queue it will hold" "$NEWQ" 'name=ttl'
 lacks "and a topic is not asked about one it will not have" "$NEWT" 'name=ttl\|name=bound\|name=overflow'
+# The topic declares the other thing it has instead: who it delivers to.
+# The exact field, because name=subs-anything contains name=subs.
+has "a topic declares who it delivers to" "$NEWT" '<textarea name=subs '
+lacks "and a queue, which delivers to one reader, is not asked" "$NEWQ" '<textarea name=subs'
 # The service form is the only one with a credential to offer, because it is
 # the only kind with something outside to authenticate to.
 NEWS=$(curl -s -b "$JAR" "$WEB/services/new")

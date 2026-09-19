@@ -42,7 +42,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 			_, err := b.Send(protocol.Envelope{From: c, To: "target@h", Body: "x"})
 			return err
 		}},
-		{"subscribe", func(b *Bus, c string) error { _, err := b.Subscribe(c, "news@h", true); return err }},
+		{"leave-deliver-to", func(b *Bus, c string) error { _, err := b.Subscribe(c, "news@h", false); return err }},
 		{"consume", func(b *Bus, c string) error {
 			ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 			defer cancel()

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -17,7 +18,7 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	m.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindQueue, Descr: "Jobs", Allow: []string{"*"}})
 	m.register(protocol.Record{Name: "news@h", Owner: "admin@h", Kind: protocol.KindPubSub, Descr: "News", Allow: []string{"*"}})
 	m.register(protocol.Record{Name: "worker@h", Owner: "admin@h", Kind: "agent", Descr: "Worker", Allow: []string{"*"}})
-	if _, err := m.bus.Subscribe("visitor@h", "news@h", true); err != nil {
+	if _, err := m.bus.Manage("admin@h", core.Management{Name: "news@h", Subs: &[]string{"visitor@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
@@ -107,7 +108,7 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 		t.Error("owner Channel detail lost its title, exact return or daemon-authorized editor")
 	}
 	visitor := m.as("visitor@h").get("/channel?name=news@h")
-	if strings.Contains(visitor, `id=settings`) || !strings.Contains(visitor, "Queue &amp; counters") || !strings.Contains(visitor, "Subscriptions") {
+	if strings.Contains(visitor, `id=settings`) || !strings.Contains(visitor, "Queue &amp; counters") || !strings.Contains(visitor, "Deliver-To") {
 		t.Error("visitor Channel detail either exposes an editor or hides readable operational facts")
 	}
 	if location, status := postAs(t, m, "/service", url.Values{"action": {"disable"}, "name": {"jobs@h"}}); status != http.StatusSeeOther || location != "/channel?name=jobs%40h" {

@@ -67,7 +67,7 @@ func durabilityFixture(t *testing.T) *Bus {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Subscribe("bob@h", "topic@h", true); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "topic@h", Subs: ptr([]string{"bob@h"})}); err != nil {
 		t.Fatal(err)
 	}
 	if _, visible := b.Lookup("bob@h", "svc@h"); !visible {

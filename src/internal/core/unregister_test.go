@@ -99,7 +99,7 @@ func TestUnregisterClearsConfigurationAndSubscriptions(t *testing.T) {
 		t.Fatal(err)
 	}
 	provision(t, b, protocol.Record{Name: "topic@h", Allow: []string{"*"}, Kind: protocol.KindPubSub})
-	if _, err := b.Subscribe("svc@h", "topic@h", true); err != nil {
+	if _, err := b.Manage("topic@h", Management{Name: "topic@h", Subs: ptr([]string{"svc@h"})}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Unregister("svc@h", "svc@h"); err != nil {

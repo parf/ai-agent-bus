@@ -20,6 +20,16 @@ func newBusWith(t *testing.T, names ...string) *Bus {
 	return b
 }
 
+// delivers puts names on a topic's Deliver-To list as whoever manages it,
+// which since 0.6.15 is the only way onto one: a name cannot add itself.
+func delivers(t *testing.T, b *Bus, manager, channel string, names ...string) {
+	t.Helper()
+	list := append([]string(nil), names...)
+	if _, err := b.Manage(manager, Management{Name: channel, Subs: &list}); err != nil {
+		t.Fatalf("deliver-to %s: %v", channel, err)
+	}
+}
+
 // A waiter that asked for this topic+tag must be served ahead of the
 // unfiltered reader, even though the reader blocked first. Without this a
 // `call` loses its reply to whatever else is reading the inbox.
@@ -252,12 +262,8 @@ func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 	known(t, b, "a@srv")
 	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
 	known(t, b, "pub@srv")
-	for _, s := range []string{"one@srv", "two@srv"} {
-		known(t, b, s)
-		if _, err := b.Subscribe(s, "news@srv", true); err != nil {
-			t.Fatalf("subscribe %s: %v", s, err)
-		}
-	}
+	known(t, b, "one@srv", "two@srv")
+	delivers(t, b, "a@srv", "news@srv", "one@srv", "two@srv")
 	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "news@srv", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
@@ -277,32 +283,46 @@ func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 	}
 }
 
-// A subscription is the topic's record, so restating the record must not
-// throw it away — a service registers itself on every start.
-func TestASubscriptionSurvivesTheTopicBeingRestated(t *testing.T) {
+// The Deliver-To list is the topic's record, so restating the record must not
+// throw it away — a service registers itself on every start. A registration
+// that states one replaces it, the way an ACL does, and only a name that
+// already manages the topic reaches that path at all.
+// See docs/04-messaging.md#subscribers.
+func TestRestatingATopicKeepsItsDeliverToListUnlessItStatesOne(t *testing.T) {
 	b := New()
-	known(t, b, "a@srv")
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
-	known(t, b, "one@srv")
-	if _, err := b.Subscribe("one@srv", "news@srv", true); err != nil {
-		t.Fatalf("subscribe: %v", err)
+	known(t, b, "a@srv", "stranger@srv", "one@srv", "two@srv")
+	topic := protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"}
+	mustRegister(t, b, topic)
+	delivers(t, b, "a@srv", "news@srv", "one@srv")
+
+	restated := topic
+	restated.Descr = "again"
+	mustRegister(t, b, restated)
+	if r, ok := b.Lookup("a@srv", "news@srv"); !ok || len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
+		t.Fatalf("the list after a restate that stated none: %v", r.Subs)
 	}
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv", Descr: "again"})
-	r, ok := b.Lookup("a@srv", "news@srv")
-	if !ok || len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
-		t.Fatalf("subscribers after a restate: %v", r.Subs)
+
+	stated := topic
+	stated.Subs = []string{"two@srv"}
+	mustRegister(t, b, stated)
+	if r, _ := b.Lookup("a@srv", "news@srv"); len(r.Subs) != 1 || r.Subs[0] != "two@srv" {
+		t.Fatalf("the list the owner restated: %v", r.Subs)
 	}
-	// And a caller cannot claim one by stating it.
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv", Subs: []string{"intruder@srv"}})
-	r, _ = b.Lookup("a@srv", "news@srv")
-	if len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
-		t.Fatalf("a stated subscriber was taken: %v", r.Subs)
+
+	// Declared at creation, because creating a topic and saying who it
+	// delivers to is one act.
+	mustRegister(t, b, protocol.Record{Name: "fresh@srv", Kind: protocol.KindPubSub, Owner: "a@srv", Subs: []string{"one@srv"}})
+	if r, _ := b.Lookup("a@srv", "fresh@srv"); len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
+		t.Fatalf("the list a new topic declared: %v", r.Subs)
 	}
-	// Nor on a name nobody registered before, where there is no stored
-	// record to restore over it.
-	mustRegister(t, b, protocol.Record{Name: "fresh@srv", Kind: protocol.KindPubSub, Owner: "a@srv", Subs: []string{"intruder@srv"}})
-	if r, _ := b.Lookup("a@srv", "fresh@srv"); len(r.Subs) != 0 {
-		t.Fatalf("a stated subscriber was taken on a new topic: %v", r.Subs)
+
+	// And a stranger cannot restate somebody's topic to put itself on it,
+	// which is the whole reason the list is the manager's.
+	if _, err := b.Register(protocol.Record{Name: "news@srv", Kind: protocol.KindPubSub, Owner: "stranger@srv", Subs: []string{"stranger@srv"}}); err == nil {
+		t.Fatal("a stranger restated the topic")
+	}
+	if r, _ := b.Lookup("a@srv", "news@srv"); len(r.Subs) != 1 || r.Subs[0] != "two@srv" {
+		t.Fatalf("a stranger changed the list: %v", r.Subs)
 	}
 }
 
@@ -735,26 +755,34 @@ func TestLivenessIsAssignedNotMerged(t *testing.T) {
 	}
 }
 
-// A disabled subscriber is skipped, and the skip is its own loss: nothing is
+// A disabled recipient is skipped, and the skip is its own loss: nothing is
 // queued for it and the publisher is told nothing, so the only place the gap
-// can show is the subscriber's own drop count. Access taken away is not the
-// same fact and is not counted — that subscriber is not entitled to the copy.
-func TestAPublicationASubscriberIsTooDisabledToTakeCountsAsItsDrop(t *testing.T) {
+// can show is its own drop count. A recipient that cannot be reached at all
+// is not the same fact and is not counted — it is not entitled to the copy.
+// And the topic's ACL says who may publish, so it decides none of this: a
+// name on the Deliver-To list receives whether or not the ACL admits it.
+// See docs/04-messaging.md#subscribers.
+func TestAPublicationADisabledRecipientCannotTakeCountsAsItsDrop(t *testing.T) {
 	b := New()
+	b.SetDaemonOwner("admin@srv")
 	known(t, b, "a@srv", "pub@srv")
-	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
-	for _, s := range []string{"live@srv", "off@srv", "barred@srv"} {
+	// The ACL names the publisher and nobody else: none of the four below may
+	// publish here, and all four are on the list.
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"pub@srv"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
+	for _, s := range []string{"live@srv", "off@srv", "outsider@srv"} {
 		mustRegister(t, b, protocol.Record{Name: s, Allow: []string{"*"}, Kind: "agent", Owner: "a@srv"})
-		if _, err := b.Subscribe(s, "news@srv", true); err != nil {
-			t.Fatalf("subscribe %s: %v", s, err)
-		}
 	}
+	if _, err := b.SetUser("admin@srv", protocol.User{Name: "paused@srv"}, true); err != nil {
+		t.Fatalf("the person who gets suspended: %v", err)
+	}
+	delivers(t, b, "a@srv", "news@srv", "live@srv", "off@srv", "paused@srv", "outsider@srv")
 	if _, err := b.Manage("a@srv", Management{Name: "off@srv", Disabled: ptr(true)}); err != nil {
 		t.Fatalf("disable: %v", err)
 	}
-	// Barred by the topic rather than turned off: the topic stops allowing it.
-	if _, err := b.Manage("a@srv", Management{Name: "news@srv", Allow: ptr([]string{"live@srv", "off@srv", "pub@srv"})}); err != nil {
-		t.Fatalf("narrow the topic: %v", err)
+	// Unreachable rather than turned off: a suspended name takes no copies
+	// and has lost nothing it was entitled to.
+	if _, err := b.SetUserState("admin@srv", "paused@srv", "paused"); err != nil {
+		t.Fatalf("suspend: %v", err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "news@srv", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
@@ -766,9 +794,10 @@ func TestAPublicationASubscriberIsTooDisabledToTakeCountsAsItsDrop(t *testing.T)
 	}{
 		{"live@srv", 1, 0},
 		{"off@srv", 0, 1},
-		{"barred@srv", 0, 0},
+		{"paused@srv", 0, 0},
+		{"outsider@srv", 1, 0},
 	} {
-		r, ok := b.Lookup("a@srv", c.name)
+		r, ok := b.Lookup("admin@srv", c.name)
 		if !ok {
 			t.Fatalf("%s is gone", c.name)
 		}
@@ -938,13 +967,13 @@ func TestAnExternalServiceHasNoQueueHere(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Sending, subscribing and consuming are the three doors, and each is
-	// refused for the kind rather than for the caller.
+	// Sending, receiving a publication and consuming are the three doors,
+	// and each is refused for the kind rather than for the caller.
 	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "db@h", Body: "hello"}); !errors.Is(err, ErrKind) {
 		t.Fatalf("send to a service: err = %v, want ErrKind", err)
 	}
-	if _, err := b.Subscribe("db@h", "news@h", true); !errors.Is(err, ErrKind) {
-		t.Fatalf("subscribe a service: err = %v, want ErrKind", err)
+	if _, err := b.Manage("alice@h", Management{Name: "news@h", Subs: ptr([]string{"db@h"})}); !errors.Is(err, ErrBadName) {
+		t.Fatalf("deliver to a service: err = %v, want ErrBadName", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

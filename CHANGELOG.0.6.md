@@ -2,6 +2,15 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.15 — 2026-09-19
+
+A pub/sub topic carries two lists instead of one doing both jobs: its allow
+list is who may publish, and its new Deliver-To list is who receives a copy.
+Whoever manages the channel writes that list, at registration or afterwards;
+it takes users, agents and `@group`, expanded at the publish; a recipient may
+take itself off and can no longer put itself on. Delivery no longer consults
+the topic's ACL.
+
 ## 0.6.14 — 2026-09-19
 
 The Overview node strip divides by time rather than by subject: Readers,

@@ -161,10 +161,13 @@ say so: `consume --share`.
 
 ```sh
 agent-bus channel create alerts@demo --kind pubsub --descr "shouting"
-agent-bus subscribe alerts@demo
 agent-bus publish --channel alerts@demo "disk is filling up"
 agent-bus unsubscribe alerts@demo
 ```
+
+⚠️ **Who receives is the channel owner's list.** You cannot add yourself to a
+📣 — its owner sets who it delivers to, on the channel's page. `unsubscribe`
+takes *you* off, because it is your inbox that fills.
 
 ⚠️ **A channel is not a topic.** The channel is the *name* you publish to; a
 `--topic` on `send` is a **label on one message**, used to match a reply. Two
@@ -173,7 +176,7 @@ words, two things ([channels](../07-channels.md#channel-not-topic)).
 | Kind | Goes to |
 |---|---|
 | `queue` | **one** consumer, and waits until somebody takes it |
-| `pubsub` | **every** current subscriber, and is kept for nobody |
+| `pubsub` | **everybody on its [Deliver-To list](../04-messaging.md#subscribers)**, and is kept for nobody |
 
 ## ⚙️ Running a script as an agent
 

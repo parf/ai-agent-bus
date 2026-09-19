@@ -138,23 +138,23 @@ func TestRequiredDashboardTabs(t *testing.T) {
 	if !strings.Contains(refusedAgent, `<a href=/agents aria-current=page>`) || strings.Count(refusedAgent, "aria-current=page>") != 1 {
 		t.Fatal("a refused agent registration came back under another section")
 	}
-	// Register the administrator's own inbox before subscribing it.
+	// Register the administrator's own inbox before putting it on the list.
 	request("/service", url.Values{"action": {"create"}, "name": {"admin@h"}, "kind": {"agent"}}, 303)
-	request("/service", url.Values{"action": {"subscribe"}, "name": {"news@h"}}, 303)
+	request("/service", url.Values{"action": {"save"}, "name": {"news@h"}, "edit_subs": {"1"}, "subs": {"admin@h"}}, 303)
 	rec, _ := b.Lookup("admin@h", "news@h")
 	if len(rec.Subs) != 1 || rec.Subs[0] != "admin@h" {
-		t.Fatal("subscribe form failed")
+		t.Fatal("the Deliver-To editor did not write the list")
 	}
 	if body := request("/channels", nil, 200); !strings.Contains(body, "news@h") {
 		t.Fatal("channel missing")
 	}
-	if body := request("/service?name=news@h", nil, 200); !strings.Contains(body, "Remove subscription") {
-		t.Fatal("subscription control missing")
+	if body := request("/service?name=news@h", nil, 200); !strings.Contains(body, "value=remove-subscriber") {
+		t.Fatal("the control that takes a recipient off the list is missing")
 	}
 	request("/service", url.Values{"action": {"remove-subscriber"}, "name": {"news@h"}, "subscriber": {"admin@h"}}, 303)
 	rec, _ = b.Lookup("admin@h", "news@h")
 	if len(rec.Subs) != 0 {
-		t.Fatal("remove subscription failed")
+		t.Fatal("removing a recipient failed")
 	}
 	b.SampleActivity(time.Now().Add(-time.Minute))
 	if body := request("/activity", nil, 200); !strings.Contains(body, "<svg") || !strings.Contains(body, "Sample values") {

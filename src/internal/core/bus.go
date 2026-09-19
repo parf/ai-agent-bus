@@ -178,6 +178,12 @@ func validateKind(r protocol.Record) error {
 	if !protocol.ValidKind(r.Kind) {
 		return fmt.Errorf("%w: %q is not one of %s", ErrKind, r.Kind, protocol.KindNames())
 	}
+	// Deliver-To is what a 📣 does instead of holding a queue, so it is the
+	// one kind that has one: the other three receive rather than fan out.
+	// See docs/04-messaging.md#subscribers.
+	if r.Kind != protocol.KindPubSub && len(r.Subs) != 0 {
+		return fmt.Errorf("%w: a %s delivers to nobody, so it carries no deliver-to list", ErrKind, r.Kind)
+	}
 	if onBus(r) {
 		// A credential for reaching something outside means nothing on a kind
 		// that is reached by sending to its name, and a snapshot holding one
@@ -196,9 +202,6 @@ func validateKind(r protocol.Record) error {
 	}
 	if r.Disabled {
 		return fmt.Errorf("%w: a service has no delivery here to turn off", ErrKind)
-	}
-	if len(r.Subs) != 0 {
-		return fmt.Errorf("%w: a service has no queue for a subscription to land in", ErrKind)
 	}
 	return nil
 }
@@ -296,7 +299,19 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// bytes, and not the digest, which is derived from them and would
 	// otherwise let anyone claim any setup or any credential. Each has one
 	// verb that writes it. See docs/06-services.md#secrets.
-	r.Config, r.ConfigSHA, r.Subs = nil, "", nil
+	// Deliver-To may come with a registration: creating a 📣 and saying who
+	// it delivers to is one act, and whoever registers the name owns it.
+	// Checked here rather than in validateKind because the list is checked
+	// against the registry, which needs the lock.
+	// See docs/04-messaging.md#subscribers.
+	if len(r.Subs) > 0 {
+		list, err := b.normalizeDeliverTo(r.Subs)
+		if err != nil {
+			return protocol.Record{}, err
+		}
+		r.Subs = list
+	}
+	r.Config, r.ConfigSHA = nil, ""
 	r.Secret, r.SecretSHA = "", ""
 	r.Maintainers, r.Disabled = nil, false
 	clearLiveRecord(&r)
@@ -315,7 +330,13 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		// its metadata on every start must not lose its credential.
 		r.Secret = old.Secret
 		r.Owner = old.Owner
-		r.Subs = old.Subs
+		// Deliver-To follows the ACL's rule rather than the configuration's:
+		// a re-registration that states no list keeps the one the record has,
+		// and one that states a list replaces it. Only a manager reaches this
+		// branch at all, so an explicit replacement is a manager's act.
+		if r.Subs == nil {
+			r.Subs = old.Subs
+		}
 		r.Maintainers, r.Disabled = append(protocol.MaintainerList(nil), old.Maintainers...), old.Disabled
 		// Personal is the owner's classification. A service refreshes its own
 		// metadata on every start and cannot clear or set that owner choice.
@@ -859,23 +880,28 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envelope, error) {
 	b.ensure(topic.Name).in++ // publications accepted; none is kept
 	b.note(e)
-	for _, s := range topic.Subs {
+	// The topic's ACL is not consulted here. It says who may publish, and
+	// who receives is this separate list — so a recipient goes on receiving
+	// whether or not it could ever publish, and the way to stop the copies
+	// is to take the name off the list.
+	// See docs/04-messaging.md#subscribers.
+	for _, s := range b.deliverTo(topic) {
 		sub, known := b.records[s]
-		// Asked again at every publish, not only at subscribe: access taken
-		// away has to stop the copies, or subscribing would be a way to go
-		// on reading a topic that stopped allowing you.
-		// A service has no queue for a copy to land in. Subscribe refuses one,
-		// so this is the snapshot case, and there is nothing to count as
-		// dropped because there was never anywhere for it to go.
-		if !known || !onBus(sub) || !b.activeName(s) || !b.may(s, topic) {
+		// Asked again at every publish, not only when the list was written:
+		// a name can be unregistered or suspended after the owner put it
+		// there, and neither leaves an inbox for the copy to land in. A kind
+		// that cannot receive is the snapshot case, Manage having refused one
+		// since 0.6.15. None of the three is a drop: there is nothing here
+		// that was entitled to the copy.
+		if !known || !canReceive(sub) || !b.activeName(s) {
 			continue
 		}
-		// Turned off on purpose, which is not the same fact as access taken
-		// away above: a barred subscriber is no longer entitled to the copy,
-		// while a disabled one still is and simply cannot take it. Nothing is
-		// queued for it and the publisher is told nothing, so its own drop
-		// count is the only place the gap can show — the same place an
-		// overflow loss shows. See docs/04-messaging.md#subscribers.
+		// Turned off on purpose, which is not the same fact as the three
+		// above: a recipient that is gone or suspended is not entitled to the
+		// copy, while a disabled one still is and simply cannot take it.
+		// Nothing is queued for it and the publisher is told nothing, so its
+		// own drop count is the only place the gap can show — the same place
+		// an overflow loss shows. See docs/04-messaging.md#subscribers.
 		if sub.Disabled {
 			b.ensure(s).dropped++
 			continue
@@ -891,11 +917,12 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 	return e, nil
 }
 
-// Subscribe puts a name on a 📣 channel, or takes it off. A subscription
-// is a record and lives on the channel, so it travels in the snapshot and
-// outlives a restart — and the copies land in the subscriber's own inbox,
-// which is why the subscriber has to be registered first.
-// See docs/04-messaging.md#push-and-pull.
+// Subscribe takes the caller off a 📣 channel's Deliver-To list. Putting a
+// name on it is the channel manager's, through Manage: delivery is no longer
+// gated by the topic's ACL, so a name adding itself would be answering to
+// nobody. Taking yourself off stays yours, because it is your inbox that
+// fills.
+// See docs/04-messaging.md#subscribers.
 func (b *Bus) Subscribe(caller, channel string, on bool) (protocol.Record, error) {
 	who, err := canon(caller)
 	if err != nil {
@@ -912,30 +939,27 @@ func (b *Bus) Subscribe(caller, channel string, on bool) (protocol.Record, error
 	}
 	r, known := b.records[n]
 	// A channel you may not see does not exist as far as you are concerned,
-	// exactly as a lookup answers. See docs/02-access.md#acl.
-	if !known || !b.may(who, r) {
+	// exactly as a lookup answers — except to a name it delivers to, which
+	// would otherwise have no way to stop copies it never asked for. Being
+	// on the list is not being allowed to publish.
+	// See docs/02-access.md#acl.
+	if !known || !(b.may(who, r) || b.receives(r, who)) {
 		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
-	if err := b.ownerSuspension(n); on && err != nil {
-		return protocol.Record{}, err
-	}
-	if on && r.Disabled {
-		return protocol.Record{}, ErrDisabled
-	}
 	if r.Kind != protocol.KindPubSub {
-		return protocol.Record{}, fmt.Errorf("%w: only a pubsub channel has subscribers, and %s is not one", ErrKind, n)
+		return protocol.Record{}, fmt.Errorf("%w: only a pubsub channel has a deliver-to list, and %s is not one", ErrKind, n)
 	}
-	me, registered := b.records[who]
-	if !registered {
-		return protocol.Record{}, fmt.Errorf("%w: register %s first, so its copies have somewhere to land", ErrUnknown, who)
+	if on {
+		return protocol.Record{}, fmt.Errorf("%w: %s decides who %s delivers to; ask to be put on its list", ErrNotOwner, r.Owner, n)
 	}
-	if !onBus(me) {
-		return protocol.Record{}, fmt.Errorf("%w: %s is external and has no queue for a copy to land in", ErrKind, who)
+	// Removing a name that is not there is a no-op, but removing a name that
+	// receives through a group is not: drop1 would take nothing out and the
+	// copies would keep arriving, so say which group instead of reporting a
+	// removal that did not happen.
+	if g := b.receivesThrough(r, who); g != "" {
+		return protocol.Record{}, fmt.Errorf("%w: %s is on %s through %s, so leaving %s is what stops the copies", ErrNotOwner, who, n, g, g)
 	}
 	r.Subs = drop1(r.Subs, who)
-	if on {
-		r.Subs = append(r.Subs, who)
-	}
 	b.records[n] = r
 	if err := b.checkpoint(false); err != nil {
 		return protocol.Record{}, err

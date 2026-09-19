@@ -53,8 +53,8 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus channel create <name> [--kind queue|pubsub] [--descr d] [--overflow ring|strict]
                                   [--ttl 1h] [--bound 1000]
   agent-bus publish --channel <name> <text>
-  agent-bus subscribe <channel>   receive a copy of everything published there
-  agent-bus unsubscribe <channel>
+  agent-bus unsubscribe <channel> stop receiving copies published there
+                            who a channel delivers to is its owner's list, set on its page
   agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*|@owner] [--personal]
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
   agent-bus stop <name>
@@ -574,9 +574,12 @@ func publish(args []string) error {
 	})
 }
 
-// subscribe joins a 📣 channel, or leaves it. The copies land in the
-// caller's own inbox, so there is no name to pass — you subscribe yourself.
-// See docs/07-channels.md and docs/04-messaging.md#push-and-pull.
+// subscribe takes the caller off a 📣 channel's Deliver-To list. There is no
+// name to pass, because the only name you may take off is your own; putting
+// one on is the channel manager's, and this CLI has no management verb at
+// all. The join direction is still sent, so an existing script is told by the
+// daemon who to ask rather than by this program that the verb is unknown.
+// See docs/04-messaging.md#subscribers.
 func subscribe(args []string, on bool) error {
 	pos, _ := split(args)
 	if len(pos) != 1 {

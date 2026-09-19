@@ -12,11 +12,14 @@ import (
 // Manage changes only explicitly supplied properties, under the ownership lock.
 // Unlike registration it cannot erase a concurrently changed configuration.
 type Management struct {
-	Name        string                   `json:"name"`
-	Descr       *string                  `json:"descr,omitempty"`
-	Addr        *string                  `json:"addr,omitempty"`
-	Proto       *string                  `json:"protocol,omitempty"`
-	Allow       *[]string                `json:"allow,omitempty"`
+	Name  string    `json:"name"`
+	Descr *string   `json:"descr,omitempty"`
+	Addr  *string   `json:"addr,omitempty"`
+	Proto *string   `json:"protocol,omitempty"`
+	Allow *[]string `json:"allow,omitempty"`
+	// Subs is the 📣 Deliver-To list: who receives a copy, which the ACL
+	// above no longer decides. See docs/04-messaging.md#subscribers.
+	Subs        *[]string                `json:"subs,omitempty"`
 	Disabled    *bool                    `json:"disabled,omitempty"`
 	Maintainers *protocol.MaintainerList `json:"maintainers,omitempty"`
 	Personal    *bool                    `json:"personal,omitempty"`
@@ -410,6 +413,16 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	}
 	if change.Personal != nil {
 		r.Personal = *change.Personal
+	}
+	if change.Subs != nil {
+		// Not asked here whether the kind has a list at all: validateKind
+		// below asks that of the record this edit would leave behind, which
+		// is the one question every path that stores one asks.
+		list, err := b.normalizeDeliverTo(*change.Subs)
+		if err != nil {
+			return protocol.Record{}, err
+		}
+		r.Subs = list
 	}
 	if change.Allow != nil {
 		allow := make([]string, 0, len(*change.Allow))
