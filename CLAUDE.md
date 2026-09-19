@@ -97,7 +97,7 @@ The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the proje
 | MVP | `0.5.x`, then `0.6.x` from the record-kind enum; MVP spans both. Bump PATCH on every significant feature, and on a shipped behaviour fix. A shared change still gets one bump |
 | Later releases | Before stability, MINOR advances the release line. From major one, breaking changes bump MAJOR, compatible features MINOR, fixes PATCH; reset lower components when advancing a higher one |
 | No behaviour change | Docs, tests and refactoring alone do not require a bump |
-| Changelog | Every version bump includes a one- or two-line version summary in `CHANGELOG.md`, newest version on top. Historical release numbers belong there; never rewrite them to match the current version |
+| Changelog | Every version bump includes a one- or two-line version summary in the current line's changelog — `CHANGELOG.0.6.md` today — newest version on top. One file per release line; historical release numbers stay in theirs and are never rewritten to match the current version |
 | Build evidence | Shipped Go binaries must carry [setup § build information](docs/09-setup.md#build-information) and expose it through the version query. Use the documented build script; never ship an unstamped development build |
 
 ## Git

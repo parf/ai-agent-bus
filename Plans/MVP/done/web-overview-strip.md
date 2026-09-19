@@ -130,7 +130,7 @@ rather than convenient.
 | [pages](../web/pages.md#overview-) | the empty state carried `as of 14:22` | the time is stated once, and why |
 | [layouts](../web/layouts.md#overview--the-only-page-allowed-to-be-short) | the Overview mock showed a four-cell `Records` strip, a heading time, a per-item `observed 14:22` and an empty state time | the mock is the seven-fact strip and the once-only time; this is current layout guidance, not history, so it was corrected rather than annotated |
 | `src/smoke.sh` | three `has` checks for the counters in the anonymous footer | three absence checks there and nine signed-in Overview checks |
-| `design-qa.md` | recorded a `footer Owner/Uptime/Calls` observation | a dated correction line; the measurement itself is not rewritten, because it is what was observed then |
+| `Plans/MVP/done/design-qa.md` | recorded a `footer Owner/Uptime/Calls` observation | a dated correction line; the measurement itself is not rewritten, because it is what was observed then |
 
 **One rendered-copy error the sweep found late.** The rewritten help said *the
 Services, Agents, Channels and Users pages*, which names a page that does not
@@ -163,7 +163,7 @@ byte offset as it goes**, so editing `smoke.sh` itself mid-run corrupts every
 later line it reads.
 
 All **406** entries in `tmp/f1382-final/source-frozen.sha256` — every tracked
-file under `src/`, `docs/` and `Plans/`, plus `CHANGELOG.md`, `design-qa.md` and
+file under `src/`, `docs/` and `Plans/`, plus the changelogs, the design QA record and
 the new test this slice adds — matched afterwards. This post-run evidence file
 is deliberately excluded: including a document that reports its own manifest
 would make its recorded hash stale as soon as the result was written.
