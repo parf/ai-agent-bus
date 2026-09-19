@@ -873,3 +873,48 @@ func TestEnrolmentRecordsAPersonAsOne(t *testing.T) {
 		t.Errorf("an ordinary agent registered as kind %q", got.Kind)
 	}
 }
+
+// A pause is a fact about somebody. Only a user's queue and an agent's have a
+// somebody behind them, so a queue, a pub/sub topic or an external service that
+// happens to share a name with a paused user is not itself paused: the state
+// belongs to the person, and the record is not the person.
+func TestOnlyAKindWithSomebodyBehindItCarriesTheirState(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "alice@h")
+	for _, name := range []string{"queue@h", "agent@h"} {
+		if _, err := b.SetUser("admin@h", protocol.User{Name: name}, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// SetUser gives each name a user's own queue; these restate two of them as
+	// what they really are, which is the collision the rule is about.
+	for _, r := range []protocol.Record{
+		{Name: "queue@h", Owner: "queue@h", Kind: protocol.KindQueue, Allow: []string{"*"}},
+		{Name: "agent@h", Owner: "agent@h", Kind: protocol.KindAgent, Allow: []string{"*"}},
+	} {
+		if _, err := b.Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"queue@h", "agent@h"} {
+		if _, err := b.SetUserState("admin@h", name, "paused"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The agent has somebody behind it, so the pause reaches it.
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "agent@h", Body: "held"}); !errors.Is(err, ErrInactive) {
+		t.Errorf("a paused agent still took a message: %v", err)
+	}
+	// The queue does not, so it keeps working.
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "queue@h", Body: "work"}); err != nil {
+		t.Errorf("a passive queue was paused by a user of the same name: %v", err)
+	}
+	// And a listing does not report it as disabled either.
+	if got, ok := b.Lookup("alice@h", "queue@h"); !ok || got.Disabled {
+		t.Errorf("a passive queue is listed as disabled: %+v", got)
+	}
+	if got, ok := b.Lookup("alice@h", "agent@h"); !ok || !got.Disabled {
+		t.Errorf("a paused agent is not listed as disabled: %+v", got)
+	}
+}

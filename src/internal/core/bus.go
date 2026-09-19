@@ -725,7 +725,7 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		// Asked again at every publish, not only at subscribe: access taken
 		// away has to stop the copies, or subscribing would be a way to go
 		// on reading a topic that stopped allowing you.
-		if !known || !b.active(s) || !b.may(s, topic) {
+		if !known || !b.activeName(s) || !b.may(s, topic) {
 			continue
 		}
 		// Turned off on purpose, which is not the same fact as access taken

@@ -25,6 +25,24 @@ func (b *Bus) active(name string) bool {
 	return state == "" || state == "active"
 }
 
+// carriesUserState says whether a record can have a person or an agent behind
+// it to suspend. Only a user's queue and an agent's do: a queue, a pub/sub
+// topic and an external service are not somebody, so a user record that
+// happens to share a name says nothing about them and must not pause them.
+// See docs/03-services-and-topics.md#five-record-kinds.
+func (b *Bus) carriesUserState(name string) bool {
+	r, known := b.records[name]
+	if !known {
+		return true // a bare name is asked about as a person
+	}
+	return r.Kind == protocol.KindUser || r.Kind == protocol.KindAgent
+}
+
+// activeName is active(), asked only of a name that could be suspended.
+func (b *Bus) activeName(name string) bool {
+	return !b.carriesUserState(name) || b.active(name)
+}
+
 // suspension says why calls involving name are refused, or nil. There are two
 // ways for somebody to be behind a name — be it, or own it — and a suspension
 // on either side refuses the same way: `403 suspended`, one suspension seen
@@ -49,7 +67,7 @@ func (b *Bus) active(name string) bool {
 // caller is told no more than it was already entitled to know.
 // Caller holds b.mu.
 func (b *Bus) suspension(name string) error {
-	if !b.active(name) {
+	if !b.activeName(name) {
 		return ErrInactive
 	}
 	return b.ownerSuspension(name)

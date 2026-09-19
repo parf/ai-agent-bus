@@ -523,7 +523,7 @@ func (b *Bus) recheckInbox(name string) {
 // visible adds daemon-derived control permissions, never caller claims.
 func (b *Bus) visible(caller string, r protocol.Record) protocol.Record {
 	r = b.withLiveness(r.Name, r.Public())
-	r.Disabled = r.Disabled || !b.active(r.Name)
+	r.Disabled = r.Disabled || !b.activeName(r.Name)
 	r.CanManage = b.manages(caller, r)
 	r.CanTransfer = caller == r.Owner || caller == b.admin
 	return r
