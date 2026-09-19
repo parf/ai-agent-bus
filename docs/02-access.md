@@ -231,7 +231,7 @@ never performs cleanup.
 * **Startup revocation is best effort today.** If saving a revocation fails, the
   daemon logs it and continues. Old bytes can then authenticate a later holder
   of the same name; re-registration also prevents later ownerless sweeps from
-  retrying. Further hardening was deferred by the owner on 2026-09-17 (Q69);
+  retrying. Further hardening was deferred by the owner on 2026-09-17;
   no change to this behavior is scheduled.
 * Explicit [unregistration](01-identity-and-roles.md#unregistering) instead
   abandons removal if its required credential-store write fails.

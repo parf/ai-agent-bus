@@ -117,7 +117,7 @@ listing cannot substitute for the working integration required in MVP.
 
 **Built.** `ab-claude`, `ab-codex` and `ab-opencode` are ordinary-user
 scripts. References: `/rd/bin/ai-claude`, `/rd/bin/ai-codex` and their shared
-`/rd/bin/.ai-common.sh`; these are behavioral examples from Legacy-V1, not
+`/rd/bin/.ai-common.sh`; these are behavioral examples, not
 runtime dependencies of the installed V2 scripts.
 
 | Concern | Required behavior |
@@ -164,7 +164,7 @@ captured at startup; a later working-directory change does not rename the sessio
 |---|---|
 | Explicit bus name | Honor the caller's configured identity under the existing [face configuration](../src/mcp/README.md#environment) and [credential rules](02-access.md#what-a-call-carries) |
 | Runtime-assigned session name | Preferred human-readable label and basis for a derived bus name when no explicit bus name was supplied; obtain it from the session being launched or resumed |
-| No assigned name available | Fall back to runtime and launch directory; Legacy-V1's `claude(/rd/)` illustrates the human-readable form |
+| No assigned name available | Fall back to runtime and launch directory, in a human-readable form such as `claude(/rd/)` |
 
 Human-readable labels and [canonical bus names](01-identity-and-roles.md#names) serve
 different purposes: preserve the label for discovery, and derive a valid bus

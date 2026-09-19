@@ -5,10 +5,6 @@
 Stage status and scope are owned by the [plan index](../Plans/README.md#stages).
 This page preserves navigation from the numbered documentation.
 
-## PoC
-
-Completed and archived. Its plan was removed from the tree on 2026-09-18; Git history holds it.
-
 ## MVP
 
 [Active scope](../Plans/MVP/README.md#scope) and

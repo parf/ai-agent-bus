@@ -172,7 +172,7 @@ not deleted in MVP.
 
 **An active, authorized caller may drain an inactive identity's inbox.** The
 target's inactivity alone does not block reading queued work; new deliveries
-remain refused. This is existing behavior, confirmed by the Q63 decision.
+remain refused. This is existing behavior.
 
 <details>
 <summary>Suspension, reactivation and inboxes</summary>

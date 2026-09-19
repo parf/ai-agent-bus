@@ -27,8 +27,7 @@ Values have one owning section; other pages link to it.
 ## Goal
 
 One daemon provides registry and message queues for agents and services.
-The CLI, MCP face and dashboard expose that bus. It replaces Legacy-V1's
-external broker; it does not require one.
+The CLI, MCP face and dashboard expose that bus. It requires no external broker.
 
 ## Principles
 

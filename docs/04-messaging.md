@@ -124,7 +124,7 @@ never an instant, so the service is not reading the caller's clock.
 
 ## Inbox selection and filters
 
-**Built in 0.5.52 (Q21).** `--inbox` selects where to read;
+**Built in 0.5.52.** `--inbox` selects where to read;
 `--topic` and `--tag` select messages there. Without `--inbox`, read your own
 inbox. Filters never select a different inbox, regardless of their spelling
 or whether a matching channel exists. Selecting an inbox does not change the
@@ -171,7 +171,7 @@ the notifier, or the reverse.
 | Rule | Why |
 |---|---|
 | **one outstanding unfiltered read** at a time — a second is **refused**, not queued behind the first, unless both asked to share ([several readers](#several-readers-may-wait-when-they-say-so)) | a silent second reader looks exactly like message loss |
-| by convention, one *designated* process does that reading for a principal | the bus enforces the outstanding read, not process ownership; claiming otherwise would need a lease nobody wants in a PoC |
+| by convention, one *designated* process does that reading for a principal | the bus enforces the outstanding read, not process ownership; claiming otherwise would need a lease nothing here wants |
 | a waiter passes a **topic + tag filter** to `consume`, and the daemon hands it a match ahead of the unfiltered reader | the match happens where the message already is: no dispatcher in a client, and no local protocol between a Go CLI and a TypeScript session process |
 
 **Reading a topic inbox is not filtering.** A queue topic is a named inbox;

@@ -41,7 +41,7 @@ does not make a quiet service look busy.
 
 ## Readers
 
-**Built in 0.5.53 (Q70).** Every human face shows one **Readers** count per
+**Built in 0.5.53.** Every human face shows one **Readers** count per
 visible inbox: all currently outstanding consume requests, filtered and
 unfiltered together. No separate counters or breakdown by filter type.
 
