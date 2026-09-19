@@ -160,7 +160,7 @@ try {
     const third = `${peerName.split("@")[0]}.third@${peerName.split("@")[1]}`;
     const bystander = await owner.as(third);
     await bystander.register({ name: third, kind: "agent", allow: ["*"] });
-    await peer.send({ to: me, body: "answer elsewhere", topic: "t-rt", tag: "g5", reply_to: { service: third, topic: "t-rt", tag: "g5" } } as any);
+    await peer.send({ to: me, body: "answer elsewhere", topic: "t-rt", tag: "g5", reply_to: { name: third, topic: "t-rt", tag: "g5" } } as any);
     const chore = await call("ab_consume", { topic: "t-rt", tag: "g5", wait: "5s" });
     const rtId = chore.text.match(/id ([0-9a-f]+)/)?.[1] ?? "";
     await call("ab_reply", { message_id: rtId, text: "sent to the third party" });

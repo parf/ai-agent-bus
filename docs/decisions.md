@@ -98,7 +98,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | Agent templates | [definition](03-records.md#agent-templates) | D70, D71, D76, D77 |
 | Configuring a template | [definition](03-records.md#configuring-a-template) | D72, D73, D74, D184 |
 | Why a digest at all | [definition](03-records.md#why-a-digest-at-all) | D75 |
-| Topics | [definition](03-records.md#topics) | D78 |
+| Channel kinds | [definition](07-channels.md#the-two-channel-kinds) | D78 |
 | Inbox queues | [definition](04-messaging.md#inbox-queues) | D81, D185, D231 |
 | Verbs | [definition](04-messaging.md#verbs) | D82, D237 |
 | Message fields | [definition](04-messaging.md#message-fields) | D83 |

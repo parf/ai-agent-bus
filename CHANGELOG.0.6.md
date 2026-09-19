@@ -2,6 +2,30 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.7 — 2026-09-19
+
+**Breaking:** the 📮 and 📣 record is a **channel**, and `topic` is a label on
+one message. One word was doing both jobs, in the CLI and on the wire:
+`publish --topic <name>` meant a record while `send --topic t` meant a label.
+
+| Was | Is |
+|---|---|
+| `agent-bus topic create` | `agent-bus channel create` |
+| `publish --topic <name>` | `publish --channel <name>` |
+| `/subscribe {"topic":...}` | `/subscribe {"channel":...}` |
+| `/subscriber/remove {"topic":...}` | `{"channel":...}` |
+| `reply_to.service` | `reply_to.name` |
+
+`send`, `consume` and `reply` keep `--topic`, which is the label. `publish`
+still stamps the channel's own name as that label, so a subscriber can pick out
+copies from it with `consume --topic`; that is now documented rather than
+implied. No old spelling is kept as an alias.
+
+`reply_to.service` named a kind that by the 0.6.3 decision cannot be replied to
+at all; the field is `name`.
+
+Channels get their own page, `docs/07-channels.md`, out of records.
+
 ## 0.6.6 — 2026-09-19
 
 The external service gets a page of its own. `docs/03-records.md` keeps the

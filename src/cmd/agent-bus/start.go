@@ -326,7 +326,7 @@ func handle(svc service, e protocol.Envelope) {
 	}
 	back, topic, tag := e.From, e.Topic, e.Tag
 	if e.ReplyTo != nil {
-		back, topic, tag = e.ReplyTo.Service, e.ReplyTo.Topic, e.ReplyTo.Tag
+		back, topic, tag = e.ReplyTo.Name, e.ReplyTo.Topic, e.ReplyTo.Tag
 	}
 	say := func(kind string) {
 		if err := postQuiet("/send", protocol.Envelope{

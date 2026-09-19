@@ -455,7 +455,7 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 	return r.Config, nil
 }
 
-// Lookup answers what a name is, so a face can tell a topic from a filter
+// Lookup answers what a name is, so a face can tell a channel from a filter
 // without guessing. See docs/03-records.md.
 func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 	n, err := canon(name)
@@ -652,14 +652,14 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// about now. Registered, not live: the name owns a queue whether or not
 	// anything is reading it. See docs/04-messaging.md#reply-routing.
 	if e.ReplyTo != nil {
-		back, err := canon(e.ReplyTo.Service)
+		back, err := canon(e.ReplyTo.Name)
 		if err != nil {
 			return protocol.Envelope{}, fmt.Errorf("reply-to: %w", err)
 		}
 		if _, known := b.records[back]; !known {
 			return protocol.Envelope{}, fmt.Errorf("no such reply address: %s (%w)", back, ErrUnknown)
 		}
-		e.ReplyTo = &protocol.ReplyTo{Service: back, Topic: e.ReplyTo.Topic, Tag: e.ReplyTo.Tag}
+		e.ReplyTo = &protocol.ReplyTo{Name: back, Topic: e.ReplyTo.Topic, Tag: e.ReplyTo.Tag}
 	}
 	// Receipts are a closed set: a caller decides whether a message is an
 	// answer by looking at this field, so a third value would read as one.
@@ -691,8 +691,8 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 		}
 		e.Deadline = e.At.Add(w)
 	}
-	// A queue topic is an inbox with a name, so publishing to one is an
-	// ordinary send. A pub/sub topic keeps nothing of its own instead.
+	// A 📮 channel is an inbox with a name, so publishing to one is an
+	// ordinary send. A 📣 channel keeps nothing of its own instead.
 	if rec.Kind == protocol.KindPubSub {
 		return b.fanout(rec, e)
 	}
@@ -749,13 +749,13 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 	return nil
 }
 
-// fanout is what a pub/sub topic does instead of holding a queue: one copy
+// fanout is what a 📣 channel does instead of holding a queue: one copy
 // into each subscriber's own inbox, where that subscriber's bound, overflow,
-// TTL and reader apply. The topic itself keeps nothing.
+// TTL and reader apply. The channel itself keeps nothing.
 //
-// One subscriber cannot stop the topic: a copy that will not fit is counted
+// One subscriber cannot stop the channel: a copy that will not fit is counted
 // as a drop and the others still go. A publisher a stopped reader can block
-// is a queue, and a queue topic is what that caller wanted.
+// is a queue, and a 📮 channel is what that caller wanted.
 // Caller holds the lock.
 func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envelope, error) {
 	b.ensure(topic.Name).in++ // publications accepted; none is kept
@@ -792,17 +792,17 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 	return e, nil
 }
 
-// Subscribe puts a name on a pub/sub topic, or takes it off. A subscription
-// is a record and lives on the topic, so it travels in the snapshot and
+// Subscribe puts a name on a 📣 channel, or takes it off. A subscription
+// is a record and lives on the channel, so it travels in the snapshot and
 // outlives a restart — and the copies land in the subscriber's own inbox,
 // which is why the subscriber has to be registered first.
 // See docs/04-messaging.md#push-and-pull.
-func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) {
+func (b *Bus) Subscribe(caller, channel string, on bool) (protocol.Record, error) {
 	who, err := canon(caller)
 	if err != nil {
 		return protocol.Record{}, err
 	}
-	n, err := canon(topic)
+	n, err := canon(channel)
 	if err != nil {
 		return protocol.Record{}, err
 	}
@@ -812,7 +812,7 @@ func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) 
 		return protocol.Record{}, err
 	}
 	r, known := b.records[n]
-	// A topic you may not see does not exist as far as you are concerned,
+	// A channel you may not see does not exist as far as you are concerned,
 	// exactly as a lookup answers. See docs/02-access.md#acl.
 	if !known || !b.may(who, r) {
 		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
@@ -824,7 +824,7 @@ func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) 
 		return protocol.Record{}, ErrDisabled
 	}
 	if r.Kind != protocol.KindPubSub {
-		return protocol.Record{}, fmt.Errorf("%w: only a pubsub topic has subscribers, and %s is not one", ErrKind, n)
+		return protocol.Record{}, fmt.Errorf("%w: only a pubsub channel has subscribers, and %s is not one", ErrKind, n)
 	}
 	me, registered := b.records[who]
 	if !registered {

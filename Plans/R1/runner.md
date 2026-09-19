@@ -115,7 +115,7 @@ of it. A client that wants the same fan-in gets it the same way.
 Owner-settled, 2026-09-16: routing does not apply to pub/sub. A subscriber
 receives its copy into its own inbox whatever its `route` says, because
 `fanout` is a separate delivery path rather than a send to the subscriber's
-name ([topics](../../docs/03-records.md#topics)).
+name ([topics](../../docs/07-channels.md#the-two-channel-kinds)).
 
 The cost is real and is accepted rather than argued away: **a runner whose
 children subscribe still reads one inbox per subscribed child**, so routing

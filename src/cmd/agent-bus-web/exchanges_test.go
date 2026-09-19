@@ -32,7 +32,7 @@ func TestExchangeReceiptsKeepTheirOriginalAndRoute(t *testing.T) {
 	done.Re = "retry"
 	redirected := r
 	redirected.ID = "redirected"
-	redirected.ReplyTo = &protocol.ReplyTo{Service: "third@h", Topic: "result", Tag: "new-label"}
+	redirected.ReplyTo = &protocol.ReplyTo{Name: "third@h", Topic: "result", Tag: "new-label"}
 	redirectedDone := done
 	redirectedDone.ID = "redirected-done"
 	redirectedDone.Re = redirected.ID
@@ -141,7 +141,7 @@ func TestOrdinaryResponsesRemainMessagesWithQualifiedRouteMatches(t *testing.T) 
 	answer.Receipt = ""
 	answer.Re = ""
 	answer.ID = "answer"
-	r.ReplyTo = &protocol.ReplyTo{Service: "third@h", Topic: "output", Tag: "redirect"}
+	r.ReplyTo = &protocol.ReplyTo{Name: "third@h", Topic: "output", Tag: "redirect"}
 	answer.To = "third@h"
 	answer.Topic = "output"
 	answer.Tag = "redirect"
@@ -171,7 +171,7 @@ func TestOrdinaryResponsesRemainMessagesWithQualifiedRouteMatches(t *testing.T) 
 	other.To = "different@h"
 	check([]protocol.Envelope{answer, other}, 0, false)
 	untagged := r
-	untagged.ReplyTo = &protocol.ReplyTo{Service: "third@h", Topic: "output"}
+	untagged.ReplyTo = &protocol.ReplyTo{Name: "third@h", Topic: "output"}
 	answer.Tag = ""
 	check([]protocol.Envelope{answer, untagged}, 0, false)
 }
@@ -231,7 +231,7 @@ func TestRedirectedExchangeEvidenceIsScopedToTheViewer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	request, err := b.Send(protocol.Envelope{From: "alice@h", To: "worker@h", Topic: "input", Tag: "one", ReplyTo: &protocol.ReplyTo{Service: "third@h", Topic: "output", Tag: "two"}})
+	request, err := b.Send(protocol.Envelope{From: "alice@h", To: "worker@h", Topic: "input", Tag: "one", ReplyTo: &protocol.ReplyTo{Name: "third@h", Topic: "output", Tag: "two"}})
 	if err != nil {
 		t.Fatal(err)
 	}

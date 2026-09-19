@@ -1121,11 +1121,11 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			err = c.post(cookie(r), "/register", protocol.Record{Name: name, Kind: kind, Addr: r.PostForm.Get("addr"), Proto: r.PostForm.Get("protocol"), Descr: r.PostForm.Get("descr"), Allow: strings.Fields(r.PostForm.Get("allow")), Personal: r.PostForm.Get("personal") == "on"})
 		case "subscribe", "unsubscribe":
 			err = c.post(cookie(r), "/subscribe", struct {
-				Topic string
-				Off   bool
+				Channel string
+				Off     bool
 			}{name, r.PostForm.Get("action") == "unsubscribe"})
 		case "remove-subscriber":
-			err = c.post(cookie(r), "/subscriber/remove", map[string]string{"topic": name, "subscriber": r.PostForm.Get("subscriber")})
+			err = c.post(cookie(r), "/subscriber/remove", map[string]string{"channel": name, "subscriber": r.PostForm.Get("subscriber")})
 		case "delete":
 			var record protocol.Record
 			if lookupErr := c.get(cookie(r), "/lookup?name="+url.QueryEscape(name), &record); lookupErr != nil {

@@ -75,9 +75,12 @@ func (e Envelope) TooLate(now time.Time) bool {
 // never that anything is reading it.
 // See docs/04-messaging.md#reply-routing.
 type ReplyTo struct {
-	Service string `json:"service"`
-	Topic   string `json:"topic,omitempty"`
-	Tag     string `json:"tag,omitempty"`
+	// Name, not Service: what an answer goes to is a name with a queue
+	// here, and a service is the external case that has none.
+	// See docs/06-services.md#it-has-no-queue-here.
+	Name  string `json:"name"`
+	Topic string `json:"topic,omitempty"`
+	Tag   string `json:"tag,omitempty"`
 }
 
 // MaintainerList is the resource's explicit management grants. New answers use
@@ -129,7 +132,7 @@ type Record struct {
 	// how long anything in it is worth keeping, and how much of it there
 	// may be. Both unset take the daemon's defaults. A message may ask for
 	// less than TTL and never for more.
-	// See docs/03-records.md#topics.
+	// See docs/07-channels.md#the-two-channel-kinds.
 	TTL   string `json:"ttl,omitempty"`
 	Bound int    `json:"bound,omitempty"`
 

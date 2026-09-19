@@ -524,21 +524,39 @@ if slow; then
 else skipped=$((skipped+1)); fi
 sec "pub/sub: a copy per subscriber, in the subscriber's own inbox"
 users drive-by@srv1 nobody-here@srv1
-ab owner@srv1 topic create news@srv1 --allow '*' --kind pubsub --descr "broadcast" >/dev/null
+# A channel is the 📮/📣 record; an envelope's topic is a label on one
+# message. The verb and the flag say channel from 0.6.7, and the old
+# spellings are not kept as aliases. See docs/07-channels.md.
+has "the old topic verb is gone, and the refusal names what the CLI has" \
+  "$(ab owner@srv1 topic create gone@srv1 --kind pubsub 2>&1)" 'unknown verb'
+ab owner@srv1 channel create news@srv1 --allow '*' --kind pubsub --descr "broadcast" >/dev/null
+lacks "publish no longer takes --topic for the channel" \
+  "$(ab owner@srv1 publish --topic news@srv1 "by the old flag" 2>&1)" '"message_id"'
+has "and says which flag it wants instead" \
+  "$(ab owner@srv1 publish --topic news@srv1 "by the old flag" 2>&1)" 'publish wants --channel'
 ab owner@srv1 register sub-a@srv1 --allow '*' --kind agent >/dev/null
 ab owner@srv1 register sub-b@srv1 --allow '*' --kind agent >/dev/null
+# The wire moved too: the field is channel, so an old client's topic field is
+# not read and the daemon is handed an empty name. Both halves are asserted
+# against a subscriber that exists, or the refusal is about the caller instead
+# and the pair passes whichever field the daemon reads.
+has "and /subscribe no longer reads a topic field" \
+  "$(post_body sub-a@srv1 /subscribe '{"topic":"news@srv1"}' 2>&1)" 'has no realm'
+has "while the channel field subscribes for real" \
+  "$(post_body sub-a@srv1 /subscribe '{"channel":"news@srv1"}' 2>&1)" '"subs":\["sub-a@srv1"\]'
+post_body sub-a@srv1 /subscribe '{"channel":"news@srv1","off":true}' >/dev/null
 ab sub-a@srv1 subscribe news@srv1 >/dev/null
 ab sub-b@srv1 subscribe news@srv1 >/dev/null
-has "the topic says who subscribed" "$(ab owner@srv1 ls news@srv1)" '"subs":\["sub-a@srv1","sub-b@srv1"\]'
-ab drive-by@srv1 publish --topic news@srv1 "to everyone" >/dev/null
+has "the channel says who subscribed" "$(ab owner@srv1 ls news@srv1)" '"subs":\["sub-a@srv1","sub-b@srv1"\]'
+ab drive-by@srv1 publish --channel news@srv1 "to everyone" >/dev/null
 # Both, not one: a fan-out that hands the message to whoever reads first is a
-# queue topic, and that is the mode this is NOT.
+# 📮 channel, and that is the kind this is NOT.
 has "one subscriber gets a copy" "$(ab sub-a@srv1 consume --wait 5s)" 'to everyone'
 has "and so does the other, of the same publication" "$(ab sub-b@srv1 consume --wait 5s)" 'to everyone'
 # The copy is addressed to the subscriber: it is in an inbox, and an inbox
 # belongs to a name (docs/04-messaging.md#inbox-queues).
-ab drive-by@srv1 publish --topic news@srv1 "addressed" >/dev/null
-has "and the copy is addressed to the subscriber, not to the topic" \
+ab drive-by@srv1 publish --channel news@srv1 "addressed" >/dev/null
+has "and the copy is addressed to the subscriber, not to the channel" \
   "$(ab sub-a@srv1 consume --wait 5s)" '"to":"sub-a@srv1"'
 ab sub-b@srv1 consume --wait 5s >/dev/null
 # The topic keeps nothing of its own — that is the whole difference from a
@@ -547,13 +565,13 @@ is_empty "while the topic itself keeps nothing" \
   "$(ab owner@srv1 ls news@srv1 | grep -o '"queued":[1-9][0-9]*')"
 has "though its publications are counted" "$(ab owner@srv1 ls news@srv1)" '"in":2'
 # Nobody listening is not an error, and is not a message kept for later.
-ab owner@srv1 topic create void@srv1 --allow '*' --kind pubsub >/dev/null
+ab owner@srv1 channel create void@srv1 --allow '*' --kind pubsub >/dev/null
 ok_exit "a publish with no subscribers is accepted" \
-  "$(ab drive-by@srv1 publish --topic void@srv1 "into the void" >/dev/null 2>&1; echo $?)"
+  "$(ab drive-by@srv1 publish --channel void@srv1 "into the void" >/dev/null 2>&1; echo $?)"
 is_empty "and kept for nobody" "$(ab owner@srv1 ls void@srv1 | grep -o '"queued":[1-9][0-9]*')"
 # Leaving stops the copies, and is not the same as never having joined.
 ab sub-b@srv1 unsubscribe news@srv1 >/dev/null
-ab drive-by@srv1 publish --topic news@srv1 "second round" >/dev/null
+ab drive-by@srv1 publish --channel news@srv1 "second round" >/dev/null
 has "a subscriber that stayed still gets it" "$(ab sub-a@srv1 consume --wait 5s)" 'second round'
 is_empty "and one that left gets nothing" "$(ab sub-b@srv1 consume --wait 1s)"
 has "and the topic no longer names it" "$(ab owner@srv1 ls news@srv1)" '"subs":\["sub-a@srv1"\]'
@@ -564,31 +582,31 @@ bad_exit "a known user without an inbox cannot subscribe" $rc
 has "and says to register it first" "$out" 'so its copies have somewhere to land'
 # A queue topic that EXISTS, so the refusal is about its mode and not about
 # the name being unknown.
-ab owner@srv1 topic create work@srv1 --allow '*' --descr "a queue topic" >/dev/null
+ab owner@srv1 channel create work@srv1 --allow '*' --descr "a queue topic" >/dev/null
 out=$(ab sub-a@srv1 subscribe work@srv1 2>&1); rc=$?
 bad_exit "and a queue topic is not something to subscribe to" $rc
-has "refused for its mode, not for being unknown" "$out" 'only a pubsub topic has subscribers'
+has "refused for its mode, not for being unknown" "$out" 'only a pubsub channel has subscribers'
 # The ACL is the capability here, and it is asked at PUBLISH, not only at
 # subscribe: access taken away has to stop the copies, or subscribing would
 # be a way to go on reading a topic that stopped allowing you.
-ab owner@srv1 topic create members@srv1 --kind pubsub --allow sub-a@srv1 >/dev/null
+ab owner@srv1 channel create members@srv1 --kind pubsub --allow sub-a@srv1 >/dev/null
 out=$(ab sub-b@srv1 subscribe members@srv1 2>&1); rc=$?
 bad_exit "subscribing to a topic you may not see is refused" $rc
 ab sub-a@srv1 subscribe members@srv1 >/dev/null
-ab owner@srv1 publish --topic members@srv1 "members only" >/dev/null
+ab owner@srv1 publish --channel members@srv1 "members only" >/dev/null
 has "while the one it allows receives it" "$(ab sub-a@srv1 consume --wait 5s)" 'members only'
-ab owner@srv1 topic create members@srv1 --kind pubsub --allow owner@srv1 >/dev/null
+ab owner@srv1 channel create members@srv1 --kind pubsub --allow owner@srv1 >/dev/null
 has "the subscription survives the record being restated" "$(ab owner@srv1 ls members@srv1)" '"subs":\["sub-a@srv1"\]'
-ab owner@srv1 publish --topic members@srv1 "still a member?" >/dev/null
+ab owner@srv1 publish --channel members@srv1 "still a member?" >/dev/null
 is_empty "but a subscriber no longer allowed gets no more copies" \
   "$(ab sub-a@srv1 consume --wait 1s)"
 # One subscriber cannot hold the topic hostage: its own bound applies to its
 # own copy, and the others still get theirs.
 ab owner@srv1 register full-sub@srv1 --allow '*' --kind agent --bound 1 >/dev/null
 ab full-sub@srv1 subscribe news@srv1 >/dev/null
-ab drive-by@srv1 publish --topic news@srv1 "fills it" >/dev/null
+ab drive-by@srv1 publish --channel news@srv1 "fills it" >/dev/null
 ok_exit "a publish a full subscriber cannot take still succeeds" \
-  "$(ab drive-by@srv1 publish --topic news@srv1 "does not fit" >/dev/null 2>&1; echo $?)"
+  "$(ab drive-by@srv1 publish --channel news@srv1 "does not fit" >/dev/null 2>&1; echo $?)"
 has "and the subscriber with room gets both" \
   "$(ab sub-a@srv1 consume --wait 5s; ab sub-a@srv1 consume --wait 5s)" 'does not fit'
 has "while the copy that would not fit is counted as a loss" \
@@ -738,15 +756,15 @@ has "a call to nobody fails" "$(ab caller@srv1 call ghost@nowhere --wait 2s hi 2
 
 sec "topics: a publisher with no service record, a consumer that was down"
 users reader@srv1
-ab owner@srv1 topic create jobs@srv1 --allow '*' --descr "work queue" >/dev/null
+ab owner@srv1 channel create jobs@srv1 --allow '*' --descr "work queue" >/dev/null
 has "the topic is in ls" "$(ab owner@srv1 ls --kind queue)" 'jobs@srv1'
-ab drive-by@srv1 publish --topic jobs@srv1 "sweep the floor" >/dev/null
+ab drive-by@srv1 publish --channel jobs@srv1 "sweep the floor" >/dev/null
 has "a consumer that was down still finds it" "$(ab reader@srv1 consume --inbox jobs@srv1 --wait 5s)" 'sweep the floor'
 # Reading a topic and filtering your own inbox are different inboxes, so the
 # check needs a message in each: asserting "nothing came back" passed happily
 # with the rule mutated to read the topic in both cases.
 ab someone@srv1 send caller@srv1 --topic jobs@srv1 --tag mine "PRIVATE" >/dev/null
-ab drive-by@srv1 publish --topic jobs@srv1 "TOPIC" >/dev/null
+ab drive-by@srv1 publish --channel jobs@srv1 "TOPIC" >/dev/null
 has "a topic plus a tag filters my own inbox" "$(ab caller@srv1 consume --topic jobs@srv1 --tag mine --wait 3s)" 'PRIVATE'
 has "an explicit inbox reads that inbox" "$(ab caller@srv1 consume --inbox jobs@srv1 --wait 3s)" 'TOPIC'
 out=$(ab caller@srv1 consume --inbox jobz@srv1 --wait 1s 2>&1); rc=$?
@@ -1793,7 +1811,7 @@ has "while its owner gets the record" \
   "$(code acl-owner@srv1 "/lookup?name=direct-svc@srv1")" '200'
 # One check per write verb: a shared guard passes the whole set while any
 # one path is still open.
-ab acl-owner@srv1 topic create shut-topic@srv1 --descr "not yours" --allow acl-owner@srv1 >/dev/null
+ab acl-owner@srv1 channel create shut-topic@srv1 --descr "not yours" --allow acl-owner@srv1 >/dev/null
 has "publishing to a topic that will not have you is refused" \
   "$(post_code alice@srv1 /send '{"to":"shut-topic@srv1","topic":"anything","body":"by nobody"}')" '403'
 has "and so is registering over its name" \
@@ -2071,7 +2089,7 @@ lacks "an ordinary group claims no authority of its own" "$ORDGRP" 'What members
 # somebody, a queue is a channel it reads through, and a service is external
 # (docs/03-records.md#five-record-kinds). Each listing paginates,
 # so the three questions about one name are asked of a search for that name.
-ab "$OWNER" topic create smoke-chan@srv1 --allow '*' --descr "a registered channel" >/dev/null
+ab "$OWNER" channel create smoke-chan@srv1 --allow '*' --descr "a registered channel" >/dev/null
 AGENTS=$(curl -s -b "$JAR" "$WEB/agents?q=human%40srv1")
 CHANS=$(curl -s -b "$JAR" "$WEB/channels")
 has "an agent's record is listed on the agents page" "$AGENTS" 'href="/agent?name=human%40srv1'

@@ -82,9 +82,12 @@ func (s *Server) group(w http.ResponseWriter, r *http.Request, caller protocol.N
 }
 
 func (s *Server) removeSubscriber(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	var in struct{ Topic, Subscriber string }
+	// `channel` is the record a subscriber is taken off. An envelope's
+	// `topic` is a message label and is a different thing entirely.
+	// See docs/07-channels.md.
+	var in struct{ Channel, Subscriber string }
 	if s.read(w, r, &in) {
-		rec, err := s.bus.RemoveSubscriber(caller.String(), in.Topic, in.Subscriber)
+		rec, err := s.bus.RemoveSubscriber(caller.String(), in.Channel, in.Subscriber)
 		s.reply(w, rec, err)
 	}
 }

@@ -27,7 +27,7 @@ export function describe(e: Envelope): string {
 export function sidecarMessage(e: Envelope): string {
   if (e.receipt) return describe(e);
   const route = e.reply_to
-    ? { to: e.reply_to.service, topic: e.reply_to.topic, tag: e.reply_to.tag }
+    ? { to: e.reply_to.name, topic: e.reply_to.topic, tag: e.reply_to.tag }
     : { to: e.from, topic: e.topic, tag: e.tag };
   return `${describe(e)}\n\nReply using ab_send with ${JSON.stringify(route)} and text containing your answer.`;
 }

@@ -4,7 +4,7 @@ import type { Envelope } from "./bus.ts";
 
 const message: Envelope = { message_id: "m", from: "sender@h", to: "session@h", body: "question", at: "now", topic: "original", tag: "tag" };
 test("Codex replies follow the requested return route", () => {
-  const text = codexMessage({ ...message, reply_to: { service: "collector@h", topic: "return", tag: "match" } });
+  const text = codexMessage({ ...message, reply_to: { name: "collector@h", topic: "return", tag: "match" } });
   expect(text).toContain('"to":"collector@h","topic":"return","tag":"match"');
   expect(text).not.toContain('"to":"sender@h"');
 });

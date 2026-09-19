@@ -52,7 +52,7 @@ everything else is the receiver's business.
 
 ## Inbox queues
 
-**Every registered agent has its own queue** — an implicit queue topic named
+**Every registered agent has its own queue** — an implicit 📮 named
 after it, in memory in `agent-busd`, bounded, with a TTL.
 
 **An inbox belongs to a registered name.** Consuming as a name the registry
@@ -72,7 +72,7 @@ the whole difference from an ephemeral channel.
 | Verb | Target | Lands in | Allowed if |
 |---|---|---|---|
 | **`send`** | a known receiver with a queue here, `name@realm` | exactly that queue | you may talk to that principal. A 📡 is refused: it is [external](03-records.md#five-record-kinds) and has no queue |
-| **`publish`** | a topic | **as the topic's kind says** — a queue topic to one consumer and kept until taken; a pub/sub topic to every current subscriber, kept for none ([records § topics](03-records.md#topics)) | the topic's [access policy](02-access.md#acl) permits the caller; delivery-state checks still apply |
+| **`publish`** | a channel | **as the channel's kind says** — a 📮 to one consumer and kept until taken; a 📣 to every current subscriber, kept for none ([channels](07-channels.md#the-two-channel-kinds)) | the channel's [access policy](02-access.md#acl) permits the caller; delivery-state checks still apply |
 
 **A message is addressed to a name, and a name that is registered nowhere is
 refused at `send`** — there is no label to send to and nothing accepts on
@@ -83,7 +83,7 @@ the receiver's own `ack` or reply, never the transport's
 ([receipts](#receipts)).
 
 `consume` defaults to your own queue; see [inbox selection](#inbox-selection-and-filters). Delivery does not report who
-received a publish, but the API answers "are there subscribers on this topic,
+received a publish, but the API answers "are there subscribers on this channel,
 and who?" to anyone whose access allows the lookup.
 
 ## Request and reply
@@ -150,8 +150,8 @@ Each option requires a value when present. Reading without filters takes the
 next message from the selected inbox. “Own inbox” refers to the caller's
 identity, not the record's Personal classification.
 
-Before 0.5.52, a topic without a tag could implicitly select a registered
-topic's inbox. Such callers must now select it explicitly. An address-shaped
+Before 0.5.52, a `topic` without a tag could implicitly select a registered
+channel's inbox. Such callers must now select it explicitly. An address-shaped
 topic is an ordinary filter value: if it matches nothing, the wait ends empty.
 
 </details>
@@ -174,7 +174,7 @@ the notifier, or the reverse.
 | by convention, one *designated* process does that reading for a principal | the bus enforces the outstanding read, not process ownership; claiming otherwise would need a lease nothing here wants |
 | a waiter passes a **topic + tag filter** to `consume`, and the daemon hands it a match ahead of the unfiltered reader | the match happens where the message already is: no dispatcher in a client, and no local protocol between a Go CLI and a TypeScript session process |
 
-**Reading a topic inbox is not filtering.** A queue topic is a named inbox;
+**Reading a channel's inbox is not filtering.** A 📮 channel is a named inbox;
 [inbox selection and filters](#inbox-selection-and-filters) define which queue
 is read and which messages are selected.
 
@@ -196,7 +196,7 @@ once; the first message wakes one of them.
 |---|---|
 | how the daemon tells the two apart | it is asked. A pool passes one word; an accident cannot pass it by accident |
 | a reader that does not ask | keeps the whole old guarantee, **in both directions**: it is refused beside a pool, and a pool member is refused beside it. Wanting the inbox to yourself is still something you get |
-| what this does not change | competing consumers, which already worked — while there is a backlog, N readers take turns and no message goes to two of them ([records § topics](03-records.md#topics)). What sharing adds is the **empty** inbox, which is a pool's steady state |
+| what this does not change | competing consumers, which already worked — while there is a backlog, N readers take turns and no message goes to two of them ([channels](07-channels.md#the-two-channel-kinds)). What sharing adds is the **empty** inbox, which is a pool's steady state |
 | what it deliberately is not | a lease, a group or a registration. Nothing is remembered between reads, so a worker that dies leaves nothing behind to clean up |
 
 So the guarantee is stated precisely: **filtered and unfiltered readers on
@@ -300,7 +300,7 @@ about either.
 
 ## Message TTL
 
-Optional, and shorter than the topic's — asking for longer is not an error,
+Optional, and shorter than the channel's — asking for longer is not an error,
 it simply is not kept that long, because the receiver owns its retention the
 same way it owns its [overflow](#overflow). When it expires undelivered the
 message is dropped from the queue and **counted apart from overflow**, never

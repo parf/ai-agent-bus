@@ -520,11 +520,11 @@ func (x exchange) latest() time.Time {
 // responseRoute includes all routing fields, including a third-party reply
 // destination. A same-tag message from some other participant is unrelated.
 func responseRoute(request, response protocol.Envelope) bool {
-	back := protocol.ReplyTo{Service: request.From, Topic: request.Topic, Tag: request.Tag}
+	back := protocol.ReplyTo{Name: request.From, Topic: request.Topic, Tag: request.Tag}
 	if request.ReplyTo != nil {
 		back = *request.ReplyTo
 	}
-	return response.From == request.To && response.To == back.Service &&
+	return response.From == request.To && response.To == back.Name &&
 		response.Topic == back.Topic && response.Tag == back.Tag
 }
 

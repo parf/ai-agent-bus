@@ -95,7 +95,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Why the digest exists: detecting a changed setup without seeing it | [services § why a digest at all](../../../docs/03-records.md#why-a-digest-at-all) |
 | MCP tool info stored raw, shape-checked | [services § service and template](../../../docs/03-records.md#agent-templates) |
 | Destructive methods are a hint in the description, enforced by nobody | [services § service and template](../../../docs/03-records.md#agent-templates) |
-| Topics are first-class records; kind, TTL, bound, overflow declared at creation | [services § topics](../../../docs/03-records.md#topics) |
+| Topics are first-class records; kind, TTL, bound, overflow declared at creation | [services § topics](../../../docs/07-channels.md#the-two-channel-kinds) |
 | Peer registry sync is git push/pull on start; newer record wins per entry | [services § registry sync](../../R1/registry.md#registry-sync) |
 | Chaining queries an upstream, never replicates it | [overview § chaining](../../R1/federation.md#chaining) |
 | Per-agent queue on start; the address outlives the process | [messaging § inbox queues](../../../docs/04-messaging.md#inbox-queues) |

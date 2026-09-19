@@ -531,12 +531,12 @@ func (b *Bus) visible(caller string, r protocol.Record) protocol.Record {
 
 // A channel manager may remove a subscriber; adding one remains the
 // subscriber's own opt-in operation.
-func (b *Bus) RemoveSubscriber(caller, topic, subscriber string) (protocol.Record, error) {
+func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Record, error) {
 	who, err := canon(caller)
 	if err != nil {
 		return protocol.Record{}, err
 	}
-	name, err := canon(topic)
+	name, err := canon(channel)
 	if err != nil {
 		return protocol.Record{}, err
 	}

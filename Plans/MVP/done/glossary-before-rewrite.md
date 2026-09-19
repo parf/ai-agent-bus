@@ -61,7 +61,7 @@ wins.
 | **`protocol`** | on a record: how to call it. Unset = an ordinary bus service, send to the name; `/etc/services` names suggested, never checked | [services § how to call it](../../../docs/03-records.md#how-to-call-it) |
 | **`reading` · `queued` · `in` · `out`** | live state on an answer, never stored: is anything serving this name, how much is waiting, and how much has arrived and been taken since the daemon started | [discovery § what a listing answers](../../../docs/05-discovery.md#what-a-listing-answers) |
 | **`dropped` · `expired` · `oldest`** | live state on an answer too: what this inbox lost to overflow and to TTL, and how long the head of its queue has waited | [discovery § what a listing answers](../../../docs/05-discovery.md#what-a-listing-answers) |
-| **topic** | a registered record; kind `queue` or `pub/sub` | [services § topics](../../../docs/03-records.md#topics) |
+| **topic** | a registered record; kind `queue` or `pub/sub` | [services § topics](../../../docs/07-channels.md#the-two-channel-kinds) |
 | **inbox** | the implicit queue topic every agent owns | [messaging § inbox queues](../../../docs/04-messaging.md#inbox-queues) |
 | **`message_id` · topic · tag** | the three fields on every message | [messaging § message fields](../../../docs/04-messaging.md#message-fields) |
 | **ack / done** | the two optional receipts, both emitted by the receiver: `ack` = got it, `done` = finished processing | [messaging § receipts](../../../docs/04-messaging.md#receipts) |

@@ -344,19 +344,22 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.
 	}{Status: s.bus.Status(), You: caller.String(), Administrator: s.bus.IsAdministrator(caller.String()), DaemonOwner: caller.String() == owner})
 }
 
-// subscribe puts the caller on a pub/sub topic, or takes it off. The caller
+// subscribe puts the caller on a 📣 channel, or takes it off. The caller
 // is the subscriber — there is no third name here, because a subscription
 // puts messages in somebody's inbox and only they may ask for that.
-// See docs/04-messaging.md#push-and-pull.
+//
+// The field is `channel`, not `topic`: a channel is the record subscribed to,
+// while an envelope's `topic` is a label on one message. One word for each.
+// See docs/07-channels.md and docs/04-messaging.md#push-and-pull.
 func (s *Server) subscribe(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {
-		Topic string `json:"topic"`
-		Off   bool   `json:"off,omitempty"`
+		Channel string `json:"channel"`
+		Off     bool   `json:"off,omitempty"`
 	}
 	if !s.read(w, r, &in) {
 		return
 	}
-	rec, err := s.bus.Subscribe(caller.String(), in.Topic, !in.Off)
+	rec, err := s.bus.Subscribe(caller.String(), in.Channel, !in.Off)
 	s.reply(w, rec, err)
 }
 

@@ -27,7 +27,7 @@ export type Envelope = {
   // (docs/04-messaging.md#receipts).
   receipt?: "ack" | "done";
   re?: string;
-  reply_to?: { service: string; topic?: string; tag?: string };
+  reply_to?: { name: string; topic?: string; tag?: string };
 };
 
 export type Record_ = { name: string; kind: string; addr?: string; descr?: string; owner: string;

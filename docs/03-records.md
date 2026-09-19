@@ -1,4 +1,4 @@
-# Records and topics
+# Records
 
 📌 **TL;DR:** Every registered name is one of five kinds; four have a queue here and the fifth says where something external is.
 
@@ -6,8 +6,8 @@
 
 | MVP | Scope |
 |---|---|
-| Built | [Five record kinds](#five-record-kinds) closing `kind`, registry records, [agent templates](#agent-templates), private registry configuration, [topics](#topics) and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](#agent-templates). |
-| Pending | Nothing here. The external case has its own page: [services](06-services.md#status). |
+| Built | [Five record kinds](#five-record-kinds) closing `kind`, registry records, [agent templates](#agent-templates), private registry configuration and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](#agent-templates). |
+| Pending | Nothing here. The 📮 and 📣 kinds are owned by [channels](07-channels.md#status), and the 📡 kind by [services](06-services.md#status). |
 
 ## Five record kinds
 
@@ -18,8 +18,8 @@ inferring it from which fields happen to be filled in.
 |---|---|---|---|---|
 | 👤 | `user` | the queue a person reads | the daemon, when the person is registered | the person |
 | 👾 | `agent` | the queue an agent reads | its launcher, or the agent itself at startup | the agent |
-| 📮 | `queue` | a queue created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
-| 📣 | `pubsub` | a [pub/sub topic](#topics): it keeps nothing and copies each publication to every subscriber | a user or an agent | nobody |
+| 📮 | `queue` | a [topic](07-channels.md#the-two-channel-kinds) created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
+| 📣 | `pubsub` | a [pub/sub topic](07-channels.md#the-two-channel-kinds): it keeps nothing and copies each publication to every subscriber | a user or an agent | nobody |
 | 📡 | `service` | a description of something [**external**](06-services.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
 
 Registering with no kind stores `service`, because describing something outside
@@ -27,7 +27,7 @@ is the case a bare `register` is usually for. `--personal` names an `agent`.
 
 **The bus carries work between people and agents.** Those two act: they hold a
 [credential](02-access.md#what-a-call-carries), send under their own name and
-answer. A queue and a pub/sub topic are **passive** — they hold or they copy,
+answer. The two channel kinds are **passive** — they hold or they copy,
 and a person or an agent does the work at each end. A service does not even do
 that: it is a card saying where something outside is and how to reach it.
 
@@ -172,50 +172,6 @@ other thing that word names ([glossary § terms](glossary.md#terms)):
 cfg=$(agent-bus agent-template "$AGENT_BUS_NAME")
 ```
 
-## Topics
-
-A topic is registered like any other record and is **first-class** in the same
-registry. Two of the five [kinds](#five-record-kinds) are topics — the Redis
-model:
-
-| Kind | Delivery | Retention | No subscribers at publish time | Redis analogue |
-|---|---|---|---|---|
-| **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded; overflow per its policy | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
-| **pub/sub** | a **copy** to every subscriber, into that subscriber's own inbox ([messaging § subscribers](04-messaging.md#subscribers)) | none of its own — each copy is kept by the inbox it is in | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
-
-<details>
-<summary>Diagram: one consumer versus subscriber copies</summary>
-
-```mermaid
-flowchart LR
-    subgraph Queue[Queue topic]
-        P1[Publisher] --> Q[Shared queue]
-        Q -->|Each message| One[One of the consumers]
-    end
-    subgraph Pubsub[Pub/sub topic]
-        P2[Publisher] --> T[Topic]
-        T -->|Eligible copy| A[Subscriber A inbox]
-        T -->|Eligible copy| B[Subscriber B inbox]
-    end
-```
-
-Each subscriber is checked again at publication. A copy that its inbox refuses
-is dropped; other subscribers still receive theirs. With no eligible
-subscribers, the pub/sub topic retains nothing.
-
-</details>
-
-A topic **declares its kind, TTL, bound and overflow policy at creation**:
-
-| Aspect | MVP behavior |
-|---|---|
-| Create and change | [Ownership](01-identity-and-roles.md#ownership) applies |
-| Visibility and use | [Audience](05-discovery.md#audience) and the record ACL apply; publication rechecks each subscriber |
-| Storage | [Restart persistence](04-messaging.md#durability), with messages in memory |
-| Observations | [Listing state](05-discovery.md#what-a-listing-answers) |
-
-Inboxes belong to registered names ([messaging § inbox queues](04-messaging.md#inbox-queues)). Signed records and upstream namespaces are proposed in [R1 registry](../Plans/R1/registry.md#registry-sync) and [federation](../Plans/R1/federation.md#chaining).
-
 ## Personal and shared
 
 An owner may tag their agent **Personal**. Without that tag, it is
@@ -242,7 +198,7 @@ these assignment restrictions and web grouping, ordinary
 an agent from the main web pages does not revoke authorized access or remove it
 from the registry.
 
-Users, queues, pub/sub topics and services cannot carry Personal. Extending the
+Users, channels and services cannot carry Personal. Extending the
 classification to another kind needs an explicit owner decision.
 
 <details>

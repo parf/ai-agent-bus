@@ -172,7 +172,7 @@ func TestSuspensionDestroysNothing(t *testing.T) {
 // The called-name check on the read path, which the service's own credential
 // cannot certify: that one is refused at the gate and never reaches ConsumeAs.
 // This reader is active, authorised, and somebody else entirely \u2014 a shared
-// topic is how a third party reads a name that is not its own.
+// A channel is how a third party reads a name that is not its own.
 func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 	f := suspendedOwnerFixture(t)
 	f.call("alice@h", "POST", "/register", `{"name":"jobs@h","kind":"queue","allow":["bystander@h","admin@h"],"share":true}`, 200)
@@ -196,19 +196,19 @@ func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 }
 
 // Joining a suspended owner's channel is a call to it; leaving one is not.
-func TestASuspendedOwnersTopicRefusesNewSubscribersButLetsThemLeave(t *testing.T) {
+func TestASuspendedOwnersChannelRefusesNewSubscribersButLetsThemLeave(t *testing.T) {
 	f := suspendedOwnerFixture(t)
 	f.call("alice@h", "POST", "/register", `{"name":"feed@h","kind":"pubsub","allow":["bystander@h","maint@h"]}`, 200)
-	f.call("bystander@h", "POST", "/subscribe", `{"topic":"feed@h"}`, 200)
+	f.call("bystander@h", "POST", "/subscribe", `{"channel":"feed@h"}`, 200)
 	f.state("alice@h", "paused")
 
-	f.call("maint@h", "POST", "/subscribe", `{"topic":"feed@h"}`, 403)
+	f.call("maint@h", "POST", "/subscribe", `{"channel":"feed@h"}`, 403)
 	// Already subscribed, and free to go: trapping somebody in a channel they
 	// can no longer use would be a worse answer than letting them leave.
-	f.call("bystander@h", "POST", "/subscribe", `{"topic":"feed@h","off":true}`, 200)
+	f.call("bystander@h", "POST", "/subscribe", `{"channel":"feed@h","off":true}`, 200)
 
 	f.state("alice@h", "active")
-	f.call("maint@h", "POST", "/subscribe", `{"topic":"feed@h"}`, 200)
+	f.call("maint@h", "POST", "/subscribe", `{"channel":"feed@h"}`, 200)
 }
 
 // Suspension follows the record's stated owner and does not walk the chain.

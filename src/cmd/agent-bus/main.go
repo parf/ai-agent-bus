@@ -50,11 +50,11 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus done <message-id>
   agent-bus reply <message-id> <text>
   agent-bus reply --to <name> [--topic t] [--tag g] <text>
-  agent-bus topic create <name> [--kind queue|pubsub] [--descr d] [--overflow ring|strict]
-                                [--ttl 1h] [--bound 1000]
-  agent-bus publish --topic <name> <text>
-  agent-bus subscribe <topic>     receive a copy of everything published there
-  agent-bus unsubscribe <topic>
+  agent-bus channel create <name> [--kind queue|pubsub] [--descr d] [--overflow ring|strict]
+                                  [--ttl 1h] [--bound 1000]
+  agent-bus publish --channel <name> <text>
+  agent-bus subscribe <channel>   receive a copy of everything published there
+  agent-bus unsubscribe <channel>
   agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*|@owner] [--personal]
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
   agent-bus stop <name>
@@ -121,8 +121,8 @@ func main() {
 		err = receipt(protocol.ReceiptAck, rest)
 	case "done":
 		err = receipt(protocol.ReceiptDone, rest)
-	case "topic":
-		err = topic(rest)
+	case "channel":
+		err = channel(rest)
 	case "agent-template":
 		err = agentTemplate(rest)
 	case "publish":
@@ -300,7 +300,7 @@ func send(args []string) error {
 	// --reply-to keeps the exchange's topic and tag unless told otherwise:
 	// the third party matches the answer the same way the sender would.
 	if back := flags["reply-to"]; back != "" {
-		e.ReplyTo = &protocol.ReplyTo{Service: back, Topic: e.Topic, Tag: e.Tag}
+		e.ReplyTo = &protocol.ReplyTo{Name: back, Topic: e.Topic, Tag: e.Tag}
 	}
 	return post("/send", e)
 }
@@ -440,8 +440,10 @@ func bound(flags map[string]string) (int, error) {
 	return n, nil
 }
 
-// A topic is a record like any other; `topic create` is the sugar that says
-// so. See docs/03-records.md.
+// A channel is a record like any other; `channel create` is the sugar that
+// says so. The verb is `channel` and not `topic` because an envelope's
+// `topic` is a label on one message, which is a different thing.
+// See docs/07-channels.md.
 // agentTemplate configures an agent template into a configured record, and
 // reads that configuration back. One verb, because the direction is
 // obvious from whether a configuration was handed to it — and a hyphenated
@@ -485,15 +487,15 @@ func agentTemplate(args []string) error {
 	}{name, json.RawMessage(raw)})
 }
 
-func topic(args []string) error {
+func channel(args []string) error {
 	if len(args) == 0 || args[0] != "create" {
-		return fmt.Errorf("the only topic verb is: topic create <name> [--kind queue|pubsub]")
+		return fmt.Errorf("the only channel verb is: channel create <name> [--kind queue|pubsub]")
 	}
 	pos, flags := split(args[1:])
 	if len(pos) != 1 {
-		return fmt.Errorf("topic create wants one name")
+		return fmt.Errorf("channel create wants one name")
 	}
-	// A topic is now a record kind rather than a mode on one, so --kind names
+	// A channel is a record kind rather than a mode on one, so --kind names
 	// the kind directly and there is nothing else to store.
 	// See docs/03-records.md#five-record-kinds.
 	kind := flags["kind"]
@@ -501,7 +503,7 @@ func topic(args []string) error {
 		kind = protocol.KindQueue
 	}
 	if kind != protocol.KindQueue && kind != protocol.KindPubSub {
-		return fmt.Errorf("a topic is %s or %s", protocol.KindQueue, protocol.KindPubSub)
+		return fmt.Errorf("a channel is %s or %s", protocol.KindQueue, protocol.KindPubSub)
 	}
 	n, err := bound(flags)
 	if err != nil {
@@ -516,26 +518,29 @@ func topic(args []string) error {
 
 // publish is a send to a topic. A publisher need not be a registered service
 // — a token is the whole of what it needs.
-// See docs/03-records.md#topics.
+// See docs/07-channels.md.
 func publish(args []string) error {
 	pos, flags := split(args)
-	if flags["topic"] == "" || len(pos) == 0 {
-		return fmt.Errorf("publish wants --topic <name> and text")
+	if flags["channel"] == "" || len(pos) == 0 {
+		return fmt.Errorf("publish wants --channel <name> and text")
 	}
+	// The channel's own name is also stamped as the message's topic, so a
+	// subscriber can pick out copies that came from it with `consume --topic`.
+	// See docs/07-channels.md#what-publish-puts-on-the-message.
 	return post("/send", protocol.Envelope{
-		To: flags["topic"], Topic: flags["topic"], Body: strings.Join(pos, " "),
+		To: flags["channel"], Topic: flags["channel"], Body: strings.Join(pos, " "),
 	})
 }
 
-// subscribe joins a pub/sub topic, or leaves it. The copies land in the
+// subscribe joins a 📣 channel, or leaves it. The copies land in the
 // caller's own inbox, so there is no name to pass — you subscribe yourself.
-// See docs/04-messaging.md#push-and-pull.
+// See docs/07-channels.md and docs/04-messaging.md#push-and-pull.
 func subscribe(args []string, on bool) error {
 	pos, _ := split(args)
 	if len(pos) != 1 {
-		return fmt.Errorf("subscribe wants one topic")
+		return fmt.Errorf("subscribe wants one channel")
 	}
-	return post("/subscribe", map[string]any{"topic": pos[0], "off": !on})
+	return post("/subscribe", map[string]any{"channel": pos[0], "off": !on})
 }
 
 func consume(args []string) error {
@@ -784,7 +789,7 @@ type replyContext struct {
 func route(e protocol.Envelope) replyContext {
 	c := replyContext{ID: e.ID, From: e.From, Topic: e.Topic, Tag: e.Tag}
 	if e.ReplyTo != nil {
-		c.From = e.ReplyTo.Service
+		c.From = e.ReplyTo.Name
 		c.Topic, c.Tag = e.ReplyTo.Topic, e.ReplyTo.Tag
 	}
 	return c

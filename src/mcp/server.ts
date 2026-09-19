@@ -53,7 +53,7 @@ const REMEMBER = 200;
 function remember(e: Envelope) {
   const r = e.reply_to;
   consumed.set(e.message_id, r
-    ? { from: r.service, topic: r.topic, tag: r.tag }
+    ? { from: r.name, topic: r.topic, tag: r.tag }
     : { from: e.from, topic: e.topic, tag: e.tag });
   if (consumed.size > REMEMBER) consumed.delete(consumed.keys().next().value!);
 }
@@ -68,7 +68,7 @@ const tools = [
   {
     name: "ab_ls",
     description:
-      "List what is registered on the agent bus: agents, services and topics, with their descriptions. Use it to find who or what to talk to.",
+      "List what is registered on the agent bus: agents, channels, users and external services, with their descriptions. Use it to find who or what to talk to.",
     inputSchema: {
       type: "object",
       properties: { kind: { type: "string", description: "only this kind: user, agent, queue, pubsub or service" } },

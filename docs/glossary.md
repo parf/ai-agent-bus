@@ -23,13 +23,25 @@ operation. Use realm for the name's authority namespace, and **agent template**
 for the unconfigured capability a configured name was made from — the CLI verb
 is `agent-template`, renamed from `service-template` in 0.6.6.
 
+**Channel is the record; topic is the message label.** From 0.6.7 they are
+two words for two things ([channel, not topic](07-channels.md#channel-not-topic)).
+A channel is published to and subscribed; a topic rides on one envelope and is
+what a filtered read matches. `channel` is the CLI verb, the `publish` flag and
+the wire field; `topic` stays on `send`, `consume` and `reply`.
+
+**Channel is the record; topic is the message label.** From 0.6.7 they are two
+words for two things ([channel, not topic](07-channels.md#channel-not-topic)). A
+channel is published to and subscribed; a topic rides on one envelope and is
+what a filtered read matches. `channel` is the CLI verb, the `publish` flag and
+the wire field; `topic` stays on `send`, `consume` and `reply`.
+
 **Service means the external case and nothing else.** From 0.6.3 it is one of
 the [five record kinds](03-records.md#five-record-kinds): a card
 describing something this bus does not run. Anything running behind a bus name
 is an **agent**. Say record for a registered name whose kind does not matter to
 the sentence. Personal is an owner-selected
 [agent classification](03-records.md#personal-and-shared), not a
-kind. `generic`, `topic` as a kind, and delivery *mode* named kinds before
+kind. `generic`, `topic` as a **kind**, and delivery *mode* named kinds before
 0.6.3 and name nothing now.
 
 ## Glyphs
@@ -52,7 +64,7 @@ glyph may appear, how it renders and what it must never carry on its own.
 | ⚙️ | `U+2699 U+FE0F` | Daemon | the daemon itself, never a record | reserved; labels nothing yet |
 | 📡 | `U+1F4E1` | Service | something external, not on this bus | built in 0.6.3 |
 | 📮 | `U+1F4EE` | Queue | a registered queue | built in 0.6.3 |
-| 📣 | `U+1F4E3` | PubSub | a pub/sub topic | built in 0.6.3 |
+| 📣 | `U+1F4E3` | PubSub | a pub/sub channel | built in 0.6.3 |
 
 `📡`, `📮` and `📣` arrived with the
 [five record kinds](03-records.md#five-record-kinds) in 0.6.3, where
@@ -83,8 +95,8 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | Registry configuration | Private setup fetched by the record it belongs to | [definition](03-records.md#configuring-a-template) |
 | Record kind | What a record is, as one of five stored values | [definition](03-records.md#five-record-kinds) |
 | Service secret | Credential held on an external service record, read by principals it admits | [definition](06-services.md#secrets) |
-| Channel | A 📮 queue or 📣 pub/sub topic: a record nobody acts as | [definition](01-identity-and-roles.md#channels) |
-| Topic | Delivery term for a queue or pub/sub record | [definition](03-records.md#topics) |
+| Channel | The 📮 or 📣 **record** published to: a name nobody acts as | [definition](07-channels.md#the-two-channel-kinds) |
+| Topic | A **label on one message**, matched by a filtered read — never a record | [definition](04-messaging.md#envelope) |
 | Inbox | Queue belonging to a registered name; the four kinds that are not 📡 have one | [definition](04-messaging.md#inbox-queues) |
 | Receipt | Receiver acknowledgement of progress | [definition](04-messaging.md#receipts) |
 | Envelope | Message routing and body container | [definition](04-messaging.md#envelope) |
