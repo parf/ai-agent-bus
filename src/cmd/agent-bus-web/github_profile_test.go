@@ -113,9 +113,17 @@ func TestGithubProfileAndPhotoStayLocalAndVisibilityBounded(t *testing.T) {
 		t.Fatalf("local embedded thumbnail is blocked by CSP: %q", listHeader.Get("Content-Security-Policy"))
 	}
 	detail, _ := request("owner@h", "GET", "/user?name=alice@h", nil, 200)
-	for _, want := range []string{"Example Company", "New York", `name=company`, `name=location`, `name=twitter`, "alice_x", "data:image/png;base64,"} {
+	for _, want := range []string{"Example Company", "New York", "alice_x", "data:image/png;base64,"} {
 		if !bytes.Contains(detail, []byte(want)) {
 			t.Fatalf("user detail lacks %q: %s", want, detail)
+		}
+	}
+	// The imported values are editable where every profile value is edited:
+	// the one form, which is also the one that adds a person.
+	editor, _ := request("owner@h", "GET", "/user/edit?name=alice@h", nil, 200)
+	for _, want := range []string{"Example Company", "New York", `name=company`, `name=location`, `name=twitter`, "alice_x"} {
+		if !bytes.Contains(editor, []byte(want)) {
+			t.Fatalf("the profile form lacks %q: %s", want, editor)
 		}
 	}
 	// The owner removed both at 0.5.83: the refresh control, and the hint

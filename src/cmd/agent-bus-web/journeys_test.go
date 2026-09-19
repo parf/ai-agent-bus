@@ -109,7 +109,12 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	}
 	visitor := m.as("visitor@h").get("/channel?name=news@h")
 	if strings.Contains(visitor, `id=settings`) || !strings.Contains(visitor, "Queue &amp; counters") || !strings.Contains(visitor, "Deliver-To") {
-		t.Error("visitor Channel detail either exposes an editor or hides readable operational facts")
+		t.Error("visitor Channel detail either offers the way to the editor or hides readable operational facts")
+	}
+	// And the form itself refuses, rather than only the link being absent:
+	// a page nobody linked to is still a page somebody can type in.
+	if _, status := getAs(t, m.as("visitor@h"), "/channel/edit?name=news@h"); status != http.StatusForbidden {
+		t.Errorf("a visitor reached the settings form directly: %d", status)
 	}
 	if location, status := postAs(t, m, "/service", url.Values{"action": {"disable"}, "name": {"jobs@h"}}); status != http.StatusSeeOther || location != "/channel?name=jobs%40h" {
 		t.Fatalf("Channel mutation returned to %q with %d, want its Channel detail", location, status)

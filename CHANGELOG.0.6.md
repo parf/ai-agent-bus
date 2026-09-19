@@ -4,11 +4,12 @@
 
 ## 0.6.16 — 2026-09-19
 
-Registering a record and editing one are the same form: one field set per kind,
-rendered by both, each on a page of its own. A 👾 is now asked for the inbox
-policy it has and a 📣 is no longer asked for one it has not, a 📡 can be given
-its credential after registration, and every kind is offered Maintainers where
-it is registered.
+Adding an entity and editing one are the same form, for every entity: one field
+set per kind, rendered by both, each on a page of its own. A 👾 is now asked for
+the inbox policy it has and a 📣 is no longer asked for one it has not, a 📡 can
+be given its credential after registration, every kind is offered Maintainers
+where it is registered, and a user profile and a group membership are edited by
+the form that creates one.
 
 ## 0.6.15 — 2026-09-19
 

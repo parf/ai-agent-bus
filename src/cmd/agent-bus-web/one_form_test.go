@@ -28,9 +28,10 @@ func controls(t *testing.T, page string) []string {
 	var out []string
 	for _, m := range namedControl.FindAllStringSubmatch(page[at:at+end], -1) {
 		switch m[1] {
-		// Not questions: the kind is fixed by the address a registration
-		// came from, and a flag says whether a form carried a field at all.
-		case "kind", "action", "return", "edit_allow", "edit_subs", "edit_sharing", "edit_personal":
+		// Not questions: the kind and `new` are fixed by the address a
+		// registration came from, and an edit_ flag says whether a form
+		// carried a field at all rather than asking for one.
+		case "kind", "new", "action", "return", "edit_allow", "edit_subs", "edit_sharing", "edit_personal":
 			continue
 		}
 		out = append(out, m[1])
@@ -107,5 +108,43 @@ func TestAFormAsksOnlyWhatItsKindHas(t *testing.T) {
 				t.Errorf("the %s form asks for %s, which a %s does not have: %v", c.kind, unwanted, c.kind, asked)
 			}
 		}
+	}
+}
+
+// A user and a group are the same rule: the form that adds one and the form
+// that changes one are the same form, on pages of their own. Both were
+// separate markup in one template and had already drifted — the user form in
+// what it said about the GitHub login, the group form in how much of the
+// membership list it showed.
+// See Plans/MVP/web/forms.md#rules.
+func TestAUserAndAGroupAreAddedAndEditedByTheSameForm(t *testing.T) {
+	m := meaningFixture(t)
+	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "person@h", PersonName: "A Person"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.bus.SetGroup("admin@h", "@crew", []string{"admin@h"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ what, new, edit string }{
+		{"user", "/users/new", "/user/edit?name=person@h"},
+		{"group", "/groups/new", "/group/edit?name=%40crew"},
+	} {
+		asked := controls(t, m.get(c.new))
+		offered := controls(t, m.get(c.edit))
+		if strings.Join(asked, " ") != strings.Join(offered, " ") {
+			t.Errorf("a %s is added with %v and edited with %v", c.what, asked, offered)
+		}
+		if len(asked) < 2 {
+			t.Errorf("the %s form asks almost nothing (%v), so this check proves little", c.what, asked)
+		}
+	}
+
+	// And the values come back: a form that asked the right questions with
+	// nothing in them would pass the comparison above.
+	if page := m.get("/user/edit?name=person@h"); !strings.Contains(page, `name=person_name value="A Person"`) {
+		t.Errorf("the profile form does not carry the stored person name: %s", page)
+	}
+	if page := m.get("/group/edit?name=%40crew"); !strings.Contains(page, ">admin@h</textarea>") {
+		t.Errorf("the group form does not carry the stored membership: %s", page)
 	}
 }

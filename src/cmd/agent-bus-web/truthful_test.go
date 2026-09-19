@@ -147,8 +147,8 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	}
 	// Positive control: the form itself is still there, so the check above
 	// cannot pass by the page having lost its controls altogether.
-	if detail := get("/group?name=%40ops"); !strings.Contains(detail, "value=save") {
-		t.Error("the linked group detail lost membership editing, so the check above proves nothing")
+	if editor := get("/group/edit?name=%40ops"); !strings.Contains(editor, "value=save") {
+		t.Error("the linked group form lost membership editing, so the check above proves nothing")
 	}
 	for _, group := range []string{"@administrators", "@ops"} {
 		if !strings.Contains(groups, group) {

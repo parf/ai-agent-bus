@@ -267,8 +267,9 @@ Record detail presents Delivery, Policy and Queue & counters as one compact
 fact row, followed by Activity, and links to the settings form rather than
 carrying it; configuration, transfer and removal remain in the red Danger Zone.
 
-**Registering a record and editing one are the same form**, one page per kind
-and one field set rendered by both
+**Adding an entity and editing one are the same form**, one page per kind
+and one field set rendered by both — for a 👤 user and a 👥 group as much as
+for a record
 ([forms](../Plans/MVP/web/forms.md#rules)) — so a 👾 and a 📮 declare the TTL,
 capacity and overflow of the inbox they hold, a 📣 declares a
 [Deliver-To list](04-messaging.md#subscribers) and no queue policy, and a 📡
@@ -277,10 +278,12 @@ second call to that verb and never filled in again. What differs between the
 two is what is already in the form: a field the caller may not change is shown
 disabled rather than hidden, and the form states separately that it carried the
 owner-only fields, so a Maintainer saving a description cannot clear what it
-was not offered. User detail separates the
-profile editor from identity, authority, groups, lifecycle and owned resources.
-Groups use a compact Group/Members table. Selecting a name opens one group;
-the full-width membership textarea appears only when the caller may edit it.
+was not offered. User detail states the
+profile beside identity, authority, groups, lifecycle and owned resources, and
+links to the profile form. Groups use a compact Group/Members table; selecting
+a name opens one group, and the way to its membership form appears only when
+the caller may change it — as does the form itself, which refuses whoever the
+link was withheld from.
 Diagnostics keeps refusal, held-work, retained-envelope and loss evidence
 without duplicating the full registry catalogue or its former paragraph walls.
 The Services and Channels tables carry their own accepted/dequeued counters.

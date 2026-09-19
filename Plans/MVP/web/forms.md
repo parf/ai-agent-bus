@@ -113,10 +113,10 @@ again — on either form.
 | Remove registration | Service, Channel | — | **Danger Zone** only; **confirm**, then the list it came from |
 | Take myself off Deliver-To | Channel, pub/sub | — | the subscribers section |
 | Remove a recipient | Channel, pub/sub | subscriber | the subscribers section |
-| Register a group | `/groups/new` | name; one identity or nested group per textarea line | the new group's page |
-| Edit members | Group | one identity or nested group per textarea line | the group's members section |
+| Register a group | `/groups/new` | name, members | the new group's page |
+| Edit a group | `/group/edit?name=` | *the same set, filled in* | its page |
 | Register a user | `/users/new` | name, person name, email, GitHub login, company, location, Twitter/X | the new user's page |
-| Edit profile | User | person name, email, GitHub login, company, location, Twitter/X | the profile section |
+| Edit a user | `/user/edit?name=` | *the same set, filled in* | their page |
 | Change state | User | the applicable transitions only | the identity section; **confirm** for ban |
 | Remove a credential | User, non-user identity | — | **confirm**, then the directory |
 

@@ -274,9 +274,13 @@ func TestDashboardOwnerControls(t *testing.T) {
 		t.Fatalf("group listing did not become a linked membership table: %s", groups)
 	}
 	groupDetail := request("admin@h", "GET", "/group?name=%40ops", "", nil, 200)
-	if !strings.Contains(groupDetail, `<textarea name=members rows=8`) || !strings.Contains(groupDetail, `>admin@h
-other@h</textarea>`) || strings.Contains(groupDetail, `<input name=members`) {
-		t.Fatalf("group membership did not round-trip through its line editor: %s", groupDetail)
+	if strings.Contains(groupDetail, `<textarea name=members`) || !strings.Contains(groupDetail, `id=members-edit class=editor-link`) {
+		t.Fatalf("the group page carries an editor instead of linking to it: %s", groupDetail)
+	}
+	groupEditor := request("admin@h", "GET", "/group/edit?name=%40ops", "", nil, 200)
+	if !strings.Contains(groupEditor, `<textarea name=members rows=8`) || !strings.Contains(groupEditor, `>admin@h
+other@h</textarea>`) || strings.Contains(groupEditor, `<input name=members`) {
+		t.Fatalf("group membership did not round-trip through its line editor: %s", groupEditor)
 	}
 	ordinaryGroup := request("other@h", "GET", "/group?name=%40ops", "", nil, 200)
 	if strings.Contains(ordinaryGroup, `<textarea name=members`) || !strings.Contains(ordinaryGroup, `Membership is not visible to you.`) {
@@ -286,14 +290,16 @@ other@h</textarea>`) || strings.Contains(groupDetail, `<input name=members`) {
 	if !strings.Contains(ordinaryGroups, `Not visible to you`) || strings.Contains(ordinaryGroups, `No members`) {
 		t.Fatalf("ordinary group list represented hidden membership as empty: %s", ordinaryGroups)
 	}
-	operatorGroup := request("operator@h", "GET", "/group?name=%40ops", "", nil, 200)
+	operatorGroup := request("operator@h", "GET", "/group/edit?name=%40ops", "", nil, 200)
 	if !strings.Contains(operatorGroup, `<textarea name=members rows=8`) {
 		t.Fatal("Administrator lost ordinary-group editing")
 	}
 	protectedGroup := request("operator@h", "GET", "/group?name=%40administrators", "", nil, 200)
-	if strings.Contains(protectedGroup, `<textarea name=members`) || !strings.Contains(protectedGroup, `Only the daemon owner changes this protected group.`) || !strings.Contains(protectedGroup, `popovertarget=administrators-help`) || !strings.Contains(protectedGroup, `Administering the node is not managing its resources.`) {
+	if strings.Contains(protectedGroup, `id=members-edit`) || !strings.Contains(protectedGroup, `Only the daemon owner changes this protected group.`) || !strings.Contains(protectedGroup, `popovertarget=administrators-help`) || !strings.Contains(protectedGroup, `Administering the node is not managing its resources.`) {
 		t.Fatal("Administrator was offered the protected-group editor")
 	}
+	// And the form itself refuses, rather than only the link being absent.
+	request("operator@h", "GET", "/group/edit?name=%40administrators", "", nil, 403)
 	request("admin@h", "GET", "/group?name=%40missing", "", nil, 404)
 	refusedGroup := request("admin@h", "POST", "/groups", web.URL, url.Values{
 		"action": {"save"}, "name": {"@administrators"}, "members": {"admin@h\n@ops"},

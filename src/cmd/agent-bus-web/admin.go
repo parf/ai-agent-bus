@@ -921,6 +921,31 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		v.GroupReferences = referencesToGroup(v.Records, v.Groups, name)
 		render(w, groupDetail, v)
 	})
+	// Membership is edited where a group is registered: the same form.
+	mux.HandleFunc("GET /group/edit", func(w http.ResponseWriter, r *http.Request) {
+		v, ok := c.signedIn(w, r)
+		if !ok {
+			return
+		}
+		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
+			fail(w, r, v.You, err)
+			return
+		}
+		name := r.URL.Query().Get("name")
+		members, exists := v.Groups[name]
+		if !exists {
+			fail(w, r, v.You, &busError{code: http.StatusNotFound, message: "no such group"})
+			return
+		}
+		v.Current, v.Editing, v.GroupName = "groups", true, name
+		v.GroupMembers = append([]string(nil), members...)
+		v.CanEditGroup = v.Administrator && (v.DaemonOwner || name != core.AdministratorsGroup)
+		if !v.CanEditGroup {
+			fail(w, r, v.You, &busError{code: http.StatusForbidden, message: "that group's membership cannot be changed by you"})
+			return
+		}
+		render(w, groupEdit, v)
+	})
 	mux.HandleFunc("GET /groups/new", func(w http.ResponseWriter, r *http.Request) {
 		v, ok := c.signedIn(w, r)
 		if !ok {
@@ -1305,7 +1330,8 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 					fail(w, r, v.You, err)
 					return
 				}
-				renderForm(w, code, groupDetail, v)
+				v.Editing = true
+				renderForm(w, code, groupEdit, v)
 				return
 			}
 			fail(w, r, v.You, err)
@@ -1423,11 +1449,27 @@ var groupDetail = template.Must(template.New("group-detail").Funcs(template.Func
 <p><a href=/groups>Back to Groups</a></p><div class=page-title><h1><span role=img aria-label="Group">{{groupGlyph}}</span> <code>{{.GroupName}}</code></h1>{{if eq .GroupName "@administrators"}}<span class=fact-pill>protected</span><button type=button class=help-button popovertarget=administrators-help aria-label="About the Administrators group" data-tooltip="Members administer users and ordinary groups. They do not automatically manage every Service or Channel; assign this group as a resource Maintainer when that is wanted. Only the daemon Owner changes membership.">ⓘ</button>{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Daemon administration group. What membership grants is stated below; every other group on this node confers only what a resource assigns it.</p><div popover id=administrators-help class=context-help><h2>How this group behaves</h2><ul><li>It accepts direct user identities only. A snapshot that nests a group inside it is refused at startup.</li><li>It cannot be emptied, and the daemon Owner is always a member.</li><li>Adding an Administrator creates a user profile; removing the membership keeps that profile.</li><li>An ordinary group may name <code>@administrators</code>. Its direct members then receive that ordinary group&rsquo;s access or Maintainer grant, and no Administrator authority.</li></ul></div>
 <section class="dashboard-section admin-rights"><h2>What membership grants</h2><ul><li><strong>Ordinary users.</strong> See the whole user directory, register new users, and edit, pause, ban or reactivate users below your own level.</li><li><strong>Ordinary groups.</strong> Change the membership of any ordinary group, including one assigned as a resource&rsquo;s Maintainer &mdash; you may add yourself, or a user you created, without asking that resource&rsquo;s owner.</li><li><strong>Membership lists.</strong> Read the full membership of every group.</li></ul>
 <h2>What it does not grant</h2><ul><li><strong>The Owner, or each other.</strong> An Administrator cannot edit the daemon Owner or another Administrator, and cannot grant either position.</li><li><strong>Services and Channels.</strong> Administering the node is not managing its resources. That comes only from being named in a resource&rsquo;s Maintainers list; put <code>@administrators</code> there when every Administrator should manage it.</li><li><strong>This group.</strong> Only the daemon Owner changes who is in it.</li></ul></section>{{end}}` + formErrorSummary + `
-{{if .CanEditGroup}}<section class="editor-card group-card"><form id=form-group method=post action=/groups><input type=hidden name=name value="{{.GroupName}}"><label class=form-field>Members<textarea name=members rows=8 placeholder="user@realm&#10;@nested-group" aria-invalid="{{if .Form.Invalid "members"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "members"}}group-error{{end}}">{{if .Form.Is "save"}}{{.Form.Value "members"}}{{else}}{{join .GroupMembers "\n"}}{{end}}</textarea><small>One identity or group per line; <code>@owner</code> is reserved for ACLs.</small></label>{{if .Form.Is "save"}}<p class=warn id=group-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button name=action value=save>Save members</button></div></form></section>{{else}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{if not .Administrator}}<span class=muted>Membership is not visible to you.</span>{{else}}{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Only the daemon owner changes this protected group.</p>{{else}}<p class=muted>Daemon administrators manage this group.</p>{{end}}</section>{{end}}
+{{if .CanEditGroup}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}</div>
+<p><a id=members-edit class=editor-link href="/group/edit?name={{urlquery .GroupName}}">Edit members</a></p></section>{{else}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{if not .Administrator}}<span class=muted>Membership is not visible to you.</span>{{else}}{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Only the daemon owner changes this protected group.</p>{{else}}<p class=muted>Daemon administrators manage this group.</p>{{end}}</section>{{end}}
 <section class=dashboard-section><h2>Used by visible records</h2>{{if .GroupReferences}}<table><thead><tr><th scope=col>Record</th><th scope=col>Kind</th><th scope=col>Uses this group</th></tr></thead><tbody>{{range .GroupReferences}}<tr><td><a href="{{recordKindPath .Name .Kind}}"><code>{{.Name}}</code></a></td><td>{{entityLabel .Kind}}</td><td>{{range $i,$use := .Uses}}{{if $i}} · {{end}}{{$use}}{{end}}</td></tr>{{end}}</tbody></table>{{else}}<p class=muted>No caller-visible record refers to this group.</p>{{end}}</section>`))
-var groupNew = template.Must(template.New("group-new").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shell("groups", "Register group") + `
+// A group has one form, and registering one and changing its membership are
+// the same form. The two used to be separate markup and had already drifted
+// in what they said about `@owner` and in how much of the list they showed.
+// See Plans/MVP/web/forms.md#rules.
+const groupFields = `{{define "group-fields"}}<div class=form-grid>
+{{if .Editing}}<input type=hidden name=name value="{{.GroupName}}">
+{{else}}<label class="form-field form-field-wide">Name <input name=name placeholder="@operators" required value="{{.Form.Value "name"}}" aria-invalid="{{if .Form.Is "save"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Is "save"}}group-error{{end}}"><small>One name for the set. It cannot be changed afterwards.</small>{{if eq (.Form.Value "name") "@owner"}}<small><code>@owner</code> is runtime ACL syntax and cannot be registered as a group.</small>{{end}}</label>
+{{end}}
+<label class="form-field form-field-wide">Members <textarea name=members rows=8 placeholder="user@realm&#10;@nested-group" aria-invalid="{{if .Form.Invalid "members"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "members"}}group-error{{end}}">{{if .Form.Is "save"}}{{.Form.Value "members"}}{{else}}{{join .GroupMembers "\n"}}{{end}}</textarea><small>One identity or nested group per line; <code>@owner</code> is reserved for ACLs.</small></label></div>
+{{if .Form.Is "save"}}<p class=warn id=group-error>{{.Form.Error}}</p>{{end}}{{end}}`
+
+var groupNew = template.Must(template.New("group-new").Funcs(template.FuncMap{"titleMark": titleMark, "join": strings.Join}).Parse(shell("groups", "Register group") + `
 <p><a href=/groups>Back to Groups</a></p><div class=page-title><h1>{{titleMark "groups"}} Register group</h1></div>
-` + formErrorSummary + `<form id=form-save class="editor-card task-card" method=post action=/groups><input type=hidden name=action value=save><input type=hidden name=new value=1><div class=form-grid>
-<label class="form-field form-field-wide">Name <input name=name placeholder="@operators" required value="{{.Form.Value "name"}}" aria-invalid="{{if .Form.Is "save"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Is "save"}}group-new-error{{end}}">{{if eq (.Form.Value "name") "@owner"}}<small><code>@owner</code> is runtime ACL syntax and cannot be registered as a group.</small>{{end}}</label>
-<label class="form-field form-field-wide">Members <textarea name=members rows=6 placeholder="user@realm&#10;@nested-group">{{.Form.Value "members"}}</textarea><small>One identity or group per line.</small></label></div>
-{{if .Form.Is "save"}}<p class=warn id=group-new-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>Register group</button></div></form>`))
+` + formErrorSummary + `<form id=form-save class="editor-card task-card" method=post action=/groups><input type=hidden name=action value=save><input type=hidden name=new value=1>` +
+	`{{template "group-fields" .}}<div class=form-actions><button>Register group</button></div></form>` + groupFields))
+
+// groupEdit is that same form with the group already in it.
+var groupEdit = template.Must(template.New("group-edit").Funcs(template.FuncMap{"titleMark": titleMark, "join": strings.Join}).Parse(shellTitle("groups", `Edit {{.GroupName}}`) + `
+<p><a href="/group?name={{urlquery .GroupName}}">Back to {{.GroupName}}</a></p><div class=page-title><h1>{{titleMark "groups"}} Edit <code>{{.GroupName}}</code></h1></div>
+` + formErrorSummary + `<form id=form-save class="editor-card task-card" method=post action=/groups><input type=hidden name=action value=save>` +
+	`{{template "group-fields" .}}<div class=form-actions><button>Save members</button></div></form>` + groupFields))

@@ -2322,12 +2322,26 @@ lacks "classification and sharing has no section of its own" "$SVCEDIT" 'Classif
 # comparison is of the field names inside each form, because a page that had
 # dropped a field would still have the heading above it.
 asked() { printf '%s' "$1" | sed 's/</\n</g' | grep -o '^<\(input\|textarea\|select\)[^>]*name=[a-z_]*' \
-  | grep -o 'name=[a-z_]*$' | grep -v 'name=\(kind\|action\|return\|edit_[a-z]*\)$' | sort -u | tr '\n' ' '; }
+  | grep -o 'name=[a-z_]*$' | grep -v 'name=\(kind\|new\|action\|return\|edit_[a-z]*\)$' | sort -u | tr '\n' ' '; }
 # Both sides non-empty first, or two forms that asked nothing would agree.
 has "the service form asks for the fields a service has" \
   "$(asked "$SVCEDIT")" '^name=addr name=allow name=descr name=maintainers name=name name=protocol name=secret $'
 has "registering a service and editing one ask the same questions" \
   "$(asked "$SVCEDIT")" "^$(asked "$(curl -s -b "$JAR" "$WEB/services/new")")\$"
+# The same rule for the other two entities: a person and a group are added and
+# changed by one form each, on pages of their own.
+USERNEW=$(curl -s -b "$JAR" "$WEB/users/new")
+USEREDIT=$(curl -s -b "$JAR" "$WEB/user/edit?name=$(printf '%s' "$OWNER" | sed 's/@/%40/')")
+has "the profile form asks for the fields a person has" \
+  "$(asked "$USEREDIT")" '^name=company name=email name=github_user name=location name=name name=person_name name=twitter $'
+has "adding a person and editing one ask the same questions" \
+  "$(asked "$USEREDIT")" "^$(asked "$USERNEW")\$"
+GRPNEW=$(curl -s -b "$JAR" "$WEB/groups/new")
+GRPEDIT=$(curl -s -b "$JAR" "$WEB/group/edit?name=%40smoke-ops")
+has "the group form asks for the fields a group has" \
+  "$(asked "$GRPEDIT")" '^name=members name=name $'
+has "registering a group and editing one ask the same questions" \
+  "$(asked "$GRPEDIT")" "^$(asked "$GRPNEW")\$"
 # The form says whether it carried the owner-only fields. Without that flag a
 # save cannot change them, which is how a Maintainer's save leaves them alone.
 has "the owner's form states that it carries the sharing fields" \
