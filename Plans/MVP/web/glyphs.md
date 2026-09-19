@@ -29,28 +29,18 @@ The owner selected these human-facing symbols. Keep the word beside the glyph;
 URLs, JSON, ACL expressions and other editable or machine-readable values stay
 plain text.
 
-| Glyph | Unicode | Visible label | Meaning |
-|---|---|---|---|
-| 👤 | `U+1F464` | User | one registered person |
-| 👥 | `U+1F465` | Group | a group or team |
-| 👾 | `U+1F47E` | Agent | an agent, and the queue record it reads |
-| 📡 | `U+1F4E1` | Service | something external, not on this bus |
-| 🪪 | `U+1FAAA` | Identity | an identity as such, without asserting its entity type or credential |
-| 🔑 | `U+1F511` | Credentials | credentials used to prove an identity; never the secret value itself |
+The vocabulary itself &mdash; glyph, code point, name, meaning and whether it is
+built &mdash; lives in the [glossary](../../../docs/glossary.md#glyphs). This
+document owns placement, rendering and accessible behaviour, so a meaning
+changes in one place rather than two.
 
-`👾` labels an agent and the queue named after it. `📥 Inbox` held that row in
-0.5.84, while nothing distinguished an agent's record from a service's; `agent`
-becoming a stored [record kind](../../../docs/03-services-and-topics.md#five-record-kinds)
-removed the reason, and the owner restored `👾` on 2026-09-18, built in 0.6.1. Those records stay
-with the channels, which the same 0.5.84 decision settled and this does not
-touch. `📡` replaces `⚙️`, which stops labelling a record and stays with the
-daemon. The visible word remains on full labels, while compact directory rows
-carry the same word in their accessible label.
+`📥 Inbox` held the Agent row in 0.5.84, while nothing distinguished an agent's
+record from a service's; the owner restored `👾` on 2026-09-18, built in 0.6.1.
+Those records stay with the channels, which the same 0.5.84 decision settled and
+this does not touch. The visible word remains on full labels, while compact
+directory rows carry the same word in their accessible label.
 
-**Pending, planned in [0.6.0](../0.6.0-TODO.md#the-enum):** `📮` for a registered
-queue and `📣` for a pub/sub topic.
-
-User, Agent and Service are the implemented shared web/CLI entity labels. WEB
+User and Agent are the implemented shared web/CLI entity labels, and Service is `⚙️` until `📡` replaces it. WEB
 directory rows put their glyph directly before the identity name, and WEB group
 headings put Group directly before the group name; the surrounding page states
 the meanings in words. Identity and Credentials record the selected vocabulary;

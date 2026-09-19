@@ -25,23 +25,26 @@ unconfigured capability. Personal is an owner-selected
 
 ## Glyphs
 
-One glyph per meaning. [Web glyphs](../Plans/MVP/web/glyphs.md#identity-and-access-symbols) owns the
-code points and the rendering rules; this table owns the name.
+One glyph per meaning, and this table is where a meaning is fixed.
+[Web glyphs](../Plans/MVP/web/glyphs.md#the-rule-that-matters-most) owns where a
+glyph may appear, how it renders and what it must never carry on its own.
 
-| Glyph | Name | Means |
-|---|---|---|
-| 👤 | User | one registered person |
-| 👥 | Group | a group or team |
-| 👾 | Agent | an agent, and the queue named after it |
-| 📡 | Service | something external, not on this bus |
-| 🪪 | Identity | an identity as such, no entity type asserted |
-| 🔑 | Credentials | credentials proving an identity; never the secret value |
+| Glyph | Code point | Name | Means | |
+|---|---|---|---|---|
+| 👤 | `U+1F464` | User | one registered person | built |
+| 👥 | `U+1F465` | Group | a group or team | built |
+| 👾 | `U+1F47E` | Agent | an agent, and the queue named after it | built in 0.6.1 |
+| 🪪 | `U+1FAAA` | Identity | an identity as such, no entity type asserted | built |
+| 🔑 | `U+1F511` | Credentials | credentials proving an identity; never the secret value | built |
+| ⚙️ | `U+2699 U+FE0F` | Service | a service identity | built, and **retiring** |
+| 📡 | `U+1F4E1` | Service | something external, not on this bus | pending |
+| 📮 | `U+1F4EE` | Queue | a registered queue | pending |
+| 📣 | `U+1F4E3` | PubSub | a pub/sub topic | pending |
 
-**Pending, planned in [0.6.0](../Plans/MVP/0.6.0-TODO.md#the-enum):** `📮` for a
-registered queue and `📣` for a pub/sub topic, once
-[record kinds](03-services-and-topics.md#five-record-kinds) name them. `📥 Inbox`
-labelled an agent's record in 0.5.84 and is replaced by `👾`; `⚙️` stops labelling
-a record and stays with the daemon.
+Pending rows arrive with [five record kinds](03-services-and-topics.md#five-record-kinds)
+in [0.6.0](../Plans/MVP/0.6.0-TODO.md#the-enum), where `📡` takes Service from
+`⚙️` and `⚙️` stops labelling a record at all, staying with the daemon.
+`📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by `👾` in 0.6.1.
 
 ## Terms
 
