@@ -235,14 +235,15 @@ func TestDensePagesUseCardsAndImmediateHelpWithoutLosingActions(t *testing.T) {
 		t.Fatal(err)
 	}
 	for path, wants := range map[string][]string{
-		"/services/new":                 {`class="editor-card task-card"`, `class=form-grid`, `popovertarget=create-access-help`, `data-tooltip="One identity per line.`},
+		"/services/new":                 {`class="editor-card task-card"`, `class=form-grid`, `popovertarget=form-access-help`, `data-tooltip="One identity per line.`},
 		"/user?name=alice@h":            {`class=person-layout`, `class=person-sidebar`, `popovertarget=user-access-help`, `>Save profile</button>`, `name=company`, `name=location`, `name=twitter`},
 		"/groups":                       {`<table class="record-table group-table">`, `href="/group?name=%40administrators"`, `<th scope=col>Members</th>`},
 		"/group?name=%40administrators": {`class="editor-card group-card"`, `textarea name=members rows=8`, `>Save members</button>`},
 		"/":                             {`class=dashboard-section`, `popovertarget=overview-help`, `class=node-strip`},
 		"/diagnostics":                  {`class=dashboard-section`, `popovertarget=refusals-help`, `popovertarget=exchanges-help`},
 		"/account":                      {` Account</h1>`, `popovertarget=account-help`, `>Credentials</h2>`, `agent-bus-token admin@h --rotate`},
-		"/service?name=quiet@h":         {`class=service-dashboard`, `Queue &amp; counters`, `popovertarget=policy-help`, `summary id=settings>Edit settings`},
+		"/service?name=quiet@h":         {`class=service-dashboard`, `Queue &amp; counters`, `popovertarget=policy-help`, `id=settings class=editor-link`},
+		"/service/edit?name=quiet@h":    {`id=form-save`, `>Save settings</button>`, `popovertarget=form-access-help`},
 	} {
 		body := m.get(path)
 		for _, want := range wants {

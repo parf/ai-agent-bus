@@ -733,12 +733,19 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 		}
 	}
 
-	detail := m.get("/service?name=svc@h")
-	if !strings.Contains(detail, "class=fact-pill>👾 Agent") || !strings.Contains(detail, `<textarea name=allow rows=5>peer@h</textarea>`) {
-		t.Errorf("detail lost its label or plain ACL value: %s", detail)
+	if detail := m.get("/service?name=svc@h"); !strings.Contains(detail, "class=fact-pill>👾 Agent") {
+		t.Error("detail lost its label")
 	}
-	if strings.Contains(detail, `<textarea name=allow rows=5>📡`) || strings.Contains(detail, `<textarea name=allow rows=5>👾`) {
-		t.Error("a display glyph entered the editable ACL")
+	// The editable value is on the settings form, and it is the daemon's
+	// plain syntax there: the glyph belongs to the label above.
+	editor := m.get("/agent/edit?name=svc@h")
+	if !strings.Contains(editor, `<textarea name=allow rows=5 placeholder="agent@realm&#10;@group&#10;@owner&#10;*">peer@h</textarea>`) {
+		t.Errorf("the settings form lost its plain ACL value: %s", editorOf(t, editor))
+	}
+	for _, k := range protocol.Kinds {
+		if glyph := display.EntityGlyph(k); glyph != "" && strings.Contains(editorOf(t, editor), glyph) {
+			t.Errorf("a display glyph entered the editable settings form: %s", glyph)
+		}
 	}
 
 }
@@ -996,7 +1003,9 @@ func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 func TestACLFormsExplainRestrictedEmptyLists(t *testing.T) {
 	m := meaningFixture(t)
 	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "private@h", Owner: "admin@h"})
-	for _, page := range []string{"/services/new", "/service?name=private@h"} {
+	// Both halves of the one form: registering and editing ask the same
+	// question, so they carry the same explanation of it.
+	for _, page := range []string{"/services/new", "/agent/edit?name=private@h"} {
 		body := m.get(page)
 		if !strings.Contains(body, "Empty allows only the owner and assigned Maintainers.") || !strings.Contains(body, "shares with every admitted principal") {
 			t.Errorf("%s does not explain the restricted default and explicit sharing", page)

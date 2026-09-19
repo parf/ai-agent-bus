@@ -177,7 +177,7 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 	if !ok || !record.Personal || len(record.Maintainers) != 0 || strings.Join(record.Allow, " ") != "peer-service@h" {
 		t.Fatalf("atomic Personal enable: %+v", record)
 	}
-	page, _ := p.request("alice@h", "GET", "/agent?name=toggle%40h", nil, 200)
+	page, _ := p.request("alice@h", "GET", "/agent/edit?name=toggle%40h", nil, 200)
 	if strings.Count(page, `name=allow`) != 1 || strings.Contains(page, "Classification and sharing") {
 		t.Fatalf("Personal detail does not have one editor with one Allow door: %s", page)
 	}
@@ -203,7 +203,7 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 	// shown and disabled, and without the flags that would let a save carry
 	// them. Both halves are asserted: a page that dropped the fields would
 	// pass a check for the missing flags alone.
-	maintainer, _ := p.request("bob@h", "GET", "/agent?name=toggle%40h", nil, 200)
+	maintainer, _ := p.request("bob@h", "GET", "/agent/edit?name=toggle%40h", nil, 200)
 	if strings.Contains(maintainer, "edit_sharing") || strings.Contains(maintainer, "edit_personal") {
 		t.Fatalf("a Maintainer's form claims it may change classification and sharing: %s", maintainer)
 	}

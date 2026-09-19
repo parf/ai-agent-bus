@@ -133,8 +133,12 @@ func TestDashboardOwnerControls(t *testing.T) {
 	}
 	request("", "GET", "/services", "", nil, 401)
 	page := request("owner@h", "GET", "/service?name=svc@h", "", nil, 200)
-	if !strings.Contains(page, ">Save settings</button>") || !strings.Contains(page, `class=danger`) || !strings.Contains(page, `>Danger Zone</a>`) {
-		t.Fatal("owner detail is missing its routine editor or Danger Zone link")
+	if !strings.Contains(page, `>Edit settings</a>`) || !strings.Contains(page, `href="/agent/edit?name=svc%40h`) {
+		t.Fatal("owner detail is missing the way to its settings form")
+	}
+	editor := request("owner@h", "GET", "/agent/edit?name=svc@h", "", nil, 200)
+	if !strings.Contains(editor, ">Save settings</button>") || !strings.Contains(editor, `class=danger`) || !strings.Contains(editor, `>Danger Zone</a>`) {
+		t.Fatal("the settings form is missing its save or its Danger Zone link")
 	}
 	for _, hidden := range []string{"Replace configuration", "Transfer ownership", "Remove registration", "Remove idle service"} {
 		if strings.Contains(page, hidden) {
@@ -316,7 +320,7 @@ other@h</textarea>`) || strings.Contains(groupDetail, `<input name=members`) {
 	// fields of Edit settings, and a save states separately that it carried
 	// them so that a caller who may not edit them cannot clear them.
 	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"save"}, "name": {"svc@h"}, "edit_sharing": {"1"}, "maintainers": {"@ops\nadmin@h"}}, 303)
-	page = request("owner@h", "GET", "/service?name=svc@h", "", nil, 200)
+	page = request("owner@h", "GET", "/agent/edit?name=svc@h", "", nil, 200)
 	if !strings.Contains(page, `<textarea name=maintainers rows=5`) || !strings.Contains(page, `>@ops
 admin@h</textarea>`) {
 		t.Fatalf("Maintainers list did not round-trip through its line editor: %s", page)
@@ -331,7 +335,7 @@ admin@h</textarea>`) {
 		!strings.Contains(refusedMaintainers, ">owner@h</textarea>") {
 		t.Fatalf("a refused sharing edit did not recover into Edit settings with its lines intact: %s", refusedMaintainers)
 	}
-	page = request("other@h", "GET", "/service?name=svc@h", "", nil, 200)
+	page = request("other@h", "GET", "/agent/edit?name=svc@h", "", nil, 200)
 	if !strings.Contains(page, "Save settings") || !strings.Contains(page, "Danger Zone") || strings.Contains(page, "Transfer ownership") {
 		t.Fatal("maintainer controls wrong")
 	}

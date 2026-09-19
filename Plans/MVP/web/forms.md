@@ -7,14 +7,15 @@ rules all of them obey.
 
 | | |
 |---|---|
-| One concern per form | A form asks one question, and a Danger Zone journey is always its own ([C02](review/codex.md#junk-and-misleading-content)). **Record detail is the exception, on owner instruction 2026-09-19:** its settings, access, classification and Maintainers are one editor, because they are one decision about one record and splitting them put the same allow list behind two doors |
+| One concern per form | A form asks one question, and a Danger Zone journey is always its own ([C02](review/codex.md#junk-and-misleading-content)). **A record is the exception, on owner instruction 2026-09-19:** its settings, access, classification, Maintainers and credential are one editor, because they are one decision about one record and splitting them put the same allow list behind two doors |
+| Registering and editing are the same form | Owner instruction 2026-09-19. One field set per kind, rendered by both, so a field added for a kind appears on both by construction. They differ in what is already filled in, and in whether a field the caller may not change is disabled — never in which questions are asked. Add and Edit are each a page of their own, so each has an address, one shape, and one place to come back to when a field is refused |
 | A control the caller may not use is disabled, not hidden | Owner instruction 2026-09-19. A hidden field makes a page's shape depend on who is reading it; a disabled one shows what the record has and says who may change it. A disabled control submits nothing, so a form that may change such a field states so in a hidden flag of its own, and the daemon still decides ([web authority](../../../docs/11-processes.md#web-authority-boundary)) |
 | The form posts as the person | The web child has no write path of its own. It forwards the visitor's session and requires an exact matching Origin ([rules](../../../docs/05-discovery.md#rules-it-is-built-to)) |
 | The form's visibility is not the decision | The daemon authorizes at submission. A rendered control is a convenience, never a grant |
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
 | Never echo a secret | Not a token, not private configuration, not a service secret. The configuration and secret fields are always empty and `autocomplete=off`, including after a refusal |
 | A multi-line value is the bytes that were typed | A browser submits a textarea with CRLF whatever the page was served with. Where the daemon stores bytes as sent — a [service secret](../../../docs/06-services.md#secrets) — the face normalises them back, or a two-line credential is stored with a carriage return nobody typed |
-| A form asks only what its kind has | `/channels/new` has no fields of its own: a queue declares TTL, capacity and overflow, a pub/sub topic keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#subscribers) instead, so the section offers two forms and the page without a kind links to both |
+| A form asks only what its kind has | A 👾 and a 📮 hold an inbox, so they declare its TTL, capacity and overflow; a 📣 keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#subscribers) instead; a 📡 has no queue here and holds the one [secret](../../../docs/06-services.md#secrets) the daemon stores. `/channels/new` therefore has no fields of its own: the section offers two forms and the page without a kind links to both |
 | Success returns to what changed | The section that changed, with a specific result. Service and Channel registration and ordinary edits return to the affected resource; removal returns to the matching collection ([C06](review/codex.md#junk-and-misleading-content)) |
 | Only offer transitions that apply | Built in 0.5.79: active offers Pause/Ban, paused offers Activate/Ban and banned offers Activate only when daemon-returned authority permits it |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
@@ -86,11 +87,26 @@ the world moved between the question and the answer.
 | Sign in | Sign in | token; validated local return | the page asked for |
 | Sign out | shell | — | root |
 | Filter a list | Agents, Services, Channels, Users, Activity | GET only; search, view, state, kind, sort, page | the same list, filters in the URL |
-| Register an agent | `/agents/new` | name, description, allow | the new agent's page |
-| Register a service | `/services/new` | name, description, address, protocol, allow, secret (optional). The secret is a second call to its own verb, and is never repopulated | the new service's page |
-| Register a queue | `/channels/new?kind=queue` | name, description, allow, TTL, capacity, overflow | the new queue's page |
-| Register a pub/sub topic | `/channels/new?kind=pubsub` | name, description, allow, Deliver-To. It keeps nothing, so it declares no queue policy; allow is who may publish and Deliver-To is who receives | the new topic's page |
-| Edit settings | Agent, Service, Channel | description; address and protocol on a 📡 only; TTL, capacity and overflow on everything with a queue; one plain ACL term per textarea line, `@owner` plain syntax; Personal on a 👾; Maintainers. The last two are disabled unless the caller is the Owner or a daemon administrator | the identity section |
+| Register a 👾 agent | `/agents/new` | *the agent field set* | the new agent's page |
+| Edit a 👾 agent | `/agent/edit?name=` | *the same set, filled in* | its page |
+| Register a 📡 service | `/services/new` | *the service field set* | the new service's page |
+| Edit a 📡 service | `/service/edit?name=` | *the same set, filled in* | its page |
+| Register a 📮 queue | `/channels/new?kind=queue` | *the queue field set* | the new queue's page |
+| Register a 📣 topic | `/channels/new?kind=pubsub` | *the pub/sub field set* | the new topic's page |
+| Edit a 📮 or 📣 | `/channel/edit?name=` | *the same set, filled in* | its page |
+
+The field set, per kind. Name is asked once and never changes, so Edit carries
+it without offering it. Personal and Maintainers are disabled unless the caller
+is the Owner or a daemon administrator, and the secret field is never filled in
+again — on either form.
+
+| Field | 👾 | 📡 | 📮 | 📣 |
+|---|---|---|---|---|
+| name, description, allow list, Maintainers | ✓ | ✓ | ✓ | ✓ |
+| address, protocol, [secret](../../../docs/06-services.md#secrets) | | ✓ | | |
+| TTL, capacity, overflow | ✓ | | ✓ | |
+| [Deliver-To](../../../docs/04-messaging.md#subscribers) | | | | ✓ |
+| Personal | ✓ | | | |
 | Replace configuration | Service, Channel | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
 | Enable / Disable | Service, Channel | — | the identity section |
 | Transfer ownership | Service, Channel | new owner | **Danger Zone** only; **confirm**, then the identity section |

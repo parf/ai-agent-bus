@@ -2,6 +2,14 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.16 — 2026-09-19
+
+Registering a record and editing one are the same form: one field set per kind,
+rendered by both, each on a page of its own. A 👾 is now asked for the inbox
+policy it has and a 📣 is no longer asked for one it has not, a 📡 can be given
+its credential after registration, and every kind is offered Maintainers where
+it is registered.
+
 ## 0.6.15 — 2026-09-19
 
 A pub/sub topic carries two lists instead of one doing both jobs: its allow

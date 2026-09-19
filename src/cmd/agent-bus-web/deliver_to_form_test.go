@@ -9,18 +9,19 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// editor is the one record editor, from its summary to the end of its form.
-// The whole page will not do: the Deliver-To list is also printed above, so a
-// page-wide search for a name finds it whether or not the form offers it.
+// editorOf is the settings form on its own page, from the form element to the
+// end of it. The whole page will not do: the help popovers beside it name the
+// same fields, so a page-wide search finds a field whether or not the form
+// actually offers one.
 func editorOf(t *testing.T, page string) string {
 	t.Helper()
-	at := strings.Index(page, "id=settings>")
+	at := strings.Index(page, "id=form-save")
 	if at < 0 {
-		t.Fatal("the page has no record editor")
+		t.Fatal("the page has no settings form")
 	}
 	end := strings.Index(page[at:], "</form>")
 	if end < 0 {
-		t.Fatal("the record editor has no form")
+		t.Fatal("the settings form has no end")
 	}
 	return page[at : at+end]
 }
@@ -41,8 +42,7 @@ func TestTheRecordEditorCarriesTheDeliverToListBackAndForth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	page := m.get("/service?name=news@h")
-	editor := editorOf(t, page)
+	editor := editorOf(t, m.get("/channel/edit?name=news@h"))
 	// The fixture collapses whitespace, so the two lines arrive as one.
 	if !strings.Contains(editor, "reader@h @team</textarea>") {
 		t.Fatalf("the editor did not offer the stored list back: %s", editor)
@@ -95,7 +95,7 @@ func TestTheRecordEditorCarriesTheDeliverToListBackAndForth(t *testing.T) {
 func TestOnlyAPubSubEditorShowsDeliverToAndOtherKindsStillSave(t *testing.T) {
 	m := meaningFixture(t)
 	m.register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "admin@h", Descr: "Jobs", Allow: []string{"*"}})
-	editor := editorOf(t, m.get("/service?name=jobs@h"))
+	editor := editorOf(t, m.get("/channel/edit?name=jobs@h"))
 	if strings.Contains(editor, "name=subs") || strings.Contains(editor, "edit_subs") {
 		t.Fatal("a queue's editor offers a Deliver-To list")
 	}

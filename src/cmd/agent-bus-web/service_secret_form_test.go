@@ -165,3 +165,55 @@ func TestRegisteringAQueueCarriesTheQueuePolicyItDeclared(t *testing.T) {
 		t.Errorf("a topic came out carrying queue policy: %+v", topic)
 	}
 }
+
+// The settings form offers the credential too, because it is the same form:
+// a service registered without one, or with the wrong one, is changed where
+// every other field of it is changed. Empty leaves the stored bytes alone,
+// which is the only thing a field that is never filled in can mean.
+// See docs/06-services.md#secrets.
+func TestTheSettingsFormStoresASecretAndAnEmptyFieldKeepsTheStoredOne(t *testing.T) {
+	m := meaningFixture(t)
+	m.register(protocol.Record{Name: "vault@h", Kind: protocol.KindService, Owner: "admin@h", Addr: "host:1", Proto: "https", Allow: []string{"*"}})
+	settings := url.Values{
+		"action": {"save"}, "name": {"vault@h"}, "descr": {"Vault"},
+		"addr": {"host:1"}, "protocol": {"https"},
+		"edit_allow": {"1"}, "allow": {"*"},
+	}
+	first := url.Values{}
+	for k, v := range settings {
+		first[k] = v
+	}
+	first.Set("secret", "TOKEN=first\r\nSECOND=two")
+	m.post(t, "/service", first, 303)
+	stored, err := m.bus.Secret("vault@h", "admin@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored != "TOKEN=first\nSECOND=two" {
+		t.Fatalf("the stored bytes are %q", stored)
+	}
+
+	// A save that leaves the field empty is every other field changing.
+	kept := url.Values{}
+	for k, v := range settings {
+		kept[k] = v
+	}
+	kept.Set("descr", "Vault, renamed")
+	kept.Set("secret", "")
+	m.post(t, "/service", kept, 303)
+	if r, _ := m.bus.Lookup("admin@h", "vault@h"); r.Descr != "Vault, renamed" {
+		t.Fatalf("the description did not change: %q", r.Descr)
+	}
+	if stored, err = m.bus.Secret("vault@h", "admin@h"); err != nil || stored != "TOKEN=first\nSECOND=two" {
+		t.Fatalf("an empty field changed the stored credential to %q (%v)", stored, err)
+	}
+
+	// And the page never shows it again, before or after.
+	editor := m.get("/service/edit?name=vault@h")
+	if strings.Contains(editor, "TOKEN=first") || strings.Contains(editor, "SECOND=two") {
+		t.Fatal("the settings form filled the secret field back in")
+	}
+	if !strings.Contains(editor, "<textarea name=secret rows=4 autocomplete=off") {
+		t.Fatal("the settings form does not offer a secret field at all")
+	}
+}

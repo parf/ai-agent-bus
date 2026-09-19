@@ -2307,20 +2307,33 @@ has "a secret typed into the form is stored with the newline that was typed" \
   'A   =   o   n   e  \\n   B   =   t   w   o'
 lacks "and not with the carriage return the wire carried" \
   "$(tbody "$TOKEN" "/secret?name=webvault%40localhost" | od -c | head -2)" '\\r'
-# One editor holds every authorized setting. Asked of the fields, not of the
-# heading: a page that kept the fields in a second section would still have a
-# summary called Edit settings.
-has "the record editor is the only one the page offers" \
-  "$(printf '%s' "$SVCPAGE" | grep -o '<summary[^>]*>[^<]*</summary>' | wc -l | tr -d ' ')" '^1$'
-has "and it carries Maintainers" "$SVCPAGE" '<textarea name=maintainers'
-has "and the allow list beside them" "$SVCPAGE" '<textarea name=allow'
-lacks "classification and sharing has no section of its own" "$SVCPAGE" 'Classification and sharing'
+# The settings form is a page of its own, and it is the registration form with
+# the record already in it. The detail page links to it and holds no editor.
+lacks "the detail page carries no editor of its own" "$SVCPAGE" '<textarea name=allow'
+has "and links to the one that does" "$SVCPAGE" 'id=settings class=editor-link href="/service/edit?name=vault%40srv1'
+SVCEDIT=$(curl -s -b "$JAR" "$WEB/service/edit?name=vault%40srv1")
+has "the settings form carries Maintainers" "$SVCEDIT" '<textarea name=maintainers'
+has "and the allow list beside them" "$SVCEDIT" '<textarea name=allow'
+has "and the credential, which is a field of this kind like any other" \
+  "$SVCEDIT" '<textarea name=secret rows=4 autocomplete=off'
+lacks "while showing none of the stored bytes back" "$SVCEDIT" 'A=one\|B=two'
+lacks "classification and sharing has no section of its own" "$SVCEDIT" 'Classification and sharing'
+# Registering and editing are one form, so they ask one set of questions. The
+# comparison is of the field names inside each form, because a page that had
+# dropped a field would still have the heading above it.
+asked() { printf '%s' "$1" | sed 's/</\n</g' | grep -o '^<\(input\|textarea\|select\)[^>]*name=[a-z_]*' \
+  | grep -o 'name=[a-z_]*$' | grep -v 'name=\(kind\|action\|return\|edit_[a-z]*\)$' | sort -u | tr '\n' ' '; }
+# Both sides non-empty first, or two forms that asked nothing would agree.
+has "the service form asks for the fields a service has" \
+  "$(asked "$SVCEDIT")" '^name=addr name=allow name=descr name=maintainers name=name name=protocol name=secret $'
+has "registering a service and editing one ask the same questions" \
+  "$(asked "$SVCEDIT")" "^$(asked "$(curl -s -b "$JAR" "$WEB/services/new")")\$"
 # The form says whether it carried the owner-only fields. Without that flag a
 # save cannot change them, which is how a Maintainer's save leaves them alone.
 has "the owner's form states that it carries the sharing fields" \
-  "$SVCPAGE" '<input type=hidden name=edit_sharing value=1>'
+  "$SVCEDIT" '<input type=hidden name=edit_sharing value=1>'
 lacks "and that field is not disabled for the caller who may change it" \
-  "$SVCPAGE" '<textarea name=maintainers rows=5 disabled'
+  "$SVCEDIT" '<textarea name=maintainers rows=5 disabled'
 
 # Diagnostics and the registry catalogue on Agents, which is where a record
 # registered as one is listed (Plans/MVP/web/pages.md#overview).
