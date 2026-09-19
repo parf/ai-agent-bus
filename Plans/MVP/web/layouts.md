@@ -53,7 +53,7 @@ answer to *where am I* survives the collapse.
   This node  ⓘ                              ← labelled node-wide, always
   ┌──────────┬──────────────┬────────┬─────────┬─────────────┬───────────┬────────────┐
   │ Uptime   │ Services +   │ Queued │ Readers │ Calls,      │ Calls,    │ Calls,     │
-  │          │ Agents +     │        │         │ minute      │ hour      │ total      │
+  │          │ Inboxes +    │        │         │ minute      │ hour      │ total      │
   │     6d 4h│ Channels     │    604 │      12 │       1,204 │    58,003 │  4,910,220 │
   │          │          231 │        │         │             │           │            │
   └──────────┴──────────────┴────────┴─────────┴─────────────┴───────────┴────────────┘
@@ -110,9 +110,8 @@ decided here, which is why it is not built second.
 
   ┌──────────────────────────────────────────────────────────┐
   │ Search ▢─────────────────────  State [Any] Enabled Disabled│ surface-3
-  │ Kind All [Agent] Service                              │
   │ Sort[Queued ↓▾]                                  [Filter]│
-  │ 27 of 231 · kind: agent                        [Clear all]│
+  │ 27 of 231                                      [Clear all]│
   └──────────────────────────────────────────────────────────┘
 
    │  SERVICE                 OWNER         READER     QUEUED │  text-xs 600

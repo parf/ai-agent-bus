@@ -303,7 +303,8 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		{"/account", "<a class=account-link href=/account aria-current=page>", ""},
 		{"/service?name=service@h", "<a href=/services aria-current=page>", ""},
 		{"/service?name=second@h", "<a href=/services aria-current=page>", ""},
-		{"/service?name=agent@h", "<a href=/services aria-current=page>", ""},
+		// An inbox belongs to the Channels section, whichever route reaches it.
+		{"/service?name=agent@h", "<a href=/channels aria-current=page>", ""},
 		{"/channel?name=channel@h", "<a href=/channels aria-current=page>", ""},
 		{"/channel?name=other-channel@h", "<a href=/channels aria-current=page>", ""},
 		{"/service-danger?name=service@h", "<a href=/services aria-current=page>", ""},

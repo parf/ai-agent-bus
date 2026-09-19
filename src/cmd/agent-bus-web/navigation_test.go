@@ -103,9 +103,7 @@ func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
 				}
 			}
 			category := "All (30)</a>"
-			if tc.path == "/channels" {
-				category = "All channels (30)</a>"
-			} else if tc.path == "/personal" {
+			if tc.path == "/personal" {
 				category = "Personal (30)</a>"
 			}
 			if !strings.Contains(page, category) {
@@ -246,6 +244,9 @@ func TestSectionNavigationCountsOnlyCallerVisibleCategories(t *testing.T) {
 	m.register(protocol.Record{Name: "personal-mine@h", Owner: "viewer@h", Kind: "generic", Personal: true})
 	m.register(protocol.Record{Name: "personal-other@h", Owner: "other@h", Kind: "generic", Personal: true, Allow: []string{"viewer@h"}})
 	m.register(protocol.Record{Name: "jobs@h", Owner: "other@h", Kind: protocol.KindTopic, Mode: protocol.ModeQueue, Allow: []string{"viewer@h"}})
+	// An inbox counts with the channels, so the service totals beside it must
+	// not move when one is registered.
+	m.register(protocol.Record{Name: "bot@h", Owner: "other@h", Kind: "agent", Allow: []string{"viewer@h"}})
 
 	ordinary := m.as("viewer@h")
 	services := ordinary.get("/services?scope=my&state=inactive")
@@ -264,9 +265,15 @@ func TestSectionNavigationCountsOnlyCallerVisibleCategories(t *testing.T) {
 	if strings.Contains(services, "hidden@h") || strings.Contains(services, "Personal (2)") {
 		t.Error("service navigation counted a hidden or another owner's Personal record")
 	}
+	if strings.Contains(services, ">bot@h<") {
+		t.Error("an inbox was listed among the services")
+	}
 	channels := ordinary.get("/channels")
-	if !strings.Contains(channels, `aria-current=true class="">All channels (1)</a>`) || !strings.Contains(channels, `href="/channels/new" class="">Register channel</a>`) {
+	if !strings.Contains(channels, `aria-current=true class="">All (2)</a>`) || !strings.Contains(channels, `href="/channels/new" class="">Register channel or inbox</a>`) {
 		t.Error("channel section navigation or count is wrong")
+	}
+	if !strings.Contains(channels, ">bot@h<") || !strings.Contains(channels, ">jobs@h<") {
+		t.Error("the channels page does not hold both a channel and an inbox")
 	}
 }
 
@@ -327,7 +334,7 @@ func TestServiceListSearchKindSortAndCompactNames(t *testing.T) {
 	}
 	m.register(protocol.Record{Name: "alpha@h", Owner: "alice@h", Kind: "generic", Descr: "Billing API", Allow: []string{"admin@h"}})
 	time.Sleep(time.Millisecond)
-	m.register(protocol.Record{Name: "bot@h", Owner: "admin@h", Kind: "agent", Allow: []string{"admin@h"}})
+	m.register(protocol.Record{Name: "bot@h", Owner: "admin@h", Kind: "generic", Allow: []string{"admin@h"}})
 	time.Sleep(time.Millisecond)
 	m.register(protocol.Record{Name: "zeta@h", Owner: "admin@h", Kind: "generic", Descr: "Archive", Allow: []string{"admin@h"}})
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "alpha@h", Body: "one"}); err != nil {
@@ -352,12 +359,15 @@ func TestServiceListSearchKindSortAndCompactNames(t *testing.T) {
 		t.Fatal("case-insensitive owner search did not isolate its record")
 	}
 
-	agents := m.get("/services?kind=agent")
-	if !strings.Contains(agents, ">bot@h<") || strings.Contains(agents, ">alpha@h<") || !strings.Contains(agents, `aria-label="Kind filter"`) || !strings.Contains(agents, `aria-current=true>👾 Agent</a>`) {
-		t.Fatal("agent kind filter or its glyph label is wrong")
-	}
-	if row := m.row(agents, "bot@h"); strings.Count(row, ">bot@h<") != 1 {
+	if row := m.row(m.get("/services"), "bot@h"); strings.Count(row, ">bot@h<") != 1 {
 		t.Fatalf("service without a description has a duplicated visible name: %s", row)
+	}
+	// Services lists one kind, so it offers no control for narrowing to one.
+	if plain := m.get("/services"); strings.Contains(plain, `aria-label="Kind filter"`) {
+		t.Fatal("Services still offers a Kind filter for the single kind it lists")
+	}
+	if forced := m.get("/services?kind=agent"); !strings.Contains(forced, ">alpha@h<") {
+		t.Fatal("a kind query the Services page no longer offers still filtered it")
 	}
 
 	updated := m.get("/services?sort=updated")
@@ -369,15 +379,14 @@ func TestServiceListSearchKindSortAndCompactNames(t *testing.T) {
 		t.Fatal("queued sorting is not high to low with name ties")
 	}
 
-	state := m.get("/services?kind=agent&q=bot&scope=my&sort=queued&state=active")
+	state := m.get("/services?q=bot&scope=my&sort=queued&state=active")
 	for _, want := range []string{
 		`name=q value="bot"`,
 		`name=scope value="my"`,
 		`name=state value="active"`,
-		`name=kind value="agent"`,
 		`value=queued selected`,
-		`href="/services?kind=agent&amp;q=bot&amp;sort=queued&amp;state=active" class="">All`,
-		`href="/services?kind=agent&amp;q=bot&amp;scope=my&amp;sort=queued&amp;state=active" aria-current=true class="my-view">My`,
+		`href="/services?q=bot&amp;sort=queued&amp;state=active" class="">All`,
+		`href="/services?q=bot&amp;scope=my&amp;sort=queued&amp;state=active" aria-current=true class="my-view">My`,
 	} {
 		if !strings.Contains(state, want) {
 			t.Errorf("listing state lost %q", want)
@@ -394,11 +403,16 @@ func TestRegistrationLivesOnDedicatedSectionPages(t *testing.T) {
 		}
 	}
 
+	// Each registration page offers only what its listing shows, so a form
+	// cannot register a record that page would not then display.
 	service := m.get("/services/new")
-	if !strings.Contains(service, `name=kind value=generic`) || !strings.Contains(service, `name=kind value=agent`) || strings.Contains(service, `<select name=kind>`) {
-		t.Error("service registration does not use plain-valued Kind radios")
+	if !strings.Contains(service, `<input type=hidden name=kind value=generic>`) || strings.Contains(service, `name=kind value=agent`) {
+		t.Error("service registration still offers a kind the Services page does not list")
 	}
 	channel := m.get("/channels/new")
+	if !strings.Contains(channel, `name=kind value=topic`) || !strings.Contains(channel, `name=kind value=agent`) || strings.Contains(channel, `<select name=kind>`) {
+		t.Error("channel registration does not use plain-valued Kind radios")
+	}
 	if !strings.Contains(channel, `name=mode value=pubsub`) || !strings.Contains(channel, `name=mode value=queue`) || strings.Contains(channel, `<select name=mode>`) {
 		t.Error("channel registration does not use plain-valued Delivery radios")
 	}

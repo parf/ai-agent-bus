@@ -269,7 +269,7 @@ func cliEntityLabel(kind string) string {
 	// columns. An explicit zero-width variation selector gives both the same
 	// width model, keeping the next column aligned with ⚙️ Service.
 	if kind == "agent" {
-		return strings.Replace(label, "👾", "👾️", 1)
+		return strings.Replace(label, "📥", "📥️", 1)
 	}
 	return label
 }

@@ -1215,22 +1215,22 @@ ab owner@srv1 register human@srv1 --allow '*' --kind agent --descr $'first\nseco
 ab owner@srv1 send human@srv1 queued >/dev/null
 human=$(ab owner@srv1 ls -h --kind agent)
 has "human listing has table columns" "$human" '^NAME  *KIND  *OWNER  *READERS  *QUEUED  *DESCRIPTION$'
-has "human listing shows queue and flattens description" "$human" '^human@srv1  *👾️ Agent  *owner@srv1  *0  *1  *first second third$'
+has "human listing shows queue and flattens description" "$human" '^human@srv1  *📥️ Inbox  *owner@srv1  *0  *1  *first second third$'
 is_empty "human kind filter excludes service templates" "$(printf '%s\n' "$human" | grep '^looked@srv1 ')"
 has "human single lookup works with flag after name" \
-  "$(ab owner@srv1 ls human@srv1 -h)" '^human@srv1  *👾️ Agent  *owner@srv1  *0  *1  *first second third$'
+  "$(ab owner@srv1 ls human@srv1 -h)" '^human@srv1  *📥️ Inbox  *owner@srv1  *0  *1  *first second third$'
 abx human@srv1 consume --topic NeverArrives --wait 5s >"$D/human-reader" 2>&1 & HPID=$!
 for _ in $(seq 1 100); do
   human=$(ab owner@srv1 ls human@srv1 -h)
-  printf '%s\n' "$human" | grep -q '^human@srv1  *👾️ Agent  *owner@srv1  *1  *1 ' && break
+  printf '%s\n' "$human" | grep -q '^human@srv1  *📥️ Inbox  *owner@srv1  *1  *1 ' && break
   sleep 0.01
 done
-has "human listing counts a filtered reader" "$human" '^human@srv1  *👾️ Agent  *owner@srv1  *1  *1  *first second third$'
+has "human listing counts a filtered reader" "$human" '^human@srv1  *📥️ Inbox  *owner@srv1  *1  *1  *first second third$'
 kill "$HPID" 2>/dev/null; wait "$HPID" 2>/dev/null
 raw_human=$(ab owner@srv1 ls --kind agent)
 has "ordinary listing remains JSON" "$raw_human" '^\[.*"name":"human@srv1"'
 has "JSON retains the machine kind" "$raw_human" '"kind":"agent"'
-lacks "JSON contains no display glyph" "$raw_human" '👤\|👾\|⚙️'
+lacks "JSON contains no display glyph" "$raw_human" '👤\|📥\|⚙️'
 has "empty human listing is explicit" "$(ab owner@srv1 ls -h --kind no-such-kind)" '^No matching records\.$'
 human_error=$(ab owner@srv1 ls -h absent-entirely@srv1 2>&1)
 bad_exit "human missing lookup fails" "$?"
@@ -1242,10 +1242,10 @@ ab human@srv1 consume --wait 0s >/dev/null
 ab human@srv1 consume --wait 10s >"$D/human-reader" & HUMAN_READER=$!
 for _ in $(seq 1 100); do
   human=$(ab owner@srv1 ls -h human@srv1)
-  printf '%s\n' "$human" | grep -q '^human@srv1 *👾️ Agent *owner@srv1 *1 ' && break
+  printf '%s\n' "$human" | grep -q '^human@srv1 *📥️ Inbox *owner@srv1 *1 ' && break
   sleep .02
 done
-has "human listing reflects a waiting reader" "$human" '^human@srv1  *👾️ Agent  *owner@srv1  *1  *0'
+has "human listing reflects a waiting reader" "$human" '^human@srv1  *📥️ Inbox  *owner@srv1  *1  *0'
 ab owner@srv1 send human@srv1 unblock >/dev/null
 wait "$HUMAN_READER"
 
@@ -2014,7 +2014,7 @@ has "Overview carries the node strip" "$NODE" '<div class=node-strip>'
 has "the strip reports sampled minute calls" "$NODE" '<span>Calls, minute</span><strong>[0-9]'
 has "the strip reports sampled hour calls" "$NODE" '<span>Calls, hour</span><strong>[0-9]'
 has "the strip reports total calls" "$NODE" '<span>Calls, total</span><strong>[0-9]'
-has "the strip names the kinds its record count sums" "$NODE" '<span>Services + Agents + Channels</span>'
+has "the strip names the kinds its record count sums" "$NODE" '<span>Services + Inboxes + Channels</span>'
 lacks "and no longer calls that sum Records" "$NODE" '<span>Records</span>'
 lacks "the signed-in footer does not repeat the counts" \
   "$(printf '%s' "$PAGE" | grep 'class=footer-node')" 'Calls'
@@ -2043,6 +2043,20 @@ ORDGRP=$(curl -s -b "$JAR" "$WEB/group?name=%40smoke-ops")
 has "the ordinary group page renders, so the next check can fail" "$ORDGRP" '<code>@smoke-ops</code>'
 lacks "an ordinary group claims no authority of its own" "$ORDGRP" 'What membership grants'
 # Root is Overview and is allowed to be short; the retained envelopes are on
+# An agent's record is the queue it reads, not something it serves, so it is
+# listed with the channels and labelled Inbox
+# (docs/04-messaging.md#inbox-queues, docs/03-services-and-topics.md#service-kinds).
+ab "$OWNER" topic create smoke-chan@srv1 --allow '*' --descr "a registered channel" >/dev/null
+CHANS=$(curl -s -b "$JAR" "$WEB/channels")
+has "an agent's record is listed with the channels" "$CHANS" 'href="/channel?name=human%40srv1'
+has "and the row says what it is" "$CHANS" '<td data-label=Type>📥 Inbox'
+lacks "and it is not listed among the services" \
+  "$(curl -s -b "$JAR" "$WEB/services")" 'class=record-name href="/service?name=human%40srv1'
+has "a registered channel is still named a channel" \
+  "$(curl -s -b "$JAR" "$WEB/channels?kind=topic")" '<td data-label=Type>Channel'
+lacks "which the Inbox filter excludes" \
+  "$(curl -s -b "$JAR" "$WEB/channels?kind=agent")" '<td data-label=Type>Channel'
+
 # Diagnostics and the registry catalogue on Services
 # (Plans/MVP/web/pages.md#overview).
 DIAG=$(curl -s -b "$JAR" "$WEB/diagnostics")

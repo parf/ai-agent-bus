@@ -41,7 +41,7 @@ func titleMark(category string) template.HTML {
 	case "credentials":
 		return `<span class=page-title-mark aria-hidden=true>🔑</span>`
 	case "agent":
-		return `<span class=page-title-mark aria-hidden=true>👾</span>`
+		return `<span class=page-title-mark aria-hidden=true>📥</span>`
 	case "channels", protocol.KindTopic:
 		return channel
 	case "activity":
@@ -152,6 +152,23 @@ func entityLabel(kind string) string {
 	return display.Entity(kind)
 }
 
+// channelRecord reports whether a record belongs with the channels rather than
+// the services. An agent's record carries no address and no protocol, so
+// nothing is served from it: messaging § inbox queues defines it as an implicit
+// queue topic named after the agent, and the dashboard lists it accordingly.
+func channelRecord(kind string) bool {
+	return kind == protocol.KindTopic || kind == "agent"
+}
+
+// deliveryMode is the mode a record delivers by. An inbox stores none, and an
+// absent mode is not a third kind of delivery: it is the queue the agent reads.
+func deliveryMode(record protocol.Record) string {
+	if record.Mode == "" {
+		return protocol.ModeQueue
+	}
+	return record.Mode
+}
+
 func entityGlyph(kind string) string {
 	return display.EntityGlyph(kind)
 }
@@ -191,7 +208,7 @@ type attention struct {
 
 func recordHref(r protocol.Record) string {
 	path := "/service"
-	if r.Kind == protocol.KindTopic {
+	if channelRecord(r.Kind) {
 		path = "/channel"
 	}
 	return path + "?name=" + url.QueryEscape(r.Name)

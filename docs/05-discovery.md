@@ -135,12 +135,12 @@ what the daemon permits. “All” means all visible to that visitor.
 
 | Tab | Required functionality |
 |---|---|
-| Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal services, which have their own tab. Administrative availability and reader observation are distinct facts |
+| Registered services | My / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal services, which have their own tab, and from 0.5.84 excludes agent inboxes, which are not services and are listed with the channels. Administrative availability and reader observation are distinct facts |
 | Personal services | Owner-tagged services grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
 | Users | List and details; add, edit, activate, pause and ban; show caller-visible owned records, linked group membership and administrative authority. The directory opens on active users; **Active**, **Inactive**, **Banned** and **All states** are counted filters, and a state other than active is marked beside the name rather than in a column of its own. Applicable daemon-authorized actions sit behind **Change**. Ban and unused-credential removal use consequence confirmations |
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
-| Registered pub/sub channels | List and details for pub/sub and queue topics; create, edit and remove; subscriptions, owner, Maintainers list, permissions, TTL, capacity and overflow policy |
+| Registered pub/sub channels | List and details for pub/sub and queue topics; create, edit and remove; subscriptions, owner, Maintainers list, permissions, TTL, capacity and overflow policy. **From 0.5.84 the page also lists agent inboxes**, which [messaging](04-messaging.md#inbox-queues) defines as implicit queue topics; a Kind filter separates Channel from Inbox |
 
 The [Personal Services view](03-services-and-topics.md#personal-and-shared) is built.
 
@@ -176,9 +176,15 @@ and uses tabular figures. Prose-embedded counts remain part of their sentence.
 ### Service and channel journeys
 
 **Built in 0.5.78.** Services and Channels share the compact registry frame but
-answer different questions. Services identify a daemon-stated Service or Agent
-and show queued inbox work. Channels have their own document title, heading,
-canonical `/channel` detail link and delivery-mode filter.
+answer different questions. Services identify a daemon-stated Service and show
+queued inbox work. Channels have their own document title, heading, canonical
+`/channel` detail link and delivery-mode filter.
+
+**From 0.5.84 Channels also lists agent inboxes** and states each row's kind in
+a Type column, with a Kind filter separating Channel from Inbox. An inbox stores
+no delivery mode and reads and filters as a queue, which is what
+[inbox queues](04-messaging.md#inbox-queues) defines it to be. Services holds
+`generic` records alone and no longer offers a Kind filter.
 
 Channel rows state **Queue · one at a time** or **Pub/sub · copy to each**. The
 single **Work** column is mode-aware: a queue reports messages held for a
@@ -281,7 +287,7 @@ makes no health claim, because it now makes no claim.
 
 The node strip is node-wide. **From 0.5.82 it also carries the call counters**
 moved out of the shared footer, and the count of registered records is labelled
-`Services + Agents + Channels` because it sums every kind
+`Services + Inboxes + Channels` because it sums every kind
 ([status](#what-a-node-says-about-itself)). **When the page was generated is
 stated once, in the shared footer**, and there is no Refresh link: both were
 owner decisions at 0.5.83, and the footer is on every page, so every page is
@@ -627,7 +633,7 @@ owns the installed exercise and mutation checks.
 | Label | Entity |
 |---|---|
 | 👤 User | Registered person |
-| 👾 Agent | Agent identity |
+| 📥 Inbox | An agent's inbox. The principal is an agent; the record is the queue it reads, so the label names the record |
 | ⚙️ Service | Service identity |
 | 👥 Group | Group or team |
 

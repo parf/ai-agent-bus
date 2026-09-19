@@ -22,6 +22,9 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 	}
 	m.register(protocol.Record{Name: "alice-service@h", Owner: "alice@h", Kind: "generic"})
 	m.register(protocol.Record{Name: "alice-channel@h", Owner: "alice@h", Kind: protocol.KindTopic, Allow: []string{"@ops"}})
+	// An inbox beside a service under one owner, so the route each owned
+	// record links to is a claim about its kind and not about the list.
+	m.register(protocol.Record{Name: "alice-inbox@h", Owner: "alice@h", Kind: "agent"})
 	m.register(protocol.Record{Name: "outer-service@h", Owner: "admin@h", Kind: "generic", Allow: []string{"@outer"}})
 	m.register(protocol.Record{Name: "agent@h", Owner: "admin@h", Kind: "agent"})
 	if _, err := m.tokens.Issue("agent@h"); err != nil {
@@ -30,7 +33,7 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 
 	active := m.get("/user?name=alice@h")
 	activeMain := section(t, active, "<main>", "</main>")
-	for _, want := range []string{`href="/group?name=%40ops"`, ">Owned records</h2>", `href="/channel?name=alice-channel%40h"`, `href="/service?name=alice-service%40h"`, `user-state-active`, `<details class=access-change>`, `>Change</summary>`, ">Pause</button>", ">Ban…</button>"} {
+	for _, want := range []string{`href="/group?name=%40ops"`, ">Owned records</h2>", `href="/channel?name=alice-channel%40h"`, `href="/service?name=alice-service%40h"`, `href="/channel?name=alice-inbox%40h"`, `user-state-active`, `<details class=access-change>`, `>Change</summary>`, ">Pause</button>", ">Ban…</button>"} {
 		if !strings.Contains(activeMain, want) {
 			t.Errorf("active user detail lacks %q", want)
 		}

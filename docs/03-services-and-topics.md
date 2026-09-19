@@ -14,6 +14,13 @@ The registry stores agents, generic descriptions and topics. A description may
 point to something that knows nothing about the bus. A script service is
 registered by its launcher and served by the foreground runner.
 
+**An agent's record is an inbox, not a service.** It carries no `addr` and no
+`protocol`, so nothing is served from it: a message sent to the name waits until
+the agent reads it. [Messaging](04-messaging.md#inbox-queues) calls that an
+implicit queue topic named after the agent, which is why the dashboard lists
+these records with the channels and labels them `📥 Inbox` rather than showing
+them among the services.
+
 Publishing and consuming are operations a principal performs; they do not
 require a separate service kind or capability-expression engine.
 

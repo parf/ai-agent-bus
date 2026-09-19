@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.84 — 2026-09-18
+
+A record of kind `agent` is an Inbox, not a service: it carries no address and
+no protocol, and messaging already defines it as an implicit queue topic named
+after the agent. Inboxes move to the Channels page, which gains a Type column
+and a Kind filter and reads an inbox as a queue; Services holds services alone
+and drops its Kind filter. `👾 Agent` becomes `📥 Inbox` in the web and CLI
+labels, and each registration page now offers only what its listing shows.
+
 ## 0.5.83 — 2026-09-18
 
 Move the page's generation time to the shared footer and drop the Overview

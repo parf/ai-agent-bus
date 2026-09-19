@@ -160,6 +160,16 @@ is queued. One table answering both is what buried delivery mode
 ([C03](review/codex.md#junk-and-misleading-content)). Since 0.5.78 each page has
 its own document title, heading, navigation state, columns and detail route.
 
+**0.5.84: an agent's record is an inbox and belongs to the channels page.** It
+carries no address and no protocol, so nothing is served from it; the
+[messaging rule](../../../docs/04-messaging.md#inbox-queues) already calls it an
+implicit queue topic named after the agent, and listing it under Services
+contradicted that. Services now holds `generic` records alone and drops its
+Kind filter, which had one remaining value. Channels holds two kinds, so it
+gains the Kind column and filter the Kind row below requires, and an inbox reads
+as a queue wherever delivery mode is asked for &mdash; it stores no mode, and an
+absent mode is not a third kind of delivery.
+
 | Column | Decision |
 |---|---|
 | Description, then full routing name beneath | **new + keep.** Identification is by address only today; the description exists on records and is how a session is recognised ([C01](review/codex.md#junk-and-misleading-content)). The full name stays because it disambiguates sessions — demote by task, never drop |
@@ -178,7 +188,7 @@ its own document title, heading, navigation state, columns and detail route.
 | `In` / `Out` | **move** to detail, **relabelled** accepted / dequeued. Dequeued is not completed |
 
 **Section navigation:** All (`#`) · My (`#`) · Personal (`#`) · Register
-service, or All channels · Register channel. It is the second row beneath the
+service, or All (`#`) · Register channel or inbox. It is the second row beneath the
 global navigation and follows the shared
 [section-navigation rule](information-architecture.md#navigation). All and My
 exclude Personal services, preserving the accepted dedicated Personal grouping;
@@ -360,7 +370,11 @@ or to replace the consequence text.
 
 A dedicated page reached from the section's second-level navigation, not a form
 stapled beneath a list. Fields: name, description, kind or delivery mode,
-initial allow list. A choice with only two or three values uses radio buttons.
+initial allow list. **From 0.5.84 each page registers only what it lists**:
+`/services/new` registers a service and offers no kind choice, and
+`/channels/new` chooses between a channel &mdash; with its delivery mode &mdash;
+and an inbox. A form that registered a record the page could not then show was
+the reclassification's loose end. A choice with only two or three values uses radio buttons.
 Help beside the name field states the
 `user@realm` shape; help beside allow follows the
 [ACL contract](../../../docs/02-access.md#acl). The form explains the built restricted default and runtime

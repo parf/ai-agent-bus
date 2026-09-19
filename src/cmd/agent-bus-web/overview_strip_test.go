@@ -33,15 +33,26 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	strip := section(t, overview, "<div class=node-strip>", "</div></div>")
 
 	// One label for the three kinds it sums, because a reader comparing it
-	// with the Services and Channels pages must know an Agent is in it too.
-	if !strings.Contains(strip, "<span>Services + Agents + Channels</span>") {
+	// with the Services and Channels pages must know an Inbox is in it too.
+	if !strings.Contains(strip, "<span>Services + Inboxes + Channels</span>") {
 		t.Errorf("the record count does not name the kinds it sums: %s", strip)
+	}
+	// The figures are read down a column, so they are ranged right in tabular
+	// numerals: the owner asked for it after reading them centred.
+	if !strings.Contains(overview, ".node-fact strong{") {
+		t.Fatal("the node-fact figure rule is gone, so the next check cannot fail")
+	}
+	figure := section(t, overview, ".node-fact strong{", "}")
+	for _, want := range []string{"text-align:right", "font-variant-numeric:tabular-nums"} {
+		if !strings.Contains(figure, want) {
+			t.Errorf("the strip figures are not ranged right by place value: %q lacks %q", figure, want)
+		}
 	}
 	if strings.Contains(strip, "<span>Records</span>") {
 		t.Error("the strip still calls the sum Records without saying what a record is here")
 	}
 	// Three kinds registered, and the count is all of them.
-	if !strings.Contains(strip, "<span>Services + Agents + Channels</span><strong>3</strong>") {
+	if !strings.Contains(strip, "<span>Services + Inboxes + Channels</span><strong>3</strong>") {
 		t.Errorf("the count is not the whole registry: %s", strip)
 	}
 
@@ -80,15 +91,15 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	// are rows on Services, so naming one among the filtered pages would
 	// send a reader to a destination the menu does not have.
 	for _, item := range navItems {
-		if item.Label == "Agents" {
-			t.Fatal("there is an Agents section now, so this check and the help both need rewriting")
+		if item.Label == "Agents" || item.Label == "Inboxes" {
+			t.Fatal("there is a section for inboxes now, so this check and the help both need rewriting")
 		}
 	}
-	if !strings.Contains(help, "Agents are listed with Services.") {
-		t.Errorf("the node help does not say where the Agents in its count are listed: %s", help)
+	if !strings.Contains(help, "Inboxes are listed with Channels.") {
+		t.Errorf("the node help does not say where the Inboxes in its count are listed: %s", help)
 	}
-	if strings.Contains(help, "Agents, Channels and Users pages") || strings.Contains(help, "Agents page") {
-		t.Errorf("the node help sends a reader to an Agents page that does not exist: %s", help)
+	if strings.Contains(help, "Inboxes page") || strings.Contains(help, "Agents page") {
+		t.Errorf("the node help sends a reader to a page that does not exist: %s", help)
 	}
 	if !strings.Contains(help, "Calls") {
 		t.Errorf("the node help does not explain the call counters it now sits beside: %s", help)

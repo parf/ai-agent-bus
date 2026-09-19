@@ -656,7 +656,7 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	body := m.get("/users")
 	for _, kind := range []struct{ name, says string }{
 		{"person@h", `aria-label="👤 User">👤</span> <a`},
-		{"named@h", `aria-label="👾 Agent">👾</span> <a`},
+		{"named@h", `aria-label="📥 Inbox">📥</span> <a`},
 		{"junk@h", "<td>Credential with no registered name</td>"},
 	} {
 		if !strings.Contains(m.row(body, kind.name), kind.says) {
@@ -670,7 +670,7 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	// with a slash in it is a runtime session on this bus and is a registered
 	// name like any other.
 	m.own("claude/one@h")
-	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, "<td>Registered name</td>") || !strings.Contains(row, `aria-label="👾 Agent">👾</span> <a`) {
+	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, "<td>Registered name</td>") || !strings.Contains(row, `aria-label="📥 Inbox">📥</span> <a`) {
 		t.Error("a slashed name is not named the same way as any other record")
 	}
 	if strings.Contains(m.get("/users"), "Unclassified") {
@@ -695,19 +695,20 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 		t.Errorf("directory filter mixed its displayed label into the URL value: %s", users)
 	}
 
-	services := m.get("/services")
-	for name, want := range map[string]string{"svc@h": "⚙️ Service", "bot@h": "👾 Agent"} {
-		if row := m.row(services, name); !strings.Contains(row, want) {
-			t.Errorf("%s has no %q label: %s", name, want, row)
-		}
+	if row := m.row(m.get("/services"), "svc@h"); !strings.Contains(row, "⚙️ Service") {
+		t.Errorf("svc@h has no service label: %s", row)
 	}
-	create := m.get("/services/new")
-	for _, plain := range []string{`name=kind value=generic`, `name=kind value=agent`} {
+	// The inbox is labelled where it is listed, which is with the channels.
+	if row := m.row(m.get("/channels"), "bot@h"); !strings.Contains(row, "📥 Inbox") {
+		t.Errorf("bot@h has no inbox label: %s", row)
+	}
+	create := m.get("/channels/new")
+	for _, plain := range []string{`name=kind value=topic`, `name=kind value=agent`} {
 		if !strings.Contains(create, plain) {
 			t.Errorf("create form does not keep a plain kind value beside %q", plain)
 		}
 	}
-	if !strings.Contains(create, "⚙️ Service") || !strings.Contains(create, "👾 Agent") || strings.Contains(create, `value="⚙️`) || strings.Contains(create, `value="👾`) {
+	if !strings.Contains(create, "📥 Inbox") || strings.Contains(create, `value="📥`) {
 		t.Error("a display glyph entered a form value")
 	}
 
@@ -805,9 +806,16 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 	}
 	// And the caller's own record is theirs to manage, whoever they are, so
 	// the check above is about authority rather than about rank.
+	// Registering a user creates that user's own inbox (core/users.go), which
+	// is listed with the channels rather than the services.
 	plain := m.as("plain@h")
-	if row := m.row(plain.get("/services"), "plain@h"); !strings.Contains(row, `class="record-name-cell owned-record"`) || strings.Contains(row, "Yours") || !strings.Contains(plain.get("/service?name=plain@h"), `id=settings`) {
+	if row := m.row(plain.get("/channels"), "plain@h"); !strings.Contains(row, `class="record-name-cell owned-record"`) || strings.Contains(row, "Yours") || !strings.Contains(plain.get("/channel?name=plain@h"), `id=settings`) {
 		t.Error("an ordinary caller is offered no control over their own record")
+	}
+	// The signed-in identity is named in the header of every page, so absence
+	// is asked of the listing's own row link.
+	if strings.Contains(plain.get("/services"), `class=record-name href="/service?name=plain%40h`) {
+		t.Error("a user's own inbox is still listed among the services")
 	}
 }
 

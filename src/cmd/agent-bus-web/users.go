@@ -49,7 +49,7 @@ func recordPath(name string, kinds map[string]string) string {
 
 func recordKindPath(name, kind string) string {
 	path := "/service"
-	if kind == protocol.KindTopic {
+	if channelRecord(kind) {
 		path = "/channel"
 	}
 	return path + "?name=" + url.QueryEscape(name)

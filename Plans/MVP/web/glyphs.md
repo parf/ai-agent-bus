@@ -33,17 +33,19 @@ plain text.
 |---|---|---|---|
 | 👤 | `U+1F464` | User | one registered person |
 | 👥 | `U+1F465` | Group | a group or team |
-| 👾 | `U+1F47E` | Agent | an agent identity |
+| 📥 | `U+1F4E5` | Inbox | the queue record an agent reads |
 | ⚙️ | `U+2699 U+FE0F` | Service | a service identity |
 | 🪪 | `U+1FAAA` | Identity | an identity as such, without asserting its entity type or credential |
 | 🔑 | `U+1F511` | Credentials | credentials used to prove an identity; never the secret value itself |
 
-`👾` is owner-selected for Agent. Its common uses also include games and bugs;
-inside AgentBus human output it means Agent only. The visible word remains on
-full labels, while compact directory rows carry the same word in their
-accessible label.
+`📥` is owner-selected for Inbox, replacing the `👾` chosen for Agent on
+2026-09-17. The label names the record, not the principal: the principal is an
+agent, and the record is the queue it reads
+([service kinds](../../../docs/03-services-and-topics.md#service-kinds)). The
+visible word remains on full labels, while compact directory rows carry the same
+word in their accessible label.
 
-User, Agent and Service are the implemented shared web/CLI entity labels. WEB
+User, Inbox and Service are the implemented shared web/CLI entity labels. WEB
 directory rows put their glyph directly before the identity name, and WEB group
 headings put Group directly before the group name; the surrounding page states
 the meanings in words. Identity and Credentials record the selected vocabulary;
@@ -61,7 +63,7 @@ already supplies its name.
 |---|---|
 | Overview | 🏠 |
 | Services and generic-service detail | ⚙️ Service |
-| Agent detail | 👾 Agent |
+| Inbox detail | 📥 Inbox |
 | Channels and channel detail | a small inline channel SVG |
 | Activity | a small inline graph SVG |
 | Users | 👤 User |
