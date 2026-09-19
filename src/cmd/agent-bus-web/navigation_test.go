@@ -513,3 +513,36 @@ func TestServiceSectionCountsReuseTheSingleListAnswer(t *testing.T) {
 		t.Fatalf("service page returned %d with %d /ls calls, want 200 and one", page.StatusCode, lists.Load())
 	}
 }
+
+// The two marked authorities are marked where a person reads them, not only
+// where the label is built: the directory's Authority cell, the person page,
+// the signed-in account, and the record detail that names its maintainers.
+func TestTheMarkedAuthoritiesAreMarkedOnEveryPageThatStatesThem(t *testing.T) {
+	m := meaningFixture(t)
+	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	m.register(protocol.Record{Name: "kept@h", Owner: "admin@h", Allow: []string{"alice@h"}})
+	maintainers := protocol.MaintainerList{"alice@h"}
+	if _, err := m.bus.Manage("admin@h", core.Management{Name: "kept@h", Maintainers: &maintainers}); err != nil {
+		t.Fatal(err)
+	}
+	owner := m.as("admin@h")
+	if row := m.row(owner.get("/users"), "admin@h"); !strings.Contains(row, "🔱 Daemon owner") {
+		t.Errorf("the directory Authority cell does not mark the daemon owner: %s", row)
+	}
+	if row := m.row(owner.get("/users"), "alice@h"); strings.Contains(row, "🔱") {
+		t.Error("an ordinary user carries the daemon owner's mark")
+	}
+	for _, page := range []string{"/user?name=admin%40h", "/account"} {
+		if got := owner.get(page); !strings.Contains(got, "🔱 Daemon owner") {
+			t.Errorf("%s does not mark the daemon owner", page)
+		}
+	}
+	if got := owner.get("/user?name=alice%40h"); strings.Contains(got, "🔱") {
+		t.Error("an ordinary user's page carries the daemon owner's mark")
+	}
+	if got := owner.get("/service?name=kept%40h"); !strings.Contains(got, "👮 Maintainers: alice@h") {
+		t.Error("the record detail does not mark its maintainers")
+	}
+}

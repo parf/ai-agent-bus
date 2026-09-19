@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 — 2026-09-18
+
+The daemon owner is marked `🔱` in the user directory, on a person's page and
+on the signed-in account, and a record's Maintainers are marked `👮` on its
+detail. No other role is marked.
+
 ## 0.6.1 — 2026-09-18
 
 A pub/sub copy a disabled subscriber cannot take is counted as that

@@ -641,13 +641,20 @@ owns the installed exercise and mutation checks.
 gives a queue, a pub/sub topic and an external service each a kind of their own,
 after which a label names a stored kind rather than an inference.
 
-These glyphs label entity types, not authority or health. Directory rows put the
+These glyphs label entity types, not health. Directory rows put the
 glyph directly before the identity name: `👤 chief@srv1`. The directory's
 headings, authority column and introductory key carry the words, so the row does
 not repeat `👤 User` underneath the same name. Group headings use the same compact
 form: `👥 @group`. Other contexts keep the visible type word beside the glyph.
-Owner, Administrator, Maintainer and Member remain separate
-[role labels](01-identity-and-roles.md#role-names-and-scopes). Use the identity
+
+**Two authorities carry a mark of their own**, added in 0.6.2: `🔱` beside the
+daemon owner and `👮` beside a record's Maintainers. They are the exception that
+the no-glyph default allows rather than a second vocabulary: a node has exactly
+one daemon owner and a record states its maintainers once, so neither mark can
+spread across rows and become a column heading. A daemon administrator, a record
+Owner and a Member stay words, because those can be many. All of them remain
+[role labels](01-identity-and-roles.md#role-names-and-scopes) rather than entity
+types. Use the identity
 and record facts returned by the daemon rather than guessing type from a name.
 This vocabulary is for displayed labels; it does not rename API kinds, alter
 JSON output or prescribe MCP output.

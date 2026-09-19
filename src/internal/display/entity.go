@@ -3,7 +3,30 @@
 // plain machine vocabulary from internal/protocol.
 package display
 
-const GroupGlyph = "👥"
+const (
+	GroupGlyph = "👥"
+	// DaemonOwnerGlyph and MaintainerGlyph are the two authorities that carry
+	// one. Every other role stays a word: the node has exactly one daemon
+	// owner and a record names its maintainers once, so neither mark can
+	// spread far enough to become a column heading — which is the whole
+	// reason the default is no glyph (Plans/MVP/web/glyphs.md#the-rule-that-matters-most).
+	DaemonOwnerGlyph = "🔱"
+	MaintainerGlyph  = "👮"
+)
+
+// Authority labels what a person is on this node. Only the daemon owner is
+// marked; a daemon administrator and an ordinary user are words, because the
+// mark is for the one authority that cannot be delegated.
+func Authority(daemonOwner, administrator bool) string {
+	switch {
+	case daemonOwner:
+		return DaemonOwnerGlyph + " Daemon owner"
+	case administrator:
+		return "Daemon administrator"
+	default:
+		return "User"
+	}
+}
 
 // EntityGlyph returns the glyph for a daemon-stated entity kind. Unknown and
 // absent kinds stay unmarked; callers must not infer a kind from the name.

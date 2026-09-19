@@ -145,6 +145,12 @@ func registrationUpdated(at time.Time) string {
 	return registrationUpdatedAt(at, time.Now())
 }
 
+// authorityLabel is display.Authority for templates, which cannot call a
+// two-argument function on fields of different structs any other way.
+func authorityLabel(daemonOwner, administrator bool) string {
+	return display.Authority(daemonOwner, administrator)
+}
+
 func entityLabel(kind string) string {
 	if kind == protocol.KindTopic {
 		return "Channel"

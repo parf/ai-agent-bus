@@ -25,7 +25,9 @@ unconfigured capability. Personal is an owner-selected
 
 ## Glyphs
 
-One glyph per meaning, and this table is where a meaning is fixed.
+One glyph per meaning, and this table is where a meaning is fixed. Most rows
+name an entity type; `🔱` and `👮` name an authority, which is allowed because
+neither can appear often enough to become a column heading.
 [Web glyphs](../Plans/MVP/web/glyphs.md#the-rule-that-matters-most) owns where a
 glyph may appear, how it renders and what it must never carry on its own.
 
@@ -36,6 +38,8 @@ glyph may appear, how it renders and what it must never carry on its own.
 | 👾 | `U+1F47E` | Agent | an agent, and the queue named after it | built in 0.6.1 |
 | 🪪 | `U+1FAAA` | Identity | an identity as such, no entity type asserted | built |
 | 🔑 | `U+1F511` | Credentials | credentials proving an identity; never the secret value | built |
+| 🔱 | `U+1F531` | Daemon owner | the one authority on a node that cannot be delegated | built in 0.6.2 |
+| 👮 | `U+1F46E` | Maintainers | the named list that may edit a record's settings and ACL | built in 0.6.2 |
 | ⚙️ | `U+2699 U+FE0F` | Service | a service identity | built, and **retiring** |
 | 📡 | `U+1F4E1` | Service | something external, not on this bus | pending |
 | 📮 | `U+1F4EE` | Queue | a registered queue | pending |

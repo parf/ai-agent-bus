@@ -75,7 +75,7 @@ func (c *caller) accountRoute(mux *http.ServeMux) {
 	})
 }
 
-var accountPage = template.Must(template.New("account").Funcs(template.FuncMap{
+var accountPage = template.Must(template.New("account").Funcs(template.FuncMap{"authorityLabel": authorityLabel, 
 	"credentialKind": credentialKind,
 	"entityLabel":    entityLabel,
 	"profileInitial": profileInitial,
@@ -88,7 +88,7 @@ var accountPage = template.Must(template.New("account").Funcs(template.FuncMap{
 <div class=account-summary>
 <section class="editor-card compact-card"><h2>Identity</h2>
 {{with .Profile}}<div class=identity-with-photo>{{with photoData .}}<img class=profile-photo-large src="{{.}}" alt="">{{else}}<span class=profile-initial-large aria-hidden=true>{{profileInitial .}}</span>{{end}}<div><strong>{{with .PersonName}}{{.}}{{else}}{{.Name}}{{end}}</strong><br><code>{{.Name}}</code></div></div>
-<div class=detail-meta><span class=fact-pill>👤 User</span><span class=fact-pill>{{if .DaemonOwner}}Daemon owner{{else if .Administrator}}Daemon administrator{{else}}User{{end}}</span><span class=fact-pill>{{.State}}</span></div>
+<div class=detail-meta><span class=fact-pill>👤 User</span><span class=fact-pill>{{authorityLabel .DaemonOwner .Administrator}}</span><span class=fact-pill>{{.State}}</span></div>
 {{with .Groups}}<h3>Groups</h3><div class=choice-row>{{range .}}<a class=group-chip href="/group?name={{.}}">{{.}}</a>{{end}}</div>{{end}}
 {{else}}{{with .IdentityRecord}}<p><strong>{{entityLabel .Kind}}</strong> <code>{{.Name}}</code></p><p class=muted>This identity has a registered record and no person profile visible here.</p>{{else}}<p><code>{{$.You}}</code></p><p class=muted>No person profile or caller-visible identity record was returned. The authenticated daemon status still identifies this account.</p>{{end}}{{end}}
 </section>
