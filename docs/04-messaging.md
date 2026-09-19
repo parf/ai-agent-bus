@@ -363,6 +363,7 @@ an inbox rather than hand it to whoever is connected.
 | and must be registered | the copy needs somewhere to go, and an inbox belongs to a registered name |
 | asked again at **every publish** | access taken away stops the copies. Checking only at subscribe would make a subscription a way to go on reading a topic that stopped allowing you |
 | whose bound, TTL and overflow apply | the **subscriber's**, because the copy is in the subscriber's inbox |
+| a subscriber that is **turned off** | is skipped, and the skipped copy is counted as its drop. Nothing is queued for it and the publisher is told nothing, so its own count is the only place the gap can show. A subscriber the topic stopped allowing is **not** counted: it is no longer entitled to the copy, which is a different fact from being unable to take it |
 | a subscriber that will not read | loses its own copies and **stops nothing**: the publish still succeeds for everyone else, and the copy that would not fit is counted as a drop ([overflow](#overflow)). A publisher one stopped reader can block is a queue topic, which is the other mode and is what that caller wanted |
 
 ## Overflow
@@ -372,7 +373,7 @@ Declared per topic at creation, inboxes included:
 | Mode | Full queue | For |
 |---|---|---|
 | **strict** (default) | **reject the send/publish** with an error to the producer | anything that is work: losing one silently is worse than failing loudly, so this is what you get unless you ask otherwise |
-| **ring** | drop the **oldest**, and count it in stats | alerts, telemetry, progress — the newest matters most and a gap is not a bug |
+| **ring** | drop the **oldest**, and count it in stats (the same count a [disabled subscriber](#subscribers) adds to) | alerts, telemetry, progress — the newest matters most and a gap is not a bug |
 
 **A rejected send answers `429`.** A full queue is the sender outrunning the
 reader, which is what that code is for — and deliberately not `503`, which

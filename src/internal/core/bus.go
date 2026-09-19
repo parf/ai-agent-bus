@@ -704,7 +704,17 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		// Asked again at every publish, not only at subscribe: access taken
 		// away has to stop the copies, or subscribing would be a way to go
 		// on reading a topic that stopped allowing you.
-		if !known || !b.active(s) || sub.Disabled || !b.may(s, topic) {
+		if !known || !b.active(s) || !b.may(s, topic) {
+			continue
+		}
+		// Turned off on purpose, which is not the same fact as access taken
+		// away above: a barred subscriber is no longer entitled to the copy,
+		// while a disabled one still is and simply cannot take it. Nothing is
+		// queued for it and the publisher is told nothing, so its own drop
+		// count is the only place the gap can show — the same place an
+		// overflow loss shows. See docs/04-messaging.md#subscribers.
+		if sub.Disabled {
+			b.ensure(s).dropped++
 			continue
 		}
 		c := e

@@ -711,3 +711,46 @@ func TestLivenessIsAssignedNotMerged(t *testing.T) {
 		t.Fatalf("three queued messages reported as %d", got.Queued)
 	}
 }
+
+// A disabled subscriber is skipped, and the skip is its own loss: nothing is
+// queued for it and the publisher is told nothing, so the only place the gap
+// can show is the subscriber's own drop count. Access taken away is not the
+// same fact and is not counted — that subscriber is not entitled to the copy.
+func TestAPublicationASubscriberIsTooDisabledToTakeCountsAsItsDrop(t *testing.T) {
+	b := New()
+	known(t, b, "a@srv", "pub@srv")
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindTopic, Mode: protocol.ModePubSub, Owner: "a@srv"})
+	for _, s := range []string{"live@srv", "off@srv", "barred@srv"} {
+		mustRegister(t, b, protocol.Record{Name: s, Allow: []string{"*"}, Kind: "agent", Owner: "a@srv"})
+		if _, err := b.Subscribe(s, "news@srv", true); err != nil {
+			t.Fatalf("subscribe %s: %v", s, err)
+		}
+	}
+	if _, err := b.Manage("a@srv", Management{Name: "off@srv", Disabled: ptr(true)}); err != nil {
+		t.Fatalf("disable: %v", err)
+	}
+	// Barred by the topic rather than turned off: the topic stops allowing it.
+	if _, err := b.Manage("a@srv", Management{Name: "news@srv", Allow: ptr([]string{"live@srv", "off@srv", "pub@srv"})}); err != nil {
+		t.Fatalf("narrow the topic: %v", err)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "news@srv", Body: "x"}); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	for _, c := range []struct {
+		name    string
+		queued  int
+		dropped int
+	}{
+		{"live@srv", 1, 0},
+		{"off@srv", 0, 1},
+		{"barred@srv", 0, 0},
+	} {
+		r, ok := b.Lookup("a@srv", c.name)
+		if !ok {
+			t.Fatalf("%s is gone", c.name)
+		}
+		if r.Queued != c.queued || r.Dropped != c.dropped {
+			t.Fatalf("%s holds %d and dropped %d, want %d and %d", c.name, r.Queued, r.Dropped, c.queued, c.dropped)
+		}
+	}
+}

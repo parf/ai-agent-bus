@@ -188,7 +188,7 @@ type Record struct {
 	Out         int  `json:"out,omitempty"`     // handed to a reader of it since then
 	// Loss, per inbox rather than per daemon: a total tells an operator that
 	// something is losing work, and not which name to go and look at.
-	Dropped int `json:"dropped,omitempty"` // lost to its overflow since then
+	Dropped int `json:"dropped,omitempty"` // lost to its overflow, or skipped while off, since then
 	Expired int `json:"expired,omitempty"` // outlived their TTL in it since then
 	// How long the message at the head of its queue has been waiting. A
 	// backlog nobody reads is what an incident looks like, and a count alone
