@@ -131,9 +131,7 @@ provider answers. Private keys stay with the signing tool.
 
 **ACL governs other principals' access to a service.** The service does not
 need to list itself in its own ACL: it may read its own inbox independently.
-Caller standing and owner suspension still apply; so does the service's Disabled
-setting, until [0.6.0](../Plans/MVP/0.6.0-TODO.md#remaining-work) narrows that
-bit to input alone.
+Caller standing, owner suspension and the service's Disabled setting still apply.
 
 **For other principals, an empty ACL means access only for the record's Owner
 and assigned Maintainers.** This default
