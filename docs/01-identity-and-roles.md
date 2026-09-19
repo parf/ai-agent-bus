@@ -189,9 +189,13 @@ remain refused. This is existing behavior, confirmed by the Q63 decision.
   service A and A owns B, pausing Alice suspends A, not B.
 * Credentials are kept, not rotated or revoked. Lifting the state restores their
   use. Stored state survives restart; queued messages keep their existing expiry.
-* Draining still requires access and obeys the stored Disabled setting. A service
-  whose separate owner is suspended remains unreadable under the direct-owner
-  suspension rule; permission to drain an inactive identity does not bypass it.
+* Draining still requires access. A service whose separate owner is suspended
+  remains unreadable under the direct-owner suspension rule; permission to drain
+  an inactive identity does not bypass it.
+* **Pending, planned in [0.6.0](../Plans/MVP/0.6.0-TODO.md#remaining-work):** the
+  stored Disabled setting stops applying to draining. Turning a record off closes
+  its input; what already arrived stays readable by whoever may read it, which is
+  what permitting the drain of an inactive identity already says.
 
 </details>
 

@@ -8,6 +8,8 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Disabled closes input, not reading | [user states](01-identity-and-roles.md#user-states), [ACL](02-access.md#acl) | 2026-09-18 owner decision; the per-record switch stays, because a principal's state cannot turn off one record among several, but it stops trapping work already queued &mdash; which is what resolving Q63 already said about an inactive identity |
+| A record's own user state is asked only of kinds that can have one | [five record kinds](03-services-and-topics.md#five-record-kinds) | 2026-09-18 owner decision; a queue, a pub/sub topic and an external service have no user state, and the enum is what makes that answerable |
 | A service secret is read by the record's ACL | [service secrets](03-services-and-topics.md#service-secrets) | 2026-09-18 owner decision, resolving Q75; the record's existing allow list admits readers, and no second list is introduced |
 | An agent's record is labelled `👾` | [identity labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-18 owner decision, resolving Q76; supersedes the `📥 Inbox` label of 0.5.84 while the channels placement that decision also made stands |
 | Record kinds are a closed set of five | [five record kinds](03-services-and-topics.md#five-record-kinds) | 2026-09-18 owner decision; `kind` stops being free-form so classification is stored rather than inferred, and `mode` retires into it |
