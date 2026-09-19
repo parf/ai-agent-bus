@@ -633,9 +633,13 @@ owns the installed exercise and mutation checks.
 | Label | Entity |
 |---|---|
 | 👤 User | Registered person |
-| 📥 Inbox | An agent's inbox. The principal is an agent; the record is the queue it reads, so the label names the record |
+| 👾 Agent | An agent, and the queue named after it. Pending [0.6.0](../Plans/MVP/0.6.0-TODO.md#remaining-work): `📥 Inbox` in 0.5.84 while nothing distinguished the record, and `👾` again once `agent` is a stored kind. The record stays with the channels |
 | ⚙️ Service | Service identity |
 | 👥 Group | Group or team |
+
+**Pending.** [Five record kinds](03-services-and-topics.md#five-record-kinds)
+gives a queue, a pub/sub topic and an external service each a kind of their own,
+after which a label names a stored kind rather than an inference.
 
 These glyphs label entity types, not authority or health. Directory rows put the
 glyph directly before the identity name: `👤 chief@srv1`. The directory's

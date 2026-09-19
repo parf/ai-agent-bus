@@ -7,6 +7,7 @@
 | MVP | Scope |
 |---|---|
 | Built | Registry records, protocol hints, private registry configuration, queue/pubsub topics and [Personal classification and web grouping](#personal-and-shared). A service's method information is its [description](#service-and-template). |
+| Pending | [Five record kinds](#five-record-kinds) closing `kind`, with `mode` retiring into it and a service meaning an external one; [service secrets](#service-secrets). Planned in [0.6.0](../Plans/MVP/0.6.0-TODO.md#objective). |
 
 ## Service kinds
 
@@ -19,10 +20,37 @@ registered by its launcher and served by the foreground runner.
 the agent reads it. [Messaging](04-messaging.md#inbox-queues) calls that an
 implicit queue topic named after the agent, which is why the dashboard lists
 these records with the channels and labels them `📥 Inbox` rather than showing
-them among the services.
+them among the services. The channels placement stands; the label returns to
+`👾 Agent` with [five record kinds](#five-record-kinds), which give the record a
+stored kind of its own.
 
 Publishing and consuming are operations a principal performs; they do not
 require a separate service kind or capability-expression engine.
+
+## Five record kinds
+
+**Pending, planned in [0.6.0](../Plans/MVP/0.6.0-TODO.md#the-enum).** Today
+`kind` is a free-form string: an unknown word is stored as written, and an
+absent one becomes `generic`. It becomes a closed set, so the daemon answers
+what a record is instead of a page inferring it.
+
+| Kind | What it is | Who receives |
+|---|---|---|
+| `user` | a person's queue | that person |
+| `agent` | an agent's queue | that agent |
+| `queue` | a registered queue | whoever the read side admits |
+| `pubsub` | a [pub/sub topic](#topics) | every admitted subscriber |
+| `service` | something **external**, not on this bus | nothing is delivered |
+
+**A service is the external case.** What runs behind a name on this bus is an
+agent, so `service` keeps the word for the thing a registration only describes:
+it requires an `addr` and a [protocol](#how-to-call-it), and nothing is served
+from it. `generic` and `topic` disappear into the five, `mode` retires because
+`queue` and `pubsub` say the same thing, and [Personal](#personal-and-shared)
+becomes a flag on an `agent` rather than a kind of its own.
+
+Before 1.1 there is no compatibility obligation, so no migration is written:
+existing records are registered again under the kind they should carry.
 
 ## How to call it
 
@@ -190,6 +218,28 @@ other thing that word names ([glossary § terms](glossary.md#terms)):
 ```sh
 cfg=$(agent-bus service-template "$AGENT_BUS_NAME")
 ```
+
+## Service secrets
+
+**Pending, planned in [0.6.0](../Plans/MVP/0.6.0-TODO.md#remaining-work).** A
+`service` describes something this bus does not run, and reaching it usually
+needs a credential. A secret is that credential, held on the record and handed
+to whoever its [ACL](02-access.md#acl) already admits.
+
+**A secret is not [registry configuration](#configuring-a-template).** They are
+the same shape — an opaque blob the daemon never reads inside, absent from every
+listing, represented by a digest in any ordinary answer — and their mechanics
+differ at every other point:
+
+| | Configuration | Secret |
+|---|---|---|
+| Content | JSON, checked for being JSON | shell `KEY=value` lines |
+| Belongs to | a configured [service template](#service-and-template) | a `service` record and no other kind |
+| Who reads it | the named record alone, its owner included refused | whoever the record's [ACL](02-access.md#acl) admits; no second list |
+| What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
+
+The rule that configuration never leaves the daemon for anyone but its own
+record is unchanged by this.
 
 ## Topics
 

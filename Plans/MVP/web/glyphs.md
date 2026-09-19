@@ -33,19 +33,24 @@ plain text.
 |---|---|---|---|
 | 👤 | `U+1F464` | User | one registered person |
 | 👥 | `U+1F465` | Group | a group or team |
-| 📥 | `U+1F4E5` | Inbox | the queue record an agent reads |
-| ⚙️ | `U+2699 U+FE0F` | Service | a service identity |
+| 👾 | `U+1F47E` | Agent | an agent, and the queue record it reads |
+| 📡 | `U+1F4E1` | Service | something external, not on this bus |
 | 🪪 | `U+1FAAA` | Identity | an identity as such, without asserting its entity type or credential |
 | 🔑 | `U+1F511` | Credentials | credentials used to prove an identity; never the secret value itself |
 
-`📥` is owner-selected for Inbox, replacing the `👾` chosen for Agent on
-2026-09-17. The label names the record, not the principal: the principal is an
-agent, and the record is the queue it reads
-([service kinds](../../../docs/03-services-and-topics.md#service-kinds)). The
-visible word remains on full labels, while compact directory rows carry the same
-word in their accessible label.
+`👾` labels an agent and the queue named after it. `📥 Inbox` held that row in
+0.5.84, while nothing distinguished an agent's record from a service's; `agent`
+becoming a stored [record kind](../../../docs/03-services-and-topics.md#five-record-kinds)
+removed the reason, and the owner restored `👾` on 2026-09-18. Those records stay
+with the channels, which the same 0.5.84 decision settled and this does not
+touch. `📡` replaces `⚙️`, which stops labelling a record and stays with the
+daemon. The visible word remains on full labels, while compact directory rows
+carry the same word in their accessible label.
 
-User, Inbox and Service are the implemented shared web/CLI entity labels. WEB
+**Pending, planned in [0.6.0](../0.6.0-TODO.md#the-enum):** `📮` for a registered
+queue and `📣` for a pub/sub topic.
+
+User, Agent and Service are the implemented shared web/CLI entity labels. WEB
 directory rows put their glyph directly before the identity name, and WEB group
 headings put Group directly before the group name; the surrounding page states
 the meanings in words. Identity and Credentials record the selected vocabulary;
@@ -62,8 +67,8 @@ already supplies its name.
 | Page | Title image or glyph |
 |---|---|
 | Overview | 🏠 |
-| Services and generic-service detail | ⚙️ Service |
-| Inbox detail | 📥 Inbox |
+| Services and service detail | ⚙️ Service; 📡 Service pending [0.6.0](../0.6.0-TODO.md#the-enum) |
+| Agent record detail | 📥 Inbox; 👾 Agent pending [0.6.0](../0.6.0-TODO.md#remaining-work) |
 | Channels and channel detail | a small inline channel SVG |
 | Activity | a small inline graph SVG |
 | Users | 👤 User |

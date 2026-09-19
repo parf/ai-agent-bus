@@ -23,6 +23,26 @@ Use realm for the name's authority namespace, and service template for the
 unconfigured capability. Personal is an owner-selected
 [service classification](03-services-and-topics.md#personal-and-shared), not a record kind.
 
+## Glyphs
+
+One glyph per meaning. [Web glyphs](../Plans/MVP/web/glyphs.md#identity-and-access-symbols) owns the
+code points and the rendering rules; this table owns the name.
+
+| Glyph | Name | Means |
+|---|---|---|
+| 👤 | User | one registered person |
+| 👥 | Group | a group or team |
+| 👾 | Agent | an agent, and the queue named after it |
+| 📡 | Service | something external, not on this bus |
+| 🪪 | Identity | an identity as such, no entity type asserted |
+| 🔑 | Credentials | credentials proving an identity; never the secret value |
+
+**Pending, planned in [0.6.0](../Plans/MVP/0.6.0-TODO.md#the-enum):** `📮` for a
+registered queue and `📣` for a pub/sub topic, once
+[record kinds](03-services-and-topics.md#five-record-kinds) name them. `📥 Inbox`
+labelled an agent's record in 0.5.84 and is replaced by `👾`; `⚙️` stops labelling
+a record and stays with the daemon.
+
 ## Terms
 
 | Term | Meaning | Definition |
@@ -43,6 +63,8 @@ unconfigured capability. Personal is an owner-selected
 | Personal service | Owner-tagged service classification with a dedicated web view; access remains ordinary service access | [definition](03-services-and-topics.md#personal-and-shared) |
 | Protocol hint | How a caller reaches an external service | [definition](03-services-and-topics.md#how-to-call-it) |
 | Registry configuration | Private setup fetched by its service | [definition](03-services-and-topics.md#configuring-a-template) |
+| Record kind | What a record is, as one of five stored values | [definition](03-services-and-topics.md#five-record-kinds) |
+| Service secret | Credential held on an external service record, read by principals it admits | [definition](03-services-and-topics.md#service-secrets) |
 | Channel | Service-like entity without an actual service process | [definition](01-identity-and-roles.md#channels) |
 | Topic | Delivery term for a channel | [definition](03-services-and-topics.md#topics) |
 | Inbox | Queue belonging to a registered name | [definition](04-messaging.md#inbox-queues) |
