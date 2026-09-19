@@ -1,5 +1,7 @@
 # Design QA — compact AgentBus web redesign
 
+📌 **TL;DR:** History. What the 0.5.x web redesign was checked against and what was observed; not a current contract.
+
 ## Source of truth
 
 - Selected visual direction: `Plans/MVP/web/img/services-option-2.png`

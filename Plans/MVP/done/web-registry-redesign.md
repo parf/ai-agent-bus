@@ -52,7 +52,7 @@ Real Chromium compared the selected source image with the implementation at
 1487 × 1058, exercised both automatic selectors, hovered and opened the service
 help, and checked the service detail at 375 px. Both desktop and narrow detail
 had zero page-level horizontal overflow and the console had no messages. The
-full visual record is in [design QA](../../../design-qa.md#design-qa--compact-agentbus-web-redesign).
+full visual record is in [design QA](design-qa.md#design-qa--compact-agentbus-web-redesign).
 
 Lighthouse snapshot checks on the populated Services page report 100 for
 accessibility and 100 for best practices. Documentation validation checks **170
