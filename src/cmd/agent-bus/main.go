@@ -261,14 +261,23 @@ func ls(args []string) error {
 		}, s)
 	}
 	for _, r := range records {
-		// Protocol is a declared way to call a record; Readers is what the
-		// daemon observes on its inbox. Neither fact cancels the other.
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n", cell(r.Name), display.Entity(r.Kind), cell(r.Owner), readerCount(r.Readers), r.Queued, cell(r.Descr))
+		// A service is external and has no queue here, so it has no reader
+		// count and no backlog to report: a zero would be an observation of
+		// something that does not exist.
+		// See docs/03-services-and-topics.md#five-record-kinds.
+		readers, queued := readerCount(r.Readers), strconv.Itoa(r.Queued)
+		if r.Kind == protocol.KindService {
+			readers, queued = "-", "-"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", cell(r.Name), display.Entity(r.Kind), cell(r.Owner), readers, queued, cell(r.Descr))
 	}
 	if err := w.Flush(); err != nil {
 		return err
 	}
-	fmt.Println("\nREADERS  outstanding consume requests, filtered and unfiltered together; an observation, not service health or completed work")
+	fmt.Println("\nREADERS  outstanding consume requests, filtered and unfiltered together; an observation, not health or completed work")
+	// The legend spells the cell it explains. The cells above print "-", and a
+	// legend naming a character the table never shows explains nothing.
+	fmt.Println("         -  for \U0001F4E1, which is external and has no queue here; unavailable means not measured, which is a different fact")
 	return nil
 }
 

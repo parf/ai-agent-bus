@@ -161,6 +161,7 @@ type adminView struct {
 	Owners          []string
 	Channels        bool
 	Agents          bool
+	Services        bool
 	PersonalPage    bool
 	Status          core.Status
 	Activity        activityPresentation
@@ -497,7 +498,16 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			v.Sort = ""
 		}
 		v.Channels, v.Agents = r.URL.Path == "/channels", r.URL.Path == "/agents"
-		v.PersonalPage = r.URL.Path == "/personal"
+		v.Services, v.PersonalPage = r.URL.Path == "/services", r.URL.Path == "/personal"
+		if v.Services {
+			// A service has no queue here, so none of the questions about one
+			// has an answer to filter or sort by.
+			// See docs/03-services-and-topics.md#five-record-kinds.
+			v.State, v.Readers, v.Work = "", "", ""
+			if v.Sort == "queued" {
+				v.Sort = ""
+			}
+		}
 		if !v.Channels {
 			// Agents and services are each one kind, so a kind filter would
 			// narrow nothing; only the channels page lists more than one.
@@ -1049,19 +1059,24 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		}
 		switch action {
 		case "save":
-			descr, ttl, overflow := r.PostForm.Get("descr"), r.PostForm.Get("ttl"), r.PostForm.Get("overflow")
-			bound, parseErr := strconv.Atoi(r.PostForm.Get("bound"))
-			if parseErr != nil {
-				renderServiceFormError(w, r, v, action, http.StatusBadRequest, "Queue capacity must be a whole number.", "bound")
-				return
-			}
-			change.Descr, change.TTL, change.Full, change.Bound = &descr, &ttl, &overflow, &bound
-			// Only a service carries an endpoint, so only its form offers one.
-			// Sending an empty pair for every other kind would let a form that
-			// never showed the fields clear them.
+			descr := r.PostForm.Get("descr")
+			change.Descr = &descr
+			// Each form offers the fields its own kind has, and a save changes
+			// only what its form showed: sending an empty value for a field the
+			// page never rendered would clear it.
+			// See docs/03-services-and-topics.md#five-record-kinds.
 			if r.PostForm.Has("addr") || r.PostForm.Has("protocol") {
 				addr, proto := r.PostForm.Get("addr"), r.PostForm.Get("protocol")
 				change.Addr, change.Proto = &addr, &proto
+			}
+			if r.PostForm.Has("bound") || r.PostForm.Has("ttl") || r.PostForm.Has("overflow") {
+				bound, parseErr := strconv.Atoi(r.PostForm.Get("bound"))
+				if parseErr != nil {
+					renderServiceFormError(w, r, v, action, http.StatusBadRequest, "Queue capacity must be a whole number.", "bound")
+					return
+				}
+				ttl, overflow := r.PostForm.Get("ttl"), r.PostForm.Get("overflow")
+				change.TTL, change.Full, change.Bound = &ttl, &overflow, &bound
 			}
 			if r.PostForm.Has("edit_allow") {
 				allow := strings.Fields(r.PostForm.Get("allow"))
@@ -1212,13 +1227,13 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{"readerCount": readerCount, "registrationUpdated": registrationUpdated, "entityLabel": entityLabel, "copies": copies, "deliveryLabel": deliveryLabel, "external": external, "titleMark": titleMark, "number": number, "href": detailPath}).Parse(shellTitle("records", `{{if .Channels}}Channels{{else if .Agents}}Agents{{else if .PersonalPage}}Personal agents{{else}}Services{{end}}`) + `
 <div class=page-title><h1>{{if .Channels}}{{titleMark "channels"}} Channels{{else if .Agents}}{{titleMark "agent"}} Agents{{else if .PersonalPage}}{{titleMark "agent"}} Personal agents{{else}}{{titleMark "services"}} Services{{end}}</h1><button type=button class=help-button popovertarget=service-views-help aria-label="About service views">ⓘ</button></div>
 <div popover id=service-views-help class=context-help><h2>About these records</h2><ul>
-{{if .Channels}}<li>All counts the caller-visible queues, pub/sub topics and user queues.</li><li>A channel carries messages without a service process of its own.</li>{{else if or .Agents .PersonalPage}}<li>An agent is a name on this bus with a queue something reads. All and My omit Personal agents; My is the caller-owned subset. Personal is an owner-set grouping tag and does not change access.</li>{{else}}<li>A service is external: it is reached at its own address, by its own protocol, and calling it is the caller&rsquo;s own business, not a send.</li><li>The daemon still holds a queue under the name, and that is what Readers, Queued, Accepted and Dequeued report here. They say nothing about the external thing itself.</li>{{end}}
+{{if .Channels}}<li>All counts the caller-visible queues, pub/sub topics and user queues.</li><li>A channel carries messages without a service process of its own.</li>{{else if or .Agents .PersonalPage}}<li>An agent is a name on this bus with a queue something reads. All and My omit Personal agents; My is the caller-owned subset. Personal is an owner-set grouping tag and does not change access.</li>{{else}}<li>A service record is information about something external: where it is, how to speak to it, what it is for, and the credential to use. It is not on this bus, so nothing is sent to it and nothing reads it here.</li><li>Who may read that information is the record&rsquo;s allow list, exactly as for any other record.</li>{{end}}
 <li>Category counts use the records visible to you before toolbar filters; they are not node-wide totals or page counts.</li>
 {{if .Channels}}<li>A queue holds work for one reader; a pub/sub topic copies each accepted message to subscribers and holds no backlog of its own.</li>{{end}}
-<li>Enabled is a stored delivery setting. It does not establish that a send will be accepted; the owner&rsquo;s access and ACL are checked separately.</li>
+{{if not .Services}}<li>Enabled is a stored delivery setting. It does not establish that a send will be accepted; the owner&rsquo;s access and ACL are checked separately.</li>
 <li>Readers counts outstanding filtered and unfiltered reads. Zero may be between reads; a positive count proves neither a matching message nor completed work.</li>
 <li>Accepted and Dequeued are cumulative across restarts. Dequeued means handed to a reader, not completed.</li>
-<li>Reached external is a caller-supplied hint. None of it is health; the daemon does not observe whether a process is alive.</li>
+<li>Reached external is a caller-supplied hint. None of it is health; the daemon does not observe whether a process is alive.</li>{{end}}
 </ul></div>
 <nav class=section-nav aria-label="{{if .Channels}}Channel{{else if or .Agents .PersonalPage}}Agent{{else}}Service{{end}} views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true class="{{.Class}}">{{else}}<a href="{{.Href}}" class="{{.Class}}">{{end}}{{.Label}}{{if .Counted}} ({{number .Count}}){{end}}</a>{{end}}</nav>
 {{if .PersonalPage}}{{if .DaemonOwner}}<form method=get><label>Owner <select name=owner><option value="">All visible owners</option>{{range .Owners}}<option {{if eq . $.OwnerFilter}}selected{{end}}>{{.}}</option>{{end}}</select></label>{{with .State}}<input type=hidden name=state value="{{.}}">{{end}}{{with .Readers}}<input type=hidden name=readers value="{{.}}">{{end}}{{with .Work}}<input type=hidden name=work value="{{.}}">{{end}}{{with .Query}}<input type=hidden name=q value="{{.}}">{{end}}{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}{{with .Sort}}<input type=hidden name=sort value="{{.}}">{{end}} <button>Choose owner</button></form>{{else}}<p>Owned by <code>{{.You}}</code></p>{{end}}{{end}}
@@ -1226,8 +1241,8 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 <form class=record-search method=get action="{{if .Channels}}/channels{{else if .Agents}}/agents{{else if .PersonalPage}}/personal{{else}}/services{{end}}">
 <label for=record-query class=visually-hidden>Search records</label><input id=record-query type=search name=q value="{{.Query}}" placeholder="Search by name, owner, or description">
 {{with .Mine}}<input type=hidden name=scope value="{{.}}">{{end}}{{with .State}}<input type=hidden name=state value="{{.}}">{{end}}{{with .Readers}}<input type=hidden name=readers value="{{.}}">{{end}}{{with .Work}}<input type=hidden name=work value="{{.}}">{{end}}{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}{{with .OwnerFilter}}<input type=hidden name=owner value="{{.}}">{{end}}
-<div class=record-choices><nav class=filter-nav aria-label="Delivery filter"><span><span aria-hidden=true>🔛</span> Delivery</span>{{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Reader filter"><span>Readers</span>{{range .ReaderLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Queue filter"><span>Queue</span>{{range .WorkLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{with .KindLinks}}<nav class=filter-nav aria-label="Kind filter"><span>Kind</span>{{range .}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}</div>
-<label for=record-sort>Sort</label><select id=record-sort name=sort data-submit-on-change><option value="" {{if eq .Sort ""}}selected{{end}}>Name (A&ndash;Z)</option><option value=updated {{if eq .Sort "updated"}}selected{{end}}>Recently updated</option><option value=queued {{if eq .Sort "queued"}}selected{{end}}>{{if .Channels}}Work{{else}}Queued{{end}} (high&ndash;low)</option></select><noscript><button>Apply</button></noscript>
+{{if not .Services}}<div class=record-choices><nav class=filter-nav aria-label="Delivery filter"><span><span aria-hidden=true>🔛</span> Delivery</span>{{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Reader filter"><span>Readers</span>{{range .ReaderLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Queue filter"><span>Queue</span>{{range .WorkLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{with .KindLinks}}<nav class=filter-nav aria-label="Kind filter"><span>Kind</span>{{range .}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}</div>{{end}}
+<label for=record-sort>Sort</label><select id=record-sort name=sort data-submit-on-change><option value="" {{if eq .Sort ""}}selected{{end}}>Name (A&ndash;Z)</option><option value=updated {{if eq .Sort "updated"}}selected{{end}}>Recently updated</option>{{if not .Services}}<option value=queued {{if eq .Sort "queued"}}selected{{end}}>{{if .Channels}}Work{{else}}Queued{{end}} (high&ndash;low)</option>{{end}}</select><noscript><button>Apply</button></noscript>
 </form>
 </div>
 {{if eq .CategoryTotal 0}}
@@ -1235,16 +1250,18 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 {{if .Channels}}<p>A channel routes messages without a separate service process. A queue hands each message to one reader; a pub/sub topic copies each message to its subscribers.</p><p><a href=/channels/new>Register a channel</a></p>
 {{else if .Agents}}<p>An agent is a name on this bus with a queue something reads. It carries no address of its own: callers send to the name and the daemon delivers.</p><p><a href=/agents/new>Register an agent</a></p>
 {{else if .PersonalPage}}<p>Personal is an owner-set grouping for agents; it does not change access.</p><p><a href=/agents/new>Register an agent</a></p>
-{{else}}<p>A service is external: it is reached at its own address, by its own protocol, and nothing on this bus answers for it.</p><p><a href=/services/new>Register a service</a></p>{{end}}</section>
+{{else}}<p>A service record tells the people and agents its allow list admits where something external is, how to speak to it and what it is for. Nothing is sent to it here.</p><p><a href=/services/new>Register a service</a></p>{{end}}</section>
 {{else}}
 {{if .PersonalPage}}<p class=muted>{{if .DaemonOwner}}This per-owner view contains only Personal agents visible through your normal access; it is not a node-wide inventory.{{else}}Your Personal agents.{{end}}</p>{{end}}
 {{if eq .Matched 0}}<section class="empty-state editor-card"><h2>No records match these filters</h2><p>Change the active filters above or <a href="{{.ClearFilters}}">clear filters</a>.</p></section>{{else}}
 <table class=record-table><caption>Showing {{number .Start}}&ndash;{{number .End}} of {{number .Matched}} matching records, caller-visible on this page and not a count of this node.{{if .HasFilters}} <a href="{{.ClearFilters}}">Clear filters</a>{{end}}</caption>
 {{if .Channels}}<thead><tr><th scope=col>Channel<th scope=col>Type<th scope=col>Delivery mode<th scope=col>Owner<th scope=col>Delivery<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Held<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Subscribers<th scope=col>Updated</tr></thead>
+{{else if .Services}}<thead><tr><th scope=col>Service<th scope=col>Type<th scope=col>Owner<th scope=col>Address<th scope=col>Protocol<th scope=col>Updated</tr></thead>
 {{else}}<thead><tr><th scope=col>{{if or .Agents .PersonalPage}}Agent{{else}}Service{{end}}<th scope=col>Type<th scope=col>Owner<th scope=col>Delivery<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Queued<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col>Updated</tr></thead>{{end}}
 <tbody>
 {{range .Records}}<tr><td class="record-name-cell{{if eq .Owner $.You}} owned-record{{end}}{{if .Personal}} personal-record{{end}}"><a class=record-name href="{{href .}}?name={{.Name}}&return={{$.Return}}">{{if .Descr}}<span class=record-description>{{.Descr}}</span><code>{{.Name}}</code>{{else}}<code class=record-description>{{.Name}}</code>{{end}}</a>{{if .Personal}} <span class=personal-marker>Personal</span>{{end}}
 {{if $.Channels}}<td data-label=Type>{{entityLabel .Kind}}<td data-label="Delivery mode">{{deliveryLabel .}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if external .}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Held>{{if copies .Kind}}<span class=muted>&mdash;</span>{{else}}{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td class=num data-label=Subscribers>{{if copies .Kind}}{{number (len .Subs)}}{{else}}<span class=muted>&mdash;</span>{{end}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
+{{else if $.Services}}<td data-label=Type>{{entityLabel .Kind}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Address><code>{{.Addr}}</code><td data-label=Protocol><code>{{.Proto}}</code><td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
 {{else}}<td data-label=Type>{{entityLabel .Kind}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if external .}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Queued>{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}{{end}}</tr>{{end}}
 </tbody></table>
 {{end}}
@@ -1267,7 +1284,11 @@ var serviceNew = template.Must(template.New("service-new").Funcs(template.FuncMa
 {{if .Form.Is "create"}}<p class=warn id=create-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>Register {{if .Agents}}agent{{else if .Channels}}channel{{else}}service{{end}}</button></div></form>`))
 var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel, "copies": copies, "external": external, "deliveryMode": deliveryMode, "recordNoun": recordNoun, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number}).Parse(shellTitle("records", `{{recordNoun .Record.Kind}} {{.Record.Name}}`) + `
 <p><a href="{{.Return}}">Back to records</a></p>{{with .Record}}<div class=page-title><h1>{{titleMark .Kind}} {{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1></div>` + formErrorSummary + `<div class=detail-meta><span class=fact-pill>{{entityLabel .Kind}}</span><span>Owner: {{with $.OwnerUser}}<span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<a href="/user?name={{.Name}}"><code>{{.Name}}</code></a></span>{{else}}<code>{{.Owner}}</code>{{end}}</span>{{with .Maintainers}}<span>👮 Maintainers: {{join . ", "}}</span>{{end}}{{with deliveryMode .}}<span>Delivery: {{.}}</span>{{end}}</div>
-<div class=service-dashboard><section class=fact-card><div class=page-title><h2>Delivery</h2><button type=button class=help-button popovertarget=delivery-help aria-label="About delivery state" data-tooltip="Stored setting only. The daemon also checks owner access, ACL and queue capacity; Disabled does not reveal why it is off.">ⓘ</button></div>
+<div class=service-dashboard>{{if external .}}<section class=fact-card><div class=page-title><h2>Where it is</h2><button type=button class=help-button popovertarget=external-help aria-label="About an external service" data-tooltip="What the record says about something outside this bus. The daemon stores these words and checks none of them.">ⓘ</button></div>
+<dl><dt>Address<dd><strong><code>{{.Addr}}</code></strong><dt>Protocol<dd><strong><code>{{.Proto}}</code></strong></dl>
+<p class=muted>Updated {{if .At.IsZero}}&iquest;{{else}}{{.At.Format "2006-01-02 15:04:05"}}{{end}} · Config {{if .ConfigSHA}}<code>{{.ConfigSHA}}</code>{{else}}&mdash;{{end}}</p></section>
+<div popover id=external-help class=context-help><h2>About an external service</h2><ul><li>This record is information for the people and agents its allow list admits: where the thing is, how to speak to it and what it is for.</li><li>The address and the protocol are the registration&rsquo;s own words. The daemon neither reaches the thing nor checks that it is there.</li><li>Nothing is sent to this name and nothing reads it here, so it has no delivery setting, no queue and no counters.</li></ul></div>
+{{else}}<section class=fact-card><div class=page-title><h2>Delivery</h2><button type=button class=help-button popovertarget=delivery-help aria-label="About delivery state" data-tooltip="Stored setting only. The daemon also checks owner access, ACL and queue capacity; Disabled does not reveal why it is off.">ⓘ</button></div>
 <p><strong><span class=status-glyph role=img aria-label="{{if .Disabled}}Disabled{{else}}Enabled{{end}}" title="{{if .Disabled}}Disabled{{else}}Enabled{{end}}">{{if .Disabled}}🚫{{else}}🔛{{end}}</span></strong> {{if .Disabled}}Disabled{{else}}Enabled{{end}}</p>{{if .CanManage}}<form class=record-state-action method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value="{{if .Disabled}}enable{{else}}disable{{end}}">{{if .Disabled}}Enable{{else}}Disable{{end}} delivery</button></form>{{end}}</section>
 <div popover id=delivery-help class=context-help><h2>About delivery state</h2><ul><li>This stored setting does not establish that a send will be accepted.</li><li>The daemon also checks owner access, the allow list and queue capacity.</li><li>The disabled bit does not say whether the owner turned it off or the name stopped being active.</li></ul></div>
 <section class=fact-card><div class=page-title><h2>Policy</h2><button type=button class=help-button popovertarget=policy-help aria-label="About record policy" data-tooltip="Queue values are this record's stored policy. External remains a caller hint, and unset values are described without guessing resolved defaults.">ⓘ</button></div>
@@ -1276,7 +1297,7 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 <section class=fact-card><div class=page-title><h2>Queue &amp; counters</h2><button type=button class=help-button popovertarget=observed-help aria-label="About live counters" data-tooltip="Readers are outstanding requests, not health. Queue reads may precede pruning. Counters survive restart; Dequeued is not completion.">ⓘ</button></div>
 <dl><dt>Readers<dd><strong>{{readerCount .Readers}}</strong><dt>Held now<dd><strong>{{number .Queued}}</strong>{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<dt>Oldest held<dd>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<dt>Accepted<dd>{{number .In}}<dt>Dequeued<dd>{{number .Out}}<dt>Dropped / expired<dd>{{number .Dropped}} / {{number .Expired}}</dl>
 <p class=muted>Updated {{if .At.IsZero}}&iquest;{{else}}{{.At.Format "2006-01-02 15:04:05"}}{{end}} · Config {{if .ConfigSHA}}<code>{{.ConfigSHA}}</code>{{else}}&mdash;{{end}}</p></section>
-<div popover id=observed-help class=context-help><h2>About observed counters</h2><ul><li>Readers counts outstanding filtered and unfiltered reads; zero is not an offline signal.</li><li>The read does not prune first, so Held and Oldest may include work already past its TTL.</li><li>Counters are cumulative across restarts. Dequeued is handed to a reader, which is not completed.</li></ul></div>
+<div popover id=observed-help class=context-help><h2>About observed counters</h2><ul><li>Readers counts outstanding filtered and unfiltered reads; zero is not an offline signal.</li><li>The read does not prune first, so Held and Oldest may include work already past its TTL.</li><li>Counters are cumulative across restarts. Dequeued is handed to a reader, which is not completed.</li></ul></div>{{end}}
 {{template "activity-view" $}}
 <p class=activity-fact><a href="/activity?name={{.Name}}">View all activity and sample values</a></p></div>
 {{if copies .Kind}}<details><summary>Subscriptions</summary>
@@ -1287,9 +1308,9 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 <label class=form-field>Description <input name=descr value="{{if $.Form.Is "save"}}{{$.Form.Value "descr"}}{{else}}{{.Descr}}{{end}}"></label>
 {{if external .}}<label class=form-field>Address <input name=addr required value="{{if $.Form.Is "save"}}{{$.Form.Value "addr"}}{{else}}{{.Addr}}{{end}}"></label>
 <label class=form-field>Protocol <input name=protocol required value="{{if $.Form.Is "save"}}{{$.Form.Value "protocol"}}{{else}}{{.Proto}}{{end}}"></label>
-{{end}}<label class=form-field>Queue TTL <input name=ttl value="{{if $.Form.Is "save"}}{{$.Form.Value "ttl"}}{{else}}{{.TTL}}{{end}}" placeholder="default"></label>
+{{else}}<label class=form-field>Queue TTL <input name=ttl value="{{if $.Form.Is "save"}}{{$.Form.Value "ttl"}}{{else}}{{.TTL}}{{end}}" placeholder="default"></label>
 <label class=form-field>Queue capacity <input type=number min=0 name=bound value="{{if $.Form.Is "save"}}{{$.Form.Value "bound"}}{{else}}{{.Bound}}{{end}}" aria-invalid="{{if $.Form.Invalid "bound"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "bound"}}save-error{{end}}"><small>Enter 0 to select the default.</small></label>
-<label class=form-field>Overflow <select name=overflow><option value=strict {{if and ($.Form.Is "save") (eq ($.Form.Value "overflow") "strict")}}selected{{end}}>Refuse</option><option value=ring {{if $.Form.Is "save"}}{{if eq ($.Form.Value "overflow") "ring"}}selected{{end}}{{else}}{{if eq .Full "ring"}}selected{{end}}{{end}}>Drop oldest</option></select></label>
+<label class=form-field>Overflow <select name=overflow><option value=strict {{if and ($.Form.Is "save") (eq ($.Form.Value "overflow") "strict")}}selected{{end}}>Refuse</option><option value=ring {{if $.Form.Is "save"}}{{if eq ($.Form.Value "overflow") "ring"}}selected{{end}}{{else}}{{if eq .Full "ring"}}selected{{end}}{{end}}>Drop oldest</option></select></label>{{end}}
 {{if .Personal}}<p class="muted form-field-wide">Personal classification, Allow and Maintainers are changed together below.</p>{{else}}<input type=hidden name=edit_allow value=1><label class="form-field form-field-wide"><span class=field-heading>Allow list <button type=button class=help-button popovertarget=settings-access-help aria-label="About the allow list" data-tooltip="One identity per line. Empty is owner and Maintainers only; @owner adds the records the Owner directly owns; * shares with every admitted principal.">ⓘ</button></span><textarea name=allow rows=5>{{if $.Form.Is "save"}}{{$.Form.Value "allow"}}{{else}}{{join .Allow "\n"}}{{end}}</textarea><small>One identity, group, <code>@owner</code>, or <code>*</code> per line.</small></label>{{end}}</div>
 {{if $.Form.Is "save"}}<p class=warn id=save-error>{{$.Form.Error}}</p>{{end}}<div class=form-actions><button>Save settings</button></div></form></details>
 {{if not .Personal}}<div popover id=settings-access-help class=context-help><h2>Allow list</h2><ul><li>Empty allows only the owner and assigned Maintainers.</li><li><code>@owner</code> adds records directly owned by this record&rsquo;s Owner. It is runtime ACL syntax, not an editable group.</li><li><code>*</code> shares with every admitted principal.</li></ul></div>{{end}}

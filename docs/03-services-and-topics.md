@@ -1,38 +1,18 @@
-# Services and topics
+# Records and topics
 
-📌 **TL;DR:** Register services; route messages to inboxes or call external protocols directly.
+📌 **TL;DR:** Every registered name is one of five kinds; four have a queue here and the fifth says where something external is.
 
 ## Status
 
 | MVP | Scope |
 |---|---|
-| Built | Registry records, protocol hints, private registry configuration, queue/pubsub topics and [Personal classification and web grouping](#personal-and-shared). A service's method information is its [description](#service-and-template). |
-| Pending | [Five record kinds](#five-record-kinds) closing `kind`, with `mode` retiring into it and a service meaning an external one; [service secrets](#service-secrets). Planned in [0.6.0](../Plans/MVP/0.6.0-TODO.md#objective). |
-
-## Service kinds
-
-The registry stores agents, generic descriptions and topics. A description may
-point to something that knows nothing about the bus. A script service is
-registered by its launcher and served by the foreground runner.
-
-**An agent's record is an inbox, not a service.** It carries no `addr` and no
-`protocol`, so nothing is served from it: a message sent to the name waits until
-the agent reads it. [Messaging](04-messaging.md#inbox-queues) calls that an
-implicit queue topic named after the agent, which is why the dashboard lists
-these records with the channels rather than showing them among the services.
-They are labelled `👾 Agent`: `📥 Inbox` held that label in 0.5.84, while nothing
-distinguished an agent's record from a service's, and
-[five record kinds](#five-record-kinds) removes the reason.
-
-Publishing and consuming are operations a principal performs; they do not
-require a separate service kind or capability-expression engine.
+| Built | [Five record kinds](#five-record-kinds) closing `kind`, registry records, [protocol hints](#how-to-call-it), private registry configuration and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](#service-and-template). |
+| Pending | [Service secrets](#service-secrets), the last of [0.6.0](../Plans/MVP/0.6.0-TODO.md#objective). |
 
 ## Five record kinds
 
-**Pending, planned in [0.6.0](../Plans/MVP/0.6.0-TODO.md#the-enum).** Today
-`kind` is a free-form string: an unknown word is stored as written, and an
-absent one becomes `generic`. It becomes a closed set, so the daemon answers
-what a record is instead of a page inferring it.
+`kind` is a closed set. The daemon answers what a record is, rather than a page
+inferring it from which fields happen to be filled in.
 
 | | Kind | What it is | Registered by | Someone acts as this name |
 |---|---|---|---|---|
@@ -41,6 +21,9 @@ what a record is instead of a page inferring it.
 | 📮 | `queue` | a queue created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
 | 📣 | `pubsub` | a [pub/sub topic](#topics): it keeps nothing and copies each publication to every subscriber | a user or an agent | nobody |
 | 📡 | `service` | a description of something **external**, not on this bus | a user or an agent | nobody here |
+
+Registering with no kind stores `service`, because describing something outside
+is the case a bare `register` is usually for. `--personal` names an `agent`.
 
 **The bus carries work between people and agents.** Those two act: they hold a
 [credential](02-access.md#what-a-call-carries), send under their own name and
@@ -58,93 +41,120 @@ principal describes what the record is *for*, not a reader the daemon enforces.
 Splitting that list into a write side and a delivery side is a separate,
 undecided question ([directional access](../Plans/Future/acl-direction.md#where-direction-is-needed)).
 
-**A service is the external case.** What runs behind a name on this bus is an
-agent, so `service` keeps the word for the thing a registration only describes:
-it requires an `addr` and a [protocol](#how-to-call-it), and nothing is served
-from it. `generic` and `topic` disappear into the five, `mode` retires because
-`queue` and `pubsub` say the same thing, and [Personal](#personal-and-shared)
-becomes a flag on an `agent` rather than a kind of its own.
+**A service is the external case, and has no queue here.** What runs behind a
+name on this bus is an agent, so `service` keeps the word for the thing a
+registration only describes. The record is **information for the people and
+agents its [allow list](02-access.md#acl) admits**: where the thing is, how to
+speak to it, what it is for, and the [credential](#service-secrets) to use. It
+requires an `addr` and a [protocol](#how-to-call-it), and the daemon reaches
+none of them.
+
+| A service | |
+|---|---|
+| is | a description read by whoever the allow list admits |
+| is not | a destination: nothing is sent to it, nothing subscribes it, nothing consumes from it |
+| carries | `addr`, `protocol`, description, configuration and its secret |
+| carries no | queue, and therefore no TTL, capacity, overflow policy, delivery switch, reader count or backlog |
+
+Each of the three doors into a queue — send, subscribe, consume — refuses a
+service by its kind, after the allow list has been asked, so a caller who may
+not see the name learns only that. The daemon states no reader count and no
+queued total for one: a zero there would be an observation of something that
+does not exist. A snapshot holding a queue under a service name is refused for
+the same reason [an unknown kind is](#restoring-a-record).
 
 Before 1.1 there is no compatibility obligation, so no migration is written:
 existing records are registered again under the kind they should carry.
 
+### Restoring a record
+
+Restore asks the same shape question registration does, and **refuses** a record
+this version could not have registered: an unknown kind, a service without an
+address or a protocol, a service carrying queue settings or a queue, or
+[Personal](#personal-and-shared) on anything but an agent. The daemon names the
+record and the reason rather than converting it or coming up pretending.
+
 ## How to call it
 
-A registration says **where** something is (`addr`); it also says **how** to
-talk to it, and the interesting case is that almost nothing needs to.
+The kind says how a name is reached, and there are only two answers.
 
-| `protocol` | Means |
+| Kind | How a caller reaches it |
 |---|---|
-| **unset** | an ordinary agent-bus service: send to its name and the daemon delivers to its inbox ([messaging § inbox queues](04-messaging.md#inbox-queues)). This is the default because it is the common case |
-| anything else | **the caller speaks it directly**, at `addr`. `mysql`, `https`, `amqp` — the bus passes the word along and does nothing with it |
+| 👤 👾 📮 📣 | **send to the name.** The daemon puts the message in the [queue](04-messaging.md#inbox-queues) belonging to it, and whoever reads that queue takes it |
+| 📡 | **call it directly**, at `addr`, speaking `protocol`. The bus is not in the path at all |
 
-**`/etc/services` is the suggested vocabulary, and only a suggestion.** Use
-the name from it where there is one, so two people registering the same kind
-of thing write the same word. It is not a checked set and cannot become one:
-the file is outdated and incomplete — half of what anyone registers here
-(`mcp`, `grpc`, an in-house protocol) is not in it, and refusing those would
+A service's `addr` and `protocol` are the registration's own words, stored raw
+and **never interpreted**. The daemon does not implement a second protocol and
+does not proxy. They are facts in the registry for whoever is choosing what to
+call ([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)).
+
+**`/etc/services` is the suggested vocabulary for `protocol`, and only a
+suggestion.** Use the name from it where there is one, so two people registering
+the same kind of thing write the same word. It is not a checked set and cannot
+become one: the file is outdated and incomplete — half of what anyone registers
+here (`mcp`, `grpc`, an in-house protocol) is not in it, and refusing those would
 make the field useless to the people who need it most.
 
-The value is **stored raw and never interpreted**. The daemon does not implement a
-second protocol, does not proxy, and does not refuse a send to a record that
-names one: a runner or gateway may well be reading that inbox on the thing's
-behalf ([runner § adapters](08-runner-role.md#adapters)). It is a fact in the
-registry for whoever is choosing what to call
-([discovery § what a listing answers](05-discovery.md#what-a-listing-answers)).
+A thing outside that somebody wants reachable **over** the bus is not this case:
+register an 👾 for whatever reads its queue, and let that agent call the
+outside thing ([runner § adapters](08-runner-role.md#adapters)).
 
 ## Personal and shared
 
-An owner may tag their service **Personal**. Without that tag, it is
-**non-Personal**. The tag hides personal services from the main web pages to
-reduce clutter; access works exactly as for a normal service.
+An owner may tag their agent **Personal**. Without that tag, it is
+**non-Personal**. The tag hides personal agents from the main web pages to
+reduce clutter; access works exactly as for any other record.
 The stored classification, assignment limits and web grouping are built.
 
 | Rule | Requirement |
 |---|---|
-| ACL entries | Only other service identities; a user's backing inbox does not turn that user into a service |
-| Groups | Not valid ACL entries, even when every member is a service |
-| Runtime `@owner` | Not valid; Personal services list individual Services directly |
-| Sharing with users | Requires making the service non-Personal; a user entry cannot coexist with the Personal tag |
-| Maintainers | Cannot be assigned while the service is Personal; shared maintenance requires making it non-Personal |
-| Broad access | The [wildcard grant](02-access.md#acl) is not valid for a Personal service |
-| Main web pages | Exclude Personal services; find them in the dedicated tab instead |
-| User's web view | A **Personal Services** tab shows that user's Personal services |
-| Daemon owner's web view | **Personal Services** can be filtered per owner across the node-wide inventory visible through Owner management |
+| Carried by | an 👾 `agent` and nothing else; the tag is not a kind ([five record kinds](#five-record-kinds)) |
+| ACL entries | Only other agents; a user's own queue does not turn that user into one |
+| Groups | Not valid ACL entries, even when every member is an agent |
+| Runtime `@owner` | Not valid; a Personal agent lists the agents it admits directly |
+| Sharing with users | Requires making the agent non-Personal; a user entry cannot coexist with the Personal tag |
+| Maintainers | Cannot be assigned while the agent is Personal; shared maintenance requires making it non-Personal |
+| Broad access | The [wildcard grant](02-access.md#acl) is not valid for a Personal agent |
+| Main web pages | Exclude Personal agents; find them in the dedicated tab instead |
+| User's web view | A **Personal** tab shows that user's Personal agents |
+| Daemon owner's web view | Personal agents can be filtered per owner across the node-wide inventory visible through Owner management |
 
-The tag introduces no separate access policy or service kind. Apart from these
-assignment restrictions and web grouping, ordinary [access rules](02-access.md#acl),
-ownership and service behavior remain unchanged. Hiding a service from the main
-web pages does not revoke authorized access or remove it from the registry.
+The tag introduces no separate access policy and no sixth kind. Apart from
+these assignment restrictions and web grouping, ordinary
+[access rules](02-access.md#acl), ownership and delivery are unchanged. Hiding
+an agent from the main web pages does not revoke authorized access or remove it
+from the registry.
 
-The MVP applies Personal only to Services. Users, Agents and Channels cannot
-carry it. Extending the classification to another kind needs an explicit owner
-decision.
+Users, queues, pub/sub topics and services cannot carry Personal. Extending the
+classification to another kind needs an explicit owner decision.
 
 <details>
 <summary>How the stored classification changes</summary>
 
-Only the service owner changes Personal. A new registration may state it; a
-service refreshing its metadata preserves the owner's stored choice. A request
-that changes Personal and its assignments is checked as one final record, so
-an owner can remove sharing while enabling Personal, or disable Personal while
+Only the owner changes Personal. A new registration may state it; an agent
+refreshing its metadata preserves the owner's stored choice. A request that
+changes Personal and its assignments is checked as one final record, so an
+owner can remove sharing while enabling Personal, or disable Personal while
 adding sharing, in one operation.
 
-Assignment validity is checked when a record is written. If an allowed service
-is later removed, the name remains stored but grants nobody; the next write must
-remove it or restore the service before the Personal record can be saved again.
+Assignment validity is checked when a record is written. If an allowed agent is
+later removed, the name remains stored but grants nobody; the next write must
+remove it or restore that agent before the Personal record can be saved again.
 
 </details>
 
 ## Service and template
 
-A service is a configured, addressable name. `service@realm` stands alone;
-`template/instance@realm` names a configured instance. The prefix is naming,
-not a group or an instruction to fan out. Each complete name has its own
-record, inbox and optional configuration. Nothing parses configuration out of
-an instance's name.
+`name@realm` stands alone; `template/instance@realm` says which **service
+template** that instance was configured from. The prefix is naming, not a group
+and not an instruction to fan out: the parser accepts it for a name of any
+[kind](#five-record-kinds) and reads no meaning out of it. Each complete name is
+a record of its own, with its own configuration and — for the four kinds that
+have one — its own queue. Nothing parses configuration out of an instance's
+name.
 
-**A service's method information is its description, and nothing else.** The
-record's one free-text field is what `ls` and the MCP catalog show, so a service
+**A record's method information is its description, and nothing else.** The
+record's one free-text field is what `ls` and the MCP catalog show, so anything
 whose callers need to know its verbs writes them into that sentence. The MVP has
 no method list, no per-method destructive hint and nothing generated from one; a
 better representation is proposed in
@@ -152,7 +162,7 @@ better representation is proposed in
 
 ## Configuring a template
 
-Configuring a service template **is** what produces a configured service. One
+Configuring a service template **is** what produces a configured name. One
 verb does it, and reads it back:
 
 | | |
@@ -167,30 +177,33 @@ is **one hyphenated word** so that it stays a single verb in every face,
 including as an MCP tool name
 ([glossary § names that are enforced](glossary.md#names)).
 
-The service is created if it does not exist, with the defaults a bare
-registration gets — configuring is not a second way to describe a service,
-only the way to give it one. A standalone `service@realm` takes a configuration
-the same way; the template prefix is not what makes one configurable.
+The record is created if it does not exist, with the defaults a bare
+registration gets — configuring is not a second way to describe a record, only
+the way to give it a configuration. What it creates is an 👾 `agent`: a 📡
+`service` could not be created here, having no address to be registered with
+([five record kinds](#five-record-kinds)). A standalone `name@realm` takes a
+configuration the same way; the template prefix is not what makes one
+configurable.
 
 | | |
 |---|---|
 | the configuration | **arbitrary JSON, stored opaque.** The only check is that it *is* JSON — a syntax check, not interpretation. Nothing looks for a server, a user, a mailbox or a credential |
-| who may write it | the principals with [record management authority](01-identity-and-roles.md#groups). Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so a service restarting keeps what it was configured with. A registration carries **neither half**: not the bytes, and not the digest, which is derived from them and would otherwise let anyone claim any setup |
-| who may read it | **the service, and nobody else — its owner included.** Setup data goes in and is used; it does not come back out to be looked at |
-| what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record — the whole listing, a query for one service (`agent-bus ls <name>`), and the answer to setting one ([why a digest at all](#why-a-digest-at-all)) |
-| where the bytes are **not** | anywhere else. No listing carries them, and the one read is the service's own |
+| who may write it | the principals with [record management authority](01-identity-and-roles.md#groups). Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so an agent restarting keeps what it was configured with. A registration carries **neither half**: not the bytes, and not the digest, which is derived from them and would otherwise let anyone claim any setup |
+| who may read it | **the named record itself, and nobody else — its owner included.** Setup data goes in and is used; it does not come back out to be looked at |
+| what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record — the whole listing, a query for one name (`agent-bus ls <name>`), and the answer to setting one ([why a digest at all](#why-a-digest-at-all)) |
+| where the bytes are **not** | anywhere else. No listing carries them, and the one read is the record's own |
 | nothing to store | refused: no configuration at all, something that is not JSON, and `null` — which would read back exactly like never having been configured |
 | an empty *value* | kept. `{}`, `[]`, `""`, `0` and `false` are configurations; the bus does not judge what is inside |
 
 ### Why a digest at all
 
 <details>
-<summary>Diagram: configuration goes in; only the service reads it back</summary>
+<summary>Diagram: configuration goes in; only the named record reads it back</summary>
 
 ```mermaid
 flowchart LR
     Writer[Authorized manager] -->|Write JSON| Store[Stored configuration]
-    Store -->|Read as the service| Service[Service]
+    Store -->|Read as that name| Record[The record itself]
     Store -->|Digest only| Listing[Caller-visible record]
 ```
 
@@ -199,7 +212,7 @@ This is an access boundary, not encryption from the daemon.
 
 </details>
 
-**So that anything watching can tell whether a service's setup has been
+**So that anything watching can tell whether a record's setup has been
 changed by someone, without ever being shown it.** A configuration cannot be
 read back — not even by its owner — so the only other way to answer "is this
 still what I set?" would be to hand out the secrets to compare. The digest
@@ -207,10 +220,10 @@ answers it without them:
 
 | Asking | How |
 |---|---|
-| is this service configured? | a `config_sha` is there, or it is not |
+| is this name configured? | a `config_sha` is there, or it is not |
 | did my write land? | setting one answers with its digest; compare it to the next query |
 | has someone changed it since? | the digest moved |
-| do these two services hold the same setup? | the digests match |
+| do these two records hold the same setup? | the digests match |
 | is this host's copy the one I shipped? | compare digests across hosts |
 
 A
@@ -226,8 +239,8 @@ candidates. The current configuration is plaintext in daemon state, including
 the restart snapshot. The caller restrictions are real; secrecy from the daemon
 is not claimed.
 
-**A service fetches its own configuration; nothing injects it** — and it is
-the only one that can, so this runs as the service, not as its owner. This is
+**A record fetches its own configuration; nothing injects it** — and it is
+the only one that can, so this runs as that name, not as its owner. This is
 the *registry's* configuration, not the runner's environment, which is the
 other thing that word names ([glossary § terms](glossary.md#terms)):
 
@@ -250,7 +263,7 @@ differ at every other point:
 | | Configuration | Secret |
 |---|---|---|
 | Content | JSON, checked for being JSON | shell `KEY=value` lines |
-| Belongs to | a configured [service template](#service-and-template) | a `service` record and no other kind |
+| Belongs to | any record configured from a [service template](#service-and-template) | a `service` record and no other kind |
 | Who reads it | the named record alone, its owner included refused | whoever the record's [ACL](02-access.md#acl) admits; no second list |
 | What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
 
@@ -259,12 +272,13 @@ record is unchanged by this.
 
 ## Topics
 
-A topic is registered like a service and is **first-class** in the same
-registry. Two kinds — the Redis model:
+A topic is registered like any other record and is **first-class** in the same
+registry. Two of the five [kinds](#five-record-kinds) are topics — the Redis
+model:
 
 | Kind | Delivery | Retention | No subscribers at publish time | Redis analogue |
 |---|---|---|---|---|
-| **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded; overflow per mode | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
+| **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded; overflow per its policy | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
 | **pub/sub** | a **copy** to every subscriber, into that subscriber's own inbox ([messaging § subscribers](04-messaging.md#subscribers)) | none of its own — each copy is kept by the inbox it is in | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
 
 <details>
@@ -289,7 +303,7 @@ subscribers, the pub/sub topic retains nothing.
 
 </details>
 
-A topic **declares its kind, TTL, bound and overflow mode at creation**:
+A topic **declares its kind, TTL, bound and overflow policy at creation**:
 
 | Aspect | MVP behavior |
 |---|---|

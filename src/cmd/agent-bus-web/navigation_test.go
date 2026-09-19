@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -62,22 +63,30 @@ func TestServiceReaderFilterIsIndependentFromDelivery(t *testing.T) {
 }
 
 func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
+	// A service has no queue here, so its listing carries no reader or delivery
+	// filter to retain; the pages that do keep theirs across paging.
+	// See docs/03-services-and-topics.md#five-record-kinds.
+	queueFilters := []string{"readers=none", "state=active"}
 	for _, tc := range []struct {
 		path     string
 		kind     string
 		stem     string
 		personal bool
+		filters  []string
 	}{
-		{"/services", protocol.KindService, "svc", false},
-		{"/personal", protocol.KindAgent, "personal", true},
-		{"/channels", protocol.KindQueue, "channel", false},
+		{"/services", protocol.KindService, "svc", false, nil},
+		{"/personal", protocol.KindAgent, "personal", true, queueFilters},
+		{"/channels", protocol.KindQueue, "channel", false, queueFilters},
 	} {
 		t.Run(tc.stem, func(t *testing.T) {
 			m := meaningFixture(t)
 			for i := 0; i < 30; i++ {
 				m.register(protocol.Record{Name: fmt.Sprintf("%s-%02d@h", tc.stem, i), Owner: "admin@h", Kind: tc.kind, Addr: "a", Proto: "p", Personal: tc.personal})
 			}
-			path := tc.path + "?q=" + tc.stem + "&readers=none&sort=updated&state=active&page=2"
+			state := append([]string{"q=" + tc.stem}, tc.filters...)
+			state = append(state, "sort=updated")
+			sort.Strings(state)
+			path := tc.path + "?" + strings.Join(state, "&") + "&page=2"
 			before := m.lsCalls.Load()
 			page := m.get(path)
 			if got := m.lsCalls.Load() - before; got != 1 {
@@ -92,13 +101,19 @@ func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
 			if strings.Count(page, `class="record-name-cell`) != 5 {
 				t.Fatalf("%s paged before filtering or used the wrong page size", tc.path)
 			}
-			previous := `href="` + tc.path + `?page=1&amp;q=` + tc.stem + `&amp;readers=none&amp;sort=updated&amp;state=active">Previous page</a>`
+			previous := `href="` + tc.path + `?page=1&amp;` + strings.Join(state, "&amp;") + `">Previous page</a>`
 			if !strings.Contains(page, previous) {
 				t.Errorf("%s Previous link lost listing state: want %s", tc.path, previous)
 			}
-			for _, want := range []string{"q=" + tc.stem, "readers=none", "sort=updated", "state=active", "page=1"} {
+			for _, want := range append(append([]string{}, state...), "page=1") {
 				if !strings.Contains(page, want) {
 					t.Errorf("%s pager lost %q", tc.path, want)
+				}
+			}
+			// The filters a service has no answer for are not offered on it.
+			for _, absent := range queueFilters {
+				if tc.filters == nil && strings.Contains(page, absent) {
+					t.Errorf("%s offers %q, which is a question about a queue it does not have", tc.path, absent)
 				}
 			}
 			category := "All (30)</a>"
@@ -185,9 +200,18 @@ func TestCompactUserEditorExplainsSSHOnboarding(t *testing.T) {
 
 func TestCompactSelectorsSubmitOnChange(t *testing.T) {
 	m := meaningFixture(t)
+	agents := m.get("/agents")
+	if !strings.Contains(agents, `<span aria-hidden=true>🔛</span> Delivery`) || !strings.Contains(agents, `name=sort data-submit-on-change`) || strings.Contains(agents, `<button>Filter</button>`) {
+		t.Fatal("agent filters lack the delivery glyph or retain a visible Filter button")
+	}
+	// Sorting is a question about any listing; the delivery filter is a
+	// question about a queue, and a service has none.
 	services := m.get("/services")
-	if !strings.Contains(services, `<span aria-hidden=true>🔛</span> Delivery`) || !strings.Contains(services, `name=sort data-submit-on-change`) || strings.Contains(services, `<button>Filter</button>`) {
-		t.Fatal("service filters lack the delivery glyph or retain a visible Filter button")
+	if !strings.Contains(services, `name=sort data-submit-on-change`) || strings.Contains(services, `<button>Filter</button>`) {
+		t.Fatal("service sorting does not apply on change, or a visible Filter button remains")
+	}
+	if strings.Contains(services, `</span> Delivery`) || strings.Contains(services, `aria-label="Reader filter"`) || strings.Contains(services, `aria-label="Queue filter"`) {
+		t.Fatal("the services page offers a filter about a queue it does not have")
 	}
 	activity := m.get("/activity")
 	if !strings.Contains(activity, `name=name data-submit-on-change`) || strings.Contains(activity, `<button>Filter</button>`) {
@@ -385,23 +409,32 @@ func TestServiceListSearchKindSortAndCompactNames(t *testing.T) {
 	if strings.Index(updated, ">zeta@h<") > strings.Index(updated, ">bot@h<") || strings.Index(updated, ">bot@h<") > strings.Index(updated, ">alpha@h<") {
 		t.Fatal("recently-updated sorting is not newest first")
 	}
-	queued := m.get("/services?sort=queued")
+	queued := m.get("/agents?sort=queued")
 	if strings.Index(queued, ">alpha@h<") > strings.Index(queued, ">bot@h<") || strings.Index(queued, ">bot@h<") > strings.Index(queued, ">zeta@h<") {
 		t.Fatal("queued sorting is not high to low with name ties")
 	}
 
-	state := m.get("/services?q=bot&scope=my&sort=queued&state=active")
+	state := m.get("/agents?q=bot&scope=my&sort=queued&state=active")
 	for _, want := range []string{
 		`name=q value="bot"`,
 		`name=scope value="my"`,
 		`name=state value="active"`,
 		`value=queued selected`,
-		`href="/services?q=bot&amp;sort=queued&amp;state=active" class="">All`,
-		`href="/services?q=bot&amp;scope=my&amp;sort=queued&amp;state=active" aria-current=true class="my-view">My`,
+		`href="/agents?q=bot&amp;sort=queued&amp;state=active" class="">All`,
+		`href="/agents?q=bot&amp;scope=my&amp;sort=queued&amp;state=active" aria-current=true class="my-view">My`,
 	} {
 		if !strings.Contains(state, want) {
 			t.Errorf("listing state lost %q", want)
 		}
+	}
+	// A service has no queue, so sorting by one is not offered and an asked-for
+	// queued sort falls back to the name order rather than ranking by nothing.
+	services := m.get("/services?sort=queued")
+	if strings.Contains(services, "value=queued") {
+		t.Error("the services page offers a sort by a queue it does not have")
+	}
+	if !strings.Contains(services, `<option value="" selected>Name`) {
+		t.Errorf("a queued sort asked of Services did not fall back to the name order: %s", services)
 	}
 }
 

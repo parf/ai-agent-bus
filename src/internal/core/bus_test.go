@@ -918,3 +918,75 @@ func TestOnlyAKindWithSomebodyBehindItCarriesTheirState(t *testing.T) {
 		t.Errorf("a paused agent is not listed as disabled: %+v", got)
 	}
 }
+
+// An external service is a card saying where something outside is and how to
+// speak to it, readable by whoever its ACL admits. It is not on this bus, so
+// none of the three doors into a queue opens on it and none of the settings a
+// queue has may be stored. See docs/03-services-and-topics.md#five-record-kinds.
+func TestAnExternalServiceHasNoQueueHere(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "alice@h", "peer@h")
+	service := protocol.Record{
+		Name: "db@h", Owner: "alice@h", Kind: protocol.KindService,
+		Addr: "db.example:5432", Proto: "postgresql", Allow: []string{"*"},
+	}
+	if _, err := b.Register(service); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Register(protocol.Record{Name: "news@h", Owner: "alice@h", Kind: protocol.KindPubSub, Allow: []string{"*"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Sending, subscribing and consuming are the three doors, and each is
+	// refused for the kind rather than for the caller.
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "db@h", Body: "hello"}); !errors.Is(err, ErrKind) {
+		t.Fatalf("send to a service: err = %v, want ErrKind", err)
+	}
+	if _, err := b.Subscribe("db@h", "news@h", true); !errors.Is(err, ErrKind) {
+		t.Fatalf("subscribe a service: err = %v, want ErrKind", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if _, err := b.ConsumeAs(ctx, "alice@h", "db@h", "", "", false, false); !errors.Is(err, ErrKind) {
+		t.Fatalf("consume from a service: err = %v, want ErrKind", err)
+	}
+
+	// No queue means no settings about one, on any path that stores a record.
+	for _, bad := range []protocol.Record{
+		{Name: "t1@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "a", Proto: "p", TTL: "1h"},
+		{Name: "t2@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "a", Proto: "p", Bound: 10},
+		{Name: "t3@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "a", Proto: "p", Full: protocol.OverflowRing},
+	} {
+		if _, err := b.Register(bad); !errors.Is(err, ErrKind) {
+			t.Fatalf("register %s with a queue setting: err = %v, want ErrKind", bad.Name, err)
+		}
+	}
+	for _, change := range []Management{
+		{Name: "db@h", TTL: ptr("1h")},
+		{Name: "db@h", Bound: ptr(10)},
+		{Name: "db@h", Disabled: ptr(true)},
+	} {
+		if _, err := b.Manage("alice@h", change); !errors.Is(err, ErrKind) {
+			t.Fatalf("manage %+v: err = %v, want ErrKind", change, err)
+		}
+	}
+
+	// And the daemon states none of it: a reader count of zero would be an
+	// observation of a queue that does not exist.
+	got, ok := b.Lookup("alice@h", "db@h")
+	if !ok {
+		t.Fatal("the service is not visible to its owner")
+	}
+	if got.Readers != nil || got.Queued != 0 || got.Full != "" {
+		t.Fatalf("a service reports a queue it does not have: %+v", got)
+	}
+
+	// The queue a peer does have is untouched by any of it.
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "peer@h", Body: "hello"}); err != nil {
+		t.Fatalf("an ordinary send broke: %v", err)
+	}
+	if peer, _ := b.Lookup("alice@h", "peer@h"); peer.Queued != 1 || peer.Readers == nil {
+		t.Fatalf("an agent lost its queue facts: %+v", peer)
+	}
+}

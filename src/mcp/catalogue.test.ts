@@ -11,7 +11,9 @@ describe("catalogue reader count", () => {
     // A service is the external kind, which is the only one an address and a
     // protocol belong to. See docs/03-services-and-topics.md#five-record-kinds.
     const text = catalogue({ name: "db@h", kind: "service", owner: "owner@h", addr: "db.example:3306", protocol: "mysql", readers: 2 });
-    expect(text).toContain("speaks mysql");
-    expect(text).toContain("readers: 2 outstanding");
+    expect(text).toContain("speaks mysql at db.example:3306");
+    // It has no queue here, so it makes no claim about one.
+    expect(text).not.toContain("readers");
+    expect(text).not.toContain("queued");
   });
 });

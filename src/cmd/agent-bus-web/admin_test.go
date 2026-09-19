@@ -174,19 +174,27 @@ func TestDashboardOwnerControls(t *testing.T) {
 	}
 	refusedExternal := request("owner@h", "POST", "/service", web.URL, url.Values{
 		"action": {"save"}, "name": {"db@h"}, "descr": {"still external"},
-		"addr": {"db.example:6000"}, "protocol": {"postgresql"}, "bound": {"not-a-number"},
+		"addr": {"db.example:6000"}, "protocol": {""},
 	}, 400)
-	for _, retained := range []string{`value="db.example:6000"`, `value="postgresql"`} {
+	for _, retained := range []string{`value="db.example:6000"`} {
 		if !strings.Contains(refusedExternal, retained) {
 			t.Fatalf("refused service settings lost its endpoint %q", retained)
 		}
 	}
-	// Saving an agent cannot clear what its own form never showed.
+	// A service has no queue, so its form asks nothing about one, and the save
+	// changes only what the form showed.
+	external := request("owner@h", "GET", "/service?name=db@h", "", nil, 200)
+	for _, absent := range []string{"name=bound", "name=ttl", "name=overflow", "Disable delivery"} {
+		if strings.Contains(external, absent) {
+			t.Fatalf("the service editor offers %q, which is about a queue it does not have", absent)
+		}
+	}
 	request("owner@h", "POST", "/service", web.URL, url.Values{
-		"action": {"save"}, "name": {"db@h"}, "descr": {"external"}, "bound": {"0"}, "overflow": {"strict"},
+		"action": {"save"}, "name": {"db@h"}, "descr": {"external"},
+		"addr": {"db.example:5432"}, "protocol": {"postgresql"},
 	}, 303)
-	if kept, _ := b.Lookup("owner@h", "db@h"); kept.Addr != "db.example:5432" || kept.Proto != "postgresql" {
-		t.Fatalf("a save with no endpoint fields cleared the endpoint: %+v", kept)
+	if kept, _ := b.Lookup("owner@h", "db@h"); kept.Addr != "db.example:5432" || kept.Proto != "postgresql" || kept.Full != "" || kept.Bound != 0 {
+		t.Fatalf("a service save lost its endpoint or acquired a queue setting: %+v", kept)
 	}
 	danger := request("owner@h", "GET", "/service-danger?name=svc@h", "", nil, 200)
 	for _, label := range []string{"Replace configuration", "Transfer ownership", "Remove registration"} {

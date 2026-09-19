@@ -158,17 +158,38 @@ func New() *Bus {
 // Register states a record. A name in a realm a directory backs cannot be
 // created this way — it has to be enrolled, or the first caller to ask for a
 // name would become it. See docs/01-identity-and-roles.md#registration.
+// onBus reports whether a record has a queue here. Four of the five kinds are
+// names something on this bus reads; a service is reached at its own address by
+// whoever wants it, so nothing is delivered to it, nothing is consumed from it,
+// and it never has a queue to hold, bound or expire.
+// See docs/03-services-and-topics.md#five-record-kinds.
+func onBus(r protocol.Record) bool { return r.Kind != protocol.KindService }
+
 // validateKind is what every stored record must satisfy, whichever path
 // stores it. A service describes something this bus does not run, so it has to
 // say where that thing is and how to reach it: without both, the record is a
-// name with nothing behind it and no way to find out.
+// name with nothing behind it and no way to find out. For the same reason it
+// carries no queue settings and no delivery switch — there is no queue for
+// them to be about.
 // See docs/03-services-and-topics.md#five-record-kinds.
 func validateKind(r protocol.Record) error {
 	if !protocol.ValidKind(r.Kind) {
 		return fmt.Errorf("%w: %q is not one of %s", ErrKind, r.Kind, protocol.KindNames())
 	}
-	if r.Kind == protocol.KindService && (r.Addr == "" || r.Proto == "") {
+	if onBus(r) {
+		return nil
+	}
+	if r.Addr == "" || r.Proto == "" {
 		return fmt.Errorf("%w: a service needs an address and a protocol", ErrKind)
+	}
+	if r.TTL != "" || r.Bound != 0 || r.Full != "" {
+		return fmt.Errorf("%w: a service has no queue here, so it takes no TTL, capacity or overflow policy", ErrKind)
+	}
+	if r.Disabled {
+		return fmt.Errorf("%w: a service has no delivery here to turn off", ErrKind)
+	}
+	if len(r.Subs) != 0 {
+		return fmt.Errorf("%w: a service has no queue for a subscription to land in", ErrKind)
 	}
 	return nil
 }
@@ -205,10 +226,13 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	if r.Owner == "" {
 		r.Owner = name
 	}
-	if r.Full == "" {
+	// An overflow policy is about a queue, so only a record that has one gets
+	// the default. A service stating one is a caller error, which validateKind
+	// below is where it is told.
+	if r.Full == "" && onBus(r) {
 		r.Full = protocol.OverflowStrict
 	}
-	if r.Full != protocol.OverflowStrict && r.Full != protocol.OverflowRing {
+	if r.Full != "" && r.Full != protocol.OverflowStrict && r.Full != protocol.OverflowRing {
 		return protocol.Record{}, fmt.Errorf("%w, not %q", ErrOverflow, r.Full)
 	}
 	if err := validateKind(r); err != nil {
@@ -315,7 +339,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	}
 	b.records[name] = r
 	b.recheckInbox(name)
-	b.ensure(name)
+	if onBus(r) {
+		b.ensure(name)
+	}
 	if err := b.checkpoint(false); err != nil {
 		return protocol.Record{}, err
 	}
@@ -324,9 +350,11 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	return r.Public(), nil
 }
 
-// Configure attaches a configuration to a service, creating the service if it
-// does not exist yet: configuring a service template is what produces a
-// configured service, and a service has an inbox from the moment it exists.
+// Configure attaches a configuration to a record, creating it if it does not
+// exist yet: configuring a service template is what produces a configured
+// name. What it creates is an agent, the kind that has a queue from the moment
+// it exists — a service could not be created here, having no address to be
+// registered with. See docs/03-services-and-topics.md#five-record-kinds.
 //
 // The configuration is opaque. The only thing checked is that it is JSON —
 // the same "stored raw, shape-checked only" rule the MCP method info follows
@@ -377,8 +405,8 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		if err := b.vouchedFor(n); err != nil {
 			return protocol.Record{}, err
 		}
-		// Same defaults a bare registration gets: configuring is not a
-		// second way to describe a service, only a way to give it config.
+		// Configuring is not a second way to describe a record, only a way
+		// to give one config, so this takes a bare registration's defaults.
 		r = protocol.Record{Name: n, Kind: protocol.KindAgent, Owner: who, Full: protocol.OverflowStrict}
 	} else if !b.manages(who, r) {
 		// Writing is the owner's, and the service's own. Reading is neither:
@@ -388,7 +416,9 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	r.Config = cfg
 	r.At = time.Now()
 	b.records[n] = r
-	b.ensure(n)
+	if onBus(r) {
+		b.ensure(n)
+	}
 	if err := b.checkpoint(false); err != nil {
 		return protocol.Record{}, err
 	}
@@ -469,6 +499,11 @@ func (b *Bus) OwnerOf(name string) (string, bool) {
 // connected. Caller holds the lock.
 func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 	clearLiveRecord(&r)
+	// A service has no queue, so it has no reader count either: a measured
+	// zero here would be an observation of something that does not exist.
+	if !onBus(r) {
+		return r
+	}
 	in, ok := b.inboxes[name]
 	readers := 0
 	r.Readers = &readers
@@ -608,6 +643,11 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	if rec.Disabled {
 		return protocol.Envelope{}, ErrDisabled
 	}
+	// Asked after the ACL, so a caller who may not see the name is told that
+	// and not which kind it is. See docs/03-services-and-topics.md#five-record-kinds.
+	if !onBus(rec) {
+		return protocol.Envelope{}, fmt.Errorf("%w: %s is external — call it at %s, it is not sent to over this bus", ErrKind, to, rec.Addr)
+	}
 	// An answer that cannot be routed is the requester's problem to hear
 	// about now. Registered, not live: the name owns a queue whether or not
 	// anything is reading it. See docs/04-messaging.md#reply-routing.
@@ -725,7 +765,10 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		// Asked again at every publish, not only at subscribe: access taken
 		// away has to stop the copies, or subscribing would be a way to go
 		// on reading a topic that stopped allowing you.
-		if !known || !b.activeName(s) || !b.may(s, topic) {
+		// A service has no queue for a copy to land in. Subscribe refuses one,
+		// so this is the snapshot case, and there is nothing to count as
+		// dropped because there was never anywhere for it to go.
+		if !known || !onBus(sub) || !b.activeName(s) || !b.may(s, topic) {
 			continue
 		}
 		// Turned off on purpose, which is not the same fact as access taken
@@ -783,8 +826,12 @@ func (b *Bus) Subscribe(caller, topic string, on bool) (protocol.Record, error) 
 	if r.Kind != protocol.KindPubSub {
 		return protocol.Record{}, fmt.Errorf("%w: only a pubsub topic has subscribers, and %s is not one", ErrKind, n)
 	}
-	if _, me := b.records[who]; !me {
+	me, registered := b.records[who]
+	if !registered {
 		return protocol.Record{}, fmt.Errorf("%w: register %s first, so its copies have somewhere to land", ErrUnknown, who)
+	}
+	if !onBus(me) {
+		return protocol.Record{}, fmt.Errorf("%w: %s is external and has no queue for a copy to land in", ErrKind, who)
 	}
 	r.Subs = drop1(r.Subs, who)
 	if on {
@@ -889,6 +936,11 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 	if !b.may(caller, rec) {
 		b.mu.Unlock()
 		return protocol.Envelope{}, ErrNotAllow
+	}
+	// After the ACL, for the same reason Send asks in that order.
+	if !onBus(rec) {
+		b.mu.Unlock()
+		return protocol.Envelope{}, fmt.Errorf("%w: %s is external and has no queue here to read", ErrKind, name)
 	}
 	// Q63 permits draining an inactive name's own inbox by an active,
 	// authorized caller. Only a separate owner's suspension blocks this path.

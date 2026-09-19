@@ -41,16 +41,28 @@ func TestListHelpUsesVisibleAccessiblePopoverControls(t *testing.T) {
 		`class=help-button popovertarget=service-views-help aria-label="About service views">ⓘ</button>`,
 		`<div popover id=service-views-help class=context-help>`,
 		`<h2>About these records</h2><ul>`,
-		"None of it is health", "does not establish that a send will be accepted",
-		// The page carries queue columns for a record it calls external, so it
-		// says which of the two each number is about rather than leaving the
-		// reader to decide that the counters contradict the definition.
-		"The daemon still holds a queue under the name",
-		"They say nothing about the external thing itself",
+		// A service record is information about something outside this bus,
+		// which is the whole of what the page can tell anybody about it.
+		"where it is, how to speak to it, what it is for, and the credential to use",
+		"nothing is sent to it and nothing reads it here",
+		"Who may read that information is the record&rsquo;s allow list",
 	} {
 		if !strings.Contains(services, want) {
 			t.Errorf("Services help missing %q", want)
 		}
+	}
+	// The queue explanations belong to the pages that have queues. Left here
+	// they would explain columns this page no longer carries.
+	for _, gone := range []string{
+		"None of it is health", "does not establish that a send will be accepted",
+		"Accepted and Dequeued are cumulative", "Readers counts outstanding",
+	} {
+		if strings.Contains(services, gone) {
+			t.Errorf("Services help still explains a queue fact it does not show: %q", gone)
+		}
+	}
+	if !strings.Contains(m.get("/agents"), "None of it is health") {
+		t.Error("the queue explanations were dropped from a page that does show them")
 	}
 	if strings.Contains(services, `<p class=muted>Three separate facts`) {
 		t.Error("the former Services prose wall remains in the primary flow")

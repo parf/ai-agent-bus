@@ -2,6 +2,21 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.5 — 2026-09-19
+
+An external service has no queue here. Nothing is sent to one, nothing
+subscribes it and nothing consumes from it; it takes no TTL, capacity, overflow
+policy or delivery switch, a snapshot may not restore a queue under its name,
+and no face reports a reader count or backlog it never measured. A 📡 record is
+an information card — address, protocol, description, configuration and its
+secret — read by whoever its allow list admits. The Overview no longer offers
+to find services holding work, and the listing legend spells the character its
+cells hold.
+
+The documents use the approved vocabulary throughout: service means the
+external case, what runs behind a bus name is an agent, Personal tags an agent,
+and `generic`, `topic` as a kind and delivery *mode* name nothing.
+
 ## 0.6.4 — 2026-09-19
 
 Pages stop saying things about records that are not true of them. Only a

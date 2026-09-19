@@ -875,7 +875,7 @@ if slow; then
 
 else skipped=$((skipped+1)); fi
 if slow; then
-  sec "a service is the inbox it registered, and stops when told"
+  sec "a script agent is the inbox it registered, and stops when told"
   printf '#!/bin/sh\nsleep 3\necho "did $1"\n' > "$D/slow.sh"; chmod +x "$D/slow.sh"
   abx launcher@srv1 start slow@srv1 --allow '*' --algo args "$D/slow.sh" -1 --descr "slowly" >>"$D/start.log" 2>&1 &
   LPID=$!
@@ -1240,8 +1240,21 @@ human_error=$(ab owner@srv1 ls -h absent-entirely@srv1 2>&1)
 bad_exit "human missing lookup fails" "$?"
 has "human missing lookup reports the error" "$human_error" 'no such name'
 ab owner@srv1 register human-external@srv1 --allow '*' --protocol http --addr http://localhost >/dev/null
-has "external protocol stays separate from its measured reader count" \
-  "$(ab owner@srv1 ls -h human-external@srv1)" '^human-external@srv1  *📡 Service  *owner@srv1  *0  *0'
+# A service is external and has no queue here, so the listing reports no reader
+# count and no backlog for it rather than a zero it never measured.
+# See docs/03-services-and-topics.md#five-record-kinds.
+has "an external service reports no queue it does not have" \
+  "$(ab owner@srv1 ls -h human-external@srv1)" '^human-external@srv1  *📡 Service  *owner@srv1  *-  *-'
+has "while an agent's own counts are still measured" \
+  "$(ab owner@srv1 ls -h human@srv1)" '^human@srv1  *👾 Agent  *owner@srv1  *[0-9]  *[0-9]'
+# The legend has to spell the cell the table prints. It explained an em dash
+# while every such cell held "-", which explains nothing.
+has "and the legend spells the character those cells hold" \
+  "$(ab owner@srv1 ls -h human-external@srv1)" '^ *-  for 📡, which is external and has no queue here'
+lacks "and nothing may be sent to the external one" \
+  "$(ab owner@srv1 send human-external@srv1 nope 2>&1)" '"message_id"'
+has "which says why, naming the address to call instead" \
+  "$(ab owner@srv1 send human-external@srv1 nope 2>&1)" 'it is not sent to over this bus'
 ab human@srv1 consume --wait 0s >/dev/null
 ab human@srv1 consume --wait 10s >"$D/human-reader" & HUMAN_READER=$!
 for _ in $(seq 1 100); do
@@ -1594,7 +1607,7 @@ else
 fi
 has "and says the message was accepted" "$out" 'do not resend'
 
-sec "the caller's deadline travels to the service"
+sec "the caller's deadline travels to the receiver"
 users asker2@srv1
 # The wait belongs to the CALLER, so a service can see the answer is already
 # too late and not do the work. The moment is the daemon's: a caller states a

@@ -197,6 +197,13 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		}
 	}
 	for _, q := range s.Queues {
+		// A queue under a service name is a snapshot this version could not
+		// have written, and restoring it would leave messages nothing can
+		// ever read. Refused rather than dropped, for the same reason an
+		// unknown kind is. See docs/03-services-and-topics.md#five-record-kinds.
+		if r, known := b.records[q.Name]; known && !onBus(r) && b.recordRestoreErr == nil {
+			b.recordRestoreErr = fmt.Errorf("snapshot queue %s cannot be restored: %w: a service has no queue here", q.Name, ErrKind)
+		}
 		in := b.ensure(q.Name)
 		in.in, in.out = q.In, q.Out
 		in.dropped, in.expired = q.Dropped, q.Expired

@@ -27,7 +27,7 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 		`class=node-strip`,
 		`🏠</span> Overview</h1>`,
 		`Node-wide. The lists linked below contain only records visible to you; the two never have to agree.`,
-		`href="/services?sort=queued&amp;work=held"`, `href="/channels?sort=queued&amp;work=held"`,
+		`href="/channels?sort=queued&amp;work=held"`, `href="/services">External services`,
 	} {
 		if !strings.Contains(overview, want) {
 			t.Errorf("Overview lacks %q", want)
@@ -49,9 +49,17 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 	// listing that holds work, agents first. Users and Diagnostics are menu
 	// entries and were repeated here.
 	find := section(t, overview, `<nav class=overview-links aria-label="Find records">`, "</nav>")
-	for _, kept := range []string{"Agents holding work", "Services holding work", "Channels holding work"} {
+	for _, kept := range []string{"Agents holding work", "Channels holding work", "External services"} {
 		if !strings.Contains(find, kept) {
 			t.Errorf("the Find row lost %q: %s", kept, find)
+		}
+	}
+	// A service has no queue here, so there is no such thing as one holding
+	// work and no filter on the Services page that would answer for it.
+	// See docs/03-services-and-topics.md#five-record-kinds.
+	for _, impossible := range []string{"Services holding work", "/services?sort=queued"} {
+		if strings.Contains(find, impossible) {
+			t.Errorf("the Find row offers %q, which a service cannot do: %s", impossible, find)
 		}
 	}
 	for _, duplicated := range []string{">Users</a>", ">Diagnostics</a>"} {

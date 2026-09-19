@@ -278,35 +278,36 @@ func TestReaderCountDistinguishesUnavailableFromMeasuredZero(t *testing.T) {
 	}
 }
 
-// external is a caller-supplied hint about how a thing is reached. It was
-// occupying the reader column, so an external service could never report
-// whether anything was reading it — declared state overwriting an observation,
-// which is the merge the rule forbids.
+// A service is external, so the page has no reader observation to make about
+// it and does not invent one. The reader column belongs to the records that
+// have a queue. See docs/03-services-and-topics.md#five-record-kinds.
 func TestExternalDoesNotStandInForTheReaderObservation(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	m.attachReader("elsewhere@h")
-	listing := m.get("/services")
-	if !strings.Contains(listing, "external") {
-		t.Fatal("the listing does not mark a record reached another way")
+	m.attachReader("reading@h")
+	agent := m.row(m.get("/agents"), "reading@h")
+	if !strings.Contains(agent, `<td class=num data-label=Readers>1`) {
+		t.Errorf("an agent being read reports its reader: %s", agent)
 	}
-	// The row for the external record carries BOTH facts. Sliced to the row,
-	// because the words appear elsewhere on a page listing five records.
-	row := listing
-	if i := strings.Index(row, "elsewhere@h"); i >= 0 {
-		row = row[i:]
-		if j := strings.Index(row, "</tr>"); j >= 0 {
-			row = row[:j]
+	service := m.row(m.get("/services"), "elsewhere@h")
+	for _, want := range []string{"<code>elsewhere.example</code>", "<code>https</code>"} {
+		if !strings.Contains(service, want) {
+			t.Errorf("the service row does not say where it is or how to speak to it, wanted %q: %s", want, service)
 		}
 	}
-	if !strings.Contains(row, "external") {
-		t.Error("the external record's own row does not say so")
+	for _, absent := range []string{"data-label=Readers", "data-label=Queued", "data-label=Accepted", "data-label=Dequeued", "data-label=Delivery"} {
+		if strings.Contains(service, absent) {
+			t.Errorf("the service row carries %q, which is an observation of a queue it does not have: %s", absent, service)
+		}
 	}
-	if !strings.Contains(row, "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>1<td data-label=Reached>external") {
-		t.Errorf("the external record's row does not keep the separate reader count: %s", row)
+	detail := m.get("/service?name=elsewhere@h")
+	if !strings.Contains(detail, "<h2>Where it is</h2>") || !strings.Contains(detail, "The daemon neither reaches the thing nor checks that it is there") {
+		t.Errorf("the service detail does not state what the record actually says: %s", detail)
 	}
-	if !strings.Contains(m.get("/service?name=elsewhere@h"), "not proof of anything") {
-		t.Error("the detail page treats the hint as though it established something")
+	for _, absent := range []string{"<h2>Queue &amp; counters</h2>", "<h2>Delivery</h2>", "Disable delivery", "name=bound", "name=ttl", "name=overflow"} {
+		if strings.Contains(detail, absent) {
+			t.Errorf("the service detail offers %q, which is about a queue it does not have", absent)
+		}
 	}
 }
 
