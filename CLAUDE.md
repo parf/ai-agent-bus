@@ -20,7 +20,6 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 | [R1](Plans/R1/README.md#scope), [R1.1](Plans/R1.1/README.md#scope), [R1.2](Plans/R1.2/README.md#scope) | Future release knowledge and plans |
 | [Future](Plans/Future/README.md#topics) | Generic undecided or unassigned ideas |
 | `Plans/done/` and each plan's `done/` | Historical completion evidence, never current contracts |
-| `legacy/` | History only: never cite or update it |
 
 ## Working rules
 

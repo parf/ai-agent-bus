@@ -350,4 +350,4 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | `register` both issues a credential and states a registry record | `token` issues the credential; `register` only states a record — [access § getting a token](../../../docs/02-access.md#getting-a-token) |
 | One token reaches every name, and the face overwriting `from` is the only guard | a token backs exactly one principal, and it is the only thing the daemon reads a caller out of — [access § what a call carries](../../../docs/02-access.md#what-a-call-carries) |
 | LDAP/AD in scope | deferred — [future](../../Future/ldap-ad.md#ldap--active-directory--future) |
-| NATS · Redis Streams · AUTH-signed JWT keys | dropped; kept in `legacy/` for history |
+| NATS · Redis Streams · AUTH-signed JWT keys | dropped; the V1 notes that described them were removed from the tree on 2026-09-18 and are in Git history at `45e0ccb` |
