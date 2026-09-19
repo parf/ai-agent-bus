@@ -2,6 +2,13 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.14 — 2026-09-19
+
+The Overview node strip divides by time rather than by subject: Readers,
+Queued and the four counts are how the node stands now, and Uptime and the
+call windows follow on their own row as what has happened since it started. A
+strip figure of none is a dash instead of a zero.
+
 ## 0.6.13 — 2026-09-19
 
 Registration is a page per kind. The Channels section offers a queue form and a

@@ -285,7 +285,12 @@ The Services and Channels tables carry their own accepted/dequeued counters.
 
 Human-facing integer counts use grouped decimal figures, including the compact
 footer, registry, diagnostics and Activity totals. JSON, URLs, form values and
-editable syntax remain unchanged plain values.
+editable syntax remain unchanged plain values. The Overview node strip is
+divided in two: how the node stands right now, then what has happened since it
+started. A strip figure of none is a dash rather than a zero — the same answer,
+written so that a quiet node does not read as a page of readings to check. A
+table column keeps the plain number, where a dash would break the alignment
+that makes the column scannable.
 
 ### Overview and diagnostics
 

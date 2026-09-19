@@ -668,3 +668,25 @@ const exchangesTemplate = `
 func formSecret(value string) string {
 	return strings.ReplaceAll(value, "\r\n", "\n")
 }
+
+// figure is a count as the node strip states it: the grouped decimal, or a
+// dash when there is none. Zero is a true answer to "how many", and a strip of
+// them made a quiet node look like a page of readings to check; the dash says
+// the same thing without asking to be read. Only the strip uses it — a table
+// column stays a column of numbers, where a dash would break the alignment
+// that makes it scannable.
+func figure(value any) template.HTML {
+	switch n := value.(type) {
+	case int:
+		if n == 0 {
+			return noFigure
+		}
+	case uint64:
+		if n == 0 {
+			return noFigure
+		}
+	}
+	return template.HTML(template.HTMLEscapeString(number(value)))
+}
+
+const noFigure = template.HTML(`<span class=muted>&mdash;</span>`)

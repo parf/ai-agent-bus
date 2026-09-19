@@ -2152,13 +2152,16 @@ has "the strip reports total calls" "$NODE" '<span>Calls, total</span><strong>[0
 # One cell per thing a record can be, because a single total cannot say which
 # of the four listings grew. Each is asked for separately.
 for label in Agents Services Channels Users; do
-  has "the strip counts $label on its own" "$NODE" "<span>$label</span><strong>[0-9]"
+  has "the strip counts $label on its own" "$NODE" \
+    "<span>$label</span><strong>\\([0-9]\\|<span class=muted>&mdash;\\)"
 done
 lacks "and no longer sums them into one cell" "$NODE" \
   '<span>Records</span>\|<span>Agents + Services + Channels + Users</span>'
 # Against the daemon rather than against the page: four cells each holding a
 # plausible digit is what a constant looks like. Their sum is the node's whole
 # registry, which is the one number the old cell reported.
+# A dash counts as nothing, which is what it means. Empty is what the strip
+# prints for a kind the node has none of.
 STRIPSUM=$(printf '%s' "$NODE" \
   | grep -o '<span>\(Agents\|Services\|Channels\|Users\)</span><strong>[0-9,]*' \
   | grep -o '[0-9,]*$' | tr -d ',' | awk '{n+=$1} END{print n+0}')
@@ -2167,9 +2170,18 @@ has "the daemon states a registry total for them to be checked against" "$NODETO
 has "and the four counts add up to it" "$STRIPSUM" "^$NODETOTAL$"
 # What the node holds leads; how it is running follows on its own row. Asked
 # as the order of the markup, because every cell is on the page either way.
-has "the strip breaks after the counts and before uptime" \
-  "$(printf '%s' "$NODE" | grep -o '<span>Users</span>\|<div class=node-break\|<span>Uptime</span>' | paste -sd,)" \
-  '^<span>Users</span>,<div class=node-break,<span>Uptime</span>$'
+has "how the node stands now leads, and what it has done since start follows" \
+  "$(printf '%s' "$NODE" | grep -o '<span>Readers</span>\|<span>Users</span>\|<div class=node-break\|<span>Uptime</span>\|<span>Calls, total</span>' | paste -sd,)" \
+  '^<span>Readers</span>,<span>Users</span>,<div class=node-break,<span>Uptime</span>,<span>Calls, total</span>$'
+# None is a dash. Which cell is empty depends on what this run registered, so
+# the three checks are about the strip rather than about a named cell: it has
+# at least one of each, and nowhere a bare zero. A strip that numbered
+# everything loses the dash and gains the zero; one that dashed everything
+# loses the figure.
+has "some strip cell has none and says so with a dash" "$NODE" \
+  '<strong><span class=muted>&mdash;</span></strong>'
+has "and some cell has something and states the figure" "$NODE" '<strong>[0-9]'
+lacks "no strip cell prints a bare zero" "$NODE" '<strong>0</strong>'
 lacks "the signed-in footer does not repeat the counts" \
   "$(printf '%s' "$PAGE" | grep 'class=footer-node')" 'Calls'
 NAV=$(printf '%s' "$PAGE" | grep 'nav aria-label=.sections.')

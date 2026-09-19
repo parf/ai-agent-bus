@@ -33,7 +33,9 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 		{Name: "news@h", Owner: "admin@h", Kind: protocol.KindQueue},
 		{Name: "work@h", Owner: "admin@h", Kind: protocol.KindQueue},
 		{Name: "shout@h", Owner: "admin@h", Kind: protocol.KindPubSub},
-		{Name: "vault@h", Owner: "admin@h", Kind: protocol.KindService, Addr: "db:5432", Proto: "postgres"},
+		// No service on purpose: one of the four has to be zero, or the dash
+		// that stands in for it could not be seen on a count cell at all. The
+		// smoke run asserts the four against a daemon that has one.
 	}
 	for _, record := range records {
 		m.register(record)
@@ -53,11 +55,23 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	// One cell per thing a record can be, each with its own figure. The
 	// numbers differ from one another, so a cell that printed the wrong kind's
 	// count fails here rather than matching its neighbour.
-	for label, want := range map[string]string{"Agents": "2", "Services": "1", "Channels": "3", "Users": "4"} {
+	for label, want := range map[string]string{"Agents": "2", "Channels": "3", "Users": "4"} {
 		cell := "<span>" + label + "</span><strong>" + want + "</strong>"
 		if !strings.Contains(strip, cell) {
 			t.Errorf("the strip does not count %s separately as %s: %s", label, want, strip)
 		}
+	}
+	// None is a dash, not a zero, and it reaches a count cell as well as the
+	// two readings beside it. Asserted against the three numbers above, which
+	// are the other half: a strip that dashed everything fails there.
+	dash := "<strong><span class=muted>&mdash;</span></strong>"
+	for _, label := range []string{"Services", "Queued", "Readers"} {
+		if !strings.Contains(strip, "<span>"+label+"</span>"+dash) {
+			t.Errorf("%s has none and does not say so with a dash: %s", label, strip)
+		}
+	}
+	if strings.Contains(strip, "<strong>0</strong>") {
+		t.Errorf("the strip still prints a zero: %s", strip)
 	}
 	// A queue and a pub/sub topic are one page and one cell, so Channels is a
 	// sum of two kinds rather than either of them.
@@ -85,22 +99,24 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 		}
 	}
 
-	// What the node holds comes first and how it is running follows, on its
-	// own row. Asserted as positions rather than as presence: every cell is on
-	// the page either way, and the whole change is which side of the break
-	// each one falls.
+	// Two rows with a meaning each, asserted as positions rather than as
+	// presence: every cell is on the page either way, and the whole change is
+	// which side of the break each one falls.
 	brk := strings.Index(strip, "<div class=node-break")
 	if brk < 0 {
 		t.Fatalf("the strip has no row break, so the next checks cannot fail: %s", strip)
 	}
-	for _, before := range []string{"<span>Agents</span>", "<span>Services</span>", "<span>Channels</span>", "<span>Users</span>"} {
-		if at := strings.Index(strip, before); at < 0 || at > brk {
-			t.Errorf("%s is not on the first row: %s", before, strip)
+	// The first row is how the node stands now; the second is what has
+	// happened since it started. Uptime and the call counters are the only
+	// facts on the page that are about the past.
+	for _, now := range []string{"<span>Readers</span>", "<span>Queued</span>", "<span>Agents</span>", "<span>Services</span>", "<span>Channels</span>", "<span>Users</span>"} {
+		if at := strings.Index(strip, now); at < 0 || at > brk {
+			t.Errorf("%s is a current fact and is not on the first row: %s", now, strip)
 		}
 	}
-	for _, after := range []string{"<span>Uptime</span>", "<span>Queued</span>", "<span>Readers</span>"} {
-		if at := strings.Index(strip, after); at < 0 || at < brk {
-			t.Errorf("%s is not on the second row: %s", after, strip)
+	for _, since := range []string{"<span>Uptime</span>", "Calls"} {
+		if at := strings.Index(strip, since); at < 0 || at < brk {
+			t.Errorf("%s is a historical fact and is not on the second row: %s", since, strip)
 		}
 	}
 	// And the break is a break: a cell-sized element there would read as an
@@ -151,6 +167,9 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	}
 	if named < 4 {
 		t.Errorf("the node help names %d menu sections for a count that spans every record: %s", named, help)
+	}
+	if !strings.Contains(help, "The first row is how the node stands right now") {
+		t.Errorf("the node help does not say what the two rows divide: %s", help)
 	}
 	if !strings.Contains(help, "count records by kind, node-wide") {
 		t.Errorf("the node help does not say what the record counts cover: %s", help)
