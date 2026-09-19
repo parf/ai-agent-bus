@@ -1135,6 +1135,12 @@ type Status struct {
 	// Refusals by kind, and only the kinds that have happened. A reason
 	// with a zero beside it is noise on every other node.
 	Refused map[string]int `json:"refused,omitempty"`
+	// Records by kind, node-wide, and every kind of the closed set whether or
+	// not the node holds one. A total alone cannot say which of the four
+	// listings grew, and an absent kind here would read as an older daemon
+	// rather than as a node with none of them.
+	// See docs/03-records.md#five-record-kinds.
+	Kinds map[string]int `json:"kinds"`
 }
 
 // Uptime reads only the process start time, immutable after New. Public node
@@ -1147,6 +1153,13 @@ func (b *Bus) Status() Status {
 	s := Status{
 		Up:       b.Uptime(),
 		Services: len(b.records),
+		Kinds:    map[string]int{},
+	}
+	for _, kind := range protocol.Kinds {
+		s.Kinds[kind] = 0
+	}
+	for _, r := range b.records {
+		s.Kinds[r.Kind]++
 	}
 	// Summed, not counted a second time: the node's total has one home, and
 	// it is the inboxes that lost the work.

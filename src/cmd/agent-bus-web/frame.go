@@ -32,6 +32,16 @@ type pageInfo struct {
 // the SVG avatar response. Local build facts remain explicitly web facts.
 func (p pageInfo) Frame() pageInfo { return p }
 
+// NodeOwner is the daemon owner's name when the node published one, and empty
+// when it did not. Empty never marks a row: a page built while the daemon was
+// unreachable must not decide that the first nameless record is the owner.
+func (p pageInfo) NodeOwner() string {
+	if p.Node == nil {
+		return ""
+	}
+	return p.Node.Owner
+}
+
 type pageInfoKey struct{}
 
 // The node publishes this subset to everyone. No session or privileged

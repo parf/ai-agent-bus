@@ -2,6 +2,15 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.10 — 2026-09-19
+
+The dashboard has a tab icon, served as `/favicon.svg`; a browser asking for
+`/favicon.ico` is told there is none rather than handed a page. The Overview
+node strip counts Agents, Services, Channels and Users separately instead of
+summing them into one cell, from per-kind totals the daemon now states. A row
+naming the node's daemon owner carries `🔱` and the authority rather than
+`👤 User`.
+
 ## 0.6.9 — 2026-09-19
 
 The daemon's own words follow the [glossary](docs/glossary.md#terms): a

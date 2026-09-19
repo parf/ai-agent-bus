@@ -84,6 +84,17 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		io.WriteString(w, uiScript)
 	})
+	mux.HandleFunc("GET /favicon.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
+		io.WriteString(w, faviconSVG)
+	})
+	// A browser asks for this one whether or not a page names it, and `GET /`
+	// answers every unmatched path, so without this the tab icon request gets
+	// the overview or the sign-in page with a 200 on it. Answer what is true:
+	// there is no .ico here, and the head names the SVG.
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	})
 
 	loadView := func(w http.ResponseWriter, r *http.Request) (view, bool) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -107,6 +118,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 			return view{}, false
 		}
 		v := view{pageInfo: requestInfo(r), You: node.You, Status: node.Status, Refusals: refusals(node.Refused)}
+		v.Totals = kindTotals(node.Kinds)
 		if err := bus.get(cred, "/ls", &v.Records); err != nil {
 			fail(w, r, node.You, err)
 			return view{}, false
@@ -347,6 +359,7 @@ const head = `<!doctype html>
 <html lang=en>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel=icon href=/favicon.svg type="image/svg+xml">
 <script defer src=/ui.js></script>
 <style>
  body{font:14px system-ui,sans-serif;margin:2rem;max-width:60rem}
@@ -685,8 +698,8 @@ var overviewPage = template.Must(template.New("overview").Funcs(template.FuncMap
 <p class=muted><a href="{{.Href}}">{{.Link}}</a></p></article>{{end}}</div>
 </section>{{end}}
 
-<section class=dashboard-section aria-labelledby=node><div class=page-title><h2 id=node>This node</h2><button type=button class=help-button popovertarget=node-help aria-label="About node totals" data-tooltip="Whole-node values. Caller-visible lists may show a smaller set.">ⓘ</button></div><div popover id=node-help class=context-help><h2>Node totals</h2><ul><li>These values cover the whole daemon.</li><li>This number is every record on the node, whichever of the four pages lists it. Agents, Services, Channels and Users each show only what you may see, so their counts never have to agree with this strip.</li><li>Readers counts outstanding consume requests, not processes, sessions or health.</li><li>Calls counts HTTP requests reaching the daemon, node-wide, including refused ones. A window the daemon has not observed yet says so rather than reading zero.</li></ul></div>
-<div class=node-strip><div class=node-fact><span>Uptime</span><strong>{{.Status.Up}}</strong></div><div class=node-fact><span>Agents + Services + Channels + Users</span><strong>{{number .Status.Services}}</strong></div><div class=node-fact><span>Queued</span><strong>{{number .Status.Queued}}</strong></div><div class=node-fact><span>Readers</span><strong>{{number .Status.Waiting}}</strong></div>
+<section class=dashboard-section aria-labelledby=node><div class=page-title><h2 id=node>This node</h2><button type=button class=help-button popovertarget=node-help aria-label="About node totals" data-tooltip="Whole-node values. Caller-visible lists may show a smaller set.">ⓘ</button></div><div popover id=node-help class=context-help><h2>Node totals</h2><ul><li>These values cover the whole daemon.</li><li>Agents, Services, Channels and Users count records by kind, node-wide; a queue and a pub/sub topic are both channels here. The four pages of those names show only what you may see, so their counts never have to agree with this strip.</li><li>Readers counts outstanding consume requests, not processes, sessions or health.</li><li>Calls counts HTTP requests reaching the daemon, node-wide, including refused ones. A window the daemon has not observed yet says so rather than reading zero.</li></ul></div>
+<div class=node-strip><div class=node-fact><span>Uptime</span><strong>{{.Status.Up}}</strong></div>{{range .Totals}}<div class=node-fact><span>{{.Label}}</span><strong>{{number .Count}}</strong></div>{{else}}<div class=node-fact><span>Records</span><strong>{{number .Status.Services}}</strong></div>{{end}}<div class=node-fact><span>Queued</span><strong>{{number .Status.Queued}}</strong></div><div class=node-fact><span>Readers</span><strong>{{number .Status.Waiting}}</strong></div>
 {{with .Frame.Node}}{{with .Calls}}{{range .Windows}}<div class=node-fact><span>Calls, {{if eq .Window "1m"}}minute{{else}}hour{{end}}</span>{{if .Available}}<strong>{{number .Count}}</strong>{{else}}<strong class=node-fact-note>collecting history</strong>{{end}}</div>{{end}}<div class=node-fact><span>Calls, total</span><strong>{{number .Total}}</strong></div>{{else}}<div class=node-fact><span>Calls</span><strong class=node-fact-note>unavailable</strong></div>{{end}}{{else}}<div class=node-fact><span>Calls</span><strong class=node-fact-note>unavailable</strong></div>{{end}}</div>
 <p class=muted>Node-wide. The lists linked below contain only records visible to you; the two never have to agree.</p></section>
 <nav class=overview-links aria-label="Find records"><strong>Find</strong><a href="/agents?sort=queued&amp;work=held">Agents holding work</a><a href="/channels?sort=queued&amp;work=held">Channels holding work</a><a href="/services">External services</a></nav>

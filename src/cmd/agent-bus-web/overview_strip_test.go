@@ -17,25 +17,54 @@ import (
 )
 
 // The node strip is where the owner reads the node's numbers, so the call
-// counters belong in it rather than in the footer, and the record count has to
-// say what it counted. "Records" did not: the value is len(b.records), which is
-// every registered record whatever its kind.
+// counters belong in it rather than in the footer, and the record counts have
+// to say what they counted. One cell labelled with four page names did not: the
+// value was len(b.records), and a reader comparing it with any one page could
+// not tell which of the four had grown.
+//
+// The fixture gives each of the four a different number on purpose. Equal
+// counts let a swapped label, a kind counted twice or a total printed four
+// times pass every assertion below.
 func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	m := meaningFixture(t)
-	for _, record := range []protocol.Record{
+	records := []protocol.Record{
 		{Name: "svc@h", Owner: "admin@h", Kind: protocol.KindAgent},
 		{Name: "bot@h", Owner: "admin@h", Kind: "agent"},
 		{Name: "news@h", Owner: "admin@h", Kind: protocol.KindQueue},
-	} {
+		{Name: "work@h", Owner: "admin@h", Kind: protocol.KindQueue},
+		{Name: "shout@h", Owner: "admin@h", Kind: protocol.KindPubSub},
+		{Name: "vault@h", Owner: "admin@h", Kind: protocol.KindService, Addr: "db:5432", Proto: "postgres"},
+	}
+	for _, record := range records {
 		m.register(record)
+	}
+	// A person's own inbox is created by adding the person, which is the only
+	// way a user record comes to exist. admin@h is a fifth person on the node
+	// and is deliberately not counted here: it holds a credential and has
+	// registered nothing, so no record carries its name.
+	for _, name := range []string{"ann@h", "bo@h", "cy@h", "di@h"} {
+		if _, err := m.bus.SetUser("admin@h", protocol.User{Name: name}, true); err != nil {
+			t.Fatal(err)
+		}
 	}
 	overview := m.get("/")
 	strip := section(t, overview, "<div class=node-strip>", "</div></div>")
 
-	// One label naming every page it sums, because a reader comparing it with
-	// any one of them must know what else is in the number.
-	if !strings.Contains(strip, "<span>Agents + Services + Channels + Users</span>") {
-		t.Errorf("the record count does not name the kinds it sums: %s", strip)
+	// One cell per thing a record can be, each with its own figure. The
+	// numbers differ from one another, so a cell that printed the wrong kind's
+	// count fails here rather than matching its neighbour.
+	for label, want := range map[string]string{"Agents": "2", "Services": "1", "Channels": "3", "Users": "4"} {
+		cell := "<span>" + label + "</span><strong>" + want + "</strong>"
+		if !strings.Contains(strip, cell) {
+			t.Errorf("the strip does not count %s separately as %s: %s", label, want, strip)
+		}
+	}
+	// A queue and a pub/sub topic are one page and one cell, so Channels is a
+	// sum of two kinds rather than either of them.
+	for _, wrong := range []string{"<span>Channels</span><strong>2</strong>", "<span>Channels</span><strong>1</strong>"} {
+		if strings.Contains(strip, wrong) {
+			t.Errorf("Channels counts one kind instead of both: %s", strip)
+		}
 	}
 	// The figures are read down a column, so they are ranged right in tabular
 	// numerals: the owner asked for it after reading them centred.
@@ -48,12 +77,12 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 			t.Errorf("the strip figures are not ranged right by place value: %q lacks %q", figure, want)
 		}
 	}
-	if strings.Contains(strip, "<span>Records</span>") {
-		t.Error("the strip still calls the sum Records without saying what a record is here")
-	}
-	// Three kinds registered, and the count is all of them.
-	if !strings.Contains(strip, "<span>Agents + Services + Channels + Users</span><strong>3</strong>") {
-		t.Errorf("the count is not the whole registry: %s", strip)
+	// The combined cell is gone in both of its spellings, so nothing reports
+	// a total a reader cannot take apart.
+	for _, gone := range []string{"<span>Records</span>", "<span>Agents + Services + Channels + Users</span>"} {
+		if strings.Contains(strip, gone) {
+			t.Errorf("the strip still sums the kinds into one cell (%s): %s", gone, strip)
+		}
 	}
 
 	// The counters live in the strip now; the states they can be in are
@@ -99,8 +128,8 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	if named < 4 {
 		t.Errorf("the node help names %d menu sections for a count that spans every record: %s", named, help)
 	}
-	if !strings.Contains(help, "This number is every record on the node") {
-		t.Errorf("the node help does not say what its record count covers: %s", help)
+	if !strings.Contains(help, "count records by kind, node-wide") {
+		t.Errorf("the node help does not say what the record counts cover: %s", help)
 	}
 	if strings.Contains(help, "Inboxes page") || strings.Contains(help, "Agents page") {
 		t.Errorf("the node help sends a reader to a page that does not exist: %s", help)

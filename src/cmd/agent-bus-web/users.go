@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -78,13 +79,18 @@ type peopleView struct {
 	RecordKinds                                  map[string]string
 }
 
+// identityLabel and identityGlyph mark the node's daemon owner as the
+// authority rather than as one more person: a directory row carries only a
+// name, so the entity type is the row's least useful fact about the one
+// identity that cannot be delegated. The daemon states it per user, so a page
+// never infers it from a name.
 func identityLabel(u protocol.User, recordKinds map[string]string) string {
 	if u.Kind == protocol.DirectoryUser {
-		return entityLabel(protocol.DirectoryUser)
+		return display.Identity(protocol.DirectoryUser, u.DaemonOwner)
 	}
 	if u.Kind == protocol.DirectoryRecord {
 		if kind := recordKinds[u.Name]; protocol.ValidKind(kind) {
-			return entityLabel(kind)
+			return display.Identity(kind, u.DaemonOwner)
 		}
 	}
 	return ""
@@ -92,10 +98,10 @@ func identityLabel(u protocol.User, recordKinds map[string]string) string {
 
 func identityGlyph(u protocol.User, recordKinds map[string]string) string {
 	if u.Kind == protocol.DirectoryUser {
-		return entityGlyph(protocol.DirectoryUser)
+		return display.IdentityGlyph(protocol.DirectoryUser, u.DaemonOwner)
 	}
 	if u.Kind == protocol.DirectoryRecord {
-		return entityGlyph(recordKinds[u.Name])
+		return display.IdentityGlyph(recordKinds[u.Name], u.DaemonOwner)
 	}
 	return ""
 }

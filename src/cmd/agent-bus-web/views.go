@@ -157,6 +157,14 @@ func authorityLabel(daemonOwner, administrator bool) string {
 
 func entityLabel(kind string) string { return display.Entity(kind) }
 
+// identityKind is entityLabel for a row that names a principal, so that the
+// node's daemon owner reads as the authority rather than as one more user. The
+// owner's name comes from the frame, which every page already carries; an
+// unavailable node publishes no name and marks nobody.
+func identityKind(kind, name, daemonOwner string) string {
+	return display.Identity(kind, name != "" && name == daemonOwner)
+}
+
 // channelRecord reports whether a record belongs with the channels rather than
 // the services. Four of the five kinds are names on this bus that something is
 // delivered to; only a service is external, and it is the one thing nothing is
@@ -269,10 +277,37 @@ func groupGlyph() string {
 	return display.GroupGlyph
 }
 
+// kindTotal is one cell of the node strip: what a record can be, and how many
+// of them this node holds.
+type kindTotal struct {
+	Label string
+	Count int
+}
+
+// kindTotals names the four things a record can be, in the order the navigation
+// lists them, and gives each its own node-wide count. A queue and a pub/sub
+// topic are both channels here, which is the only place the four differ from
+// the five kinds (docs/03-records.md#five-record-kinds).
+//
+// A daemon that stated no kinds gets nothing rather than four zeros: the strip
+// would otherwise read as an empty node beside a total that says eleven.
+func kindTotals(kinds map[string]int) []kindTotal {
+	if len(kinds) == 0 {
+		return nil
+	}
+	return []kindTotal{
+		{"Agents", kinds[protocol.KindAgent]},
+		{"Services", kinds[protocol.KindService]},
+		{"Channels", kinds[protocol.KindQueue] + kinds[protocol.KindPubSub]},
+		{"Users", kinds[protocol.KindUser]},
+	}
+}
+
 type view struct {
 	pageInfo
 	You    string
 	Status core.Status
+	Totals []kindTotal // node-wide record counts, one cell per thing a record can be
 
 	Records   []protocol.Record // registry, as this caller may see it
 	Backlogs  []protocol.Record // inboxes holding messages, longest wait first

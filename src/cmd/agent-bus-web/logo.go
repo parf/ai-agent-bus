@@ -15,3 +15,16 @@ const nodeLogo = `<svg class=node-logo width="80" height="58" viewBox="0 0 72 52
 <path d="M7 37h4" stroke="#ffdf83" stroke-width="3" stroke-linecap="round"/>
 </g>
 </svg>`
+
+// faviconSVG is the same bus on a square plate, drawn again rather than scaled:
+// the sign-in mark's windows and wheels disappear at 16px, which is the only
+// size a tab ever shows. Repository-owned and self-contained, like the page
+// title images (Plans/MVP/web/glyphs.md#page-title-images-and-glyphs).
+const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+<rect width="32" height="32" rx="7" fill="#172b3a"/>
+<path d="M5 11a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4v10H5Z" fill="#e83b32"/>
+<path d="M8 11h5v5H8Zm7 0h9v5h-9Z" fill="#bce6ef"/>
+<path d="M5 19h22" stroke="#ffcf57" stroke-width="2"/>
+<circle cx="11" cy="23" r="3" fill="#c7d5db"/>
+<circle cx="21" cy="23" r="3" fill="#c7d5db"/>
+</svg>`

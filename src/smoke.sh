@@ -2102,6 +2102,21 @@ is_empty "and no records or registry totals" \
      | grep -oE 'watched by the board|[0-9]+ records')"
 has "health still answers an empty 200" \
   "$(curl -s -o /dev/null -w '%{http_code}:%{size_download}' "$WEB/healthz")" '^200:0$'
+# The tab icon. Asked of the type and of a shape only the icon has: `GET /`
+# answers every unmatched path, so a missing route still returns 200 with a
+# page in it, and a check on the status code alone could not tell the two
+# apart.
+has "the tab icon is served as an svg" \
+  "$(curl -s -o /dev/null -w '%{http_code}:%{content_type}' "$WEB/favicon.svg")" \
+  '^200:image/svg+xml'
+has "and it is the bus mark, not a page" \
+  "$(curl -s "$WEB/favicon.svg")" '<svg[^>]*viewBox="0 0 32 32"'
+# A browser asks for this one whichever icon the head names, and answering it
+# with the sign-in page is worse than answering nothing.
+has "a browser asking for favicon.ico is told there is none" \
+  "$(curl -s -o /dev/null -w '%{http_code}' "$WEB/favicon.ico")" '^404$'
+has "and the signed-out page names the icon it does have" \
+  "$ANON" '<link rel=icon href=/favicon.svg'
 # One message however it failed: telling a bad credential from an unknown
 # name is an oracle for which names exist.
 has "a refused sign-in says one thing" \
@@ -2134,8 +2149,22 @@ has "Overview carries the node strip" "$NODE" '<div class=node-strip>'
 has "the strip reports sampled minute calls" "$NODE" '<span>Calls, minute</span><strong>[0-9]'
 has "the strip reports sampled hour calls" "$NODE" '<span>Calls, hour</span><strong>[0-9]'
 has "the strip reports total calls" "$NODE" '<span>Calls, total</span><strong>[0-9]'
-has "the strip names the kinds its record count sums" "$NODE" '<span>Agents + Services + Channels + Users</span>'
-lacks "and no longer calls that sum Records" "$NODE" '<span>Records</span>'
+# One cell per thing a record can be, because a single total cannot say which
+# of the four listings grew. Each is asked for separately.
+for label in Agents Services Channels Users; do
+  has "the strip counts $label on its own" "$NODE" "<span>$label</span><strong>[0-9]"
+done
+lacks "and no longer sums them into one cell" "$NODE" \
+  '<span>Records</span>\|<span>Agents + Services + Channels + Users</span>'
+# Against the daemon rather than against the page: four cells each holding a
+# plausible digit is what a constant looks like. Their sum is the node's whole
+# registry, which is the one number the old cell reported.
+STRIPSUM=$(printf '%s' "$NODE" \
+  | grep -o '<span>\(Agents\|Services\|Channels\|Users\)</span><strong>[0-9,]*' \
+  | grep -o '[0-9,]*$' | tr -d ',' | awk '{n+=$1} END{print n+0}')
+NODETOTAL=$(tbody "$TOKEN" /status | grep -o '"services":[0-9]*' | grep -o '[0-9]*$')
+has "the daemon states a registry total for them to be checked against" "$NODETOTAL" '^[0-9]\+$'
+has "and the four counts add up to it" "$STRIPSUM" "^$NODETOTAL$"
 lacks "the signed-in footer does not repeat the counts" \
   "$(printf '%s' "$PAGE" | grep 'class=footer-node')" 'Calls'
 NAV=$(printf '%s' "$PAGE" | grep 'nav aria-label=.sections.')
