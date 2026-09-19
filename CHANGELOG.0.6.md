@@ -2,6 +2,17 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.6 — 2026-09-19
+
+The external service gets a page of its own. `docs/03-records.md` keeps the
+five kinds, agent templates, configuration and topics and says the minimum
+about 📡; `docs/06-services.md` owns the external case — what the record is,
+how to call it, what having no queue here refuses, and its secrets.
+
+**Breaking:** the CLI verb `service-template` is now `agent-template`. What it
+configures is an agent, so the old spelling named the wrong kind. The old verb
+is refused as an unknown one rather than kept as an alias.
+
 ## 0.6.5 — 2026-09-19
 
 An external service has no queue here. Nothing is sent to one, nothing

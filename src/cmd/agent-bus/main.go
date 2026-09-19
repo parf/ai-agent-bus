@@ -60,9 +60,9 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]
   agent-bus start                     (the same, as JSON on stdin)
-  agent-bus service-template <name> -         configure it, JSON on stdin
-  agent-bus service-template <name> '{"k":1}' the same, inline
-  agent-bus service-template <name>           print that configuration
+  agent-bus agent-template <name> -         configure it, JSON on stdin
+  agent-bus agent-template <name> '{"k":1}' the same, inline
+  agent-bus agent-template <name>           print that configuration
   agent-bus enrol <user@realm> [--key ~/.ssh/id_ed25519]
                             prove you hold a key that realm publishes for you
 
@@ -123,8 +123,8 @@ func main() {
 		err = receipt(protocol.ReceiptDone, rest)
 	case "topic":
 		err = topic(rest)
-	case "service-template":
-		err = serviceTemplate(rest)
+	case "agent-template":
+		err = agentTemplate(rest)
 	case "publish":
 		err = publish(rest)
 	case "subscribe":
@@ -203,7 +203,7 @@ func register(args []string) error {
 // about a single service does not pull the whole registry down for it, and
 // what comes back carries the digest of that service's configuration rather
 // than the configuration itself.
-// See docs/03-services-and-topics.md#configuring-a-template.
+// See docs/03-records.md#configuring-a-template.
 func ls(args []string) error {
 	human := false
 	filtered := make([]string, 0, len(args))
@@ -264,7 +264,7 @@ func ls(args []string) error {
 		// A service is external and has no queue here, so it has no reader
 		// count and no backlog to report: a zero would be an observation of
 		// something that does not exist.
-		// See docs/03-services-and-topics.md#five-record-kinds.
+		// See docs/03-records.md#five-record-kinds.
 		readers, queued := readerCount(r.Readers), strconv.Itoa(r.Queued)
 		if r.Kind == protocol.KindService {
 			readers, queued = "-", "-"
@@ -441,23 +441,23 @@ func bound(flags map[string]string) (int, error) {
 }
 
 // A topic is a record like any other; `topic create` is the sugar that says
-// so. See docs/03-services-and-topics.md.
-// serviceTemplate configures a service template into a configured service,
-// and reads that configuration back. One verb, because the direction is
+// so. See docs/03-records.md.
+// agentTemplate configures an agent template into a configured record, and
+// reads that configuration back. One verb, because the direction is
 // obvious from whether a configuration was handed to it — and a hyphenated
 // single word, because a two-word verb has no spelling in the MCP face,
 // where a tool name is `[a-zA-Z0-9_-]{1,64}`.
 //
 // The configuration is arbitrary JSON and stays opaque: nothing here or in
 // the daemon looks inside it.
-// See docs/03-services-and-topics.md#configuring-a-template.
-func serviceTemplate(args []string) error {
+// See docs/03-records.md#configuring-a-template.
+func agentTemplate(args []string) error {
 	pos, _ := split(args)
 	if len(pos) == 0 || len(pos) > 2 {
-		return fmt.Errorf("service-template wants a name, and a configuration to set one:\n" +
-			"  cat cfg.json | agent-bus service-template <template/instance@host> -\n" +
-			"  agent-bus service-template <template/instance@host> '{\"k\":\"v\"}'\n" +
-			"  agent-bus service-template <template/instance@host>")
+		return fmt.Errorf("agent-template wants a name, and a configuration to set one:\n" +
+			"  cat cfg.json | agent-bus agent-template <template/instance@host> -\n" +
+			"  agent-bus agent-template <template/instance@host> '{\"k\":\"v\"}'\n" +
+			"  agent-bus agent-template <template/instance@host>")
 	}
 	name := pos[0]
 	if len(pos) == 1 {
@@ -495,7 +495,7 @@ func topic(args []string) error {
 	}
 	// A topic is now a record kind rather than a mode on one, so --kind names
 	// the kind directly and there is nothing else to store.
-	// See docs/03-services-and-topics.md#five-record-kinds.
+	// See docs/03-records.md#five-record-kinds.
 	kind := flags["kind"]
 	if kind == "" {
 		kind = protocol.KindQueue
@@ -516,7 +516,7 @@ func topic(args []string) error {
 
 // publish is a send to a topic. A publisher need not be a registered service
 // — a token is the whole of what it needs.
-// See docs/03-services-and-topics.md#topics.
+// See docs/03-records.md#topics.
 func publish(args []string) error {
 	pos, flags := split(args)
 	if flags["topic"] == "" || len(pos) == 0 {

@@ -310,7 +310,7 @@ func userAdd(args []string) error {
 	// `-` is the key on stdin, because whoever holds the file is not always
 	// whoever may open it: this program runs as agent-busd, and a key in a
 	// person's home is exactly what that account cannot read. Same spelling
-	// as `service-template <name> -`.
+	// as `agent-template <name> -`.
 	raw, err := readKey(keyFile)
 	if err != nil {
 		return err
