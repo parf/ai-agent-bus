@@ -278,7 +278,7 @@ worth more.
 
 Read them for exactly what they say. `ack` means the message reached the
 receiver, **not** that the work started: a script service acks before it runs
-the script ([runner § script services](08-runner-role.md#script-services)).
+the script ([runner § script agents](08-runner-role.md#script-agents)).
 And **no receipt means unknown** — the request, the work or the receipt may
 be late or lost — never proof of loss. Receipts remove a layer of guessing,
 not the uncertainty itself.

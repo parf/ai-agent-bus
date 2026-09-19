@@ -14,7 +14,7 @@ on ([where a member says it is](../R1/discovery.md#where-a-member-says-it-is)).
 
 | Declared | Means | What a caller should do | Answer |
 |---|---|---|---|
-| **down** | out of service, back eventually — this is [today's disabled record](../../docs/01-identity-and-roles.md#services), not a state beside it | back off hard; roughly one retry an hour, not a loop | `409` |
+| **down** | out of service, back eventually — this is [today's disabled record](../../docs/01-identity-and-roles.md#record-authority), not a state beside it | back off hard; roughly one retry an hour, not a loop | `409` |
 | **retired** | gone for good | stop, and fix the code that still sends here | `410` |
 
 *"Not today"* and *"not ever"* are different, and a caller can act on the
@@ -56,7 +56,7 @@ resource is in* is what an administrative state is.
 
 **Nothing new accumulates is not the same as nothing is there.** A backlog
 already in the inbox is kept; what is refused is anything new. That is exactly
-what disabling does today ([owner control](../../docs/01-identity-and-roles.md#services)),
+what disabling does today ([owner control](../../docs/01-identity-and-roles.md#record-authority)),
 and it holds for retirement too: work somebody already accepted is not thrown
 away because the name it was for has been given up. Nothing is kept forever by
 it either — what is in a queue is subject to the TTL it already had

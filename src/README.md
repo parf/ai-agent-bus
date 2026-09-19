@@ -86,7 +86,7 @@ export AGENT_BUS_TOKEN=$(./agent-bus-token echo@$(hostname -s))
 ```
 
 …or let a shell script be the service, which is the same thing without the
-typing ([runner § script services](../docs/08-runner-role.md#script-services)).
+typing ([runner § script agents](../docs/08-runner-role.md#script-agents)).
 This shell still needs a credential — it registers the service before becoming
 it, and that registration is a call like any other — but the token it
 registers with is the *owner's*, not the service's:

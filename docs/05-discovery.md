@@ -140,7 +140,7 @@ what the daemon permits. “All” means all visible to that visitor.
 
 | Tab | Required functionality |
 |---|---|
-| Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#services), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which have their own tab. Administrative availability and reader observation are distinct facts |
+| Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which have their own tab. Administrative availability and reader observation are distinct facts |
 | Services | 📡 records alone — something [external](03-records.md#five-record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
 | Personal | Owner-tagged agents grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
 | Users | List and details; add, edit, activate, pause and ban; show caller-visible owned records, linked group membership and administrative authority. The directory opens on active users; **Active**, **Inactive**, **Banned** and **All states** are counted filters, and a state other than active is marked beside the name rather than in a column of its own. Applicable daemon-authorized actions sit behind **Change**. Ban and unused-credential removal use consequence confirmations |
@@ -506,7 +506,7 @@ handler runs, and a failure of ours, which is a `500`.
 | `suspended` | `403` | a user state is in the way: the caller's own, or that of the owner of the name being called ([user lifecycle](01-identity-and-roles.md#user-states), [services of a paused or banned user](01-identity-and-roles.md#user-states)) |
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](02-access.md#proving-possession)) |
 | `unknown` | `404` | no such name ([messaging § verbs](04-messaging.md#verbs)) |
-| `disabled` | `409` | the receiver's record is turned off by its owner ([owner control](01-identity-and-roles.md#services)) |
+| `disabled` | `409` | the receiver's record is turned off by its owner ([owner control](01-identity-and-roles.md#record-authority)) |
 | `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-roles.md#unregistering)), or a credential is backed by a user, record or retained service ([cleanup](02-access.md#ownerless-credentials)) |
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity-and-roles.md#registration)) |

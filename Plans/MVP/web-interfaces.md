@@ -24,7 +24,7 @@ The owner already requested an administrative application. The gap is not a miss
 |---|---|
 | [Required dashboard](../../docs/05-discovery.md#required-tabs) | Preserve service, channel, user, group and activity workflows; a visual overview cannot replace their controls |
 | [Existing diagnostics](../../docs/05-discovery.md#what-it-shows) | Keep backlog, exchange, loss, refusal, node and credential views reachable, even when the homepage becomes shorter |
-| [Owner control](../../docs/01-identity-and-roles.md#services) and [maintainer scopes](../../docs/01-identity-and-roles.md#groups) | Show the relevant actions and their scope; daemon administration is not ownership of every service |
+| [Owner control](../../docs/01-identity-and-roles.md#record-authority) and [maintainer scopes](../../docs/01-identity-and-roles.md#groups) | Show the relevant actions and their scope; daemon administration is not ownership of every service |
 | [Discovery observations](../../docs/05-discovery.md#what-a-listing-answers) | Separate registration, permission to deliver, reader presence and queue condition |
 | [Session names](../../docs/08-runner-role.md#session-names) | Show the familiar session description prominently beside its complete routing address |
 | [A record's method information](../../docs/03-records.md#agent-templates) | Show the description before asking someone to use a name; do not promise a generated method browser |
@@ -80,7 +80,7 @@ The overview is a summary of existing MVP views. It must not acquire the R1 oper
 
 | Current problem | Proposed language or behavior |
 |---|---|
-| “Active” can be mistaken for a live process | “Enabled” / “Disabled” describes administrative delivery state; explanatory text follows [owner control](../../docs/01-identity-and-roles.md#services) |
+| “Active” can be mistaken for a live process | “Enabled” / “Disabled” describes administrative delivery state; explanatory text follows [owner control](../../docs/01-identity-and-roles.md#record-authority) |
 | “Serving” / “Offline” claims more than an instantaneous read observation proves | “Reader attached” / “No reader waiting”; explain that the latter does not establish process death. External protocol and pub/sub presentation must not imply a direct inbox reader is required |
 | Every queued inbox is called stuck | Present “Queued work”; distinguish backlog with a reader from backlog without one. Show observed age and saturation rather than inventing a health threshold |
 | In/out and waiting are ambiguous | Use accepted/dequeued and waiting reads; never equate dequeued with completed work |

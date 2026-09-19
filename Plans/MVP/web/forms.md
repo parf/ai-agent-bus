@@ -126,7 +126,7 @@ ACL and Maintainers share the same textarea and line handling. ACL additionally
 accepts `*` and runtime `@owner`; Maintainers accepts named users, groups,
 agents and services but never `@owner`. The
 built Maintainers list is defined by the
-[authority contract](../../../docs/01-identity-and-roles.md#services); the web
+[authority contract](../../../docs/01-identity-and-roles.md#record-authority); the web
 must not flatten it back into a single-group field.
 
 **Danger Zone is a red text link, not a permanently open red panel.** It opens

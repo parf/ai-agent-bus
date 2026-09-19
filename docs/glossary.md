@@ -85,7 +85,7 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | Owner | Highest authority within the named scope | [definition](01-identity-and-roles.md#role-names-and-scopes) |
 | Daemon Owner | Root-like authority over the node; assigned through setup | [definition](01-identity-and-roles.md#daemon-owner) |
 | Administrator | Manages daemon users and groups | [definition](01-identity-and-roles.md#daemon-administrators) |
-| Maintainer | Explicitly assigned to manage a record | [definition](01-identity-and-roles.md#services) |
+| Maintainer | Explicitly assigned to manage a record | [definition](01-identity-and-roles.md#record-authority) |
 | User | Registered person | [definition](01-identity-and-roles.md#users-and-profiles) |
 | Member | Basic access to a record | [definition](01-identity-and-roles.md#role-names-and-scopes) |
 | Person profile | Identifying and descriptive information | [definition](01-identity-and-roles.md#users-and-profiles) |
@@ -103,7 +103,7 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | Shared reader | Member of an explicit consumer pool | [definition](04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | Audience | Callers allowed to see and use a name | [definition](05-discovery.md#audience) |
 | Listing observations | Daemon-observed state | [definition](05-discovery.md#what-a-listing-answers) |
-| Foreground runner | User-launched script agent | [definition](08-runner-role.md#script-services) |
+| Foreground runner | User-launched script agent | [definition](08-runner-role.md#script-agents) |
 | Adapter | Runtime transport or port implementation | [definition](08-runner-role.md#adapters) |
 | Supervisor and bus | Listener lifetime and request processing roles | [definition](11-processes.md#the-processes) |
 | Port and face | Dependency seam and entry point | [definition](10-modules.md#the-rule) |

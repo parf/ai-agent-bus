@@ -149,7 +149,7 @@ but still cannot use their message interface without an ACL grant.
 
 Fresh automatic registrations by faces and launchers also follow the default;
 configured sharing survives [metadata re-registration](01-identity-and-roles.md#registration).
-Script runners can state grants with [their start options](08-runner-role.md#script-services).
+Script runners can state grants with [their start options](08-runner-role.md#script-agents).
 
 ## Owner ACL and master removal
 

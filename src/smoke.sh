@@ -832,7 +832,7 @@ has "json gets the envelope on stdin and in the environment" \
   "$(ab greeter@srv1 call envelope@srv1 --topic t9 --wait 15s payload)" 'stdin=yes topic=t9 from=greeter@srv1'
 kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 
-# The default form, stated in docs/08-runner-role.md#script-services, is what
+# The default form, stated in docs/08-runner-role.md#script-agents, is what
 # an agent gets when it says nothing.
 abx defaulted@srv1 start defaulted@srv1 --allow '*' "$D/envelope.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
 NOFORMPID=$!

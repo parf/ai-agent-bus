@@ -125,7 +125,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | Runtime MCP minimum | [definition](05-discovery.md#mcp-minimum) | 2026-09-13 owner instruction |
 | 12-stages | [definition](12-stages.md#stages) | D110 |
 | Request and reply | [definition](04-messaging.md#request-and-reply) | D112, D227, D236, D238, D239, D240 |
-| Script services | [definition](08-runner-role.md#script-services) | D117, D250, D251, D252, D254 |
+| Script agents | [definition](08-runner-role.md#script-agents) | D117, D250, D251, D252, D254 |
 | One reader per inbox | [definition](04-messaging.md#one-reader-per-inbox) | D169, D172, D220, D221, D222 |
 | Reply routing | [definition](04-messaging.md#reply-routing) | D170 |
 | Languages | [definition](10-modules.md#languages) | D179 |
@@ -155,11 +155,11 @@ An indexed target may still be pending implementation. The linked substance wins
 | 2026-09-13 | Required administrative dashboard | Owner confirms missing requirements and the MVP/R1 split | [required tabs](05-discovery.md#required-tabs) |
 | 2026-09-13 | Owner and maintainers in MVP | Owner explicitly retains the authority model in required scope | [groups and maintainers](01-identity-and-roles.md#groups) |
 
-## Service owner authority
+## Record owner authority
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-13 | Full control of owned services | Owner clarifies that ordinary users need no daemon administration role to manage their services | [owner control](01-identity-and-roles.md#services) |
+| 2026-09-13 | Full control of owned records | Owner clarifies that ordinary users need no daemon administration role to manage what they own | [record authority](01-identity-and-roles.md#record-authority) |
 
 ## Dashboard implementation defaults
 
@@ -196,7 +196,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | 2026-09-16 | The dashboard ships **one design and no themes**: a single light palette, no scheme control, no density control and no stored preference; supersedes the earlier two-scheme decision and settles the control half | Owner instruction: *one good design for admin panels, no themes*. Two schemes are two designs to keep in step, and the second was never the thing that made the interface good. One palette means one contrast obligation instead of a doubled one, no preferences route, no cookie, no persistence scope, and no page whose appearance depends on state the daemon does not hold. Light, because an operations console sits beside other light tooling and every system this plan borrows patterns from defaults that way. The container query stays: it answers the width a table has, which is a fact about the layout rather than a preference about the person | [colour](../Plans/MVP/web/tokens.md#colour), [theme and density controls](../Plans/MVP/web/visual-design.md#theme-and-density-controls) |
 | 2026-09-16 | The daemon owner owns the dashboard token file | The recorded risk is *amateur if nobody owns typography and density*, and it is conditional on the ownership rather than on the tokens. The five acceptance checks make a lapse visible; they cannot create the ownership. An existing role rather than a new appointment means no post to leave vacant, and one design rather than two makes the post small enough to actually hold | [risk, recorded](../Plans/MVP/web/visual-design.md#risk-recorded) |
 | 2026-09-16 | The web panel acts on the visitor's token and on nothing else | Owner instruction. What the dashboard can do is what the signed-in person could do from the CLI: no privileged fallback when a call is refused, no authority held between requests, and permissions rendered from what the daemon answered rather than recomputed in the face — two implementations of the access rules disagree, and the disagreement that matters is a page offering an action the daemon will refuse | [web authority](11-processes.md#web-authority-boundary) |
-| 2026-09-17 | Resource Maintainers use the same line-list editor pattern as ACLs and become a list of named principals and groups | Owner instruction; replaces the planned single-group selector while preserving owner-only assignment | [service authority](01-identity-and-roles.md#services) |
+| 2026-09-17 | Resource Maintainers use the same line-list editor pattern as ACLs and become a list of named principals and groups | Owner instruction; replaces the planned single-group selector while preserving owner-only assignment | [service authority](01-identity-and-roles.md#record-authority) |
 | 2026-09-17 | Dangerous resource controls leave ordinary detail | Owner instruction; the red link keeps configuration replacement, transfer and removal on their own server-rendered path | [resource Danger Zone](05-discovery.md#resource-danger-zone) |
 | 2026-09-17 | Small stable web choices stay visible and registration has section-level entry points | Owner instruction; All/My/Personal and small filters are links, create-time pairs are radios, and Services, Channels, Users and Groups link to dedicated registration pages | [section navigation](05-discovery.md#section-navigation-and-registration) |
 | 2026-09-17 | Web page titles carry one category mark and long definitions use compact help | Owner instruction; the adjacent title supplies the accessible name, and native popovers replace prose walls without hiding current facts or constraints | [page titles and compact help](05-discovery.md#page-titles-and-compact-help) |

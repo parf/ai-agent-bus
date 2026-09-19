@@ -198,7 +198,7 @@ to route into the new target, which is the same rule that governs setting one.
 **A route is not ownership, and repointing one is not a transfer.**
 Owner-settled, 2026-09-16: **an owner may pass ownership on, and only the owner
 may** — which is what the daemon already does
-([owner control](../../docs/01-identity-and-roles.md#services),
+([owner control](../../docs/01-identity-and-roles.md#record-authority),
 [who manages a record](../../docs/01-identity-and-roles.md#groups)).
 Routing changes nothing about that. The two operations are simply different:
 
@@ -478,7 +478,7 @@ Two things fall out of declaring the surface at all:
 
 **A script under the runner holds no credential at all.** The runner owns the
 name, does the bus talking, and hands the script a message on stdin and takes
-the answer back ([script services](../../docs/08-runner-role.md#script-services)) — which is what "the
+the answer back ([script agents](../../docs/08-runner-role.md#script-agents)) — which is what "the
 script need not know anything" means.
 
 | | talks to the bus | holds a token |
@@ -590,7 +590,7 @@ host. Three arrangements, and the third is what the split buys:
 
 | | daemon | runner |
 |---|---|---|
-| laptop | yours, local | none — publish by hand ([script services](../../docs/08-runner-role.md#script-services)) |
+| laptop | yours, local | none — publish by hand ([script agents](../../docs/08-runner-role.md#script-agents)) |
 | one host | local, `agent-busd` | local, `agent-bus-runner` |
 | **edge box** | **elsewhere** | local, alone — a machine that hosts services and holds no bus state |
 
@@ -662,7 +662,7 @@ repository it came from.
 
 ## Additional script forms
 
-The foreground forms remain defined in [runner § script services](../../docs/08-runner-role.md#script-services).
+The foreground forms remain defined in [runner § script agents](../../docs/08-runner-role.md#script-agents).
 
 | Form | Proposed behavior |
 |---|---|

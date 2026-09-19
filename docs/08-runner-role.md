@@ -16,13 +16,12 @@
 queue here — obtains its credential and reads that queue. It runs the script once per message. It does
 not manage installed instances, autostart, reload or restart policies.
 
-## Script services
+## Script agents
 
-A script service is a **script behind an 👾 agent record**: the name is an
+A script agent is a **script behind an 👾 agent record**: the name is an
 agent because that is the kind with a queue to read
-([records § five record kinds](03-records.md#five-record-kinds)).
-The section keeps its older name; a 📡 `service` is the external case and
-nothing runs behind one here.
+([records § five record kinds](03-records.md#five-record-kinds)). A 📡
+`service` is the external case, and nothing runs behind one here.
 
 | Form | Input | Output |
 |---|---|---|

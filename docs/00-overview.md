@@ -19,7 +19,7 @@ Values have one owning section; other pages link to it.
 | [Channels](07-channels.md#the-two-channel-kinds) | The 📮 and 📣 kinds: delivery, retention and what publish stamps |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and snapshots |
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
-| [Runner](08-runner-role.md#script-services) | Foreground script agents, push adapters, pending runtime integrations and launchers, sandboxing |
+| [Runner](08-runner-role.md#script-agents) | Foreground script agents, push adapters, pending runtime integrations and launchers, sandboxing |
 | [Setup](09-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
 | [Modules](10-modules.md#the-rule) | Implementation boundaries, languages and dependency rules |
 | [Processes](11-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |

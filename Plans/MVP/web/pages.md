@@ -328,7 +328,7 @@ The Access and Maintainers editors use the same line-list textarea. Each line
 names one user, group, agent or service; Access may also contain `*`. Blank
 lines are ignored; invalid lines stay in place with line-specific errors.
 Neither editor accepts display glyphs. Maintainers is the daemon's real
-[authority list](../../../docs/01-identity-and-roles.md#services), never a
+[authority list](../../../docs/01-identity-and-roles.md#record-authority), never a
 single group rendered in a larger control.
 
 The owner photo is decorative beside the linked owner name and comes from the

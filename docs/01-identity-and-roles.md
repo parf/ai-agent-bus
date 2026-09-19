@@ -102,7 +102,7 @@ Administrators manage ordinary users and groups, but cannot edit the daemon
 owner or peer Administrators, or grant those positions. The accepted model
 allows ordinary-user unbanning; this is built, while the Owner retains authority
 over every level.
-Record management requires the [resource assignment](#services).
+Record management requires the [resource assignment](#record-authority).
 
 ## Users and profiles
 
@@ -195,11 +195,10 @@ remain refused. This is existing behavior.
 
 </details>
 
-## Services
+## Record authority
 
 **These rules are about a record, whichever of the
-[five kinds](03-records.md#five-record-kinds) it is**; the section
-keeps its older name for its inbound links.
+[five kinds](03-records.md#five-record-kinds) it is.**
 
 A record has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
@@ -240,7 +239,7 @@ membership. Human editors use one plain term per line, as ACL editors do.
 ## Channels
 
 A channel is a 📮 `queue` or a 📣 `pubsub` record: a name **nobody acts as**.
-Its creator owns it, and the [record authority rules](#services) apply. The
+Its creator owns it, and the [record authority rules](#record-authority) apply. The
 daemon provides queue or pub/sub delivery; joining, publishing or reading grants
 no ownership of the channel or another subscriber's inbox.
 [Channels](07-channels.md#the-two-channel-kinds) owns what each kind does; a
@@ -312,7 +311,7 @@ says `agent`.
 A conditional creation refuses an existing canonical name, even for its owner;
 claim and insertion happen together. Launchers use this for unique session
 names. Ordinary re-registration instead permits authorized updates under the
-[management rules](#services).
+[management rules](#record-authority).
 
 Re-registration preserves ownership, private configuration, subscriptions,
 assigned Maintainers and the disabled setting. Omitting the ACL retains its

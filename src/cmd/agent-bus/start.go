@@ -2,7 +2,7 @@
 //
 // The script never sees the bus: this process is the inbox's one reader, it
 // spawns the script per message, and the script's stdout is the reply. That
-// is the whole contract (docs/08-runner-role.md#script-services).
+// is the whole contract (docs/08-runner-role.md#script-agents).
 //
 // Each script gets one work directory it may write to, is confined when it
 // asks to be, and leaves a note that `stop` and `logs` read (service.go).
@@ -59,7 +59,7 @@ const (
 	// A form names what reaches the child, and that decides the rest. `json`
 	// is the envelope on stdin; `args` is the body as argv[1]. `std` is the
 	// raw body on stdin and the stream forms keep the process, neither of
-	// which is built yet — docs/08-runner-role.md#script-services.
+	// which is built yet — docs/08-runner-role.md#script-agents.
 	algoJSON = "json"
 	algoArgs = "args"
 )
@@ -177,7 +177,7 @@ func describe(args []string) (service, error) {
 
 	if len(pos) == 0 {
 		// The JSON form, `-5` on its own included: the flag then overrides
-		// what stdin says (docs/08-runner-role.md#script-services).
+		// what stdin says (docs/08-runner-role.md#script-agents).
 		decoder := json.NewDecoder(os.Stdin)
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&svc); err != nil {
