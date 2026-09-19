@@ -112,8 +112,16 @@ func TestServiceExplanationsUseImmediateTooltipsAndStructuredPopovers(t *testing
 			t.Errorf("service detail lost structured %s popover", id)
 		}
 	}
-	if !strings.Contains(page, `<summary id=settings>Edit settings</summary>`) || !strings.Contains(page, `<summary>Classification and sharing</summary>`) {
-		t.Error("infrequent service editors are not collapsed")
+	// One collapsed editor, not two: classification and sharing are fields of
+	// Edit settings rather than a section of their own.
+	if !strings.Contains(page, `<summary id=settings>Edit settings</summary>`) {
+		t.Error("the infrequent service editor is not collapsed")
+	}
+	if strings.Count(page, "<summary") != strings.Count(page, "<details") {
+		t.Errorf("a details block lost its summary: %s", page)
+	}
+	if strings.Contains(page, "Classification and sharing") {
+		t.Error("classification and sharing is still a section of its own")
 	}
 }
 

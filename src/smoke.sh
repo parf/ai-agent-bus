@@ -2222,6 +2222,20 @@ has "and states the digest of the secret it holds" \
 lacks "while the secret itself is on no page" "$SVCPAGE" 'PGPASSWORD\|rotated'
 has "a service with no secret says so rather than showing a stale digest" \
   "$(curl -s -b "$JAR" "$WEB/service?name=keyless%40srv1")" '<dt>Secret<dd><span class=muted>none'
+# One editor holds every authorized setting. Asked of the fields, not of the
+# heading: a page that kept the fields in a second section would still have a
+# summary called Edit settings.
+has "the record editor is the only one the page offers" \
+  "$(printf '%s' "$SVCPAGE" | grep -o '<summary[^>]*>[^<]*</summary>' | wc -l | tr -d ' ')" '^1$'
+has "and it carries Maintainers" "$SVCPAGE" '<textarea name=maintainers'
+has "and the allow list beside them" "$SVCPAGE" '<textarea name=allow'
+lacks "classification and sharing has no section of its own" "$SVCPAGE" 'Classification and sharing'
+# The form says whether it carried the owner-only fields. Without that flag a
+# save cannot change them, which is how a Maintainer's save leaves them alone.
+has "the owner's form states that it carries the sharing fields" \
+  "$SVCPAGE" '<input type=hidden name=edit_sharing value=1>'
+lacks "and that field is not disabled for the caller who may change it" \
+  "$SVCPAGE" '<textarea name=maintainers rows=5 disabled'
 
 # Diagnostics and the registry catalogue on Agents, which is where a record
 # registered as one is listed (Plans/MVP/web/pages.md#overview).

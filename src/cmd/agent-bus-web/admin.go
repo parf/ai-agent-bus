@@ -943,37 +943,11 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			if !loadServiceDetails(w, r, &v, r.PostForm.Get("name")) {
 				return true
 			}
-			v.Form = setField(retainedForm(action, message, r.PostForm, "descr", "addr", "protocol", "ttl", "overflow", "bound", "allow", "edit_allow"))
-			renderForm(w, code, serviceDetail, v)
-			return true
-		case "maintainers":
-			if !loadServiceDetails(w, r, &v, r.PostForm.Get("name")) {
-				return true
-			}
-			if agentRecord(v.Record.Kind) && v.Record.CanTransfer {
-				// The agent editor changes classification,
-				// access and Maintainers atomically. A refusal from the former
-				// Maintainers-only action returns to that real form with the
-				// other two values filled from the fresh record, so retrying
-				// cannot clear either by accident.
-				values := url.Values{
-					"allow":       {strings.Join(v.Record.Allow, "\n")},
-					"maintainers": {r.PostForm.Get("maintainers")},
-				}
-				if v.Record.Personal {
-					values.Set("personal", "on")
-				}
-				v.Form = setField(retainedForm("personal", message, values, "personal", "allow", "maintainers"))
-			} else {
-				v.Form = setField(retainedForm(action, message, r.PostForm, "maintainers"))
-			}
-			renderForm(w, code, serviceDetail, v)
-			return true
-		case "personal":
-			if !loadServiceDetails(w, r, &v, r.PostForm.Get("name")) {
-				return true
-			}
-			v.Form = setField(retainedForm(action, message, r.PostForm, "personal", "allow", "maintainers"))
+			// Everything the one editor asks for, including the two flags
+			// that say whether it carried the sharing fields at all: a retry
+			// must send exactly what the first attempt did, or a refused
+			// description would clear the Maintainers beside it.
+			v.Form = setField(retainedForm(action, message, r.PostForm, "descr", "addr", "protocol", "ttl", "overflow", "bound", "allow", "edit_allow", "personal", "maintainers", "edit_sharing", "edit_personal"))
 			renderForm(w, code, serviceDetail, v)
 			return true
 		case "configure", "transfer":
@@ -1082,20 +1056,25 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				allow := strings.Fields(r.PostForm.Get("allow"))
 				change.Allow = &allow
 			}
+			// Classification and sharing are in this one form now, shown to
+			// everyone who may manage the record and editable only by its
+			// Owner or a daemon administrator. A disabled control submits
+			// nothing, and an unchecked box is indistinguishable from an
+			// absent one, so the form states separately that it carried them:
+			// without that, a Maintainer saving a description would clear the
+			// Maintainer list it was not allowed to touch.
+			if r.PostForm.Has("edit_sharing") {
+				maintainers := protocol.MaintainerList(strings.Fields(r.PostForm.Get("maintainers")))
+				change.Maintainers = &maintainers
+			}
+			if r.PostForm.Has("edit_personal") {
+				personal := r.PostForm.Get("personal") == "on"
+				change.Personal = &personal
+			}
 			err = c.post(cookie(r), "/manage", change)
 		case "enable", "disable":
 			disabled := r.PostForm.Get("action") == "disable"
 			change.Disabled = &disabled
-			err = c.post(cookie(r), "/manage", change)
-		case "maintainers":
-			maintainers := protocol.MaintainerList(strings.Fields(r.PostForm.Get("maintainers")))
-			change.Maintainers = &maintainers
-			err = c.post(cookie(r), "/manage", change)
-		case "personal":
-			personal := r.PostForm.Get("personal") == "on"
-			allow := strings.Fields(r.PostForm.Get("allow"))
-			maintainers := protocol.MaintainerList(strings.Fields(r.PostForm.Get("maintainers")))
-			change.Personal, change.Allow, change.Maintainers = &personal, &allow, &maintainers
 			err = c.post(cookie(r), "/manage", change)
 		case "transfer":
 			owner := r.PostForm.Get("owner")
@@ -1144,7 +1123,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				switch {
 				case action == "create" && code == http.StatusPreconditionFailed:
 					field = "name"
-				case action == "maintainers":
+				case action == "save" && strings.Contains(message, "maintainer"):
 					field = "maintainers"
 				}
 				if renderServiceFormError(w, r, v, action, code, message, field) {
@@ -1311,11 +1290,12 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 {{else}}<label class=form-field>Queue TTL <input name=ttl value="{{if $.Form.Is "save"}}{{$.Form.Value "ttl"}}{{else}}{{.TTL}}{{end}}" placeholder="default"></label>
 <label class=form-field>Queue capacity <input type=number min=0 name=bound value="{{if $.Form.Is "save"}}{{$.Form.Value "bound"}}{{else}}{{.Bound}}{{end}}" aria-invalid="{{if $.Form.Invalid "bound"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "bound"}}save-error{{end}}"><small>Enter 0 to select the default.</small></label>
 <label class=form-field>Overflow <select name=overflow><option value=strict {{if and ($.Form.Is "save") (eq ($.Form.Value "overflow") "strict")}}selected{{end}}>Refuse</option><option value=ring {{if $.Form.Is "save"}}{{if eq ($.Form.Value "overflow") "ring"}}selected{{end}}{{else}}{{if eq .Full "ring"}}selected{{end}}{{end}}>Drop oldest</option></select></label>{{end}}
-{{if .Personal}}<p class="muted form-field-wide">Personal classification, Allow and Maintainers are changed together below.</p>{{else}}<input type=hidden name=edit_allow value=1><label class="form-field form-field-wide"><span class=field-heading>Allow list <button type=button class=help-button popovertarget=settings-access-help aria-label="About the allow list" data-tooltip="One identity per line. Empty is owner and Maintainers only; @owner adds the records the Owner directly owns; * shares with every admitted principal.">ⓘ</button></span><textarea name=allow rows=5>{{if $.Form.Is "save"}}{{$.Form.Value "allow"}}{{else}}{{join .Allow "\n"}}{{end}}</textarea><small>One identity, group, <code>@owner</code>, or <code>*</code> per line.</small></label>{{end}}</div>
+<input type=hidden name=edit_allow value=1><label class="form-field form-field-wide"><span class=field-heading>Allow list <button type=button class=help-button popovertarget=settings-access-help aria-label="About the allow list" data-tooltip="One identity per line. Empty is owner and Maintainers only; @owner adds the records the Owner directly owns; * shares with every admitted principal.">ⓘ</button></span><textarea name=allow rows=5>{{if $.Form.Is "save"}}{{$.Form.Value "allow"}}{{else}}{{join .Allow "\n"}}{{end}}</textarea><small>{{if .Personal}}One agent identity per line while Personal.{{else}}One identity, group, <code>@owner</code>, or <code>*</code> per line.{{end}}</small></label>
+{{if .CanTransfer}}<input type=hidden name=edit_sharing value=1>{{end}}
+{{if eq .Kind "agent"}}{{if .CanTransfer}}<input type=hidden name=edit_personal value=1>{{end}}<fieldset class=form-field-wide><legend>Classification</legend><div class=choice-row><label><input type=checkbox name=personal {{if not .CanTransfer}}disabled{{end}} {{if $.Form.Is "save"}}{{if $.Form.Checked "personal"}}checked{{end}}{{else}}{{if .Personal}}checked{{end}}{{end}}> Personal</label><span class=muted>Groups this agent in the owner&rsquo;s Personal view; access is unchanged.</span></div><small>{{if .CanTransfer}}A Personal agent may allow only other registered agents directly. Users, groups, <code>@owner</code>, <code>*</code>, this agent and Maintainers are refused, so clear Personal in this same form before adding any of them.{{else}}Shown for reference: only this record&rsquo;s Owner or a daemon administrator may change it.{{end}}</small></fieldset>{{end}}
+<label class="form-field form-field-wide">Maintainers<textarea name=maintainers rows=5 {{if not .CanTransfer}}disabled{{end}} aria-invalid="{{if $.Form.Invalid "maintainers"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "maintainers"}}save-error{{end}}">{{if $.Form.Is "save"}}{{$.Form.Value "maintainers"}}{{else}}{{join .Maintainers "\n"}}{{end}}</textarea><small>{{if .CanTransfer}}One user, group, agent or service per line; <code>@owner</code> is ACL-only.{{else}}Shown for reference: only this record&rsquo;s Owner or a daemon administrator may change it.{{end}}</small></label></div>
 {{if $.Form.Is "save"}}<p class=warn id=save-error>{{$.Form.Error}}</p>{{end}}<div class=form-actions><button>Save settings</button></div></form></details>
-{{if not .Personal}}<div popover id=settings-access-help class=context-help><h2>Allow list</h2><ul><li>Empty allows only the owner and assigned Maintainers.</li><li><code>@owner</code> adds records directly owned by this record&rsquo;s Owner. It is runtime ACL syntax, not an editable group.</li><li><code>*</code> shares with every admitted principal.</li></ul></div>{{end}}
-{{if .CanTransfer}}{{if eq .Kind "agent"}}<details class=editor-card {{if $.Form.Is "personal"}}open{{end}}><summary>Classification and sharing</summary><form id=form-personal method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=personal><div class=form-grid><fieldset class=form-field-wide><legend>Classification</legend><div class=choice-row><label><input type=checkbox name=personal {{if $.Form.Is "personal"}}{{if $.Form.Checked "personal"}}checked{{end}}{{else}}{{if .Personal}}checked{{end}}{{end}}> Personal</label><span class=muted>Groups this agent in the owner&rsquo;s Personal view; access is unchanged.</span></div></fieldset><label class=form-field><span class=field-heading>Allow list <button type=button class=help-button popovertarget=personal-help aria-label="About Personal sharing" data-tooltip="A Personal agent may allow only other registered agents directly; users, groups, @owner, wildcard, self and Maintainers are refused.">ⓘ</button></span><textarea name=allow rows=5>{{if $.Form.Is "personal"}}{{$.Form.Value "allow"}}{{else}}{{join .Allow "\n"}}{{end}}</textarea><small>One agent identity per line when Personal.</small></label><label class=form-field>Maintainers<textarea name=maintainers rows=5 aria-invalid="{{if $.Form.Is "personal"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Is "personal"}}personal-error{{end}}">{{if $.Form.Is "personal"}}{{$.Form.Value "maintainers"}}{{else}}{{join .Maintainers "\n"}}{{end}}</textarea><small>One user, group, agent or service per line.</small></label></div>{{if $.Form.Is "personal"}}<p class=warn id=personal-error>{{$.Form.Error}}</p>{{end}}<div class=form-actions><button>Save classification and sharing</button></div></form></details><div popover id=personal-help class=context-help><h2>Personal sharing</h2><p>When Personal is checked, Allow may name only other registered agents directly. Users, groups, <code>@owner</code>, <code>*</code>, this agent and Maintainers are refused. Clear Personal in this same form before adding any of them.</p></div>{{else}}<details class=editor-card {{if $.Form.Is "maintainers"}}open{{end}}><summary>Maintainers</summary><form id=form-maintainers method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=maintainers><label class=form-field>Maintainers<textarea name=maintainers rows=5 aria-invalid="{{if $.Form.Is "maintainers"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Is "maintainers"}}maintainers-error{{end}}">{{if $.Form.Is "maintainers"}}{{$.Form.Value "maintainers"}}{{else}}{{join .Maintainers "\n"}}{{end}}</textarea><small>One user, group, agent or service per line; <code>@owner</code> is ACL-only.</small></label>{{if $.Form.Is "maintainers"}}<p class=warn id=maintainers-error>{{$.Form.Error}}</p>{{end}}<div class=form-actions><button>Assign maintainers</button></div></form></details>{{end}}
-{{end}}
+<div popover id=settings-access-help class=context-help><h2>Allow list</h2><ul><li>Empty allows only the owner and assigned Maintainers.</li><li><code>@owner</code> adds records directly owned by this record&rsquo;s Owner. It is runtime ACL syntax, not an editable group.</li><li><code>*</code> shares with every admitted principal.</li><li>A Personal agent may name only registered agents directly; the rest are refused while Personal is set.</li></ul></div>
 <p><a class=danger href="/service-danger?name={{.Name}}">Danger Zone</a></p>
 {{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}` + activityViewTemplate))
 var serviceDanger = template.Must(template.New("service-danger").Funcs(template.FuncMap{"readerCount": readerCount, "href": detailPath, "titleMark": titleMark}).Parse(shellTitle("records", `Danger Zone · {{.Record.Name}}`) + `

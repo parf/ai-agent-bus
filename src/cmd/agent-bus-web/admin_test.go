@@ -312,26 +312,24 @@ other@h</textarea>`) || strings.Contains(groupDetail, `<input name=members`) {
 	// And the members it carried were not applied on the way out: a rejected
 	// action does nothing, rather than doing the save it was not asked for.
 	request("admin@h", "POST", "/groups", web.URL, url.Values{"action": {"delete"}, "name": {"@ops"}, "members": {"admin@h"}}, 400)
-	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"maintainers"}, "name": {"svc@h"}, "maintainers": {"@ops\nadmin@h"}}, 303)
+	// Classification and sharing have no form of their own any more: they are
+	// fields of Edit settings, and a save states separately that it carried
+	// them so that a caller who may not edit them cannot clear them.
+	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"save"}, "name": {"svc@h"}, "edit_sharing": {"1"}, "maintainers": {"@ops\nadmin@h"}}, 303)
 	page = request("owner@h", "GET", "/service?name=svc@h", "", nil, 200)
 	if !strings.Contains(page, `<textarea name=maintainers rows=5`) || !strings.Contains(page, `>@ops
 admin@h</textarea>`) {
 		t.Fatalf("Maintainers list did not round-trip through its line editor: %s", page)
 	}
-	legacyMaintainers := request("owner@h", "POST", "/service", web.URL, url.Values{
-		"action": {"maintainers"}, "name": {"svc@h"}, "maintainers": {"missing@h\n@ops"},
-	}, 404)
-	if !strings.Contains(legacyMaintainers, `href="#form-personal"`) ||
-		!strings.Contains(legacyMaintainers, ">missing@h\n@ops</textarea>") ||
-		!strings.Contains(legacyMaintainers, ">owner@h</textarea>") {
-		t.Fatal("former Maintainers-only action did not recover into the atomic owner form")
-	}
 	refusedMaintainers := request("owner@h", "POST", "/service", web.URL, url.Values{
-		"action": {"personal"}, "name": {"svc@h"}, "allow": {"owner@h"}, "maintainers": {"missing@h\n@ops"},
+		"action": {"save"}, "name": {"svc@h"}, "edit_sharing": {"1"},
+		"edit_allow": {"1"}, "allow": {"owner@h"}, "maintainers": {"missing@h\n@ops"},
 	}, 404)
 	if !strings.Contains(refusedMaintainers, "Check this form") ||
-		!strings.Contains(refusedMaintainers, ">missing@h\n@ops</textarea>") {
-		t.Fatal("refused Maintainers edit did not preserve its line list and error state")
+		!strings.Contains(refusedMaintainers, `href="#form-save"`) ||
+		!strings.Contains(refusedMaintainers, ">missing@h\n@ops</textarea>") ||
+		!strings.Contains(refusedMaintainers, ">owner@h</textarea>") {
+		t.Fatalf("a refused sharing edit did not recover into Edit settings with its lines intact: %s", refusedMaintainers)
 	}
 	page = request("other@h", "GET", "/service?name=svc@h", "", nil, 200)
 	if !strings.Contains(page, "Save settings") || !strings.Contains(page, "Danger Zone") || strings.Contains(page, "Transfer ownership") {

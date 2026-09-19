@@ -46,6 +46,13 @@ headings put Group directly before the group name; the surrounding page states
 the meanings in words. Identity and Credentials record the selected vocabulary;
 their exact placements remain part of the unsettled web proposal below.
 
+Where the row's subject is the node's **daemon owner**, `🔱 Daemon owner`
+takes that cell instead of `👤 User`, in the directory, in a record
+listing's Type column and on record detail (0.6.10, owner instruction). One
+glyph per cell still holds, and a node has one daemon owner, so the authority
+mark cannot spread into a column heading. The daemon states it per identity; no
+page reads it off a name.
+
 ## Page-title images and glyphs
 
 Owner-selected exception to the quiet-glyph rule: every page title starts with
@@ -71,6 +78,13 @@ already supplies its name.
 
 Register pages inherit their section image. The inline SVGs are repository-owned
 and self-contained: no external asset, icon font, hotlink or extra public route.
+
+**One route is the exception**, added 0.6.10 on owner instruction: the browser
+tab icon at `/favicon.svg`, which a page can only point at and never inline. It
+is the same repository-owned bus mark, drawn again on a square plate because the
+sign-in mark's windows and wheels disappear at the 16px a tab actually shows.
+`/favicon.ico` answers 404, so a browser that asks for one anyway is told there
+is none instead of being handed the sign-in page.
 Detail pages choose only from daemon-stated kind; an absent kind gets the
 section image rather than a guessed entity glyph.
 

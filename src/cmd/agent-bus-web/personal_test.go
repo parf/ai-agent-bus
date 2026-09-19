@@ -165,7 +165,10 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	enable := url.Values{"action": {"personal"}, "name": {"toggle@h"}, "personal": {"on"}, "allow": {"peer-service@h"}}
+	// Classification, Allow and Maintainers are fields of Edit settings now.
+	// The two flags are what the form states about itself: that it carried
+	// them, and is therefore allowed to change them.
+	enable := url.Values{"action": {"save"}, "name": {"toggle@h"}, "edit_sharing": {"1"}, "edit_personal": {"1"}, "personal": {"on"}, "edit_allow": {"1"}, "allow": {"peer-service@h"}}
 	_, header := p.request("alice@h", "POST", "/service", enable, http.StatusSeeOther)
 	if header.Get("Location") != "/agent?name=toggle%40h" {
 		t.Fatalf("Personal update returned to %q", header.Get("Location"))
@@ -175,9 +178,14 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 		t.Fatalf("atomic Personal enable: %+v", record)
 	}
 	page, _ := p.request("alice@h", "GET", "/agent?name=toggle%40h", nil, 200)
-	if strings.Count(page, `name=allow`) != 1 || !strings.Contains(page, "Classification and sharing") || !strings.Contains(page, "Personal classification, Allow and Maintainers are changed together") {
-		t.Fatal("Personal detail exposes two Allow edit doors")
+	if strings.Count(page, `name=allow`) != 1 || strings.Contains(page, "Classification and sharing") {
+		t.Fatalf("Personal detail does not have one editor with one Allow door: %s", page)
 	}
+	if !strings.Contains(page, `<input type=hidden name=edit_sharing value=1>`) || !strings.Contains(page, `<input type=hidden name=edit_personal value=1>`) {
+		t.Fatalf("the owner's settings form does not say it carries classification and sharing: %s", page)
+	}
+	// A save that did not carry them leaves them alone. This is the whole
+	// reason the form states it: a Maintainer's save posts neither flag.
 	settings := url.Values{"action": {"save"}, "name": {"toggle@h"}, "descr": {"kept sharing"}, "bound": {"0"}, "overflow": {"strict"}}
 	p.request("alice@h", "POST", "/service", settings, http.StatusSeeOther)
 	record, _ = p.bus.Lookup("alice@h", "toggle@h")
@@ -185,15 +193,31 @@ func TestPersonalOwnerEditsClassificationAndSharingAtomically(t *testing.T) {
 		t.Fatalf("ordinary settings silently wiped Personal sharing: %+v", record)
 	}
 
-	disable := url.Values{"action": {"personal"}, "name": {"toggle@h"}, "allow": {"bob@h"}, "maintainers": {"@ops"}}
+	disable := url.Values{"action": {"save"}, "name": {"toggle@h"}, "edit_sharing": {"1"}, "edit_personal": {"1"}, "edit_allow": {"1"}, "allow": {"bob@h"}, "maintainers": {"@ops"}}
 	p.request("alice@h", "POST", "/service", disable, http.StatusSeeOther)
 	record, ok = p.bus.Lookup("alice@h", "toggle@h")
 	if !ok || record.Personal || strings.Join(record.Maintainers, " ") != "@ops" || strings.Join(record.Allow, " ") != "bob@h" {
 		t.Fatalf("atomic Personal disable and sharing: %+v", record)
 	}
+	// A Maintainer sees the same one editor, with the two owner-only fields
+	// shown and disabled, and without the flags that would let a save carry
+	// them. Both halves are asserted: a page that dropped the fields would
+	// pass a check for the missing flags alone.
 	maintainer, _ := p.request("bob@h", "GET", "/agent?name=toggle%40h", nil, 200)
-	if strings.Contains(maintainer, "Classification and sharing") {
-		t.Fatal("a Maintainer received the owner-only classification control")
+	if strings.Contains(maintainer, "edit_sharing") || strings.Contains(maintainer, "edit_personal") {
+		t.Fatalf("a Maintainer's form claims it may change classification and sharing: %s", maintainer)
+	}
+	if !strings.Contains(maintainer, `<textarea name=maintainers rows=5 disabled`) ||
+		!strings.Contains(maintainer, `<input type=checkbox name=personal disabled`) {
+		t.Fatalf("a Maintainer cannot see the owner-only fields at all: %s", maintainer)
+	}
+	// And posting them by hand changes nothing, because the daemon decides.
+	p.request("bob@h", "POST", "/service", url.Values{
+		"action": {"save"}, "name": {"toggle@h"}, "edit_sharing": {"1"}, "maintainers": {""},
+	}, http.StatusForbidden)
+	record, _ = p.bus.Lookup("alice@h", "toggle@h")
+	if strings.Join(record.Maintainers, " ") != "@ops" {
+		t.Fatalf("a Maintainer cleared the Maintainers list: %+v", record)
 	}
 }
 

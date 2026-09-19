@@ -2,6 +2,13 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.11 — 2026-09-19
+
+Record detail has one editor. Classification and Maintainers are fields of Edit
+settings rather than a section of their own, and a caller who may not change
+them sees them disabled rather than missing; the form states separately that it
+carried them, so a Maintainer's save cannot clear what it was not offered.
+
 ## 0.6.10 — 2026-09-19
 
 The dashboard has a tab icon, served as `/favicon.svg`; a browser asking for

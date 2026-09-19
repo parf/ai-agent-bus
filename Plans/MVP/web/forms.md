@@ -7,7 +7,8 @@ rules all of them obey.
 
 | | |
 |---|---|
-| One concern per form | A form asks one question. Record detail keeps facts visible and puts each editing concern in its own disclosure or Danger Zone journey ([C02](review/codex.md#junk-and-misleading-content)) |
+| One concern per form | A form asks one question, and a Danger Zone journey is always its own ([C02](review/codex.md#junk-and-misleading-content)). **Record detail is the exception, on owner instruction 2026-09-19:** its settings, access, classification and Maintainers are one editor, because they are one decision about one record and splitting them put the same allow list behind two doors |
+| A control the caller may not use is disabled, not hidden | Owner instruction 2026-09-19. A hidden field makes a page's shape depend on who is reading it; a disabled one shows what the record has and says who may change it. A disabled control submits nothing, so a form that may change such a field states so in a hidden flag of its own, and the daemon still decides ([web authority](../../../docs/11-processes.md#web-authority-boundary)) |
 | The form posts as the person | The web child has no write path of its own. It forwards the visitor's session and requires an exact matching Origin ([rules](../../../docs/05-discovery.md#rules-it-is-built-to)) |
 | The form's visibility is not the decision | The daemon authorizes at submission. A rendered control is a convenience, never a grant |
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
@@ -86,11 +87,8 @@ the world moved between the question and the answer.
 | Register an agent | `/agents/new` | name, description, allow | the new agent's page |
 | Register a service | `/services/new` | name, description, address, protocol, allow | the new service's page |
 | Register a channel | `/channels/new` | name, description, kind, allow | the new channel's page |
-| Edit metadata | Agent, Service, Channel | description; address and protocol on a 📡 only | the identity section |
-| Edit queue policy | Agent, Channel | TTL, capacity, overflow; a 📡 has no queue, so it offers none | the queue section |
-| Edit access | Agent, Service, Channel | one plain ACL term per textarea line; `@owner` stays plain syntax | the access section |
+| Edit settings | Agent, Service, Channel | description; address and protocol on a 📡 only; TTL, capacity and overflow on everything with a queue; one plain ACL term per textarea line, `@owner` plain syntax; Personal on a 👾; Maintainers. The last two are disabled unless the caller is the Owner or a daemon administrator | the identity section |
 | Replace configuration | Service, Channel | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
-| Assign maintainers | Service, Channel | one named user, group, agent or service per textarea line | the identity section |
 | Enable / Disable | Service, Channel | — | the identity section |
 | Transfer ownership | Service, Channel | new owner | **Danger Zone** only; **confirm**, then the identity section |
 | Remove registration | Service, Channel | — | **Danger Zone** only; **confirm**, then the list it came from |

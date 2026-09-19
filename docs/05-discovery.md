@@ -264,9 +264,13 @@ adjacent `ⓘ` control: hover or keyboard focus shows them immediately and click
 opens the structured native popover.
 
 Record detail presents Delivery, Policy and Queue & counters as one compact
-fact row, followed by Activity. Authorized settings and Maintainers stay closed
-until chosen or until a refused submission must reopen them; configuration,
-transfer and removal remain in the red Danger Zone. User detail separates the
+fact row, followed by Activity. One editor holds every authorized setting —
+description, address or queue policy, allow list, Personal classification and
+Maintainers — and stays closed until chosen or until a refused submission must
+reopen them; configuration, transfer and removal remain in the red Danger Zone.
+A field the caller may not change is shown disabled rather than hidden, and the
+form states separately that it carried the owner-only fields, so a Maintainer
+saving a description cannot clear what it was not offered. User detail separates the
 profile editor from identity, authority, groups, lifecycle and owned resources.
 Groups use a compact Group/Members table. Selecting a name opens one group;
 the full-width membership textarea appears only when the caller may edit it.
