@@ -352,8 +352,9 @@ endpoint refusal, including authentication failures and malformed requests, and
 not the router's rejections or our own failures. Bodies never
 enter this history.
 
-Adding a subscription remains the subscriber's opt-in. Channel owners and
-maintainers can remove a subscription; they cannot force another inbox to subscribe.
+Who receives a 📣 copy is the channel manager's
+[Deliver-To list](04-messaging.md#subscribers); a name can take itself off it
+and cannot put itself on.
 
 ### Rules it is built to
 

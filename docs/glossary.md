@@ -35,6 +35,12 @@ channel is published to and subscribed; a topic rides on one envelope and is
 what a filtered read matches. `channel` is the CLI verb, the `publish` flag and
 the wire field; `topic` stays on `send`, `consume` and `reply`.
 
+**Deliver-To is who receives a 📣 copy; the ACL is who may publish.** From
+0.6.15 a pub/sub topic carries both ([subscribers](04-messaging.md#subscribers)).
+Say Deliver-To for the list and recipient for a name on it; *subscriber* stays
+readable prose and `subs` stays the wire field. Subscribing named the old
+self-service join, which the manager's list replaces.
+
 **Service means the external case and nothing else.** From 0.6.3 it is one of
 the [five record kinds](03-records.md#five-record-kinds): a card
 describing something this bus does not run. Anything running behind a bus name

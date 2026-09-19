@@ -19,7 +19,7 @@ inferring it from which fields happen to be filled in.
 | 👤 | `user` | the queue a person reads | the daemon, when the person is registered | the person |
 | 👾 | `agent` | the queue an agent reads | its launcher, or the agent itself at startup | the agent |
 | 📮 | `queue` | a [topic](07-channels.md#the-two-channel-kinds) created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
-| 📣 | `pubsub` | a [pub/sub topic](07-channels.md#the-two-channel-kinds): it keeps nothing and copies each publication to every subscriber | a user or an agent | nobody |
+| 📣 | `pubsub` | a [pub/sub topic](07-channels.md#the-two-channel-kinds): it keeps nothing and copies each publication to everyone on its [Deliver-To list](04-messaging.md#subscribers) | a user or an agent | nobody |
 | 📡 | `service` | a description of something [**external**](06-services.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
 
 Registering with no kind stores `service`, because describing something outside

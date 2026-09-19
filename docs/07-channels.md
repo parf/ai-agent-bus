@@ -33,7 +33,7 @@ channels — the Redis model:
 | Kind | Delivery | Retention | No subscribers at publish time | Redis analogue |
 |---|---|---|---|---|
 | 📮 **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded; overflow per its policy | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
-| 📣 **pub/sub** | a **copy** to every subscriber, into that subscriber's own inbox ([messaging § subscribers](04-messaging.md#subscribers)) | none of its own — each copy is kept by the inbox it is in | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
+| 📣 **pub/sub** | a **copy** to every name on its Deliver-To list, into that name's own inbox ([messaging § subscribers](04-messaging.md#subscribers)) | none of its own — each copy is kept by the inbox it is in | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
 
 <details>
 <summary>Diagram: one consumer versus subscriber copies</summary>
@@ -51,20 +51,22 @@ flowchart LR
     end
 ```
 
-Each subscriber is checked again at publication. A copy that its inbox refuses
-is dropped; other subscribers still receive theirs. With no eligible
-subscribers, the 📣 channel retains nothing.
+Each recipient is checked again at publication, and `@group` entries are
+expanded then. A copy that an inbox refuses is dropped; the other recipients
+still receive theirs. With no eligible recipients, the 📣 channel retains
+nothing.
 
 </details>
 
 ## What a channel declares
 
-A channel **declares its kind, TTL, bound and overflow policy at creation**:
+A channel **declares its kind at creation** — a 📮 its TTL, bound and overflow
+policy, a 📣 its [Deliver-To list](04-messaging.md#subscribers):
 
 | Aspect | MVP behavior |
 |---|---|
 | Create and change | [Ownership](01-identity-and-roles.md#ownership) applies |
-| Visibility and use | [Audience](05-discovery.md#audience) and the record ACL apply; publication rechecks each subscriber |
+| Visibility and use | [Audience](05-discovery.md#audience) and the record ACL apply — on a 📣 the ACL is who may publish, and delivery follows its [Deliver-To list](04-messaging.md#subscribers) |
 | Storage | [Restart persistence](04-messaging.md#durability), with messages in memory |
 | Observations | [Listing state](05-discovery.md#what-a-listing-answers) |
 

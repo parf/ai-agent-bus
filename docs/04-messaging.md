@@ -72,7 +72,7 @@ the whole difference from an ephemeral channel.
 | Verb | Target | Lands in | Allowed if |
 |---|---|---|---|
 | **`send`** | a known receiver with a queue here, `name@realm` | exactly that queue | you may talk to that principal. A 📡 is refused: it is [external](03-records.md#five-record-kinds) and has no queue |
-| **`publish`** | a channel | **as the channel's kind says** — a 📮 to one consumer and kept until taken; a 📣 to every current subscriber, kept for none ([channels](07-channels.md#the-two-channel-kinds)) | the channel's [access policy](02-access.md#acl) permits the caller; delivery-state checks still apply |
+| **`publish`** | a channel | **as the channel's kind says** — a 📮 to one consumer and kept until taken; a 📣 to every name on its [Deliver-To list](#subscribers), kept for none ([channels](07-channels.md#the-two-channel-kinds)) | the channel's [access policy](02-access.md#acl) permits the caller — on a 📣 that list is who may publish, and not who receives; delivery-state checks still apply |
 
 **A message is addressed to a name, and a name that is registered nowhere is
 refused at `send`** — there is no label to send to and nothing accepts on
@@ -347,24 +347,29 @@ client-side adapters — see
 
 ### Subscribers
 
-**A subscriber is a registered name, and a copy lands in its own inbox.** So
-publishing to a pub/sub topic is one copy per subscriber, and the topic itself
-keeps nothing — the copies are kept, by the inboxes they are in.
+**A 📣 topic carries two lists, and they answer different questions.** Its
+[ACL](02-access.md#acl) says who may **publish** to it. Its **Deliver-To list**
+says who **receives a copy** — and the copy lands in that name's own inbox, so
+a publication is one copy per recipient and the topic itself keeps nothing.
 
-Subscribing is a **record on the topic**, not an outstanding read: it survives
-a restart with the rest of the registry ([durability](#durability)), and a
-subscriber that is down keeps its backlog exactly like any other name
+Neither list stands in for the other. A name on Deliver-To receives whether or
+not it may publish, and a name the ACL admits receives nothing until whoever
+manages the channel puts it on Deliver-To. Both live on the record, so both
+survive a restart with the rest of the registry ([durability](#durability)),
+and a recipient that is down keeps its backlog exactly like any other name
 ([inbox queues](#inbox-queues)). That is the whole reason to put the copy in
 an inbox rather than hand it to whoever is connected.
 
 | | |
 |---|---|
-| who may subscribe | anyone the topic's ACL lets see it ([identity § acl](02-access.md#acl)) — and you subscribe **yourself**, because it is your inbox the copies land in |
-| and must be registered | the copy needs somewhere to go, and an inbox belongs to a registered name |
-| asked again at **every publish** | access taken away stops the copies. Checking only at subscribe would make a subscription a way to go on reading a topic that stopped allowing you |
-| whose bound, TTL and overflow apply | the **subscriber's**, because the copy is in the subscriber's inbox |
-| a subscriber that is **turned off** | is skipped, and the skipped copy is counted as its drop. Nothing is queued for it and the publisher is told nothing, so its own count is the only place the gap can show. A subscriber the topic stopped allowing is **not** counted: it is no longer entitled to the copy, which is a different fact from being unable to take it |
-| a subscriber that will not read | loses its own copies and **stops nothing**: the publish still succeeds for everyone else, and the copy that would not fit is counted as a drop ([overflow](#overflow)). A publisher one stopped reader can block is a queue topic, which is the other kind and is what that caller wanted |
+| who writes Deliver-To | whoever **manages** the channel — its owner or a Maintainer ([record authority](01-identity-and-roles.md#record-authority)) — at registration and afterwards. Delivery is granted, never taken |
+| who may be on it | 👤 **users** and 👾 **agents**: the kinds that have an inbox here. A 📡 service has none, and a channel is a destination rather than a reader |
+| `@group` | allowed, and **expanded at publication**, nested groups included, each name once. Membership therefore decides delivery when the publish happens, not when the list was written |
+| taking **yourself** off | always allowed, because it is your inbox that fills. Putting yourself back on is the manager's call |
+| checked again at **every publish** | that the recipient still exists, is on the bus and is **active**. A suspended user takes no copies, and neither does a name that has since been unregistered. Neither counts as a drop: there is nothing it was entitled to take |
+| whose bound, TTL and overflow apply | the **recipient's**, because the copy is in the recipient's inbox |
+| a recipient that is **turned off** | is skipped, and the skipped copy **is** counted as its drop — a different fact from the row above: it is still entitled to the copy and simply cannot take it. Nothing is queued for it and the publisher is told nothing, so its own count is the only place the gap can show |
+| a recipient that will not read | loses its own copies and **stops nothing**: the publish still succeeds for everyone else, and the copy that would not fit is counted as a drop ([overflow](#overflow)). A publisher one stopped reader can block is a queue topic, which is the other kind and is what that caller wanted |
 
 ## Overflow
 

@@ -45,7 +45,7 @@ to mangle it ([secrets](06-services.md#secrets)).
 | Route | |
 |---|---|
 | `POST /register` · `POST /unregister` | state a record, or remove an idle one ([registration](01-identity-and-roles.md#registration), [unregistering](01-identity-and-roles.md#unregistering)) |
-| `POST /manage` | one record's description, address, protocol, queue settings, allow list, Maintainers, Personal, delivery switch and owner ([record authority](01-identity-and-roles.md#record-authority)) |
+| `POST /manage` | one record's description, address, protocol, queue settings, allow list, 📣 Deliver-To list, Maintainers, Personal, delivery switch and owner ([record authority](01-identity-and-roles.md#record-authority)) |
 | `GET /ls` · `GET /lookup` | the records the caller may see, or one of them ([what a listing answers](05-discovery.md#what-a-listing-answers)) |
 
 ## Messaging
@@ -61,8 +61,8 @@ A reply and a receipt are ordinary sends ([request and reply](04-messaging.md#re
 
 | Route | |
 |---|---|
-| `POST /subscribe` | add or remove the caller's own subscription to a 📣 ([the two channel kinds](07-channels.md#the-two-channel-kinds)) |
-| `POST /subscriber/remove` | whoever manages the channel taking somebody else off it ([record authority](01-identity-and-roles.md#record-authority)) |
+| `POST /subscribe` | the caller taking **itself** off a 📣 Deliver-To list; putting a name on is the manager's ([subscribers](04-messaging.md#subscribers)) |
+| `POST /subscriber/remove` | whoever manages the channel taking somebody else off its Deliver-To list ([record authority](01-identity-and-roles.md#record-authority)) |
 
 Publishing is `POST /send` to the channel; what it stamps on the message is
 [the channel's own name](07-channels.md#what-publish-puts-on-the-message).

@@ -182,9 +182,10 @@ remain refused. This is existing behavior.
 * An authorized Administrator can reactivate a paused ordinary user. Ban-lifting
   authority follows the [Administrator rule](#daemon-administrators).
 * State changes cancel blocked reads that lose authority. A record's own
-  credential is refused too; direct-owner suspension is checked for delivery,
-  reading and new subscriptions. Unsubscribing remains possible for an active
-  caller. Already delivered work cannot be recalled.
+  credential is refused too; direct-owner suspension is checked for delivery
+  and reading, and a suspended name takes no 📣 copies
+  ([Deliver-To](04-messaging.md#subscribers)). Taking yourself off a Deliver-To
+  list remains possible for an active caller. Already delivered work cannot be recalled.
 * Suspension follows the **direct owner**, not an ownership chain. If Alice owns
   agent A and A owns B, pausing Alice suspends A, not B.
 * Credentials are kept, not rotated or revoked. Lifting the state restores their

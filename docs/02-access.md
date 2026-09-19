@@ -135,7 +135,9 @@ need to list itself in its own ACL: it may read its own inbox independently.
 Caller standing, owner suspension and the record's Disabled setting still apply.
 On a 📡 the list governs who may **read** the record — its address, protocol,
 description and [secret](06-services.md#secrets) — because a
-service has no delivery to govern.
+service has no delivery to govern. On a 📣 it governs who may **publish**;
+who receives a copy is the separate
+[Deliver-To list](04-messaging.md#subscribers).
 
 **For other principals, an empty ACL means access only for the record's Owner
 and assigned Maintainers.** This default

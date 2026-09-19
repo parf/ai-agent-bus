@@ -14,7 +14,7 @@ rules all of them obey.
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
 | Never echo a secret | Not a token, not private configuration, not a service secret. The configuration and secret fields are always empty and `autocomplete=off`, including after a refusal |
 | A multi-line value is the bytes that were typed | A browser submits a textarea with CRLF whatever the page was served with. Where the daemon stores bytes as sent — a [service secret](../../../docs/06-services.md#secrets) — the face normalises them back, or a two-line credential is stored with a carriage return nobody typed |
-| A form asks only what its kind has | `/channels/new` has no fields of its own: a queue declares TTL, capacity and overflow, a pub/sub topic holds nothing and declares none of it, so the section offers two forms and the page without a kind links to both |
+| A form asks only what its kind has | `/channels/new` has no fields of its own: a queue declares TTL, capacity and overflow, a pub/sub topic keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#subscribers) instead, so the section offers two forms and the page without a kind links to both |
 | Success returns to what changed | The section that changed, with a specific result. Service and Channel registration and ordinary edits return to the affected resource; removal returns to the matching collection ([C06](review/codex.md#junk-and-misleading-content)) |
 | Only offer transitions that apply | Built in 0.5.79: active offers Pause/Ban, paused offers Activate/Ban and banned offers Activate only when daemon-returned authority permits it |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
@@ -89,14 +89,14 @@ the world moved between the question and the answer.
 | Register an agent | `/agents/new` | name, description, allow | the new agent's page |
 | Register a service | `/services/new` | name, description, address, protocol, allow, secret (optional). The secret is a second call to its own verb, and is never repopulated | the new service's page |
 | Register a queue | `/channels/new?kind=queue` | name, description, allow, TTL, capacity, overflow | the new queue's page |
-| Register a pub/sub topic | `/channels/new?kind=pubsub` | name, description, allow. It keeps nothing, so it declares no queue policy | the new topic's page |
+| Register a pub/sub topic | `/channels/new?kind=pubsub` | name, description, allow, Deliver-To. It keeps nothing, so it declares no queue policy; allow is who may publish and Deliver-To is who receives | the new topic's page |
 | Edit settings | Agent, Service, Channel | description; address and protocol on a 📡 only; TTL, capacity and overflow on everything with a queue; one plain ACL term per textarea line, `@owner` plain syntax; Personal on a 👾; Maintainers. The last two are disabled unless the caller is the Owner or a daemon administrator | the identity section |
 | Replace configuration | Service, Channel | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
 | Enable / Disable | Service, Channel | — | the identity section |
 | Transfer ownership | Service, Channel | new owner | **Danger Zone** only; **confirm**, then the identity section |
 | Remove registration | Service, Channel | — | **Danger Zone** only; **confirm**, then the list it came from |
-| Subscribe / Unsubscribe | Channel, pub/sub | — | the subscribers section |
-| Remove a subscriber | Channel, pub/sub | subscriber | the subscribers section |
+| Take myself off Deliver-To | Channel, pub/sub | — | the subscribers section |
+| Remove a recipient | Channel, pub/sub | subscriber | the subscribers section |
 | Register a group | `/groups/new` | name; one identity or nested group per textarea line | the new group's page |
 | Edit members | Group | one identity or nested group per textarea line | the group's members section |
 | Register a user | `/users/new` | name, person name, email, GitHub login, company, location, Twitter/X | the new user's page |
@@ -117,11 +117,13 @@ working capability as a side effect of a documentation split. Removing it would
 need its own decision — codex's
 [S07](review/codex.md#specification-review-round-one).
 
-**Subscribe and unsubscribe are not management.** They sit outside `CanManage`
-in the build (admin.go:341) and stay outside it here: adding a subscription is
-the subscriber's own opt-in, while *removing someone else's* is a manager's
-action. Two different authorities in one section, named separately
-([S06](review/codex.md#specification-review-round-one)).
+**Putting a name on Deliver-To is management; taking yourself off is not.**
+The manager's list is the only way onto it, so the add control is behind
+`CanManage` with the rest of the editor, and the control a non-manager sees is
+the one that removes itself. Two different authorities in one section, named
+separately ([S06](review/codex.md#specification-review-round-one)). Before
+2026-09-19 adding was the subscriber's own opt-in
+([decision](../../../docs/decisions.md#settled)).
 
 ACL and Maintainers share the same textarea and line handling. ACL additionally
 accepts `*` and runtime `@owner`; Maintainers accepts named users, groups,
@@ -174,6 +176,6 @@ and the local photo but retains ordinary User fields.
 
 | | |
 |---|---|
-| Both Subscribe and Unsubscribe offered regardless of state | channel detail |
+| Both add and remove offered to a name regardless of whether it is on the list | channel detail |
 | Activate offered to an already-active user | user detail |
 | Members editable only where they are visible, so an ordinary caller sees neither | groups |
