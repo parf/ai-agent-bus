@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 — 2026-09-18
+
+Opens the 0.6 line for the record-kind enum: `kind` becomes a closed set of
+user, agent, queue, pubsub and service, `mode` retires into it, and a service
+is an external one that is not on the bus. No behaviour has changed yet.
+
 ## 0.5.84 — 2026-09-18
 
 A record of kind `agent` is an Inbox, not a service: it carries no address and

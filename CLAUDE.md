@@ -71,7 +71,7 @@ The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the proje
 |---|---|
 | Shared SemVer | Every program and face shares one `MAJOR.MINOR.PATCH`; never version the daemon, runner, CLI or MCP independently |
 | Canonical value | `src/internal/version/VERSION`, embedded by Go and read by TypeScript; no other current-version literals |
-| MVP | `0.5.x`; bump PATCH on every significant feature, and on a shipped behaviour fix. A shared change still gets one bump |
+| MVP | `0.5.x`, then `0.6.x` from the record-kind enum; MVP spans both. Bump PATCH on every significant feature, and on a shipped behaviour fix. A shared change still gets one bump |
 | Later releases | Before stability, MINOR advances the release line. From major one, breaking changes bump MAJOR, compatible features MINOR, fixes PATCH; reset lower components when advancing a higher one |
 | No behaviour change | Docs, tests and refactoring alone do not require a bump |
 | Changelog | Every version bump includes a one- or two-line version summary in `CHANGELOG.md`, newest version on top. Historical release numbers belong there; never rewrite them to match the current version |
