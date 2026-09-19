@@ -181,7 +181,7 @@ func describe(args []string) (service, error) {
 		decoder := json.NewDecoder(os.Stdin)
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&svc); err != nil {
-			return svc, fmt.Errorf("bad service JSON on stdin: %w", err)
+			return svc, fmt.Errorf("bad agent JSON on stdin: %w", err)
 		}
 	} else {
 		// The script is one argument, and it is a shell command line, so
@@ -200,7 +200,7 @@ func describe(args []string) (service, error) {
 	}
 
 	if svc.Name == "" || svc.Script == "" {
-		return svc, fmt.Errorf("a service needs a name and a script")
+		return svc, fmt.Errorf("an agent needs a name and a script")
 	}
 	if svc.Algo == "" {
 		svc.Algo = algoJSON

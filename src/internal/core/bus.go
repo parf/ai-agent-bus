@@ -30,7 +30,7 @@ var (
 	// profile and no record of its own. That is not a state to recover from,
 	// it is nobody (docs/02-access.md#what-a-call-carries).
 	ErrNoPrincipal = errors.New("that credential answers for nobody")
-	ErrDisabled    = errors.New("service is disabled")
+	ErrDisabled    = errors.New("delivery to that name is turned off")
 	ErrUnknown     = errors.New("no such name")
 	ErrTwoReads    = errors.New("inbox already has a reader, and neither asked to share it")
 	ErrBadName     = errors.New("bad name")
@@ -45,11 +45,11 @@ var (
 	ErrNotOwner    = errors.New("that record belongs to someone else")
 	ErrExists      = errors.New("that name is already registered")
 	ErrBusy        = errors.New("cannot unregister a busy inbox")
-	ErrPrivate     = errors.New("a configuration is private to the service it belongs to")
+	ErrPrivate     = errors.New("a configuration is private to the record it belongs to")
 	ErrSecret      = errors.New("a secret is stored on a service and on no other kind")
 	ErrNoSecret    = errors.New("that service holds no secret")
-	ErrNotAllow    = errors.New("not on that service's allow list")
-	ErrPersonal    = errors.New("a personal service may name only direct service identities in its ACL and cannot have maintainers")
+	ErrNotAllow    = errors.New("not on that record's allow list")
+	ErrPersonal    = errors.New("a personal agent may name only direct agent identities in its ACL and cannot have maintainers")
 	ErrEnrol       = errors.New("enrolment")
 	// A group is retired by emptying its membership
 	// (docs/01-identity-and-roles.md#groups), so there is no removal to

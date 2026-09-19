@@ -137,10 +137,10 @@ func (b *Bus) acting(name string) error {
 	if err := b.knows(name); err != nil {
 		return err
 	}
-	// Both sides, at the edge and again here: a suspended person's service
+	// Both sides, at the edge and again here: a suspended person's agent
 	// holds a credential that is kept rather than revoked, and kept is not
 	// accepted — while the state lasts it grants no access, theirs or their
-	// services' (docs/01-identity-and-roles.md#user-states).
+	// agents' (docs/01-identity-and-roles.md#user-states).
 	return b.suspension(name)
 }
 
@@ -624,7 +624,7 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 	}
 
 	if r, ok := b.records[in.Name]; ok && r.Owner != r.Name {
-		return protocol.User{}, fmt.Errorf("%w: that name is a service", ErrProfile)
+		return protocol.User{}, fmt.Errorf("%w: that name is somebody else's record", ErrProfile)
 	}
 	if in.State == "" {
 		in.State = old.State

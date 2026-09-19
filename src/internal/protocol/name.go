@@ -79,7 +79,7 @@ const MaxName = 64
 
 // Name is how every principal is written.
 type Name struct {
-	Template string // service template this service was configured from, or ""
+	Template string // agent template this record was configured from, or ""
 	Local    string // user, or service name
 	Realm    string // the name a daemon answers for: a host by default, a pool, a provider
 }

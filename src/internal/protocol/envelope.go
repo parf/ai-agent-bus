@@ -162,15 +162,15 @@ type Record struct {
 	// See docs/04-messaging.md#push-and-pull.
 	Subs []string `json:"subs,omitempty"`
 
-	// Config is what a service template was configured with. It is opaque:
+	// Config is what an agent template was configured with. It is opaque:
 	// the bus checks that it is JSON and never reads inside — no server,
 	// user, mailbox or credential is looked for. It leaves the daemon for
-	// one caller only, the service it belongs to; every other answer
+	// one caller only, the record it belongs to; every other answer
 	// carries ConfigSHA in its place.
 	// See docs/03-records.md#configuring-a-template.
 	Config json.RawMessage `json:"config,omitempty"`
 
-	// ConfigSHA is what a query gets instead: enough to see that a service
+	// ConfigSHA is what a query gets instead: enough to see that a record
 	// is configured, that a write landed, and that two are the same, without
 	// handing the configuration to anyone.
 	ConfigSHA string `json:"config_sha,omitempty"`

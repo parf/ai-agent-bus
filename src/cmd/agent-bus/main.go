@@ -108,7 +108,7 @@ func main() {
 		err = register(rest)
 	case "unregister":
 		if len(rest) != 1 {
-			err = fmt.Errorf("unregister wants one service name")
+			err = fmt.Errorf("unregister wants one record name")
 		} else if err = postQuiet("/unregister", map[string]string{"name": rest[0]}); err == nil {
 			fmt.Printf("%s unregistered\n", rest[0])
 		}
@@ -377,7 +377,7 @@ func callVerb(args []string) error {
 	ctx, cancel := context.WithDeadline(context.Background(), until)
 	defer cancel()
 	tooLate := fmt.Errorf("no answer within %s (the message was accepted; do not resend it)", deadline)
-	errFinished := errors.New("the service finished and sent no answer (not a timeout; do not resend it)")
+	errFinished := errors.New("the agent finished and sent no answer (not a timeout; do not resend it)")
 
 	q := url.Values{"topic": {topic}, "tag": {tag}}
 	for {

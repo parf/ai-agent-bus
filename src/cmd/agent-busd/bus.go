@@ -100,7 +100,7 @@ func runBus(c config) {
 	// reason the sweep is: a record of the owner would be wreckage until the
 	// durable owner is restored or the first-run seed is applied.
 	if purged := bus.Orphans(); len(purged) > 0 {
-		log.Printf("deleted %d services whose owner the daemon does not know", len(purged))
+		log.Printf("deleted %d records whose owner the daemon does not know", len(purged))
 	}
 	// Their credentials are not dropped here. Every name that just went has no
 	// record and no profile now, which is exactly what the sweep below asks,

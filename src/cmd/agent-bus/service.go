@@ -90,7 +90,7 @@ func alive(name string) (running, error) {
 func stopVerb(args []string) error {
 	pos, _ := split(args)
 	if len(pos) != 1 {
-		return fmt.Errorf("stop wants one service name")
+		return fmt.Errorf("stop wants one agent name")
 	}
 	r, err := alive(pos[0])
 	if err != nil {
@@ -114,7 +114,7 @@ func stopVerb(args []string) error {
 func logsVerb(args []string) error {
 	pos, flags := split(args)
 	if len(pos) != 1 {
-		return fmt.Errorf("logs wants one service name")
+		return fmt.Errorf("logs wants one agent name")
 	}
 	last := 50
 	if v := flags["lines"]; v != "" {

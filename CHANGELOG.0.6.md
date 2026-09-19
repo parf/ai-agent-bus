@@ -2,6 +2,14 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.9 — 2026-09-19
+
+The daemon's own words follow the [glossary](docs/glossary.md#terms): a
+configuration is private to the **record** it belongs to, an allow list is a
+**record's**, a personal **agent** names **agent** identities, delivery to a
+name is **turned off** rather than a service being disabled, and the start
+sweep reports the **records** it deleted.
+
 ## 0.6.8 — 2026-09-19
 
 An external 📡 service holds a **secret**: the credential for reaching it,

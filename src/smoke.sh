@@ -1423,7 +1423,7 @@ echo '{"model":"opus","depth":3}' | ab owner@srv1 agent-template code-review/cfg
 has "the configuration comes back as it went in, to the service" \
   "$(ab code-review/cfg@rdvp agent-template code-review/cfg@rdvp)" '{"model":"opus","depth":3}'
 has "but not to the owner who set it" \
-  "$(ab owner@srv1 agent-template code-review/cfg@rdvp 2>&1)" 'private to the service'
+  "$(ab owner@srv1 agent-template code-review/cfg@rdvp 2>&1)" 'private to the record'
 has "and that is a refusal, not a failure of ours" \
   "$(code owner@srv1 "/config?name=code-review/cfg@rdvp")" '403'
 
@@ -1450,7 +1450,7 @@ has "configuring creates the service, so it can be sent to" \
   "$(ab owner@srv1 send code-review/cfg@rdvp "it exists" >/dev/null; ab code-review/cfg@rdvp consume --wait 2s)" 'it exists'
 
 has "a stranger may not read it either" \
-  "$(ab nosy@srv1 agent-template code-review/cfg@rdvp 2>&1)" 'private to the service'
+  "$(ab nosy@srv1 agent-template code-review/cfg@rdvp 2>&1)" 'private to the record'
 # The text alone would still read right if every refusal collapsed to a 500.
 has "and is refused as forbidden, not as our own fault" \
   "$(code nosy@srv1 "/config?name=code-review/cfg@rdvp")" '403'
@@ -2568,7 +2568,7 @@ orph_checks() {
   lacks "the explicit legacy snapshot has no durable owner marker" \
     "$(cat "$D/orph/dump.json")" 'owner_established'
   orph_up second || { echo "  FAIL the start over the edited store did not come up"; fail=$((fail+1)); return 1; }
-  has "the start says how many it took" "$(cat "$D/orph/second.log")" 'deleted 4 services'
+  has "the start says how many it took" "$(cat "$D/orph/second.log")" 'deleted 4 records'
   REG=$(oab ls)
   lacks "the record whose owner nothing knows is gone" "$REG" 'lost@srv1'
   # All three, not just the first: a single pass leaves the tail of the chain
