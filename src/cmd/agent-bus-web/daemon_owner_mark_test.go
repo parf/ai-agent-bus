@@ -90,3 +90,68 @@ func row(t *testing.T, page, name string) string {
 	t.Fatalf("no row names %s in %s", name, page)
 	return ""
 }
+
+// The Channels page lists three kinds, so its Kind switch is the only thing
+// that tells them apart. The daemon owner's own inbox is the case where the
+// switch and the label disagree on purpose: the row is selected by the kind the
+// daemon stated and labelled by the authority that outranks it, so a filter
+// written against the visible label would lose the one row it most needs.
+func TestTheChannelsKindSwitchSelectsByKindAndNotByTheVisibleLabel(t *testing.T) {
+	m := meaningFixture(t)
+	for _, record := range []protocol.Record{
+		{Name: "work@h", Owner: "admin@h", Kind: protocol.KindQueue},
+		{Name: "shout@h", Owner: "admin@h", Kind: protocol.KindPubSub},
+	} {
+		m.register(record)
+	}
+	for name, create := range map[string]bool{"admin@h": false, "other@h": true} {
+		if _, err := m.bus.SetUser("admin@h", protocol.User{Name: name}, create); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+
+	// Every kind the page lists is offered, each by its own label.
+	all := m.get("/channels")
+	for _, kind := range []string{protocol.KindUser, protocol.KindQueue, protocol.KindPubSub} {
+		if !strings.Contains(all, `href="/channels?kind=`+kind+`"`) {
+			t.Errorf("the Kind switch does not offer %s: %s", kind, section(t, all, `aria-label="Kind filter"`, "</nav>"))
+		}
+	}
+
+	// Each selection keeps its own kind and drops the other two. Asked in both
+	// directions, because a filter that returned everything would satisfy the
+	// first half of every case on its own.
+	for kind, kept := range map[string]string{
+		protocol.KindUser:   "other@h",
+		protocol.KindQueue:  "work@h",
+		protocol.KindPubSub: "shout@h",
+	} {
+		page := m.get("/channels?kind=" + kind)
+		if !strings.Contains(page, kept) {
+			t.Errorf("Kind %s lost %s: %s", kind, kept, page)
+		}
+		for other, name := range map[string]string{
+			protocol.KindUser:   "other@h",
+			protocol.KindQueue:  "work@h",
+			protocol.KindPubSub: "shout@h",
+		} {
+			if other == kind {
+				continue
+			}
+			if strings.Contains(page, `>`+name+`</code>`) {
+				t.Errorf("Kind %s also returned the %s record %s: %s", kind, other, name, page)
+			}
+		}
+	}
+
+	// And the row whose label is not its kind. admin@h is a user record and is
+	// selected as one, while its Type cell names the authority.
+	users := m.get("/channels?kind=" + protocol.KindUser)
+	owner := row(t, users, "admin@h")
+	if !strings.Contains(owner, display.DaemonOwnerGlyph+" Daemon owner") {
+		t.Errorf("the daemon owner's row is not labelled by its authority: %s", owner)
+	}
+	if strings.Contains(users, `>work@h</code>`) {
+		t.Errorf("Kind User returned a queue: %s", users)
+	}
+}
