@@ -163,14 +163,19 @@ type adminView struct {
 	Agents          bool
 	Services        bool
 	PersonalPage    bool
-	Status          core.Status
-	Activity        activityPresentation
-	SectionLinks    []viewLink
-	FilterLinks     []viewLink
-	KindLinks       []viewLink
-	ReaderLinks     []viewLink
-	WorkLinks       []viewLink
-	Form            formState
+	// NewKind is the kind a registration page is registering, empty on the
+	// page that asks which. The fields differ by kind rather than by section:
+	// a queue declares TTL, capacity and overflow, and a pub/sub topic holds
+	// nothing, so neither form can ask the other's questions.
+	NewKind      string
+	Status       core.Status
+	Activity     activityPresentation
+	SectionLinks []viewLink
+	FilterLinks  []viewLink
+	KindLinks    []viewLink
+	ReaderLinks  []viewLink
+	WorkLinks    []viewLink
+	Form         formState
 }
 
 type groupReference struct {
@@ -793,7 +798,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if !ok {
 			return
 		}
-		v.Current = "services"
+		v.Current, v.NewKind = "services", protocol.KindService
 		render(w, serviceNew, v)
 	})
 	mux.HandleFunc("GET /agents/new", func(w http.ResponseWriter, r *http.Request) {
@@ -801,15 +806,23 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if !ok {
 			return
 		}
-		v.Current, v.Agents = "agents", true
+		v.Current, v.Agents, v.NewKind = "agents", true, protocol.KindAgent
 		render(w, serviceNew, v)
 	})
+	// Two channel kinds, two forms. `kind` is part of the address rather than
+	// a control inside one page, so each form is a place that can be linked
+	// to; without it the page would have to ask which kind and then change
+	// shape underneath the answer.
 	mux.HandleFunc("GET /channels/new", func(w http.ResponseWriter, r *http.Request) {
 		v, ok := c.signedIn(w, r)
 		if !ok {
 			return
 		}
 		v.Current, v.Channels = "channels", true
+		switch kind := r.URL.Query().Get("kind"); kind {
+		case protocol.KindQueue, protocol.KindPubSub:
+			v.NewKind = kind
+		}
 		render(w, serviceNew, v)
 	})
 	recordDetail := func(w http.ResponseWriter, r *http.Request) {
@@ -924,7 +937,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		switch action {
 		case "create":
 			kind := r.PostForm.Get("kind")
-			v.Channels, v.Agents = channelRecord(kind), agentRecord(kind)
+			v.Channels, v.Agents, v.NewKind = channelRecord(kind), agentRecord(kind), kind
 			switch {
 			case v.Channels:
 				v.Current = "channels"
@@ -936,7 +949,10 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			// Everything the three forms between them ask for: a refusal on one
 			// field must not empty the others, and the service form asks for an
 			// address and a protocol the daemon will not do without.
-			v.Form = setField(retainedForm(action, message, r.PostForm, "name", "descr", "kind", "addr", "protocol", "personal", "allow"))
+			// Everything the forms between them ask for, and deliberately not
+			// the secret: a rejected credential is still a credential and must
+			// not come back in HTML.
+			v.Form = setField(retainedForm(action, message, r.PostForm, "name", "descr", "kind", "addr", "protocol", "personal", "allow", "ttl", "bound", "overflow"))
 			renderForm(w, code, serviceNew, v)
 			return true
 		case "save":
@@ -1097,7 +1113,41 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				return
 			}
 			targetKind, targetPersonal = kind, r.PostForm.Get("personal") == "on"
-			err = c.post(cookie(r), "/register", protocol.Record{Name: name, Kind: kind, Addr: r.PostForm.Get("addr"), Proto: r.PostForm.Get("protocol"), Descr: r.PostForm.Get("descr"), Allow: strings.Fields(r.PostForm.Get("allow")), Personal: r.PostForm.Get("personal") == "on"})
+			record := protocol.Record{Name: name, Kind: kind, Addr: r.PostForm.Get("addr"), Proto: r.PostForm.Get("protocol"), Descr: r.PostForm.Get("descr"), Allow: strings.Fields(r.PostForm.Get("allow")), Personal: r.PostForm.Get("personal") == "on"}
+			// Only the queue form offers these, and they are read
+			// unconditionally because a Record carries values rather than the
+			// pointers the settings editor uses to tell "leave this alone"
+			// from "clear it": a form that never showed the fields submits
+			// nothing, and empty and zero are the defaults the daemon would
+			// have applied anyway. An unparseable capacity is not.
+			bound, parseErr := strconv.Atoi(r.PostForm.Get("bound"))
+			if parseErr != nil && r.PostForm.Get("bound") != "" {
+				renderServiceFormError(w, r, v, action, http.StatusBadRequest, "Queue capacity must be a whole number.", "bound")
+				return
+			}
+			record.TTL, record.Full, record.Bound = r.PostForm.Get("ttl"), r.PostForm.Get("overflow"), bound
+			if err = c.post(cookie(r), "/register", record); err != nil {
+				break
+			}
+			// The secret is its own verb, so it is a second call: a
+			// registration carries neither the bytes nor their digest
+			// (docs/06-services.md#secrets). An empty field means no secret,
+			// which is what the daemon refuses to store anyway.
+			if secret := formSecret(r.PostForm.Get("secret")); secret != "" && kind == protocol.KindService {
+				if secretErr := c.post(cookie(r), "/secret", struct {
+					Name   string `json:"name"`
+					Secret string `json:"secret"`
+				}{name, secret}); secretErr != nil {
+					// The record exists. Saying the registration failed would
+					// be a lie, and returning the form would offer a name that
+					// is now taken, so this says exactly what happened and
+					// where the credential can still be put.
+					localProblem(w, r, v.You, http.StatusBadGateway,
+						"The service was registered and its secret was not stored: "+sectionProblem("secret", secretErr)+
+							" Set it with: agent-bus secret "+name+" '...'")
+					return
+				}
+			}
 		case "subscribe", "unsubscribe":
 			err = c.post(cookie(r), "/subscribe", struct {
 				Channel string
@@ -1247,20 +1297,35 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 <nav aria-label="Record pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
 {{end}}
 `))
-var serviceNew = template.Must(template.New("service-new").Funcs(template.FuncMap{"entityLabel": entityLabel, "titleMark": titleMark}).Parse(shellTitle("records", `Register {{if .Agents}}agent{{else if .Channels}}channel{{else}}service{{end}}`) + `
+
+// serviceNew is every registration form. The fields follow the kind, not the
+// section: a queue declares the policy of the queue it will hold, a pub/sub
+// topic holds nothing and declares none of it, and a service carries the one
+// credential the daemon stores for something outside. Reached without a kind,
+// it asks which — the Channels section is the only one with two.
+var serviceNew = template.Must(template.New("service-new").Funcs(template.FuncMap{"entityLabel": entityLabel, "titleMark": titleMark}).Parse(shellTitle("records", `{{template "new-heading" .}}`) + `
 <p><a href="{{if .Agents}}/agents{{else if .Channels}}/channels{{else}}/services{{end}}">Back to {{if .Agents}}Agents{{else if .Channels}}Channels{{else}}Services{{end}}</a></p>
-<div class=page-title><h1>{{if .Agents}}{{titleMark "agent"}}{{else if .Channels}}{{titleMark "channels"}}{{else}}{{titleMark "services"}}{{end}} Register {{if .Agents}}agent{{else if .Channels}}channel{{else}}service{{end}}</h1></div>
-` + formErrorSummary + `<form id=form-create class="editor-card task-card" method=post action=/service><input type=hidden name=action value=create><div class=form-grid>
+<div class=page-title><h1>{{if .NewKind}}{{titleMark .NewKind}}{{else}}{{titleMark "channels"}}{{end}} {{template "new-heading" .}}</h1></div>
+{{if not .NewKind}}<section class="editor-card task-card"><p>A channel routes messages without a service process of its own. The two kinds ask for different things, so each has its own form.</p>
+<ul><li><a href="/channels/new?kind=queue">Register a queue</a> &mdash; holds work and hands each message to one reader, so it declares how long a message is worth keeping, how many it may hold and what to do when it is full.</li>
+<li><a href="/channels/new?kind=pubsub">Register a pub/sub topic</a> &mdash; copies each accepted message to its subscribers and keeps nothing, so it has no queue to bound. Subscribers add themselves.</li></ul></section>
+{{else}}` + formErrorSummary + `<form id=form-create class="editor-card task-card" method=post action=/service><input type=hidden name=action value=create><input type=hidden name=kind value={{.NewKind}}><div class=form-grid>
 <label class="form-field form-field-wide">Name <input id=create-name name=name required placeholder="name@realm" value="{{.Form.Value "name"}}" aria-invalid="{{if .Form.Invalid "name"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "name"}}create-error{{end}}"><small>The routing identity callers use.</small></label>
-<label class="form-field form-field-wide">Description <input name=descr value="{{.Form.Value "descr"}}" placeholder="What this {{if .Agents}}agent{{else if .Channels}}channel{{else}}service{{end}} does"><small>Shown first in the registry.</small></label>
-{{if .Channels}}<fieldset aria-invalid="{{if .Form.Invalid "kind"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "kind"}}create-error{{end}}" class=form-field-wide><legend>What to register</legend><div class=choice-row><label><input type=radio name=kind value=queue {{if or (not (.Form.Is "create")) (ne (.Form.Value "kind") "pubsub")}}checked{{end}}> {{entityLabel "queue"}}</label><label><input type=radio name=kind value=pubsub {{if eq (.Form.Value "kind") "pubsub"}}checked{{end}}> {{entityLabel "pubsub"}}</label></div><small>A queue holds work and hands each message to one reader. A pub/sub topic copies every accepted message to its subscribers and holds nothing.</small></fieldset>
-{{else if .Agents}}<input type=hidden name=kind value=agent><fieldset><legend>Visibility</legend><div class=choice-row><label><input type=checkbox name=personal {{if .Form.Checked "personal"}}checked{{end}}> Personal</label></div><small>A Personal agent is grouped in its owner&rsquo;s view and may share with other agents only.</small></fieldset>
-{{else}}<input type=hidden name=kind value=service>
-<label class="form-field">Address <input name=addr required value="{{.Form.Value "addr"}}" placeholder="host:port, a path, or a URL" aria-invalid="{{if .Form.Invalid "addr"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "addr"}}create-error{{end}}"><small>Where the caller reaches it. Required: a service is not on this bus.</small></label>
-<label class="form-field">Protocol <input name=protocol required value="{{.Form.Value "protocol"}}" placeholder="https, postgresql, smtp" aria-invalid="{{if .Form.Invalid "protocol"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "protocol"}}create-error{{end}}"><small>How the caller speaks to it. A hint in the registry; the daemon neither implements nor checks it.</small></label>{{end}}
-<label class="form-field form-field-wide"><span class=field-heading>Allow list <button type=button class=help-button popovertarget=create-access-help aria-label="About initial access" data-tooltip="One identity per line. Empty is owner and Maintainers only; @owner adds the records the Owner directly owns; * shares with every admitted principal. Personal agents may list agents only.">ⓘ</button></span><textarea name=allow rows=5 placeholder="agent@realm&#10;@group&#10;@owner&#10;*">{{.Form.Value "allow"}}</textarea><small>One identity, group, <code>@owner</code>, or <code>*</code> per line.</small></label></div>
-<div popover id=create-access-help class=context-help><h2>Initial access</h2><ul><li>Empty allows only the owner and assigned Maintainers.</li><li><code>@owner</code> adds records directly owned by this record&rsquo;s Owner. It is runtime ACL syntax, not an editable group.</li><li><code>*</code> shares with every admitted principal.</li>{{if .Agents}}<li>A Personal agent may name only other registered agents directly; users, groups, <code>@owner</code>, <code>*</code>, itself and Maintainers are refused.</li>{{end}}</ul></div>
-{{if .Form.Is "create"}}<p class=warn id=create-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>Register {{if .Agents}}agent{{else if .Channels}}channel{{else}}service{{end}}</button></div></form>`))
+<label class="form-field form-field-wide">Description <input name=descr value="{{.Form.Value "descr"}}" placeholder="What this {{if eq .NewKind "agent"}}agent{{else if eq .NewKind "service"}}service{{else if eq .NewKind "queue"}}queue{{else}}topic{{end}} is for"><small>Shown first in the registry.</small></label>
+{{if eq .NewKind "agent"}}<fieldset><legend>Visibility</legend><div class=choice-row><label><input type=checkbox name=personal {{if .Form.Checked "personal"}}checked{{end}}> Personal</label></div><small>A Personal agent is grouped in its owner&rsquo;s view and may share with other agents only.</small></fieldset>
+{{else if eq .NewKind "service"}}<label class="form-field">Address <input name=addr required value="{{.Form.Value "addr"}}" placeholder="host:port, a path, or a URL" aria-invalid="{{if .Form.Invalid "addr"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "addr"}}create-error{{end}}"><small>Where the caller reaches it. Required: a service is not on this bus.</small></label>
+<label class="form-field">Protocol <input name=protocol required value="{{.Form.Value "protocol"}}" placeholder="https, postgresql, smtp" aria-invalid="{{if .Form.Invalid "protocol"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "protocol"}}create-error{{end}}"><small>How the caller speaks to it. A hint in the registry; the daemon neither implements nor checks it.</small></label>
+<label class="form-field form-field-wide"><span class=field-heading>Secret <button type=button class=help-button popovertarget=create-secret-help aria-label="About the secret" data-tooltip="Opaque bytes, stored as sent. Only the allow list reads them back, and no page ever shows them again.">&#9432;</button></span><textarea name=secret rows=4 autocomplete=off spellcheck=false placeholder="PGPASSWORD=..."></textarea><small>Optional. Leave empty to register without one.</small></label>
+{{else if eq .NewKind "queue"}}<label class="form-field">Queue TTL <input name=ttl value="{{.Form.Value "ttl"}}" placeholder="default"><small>How long a message is worth delivering.</small></label>
+<label class="form-field">Queue capacity <input type=number min=0 name=bound value="{{.Form.Value "bound"}}" placeholder="0" aria-invalid="{{if .Form.Invalid "bound"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "bound"}}create-error{{end}}"><small>0 selects the default.</small></label>
+<label class="form-field">Overflow <select name=overflow><option value=strict {{if ne (.Form.Value "overflow") "ring"}}selected{{end}}>Refuse</option><option value=ring {{if eq (.Form.Value "overflow") "ring"}}selected{{end}}>Drop oldest</option></select><small>What a full queue does with the next message.</small></label>
+{{else if eq .NewKind "pubsub"}}<p class="muted form-field-wide">A pub/sub topic keeps nothing, so it declares no TTL, capacity or overflow policy. Subscribers add their own inboxes after it exists.</p>
+{{end}}
+<label class="form-field form-field-wide"><span class=field-heading>Allow list <button type=button class=help-button popovertarget=create-access-help aria-label="About initial access" data-tooltip="One identity per line. Empty is owner and Maintainers only; @owner adds the records the Owner directly owns; * shares with every admitted principal. Personal agents may list agents only.">&#9432;</button></span><textarea name=allow rows=5 placeholder="agent@realm&#10;@group&#10;@owner&#10;*">{{.Form.Value "allow"}}</textarea><small>One identity, group, <code>@owner</code>, or <code>*</code> per line.</small></label></div>
+<div popover id=create-access-help class=context-help><h2>Initial access</h2><ul><li>Empty allows only the owner and assigned Maintainers.</li><li><code>@owner</code> adds records directly owned by this record&rsquo;s Owner. It is runtime ACL syntax, not an editable group.</li><li><code>*</code> shares with every admitted principal.</li>{{if eq .NewKind "agent"}}<li>A Personal agent may name only other registered agents directly; users, groups, <code>@owner</code>, <code>*</code>, itself and Maintainers are refused.</li>{{end}}</ul></div>
+{{if eq .NewKind "service"}}<div popover id=create-secret-help class=context-help><h2>The service secret</h2><ul><li>Opaque bytes. The daemon stores what it is sent and does not parse it; <code>KEY=value</code> is a convention between callers.</li><li>Whoever the allow list admits reads the bytes back with <code>agent-bus secret &lt;name&gt;</code>. Every listing and record answer carries only its digest.</li><li>This field is never filled in again, here or anywhere else &mdash; not after a refusal and not on the record&rsquo;s own page.</li></ul></div>{{end}}
+{{if .Form.Is "create"}}<p class=warn id=create-error>{{.Form.Error}}</p>{{end}}<div class=form-actions><button>{{template "new-heading" .}}</button></div></form>{{end}}
+{{define "new-heading"}}Register {{if eq .NewKind "agent"}}agent{{else if eq .NewKind "service"}}service{{else if eq .NewKind "queue"}}queue{{else if eq .NewKind "pubsub"}}pub/sub topic{{else}}channel{{end}}{{end}}`))
 var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"identityKind": identityKind, "join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel, "copies": copies, "external": external, "deliveryMode": deliveryMode, "recordNoun": recordNoun, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number}).Parse(shellTitle("records", `{{recordNoun .Record.Kind}} {{.Record.Name}}`) + `
 <p><a href="{{.Return}}">Back to records</a></p>{{with .Record}}<div class=page-title><h1>{{titleMark .Kind}} {{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1></div>` + formErrorSummary + `<div class=detail-meta><span class=fact-pill>{{identityKind .Kind .Name $.NodeOwner}}</span><span>Owner: {{with $.OwnerUser}}<span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<a href="/user?name={{.Name}}"><code>{{.Name}}</code></a></span>{{else}}<code>{{.Owner}}</code>{{end}}</span>{{with .Maintainers}}<span>👮 Maintainers: {{join . ", "}}</span>{{end}}{{with deliveryMode .}}<span>Delivery: {{.}}</span>{{end}}</div>
 <div class=service-dashboard>{{if external .}}<section class=fact-card><div class=page-title><h2>Where it is</h2><button type=button class=help-button popovertarget=external-help aria-label="About an external service" data-tooltip="What the record says about something outside this bus. The daemon stores these words and checks none of them.">ⓘ</button></div>

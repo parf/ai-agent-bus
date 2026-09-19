@@ -15,6 +15,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
@@ -712,14 +713,24 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	if row := m.row(m.get("/channels"), "jobs@h"); !strings.Contains(row, "📮 Queue") {
 		t.Errorf("jobs@h has no queue label: %s", row)
 	}
-	create := m.get("/channels/new")
-	for _, plain := range []string{`name=kind value=queue`, `name=kind value=pubsub`} {
-		if !strings.Contains(create, plain) {
-			t.Errorf("create form does not keep a plain kind value beside %q", plain)
+	// Each channel kind registers on its own page, and each carries its kind
+	// as the daemon's plain word.
+	for _, kind := range []string{protocol.KindQueue, protocol.KindPubSub} {
+		create := m.get("/channels/new?kind=" + kind)
+		if !strings.Contains(create, "name=kind value="+kind) {
+			t.Errorf("the %s form does not keep a plain kind value: %s", kind, create)
 		}
-	}
-	if !strings.Contains(create, "📮 Queue") || strings.Contains(create, `value="📮`) {
-		t.Error("a display glyph entered a form value")
+		// The other half of the same fact: the word above is what the form
+		// carries, and no attribute value anywhere on the page carries the
+		// glyph the reader sees instead.
+		for _, k := range protocol.Kinds {
+			if glyph := display.EntityGlyph(k); glyph != "" && strings.Contains(create, "value="+glyph) {
+				t.Errorf("the %s form carries %s as a value: %s", kind, glyph, create)
+			}
+			if glyph := display.EntityGlyph(k); glyph != "" && strings.Contains(create, "value=\""+glyph) {
+				t.Errorf("the %s form carries %s as a quoted value: %s", kind, glyph, create)
+			}
+		}
 	}
 
 	detail := m.get("/service?name=svc@h")

@@ -462,10 +462,37 @@ func TestRegistrationLivesOnDedicatedSectionPages(t *testing.T) {
 	if !strings.Contains(agent, `<input type=hidden name=kind value=agent>`) || strings.Contains(agent, `name=addr`) {
 		t.Error("agent registration offers the wrong kind or an address it has no use for")
 	}
-	channel := m.get("/channels/new")
-	if !strings.Contains(channel, `name=kind value=queue`) || !strings.Contains(channel, `name=kind value=pubsub`) || strings.Contains(channel, `<select name=kind>`) {
-		t.Error("channel registration does not use plain-valued Kind radios")
+	// The Channels section has two kinds and they do not ask for the same
+	// things, so each has its own page. The section page without a kind links
+	// to both rather than registering anything itself.
+	chooser := m.get("/channels/new")
+	if strings.Contains(chooser, "name=action value=create") {
+		t.Errorf("the channel chooser registers something itself: %s", chooser)
 	}
+	for _, kind := range []string{protocol.KindQueue, protocol.KindPubSub} {
+		if !strings.Contains(chooser, `href="/channels/new?kind=`+kind+`"`) {
+			t.Errorf("the channel chooser does not offer %s: %s", kind, chooser)
+		}
+		page := m.get("/channels/new?kind=" + kind)
+		if !strings.Contains(page, `<input type=hidden name=kind value=`+kind+`>`) || strings.Contains(page, `<select name=kind>`) {
+			t.Errorf("%s registration does not carry its own plain kind: %s", kind, page)
+		}
+	}
+	// A queue declares the policy of the queue it will hold; a pub/sub topic
+	// holds nothing, so asking it the same questions would be asking about a
+	// queue that will never exist. Both halves, because a page that dropped
+	// the fields everywhere would satisfy the second on its own.
+	queue := m.get("/channels/new?kind=" + protocol.KindQueue)
+	topic := m.get("/channels/new?kind=" + protocol.KindPubSub)
+	for _, field := range []string{"name=ttl", "name=bound", "name=overflow"} {
+		if !strings.Contains(queue, field) {
+			t.Errorf("queue registration cannot declare %s: %s", field, queue)
+		}
+		if strings.Contains(topic, field) {
+			t.Errorf("pub/sub registration asks for %s, which it has no queue for: %s", field, topic)
+		}
+	}
+	channel := queue
 	// Delivery is no longer a second answer beside the kind: the kind is the
 	// delivery, so a form that still asked twice could disagree with itself.
 	if strings.Contains(channel, `name=mode`) {

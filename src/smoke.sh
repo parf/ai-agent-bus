@@ -2227,6 +2227,39 @@ has "and states the digest of the secret it holds" \
 lacks "while the secret itself is on no page" "$SVCPAGE" 'PGPASSWORD\|rotated'
 has "a service with no secret says so rather than showing a stale digest" \
   "$(curl -s -b "$JAR" "$WEB/service?name=keyless%40srv1")" '<dt>Secret<dd><span class=muted>none'
+# Registration asks each kind its own questions. The two channel kinds are two
+# pages, because a queue declares a policy the topic has no queue for.
+CHOOSE=$(curl -s -b "$JAR" "$WEB/channels/new")
+lacks "the channel chooser registers nothing itself" "$CHOOSE" 'name=action value=create'
+has "it offers the queue form" "$CHOOSE" 'href="/channels/new?kind=queue"'
+has "and the pub/sub form" "$CHOOSE" 'href="/channels/new?kind=pubsub"'
+NEWQ=$(curl -s -b "$JAR" "$WEB/channels/new?kind=queue")
+NEWT=$(curl -s -b "$JAR" "$WEB/channels/new?kind=pubsub")
+has "the queue form carries its own kind" "$NEWQ" '<input type=hidden name=kind value=queue>'
+has "the pub/sub form carries its own" "$NEWT" '<input type=hidden name=kind value=pubsub>'
+has "a queue declares the policy of the queue it will hold" "$NEWQ" 'name=ttl'
+lacks "and a topic is not asked about one it will not have" "$NEWT" 'name=ttl\|name=bound\|name=overflow'
+# The service form is the only one with a credential to offer, because it is
+# the only kind with something outside to authenticate to.
+NEWS=$(curl -s -b "$JAR" "$WEB/services/new")
+has "the service form offers a secret field" "$NEWS" '<textarea name=secret rows=4 autocomplete=off'
+lacks "no other registration does" \
+  "$(printf '%s\n%s\n%s' "$NEWQ" "$NEWT" "$(curl -s -b "$JAR" "$WEB/agents/new")")" 'name=secret'
+# Registered through the page, read back through the daemon: the bytes the
+# form sent are the bytes stored, newlines and all.
+curl -s -b "$JAR" -o /dev/null -H "Origin: $WEB" \
+  --data-urlencode 'action=create' --data-urlencode "name=webvault@localhost" \
+  --data-urlencode 'kind=service' --data-urlencode 'addr=db:5432' \
+  --data-urlencode 'protocol=postgresql' \
+  --data-urlencode "$(printf 'secret=A=one\r\nB=two')" "$WEB/service"
+# Read back through the daemon as the owner that registered it. A browser
+# submits a textarea with CRLF whatever the page was served with, and these
+# bytes are stored as sent, so the check is on the bytes rather than the text.
+has "a secret typed into the form is stored with the newline that was typed" \
+  "$(tbody "$TOKEN" "/secret?name=webvault%40localhost" | od -c | head -2)" \
+  'A   =   o   n   e  \\n   B   =   t   w   o'
+lacks "and not with the carriage return the wire carried" \
+  "$(tbody "$TOKEN" "/secret?name=webvault%40localhost" | od -c | head -2)" '\\r'
 # One editor holds every authorized setting. Asked of the fields, not of the
 # heading: a page that kept the fields in a second section would still have a
 # summary called Edit settings.

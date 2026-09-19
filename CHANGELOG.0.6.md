@@ -2,6 +2,14 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.13 — 2026-09-19
+
+Registration is a page per kind. The Channels section offers a queue form and a
+pub/sub form instead of one with a kind control: a queue declares its TTL,
+capacity and overflow at registration, and a topic declares none of it. The
+service form carries an optional secret, stored by a second call to its own
+verb, normalised to the bytes that were typed and never filled in again.
+
 ## 0.6.12 — 2026-09-19
 
 The Overview node strip leads with what the node holds and breaks to a second

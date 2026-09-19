@@ -12,7 +12,9 @@ rules all of them obey.
 | The form posts as the person | The web child has no write path of its own. It forwards the visitor's session and requires an exact matching Origin ([rules](../../../docs/05-discovery.md#rules-it-is-built-to)) |
 | The form's visibility is not the decision | The daemon authorizes at submission. A rendered control is a convenience, never a grant |
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
-| Never echo a secret | Not a token, not private configuration. The configuration field is always empty and `autocomplete=off` |
+| Never echo a secret | Not a token, not private configuration, not a service secret. The configuration and secret fields are always empty and `autocomplete=off`, including after a refusal |
+| A multi-line value is the bytes that were typed | A browser submits a textarea with CRLF whatever the page was served with. Where the daemon stores bytes as sent — a [service secret](../../../docs/06-services.md#secrets) — the face normalises them back, or a two-line credential is stored with a carriage return nobody typed |
+| A form asks only what its kind has | `/channels/new` has no fields of its own: a queue declares TTL, capacity and overflow, a pub/sub topic holds nothing and declares none of it, so the section offers two forms and the page without a kind links to both |
 | Success returns to what changed | The section that changed, with a specific result. Service and Channel registration and ordinary edits return to the affected resource; removal returns to the matching collection ([C06](review/codex.md#junk-and-misleading-content)) |
 | Only offer transitions that apply | Built in 0.5.79: active offers Pause/Ban, paused offers Activate/Ban and banned offers Activate only when daemon-returned authority permits it |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
@@ -85,8 +87,9 @@ the world moved between the question and the answer.
 | Sign out | shell | — | root |
 | Filter a list | Agents, Services, Channels, Users, Activity | GET only; search, view, state, kind, sort, page | the same list, filters in the URL |
 | Register an agent | `/agents/new` | name, description, allow | the new agent's page |
-| Register a service | `/services/new` | name, description, address, protocol, allow | the new service's page |
-| Register a channel | `/channels/new` | name, description, kind, allow | the new channel's page |
+| Register a service | `/services/new` | name, description, address, protocol, allow, secret (optional). The secret is a second call to its own verb, and is never repopulated | the new service's page |
+| Register a queue | `/channels/new?kind=queue` | name, description, allow, TTL, capacity, overflow | the new queue's page |
+| Register a pub/sub topic | `/channels/new?kind=pubsub` | name, description, allow. It keeps nothing, so it declares no queue policy | the new topic's page |
 | Edit settings | Agent, Service, Channel | description; address and protocol on a 📡 only; TTL, capacity and overflow on everything with a queue; one plain ACL term per textarea line, `@owner` plain syntax; Personal on a 👾; Maintainers. The last two are disabled unless the caller is the Owner or a daemon administrator | the identity section |
 | Replace configuration | Service, Channel | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
 | Enable / Disable | Service, Channel | — | the identity section |

@@ -84,6 +84,7 @@ credential, held on the record and handed to whoever its
 | `agent-bus secret <name>` | print it |
 | `cat .env \| agent-bus secret <name> -` | set it, bytes on stdin |
 | `agent-bus secret <name> 'TOKEN=abc'` | the same, inline |
+| the dashboard's [service registration](05-discovery.md#compact-administration-pages) | set it once, as the record is created |
 
 One verb, and the direction is whether a secret was handed to it — the shape
 [agent-template](03-records.md#configuring-a-template) uses. The read writes
@@ -100,6 +101,7 @@ so what comes back is the digest and never what was just sent.
 | what a query gets | **`secret_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record, and on the service's own page. The bytes are on no listing, no record answer, no page and no log |
 | nothing to store | an empty secret is refused, because it reads back exactly like never having set one |
 | when it is acknowledged | once it is durable. A credential the caller was told was stored, and which a restart then loses, is worse than a refusal |
+| what a form sends | the bytes that were typed. A browser submits a textarea with CRLF line endings whatever the page was served with, so the dashboard normalises them before the call; the daemon stores what it is sent and would otherwise keep a carriage return nobody typed |
 
 The digest answers the same questions a configuration's does
 ([why a digest at all](03-records.md#why-a-digest-at-all)): whether a service

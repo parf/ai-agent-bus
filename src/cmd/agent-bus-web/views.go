@@ -659,3 +659,12 @@ const exchangesTemplate = `
 {{end}}
 </section>
 `
+
+// formSecret is a textarea's value as the bytes the person typed. A browser
+// submits a textarea with CRLF line endings whatever the page was served with,
+// and a service secret is opaque bytes the daemon stores exactly as sent — so
+// without this, a two-line credential is stored with a carriage return in it
+// that nobody put there. See docs/06-services.md#secrets.
+func formSecret(value string) string {
+	return strings.ReplaceAll(value, "\r\n", "\n")
+}

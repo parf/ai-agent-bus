@@ -270,7 +270,12 @@ Maintainers — and stays closed until chosen or until a refused submission must
 reopen them; configuration, transfer and removal remain in the red Danger Zone.
 A field the caller may not change is shown disabled rather than hidden, and the
 form states separately that it carried the owner-only fields, so a Maintainer
-saving a description cannot clear what it was not offered. User detail separates the
+saving a description cannot clear what it was not offered. Registration is a page
+per kind rather than per section: a queue declares the TTL, capacity and
+overflow of the queue it will hold, a pub/sub topic keeps nothing and declares
+none of it, and a service offers the one field for its
+[secret](06-services.md#secrets) — written by a second call to that verb, and
+never filled in again. User detail separates the
 profile editor from identity, authority, groups, lifecycle and owned resources.
 Groups use a compact Group/Members table. Selecting a name opens one group;
 the full-width membership textarea appears only when the caller may edit it.
