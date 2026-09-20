@@ -339,7 +339,8 @@ daemon MUST resolve it against the registry:
 Every other term is refused, an unresolvable one included. A 👥 term is
 expanded at publication and its membership is actors only. A 👤 User receives
 only replies to what it sent: no ordinary send, no published copy and no
-route. An entry is refused for its kind rather than for permission, and a
+route. Any attempt to deliver anything else to a User MUST be answered with an
+error, never discarded and never counted as a drop. An entry is refused for its kind rather than for permission, and a
 refusal names the term and stores nothing.
 
 For the one-slot form, add succeeds only while empty and returns an error naming
