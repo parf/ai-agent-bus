@@ -8,6 +8,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Exclude deletion-specific failure hardening from 0.7 | [storage scope](../Plans/MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner rejected review finding 2; deletion is too rare to justify dedicated work |
 | Identity cleanup through write-through changes | [constitution persistence](constitution.md#persistence-and-loading) | 2026-09-19 owner clarification after review; durable and in-memory grants must follow identity lifecycle changes |
 | One active daemon per database | [constitution persistence](constitution.md#persistence-and-loading); [work](../Plans/MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner decision after review; enforce exclusive use of the selected database |
 | Configurable storage for 0.7 | [constitution persistence](constitution.md#persistence-and-loading); [work](../Plans/MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner clarification; backend selection preserves the shared persistence contract |
