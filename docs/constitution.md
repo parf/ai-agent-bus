@@ -145,9 +145,13 @@ User is who it acts for; the User's inactivity refuses the token exactly as it
 suspends the Agent. A token without `agent_id` acts as the User alone.
 
 The stored pair MUST match current ownership. Transferring an Agent moves its
-tokens to the new Owner within the transfer's own committed update, so no token
-is left naming a User who no longer owns that Agent. A token whose pair does
-not match current ownership MUST NOT authenticate.
+tokens to the new Owner within the transfer's own committed update, so the
+invariant holds by construction and a mismatch can arise only from a failed
+write. A mismatched row is therefore corrupt state rather than an ordinary
+refusal path: the daemon MUST ignore that token, which then authenticates
+nothing, and MUST report the mismatch as a fatal inconsistency. It MUST NOT
+repair the row, reinterpret it as a User token, or treat the condition as
+routine.
 
 `last_used_at` follows the [statistics persistence schedule](10-modules.md#statistics-persistence).
 The value means credential use, not necessarily a browser login.
