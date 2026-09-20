@@ -717,6 +717,11 @@ Maintainers and Group membership use the same line-list textarea. Each
 Maintainer term occupies one line; each direct Group member, including a nested
 group, occupies one line. Display glyphs never enter these editable values.
 
+**Pending for 0.7:** an agent term carries a leading `#`, the way a group term
+carries `@`, and the stored line keeps it. A line without a marker names a
+user; the editors enforce this on save rather than guessing a kind. See
+[typed actor terms](constitution.md#-registry-record).
+
 The [ACL contract](02-access.md#acl) defines access terms and their implementation status.
 The [proposed role syntax](../Plans/R1/identity.md#sigils) remains separately
 identified as proposed; this display rule does not introduce new parser syntax.

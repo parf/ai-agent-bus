@@ -168,7 +168,10 @@ another agent does not inherit the human owner's cohort. The term follows curren
 ownership, grants access rather than management, and is not a stored group: it
 cannot be created, nested in a group or assigned as a Maintainer.
 
-**Pending for 0.7:** `@agent` joins it as a runtime term, aliasing the record's
+**Pending for 0.7:** an ACL or Maintainer line naming an 👾 `agent` carries a
+leading `#` and is stored with it, so a bare `alice@team` names a User; the
+[typed actor terms](constitution.md#-registry-record) own that rule.
+`@agent` joins `@owner` as a runtime term, aliasing the record's
 own agent principal on an 👾 `agent` record, and both terms become valid in
 Maintainers as well as the ACL. Neither becomes a stored group: they still
 cannot be created or nested in one, and they resolve against current registry

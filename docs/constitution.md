@@ -222,16 +222,16 @@ A 👥 Group is a separate entity, not a sixth record kind.
 
 An **actor** is a 👤 User, 👾 Agent, or 👥 Group.
 
-ACL, Maintainer, and group-member textareas accept one ASCII term per line.
-Existing plain-name and group syntax MUST remain supported wherever it was
-already valid; `#` adds explicit Agent typing rather than requiring every
-existing Agent reference to be rewritten:
+ACL, Maintainer, and group-member textareas accept one ASCII term per line. An
+Agent term MUST carry the leading `#`, exactly as a Group term carries `@`, and
+the stored term keeps the marker. A bare `alice@team` in such a list therefore
+names a User and nothing else: without the marker nothing in `xx@yy` says
+whether a User or an Agent was meant.
 
-| Actor | Textarea term | Stored canonical name |
+| Actor | Textarea term | Stored term |
 |---|---|---|
 | 👤 User | `alice@team` | `alice@team` |
-| 👾 Agent | `#worker@team` | `worker@team` |
-| 👾 Agent, existing plain-name form | `worker@team` | `worker@team` |
+| 👾 Agent | `#worker@team` | `#worker@team` |
 | 👥 Group | `@support` | `@support` |
 | Existing ACL wildcard | `*` | runtime wildcard |
 | Owner and its directly owned Agents | `@owner` | runtime ownership term |
@@ -242,13 +242,17 @@ wildcard eligibility and `@owner`, remain in force unless explicitly revised.
 Adding typed Agent terms does not widen `*` or make ACL-only terms valid as
 Maintainers or Group members.
 
-The leading `#` is an input-language type marker. It is **not** part of the
-Agent's canonical name, token identity, URL, registry key, or message route.
-The daemon strips it only after validating that the target is an Agent.
+The leading `#` types the term. It is part of the stored actor term and MUST
+NOT appear in the Agent's canonical name, token identity, URL, registry key, or
+message route; the daemon strips it when resolving the term, after validating
+that the target is an Agent.
 
-Names remain globally unique. The marker makes the intended actor type explicit
-to the reader and lets the daemon reject a term whose stored kind does not
-match. Unicode glyphs are for display only and MUST NOT be required in editable
+Names remain globally unique. The marker makes the actor type explicit to the
+reader, lets the daemon reject a term whose stored kind does not match, and
+decides a term's kind from the term itself rather than from a registry lookup.
+Lists that name an Agent without the marker are retyped by the
+[cutover](../Plans/MVP/0.7-cutover.md#rewrite-and-activation); afterwards an
+untyped Agent name in a list is refused like any other invalid term. Unicode glyphs are for display only and MUST NOT be required in editable
 or machine-readable values.
 
 Whitespace is trimmed, duplicate terms are rejected or normalized

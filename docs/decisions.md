@@ -8,6 +8,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| An Agent term carries `#` and is stored with it | [constitution § Registry record](constitution.md#-registry-record) | 2026-09-20 owner correction; `xx@yy` alone cannot say whether a User or an Agent was meant, so the marker is enforced like `@group` and the cutover retypes existing lists |
 | Conceptual errors and alerts go to syslog and the error log | [constitution § errors and alerts](constitution.md#errors-and-alerts) | 2026-09-20 owner decision; impossible states are reported to both destinations, while an ordinary refusal is answered to its caller and reported nowhere |
 | A token always names a User and optionally an Agent | [constitution § Token](constitution.md#-token) | 2026-09-20 owner decision; replaces the single-principal token, keeps the Agent as the acting principal, and requires the named User to be that Agent's current Owner, a mismatch being corrupt state reported to syslog at `alert` severity and to the daemon log rather than a refusal path |
 | Personal means the Owner and that Owner's agents | [records § personal](03-records.md#personal-and-shared); [ACL terms](02-access.md#acl) | 2026-09-20 owner decision; `@owner` and the new `@agent` alias become valid in ACL and Maintainers, terms outside the cohort stay refused, and the `ab-*` launchers register session agents Personal |
@@ -260,6 +261,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Earlier design | Replacement |
 |---|---|
+| Plain Agent names stay valid in lists, with `#` only an optional input marker (2026-09-20) | [Typed actor terms](constitution.md#-registry-record) — the marker is required and stored, because a bare `xx@yy` term cannot be resolved to a kind |
 | Agent-principal, then Owner-based route authority (Q87, 2026-09-20) | [Forwarding ACL contract](constitution.md#-channels) — historical alternatives replaced by the source record's permission at the destination |
 | Every modifying operation produces a durable correlated audit event with request IDs, transaction coupling, retention, and read authority (2026-09-19–20) | [Entity-edit logging](constitution.md#-registry-record) — the owner said only edits to named entities were requested; Q86, Q92, Q93, and K.14.1 were withdrawn |
 | Original-sender destination authorization and the claim that a route grants no delivery access (2026-09-20) | [Forwarding ACL contract](constitution.md#-channels) — the owner corrected the rule: source and destination check different identities |
