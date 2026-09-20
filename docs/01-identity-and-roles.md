@@ -351,6 +351,11 @@ Changing a record's owner requires its current owner's or the daemon
 Owner's authority. Transfer changes who may manage the record and request its
 credential; it does not revoke existing tokens.
 
+**Pending for 0.7:** because every token also names a User, transferring an
+Agent moves its tokens to the new Owner instead of leaving them naming the
+former one. They keep working; who they act for changes with the record. See
+[constitution § Token](constitution.md#-token).
+
 <details>
 <summary>Transfer recipients and self-owned identities</summary>
 

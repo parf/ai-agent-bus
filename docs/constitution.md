@@ -132,12 +132,22 @@ facts rather than durable daemon fields.
 
 Tokens currently authenticate actors: 👤 Users and 👾 Agents.
 
-Each token MUST reference exactly one principal:
+Each token MUST name a 👤 User, and MAY additionally name a 👾 Agent:
 
 - `token`;
-- `principal_type`: `user` or `agent`;
-- `principal_id`: stable `user_id` or `registry_id`;
+- `user_id`: stable `user_id`; always present;
+- `agent_id`: stable `registry_id` of an Agent, or absent;
 - `created_at`, `updated_at`, and `last_used_at`.
+
+When `agent_id` is present, the named User MUST be that Agent's Owner. The
+Agent is then the acting principal for access, routing and delivery, and the
+User is who it acts for; the User's inactivity refuses the token exactly as it
+suspends the Agent. A token without `agent_id` acts as the User alone.
+
+The stored pair MUST match current ownership. Transferring an Agent moves its
+tokens to the new Owner within the transfer's own committed update, so no token
+is left naming a User who no longer owns that Agent. A token whose pair does
+not match current ownership MUST NOT authenticate.
 
 `last_used_at` follows the [statistics persistence schedule](10-modules.md#statistics-persistence).
 The value means credential use, not necessarily a browser login.

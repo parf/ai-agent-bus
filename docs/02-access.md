@@ -18,6 +18,11 @@ A token identifies one principal; an account socket can supply that identity
 locally. The daemon checks that the caller is known, active and authorized.
 Sending a name alongside a credential cannot change who is calling.
 
+**Pending for 0.7:** a token always names a User and an agent credential names
+its Agent as well, the User being that Agent's Owner. The Agent remains the
+acting principal and the User is who it acts for, so an inactive User refuses
+the agent's token too. See [constitution § Token](constitution.md#-token).
+
 ```mermaid
 flowchart LR
     Token[Token] --> Caller[Authenticated identity]
