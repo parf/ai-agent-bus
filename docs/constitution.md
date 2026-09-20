@@ -375,8 +375,13 @@ faces MUST distinguish a configured route from one currently allowed by the
 destination's ACL.
 
 A forwarded envelope retains the original sender and MUST carry one
-`original_to` value naming the one prior destination through which it was
-forwarded. Forwarding depth is one, so this is never a chain. Forwarding moves
+`original_to` value naming the prior destination through which it was
+forwarded, and a forward counter. Every forwarding step, a topic's fan-out into
+another channel included, increments that counter. A step that would raise it
+above ten MUST be an error, answered like any other current-rule refusal and
+storing nothing. The counter is what ends a cycle: two topics listing each
+other, or a queue routing back into the topic that fed it, stop with a stated
+error rather than looping. Forwarding moves
 the message: the source inbox keeps no copy and changes neither `in` nor `out`;
 the destination increments `in`, then `out` only when a reader receives it.
 

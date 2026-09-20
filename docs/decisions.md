@@ -26,7 +26,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | Reactivation under the single inactive User state (Q79) | [user states](01-identity-and-roles.md#user-states) | 2026-09-20 owner decision; no formerly-banned authority branch remains |
 | Protected Administrators stay outside ordinary Group authority (Q80) | [constitution § Group](constitution.md#-group) | 2026-09-20 owner decision; the protected boundary is explicit before K.9 |
 | Deliver-To has kind-dependent meanings and no second forwarding field (Q81) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; PubSub carries a recipient list, while Agent and Queue carry at most one destination |
-| Forwarding stops after one hop | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; a second forwarding step is an explicit error, never a loop or silent drop |
+| A forward counter bounds chains at ten steps | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; replaces the one-hop limit now that a topic may fan out into channels, and the counter is what terminates a cycle |
 | A second-hop destination refuses the original send (Q85) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; the caller receives the error before storage, so neither inbox changes and no message is dropped after an accepted send |
 | Forwarding adds no TTL or deadline policy | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; the destination queue applies the ordinary message rules |
 | Forwarded envelopes identify their prior destination (Q90) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; required single-valued `original_to` makes a one-hop forward visible to its recipient |
@@ -261,6 +261,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Earlier design | Replacement |
 |---|---|
+| Forwarding stops after one hop (2026-09-20) | [Forward counter](constitution.md#-channels) — chains are allowed up to ten steps and the counter, not the depth-one rule, ends a cycle |
 | Plain Agent names stay valid in lists, with `#` only an optional input marker (2026-09-20) | [Typed actor terms](constitution.md#-registry-record) — the marker is required and stored, because a bare `xx@yy` term cannot be resolved to a kind |
 | Agent-principal, then Owner-based route authority (Q87, 2026-09-20) | [Forwarding ACL contract](constitution.md#-channels) — historical alternatives replaced by the source record's permission at the destination |
 | Every modifying operation produces a durable correlated audit event with request IDs, transaction coupling, retention, and read authority (2026-09-19–20) | [Entity-edit logging](constitution.md#-registry-record) — the owner said only edits to named entities were requested; Q86, Q92, Q93, and K.14.1 were withdrawn |
