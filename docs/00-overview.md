@@ -12,6 +12,7 @@ Values have one owning section; other pages link to it.
 
 | Topic | Owns |
 |---|---|
+| [Constitution](constitution.md#status) | Intended model and accepted changes awaiting reconciliation with implementation and topic docs |
 | [Identity and roles](01-identity-and-roles.md#identities) | Names, users, roles, groups and resource lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
 | [Records](03-records.md#five-record-kinds) | Record kinds, registration, agent templates, configuration and Personal |

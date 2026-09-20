@@ -15,6 +15,17 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q24 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [public directory](public-directory.md#a-public-directory-of-people-and-their-keys) |
 | Q34 | Which proposed storage engine actually supplies each required encryption and replication property | an engine evaluation and owner decision | [context](storage.md#storage) |
 
+## Constitution forwarding
+
+The [constitution](../../docs/constitution.md#messaging-and-runtime) accepts
+forwarding; its delivery release is unassigned. Remaining choices:
+
+- Loop detection.
+- Which User or Agent supplies forwarding authority, and when access is checked.
+- TTL and deadline handling.
+- Overflow and failure accounting.
+- Sender attribution and whether `original_to` is needed.
+
 ## Public-directory context
 
 ❓ **The exception, and its shape.** *Settled by:* owner.

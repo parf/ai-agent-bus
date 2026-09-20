@@ -6,6 +6,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Constitution | [intended model](../../docs/constitution.md#status) | 2026-09-19 owner decisions; consolidated from discussion, release assignment and implementation reconciliation pending |
 | Candidates | [definition](FUTURE.md#candidates) | D24, D219 |
 | Storage | [definition](storage.md#storage) | D88 |
 | Debug mode | [definition](debug.md#debug-mode) | D100 |
