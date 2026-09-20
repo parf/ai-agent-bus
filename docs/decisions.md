@@ -15,6 +15,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | One active daemon per database | [constitution persistence](constitution.md#persistence-and-loading); [work](../Plans/MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner decision after review; enforce exclusive use of the selected database |
 | SQLite first; additional backends in R1 | [constitution persistence](constitution.md#persistence-and-loading); [R1 storage](../Plans/R1/storage.md#backends) | 2026-09-20 owner instruction; replaces the earlier 0.7 adapter scope |
 | Constitution implementation in 0.7 | [constitution](constitution.md#project-constitution); [work](../Plans/MVP/0.7.0-TODO.md#objective) | 2026-09-19 owner instruction; accepted target rules gain an implementation plan, while existing implementation claims remain separate |
+| Entity edits are logged; no audit subsystem is in scope | [constitution § Registry record](constitution.md#-registry-record) | 2026-09-20 owner correction; log edits to Users, registry records, and Groups with actor, operation, target, and result, without request-ID, retention, read-authority, or traffic-audit scope |
 | Reactivation under the single inactive User state (Q79) | [user states](01-identity-and-roles.md#user-states) | 2026-09-20 owner decision; no formerly-banned authority branch remains |
 | Protected Administrators stay outside ordinary Group authority (Q80) | [constitution § Group](constitution.md#-group) | 2026-09-20 owner decision; the protected boundary is explicit before K.9 |
 | Deliver-To has kind-dependent meanings and no second forwarding field (Q81) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; PubSub carries actor entries, while User, Agent and Queue carry at most one destination channel |
@@ -254,6 +255,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Earlier design | Replacement |
 |---|---|
+| Every modifying operation produces a durable correlated audit event with request IDs, transaction coupling, retention, and read authority (2026-09-19–20) | [Entity-edit logging](constitution.md#-registry-record) — the owner said only edits to named entities were requested; Q86, Q92, Q93, and K.14.1 were withdrawn |
 | The forwarding principal supplies the destination access check at delivery (2026-09-20) | [A route grants no delivery access](constitution.md#-channels) — the owner corrected the same-day reading: Q87 governs route validity only, while the destination checks the original sender |
 | A forwarding access refusal increments the forwarding record's `dropped`, and every destination overflow increments destination `dropped` (Q88, 2026-09-20) | [Destination rules apply as if directly targeted](constitution.md#-channels) — the owner replaced both readings later that day: refusals and strict overflow change no counter; only ring eviction increments destination `dropped` |
 | MySQL/PostgreSQL adapters required for 0.7 (2026-09-19) | [R1 storage](../Plans/R1/storage.md#backends) — owner moved the additional adapters to R1 |

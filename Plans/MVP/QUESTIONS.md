@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** Settle the remaining forwarding and audit choices for 0.7.
+📌 **TL;DR:** Settle the one remaining forwarding choice for 0.7.
 
 ## Open questions
 
@@ -8,7 +8,9 @@ Q79–Q82, Q85 and Q88–Q91 were settled on 2026-09-20 and moved to the
 [decision index](../../docs/decisions.md#settled). Q83 was withdrawn after a
 publish-versus-reload wording error. Q84 was withdrawn because the existing
 no-compatibility rule already requires nonconforming state to be fixed before
-activation. Their IDs remain reserved, as do all earlier settled question IDs.
+activation. Q86, Q92, and Q93 were withdrawn when the owner limited the request
+to logging entity edits rather than an audit subsystem. Their IDs remain
+reserved, as do all earlier settled question IDs.
 
 ## Constitution forwarding
 
@@ -32,14 +34,6 @@ destination increments `in`, then `out` only when a reader receives it. Access
 or inactive-state refusal rejects the original send and changes no counter.
 Strict overflow does the same; ring overflow evicts the destination's oldest
 message and increments that destination's own `dropped`.
-
-## Constitution audit retention
-
-| ID | Question | Blocks |
-|---|---|---|
-| Q86 | What finite retention default ships for durable audit events? The mechanism is settled and tested with an overridden bound of three; the production default still needs an owner value. | [K.14](0.7.0-TODO.md#authority-and-lifecycle) |
-| Q92 | Does the audit cover only management and registry changes, or also every message send and consume? | [K.14](0.7.0-TODO.md#authority-and-lifecycle) |
-| Q93 | Who may read audit events, through which faces, and may a record Owner read only events for their records? | [K.14](0.7.0-TODO.md#authority-and-lifecycle) |
 
 Settled and deferred choices remain in the
 [decision index](../../docs/decisions.md#settled); their IDs remain reserved.

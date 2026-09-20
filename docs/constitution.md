@@ -151,22 +151,12 @@ The current documentation's agent-owned records, ownership chains and self-owned
 non-User records do not describe this intended model. Their presence in the docs
 is not evidence that such objects exist on a running node.
 
-Every operation in the audit scope settled by Q92 MUST be recorded with the
-actor, operation, target, result, request ID, and origin address when one
-exists. Audit logs MUST NOT contain tokens, secret bodies, configuration
-bodies, or message bodies. A Unix socket request has no client IP and must not
-invent one.
-
-[Q92 and Q93](../Plans/MVP/QUESTIONS.md#constitution-audit-retention) must
-settle which operations produce audit events and who may read them before this
-requirement is implemented. No face may infer audit-read authority.
-
-The daemon assigns a request ID at the trusted API boundary and returns it so
-CLI, MCP and web faces can carry the same value in errors and logs. Audit events
-are durable records in the selected backend. A successful change and its success
-event MUST commit together. The audit store MUST have an explicit finite
-retention policy; reaching that bound removes the oldest eligible events rather
-than growing without limit.
+Every edit to a User, registry record, or Group MUST be logged with the actor,
+operation, target, and result. Accepted and refused edits MUST be distinguishable.
+Message send and consume operations are not entity edits and MUST NOT produce
+entries in this log.
+The log MUST NOT contain tokens, secret bodies, configuration bodies, or message
+bodies. A Unix socket request has no client IP and must not invent one.
 
 Every field MUST be validated and normalized according to its own contract.
 Secrets and configuration MUST pass their required format validation before a
