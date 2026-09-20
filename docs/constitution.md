@@ -114,9 +114,8 @@ Each token MUST reference exactly one principal:
 - `principal_id`: stable `user_id` or `registry_id`;
 - `created_at`, `updated_at`, and `last_used_at`.
 
-To limit write amplification, `last_used_at` MAY be persisted at most once per
-ten-minute interval. The value means credential use, not necessarily a browser
-login.
+`last_used_at` follows the [statistics persistence schedule](10-modules.md#statistics-persistence).
+The value means credential use, not necessarily a browser login.
 
 ### 📋 Registry record
 

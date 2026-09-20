@@ -41,14 +41,15 @@ Pending requirements for the [0.7 work](../Plans/MVP/0.7.0-TODO.md#verification)
 
 Pending for 0.7: counters and last-use timestamps update in memory, without a
 database write per request, message or increment. Coalesce dirty values into
-periodic batches; skip unchanged values and empty batches. Runtime-only metrics
+one batch every minute; skip unchanged values and empty batches. Runtime-only metrics
 stay in memory. Persisted statistics flush on graceful shutdown; a crash may
 lose updates since the last successful flush. Retain dirty updates after failed
-flushes and preserve increments arriving during a flush. Token timestamps keep
-the constitution's [write budget](constitution.md#-token).
+flushes and preserve increments arriving during a flush. Retry on the next
+scheduled flush without double-counting already committed values.
 
-Management changes retain write-through persistence. Statistics batches must
-not rewrite policy, credentials or queue contents; queue persistence keeps its
+Data changes persist immediately through write-through persistence. Statistics
+batches may update last-use timestamps but must not rewrite policy, credential
+material or queue contents; queue persistence keeps its
 existing [durability boundary](04-messaging.md#durability).
 
 ## Modules

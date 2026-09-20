@@ -8,7 +8,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| Batch statistics persistence in 0.7 | [statistics persistence](10-modules.md#statistics-persistence) | 2026-09-20 owner instruction; avoid writes on every operation, especially statistics |
+| Statistics cadence and immediate data changes | [statistics persistence](10-modules.md#statistics-persistence) | 2026-09-20 owner clarification; replaces unspecified batching and the earlier token timestamp budget |
 | Appropriate abstractions and measured efficiency in 0.7 | [modules](10-modules.md#07-implementation-requirements); [acceptance](../Plans/MVP/0.7.0-TODO.md#verification) | 2026-09-20 owner instruction; keep implementation simple and verify performance |
 | Exclude deletion-specific failure hardening from 0.7 | [storage scope](../Plans/MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner rejected review finding 2; deletion is too rare to justify dedicated work |
 | Identity cleanup through write-through changes | [constitution persistence](constitution.md#persistence-and-loading) | 2026-09-19 owner clarification after review; durable and in-memory grants must follow identity lifecycle changes |
@@ -242,6 +242,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Earlier design | Replacement |
 |---|---|
+| Unspecified statistics batching and ten-minute token timestamp budget (2026-09-19–20) | [Statistics persistence](10-modules.md#statistics-persistence) — owner specified the cadence and immediate data writes |
 | SQLite-only wording for 0.7 persistence (2026-09-19) | [Configurable storage](constitution.md#persistence-and-loading) — owner extended the backend choice |
 | The `📥 Inbox` label for a record of kind `agent` (2026-09-18, 0.5.84) | [`👾` labels the record](05-discovery.md#identity-labels-in-web-and-cli) — owner decision the same day, once `agent` became a named kind. Only the label is replaced: listing those records with the channels, decided at the same time, stands |
 | No browser JavaScript (2026-09-16) | [One local selector-submit behavior](05-discovery.md#rules-it-is-built-to) — owner instruction on 2026-09-18; no enhancement layer or external script was introduced |
@@ -260,4 +261,3 @@ An indexed target may still be pending implementation. The linked substance wins
 ## Open
 
 Unresolved choices live in [MVP questions](../Plans/MVP/QUESTIONS.md#open-questions).
-
