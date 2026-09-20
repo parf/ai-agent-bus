@@ -8,6 +8,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| An Agent record's forwarding route rests on the Agent principal (Q87) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; the agent reads that inbox and already holds Maintainer-equivalent authority over its own record, so it is the principal whose right keeps the route usable. User and Queue routes rest on the owning User |
 | Statistics cadence and immediate data changes | [statistics persistence](10-modules.md#statistics-persistence) | 2026-09-20 owner clarification; replaces unspecified batching and the earlier token timestamp budget |
 | Appropriate abstractions and measured efficiency in 0.7 | [modules](10-modules.md#07-implementation-requirements); [acceptance](../Plans/MVP/0.7.0-TODO.md#verification) | 2026-09-20 owner instruction; keep implementation simple and verify performance |
 | No exhaustive deletion-specific crash matrix in 0.7 | [storage scope](../Plans/MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner response to the first 0.7 constitution review: Users are never removed, and rare Agent/record removal does not justify a separate broad failure campaign; commit-then-publish and focused stale-authority checks still apply |

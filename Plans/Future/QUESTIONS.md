@@ -17,7 +17,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 ## Constitution forwarding
 
-Moved to [0.7 questions](../MVP/QUESTIONS.md#constitution-forwarding).
+Settled in the [channel contract](../../docs/constitution.md#-channels).
 
 ## Public-directory context
 

@@ -294,23 +294,21 @@ When a channel is inactive:
 **Forwarding — owner-accepted September 19, 2026.** A User, Agent or Queue record
 MAY forward to another channel. The destination MUST NOT be stored unless the
 forwarding principal may write to it under the node's current access rules.
-[Q87](../Plans/MVP/QUESTIONS.md#constitution-forwarding) must settle whether an
-Agent record uses its owning User or the Agent principal for that check.
+That principal is the record's owning User, except on an Agent record, where it
+is the Agent principal that reads the inbox.
 
 Delivery applies the destination's current rules as if the message had been
 addressed there directly: access, active state, TTL and deadline, bound,
 overflow policy and counters. The route itself grants nothing: the destination's
 access check applies to the original sender exactly as for a direct send, so
 forwarding redirects a message and never widens access. The forwarding
-principal's own right is what makes the route storable and keeps it usable, and
-Q87 settles which principal an Agent record uses for that; passing
-configuration-time validation is not a durable grant. Any current-rule refusal
-rejects the original send with a stated error before anything is stored or
-counted. Route-principal revocation leaves `deliver_to` configured, and a later
-grant allows forwarding again without editing the field. Human
-faces MUST distinguish a configured route from one whose route principal keeps
-it usable, and MUST NOT claim that a usable route admits every sender.
-Remaining forwarding details are tracked in [open questions](#forwarding-details).
+principal's own right is what makes the route storable and keeps it usable;
+passing configuration-time validation is not a durable grant. Any current-rule
+refusal rejects the original send with a stated error before anything is stored
+or counted. Route-principal revocation leaves `deliver_to` configured, and a
+later grant allows forwarding again without editing the field. Human faces MUST
+distinguish a configured route from one whose route principal keeps it usable,
+and MUST NOT claim that a usable route admits every sender.
 
 A forwarded envelope retains the original sender and MUST carry one
 `original_to` value naming the one prior destination through which it was
@@ -398,15 +396,6 @@ assignment MUST NOT bypass that boundary.
 
 ## Open questions
 
-The plan's [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns the
-authority, reference-lifecycle and cutover choices linked above. The remaining
-forwarding choices are summarized here because they define that feature's
-boundary.
-
-### Forwarding details
-
-Forwarding and the destination-access requirement are settled. Implementation
-still needs to define:
-
-- whether an Agent record uses its owning User or its Agent principal to make
-  the route storable and usable (Q87).
+None. The plan's [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns
+any choice raised later; forwarding, including which principal makes a route
+storable, is settled above.
