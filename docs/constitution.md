@@ -295,15 +295,39 @@ When a channel is inactive:
   drops.
 
 **Forwarding — owner-accepted September 19, 2026.** A User, Agent or Queue record
-MAY forward to another channel. The User or Agent MUST have access to the
-destination channel. Remaining forwarding
-details are tracked in [open questions](#forwarding-details).
+MAY forward to another channel. The destination MUST NOT be stored unless the
+forwarding principal may write to it under the node's current access rules.
+[Q87](../Plans/MVP/QUESTIONS.md#constitution-forwarding) must settle whether an
+Agent record uses its owning User or the Agent principal for that check.
+
+Delivery applies the destination's current rules as if the message had been
+addressed there directly: access, active state, TTL and deadline, bound,
+overflow policy and counters. The forwarding principal, rather than the
+original sender, supplies the access check; Q87 settles which principal an
+Agent record uses. Passing configuration-time validation is not a durable
+grant. Any current-rule refusal rejects the original send with a stated error
+before anything is stored or counted. Revocation leaves `deliver_to` configured,
+and a later grant allows forwarding again without editing the field. Human
+faces MUST distinguish a configured destination from one currently accepting
+forwarded writes. Remaining forwarding details are tracked in
+[open questions](#forwarding-details).
+
+A forwarded envelope retains the original sender and MUST carry one
+`original_to` value naming the one prior destination through which it was
+forwarded. Forwarding depth is one, so this is never a chain. Forwarding moves
+the message: the source inbox keeps no copy and changes neither `in` nor `out`;
+the destination increments `in`, then `out` only when a reader receives it.
+
+The destination's overflow policy is unchanged: strict overflow refuses the
+original send and changes no counter; ring overflow evicts its oldest message
+and increments the destination's own `dropped`. The forwarding record records
+neither case because the moved message was never accepted into its inbox.
 
 Forwarding has a maximum depth of one. If the selected destination itself has a
-forwarding destination, the second hop is an explicit error and no second
-message is stored. [Q85](../Plans/MVP/QUESTIONS.md#constitution-forwarding)
-must settle who receives that error. Forwarding adds no TTL or deadline policy:
-the destination queue applies the ordinary queue and message rules.
+forwarding destination, the original send is refused with a stated error before
+anything is stored. No second message exists to be dropped. Forwarding adds no
+TTL or deadline policy: the destination queue applies the ordinary queue and
+message rules.
 
 ### 📡 Service
 
@@ -384,8 +408,5 @@ boundary.
 Forwarding and the destination-access requirement are settled. Implementation
 still needs to define:
 
-- which User or Agent supplies forwarding authority and when access is checked;
-- overflow and failure accounting;
-- sender attribution;
-- whether an `original_to` envelope field is required;
-- who receives the explicit second-hop error (Q85).
+- whether an Agent record uses its owning User or its Agent principal for the
+  already-settled configuration-time and delivery-time access checks (Q87);

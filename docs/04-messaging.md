@@ -391,6 +391,10 @@ sender or the message: whoever owns the queue decides what its fullness
 means. The count of what a ring has dropped is in `status`, because a queue
 that forgets silently looks exactly like one nobody sent to.
 
+**Pending for 0.7:** User, Agent and Queue records may forward under the
+kind-specific [channel contract](constitution.md#-channels). That section owns
+forwarding access, depth, provenance and the remaining open choices.
+
 ## Durability
 
 Through 0.6, queues, registry records and counters are snapshotted together

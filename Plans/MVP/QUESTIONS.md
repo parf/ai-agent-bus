@@ -4,7 +4,7 @@
 
 ## Open questions
 
-Q79–Q82 were settled on 2026-09-20 and moved to the
+Q79–Q82, Q85 and Q88–Q91 were settled on 2026-09-20 and moved to the
 [decision index](../../docs/decisions.md#settled). Q83 was withdrawn after a
 publish-versus-reload wording error. Q84 was withdrawn because the existing
 no-compatibility rule already requires nonconforming state to be fixed before
@@ -16,17 +16,22 @@ The [constitution](../../docs/constitution.md#forwarding-details) accepts
 forwarding with destination access. These choices block
 [K.15](0.7.0-TODO.md#delivery-and-release):
 
-- Loop detection.
-- Which User or Agent supplies forwarding authority, and when access is checked.
-- TTL and deadline handling.
-- Overflow and failure accounting.
-- Sender attribution and whether `original_to` is needed.
-- Q85: when a destination would forward a second time, who receives the explicit
-  error? The answer must say whether the original send is refused before any
-  message is stored or the error is routed elsewhere.
+| ID | Question |
+|---|---|
+| Q87 | For an Agent record, is destination access checked as its owning User or as the Agent principal that reads the inbox? User and Queue records use their owning User. |
 
-The maximum forwarding depth is one. Loop detection and forwarding-specific TTL
-or deadline rules are settled as unnecessary and are not open choices.
+The maximum forwarding depth is one. A send whose destination would forward
+again is refused before storage. Loop detection and forwarding-specific TTL or
+deadline rules are settled as unnecessary and are not open choices. Access is
+checked twice: invalid destinations cannot be configured, and each delivery
+uses the current node state. Q87 settles which principal that check uses for an
+Agent record. A forwarded envelope carries the required single-valued
+`original_to` and retains the original sender. Forwarding moves one message:
+the source inbox keeps no copy and changes neither `in` nor `out`; the
+destination increments `in`, then `out` only when a reader receives it. Access
+or inactive-state refusal rejects the original send and changes no counter.
+Strict overflow does the same; ring overflow evicts the destination's oldest
+message and increments that destination's own `dropped`.
 
 ## Constitution audit retention
 
