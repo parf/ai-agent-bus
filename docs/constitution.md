@@ -10,84 +10,74 @@ The words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are normative.
 
 ## Clarified direction
 
-Owner clarification, September 19, 2026:
+Owner clarification, September 19, 2026. Each item is now owned by the section
+beside it.
 
-- Objects belong to Users; an Agent's management authority does not make it an
-  owner. Existing documentation allowing non-User ownership needs reconciliation.
-- Group ownership and Maintainers extend existing daemon administration, adding
-  control by Users and Agents rather than replacing administrative authority.
-- Persistence follows a write-through cache model.
-- `banned` is removed; User state is `active` or `inactive`. Record `active`
-  replaces the old Disabled switch with the opposite polarity.
-- ACL syntax is extended, not replaced. Existing terms remain supported; the
-  explicit Agent marker is additive.
+| Clarification | Owned by |
+|---|---|
+| Objects belong to Users; an Agent's management authority never makes it an owner | [registry record](#-registry-record) |
+| Group ownership and Maintainers extend daemon administration rather than replacing it | [group](#-group) |
+| Persistence follows a write-through cache model | [persistence](#persistence-and-loading) |
+| `banned` is gone: a User is `active` or `inactive`, and record `active` replaces Disabled with the opposite polarity | [user](#-user), [common fields](#common-record-fields) |
+| ACL syntax is extended, not replaced; the Agent marker is additive | [actor terms](#actors-and-ascii-textarea-syntax) |
 
-These are intended rules, not evidence that the running implementation already
-enforces them. The current topic docs still need reconciliation after discussion.
+The current topic docs still need reconciliation. Their agent-owned records,
+ownership chains and self-owned non-User records describe neither this model nor
+evidence that such objects exist on a running node.
 
 ## Persistence and loading
 
 0.7 uses SQLite. Configurable [additional backends](../Plans/R1/storage.md#backends)
-are R1 work. Durable entities, credentials, queue contents and durable per-queue
-counters MUST be persisted in the selected backend. A management change MUST
-commit as a transaction before its new in-memory view is published. All backends
-MUST preserve the same identity, authority and durability rules. Storage access
-stays behind the existing ports.
+are R1 work. Every backend MUST preserve the same identity, authority and
+durability rules, behind the existing storage ports.
 
-Queue contents and their `in`, `out`, `dropped`, and `expired` counters retain
-the existing [checkpoint boundary](04-messaging.md#durability): they update in
+| Rule | Requirement |
+|---|---|
+| Durable | entities, credentials, queue contents, per-queue counters |
+| A management write | validates, commits the complete change as one transaction, then publishes |
+| Publication | one complete new view, never a mutation of the live maps in place |
+| Atomicity | invalid input fails the whole write; no partial update is ever visible |
+| Startup | load every durable entity, then build derived indexes such as token to principal and user ID to status |
+| List fields | the API MUST provide atomic add and remove for `allow`, `maintainers`, `members` and `deliver_to` |
+
+This ordering is write-through: memory serves the loaded view, and a management
+write reaches durable state before the changed view is published. It applies to
+record lifecycle changes too, although 0.7 adds no exhaustive deletion-specific
+crash matrix. It replaces the memory-before-persistence behavior of the 0.6
+[persistence-failure contract](04-messaging.md#administrative-crash-recovery).
+
+Queue contents and their `in`, `out`, `dropped` and `expired` counters keep the
+existing [checkpoint boundary](04-messaging.md#durability): they update in
 memory during traffic and flush as one consistent batch every minute and on
-graceful shutdown. There is no database write per message. A crash MAY lose
-queue changes since the last successful flush. The JSON dump is cutover input,
-not a second runtime store after 0.7 activation. Startup MUST reject a durable
-queue whose record is absent or cannot hold a queue; it MUST NOT silently drop or
-reattach that backlog.
+graceful shutdown, never once per message. A crash MAY lose queue changes since
+the last successful flush. Startup MUST reject a durable queue whose record is
+absent or cannot hold a queue, and MUST NOT silently drop or reattach that
+backlog. The JSON dump is cutover input, not a second runtime store after 0.7
+activation.
 
-Only one active daemon MAY use a database. The daemon MUST establish exclusive
-ownership before serving and reject a competing instance. After losing that
-exclusivity, it MUST refuse every read and write with a stated reason and MUST
-NOT answer from its cached view. This observable rule does not prescribe whether
-the process remains running or exits. It applies to every supported backend.
+Identity changes MUST invalidate stale credentials and grants in durable state
+and memory together:
 
-All durable entities MUST be loaded into memory at startup.
+| Change | Requirement |
+|---|---|
+| Ownership transfer | update and commit the owned record, publish the new view, rewrite no unrelated record |
+| Removing an Agent or record | drop every stored ACL, Maintainer, Group-member and Deliver-To reference to that name in the same transaction |
+| Reusing a name | inherit no authority and no delivery from the former holder |
+| Users | never removed |
 
-Normal management APIs MUST validate and persist a complete change before it
-becomes visible in memory. Invalid input MUST make the whole write fail
-atomically.
+One active daemon MAY use a database. The daemon MUST establish exclusive
+ownership before serving and reject a competing instance.
 
-Write-through identity changes MUST invalidate stale credentials and grants in
-both durable state and memory. Reusing a record name MUST NOT inherit the former
-record's authority or deliveries. Users are never removed. Ownership transfer
-updates the owned record, commits it, and publishes the new complete in-memory
-view; it does not rewrite unrelated records. Removing an Agent or record is
-different: the same transaction MUST remove every stored ACL, Maintainer,
-Group-member and Deliver-To reference to that name. A later record with the same
-name starts with no authority or delivery inherited from the removed record.
-
-After a transaction commits, core MUST construct and publish one complete new
-view rather than mutate the live maps in place. If publication cannot complete,
-the daemon MUST refuse every read and write with a stated reason rather than
-answer with authority older than the committed state. This observable rule does
-not prescribe whether the process remains running or exits. This invariant
-applies to record lifecycle changes even though 0.7 does not add an exhaustive
-deletion-specific crash matrix.
-
-This is write-through behavior: memory serves the loaded view, and a management
-write updates durable state before publishing the changed view. The existing
-[persistence-failure contract](04-messaging.md#administrative-crash-recovery)
-is labeled as built through 0.6; its memory-before-persistence failure behavior
-is replaced in 0.7 by this ordering.
+Two conditions leave the daemon unable to answer with authority: losing that
+exclusivity, and failing to publish a committed change. In either the daemon
+MUST refuse every read and write with a stated reason and MUST NOT answer from
+its cached view. Serving state older than the committed one is the fault; these
+observable rules do not prescribe whether the process keeps running or exits.
 
 A future reload API or SIGHUP (`kill -HUP <pid>`) MAY reload durable entities.
-If added, reloading MUST replace one complete in-memory view with another;
-callers must never observe a partly reloaded state. It is not required for
-ownership transfer or any other 0.7 operation.
-
-Derived indexes, such as token → principal and user ID → status, MUST be built
-when state is loaded and rebuilt after a reload.
-
-The API MUST provide atomic add and remove operations for list fields such as
-`allow`, `maintainers`, `members`, and `deliver_to`.
+It is required for no 0.7 operation, ownership transfer included. If added, it
+MUST replace one complete in-memory view with another, rebuild the derived
+indexes, and never let a caller observe a partly reloaded state.
 
 ## Errors and alerts
 
@@ -97,13 +87,16 @@ answer with authority. An ordinary refusal is not one — a malformed request, a
 denied permission or an unknown name is answered to its caller and reported
 nowhere else.
 
-Every conceptual error and every alert MUST go to syslog at a severity matching
-the condition, and the same message MUST also be written to the daemon's error
-log. Reporting to one destination is not enough: syslog is what reaches an
-operator who is not reading the daemon's files, and the error log is what stays
-beside its other output. Neither copy may contain a token, secret,
-configuration value or message body.
+Every conceptual error and every alert MUST be reported twice:
 
+| Copy | Destination |
+|---|---|
+| the message | syslog, at a severity matching the condition |
+| the same message again | the daemon's error log |
+
+Reporting to one destination is not enough: syslog reaches an operator who is
+not reading the daemon's files, and the error log stays beside its other output.
+Neither copy may contain a token, secret, configuration value or message body.
 This is separate from [entity-edit logging](#-registry-record), which records
 authorized edits rather than impossible states.
 
@@ -111,23 +104,15 @@ authorized edits rather than impossible states.
 
 ### 👤 User
 
-- `user_id`: stable internal `uint32`; persisted, never reused, and not exposed
-  as the public identity.
-- `name`: canonical `user` or `user@team` identity; globally unique and
-  required. The realm is optional and part of the identity, so `alice` and
-  `alice@team` are different Users.
-- Unique secondary identifiers, when present:
-  - normalized email;
-  - GitHub login;
-  - Twitter/X username, compared case-insensitively.
-- Profile fields, which are not identifiers and need not be unique:
-  - person name;
-  - company;
-  - location;
-  - photo or Gravatar.
-- Ed25519 public key, when key-based enrolment is used.
-- `created_at`, `updated_at`, and `last_used_at`.
-- `status`: `active` or `inactive`. This model has no separate `banned` state.
+| Field | Requirement |
+|---|---|
+| `user_id` | stable internal `uint32`; persisted, never reused, never the public identity |
+| `name` | canonical `user` or `user@team`; globally unique and required. The realm is optional and part of the identity, so `alice` and `alice@team` are different Users |
+| unique secondary identifiers | normalized email, GitHub login, Twitter/X username compared case-insensitively; each unique when present |
+| profile | person name, company, location, photo or Gravatar; not identifiers and need not be unique |
+| Ed25519 public key | when key-based enrolment is used |
+| `created_at`, `updated_at`, `last_used_at` | |
+| `status` | `active` or `inactive`; this model has no `banned` state |
 
 `inactive` replaces the former paused/banned distinction under the owning
 [User-state contract](01-identity-and-roles.md#user-states): an Administrator
@@ -139,94 +124,88 @@ suspension level remains.
 
 The daemon is configuration, not a registry entity.
 
-- `owner_id`;
-- description;
-- listen addresses, including TCP and Unix-socket addresses where applicable.
+| Field | Requirement |
+|---|---|
+| `owner_id` | the daemon Owner |
+| description | |
+| listen addresses | TCP and Unix-socket addresses where applicable |
 
-Version, build information, hostname, uptime, and call counters are runtime
-facts rather than durable daemon fields.
+Version, build information, hostname, uptime and call counters are runtime facts
+rather than durable daemon fields.
 
 ### 🔐 Token
 
-Tokens currently authenticate actors: 👤 Users and 👾 Agents.
+Tokens authenticate actors: 👤 Users and 👾 Agents.
 
-Each token MUST name a 👤 User, and MAY additionally name a 👾 Agent:
+| Field | Requirement |
+|---|---|
+| `token` | |
+| `user_id` | stable `user_id`; always present |
+| `agent_id` | stable `registry_id` of an Agent, or absent |
+| `created_at`, `updated_at`, `last_used_at` | `last_used_at` follows the [statistics persistence schedule](10-modules.md#statistics-persistence) and means credential use, not necessarily a browser login |
 
-- `token`;
-- `user_id`: stable `user_id`; always present;
-- `agent_id`: stable `registry_id` of an Agent, or absent;
-- `created_at`, `updated_at`, and `last_used_at`.
+- Without `agent_id` the token acts as the User alone.
+- With `agent_id` the named User MUST be that Agent's Owner. The Agent is then
+  the acting principal for access, routing and delivery, and the User is who it
+  acts for; the User's inactivity refuses the token exactly as it suspends the
+  Agent.
+- Reassigning an Agent MUST reassign its tokens in the same committed update as
+  the ownership change, never as a later step. A failed token write MUST abandon
+  the transfer rather than commit an ownership change the tokens do not follow.
 
-When `agent_id` is present, the named User MUST be that Agent's Owner. The
-Agent is then the acting principal for access, routing and delivery, and the
-User is who it acts for; the User's inactivity refuses the token exactly as it
-suspends the Agent. A token without `agent_id` acts as the User alone.
-
-The stored pair MUST match current ownership. Reassigning an Agent MUST
-reassign its tokens: the new Owner replaces the old one on every token of that
-Agent, in the same committed update as the ownership change and never as a
-later step. Failing to write the tokens MUST abandon the transfer rather than
-commit an ownership change the tokens do not follow. The invariant therefore
-holds by construction, and a mismatch can arise only from a failed write. A mismatched row is therefore corrupt state rather than an ordinary
-refusal path: the daemon MUST ignore that token, which then authenticates
-nothing, and MUST report the mismatch as a conceptual error at `alert`
-severity through [both destinations](#errors-and-alerts), naming the token's
-User, Agent and current Owner. It MUST NOT repair the row,
-reinterpret it as a User token, or treat the condition as routine.
-
-`last_used_at` follows the [statistics persistence schedule](10-modules.md#statistics-persistence).
-The value means credential use, not necessarily a browser login.
+The pair therefore matches current ownership by construction, and a mismatch can
+arise only from a failed write. Such a row is corrupt state rather than a
+refusal path: the daemon MUST ignore that token, which authenticates nothing,
+and MUST report the mismatch as a conceptual error at `alert` severity through
+[both destinations](#errors-and-alerts), naming the token's User, Agent and
+current Owner. It MUST NOT repair the row, reinterpret it as a User token, or
+treat the condition as routine.
 
 ### 📋 Registry record
 
-A registry record MUST be owned by a 👤 User. An Agent MAY have management
-authority but MUST NOT become the owning principal. The same User-only ownership
-rule applies to Groups and daemon ownership. Creating or managing an object as
-an Agent does not make that Agent its owner.
+A registry record MUST be owned by a 👤 User, and so MUST a Group and daemon
+ownership. An Agent MAY have management authority but MUST NOT become an owning
+principal; creating or managing an object as an Agent does not make that Agent
+its owner.
 
-The current documentation's agent-owned records, ownership chains and self-owned
-non-User records do not describe this intended model. Their presence in the docs
-is not evidence that such objects exist on a running node.
+Every direct edit to a User, registry record or Group MUST write one daemon log
+file entry:
 
-Every direct edit to a User, registry record, or Group MUST write one daemon log
-file entry with the actor, operation, target, result, and client IP when one
-exists. The actor MUST be the authenticated User or Agent. A Unix socket request
-has no client IP and MUST NOT invent one. A change to an entity's `status`
-between `active` and `inactive` is such an edit and MUST be logged. Credential
-operations, reads, sends, and consumes MUST NOT write entity-edit entries.
+| Entry | Requirement |
+|---|---|
+| actor | the authenticated User or Agent |
+| operation, target, result | always present |
+| client IP | when one exists; a Unix socket request has none and MUST NOT invent one |
+| a `status` change between `active` and `inactive` | is such an edit and MUST be logged |
+| credential operations, reads, sends, consumes | MUST NOT write entity-edit entries |
 
-Logs MUST NEVER contain sensitive information. Current examples include tokens,
-secret bodies, configuration bodies, and message bodies.
+Logs MUST NEVER contain sensitive information; tokens, secret bodies,
+configuration bodies and message bodies are the current examples.
 
-Every field MUST be validated and normalized according to its own contract.
-Secrets and configuration MUST pass their required format validation before a
-write is accepted. Format validation does not authorize generic “sanitization”
-or interpretation of application-specific values; normalization must be stated
+Every field MUST be validated and normalized according to its own contract, and
+secrets and configuration MUST pass their format validation before a write is
+accepted. Format validation authorizes no generic "sanitization" or
+interpretation of application-specific values; normalization must be stated
 explicitly in the field's contract.
 
 #### 🏷️ Record kind
 
-The closed set of record kinds is:
+The closed set of record kinds:
 
-- 👤 `user`: the queue belonging to a User; it shares that User's canonical
-  name.
-- 👾 `agent`: an Agent and the queue it reads.
-- 📮 `queue`: a named competing-consumer queue.
-- 📣 `pubsub`: a fan-out channel that retains no messages of its own and copies
-  publications to its `deliver_to` actors.
-- 📡 `service`: information about an external service, protected by an ACL.
+| Kind | What it is | Channel |
+|---|---|---|
+| 👤 `user` | the queue belonging to a User; it shares that User's canonical name | yes |
+| 👾 `agent` | an Agent and the queue it reads | yes |
+| 📮 `queue` | a named competing-consumer queue | yes |
+| 📣 `pubsub` | a fan-out channel that retains no messages of its own and copies publications to its `deliver_to` recipients | yes |
+| 📡 `service` | information about an external service, protected by an ACL | no |
 
 A 👥 Group is a separate entity, not a sixth record kind.
 
 #### Actors and ASCII textarea syntax
 
-An **actor** is a 👤 User, 👾 Agent, or 👥 Group.
-
-ACL, Maintainer, and group-member textareas accept one ASCII term per line. An
-Agent term MUST carry the leading `#`, exactly as a Group term carries `@`, and
-the stored term keeps the marker. A bare `alice@team` in such a list therefore
-names a User and nothing else: without the marker nothing in `xx@yy` says
-whether a User or an Agent was meant.
+An **actor** is a 👤 User, 👾 Agent, or 👥 Group. ACL, Maintainer and
+group-member textareas accept one ASCII term per line:
 
 | Actor | Term |
 |---|---|
@@ -237,231 +216,209 @@ whether a User or an Agent was meant.
 | Owner and its directly owned Agents | `@owner` |
 | The record's own Agent | `@agent` |
 
-A term is stored exactly as it is written. The last three resolve at each check
-instead of naming a stored entity, and only the first three may be created.
+- A term is stored exactly as written. An Agent term MUST carry the leading `#`,
+  exactly as a Group term carries `@`: without the marker nothing in `xx@yy`
+  says whether a User or an Agent was meant, so a bare `alice@team` names a User
+  and nothing else.
+- The marker decides a term's kind from the term itself rather than from a
+  registry lookup, and lets the daemon reject a term whose stored kind does not
+  match.
+- The last three terms resolve at each check instead of naming a stored entity.
+  Only the first three may be created, and none of the last three may be stored
+  as an entity or nested in a group.
+- The `#` MUST NOT appear in an Agent's canonical name, token identity, URL,
+  registry key or message route. The daemon strips it when resolving the term,
+  after validating that the target is an Agent.
+- Lists naming an Agent without the marker are retyped by the
+  [cutover](../Plans/MVP/0.7-cutover.md#rewrite-and-activation); afterwards an
+  untyped Agent name in a list is refused like any other invalid term.
+- Whitespace is trimmed, duplicate terms are rejected or normalized
+  deterministically, and one invalid term rejects the complete update.
+- Unicode glyphs are for display only and MUST NOT be required in editable or
+  machine-readable values.
 
 The existing [ACL rules](02-access.md#acl), including the empty-list default,
 wildcard eligibility and `@owner`, remain in force unless explicitly revised.
-Adding typed Agent terms does not widen `*` or make ACL-only terms valid as
-Maintainers or Group members.
-
-The leading `#` types the term. It is part of the stored actor term and MUST
-NOT appear in the Agent's canonical name, token identity, URL, registry key, or
-message route; the daemon strips it when resolving the term, after validating
-that the target is an Agent.
-
-Names remain globally unique. The marker makes the actor type explicit to the
-reader, lets the daemon reject a term whose stored kind does not match, and
-decides a term's kind from the term itself rather than from a registry lookup.
-Lists that name an Agent without the marker are retyped by the
-[cutover](../Plans/MVP/0.7-cutover.md#rewrite-and-activation); afterwards an
-untyped Agent name in a list is refused like any other invalid term. Unicode glyphs are for display only and MUST NOT be required in editable
-or machine-readable values.
-
-Whitespace is trimmed, duplicate terms are rejected or normalized
-deterministically, and one invalid term rejects the complete update.
+Typed Agent terms do not widen `*` or make ACL-only terms valid as Maintainers
+or Group members.
 
 #### Common record fields
 
-- `registry_id`: stable internal ID; persisted, never reused, and not exposed as
-  the public identity.
-- `owner_id`: the owning User.
-- `kind`: one value from the closed record-kind enum.
-- `name`: canonical `name`, `name@team` or `template/instance@team`; globally
-  unique and required. The realm is optional; the last `@` separates it.
-- `description`.
-- `maintainers`: typed actor terms.
-- `allow`: typed actor terms; this is the ACL.
-- `status`: `active` or `inactive`.
-- `created_at` and `updated_at`, maintained by the system rather than editable
-  by callers.
+| Field | Requirement |
+|---|---|
+| `registry_id` | stable internal ID; persisted, never reused, never the public identity |
+| `owner_id` | the owning User |
+| `kind` | one value from the closed record-kind enum |
+| `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional; the last `@` separates it |
+| `description` | |
+| `maintainers` | typed actor terms |
+| `allow` | typed actor terms; this is the ACL |
+| `status` | `active` or `inactive` |
+| `created_at`, `updated_at` | maintained by the system, not editable by callers |
 
-For records with a delivery switch, `active` means the former `disabled=false`,
-and `inactive` means the former `disabled=true`. These are two spellings of one
-control, not independent switches. A Service also carries status; its read
-visibility and name reservation follow the [Service rule](#-service).
+For records with a delivery switch, `active` means the former `disabled=false`
+and `inactive` the former `disabled=true` — two spellings of one control, not
+independent switches. A Service also carries status; its read visibility and
+name reservation follow the [Service rule](#-service).
 
 #### Authority rules
 
-The Owner MAY transfer ownership and replace the Maintainers list.
+| Who | MAY | MUST NOT change |
+|---|---|---|
+| Owner | transfer ownership, replace the Maintainers list, and everything a Maintainer may | |
+| Maintainer | edit the description, ACL, status and the operational fields allowed for that kind | name, kind, owner, Maintainers, Personal classification, `created_at`, `updated_at` |
+| The matching Agent principal, on its own record | what a Maintainer may | what a Maintainer may not |
 
-A Maintainer MAY edit the description, ACL, status, and the operational fields
-allowed for that record's kind. A Maintainer MUST NOT change:
-
-- name or kind;
-- owner;
-- Maintainers;
-- Personal classification;
-- `created_at` or `updated_at`.
-
-For an Agent record, the matching Agent principal has Maintainer-equivalent
-authority over its own record. This is a direct rule and does not depend on a
-stored group. `@agent` is an input alias for that same principal, accepted in
-`allow` and `maintainers`; like `@owner` it is resolved at each check and never
-created, stored or nested.
+The Agent's authority over its own record is a direct rule that depends on no
+stored group; `@agent` is an input alias for that same principal.
 
 A modifying operation MUST be authorized against current state, including the
-caller's right to change each submitted field. The complete candidate record
+caller's right to change each submitted field, and the complete candidate record
 MUST then be validated. Proposed changes MUST NOT supply their own authority.
 Checking and applying a multi-field update MUST be one atomic operation.
 
 Ownership transfer is an ordinary authorized record change: the old Owner
 changes the owner, the daemon commits that record update and publishes the new
-complete view, and subsequent authority checks use the new Owner. The update
-does not walk or rewrite unrelated records; runtime terms such as `@owner`
-resolve against the new published owner. Restart loads that same saved
-ownership; it does not authorize the transfer again or restore the old Owner.
+complete view, and subsequent checks use the new Owner. Runtime terms such as
+`@owner` resolve against it. Restart loads that same saved ownership; it does
+not authorize the transfer again or restore the old Owner.
 
 ## Kind-specific fields
 
 ### 📢 Channels
 
-The channel kinds are `user`, `agent`, `queue`, and `pubsub`.
+The channel kinds are 👤 `user`, 👾 `agent`, 📮 `queue` and 📣 `pubsub`.
 
-- `personal`: allowed only on an Agent. It states that the intended audience is
-  the Owner and the Agents that Owner owns, and its ACL and Maintainer rules
-  admit that cohort and nothing wider.
-- `ttl`, `bound`, and `overflow`: allowed on User, Agent, and Queue; invalid on
-  PubSub.
-- `deliver_to`: one kind-dependent list, carried by 📣, 👾 and 📮 only. On
-  PubSub it is the recipient list. On Agent or Queue it is zero or one
-  destination for forwarding, and a whole-field write containing two or more
-  destinations stores nothing. A 👤 User has no such field.
+| Field | Where | Meaning |
+|---|---|---|
+| `personal` | 👾 only | the intended audience is the Owner and the Agents that Owner owns; its ACL and Maintainer rules admit that cohort and nothing wider |
+| `ttl`, `bound`, `overflow` | 👤, 👾, 📮 | invalid on 📣 |
+| `deliver_to` | 📣, 👾, 📮 | on 📣 the recipient list; on 👾 or 📮 zero or one forwarding destination. A 👤 User has no such field |
 
-What an entry means is decided by the record its term resolves to, so the
-daemon MUST resolve it against the registry:
+What an entry means is decided by the record its term resolves to, so the daemon
+MUST resolve it against the registry:
 
 | Field | Accepts |
 |---|---|
 | `deliver_to` on 📣 | 👾, 👥, 📮, 📣 |
 | `deliver_to` on 👾 / 📮, one slot | 👾, 📮, 📣 |
 
-Every other term is refused, an unresolvable one included. A 👥 term is
-expanded at publication and its membership is actors only. A 👤 User receives
-only replies to what it sent: no ordinary send, no published copy and no
-route. Any attempt to deliver anything else to a User MUST be answered with an
-error, never discarded and never counted as a drop. An entry is refused for its kind rather than for permission, and a
-refusal names the term and stores nothing.
+- Every other term is refused, an unresolvable one included. An entry is refused
+  for its kind rather than for permission, and a refusal names the term and
+  stores nothing.
+- A 👥 term is expanded at publication, and its membership is actors only.
+- A 👤 User receives only replies to what it sent: no ordinary send, no
+  published copy, no route. Any other delivery attempt to a User MUST be
+  answered with an error, never discarded and never counted as a drop.
+- In the one-slot form, add succeeds only while empty and otherwise returns an
+  error naming the occupied field; remove clears it. Replacement is an explicit
+  whole-field write, never an add that silently overwrites a concurrent choice.
+  A whole-field write carrying two or more destinations stores nothing.
 
-For the one-slot form, add succeeds only while empty and returns an error naming
-the occupied field otherwise; remove clears it. Replacing an existing
-destination is an explicit whole-field write, never an add that silently
-overwrites a concurrent choice. One invalid entry rejects the complete update.
+When a channel is inactive, reads and writes are refused with an explicit error,
+and 📣 copies addressed to it are discarded and counted as drops.
 
-When a channel is inactive:
+**Forwarding — owner-corrected September 20, 2026.** A 👾 Agent or 📮 Queue
+record MAY forward to another destination. For `sender → A → B`:
 
-- reads and writes are refused with an explicit error;
-- PubSub copies addressed to that inactive channel are discarded and counted as
-  drops.
+| Check | Requirement |
+|---|---|
+| the sender | MUST pass A's ACL |
+| B's ACL | MUST list the forwarding record A; the sender needs no access to B |
+| a substitute | neither the original sender's nor A's Owner's access to B stands in for B allowing A |
+| when | the destination MUST NOT be stored unless its ACL allows the forwarding record, and the daemon MUST check that permission again at delivery |
+| whose right | the daemon's selected source record, never a caller-supplied sender or provenance field |
 
-**Forwarding — owner-corrected September 20, 2026.** An Agent or Queue record
-MAY forward to another destination. For `sender → A → B`, the sender MUST
-pass A's ACL, and B's ACL MUST list the forwarding record A. The sender needs
-no access to B. Neither the original sender's nor A's Owner's access to B
-substitutes for B allowing A.
-
-The destination MUST NOT be stored unless its ACL allows the forwarding record.
-The daemon MUST check that permission again at delivery. For a Queue source,
-this is a channel-name ACL reference, not a credential-bearing principal.
-Forwarding authority comes from the daemon's selected source record, never from
-caller-supplied sender or provenance fields.
-
-The destination applies its active state, TTL and deadline, bound, overflow
-policy and counter rules as for a direct send. Any current-rule refusal rejects
-the original send with a stated error before anything is stored or counted.
-Removing A from B's ACL leaves `deliver_to` configured but denies forwarding;
-restoring that permission resumes forwarding without editing the field. Human
-faces MUST distinguish a configured route from one currently allowed by the
-destination's ACL.
+For a 📮 source this is a channel-name ACL reference, not a credential-bearing
+principal. Removing A from B's ACL leaves `deliver_to` configured but denies
+forwarding, and restoring the permission resumes it without editing the field.
+Human faces MUST distinguish a configured route from one the destination's ACL
+currently allows.
 
 A forwarded envelope retains the original sender and MUST carry one
-`original_to` value naming the prior destination through which it was
-forwarded, and a forward counter. Every forwarding step, a topic's fan-out into
-another channel included, increments that counter. A step that would raise it
-above ten MUST be an error, answered like any other current-rule refusal and
-storing nothing. The counter is what ends a cycle: two topics listing each
-other, or a queue routing back into the topic that fed it, stop with a stated
-error rather than looping. Forwarding moves
-the message: the source inbox keeps no copy and changes neither `in` nor `out`;
-the destination increments `in`, then `out` only when a reader receives it.
+`original_to` value naming the prior destination it came through, and a forward
+counter. Every forwarding step increments that counter, a topic's fan-out into
+another channel included, and a step that would raise it above ten MUST be an
+error. The counter is what ends a cycle: two topics listing each other, or a
+queue routing back into the topic that fed it, stop with a stated error rather
+than looping.
 
-The destination's overflow policy is unchanged: strict overflow refuses the
-original send and changes no counter; ring overflow evicts its oldest message
-and increments the destination's own `dropped`. The forwarding record records
-neither case because the moved message was never accepted into its inbox.
+The destination applies its active state, TTL and deadline, bound, overflow
+policy and counter rules as for a direct send; forwarding adds no policy of its
+own. Any current-rule refusal rejects the original send with a stated error
+before anything is stored or counted.
 
-Forwarding has a maximum depth of one. If the selected destination itself has a
-forwarding destination, the original send is refused with a stated error before
-anything is stored. No second message exists to be dropped. Forwarding adds no
-TTL or deadline policy: the destination queue applies the ordinary queue and
-message rules.
+| Outcome | Counters |
+|---|---|
+| forwarded | the source keeps no copy and changes neither `in` nor `out`; the destination increments `in`, then `out` when a reader receives it |
+| strict overflow at the destination | the original send is refused and no counter changes |
+| ring overflow at the destination | its oldest message is evicted and its own `dropped` increments |
+
+The forwarding record counts neither overflow case, because the moved message
+was never accepted into its inbox.
 
 ### 📡 Service
 
-A Service requires:
-
-- `addr`;
-- `protocol`;
-- optional `secret`, writable by the Owner or a Maintainer and readable by
-  actors in `allow`.
+| Field | Requirement |
+|---|---|
+| `addr`, `protocol` | required |
+| `secret` | optional; writable by the Owner or a Maintainer, readable by actors in `allow` |
 
 **Secret format — owner-settled September 19, 2026.** A supplied secret MUST be
-an env file containing environment-variable assignments, and the daemon MUST
-validate basic env-file syntax before accepting it. Invalid syntax MUST reject
-the complete write. The user is responsible for the remaining content and its
+an env file of environment-variable assignments, and the daemon MUST validate
+basic env-file syntax before accepting it; invalid syntax MUST reject the
+complete write. The user is responsible for the remaining content and its
 suitability for the consuming application. Arbitrary unvalidated bytes are no
-longer accepted by this model; this replaces the earlier rule that `KEY=value`
-was only a caller convention.
+longer accepted, which replaces the earlier rule that `KEY=value` was only a
+caller convention.
 
 A Service has no queue, so it carries no TTL, bound, overflow policy,
-`deliver_to`, Personal classification, or channel delivery switch.
+`deliver_to`, Personal classification or channel delivery switch.
 
 **Status rule — owner-settled September 19, 2026.** An inactive Service MUST be
-hidden from reads, including discovery, record lookup and secret reads. Its
-record remains stored and reserves its canonical name. A new registration using
-that name MUST be rejected because the name already exists; inactivity does not
-unregister the Service or make its name available for reuse.
+hidden from reads, discovery, record lookup and secret reads included. Its
+record remains stored and reserves its canonical name, so a new registration
+using that name MUST be rejected: inactivity neither unregisters the Service nor
+frees its name.
 
 ### 👾 Agent configuration
 
 An Agent MAY carry `config`:
 
-- writable by the Owner or a Maintainer;
-- readable only by the matching Agent principal;
-- represented to everyone else by its SHA-256 digest;
-- JSON; the daemon MUST validate JSON syntax before accepting it. Invalid input
-  MUST reject the complete write. Application-specific fields remain opaque.
-
-Validated JSON MUST be compacted before storage and SHA-256 hashing, retaining
-the existing [configuration normalization](03-records.md#why-a-digest-at-all).
+| Rule | Requirement |
+|---|---|
+| writable by | the Owner or a Maintainer |
+| readable by | the matching Agent principal only; everyone else sees its SHA-256 digest |
+| format | JSON, whose syntax the daemon MUST validate before accepting it; invalid input MUST reject the complete write |
+| application fields | remain opaque |
+| storage | validated JSON MUST be compacted before storage and hashing, retaining the existing [configuration normalization](03-records.md#why-a-digest-at-all) |
 
 ### 👥 Group
 
 A Group is a named list of typed actors, owned by a User.
 
-- `group_id`: stable internal ID.
-- `name`: `@group_name`.
-- `owner_id`: the owning User.
-- `maintainers`.
-- `members`: typed User, Agent, or Group terms.
-- `created_at` and `updated_at`.
+| Field | Requirement |
+|---|---|
+| `group_id` | stable internal ID |
+| `name` | `@group_name` |
+| `owner_id` | the owning User |
+| `maintainers` | controlled by the Group Owner |
+| `members` | typed User, Agent or Group terms; Group Maintainers MAY add and remove them |
+| `created_at`, `updated_at` | |
 
-The Group Owner controls its Maintainers. Group Maintainers MAY add or remove
-members. An Agent MAY be a Group Maintainer by using its `#agent@team` actor
-term.
-
-This extends the existing [group administration](01-identity-and-roles.md#groups)
-model: Users and Agents gain explicitly assigned control of a Group, while
-daemon Owner and Administrator authority remains. An Agent may maintain a Group
-but cannot own it.
+An Agent MAY be a Group Maintainer through its `#agent@team` term, and MAY
+maintain a Group but never own one. This extends the existing
+[group administration](01-identity-and-roles.md#groups) model: Users and Agents
+gain explicitly assigned control while daemon Owner and Administrator authority
+remains.
 
 Nested-group resolution MUST use a visited set. Cycles must terminate and grant
 membership only when a finite path reaches the requested actor.
 
-The protected `@administrators` group is outside the ordinary Group authority
-model. It has neither a Group Owner nor Maintainers, and only the daemon Owner
-may change its direct membership. Ordinary Group ownership or Maintainer
-assignment MUST NOT bypass that boundary.
+The protected `@administrators` group is outside this model: it has neither a
+Group Owner nor Maintainers, only the daemon Owner may change its direct
+membership, and ordinary Group ownership or Maintainer assignment MUST NOT
+bypass that boundary.
 
 ## Open questions
 
