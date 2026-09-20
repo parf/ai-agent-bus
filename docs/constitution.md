@@ -149,9 +149,10 @@ tokens to the new Owner within the transfer's own committed update, so the
 invariant holds by construction and a mismatch can arise only from a failed
 write. A mismatched row is therefore corrupt state rather than an ordinary
 refusal path: the daemon MUST ignore that token, which then authenticates
-nothing, and MUST report the mismatch as a fatal inconsistency. It MUST NOT
-repair the row, reinterpret it as a User token, or treat the condition as
-routine.
+nothing, and MUST report the mismatch twice — as a syslog message at `alert`
+severity and as a daemon log file entry — naming the token's User, Agent and
+current Owner but never the credential value. It MUST NOT repair the row,
+reinterpret it as a User token, or treat the condition as routine.
 
 `last_used_at` follows the [statistics persistence schedule](10-modules.md#statistics-persistence).
 The value means credential use, not necessarily a browser login.
