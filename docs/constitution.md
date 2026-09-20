@@ -144,10 +144,12 @@ Agent is then the acting principal for access, routing and delivery, and the
 User is who it acts for; the User's inactivity refuses the token exactly as it
 suspends the Agent. A token without `agent_id` acts as the User alone.
 
-The stored pair MUST match current ownership. Transferring an Agent moves its
-tokens to the new Owner within the transfer's own committed update, so the
-invariant holds by construction and a mismatch can arise only from a failed
-write. A mismatched row is therefore corrupt state rather than an ordinary
+The stored pair MUST match current ownership. Reassigning an Agent MUST
+reassign its tokens: the new Owner replaces the old one on every token of that
+Agent, in the same committed update as the ownership change and never as a
+later step. Failing to write the tokens MUST abandon the transfer rather than
+commit an ownership change the tokens do not follow. The invariant therefore
+holds by construction, and a mismatch can arise only from a failed write. A mismatched row is therefore corrupt state rather than an ordinary
 refusal path: the daemon MUST ignore that token, which then authenticates
 nothing, and MUST report the mismatch twice — as a syslog message at `alert`
 severity and as a daemon log file entry — naming the token's User, Agent and
