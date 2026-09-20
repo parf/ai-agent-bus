@@ -27,8 +27,8 @@ enforces them. The current topic docs still need reconciliation after discussion
 
 ## Persistence and loading
 
-The storage engine is configurable: SQLite by default, with optional MySQL and
-PostgreSQL backends. Durable entities, including credentials, MUST be persisted
+0.7 uses SQLite. Configurable [additional backends](../Plans/R1/storage.md#backends)
+are R1 work. Durable entities, including credentials, MUST be persisted
 in the selected backend. A management change MUST commit as a transaction before
 its new in-memory view is published. All backends MUST preserve the same identity,
 authority and durability rules. Storage access stays behind the existing ports.

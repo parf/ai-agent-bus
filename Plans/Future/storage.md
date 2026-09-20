@@ -1,14 +1,15 @@
 # Storage alternatives
 
-The [0.7 storage selection](../../docs/constitution.md#persistence-and-loading)
-is configurable and owns the supported backend choices.
+The [constitution](../../docs/constitution.md#persistence-and-loading) owns current
+storage direction; [R1 storage](../R1/storage.md#backends) owns additional backends.
 The encryption, replication and runner-storage proposals below remain future
 work; they are not prerequisites for that release.
 
 ## Storage
 
-The earlier adapter-based database proposal is now part of the
-[0.7 storage work](../MVP/0.7.0-TODO.md#storage-and-identity).
+The earlier adapter-based database proposal is split between
+[0.7 storage work](../MVP/0.7.0-TODO.md#storage-and-identity) and
+[R1 adapters](../R1/storage.md#backends).
 
 Built storage is defined in [setup § storage](../../docs/09-setup.md#storage).
 The [0.7 plan](../MVP/0.7.0-TODO.md#storage-and-identity) replaces that backend.

@@ -2,10 +2,12 @@
 
 ## Scope
 
-Proposed, not started. A team or company can run it and expose it. Scope remains subject to the owner’s cut.
+Not started. A team or company can run it and expose it. Additional storage
+backends are owner-assigned; other scope remains proposed and subject to the owner’s cut.
 
 | Topic | Canonical knowledge |
 |---|---|
+| Storage backends (owner-assigned) | [Storage](storage.md#backends) |
 | Identity and policy | [Identity and policy](identity.md#groups-and-roles) |
 | AUTH distribution | [AUTH distribution](auth.md#bundle) |
 | Scoped credentials and encryption | [Scoped credentials and encryption](access.md#token-scope) |
