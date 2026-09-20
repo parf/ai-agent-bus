@@ -88,10 +88,10 @@ and who?" to anyone whose access allows the lookup.
 
 ## Request and reply
 
-**Pending for 0.7:** a 👤 User receives only replies to messages it sent and
-copies from topics it subscribes to. An ordinary `send` to a User is refused,
-and no forwarding route may name one
-([constitution § Channels](constitution.md#-channels)).
+**Pending for 0.7:** a 👤 User receives only replies to messages it sent. An
+ordinary `send` to a User is refused, a User is not a topic recipient, no
+forwarding route may name one, and a User carries no `deliver_to` field of its
+own ([constitution § Channels](constitution.md#-channels)).
 
 Calling a name is not a third verb. It is a **`send` whose reply comes back on
 the same topic + tag**, and the caller waits for it:
@@ -368,7 +368,7 @@ an inbox rather than hand it to whoever is connected.
 | | |
 |---|---|
 | who writes Deliver-To | whoever **manages** the channel — its owner or a Maintainer ([record authority](01-identity-and-roles.md#record-authority)) — at registration and afterwards. Delivery is granted, never taken |
-| who may be on it | 👤 **users** and 👾 **agents**: the kinds that have an inbox here. A 📡 service has none, and a channel is a destination rather than a reader — a 📮 is refused too, its queue being work to be taken rather than a subscriber's inbox, so a topic fans out to readers and never into a queue or another topic |
+| who may be on it | 👤 **users** and 👾 **agents**: the kinds that have an inbox here. A 📡 service has none, and a channel is a destination rather than a reader. **Pending for 0.7:** 👾 agents, 👥 groups, 📮 queues and 📣 topics, but not 👤 users ([constitution § Channels](constitution.md#-channels)) |
 | `@group` | allowed, and **expanded at publication**, nested groups included, each name once. Membership therefore decides delivery when the publish happens, not when the list was written |
 | taking **yourself** off | always allowed, because it is your inbox that fills. Putting yourself back on is the manager's call |
 | checked again at **every publish** | that the recipient still exists, is on the bus and is **active**. A suspended user takes no copies, and neither does a name that has since been unregistered. Neither counts as a drop: there is nothing it was entitled to take |
@@ -396,7 +396,7 @@ sender or the message: whoever owns the queue decides what its fullness
 means. The count of what a ring has dropped is in `status`, because a queue
 that forgets silently looks exactly like one nobody sent to.
 
-**Pending for 0.7:** User, Agent and Queue records may forward under the
+**Pending for 0.7:** Agent and Queue records may forward under the
 kind-specific [channel contract](constitution.md#-channels). That section owns
 forwarding ACL checks, depth and provenance.
 

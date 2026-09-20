@@ -323,28 +323,24 @@ The channel kinds are `user`, `agent`, `queue`, and `pubsub`.
   admit that cohort and nothing wider.
 - `ttl`, `bound`, and `overflow`: allowed on User, Agent, and Queue; invalid on
   PubSub.
-- `deliver_to`: one kind-dependent list. On PubSub it contains typed actor
-  terms. On User, Agent, or Queue it contains zero or one destination channel
-  for forwarding. PubSub refuses destination-channel entries; the other three
-  kinds refuse actor entries and a second destination with an explicit caller
-  error. A whole-field write containing two or more destinations stores nothing.
+- `deliver_to`: one kind-dependent list, carried by 📣, 👾 and 📮 only. On
+  PubSub it is the recipient list. On Agent or Queue it is zero or one
+  destination for forwarding, and a whole-field write containing two or more
+  destinations stores nothing. A 👤 User has no such field.
 
 What an entry means is decided by the record its term resolves to, so the
 daemon MUST resolve it against the registry:
 
 | Field | Accepts |
 |---|---|
-| `deliver_to` on 📣 | 👤, 👾, 👥 |
-| `deliver_to` on 👤 / 👾 / 📮, one slot | 👾, 📮, 📣 |
+| `deliver_to` on 📣 | 👾, 👥, 📮, 📣 |
+| `deliver_to` on 👾 / 📮, one slot | 👾, 📮, 📣 |
 
-Every other term is refused, an unresolvable one included.
-
-A topic delivers copies into recipients' own inboxes, so it takes actors and
-never fans out into a queue or another topic; a 👥 term is expanded at
-publication and its membership is actors only. A 👤 User receives only replies to what it sent
-and copies from topics it subscribes to: it takes no ordinary send and no
-route, though it may forward its own inbox. An entry is refused for its kind
-rather than for permission, and a refusal names the term and stores nothing.
+Every other term is refused, an unresolvable one included. A 👥 term is
+expanded at publication and its membership is actors only. A 👤 User receives
+only replies to what it sent: no ordinary send, no published copy and no
+route. An entry is refused for its kind rather than for permission, and a
+refusal names the term and stores nothing.
 
 For the one-slot form, add succeeds only while empty and returns an error naming
 the occupied field otherwise; remove clears it. Replacing an existing
@@ -357,8 +353,8 @@ When a channel is inactive:
 - PubSub copies addressed to that inactive channel are discarded and counted as
   drops.
 
-**Forwarding — owner-corrected September 20, 2026.** A User, Agent or Queue
-record MAY forward to another channel. For `sender → A → B`, the sender MUST
+**Forwarding — owner-corrected September 20, 2026.** An Agent or Queue record
+MAY forward to another destination. For `sender → A → B`, the sender MUST
 pass A's ACL, and B's ACL MUST list the forwarding record A. The sender needs
 no access to B. Neither the original sender's nor A's Owner's access to B
 substitutes for B allowing A.
