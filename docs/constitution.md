@@ -307,9 +307,9 @@ forwarding redirects a message and never widens access. The forwarding
 principal's own right is what makes the route storable and keeps it usable;
 passing configuration-time validation is not a durable grant. Any current-rule
 refusal rejects the original send with a stated error before anything is stored
-or counted. Route-principal revocation leaves `deliver_to` configured, and a
-later grant allows forwarding again without editing the field. Human faces MUST
-distinguish a configured route from one whose route principal keeps it usable,
+or counted. Losing the Owner's right leaves `deliver_to` configured, and
+regaining it allows forwarding again without editing the field. Human faces MUST
+distinguish a configured route from one the Owner's current right keeps usable,
 and MUST NOT claim that a usable route admits every sender.
 
 A forwarded envelope retains the original sender and MUST carry one
