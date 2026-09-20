@@ -17,7 +17,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 ## Constitution forwarding
 
-The [constitution](../../docs/constitution.md#messaging-and-runtime) accepts
+The [constitution](../../docs/constitution.md#forwarding-details) accepts
 forwarding; its delivery release is unassigned. Remaining choices:
 
 - Loop detection.

@@ -6,7 +6,7 @@ Generic undecided or unassigned plans. This directory is not a release and carri
 
 | Topic | Canonical knowledge |
 |---|---|
-| Constitution additions | [Intended model](../../docs/constitution.md#status); implementation release unassigned |
+| Constitution additions | [Intended model](../../docs/constitution.md#project-constitution); implementation release unassigned |
 | Billing | [Billing](billing.md#billing-role--future) |
 | LDAP and AD | [LDAP and AD](ldap-ad.md#ldap--active-directory--future) |
 | Public directory | [Public directory](public-directory.md#a-public-directory-of-people-and-their-keys) |
