@@ -295,8 +295,9 @@ When a channel is inactive:
 **Forwarding — owner-accepted September 19, 2026.** A User, Agent or Queue record
 MAY forward to another channel. The destination MUST NOT be stored unless the
 forwarding principal may write to it under the node's current access rules.
-That principal is the record's owning User, except on an Agent record, where it
-is the Agent principal that reads the inbox.
+That principal is the forwarding record's Owner, on every kind including an
+Agent record: a record MUST NOT route traffic anywhere its Owner could not send
+it.
 
 Delivery applies the destination's current rules as if the message had been
 addressed there directly: access, active state, TTL and deadline, bound,
