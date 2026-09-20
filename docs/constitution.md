@@ -333,19 +333,21 @@ What makes an entry one sort or the other is the record a term resolves to,
 not a separate spelling, so the daemon MUST resolve it: the term has to name an
 existing registry record, and that record's stored kind decides the answer.
 
-A forwarding destination MUST be a channel — `user`, `agent`, `queue` or
-`pubsub`, the kinds that have an inbox. A 📡 Service is not one, and neither is
-a 👥 Group: a group is an actor, not somewhere a message lands. A term naming no
-record is refused as well, since the destination has to exist for its ACL to be
-checked against the forwarding record.
+A forwarding destination MUST be an 👾 `agent`, 📮 `queue` or 📣 `pubsub`
+record. A 👤 User is not a destination: a route is written to something that
+serves, not to a person. A 📡 Service has no inbox at all, and a 👥 Group is an
+actor rather than somewhere a message lands. A term naming no record is refused
+as well, since the destination has to exist for its ACL to be checked against
+the forwarding record.
 
 On a PubSub, `deliver_to` says who receives a copy, and each copy lands in the
 recipient's own inbox, so that list holds actors: 👤 User, 👾 Agent and 👥 Group
 terms. A 📮 Queue or 📣 PubSub term is refused there, those two kinds being
 destinations rather than readers, so a topic cannot fan out into a queue or
-chain into another topic. 👤 and 👾 are both actors and channels, so the same
+chain into another topic. 👾 is both an actor and a destination, so the same
 term may be valid in either role; what each kind refuses is the terms outside
-its own role, never a different spelling.
+its own role, never a different spelling. A 👤 User is the asymmetric one: it
+takes published copies as a recipient, yet no route may be pointed at it.
 
 An entry is refused for its kind, not for permission — the caller's right to
 use that record elsewhere makes it neither a recipient nor a destination — and
