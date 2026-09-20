@@ -89,6 +89,24 @@ when state is loaded and rebuilt after a reload.
 The API MUST provide atomic add and remove operations for list fields such as
 `allow`, `maintainers`, `members`, and `deliver_to`.
 
+## Errors and alerts
+
+A conceptual error is a condition this model says cannot occur: a violated
+invariant, corrupt stored state, or a failure that leaves the daemon unable to
+answer with authority. An ordinary refusal is not one — a malformed request, a
+denied permission or an unknown name is answered to its caller and reported
+nowhere else.
+
+Every conceptual error and every alert MUST go to syslog at a severity matching
+the condition, and the same message MUST also be written to the daemon's error
+log. Reporting to one destination is not enough: syslog is what reaches an
+operator who is not reading the daemon's files, and the error log is what stays
+beside its other output. Neither copy may contain a token, secret,
+configuration value or message body.
+
+This is separate from [entity-edit logging](#-registry-record), which records
+authorized edits rather than impossible states.
+
 ## Entities
 
 ### 👤 User
@@ -151,9 +169,9 @@ later step. Failing to write the tokens MUST abandon the transfer rather than
 commit an ownership change the tokens do not follow. The invariant therefore
 holds by construction, and a mismatch can arise only from a failed write. A mismatched row is therefore corrupt state rather than an ordinary
 refusal path: the daemon MUST ignore that token, which then authenticates
-nothing, and MUST report the mismatch twice — as a syslog message at `alert`
-severity and as a daemon log file entry — naming the token's User, Agent and
-current Owner but never the credential value. It MUST NOT repair the row,
+nothing, and MUST report the mismatch as a conceptual error at `alert`
+severity through [both destinations](#errors-and-alerts), naming the token's
+User, Agent and current Owner. It MUST NOT repair the row,
 reinterpret it as a User token, or treat the condition as routine.
 
 `last_used_at` follows the [statistics persistence schedule](10-modules.md#statistics-persistence).
