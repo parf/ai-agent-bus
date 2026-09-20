@@ -27,10 +27,11 @@ enforces them. The current topic docs still need reconciliation after discussion
 
 ## Persistence and loading
 
-SQLite is the durable store for 0.7. Durable entities, including credentials,
-MUST be persisted there. A management change MUST commit as a SQLite transaction
-before its new in-memory view is published. Storage access stays behind the
-existing ports.
+The storage engine is configurable: SQLite by default, with optional MySQL and
+PostgreSQL backends. Durable entities, including credentials, MUST be persisted
+in the selected backend. A management change MUST commit as a transaction before
+its new in-memory view is published. All backends MUST preserve the same identity,
+authority and durability rules. Storage access stays behind the existing ports.
 
 All durable entities MUST be loaded into memory at startup.
 
