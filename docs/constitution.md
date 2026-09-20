@@ -330,18 +330,29 @@ The channel kinds are `user`, `agent`, `queue`, and `pubsub`.
   error. A whole-field write containing two or more destinations stores nothing.
 
 What makes an entry one sort or the other is the record a term resolves to,
-not a separate spelling. A destination-channel entry is a term naming a 📮
-`queue` or 📣 `pubsub`; an actor entry is a 👤 User, 👾 Agent or 👥 Group term.
+not a separate spelling, so the daemon MUST resolve it: the term has to name an
+existing registry record, and that record's stored kind decides the answer.
+
+A forwarding destination MUST be a channel — `user`, `agent`, `queue` or
+`pubsub`, the kinds that have an inbox. A 📡 Service is not one, and neither is
+a 👥 Group: a group is an actor, not somewhere a message lands. A term naming no
+record is refused as well, since the destination has to exist for its ACL to be
+checked against the forwarding record.
 
 On a PubSub, `deliver_to` says who receives a copy, and each copy lands in the
-recipient's own inbox, so only actors belong there: a channel is a destination
-rather than a reader, and a 📡 Service has no inbox at all. A PubSub therefore
-cannot fan out into a Queue or chain into another PubSub. The entry is refused
-for its kind, not for permission — the caller's right to use that channel
-elsewhere does not make it a recipient — and the refusal names the offending
-term and stores nothing, because one invalid term rejects the complete update.
-A 👥 Group term is allowed and expanded at publication, and Group membership is
-itself restricted to actors, so no channel reaches the list through a group.
+recipient's own inbox, so that list holds actors: 👤 User, 👾 Agent and 👥 Group
+terms. A 📮 Queue or 📣 PubSub term is refused there, those two kinds being
+destinations rather than readers, so a topic cannot fan out into a queue or
+chain into another topic. 👤 and 👾 are both actors and channels, so the same
+term may be valid in either role; what each kind refuses is the terms outside
+its own role, never a different spelling.
+
+An entry is refused for its kind, not for permission — the caller's right to
+use that record elsewhere makes it neither a recipient nor a destination — and
+the refusal names the offending term and stores nothing, because one invalid
+term rejects the complete update. A Group term on a PubSub is expanded at
+publication, and Group membership is itself restricted to actors, so no Queue
+or PubSub reaches that list through a group.
 
 For the one-slot form, add succeeds only while empty and returns an error naming
 the occupied field otherwise; remove clears it. Replacing an existing
