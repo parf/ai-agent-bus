@@ -9,7 +9,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q1 | Per-method pricing needs the method name in the envelope | owner | [future/billing.md](billing.md#billing-role--future) |
 | Q2 | A newcomer with no balance cannot reach `pay` | owner | [future/billing.md](billing.md#billing-role--future) |
 | Q3 | Direct talk bypasses billing | owner | [future/billing.md](billing.md#billing-role--future) |
-| Q8 | What else lives in the store, and whether RocksDB replaces it — holding the daemon's and the runner's data encrypted and replicating itself, linked in or a unit of its own | owner | [storage alternatives](storage.md#storage) |
+| Q8 | What additional runner data and encrypted/replicated storage belong beyond the selected 0.7 persistence scope | owner | [storage alternatives](storage.md#storage) |
 | Q74 | Which release carries directional access, and whether an existing single list becomes the read list, the write list or both when it is introduced | owner | [directional access](acl-direction.md#where-direction-is-needed) |
 | Q11 | OpenCode (Z.AI) push path | one spike | [runner § adapters](../../docs/08-runner-role.md#adapters) |
 | Q24 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [public directory](public-directory.md#a-public-directory-of-people-and-their-keys) |

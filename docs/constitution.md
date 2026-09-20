@@ -27,6 +27,11 @@ enforces them. The current topic docs still need reconciliation after discussion
 
 ## Persistence and loading
 
+SQLite is the durable store for 0.7. Durable entities, including credentials,
+MUST be persisted there. A management change MUST commit as a SQLite transaction
+before its new in-memory view is published. Storage access stays behind the
+existing ports.
+
 All durable entities MUST be loaded into memory at startup.
 
 Normal management APIs MUST validate and persist a complete change before it

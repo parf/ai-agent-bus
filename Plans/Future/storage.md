@@ -1,6 +1,8 @@
 # Storage alternatives
 
-Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-questions).
+SQLite is selected for [0.7 persistence](../../docs/constitution.md#persistence-and-loading).
+The encryption, replication and runner-storage proposals below remain future
+work; they are not prerequisites for that release.
 
 ## Storage
 
@@ -8,9 +10,10 @@ An earlier proposal preferred SQLite (single file, zero ops), with MySQL/Postgre
 the `store` port — swapping one for another is a single adapter
 ([modules](../../docs/10-modules.md#layers-and-modules)).
 
-Current storage is defined in [setup § storage](../../docs/09-setup.md#storage). The database defaults in this proposal have not been selected for the MVP.
+Built storage is defined in [setup § storage](../../docs/09-setup.md#storage).
+The [0.7 plan](../MVP/0.7.0-TODO.md#storage-and-identity) replaces that backend.
 
-**RocksDB is the owner-preferred candidate.** The desired replacement would hold the daemon's data *and* the runner's, **encrypted at rest** — one
+**Earlier proposal, superseded for 0.7 by SQLite.** RocksDB was the preferred candidate for a replacement holding the daemon's data *and* the runner's, **encrypted at rest** — one
 store instead of a token file, a dump file, a snapshot and a directory of env
 files, each protected only by its mode. The catalogue proposes a `kvrocks` wrapper; its RocksDB engine and its server-level features must be distinguished before treating them as the same solution ([bundled services § data](../R1.1/services.md#data)),
 Reusing infrastructure is the motivation, not evidence that the library provides the server’s properties.
