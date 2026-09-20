@@ -33,11 +33,20 @@ in the selected backend. A management change MUST commit as a transaction before
 its new in-memory view is published. All backends MUST preserve the same identity,
 authority and durability rules. Storage access stays behind the existing ports.
 
+Only one active daemon MAY use a database. The daemon MUST establish exclusive
+ownership before serving, reject a competing instance and stop serving if it
+loses that exclusivity. This applies to every supported backend.
+
 All durable entities MUST be loaded into memory at startup.
 
 Normal management APIs MUST validate and persist a complete change before it
 becomes visible in memory. Invalid input MUST make the whole write fail
 atomically.
+
+Write-through identity changes MUST invalidate stale credentials and grants in
+both durable state and memory. Removing or replacing a principal includes its
+ACL, Maintainer, Group-member and Deliver-To references in the complete change;
+reusing its name MUST NOT inherit the former principal's authority or deliveries.
 
 This is write-through behavior: memory serves the loaded view, and a management
 write updates durable state before publishing the changed view. The existing
