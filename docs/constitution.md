@@ -154,8 +154,9 @@ is not evidence that such objects exist on a running node.
 Every direct edit to a User, registry record, or Group MUST write one daemon log
 file entry with the actor, operation, target, result, and client IP when one
 exists. The actor MUST be the authenticated User or Agent. A Unix socket request
-has no client IP and MUST NOT invent one. Credential operations, lifecycle-state
-changes, reads, sends, and consumes MUST NOT write entity-edit entries.
+has no client IP and MUST NOT invent one. A change to an entity's `status`
+between `active` and `inactive` is such an edit and MUST be logged. Credential
+operations, reads, sends, and consumes MUST NOT write entity-edit entries.
 
 Logs MUST NEVER contain sensitive information. Current examples include tokens,
 secret bodies, configuration bodies, and message bodies.
