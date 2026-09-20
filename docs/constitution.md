@@ -332,10 +332,12 @@ The channel kinds are `user`, `agent`, `queue`, and `pubsub`.
 What an entry means is decided by the record its term resolves to, so the
 daemon MUST resolve it against the registry:
 
-| Field | Accepts | Refuses |
-|---|---|---|
-| `deliver_to` on 📣 | 👤, 👾, 👥 | 📮, 📣, 📡, no such record |
-| `deliver_to` on 👤 / 👾 / 📮, one slot | 👾, 📮, 📣 | 👤, 👥, 📡, no such record, a second entry |
+| Field | Accepts |
+|---|---|
+| `deliver_to` on 📣 | 👤, 👾, 👥 |
+| `deliver_to` on 👤 / 👾 / 📮, one slot | 👾, 📮, 📣 |
+
+Every other term is refused, an unresolvable one included.
 
 A topic delivers copies into recipients' own inboxes, so it takes actors and
 never fans out into a queue or another topic; a 👥 term is expanded at
