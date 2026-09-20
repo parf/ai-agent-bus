@@ -152,10 +152,13 @@ non-User records do not describe this intended model. Their presence in the docs
 is not evidence that such objects exist on a running node.
 
 Every direct edit to a User, registry record, or Group MUST write one daemon log
-file entry with the actor, operation, target, and result. Credential operations,
-lifecycle-state changes, reads, sends, and consumes MUST NOT write entity-edit
-entries. The entry MUST NOT contain tokens, secret bodies, configuration bodies,
-or message bodies.
+file entry with the actor, operation, target, result, and client IP when one
+exists. The actor MUST be the authenticated User or Agent. A Unix socket request
+has no client IP and MUST NOT invent one. Credential operations, lifecycle-state
+changes, reads, sends, and consumes MUST NOT write entity-edit entries.
+
+Logs MUST NEVER contain sensitive information. Current examples include tokens,
+secret bodies, configuration bodies, and message bodies.
 
 Every field MUST be validated and normalized according to its own contract.
 Secrets and configuration MUST pass their required format validation before a
