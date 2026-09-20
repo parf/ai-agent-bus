@@ -228,14 +228,17 @@ the stored term keeps the marker. A bare `alice@team` in such a list therefore
 names a User and nothing else: without the marker nothing in `xx@yy` says
 whether a User or an Agent was meant.
 
-| Actor | Textarea term | Stored term |
-|---|---|---|
-| 👤 User | `alice@team` | `alice@team` |
-| 👾 Agent | `#worker@team` | `#worker@team` |
-| 👥 Group | `@support` | `@support` |
-| Existing ACL wildcard | `*` | runtime wildcard |
-| Owner and its directly owned Agents | `@owner` | runtime ownership term |
-| The record's own Agent | `@agent` | runtime alias for that principal |
+| Actor | Term |
+|---|---|
+| 👤 User | `alice@team` |
+| 👾 Agent | `#worker@team` |
+| 👥 Group | `@support` |
+| Existing ACL wildcard | `*` |
+| Owner and its directly owned Agents | `@owner` |
+| The record's own Agent | `@agent` |
+
+A term is stored exactly as it is written. The last three resolve at each check
+instead of naming a stored entity, and only the first three may be created.
 
 The existing [ACL rules](02-access.md#acl), including the empty-list default,
 wildcard eligibility and `@owner`, remain in force unless explicitly revised.
