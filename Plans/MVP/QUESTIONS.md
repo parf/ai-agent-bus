@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** Settle the remaining forwarding mechanics and audit-retention default for 0.7.
+📌 **TL;DR:** Settle the remaining forwarding and audit choices for 0.7.
 
 ## Open questions
 
@@ -38,6 +38,8 @@ message and increments that destination's own `dropped`.
 | ID | Question | Blocks |
 |---|---|---|
 | Q86 | What finite retention default ships for durable audit events? The mechanism is settled and tested with an overridden bound of three; the production default still needs an owner value. | [K.14](0.7.0-TODO.md#authority-and-lifecycle) |
+| Q92 | Does the audit cover only management and registry changes, or also every message send and consume? | [K.14](0.7.0-TODO.md#authority-and-lifecycle) |
+| Q93 | Who may read audit events, through which faces, and may a record Owner read only events for their records? | [K.14](0.7.0-TODO.md#authority-and-lifecycle) |
 
 Settled and deferred choices remain in the
 [decision index](../../docs/decisions.md#settled); their IDs remain reserved.

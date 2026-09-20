@@ -151,10 +151,15 @@ The current documentation's agent-owned records, ownership chains and self-owned
 non-User records do not describe this intended model. Their presence in the docs
 is not evidence that such objects exist on a running node.
 
-Every modifying operation MUST be audited with the actor, operation, target,
-result, request ID, and origin address when one exists. Audit logs MUST NOT
-contain tokens, secret bodies, configuration bodies, or message bodies. A Unix
-socket request has no client IP and must not invent one.
+Every operation in the audit scope settled by Q92 MUST be recorded with the
+actor, operation, target, result, request ID, and origin address when one
+exists. Audit logs MUST NOT contain tokens, secret bodies, configuration
+bodies, or message bodies. A Unix socket request has no client IP and must not
+invent one.
+
+[Q92 and Q93](../Plans/MVP/QUESTIONS.md#constitution-audit-retention) must
+settle which operations produce audit events and who may read them before this
+requirement is implemented. No face may infer audit-read authority.
 
 The daemon assigns a request ID at the trusted API boundary and returns it so
 CLI, MCP and web faces can carry the same value in errors and logs. Audit events
@@ -302,11 +307,14 @@ Agent record uses its owning User or the Agent principal for that check.
 
 Delivery applies the destination's current rules as if the message had been
 addressed there directly: access, active state, TTL and deadline, bound,
-overflow policy and counters. The forwarding principal, rather than the
-original sender, supplies the access check; Q87 settles which principal an
-Agent record uses. Passing configuration-time validation is not a durable
-grant. Any current-rule refusal rejects the original send with a stated error
-before anything is stored or counted. Revocation leaves `deliver_to` configured,
+overflow policy and counters. The route itself grants nothing: the destination's
+access check applies to the original sender exactly as for a direct send, so
+forwarding redirects a message and never widens access. The forwarding
+principal's own right is what makes the route storable and keeps it usable, and
+Q87 settles which principal an Agent record uses for that; passing
+configuration-time validation is not a durable grant. Any current-rule refusal
+rejects the original send with a stated error before anything is stored or
+counted. Revocation leaves `deliver_to` configured,
 and a later grant allows forwarding again without editing the field. Human
 faces MUST distinguish a configured destination from one currently accepting
 forwarded writes. Remaining forwarding details are tracked in
