@@ -28,14 +28,26 @@ enforces them. The current topic docs still need reconciliation after discussion
 ## Persistence and loading
 
 0.7 uses SQLite. Configurable [additional backends](../Plans/R1/storage.md#backends)
-are R1 work. Durable entities, including credentials, MUST be persisted
-in the selected backend. A management change MUST commit as a transaction before
-its new in-memory view is published. All backends MUST preserve the same identity,
-authority and durability rules. Storage access stays behind the existing ports.
+are R1 work. Durable entities, credentials, queue contents and durable per-queue
+counters MUST be persisted in the selected backend. A management change MUST
+commit as a transaction before its new in-memory view is published. All backends
+MUST preserve the same identity, authority and durability rules. Storage access
+stays behind the existing ports.
+
+Queue contents and their `in`, `out`, `dropped`, and `expired` counters retain
+the existing [checkpoint boundary](04-messaging.md#durability): they update in
+memory during traffic and flush as one consistent batch every minute and on
+graceful shutdown. There is no database write per message. A crash MAY lose
+queue changes since the last successful flush. The JSON dump is cutover input,
+not a second runtime store after 0.7 activation. Startup MUST reject a durable
+queue whose record is absent or cannot hold a queue; it MUST NOT silently drop or
+reattach that backlog.
 
 Only one active daemon MAY use a database. The daemon MUST establish exclusive
-ownership before serving, reject a competing instance and stop serving if it
-loses that exclusivity. This applies to every supported backend.
+ownership before serving and reject a competing instance. After losing that
+exclusivity, it MUST refuse every read and write with a stated reason and MUST
+NOT answer from its cached view. This observable rule does not prescribe whether
+the process remains running or exits. It applies to every supported backend.
 
 All durable entities MUST be loaded into memory at startup.
 
@@ -44,22 +56,32 @@ becomes visible in memory. Invalid input MUST make the whole write fail
 atomically.
 
 Write-through identity changes MUST invalidate stale credentials and grants in
-both durable state and memory. Removing or replacing a principal includes its
-ACL, Maintainer, Group-member and Deliver-To references in the complete change;
-reusing its name MUST NOT inherit the former principal's authority or deliveries.
+both durable state and memory. Reusing a record name MUST NOT inherit the former
+record's authority or deliveries. Users are never removed. Ownership transfer
+updates the owned record, commits it, and publishes the new complete in-memory
+view; it does not rewrite unrelated records. Removing an Agent or record is
+different: the same transaction MUST remove every stored ACL, Maintainer,
+Group-member and Deliver-To reference to that name. A later record with the same
+name starts with no authority or delivery inherited from the removed record.
+
+After a transaction commits, core MUST construct and publish one complete new
+view rather than mutate the live maps in place. If publication cannot complete,
+the daemon MUST refuse every read and write with a stated reason rather than
+answer with authority older than the committed state. This observable rule does
+not prescribe whether the process remains running or exits. This invariant
+applies to record lifecycle changes even though 0.7 does not add an exhaustive
+deletion-specific crash matrix.
 
 This is write-through behavior: memory serves the loaded view, and a management
 write updates durable state before publishing the changed view. The existing
 [persistence-failure contract](04-messaging.md#administrative-crash-recovery)
-allows a failed write to remain applied in memory; that wording needs explicit
-reconciliation with this ordering, not an assumption that both promises agree.
+is labeled as built through 0.6; its memory-before-persistence failure behavior
+is replaced in 0.7 by this ordering.
 
 A future reload API or SIGHUP (`kill -HUP <pid>`) MAY reload durable entities.
-Reloading MUST replace one complete in-memory view with another; callers must
-never observe a partly reloaded state. Queue and active-reader behavior during
-reload MUST follow the existing restart behavior, including the
-[queue durability boundary](04-messaging.md#durability); reload does not
-introduce a separate queue-retention or reader-resumption policy.
+If added, reloading MUST replace one complete in-memory view with another;
+callers must never observe a partly reloaded state. It is not required for
+ownership transfer or any other 0.7 operation.
 
 Derived indexes, such as token → principal and user ID → status, MUST be built
 when state is loaded and rebuilt after a reload.
@@ -87,10 +109,11 @@ The API MUST provide atomic add and remove operations for list fields such as
 - `created_at`, `updated_at`, and `last_used_at`.
 - `status`: `active` or `inactive`. This model has no separate `banned` state.
 
-`inactive` replaces the former paused/banned distinction. Removing that
-distinction does not itself introduce credential revocation or queue deletion;
-the existing [suspension behavior](01-identity-and-roles.md#user-states)
-must be reconciled using the two-state vocabulary.
+`inactive` replaces the former paused/banned distinction under the owning
+[User-state contract](01-identity-and-roles.md#user-states): an Administrator
+may reactivate an ordinary User but cannot change another Administrator, only
+the daemon Owner may reactivate an inactive Administrator, and no second
+suspension level remains.
 
 ### 😈 Daemon
 
@@ -132,6 +155,13 @@ Every modifying operation MUST be audited with the actor, operation, target,
 result, request ID, and origin address when one exists. Audit logs MUST NOT
 contain tokens, secret bodies, configuration bodies, or message bodies. A Unix
 socket request has no client IP and must not invent one.
+
+The daemon assigns a request ID at the trusted API boundary and returns it so
+CLI, MCP and web faces can carry the same value in errors and logs. Audit events
+are durable records in the selected backend. A successful change and its success
+event MUST commit together. The audit store MUST have an explicit finite
+retention policy; reaching that bound removes the oldest eligible events rather
+than growing without limit.
 
 Every field MUST be validated and normalized according to its own contract.
 Secrets and configuration MUST pass their required format validation before a
@@ -231,10 +261,11 @@ MUST then be validated. Proposed changes MUST NOT supply their own authority.
 Checking and applying a multi-field update MUST be one atomic operation.
 
 Ownership transfer is an ordinary authorized record change: the old Owner
-changes the owner, the daemon persists and publishes the new state, and subsequent
-authority checks use the new Owner. Restart loads that same saved ownership; it
-does not authorize the transfer again or restore the old Owner. A restart is not
-required for the change to take effect.
+changes the owner, the daemon commits that record update and publishes the new
+complete view, and subsequent authority checks use the new Owner. The update
+does not walk or rewrite unrelated records; runtime terms such as `@owner`
+resolve against the new published owner. Restart loads that same saved
+ownership; it does not authorize the transfer again or restore the old Owner.
 
 ## Kind-specific fields
 
@@ -246,8 +277,16 @@ The channel kinds are `user`, `agent`, `queue`, and `pubsub`.
   ACL and Maintainer rules.
 - `ttl`, `bound`, and `overflow`: allowed on User, Agent, and Queue; invalid on
   PubSub.
-- `deliver_to`: on PubSub, contains typed actor terms; on User, Agent or Queue,
-  may designate a destination channel for forwarding as described below.
+- `deliver_to`: one kind-dependent list. On PubSub it contains typed actor
+  terms. On User, Agent, or Queue it contains zero or one destination channel
+  for forwarding. PubSub refuses destination-channel entries; the other three
+  kinds refuse actor entries and a second destination with an explicit caller
+  error. A whole-field write containing two or more destinations stores nothing.
+
+For the one-slot form, add succeeds only while empty and returns an error naming
+the occupied field otherwise; remove clears it. Replacing an existing
+destination is an explicit whole-field write, never an add that silently
+overwrites a concurrent choice. One invalid entry rejects the complete update.
 
 When a channel is inactive:
 
@@ -259,6 +298,12 @@ When a channel is inactive:
 MAY forward to another channel. The User or Agent MUST have access to the
 destination channel. Remaining forwarding
 details are tracked in [open questions](#forwarding-details).
+
+Forwarding has a maximum depth of one. If the selected destination itself has a
+forwarding destination, the second hop is an explicit error and no second
+message is stored. [Q85](../Plans/MVP/QUESTIONS.md#constitution-forwarding)
+must settle who receives that error. Forwarding adds no TTL or deadline policy:
+the destination queue applies the ordinary queue and message rules.
 
 ### 📡 Service
 
@@ -322,21 +367,25 @@ but cannot own it.
 Nested-group resolution MUST use a visited set. Cycles must terminate and grant
 membership only when a finite path reaches the requested actor.
 
-The protected `@administrators` group retains its daemon-Owner-only membership
-rule. Ordinary Group ownership or Maintainer assignment MUST NOT bypass that
-boundary; its interaction with the new fields must be specified before the
-Group-maintainer model is implemented.
+The protected `@administrators` group is outside the ordinary Group authority
+model. It has neither a Group Owner nor Maintainers, and only the daemon Owner
+may change its direct membership. Ordinary Group ownership or Maintainer
+assignment MUST NOT bypass that boundary.
 
 ## Open questions
+
+The plan's [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns the
+authority, reference-lifecycle and cutover choices linked above. The remaining
+forwarding choices are summarized here because they define that feature's
+boundary.
 
 ### Forwarding details
 
 Forwarding and the destination-access requirement are settled. Implementation
 still needs to define:
 
-- loop detection;
 - which User or Agent supplies forwarding authority and when access is checked;
-- TTL and deadline behavior;
 - overflow and failure accounting;
 - sender attribution;
-- whether an `original_to` envelope field is required.
+- whether an `original_to` envelope field is required;
+- who receives the explicit second-hop error (Q85).

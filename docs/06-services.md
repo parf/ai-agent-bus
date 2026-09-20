@@ -7,7 +7,7 @@
 | MVP | Scope |
 |---|---|
 | Built | The [record](#what-a-service-is), its required address and [protocol](#how-to-call-it), the [refusals](#it-has-no-queue-here) that follow from having no queue, restore asking the same question, and [secrets](#secrets). |
-| Pending | Nothing here. |
+| Pending | 0.7 [env-file validation](#secrets); the cutover inventory names existing nonconforming secrets, which must be fixed before activation. |
 
 ## What a service is
 
@@ -109,9 +109,15 @@ has a credential, whether a write landed, whether it has been rotated since,
 and whether two hosts hold the same one.
 
 **A secret is not [registry configuration](03-records.md#configuring-a-template).**
-They are the same shape — an opaque blob the daemon never reads inside, absent
-from every listing, represented by a digest in any ordinary answer — and their
-mechanics differ at every other point:
+Through 0.6 they are the same shape — an opaque blob the daemon never reads
+inside, absent from every listing, represented by a digest in any ordinary
+answer — and their mechanics differ at every other point:
+
+The table below describes behavior built through 0.6. **Pending for 0.7,** the
+owner has replaced the opaque-content rule with
+[basic env-file validation](constitution.md#-service). There is no legacy
+exception: the cutover inventory names a nonconforming stored secret by Service
+and digest, and activation waits for the operator to replace or remove it.
 
 | | Configuration | Secret |
 |---|---|---|
@@ -120,13 +126,12 @@ mechanics differ at every other point:
 | Who reads it | the named record alone, and its owner is refused too | whoever the record's [ACL](02-access.md#acl) admits; no second list |
 | What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
 
-**The daemon does not read inside a secret.** `KEY=value` lines are what
-callers agree to write, not a grammar anything checks: blank lines, comments,
-`export`, duplicate keys and an invalid identifier are all the caller's
-business, and a malformed secret is discovered by whatever uses it. Only an
-empty secret is refused, because it reads back exactly like never having set
-one. This is the promise [configuration](03-records.md#configuring-a-template)
-already makes, and it is the cheaper one to keep.
+**Built through 0.6, the daemon does not read inside a secret.** `KEY=value`
+lines are what callers agree to write, not a grammar anything checks: blank
+lines, comments, `export`, duplicate keys and an invalid identifier are all the
+caller's business, and a malformed secret is discovered by whatever uses it.
+Only an empty secret is refused, because it reads back exactly like never having
+set one. The pending 0.7 rule above replaces this content contract.
 
 The rule that configuration never leaves the daemon for anyone but its own
 record is unchanged by this.

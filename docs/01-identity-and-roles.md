@@ -170,6 +170,14 @@ cannot; the records they directly own are suspended too. Suspension keeps
 credentials and queued work, stops no process, and is reversible. Users are
 not deleted in MVP.
 
+**Pending for 0.7:** paused and banned become one `inactive` state, with no
+second suspension level. Users remain non-deletable. An active Administrator or
+the daemon Owner may reactivate an inactive ordinary User. An Administrator may
+not change another Administrator; only the daemon Owner may reactivate an
+inactive Administrator. The daemon Owner must remain active. Agent ownership is
+also removed: after cutover, suspension follows each record's mapped direct User
+owner, so the ownership-chain exception below no longer exists in the 0.7 model.
+
 **An active, authorized caller may drain an inactive identity's inbox.** The
 target's inactivity alone does not block reading queued work; new deliveries
 remain refused. This is existing behavior.

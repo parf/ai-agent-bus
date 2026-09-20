@@ -393,18 +393,27 @@ that forgets silently looks exactly like one nobody sent to.
 
 ## Durability
 
-Queues, registry records and counters are snapshotted together through the
-`dump` port. The MVP adapter writes **JSON**, on startup, on graceful shutdown,
-optionally periodically, and before administrative success. Delivery checks message expiry after reload.
-A drained inbox remains drained across subsequent snapshots.
+Through 0.6, queues, registry records and counters are snapshotted together
+through the `dump` port. The built adapter writes **JSON**, on startup, on
+graceful shutdown, optionally periodically, and before administrative success.
+Delivery checks message expiry after reload. A drained inbox remains drained
+across subsequent snapshots.
 
 The snapshot records whether shutdown was clean. A start after an unclean stop
 reports the potential gap since the last snapshot. Traffic after that snapshot
 may be lost; a consumer being offline is different, because its queue remains
 in the running daemon.
 
-Credentials use their own [store](09-setup.md#storage). Uptime and browser
-sessions describe the current process lifetime, not recovered state.
+Through 0.6, credentials use their own [store](09-setup.md#storage). Uptime and
+browser sessions describe the current process lifetime, not recovered state.
+
+**Pending for 0.7:** SQLite becomes the one runtime durability store for records,
+credentials, queue contents and the four per-queue counters. Traffic updates
+queues in memory and flushes queue state as one batch every minute and on
+graceful shutdown; it does not write once per message. The same crash-loss
+window therefore remains. Management changes commit immediately. The JSON dump
+is read only by the offline cutover and is not kept as a second runtime store.
+Startup refuses a queue whose durable record is absent or cannot hold one.
 
 ## Administrative crash recovery
 
@@ -426,10 +435,17 @@ configuration, subscriptions and record removal. The snapshot also captures
 queued traffic at that instant, but individual message acknowledgements retain
 the [existing durability boundary](#durability).
 
-A persistence failure returns an error, not success. The change may already be
-applied in memory or on disk: an error does **not** promise rollback. Correct the
-storage failure and explicitly retry. In particular, a failed ban write does
-not quietly lift the in-memory ban.
+**Built through 0.6:** a persistence failure returns an error, not success, but
+the change may already be applied in memory or on disk; an error does not promise
+rollback. Correct the storage failure and explicitly retry. In particular, a
+failed paused/banned-state write does not quietly lift the in-memory state.
+
+**Pending for 0.7:** every management change validates and commits before its
+new complete in-memory view is published. A validation or pre-commit failure
+publishes nothing. If the commit succeeds but publication cannot complete, the
+daemon refuses every read and write with a stated reason rather than answer from
+the older view. This replaces the built-through-0.6 memory-first failure
+behavior; `inactive` also replaces the separate paused/banned states.
 
 Browser sessions remain process-local; after restart, callers sign in again.
 Persistent tokens and mapped sockets are checked against the recovered policy.

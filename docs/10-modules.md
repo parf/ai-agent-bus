@@ -29,7 +29,11 @@ Pending requirements for the [0.7 work](../Plans/MVP/0.7.0-TODO.md#verification)
   Add abstractions for shared behavior or replaceable dependencies, not one
   interface per type or a generic CRUD framework.
 - Management writes persist affected state rather than rewriting the registry
-  and queue backlog. Preserve write-through ordering and queue durability.
+  and queue backlog. Ownership transfer is one ordinary committed record update,
+  followed by atomic publication of the new complete in-memory view; it neither
+  reloads storage nor rewrites unrelated durable records. Agent/record removal
+  is the explicit multi-record exception because it clears every stored
+  reference to the removed name in one transaction.
 - Serve registry and authority reads from the loaded memory view. Maintain
   indexes where measured access patterns justify them; keep invalidation with
   the corresponding state change.
@@ -47,10 +51,13 @@ lose updates since the last successful flush. Retain dirty updates after failed
 flushes and preserve increments arriving during a flush. Retry on the next
 scheduled flush without double-counting already committed values.
 
-Data changes persist immediately through write-through persistence. Statistics
-batches may update last-use timestamps but must not rewrite policy, credential
-material or queue contents; queue persistence keeps its
-existing [durability boundary](04-messaging.md#durability).
+Data changes persist immediately through write-through persistence. Queue
+contents and their `in`, `out`, `dropped`, and `expired` counters form queue
+state: they flush together every minute and on graceful shutdown, preserving
+the [durability boundary](04-messaging.md#durability) and the distinction
+between a drained queue and a never-used one without a write per message.
+Other statistics batches may update last-use timestamps. Neither batch may
+rewrite policy or credential material.
 
 ## Modules
 
