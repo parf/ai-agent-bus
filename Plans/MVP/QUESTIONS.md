@@ -18,14 +18,14 @@ forwarding with destination access. These choices block
 
 | ID | Question |
 |---|---|
-| Q87 | For an Agent record, is destination access checked as its owning User or as the Agent principal that reads the inbox? User and Queue records use their owning User. |
+| Q87 | For an Agent record, does the right that makes a forwarding route valid come from its owning User or from the Agent principal that reads its inbox? User and Queue routes use their owning User. Delivery separately checks the original sender under the destination's rules. |
 
 The maximum forwarding depth is one. A send whose destination would forward
 again is refused before storage. Loop detection and forwarding-specific TTL or
-deadline rules are settled as unnecessary and are not open choices. Access is
-checked twice: invalid destinations cannot be configured, and each delivery
-uses the current node state. Q87 settles which principal that check uses for an
-Agent record. A forwarded envelope carries the required single-valued
+deadline rules are settled as unnecessary and are not open choices. A route is
+storable and usable only while Q87's principal may write to its destination.
+The route grants nothing: each delivery applies the destination's current rules
+to the original sender. A forwarded envelope carries the required single-valued
 `original_to` and retains the original sender. Forwarding moves one message:
 the source inbox keeps no copy and changes neither `in` nor `out`; the
 destination increments `in`, then `out` only when a reader receives it. Access

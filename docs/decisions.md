@@ -21,7 +21,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | Forwarding stops after one hop | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; a second forwarding step is an explicit error, never a loop or silent drop |
 | A second-hop destination refuses the original send (Q85) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; the caller receives the error before storage, so neither inbox changes and no message is dropped after an accepted send |
 | Forwarding adds no TTL or deadline policy | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; the destination queue applies the ordinary message rules |
-| Forwarding access is checked when configured and delivered | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; configuration is not a durable grant, so revocation stops forwarding without erasing the selected destination |
+| A forwarding route grants no delivery access | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner correction; route validity and destination delivery are separate — the destination applies its access rule to the original sender exactly as for a direct send |
 | Forwarded envelopes identify their prior destination (Q90) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; required single-valued `original_to` makes a one-hop forward visible to its recipient |
 | Forwarding applies destination rules as if directly targeted (Q88) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner replacement; current-rule refusal returns an error without storage or counters, while ring overflow alone evicts and increments the destination's `dropped` |
 | Forwarding preserves the original sender (Q89) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; forwarding does not substitute the intermediate record, so replies still address the sender |
@@ -254,6 +254,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Earlier design | Replacement |
 |---|---|
+| The forwarding principal supplies the destination access check at delivery (2026-09-20) | [A route grants no delivery access](constitution.md#-channels) — the owner corrected the same-day reading: Q87 governs route validity only, while the destination checks the original sender |
 | A forwarding access refusal increments the forwarding record's `dropped`, and every destination overflow increments destination `dropped` (Q88, 2026-09-20) | [Destination rules apply as if directly targeted](constitution.md#-channels) — the owner replaced both readings later that day: refusals and strict overflow change no counter; only ring eviction increments destination `dropped` |
 | MySQL/PostgreSQL adapters required for 0.7 (2026-09-19) | [R1 storage](../Plans/R1/storage.md#backends) — owner moved the additional adapters to R1 |
 | Unspecified statistics batching and ten-minute token timestamp budget (2026-09-19–20) | [Statistics persistence](10-modules.md#statistics-persistence) — owner specified the cadence and immediate data writes |

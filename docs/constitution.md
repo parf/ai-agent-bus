@@ -314,11 +314,11 @@ principal's own right is what makes the route storable and keeps it usable, and
 Q87 settles which principal an Agent record uses for that; passing
 configuration-time validation is not a durable grant. Any current-rule refusal
 rejects the original send with a stated error before anything is stored or
-counted. Revocation leaves `deliver_to` configured,
-and a later grant allows forwarding again without editing the field. Human
-faces MUST distinguish a configured destination from one currently accepting
-forwarded writes. Remaining forwarding details are tracked in
-[open questions](#forwarding-details).
+counted. Route-principal revocation leaves `deliver_to` configured, and a later
+grant allows forwarding again without editing the field. Human
+faces MUST distinguish a configured route from one whose route principal keeps
+it usable, and MUST NOT claim that a usable route admits every sender.
+Remaining forwarding details are tracked in [open questions](#forwarding-details).
 
 A forwarded envelope retains the original sender and MUST carry one
 `original_to` value naming the one prior destination through which it was
@@ -416,5 +416,5 @@ boundary.
 Forwarding and the destination-access requirement are settled. Implementation
 still needs to define:
 
-- whether an Agent record uses its owning User or its Agent principal for the
-  already-settled configuration-time and delivery-time access checks (Q87);
+- whether an Agent record uses its owning User or its Agent principal to make
+  the route storable and usable (Q87).
