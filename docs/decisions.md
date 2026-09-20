@@ -8,6 +8,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Appropriate abstractions and measured efficiency in 0.7 | [modules](10-modules.md#07-implementation-requirements); [acceptance](../Plans/MVP/0.7.0-TODO.md#verification) | 2026-09-20 owner instruction; keep implementation simple and verify performance |
 | Exclude deletion-specific failure hardening from 0.7 | [storage scope](../Plans/MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner rejected review finding 2; deletion is too rare to justify dedicated work |
 | Identity cleanup through write-through changes | [constitution persistence](constitution.md#persistence-and-loading) | 2026-09-19 owner clarification after review; durable and in-memory grants must follow identity lifecycle changes |
 | One active daemon per database | [constitution persistence](constitution.md#persistence-and-loading); [work](../Plans/MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner decision after review; enforce exclusive use of the selected database |

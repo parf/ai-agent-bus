@@ -18,6 +18,25 @@ Core never imports an adapter. External I/O needed by core goes through a port.
 Process startup and listener management belong to the command that assembles
 the runtime, not to the domain core.
 
+## 0.7 implementation requirements
+
+Pending requirements for the [0.7 work](../Plans/MVP/0.7.0-TODO.md#verification):
+
+- Keep authority, validation and lifecycle rules in core, shared by every face
+  and backend. Share list mechanics without merging distinct permission rules.
+- Evolve small, consumer-driven persistence ports for actual operations.
+  Adapters own SQL, driver errors and database locking; commands select them.
+  Add abstractions for shared behavior or replaceable dependencies, not one
+  interface per type or a generic CRUD framework.
+- Management writes persist affected state rather than rewriting the registry
+  and queue backlog. Preserve write-through ordering and queue durability.
+- Serve registry and authority reads from the loaded memory view. Maintain
+  indexes where measured access patterns justify them; keep invalidation with
+  the corresponding state change.
+- Measure latency, allocations, write volume and lock contention before and
+  after storage changes. Use evidence to choose optimizations while preserving
+  authorization and commit-before-publication guarantees.
+
 ## Modules
 
 | Built area | Responsibility |
