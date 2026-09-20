@@ -151,12 +151,11 @@ The current documentation's agent-owned records, ownership chains and self-owned
 non-User records do not describe this intended model. Their presence in the docs
 is not evidence that such objects exist on a running node.
 
-Every edit to a User, registry record, or Group MUST be logged with the actor,
-operation, target, and result. Accepted and refused edits MUST be distinguishable.
-Message send and consume operations are not entity edits and MUST NOT produce
-entries in this log.
-The log MUST NOT contain tokens, secret bodies, configuration bodies, or message
-bodies. A Unix socket request has no client IP and must not invent one.
+Every direct edit to a User, registry record, or Group MUST write one daemon log
+file entry with the actor, operation, target, and result. Credential operations,
+lifecycle-state changes, reads, sends, and consumes MUST NOT write entity-edit
+entries. The entry MUST NOT contain tokens, secret bodies, configuration bodies,
+or message bodies.
 
 Every field MUST be validated and normalized according to its own contract.
 Secrets and configuration MUST pass their required format validation before a
