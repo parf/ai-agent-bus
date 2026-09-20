@@ -132,7 +132,8 @@ Cycles terminate without granting anybody unless another path reaches them;
 unknown groups remain inert. `@administrators` stays direct-only and a snapshot
 that nests a group inside it is refused at startup. Personal agents still
 reject group ACL entries and Maintainer assignments, so this upgrade does not
-widen their assignment rules.
+widen their assignment rules; 0.7 revises them through
+[Personal](03-records.md#personal-and-shared).
 
 ## Empty ACL upgrade
 

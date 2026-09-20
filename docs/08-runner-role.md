@@ -180,7 +180,9 @@ or `opencode` as the template and the normalized session title (or directory) as
 For example, a Codex session titled `home` becomes `codex/home@parf.us` on that
 realm. They keep deriving a realm although
 [0.7 makes it optional](01-identity-and-roles.md#names): a bare `codex` or
-`runner` would be one name for every node and every user. Saved dot-form addresses migrate on restart through the same address-change
+`runner` would be one name for every node and every user. From 0.7 they also
+register those agents as [Personal](03-records.md#personal-and-shared): a
+session record belongs to the launching user, not on the shared web pages. Saved dot-form addresses migrate on restart through the same address-change
 behavior below. Explicit bus names and other clients' naming remain unchanged.
 Duplicate human-readable labels gain `#2`, `#3` and so on. Canonical addresses
 use `.2`, `.3` before the realm, since the canonical grammar excludes `#`.

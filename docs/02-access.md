@@ -152,7 +152,7 @@ resource roles, not additional entries that must be placed in the ACL.
 To allow **any registered user**, explicitly add **`*`** to the ACL. This does
 not admit anonymous, unknown or suspended callers. A
 [Personal agent](03-records.md#personal-and-shared) cannot use
-this grant because its ACL cannot grant access to users.
+this grant because it admits every registered user.
 
 **`@owner` is a runtime ACL term for the record's direct Owner and every 👾
 `agent` directly owned by that Owner.** No other
@@ -162,6 +162,14 @@ and a 📡 calls nothing here at all. Ownership is one step: an agent owned by
 another agent does not inherit the human owner's cohort. The term follows current registry
 ownership, grants access rather than management, and is not a stored group: it
 cannot be created, nested in a group or assigned as a Maintainer.
+
+**Pending for 0.7:** `@agent` joins it as a runtime term, aliasing the record's
+own agent principal on an 👾 `agent` record, and both terms become valid in
+Maintainers as well as the ACL. Neither becomes a stored group: they still
+cannot be created or nested in one, and they resolve against current registry
+ownership at each check. A
+[Personal agent](03-records.md#personal-and-shared) may use both; the wildcard
+stays invalid there because it admits every registered user.
 
 Faces cannot widen these permissions. Enter ACLs in the project's
 [plain-text syntax](05-discovery.md#acl-editing), not display glyphs.

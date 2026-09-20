@@ -199,7 +199,8 @@ existing Agent reference to be rewritten:
 | 👾 Agent, existing plain-name form | `worker@team` | `worker@team` |
 | 👥 Group | `@support` | `@support` |
 | Existing ACL wildcard | `*` | runtime wildcard |
-| Owner and its directly owned Agents, ACL only | `@owner` | runtime ownership term |
+| Owner and its directly owned Agents | `@owner` | runtime ownership term |
+| The record's own Agent | `@agent` | runtime alias for that principal |
 
 The existing [ACL rules](02-access.md#acl), including the empty-list default,
 wildcard eligibility and `@owner`, remain in force unless explicitly revised.
@@ -252,8 +253,10 @@ allowed for that record's kind. A Maintainer MUST NOT change:
 - `created_at` or `updated_at`.
 
 For an Agent record, the matching Agent principal has Maintainer-equivalent
-authority over its own record. This is a direct rule and does not require a
-synthetic `@agent` group.
+authority over its own record. This is a direct rule and does not depend on a
+stored group. `@agent` is an input alias for that same principal, accepted in
+`allow` and `maintainers`; like `@owner` it is resolved at each check and never
+created, stored or nested.
 
 A modifying operation MUST be authorized against current state, including the
 caller's right to change each submitted field. The complete candidate record
@@ -273,8 +276,9 @@ ownership; it does not authorize the transfer again or restore the old Owner.
 
 The channel kinds are `user`, `agent`, `queue`, and `pubsub`.
 
-- `personal`: allowed only on an Agent. It is a web classification with stricter
-  ACL and Maintainer rules.
+- `personal`: allowed only on an Agent. It states that the intended audience is
+  the Owner and the Agents that Owner owns, and its ACL and Maintainer rules
+  admit that cohort and nothing wider.
 - `ttl`, `bound`, and `overflow`: allowed on User, Agent, and Queue; invalid on
   PubSub.
 - `deliver_to`: one kind-dependent list. On PubSub it contains typed actor

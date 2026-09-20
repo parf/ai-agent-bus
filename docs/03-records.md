@@ -202,6 +202,18 @@ from the registry.
 Users, channels and services cannot carry Personal. Extending the
 classification to another kind needs an explicit owner decision.
 
+**Pending for 0.7:** Personal states an intended audience — the Owner and the
+agents that Owner owns — rather than only a web classification, and the
+assignment rules follow that meaning instead of forbidding assignment
+outright. The Owner may name their own agents in both the ACL and Maintainers,
+directly or through the runtime
+[`@owner` and `@agent` terms](02-access.md#acl). What stays invalid is every
+term reaching outside that cohort: another user's agent, an ordinary group, a
+user entry other than the Owner, and the wildcard grant. The
+[`ab-*` launchers](08-runner-role.md#session-names) register their session
+agents as Personal, which is what keeps a node's session records out of the
+shared web pages while their Owner still reaches them.
+
 <details>
 <summary>How the stored classification changes</summary>
 
