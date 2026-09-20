@@ -363,7 +363,7 @@ an inbox rather than hand it to whoever is connected.
 | | |
 |---|---|
 | who writes Deliver-To | whoever **manages** the channel — its owner or a Maintainer ([record authority](01-identity-and-roles.md#record-authority)) — at registration and afterwards. Delivery is granted, never taken |
-| who may be on it | 👤 **users** and 👾 **agents**: the kinds that have an inbox here. A 📡 service has none, and a channel is a destination rather than a reader |
+| who may be on it | 👤 **users** and 👾 **agents**: the kinds that have an inbox here. A 📡 service has none, and a channel is a destination rather than a reader — a 📮 is refused too, its queue being work to be taken rather than a subscriber's inbox, so a topic never fans out into a channel |
 | `@group` | allowed, and **expanded at publication**, nested groups included, each name once. Membership therefore decides delivery when the publish happens, not when the list was written |
 | taking **yourself** off | always allowed, because it is your inbox that fills. Putting yourself back on is the manager's call |
 | checked again at **every publish** | that the recipient still exists, is on the bus and is **active**. A suspended user takes no copies, and neither does a name that has since been unregistered. Neither counts as a drop: there is nothing it was entitled to take |
