@@ -37,6 +37,20 @@ Pending requirements for the [0.7 work](../Plans/MVP/0.7.0-TODO.md#verification)
   after storage changes. Use evidence to choose optimizations while preserving
   authorization and commit-before-publication guarantees.
 
+### Statistics persistence
+
+Pending for 0.7: counters and last-use timestamps update in memory, without a
+database write per request, message or increment. Coalesce dirty values into
+periodic batches; skip unchanged values and empty batches. Runtime-only metrics
+stay in memory. Persisted statistics flush on graceful shutdown; a crash may
+lose updates since the last successful flush. Retain dirty updates after failed
+flushes and preserve increments arriving during a flush. Token timestamps keep
+the constitution's [write budget](constitution.md#-token).
+
+Management changes retain write-through persistence. Statistics batches must
+not rewrite policy, credentials or queue contents; queue persistence keeps its
+existing [durability boundary](04-messaging.md#durability).
+
 ## Modules
 
 | Built area | Responsibility |
