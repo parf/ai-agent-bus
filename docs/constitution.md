@@ -329,32 +329,20 @@ The channel kinds are `user`, `agent`, `queue`, and `pubsub`.
   kinds refuse actor entries and a second destination with an explicit caller
   error. A whole-field write containing two or more destinations stores nothing.
 
-What makes an entry one sort or the other is the record a term resolves to,
-not a separate spelling, so the daemon MUST resolve it: the term has to name an
-existing registry record, and that record's stored kind decides the answer.
+What an entry means is decided by the record its term resolves to, so the
+daemon MUST resolve it against the registry:
 
-A forwarding destination MUST be an 👾 `agent`, 📮 `queue` or 📣 `pubsub`
-record. A 👤 User is not a destination: a route is written to something that
-serves, not to a person. A 📡 Service has no inbox at all, and a 👥 Group is an
-actor rather than somewhere a message lands. A term naming no record is refused
-as well, since the destination has to exist for its ACL to be checked against
-the forwarding record.
+| Field | Accepts | Refuses |
+|---|---|---|
+| `deliver_to` on 📣 | 👤, 👾, 👥 | 📮, 📣, 📡, no such record |
+| `deliver_to` on 👤 / 👾 / 📮, one slot | 👾, 📮, 📣 | 👤, 👥, 📡, no such record, a second entry |
 
-On a PubSub, `deliver_to` says who receives a copy, and each copy lands in the
-recipient's own inbox, so that list holds actors: 👤 User, 👾 Agent and 👥 Group
-terms. A 📮 Queue or 📣 PubSub term is refused there, those two kinds being
-destinations rather than readers, so a topic cannot fan out into a queue or
-chain into another topic. 👾 is both an actor and a destination, so the same
-term may be valid in either role; what each kind refuses is the terms outside
-its own role, never a different spelling. A 👤 User is the asymmetric one: it
-takes published copies as a recipient, yet no route may be pointed at it.
-
-An entry is refused for its kind, not for permission — the caller's right to
-use that record elsewhere makes it neither a recipient nor a destination — and
-the refusal names the offending term and stores nothing, because one invalid
-term rejects the complete update. A Group term on a PubSub is expanded at
-publication, and Group membership is itself restricted to actors, so no Queue
-or PubSub reaches that list through a group.
+A topic delivers copies into recipients' own inboxes, so it takes actors and
+never fans out into a queue or another topic; a 👥 term is expanded at
+publication and its membership is actors only. A route is written to something
+that serves, so it takes no 👤 User — a User may forward its own inbox and take
+published copies, but no route points at it. An entry is refused for its kind
+rather than for permission, and a refusal names the term and stores nothing.
 
 For the one-slot form, add succeeds only while empty and returns an error naming
 the occupied field otherwise; remove clears it. Replacing an existing
