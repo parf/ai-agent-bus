@@ -393,7 +393,7 @@ that forgets silently looks exactly like one nobody sent to.
 
 **Pending for 0.7:** User, Agent and Queue records may forward under the
 kind-specific [channel contract](constitution.md#-channels). That section owns
-forwarding access, depth, provenance and the remaining open choices.
+forwarding ACL checks, depth and provenance.
 
 ## Durability
 

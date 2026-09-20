@@ -129,6 +129,10 @@ provider answers. Private keys stay with the signing tool.
 
 ## ACL
 
+**Pending for 0.7:** Forwarding uses the constitution's
+[hop-specific ACL checks](constitution.md#-channels), including channel-name
+references for Queue sources.
+
 **ACL governs other principals' access to a record**, whichever of the five
 [kinds](03-records.md#five-record-kinds) it is. A record does not
 need to list itself in its own ACL: it may read its own inbox independently.

@@ -292,25 +292,25 @@ When a channel is inactive:
 - PubSub copies addressed to that inactive channel are discarded and counted as
   drops.
 
-**Forwarding — owner-accepted September 19, 2026.** A User, Agent or Queue record
-MAY forward to another channel. The destination MUST NOT be stored unless the
-forwarding principal may write to it under the node's current access rules.
-That principal is the forwarding record's Owner, on every kind including an
-Agent record: a record MUST NOT route traffic anywhere its Owner could not send
-it.
+**Forwarding — owner-corrected September 20, 2026.** A User, Agent or Queue
+record MAY forward to another channel. For `sender → A → B`, the sender MUST
+pass A's ACL, and B's ACL MUST list the forwarding record A. The sender needs
+no access to B. Neither the original sender's nor A's Owner's access to B
+substitutes for B allowing A.
 
-Delivery applies the destination's current rules as if the message had been
-addressed there directly: access, active state, TTL and deadline, bound,
-overflow policy and counters. The route itself grants nothing: the destination's
-access check applies to the original sender exactly as for a direct send, so
-forwarding redirects a message and never widens access. The forwarding
-principal's own right is what makes the route storable and keeps it usable;
-passing configuration-time validation is not a durable grant. Any current-rule
-refusal rejects the original send with a stated error before anything is stored
-or counted. Losing the Owner's right leaves `deliver_to` configured, and
-regaining it allows forwarding again without editing the field. Human faces MUST
-distinguish a configured route from one the Owner's current right keeps usable,
-and MUST NOT claim that a usable route admits every sender.
+The destination MUST NOT be stored unless its ACL allows the forwarding record.
+The daemon MUST check that permission again at delivery. For a Queue source,
+this is a channel-name ACL reference, not a credential-bearing principal.
+Forwarding authority comes from the daemon's selected source record, never from
+caller-supplied sender or provenance fields.
+
+The destination applies its active state, TTL and deadline, bound, overflow
+policy and counter rules as for a direct send. Any current-rule refusal rejects
+the original send with a stated error before anything is stored or counted.
+Removing A from B's ACL leaves `deliver_to` configured but denies forwarding;
+restoring that permission resumes forwarding without editing the field. Human
+faces MUST distinguish a configured route from one currently allowed by the
+destination's ACL.
 
 A forwarded envelope retains the original sender and MUST carry one
 `original_to` value naming the one prior destination through which it was
@@ -399,5 +399,4 @@ assignment MUST NOT bypass that boundary.
 ## Open questions
 
 None. The plan's [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns
-any choice raised later; forwarding, including which principal makes a route
-storable, is settled above.
+any choice raised later; forwarding permissions and mechanics are settled above.

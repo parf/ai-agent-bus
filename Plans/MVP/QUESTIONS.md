@@ -13,4 +13,5 @@ to logging entity edits rather than an audit subsystem. Their IDs remain
 reserved, as do all earlier settled question IDs.
 
 The [constitution](../../docs/constitution.md#-channels) owns the settled
-forwarding contract; this file does not restate it.
+forwarding contract, including the owner's ACL correction; no permission choice
+remains open.
