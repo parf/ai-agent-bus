@@ -95,7 +95,9 @@ The API MUST provide atomic add and remove operations for list fields such as
 
 - `user_id`: stable internal `uint32`; persisted, never reused, and not exposed
   as the public identity.
-- `name`: canonical `user@team` identity; globally unique and required.
+- `name`: canonical `user` or `user@team` identity; globally unique and
+  required. The realm is optional and part of the identity, so `alice` and
+  `alice@team` are different Users.
 - Unique secondary identifiers, when present:
   - normalized email;
   - GitHub login;
@@ -222,8 +224,8 @@ deterministically, and one invalid term rejects the complete update.
   the public identity.
 - `owner_id`: the owning User.
 - `kind`: one value from the closed record-kind enum.
-- `name`: canonical `name@team` or `template/instance@team`; globally unique and
-  required.
+- `name`: canonical `name`, `name@team` or `template/instance@team`; globally
+  unique and required. The realm is optional; the last `@` separates it.
 - `description`.
 - `maintainers`: typed actor terms.
 - `allow`: typed actor terms; this is the ACL.

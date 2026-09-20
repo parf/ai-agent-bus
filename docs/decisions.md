@@ -8,6 +8,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| The realm is optional in every name | [identity § names](01-identity-and-roles.md#names) | 2026-09-20 owner decision; a realm-less name is a complete distinct identity, the last `@` still separates the realm, and a User defaults to the Unix account name |
 | A status change is an entity edit and is logged | [constitution § Registry record](constitution.md#-registry-record) | 2026-09-20 owner decision; `status` is an ordinary field, and suspending somebody is the one administrative act that must not be silent |
 | Forwarding checks the source record at the destination (Q87 revision) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner correction; replaces Owner-based route authority and original-sender destination authorization |
 | Statistics cadence and immediate data changes | [statistics persistence](10-modules.md#statistics-persistence) | 2026-09-20 owner clarification; replaces unspecified batching and the earlier token timestamp budget |

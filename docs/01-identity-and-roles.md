@@ -43,6 +43,22 @@ separate names, records and configurations.
 
 </details>
 
+**Pending for 0.7:** the realm becomes optional on every name and every kind, so
+an Agent is written `worker`, `worker@srv1` or `claude/home@srv1`. A name
+without a realm is a complete name rather than a shorthand: nothing is appended
+to it, and `alice` and `alice@srv1` are two distinct principals that may both
+exist, each reachable only by its own spelling. The two separators are fixed
+whatever else a name contains: the first `/` separates the template, and the
+last `@` separates the realm. A realm-less name is therefore one carrying no
+`@` at all, and every name valid today keeps its current meaning. Nothing
+completes a bare name with the local hostname any more; a name is taken as
+written. A new User's name defaults to the
+Unix account name alone. Callers that would otherwise collide across machines
+still choose a realm for themselves: the
+[launchers](08-runner-role.md#session-names) keep deriving
+`runtime/instance@realm`, because a bare `runner` would be the same name on
+every node.
+
 ## Role names and scopes
 
 **Administrator** manages daemon users and groups. **Maintainer** manages an
