@@ -17,14 +17,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 ## Constitution forwarding
 
-The [constitution](../../docs/constitution.md#forwarding-details) accepts
-forwarding; its delivery release is unassigned. Remaining choices:
-
-- Loop detection.
-- Which User or Agent supplies forwarding authority, and when access is checked.
-- TTL and deadline handling.
-- Overflow and failure accounting.
-- Sender attribution and whether `original_to` is needed.
+Moved to [0.7 questions](../MVP/QUESTIONS.md#constitution-forwarding).
 
 ## Public-directory context
 

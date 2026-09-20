@@ -6,7 +6,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
-| Constitution | [intended model](../../docs/constitution.md#project-constitution) | 2026-09-19 owner decisions; consolidated from discussion, release assignment and implementation reconciliation pending |
+| Constitution | [0.7 work](../MVP/0.7.0-TODO.md#objective) | Owner assigned implementation to 0.7; current decision is indexed in [MVP decisions](../../docs/decisions.md#settled) |
 | Candidates | [definition](FUTURE.md#candidates) | D24, D219 |
 | Storage | [definition](storage.md#storage) | D88 |
 | Debug mode | [definition](debug.md#debug-mode) | D100 |

@@ -8,6 +8,10 @@ Finish the [MVP scope](README.md#scope). Built wave results are in [DONE](DONE.m
 
 ## Next step
 
+The [0.7 constitution work](0.7.0-TODO.md#next-step) starts with state/cutover
+review, followed by storage and identity changes. Its K-series tasks are tracked
+there; existing acceptance and task IDs below remain in force.
+
 H.1 and H.1.1 have [fresh-install](done/fresh-install.md#checks) and [populated-upgrade](done/upgrade-recovery.md#checks) evidence. H.9.5 has [concurrent native Codex/OpenCode evidence](done/runtime-interactive.md#checks); Claude still needs a [channel-enabled acceptance configuration](done/runtime-interactive.md#claude-prerequisite). Continue browser and live-runtime acceptance. H.5.3 has [administrative crash-recovery evidence](done/administrative-durability.md#checks). H.5.2 has [real-SSH evidence](done/ssh-onboarding.md#checks); G.1.2 and G.1.3 have installed [resource](done/web-resources.md#checks) and [authority-isolation](done/web-isolation.md#checks) evidence. The [review evidence](done/release-gap-review.md#findings) distinguishes reproduced failures from unverified risks. Choices are tracked in [QUESTIONS](QUESTIONS.md#open-questions).
 
 The owner reviewed the web design through rendered pages and iterative
@@ -103,7 +107,10 @@ references.
 
 ## Questions
 
-No open choices are currently recorded in [QUESTIONS](QUESTIONS.md#open-questions); implementation gaps are not reopened policy questions. The [Future storage proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.
+[Forwarding choices](QUESTIONS.md#constitution-forwarding) block K.15 and its
+dependent release gates; unrelated constitution work can proceed.
+Implementation gaps are not reopened policy questions. The [Future storage
+proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.
 
 ## Authority model
 

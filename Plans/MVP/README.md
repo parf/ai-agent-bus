@@ -7,6 +7,9 @@
 Somebody other than the author can install it and use it safely on a shared host.
 MVP is active; completion still depends on [remaining work and installed acceptance](TODO.md#objective). The [0.6.0 record kinds](0.6.0-TODO.md#objective) plan closes `kind` into five named kinds.
 
+The [0.7 constitution plan](0.7.0-TODO.md#objective) implements the owner's
+[intended model](../../docs/constitution.md#project-constitution).
+
 ## Getting tokens
 
 ![A user obtains a token through an authenticated local socket, an entitled SSH key or key-possession proof. A launching runner uses the owner's credential to register a service and obtain its separate token, then switches to the service identity.](getting-tokens.svg)
