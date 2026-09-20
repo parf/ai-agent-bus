@@ -88,6 +88,11 @@ and who?" to anyone whose access allows the lookup.
 
 ## Request and reply
 
+**Pending for 0.7:** a 👤 User receives only replies to messages it sent and
+copies from topics it subscribes to. An ordinary `send` to a User is refused,
+and no forwarding route may name one
+([constitution § Channels](constitution.md#-channels)).
+
 Calling a name is not a third verb. It is a **`send` whose reply comes back on
 the same topic + tag**, and the caller waits for it:
 

@@ -339,9 +339,9 @@ daemon MUST resolve it against the registry:
 
 A topic delivers copies into recipients' own inboxes, so it takes actors and
 never fans out into a queue or another topic; a 👥 term is expanded at
-publication and its membership is actors only. A route is written to something
-that serves, so it takes no 👤 User — a User may forward its own inbox and take
-published copies, but no route points at it. An entry is refused for its kind
+publication and its membership is actors only. A 👤 User receives only replies to what it sent
+and copies from topics it subscribes to: it takes no ordinary send and no
+route, though it may forward its own inbox. An entry is refused for its kind
 rather than for permission, and a refusal names the term and stores nothing.
 
 For the one-slot form, add succeeds only while empty and returns an error naming
