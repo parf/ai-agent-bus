@@ -262,15 +262,18 @@ whatever its kind:
 
 An absent record and an inactive one are the same case: it accepts no read and
 no write, every such operation is rejected, and nothing is ever stored for it.
-Who learns of the rejection depends on who named the record:
+Whether the caller is refused depends on whether anything still gets through:
 
-| Delivery | Outcome |
+| This message | Outcome |
 |---|---|
-| direct: the caller names the record itself | an error to that caller, before anything is stored or counted, and a daemon log entry |
-| indirect: a 📣 copy or a forwarded message | discarded, counted as the missing record's own `dropped`, and written to the daemon log |
+| at least one recipient takes it | it succeeds; each failed recipient is counted as its own `dropped` and written to the daemon log |
+| no recipient takes it | an error to the caller before anything is stored or counted, and a daemon log entry |
 
-One inactive subscriber therefore MUST NOT stop a topic: the publication
-succeeds for every other recipient.
+A missing recipient beside working ones MUST NOT break the flow that works, and
+the log is where that loss stays visible. A missing sole recipient is the flow:
+a direct send to an absent or inactive name, a publication whose recipients have
+all failed, and a forwarding route whose one destination is gone are all
+refused to the caller.
 
 #### Authority rules
 
@@ -354,9 +357,9 @@ than looping.
 The destination applies its TTL and deadline, bound, overflow policy and
 counter rules as for a direct send; forwarding adds no policy of its own. A
 refusal under those rules rejects the original send with a stated error before
-anything is stored or counted. An inactive or absent destination is the
-exception: the sender named A, not B, so the message is dropped and counted on
-B under the [indirect-delivery rule](#common-record-fields).
+anything is stored or counted, and so does an inactive or absent destination:
+the one slot leaves the message nowhere else to go
+([what `inactive` means](#common-record-fields)).
 
 | Outcome | Counters |
 |---|---|
