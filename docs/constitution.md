@@ -71,8 +71,8 @@ ownership before serving and reject a competing instance.
 Two conditions leave the daemon unable to answer with authority: losing that
 exclusivity, and failing to publish a committed change. In either the daemon
 MUST refuse every read and write with a stated reason and MUST NOT answer from
-its cached view. Serving state older than the committed one is the fault; these
-observable rules do not prescribe whether the process keeps running or exits.
+its cached view. These observable rules do not prescribe whether the process
+keeps running or exits.
 
 A future reload API or SIGHUP (`kill -HUP <pid>`) MAY reload durable entities.
 It is required for no 0.7 operation, ownership transfer included. If added, it
@@ -94,11 +94,9 @@ Every conceptual error and every alert MUST be reported twice:
 | the message | syslog, at a severity matching the condition |
 | the same message again | the daemon's error log |
 
-Reporting to one destination is not enough: syslog reaches an operator who is
-not reading the daemon's files, and the error log stays beside its other output.
-Neither copy may contain a token, secret, configuration value or message body.
-This is separate from [entity-edit logging](#-registry-record), which records
-authorized edits rather than impossible states.
+No log may contain a token, secret, configuration body or message body.
+[Entity-edit logging](#-registry-record) is separate: it records authorized
+edits, not impossible states.
 
 ## Entities
 
@@ -135,8 +133,6 @@ rather than durable daemon fields.
 
 ### 🔐 Token
 
-Tokens authenticate actors: 👤 Users and 👾 Agents.
-
 | Field | Requirement |
 |---|---|
 | `token` | |
@@ -153,9 +149,8 @@ Tokens authenticate actors: 👤 Users and 👾 Agents.
   the ownership change, never as a later step. A failed token write MUST abandon
   the transfer rather than commit an ownership change the tokens do not follow.
 
-The pair therefore matches current ownership by construction, and a mismatch can
-arise only from a failed write. Such a row is corrupt state rather than a
-refusal path: the daemon MUST ignore that token, which authenticates nothing,
+A mismatched pair can therefore arise only from a failed write. Such a row is
+corrupt state rather than a refusal path: the daemon MUST ignore that token, which authenticates nothing,
 and MUST report the mismatch as a conceptual error at `alert` severity through
 [both destinations](#errors-and-alerts), naming the token's User, Agent and
 current Owner. It MUST NOT repair the row, reinterpret it as a User token, or
@@ -163,9 +158,8 @@ treat the condition as routine.
 
 ### 📋 Registry record
 
-A registry record MUST be owned by a 👤 User, and so MUST a Group and daemon
-ownership. An Agent MAY have management authority but MUST NOT become an owning
-principal; creating or managing an object as an Agent does not make that Agent
+A registry record MUST be owned by a 👤 User, and so MUST the daemon. An Agent
+MAY have management authority but MUST NOT become an owning principal; creating or managing an object as an Agent does not make that Agent
 its owner.
 
 Every direct edit to a User, registry record or Group MUST write one daemon log
@@ -178,9 +172,6 @@ file entry:
 | client IP | when one exists; a Unix socket request has none and MUST NOT invent one |
 | a `status` change between `active` and `inactive` | is such an edit and MUST be logged |
 | credential operations, reads, sends, consumes | MUST NOT write entity-edit entries |
-
-Logs MUST NEVER contain sensitive information; tokens, secret bodies,
-configuration bodies and message bodies are the current examples.
 
 Every field MUST be validated and normalized according to its own contract, and
 secrets and configuration MUST pass their format validation before a write is
@@ -200,7 +191,7 @@ The closed set of record kinds:
 | 📣 `pubsub` | a fan-out channel that retains no messages of its own and copies publications to its `deliver_to` recipients | yes |
 | 📡 `service` | information about an external service, protected by an ACL | no |
 
-A 👥 Group is a separate entity, not a sixth record kind.
+A 👥 Group is a registry record outside this enum.
 
 #### Actors and ASCII textarea syntax
 
@@ -217,12 +208,10 @@ group-member textareas accept one ASCII term per line:
 | The record's own Agent | `@agent` |
 
 - A term is stored exactly as written. An Agent term MUST carry the leading `#`,
-  exactly as a Group term carries `@`: without the marker nothing in `xx@yy`
-  says whether a User or an Agent was meant, so a bare `alice@team` names a User
-  and nothing else.
-- The marker decides a term's kind from the term itself rather than from a
-  registry lookup, and lets the daemon reject a term whose stored kind does not
-  match.
+  exactly as a Group term carries `@`, so a bare `alice@team` names a User and
+  nothing else.
+- The marker decides a term's kind without a registry lookup, and lets the
+  daemon reject a term whose stored kind does not match.
 - The last three terms resolve at each check instead of naming a stored entity.
   Only the first three may be created, and none of the last three may be stored
   as an entity or nested in a group.
@@ -354,8 +343,7 @@ before anything is stored or counted.
 | strict overflow at the destination | the original send is refused and no counter changes |
 | ring overflow at the destination | its oldest message is evicted and its own `dropped` increments |
 
-The forwarding record counts neither overflow case, because the moved message
-was never accepted into its inbox.
+The forwarding record counts neither overflow case.
 
 ### 📡 Service
 
@@ -378,8 +366,7 @@ A Service has no queue, so it carries no TTL, bound, overflow policy,
 **Status rule — owner-settled September 19, 2026.** An inactive Service MUST be
 hidden from reads, discovery, record lookup and secret reads included. Its
 record remains stored and reserves its canonical name, so a new registration
-using that name MUST be rejected: inactivity neither unregisters the Service nor
-frees its name.
+using that name MUST be rejected.
 
 ### 👾 Agent configuration
 
@@ -406,14 +393,13 @@ A Group is a named list of typed actors, owned by a User.
 | `members` | typed User, Agent or Group terms; Group Maintainers MAY add and remove them |
 | `created_at`, `updated_at` | |
 
-An Agent MAY be a Group Maintainer through its `#agent@team` term, and MAY
-maintain a Group but never own one. This extends the existing
+An Agent MAY be a Group Maintainer through its `#agent@team` term. This extends the existing
 [group administration](01-identity-and-roles.md#groups) model: Users and Agents
 gain explicitly assigned control while daemon Owner and Administrator authority
 remains.
 
-Nested-group resolution MUST use a visited set. Cycles must terminate and grant
-membership only when a finite path reaches the requested actor.
+Nested-group resolution MUST use a visited set, and grants membership only
+when a finite path reaches the requested actor.
 
 The protected `@administrators` group is outside this model: it has neither a
 Group Owner nor Maintainers, only the daemon Owner may change its direct
