@@ -257,8 +257,11 @@ Every record carries `registry_id`, `kind`, `name`, `owner_id`, `description`,
 
 A 👤 record is the User's own inbox and is deliberately the plain one: it takes
 `ttl`, `bound` and `overflow` and nothing else from this table, and it has no
-`allow`, `maintainers` or `personal` either. Who may reach it follows the reply
-rule rather than a list.
+`allow` or `maintainers` either. Who may reach it follows the reply rule rather
+than a list. It carries no `personal` field because it is always personal by
+definition: its audience is that User and that User's Agents, and nothing can
+widen it. That is the audience sense of the word; Users stay listed in the user
+directory as before.
 
 A `—`, and any field a kind is not listed as carrying, means the kind cannot
 have it: submitting one is refused, never stored and ignored.
