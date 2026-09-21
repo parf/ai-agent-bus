@@ -396,7 +396,7 @@ A Group is a named list of typed actors, owned by a User.
 
 | Field | Requirement |
 |---|---|
-| `group_id` | stable internal ID |
+| `registry_id` | the record's stable ID, from the one space every record shares; there is no separate group ID |
 | `kind` | `group`, from the same closed enum as every other record |
 | `name` | `@group_name` |
 | `status` | `active` or `inactive`; see [what `inactive` means](#common-record-fields) |
