@@ -260,8 +260,9 @@ whatever its kind:
 | the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
 | reactivation | an authorized status edit on that record, never a re-creation |
 
-Who is refused depends on who named the record, and an absent record and an
-inactive one are the same case:
+An absent record and an inactive one are the same case: it accepts no read and
+no write, every such operation is rejected, and nothing is ever stored for it.
+Who learns of the rejection depends on who named the record:
 
 | Delivery | Outcome |
 |---|---|
