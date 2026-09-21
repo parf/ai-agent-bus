@@ -244,6 +244,26 @@ or Group members.
 | `status` | `active` or `inactive` |
 | `created_at`, `updated_at` | maintained by the system, not editable by callers |
 
+Which fields each kind carries:
+
+| Field | 👤 | 👾 | 📮 | 📣 | 📡 | 👥 |
+|---|---|---|---|---|---|---|
+| `registry_id`, `kind`, `name`, `status`, `created_at`, `updated_at` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `owner_id` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `description` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `maintainers` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `allow` | — | ✓ | ✓ | ✓ | ✓ | — |
+| `ttl`, `bound`, `overflow` | ✓ | ✓ | ✓ | — | — | — |
+| `deliver_to` | — | one slot | one slot | list | — | — |
+| `personal` | — | ✓ | — | — | — | — |
+| `config` | — | ✓ | — | — | — | — |
+| `addr`, `protocol`, `secret` | — | — | — | — | ✓ | — |
+| `members` | — | — | — | — | — | ✓ |
+
+A 👤 record ignores `allow` and `maintainers`, because who may reach it follows
+the reply rule rather than a list, and a 👥 Group ignores `allow`. A `—` field
+submitted for that kind is refused rather than stored and ignored.
+
 For records with a delivery switch, `active` means the former `disabled=false`
 and `inactive` the former `disabled=true` — two spellings of one control, not
 independent switches.
@@ -303,11 +323,11 @@ not authorize the transfer again or restore the old Owner.
 
 The channel kinds are 👤 `user`, 👾 `agent`, 📮 `queue` and 📣 `pubsub`.
 
-| Field | Where | Meaning |
-|---|---|---|
-| `personal` | 👾 only | the intended audience is the Owner and the Agents that Owner owns; its ACL and Maintainer rules admit that cohort and nothing wider |
-| `ttl`, `bound`, `overflow` | 👤, 👾, 📮 | invalid on 📣 |
-| `deliver_to` | 📣, 👾, 📮 | on 📣 the recipient list; on 👾 or 📮 zero or one forwarding destination. A 👤 User has no such field |
+| Field | Meaning |
+|---|---|
+| `personal` | the intended audience is the Owner and the Agents that Owner owns; its ACL and Maintainer rules admit that cohort and nothing wider |
+| `ttl`, `bound`, `overflow` | the inbox's message rules |
+| `deliver_to` | on 📣 the recipient list; on 👾 or 📮 zero or one forwarding destination |
 
 What an entry means is decided by the record its term resolves to, so the daemon
 MUST resolve it against the registry:
