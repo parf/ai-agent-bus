@@ -260,9 +260,10 @@ whatever its kind:
 | the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
 | reactivation | an authorized status edit on that record, never a re-creation |
 
-The one thing an inactive record still does is account for itself: a 📣 copy
-addressed to it is discarded and counted as its own `dropped`, so the gap is
-visible where the message was lost.
+This holds for a 📣 recipient too. An inactive name on `deliver_to` is not a
+destination that silently misses its copy: the publication is refused with a
+stated error naming it, before anything is stored or counted, and no `dropped`
+is recorded for a record that was entitled to nothing.
 
 #### Authority rules
 
