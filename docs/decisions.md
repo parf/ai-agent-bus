@@ -8,7 +8,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| A Group is a registry record and carries `kind` | [constitution § record kind](constitution.md#-record-kind) | 2026-09-21 owner decision; the closed enum gains `group`, replacing the rule that a Group was a separate entity beside the five kinds |
+| A Group is a registry record with `kind` and `status` | [constitution § record kind](constitution.md#-record-kind), [what `inactive` means](constitution.md#common-record-fields) | 2026-09-21 owner restatement of the original design, which the docs had lost; the closed enum gains `group`, and an inactive Group does not exist while its name stays reserved |
 | An Agent term carries `#` and is stored with it | [constitution § Registry record](constitution.md#-registry-record) | 2026-09-20 owner correction; `xx@yy` alone cannot say whether a User or an Agent was meant, so the marker is enforced like `@group` and the cutover retypes existing lists |
 | Conceptual errors and alerts go to syslog and the error log | [constitution § errors and alerts](constitution.md#errors-and-alerts) | 2026-09-20 owner decision; impossible states are reported to both destinations, while an ordinary refusal is answered to its caller and reported nowhere |
 | A token always names a User and optionally an Agent | [constitution § Token](constitution.md#-token) | 2026-09-20 owner decision; replaces the single-principal token, keeps the Agent as the acting principal, and requires the named User to be that Agent's current Owner, a mismatch being corrupt state reported to syslog at `alert` severity and to the daemon log rather than a refusal path |

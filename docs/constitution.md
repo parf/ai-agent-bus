@@ -246,8 +246,17 @@ or Group members.
 
 For records with a delivery switch, `active` means the former `disabled=false`
 and `inactive` the former `disabled=true` — two spellings of one control, not
-independent switches. A Service also carries status; its read visibility and
-name reservation follow the [Service rule](#-service).
+independent switches. What `inactive` does is kind-specific:
+
+| Kind | `inactive` means |
+|---|---|
+| 👤 👾 📮 📣 | reads and writes are refused with an explicit error, and 📣 copies addressed to the record are discarded and counted as drops |
+| 📡 | the Service is hidden from every read: discovery, record lookup and secret |
+| 👥 | there is no such Group: it grants nothing and appears nowhere |
+
+In every kind the record stays stored and keeps its canonical name reserved, so
+registration under that name MUST be rejected. Reactivation is an authorized
+status edit on the existing record, never a re-creation.
 
 #### Authority rules
 
@@ -302,9 +311,6 @@ MUST resolve it against the registry:
   error naming the occupied field; remove clears it. Replacement is an explicit
   whole-field write, never an add that silently overwrites a concurrent choice.
   A whole-field write carrying two or more destinations stores nothing.
-
-When a channel is inactive, reads and writes are refused with an explicit error,
-and 📣 copies addressed to it are discarded and counted as drops.
 
 **Forwarding — owner-corrected September 20, 2026.** A 👾 Agent or 📮 Queue
 record MAY forward to another destination. For `sender → A → B`:
@@ -362,10 +368,9 @@ caller convention.
 A Service has no queue, so it carries no TTL, bound, overflow policy,
 `deliver_to`, Personal classification or channel delivery switch.
 
-**Status rule — owner-settled September 19, 2026.** An inactive Service MUST be
-hidden from reads, discovery, record lookup and secret reads included. Its
-record remains stored and reserves its canonical name, so a new registration
-using that name MUST be rejected.
+**Status rule — owner-settled September 19, 2026.** See
+[what `inactive` means](#common-record-fields) for the Service's read visibility
+and name reservation.
 
 ### 👾 Agent configuration
 
@@ -388,6 +393,7 @@ A Group is a named list of typed actors, owned by a User.
 | `group_id` | stable internal ID |
 | `kind` | `group`, from the same closed enum as every other record |
 | `name` | `@group_name` |
+| `status` | `active` or `inactive`; see [what `inactive` means](#common-record-fields) |
 | `owner_id` | the owning User |
 | `maintainers` | controlled by the Group Owner |
 | `members` | typed User, Agent or Group terms; Group Maintainers MAY add and remove them |
