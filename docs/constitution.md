@@ -217,6 +217,10 @@ group-member textareas accept one ASCII term per line:
 - `name` is therefore unique across the whole registry rather than within one
   kind: `alice@team` and `#alice@team` are two records, and one column holds
   both.
+- Every face MUST require the prefix wherever an Agent is named — API bodies,
+  CLI arguments, MCP arguments, registration, credential issue, configuration
+  files and what a process is told it serves — and MUST NOT complete, guess or
+  tolerate an unprefixed one. An unprefixed name names a User or nothing.
 - In a URL the `#` MUST be percent-encoded as `%23`, since an unescaped one
   starts a fragment and the rest of the name never reaches the daemon.
 - The last three terms resolve at each check instead of naming a stored entity.
