@@ -260,10 +260,10 @@ whatever its kind:
 | the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
 | reactivation | an authorized status edit on that record, never a re-creation |
 
-This holds for a 📣 recipient too. An inactive name on `deliver_to` is not a
-destination that silently misses its copy: the publication is refused with a
-stated error naming it, before anything is stored or counted, and no `dropped`
-is recorded for a record that was entitled to nothing.
+A 📣 recipient is the one case that does not refuse the caller: one inactive
+subscriber MUST NOT stop a topic. Its copy is discarded and counted as that
+record's own `dropped`, and a daemon log entry names the topic and the
+recipient. The publication succeeds for every other recipient.
 
 #### Authority rules
 
