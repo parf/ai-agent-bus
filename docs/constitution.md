@@ -253,9 +253,10 @@ Every record carries `registry_id`, `kind`, `name`, `owner_id`, `description`,
 | `allow` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `ttl`, `bound`, `overflow` | ✓ | ✓ | ✓ | — | — | — |
 | `deliver_to` | — | one slot | one slot | list | — | — |
-| `personal` | — | ✓ | — | — | — | — |
-| `config` | — | ✓ | — | — | — | — |
-| `addr`, `protocol`, `secret` | — | — | — | — | ✓ | — |
+| `personal` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `config` | — | ✓ | — | — | ✓ | ✓ |
+| `secret` | — | ✓ | — | — | ✓ | ✓ |
+| `addr`, `protocol` | — | — | — | — | ✓ | — |
 
 A `—` means the kind cannot have that field: a 👤 has no `allow` and no
 `maintainers`. Submitting one is refused, never stored and ignored.
@@ -321,7 +322,7 @@ The channel kinds are 👤 `user`, 👾 `agent`, 📮 `queue` and 📣 `pubsub`.
 
 | Field | Meaning |
 |---|---|
-| `personal` | the intended audience is the Owner and the Agents that Owner owns; its ACL and Maintainer rules admit that cohort and nothing wider |
+| `personal` | the intended audience is the Owner and the Agents that Owner owns; the record's `allow` and `maintainers` admit that cohort and nothing wider. Every kind but 👤 may carry it |
 | `ttl`, `bound`, `overflow` | the inbox's message rules |
 | `deliver_to` | on 📣 the recipient list; on 👾 or 📮 zero or one forwarding destination |
 
@@ -393,34 +394,33 @@ The forwarding record counts neither overflow case.
 | Field | Requirement |
 |---|---|
 | `addr`, `protocol` | required |
-| `secret` | optional; writable by the Owner or a Maintainer, readable by actors in `allow` |
+| `secret` | optional; see [private values](#-private-values), owner-settled September 19, 2026 |
 
-**Secret format — owner-settled September 19, 2026.** A supplied secret MUST be
-an env file of environment-variable assignments, and the daemon MUST validate
-basic env-file syntax before accepting it; invalid syntax MUST reject the
-complete write. The user is responsible for the remaining content and its
-suitability for the consuming application. Arbitrary unvalidated bytes are no
-longer accepted, which replaces the earlier rule that `KEY=value` was only a
-caller convention.
-
-A Service has no queue, so it carries no TTL, bound, overflow policy,
-`deliver_to`, Personal classification or channel delivery switch.
+A Service has no queue, so it carries no TTL, bound or overflow policy and no
+`deliver_to`.
 
 **Status rule — owner-settled September 19, 2026.** See
 [what `inactive` means](#common-record-fields) for the Service's read visibility
 and name reservation.
 
-### 👾 Agent configuration
+### 🔒 Private values
 
-An Agent MAY carry `config`:
+`config` and `secret` are private bodies on a record. 👾, 📡 and 👥 may carry
+either.
 
-| Rule | Requirement |
-|---|---|
-| writable by | the Owner or a Maintainer |
-| readable by | the matching Agent principal only; everyone else sees its SHA-256 digest |
-| format | JSON, whose syntax the daemon MUST validate before accepting it; invalid input MUST reject the complete write |
-| application fields | remain opaque |
-| storage | validated JSON MUST be compacted before storage and hashing, retaining the existing [configuration normalization](03-records.md#why-a-digest-at-all) |
+| Rule | `config` | `secret` |
+|---|---|---|
+| format | JSON, whose syntax the daemon MUST validate | an env file, whose basic syntax the daemon MUST validate |
+| invalid input | MUST reject the complete write | MUST reject the complete write |
+| writable by | the Owner or a Maintainer | the Owner or a Maintainer |
+| readable by | the record's own principal where one exists, otherwise the actors in `allow` | the same rule |
+| to everyone else | its SHA-256 digest | its SHA-256 digest |
+| content | application fields remain opaque; the user is responsible for the remaining content and its suitability for the consuming application | the same |
+| storage | validated JSON MUST be compacted before storage and hashing, retaining the existing [configuration normalization](03-records.md#why-a-digest-at-all) | stored as written |
+
+Arbitrary unvalidated bytes are no longer accepted, which replaces the earlier
+rule that `KEY=value` was only a caller convention. Format validation
+authorizes no interpretation of application-specific values.
 
 ### 👥 Group
 
