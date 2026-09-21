@@ -246,17 +246,23 @@ or Group members.
 
 For records with a delivery switch, `active` means the former `disabled=false`
 and `inactive` the former `disabled=true` — two spellings of one control, not
-independent switches. What `inactive` does is kind-specific:
+independent switches.
 
-| Kind | `inactive` means |
+**A record whose `status` is not `active` MUST be treated as no such entity**,
+whatever its kind:
+
+| | |
 |---|---|
-| 👤 👾 📮 📣 | reads and writes are refused with an explicit error, and 📣 copies addressed to the record are discarded and counted as drops |
-| 📡 | the Service is hidden from every read: discovery, record lookup and secret |
-| 👥 | there is no such Group: it grants nothing and appears nowhere |
+| reads, discovery, lookup, a Service's secret | show nothing |
+| every operation naming it | refused |
+| what it grants | nothing, so no membership path through it reaches an actor |
+| waiting readers that lose authority | released |
+| the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
+| reactivation | an authorized status edit on that record, never a re-creation |
 
-In every kind the record stays stored and keeps its canonical name reserved, so
-registration under that name MUST be rejected. Reactivation is an authorized
-status edit on the existing record, never a re-creation.
+The one thing an inactive record still does is account for itself: a 📣 copy
+addressed to it is discarded and counted as its own `dropped`, so the gap is
+visible where the message was lost.
 
 #### Authority rules
 
