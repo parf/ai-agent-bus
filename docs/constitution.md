@@ -266,7 +266,7 @@ Who learns of the rejection depends on who named the record:
 
 | Delivery | Outcome |
 |---|---|
-| direct: the caller names the record itself | an error to that caller, before anything is stored or counted |
+| direct: the caller names the record itself | an error to that caller, before anything is stored or counted, and a daemon log entry |
 | indirect: a 📣 copy or a forwarded message | discarded, counted as the missing record's own `dropped`, and written to the daemon log |
 
 One inactive subscriber therefore MUST NOT stop a topic: the publication
