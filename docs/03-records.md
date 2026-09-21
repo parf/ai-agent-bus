@@ -22,6 +22,10 @@ inferring it from which fields happen to be filled in.
 | 📣 | `pubsub` | a [pub/sub topic](07-channels.md#the-two-channel-kinds): it keeps nothing and copies each publication to everyone on its [Deliver-To list](04-messaging.md#subscribers) | a user or an agent | nobody |
 | 📡 | `service` | a description of something [**external**](06-services.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
 
+**Pending for 0.7:** 👥 `group` joins the enum as a sixth kind, so a Group is an
+ordinary registry record rather than a thing beside the registry
+([constitution § record kind](constitution.md#-record-kind)).
+
 Registering with no kind stores `service`, because describing something outside
 is the case a bare `register` is usually for. `--personal` names an `agent`.
 

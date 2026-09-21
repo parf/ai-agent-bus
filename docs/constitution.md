@@ -190,8 +190,7 @@ The closed set of record kinds:
 | 📮 `queue` | a named competing-consumer queue | yes |
 | 📣 `pubsub` | a fan-out channel that retains no messages of its own and copies publications to its `deliver_to` recipients | yes |
 | 📡 `service` | information about an external service, protected by an ACL | no |
-
-A 👥 Group is a registry record outside this enum.
+| 👥 `group` | a named list of typed actors | no |
 
 #### Actors and ASCII textarea syntax
 
@@ -387,6 +386,7 @@ A Group is a named list of typed actors, owned by a User.
 | Field | Requirement |
 |---|---|
 | `group_id` | stable internal ID |
+| `kind` | `group`, from the same closed enum as every other record |
 | `name` | `@group_name` |
 | `owner_id` | the owning User |
 | `maintainers` | controlled by the Group Owner |
