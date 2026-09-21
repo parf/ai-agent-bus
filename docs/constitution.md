@@ -340,14 +340,9 @@ The forwarding record counts neither overflow case.
 | `addr`, `protocol` | required |
 | `secret` | optional; see [private values](#-private-values) |
 
-A Service has no queue, so no TTL, bound, overflow or `deliver_to`.
-
 ### 🔒 Private values
 
-`config` and `secret` are private bodies on a record. 👾, 📡 and 👥 may carry
-either.
-
-Both are written by the Owner or a Maintainer, read by the record's own
+`config` and `secret` are private bodies. Both are written by the Owner or a Maintainer, read by the record's own
 principal where one exists and otherwise by the actors in `allow`, and shown to
 everyone else as a SHA-256 digest. Their content stays opaque and is the user's
 responsibility.
