@@ -260,10 +260,16 @@ whatever its kind:
 | the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
 | reactivation | an authorized status edit on that record, never a re-creation |
 
-A 📣 recipient is the one case that does not refuse the caller: one inactive
-subscriber MUST NOT stop a topic. Its copy is discarded and counted as that
-record's own `dropped`, and a daemon log entry names the topic and the
-recipient. The publication succeeds for every other recipient.
+Who is refused depends on who named the record, and an absent record and an
+inactive one are the same case:
+
+| Delivery | Outcome |
+|---|---|
+| direct: the caller names the record itself | an error to that caller, before anything is stored or counted |
+| indirect: a 📣 copy or a forwarded message | discarded, counted as the missing record's own `dropped`, and written to the daemon log |
+
+One inactive subscriber therefore MUST NOT stop a topic: the publication
+succeeds for every other recipient.
 
 #### Authority rules
 
@@ -344,10 +350,12 @@ error. The counter is what ends a cycle: two topics listing each other, or a
 queue routing back into the topic that fed it, stop with a stated error rather
 than looping.
 
-The destination applies its active state, TTL and deadline, bound, overflow
-policy and counter rules as for a direct send; forwarding adds no policy of its
-own. Any current-rule refusal rejects the original send with a stated error
-before anything is stored or counted.
+The destination applies its TTL and deadline, bound, overflow policy and
+counter rules as for a direct send; forwarding adds no policy of its own. A
+refusal under those rules rejects the original send with a stated error before
+anything is stored or counted. An inactive or absent destination is the
+exception: the sender named A, not B, so the message is dropped and counted on
+B under the [indirect-delivery rule](#common-record-fields).
 
 | Outcome | Counters |
 |---|---|
