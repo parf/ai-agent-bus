@@ -38,7 +38,7 @@ durability rules, behind the existing storage ports.
 | Publication | one complete new view, never a mutation of the live maps in place |
 | Atomicity | invalid input fails the whole write; no partial update is ever visible |
 | Startup | load every durable entity, then build derived indexes such as token to principal and user ID to status |
-| List fields | the API MUST provide atomic add and remove for `allow`, `maintainers`, `members` and `deliver_to` |
+| List fields | the API MUST provide atomic add and remove for `allow`, `maintainers` and `deliver_to` |
 
 This ordering is write-through: memory serves the loaded view, and a management
 write reaches durable state before the changed view is published. It applies to
@@ -240,7 +240,7 @@ or Group members.
 | `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional; the last `@` separates it |
 | `description` | |
 | `maintainers` | typed actor terms |
-| `allow` | typed actor terms; this is the ACL |
+| `allow` | typed actor terms: the ACL on every kind that has one, and the membership list on a 👥 |
 | `status` | `active` or `inactive` |
 | `created_at`, `updated_at` | maintained by the system, not editable by callers |
 
@@ -250,17 +250,15 @@ Every record carries `registry_id`, `kind`, `name`, `owner_id`, `description`,
 | Field | 👤 | 👾 | 📮 | 📣 | 📡 | 👥 |
 |---|---|---|---|---|---|---|
 | `maintainers` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `allow` | — | ✓ | ✓ | ✓ | ✓ | — |
+| `allow` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `ttl`, `bound`, `overflow` | ✓ | ✓ | ✓ | — | — | — |
 | `deliver_to` | — | one slot | one slot | list | — | — |
 | `personal` | — | ✓ | — | — | — | — |
 | `config` | — | ✓ | — | — | — | — |
 | `addr`, `protocol`, `secret` | — | — | — | — | ✓ | — |
-| `members` | — | — | — | — | — | ✓ |
 
 A `—` means the kind cannot have that field: a 👤 has no `allow` and no
-`maintainers`, and a 👥 Group has no `allow`. Submitting one is refused, never
-stored and ignored.
+`maintainers`. Submitting one is refused, never stored and ignored.
 
 For records with a delivery switch, `active` means the former `disabled=false`
 and `inactive` the former `disabled=true` — two spellings of one control, not
@@ -436,8 +434,7 @@ A Group is a named list of typed actors, owned by a User.
 | `status` | `active` or `inactive`; see [what `inactive` means](#common-record-fields) |
 | `owner_id` | the owning User |
 | `maintainers` | controlled by the Group Owner |
-| `members` | typed User, Agent or Group terms; Group Maintainers MAY add and remove them |
-| `allow` | not used: a Group carries no ACL, and its Owner and Maintainers are its only control |
+| `allow` | the members: typed User, Agent or Group terms, which Group Maintainers MAY add and remove. A Group needs no second list, so it has no `members` field |
 | `created_at`, `updated_at` | |
 
 An Agent MAY be a Group Maintainer through its `#agent@team` term. This extends the existing
