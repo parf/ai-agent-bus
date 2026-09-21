@@ -244,13 +244,11 @@ or Group members.
 | `status` | `active` or `inactive` |
 | `created_at`, `updated_at` | maintained by the system, not editable by callers |
 
-Which fields each kind carries:
+Every record carries `registry_id`, `kind`, `name`, `owner_id`, `description`,
+`status`, `created_at` and `updated_at`. The rest depend on the kind:
 
 | Field | 👤 | 👾 | 📮 | 📣 | 📡 | 👥 |
 |---|---|---|---|---|---|---|
-| `registry_id`, `kind`, `name`, `status`, `created_at`, `updated_at` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `owner_id` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `description` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `maintainers` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `allow` | — | ✓ | ✓ | ✓ | ✓ | — |
 | `ttl`, `bound`, `overflow` | ✓ | ✓ | ✓ | — | — | — |
@@ -260,9 +258,9 @@ Which fields each kind carries:
 | `addr`, `protocol`, `secret` | — | — | — | — | ✓ | — |
 | `members` | — | — | — | — | — | ✓ |
 
-A 👤 record ignores `allow` and `maintainers`, because who may reach it follows
-the reply rule rather than a list, and a 👥 Group ignores `allow`. A `—` field
-submitted for that kind is refused rather than stored and ignored.
+A `—` means the kind cannot have that field: a 👤 has no `allow` and no
+`maintainers`, and a 👥 Group has no `allow`. Submitting one is refused, never
+stored and ignored.
 
 For records with a delivery switch, `active` means the former `disabled=false`
 and `inactive` the former `disabled=true` — two spellings of one control, not
