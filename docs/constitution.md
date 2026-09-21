@@ -245,21 +245,23 @@ or Group members.
 | `created_at`, `updated_at` | maintained by the system, not editable by callers |
 
 Every record carries `registry_id`, `kind`, `name`, `owner_id`, `description`,
-`status`, `created_at` and `updated_at`. The rest depend on the kind:
+`status`, `created_at` and `updated_at`, and every record but 👤 also carries
+`maintainers`, `allow` and `personal`. The rest depend on the kind:
 
-| Field | 👤 | 👾 | 📮 | 📣 | 📡 | 👥 |
-|---|---|---|---|---|---|---|
-| `maintainers` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `allow` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `ttl`, `bound`, `overflow` | ✓ | ✓ | ✓ | — | — | — |
-| `deliver_to` | — | one slot | one slot | list | — | — |
-| `personal` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `config` | — | ✓ | — | — | ✓ | ✓ |
-| `secret` | — | ✓ | — | — | ✓ | ✓ |
-| `addr`, `protocol` | — | — | — | — | ✓ | — |
+| Field | 👾 | 📮 | 📣 | 📡 | 👥 |
+|---|---|---|---|---|---|
+| `ttl`, `bound`, `overflow` | ✓ | ✓ | — | — | — |
+| `deliver_to` | one slot | one slot | list | — | — |
+| `config`, `secret` | ✓ | — | — | ✓ | ✓ |
+| `addr`, `protocol` | — | — | — | ✓ | — |
 
-A `—` means the kind cannot have that field: a 👤 has no `allow` and no
-`maintainers`. Submitting one is refused, never stored and ignored.
+A 👤 record is the User's own inbox and is deliberately the plain one: it takes
+`ttl`, `bound` and `overflow` and nothing else from this table, and it has no
+`allow`, `maintainers` or `personal` either. Who may reach it follows the reply
+rule rather than a list.
+
+A `—`, and any field a kind is not listed as carrying, means the kind cannot
+have it: submitting one is refused, never stored and ignored.
 
 For records with a delivery switch, `active` means the former `disabled=false`
 and `inactive` the former `disabled=true` — two spellings of one control, not
