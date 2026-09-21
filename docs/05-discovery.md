@@ -148,7 +148,9 @@ what the daemon permits. “All” means all visible to that visitor.
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
 | Channels | List and details for 📮 queue, 📣 pub/sub and 👤 user records — every name on this bus that is delivered to and is not an agent; create, edit and remove; subscriptions, owner, Maintainers list, permissions, TTL, capacity and overflow policy. A Type column names each row, and the **Kind filter selects by the kind the daemon stated** rather than by that name, which is what keeps the daemon owner's own inbox under 👤 User while its cell names the authority. The filter offers only the kinds the page lists. From 0.6.3 agent records are on Agents instead |
 
-The [Personal view](03-records.md#personal-and-shared) is built.
+The [Personal view](03-records.md#personal-and-shared) is built. **Pending for
+0.7:** any kind may be Personal and a user record always is, so the main
+collections show shared records only.
 
 ### Section navigation and registration
 

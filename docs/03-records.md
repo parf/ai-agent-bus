@@ -204,10 +204,12 @@ an agent from the main web pages does not revoke authorized access or remove it
 from the registry.
 
 Users, channels and services cannot carry Personal. The owner extended the
-classification to every kind but 👤 on 2026-09-21; see the pending note below.
+classification to every kind on 2026-09-21; see the pending note below.
 
-**Pending for 0.7:** every kind but 👤 may carry Personal, not only an agent.
-Personal states an intended audience — the Owner and the
+**Pending for 0.7:** Personal is no longer an agent-only tag. Every kind
+carries it, and a 👤 is always Personal and cannot be made shared, because
+everything not Personal is shared and a User is not. Personal states an
+intended audience — the Owner and the
 agents that Owner owns — rather than only a web classification, and the
 assignment rules follow that meaning instead of forbidding assignment
 outright. The Owner may name their own agents in both the ACL and Maintainers,

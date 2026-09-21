@@ -245,8 +245,9 @@ or Group members.
 | `created_at`, `updated_at` | maintained by the system, not editable by callers |
 
 Every record carries `registry_id`, `kind`, `name`, `owner_id`, `description`,
-`status`, `created_at` and `updated_at`, and every record but 👤 also carries
-`maintainers`, `allow` and `personal`. The rest depend on the kind:
+`status`, `created_at` and `updated_at`, and every record carries `personal`.
+Every record but 👤 also carries `maintainers` and `allow`. The rest depend on
+the kind:
 
 | Field | 👾 | 📮 | 📣 | 📡 | 👥 |
 |---|---|---|---|---|---|
@@ -258,10 +259,9 @@ Every record carries `registry_id`, `kind`, `name`, `owner_id`, `description`,
 A 👤 record is the User's own inbox and is deliberately the plain one: it takes
 `ttl`, `bound` and `overflow` and nothing else from this table, and it has no
 `allow` or `maintainers` either. Who may reach it follows the reply rule rather
-than a list. It carries no `personal` field because it is always personal by
-definition: its audience is that User and that User's Agents, and nothing can
-widen it. That is the audience sense of the word; Users stay listed in the user
-directory as before.
+than a list. Its `personal` is always true and cannot be changed: its audience is that User
+and that User's Agents, and nothing can widen it. Everything not Personal is
+shared, and a User is not shared — in the web views as everywhere else.
 
 A `—`, and any field a kind is not listed as carrying, means the kind cannot
 have it: submitting one is refused, never stored and ignored.
@@ -327,7 +327,7 @@ The channel kinds are 👤 `user`, 👾 `agent`, 📮 `queue` and 📣 `pubsub`.
 
 | Field | Meaning |
 |---|---|
-| `personal` | the intended audience is the Owner and the Agents that Owner owns; the record's `allow` and `maintainers` admit that cohort and nothing wider. Every kind but 👤 may carry it |
+| `personal` | the intended audience is the Owner and the Agents that Owner owns; the record's `allow` and `maintainers` admit that cohort and nothing wider. Every kind carries it, and on a 👤 it is fixed true |
 | `ttl`, `bound`, `overflow` | the inbox's message rules |
 | `deliver_to` | on 📣 the recipient list; on 👾 or 📮 zero or one forwarding destination |
 
