@@ -340,7 +340,10 @@ MUST resolve it against the registry:
 - Every other term is refused, an unresolvable one included. An entry is refused
   for its kind rather than for permission, and a refusal names the term and
   stores nothing.
-- A 👥 term is expanded at publication, and its membership is actors only.
+- A 👥 term is expanded at publication, and its membership is actors only. An
+  inactive Group is ignored and logged: having no inbox, it contributes neither
+  a recipient nor a `dropped`. If that leaves the publication with no recipient
+  at all, the caller is refused like any other broken flow.
 - A 👤 User receives only replies to what it sent: no ordinary send, no
   published copy, no route. Any other delivery attempt to a User MUST be
   answered with an error, never discarded and never counted as a drop.
