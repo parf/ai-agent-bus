@@ -185,7 +185,9 @@ register those agents as [Personal](03-records.md#personal-and-shared): a
 session record belongs to the launching user, not on the shared web pages. Saved dot-form addresses migrate on restart through the same address-change
 behavior below. Explicit bus names and other clients' naming remain unchanged.
 Duplicate human-readable labels gain `#2`, `#3` and so on. Canonical addresses
-use `.2`, `.3` before the realm, since the canonical grammar excludes `#`.
+use `.2`, `.3` before the realm, because `#` inside a name is not part of the
+grammar — from 0.7 it is the [agent prefix](01-identity-and-roles.md#names) and
+appears only at the front.
 When changing addresses, the session's own previous registration does not
 compete for its label.
 Allocation checks the visible registry and holds local locks; normalization

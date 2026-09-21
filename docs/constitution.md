@@ -206,17 +206,22 @@ group-member textareas accept one ASCII term per line:
 | Owner and its directly owned Agents | `@owner` |
 | The record's own Agent | `@agent` |
 
-- A term is stored exactly as written. An Agent term MUST carry the leading `#`,
-  exactly as a Group term carries `@`, so a bare `alice@team` names a User and
-  nothing else.
-- The marker decides a term's kind without a registry lookup, and lets the
-  daemon reject a term whose stored kind does not match.
+- A term is stored exactly as written, and for the first three it **is** the
+  record's canonical name. An Agent term MUST carry the leading `#`, exactly as
+  a Group term carries `@`, so a bare `alice@team` names a User and nothing
+  else.
+- The prefix is part of the Agent's canonical name everywhere: the registry key,
+  the token identity, the envelope's `from` and `to`, what the Agent is told it
+  serves, and what a caller sends to. Nothing strips it, and a term needs no
+  registry lookup to say what kind it names.
+- `name` is therefore unique across the whole registry rather than within one
+  kind: `alice@team` and `#alice@team` are two records, and one column holds
+  both.
+- In a URL the `#` MUST be percent-encoded as `%23`, since an unescaped one
+  starts a fragment and the rest of the name never reaches the daemon.
 - The last three terms resolve at each check instead of naming a stored entity.
   Only the first three may be created, and none of the last three may be stored
   as an entity or nested in a group.
-- The `#` MUST NOT appear in an Agent's canonical name, token identity, URL,
-  registry key or message route. The daemon strips it when resolving the term,
-  after validating that the target is an Agent.
 - Lists naming an Agent without the marker are retyped by the
   [cutover](../Plans/MVP/0.7-cutover.md#rewrite-and-activation); afterwards an
   untyped Agent name in a list is refused like any other invalid term.
@@ -237,7 +242,7 @@ or Group members.
 | `registry_id` | stable internal ID; persisted, never reused, never the public identity |
 | `owner_id` | the owning User |
 | `kind` | one value from the closed record-kind enum |
-| `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional; the last `@` separates it |
+| `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional and the last `@` separates it. A 👾 name begins with `#` and a 👥 name with `@`, so the name alone says the kind |
 | `description` | |
 | `maintainers` | typed actor terms |
 | `allow` | typed actor terms: the ACL on every kind that has one, and the membership list on a 👥 |

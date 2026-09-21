@@ -43,8 +43,11 @@ separate names, records and configurations.
 
 </details>
 
-**Pending for 0.7:** the realm becomes optional on every name and every kind, so
-an Agent is written `worker`, `worker@srv1` or `claude/home@srv1`. A name
+**Pending for 0.7:** an Agent's canonical name begins with `#` — `#worker`,
+`#worker@srv1`, `#claude/home@srv1` — the way a group name begins with `@`, so
+one name column is unique across every kind and no lookup is needed to know
+what a name refers to. In a URL that `#` is percent-encoded as `%23`. The realm
+becomes optional on every name and every kind. A name
 without a realm is a complete name rather than a shorthand: nothing is appended
 to it, and `alice` and `alice@srv1` are two distinct principals that may both
 exist, each reachable only by its own spelling. The two separators are fixed
