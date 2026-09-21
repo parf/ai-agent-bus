@@ -404,6 +404,7 @@ A Group is a named list of typed actors, owned by a User.
 | `owner_id` | the owning User |
 | `maintainers` | controlled by the Group Owner |
 | `members` | typed User, Agent or Group terms; Group Maintainers MAY add and remove them |
+| `allow` | not used: a Group carries no ACL, and its Owner and Maintainers are its only control |
 | `created_at`, `updated_at` | |
 
 An Agent MAY be a Group Maintainer through its `#agent@team` term. This extends the existing
