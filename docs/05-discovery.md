@@ -531,7 +531,7 @@ handler runs, and a failure of ours, which is a `500`.
 | `suspended` | `403` | a user state is in the way: the caller's own, or that of the owner of the name being called ([user lifecycle](01-identity-and-roles.md#user-states), [services of a paused or banned user](01-identity-and-roles.md#user-states)) |
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](02-access.md#proving-possession)) |
 | `unknown` | `404` | no such name ([messaging § verbs](04-messaging.md#verbs)) |
-| `disabled` | `409` | the receiver's record is turned off by its owner ([owner control](01-identity-and-roles.md#record-authority)) |
+| `disabled` | `409` | the receiver's record is turned off by its owner ([owner control](01-identity-and-roles.md#record-authority)). **Pending for 0.7:** gone; an inactive target answers `unknown`, being [no such entity](constitution.md#common-record-fields), and an inactive caller keeps `suspended` |
 | `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-roles.md#unregistering)), or a credential is backed by a user, record or retained service ([cleanup](02-access.md#ownerless-credentials)) |
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity-and-roles.md#registration)) |

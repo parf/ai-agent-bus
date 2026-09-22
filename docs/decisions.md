@@ -21,7 +21,8 @@ An indexed target may still be pending implementation. The linked substance wins
 | Creating a record grants an Agent no authority over it (Q95) | [registry record](constitution.md#-registry-record) | 2026-09-22 owner answer; the owner is always a User, and an Agent manages only as an explicitly named Maintainer, a rare exception |
 | Incorrect stored records are always ignored (Q99) | [persistence and loading](constitution.md#persistence-and-loading) | 2026-09-22 owner answer; reported as a conceptual error, never loaded or repaired, while the rest of the node starts |
 | A Group name may carry a realm (Q100) | [common record fields](constitution.md#common-record-fields) | 2026-09-22 owner answer; the ordinary name rules apply after the `@` |
-| 0.7.0 is set when the 0.7 plan is finished (Q103) | [K.18](../Plans/MVP/0.7.0-TODO.md#delivery-and-release) | 2026-09-22 owner answer |
+| 0.7.0 starts with the first 0.7 code; a STABLE commit ends the line before 0.8 (Q103 revised) | [versioning](../CLAUDE.md#versioning), [K.18](../Plans/MVP/0.7.0-TODO.md#delivery-and-release) | 2026-09-22 owner decision; 0.6 is released |
+| An inactive target answers `unknown`; `disabled` goes (D6) | [refusals](05-discovery.md#refusals), [K.11](../Plans/MVP/0.7.0-TODO.md#authority-and-lifecycle) | 2026-09-22 owner answer; an inactive caller keeps `suspended` |
 | A person does not send to a person | [request and reply](04-messaging.md#request-and-reply) | 2026-09-22 owner confirmation of the reply-only User inbox |
 | An inactive record is no such entity, apart from one read-only web call | [common record fields](constitution.md#common-record-fields), [user states](01-identity-and-roles.md#user-states) | 2026-09-22 owner answer; the call admits the record's `allow` and always the daemon Owner, the Owner or a Maintainer reactivates, and an inactive User's records are inactive too, hidden and unknown rather than suspended |
 | Every User has exactly one 👤 record, never removable while the User exists | [constitution § User](constitution.md#-user) | 2026-09-22 owner answer; the record's `owner_id` is the `user_id`, and a User found without one at startup is a conceptual error |
@@ -283,6 +284,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Earlier design | Replacement |
 |---|---|
+| 0.7.0 is set only when the 0.7 plan is finished (Q103, 2026-09-22) | [0.7.0 starts with the first code](../CLAUDE.md#versioning) — owner revision the same day |
 | Personal is limited to one kind — services, then agents (2026-09-17, 2026-09-18) | [Personal is on every kind](03-records.md#personal-and-shared) — 2026-09-21 owner decision; it is still a flag, never a kind |
 | An authorized caller may drain an inactive identity's inbox (2026-09-17) | [Inactive is no such entity](constitution.md#common-record-fields) — 2026-09-22 owner answer; the one exception reads and drains nothing. Holds through 0.6 |
 | A group is neither deleted nor given states (2026-09-15) | [A Group is a record with `status`](constitution.md#-record-kind) — 2026-09-21 owner restatement; groups are still never deleted |
