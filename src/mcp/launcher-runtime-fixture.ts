@@ -10,6 +10,7 @@ const value = (flag: string) => args[args.indexOf(flag) + 1];
 const file = process.env.TEST_EVENTS!;
 const event = (kind: string, data: unknown = {}) => appendFileSync(file, JSON.stringify({ kind, data, pid: process.pid }) + "\n");
 event("argv", args);
+event("config-dir", process.env.CLAUDE_CONFIG_DIR || null);
 const savedTitle = () => process.env.TEST_TITLE_FILE && existsSync(process.env.TEST_TITLE_FILE)
   ? readFileSync(process.env.TEST_TITLE_FILE, "utf8") : process.env.TEST_TITLE || null;
 const saveTitle = (title: string) => { if (process.env.TEST_TITLE_FILE) writeFileSync(process.env.TEST_TITLE_FILE, title); };

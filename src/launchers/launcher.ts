@@ -33,9 +33,14 @@ const log = (s: string) => say(process.stderr, "31", s);           // red: broke
 // Make "agent-bus" resolvable as a channel server in this directory.
 // Failure is not fatal: without it the session runs with tools and no channel,
 // which is worth a warning and not worth refusing to start over.
+// Claude keeps a whole account under one configuration home: its login, its
+// MCP servers and its session transcripts. Everything here reads it from the
+// same place, so an account flag moves all three together.
+const claudeHome = () => process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
+const claudeConfig = () => process.env.CLAUDE_CONFIG_DIR ? join(process.env.CLAUDE_CONFIG_DIR, ".claude.json") : join(homedir(), ".claude.json");
 function channelName(cwd: string, face: string) {
   try {
-    const conf = join(homedir(), ".claude.json");
+    const conf = claudeConfig();
     const all = existsSync(conf) ? JSON.parse(readFileSync(conf, "utf8")) : {};
     if (all?.projects?.[cwd]?.mcpServers?.["agent-bus"]) return;
     const done = spawnSync("claude", ["mcp", "add", "--scope", "local", "agent-bus", "--", process.execPath, face],
@@ -51,6 +56,10 @@ const option = (names: string[]) => {
   }
 };
 const has = (...names: string[]) => args.some(a => names.includes(a) || names.some(n => a.startsWith(n + "=")));
+// One machine, several Claude accounts: -2, -3 and -4 name a sibling
+// configuration home. The flag is the launcher's own and never reaches the
+// runtime, which would refuse it.
+const accounts = ["-2", "-3", "-4"];
 type Child = { proc: ChildProcess; exited: Promise<number>; group: boolean };
 const children: Child[] = [];
 function start(command: string[], env: NodeJS.ProcessEnv, file?: number): Child {
@@ -109,10 +118,23 @@ async function main(): Promise<number> {
   if (has("--help", "-h")) {
     console.log(`ab-${runtime}: launch ${runtime} with agent-bus tools and messaging.
 Discovers your local socket; AGENT_BUS_ADDR overrides discovery. AGENT_BUS_TOKEN supplies a token when needed.
-AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continuation are enforced.
+AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continuation are enforced.${runtime === "claude" ? `
+-2, -3 and -4 select a separate account: the configuration home becomes ~/.claude2, ~/.claude3 or ~/.claude4,
+or the set CLAUDE_CONFIG_DIR with that digit appended. Each account keeps its own login, sessions and servers.` : ""}
 Other arguments are forwarded to the runtime. Session state: XDG_STATE_HOME/agent-bus/sessions.
 See docs/08-runner-role.md#smart-launchers.`);
     return 0;
+  }
+  const chosen = [...new Set(args.filter(a => accounts.includes(a)))];
+  if (chosen.length) {
+    if (runtime !== "claude") throw new Error(`${chosen[0]} selects a Claude account and applies to ab-claude only`);
+    if (chosen.length > 1) throw new Error("select one account at a time");
+    // Suffix whichever home is in force, so an explicit CLAUDE_CONFIG_DIR still parents its own accounts.
+    const home = claudeHome().replace(/\/+$/, "") + chosen[0]!.slice(1);
+    mkdirSync(home, { recursive: true, mode: 0o700 });
+    process.env.CLAUDE_CONFIG_DIR = home;
+    for (let i = args.indexOf(chosen[0]!); i >= 0; i = args.indexOf(chosen[0]!)) args.splice(i, 1);
+    note(`account ${chosen[0]!.slice(1)}: ${home}`);
   }
   const binary = runtimeBinary(runtime, process.env);
   if (!binary) throw new Error(`${runtime} executable not found; install the runtime or set ${runtime.toUpperCase()}_BIN`);
@@ -133,7 +155,7 @@ See docs/08-runner-role.md#smart-launchers.`);
   if (!configured) {
     warn("bus is not configured; starting a plain runtime session");
     if (runtime === "claude") {
-      const sessions = await claudeSessions(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), cwd);
+      const sessions = await claudeSessions(claudeHome(), cwd);
       terminal.set(option(["-n", "--name"]) || sessions[0]?.name || undefined);
       return await start([binary, ...claudeArgs(args), "--enable-auto-mode", ...(sessions.length ? ["--continue"] : [])], cleanEnv).exited;
     }
@@ -157,7 +179,7 @@ See docs/08-runner-role.md#smart-launchers.`);
   let serverChild: Child | undefined;
   if (runtime === "claude") {
     if (has("--fork-session", "--from-pr", "--cloud", "--remote-control", "--background", "--bg")) throw new Error("this session mode cannot be bound by the launcher; start an interactive session");
-    const home = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
+    const home = claudeHome();
     const sessions = await claudeSessions(home, cwd);
     const requested = option(["-r", "--resume"]);
     if (has("-r", "--resume") && !requested) throw new Error("give a session ID or name to resume");

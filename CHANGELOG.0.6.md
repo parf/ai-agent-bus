@@ -2,6 +2,11 @@
 
 📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
+## 0.6.17 — 2026-09-22
+
+`ab-claude -2`, `-3` and `-4` open a separate Claude account by moving the
+configuration home, so one machine runs several logins side by side.
+
 ## 0.6.16 — 2026-09-19
 
 Adding an entity and editing one are the same form, for every entity: one field

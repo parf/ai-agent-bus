@@ -175,6 +175,35 @@ try {
     if (runtime === "codex") check("Codex lets the fresh TUI create its own thread", !freshRows.some(r => r.kind === "thread/start") && freshRows.some(r => r.kind === "argv" && r.data.includes("--remote") && !r.data.includes("resume")));
     if (runtime === "opencode") check("opencode attaches its fresh TUI and pusher to the created session without a selection event", freshRows.some(r => r.kind === "http" && r.data.method === "POST" && r.data.path === "/session") && freshRows.some(r => r.kind === "argv" && r.data[0] === "attach" && r.data[r.data.indexOf("--session") + 1] === "fresh-codex") && freshRows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
 
+    if (runtime === "claude") {
+      // Several accounts on one machine: the flag moves the whole configuration
+      // home, so the default account's conversation is not this account's.
+      writeFileSync(join(proj, id + ".jsonl"), JSON.stringify({ type: "custom-title", customTitle: "Default account session" }) + "\n");
+      writeFileSync(events, "");
+      const second = Bun.spawn([launcher, "-2"], { cwd, env: { ...env, TEST_TITLE: "Default account session" }, stdout: "pipe", stderr: "pipe" });
+      processes.push(second);
+      const secondOut = new Response(second.stdout).text();
+      check("ab-claude -2 starts", await second.exited === 17);
+      const secondRows = rowsIn(events);
+      const secondArgs = secondRows.filter(r => r.kind === "argv").map(r => r.data as string[]);
+      check("ab-claude -2 runs the runtime in the sibling account home",
+        secondRows.some(r => r.kind === "config-dir" && r.data === home + "2") && existsSync(home + "2"));
+      check("ab-claude -2 keeps its own flag out of the runtime arguments", secondArgs.every(a => !a.includes("-2")));
+      check("ab-claude -2 continues no session from the default account",
+        secondArgs.some(a => a.includes("--session-id")) && secondArgs.every(a => !a.includes("--continue")));
+      check("ab-claude -2 names the account it opened", (await secondOut).includes(home + "2"));
+      // The same launcher without the flag still finds the default account's conversation.
+      writeFileSync(events, "");
+      const first = Bun.spawn([launcher], { cwd, env: { ...env, TEST_TITLE: "Default account session" }, stdout: "pipe", stderr: "pipe" });
+      processes.push(first);
+      const firstErr = new Response(first.stderr).text();
+      check("ab-claude without a flag keeps the default account", await first.exited === 17
+        && rowsIn(events).some(r => r.kind === "config-dir" && r.data === home)
+        && rowsIn(events).filter(r => r.kind === "argv").some(a => a.data.includes("--continue")));
+      await firstErr;
+      rmSync(join(proj, id + ".jsonl"), { force: true });
+    }
+
     if (runtime === "codex" || runtime === "opencode") {
       const broken = Bun.spawn([launcher], { cwd, env: { ...env, TEST_FAIL_START: "1" }, stdout: "pipe", stderr: "pipe" });
       processes.push(broken);
