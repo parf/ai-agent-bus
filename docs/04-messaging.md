@@ -91,10 +91,10 @@ and who?" to anyone whose access allows the lookup.
 
 ## Request and reply
 
-**Pending for 0.7:** a 👤 User takes a direct send only from a caller its ACL
-admits, which never includes another User, and an Agent must be able to reply
-to the User it serves. The daemon does not recognize replies: matching stays
-the sender's topic + tag. A User is not a topic recipient, no forwarding route
+**Pending for 0.7:** a 👤 User takes a direct send from an Agent exactly when
+that Agent's ACL admits the User — whoever may reach an Agent may be answered
+by it — and never from another User. The daemon does not recognize replies:
+matching stays the sender's topic + tag. A User is not a topic recipient, no forwarding route
 may name one, and a User carries no `deliver_to` field of its own
 ([constitution § Channels](constitution.md#-channels)). This intentionally
 ends person-to-person sends: a person reaches another person through an agent.
