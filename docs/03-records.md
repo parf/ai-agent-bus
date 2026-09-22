@@ -219,7 +219,9 @@ outright. The Owner may name their own agents in both the ACL and Maintainers,
 directly or through the runtime
 [`@owner` and `@agent` terms](02-access.md#acl). What stays invalid is every
 term reaching outside that cohort: another user's agent, an ordinary group, a
-user entry other than the Owner, and the wildcard grant. The
+user entry other than the Owner, and the wildcard grant, each an error on every
+save of `allow` or `maintainers`, at creation and after it. Personal restricts
+nothing else: delivery, `deliver_to` and forwarding are unaffected. The
 [`ab-*` launchers](08-runner-role.md#session-names) register their session
 agents as Personal, which is what keeps a node's session records out of the
 shared web pages while their Owner still reaches them.
