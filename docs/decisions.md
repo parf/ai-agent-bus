@@ -12,6 +12,7 @@ An indexed target may still be pending implementation. The linked substance wins
 |---|---|---|
 | Daemon logs live under `/var/log/agent-bus/` with ordinary logrotate, readable by `adm` (Q96) | [errors and alerts](constitution.md#errors-and-alerts) | 2026-09-22 owner answer |
 | The daemon does not recognize replies to a User; its ACL admits senders (Q94) | [constitution § Channels](constitution.md#-channels) | 2026-09-22 owner answer; matching stays the sender's topic + tag, an Agent must be able to reply, and no User admits another User |
+| `*` admits every active User and every active Agent (Q97) | [actor terms](constitution.md#actors-and-ascii-textarea-syntax), [ACL](02-access.md#acl) | 2026-09-22 owner answer |
 | Creating a record grants an Agent no authority over it (Q95) | [registry record](constitution.md#-registry-record) | 2026-09-22 owner answer; the owner is always a User, and an Agent manages only as an explicitly named Maintainer, a rare exception |
 | Incorrect stored records are always ignored (Q99) | [persistence and loading](constitution.md#persistence-and-loading) | 2026-09-22 owner answer; reported as a conceptual error, never loaded or repaired, while the rest of the node starts |
 | A Group name may carry a realm (Q100) | [common record fields](constitution.md#common-record-fields) | 2026-09-22 owner answer; the ordinary name rules apply after the `@` |

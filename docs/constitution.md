@@ -184,7 +184,7 @@ group-member textareas accept one ASCII term per line:
 | 👤 User | `alice@team` |
 | 👾 Agent | `#worker@team` |
 | 👥 Group | `@support` |
-| Every registered user | `*` |
+| Every active registered User and every active Agent | `*` |
 | Owner and its directly owned Agents | `@owner` |
 | The record's own Agent | `@agent` |
 

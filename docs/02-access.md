@@ -160,7 +160,8 @@ resource roles, not additional entries that must be placed in the ACL.
 To allow **any registered user**, explicitly add **`*`** to the ACL. This does
 not admit anonymous, unknown or suspended callers. A
 [Personal agent](03-records.md#personal-and-shared) cannot use
-this grant because it admits every registered user.
+this grant because it admits every registered user. **Pending for 0.7:** `*`
+also admits every active Agent, which acts for its User.
 
 **`@owner` is a runtime ACL term for the record's direct Owner and every 👾
 `agent` directly owned by that Owner.** No other

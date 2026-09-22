@@ -9,13 +9,12 @@ withdrawn, and every ID stays reserved.
 
 | ID | Question | Blocks |
 |---|---|---|
-| Q104 | Which terms does a 👤 User's `allow` hold by default so that the Agents it messages can reply — `@owner`, `*` limited to Agents, or something else — and may a User edit it? | K.10, K.16 |
-| Q97 | Does the `*` grant, "every registered user", also admit Agents acting for those Users? | K.8 |
+| Q104 | Which terms does a 👤 User's `allow` hold by default so that the Agents it messages can reply — `@owner`, `*`, or something else; `*` would also admit other Users — and may a User edit it? | K.10, K.16 |
 | Q98 | Do record-defined roles stay in MVP scope, given that the constitution does not name them? | K.7, K.18 |
 | Q101 | Does the Personal cohort also restrict a 📣's `deliver_to` and a 📮's or 👾's forwarding destination? | K.15, K.20 |
 | Q102 | On a record other than 👾, is `@agent` refused or accepted as resolving to nothing? | K.8 |
 
-Q94, Q95, Q96, Q99, Q100 and Q103 were settled on 2026-09-22 and moved to the
+Q94, Q95, Q96, Q97, Q99, Q100 and Q103 were settled on 2026-09-22 and moved to the
 [decision index](../../docs/decisions.md#settled).
 
 Settled before 2026-09-22: Q79–Q82, Q85 and Q87–Q91 were settled on 2026-09-20 and moved to the
