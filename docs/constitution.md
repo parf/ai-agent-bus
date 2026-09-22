@@ -67,7 +67,8 @@ Every conceptual error and alert MUST be reported twice: to syslog at a
 severity matching the condition, and to the daemon's error log. No log may
 contain a token, secret, configuration body or message body. Both daemon logs,
 this error log and the entity-edit log, live under `/var/log/agent-bus/`,
-which the unit creates for the daemon account.
+which the unit creates for the daemon account; setup installs an ordinary
+`logrotate` configuration for them.
 [Entity-edit logging](#-registry-record) is separate: authorized edits, not
 impossible states.
 
