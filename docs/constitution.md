@@ -62,11 +62,11 @@ The daemon writes three logs under `/var/log/agent-bus/`, which the unit creates
 for the daemon account and the `adm` group may read; setup installs an ordinary
 `logrotate` configuration for them.
 
-| Log | Holds | Like |
+| File | Holds | Like |
 |---|---|---|
-| debug | **off by default, written only on demand** — a daemon flag at start, or an enable/disable call only the daemon Owner may make while it runs: one line per request — time, caller, route, result and duration | an nginx access log |
-| normal | every administrative action and every [entity edit](#-registry-record) | an audit trail |
-| error | warnings and errors only — something needs attention — and each line also to syslog at matching severity | an nginx error log |
+| `debug.log` | **off by default, written only on demand** — a daemon flag at start, or an enable/disable call only the daemon Owner may make while it runs: one line per request — time, caller, route, result and duration | an nginx access log |
+| `audit.log` | every administrative action and every [entity edit](#-registry-record) | an audit trail |
+| `error.log` | warnings and errors only — something needs attention — and each line also to syslog at matching severity | an nginx error log |
 
 No log may contain a token, secret, configuration body or message body.
 
@@ -81,7 +81,7 @@ Every conceptual error and alert MUST be reported twice: to syslog at a
 severity matching the condition, and to the [error log](#logs). An ordinary
 refusal is answered to its caller and appears nowhere else, save as its request's
 line while the debug log is on.
-[Entity-edit logging](#-registry-record) goes to the normal log: authorized
+[Entity-edit logging](#-registry-record) goes to the audit log: authorized
 edits, not impossible states.
 
 ## Entities
@@ -159,7 +159,7 @@ Agent must manage a record, the Owner names it among the Maintainers: a rare,
 explicit exception.
 
 Every direct edit to a User, registry record or Group, and every other
-administrative action, MUST write one entry to the [normal log](#logs):
+administrative action, MUST write one entry to the [audit log](#logs):
 
 | Entry | Requirement |
 |---|---|
@@ -167,7 +167,7 @@ administrative action, MUST write one entry to the [normal log](#logs):
 | operation, target, result | always |
 | client IP | when one exists; a Unix socket request has none and MUST NOT invent one |
 | a `status` change | is such an edit, so suspension is never silent |
-| credential operations, reads, sends, consumes | write no normal-log entry; while the debug log is on, each is a request line there |
+| credential operations, reads, sends, consumes | write no audit-log entry; while the debug log is on, each is a request line there |
 
 Every field MUST be validated and normalized by its own contract, which MUST
 state that normalization explicitly. Validating a format authorizes no
