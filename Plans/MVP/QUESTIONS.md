@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** Settle the remaining forwarding principal choice for 0.7.
+📌 **TL;DR:** No open 0.7 choices remain; implementation and acceptance are pending.
 
 ## Open questions
 
@@ -14,16 +14,7 @@ reserved, as do all earlier settled question IDs.
 
 ## Constitution forwarding
 
-The [constitution](../../docs/constitution.md#forwarding-details) accepts
-forwarding with destination access. These choices block
-[K.15](0.7.0-TODO.md#delivery-and-release):
-
-| ID | Question |
-|---|---|
-| Q87 | For an Agent record, does the right that makes a forwarding route valid come from its owning User or from the Agent principal that reads its inbox? User and Queue routes use their owning User. Delivery separately checks the original sender under the destination's rules. |
-
-The [constitution](../../docs/constitution.md#-channels) owns settled forwarding
-rules, including the [PubSub aggregate outcome](../../docs/constitution.md#pubsub-routing).
-
-Settled and deferred choices remain in the
-[decision index](../../docs/decisions.md#settled); their IDs remain reserved.
+Q87 was settled by the owner on September 21, 2026; see the
+[decision index](../../docs/decisions.md#settled) and the
+[hop ACL rule](../../docs/constitution.md#-channels). Its ID remains reserved.
+No forwarding decision blocks K.15.

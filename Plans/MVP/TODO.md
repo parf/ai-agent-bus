@@ -107,8 +107,8 @@ references.
 
 ## Questions
 
-[Forwarding choices](QUESTIONS.md#constitution-forwarding) block K.15 and its
-dependent release gates; unrelated constitution work can proceed.
+[Forwarding choices](QUESTIONS.md#constitution-forwarding) are settled; K.15
+and its dependent release gates remain implementation and acceptance work.
 Implementation gaps are not reopened policy questions. The [Future storage
 proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.
 

@@ -291,28 +291,31 @@ When a channel is inactive:
 - PubSub copies addressed to that inactive channel are discarded and counted as
   drops.
 
-**Forwarding — owner-accepted September 19, 2026.** A User, Agent or Queue record
-MAY forward to another channel. The destination MUST NOT be stored unless the
-forwarding principal may write to it under the node's current access rules.
-[Q87](../Plans/MVP/QUESTIONS.md#constitution-forwarding) must settle whether an
-Agent record uses its owning User or the Agent principal for that check.
+**Forwarding — owner-accepted September 19, 2026; ACL clarification September
+21, 2026 (Q87 settled).** A User, Agent or Queue record MAY forward to another
+channel. For an Agent route, the forwarding principal is the Agent itself,
+not its owning User. User and Queue routes retain their owning User as the
+forwarding principal. The destination MUST NOT be stored unless that principal
+may write to it under the destination's current ACL.
 
-Delivery applies the destination's current rules as if the message had been
-addressed there directly: access, active state, TTL and deadline, bound,
-overflow policy and counters. The route itself grants nothing: the destination's
-access check applies to the original sender exactly as for a direct send, so
-forwarding redirects a message and never widens access. The forwarding
-principal's own right is what makes the route storable and keeps it usable, and
-Q87 settles which principal an Agent record uses for that; passing
-configuration-time validation is not a durable grant. A current-rule refusal
-rejects a direct queue delivery before storage or queue counters change. For
-PubSub fan-out, each branch and the upstream result follow [PubSub routing](#pubsub-routing). Route-principal revocation leaves `deliver_to` configured, and a later
-grant allows forwarding again without editing the field. Human
-faces MUST distinguish a configured route from one whose route principal keeps
-it usable, and MUST NOT claim that a usable route admits every sender.
-Remaining forwarding details are tracked in [open questions](#forwarding-details).
+Every transfer into an Agent MUST pass that Agent's ACL. In `USER → A → B`,
+A's ACL checks USER for the first transfer; B's ACL checks A for the second.
+B need not admit USER or A's owning User. This hop's ACL check MUST use A even
+when the envelope retains USER as its original sender. Admission to A does not
+bypass B's ACL, and a grant to USER or A's owner cannot substitute for a grant
+to A.
 
-A forwarded envelope retains the original sender and MUST carry one
+Delivery rechecks the forwarding principal against the destination's current
+ACL, then applies active state, TTL/deadline, bound, overflow and counter rules.
+Configuration-time validation is not a durable grant. A refusal rejects a direct
+queue delivery before storage or queue counters change; PubSub fan-out uses the
+[aggregate outcome](#pubsub-routing). Revocation leaves `deliver_to` configured,
+and a later grant allows forwarding again without editing the field. Human
+faces MUST distinguish a configured route from one currently permitted by the
+destination ACL; the first hop remains subject to its own ACL.
+
+Original-sender provenance and reply routing remain unchanged by the hop ACL
+check. A forwarded envelope retains the original sender and MUST carry one
 `original_to` value naming the one prior destination through which it was
 forwarded. Forwarding depth is one, so this is never a chain. Forwarding moves
 the message: the source inbox keeps no copy and changes neither `in` nor `out`;
@@ -432,15 +435,10 @@ Maintainer assignment MUST NOT bypass that boundary.
 
 ## Open questions
 
-The plan's [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns the
-remaining forwarding principal choice linked above. The remaining
-forwarding choices are summarized here because they define that feature's
-boundary.
+The plan's [question index](../Plans/MVP/QUESTIONS.md#open-questions) tracks
+unresolved choices. No forwarding choice remains open.
 
 ### Forwarding details
 
-Forwarding and the destination-access requirement are settled. Implementation
-still needs to define:
-
-- whether an Agent record uses its owning User or its Agent principal to make
-  the route storable and usable (Q87).
+Q87 is settled by the [hop ACL rule](#-channels); implementation and acceptance
+remain in [K.15](../Plans/MVP/0.7.0-TODO.md#delivery-and-release).
