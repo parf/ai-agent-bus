@@ -64,7 +64,7 @@ for the daemon account and the `adm` group may read; setup installs an ordinary
 
 | Log | Holds | Like |
 |---|---|---|
-| debug | **off by default, written only on demand**: one line per request — time, caller, route, result and duration | an nginx access log |
+| debug | **off by default, written only on demand** — a daemon flag at start, or an enable/disable call only the daemon Owner may make while it runs: one line per request — time, caller, route, result and duration | an nginx access log |
 | normal | every administrative action and every [entity edit](#-registry-record) | an audit trail |
 | error | warnings and errors only — something needs attention — and each line also to syslog at matching severity | an nginx error log |
 
