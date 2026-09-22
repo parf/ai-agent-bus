@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** Five 0.7 questions are open, raised by the 2026-09-22 plan
+📌 **TL;DR:** Four 0.7 questions are open, raised by the 2026-09-22 plan
 review; each names the rows it blocks. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
