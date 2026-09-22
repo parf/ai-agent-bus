@@ -38,8 +38,8 @@ Queue contents and their `in`, `out`, `dropped`, and `expired` counters retain
 the existing [checkpoint boundary](04-messaging.md#durability): they update in
 memory during traffic and flush as one consistent batch every minute and on
 graceful shutdown. There is no database write per message. A crash MAY lose
-queue changes since the last successful flush. The JSON dump is cutover input,
-not a second runtime store after 0.7 activation. Startup MUST reject a durable
+queue changes since the last successful flush. The [0.7 transition](../Plans/MVP/0.7-cutover.md#scope) uses a clean reinstall;
+the old JSON dump and credential file are neither imported nor runtime stores. Startup MUST reject a durable
 queue whose record is absent or cannot hold a queue; it MUST NOT silently drop or
 reattach that backlog.
 
@@ -433,7 +433,7 @@ Maintainer assignment MUST NOT bypass that boundary.
 ## Open questions
 
 The plan's [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns the
-authority, reference-lifecycle and cutover choices linked above. The remaining
+remaining forwarding principal choice linked above. The remaining
 forwarding choices are summarized here because they define that feature's
 boundary.
 

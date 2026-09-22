@@ -19,6 +19,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | Reactivation under the single inactive User state (Q79) | [user states](01-identity-and-roles.md#user-states) | 2026-09-20 owner decision; no formerly-banned authority branch remains |
 | Protected Administrator Group ownership follows daemon ownership (Q80 revised) | [constitution § Group](constitution.md#-group) | 2026-09-21 owner correction; replaces the ownerless Group rule while retaining the protected authority boundary |
 | Deliver-To has kind-dependent meanings and no second forwarding field (Q81) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; PubSub carries actor entries, while User, Agent and Queue carry at most one destination channel |
+| Clean reinstall replaces the 0.7 state migration | [0.7 transition](../Plans/MVP/0.7-cutover.md#scope) | 2026-09-21 owner decision; no production deployments require preservation of 0.6 state |
 | PubSub counters measure accepted publications and delivered copies | [PubSub routing](constitution.md#pubsub-routing) | 2026-09-21 owner answer; settles routing counter units separately from reader consumption |
 | PubSub routes independently and reports aggregate delivery outcomes | [PubSub routing](constitution.md#pubsub-routing) | 2026-09-21 owner clarification; prevents one minor delivery failure from breaking otherwise working pipelines; routing counters and partial-failure warnings are accepted |
 | Forwarding stops after one hop | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; a second forwarding step is an explicit error, never a loop or silent drop |
@@ -257,6 +258,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Earlier design | Replacement |
 |---|---|
+| 0.7 inventory, explicit ownership mappings and offline SQLite rewrite | [Clean reinstall](../Plans/MVP/0.7-cutover.md#scope) — owner removed the migration requirement on 2026-09-21 because the product is not used in production |
 | PubSub publication succeeds even when every recipient delivery fails (built through 0.6) | [PubSub routing](constitution.md#pubsub-routing) — 2026-09-21 owner clarification replaces the aggregate result in 0.7; successful branches remain independent |
 | Protected `@administrators` has no Group Owner (Q80, 2026-09-20) | [Protected Group ownership](constitution.md#-group) — owner correction on 2026-09-21; the daemon Owner owns this Group |
 | Every modifying operation produces a durable correlated audit event with request IDs, transaction coupling, retention, and read authority (2026-09-19–20) | [Entity-edit logging](constitution.md#-registry-record) — the owner said only edits to named entities were requested; Q86, Q92, Q93, and K.14.1 were withdrawn |

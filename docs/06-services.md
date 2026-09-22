@@ -7,7 +7,7 @@
 | MVP | Scope |
 |---|---|
 | Built | The [record](#what-a-service-is), its required address and [protocol](#how-to-call-it), the [refusals](#it-has-no-queue-here) that follow from having no queue, restore asking the same question, and [secrets](#secrets). |
-| Pending | 0.7 [env-file validation](#secrets); the cutover inventory names existing nonconforming secrets, which must be fixed before activation. |
+| Pending | 0.7 [env-file validation](#secrets); newly supplied secrets must pass validation on the [clean reinstall](../Plans/MVP/0.7-cutover.md#scope). |
 
 ## What a service is
 
@@ -116,8 +116,8 @@ answer — and their mechanics differ at every other point:
 The table below describes behavior built through 0.6. **Pending for 0.7,** the
 owner has replaced the opaque-content rule with
 [basic env-file validation](constitution.md#-service). There is no legacy
-exception: the cutover inventory names a nonconforming stored secret by Service
-and digest, and activation waits for the operator to replace or remove it.
+exception: services recreated after [clean reinstall](../Plans/MVP/0.7-cutover.md#scope)
+must supply conforming secrets.
 
 | | Configuration | Secret |
 |---|---|---|
