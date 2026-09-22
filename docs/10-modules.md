@@ -1,6 +1,9 @@
 # Layers and modules
 
-📌 **TL;DR:** Core decides; ports isolate dependencies; faces translate requests.
+📌 **TL;DR:** Core decides; ports isolate dependencies; faces translate
+requests. Protocol and ports sit inward, storage, directory, signature and
+sandbox implementations sit behind their ports, and command entry points
+assemble them. Core never imports an adapter.
 
 ## Status
 

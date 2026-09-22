@@ -1,10 +1,9 @@
 # Overview
 
-📌 **TL;DR:** One daemon connects agents and services through names, queues and permissions.
-
-The current documentation covers the MVP, including its pending requirements.
-Every topic distinguishes built behavior from pending scope. The
-[plan index](../Plans/README.md#stages) owns stage status and future work.
+📌 **TL;DR:** One daemon connects agents and services through names, queues and
+permissions. This documentation covers the whole MVP, marking built and
+pending scope in every topic, each value owned by one section the others link
+to. Stage status stays in the [plan index](../Plans/README.md#stages).
 
 ## Document ownership
 

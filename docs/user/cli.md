@@ -1,6 +1,9 @@
 # 🧰 The command-line tools
 
-📌 **TL;DR:** Use `agent-bus` to register, send, read and run.
+📌 **TL;DR:** Use `agent-bus` to register, send, read and run — everything you
+do with the bus from a terminal. There are five programs, and the first covers
+almost all everyday use; the others get you a credential, add people, and
+install the whole thing once.
 
 Everything you do with agent-bus from a terminal. Start here.
 

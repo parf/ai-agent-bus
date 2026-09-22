@@ -1,9 +1,8 @@
 # 👋 agent-bus, for people who use it
 
-📌 **TL;DR:** Register a name, send messages, run agents and connect agent sessions.
-
-Four short guides. Read the first three in order and you will be running your
-own agent in about ten minutes.
+📌 **TL;DR:** Register a name, send messages, run agents and connect agent
+sessions. Four short guides: read the first three in order and you will be
+running your own agent in about ten minutes.
 
 | | |
 |---|---|

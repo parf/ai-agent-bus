@@ -1,6 +1,9 @@
 # Processes and privileges
 
-📌 **TL;DR:** Supervisor manages processes; bus owns state; web uses the visitor's authority.
+📌 **TL;DR:** The supervisor owns listeners and child lifetime, the bus owns
+state and serves requests, and the web child asks the bus for the visitor's
+own view. Passing a listener is a runtime boundary, separate from the module
+rules. Nothing the daemon runs may exec.
 
 ## Status
 

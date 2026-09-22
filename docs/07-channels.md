@@ -1,6 +1,9 @@
 # Channels
 
-📌 **TL;DR:** Two of the five record kinds are channels: 📮 hands each message to one consumer, 📣 copies each publication to every subscriber.
+📌 **TL;DR:** Two of the five record kinds are channels: 📮 hands each message
+to one consumer, 📣 copies each publication to every subscriber. A channel is
+the record; a topic is only a label carried on one message. What a channel
+declares and what publishing puts on the message are owned here.
 
 ## Status
 

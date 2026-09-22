@@ -68,7 +68,7 @@ is read by byte offset while it runs — never edit it mid-run.
 ## Writing conventions
 
 - Small files, main ideas only, tables over prose; terse English.
-- Current docs start with a one-line `📌 **TL;DR:**` essence. Lead sections with a short summary; put supporting detail in closed `<details>` / `<summary>` blocks and remove duplication.
+- Current docs open with a `📌 **TL;DR:**` paragraph: the essence in two to four lines, never a single clause. Lead sections with a short summary; put supporting detail in closed `<details>` / `<summary>` blocks and remove duplication.
 - Use R1, R1.1 and R1.2 for stages; Legacy-V1 for the NATS system.
 - Beyond the TL;DR marker, no glyph by default. Use question, conflict, failure, blocked, cancelled, deferred, partial, done, handed-off and superseded glyphs only when they add information. One glyph per cell.
 

@@ -1,6 +1,9 @@
 # Access
 
-📌 **TL;DR:** Credentials identify; permissions authorize.
+📌 **TL;DR:** Credentials identify; permissions authorize. A call carries a
+token or an account socket, and the daemon checks that the caller is known,
+active and allowed; a name sent beside a credential cannot change who is
+calling. ACLs and nested groups decide what that caller may reach.
 
 For ownership and management, see [Identity and roles](01-identity-and-roles.md#role-names-and-scopes).
 

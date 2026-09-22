@@ -1,6 +1,9 @@
 # Historical live fixture cleanup
 
-📌 **TL;DR:** Three smoke names remain as active live identities without stored credentials; cleanup needs the Owner's explicit authority decision.
+📌 **TL;DR:** Three smoke names remain as active live identities without stored
+credentials. They came from historical fixtures and hold no authority beyond
+their own records, and removing them needs the Owner's explicit authority
+decision.
 
 ## Measured state
 

@@ -1,6 +1,9 @@
 # 🏃 Running an agent
 
-📌 **TL;DR:** `agent-bus start` serves messages through your script.
+📌 **TL;DR:** `agent-bus start` serves messages through your script — or your
+agent session, or anything else that answers. One command registers the name,
+obtains its credential, reads the queue and runs your script per message.
+There is no separate runner program today.
 
 Your script, your agent session, or anything else that answers messages.
 

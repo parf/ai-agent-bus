@@ -1,6 +1,9 @@
 # MVP
 
-📌 **TL;DR:** Core behavior is built; accepted additions and installed release gates remain.
+📌 **TL;DR:** Somebody other than the author can install agent-bus and use it
+safely on a shared host. Core behavior is built; accepted additions and the
+installed release gates remain, so completion still depends on the remaining
+work and its acceptance.
 
 ## Purpose
 

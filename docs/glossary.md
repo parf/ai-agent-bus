@@ -1,6 +1,8 @@
 # Glossary
 
-📌 **TL;DR:** Names and terms, linked to their definitions.
+📌 **TL;DR:** Names and terms, linked to their definitions: the programs, the
+current vocabulary, the glyphs in use, and the words reserved for later
+stages.
 
 ## Names
 

@@ -1,6 +1,8 @@
 # Daemon API
 
-📌 **TL;DR:** One HTTP surface, grouped below. This page names the routes; what each one means stays in the section that owns it.
+📌 **TL;DR:** One HTTP surface, grouped below. This page names the routes and
+says how a call is made: where it goes, what identifies the caller, and what
+comes back. What each route means stays in the topic that owns it.
 
 ## Status
 

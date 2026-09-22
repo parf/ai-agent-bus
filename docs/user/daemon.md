@@ -1,6 +1,9 @@
 # ⚙️ The daemon
 
-📌 **TL;DR:** Install and operate the bus; check its listeners, state and health.
+📌 **TL;DR:** Install and operate the bus, and tell whether it is healthy.
+`agent-busd` is the whole thing — registry, broker, MCP server and dashboard
+in one process, with no broker and no database server beside it. This page is
+for whoever looks after it.
 
 `agent-busd` is the whole bus: registry, broker, MCP server and dashboard, in
 one process. Nothing else needs installing — **no broker,

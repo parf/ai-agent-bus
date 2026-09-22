@@ -1,6 +1,9 @@
 # Setup and operation
 
-📌 **TL;DR:** Build, install, provision users and operate the node.
+📌 **TL;DR:** Build, install, provision users and operate the node. Privilege
+is what separates the programs and nothing else does: root is needed once for
+installation and never again, each account's files are that account's own, and
+ordinary use needs neither.
 
 ## Status
 

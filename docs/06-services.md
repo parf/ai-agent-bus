@@ -1,6 +1,9 @@
 # External services
 
-📌 **TL;DR:** A 📡 `service` is a card saying where something outside is and how to reach it; nothing on this bus answers for it.
+📌 **TL;DR:** A 📡 `service` is a card saying where something outside is and how
+to reach it; nothing on this bus answers for it. It is the external one of the
+five record kinds, so it has no queue here and refuses everything that would
+need one. Its address and protocol are required.
 
 ## Status
 

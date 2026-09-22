@@ -1,6 +1,9 @@
 # Cutover to the closed kind set
 
-📌 **TL;DR:** Stop the daemon, rewrite `kind` in a copy of its snapshot, start the new binaries on that copy. Nothing is re-registered, so nothing a record already carries can be overwritten.
+📌 **TL;DR:** Stop the daemon, rewrite `kind` in a copy of its snapshot, and
+start the new binaries on that copy. Nothing is re-registered, so nothing a
+record already carries can be overwritten. This is J.12; running it on the
+live node is J.13 and has not been done.
 
 This is [J.12](0.6.0-TODO.md#remaining-work). Running it on the live node is
 J.13 and has not been done.

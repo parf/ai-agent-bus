@@ -1,6 +1,8 @@
 # MVP decisions
 
-📌 **TL;DR:** Decision index; linked contracts define the rule and implementation status.
+📌 **TL;DR:** The index of settled MVP decisions, with the superseded ones kept
+below it. A row names the decision and links the section that owns its
+substance; it never restates the value.
 
 ## Settled
 

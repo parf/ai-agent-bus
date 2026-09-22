@@ -1,6 +1,9 @@
 # 🤝 Claude Code, Codex and opencode on one bus
 
-📌 **TL;DR:** Connect running agent sessions; send messages and request cross-reviews.
+📌 **TL;DR:** Connect running agent sessions: send a line to a Claude Code,
+Codex or opencode session already open in another terminal, and watch it
+arrive there and be worked on. A session sends as easily as it receives, so
+two of them can cross-review each other's work.
 
 **The point: you can talk to a running CLI session.** 💬
 

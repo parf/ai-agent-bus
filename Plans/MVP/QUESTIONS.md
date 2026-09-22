@@ -1,6 +1,9 @@
 # MVP questions
 
-📌 **TL;DR:** No open 0.7 questions; settled choices live in the decision index, and what remains is implementation and acceptance.
+📌 **TL;DR:** No 0.7 question is open. Settled choices live in the decision
+index, withdrawn ones are recorded below with the reason they were withdrawn,
+and every ID stays reserved. What remains for 0.7 is implementation and
+acceptance.
 
 ## Open questions
 

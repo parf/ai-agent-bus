@@ -1,6 +1,8 @@
 # Changelog 0.5
 
-📌 **TL;DR:** Shipped changes on the 0.5 line, newest first. History; the current line is in [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
+📌 **TL;DR:** Shipped changes on the 0.5 line, newest first. This line is
+history: the current one is [changelog 0.6](CHANGELOG.0.6.md#changelog-06),
+and the release numbers here are never rewritten to match it.
 
 ## 0.5.84 — 2026-09-18
 

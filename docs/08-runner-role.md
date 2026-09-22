@@ -1,6 +1,9 @@
 # Foreground runner
 
-📌 **TL;DR:** Run scripts per message; connect agent sessions through launchers.
+📌 **TL;DR:** Run scripts per message, and connect agent sessions through
+launchers. `agent-bus start` registers an 👾, reads its queue and runs the
+script for each message; `ab-claude`, `ab-codex` and `ab-opencode` put a live
+session behind a name with bus tools loaded.
 
 ## Status
 

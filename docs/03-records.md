@@ -1,6 +1,9 @@
 # Records
 
-📌 **TL;DR:** Every registered name is one of five kinds; four have a queue here and the fifth says where something external is.
+📌 **TL;DR:** Every registered name is one of five kinds: 👤 `user`, 👾 `agent`,
+📮 `queue`, 📣 `pubsub` and 📡 `service`. Four have a queue here and the fifth
+says where something external is. `kind` is a closed set the daemon answers
+for, never inferred from which fields are filled in.
 
 ## Status
 

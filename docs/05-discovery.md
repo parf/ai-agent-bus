@@ -1,6 +1,9 @@
 # Discovery
 
-📌 **TL;DR:** Discover accessible records and inspect what the daemon actually knows.
+📌 **TL;DR:** Discover the records you may reach, and inspect what the daemon
+actually knows. Being in the registry and being callable are different facts,
+so a listing has to say what a name is and whether anything answers for it.
+The CLI listings, the MCP minimum and the dashboard tabs are here.
 
 ## Status
 

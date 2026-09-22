@@ -1,6 +1,9 @@
 # Messaging
 
-📌 **TL;DR:** Messages wait in bounded inboxes; dequeue is not completion.
+📌 **TL;DR:** Messages wait in bounded inboxes, and dequeue is not completion:
+a reader takes a message, does the work, and answers it. The verbs, request
+and reply, inbox selection, one reader per inbox, message fields and TTL,
+receipts and reply routing are owned here.
 
 <svg viewBox="0 0 760 300" role="img" aria-label="Request and reply circle between a caller and an agent, through their inboxes" style="max-width:760px;width:100%;height:auto;font-family:sans-serif">
   <defs>

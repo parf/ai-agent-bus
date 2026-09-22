@@ -1,8 +1,9 @@
 # Identity and roles
 
-📌 **TL;DR:** The Owner controls the node; Administrators manage users and groups; Maintainers manage assigned resources.
-
-For credentials and permission checks, see [Access](02-access.md#what-a-call-carries).
+📌 **TL;DR:** The Owner controls the node, Administrators manage users and
+groups, and Maintainers manage the resources assigned to them. Names,
+profiles, registration, record ownership and nested groups are owned here;
+credentials and checks belong to [Access](02-access.md#what-a-call-carries).
 
 ## Scope
 

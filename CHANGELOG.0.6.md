@@ -1,6 +1,8 @@
 # Changelog 0.6
 
-📌 **TL;DR:** Shipped changes on the 0.6 line, newest first. The 0.5 line is in [changelog 0.5](CHANGELOG.0.5.md#changelog-05).
+📌 **TL;DR:** Shipped changes on the 0.6 line, newest first, one or two lines
+per version. Every version bump adds an entry here; the previous line is
+[changelog 0.5](CHANGELOG.0.5.md#changelog-05).
 
 ## 0.6.17 — 2026-09-22
 

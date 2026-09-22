@@ -1,6 +1,9 @@
 # TODO MVP
 
-📌 **TL;DR:** Finish accepted behavior and the remaining browser/runtime journeys on the installed release.
+📌 **TL;DR:** Finish accepted behavior and the remaining browser and runtime
+journeys on the installed release. Built results live in DONE, the 0.7
+constitution work is tracked in its own plan, and the task IDs and acceptance
+below stay in force.
 
 ## Objective
 
