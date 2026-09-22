@@ -56,6 +56,20 @@ A reload API or SIGHUP (`kill -HUP <pid>`) MAY be added later; no 0.7 operation
 needs one. It would replace one complete view with another and rebuild the
 derived indexes, never exposing a partly reloaded state.
 
+## Logs
+
+The daemon writes three logs under `/var/log/agent-bus/`, which the unit creates
+for the daemon account and the `adm` group may read; setup installs an ordinary
+`logrotate` configuration for them.
+
+| Log | Holds | Like |
+|---|---|---|
+| debug | **off by default, written only on demand**: one line per request — time, caller, route, result and duration | an nginx access log |
+| normal | every administrative action and every [entity edit](#-registry-record) | an audit trail |
+| error | warnings and errors only — something needs attention — and each line also to syslog at matching severity | an nginx error log |
+
+No log may contain a token, secret, configuration body or message body.
+
 ## Errors and alerts
 
 A conceptual error is a condition this model says cannot occur: a violated
@@ -64,13 +78,11 @@ ordinary refusal — malformed request, denied permission, unknown name — is n
 one, and goes only to its caller.
 
 Every conceptual error and alert MUST be reported twice: to syslog at a
-severity matching the condition, and to the daemon's error log. No log may
-contain a token, secret, configuration body or message body. Both daemon logs,
-this error log and the entity-edit log, live under `/var/log/agent-bus/`,
-which the unit creates for the daemon account and the `adm` group may read;
-setup installs an ordinary `logrotate` configuration for them.
-[Entity-edit logging](#-registry-record) is separate: authorized edits, not
-impossible states.
+severity matching the condition, and to the [error log](#logs). An ordinary
+refusal is answered to its caller and appears nowhere else, save as its request's
+line while the debug log is on.
+[Entity-edit logging](#-registry-record) goes to the normal log: authorized
+edits, not impossible states.
 
 ## Entities
 
@@ -146,8 +158,8 @@ the owner, and creating one grants the Agent no authority over it. Where an
 Agent must manage a record, the Owner names it among the Maintainers: a rare,
 explicit exception.
 
-Every direct edit to a User, registry record or Group MUST write one daemon log
-file entry:
+Every direct edit to a User, registry record or Group, and every other
+administrative action, MUST write one entry to the [normal log](#logs):
 
 | Entry | Requirement |
 |---|---|
@@ -155,7 +167,7 @@ file entry:
 | operation, target, result | always |
 | client IP | when one exists; a Unix socket request has none and MUST NOT invent one |
 | a `status` change | is such an edit, so suspension is never silent |
-| credential operations, reads, sends, consumes | write no entry |
+| credential operations, reads, sends, consumes | write no normal-log entry; while the debug log is on, each is a request line there |
 
 Every field MUST be validated and normalized by its own contract, which MUST
 state that normalization explicitly. Validating a format authorizes no
