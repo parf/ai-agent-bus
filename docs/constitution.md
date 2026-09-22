@@ -229,8 +229,8 @@ eligibility and `@owner`, remain in force unless explicitly revised.
 | `status` | `active` or `inactive` |
 | `created_at`, `updated_at` | maintained by the system, not editable by callers |
 
-Every record carries those, except that a 👤 has neither `maintainers` nor
-`allow`. The rest depend on the kind:
+Every record carries those, except that a 👤 has no `maintainers`. The rest
+depend on the kind:
 
 | Field | 👾 | 📮 | 📣 | 📡 | 👥 |
 |---|---|---|---|---|---|
@@ -240,8 +240,8 @@ Every record carries those, except that a 👤 has neither `maintainers` nor
 | `addr`, `protocol` | — | — | — | ✓ | — |
 
 A 👤 record is the User's own inbox: it takes `ttl`, `bound` and `overflow` and
-nothing else from this table, who may reach it follows the
-[reply rule](#-channels) rather than a list, and its `personal` is fixed true —
+nothing else from this table, who may reach it is its `allow` under the
+[User delivery rule](#-channels), and its `personal` is fixed true —
 everything not Personal is shared, in the web views as everywhere else, and a
 User is not.
 
@@ -315,9 +315,15 @@ so the daemon MUST resolve it against the registry:
   inactive Group is ignored and logged: having no inbox, it contributes neither
   a recipient nor a `dropped`. If that leaves the publication with no recipient
   at all, the caller is refused like any other broken flow.
-- A 👤 User receives only replies to what it sent: no ordinary send, no
-  published copy, no route. Any other delivery attempt to a User MUST be
-  answered with an error, never discarded and never counted as a drop.
+- A 👤 User takes a direct send only from a caller its `allow` admits, and an
+  Agent MUST be able to reply to a User it serves. The daemon does not decide
+  whether a message is a reply: the sender knows its own tags and matches the
+  answer by topic and tag, as [reply routing](04-messaging.md#reply-routing)
+  already works. A person does not send to a person, so a User's `allow` admits
+  no other User. A User is never a published copy's recipient or a route's
+  destination; such an attempt MUST be answered with an error, never discarded
+  and never counted as a drop. Which terms a User's `allow` holds by default is
+  [open](../Plans/MVP/QUESTIONS.md#open-questions).
 - In the one-slot form, add succeeds only while empty and otherwise names the
   occupied field; remove clears it; replacement is an explicit whole-field
   write, never an add overwriting a concurrent choice. A write carrying two
