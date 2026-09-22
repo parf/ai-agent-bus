@@ -94,7 +94,10 @@ and who?" to anyone whose access allows the lookup.
 **Pending for 0.7:** a 👤 User receives only replies to messages it sent. An
 ordinary `send` to a User is refused, a User is not a topic recipient, no
 forwarding route may name one, and a User carries no `deliver_to` field of its
-own ([constitution § Channels](constitution.md#-channels)).
+own ([constitution § Channels](constitution.md#-channels)). This intentionally
+ends person-to-person sends: a person reaches another person through an agent.
+How the daemon recognizes a reply is
+[open](../Plans/MVP/QUESTIONS.md#open-questions).
 
 Calling a name is not a third verb. It is a **`send` whose reply comes back on
 the same topic + tag**, and the caller waits for it:

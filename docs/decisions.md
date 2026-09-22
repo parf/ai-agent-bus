@@ -10,6 +10,11 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Creating a record grants an Agent no authority over it (Q95) | [registry record](constitution.md#-registry-record) | 2026-09-22 owner answer; the owner is always a User, and an Agent manages only as an explicitly named Maintainer, a rare exception |
+| Incorrect stored records are always ignored (Q99) | [persistence and loading](constitution.md#persistence-and-loading) | 2026-09-22 owner answer; reported as a conceptual error, never loaded or repaired, while the rest of the node starts |
+| A Group name may carry a realm (Q100) | [common record fields](constitution.md#common-record-fields) | 2026-09-22 owner answer; the ordinary name rules apply after the `@` |
+| 0.7.0 is set when the 0.7 plan is finished (Q103) | [K.18](../Plans/MVP/0.7.0-TODO.md#delivery-and-release) | 2026-09-22 owner answer |
+| A person does not send to a person | [request and reply](04-messaging.md#request-and-reply) | 2026-09-22 owner confirmation of the reply-only User inbox |
 | An inactive record is no such entity, apart from one read-only web call | [common record fields](constitution.md#common-record-fields), [user states](01-identity-and-roles.md#user-states) | 2026-09-22 owner answer; the call admits the record's `allow` and always the daemon Owner, the Owner or a Maintainer reactivates, and an inactive User's records are inactive too, hidden and unknown rather than suspended |
 | Every User has exactly one 👤 record, never removable while the User exists | [constitution § User](constitution.md#-user) | 2026-09-22 owner answer; the record's `owner_id` is the `user_id`, and a User found without one at startup is a conceptual error |
 | The CLI names an Agent with `--agent`, adding a missing `#` | [actor terms](constitution.md#actors-and-ascii-textarea-syntax) | 2026-09-22 owner answer; an unquoted `#` is a shell comment, so the flag spares quoting and never doubles the prefix |

@@ -18,7 +18,7 @@ durability rules, behind the existing storage ports.
 | A management write | validates, commits the complete change as one transaction, then publishes |
 | Publication | one complete new view, never a mutation of the live maps in place |
 | Atomicity | invalid input fails the whole write; no partial update is ever visible |
-| Startup | load every durable entity, then build derived indexes such as token to principal and user ID to status |
+| Startup | load every durable entity, then build derived indexes such as token to principal and user ID to status. An incorrect record is always ignored — not loaded, not repaired — and reported as a [conceptual error](#errors-and-alerts); the rest of the node still starts |
 | List fields | the API MUST provide atomic add and remove for `allow`, `maintainers` and `deliver_to` |
 
 That ordering is write-through. It covers record lifecycle changes too,
@@ -29,9 +29,9 @@ Queue contents and their `in`, `out`, `dropped` and `expired` counters keep the
 per message, so a crash MAY lose changes since the last flush. The
 [0.7 transition](../Plans/MVP/0.7-cutover.md#scope) is a clean reinstall: the
 old JSON dump and credential file are neither imported nor runtime stores.
-Startup MUST
-reject a durable queue whose record is absent or cannot hold a queue, and MUST
-NOT silently drop or reattach that backlog.
+A durable queue whose record is absent or cannot hold a queue is such an
+incorrect record: startup MUST ignore and report it, and MUST NOT silently drop
+or reattach that backlog.
 
 Identity changes MUST invalidate stale credentials and grants in durable state
 and memory together:
@@ -86,8 +86,8 @@ impossible states.
 Every User has exactly one 👤 record: `kind` = `user`, `owner_id` = that
 `user_id`. It MUST NOT be removed while the User exists, and removing it is
 refused. A User without its 👤 record, found at startup, is corrupt state and
-a [conceptual error](#errors-and-alerts); the handling of that User is
-[open](../Plans/MVP/QUESTIONS.md#open-questions).
+a [conceptual error](#errors-and-alerts), and so is a 👤 record whose
+`owner_id` names no User; like every incorrect record, each is ignored.
 
 An inactive User makes every record it owns inactive too, under the
 [inactive-record rule](#common-record-fields): hidden and `404`, not a
@@ -139,7 +139,9 @@ a User token.
 
 A registry record MUST be owned by a 👤 User, and so MUST the daemon. An Agent
 MAY manage what it does not own; managing or creating an object never makes it
-the owner.
+the owner, and creating one grants the Agent no authority over it. Where an
+Agent must manage a record, the Owner names it among the Maintainers: a rare,
+explicit exception.
 
 Every direct edit to a User, registry record or Group MUST write one daemon log
 file entry:
@@ -216,7 +218,7 @@ eligibility and `@owner`, remain in force unless explicitly revised.
 | `registry_id` | stable internal ID; persisted, never reused, never the public identity |
 | `owner_id` | the owning User |
 | `kind` | one value from the closed record-kind enum |
-| `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional and the last `@` separates it. A 👾 name begins with `#` and a 👥 name with `@`, so the name alone says the kind |
+| `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional and the last `@` separates it. A 👾 name begins with `#` and a 👥 name with `@`, so the name alone says the kind. The ordinary rules still apply after the prefix, so `@support@srv1` is a Group with a realm |
 | `description` | |
 | `personal` | the intended audience is the Owner and the Agents that Owner owns; the record's `allow` and `maintainers` admit that cohort and nothing wider |
 | `maintainers` | typed actor terms |
