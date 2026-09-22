@@ -179,7 +179,8 @@ leading `#` and is stored with it, so a bare `alice@team` names a User; the
 own agent principal on an 👾 `agent` record, and both terms become valid in
 Maintainers as well as the ACL. Neither becomes a stored group: they still
 cannot be created or nested in one, and they resolve against current registry
-ownership at each check. A
+ownership at each check. Both names are reserved, so no group may be named
+`@owner` or `@agent`, and `@agent` on a record that is not an 👾 is refused. A
 [Personal agent](03-records.md#personal-and-shared) may use both; the wildcard
 stays invalid there because it admits every registered user.
 

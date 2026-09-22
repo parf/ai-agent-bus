@@ -205,7 +205,10 @@ group-member textareas accept one ASCII term per line:
   starts a fragment and the rest of the name never reaches the daemon.
 - The last three terms resolve at each check instead of naming a stored entity.
   Only the first three may be created, and none of the last three may be stored
-  as an entity or nested in a group.
+  as an entity or nested in a group. `@owner` and `@agent` are therefore
+  reserved names: no Group named `@owner` or `@agent` can exist.
+- `@agent` is valid only on a 👾 record, which is the only kind with an Agent of
+  its own; on any other kind it is refused, and the whole update with it.
 - Whitespace is trimmed, duplicate terms are rejected or normalized
   deterministically, and one invalid term rejects the complete update.
 - Unicode glyphs are for display only and MUST NOT be required in editable or
