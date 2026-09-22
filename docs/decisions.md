@@ -10,6 +10,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Daemon logs live under `/var/log/agent-bus/` | [errors and alerts](constitution.md#errors-and-alerts) | 2026-09-22 owner answer to part of Q96; rotation and readers stay open |
 | Creating a record grants an Agent no authority over it (Q95) | [registry record](constitution.md#-registry-record) | 2026-09-22 owner answer; the owner is always a User, and an Agent manages only as an explicitly named Maintainer, a rare exception |
 | Incorrect stored records are always ignored (Q99) | [persistence and loading](constitution.md#persistence-and-loading) | 2026-09-22 owner answer; reported as a conceptual error, never loaded or repaired, while the rest of the node starts |
 | A Group name may carry a realm (Q100) | [common record fields](constitution.md#common-record-fields) | 2026-09-22 owner answer; the ordinary name rules apply after the `@` |

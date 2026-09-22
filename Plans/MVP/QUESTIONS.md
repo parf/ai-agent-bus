@@ -10,7 +10,7 @@ withdrawn, and every ID stays reserved.
 | ID | Question | Blocks |
 |---|---|---|
 | Q94 | How does the daemon know that a message to a 👤 User is a reply to what that User sent, when it [keeps no exchange state](../../docs/04-messaging.md#reply-routing)? | K.10, K.15 |
-| Q96 | Where do the entity-edit log and the error log live, how are they rotated and retained, and does anyone read them other than the daemon account? | K.14, K.21 |
+| Q96 | How are the two logs under `/var/log/agent-bus/` rotated and retained, and may anyone other than the daemon account read them? | K.14, K.21 |
 | Q97 | Does the `*` grant, "every registered user", also admit Agents acting for those Users? | K.8 |
 | Q98 | Do record-defined roles stay in MVP scope, given that the constitution does not name them? | K.7, K.18 |
 | Q101 | Does the Personal cohort also restrict a 📣's `deliver_to` and a 📮's or 👾's forwarding destination? | K.15, K.20 |
