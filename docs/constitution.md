@@ -392,9 +392,10 @@ Nested-group resolution MUST use a visited set. Cycles must terminate and grant
 membership only when a finite path reaches the requested actor.
 
 The protected `@administrators` group is outside the ordinary Group authority
-model. It has neither a Group Owner nor Maintainers, and only the daemon Owner
-may change its direct membership. Ordinary Group ownership or Maintainer
-assignment MUST NOT bypass that boundary.
+model. Its Group Owner MUST be the daemon Owner; it has no Maintainers. Its
+ownership MUST NOT be assigned independently of daemon ownership. Only the
+daemon Owner may change its direct membership. Ordinary Group ownership or
+Maintainer assignment MUST NOT bypass that boundary.
 
 ## Open questions
 
