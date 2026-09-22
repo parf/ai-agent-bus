@@ -211,7 +211,9 @@ classification to every kind on 2026-09-21; see the pending note below.
 
 **Pending for 0.7:** Personal is no longer an agent-only tag. Every kind
 carries it, and a 👤 is always Personal and cannot be made shared, because
-everything not Personal is shared and a User is not. Personal states an
+everything not Personal is shared and a User is not. Its purpose is to keep
+the web interface readable: a few company-wide shared agents stay on the main
+pages while the hundreds of per-user agents sit apart. Personal states an
 intended audience — the Owner and the
 agents that Owner owns — rather than only a web classification, and the
 assignment rules follow that meaning instead of forbidding assignment
