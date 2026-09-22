@@ -22,3 +22,8 @@ local/
 *.key
 *.crt
 *.pem
+
+# Entity specs, while the /entities-extract format is still being shaped
+# (~/src/ai-skills/entities). Not committed yet: the shape changes faster than
+# the content, and a diff of reworded prose is one nobody reviews.
+/docs/entities/
