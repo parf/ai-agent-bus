@@ -7,7 +7,7 @@
 | MVP | Scope |
 |---|---|
 | Built | [The two channel kinds](#the-two-channel-kinds), [what a channel declares](#what-a-channel-declares), [what publish puts on the message](#what-publish-puts-on-the-message) and their listing observations. |
-| Pending | Nothing here. |
+| Pending | 0.7 [PubSub routing](constitution.md#pubsub-routing); the tables below describe built behavior. |
 
 ## Channel, not topic
 

@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** Settle the one remaining forwarding choice for 0.7.
+📌 **TL;DR:** Settle the remaining forwarding principal and PubSub counter semantics for 0.7.
 
 ## Open questions
 
@@ -22,18 +22,16 @@ forwarding with destination access. These choices block
 |---|---|
 | Q87 | For an Agent record, does the right that makes a forwarding route valid come from its owning User or from the Agent principal that reads its inbox? User and Queue routes use their owning User. Delivery separately checks the original sender under the destination's rules. |
 
-The maximum forwarding depth is one. A send whose destination would forward
-again is refused before storage. Loop detection and forwarding-specific TTL or
-deadline rules are settled as unnecessary and are not open choices. A route is
-storable and usable only while Q87's principal may write to its destination.
-The route grants nothing: each delivery applies the destination's current rules
-to the original sender. A forwarded envelope carries the required single-valued
-`original_to` and retains the original sender. Forwarding moves one message:
-the source inbox keeps no copy and changes neither `in` nor `out`; the
-destination increments `in`, then `out` only when a reader receives it. Access
-or inactive-state refusal rejects the original send and changes no counter.
-Strict overflow does the same; ring overflow evicts the destination's oldest
-message and increments that destination's own `dropped`.
+The [constitution](../../docs/constitution.md#-channels) owns settled forwarding
+rules, including the [PubSub aggregate outcome](../../docs/constitution.md#pubsub-routing).
+
+## PubSub routing
+
+PubSub `in`/`out` counters are accepted. Before K.15 accounting acceptance,
+settle their units: should `in` count publications with at least one successful
+delivery or all publication attempts, and should `out` count accepted recipient
+copies? Cover total failure and the existing empty-recipient case explicitly.
+Once settled, add the counters to the statistics persistence and restart checks.
 
 Settled and deferred choices remain in the
 [decision index](../../docs/decisions.md#settled); their IDs remain reserved.

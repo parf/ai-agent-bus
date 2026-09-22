@@ -304,9 +304,9 @@ access check applies to the original sender exactly as for a direct send, so
 forwarding redirects a message and never widens access. The forwarding
 principal's own right is what makes the route storable and keeps it usable, and
 Q87 settles which principal an Agent record uses for that; passing
-configuration-time validation is not a durable grant. Any current-rule refusal
-rejects the original send with a stated error before anything is stored or
-counted. Route-principal revocation leaves `deliver_to` configured, and a later
+configuration-time validation is not a durable grant. A current-rule refusal
+rejects a direct queue delivery before storage or queue counters change. For
+PubSub fan-out, each branch and the upstream result follow [PubSub routing](#pubsub-routing). Route-principal revocation leaves `deliver_to` configured, and a later
 grant allows forwarding again without editing the field. Human
 faces MUST distinguish a configured route from one whose route principal keeps
 it usable, and MUST NOT claim that a usable route admits every sender.
@@ -316,7 +316,8 @@ A forwarded envelope retains the original sender and MUST carry one
 `original_to` value naming the one prior destination through which it was
 forwarded. Forwarding depth is one, so this is never a chain. Forwarding moves
 the message: the source inbox keeps no copy and changes neither `in` nor `out`;
-the destination increments `in`, then `out` only when a reader receives it.
+a queue destination increments `in`, then `out` only when a reader receives it.
+A PubSub destination instead applies [router accounting](#pubsub-routing).
 
 The destination's overflow policy is unchanged: strict overflow refuses the
 original send and changes no counter; ring overflow evicts its oldest message
@@ -324,10 +325,38 @@ and increments the destination's own `dropped`. The forwarding record records
 neither case because the moved message was never accepted into its inbox.
 
 Forwarding has a maximum depth of one. If the selected destination itself has a
-forwarding destination, the original send is refused with a stated error before
-anything is stored. No second message exists to be dropped. Forwarding adds no
+forwarding destination, that delivery is refused with a stated error before
+anything is stored on that branch. A direct send fails; a PubSub publication
+uses the [aggregate outcome](#pubsub-routing). No second message exists to be dropped. Forwarding adds no
 TTL or deadline policy: the destination queue applies the ordinary queue and
 message rules.
+
+#### PubSub routing
+
+**Owner clarification — September 21, 2026; pending for 0.7.** PubSub acts as
+a router and MAY be a forwarding destination. It retains no messages of its
+own; successful delivery means acceptance by a recipient inbox, including
+through an allowed forwarding route, rather than consumption by its reader.
+PubSub exposes `in` and `out` routing counters; these are not queue depth or
+reader-consumption counters. Their counting units and persistence acceptance
+are tracked in the [plan questions](../Plans/MVP/QUESTIONS.md#pubsub-routing).
+
+Each recipient delivery is independent:
+
+- If every recipient delivery fails, the publication MUST fail upstream too.
+- If some deliveries succeed and some fail, the publication MUST succeed
+  upstream, preserve successful deliveries, and report the partial failure as
+  a warning in both the daemon log and Syslog.
+- A failed branch MUST NOT roll back or prevent delivery to other recipients.
+  One minor delivery failure must not break an otherwise working pipeline.
+
+These outcomes apply both to a direct publication and to forwarding into
+PubSub. Refusals on an individual branch obey that destination's rules; the
+upstream result follows the aggregate outcome above. The existing one-hop
+forwarding limit remains; PubSub fan-out does not authorize another forwarding
+hop on a branch that has already used it. Routing warnings are distinct from
+entity-edit log entries and MUST NOT disclose credentials or private bodies.
+The existing empty-recipient behavior remains unchanged by this clarification.
 
 ### 📡 Service
 
