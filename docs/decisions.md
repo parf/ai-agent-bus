@@ -12,6 +12,7 @@ An indexed target may still be pending implementation. The linked substance wins
 |---|---|---|
 | Daemon logs live under `/var/log/agent-bus/` with ordinary logrotate, readable by `adm` (Q96) | [errors and alerts](constitution.md#errors-and-alerts) | 2026-09-22 owner answer |
 | An Agent may send to a User its own ACL admits; the daemon does not recognize replies (Q94, Q104) | [constitution § Channels](constitution.md#-channels) | 2026-09-22 owner answers; whoever may reach an Agent may be answered by it, so an Agent open to `*` may send to every User, matching stays the sender's topic + tag, a User has no list of its own, and no User sends to a User |
+| Record-defined roles leave MVP for R1 (Q98) | [R1 groups and roles](../Plans/R1/identity.md#groups-and-roles) | 2026-09-22 owner decision; the first R1 topic after 0.7 |
 | Personal checks only `allow` and `maintainers`, on every save (Q101) | [records § personal](03-records.md#personal-and-shared) | 2026-09-22 owner answer; a term outside the Owner's cohort is an error at creation and after it, while `deliver_to`, forwarding and delivery are unaffected |
 | `@agent` is a reserved term valid only on an Agent's record (Q102) | [actor terms](constitution.md#actors-and-ascii-textarea-syntax), [ACL](02-access.md#acl) | 2026-09-22 owner answer; like `@owner` it can never be a Group's name, and on any other kind it rejects the update |
 | One daemon parser enforces the documented name syntax on every kind | [names](01-identity-and-roles.md#names), [K.19](../Plans/MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-22 owner instruction; the table is unchanged, so a component still starts alphanumeric |
@@ -70,7 +71,6 @@ An indexed target may still be pending implementation. The linked substance wins
 | An agent's record is labelled `👾` | [identity labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-18 owner decision; supersedes the `📥 Inbox` label of 0.5.84 while the channels placement that decision also made stands. Built in 0.6.1 |
 | Record kinds are a closed set of five | [five record kinds](03-records.md#five-record-kinds) | 2026-09-18 owner decision; a page was inferring what a record is because nothing stored it |
 | A service is external; what runs on this bus is an agent | [five record kinds](03-records.md#five-record-kinds) | 2026-09-18 owner decision; the word was doing two jobs, and the one it keeps is the thing a registration only describes. Built in 0.6.3 |
-| Personal is a flag on an agent, not a kind | [five record kinds](03-records.md#five-record-kinds), [personal and shared](03-records.md#personal-and-shared) | 2026-09-18 owner decision; the classification was never a kind and the field already exists beside one |
 | A service holds secrets, separately from its configuration | [service secrets](06-services.md#secrets) | 2026-09-18 owner decision; brought forward from R1.1 because reaching an external thing needs a credential and configuration was built for a different purpose |
 | No compatibility obligation before 1.1 | [five record kinds](03-records.md#five-record-kinds) | 2026-09-18 owner decision; no migration feature is written. The upgrade still needs a stated restore rule and a cutover, which are [J.11 and J.12](../Plans/MVP/0.6.0-TODO.md#remaining-work) |
 | Editable GitHub-populated profile details | [profiles](01-identity-and-roles.md#users-and-profiles), [web data](../Plans/MVP/web/data-dictionary.md#github-imports) | 2026-09-18 owner clarification; Company, Location and Twitter/X are AgentBus User fields, editable by existing profile authority, with GitHub as an import/refresh source rather than a second profile |
@@ -85,7 +85,6 @@ An indexed target may still be pending implementation. The linked substance wins
 | SSH forced-command execution and entitlement | [SSH administration](09-setup.md#ssh-admin), [account shell](09-setup.md#the-two-accounts) | 2026-09-17 H.5.2 implementation; repairs the previously blocked token delegation and forced-command execution |
 | Metadata refresh preserves omitted ACL settings | [registration](01-identity-and-roles.md#registration) | 2026-09-17 implementation review; explicit replacement and management clearing retained in 0.5.44 |
 | Personal ACLs exclude groups | [Personal assignment limits](03-records.md#personal-and-shared) | 2026-09-17 owner clarification; including groups composed only of services; enforced in 0.5.50 |
-| Personal is service-only in the MVP | [Personal assignment limits](03-records.md#personal-and-shared) | 2026-09-17 implementation boundary: Users, Agents and Channels are excluded; extension needs an owner decision |
 | ACL governs access by other principals | [access rules](02-access.md#acl) | 2026-09-17 owner confirmation; own-inbox right retained in the 0.5.44 default change |
 | Resource owners choose groups; Administrators control membership | [group authority](01-identity-and-roles.md#groups) | 2026-09-17 owner decision; confirms existing indirect acquisition of resource authority |
 | Broader transfer-recipient eligibility deferred | [ownership](01-identity-and-roles.md#ownership) | 2026-09-17 owner direction; rare case, existing conditions retained |
@@ -283,6 +282,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Earlier design | Replacement |
 |---|---|
+| Personal is limited to one kind — services, then agents (2026-09-17, 2026-09-18) | [Personal is on every kind](03-records.md#personal-and-shared) — 2026-09-21 owner decision; it is still a flag, never a kind |
 | An authorized caller may drain an inactive identity's inbox (2026-09-17) | [Inactive is no such entity](constitution.md#common-record-fields) — 2026-09-22 owner answer; the one exception reads and drains nothing. Holds through 0.6 |
 | A group is neither deleted nor given states (2026-09-15) | [A Group is a record with `status`](constitution.md#-record-kind) — 2026-09-21 owner restatement; groups are still never deleted |
 | A lost database lock must be detected and every call then refused (2026-09-19) | [Exclusive lock at start](constitution.md#persistence-and-loading) — 2026-09-22 owner narrowing |

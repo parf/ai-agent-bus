@@ -1,17 +1,13 @@
 # MVP questions
 
-📌 **TL;DR:** One 0.7 question is open, raised by the 2026-09-22 plan
-review; each names the rows it blocks. Settled choices live in the
+📌 **TL;DR:** No 0.7 question is open: the 2026-09-22 plan review raised
+Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
 
 ## Open questions
 
-| ID | Question | Blocks |
-|---|---|---|
-| Q98 | Do record-defined roles stay in MVP scope, given that the constitution does not name them? | K.7, K.18 |
-
-Q94–Q97 and Q99–Q104 were settled on 2026-09-22 and moved to the
+None. Q94–Q104 were settled on 2026-09-22 and moved to the
 [decision index](../../docs/decisions.md#settled).
 
 Settled before 2026-09-22: Q79–Q82, Q85 and Q87–Q91 were settled on 2026-09-20 and moved to the

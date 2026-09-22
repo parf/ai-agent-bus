@@ -6,6 +6,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
+| Record-defined roles move to R1 as its first topic | [groups and roles](identity.md#groups-and-roles) | 2026-09-22 owner decision; moved out of MVP, no representation adopted |
 | Additional storage backends assigned to R1 | [storage](storage.md#backends) | 2026-09-20 owner instruction; implement SQLite first in 0.7 |
 | Sigils | [definition](identity.md#sigils) | D6, D7, D27, D28, D29, D30 |
 | Enrolment policy | [definition](access.md#enrolment-policy) | D18 |

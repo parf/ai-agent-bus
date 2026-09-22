@@ -31,12 +31,6 @@ A channel is published to and subscribed; a topic rides on one envelope and is
 what a filtered read matches. `channel` is the CLI verb, the `publish` flag and
 the wire field; `topic` stays on `send`, `consume` and `reply`.
 
-**Channel is the record; topic is the message label.** From 0.6.7 they are two
-words for two things ([channel, not topic](07-channels.md#channel-not-topic)). A
-channel is published to and subscribed; a topic rides on one envelope and is
-what a filtered read matches. `channel` is the CLI verb, the `publish` flag and
-the wire field; `topic` stays on `send`, `consume` and `reply`.
-
 **Deliver-To is who receives a 📣 copy; the ACL is who may publish.** From
 0.6.15 a pub/sub topic carries both ([subscribers](04-messaging.md#subscribers)).
 Say Deliver-To for the list and recipient for a name on it; *subscriber* stays
@@ -48,8 +42,8 @@ the [five record kinds](03-records.md#five-record-kinds): a card
 describing something this bus does not run. Anything running behind a bus name
 is an **agent**. Say record for a registered name whose kind does not matter to
 the sentence. Personal is an owner-selected
-[agent classification](03-records.md#personal-and-shared), not a
-kind. `generic`, `topic` as a **kind**, and delivery *mode* named kinds before
+[classification](03-records.md#personal-and-shared), not a
+kind: an agent's today, any kind's from 0.7. `generic`, `topic` as a **kind**, and delivery *mode* named kinds before
 0.6.3 and name nothing now.
 
 ## Glyphs

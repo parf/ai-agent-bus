@@ -236,7 +236,8 @@ ends, because an inactive record can be read only by that read-only call.
 
 A record has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
-The following model is built except for **record-defined roles**.
+The following model is built. **Record-defined roles** are
+[R1 work](../Plans/R1/identity.md#groups-and-roles), the first R1 topic after 0.7.
 Maintainers is a list of named users, groups and records. Only the
 resource Owner or daemon Owner replaces it; group entries use ordinary nested
 membership. Human editors use one plain term per line, as ACL editors do.
@@ -244,7 +245,7 @@ membership. Human editors use one plain term per line, as ACL editors do.
 | Role | Authority |
 |---|---|
 | Owner | All Maintainer/Member permissions; assign/revoke Maintainers and transfer ownership |
-| Maintainer | Edit settings and ACL; assign/revoke record-defined roles except Maintainer |
+| Maintainer | Edit settings and ACL |
 | Member | Use the record |
 
 <details>
@@ -264,9 +265,6 @@ membership. Human editors use one plain term per line, as ACL editors do.
   to [removal conditions](#unregistering). Only the record itself may fetch its
   [private configuration](03-records.md#configuring-a-template).
   Managed runtime start/stop remains [runner work](../Plans/R1/runner.md#what-the-runner-does).
-* Record-defined role labels will be stored/resolved without interpreting their
-  meaning; Maintainer is the reserved management role. They must not let a
-  Maintainer remove or replace another Maintainer through ACL editing.
 
 </details>
 
@@ -312,9 +310,8 @@ until populated, and any path to a principal grants effective membership.
   user/group administration.
 * Nested membership is built in 0.5.57. Stored group lists show direct entries;
   user views report effective membership. ACL and Maintainer checks use the
-  same reachability rule. Record-role storage remains
-  [pending](../Plans/MVP/TODO.md#authority-model); proposed expression syntax
-  remains in [R1](../Plans/R1/identity.md#groups-and-roles).
+  same reachability rule. Record-defined roles and the proposed expression
+  syntax are [R1 work](../Plans/R1/identity.md#groups-and-roles).
 * `@administrators` accepts direct user identities only; the Owner remains a
   direct member. A snapshot that nests a group there is refused at startup.
   An ordinary group may name `@administrators`: its direct members then receive

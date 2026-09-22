@@ -10,8 +10,8 @@ For ownership and management, see [Identity and roles](01-identity-and-roles.md#
 ## Scope
 
 Tokens, key-possession enrolment, account sockets, rotation, browser sessions,
-ACLs and nested groups are built. Record-role expressions remain
-[pending](../Plans/MVP/TODO.md#authority-model). Startup revocation remains
+ACLs and nested groups are built. Record-defined roles and group expressions are
+[R1 work](../Plans/R1/identity.md#groups-and-roles). Startup revocation remains
 [best effort](#ownerless-credentials); further hardening is deferred. Future encryption is separate.
 The [Owner-and-Maintainers empty ACL rule](#acl) applies to new and restored records.
 

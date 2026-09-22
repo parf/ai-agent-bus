@@ -6,7 +6,8 @@ Prepare the [proposed scope](README.md#scope) after MVP acceptance. Not started;
 
 ## Next step
 
-Storage scope is assigned; its implementation follows the 0.7 prerequisites.
+Record-defined roles come first after 0.7. Storage scope is assigned; its
+implementation follows the 0.7 prerequisites.
 Other proposed work needs scope confirmation and resolution of
 [questions](QUESTIONS.md#open-questions). Existing decisions describe targets, not completed code.
 
@@ -14,6 +15,7 @@ Other proposed work needs scope confirmation and resolution of
 
 | Candidate work | Must precede it |
 |---|---|
+| [Record-defined roles](identity.md#groups-and-roles), the first R1 topic after 0.7 | 0.7 typed actor terms and User ownership; an owner-approved storage and transport representation |
 | [Additional storage backends](storage.md#backends) | SQLite persistence contract and exclusive database access implemented in 0.7 |
 | Scoped credentials and encryption | [Settled lifetime policy](../../docs/02-access.md#token-lifetime); remaining key recovery and token grammar decisions |
 | D.1–D.4 encryption carried from MVP | [Encryption acceptance](encryption-wave.md#d--the-bus-stops-reading-payloads); key lifecycle decisions |
