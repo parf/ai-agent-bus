@@ -338,8 +338,12 @@ a router and MAY be a forwarding destination. It retains no messages of its
 own; successful delivery means acceptance by a recipient inbox, including
 through an allowed forwarding route, rather than consumption by its reader.
 PubSub exposes `in` and `out` routing counters; these are not queue depth or
-reader-consumption counters. Their counting units and persistence acceptance
-are tracked in the [plan questions](../Plans/MVP/QUESTIONS.md#pubsub-routing).
+reader-consumption counters. `in` increments once for a publication with at
+least one successful recipient delivery; `out` increments once per successfully
+delivered copy. Failed deliveries increment neither router counter. Total
+failure and an empty recipient set therefore leave both unchanged. Later
+consumption does not increment router `out` again. Persist these counters under
+the [statistics schedule](10-modules.md#statistics-persistence).
 
 Each recipient delivery is independent:
 

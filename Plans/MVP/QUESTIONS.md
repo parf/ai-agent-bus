@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** Settle the remaining forwarding principal and PubSub counter semantics for 0.7.
+📌 **TL;DR:** Settle the remaining forwarding principal choice for 0.7.
 
 ## Open questions
 
@@ -24,14 +24,6 @@ forwarding with destination access. These choices block
 
 The [constitution](../../docs/constitution.md#-channels) owns settled forwarding
 rules, including the [PubSub aggregate outcome](../../docs/constitution.md#pubsub-routing).
-
-## PubSub routing
-
-PubSub `in`/`out` counters are accepted. Before K.15 accounting acceptance,
-settle their units: should `in` count publications with at least one successful
-delivery or all publication attempts, and should `out` count accepted recipient
-copies? Cover total failure and the existing empty-recipient case explicitly.
-Once settled, add the counters to the statistics persistence and restart checks.
 
 Settled and deferred choices remain in the
 [decision index](../../docs/decisions.md#settled); their IDs remain reserved.
