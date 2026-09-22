@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** No open 0.7 questions; settled choices live in the decision index.
+📌 **TL;DR:** No open 0.7 questions; settled choices live in the decision index, and what remains is implementation and acceptance.
 
 ## Open questions
 
@@ -13,5 +13,5 @@ to logging entity edits rather than an audit subsystem. Their IDs remain
 reserved, as do all earlier settled question IDs.
 
 The [constitution](../../docs/constitution.md#-channels) owns the settled
-forwarding contract, including the owner's ACL correction; no permission choice
-remains open.
+forwarding contract. Q87 was settled last on 2026-09-21 by the hop ACL rule
+there; no permission choice remains open and none blocks K.15.

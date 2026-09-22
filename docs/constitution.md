@@ -26,7 +26,10 @@ although 0.7 adds no exhaustive deletion-specific crash matrix.
 
 Queue contents and their `in`, `out`, `dropped` and `expired` counters keep the
 [checkpoint boundary](04-messaging.md#durability): in memory during traffic, flushed as one batch every minute and on graceful shutdown, never once
-per message, so a crash MAY lose changes since the last flush. Startup MUST
+per message, so a crash MAY lose changes since the last flush. The
+[0.7 transition](../Plans/MVP/0.7-cutover.md#scope) is a clean reinstall: the
+old JSON dump and credential file are neither imported nor runtime stores.
+Startup MUST
 reject a durable queue whose record is absent or cannot hold a queue, and MUST
 NOT silently drop or reattach that backlog.
 
@@ -333,6 +336,31 @@ nowhere else to go.
 
 The forwarding record counts neither overflow case.
 
+#### PubSub routing
+
+A 📣 routes and stores nothing of its own: a copy is delivered when a recipient
+inbox accepts it — through that recipient's own route included — not when a
+reader consumes it. Its `in` and `out` are routing counters, neither depth nor
+consumption:
+
+| Counter | Increments |
+|---|---|
+| `in` | once per publication at least one recipient took |
+| `out` | once per accepted copy, and never again when that copy is read |
+
+A failed copy increments neither, so total failure and an empty recipient set
+leave both unchanged. Persist them under the
+[statistics schedule](10-modules.md#statistics-persistence).
+
+Each recipient is an independent branch answered under its own destination's
+rules, and a failed one MUST NOT roll back or prevent any other: one broken
+recipient may not break a working pipeline. The caller's answer is the
+[flow outcome](#common-record-fields) — success while anything got through, an
+error when nothing did — and a partial failure is also a warning in the daemon
+log and syslog, carrying no credential and no body. Forwarding into a 📣 is
+answered the same way, and each branch it fans out to increments the forward
+counter.
+
 ### 📡 Service
 
 | Field | Requirement |
@@ -368,14 +396,18 @@ authority remains.
 Nested resolution MUST use a visited set, and grants membership only when a
 finite path reaches the requested actor.
 
-The protected `@administrators` group is outside this model: no Group Owner, no
-Maintainers, and only the daemon Owner changes its direct membership. Ordinary
-Group ownership or Maintainer assignment MUST NOT bypass that boundary.
+The protected `@administrators` group is outside this model: its Owner MUST be
+the daemon Owner and MUST NOT be assigned independently of daemon ownership, it
+has no Maintainers, and only the daemon Owner changes its direct membership.
+Ordinary Group ownership or Maintainer assignment MUST NOT bypass that
+boundary.
 
 ## Open questions
 
-None; the plan's [question index](../Plans/MVP/QUESTIONS.md#open-questions)
-owns any raised later.
+None. Q87 is settled by the [hop ACL rule](#-channels), leaving implementation
+and acceptance in [K.15](../Plans/MVP/0.7.0-TODO.md#delivery-and-release). The
+plan's [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns any
+question raised later.
 
 ## What this replaces
 
@@ -386,9 +418,9 @@ can see what changed.
 |---|---|
 | Users own everything, and an Agent's management authority never makes it an owner | agent-owned records, ownership chains and self-owned non-User records in the topic docs, whose presence there is not evidence that such objects exist |
 | write-through ordering | the memory-before-persistence behavior of the 0.6 [persistence-failure contract](04-messaging.md#administrative-crash-recovery) |
-| SQLite as the runtime store | the JSON dump, now cutover input only |
+| SQLite as the runtime store | the JSON dump, which the clean reinstall does not import |
 | `active` and `inactive` | `banned`, and the Disabled switch: `active` is the former `disabled=false`, `inactive` the former `disabled=true` |
-| an Agent's `#` inside its canonical name | unprefixed Agent names, rewritten by the [cutover](../Plans/MVP/0.7-cutover.md#rewrite-and-activation) |
+| an Agent's `#` inside its canonical name | unprefixed Agent names, which no installation carries into 0.7 |
 | a 👥 `allow` holding its members | a separate `members` field |
 | a validated env-file `secret` | the rule that `KEY=value` was only a caller convention |
 | extended ACL syntax | nothing: existing terms stay valid and `*` is not widened |

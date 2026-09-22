@@ -352,15 +352,14 @@ Owner holds node-wide management authority
 
 The table is the built through-0.6 layout. Pending 0.7 work moves durable
 entities, credentials, queue contents and queue counters into the default
-[SQLite store](constitution.md#persistence-and-loading); the JSON dump becomes
-cutover input rather than a second runtime store. Additional database adapters
+[SQLite store](constitution.md#persistence-and-loading); the
+[0.7 transition](../Plans/MVP/0.7-cutover.md#scope) uses clean reinstall. Additional database adapters
 remain [R1 work](../Plans/R1/storage.md#backends). Current and pending durability
 are defined in [messaging § durability](04-messaging.md#durability).
 
-The [0.7 cutover](../Plans/MVP/0.7-cutover.md#inventory) inventory, emitted
-Owner-mapping template and completed mapping contain policy metadata. They stay
-under the daemon account's private state directory with mode `0600`, like the
-database and backups; setup must not place them in a shared working directory.
+Follow the [reinstall procedure](../Plans/MVP/0.7-cutover.md#procedure) for 0.7
+bootstrap and client reconnection. SQLite state and backups retain the daemon
+account's private directory and file boundary.
 
 ## The two accounts
 

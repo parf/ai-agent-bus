@@ -56,7 +56,8 @@ contents and their `in`, `out`, `dropped`, and `expired` counters form queue
 state: they flush together every minute and on graceful shutdown, preserving
 the [durability boundary](04-messaging.md#durability) and the distinction
 between a drained queue and a never-used one without a write per message.
-Other statistics batches may update last-use timestamps. Neither batch may
+Other statistics batches persist [PubSub router counters](constitution.md#pubsub-routing)
+and may update last-use timestamps; routing counters do not create a PubSub queue. Neither batch may
 rewrite policy or credential material.
 
 ## Modules
