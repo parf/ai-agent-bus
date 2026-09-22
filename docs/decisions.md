@@ -11,7 +11,8 @@ An indexed target may still be pending implementation. The linked substance wins
 | Decision topic | Substance | Why |
 |---|---|---|
 | Daemon logs live under `/var/log/agent-bus/` with ordinary logrotate, readable by `adm` (Q96) | [errors and alerts](constitution.md#errors-and-alerts) | 2026-09-22 owner answer |
-| An Agent may send to a User its own ACL admits; the daemon does not recognize replies (Q94, Q104) | [constitution § Channels](constitution.md#-channels) | 2026-09-22 owner answers; whoever may reach an Agent may be answered by it, matching stays the sender's topic + tag, a User has no list of its own, and no User sends to a User |
+| An Agent may send to a User its own ACL admits; the daemon does not recognize replies (Q94, Q104) | [constitution § Channels](constitution.md#-channels) | 2026-09-22 owner answers; whoever may reach an Agent may be answered by it, so an Agent open to `*` may send to every User, matching stays the sender's topic + tag, a User has no list of its own, and no User sends to a User |
+| One daemon parser enforces the documented name syntax on every kind | [names](01-identity-and-roles.md#names), [K.19](../Plans/MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-22 owner instruction; the table is unchanged, so a component still starts alphanumeric |
 | `*` admits every active User and every active Agent (Q97) | [actor terms](constitution.md#actors-and-ascii-textarea-syntax), [ACL](02-access.md#acl) | 2026-09-22 owner answer |
 | Creating a record grants an Agent no authority over it (Q95) | [registry record](constitution.md#-registry-record) | 2026-09-22 owner answer; the owner is always a User, and an Agent manages only as an explicitly named Maintainer, a rare exception |
 | Incorrect stored records are always ignored (Q99) | [persistence and loading](constitution.md#persistence-and-loading) | 2026-09-22 owner answer; reported as a conceptual error, never loaded or repaired, while the rest of the node starts |
