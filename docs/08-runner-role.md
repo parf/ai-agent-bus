@@ -179,10 +179,11 @@ captured at startup; a later working-directory change does not rename the sessio
 Human-readable labels and [canonical bus names](01-identity-and-roles.md#names) serve
 different purposes: preserve the label for discovery, and derive a valid bus
 name for routing. A title is not a credential or a unique session identifier.
-The `ab-*` launchers derive `#runtime/instance@realm` from 0.7, with `claude`, `codex`
-or `opencode` as the template and the normalized session title (or directory) as the instance.
-For example, a Codex session titled `home` becomes `#codex/home@parf.us` on
-that realm. They keep deriving a realm although
+The `ab-*` launchers derive `#runtime/instance@host` from 0.7, with `claude`, `codex`
+or `opencode` as the template, the normalized session title (or directory) as
+the instance and the host name as the realm, while the launching User stays
+realm-less. For example, a Codex session titled `home` on host `parf.us`
+becomes `#codex/home@parf.us`, owned by `parf`. They keep deriving a realm although
 [0.7 makes it optional](01-identity-and-roles.md#names): a bare `codex` or
 `runner` would be one name for every node and every user. From 0.7 they also
 register those agents as [Personal](03-records.md#personal-and-shared): a

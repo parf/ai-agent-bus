@@ -54,14 +54,16 @@ to it, and `alice` and `alice@srv1` are two distinct principals that may both
 exist, each reachable only by its own spelling. The two separators are fixed
 whatever else a name contains: the first `/` separates the template, and the
 last `@` separates the realm. A realm-less name is therefore one carrying no
-`@` at all, and every name valid today keeps its current meaning. Nothing
+`@` at all. Every name valid today keeps its realm split; an Agent's name also
+gains its `#`, so an unprefixed former Agent name now names a User. Nothing
 completes a bare name with the local hostname any more; a name is taken as
 written. A new User's name defaults to the
-Unix account name alone. Callers that would otherwise collide across machines
-still choose a realm for themselves: the
+Unix account name alone, the daemon Owner's included, so the clean reinstall
+bootstraps `parf` rather than `parf@host`. Agents that would otherwise collide
+across machines still carry a realm: the
 [launchers](08-runner-role.md#session-names) keep deriving
-`runtime/instance@realm`, because a bare `runner` would be the same name on
-every node.
+`#runtime/instance@host`, with the host name as the realm, because a bare
+`#runner` would be the same name on every node.
 
 ## Role names and scopes
 
@@ -195,12 +197,15 @@ second suspension level. Users remain non-deletable. An active Administrator or
 the daemon Owner may reactivate an inactive ordinary User. An Administrator may
 not change another Administrator; only the daemon Owner may reactivate an
 inactive Administrator. The daemon Owner must remain active. Agent ownership is
-also removed: after cutover, suspension follows each record's mapped direct User
-owner, so the ownership-chain exception below no longer exists in the 0.7 model.
+also removed. An inactive User's records are inactive too, and an inactive
+record is [no such entity](constitution.md#common-record-fields): hidden and
+answered as unknown, readable only through the web face's read-only call, so
+the ownership-chain exception below no longer exists in the 0.7 model.
 
 **An active, authorized caller may drain an inactive identity's inbox.** The
 target's inactivity alone does not block reading queued work; new deliveries
-remain refused. This is existing behavior.
+remain refused. This is existing behavior through 0.6; **pending for 0.7** it
+ends, because an inactive record can be read only by that read-only call.
 
 <details>
 <summary>Suspension, reactivation and inboxes</summary>
@@ -285,6 +290,9 @@ as Maintainers. They may add themselves or another user they create, without
 additional approval from the record's owner. Choosing the group accepts those
 membership changes on every resource using it. This is intended, built behavior.
 Retire an ordinary group by emptying it; groups are not deleted, paused or banned.
+**Pending for 0.7:** a Group is a record with `status`, and an inactive Group
+grants nothing and is [no such entity](constitution.md#common-record-fields)
+while its name stays reserved.
 Ordinary groups may contain principals and other groups. Their membership
 follows the stored graph: cycles terminate, unknown group references stay inert
 until populated, and any path to a principal grants effective membership.

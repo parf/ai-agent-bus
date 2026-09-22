@@ -43,11 +43,14 @@ and memory together:
 | Reusing a name | inherit no authority and no delivery from the former holder |
 | Users | never removed |
 
-One active daemon MAY use a database: it MUST take exclusive ownership before
-serving and reject a competing instance. Losing that exclusivity, or failing to
-publish a committed change, leaves it unable to answer with authority, and it
-MUST then refuse every read and write with a stated reason rather than answer
-from its cached view. Whether the process exits is its own decision.
+One active daemon SHOULD use a database, and it MUST take whatever exclusive
+lock the storage engine offers before serving, so a competing instance cannot
+start. Detecting a lock lost afterwards is not required. Failing to publish a
+committed change leaves the daemon unable to answer with authority, and it MUST
+then refuse every read and write with a stated reason rather than answer from
+its cached view. Whether the process exits is its own decision.
+
+The SQLite driver is `modernc.org/sqlite`.
 
 A reload API or SIGHUP (`kill -HUP <pid>`) MAY be added later; no 0.7 operation
 needs one. It would replace one complete view with another and rebuild the
@@ -79,6 +82,16 @@ impossible states.
 | Ed25519 public key | when key-based enrolment is used |
 | `created_at`, `updated_at`, `last_used_at` | |
 | `status` | `active` or `inactive` |
+
+Every User has exactly one 👤 record: `kind` = `user`, `owner_id` = that
+`user_id`. It MUST NOT be removed while the User exists, and removing it is
+refused. A User without its 👤 record, found at startup, is corrupt state and
+a [conceptual error](#errors-and-alerts); the handling of that User is
+[open](../Plans/MVP/QUESTIONS.md#open-questions).
+
+An inactive User makes every record it owns inactive too, under the
+[inactive-record rule](#common-record-fields): hidden and `404`, not a
+separate suspended state.
 
 Under the owning [User-state contract](01-identity-and-roles.md#user-states),
 an Administrator may reactivate an ordinary User but not another
@@ -180,6 +193,9 @@ group-member textareas accept one ASCII term per line:
   CLI arguments, MCP arguments, registration, credential issue, configuration
   files and what a process is told it serves — and MUST NOT complete, guess or
   tolerate an unprefixed one. An unprefixed name names a User or nothing.
+- Because a shell reads an unquoted `#` as a comment, the CLI MUST also accept
+  `--agent worker@srv1`, which names `#worker@srv1`. It adds the `#` only when
+  absent, never a second one; a quoted `'#worker@srv1'` stays valid.
 - In a URL the `#` MUST be percent-encoded as `%23`, since an unescaped one
   starts a fragment and the rest of the name never reaches the daemon.
 - The last three terms resolve at each check instead of naming a stored entity.
@@ -237,7 +253,8 @@ whatever its kind:
 | what it grants | nothing, so no membership path through it reaches an actor |
 | waiting readers that lose authority | released |
 | the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
-| reactivation | an authorized status edit on that record, never a re-creation |
+| the one exception | a dedicated read-only call for the web face shows inactive records to the actors their `allow` admits, and always to the daemon Owner. It reads; it sends, consumes, drains, transfers and removes nothing |
+| reactivation | a status edit by the record's Owner or a Maintainer, never a re-creation |
 
 An absent record is the same case. Whether the caller is refused depends on
 whether anything still gets through:
@@ -373,7 +390,8 @@ counter.
 `config` and `secret` are private bodies. Both are written by the Owner or a Maintainer, read by the record's own
 principal where one exists and otherwise by the actors in `allow`, and shown to
 everyone else as a SHA-256 digest. Their content stays opaque and is the user's
-responsibility.
+responsibility. A 👥 has no principal of its own, so its `allow` — its
+membership — reads them: every member reads a Group's secret.
 
 | | Validation |
 |---|---|

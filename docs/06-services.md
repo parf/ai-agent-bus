@@ -100,7 +100,7 @@ so what comes back is the digest and never what was just sent.
 |---|---|
 | who may write it | the principals with [record management authority](01-identity-and-roles.md#groups), as for a configuration. A registration carries **neither half** — not the bytes, and not the digest — and a re-registration keeps the one already stored |
 | who may read it | whoever the record's [ACL](02-access.md#acl) admits, with no second list. Asked before the kind and before the secret exists, so a caller the list does not admit learns only that there is no such name |
-| which kinds hold one | 📡 `service` alone. Every other kind is reached by sending to its name, so there is nothing outside for a credential to unlock — refused at the verb, and a snapshot holding one is refused at [restore](03-records.md#restoring-a-record) |
+| which kinds hold one | 📡 `service` alone. Every other kind is reached by sending to its name, so there is nothing outside for a credential to unlock — refused at the verb, and a snapshot holding one is refused at [restore](03-records.md#restoring-a-record). **Pending for 0.7:** 👾 and 👥 hold one too, under the [private-value rule](constitution.md#-private-values) |
 | what a query gets | **`secret_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record, and on the service's own page. The bytes are on no listing, no record answer, no page and no log |
 | nothing to store | an empty secret is refused, because it reads back exactly like never having set one |
 | when it is acknowledged | once it is durable. A credential the caller was told was stored, and which a restart then loses, is worse than a refusal |
