@@ -205,18 +205,20 @@ func runBus(c config) {
 			select {
 			case at := <-activityTick.C:
 				bus.SampleActivity(at)
-				callHistory.Sample(at)
 			case <-activityDone:
 				return
 			}
 		}
 	}()
+	clockDone := make(chan struct{})
+	go everyMinute(clockDone, time.Now, time.After, onMinute(callHistory))
 	<-stop
 	// Join the periodic writer before the final clean checkpoint; no later
 	// tick may replace it with an unclean snapshot during shutdown.
 	stopSnapshots()
 	activityTick.Stop()
 	close(activityDone)
+	close(clockDone)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, srv := range srvs {
@@ -229,6 +231,31 @@ func runBus(c config) {
 	// The sockets themselves are the supervisor's to remove.
 	save(true)
 	log.Print("bus stopped")
+}
+
+// everyMinute calls fn at every minute of the clock — :00 seconds, not a
+// minute from start — until done closes. The wait is recomputed from the
+// clock each time, so a late wake or a clock step costs one reading, not the
+// cadence. now and after are the clock, replaceable by a test.
+func everyMinute(done <-chan struct{}, now func() time.Time, after func(time.Duration) <-chan time.Time, fn func(time.Time)) {
+	for {
+		t := now()
+		select {
+		case <-after(t.Truncate(time.Minute).Add(time.Minute).Sub(t)):
+			fn(now())
+		case <-done:
+			return
+		}
+	}
+}
+
+// onMinute is what the bus does at each minute of the clock: one reading of
+// the call counter, so "Calls, minute" is a minute and 61 readings an hour
+// (docs/05-discovery.md#what-a-node-says-about-itself).
+func onMinute(calls *callstats.History) func(time.Time) {
+	return func(at time.Time) {
+		calls.Sample(at)
+	}
 }
 
 type githubDirectory interface {

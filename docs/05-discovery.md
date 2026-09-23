@@ -431,8 +431,9 @@ credential, and the closed list below is still the closed list.
 
 The total needs no sampler at all: it is the counter itself. The minute and
 hour windows come from a **separate 61-sample history of that counter** — plain
-readings, no records and no names in it — driven by the **existing minute
-ticker**, so there is no additional timer. It is not the per-record activity
+readings, no records and no names in it — taken by the bus **at every minute
+of the clock** (built in 0.8.11; before it the readings rode the ten-minute
+activity tick). It is not the per-record activity
 the dashboard graphs; those samples stay what they were and are counted
 per record.
 

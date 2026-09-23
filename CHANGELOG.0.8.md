@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.11 — 2026-09-23
+
+The call counter is read at every minute of the clock, so "Calls, minute" is
+one minute and the 61 readings one hour, not ten minutes and ten hours.
+
 ## 0.8.10 — 2026-09-23
 
 A section's Personal tab counts its own kind and opens `/personal?kind=…`;
