@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.23 — 2026-09-23
+
+Setup over a running node restarts it for a changed unit or release, waits for
+that release and build, and reports the durable Owner; `--reinstall` refuses a
+daemon holding its home outside systemd and rolls a midway failure back.
+
 ## 0.8.22 — 2026-09-23
 
 `/status` counts records inactive through their owner and the messages they

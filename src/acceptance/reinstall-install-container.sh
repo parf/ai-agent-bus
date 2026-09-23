@@ -40,7 +40,9 @@ unpack /package/new /root/new
 old_version=$(cat /root/old/internal/version/VERSION)
 new_version=$(cat /root/new/internal/version/VERSION)
 case $old_version in 0.6.*) ;; *) fail "old archive is $old_version, not a 0.6 release" ;; esac
-case $new_version in 0.7.*) ;; *) fail "new archive is $new_version, not a 0.7 release" ;; esac
+case $new_version in 0.6.*) fail "new archive is $new_version, a 0.6 release" ;; esac
+new_build=$(/root/new/agent-busd --version | sed -n 's/^build_info: //p')
+[ -n "$new_build" ] && [ "$new_build" != "development (unstamped)" ] || fail "new archive is unstamped: $new_build"
 
 # --- a populated 0.6 installation --------------------------------------------
 printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIownerfixture owner@fresh' >/root/owner-key.pub
@@ -122,7 +124,10 @@ pass "the unit's drop-ins are gone and the generated unit runs as written"
 [ "$(stat -c '%U %a' "$db")" = "agent-busd 600" ] || fail "database owner or mode: $(stat -c '%U %a' "$db")"
 for command in agent-busd agent-bus-setup agent-bus-admin; do
   [ "$("/usr/local/bin/$command" --version | head -1)" = "$new_version" ] || fail "$command is not $new_version"
+  [ "$("/usr/local/bin/$command" --version | sed -n 's/^build_info: //p')" = "$new_build" ] || fail "$command build_info is not the archive's"
 done
+curl -fsS http://127.0.0.1:6767/identity >/evidence/identity-after.json
+grep -qF '"build_info":"'"$new_build"'"' /evidence/identity-after.json || fail "the node does not report the archive's build_info $new_build"
 agent-bus-admin token owner@fresh >/root/new-owner.token
 [ "$(status_with /root/new-owner.token /evidence/new-owner.json)" = 200 ] || fail "new owner credential is refused"
 grep -q '"you":"owner@fresh"' /evidence/new-owner.json || fail "new credential is not the installer's"
@@ -188,6 +193,58 @@ if agent-bus ls fresh-queue@fresh >/evidence/fresh-queue-after.txt 2>&1 && grep 
   fail "prior 0.7 record survived the reinstall"
 fi
 pass "reinstall over 0.7 sets its database aside too and issues fresh credentials"
+
+# --- a daemon holding the database outside systemd ---------------------------
+systemctl stop agent-busd
+install -d -o agent-busd -m 700 /run/agent-bus-manual
+runuser -u agent-busd -- /usr/local/bin/agent-busd -addr 127.0.0.1:6791 -socket /run/agent-bus-manual/bus.sock \
+  -db "$db" -log-dir /run/agent-bus-manual -owner owner@fresh >/evidence/manual-daemon.log 2>&1 &
+for _ in $(seq 1 150); do curl -fsS --max-time 1 http://127.0.0.1:6791/identity >/dev/null 2>&1 && break; sleep .1; done
+curl -fsS --max-time 2 http://127.0.0.1:6791/identity >/dev/null || fail "positive control: the hand-started daemon does not serve"
+manual_pids=$(pgrep -f -- '-addr 127.0.0.1:6791' | sort)
+[ -n "$manual_pids" ] || fail "positive control: no hand-started daemon process"
+# Bounded: without the refusal the reinstall proceeds, and it must not hang.
+if timeout 60 bash -c 'cd /root/new && ./agent-bus-setup --reinstall --owner owner@fresh --key /root/owner-key.pub' >/evidence/reinstall-held.log 2>&1; then
+  fail "reinstall proceeded while a daemon outside systemd held the database"
+fi
+grep -qF 'outside systemd, so it is not reinstalled' /evidence/reinstall-held.log || fail "the refusal did not name the outside holder: $(cat /evidence/reinstall-held.log)"
+mapfile -t found < <(asides)
+[ "${#found[@]}" -eq 2 ] || fail "a refused reinstall set state aside: ${#found[@]} set-aside directories"
+[ -f "$db" ] || fail "a refused reinstall moved the database"
+for pid in $manual_pids; do kill -0 "$pid" 2>/dev/null || fail "the hand-started daemon $pid did not survive the refusal"; done
+kill $manual_pids
+for _ in $(seq 1 100); do [ -z "$(pgrep -f -- '-addr 127.0.0.1:6791')" ] && break; sleep .1; done
+systemctl start agent-busd
+wait_api "$new_version" || fail "the unit did not start after the hand-started daemon stopped"
+[ "$(status_with /root/third-owner.token /evidence/after-held-owner.json)" = 200 ] || fail "the refused reinstall disturbed the owner credential"
+pass "a daemon holding the database outside systemd is detected and nothing is set aside"
+
+# --- a failure midway is rolled back to the running node ---------------------
+printf '[Service]\nEnvironment=AGENT_BUS_ROLLBACK_MARKER=kept\n' >"$dropins/marker.conf"
+systemctl daemon-reload
+systemctl restart agent-busd
+wait_api "$new_version" || fail "positive control: the node did not restart with the marker drop-in"
+sha256sum /etc/systemd/system/agent-busd.service "$dropins/marker.conf" >/evidence/before-midway.sha256
+# The logrotate rule is written after the state is set aside and the release
+# selected; a directory in its place fails that step.
+rm -f /etc/logrotate.d/agent-bus
+mkdir -p /etc/logrotate.d/agent-bus/blocker
+if timeout 120 bash -c 'cd /root/new && ./agent-bus-setup --reinstall --owner owner@fresh --key /root/owner-key.pub' >/evidence/reinstall-midway.log 2>&1; then
+  fail "positive control: the injected midway failure did not fail the reinstall"
+fi
+rm -rf /etc/logrotate.d/agent-bus
+wait_api "$new_version" || fail "a failed reinstall left the node stopped"
+systemctl is-active --quiet agent-busd || fail "agent-busd is not active after the rollback"
+[ "$(status_with /root/third-owner.token /evidence/after-midway-owner.json)" = 200 ] || fail "the rollback did not restore the node's state: its owner credential is refused"
+sha256sum -c /evidence/before-midway.sha256 >/dev/null || fail "the rollback did not restore the unit and its drop-in byte for byte"
+main_pid=$(systemctl show agent-busd -p MainPID --value)
+tr '\0' '\n' <"/proc/$main_pid/environ" | grep -qx AGENT_BUS_ROLLBACK_MARKER=kept || fail "the restarted daemon does not run under the restored drop-in"
+mapfile -t found < <(asides)
+[ "${#found[@]}" -eq 2 ] || fail "the rollback left a set-aside directory: ${#found[@]}"
+grep -qF 'rolled back' /evidence/reinstall-midway.log || fail "the midway failure did not say it was rolled back: $(cat /evidence/reinstall-midway.log)"
+rm -f "$dropins/marker.conf"
+systemctl daemon-reload
+pass "a reinstall failing midway restores the state, unit and drop-ins and restarts the node"
 
 systemctl show agent-busd -p ActiveState -p MainPID -p DropInPaths >/evidence/unit-state.txt
 systemctl --version | head -1 >/evidence/host.txt
