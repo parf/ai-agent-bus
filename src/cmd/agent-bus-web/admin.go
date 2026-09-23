@@ -55,18 +55,28 @@ func fail(w http.ResponseWriter, r *http.Request, you string, err error) {
 		}, r)
 		return
 	}
-	switch bad.code {
-	case http.StatusUnauthorized:
+	// The daemon's sentence, not the JSON envelope it travels in.
+	detail := busMessage(bad)
+	switch {
+	case bad.code == http.StatusUnauthorized:
 		// Not an error page at all: the sign-in form, at the address they
 		// asked for, so signing in lands them where they were going.
 		signIn(w, r, "that session has ended \u2014 sign in to carry on")
-	case http.StatusForbidden:
+	case bad.code == http.StatusForbidden && strings.HasPrefix(detail, core.ErrInactive.Error()):
+		// The caller is the one refused, not the thing it asked for, so no
+		// owner can grant this. See docs/05-discovery.md#refusals.
+		show(w, bad.code, problem{You: you,
+			Title:  "Your access is suspended",
+			Detail: detail,
+			Advice: "You are signed in, and every call is refused until your user is active again \u2014 signing in again would change nothing. An administrator of this node is who can lift it.",
+		}, r)
+	case bad.code == http.StatusForbidden:
 		show(w, bad.code, problem{You: you,
 			Title:  "Not yours to see",
-			Detail: bad.message,
+			Detail: detail,
 			Advice: "You are signed in, and refused for lack of permission rather than for want of a credential \u2014 signing in again would change nothing. Its owner, or a maintainer of it, is who can grant this.",
 		}, r)
-	case http.StatusNotFound:
+	case bad.code == http.StatusNotFound:
 		// Hidden and absent are one answer on purpose: telling them apart
 		// would let anybody enumerate the registry a name at a time.
 		// See docs/05-discovery.md#refusals.
@@ -74,23 +84,23 @@ func fail(w http.ResponseWriter, r *http.Request, you string, err error) {
 			Title:  "No such name",
 			Advice: "Either nothing is registered under that name or it is not one you may see. Those are deliberately the same answer, so this does not tell you which.",
 		}, r)
-	case http.StatusServiceUnavailable:
+	case bad.code == http.StatusServiceUnavailable:
 		show(w, bad.code, problem{You: you,
 			Title:  "The bus is busy",
-			Detail: bad.message,
+			Detail: detail,
 			Advice: "The daemon is there and briefly cannot answer. Nothing was changed; the same request is worth making again.",
 		}, r)
-	case http.StatusInternalServerError:
+	case bad.code == http.StatusInternalServerError:
 		show(w, bad.code, problem{You: you,
 			Title:  "Something went wrong in the daemon",
-			Detail: bad.message,
+			Detail: detail,
 			Advice: "This is a fault, not a rule: repeating it is unlikely to help, and the daemon's log on this node is where it is recorded.",
 		}, r)
 	default:
 		// 400, 409, 412 and 429: the bus understood and would not.
 		show(w, bad.code, problem{You: you,
 			Title:  "That was refused",
-			Detail: bad.message,
+			Detail: detail,
 			Advice: "Nothing was changed. The reason above is the daemon's own.",
 		}, r)
 	}

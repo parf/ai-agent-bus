@@ -477,7 +477,7 @@ and from then on the browser carries that id and nothing else.
 
 | | |
 |---|---|
-| the cookie | the session id alone — `HttpOnly`, `Secure`, `SameSite=Strict`, idle timeout. Never the token, never in a URL |
+| the cookie | the session id alone — `HttpOnly`, `Secure`, `SameSite=Strict`. No `Max-Age`: the bus's idle timeout ends the session, and a fixed browser lifetime would sign out someone still working. Never the token, never in a URL |
 | a web-child restart | logs nobody out, because the child was holding nothing. A session map inside it would be a second store, of the worst possible contents: every signed-in person's live credential in the one child that is restarted with backoff |
 | what the child holds | nothing. It stops reaching the bus over the owner's socket the moment people sign in — a web child with the owner's authority is a credential mint ([access § getting a token](02-access.md#getting-a-token)) |
 | enrolling | not here. The proof is a signature made by the host's own `ssh-keygen` ([identity § proving possession](02-access.md#proving-possession)); the local selector script neither reads keys nor signs. The dashboard prints the host onboarding command |
@@ -569,6 +569,9 @@ that is inactive is told it is the one refused, `403 suspended`: it is
 somebody, and nothing it presents makes it active. A target that is inactive,
 itself or through its User, is no such name, `404 unknown`, whoever asks —
 the daemon Owner included — because an inactive record is no entity at all.
+The dashboard follows it: a `suspended` refusal is a page saying the caller's
+access is suspended, not the permission page's "Not yours to see", and every
+problem page shows the daemon's sentence, never the envelope it arrived in.
 Declared states beyond active and inactive are
 [R1.1 work](../Plans/R1.1/records.md#down-and-retired) and would each bring
 their own reason rather than borrow one.

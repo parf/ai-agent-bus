@@ -102,11 +102,11 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 	}
 
 	services, _ := p.request("alice@h", "GET", "/agents?scope=my", nil, 200)
-	if !strings.Contains(services, "#alice-normal@h") || strings.Contains(services, "#alice-personal@h") {
+	if !strings.Contains(services, listedRecord("/agent", "#alice-normal@h")) || strings.Contains(services, "#alice-personal@h") {
 		t.Fatalf("the agents page did not exclude even the visitor's own Personal agent: %s", services)
 	}
 	personal, _ := p.request("alice@h", "GET", "/personal", nil, 200)
-	if !strings.Contains(personal, "#alice-personal@h") || strings.Contains(personal, "#alice-normal@h") || strings.Contains(personal, "#bob-personal@h") {
+	if !strings.Contains(personal, listedRecord("/agent", "#alice-personal@h")) || strings.Contains(personal, "#alice-normal@h") || strings.Contains(personal, "#bob-personal@h") {
 		t.Fatalf("ordinary Personal page is not the owner's Personal-only view: %s", personal)
 	}
 	// A Personal queue is listed there too; the owner's own user record, which
@@ -146,7 +146,7 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 		t.Fatal("the agents list state was lost on the way to a record and back")
 	}
 	admin, _ := p.request("admin@h", "GET", "/personal?owner=alice%40h", nil, 200)
-	if !strings.Contains(admin, "#alice-personal@h") || strings.Contains(admin, "#bob-personal@h") || !strings.Contains(admin, "only Personal records visible through your normal access") {
+	if !strings.Contains(admin, listedRecord("/agent", "#alice-personal@h")) || strings.Contains(admin, "#bob-personal@h") || !strings.Contains(admin, "only Personal records visible through your normal access") {
 		t.Fatalf("daemon-owner visible-only owner view is misstated: %s", admin)
 	}
 	if !strings.Contains(admin, `class="record-name-cell personal-record"`) || strings.Contains(admin, `class="record-name-cell owned-record personal-record"`) || strings.Contains(admin, "Yours") || !strings.Contains(admin, `class=personal-marker>Personal</span>`) {

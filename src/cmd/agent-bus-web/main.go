@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
-	"github.com/parf/ai-agent-bus/internal/auth"
 	dash "github.com/parf/ai-agent-bus/internal/dashboard"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/version"
@@ -207,10 +206,12 @@ func dashboard(bus *caller, tls bool) http.Handler {
 			render(w, anon, signin{pageInfo: requestInfo(r), Refused: "that credential was not accepted", Return: to})
 			return
 		}
+		// No Max-Age: the session ends when the bus's idle timeout says so,
+		// and a fixed browser clock signed out people still working.
+		// See docs/05-discovery.md#signing-in.
 		http.SetCookie(w, &http.Cookie{
 			Name: cookieName, Value: got.Session, Path: "/",
 			HttpOnly: true, Secure: tls, SameSite: http.SameSiteStrictMode,
-			MaxAge: int(auth.IdleLife / time.Second),
 		})
 		http.Redirect(w, r, to, http.StatusSeeOther)
 	})

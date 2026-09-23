@@ -501,7 +501,8 @@ func TestAFailedRecordReadIsARefusalNotAnEmptyRegistry(t *testing.T) {
 		if code == http.StatusOK {
 			t.Errorf("%s answered 200 with the registry unread, so nothing registered and nothing readable look alike", path)
 		}
-		if !strings.Contains(body, "the registry could not be read") {
+		// The sentence as the problem's detail, not inside its JSON envelope.
+		if !strings.Contains(body, "<p class=warn>the registry could not be read</p>") {
 			t.Errorf("%s does not carry the daemon's own reason: %s", path, body)
 		}
 	}
