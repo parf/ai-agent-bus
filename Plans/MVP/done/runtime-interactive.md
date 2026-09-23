@@ -88,10 +88,19 @@ to use a local provider. [Claude's channel requirements](https://code.claude.com
 and [development-channel rules](https://code.claude.com/docs/en/channels-reference)
 describe availability separately from MCP tool loading.
 
-Claude's channel input, correlated MCP reply and second-account denial **during
-that exchange** remain unproven. No internal gate was forced, headless substitute
-used or live peer contacted. An isolation failure is not inferred from an
-unavailable channel.
+History above: the fixture profile cannot pass.
+
+## Claude channel checks
+
+**Passed 2026-09-23.** [Live Claude gate](../../../src/acceptance/claude-channel-live.ts)
+copies only a signed-in claude.ai login into a disposable profile and runs the
+real model in a launcher-owned TUI (Claude Code 2.1.280, 0.8.0 launchers).
+
+| Evidence | Measured result |
+|---|---|
+| `tmp/claude-live/run4` | 10 checks, 0 failed: channels available; the peer's bus message reaches the model as an `agent-bus` channel event with nobody typing; the model answers with `ab_reply`, correlated by tag and carrying the peer's random value; `agent-bus-runner` gets 401/401 from the control endpoint and cannot read the session's credential file |
+| `tmp/scripts/mutate-claude.py` | Control bearer removed: the second-account refusal fails. Channel flag removed: no message reaches the model, and the reply wait expires |
+| Live node, 0.8.0 | The owner's running `#claude/ab-dvp`, `#codex/…` and `#opencode/hi` sessions each answered a canary sent over the bus with `ab_reply`, correlated by tag |
 
 ## Harness corrections
 

@@ -292,8 +292,9 @@ already running as the same OS account are outside this account boundary.
 
 The [endpoint evidence](../Plans/MVP/done/runtime-endpoint-auth.md#checks) includes
 actual second-account reads and renames, positive controls with authentication
-removed, and separate launcher/MCP/pusher fixture checks. [H.9.5](../Plans/MVP/TODO.md#remaining-work)
-retains the outstanding co-exercise; the [Claude prerequisite](../Plans/MVP/done/runtime-interactive.md#claude-prerequisite) names the unavailable input path and the acceptance it prevents.
+removed, and separate launcher/MCP/pusher fixture checks. [H.9.5](../Plans/MVP/DONE.md#done--mvp)
+passed for all three runtimes; Claude's channel needs a signed-in claude.ai
+login ([Claude channel checks](../Plans/MVP/done/runtime-interactive.md#claude-channel-checks)).
 
 </details>
 
