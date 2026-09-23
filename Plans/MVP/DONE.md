@@ -5,6 +5,8 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| K.1.4 Implement [clean reinstall setup](0.7-cutover.md#procedure) | Built in 0.7.13–0.7.19 | `agent-bus-setup --reinstall` and `git-install.sh --reinstall`; the reinstall container gate over 0.6.17 and 0.7; the live node reinstalled 2026-09-23 |
+| K.16 Carry the model through API, CLI, MCP, web and launchers | Built in 0.7.14–0.7.18 | CLI `manage`/`group`, `#`-marker refusal, web line errors, Personal on every kind, route status, user-created groups, no Maintainers on registration; real-browser ordinary, delegated and refused paths in the fresh-install gate |
 | K.3 Apply management changes through write-through persistence | Built in 0.7.1, rule settled 2026-09-23 | every write commits its own entities before it is answered and a failed commit restores them all ([sqlite store](done/sqlite-store.md#checks), `core` durability and window tests); publication is releasing the lock, per Q106 |
 | K.15 Forward Agent and Queue traffic | Built in 0.7.12 | `core` forwarding_test.go (one-slot forwarding from agent and queue sources, the hop ACL at configuration and delivery, revocation keeping the route, destination rules, the ten-step limit, a queue looping into its topic, routing counters in every recipient order, `route_allowed`) and TestAPubSubDeliversToQueuesAndThroughTopics; all thirteen mutants fail on an assertion |
 | K.21 Report [conceptual errors and alerts](../../docs/constitution.md#errors-and-alerts) to syslog and the error log | Built in 0.7.6 | [evidence](done/credential-pairs.md#checks); `error.log`, syslog and logrotate since 0.7.2 ([evidence](done/daemon-logs.md#checks)) |
