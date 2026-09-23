@@ -19,7 +19,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q20 | A chaining namespace and an agent template both want the `/` | owner, with chaining | [overview § chaining](federation.md#chaining) |
 | Q110 | Whether Resource and Resource Template are two record kinds or one with a template flag, and which glyphs they take | owner, with R1 | [Resource records](resources.md#what-is-not-decided) |
 | Q111 | What a Resource record stores to name its subject — the URI, and whether MIME type, size, icons and annotations are kept at all — and whether the name takes a sigil | owner, with R1 | [Resource records](resources.md#what-is-not-decided) |
-| Q112 | Whether the node answers `resources/read`, or publishes the card and leaves the caller to fetch the URI itself | owner, with R1 | [Resource records](resources.md#what-is-not-decided) |
+| Q113 | Which basic protocols `agent-busd` serves itself for a Resource, if any, and what that does to the process and trust boundaries | owner, with R1 | [Basic protocols](resources.md#basic-protocols-in-the-daemon) |
 | Q107 | Who may read and write a registry record's store — the record's ACL, its Maintainers, or only the principal of that name | owner, with R1 | [key-value store](kv.md#per-name-storage) |
 | Q33 | Whether backup is a runner verb, a bundled service, or neither | owner | [context](runner.md#backing-it-up) |
 | Q35 | How authorization caches observe policy changes and explicit revocations, including disconnected peers and live sessions | owner, with R1 | [AUTH consistency](auth.md#consistency-window) |

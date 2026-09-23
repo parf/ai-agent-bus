@@ -11,6 +11,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Locks are held in memory and never stored | [shared locks](locks.md#shared-locks) | 2026-09-22 owner decision; a `sync.Map`, nothing in the database, no dump and no grant numbers, so a restart releases everything |
 | A per-name key-value store assigned to R1 | [key-value store](kv.md#per-name-storage) | 2026-09-22 owner instruction; database-backed with SQLite first, per User and per registry record, with atomic operations |
 | MCP Resource and Resource Template become registry record kinds | [Resource records](resources.md#resource-records) | 2026-09-23 owner instruction; the same common fields and the same ACL as every other kind |
+| A Resource is an Agent in disguise; the bus switches the read (Q112) | [Resource records](resources.md#resource-records) | 2026-09-23 owner framing; the bus is a connector, so something answers behind the name and the daemon does not become a content store |
 | Sigils | [definition](identity.md#sigils) | D6, D7, D27, D28, D29, D30 |
 | Enrolment policy | [definition](access.md#enrolment-policy) | D18 |
 | On demand | [definition](runner.md#on-demand) | |
