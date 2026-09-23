@@ -253,7 +253,16 @@ root-only `daemon.before-0.7-<time>` directory that nothing reads again, and
 installs fresh — new database, generated unit, the installer as Owner. Every
 old credential stops working. It replaces whichever release is installed,
 0.6 included; the [reinstall procedure](../Plans/MVP/0.7-cutover.md#procedure)
-owns the steps.
+owns the steps. From 0.8.21 it refuses while any process outside systemd
+holds a file in the daemon home, and a failure after the set-aside puts the
+home, drop-ins, unit and release back and restarts a node that was running.
+
+**Setup over a running node.** From 0.8.21 plain setup restarts a running
+daemon when the unit it writes differs or the running release and
+`build_info` are not the installed program's, then waits, as `--upgrade`
+does, until `/identity` reports that release and build. It prints the node's
+durable Owner, which `--owner` only seeded
+([daemon ownership](#daemon-ownership-upgrade)).
 
 The current link changes by one atomic rename after the complete release and
 all stable command links exist. A failed first install is recovered by running
@@ -320,6 +329,10 @@ marker for the documented `--recover` command. The retained
 [H.1.1 evidence](../Plans/MVP/done/upgrade-recovery.md#checks) covers credentials,
 registry, queued state, ACLs, local mappings and operator configuration. This
 does not select the future runner backup mechanism.
+
+The fresh-install and reinstall gates compare every installed command's and
+the running node's `build_info` with the archive's own, not only VERSION; the
+[H.10 evidence](../Plans/MVP/done/setup-hardening.md#checks) lists their checks.
 
 SSH onboarding is accepted through an actual sshd installation for both
 ordinary and operator keys, including the documented token command,
