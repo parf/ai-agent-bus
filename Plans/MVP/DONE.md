@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| K.18 Reconcile docs and publish release evidence | Done 2026-09-23 | docs, glossary, README example, setup and decision history state the 0.7 model; superseded decisions moved; the final Fable review's fixes (0.7.20) verified by a second Fable pass, each with a killed mutant; slow smoke 774/0; the live node runs 0.7.20; `STABLE - passed all tests and reviews` marks 0.7.20 |
 | K.17 Exercise installed reinstall and recovery | Done 2026-09-23 | durability, web isolation and resources, upgrade and rollback, reinstall over 0.6.17 and 0.7, fresh install with the real-browser matrix, SQLite backup/restore, SSH onboarding, runtime isolation and the Codex exchange all green; the live node reinstalled on 0.7.18. The OpenCode exchange and the Claude channel probe moved to MVP H.9.4 and H.9.5 by the owner: they test the runtimes, not the 0.7 model |
 | K.1.4 Implement [clean reinstall setup](0.7-cutover.md#procedure) | Built in 0.7.13–0.7.19 | `agent-bus-setup --reinstall` and `git-install.sh --reinstall`; the reinstall container gate over 0.6.17 and 0.7; the live node reinstalled 2026-09-23 |
 | K.16 Carry the model through API, CLI, MCP, web and launchers | Built in 0.7.14–0.7.18 | CLI `manage`/`group`, `#`-marker refusal, web line errors, Personal on every kind, route status, user-created groups, no Maintainers on registration; real-browser ordinary, delegated and refused paths in the fresh-install gate |

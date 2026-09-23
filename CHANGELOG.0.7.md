@@ -12,7 +12,7 @@ the hand-over, and status and owner changes release readers; a user record is
 its User's and carries no lists; `*` admits no channel as a route source; an
 ignored record keeps its credential until its name is registered afresh;
 account mappings are actors' and go with the name; the daemon account's socket
-follows the daemon Owner.
+follows the daemon Owner. Verified by a second Fable pass and marked STABLE.
 
 ## 0.7.19 — 2026-09-23
 

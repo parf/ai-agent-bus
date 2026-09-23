@@ -11,7 +11,7 @@ Somebody other than the author can install it and use it safely on a shared host
 MVP is active; completion still depends on [remaining work and installed acceptance](TODO.md#objective). The [0.6.0 record kinds](0.6.0-TODO.md#objective) plan closes `kind` into five named kinds.
 
 The [0.7 constitution plan](0.7.0-TODO.md#objective) implements the owner's
-[intended model](../../docs/constitution.md#project-constitution).
+[intended model](../../docs/constitution.md#project-constitution); it is stable at 0.7.20.
 
 ## Getting tokens
 
