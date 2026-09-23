@@ -9,8 +9,8 @@ hard part is information design rather than widget count.
 |---|---|---|
 | Shell | Header with node identity and page title, navigation with the current entry marked, signed-in principal linking to Account, sign out | Exists as `shell()` and already carries sign-out everywhere ([inventory](review/current-state.md#routes-and-templates)). What changes is the destination set and correct page identity |
 | Page title | One small image or glyph, the visible title, optional Refresh, and at most one short factual subtitle | [Title vocabulary](glyphs.md#page-title-images-and-glyphs); instructional prose belongs in Context help |
-| Navigation | Seven destinations | Narrow screens use `details`/`summary`, not script |
-| Section navigation | List categories with counts and register destinations for Services, Channels, Users and Groups, with the current entry marked | The register link is conditional on caller authority; [page map](information-architecture.md#navigation) |
+| Navigation | Nine destinations | Narrow screens use `details`/`summary`, not script |
+| Section navigation | List categories with counts and register destinations for Agents, Services, Queues, PubSub, Users and Groups, with the current entry marked | The register link is conditional on caller authority; [page map](information-architecture.md#navigation) |
 | Task toolbar | Search, scope, filters, sort, result count, active filters, clear | GET only, state in the URL |
 | Data table | Caption, scoped headers, stable order, one judgment column, owned-item marker, chosen narrow-screen columns; every numeric column is right-aligned with tabular figures | Hand-written because ours is URL-driven rather than client-side, and we found nothing supplying that. **Not** "the component nothing off the shelf supplies" — a universal we did not survey and do not need ([S15](review/codex.md#specification-review-round-one)) |
 | Detail sections | Heading, definition list, and — where authority allows — the form for that one concern, collapsed until asked for | Read sections never depend on edit permission. There is **no trailing Manage block**: an edit lives in the section it changes, which is the whole point of splitting them |
@@ -88,8 +88,8 @@ Four, and the fourth is the one that is usually forgotten.
 | Denied | you may not see or change this, and who can | distinguishable from not-found, for a record you may not see |
 | Unavailable | the daemon did not answer; retry | **an empty healthy list** ([W12](../done/web-review.md#findings)); a promise that nothing changed |
 
-Empty is designed per page, not once: an empty Channels page must explain what a
-channel is, or the Services/Channels split reads as a bug.
+Empty is designed per page, not once: an empty Queues or PubSub page must explain
+what a queue or topic is, or the split by kind reads as a bug.
 
 ## Native interaction and the one local behavior
 

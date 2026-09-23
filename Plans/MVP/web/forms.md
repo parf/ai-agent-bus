@@ -110,12 +110,12 @@ again — on either form.
 | [secret](../../../docs/06-services.md#secrets) | ✓ | ✓ | | | | ✓ |
 | TTL, capacity, overflow | ✓ | | ✓ | | ✓ | |
 | [Deliver-To](../../../docs/04-messaging.md#subscribers) | one slot | | one slot | list | | |
-| Replace configuration | Service, Channel | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
-| Enable / Disable | Service, Channel | — | the identity section |
-| Transfer ownership | Service, Channel | new owner | **Danger Zone** only; **confirm**, then the identity section |
-| Remove registration | Service, Channel | — | **Danger Zone** only; **confirm**, then the list it came from |
-| Take myself off Deliver-To | Channel, pub/sub | — | the subscribers section |
-| Remove a recipient | Channel, pub/sub | subscriber | the subscribers section |
+| Replace configuration | Service, Queue, PubSub topic | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
+| Enable / Disable | Service, Queue, PubSub topic | — | the identity section |
+| Transfer ownership | Service, Queue, PubSub topic | new owner | **Danger Zone** only; **confirm**, then the identity section |
+| Remove registration | Service, Queue, PubSub topic | — | **Danger Zone** only; **confirm**, then the list it came from |
+| Take myself off Deliver-To | PubSub topic | — | the subscribers section |
+| Remove a recipient | PubSub topic | subscriber | the subscribers section |
 | Register a group | `/groups/new` | name, description, members, Personal, secret | the new group's page |
 | Edit a group | `/group/edit?name=` | *the same set, filled in*, and Maintainers | its page; transfer and configuration are in its Danger Zone |
 | Register a user | `/users/new` | name, person name, email, GitHub login, company, location, Twitter/X | the new user's page |
@@ -124,7 +124,8 @@ again — on either form.
 | Remove a credential | User, non-user identity | — | **confirm**, then the directory |
 
 The current work and Readers filters and the User kind filter use links, and
-the Channel kind choice uses radios, as of 0.5.64. Other
+the Channel kind choice used radios from 0.5.64 until 0.8.4 gave each kind its
+own form. Other
 small-choice conversions remain scoped to the page that owns them. A marked
 selector submits on change through the repository-owned script and exposes an
 Apply button through `noscript`; query values remain plain URL state.

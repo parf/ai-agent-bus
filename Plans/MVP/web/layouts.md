@@ -16,7 +16,8 @@ px, the [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html) floor.
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ agent-bus · node observed 14:22          parf@parf  Sign out │  surface-3
-│ Overview  Services  Channels  Activity  Users  Groups  Diag  │  accent underline on current
+│ Overview Agents Services Queues PubSub Users Groups Activity │  accent underline on current
+│ Diagnostics                                                  │  wraps; phone: several rows
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │  surface-1
 │  ◇ Page title  ⓘ                                  [Refresh] │  text-xl
@@ -60,7 +61,7 @@ answer to *where am I* survives the collapse.
   Node-wide. A list below shows only what you may see; the two
   never have to agree.
 
-  Find ▸ Services holding work   Channels holding work
+  Find ▸ Agents holding work   Queues holding work   External services
 ```
 
 **Seven facts, and the figures sit on one baseline, ranged right.** The strip

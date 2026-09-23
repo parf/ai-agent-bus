@@ -36,8 +36,8 @@ changes in one place rather than two.
 
 `📥 Inbox` held the Agent row in 0.5.84, while nothing distinguished an agent's
 record from a service's; the owner restored `👾` on 2026-09-18, built in 0.6.1.
-Those records stay with the channels, which the same 0.5.84 decision settled and
-this does not touch. The visible word remains on full labels, while compact
+Those records stayed with the channels, as the same 0.5.84 decision settled,
+until 0.6.3 gave agents a list of their own. The visible word remains on full labels, while compact
 directory rows carry the same word in their accessible label.
 
 User, Agent, Service, Queue and PubSub are the implemented shared web/CLI entity labels. WEB
@@ -260,8 +260,8 @@ value rather than being replaced by a symbol.
 | Page title | one page-category image or glyph beside the title text | status, inferred entity type, or multiple decorative marks |
 | Section navigation | each entry's own [section mark](#the-same-marks-in-the-navigation), decorative, beside the label | status, counts, or a mark that differs from that section's title mark |
 | Overview attention items | severity, one per item — that page is nothing but exceptions | — |
-| Services and Channels lists | **one** judgment column, lit only on exceptional rows | the kind column (a category: use a filter); the enabled column while most rows are enabled; anything green |
-| Service and Channel detail | queue condition; refusal reason | section headings |
+| Agents, Services, Queues and PubSub lists | **one** judgment column, lit only on exceptional rows | the kind column (a category: use a filter); the enabled column while most rows are enabled; anything green |
+| Record detail | queue condition; refusal reason | section headings |
 | Activity | the absence vocabulary in the value table | the graph itself — label the axes |
 | Diagnostics | refusal reason; the absence vocabulary | per-envelope decoration |
 | Users and Groups | the inactive status | classification of an identity — that is a word, not a colour |

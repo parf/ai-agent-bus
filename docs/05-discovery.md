@@ -332,8 +332,8 @@ rather than a block that has to be read to learn it says nothing. The page still
 makes no health claim, because it now makes no claim.
 
 The node strip is node-wide. **From 0.5.82 it also carries the call counters**
-moved out of the shared footer, and the count of registered records is labelled
-`Services + Inboxes + Channels` because it sums every kind
+moved out of the shared footer, and registered records are counted one tile per kind — Agents,
+Services, Queues, PubSub, Users and Groups
 ([status](#what-a-node-says-about-itself)). **When the page was generated is
 stated once, in the shared footer**, and there is no Refresh link: both were
 owner decisions at 0.5.83, and the footer is on every page, so every page is

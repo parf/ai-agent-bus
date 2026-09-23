@@ -16,7 +16,7 @@ Three structural faults follow from that, and no amount of styling fixes them:
 |---|---|
 | No page answers "is anything wrong?" | The operator reads seven sections and decides for themselves |
 | Detail and administration are the same page | `/service` is a read view followed by six stacked forms ([W04](../done/web-review.md#findings)) |
-| Things that are not alike share a page | Fixed in 0.6.3: agents, external services and channels each have a list of their own, and the [five kinds](../../../docs/03-records.md#record-kinds) say which page a record is on |
+| Things that are not alike share a page | Fixed in 0.6.3 and 0.8.4: agents, external services, queues and pub/sub topics each have a list of their own, and the [five kinds](../../../docs/03-records.md#record-kinds) say which page a record is on |
 
 ## Journeys
 
@@ -26,14 +26,14 @@ The page set is derived from these, not from the data model.
 |---|---|---|
 | Is anything wrong right now? | Overview | attention items, each linking to the thing itself |
 | Why is work not arriving? | Overview → the backlog → that record's queue | the record → Queue |
-| What can I use, and who owns it? | Agents, Services or Channels → search | that record's overview |
+| What can I use, and who owns it? | Agents, Services, Queues or PubSub → search | that record's overview |
 | Is this my named AI session? | Agents → description and full address | Agent overview |
-| How does this channel deliver? | Channels → its kind and subscribers | Channel overview |
+| How does this channel deliver? | Queues or PubSub → the record and its Deliver-To | Queue or topic overview |
 | Who may use my record? | the record → Access → one focused edit | back to Access, with the result |
 | Who is this person and what may they administer? | Users → person | User detail |
 | Why can I not do this? | any refusal → explanation and the corrective step | in place, or a problem page |
 | Did **this** message arrive, and was it consumed? | Diagnostics → retained envelopes, scoped to what you may see | **not queue counters.** Totals cannot identify an individual message: accepted and dequeued are aggregate flow, and the [exchange contract](../../../docs/05-discovery.md#retained-exchanges) keeps envelope evidence, receipts and responses as separate things. Where an individual dequeue is not recorded, the page says it cannot be established rather than inferring it — codex's [S09](review/codex.md#specification-review-round-one) |
-| Is work flowing through this queue at all? | Agents or Channels → the record → Queue | queue counters, as aggregate flow, which is the question they can answer |
+| Is work flowing through this queue at all? | Agents or Queues → the record → Queue | queue counters, as aggregate flow, which is the question they can answer |
 | What credentials do I hold? | Account | Account |
 | What happened to this exchange? | Diagnostics → the envelope feed | Diagnostics |
 
@@ -46,7 +46,7 @@ The planned page map follows. `⚠` marks a page that does not exist today.
 | Overview | `/` | What needs attention, and nothing else | ⚠ new; `/` is diagnostics |
 | Agents | `/agents` | Find a caller-visible non-Personal agent | built in 0.6.3, first in the menu |
 | My agents | `/agents?scope=my` | Find an agent owned by the caller | a filter on Agents |
-| Personal agents | `/personal` | Find Personal agents in the existing owner-scoped view | a view of Agents; Personal is agent-only |
+| Personal records | `/personal` | Find Personal records of every kind in the owner-scoped view | a view across kinds; any record may be Personal |
 | Agent | `/agent?name=` | One agent: overview, queue, activity, access, configuration | the shared record page |
 | Register agent | `/agents/new` | Create one | built in 0.6.3 |
 | Services | `/services` | Find a caller-visible external service | built in 0.6.3; services only |
@@ -61,7 +61,7 @@ The planned page map follows. `⚠` marks a page that does not exist today.
 | Register pub/sub topic | `/pubsub/new` | Create one | split in 0.8.4 |
 | Activity | `/activity` | Observed traffic over a stated window | exists |
 | Diagnostics | `/diagnostics` | Retained envelopes, losses, refusals | is the homepage today |
-| Users | `/users` | Find a person or an identity | exists |
+| Users | `/users` | Find a User | Users only from 0.8.8 |
 | User | `/user?name=` | Profile, authority, memberships, owned records | exists |
 | Register user | `/users/new` | Create one | built in 0.5.64; the legacy empty `/user` route remains |
 | Groups | `/groups` | Groups and caller-visible membership | linked compact table |
@@ -86,18 +86,18 @@ would have touched every form and every legacy link.
 
 ## Navigation
 
-Six destinations. Diagnostics is deliberately last, and Account is not in the
+Nine destinations. Diagnostics is deliberately last, and Account is not in the
 row — it sits with the principal's name at the top right, where an account
 control is looked for.
 
-`Overview · Services · Channels · Activity · Users · Groups · Diagnostics` —
+`Overview · Agents · Services · Queues · PubSub · Users · Groups · Activity · Diagnostics` —
 then, separately, the signed-in name → Account, and Sign out. Since 0.5.82 each
 entry also starts with its section's own [title mark](glyphs.md#the-same-marks-in-the-navigation),
 decorative beside the label it repeats.
 
 The shared `shell()` gives every signed-in page its navigation and sign-out
 ([inventory](review/current-state.md#routes-and-templates)). Since 0.5.78 the
-Channels collection also carries its own document title, heading, active
+Channels collection (split into Queues and PubSub in 0.8.4) also carries its own document title, heading, active
 navigation entry and canonical Channel detail links; the historical C06 defect
 is closed. Since 0.5.79 the signed-in name links to Account and credential facts
 no longer occupy the Diagnostics page.
@@ -110,11 +110,12 @@ not a form appended to a list and not an unrelated heading action:
 
 | Section | Second-level navigation |
 |---|---|
+| Agents | All (`#`) · My (`#`) · Personal (`#`) · Register agent |
 | Services | All (`#`) · My (`#`) · Personal (`#`) · Register service |
 | Queues | All (`#`) · Personal (`#`) · Register queue |
 | PubSub | All (`#`) · Personal (`#`) · Register pub/sub topic |
-| Users | All identities (`#`) · Register user |
-| Groups | All groups · Register group |
+| Users | All (`#`) · Register user |
+| Groups | All (`#`) · Register group |
 
 The current entry is marked. Agent counts cover the records in each
 caller-visible category before search, state and kind filters: All and My omit
@@ -138,7 +139,7 @@ The homepage's seven sections, resolved:
 | refusal counts | Overview if non-zero; Diagnostics always, by reason |
 | stuck inboxes | Overview attention items, linking to the service. "Stuck" is not a fact the daemon has — it is a backlog, with or without a reader, so the heading says *inboxes holding messages* |
 | retained exchanges | Diagnostics |
-| **the whole registry table** | **Removed — but only after Services and Channels carry what it uniquely showed.** codex's precondition ([C08](review/codex.md#junk-and-misleading-content)) and it is right: the lists today omit kind, description and accepted/dequeued, so removing the table first would lose real data. No usage research says nobody reads it; the argument for removal is that it answers no question, not that nobody looked |
+| **the whole registry table** | **Removed — but only after the record lists carry what it uniquely showed.** codex's precondition ([C08](review/codex.md#junk-and-misleading-content)) and it is right: the lists today omit kind, description and accepted/dequeued, so removing the table first would lose real data. No usage research says nobody reads it; the argument for removal is that it answers no question, not that nobody looked |
 | loss by name | Diagnostics, and per-record on the service page where it belongs |
 | my names / fingerprints | Account |
 | three explanatory paragraphs | help beside the control they explain, not a wall at the bottom |
@@ -153,7 +154,7 @@ the shape it takes here.
 | `Maximum: 0` repeated down the activity page | Remove ([W09](../done/web-review.md#findings)) |
 | blank labels for unset values | Replace with the fact **only where the absence changes a decision** — uses the daemon default, not observed, none queued. Where it does not, drop the label with the value. codex's correction: stating every absence is its own wall of noise |
 | `/avatar` endpoint | Reachable and authenticated; simply referenced by no current template ([inventory](review/current-state.md#routes-and-templates)). That is what the source establishes — my earlier "loaded gun" was an overclaim, no defect is shown. Decide deliberately: use it on Users, or remove it |
-| every service POST returning to `/services?scope=my` | **Built in 0.5.78:** registration and ordinary edits return to the affected Service or Channel; removal returns to the matching collection ([W13](../done/web-review.md#findings)) |
+| every service POST returning to `/services?scope=my` | **Built in 0.5.78:** registration and ordinary edits return to the affected record; removal returns to the matching collection ([W13](../done/web-review.md#findings)) |
 | group membership visible only inside the editor | A non-administrator sees a group name with no members and no explanation of why. Say which it is: empty, or hidden from you |
 | registry iteration order | Replace with stable ordering ([W16](../done/web-review.md#findings)) |
 | in / out | Rename to accepted / dequeued. Dequeued is not completed |
@@ -177,9 +178,9 @@ observation scope stated — never "healthy", which is a claim about the system,
 and never a bare empty page, which reads as breakage. That is the zero-versus-
 absent mistake one level up.
 
-The page also carries conspicuous navigation into Services and Channels, because
+The page also carries conspicuous navigation into the record lists, because
 an attention list is not a place to start a search from, and attention links
-route by kind so an incident is never fragmented by the Services/Channels split.
+route by kind so an incident is never fragmented by the split into kinds.
 
 ## Permission and visibility
 

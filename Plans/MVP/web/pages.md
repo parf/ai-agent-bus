@@ -41,7 +41,7 @@ page that is allowed to be short.
 | Heading | Node name, observation time, explicit Refresh. No auto-refresh | keep `At`, keep Refresh |
 | Needs attention | Zero or more items, each: what was observed, when, and a link to the thing | new |
 | Node | `Up`, and the node-wide totals **labelled as node-wide** | move from Diagnostics; [C16](review/codex.md#junk-and-misleading-content) |
-| Find | Prominent entry to Services and Channels | new |
+| Find | Prominent entry to agents and queues holding work, and to Services | new |
 
 **Attention items are enumerated, not judged.** The complete admitted set, each
 with the observation it rests on:
@@ -127,7 +127,7 @@ larger.
 
 **Queued work keeps a direct route**, which the draft lost when the backlog
 table became an exception list — codex's
-[S03](review/codex.md#specification-review-round-one). Services and Channels
+[S03](review/codex.md#specification-review-round-one). Agents and Queues
 sort by queue depth and filter to *holding work*, so every caller-visible queue
 is reachable in one step with its depth, its head age and its reader state
 shown as observations. The exception list is what the Overview *promotes*; it is
@@ -143,7 +143,7 @@ node-wide, the other is what this caller may see
 |---|---|
 | stuck-inbox table | attention items, one per exceptional queue, each linking to its service |
 | retained exchanges | Diagnostics |
-| the whole registry table | Services and Channels — **only once those carry kind, description and accepted/dequeued**, which they do not today ([C08](review/codex.md#junk-and-misleading-content)) |
+| the whole registry table | the Agents, Services, Queues and PubSub lists — **only once those carry kind, description and accepted/dequeued**, which they do not today ([C08](review/codex.md#junk-and-misleading-content)) |
 | loss by name | Diagnostics, and the record's own Queue section |
 | my names, fingerprints, rotation help | Account |
 | three trailing explanatory paragraphs | beside the control each explains |
@@ -154,7 +154,7 @@ node-wide, the other is what this caller may see
 
 **Answers:** what can I use, who owns it, and is it in trouble?
 
-Two destinations, **one component family**. A channel's first question is how it
+One list per kind, **one component family**. A channel's first question is how it
 delivers and who subscribes; a service's is whether anything is reading and what
 is queued. One table answering both is what buried delivery mode
 ([C03](review/codex.md#junk-and-misleading-content)). Since 0.5.78 each page has
@@ -168,8 +168,8 @@ because agents are what the bus exists to carry messages between; Services holds
 column and filter. **0.8.4 splits Channels** into Queues (📮) and PubSub (📣),
 each a section with its own list, registration and settings, and no Kind
 filter ([web face](../../../docs/05-discovery.md#agent-service-and-channel-journeys)).
-Personal is a view of the agents, since Personal is
-agent-only. Delivery mode is no longer a field, so the mode filter is gone: a
+Personal is a view across every kind, since any record
+may be Personal. Delivery mode is no longer a field, so the mode filter is gone: a
 queue and a pub/sub topic are kinds of their own.
 
 *History, superseded by the paragraph above.* **0.5.84: an agent's record is an
@@ -183,13 +183,13 @@ that. Services then held `generic` records alone and dropped its Kind filter.
 |---|---|
 | Description, then full routing name beneath | **new + keep.** Identification is by address only today; the description exists on records and is how a session is recognised ([C01](review/codex.md#junk-and-misleading-content)). The full name stays because it disambiguates sessions — demote by task, never drop |
 | Kind | **A filter wherever the list is already narrowed to one kind**, because a per-row category is then redundant with the control that got you there. **A column on any list that is not** — an unfiltered or mixed-kind list must still say what each row is, and no filter is supplying that. This governs the [mockups](layouts.md#services--the-page-the-density-is-tuned-against) as much as this table; the draft's flat "filter only" was wrong and the two documents disagreed — codex |
-| Delivery mode (channel list) | **new.** The channel question |
+| Delivery mode | **superseded in 0.8.4.** The page is the mode: Queues or PubSub |
 | Owner | keep |
 | Owned by the caller | **always mark.** A blue leading rule and blue semibold name survive All, My, Personal and filtered results without repeating *Yours*; the My category link uses the same blue. Personal independently keeps its visible *Personal* word with stronger orange bold emphasis and category link; orange overrides blue on combined rows |
 | Enabled / Disabled | **relabel** from Active/Inactive. Administrative state, not liveness. Disabled is a decision, not a failure |
 | Readers | **numeric observation.** Count every outstanding filtered and unfiltered read; keep measured zero separate from unavailable. `Proto` remains an independent caller-supplied external hint |
-| Queued | keep on the service list. **Mode-aware on the channel list**: a pub/sub topic keeps no queue of its own — `Send` hands it to `fanout` and nothing waits on the topic — so a Queued cell there is structurally zero. Pub/sub rows show accepted; queue rows show queued; or the cell reads `—` |
-| Subscribers (channel list, pub/sub) | **new** |
+| Queued | keep on Agents and Queues (Queues calls it Held). **Absent from PubSub**: a pub/sub topic keeps no queue of its own — `Send` hands it to `fanout` and nothing waits on the topic — so a Queued cell there is structurally zero. PubSub rows show accepted and copies out instead |
+| Deliver-To (PubSub list) | **new** |
 | One judgment column | **new.** Lit only on exceptional rows ([glyphs](glyphs.md#where-a-glyph-is-allowed)) |
 | Updated `At` | **compact on the list, full on detail.** Under 30 days use whole-unit age; older values use `Jan 1` in the current year or `Jan 12, 2025` across years |
 | `Controls: Manage / View` | **drop.** Inert text shaped like a control ([C01](review/codex.md#junk-and-misleading-content)) |
@@ -197,7 +197,8 @@ that. Services then held `generic` records alone and dropped its Kind filter.
 | `In` / `Out` | **move** to detail, **relabelled** accepted / dequeued. Dequeued is not completed |
 
 **Section navigation:** All (`#`) · My (`#`) · Personal (`#`) · Register
-service, or All (`#`) · Register channel or inbox. It is the second row beneath the
+agent or service; Queues and PubSub have no My: All (`#`) · Personal (`#`) ·
+Register queue or Register pub/sub topic. It is the second row beneath the
 global navigation and follows the shared
 [section-navigation rule](information-architecture.md#navigation). All and My
 exclude Personal agents, preserving the accepted dedicated Personal grouping;
@@ -224,21 +225,22 @@ caller-visible non-Personal agents, My is the caller-owned subset, Personal
 is the separately grouped owner view — instead of placing those paragraphs
 above the table.
 
-**Toolbar:** search over description and name; state; kind or mode; sort. The
+**Toolbar:** search over description and name; Status; Readers; Queue (holding
+work); sort. The
 service view choice moved to the section-navigation links above. Two- and
 three-value filters expose their choices as stateful links or buttons rather
 than selects. All state is in the URL as GET parameters, retained through paging
 and through a visit to a detail page and back. Result count and active filters
 are shown, with one action to clear them.
 
-**Rows have one destination.** The name opens the read-first service or channel
+**Rows have one destination.** The name opens the read-first record
 view, where daemon-returned authority decides whether controls appear. A
 caller-owned row is always visually marked, but the face never derives
 permission from that marker.
 
 **Ordering is stable and named.** Core's `List` iterates a map, so order out of
-the daemon is not stable — but **the services and channels list already sorts by
-name** (admin.go:189), and the draft was wrong to call it an unstable load.
+the daemon is not stable — but **the record lists already sort by
+name** (admin.go:189 when reviewed), and the draft was wrong to call it an unstable load.
 [W16](../done/web-review.md#findings) survives where nothing re-sorts: the
 diagnostics registry. codex's [S14](review/codex.md#specification-review-round-one).
 What this specification adds is a *chosen* order with the sort in the URL,
@@ -249,12 +251,14 @@ rather than an incidental one.
 | | |
 |---|---|
 | No services at all | what a service is, and the link to register one |
-| No channels at all | what a channel is and how one is created — without this the Services/Channels split reads as a bug |
+| No queues or topics at all | what a queue or pub/sub topic is and how one is created — without this the split by kind reads as a bug |
 | No matches | the active filters, and one action to clear them |
 
 ---
 
-## Agent `/agent?name=` · Service `/service?name=` · Channel `/channel?name=`
+## Agent `/agent?name=` · Service `/service?name=` · Queue `/queue?name=` · Topic `/pubsub/topic?name=`
+
+The legacy `/channel?name=` still serves any queue or topic, for old bookmarks.
 
 **Answers:** what is this, is it working, who may use it — and then, separately,
 what may I change?
@@ -279,8 +283,8 @@ rendered only inside the editor
 ([C04](review/codex.md#junk-and-misleading-content)). Controls are conditional;
 returned metadata is not.
 
-**Activity is embedded only where the daemon can scope it honestly.** Service
-and channel detail request the same bounded history as
+**Activity is embedded only where the daemon can scope it honestly.** Record
+detail requests the same bounded history as
 `/activity?name=<record>`. The compact section states the observed window and
 restart boundary, summarises zero-only series instead of giving each a full
 graph, and links to **View all activity** for the complete graph and accessible
@@ -344,8 +348,8 @@ the first applicable editor while retaining the section-specific editors below;
 the heading action is an entry point, not a second form or a wider grant.
 
 Each returns **to the section it changed** with a specific result — not to
-`/services?scope=my`, which is where every service and channel action lands
-today, so a channel subscription answers by leaving the channel
+`/services?scope=my`, which is where every service and channel action landed
+before 0.5.78, so a channel subscription answers by leaving the channel
 ([C06](review/codex.md#junk-and-misleading-content)).
 
 Transfer and maintainers assignment are **owner-only**, and that is the
@@ -355,10 +359,9 @@ it away or change who maintains it.
 
 ### Danger Zone
 
-**Built in 0.5.63.** The larger Service and Channel journey remains proposed
-until its own implementation work lands.
+**Built in 0.5.63.**
 
-The red **Danger Zone** link on a Service or Channel opens a server-rendered
+The red **Danger Zone** link on a record detail page opens a server-rendered
 subpage titled for that resource. It contains exactly three authorized entries:
 
 - **Replace configuration** opens an always-empty textarea; private
@@ -378,14 +381,17 @@ or to replace the consequence text.
 **Answers:** how do I create one?
 
 A dedicated page reached from the section's second-level navigation, not a form
-stapled beneath a list. Fields: name, description, kind, initial allow list. **From 0.5.84 each page registers only what it lists**:
+stapled beneath a list. Fields: name, description, initial allow list, and what its kind has
+([forms](forms.md#the-set)). **From 0.5.84 each page registers only what it lists**:
 `/services/new` registers a service and offers no kind choice, and
 `/channels/new` chooses between a queue and a pub/sub topic. A form that
 registered a record the page could not then show was the reclassification's
 loose end. **From 0.6.3** there are three forms, one per listing: `/agents/new`
 registers 👾 and offers the Personal checkbox, `/services/new` registers 📡 and
 **requires an address and a protocol**, because the daemon refuses a service
-without both. A choice with only two or three values uses radio buttons.
+without both. **From 0.8.4** there are four: `/queues/new` registers 📮 and
+`/pubsub/new` registers 📣, and `/channels/new` redirects to the one its kind
+names. A choice with only two or three values uses radio buttons.
 Help beside the name field states the
 `user@realm` shape; help beside allow follows the
 [ACL contract](../../../docs/02-access.md#acl). The form explains the built restricted default and runtime
@@ -417,7 +423,7 @@ table; record detail links back with its filter retained.
 | Value table beside the graphs | **keep** — it is the accessible path to the numbers |
 | Absence vocabulary in the table | `0` measured zero, `¿` not observed. Before the last restart is `¿`, not `0` |
 
-Arriving from a service or channel keeps that filter. The scope control says
+Arriving from a record keeps that filter. The scope control says
 what it is scoped to. Every record detail carries the reciprocal link back to
 this complete view.
 
@@ -544,7 +550,7 @@ page cannot be shown one.
 
 **Answers:** what groups exist, who is in them, and what uses them?
 
-**Section navigation:** All groups · Register group. `/groups/new` owns the
+**Section navigation:** All (`#`) · Register group. `/groups/new` owns the
 registration form; Groups remains a list rather than a list followed by an
 inline editor. The register entry is conditional on caller authority.
 
