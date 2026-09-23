@@ -1140,7 +1140,7 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 			if w.filtered != filteredPass {
 				continue
 			}
-			if w.filtered && (w.topic != e.Topic || w.tag != e.Tag) {
+			if w.filtered && !selects(w.topic, w.tag, e) {
 				continue
 			}
 			in.waiters = drop(in.waiters, i)
@@ -1426,7 +1426,7 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 	b.prune(in, time.Now())
 
 	for i, e := range in.queue {
-		if !filtered || (e.Topic == topic && e.Tag == tag) {
+		if !filtered || selects(topic, tag, e) {
 			in.queue = take(in.queue, i)
 			in.out++
 			b.unlock()
@@ -1465,6 +1465,13 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 		}
 		return protocol.Envelope{}, ctx.Err()
 	}
+}
+
+// selects says whether a filtered read takes e. Each filter names one field
+// and an absent one matches anything, so `--topic X` alone takes a tagged
+// message on X (docs/04-messaging.md#inbox-selection-and-filters).
+func selects(topic, tag string, e protocol.Envelope) bool {
+	return (topic == "" || e.Topic == topic) && (tag == "" || e.Tag == tag)
 }
 
 // settle removes a waiter, unless a message reached it first — in which case

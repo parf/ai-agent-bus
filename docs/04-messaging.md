@@ -136,7 +136,8 @@ never an instant, so the receiver is not reading the caller's clock.
 ## Inbox selection and filters
 
 **Built in 0.5.52.** `--inbox` selects where to read;
-`--topic` and `--tag` select messages there. Without `--inbox`, read your own
+`--topic` and `--tag` select messages there, each on its own field: `--topic`
+alone takes any tag. Without `--inbox`, read your own
 inbox. Filters never select a different inbox, regardless of their spelling
 or whether a matching channel exists. Selecting an inbox does not change the
 caller's identity or bypass its access checks.
