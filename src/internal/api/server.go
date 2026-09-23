@@ -360,7 +360,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.
 		You           string `json:"you"`
 		Administrator bool   `json:"administrator,omitempty"`
 		DaemonOwner   bool   `json:"daemon_owner,omitempty"`
-	}{Status: s.bus.Status(), You: caller.String(), Administrator: s.bus.IsAdministrator(caller.String()), DaemonOwner: caller.String() == owner})
+	}{Status: s.bus.StatusFor(caller.String()), You: caller.String(), Administrator: s.bus.IsAdministrator(caller.String()), DaemonOwner: caller.String() == owner})
 }
 
 // subscribe puts the caller on a 📣 channel, or takes it off. The caller
