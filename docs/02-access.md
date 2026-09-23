@@ -140,11 +140,11 @@ provider answers. Private keys stay with the signing tool.
 
 ## ACL
 
-**Pending for 0.7:** Forwarding uses the constitution's
-[hop-specific ACL checks](constitution.md#-channels), including channel-name
-references for Queue sources.
+Forwarding uses the constitution's
+[hop-specific ACL checks](constitution.md#-channels): a route's destination
+must list the forwarding record itself, a queue source by its channel name.
 
-**ACL governs other principals' access to a record**, whichever of the five
+**ACL governs other principals' access to a record**, whichever of the six
 [kinds](03-records.md#record-kinds) it is. A record does not
 need to list itself in its own ACL: it may read its own inbox independently.
 Caller standing and the record's status still apply: an inactive record, or
@@ -164,8 +164,8 @@ resource roles, not additional entries that must be placed in the ACL.
 To allow **any registered user**, explicitly add **`*`** to the ACL. This does
 not admit anonymous, unknown or suspended callers. A
 [Personal agent](03-records.md#personal-and-shared) cannot use
-this grant because it admits every registered user. **Pending for 0.7:** `*`
-also admits every active Agent, which acts for its User.
+this grant because it admits every registered user. `*` also admits every
+active Agent, which acts for its User.
 
 **`@owner` is a runtime ACL term for the record's direct Owner and every 👾
 `agent` directly owned by that Owner.** No other

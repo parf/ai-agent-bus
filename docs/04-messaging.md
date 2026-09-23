@@ -408,9 +408,10 @@ sender or the message: whoever owns the queue decides what its fullness
 means. The count of what a ring has dropped is in `status`, because a queue
 that forgets silently looks exactly like one nobody sent to.
 
-**Pending for 0.7:** Agent and Queue records may forward under the
-kind-specific [channel contract](constitution.md#-channels). That section owns
-forwarding ACL checks, depth and provenance.
+Agent and Queue records forward through their one-slot `deliver_to`
+([subscribers](#subscribers)) under the kind-specific
+[channel contract](constitution.md#-channels), which owns forwarding ACL
+checks, depth and provenance.
 
 ## Durability
 

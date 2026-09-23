@@ -719,9 +719,8 @@ group, occupies one line. Display glyphs never enter these editable values.
 
 **Built in 0.7.5:** an agent term carries a leading `#`, the way a group term
 carries `@`, and the stored line keeps it. A line without a marker names a
-user or a channel. **Pending** ([K.16](../Plans/MVP/0.7.0-TODO.md)): the
-editors reporting an offending line by number rather than relaying the
-daemon's refusal. See
+user or a channel. A refused save names the offending line by number
+(built in 0.7.14), never retyping or guessing a kind. See
 [typed actor terms](constitution.md#-registry-record).
 
 The [ACL contract](02-access.md#acl) defines access terms and their implementation status.

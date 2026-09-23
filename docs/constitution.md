@@ -1,10 +1,10 @@
 # Project Constitution
 
-**Status:** In discussion  
-**Date:** September 19, 2026
-
-The intended model, not a claim that it is implemented. **MUST**, **MUST
-NOT**, **SHOULD** and **MAY** are normative; open choices are named.
+📌 **TL;DR:** The model every face and the daemon implement: Users own
+everything, names say their kind, one write-through SQLite store, and an
+inactive or incorrect entity is no such entity. **MUST**, **MUST NOT**,
+**SHOULD** and **MAY** are normative. Built in 0.7; what is still pending is
+the [0.7 plan](../Plans/MVP/0.7.0-TODO.md#storage-and-identity)'s, never this page's.
 
 ## Persistence and loading
 
@@ -19,16 +19,15 @@ durability rules, behind the existing storage ports.
 | Publication | one complete new view, never a mutation of the live maps in place |
 | Atomicity | invalid input fails the whole write; no partial update is ever visible |
 | Startup | load every durable entity, then build derived indexes such as token to principal and user ID to status. An incorrect record is always ignored — not loaded, not repaired — and reported as a [conceptual error](#errors-and-alerts); the rest of the node still starts |
-| List fields | the API MUST provide atomic add and remove for `allow`, `maintainers` and `deliver_to` |
+| List fields | the API MUST provide atomic add, add-if-absent and remove for `allow`, `maintainers` and `deliver_to` |
 
-That ordering is write-through. It covers record lifecycle changes too,
-although 0.7 adds no exhaustive deletion-specific crash matrix.
+That ordering is write-through. It covers record lifecycle changes too.
 
 Queue contents and their `in`, `out`, `dropped` and `expired` counters keep the
 [checkpoint boundary](04-messaging.md#durability): in memory during traffic, flushed as one batch every minute and on graceful shutdown, never once
-per message, so a crash MAY lose changes since the last flush. The
-[0.7 transition](../Plans/MVP/0.7-cutover.md#scope) is a clean reinstall: the
-old JSON dump and credential file are neither imported nor runtime stores.
+per message, so a crash MAY lose changes since the last flush. State from
+before this model is never imported: an installation moves to it by a
+[clean reinstall](../Plans/MVP/0.7-cutover.md#procedure).
 A durable queue whose record is absent or cannot hold a queue is such an
 incorrect record: startup MUST ignore and report it, and MUST NOT silently drop
 or reattach that backlog.
@@ -52,8 +51,8 @@ its cached view. Whether the process exits is its own decision.
 
 The SQLite driver is `modernc.org/sqlite`.
 
-A reload API or SIGHUP (`kill -HUP <pid>`) MAY be added later; no 0.7 operation
-needs one. It would replace one complete view with another and rebuild the
+A reload API or SIGHUP (`kill -HUP <pid>`) MAY be added later; no current
+operation needs one. It would replace one complete view with another and rebuild the
 derived indexes, never exposing a partly reloaded state.
 
 ## Logs
@@ -448,38 +447,12 @@ boundary.
 
 ## Open questions
 
-None. Q87 is settled by the [hop ACL rule](#-channels), leaving implementation
-and acceptance in [K.15](../Plans/MVP/0.7.0-TODO.md#delivery-and-release). The
-plan's [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns any
-question raised later.
+The [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns every open
+choice. Two bear on this page: whether lock-held staging meets the
+publication rule (Q106), and which log a refused flow writes (Q108).
 
-## What this replaces
+## History
 
-Nothing above depends on this section; it exists so a reader of the older model
-can see what changed.
-
-| This model | Replaces |
-|---|---|
-| Users own everything, and an Agent's management authority never makes it an owner | agent-owned records, ownership chains and self-owned non-User records in the topic docs, whose presence there is not evidence that such objects exist |
-| write-through ordering | the memory-before-persistence behavior of the 0.6 [persistence-failure contract](04-messaging.md#administrative-crash-recovery) |
-| SQLite as the runtime store | the JSON dump, which the clean reinstall does not import |
-| `active` and `inactive` | `banned`, and the Disabled switch: `active` is the former `disabled=false`, `inactive` the former `disabled=true` |
-| an Agent's `#` inside its canonical name | unprefixed Agent names, which no installation carries into 0.7 |
-| a 👥 `allow` holding its members | a separate `members` field |
-| a validated env-file `secret` | the rule that `KEY=value` was only a caller convention |
-| extended ACL syntax | nothing: existing terms stay valid and `*` is not widened |
-
-### Clarified direction
-
-Owner clarification, September 19, 2026, now owned by the sections beside it.
-
-| Clarification | Owned by |
-|---|---|
-| Objects belong to Users; an Agent's management authority never makes it an owner | [registry record](#-registry-record) |
-| Group ownership and Maintainers extend daemon administration rather than replacing it | [group](#-group) |
-| Persistence follows a write-through cache model | [persistence](#persistence-and-loading) |
-| `banned` is gone, and record `active` replaces Disabled | [user](#-user), [common fields](#common-record-fields) |
-| ACL syntax is extended, not replaced; the Agent marker is additive | [actor terms](#actors-and-ascii-textarea-syntax) |
-
-The topic docs still need reconciliation against all of it.
-
+What this model replaced, and the owner clarifications of September 19, 2026,
+are [history](../Plans/MVP/done/constitution-history.md#what-this-replaced);
+nothing here depends on them.

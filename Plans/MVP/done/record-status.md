@@ -5,7 +5,7 @@ with one status, active or inactive, on Users and records. An inactive one is
 no such entity: hidden, `404` to every caller, its name reserved, readable
 only in the web face's read-only view and brought back by its Owner or a
 Maintainer with a status-only edit. Evidence for
-[K.11 and K.12](../0.7.0-TODO.md#authority-and-lifecycle).
+[K.11 and K.12](../DONE.md#done--mvp).
 
 ## Result
 

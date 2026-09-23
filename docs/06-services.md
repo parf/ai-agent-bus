@@ -101,7 +101,7 @@ so what comes back is the digest and never what was just sent.
 | who may write it | the principals with [record management authority](01-identity-and-roles.md#groups), as for a configuration. A registration carries **neither half** — not the bytes, and not the digest — and a re-registration keeps the one already stored |
 | who may read it | an 👾 agent's, that agent alone; a 📡 service's, whoever its [ACL](02-access.md#acl) admits, with no second list. Asked before the kind and before the secret exists, so a caller the list does not admit learns only that there is no such name |
 | what it must be | an **env file**: each line blank, a `#` comment, or `KEY=value` with an optional `export `, `KEY` a shell identifier and a quoted value closed on its line. Nothing application-specific is checked. A refusal names the line and never repeats it; a stored secret that is not an env file is ignored and reported at load |
-| which kinds hold one | 📡 `service` and 👾 `agent`, under the [private-value rule](constitution.md#-private-values). Every other kind is reached by sending to its name — refused at the verb, and a stored record holding one is ignored and reported at [load](constitution.md#persistence-and-loading). **Pending for 0.7:** 👥 groups ([K.9](../Plans/MVP/0.7.0-TODO.md)) |
+| which kinds hold one | 📡 `service`, 👾 `agent` and 👥 `group` — a group's read by its members — under the [private-value rule](constitution.md#-private-values). Every other kind is reached by sending to its name — refused at the verb, and a stored record holding one is ignored and reported at [load](constitution.md#persistence-and-loading). |
 | what a query gets | **`secret_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record, and on the service's own page. The bytes are on no listing, no record answer, no page and no log |
 | nothing to store | an empty secret is refused, because it reads back exactly like never having set one |
 | when it is acknowledged | once it is durable. A credential the caller was told was stored, and which a restart then loses, is worse than a refusal |
@@ -117,11 +117,9 @@ Through 0.6 they are the same shape — an opaque blob the daemon never reads
 inside, absent from every listing, represented by a digest in any ordinary
 answer — and their mechanics differ at every other point:
 
-The table below describes behavior built through 0.6. **Pending for 0.7,** the
-owner has replaced the opaque-content rule with
-[basic env-file validation](constitution.md#-service). There is no legacy
-exception: services recreated after [clean reinstall](../Plans/MVP/0.7-cutover.md#scope)
-must supply conforming secrets.
+A secret is stored as written but must be an env file
+([private values](constitution.md#-private-values)); there is no legacy
+exception, so a non-conforming stored secret is ignored at load.
 
 | | Configuration | Secret |
 |---|---|---|
