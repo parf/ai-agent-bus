@@ -1034,13 +1034,18 @@ func (b *Bus) route(rec protocol.Record, e protocol.Envelope) error {
 		if e.Forwards+1 > maxForwards {
 			return fmt.Errorf("%w: at %s", ErrForwards, next)
 		}
+		// A route that was configured and has stopped working is the
+		// source's Owner's to fix, not the sender's mistake: it goes to the
+		// error log as well as to the sender (Q108).
 		dst, ok := b.entity(next)
 		if !ok {
+			b.report(ports.Warning, "the route from %s to %s is broken: %s is absent or inactive", rec.Name, next, next)
 			return fmt.Errorf("no such route destination: %s, from %s (%w)", next, rec.Name, ErrUnknown)
 		}
 		// The destination's ACL must list the forwarding record itself:
 		// neither the sender's nor the source's Owner's access stands in.
 		if !b.admits(dst, rec.Name) {
+			b.report(ports.Warning, "the route from %s to %s is broken: %s no longer allows %s", rec.Name, next, next, rec.Name)
 			return fmt.Errorf("%s may not forward to %s: %w", rec.Name, next, ErrNotAllow)
 		}
 		e.Forwards++

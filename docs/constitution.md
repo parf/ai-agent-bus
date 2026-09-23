@@ -280,8 +280,13 @@ whether anything still gets through:
 
 | This message | Outcome |
 |---|---|
-| at least one recipient takes it | it succeeds; each failed recipient is counted as its own `dropped` and written to the daemon log |
-| no recipient takes it | an error to the caller before anything is stored or counted, and a daemon log entry |
+| at least one recipient takes it | it succeeds; each failed recipient is counted as its own `dropped` and written to the error log |
+| no recipient takes it | an error to the caller before anything is stored or counted |
+
+The error log takes a flow that was configured and broke — a publication's
+lost or refused copies, and a route whose destination is gone or no longer
+allows its source. A direct send to an absent or inactive name is an ordinary
+refusal: its caller is told, and only the debug log records it.
 
 A missing recipient beside working ones MUST NOT break the flow that works.
 A missing sole recipient is the flow: a direct send to an absent or inactive
@@ -448,7 +453,7 @@ boundary.
 ## Open questions
 
 The [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns every open
-choice. One bears on this page: which log a refused flow writes (Q108).
+choice; none is open on this page.
 
 ## History
 

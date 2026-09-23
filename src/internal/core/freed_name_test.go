@@ -74,3 +74,20 @@ func TestAnAgentThatCreatesARecordOwnsNothingAndManagesNothing(t *testing.T) {
 		t.Fatalf("an explicit Maintainer entry did not grant management: %v", err)
 	}
 }
+
+// A write the store refuses is reported to the error log, as well as refused.
+func TestAFailedCommitIsReported(t *testing.T) {
+	b := New()
+	rep := &reports{}
+	b.Journal(rep)
+	st := memory.NewState()
+	b.Persistence(st)
+	b.SetDaemonOwner("owner@h")
+	st.Err = errors.New("database or disk is full")
+	if _, err := b.SetUser("owner@h", protocol.User{Name: "new@h"}, true); err == nil {
+		t.Fatal("a refused commit was reported as done")
+	}
+	if !rep.has("error: a management write was not committed and nothing changed: database or disk is full") {
+		t.Fatalf("the failed commit was not reported: %v", rep.lines)
+	}
+}

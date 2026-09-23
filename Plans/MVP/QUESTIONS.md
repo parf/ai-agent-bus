@@ -1,17 +1,14 @@
 # MVP questions
 
-📌 **TL;DR:** One 0.7 question is open: Q108 on which log a refused flow writes. Q105 and Q106 were settled on 2026-09-23.
+📌 **TL;DR:** No 0.7 question is open. Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
 
 ## Open questions
 
-| ID | Question | Blocks |
-|---|---|---|
-| Q108 | Which log takes the "daemon log entry" the [constitution](../../docs/constitution.md#common-record-fields) and K.11 require when a flow is refused? The term predates the three logs, and K.21 forbids an error-log line for an ordinary refusal such as an unknown name. Options: (a) error.log (with syslog) only for a flow that had recipients and lost them — a publication whose recipients all failed, a copy discarded beside working ones, a forwarding route whose destination is gone — while a direct send to an absent or inactive name is an ordinary refusal seen only in the debug log; (b) error.log for every refused flow, a direct send to an unknown name included. 0.7.9 does (a) | K.11, K.15 log wording |
-
-Q94–Q104 were settled on 2026-09-22 and moved to the
+None. Q105, Q106 and Q108 were settled on 2026-09-23 and Q94–Q104 on
+2026-09-22, all moved to the
 [decision index](../../docs/decisions.md#settled).
 
 Settled before 2026-09-22: Q79–Q82, Q85 and Q87–Q91 were settled on 2026-09-20 and moved to the

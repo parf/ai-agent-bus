@@ -293,3 +293,42 @@ func TestAListingSaysWhetherARouteIsAllowed(t *testing.T) {
 		t.Fatal("a record with no route claims one")
 	}
 }
+
+// A route that stops working is written to the error log; a direct send to a
+// name that is not there is an ordinary refusal and is not (Q108).
+func TestABrokenRouteIsLoggedAndAnUnknownNameIsNot(t *testing.T) {
+	b := forwardFixture(t)
+	rep := &reports{}
+	b.Journal(rep)
+	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Subs: &[]string{"#b@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Manage("bob@h", Management{Name: "#b@h", Allow: &[]string{"sender@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "sender@h", To: "#a@h", Body: "x"}); !errors.Is(err, ErrNotAllow) {
+		t.Fatal(err)
+	}
+	if !rep.has("warning: the route from #a@h to #b@h is broken: #b@h no longer allows #a@h") {
+		t.Fatalf("a revoked route was not logged: %v", rep.lines)
+	}
+	if _, err := b.Manage("bob@h", Management{Name: "#b@h", Allow: &[]string{"#a@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Manage("bob@h", Management{Name: "#b@h", Status: ptr(protocol.StatusInactive)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "sender@h", To: "#a@h", Body: "y"}); !errors.Is(err, ErrUnknown) {
+		t.Fatal(err)
+	}
+	if !rep.has("the route from #a@h to #b@h is broken: #b@h is absent or inactive") {
+		t.Fatalf("a route to an inactive destination was not logged: %v", rep.lines)
+	}
+	n := len(rep.lines)
+	if _, err := b.Send(protocol.Envelope{From: "sender@h", To: "nobody@h", Body: "z"}); !errors.Is(err, ErrUnknown) {
+		t.Fatal(err)
+	}
+	if len(rep.lines) != n {
+		t.Fatalf("a send to an unknown name was logged: %v", rep.lines[n:])
+	}
+}

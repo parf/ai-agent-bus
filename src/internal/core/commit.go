@@ -190,6 +190,9 @@ func (b *Bus) commit() error {
 	if b.store != nil {
 		if err := b.store.Commit(b.change(s)); err != nil {
 			b.rollback(s)
+			// A store that will not take a write is loss of authoritative
+			// answering, not a caller's mistake (docs/constitution.md#errors-and-alerts).
+			b.report(ports.Error, "a management write was not committed and nothing changed: %s", err)
 			return fmt.Errorf("persist administrative state: %w", err)
 		}
 		for name := range s.inboxes {

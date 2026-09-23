@@ -5,6 +5,11 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.16 — 2026-09-23
+
+A route that stops working and a management write the store refuses are both
+written to the error log; a send to an unknown name stays an ordinary refusal.
+
 ## 0.7.15 — 2026-09-23
 
 `--reinstall` replaces whichever packaged release is installed (0.6 included),
