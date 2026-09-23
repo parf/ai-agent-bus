@@ -25,7 +25,7 @@ run one job twice.
 | **each grant carries a number that only goes up** | a ttl alone is not safety: a holder that stalled past its deadline still believes it holds the lock. The number is what lets whatever the lock guards refuse the older holder, and it never repeats — a daemon that restarted issues higher numbers than the run before it |
 | **it is live state, and it is not dumped** | queues and stats survive a restart ([durability](../../docs/04-messaging.md#durability)); locks must not. A lock that outlived the daemon that granted it is a claim about processes nobody watched in the meantime. **A restart releases everything**, which is the honest answer and the reason the number above exists |
 | **the holder is a principal** | the token says who ([access](../../docs/02-access.md#access)), so a listing can answer *who holds this* — and the daemon watches no connection, here as everywhere. The ttl is what ends a lock, not a socket closing |
-| **it holds nothing** | a lock says who may act and stores no value. What the holders agree *about* lives wherever they keep it, which is a separate question ([1.2 § shared secrets, and a KV with locks](../R1.2/exploration.md#shared-secrets-and-a-kv-with-locks)) |
+| **it holds nothing** | a lock says who may act and stores no value. What the holders agree *about* lives in a store of its own ([key-value store](kv.md#per-name-storage)), or, for a service that may not be read by the daemon holding it, in the one [1.2 is still exploring](../R1.2/exploration.md#shared-secrets-and-a-kv-with-locks) |
 
 ### A set of locks
 

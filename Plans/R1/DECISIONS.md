@@ -8,6 +8,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 |---|---|---|
 | Record-defined roles move to R1 as its first topic | [groups and roles](identity.md#groups-and-roles) | 2026-09-22 owner decision; moved out of MVP, no representation adopted |
 | Additional storage backends assigned to R1 | [storage](storage.md#backends) | 2026-09-20 owner instruction; implement SQLite first in 0.7 |
+| A per-name key-value store assigned to R1 | [key-value store](kv.md#per-name-storage) | 2026-09-22 owner instruction; SQLite-backed, per User and per registry record, with atomic operations |
 | Sigils | [definition](identity.md#sigils) | D6, D7, D27, D28, D29, D30 |
 | Enrolment policy | [definition](access.md#enrolment-policy) | D18 |
 | On demand | [definition](runner.md#on-demand) | |
