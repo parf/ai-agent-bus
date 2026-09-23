@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** One 0.7 question is open, Q105 on renaming without a launcher.
+📌 **TL;DR:** Two 0.7 questions are open: Q105 on renaming without a launcher, Q106 on how a committed write is published.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
@@ -9,6 +9,7 @@ withdrawn, and every ID stays reserved.
 
 | ID | Question | Blocks |
 |---|---|---|
+| Q106 | Does a write staged in the live maps under the registry lock, with an undo log and every reader behind the same lock, satisfy the constitution's "one complete new view, never a mutation of the live maps in place"? Built through 0.7.6: no reader can observe a staged or rolled-back write, a failed commit restores every entity, and the next write rewrites no stale state. Options: (a) accept it and reword the publication rule to "no reader observes a write before its commit"; (b) build copy-on-write views published by pointer, so reads need no lock. (a) keeps K.3's failure checks; (b) is a core-wide refactor | K.3 wording |
 | Q105 | May an Agent obtain the credential of another Agent owned by the same User? 0.7 says every record is its User's and a credential is issued to the Owner, so a bare MCP face holding only an agent token cannot take the new address `ab_rename` registers. Options: (a) keep it refused — renaming needs an `ab-*` launcher, which acts for the User; (b) let an Agent be issued a credential for any Agent of its own Owner; (c) a daemon rename that moves the caller's own credential. 0.7.5 does (a) as the conservative default | bare-MCP `ab_rename` |
 
 Q94–Q104 were settled on 2026-09-22 and moved to the

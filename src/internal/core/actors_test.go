@@ -88,3 +88,19 @@ func TestAgentTermResolvesToTheRecordsOwnAgent(t *testing.T) {
 		t.Fatalf("@agent admitted another agent: %v", err)
 	}
 }
+
+// A group's name after its @ is a name like any other, realm optional: the one
+// parser decides, and a term it refuses is refused as a group too.
+// See docs/01-identity-and-roles.md#names.
+func TestAGroupNameFollowsTheNameGrammar(t *testing.T) {
+	for _, ok := range []string{"@ops", "@ops@h", "@1crew", "@team.a_b-c@srv1"} {
+		if !groupName(ok) {
+			t.Errorf("%s was refused as a group name", ok)
+		}
+	}
+	for _, bad := range []string{"@", "@#ops", "@Ops@h ", "@-ops", "@ops@", "@a b", "@pärf"} {
+		if groupName(bad) {
+			t.Errorf("%s was accepted as a group name", bad)
+		}
+	}
+}
