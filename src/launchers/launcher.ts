@@ -30,6 +30,8 @@ const say = (stream: NodeJS.WriteStream, code: string, s: string) =>
 const note = (s: string) => say(process.stdout, "32", s);          // green: done
 const warn = (s: string) => say(process.stderr, "38;5;208", s);    // orange: notice
 const log = (s: string) => say(process.stderr, "31", s);           // red: broken
+// The runtime adapters say both; a status line is good news, not a failure.
+const adapterLog = (s: string, ok?: boolean) => ok ? note(s) : log(s);
 // Make "agent-bus" resolvable as a channel server in this directory.
 // Failure is not fatal: without it the session runs with tools and no channel,
 // which is worth a warning and not worth refusing to start over.
@@ -230,7 +232,7 @@ See docs/08-runner-role.md#smart-launchers.`);
     const fd = openSync(join(runDir, "server.log"), "a", 0o600);
     serverChild = start([binary, "serve", "--port", String(port), "--hostname", "127.0.0.1"], serverEnv, fd);
     closeSync(fd);
-    opencode = new Opencode(cwd, log, remote, password);
+    opencode = new Opencode(cwd, adapterLog, remote, password);
     let ready = false;
     for (let i = 0; i < 200; i++) {
       if (serverChild.proc.exitCode !== null) throw new Error("the opencode server exited during startup");
@@ -308,7 +310,7 @@ See docs/08-runner-role.md#smart-launchers.`);
       await sleep(50);
     }
     if (!ready) throw new Error("App Server did not become ready");
-    codex = new Codex(cwd, log, remote, password);
+    codex = new Codex(cwd, adapterLog, remote, password);
     await codex.start();
     const sessions = await codex.threads();
     const resumeIndex = tuiArgs.indexOf("resume");

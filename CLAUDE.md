@@ -97,11 +97,11 @@ The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the proje
 |---|---|
 | Shared SemVer | Every program and face shares one `MAJOR.MINOR.PATCH`; never version the daemon, runner, CLI or MCP independently |
 | Canonical value | `src/internal/version/VERSION`, embedded by Go and read by TypeScript; no other current-version literals |
-| MVP | `0.5.x`, then `0.6.x` from the record-kind enum, both released; `0.7.x` from the constitution work, which starts at `0.7.0`. Bump PATCH on every good development step — each feature or piece of progress, many small bumps rather than few — and on a shipped behaviour fix. A shared change still gets one bump |
+| MVP | `0.5.x`, then `0.6.x` from the record-kind enum, both released; `0.7.x` from the constitution work, stable at `0.7.20`; `0.8.x` from `0.8.0`. Bump PATCH on every good development step — each feature or piece of progress, many small bumps rather than few — and on a shipped behaviour fix. A shared change still gets one bump |
 | Stable | An even minor (`0.6`, `0.8`) is a feature line. An odd minor (`0.7`, `0.9`) is major development whose code may be broken; when it passes all tests and reviews — including a final full Fable review — its commit subject is exactly `STABLE - passed all tests and reviews`, and the next even line begins |
 | Later releases | Before stability, MINOR advances the release line. From major one, breaking changes bump MAJOR, compatible features MINOR, fixes PATCH; reset lower components when advancing a higher one |
 | No behaviour change | Docs, tests and refactoring alone do not require a bump |
-| Changelog | Every version bump includes a one- or two-line version summary in the current line's changelog — `CHANGELOG.0.7.md` at the repository root from `0.7.0` — newest version on top. One file per release line, and a finished line's file moves to `Plans/`; historical release numbers stay in theirs and are never rewritten to match the current version |
+| Changelog | Every version bump includes a one- or two-line version summary in the current line's changelog — `CHANGELOG.0.8.md` at the repository root from `0.8.0` — newest version on top. One file per release line, and a finished line's file moves to `Plans/`; historical release numbers stay in theirs and are never rewritten to match the current version |
 | Build evidence | Shipped Go binaries must carry [setup § build information](docs/09-setup.md#build-information) and expose it through the version query. Use the documented build script; never ship an unstamped development build |
 
 ## Git

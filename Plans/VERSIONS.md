@@ -1,6 +1,6 @@
 # Version comparison
 
-Release stages, in order. Each section describes the major change from the preceding stage; the linked plans own scope and status. Program release numbers follow [shared versioning](../CLAUDE.md#versioning), and individual shipped changes belong in the changelog for their release line: the current [0.7](../CHANGELOG.0.7.md#changelog-07), and the older [0.6](CHANGELOG.0.6.md#changelog-06) and [0.5](CHANGELOG.0.5.md#changelog-05) kept here.
+Release stages, in order. Each section describes the major change from the preceding stage; the linked plans own scope and status. Program release numbers follow [shared versioning](../CLAUDE.md#versioning), and individual shipped changes belong in the changelog for their release line: the current [0.8](../CHANGELOG.0.8.md#changelog-08), and the older [0.7](CHANGELOG.0.7.md#changelog-07), [0.6](CHANGELOG.0.6.md#changelog-06) and [0.5](CHANGELOG.0.5.md#changelog-05) kept here.
 
 Credential lifetime follows the same [manual-change policy](../docs/02-access.md#token-lifetime) throughout these stages; future encryption does not introduce scheduled token retirement.
 

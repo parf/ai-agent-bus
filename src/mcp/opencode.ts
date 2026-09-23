@@ -33,14 +33,15 @@ export class OpencodeError extends Error {
 export class Opencode {
   readonly #cwd: string;
   readonly #url: string;
-  readonly #log: (s: string) => void;
+  // ok marks a status line rather than a problem; the launcher colours it.
+  readonly #log: (s: string, ok?: boolean) => void;
   readonly #auth?: string;
   #session?: string;
   #busy = false;
   #events?: AbortController;
   #closed = false;
 
-  constructor(cwd: string, log: (s: string) => void, url: string, password?: string, username = "opencode") {
+  constructor(cwd: string, log: (s: string, ok?: boolean) => void, url: string, password?: string, username = "opencode") {
     this.#cwd = resolve(cwd);
     this.#log = log;
     this.#url = url.replace(/\/+$/, "");
@@ -67,7 +68,7 @@ export class Opencode {
   async start(): Promise<void> {
     await this.#request("GET", "/config");
     void this.#listen();
-    this.#log(`opencode: attached to ${this.#url}; the launcher binds the session for ${this.#cwd}`);
+    this.#log(`opencode: attached to ${this.#url}; the launcher binds the session for ${this.#cwd}`, true);
   }
 
   /** Sessions in this directory, newest first. Children are not sessions a person types in. */

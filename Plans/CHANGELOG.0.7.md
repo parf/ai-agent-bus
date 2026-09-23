@@ -3,7 +3,7 @@
 📌 **TL;DR:** Changes on the 0.7 development line, newest first, one or two
 lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
-[changelog 0.6](Plans/CHANGELOG.0.6.md#changelog-06).
+[changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
 ## 0.7.20 — 2026-09-23
 

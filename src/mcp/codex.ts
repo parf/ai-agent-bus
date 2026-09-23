@@ -67,7 +67,8 @@ export class Codex {
   readonly #cwd: string;
   readonly #url?: string;
   readonly #token?: string;
-  readonly #log: (s: string) => void;
+  // ok marks a status line rather than a problem; the launcher colours it.
+  readonly #log: (s: string, ok?: boolean) => void;
   // Approvals go to the person in the TUI, never to us. Without this the App
   // Server asks *the client that started the turn* — this face — and a face
   // that approves nothing turns every tool call the session makes into "user
@@ -80,7 +81,7 @@ export class Codex {
     approvalsReviewer: "user" as const,
   };
 
-  constructor(cwd: string, log: (s: string) => void, url = process.env.AGENT_BUS_CODEX_WS, token = process.env.AGENT_BUS_CODEX_AUTH_TOKEN) {
+  constructor(cwd: string, log: (s: string, ok?: boolean) => void, url = process.env.AGENT_BUS_CODEX_WS, token = process.env.AGENT_BUS_CODEX_AUTH_TOKEN) {
     this.#cwd = resolve(cwd);
     this.#log = log;
     this.#url = url?.trim() || undefined;
@@ -160,6 +161,7 @@ export class Codex {
     this.#log(
       `codex: attached to ${this.#url ? `the shared app-server ${this.#url}` : "its own app-server"}` +
         `; the thread for ${this.#cwd} is chosen at the first message`,
+      true,
     );
   }
 
@@ -184,6 +186,7 @@ export class Codex {
     this.#log(
       `codex: ${found ? "attached to the session's thread" : "no session here yet, started a thread"} ` +
         `${this.#thread} in ${this.#cwd}${this.#activeTurn ? `, turn ${this.#activeTurn} already running` : ""}`,
+      true,
     );
   }
 
