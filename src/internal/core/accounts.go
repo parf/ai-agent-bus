@@ -20,16 +20,16 @@ func (b *Bus) EstablishAccounts(active map[string]string) error {
 		normalized[account] = principal
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if b.accountRestoreErr != nil {
 		return b.accountRestoreErr
 	}
 	b.activeAccounts = cloneAccounts(normalized)
 	if !b.accountsRestored {
-		b.accounts = cloneAccounts(normalized)
+		b.setAccounts(cloneAccounts(normalized))
 		b.accountsRestored = true
 	}
-	return nil
+	return b.commit()
 }
 
 func cloneAccounts(in map[string]string) map[string]string {
@@ -68,7 +68,7 @@ func (b *Bus) Accounts(caller string) (protocol.AccountMappings, error) {
 		return protocol.AccountMappings{}, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.AccountMappings{}, err
 	}
@@ -97,7 +97,7 @@ func (b *Bus) SetAccount(caller, account, principal string, remove bool) (protoc
 		}
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.AccountMappings{}, err
 	}
@@ -108,14 +108,18 @@ func (b *Bus) SetAccount(caller, account, principal string, remove bool) (protoc
 		if _, ok := b.accounts[account]; !ok {
 			return protocol.AccountMappings{}, ErrUnknown
 		}
-		delete(b.accounts, account)
+		next := cloneAccounts(b.accounts)
+		delete(next, account)
+		b.setAccounts(next)
 	} else {
 		if err := b.acting(mapped); err != nil {
 			return protocol.AccountMappings{}, fmt.Errorf("mapped principal: %w", err)
 		}
-		b.accounts[account] = mapped
+		next := cloneAccounts(b.accounts)
+		next[account] = mapped
+		b.setAccounts(next)
 	}
-	if err := b.checkpoint(false); err != nil {
+	if err := b.commit(); err != nil {
 		return protocol.AccountMappings{}, err
 	}
 	return b.accountView(), nil

@@ -99,7 +99,12 @@ type inbox struct {
 }
 
 type Bus struct {
-	dump     ports.Dump
+	store ports.Store
+	// staging is the undo log of the management write in progress (commit.go).
+	staging *staged
+	// flushed is each queue's counters as last saved, so a queue flush writes
+	// only what moved since (snapshot.go).
+	flushed map[string]queueMark
 	accounts map[string]string
 	// activeAccounts is what the supervisor actually opened for this run.
 	// accounts may move ahead after a durable administrative edit; the
@@ -153,6 +158,7 @@ func New() *Bus {
 		users:          map[string]protocol.User{},
 		refused:        map[string]int{},
 		inboxes:        map[string]*inbox{},
+		flushed:        map[string]queueMark{},
 		started:        time.Now(),
 	}
 }
@@ -251,7 +257,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		return protocol.Record{}, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	// Enrolment is the one caller that legitimately registers a name the
 	// daemon does not yet know — it has just proved the realm's key for it
 	// (docs/02-access.md#proving-possession) — and it says so here rather
@@ -373,14 +379,14 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		if user.State == "" {
 			user.State = "active"
 		}
-		b.users[name] = user
+		b.setUser(name, user)
 	}
-	b.records[name] = r
+	b.setRecord(name, r)
 	b.recheckInbox(name)
 	if onBus(r) {
 		b.ensure(name)
 	}
-	if err := b.checkpoint(false); err != nil {
+	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
 	// Public here, not in the face: the configuration is core's to guard,
@@ -428,7 +434,7 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	}
 	cfg = canonical.Bytes()
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.Record{}, err
 	}
@@ -453,11 +459,11 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	}
 	r.Config = cfg
 	r.At = time.Now()
-	b.records[n] = r
+	b.setRecord(n, r)
 	if onBus(r) {
 		b.ensure(n)
 	}
-	if err := b.checkpoint(false); err != nil {
+	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
 	return r.Public(), nil
@@ -479,7 +485,7 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 		return nil, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return nil, err
 	}
@@ -515,7 +521,7 @@ func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
 		return protocol.Record{}, fmt.Errorf("%w, and an empty one is the absence of one", ErrNoSecret)
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.Record{}, err
 	}
@@ -533,10 +539,10 @@ func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
 	}
 	r.Secret = secret
 	r.At = time.Now()
-	b.records[n] = r
+	b.setRecord(n, r)
 	// Acknowledged only once it is durable: a credential the caller was told
 	// was stored, and which a restart then loses, is worse than a refusal.
-	if err := b.checkpoint(false); err != nil {
+	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
 	return r.Public(), nil
@@ -556,7 +562,7 @@ func (b *Bus) Secret(name, caller string) (string, error) {
 		return "", err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return "", err
 	}
@@ -583,7 +589,7 @@ func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 		return protocol.Record{}, false
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	r, ok := b.records[n]
 	// A name you may not see does not exist as far as you are concerned:
 	// hiding it and refusing it are different answers, and discovery is the
@@ -605,7 +611,7 @@ func (b *Bus) OwnerOf(name string) (string, bool) {
 		return "", false
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	r, ok := b.record(n)
 	return r.Owner, ok
 }
@@ -671,7 +677,7 @@ func boundOf(r protocol.Record) int {
 
 func (b *Bus) List(caller, kind string) []protocol.Record {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	out := make([]protocol.Record, 0, len(b.records))
 	for _, r := range b.records {
 		if kind != "" && r.Kind != kind {
@@ -739,7 +745,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 		return protocol.Envelope{}, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	// Before the receiver is looked up, so that a caller who is nobody is not
 	// told which names exist by which refusal it gets.
 	if err := b.acting(from); err != nil {
@@ -933,7 +939,7 @@ func (b *Bus) Subscribe(caller, channel string, on bool) (protocol.Record, error
 		return protocol.Record{}, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.Record{}, err
 	}
@@ -960,8 +966,8 @@ func (b *Bus) Subscribe(caller, channel string, on bool) (protocol.Record, error
 		return protocol.Record{}, fmt.Errorf("%w: %s is on %s through %s, so leaving %s is what stops the copies", ErrNotOwner, who, n, g, g)
 	}
 	r.Subs = drop1(r.Subs, who)
-	b.records[n] = r
-	if err := b.checkpoint(false); err != nil {
+	b.setRecord(n, r)
+	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
 	return b.withLiveness(n, r.Public()), nil
@@ -1044,7 +1050,7 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 	}
 	b.mu.Lock()
 	if err := b.acting(caller); err != nil {
-		b.mu.Unlock()
+		b.unlock()
 		return protocol.Envelope{}, err
 	}
 	// An inbox belongs to a registered name. Creating one for whoever asks
@@ -1052,28 +1058,28 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 	// wait could never end anyway, because Send refuses an unknown
 	// receiver, so nothing can ever arrive in it.
 	if _, known := b.records[name]; !known {
-		b.mu.Unlock()
+		b.unlock()
 		return protocol.Envelope{}, fmt.Errorf("no inbox for %s: register it first (%w)", name, ErrUnknown)
 	}
 	rec := b.records[name]
 	if !b.may(caller, rec) {
-		b.mu.Unlock()
+		b.unlock()
 		return protocol.Envelope{}, ErrNotAllow
 	}
 	// After the ACL, for the same reason Send asks in that order.
 	if !onBus(rec) {
-		b.mu.Unlock()
+		b.unlock()
 		return protocol.Envelope{}, fmt.Errorf("%w: %s is external and has no queue here to read", ErrKind, name)
 	}
 	// Q63 permits draining an inactive name's own inbox by an active,
 	// authorized caller. Only a separate owner's suspension blocks this path.
 	// See docs/01-identity-and-roles.md#user-states.
 	if err := b.ownerSuspension(name); err != nil {
-		b.mu.Unlock()
+		b.unlock()
 		return protocol.Envelope{}, err
 	}
 	if rec.Disabled {
-		b.mu.Unlock()
+		b.unlock()
 		return protocol.Envelope{}, ErrDisabled
 	}
 	in := b.ensure(name)
@@ -1085,7 +1091,7 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 		if !filtered || (e.Topic == topic && e.Tag == tag) {
 			in.queue = take(in.queue, i)
 			in.out++
-			b.mu.Unlock()
+			b.unlock()
 			return e, nil
 		}
 	}
@@ -1098,14 +1104,14 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 	if !filtered {
 		for _, w := range in.waiters {
 			if !w.filtered && !(share && w.share) {
-				b.mu.Unlock()
+				b.unlock()
 				return protocol.Envelope{}, ErrTwoReads
 			}
 		}
 	}
 	w := &waiter{topic: topic, tag: tag, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1), caller: caller, stopped: make(chan error, 1)}
 	in.waiters = append(in.waiters, w)
-	b.mu.Unlock()
+	b.unlock()
 
 	select {
 	case err := <-w.stopped:
@@ -1127,7 +1133,7 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 // it returns that message. Nothing is dropped in between.
 func (b *Bus) settle(name string, w *waiter) (protocol.Envelope, bool) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	select {
 	case e := <-w.ch:
 		return e, true
@@ -1173,7 +1179,7 @@ func (b *Bus) Uptime() string { return time.Since(b.started).Round(time.Second).
 
 func (b *Bus) Status() Status {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	s := Status{
 		Up:       b.Uptime(),
 		Services: len(b.records),
@@ -1210,7 +1216,7 @@ func (b *Bus) Status() Status {
 // (docs/05-discovery.md#what-it-shows).
 func (b *Bus) Owned(caller string) []string {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if b.acting(caller) != nil {
 		return []string{}
 	}
@@ -1229,7 +1235,7 @@ func (b *Bus) Owned(caller string) []string {
 // (docs/02-access.md#what-a-call-carries).
 func (b *Bus) Refuse(kind string) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	b.refused[kind]++
 }
 

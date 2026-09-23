@@ -21,6 +21,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/dashboard"
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
@@ -34,9 +35,10 @@ const (
 )
 
 type config struct {
-	addr, sock, tokenF, owner, dumpF string
-	dash                             string
-	every                            time.Duration
+	addr, sock, owner, db string
+	create, init           bool
+	dash                   string
+	every                  time.Duration
 	users                            accounts
 	vouch                            values
 	web                              bool
@@ -49,10 +51,11 @@ func main() {
 	var c config
 	flag.StringVar(&c.addr, "addr", env("AGENT_BUS_ADDR", "127.0.0.1:6767"), "TCP listen address — loopback only")
 	flag.StringVar(&c.sock, "socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
-	flag.StringVar(&c.tokenF, "token-file", env("AGENT_BUS_TOKEN_FILE", defaultTokenFile()), "token store; created if absent")
 	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", ""), "initial daemon owner (required; later transfers are durable)")
-	flag.StringVar(&c.dumpF, "dump-file", env("AGENT_BUS_DUMP_FILE", defaultDumpFile()), "where the queues and stats are snapshotted")
-	flag.DurationVar(&c.every, "dump-every", time.Minute, "how often to snapshot while running; 0 turns the periodic dumper off")
+	flag.StringVar(&c.db, "db", env("AGENT_BUS_DB", defaultDB()), "the SQLite database holding every durable entity, credential and queue")
+	flag.BoolVar(&c.create, "create", false, "create the database when it does not exist; without it a missing database refuses the start")
+	flag.BoolVar(&c.init, "init", false, "create the database if it is absent, check it, and exit: what setup runs before the first start")
+	flag.DurationVar(&c.every, "flush-every", time.Minute, "how often queue contents and counters are saved while running; 0 saves them only at a graceful stop")
 	flag.BoolVar(&c.web, "web", false, "run the dashboard as a child too (docs/05-discovery.md#dashboard)")
 	flag.StringVar(&c.dash, "dashboard", env("AGENT_BUS_DASHBOARD", dashboard.URL), "where a browser opening the API `url` is sent; empty serves no root at all")
 	flag.Var(&c.vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
@@ -62,12 +65,35 @@ func main() {
 		log.Fatalf("owner: %v", err)
 	}
 
+	if c.init {
+		if err := initDatabase(c.db); err != nil {
+			log.Fatalf("database: %v", err)
+		}
+		fmt.Printf("database ready: %s\n", c.db)
+		return
+	}
 	if os.Getenv(roleEnv) == roleBus {
 		runBus(c)
 		return
 	}
 	defer proctitle.Start("agent-busd", "supervisor", nil)()
 	runSupervisor(c)
+}
+
+// initDatabase is the one explicit way a database comes into being on an
+// installed node; the unit never passes -create, so a database that vanished
+// refuses the start instead of being replaced by an empty one.
+func initDatabase(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	st, err := sqlite.Open(path, true)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	_, err = st.Load()
+	return err
 }
 
 func requiredOwner(value string) (protocol.Name, error) {
@@ -236,12 +262,7 @@ type values []string
 func (m *values) String() string     { return strings.Join(*m, ",") }
 func (m *values) Set(v string) error { *m = append(*m, v); return nil }
 
-func defaultDumpFile() string {
+func defaultDB() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "state", "agent-bus", "dump.json")
-}
-
-func defaultTokenFile() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "agent-bus", "token")
+	return filepath.Join(home, ".local", "state", "agent-bus", "agent-bus.db")
 }

@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| K.1.1, K.1.3 SQLite store | One exclusively held SQLite database replaces the JSON snapshot and token file; a management write commits only its entities before it is answered, and a failed commit publishes nothing | [0.7.1 evidence](done/sqlite-store.md#checks) |
 | Records are named for what they are | An agent's record is an Inbox, listed with the channels rather than the services, with a Type column, a Kind filter and a delivery reading that matches [inbox queues](../../docs/04-messaging.md#inbox-queues) | [0.5.84 evidence](done/records-are-inboxes.md#checks) |
 | Owner corrections on the rendered dashboard | Nine instructions from one reading: the page's age moves to the shared footer, an empty attention section disappears, a listing states count and scope in one caption, the user directory opens on active users and marks only the others, and the `@administrators` page states its authority | [0.5.83 evidence](done/web-owner-corrections.md#checks) |
 | F.13.2 Shared shell and recovery | Every signed-in page carries the same shell, names itself in a title no other page shares except the deliberately indistinguishable refusals, and tells four failures apart; a section that cannot be read says so instead of printing the backend address or reading as empty | [0.5.81 evidence](done/web-shell-recovery.md#checks) |

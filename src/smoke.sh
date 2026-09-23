@@ -20,7 +20,7 @@ for v in $(env | sed -n 's/^\(AGENT_BUS_[A-Z_]*\)=.*/\1/p'); do
   case $v in AGENT_BUS_ROLE|AGENT_BUS_FDS) ;; *) unset "$v" ;; esac
 done
 D=$(mktemp -d); DPID=""; SUPUNIT=""
-# Wait for it: a daemon dumps on the way out, and a dump written while the
+# Wait for it: a daemon flushes on the way out, and a flush written while the
 # directory is being removed leaves the directory behind.
 cleanup() {
   [ -n "$SUPUNIT" ] && systemctl --user stop "$SUPUNIT" >/dev/null 2>&1
@@ -51,7 +51,7 @@ export BUILD_FINISHED=$(date +%s)
 # before issuing their credentials. Stated rather than taken from the
 # account running the suite, so the checks read the same everywhere.
 OWNER=parf@localhost
-"$D/agent-busd" -addr 127.0.0.1:$PORT -socket "$D/bus.sock" -token-file "$D/token" -owner "$OWNER" -dump-file "$D/dump.json" -dump-every 0 >"$D/daemon.log" 2>&1 &
+"$D/agent-busd" -addr 127.0.0.1:$PORT -socket "$D/bus.sock" -owner "$OWNER" -db "$D/bus.db" -create -flush-every 0 >"$D/daemon.log" 2>&1 &
 DPID=$!
 # Wait for an answer, not for the socket: the supervisor binds it before the
 # bus that serves it exists, so the file appearing means nothing yet.
@@ -62,9 +62,13 @@ ready() { for _ in $(seq 1 100); do
   sleep 0.1
 done; return 1; }
 ready "$D/bus.sock" || { echo "daemon did not start"; cat "$D/daemon.log"; exit 1; }
-# One line per principal, `name token`: the owner's is what the daemon wrote
-# at start, and every other name gets one from it on first use.
-TOKEN=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/token")
+# The owner's credential is in the daemon's database, which the daemon holds
+# exclusively; it is asked for the way the owner would, over the daemon
+# account's own socket (docs/02-access.md#local-socket). Every other name gets
+# one from it on first use.
+ACCOUNT=$(id -un)
+owner_token() { AGENT_BUS_ADDR="$1/user-$ACCOUNT.sock" "$D/agent-bus-token" "$OWNER"; }
+TOKEN=$(owner_token "$D")
 tok() {
   local f="$D/tok.$(printf '%s' "$1" | tr '/@.' '___')"
   [ -s "$f" ] || AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER     "$D/agent-bus-token" "$1" >"$f" || return
@@ -163,7 +167,7 @@ is_empty "nor does a face" \
 is_empty "and a port names no outside world of its own" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -E '^(os|net|net/http|os/exec|database/sql)$')"
 has "while the process that assembles them holds the ones that persist" \
-  "$(go list -deps ./cmd/agent-busd | grep -E 'internal/(store|dump|directory|signature)' | tr '\n' ' ')" 'internal/directory/file .*internal/directory/github .*internal/dump/jsonfile .*internal/signature/sshkeygen .*internal/store/file'
+  "$(go list -deps ./cmd/agent-busd | grep -E 'internal/(store|dump|directory|signature)' | tr '\n' ' ')" 'internal/directory/file .*internal/directory/github .*internal/signature/sshkeygen .*internal/store/sqlite'
 has "and core is what asks for it" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/auth 2>&1)" 'internal/ports'
 
@@ -201,7 +205,6 @@ sec "your own socket says who you are"
 users nobody2@srv1
 # Nothing to set up locally: the daemon knows the account at the other end
 # from which socket it arrived on. See docs/02-access.md#local-socket.
-ACCOUNT=$(id -un)
 MINE=$D/user-$ACCOUNT.sock
 has "the daemon opened one for the account it runs as" "$([ -S "$MINE" ] && echo yes)" 'yes'
 has "and it is that account's alone" "$(stat -c %a "$MINE")" '^600$'
@@ -241,8 +244,8 @@ has "a write lands under the socket's principal, not under nobody" \
 # arrangement, and is not provable with one socket.
 if id -u nobody >/dev/null 2>&1; then
   mkdir -p "$D/multi"
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/multi/bus.sock" -token-file "$D/token" \
-    -owner "$OWNER" -user "nobody=nemo@srv1" -dump-file "$D/multi/dump.json" -dump-every 0 >"$D/multi.log" 2>&1 &
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/multi/bus.sock" \
+    -owner "$OWNER" -user "nobody=nemo@srv1" -db "$D/multi/bus.db" -create -flush-every 0 >"$D/multi.log" 2>&1 &
   MPID2=$!
   ready "$D/multi/user-nobody.sock" || echo "  WARNING: $D/multi/user-nobody.sock never answered"
   has "a second account gets a socket of its own" "$([ -S "$D/multi/user-nobody.sock" ] && echo yes)" 'yes'
@@ -255,7 +258,7 @@ if id -u nobody >/dev/null 2>&1; then
   done
   has "and the refusal is about an unknown principal" \
     "$(curl -s --unix-socket "$D/multi/user-nobody.sock" http://unix/status)" 'answers for nobody'
-  curl -fsS --unix-socket "$D/multi/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" \
+  curl -fsS --unix-socket "$D/multi/user-$ACCOUNT.sock" \
     -d '{"name":"nemo@srv1","create":true}' http://unix/user >/dev/null || exit 1
   has "and is a different principal on it" \
     "$(curl -s --unix-socket "$D/multi/user-nobody.sock" "http://unix/status")" '"you":"nemo@srv1"'
@@ -279,8 +282,8 @@ if id -u nobody >/dev/null 2>&1; then
   has "the listener does not change identity in place" \
     "$(curl -s --unix-socket "$D/multi/user-nobody.sock" http://unix/status)" '"you":"nemo@srv1"'
   kill $MPID2 2>/dev/null; wait $MPID2 2>/dev/null
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/multi/bus.sock" -token-file "$D/token" \
-    -owner "$OWNER" -user "nobody=nemo@srv1" -dump-file "$D/multi/dump.json" -dump-every 0 >"$D/multi.log2" 2>&1 &
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/multi/bus.sock" \
+    -owner "$OWNER" -user "nobody=nemo@srv1" -db "$D/multi/bus.db" -create -flush-every 0 >"$D/multi.log2" 2>&1 &
   MPID2=$!
   ready "$D/multi/user-nobody.sock" || echo "  WARNING: the remapped socket never answered"
   has "the durable map overrides the contrary setup seed after restart" \
@@ -331,8 +334,10 @@ has "even the daemon owner cannot mint a credential for an unknown name" \
   "$(post_code "$OWNER" /token '{"name":"nobody-owns-this@srv1"}')" '^401$'
 has "nor rotate one into existence" \
   "$(post_code "$OWNER" /token '{"name":"nobody-owns-this@srv1","rotate":true}')" '^401$'
-is_empty "a refused token ask creates no stored credential" \
-  "$(awk '$1 == "nobody-owns-this@srv1" {print $1}' "$D/token")"
+lacks "a refused token ask creates no stored credential" \
+  "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" http://unix/users)" 'nobody-owns-this@srv1'
+has "and the directory that would show one is readable" \
+  "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" http://unix/users)" "$OWNER"
 ab "$OWNER" register nobody-owns-this@srv1 --kind agent --allow '*' >/dev/null || exit 1
 has "the owner may issue a credential after registering the name" \
   "$(post_code "$OWNER" /token '{"name":"nobody-owns-this@srv1"}')" '^200$'
@@ -366,11 +371,11 @@ has "but the one before that is refused" "$(tcode "$first" /status)" '401'
 # how a directory fills with rows nothing is behind.
 mkdir -p "$D/r2"
 r2_up() {
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/r2/bus.sock" -token-file "$D/r2/token" \
-    -owner "$OWNER" -dump-file "$D/r2/dump.json" -dump-every 0 >"$D/daemon2-$1.log" 2>&1 &
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/r2/bus.sock" \
+    -owner "$OWNER" -db "$D/r2/bus.db" -create -flush-every 0 >"$D/daemon2-$1.log" 2>&1 &
   RPID=$!
   ready "$D/r2/bus.sock" || echo "  WARNING: $D/r2/bus.sock never answered"
-  R2TOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/r2/token")
+  R2TOK=$(owner_token "$D/r2")
 }
 r2ab() { AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$R2TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
 r2tok() { AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$R2TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$@"; }
@@ -392,23 +397,11 @@ has "a restart keeps every principal, not only the owner's" \
   "$(AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$other AGENT_BUS_NAME=kept-other@srv1 "$D/agent-bus" status)" '"up"'
 kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
 # What the store keeps, it keeps to itself. See docs/09-setup.md#storage.
-has "the credential file is that account's alone" "$(stat -c %a "$D/token")" '^600$'
-# A credential that could not be written down is one a restart forgets, so
-# it is not handed out either: the daemon says so instead.
-mkdir -p "$D/ro" && cp "$D/token" "$D/ro/token"
-mkdir -p "$D/ro-run"
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/ro-run/bus.sock" -token-file "$D/ro/token" -owner "$OWNER" -dump-file "$D/ro-run/dump.json" -dump-every 0 >"$D/daemon3.log" 2>&1 &
-OPID=$!
-ready "$D/ro-run/bus.sock" || echo "  WARNING: $D/ro-run/bus.sock never answered"
-AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN "$D/agent-bus" register unsaveable@srv1 --kind agent --allow '*' >/dev/null || exit 1
-chmod 0500 "$D/ro"
-out=$(AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" unsaveable@srv1 2>&1); rc=$?
-bad_exit "a credential the store could not keep is not handed out" $rc
-is_empty "and nothing that looks like one is printed" "$(printf '%s' "$out" | grep -o '^[0-9a-f]\{48\}$')"
-chmod 0700 "$D/ro"
-has "while the same ask succeeds once the store can be written" \
-  "$(AGENT_BUS_ADDR=$D/ro-run/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" unsaveable@srv1)" '^[0-9a-f]\{48\}$'
-kill $OPID 2>/dev/null; wait $OPID 2>/dev/null
+has "the database is that account's alone" "$(stat -c %a "$D/r2/bus.db")" '^600$'
+# A credential that could not be written down is one a restart forgets, so it
+# is not handed out either. A held SQLite database cannot be made to refuse a
+# write from outside the process, so that refusal is proved in-process by
+# internal/auth TestMintHandsOutNothingItCouldNotWrite.
 # `start` runs until it is stopped, so this check leans on the refusal to end
 # it. Under a mutant that allows it, it ran until the harness's own timeout
 # and took the whole batch with it — hence the bound, and hence 124 counting
@@ -701,11 +694,11 @@ is_empty "a rotated credential has a different fingerprint" \
 # but it must still know when it was minted.
 mkdir -p "$D/r3"
 r3_up() {
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+14)) -socket "$D/r3/bus.sock" -token-file "$D/r3/token" \
-    -owner "$OWNER" -dump-file "$D/r3/dump.json" -dump-every 0 >"$D/daemon3-$1.log" 2>&1 &
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+14)) -socket "$D/r3/bus.sock" \
+    -owner "$OWNER" -db "$D/r3/bus.db" -create -flush-every 0 >"$D/daemon3-$1.log" 2>&1 &
   NPID=$!
   ready "$D/r3/bus.sock" || echo "  WARNING: $D/r3/bus.sock never answered"
-  R3TOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/r3/token")
+  R3TOK=$(owner_token "$D/r3")
 }
 r3_up first
 # Registered and kept, for the same reason as the rotation checks above.
@@ -1192,10 +1185,10 @@ for _ in $(seq 1 50); do grep -q second "$D/follow.out" && break; sleep 0.2; don
 kill $FPID 2>/dev/null; wait $FPID 2>/dev/null
 has "--follow keeps reading" "$(cat "$D/follow.out")" 'first'
 has "--follow reads the next one too" "$(cat "$D/follow.out")" 'second'
-out=$("$D/agent-busd" -addr 127.0.0.1:$((PORT+1)) -socket "$D/no-owner.sock" -token-file "$D/token" -dump-file "$D/no-owner.dump" -dump-every 0 2>&1); rc=$?
+out=$("$D/agent-busd" -addr 127.0.0.1:$((PORT+1)) -socket "$D/no-owner.sock" -db "$D/no-owner.db" -create -flush-every 0 2>&1); rc=$?
 bad_exit "the daemon refuses to derive ownership from the OS account" $rc
 has "and requires an explicit owner before opening listeners" "$out" 'required --owner user@realm'
-out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -token-file "$D/token" -owner "$OWNER" -dump-file "$D/public.dump" -dump-every 0 2>&1); rc=$?
+out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -owner "$OWNER" -db "$D/public.db" -create -flush-every 0 2>&1); rc=$?
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
 
@@ -1795,11 +1788,11 @@ ssh-keygen -q -t ed25519 -N '' -f "$D/enr/mine" >/dev/null
 ssh-keygen -q -t ed25519 -N '' -f "$D/enr/theirs" >/dev/null
 printf 'newbie %s\n' "$(cat "$D/enr/mine.pub")" > "$D/enr/keys"
 printf 'squatter %s\n' "$(cat "$D/enr/mine.pub")" >> "$D/enr/keys"
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+10)) -socket "$D/enr/bus.sock" -token-file "$D/enr/token" \
-  -owner "$OWNER" -dump-file "$D/enr/dump.json" -dump-every 0 -directory "vouched=$D/enr/keys" >"$D/enr/daemon.log" 2>&1 &
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+10)) -socket "$D/enr/bus.sock" \
+  -owner "$OWNER" -db "$D/enr/bus.db" -create -flush-every 0 -directory "vouched=$D/enr/keys" >"$D/enr/daemon.log" 2>&1 &
 EPID=$!
 ready "$D/enr/bus.sock" || echo "  WARNING: $D/enr/bus.sock never answered"
-ETOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/enr/token")
+ETOK=$(owner_token "$D/enr")
 AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK "$D/agent-bus" register alice@srv1 --kind agent --allow '*' >/dev/null || exit 1
 eab() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
 etok() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$@"; }
@@ -1935,8 +1928,7 @@ UNIT=$("$D/agent-bus-setup" --print-unit --owner "$OWNER" --exec /usr/local/bin/
 has "the unit runs the daemon as an account of its own" "$UNIT" '^User=agent-busd$'
 is_empty "never as root" "$(printf '%s' "$UNIT" | grep -x 'User=root')"
 is_empty "and never as whoever ran setup" "$(printf '%s' "$UNIT" | grep -x "User=$(id -un)")"
-has "the store lives under that account's home" "$UNIT" 'token-file /var/lib/agent-bus/daemon/token'
-has "and so does the dump" "$UNIT" 'dump-file /var/lib/agent-bus/daemon/dump.json'
+has "the database lives under that account's home" "$UNIT" 'db /var/lib/agent-bus/daemon/agent-bus.db'
 # The daemon is confined to its own home, so the runner's is out of reach even
 # before either account's mode is consulted.
 has "and it may write there and nowhere else" "$UNIT" '^ReadWritePaths=/var/lib/agent-bus/daemon$'
@@ -2508,17 +2500,17 @@ has "a certificate with no key is the same refusal" "$out" 'refusing to start'
 fi
 
 sec "a restart is not a loss"
-# Its own daemon, its own store and its own dump: the point of this section
+# Its own daemon and its own database: the point of this section
 # is what a stop and a start do to memory, which needs a process nothing
 # else is using. See docs/04-messaging.md#durability.
 mkdir -p "$D/dur"
 DUR=""
 dur_up() {
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+8)) -socket "$D/dur/bus.sock" -token-file "$D/dur/token" \
-    -owner "$OWNER" -dump-file "$D/dur/dump.json" -dump-every 0 >"$D/dur/$1.log" 2>&1 &
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+8)) -socket "$D/dur/bus.sock" \
+    -owner "$OWNER" -db "$D/dur/bus.db" -create -flush-every 0 >"$D/dur/$1.log" 2>&1 &
   DUR=$!
   ready "$D/dur/bus.sock" || echo "  WARNING: $D/dur/bus.sock never answered"
-  DTOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/dur/token")
+  DTOK=$(owner_token "$D/dur")
   [ "$1" = first ] || KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" keeper@srv1 2>/dev/null)
 }
 dur_down() { kill "$1" "$DUR" 2>/dev/null; wait "$DUR" 2>/dev/null; }
@@ -2562,8 +2554,8 @@ has "and both reads are still counted" "$(dsvc out)" '^2$'
 # See docs/06-services.md#secrets.
 dab register vault@srv1 --addr db.example:5432 --protocol postgresql --allow '*' >/dev/null
 dab secret vault@srv1 'PGPASSWORD=survives-the-kill' >/dev/null
-# SIGKILL: no dump is written, so the snapshot on disk is the one the start
-# wrote, and its own flag is what says the run ended badly.
+# SIGKILL: no flush happens, so the queues on disk are the ones the start
+# wrote, and its unclean mark is what says the run ended badly.
 dab send keeper@srv1 "lost with the process" >/dev/null
 # The bus is the process that holds the state, so the bus is what dies here.
 # By parent pid, never by a pattern: a pattern matches whatever else is on
@@ -2573,7 +2565,7 @@ ready "$D/dur/bus.sock" || echo "  WARNING: the bus never came back"
 has "a bus that dies is started again" "$(cat "$D/dur/third.log")" 'restarting in'
 has "and the start that follows says the last one ended badly" \
   "$(cat "$D/dur/third.log")" 'did not stop cleanly'
-has "and says from when it is missing traffic" "$(cat "$D/dur/third.log")" 'anything queued after'
+has "and says from when it is missing traffic" "$(cat "$D/dur/third.log")" 'queue changes after'
 # Logged once at start is not enough: whoever comes to look at a gap in the
 # work arrives long after that line scrolled away.
 has "and status still says so, not only the log" "$(dab status)" '"unclean":true'
@@ -2623,14 +2615,14 @@ sec "a start clears out the records whose owner it does not know"
 # orphan. This sweep is for a store written by an older daemon or by a hand.
 mkdir -p "$D/orph"
 orph_up() {
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/orph/bus.sock" -token-file "$D/orph/token" \
-    -owner "$OWNER" -dump-file "$D/orph/dump.json" -dump-every 0 >"$D/orph/$1.log" 2>&1 &
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/orph/bus.sock" \
+    -owner "$OWNER" -db "$D/orph/bus.db" -create -flush-every 0 >"$D/orph/$1.log" 2>&1 &
   OPID=$!
   # The status is the caller's to act on, not a warning to scroll past: every
   # call below blocks on an unserved socket rather than failing, so a start
   # that never answered would hang the run instead of failing a check.
   ready "$D/orph/bus.sock" || return 1
-  OTOK=$(awk -v n="$OWNER" '$1 == n { print $2 }' "$D/orph/token")
+  OTOK=$(owner_token "$D/orph")
 }
 orph_down() { kill "$OPID" 2>/dev/null; wait "$OPID" 2>/dev/null; }
 otok() { AGENT_BUS_ADDR=$D/orph/bus.sock AGENT_BUS_TOKEN=$OTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$1" 2>/dev/null; }
@@ -2685,30 +2677,28 @@ orph_checks() {
   # The hand edit. What ghost owns is repointed at a name that has neither a
   # profile nor a record; ghost's own record is owned by the daemon owner and is
   # not touched, so the name the edit points away from is itself a control.
-  sed -i 's/"owner":"ghost@srv1"/"owner":"vanished@srv1"/g' "$D/orph/dump.json"
+  # Made with sqlite3 on the stopped daemon's database, which is the only way
+  # to present one: a running daemon holds it exclusively.
+  ODB=$D/orph/bus.db
+  osql() { sqlite3 "$ODB" "$@"; }
+  osql "UPDATE records SET body = replace(body, '\"owner\":\"ghost@srv1\"', '\"owner\":\"vanished@srv1\"')"
   has "the store now holds a record owned by a name nothing knows" \
-    "$(cat "$D/orph/dump.json")" '"owner":"vanished@srv1"'
+    "$(osql 'SELECT body FROM records')" '"owner":"vanished@srv1"'
   # And every trace of the daemon owner as a *principal* goes with it: their
   # profile, and their line in the administrators group, which a reload could
-  # otherwise turn back into a profile. A current snapshot must fail closed on
-  # that damage rather than silently resurrecting setup's seed.
-  # Two substitutions for the profile, because the order of the array is a map's
-  # and not stable: dropping the trailing comma when the owner happens to be
-  # last would leave JSON the start refuses to read, which checks nothing.
-  OWNROW="{\"name\":\"$OWNER\",\"state\":\"[a-z]*\",\"kind\":\"\"}"
-  sed -i "s|$OWNROW,||; s|,$OWNROW||; s|\"@administrators\":\[\"$OWNER\"\]|\"@administrators\":[]|" "$D/orph/dump.json"
-  # Each read once and checked for shape first: a sed that matched nothing hands
-  # back an empty string, which `lacks` accepts as proof of anything.
-  EDUSERS=$(sed -n 's/.*\("Users":\[[^]]*\]\).*/\1/p' "$D/orph/dump.json")
-  EDGROUPS=$(sed -n 's/.*\("Groups":{[^}]*}\).*/\1/p' "$D/orph/dump.json")
+  # otherwise turn back into a profile. A stored owner must fail closed on that
+  # damage rather than silently resurrecting setup's seed.
+  osql "DELETE FROM users WHERE name = '$OWNER'; UPDATE groups SET members = '[]' WHERE name = '@administrators'"
+  EDUSERS=$(osql 'SELECT name FROM users')
+  EDGROUPS=$(osql "SELECT name || '=' || members FROM groups")
   has "the edited store still lists the users it kept" "$EDUSERS" 'keeper@srv1'
-  has "and still has a maintainers group to read" "$EDGROUPS" '"@administrators":'
+  has "and still has a maintainers group to read" "$EDGROUPS" '@administrators='
   lacks "but no profile for the daemon owner, as a hand-edited store may not" \
     "$EDUSERS" "$OWNER"
   lacks "nor a line in the group a reload would rebuild one from" "$EDGROUPS" "$OWNER"
 
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/orph/bus.sock" -token-file "$D/orph/token" \
-    -owner "$OWNER" -dump-file "$D/orph/dump.json" -dump-every 0 >"$D/orph/damaged.log" 2>&1 &
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/orph/bus.sock" \
+    -owner "$OWNER" -db "$ODB" -flush-every 0 >"$D/orph/damaged.log" 2>&1 &
   OPID=$!
   sleep 0.5
   is_empty "a damaged current owner never reaches a serving bus" \
@@ -2717,11 +2707,10 @@ orph_checks() {
     "$(cat "$D/orph/damaged.log")" "snapshot daemon owner $OWNER is not a registered user"
   orph_down
 
-  # Removing the fields is an explicit legacy fixture. Only this state takes
-  # --owner as a one-time seed; the following save writes durable ownership.
-  sed -i "s|\"owner_established\":true,\"owner\":\"$OWNER\",||" "$D/orph/dump.json"
-  lacks "the explicit legacy snapshot has no durable owner marker" \
-    "$(cat "$D/orph/dump.json")" 'owner_established'
+  # Removing the stored owner is an explicit first-run fixture. Only this state
+  # takes --owner as a one-time seed; the seed then commits durable ownership.
+  osql "DELETE FROM meta WHERE key = 'owner'"
+  is_empty "the store has no durable owner now" "$(osql "SELECT value FROM meta WHERE key = 'owner'")"
   orph_up second || { echo "  FAIL the start over the edited store did not come up"; fail=$((fail+1)); return 1; }
   has "the start says how many it took" "$(cat "$D/orph/second.log")" 'deleted 4 records'
   REG=$(oab ls)
@@ -2759,40 +2748,32 @@ orph_checks() {
   has "and the credential the old holder kept does not answer for the new one" \
     "$(ocode "$LOSTTOK")" '401'
   has "nor does the one that was owning records" "$(ocode "$CHAINTOK")" '401'
-  # The snapshot this start wrote at line one predates the sweep. Read off disk
-  # rather than through a second restart, because a graceful stop would write a
-  # clean dump either way and prove nothing about the save that follows the
-  # sweep: this is what a start that then dies leaves behind.
-  #
-  # The positive half comes first and is not optional. `lacks` on an empty or
-  # unparseable file passes for every absence there is, so a save that wrote
-  # nothing at all would satisfy the three checks below on its own.
-  # Taken before anything stops, because a graceful stop writes its own clean
-  # dump over this one and would prove nothing about the save that follows the
-  # sweep. These are the bytes a start that then died would have left.
-  cp "$D/orph/dump.json" "$D/orph/after-sweep.json"
-  STORE=$(cat "$D/orph/after-sweep.json")
-  has "the records that survived are in the snapshot the sweep wrote" "$STORE" '"name":"owner-svc@srv1"'
-  has "and their queued work is in it" "$STORE" '"to":"steady@srv1","body":"queued before the stop"'
-  lacks "the store on disk is rewritten, so a start that dies repeats nothing" \
-    "$STORE" 'chain-c@srv1'
-  lacks "and the work that was queued for it is not in it either" "$STORE" '"to":"chain-a@srv1"'
-  orph_down
+  oas keeper@srv1 unregister lost@srv1 >/dev/null
+  oas keeper@srv1 unregister chain-a@srv1 >/dev/null
+  # What the sweep committed is on disk before anything stops gracefully: the
+  # daemon is killed outright, which is what a start that then dies leaves.
+  # The positive half comes first and is not optional: `lacks` on an empty or
+  # unreadable store passes for every absence there is.
+  OKIDS=$(pgrep -P "$OPID" | tr '\n' ' ')
+  kill -9 "$OPID" 2>/dev/null; wait "$OPID" 2>/dev/null
+  for _ in $(seq 1 40); do [ -z "$(ps -o pid= -p $OKIDS 2>/dev/null)" ] && break; sleep 0.1; done
+  STORE=$(osql 'SELECT name FROM records')
+  has "the records that survived are in the store the sweep committed" "$STORE" 'owner-svc@srv1'
+  has "and their queued work is in it" "$(osql "SELECT body FROM messages WHERE queue = 'steady@srv1'")" 'queued before the stop'
+  lacks "the sweep is committed, so a start that dies repeats nothing" "$STORE" 'chain-c@srv1'
+  is_empty "and the work that was queued for it is not in it either" \
+    "$(osql "SELECT queue FROM messages WHERE queue = 'chain-a@srv1'")"
 
-  # Grepping those bytes cannot say they are a snapshot: every `lacks` above
-  # passes against a file that is empty, truncated or not JSON at all. So a
-  # third start reads them, and the daemon is the parser — it refuses to start
-  # on a dump it cannot decode, and `ready` is what noticed. Started from the
-  # copy rather than from whatever the stop above wrote.
-  cp "$D/orph/after-sweep.json" "$D/orph/dump.json"
+  # And a third start reads that store whole: the daemon is the parser, and it
+  # refuses to start on a database it cannot read.
   if orph_up third; then
     THIRD=$(oab ls)
-    has "a third start reads that snapshot whole" "$THIRD" '"name":"owner-svc@srv1"'
+    has "a third start reads that store whole" "$THIRD" '"name":"owner-svc@srv1"'
     has "with the queue that survived still on it" "$(oab ls steady@srv1)" '"queued":1'
     has "and the work still in it" "$(oas steady@srv1 consume --wait 0s)" 'queued before the stop'
     lacks "and does not find the wreckage a second time" "$THIRD" 'chain-c@srv1'
   else
-    echo "  FAIL a third start reads that snapshot whole: it never answered"; fail=$((fail+1))
+    echo "  FAIL a third start reads that store whole: it never answered"; fail=$((fail+1))
   fi
 }
 orph_checks
@@ -2812,8 +2793,8 @@ systemd-run --user --unit="$SUPUNIT" --collect --wait --pipe --quiet \
   --working-directory="$(pwd)" --setenv=AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) \
   --setenv=AGENT_BUS_WEB_USER_DELEGATION=1 \
   -p Delegate=cpu -p Delegate=memory -p Delegate=pids -p DelegateSubgroup=supervisor \
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" -token-file "$D/sup/token" \
-  -owner "$OWNER" -dump-file "$D/sup/dump.json" -dump-every 0 -web >"$D/sup/log" 2>&1 &
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" \
+  -owner "$OWNER" -db "$D/sup/bus.db" -create -flush-every 0 -web >"$D/sup/log" 2>&1 &
 SUPRUN=$!
 for _ in $(seq 1 100); do
   SUP=$(systemctl --user show "$SUPUNIT" -p MainPID --value 2>/dev/null)
@@ -2851,7 +2832,7 @@ for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+12))/" &
 is_empty "so it names nobody until somebody signs in" \
   "$(curl -s "http://127.0.0.1:$((PORT+12))/agents" | grep -o 'seen through the supervisor')"
 SJAR=$D/sup/jar; rm -f "$SJAR"
-curl -s -c "$SJAR" -o /dev/null -X POST -d "token=$(awk '{print $2}' "$D/sup/token" | head -1)" \
+curl -s -c "$SJAR" -o /dev/null -X POST -d "token=$(owner_token "$D/sup")" \
   "http://127.0.0.1:$((PORT+12))/signin"
 has "and what a signed-in caller sees came from the bus behind it" \
   "$(curl -s -b "$SJAR" "http://127.0.0.1:$((PORT+12))/agents")" 'seen through the supervisor'
@@ -2875,17 +2856,17 @@ SUPUNIT=""
 gone() { for _ in $(seq 1 40); do [ -z "$(ps -o pid= -p $1 2>/dev/null)" ] && break; sleep 0.1; done
   ps -o pid= -p $1 2>/dev/null; }
 is_empty "stopping the supervisor stops the children" "$(gone "$KIDS")"
-# Asked, not killed: only a bus that was told to stop writes a clean dump, so
+# Asked, not killed: only a bus that was told to stop writes a clean mark, so
 # this is where a stop that was not passed on shows up.
 has "and asks them, so the bus writes what it holds on the way out" \
-  "$(cat "$D/sup/dump.json")" '"Clean":true'
+  "$(sqlite3 "$D/sup/bus.db" "SELECT value FROM meta WHERE key = 'clean'")" '^1$'
 is_empty "and takes the sockets it made with it" "$(ls "$D/sup/"*.sock 2>/dev/null)"
 # A supervisor that is killed outright cannot tidy up, so the kernel does it:
 # an orphaned bus would keep the listeners and the next start would find the
 # address in use.
 AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) \
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" -token-file "$D/sup/token" \
-  -owner "$OWNER" -dump-file "$D/sup/dump.json" -dump-every 0 >"$D/sup/log2" 2>&1 &
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" \
+  -owner "$OWNER" -db "$D/sup/bus.db" -create -flush-every 0 >"$D/sup/log2" 2>&1 &
 SUP2=$!
 ready "$D/sup/bus.sock" || echo "  WARNING: $D/sup/bus.sock never answered the second time"
 KIDS2=$(pgrep -P "$SUP2" | tr '\n' ' ')

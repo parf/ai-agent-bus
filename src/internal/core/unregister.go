@@ -44,7 +44,7 @@ func (b *Bus) UnregisterAnd(name, caller string, forget func(string) error) erro
 		return err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	// Ahead of the record, so that removing something is refused with who you
 	// are rather than with whose it is.
 	if err := b.acting(who); err != nil {
@@ -93,12 +93,14 @@ func (b *Bus) UnregisterAnd(name, caller string, forget func(string) error) erro
 	// a record of theirs is removed; everything below is for a name that has
 	// stopped being a principal at all.
 	if _, person := b.users[n]; person {
-		delete(b.records, n)
-		delete(b.inboxes, n)
+		b.dropRecord(n)
+		b.dropInbox(n)
 		for name, topic := range b.records {
 			if len(topic.Subs) != 0 {
-				topic.Subs = drop1(topic.Subs, n)
-				b.records[name] = topic
+				if next := drop1(topic.Subs, n); len(next) != len(topic.Subs) {
+					topic.Subs = next
+					b.setRecord(name, topic)
+				}
 			}
 		}
 	} else {
@@ -108,7 +110,7 @@ func (b *Bus) UnregisterAnd(name, caller string, forget func(string) error) erro
 	// have stopped being reads anybody is entitled to. Its own inbox is gone;
 	// these are the waits it left elsewhere.
 	b.recheckReaders()
-	return b.checkpoint(false)
+	return b.commit()
 }
 
 // forgetName takes every trace of a name that is no longer a principal: the
@@ -116,12 +118,14 @@ func (b *Bus) UnregisterAnd(name, caller string, forget func(string) error) erro
 // Shared with the startup purge (orphans.go) so the two cannot disagree about
 // what a name leaves behind. Caller holds b.mu.
 func (b *Bus) forgetName(name string) {
-	delete(b.records, name)
-	delete(b.inboxes, name)
+	b.dropRecord(name)
+	b.dropInbox(name)
 	for other, topic := range b.records {
 		if len(topic.Subs) != 0 {
-			topic.Subs = drop1(topic.Subs, name)
-			b.records[other] = topic
+			if next := drop1(topic.Subs, name); len(next) != len(topic.Subs) {
+				topic.Subs = next
+				b.setRecord(other, topic)
+			}
 		}
 	}
 	// **Group membership goes with the name.** A freed name is reclaimable by
@@ -131,7 +135,7 @@ func (b *Bus) forgetName(name string) {
 	// those groups allow.
 	for group, members := range b.groups {
 		if next := drop1(members, name); len(next) != len(members) {
-			b.groups[group] = next
+			b.setGroup(group, next)
 		}
 	}
 }

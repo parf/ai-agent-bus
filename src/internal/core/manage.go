@@ -34,18 +34,22 @@ type Management struct {
 // durable transferred authority.
 func (b *Bus) SetDaemonOwner(owner string) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	b.ownerRestored = false
 	b.ownerRestoreErr = nil
 	b.setDaemonOwner(owner)
+	if err := b.commit(); err != nil {
+		panic(err) // an embedded bus has no store; a failure here is a bug
+	}
 }
 
 // setDaemonOwner updates the role nesting while caller holds b.mu.
 func (b *Bus) setDaemonOwner(owner string) {
-	b.admin = owner
+	b.setOwner(owner)
 	if !b.member(owner, AdministratorsGroup) {
-		b.groups[AdministratorsGroup] = append(b.groups[AdministratorsGroup], owner)
-		sort.Strings(b.groups[AdministratorsGroup])
+		next := append(append([]string{}, b.groups[AdministratorsGroup]...), owner)
+		sort.Strings(next)
+		b.setGroup(AdministratorsGroup, next)
 	}
 	b.administratorsAreUsers()
 }
@@ -59,7 +63,7 @@ func (b *Bus) EstablishDaemonOwner(seed string) error {
 		return fmt.Errorf("daemon owner: %w", err)
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if b.recordRestoreErr != nil {
 		return b.recordRestoreErr
 	}
@@ -72,12 +76,12 @@ func (b *Bus) EstablishDaemonOwner(seed string) error {
 	if b.admin == "" {
 		b.setDaemonOwner(owner)
 	}
-	return nil
+	return b.commit()
 }
 
 func (b *Bus) DaemonOwner() string {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	return b.admin
 }
 
@@ -98,7 +102,7 @@ func (b *Bus) administratorsAreUsers() {
 			continue
 		}
 		if _, known := b.users[name]; !known {
-			b.users[name] = protocol.User{Name: name, State: "active"}
+			b.setUser(name, protocol.User{Name: name, State: "active"})
 		}
 	}
 }
@@ -272,7 +276,7 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	}
 	sort.Strings(normalized)
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return err
 	}
@@ -296,17 +300,17 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 			return fmt.Errorf("%w: owner must remain an administrator", ErrNotOwner)
 		}
 	}
-	b.groups[name] = normalized
+	b.setGroup(name, normalized)
 	if name == AdministratorsGroup {
 		b.administratorsAreUsers()
 	}
 	b.recheckReaders()
-	return b.checkpoint(false)
+	return b.commit()
 }
 
 func (b *Bus) Groups(caller string) map[string][]string {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	out := map[string][]string{}
 	if b.acting(caller) != nil {
 		return out
@@ -334,7 +338,7 @@ func (b *Bus) TransferDaemonOwner(caller, next string) (protocol.User, error) {
 		return protocol.User{}, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.User{}, err
 	}
@@ -352,7 +356,7 @@ func (b *Bus) TransferDaemonOwner(caller, next string) (protocol.User, error) {
 		return protocol.User{}, err
 	}
 	b.setDaemonOwner(owner)
-	if err := b.checkpoint(false); err != nil {
+	if err := b.commit(); err != nil {
 		return protocol.User{}, err
 	}
 	return b.userView(owner, owner), nil
@@ -368,7 +372,7 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		return protocol.Record{}, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.Record{}, err
 	}
@@ -489,9 +493,9 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		return protocol.Record{}, err
 	}
 	r.At = time.Now()
-	b.records[name] = r
+	b.setRecord(name, r)
 	b.recheckInbox(name)
-	if err := b.checkpoint(false); err != nil {
+	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
 	return b.withLiveness(name, r.Public()), nil
@@ -558,7 +562,7 @@ func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Rec
 		return protocol.Record{}, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.Record{}, err
 	}
@@ -573,8 +577,8 @@ func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Rec
 		return protocol.Record{}, ErrKind
 	}
 	r.Subs = drop1(r.Subs, sub)
-	b.records[name] = r
-	if err := b.checkpoint(false); err != nil {
+	b.setRecord(name, r)
+	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
 	return r.Public(), nil

@@ -3,6 +3,7 @@
 // bun claude-channel-probe.ts BUILT_PROGRAM_DIR NEW_EVIDENCE_DIR
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync, openSync, closeSync } from "node:fs";
 import { resolve, join } from "node:path";
+import { userInfo } from "node:os";
 import { Bus } from "../mcp/bus.ts";
 
 const bin = resolve(process.argv[2]!);
@@ -36,7 +37,7 @@ const env = {
   ANTHROPIC_MODEL: "claude-sonnet-4-6", CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
 };
 const fd = openSync(join(out, "daemon.log"), "w");
-const daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(out, "bus.sock"), "-token-file", join(out, "tokens"), "-owner", "owner@fixture", "-dump-file", join(out, "dump"), "-dump-every", "0"], { env, stdout: fd, stderr: fd }); closeSync(fd);
+const daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(out, "bus.sock"), "-owner", "owner@fixture", "-db", join(out, "bus.db"), "-create", "-flush-every", "0"], { env, stdout: fd, stderr: fd }); closeSync(fd);
 let proc: ReturnType<typeof Bun.spawn> | undefined, output = "";
 const text = () => output.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "");
 async function until(test: () => boolean | Promise<boolean>, label: string) {
@@ -50,7 +51,7 @@ async function until(test: () => boolean | Promise<boolean>, label: string) {
 }
 try {
   let token = "";
-  await until(() => { try { token = readFileSync(join(out, "tokens"), "utf8").split(/\s+/)[1]!; return !!token; } catch { return false; } }, "daemon ready");
+  await until(() => { try { token = Bun.spawnSync([join(bin, "agent-bus-token"), "owner@fixture"], { env: { ...process.env, AGENT_BUS_ADDR: join(out, `user-${userInfo().username}.sock`) } }).stdout.toString().trim(); return !!token; } catch { return false; } }, "daemon ready");
   const ownerEnv = { ...env, AGENT_BUS_ADDR: join(out, "bus.sock"), AGENT_BUS_NAME: "owner@fixture", AGENT_BUS_TOKEN: token };
   const owner = new Bus(ownerEnv);
   await owner.register({ name: "peer@fixture", allow: ["claude/test@fixture"] });

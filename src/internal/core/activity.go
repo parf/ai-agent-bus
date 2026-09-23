@@ -43,7 +43,7 @@ func (b *Bus) activitySnapshot(now time.Time) activitySample {
 // SampleActivity is driven by the bus process, independently of page visits.
 func (b *Bus) SampleActivity(now time.Time) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if len(b.activity) > 0 && !now.After(b.activity[len(b.activity)-1].at) {
 		return
 	}
@@ -60,7 +60,7 @@ func (b *Bus) RecordRefusal(name string) {
 		return
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if in := b.inboxes[name]; in != nil {
 		in.refused++
 	}
@@ -75,7 +75,7 @@ func (b *Bus) Activity(caller, name string) ([]ActivityPoint, error) {
 		}
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if name != "" {
 		r, known := b.records[name]
 		if !known || !b.canSee(caller, r) {

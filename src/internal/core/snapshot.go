@@ -14,7 +14,7 @@ import (
 // backlog nobody may read. See docs/04-messaging.md#durability.
 func (b *Bus) Snapshot() ports.Snapshot {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	return b.snapshot()
 }
 
@@ -55,35 +55,66 @@ func (b *Bus) snapshot() ports.Snapshot {
 	return s
 }
 
-// Persistence binds the existing snapshot port before serving requests.
-// Unbound buses are intentionally in-memory (unit tests and embedded use).
-func (b *Bus) Persistence(d ports.Dump) {
+// Persistence binds the store before serving requests. Unbound buses are
+// intentionally in-memory (unit tests and embedded use).
+func (b *Bus) Persistence(st ports.Store) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.dump = d
+	defer b.unlock()
+	b.store = st
 }
 
-// Checkpoint serializes capture AND replacement with administrative mutations.
-// Taking a snapshot first and locking only Save would let an older periodic
-// write restore authority after a newer restriction had already been acknowledged.
-func (b *Bus) Checkpoint(clean bool) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.checkpoint(clean)
-}
+// queueMark is what a queue's counters were when it was last saved. Every
+// change to a queue's contents moves one of them — a delivery moves in, a
+// read out, a loss dropped or expired — so an unchanged mark is an unchanged
+// queue.
+type queueMark struct{ in, out, dropped, expired int }
 
-// checkpoint runs under the operation's hold. On failure there is no success
-// acknowledgement; memory may already contain the change. Never imply rollback.
-func (b *Bus) checkpoint(clean bool) error {
-	if b.dump == nil {
+// FlushQueues writes the queues whose state moved since the last flush, as one
+// batch: every minute and at a graceful stop, never once per message. clean
+// says this is the graceful stop's, which is how the next start tells a clean
+// stop from a death (docs/04-messaging.md#durability).
+func (b *Bus) FlushQueues(clean bool) error {
+	b.mu.Lock()
+	defer b.unlock()
+	if b.store == nil {
 		return nil
 	}
-	s := b.snapshot()
-	s.Clean = clean
-	if err := b.dump.Save(s); err != nil {
-		return fmt.Errorf("persist administrative state: %w", err)
+	var qs []ports.Queue
+	marks := map[string]queueMark{}
+	for name, in := range b.inboxes {
+		// A queue under a name with no record would be a backlog nobody may
+		// read; it is not saved.
+		if _, known := b.records[name]; !known {
+			continue
+		}
+		m := queueMark{in.in, in.out, in.dropped, in.expired}
+		if old, saved := b.flushed[name]; saved && old == m {
+			continue
+		}
+		qs = append(qs, ports.Queue{
+			Name: name, In: in.in, Out: in.out,
+			Dropped: in.dropped, Expired: in.expired,
+			Messages: append([]protocol.Envelope(nil), in.queue...),
+		})
+		marks[name] = m
+	}
+	if err := b.store.SaveQueues(qs, clean); err != nil {
+		return fmt.Errorf("persist queues: %w", err)
+	}
+	for name, m := range marks {
+		b.flushed[name] = m
 	}
 	return nil
+}
+
+// unlock releases b.mu. A management write that reached here without
+// committing failed on the way — validation or otherwise — and is put back,
+// so a refused write publishes nothing (docs/constitution.md#persistence-and-loading).
+func (b *Bus) unlock() {
+	if b.staging != nil {
+		b.discard()
+	}
+	b.mu.Unlock()
 }
 
 // Restore puts a snapshot back. Expiry is not re-checked here: a message
@@ -92,7 +123,7 @@ func (b *Bus) checkpoint(clean bool) error {
 // through a quiet hour. Uptime is not restored: it is this run's.
 func (b *Bus) Restore(s ports.Snapshot) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	b.ownerRestored = s.OwnerEstablished || s.Owner != ""
 	b.ownerRestoreErr = nil
 	if s.Owner != "" && !s.OwnerEstablished {
@@ -165,6 +196,9 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	// is not; the invariant is restored rather than trusted. This happens after
 	// the durable-owner check so it cannot manufacture a missing owner profile.
 	b.administratorsAreUsers()
+	// Restore loads; it commits nothing. What administratorsAreUsers derived
+	// stays in memory as the load's own repair rather than a staged write.
+	b.staging = nil
 	for _, r := range s.Records {
 		// A snapshot may have been written by another version or supplied by
 		// an embedding caller. Live fields belong to this process and its
@@ -208,5 +242,6 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		in.in, in.out = q.In, q.Out
 		in.dropped, in.expired = q.Dropped, q.Expired
 		in.queue = append(in.queue, q.Messages...)
+		b.flushed[q.Name] = queueMark{in.in, in.out, in.dropped, in.expired}
 	}
 }

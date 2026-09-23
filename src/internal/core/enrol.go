@@ -33,7 +33,7 @@ type challenge struct {
 // asks first (docs/01-identity-and-roles.md#ownership).
 func (b *Bus) Directories(dirs map[string]ports.Directory, sigs ports.Signatures) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	b.dirs, b.sigs = dirs, sigs
 	b.github = nil
 	for _, directory := range dirs {
@@ -51,7 +51,7 @@ func (b *Bus) Directories(dirs map[string]ports.Directory, sigs ports.Signatures
 // therefore must not change how names in that realm are registered.
 func (b *Bus) ProfileDirectory(directory ports.ProfileDirectory) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	b.github = directory
 }
 
@@ -66,11 +66,11 @@ func (b *Bus) Challenge(name string) (string, error) {
 	}
 	b.mu.Lock()
 	if !b.active(n.String()) {
-		b.mu.Unlock()
+		b.unlock()
 		return "", ErrInactive
 	}
 	dir, backed := b.dirs[n.Realm]
-	b.mu.Unlock()
+	b.unlock()
 	if !backed {
 		return "", fmt.Errorf("%w: nothing backs the realm %q, so there is nothing to prove", ErrEnrol, n.Realm)
 	}
@@ -87,7 +87,7 @@ func (b *Bus) Challenge(name string) (string, error) {
 	}
 	nonce := hex.EncodeToString(raw[:])
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	b.forget(time.Now())
 	b.pending[nonce] = challenge{name: n.String(), login: n.Local, keys: entry.Keys, profile: entry.Profile, at: time.Now()}
 	return nonce, nil
@@ -100,7 +100,7 @@ func (b *Bus) Enrol(nonce, signature string) (protocol.Record, error) {
 	b.mu.Lock()
 	c, waiting := b.pending[nonce]
 	sigs := b.sigs
-	b.mu.Unlock()
+	b.unlock()
 	if !waiting || time.Since(c.at) > challengeLife {
 		return protocol.Record{}, fmt.Errorf("%w: no challenge is waiting for that answer", ErrEnrol)
 	}
@@ -114,7 +114,7 @@ func (b *Bus) Enrol(nonce, signature string) (protocol.Record, error) {
 	// twice is a nonce.
 	b.mu.Lock()
 	delete(b.pending, nonce)
-	b.mu.Unlock()
+	b.unlock()
 	return b.register(protocol.Record{Name: c.name, Kind: protocol.KindUser, Owner: c.name}, true, false, c.profile)
 }
 

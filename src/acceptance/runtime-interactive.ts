@@ -3,6 +3,7 @@
 // bun runtime-interactive.ts BUILT_PROGRAM_DIR NEW_EVIDENCE_DIR codex|opencode [OTHER_ACCOUNT]
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, openSync, closeSync } from "node:fs";
 import { resolve, join } from "node:path";
+import { userInfo } from "node:os";
 import { randomBytes } from "node:crypto";
 import { Bus } from "../mcp/bus.ts";
 import { RuntimeModelFixture } from "./runtime-model-fixture.ts";
@@ -39,7 +40,7 @@ async function until(test: () => boolean | Promise<boolean>, label: string, ms =
   throw new Error("timed out: " + label);
 }
 const fd = openSync(join(out, "daemon.log"), "w");
-const daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(out, "bus.sock"), "-owner", "owner@fixture", "-token-file", join(out, "tokens"), "-dump-file", join(out, "dump.json"), "-dump-every", "0"], { env, stdout: fd, stderr: fd }); closeSync(fd);
+const daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(out, "bus.sock"), "-owner", "owner@fixture", "-db", join(out, "bus.db"), "-create", "-flush-every", "0"], { env, stdout: fd, stderr: fd }); closeSync(fd);
 async function secondAccount(kind: string, url: string, target = "") {
   const p = Bun.spawn(["sudo", "-n", "-u", other, "--", process.execPath, join(import.meta.dir, "runtime-isolation.ts"), "probe", kind, url, target], { env, cwd: out, stdout: "pipe", stderr: "pipe" });
   const [text, stderr, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
@@ -48,7 +49,7 @@ async function secondAccount(kind: string, url: string, target = "") {
 }
 try {
   let token = "";
-  await until(() => { try { token = readFileSync(join(out, "tokens"), "utf8").split(/\s+/)[1]!; return !!token; } catch { return false; } }, "disposable daemon ready");
+  await until(() => { try { token = Bun.spawnSync([join(bin, "agent-bus-token"), "owner@fixture"], { env: { ...process.env, AGENT_BUS_ADDR: join(out, `user-${userInfo().username}.sock`) } }).stdout.toString().trim(); return !!token; } catch { return false; } }, "disposable daemon ready");
   const ownerEnv = { ...env, AGENT_BUS_ADDR: join(out, "bus.sock"), AGENT_BUS_NAME: "owner@fixture", AGENT_BUS_TOKEN: token };
   const owner = new Bus(ownerEnv);
   await owner.register({ name: "echo@fixture", allow: slots.map(s => s.name) });

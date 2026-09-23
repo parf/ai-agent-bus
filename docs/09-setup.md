@@ -349,16 +349,16 @@ Owner holds node-wide management authority
 
 | Built store | Holds |
 |---|---|
-| Text-file adapter, mode 0600 | Principal credentials and issued times; current and previous tokens |
-| JSON snapshot adapter | Daemon Owner, local-account map, registry, queue contents, counters and clean-stop marker |
+| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters and clean-stop marker |
 | Memory only | Browser sessions, outstanding readers, uptime and recent envelope feed |
 
-The table is the built through-0.6 layout. Pending 0.7 work moves durable
-entities, credentials, queue contents and queue counters into the default
-[SQLite store](constitution.md#persistence-and-loading); the
-[0.7 transition](../Plans/MVP/0.7-cutover.md#scope) uses clean reinstall. Additional database adapters
-remain [R1 work](../Plans/R1/storage.md#backends). Current and pending durability
-are defined in [messaging § durability](04-messaging.md#durability).
+**Built in 0.7.1**, through `modernc.org/sqlite` behind the store ports. The
+daemon is told where the database is with `-db`; setup runs `agent-busd -init`
+once, as the daemon account, to create it, and the unit never passes `-create`.
+The [0.7 transition](../Plans/MVP/0.7-cutover.md#scope) uses clean reinstall: the
+0.6 JSON dump and token file are neither read nor kept as stores. Additional
+database adapters remain [R1 work](../Plans/R1/storage.md#backends). Durability is
+defined in [messaging § durability](04-messaging.md#durability).
 
 Follow the [reinstall procedure](../Plans/MVP/0.7-cutover.md#procedure) for 0.7
 bootstrap and client reconnection. SQLite state and backups retain the daemon
@@ -371,7 +371,7 @@ installed; the second account and directories prepare a later runner.
 
 | Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
 |---|---|---|---|
-| `daemon/` | `agent-busd` | 700 | Daemon home, credentials and snapshots |
+| `daemon/` | `agent-busd` | 700 | Daemon home and its database |
 | `runner/` | `agent-bus-runner` | 700 | Prepared runner home; no managed instances installed |
 | `service.d/` | `agent-bus-runner` | 755 | Prepared shareable script directory |
 

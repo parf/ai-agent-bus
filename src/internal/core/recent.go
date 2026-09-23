@@ -28,7 +28,7 @@ func (b *Bus) note(e protocol.Envelope) {
 // answers by: what you may see, not everything there is.
 func (b *Bus) Recent(caller string) []protocol.Envelope {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if b.acting(caller) != nil {
 		return []protocol.Envelope{}
 	}

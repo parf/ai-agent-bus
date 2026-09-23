@@ -47,7 +47,7 @@ Taking a message does not prove the work finished—see [receipts](#receipts).
 
 | MVP | Scope |
 |---|---|
-| Built | Inbox delivery, [explicit inbox selection](#inbox-selection-and-filters), shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow, JSON restart snapshots and [durable administrative changes](#administrative-crash-recovery). |
+| Built | Inbox delivery, [explicit inbox selection](#inbox-selection-and-filters), shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow, the [SQLite store](#durability) and [durable administrative changes](#administrative-crash-recovery). |
 
 
 How principals on the bus talk. The bus delivers securely and says who sent it;
@@ -412,59 +412,54 @@ forwarding ACL checks, depth and provenance.
 
 ## Durability
 
-Through 0.6, queues, registry records and counters are snapshotted together
-through the `dump` port. The built adapter writes **JSON**, on startup, on
-graceful shutdown, optionally periodically, and before administrative success.
-Delivery checks message expiry after reload. A drained inbox remains drained
-across subsequent snapshots.
+**Built in 0.7.1:** one SQLite database is the runtime store for records,
+users, groups, the daemon Owner, the local-account map, credentials, queue
+contents and the four per-queue counters ([storage](09-setup.md#storage)).
+A management change commits immediately, and only the entities it touched.
+Traffic updates queues in memory; queue state is flushed as one batch every
+minute (`-flush-every`) and at a graceful stop, never once per message, and a
+flush writes only the queues whose counters moved. Delivery checks message
+expiry after reload, and a drained inbox stays drained.
 
-The snapshot records whether shutdown was clean. A start after an unclean stop
-reports the potential gap since the last snapshot. Traffic after that snapshot
-may be lost; a consumer being offline is different, because its queue remains
-in the running daemon.
+The store records whether the last stop was clean. A start after an unclean
+stop reports the potential gap since the last flush: traffic after it may be
+lost. A consumer being offline is different, because its queue remains in the
+running daemon. Uptime and browser sessions describe the current process
+lifetime, not recovered state.
 
-Through 0.6, credentials use their own [store](09-setup.md#storage). Uptime and
-browser sessions describe the current process lifetime, not recovered state.
-
-**Pending for 0.7:** SQLite becomes the one runtime durability store for records,
-credentials, queue contents and the four per-queue counters. Traffic updates
-queues in memory and flushes queue state as one batch every minute and on
-graceful shutdown; it does not write once per message. The same crash-loss
-window therefore remains. Management changes commit immediately. The JSON dump
-is read only by the offline cutover and is not kept as a second runtime store.
-Startup refuses a queue whose durable record is absent or cannot hold one.
+The daemon takes SQLite's exclusive lock when it opens the database, so a
+second daemon on the same file cannot serve. A missing database is created only
+by `agent-busd -init` or `-create`, never silently at start; an unreadable,
+damaged or incompatible one refuses the start. **Pending for 0.7:** a queue
+whose durable record is absent or cannot hold one is ignored and reported under
+the [incorrect-record rule](constitution.md#persistence-and-loading).
 
 ## Administrative crash recovery
 
 **An acknowledged restriction survives a bus crash until explicitly changed.**
-Bans, group membership and ACL changes are saved before success is returned;
-periodic snapshots cannot overwrite them with older state.
+Bans, group membership and ACL changes are committed before success is
+returned; a queue flush writes queue state only and cannot overwrite them.
 
 <details>
 <summary>Persistence, failures and scope</summary>
 
-Administrative writes use the existing snapshot port under the same lock as
-policy changes. The JSON adapter writes and synchronizes a private temporary
-file, replaces the snapshot, then synchronizes its directory. Periodic and
-shutdown checkpoints use that same ordering; the periodic writer stops before
-the final clean checkpoint.
+**Built in 0.7.1.** A management write is staged under the node lock, which
+every reader also takes, committed to SQLite as one transaction, and only then
+answered; the transaction holds exactly the entities the write touched. If the
+commit fails, every staged entity is put back from the write's undo log, so the
+error is the whole outcome: nothing was published, in memory or on disk. A write
+that fails validation part-way is put back the same way. Correct the storage
+failure and retry.
 
-This covers user/profile state, groups, record management and refreshes,
-configuration, subscriptions and record removal. The snapshot also captures
-queued traffic at that instant, but individual message acknowledgements retain
-the [existing durability boundary](#durability).
+This covers user/profile state, groups, the daemon Owner, the account map,
+record management and refreshes, configuration, subscriptions and record
+removal, which drops the removed name's queue in the same transaction.
+Individual message acknowledgements retain the
+[queue durability boundary](#durability).
 
-**Built through 0.6:** a persistence failure returns an error, not success, but
-the change may already be applied in memory or on disk; an error does not promise
-rollback. Correct the storage failure and explicitly retry. In particular, a
-failed paused/banned-state write does not quietly lift the in-memory state.
-
-**Pending for 0.7:** every management change validates and commits before its
-new complete in-memory view is published. A validation or pre-commit failure
-publishes nothing. If the commit succeeds but publication cannot complete, the
-daemon refuses every read and write with a stated reason rather than answer from
-the older view. This replaces the built-through-0.6 memory-first failure
-behavior; `inactive` also replaces the separate paused/banned states.
+Publication in this implementation is the lock being released, so it cannot
+fail after a commit. **Pending for 0.7:** `inactive` replaces the separate
+paused/banned states.
 
 Browser sessions remain process-local; after restart, callers sign in again.
 Persistent tokens and mapped sockets are checked against the recovered policy.

@@ -9,9 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/parf/ai-agent-bus/internal/dump/jsonfile"
+	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 	"github.com/parf/ai-agent-bus/internal/ports"
-	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 func TestBusChildRetainsEnvironment(t *testing.T) {
@@ -68,29 +67,22 @@ func TestSupervisorUsesEstablishedAccountMapInsteadOfSetupFlags(t *testing.T) {
 	if err != nil {
 		t.Skip("no second local account")
 	}
-	path := filepath.Join(t.TempDir(), "dump.json")
+	path := filepath.Join(t.TempDir(), "bus.db")
 	var seed accounts
 	if err := seed.Set(other.Username + "=seed@h"); err != nil {
 		t.Fatal(err)
 	}
-	c := config{dumpF: path, users: seed}
+	c := config{db: path, create: true, users: seed}
 	got, err := supervisorAccounts(c)
 	if err != nil || got.mapping()[other.Username] != "seed@h" {
-		t.Fatalf("legacy setup seed: %v, %v", got.mapping(), err)
+		t.Fatalf("first-run setup seed: %v, %v", got.mapping(), err)
 	}
-	if err := jsonfile.New(path).Save(ports.Snapshot{
-		AccountsEstablished: true,
-		Accounts:            []protocol.AccountMapping{{Account: other.Username, Principal: "stored@h"}},
-	}); err != nil {
-		t.Fatal(err)
-	}
+	storeAccounts(t, path, map[string]string{other.Username: "stored@h"})
 	got, err = supervisorAccounts(c)
 	if err != nil || got.mapping()[other.Username] != "stored@h" {
 		t.Fatalf("stored map did not replace setup flags: %v, %v", got.mapping(), err)
 	}
-	if err := jsonfile.New(path).Save(ports.Snapshot{AccountsEstablished: true}); err != nil {
-		t.Fatal(err)
-	}
+	storeAccounts(t, path, map[string]string{})
 	got, err = supervisorAccounts(c)
 	if err != nil || len(got.list()) != 0 {
 		t.Fatalf("intentionally empty map resurrected setup flags: %v, %v", got.mapping(), err)
@@ -102,19 +94,31 @@ func TestSupervisorRefusesUnusableStoredAccountMap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, snapshot := range []ports.Snapshot{
-		{Accounts: []protocol.AccountMapping{{Account: "nobody", Principal: "user@h"}}},
-		{AccountsEstablished: true, Accounts: []protocol.AccountMapping{{Account: "account-that-does-not-exist-agent-bus", Principal: "user@h"}}},
-		{AccountsEstablished: true, Accounts: []protocol.AccountMapping{{Account: me.Username, Principal: "user@h"}}},
-		{AccountsEstablished: true, Accounts: []protocol.AccountMapping{{Account: "nobody", Principal: "one@h"}, {Account: "nobody", Principal: "two@h"}}},
+	for _, stored := range []map[string]string{
+		{"account-that-does-not-exist-agent-bus": "user@h"},
+		{me.Username: "user@h"},
 	} {
-		path := filepath.Join(t.TempDir(), "dump.json")
-		if err := jsonfile.New(path).Save(snapshot); err != nil {
-			t.Fatal(err)
+		path := filepath.Join(t.TempDir(), "bus.db")
+		storeAccounts(t, path, stored)
+		if _, err := supervisorAccounts(config{db: path}); err == nil {
+			t.Fatalf("unusable stored map was accepted: %+v", stored)
 		}
-		if _, err := supervisorAccounts(config{dumpF: path}); err == nil {
-			t.Fatalf("unusable stored map was accepted: %+v", snapshot)
-		}
+	}
+	// A missing database is not a first run unless -create said so.
+	if _, err := supervisorAccounts(config{db: filepath.Join(t.TempDir(), "absent.db")}); err == nil {
+		t.Fatal("a missing database was taken for a first run")
+	}
+}
+
+func storeAccounts(t *testing.T, path string, accounts map[string]string) {
+	t.Helper()
+	st, err := sqlite.Open(path, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Commit(ports.Change{Accounts: accounts}); err != nil {
+		t.Fatal(err)
 	}
 }
 

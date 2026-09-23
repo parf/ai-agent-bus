@@ -4,49 +4,20 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
-type durableMemory struct {
-	mu               sync.Mutex
-	saved            ports.Snapshot
-	err              error
-	entered, release chan struct{}
-	first            atomic.Bool
-}
-
-func (d *durableMemory) Save(s ports.Snapshot) error {
-	if d.entered != nil && d.first.CompareAndSwap(false, true) {
-		close(d.entered)
-		<-d.release
-	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if d.err != nil {
-		return d.err
-	}
-	data, err := json.Marshal(s)
-	if err != nil {
-		return err
-	}
-	d.saved = ports.Snapshot{}
-	return json.Unmarshal(data, &d.saved)
-}
-func (d *durableMemory) Load() (ports.Snapshot, bool, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.saved, true, nil
-}
-
-func durabilityFixture(t *testing.T) *Bus {
+func durabilityFixture(t *testing.T, st ports.Store) *Bus {
 	t.Helper()
 	b := New()
+	if st != nil {
+		b.Persistence(st)
+	}
 	b.SetDaemonOwner("admin@h")
 	for _, who := range []string{"alice@h", "bob@h", "friend@h"} {
 		if _, err := b.SetUser("admin@h", protocol.User{Name: who}, true); err != nil {
@@ -151,20 +122,31 @@ func administrativeChanges() []durableChange {
 	}
 }
 
+// recoverFrom is a fresh daemon started on what the store holds.
+func recoverFrom(t *testing.T, st ports.Store) *Bus {
+	t.Helper()
+	saved, err := st.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovered := New()
+	recovered.Restore(saved)
+	if err := recovered.EstablishDaemonOwner("admin@h"); err != nil {
+		t.Fatal(err)
+	}
+	return recovered
+}
+
 func TestAdministrativeSuccessHasAlreadyPersisted(t *testing.T) {
 	for _, c := range administrativeChanges() {
 		t.Run(c.name, func(t *testing.T) {
-			b := durabilityFixture(t)
-			d := &durableMemory{}
-			b.Persistence(d)
-			if err := b.Checkpoint(false); err != nil {
-				t.Fatal(err)
-			}
+			d := memory.NewState()
+			b := durabilityFixture(t, d)
 			if err := c.apply(b); err != nil {
 				t.Fatal(err)
 			}
-			// No checkpoint after the returned success. Recover only what Save received.
-			saved, _, _ := d.Load()
+			// No flush after the returned success. Recover only what was committed.
+			saved, _ := d.Load()
 			recovered := New()
 			recovered.Restore(saved)
 			if err := recovered.EstablishDaemonOwner("admin@h"); err != nil {
@@ -179,11 +161,12 @@ func TestAdministrativeSuccessHasAlreadyPersisted(t *testing.T) {
 }
 
 func TestAdministrativeWriteFailuresCannotReturnSuccess(t *testing.T) {
-	boom := errors.New("disk rejected the snapshot")
+	boom := errors.New("disk rejected the commit")
 	for _, c := range administrativeChanges() {
 		t.Run(c.name, func(t *testing.T) {
-			b := durabilityFixture(t)
-			b.Persistence(&durableMemory{err: boom})
+			d := memory.NewState()
+			b := durabilityFixture(t, d)
+			d.Err = boom
 			if err := c.apply(b); !errors.Is(err, boom) {
 				t.Fatalf("failed persistence reported %v instead of failure", err)
 			}
@@ -191,36 +174,97 @@ func TestAdministrativeWriteFailuresCannotReturnSuccess(t *testing.T) {
 	}
 }
 
-func TestOlderCheckpointCannotOverwriteAcknowledgedBan(t *testing.T) {
-	b := durabilityFixture(t)
-	d := &durableMemory{entered: make(chan struct{}), release: make(chan struct{})}
-	b.Persistence(d)
+// A write whose commit fails publishes nothing: the daemon answers exactly
+// as it did before the call (docs/constitution.md#persistence-and-loading).
+func TestFailedCommitPublishesNothing(t *testing.T) {
+	boom := errors.New("disk rejected the commit")
+	d := memory.NewState()
+	b := durabilityFixture(t, d)
+	d.Err = boom
+	if _, err := b.SetUserState("admin@h", "bob@h", "banned"); !errors.Is(err, boom) {
+		t.Fatalf("got %v", err)
+	}
+	if err := b.Authenticate("bob@h"); err != nil {
+		t.Fatalf("a ban whose commit failed took effect: %v", err)
+	}
+	a := []string{"friend@h"}
+	if _, err := b.Manage("alice@h", Management{Name: "svc@h", Allow: &a}); !errors.Is(err, boom) {
+		t.Fatalf("got %v", err)
+	}
+	if _, ok := b.Lookup("bob@h", "svc@h"); !ok {
+		t.Fatal("an ACL edit whose commit failed took effect")
+	}
+	if err := b.Unregister("svc@h", "alice@h"); !errors.Is(err, boom) {
+		t.Fatalf("got %v", err)
+	}
+	if _, ok := b.Lookup("alice@h", "svc@h"); !ok {
+		t.Fatal("a removal whose commit failed took effect")
+	}
+	if err := b.SetGroup("admin@h", "@readers", []string{"friend@h"}); !errors.Is(err, boom) {
+		t.Fatalf("got %v", err)
+	}
+	if _, ok := b.Lookup("bob@h", "svc@h"); !ok {
+		t.Fatal("a group edit whose commit failed took effect")
+	}
+	// And a restart reads what was committed before the failures.
+	d.Err = nil
+	recovered := recoverFrom(t, d)
+	if _, ok := recovered.Lookup("bob@h", "svc@h"); !ok {
+		t.Fatal("the committed state was not what the store held")
+	}
+}
+
+// An edit of one record commits that record and nothing else.
+func TestOneEditCommitsOneRecord(t *testing.T) {
+	d := &countingState{State: memory.NewState()}
+	b := durabilityFixture(t, d)
+	d.last = ports.Change{}
+	descr := "edited"
+	if _, err := b.Manage("alice@h", Management{Name: "svc@h", Descr: &descr}); err != nil {
+		t.Fatal(err)
+	}
+	if len(d.last.Records) != 1 || d.last.Records["svc@h"] == nil || len(d.last.Users) != 0 || len(d.last.Groups) != 0 {
+		t.Fatalf("one edit committed %+v", d.last)
+	}
+}
+
+type countingState struct {
+	*memory.State
+	last ports.Change
+}
+
+func (c *countingState) Commit(ch ports.Change) error {
+	c.last = ch
+	return c.State.Commit(ch)
+}
+
+// A write held open in the store holds the node: a second write waits for it
+// rather than committing around it.
+func TestHeldCommitSerializesTheNextWrite(t *testing.T) {
+	d := memory.NewState()
+	b := durabilityFixture(t, d)
+	d.Enter, d.Release = make(chan struct{}), make(chan struct{})
 	old := make(chan error, 1)
-	go func() { old <- b.Checkpoint(false) }()
-	<-d.entered
+	go func() { old <- b.SetGroup("admin@h", "@readers", []string{"bob@h", "friend@h", "alice@h"}) }()
+	<-d.Enter
 	newer := make(chan error, 1)
 	go func() { _, err := b.SetUserState("admin@h", "bob@h", "banned"); newer <- err }()
 	select {
 	case err := <-newer:
-		close(d.release)
+		close(d.Release)
 		<-old
-		t.Fatalf("administration returned before older checkpoint completed: %v", err)
+		t.Fatalf("administration returned before the held commit completed: %v", err)
 	case <-time.After(50 * time.Millisecond):
 	}
-	close(d.release)
+	close(d.Release)
 	if err := <-old; err != nil {
 		t.Fatal(err)
 	}
 	if err := <-newer; err != nil {
 		t.Fatal(err)
 	}
-	saved, _, _ := d.Load()
-	recovered := New()
-	recovered.Restore(saved)
-	if err := recovered.EstablishDaemonOwner("admin@h"); err != nil {
-		t.Fatal(err)
-	}
+	recovered := recoverFrom(t, d)
 	if !errors.Is(recovered.Authenticate("bob@h"), ErrInactive) {
-		t.Fatal("older checkpoint erased acknowledged ban")
+		t.Fatal("the held write erased the acknowledged ban")
 	}
 }

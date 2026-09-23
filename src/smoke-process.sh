@@ -35,7 +35,7 @@ export XDG_CACHE_HOME=$D/cache XDG_STATE_HOME=$D/state
 export AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_NAME=owner@test
 env -u AGENT_BUS_ROLE -u AGENT_BUS_FDS "$BIN/agent-busd" \
   --addr 127.0.0.1:0 --socket "$D/bus.sock" --owner owner@test \
-  --token-file "$D/token" --dump-file "$D/dump" --dump-every 0 >"$D/daemon.log" 2>&1 &
+  --db "$D/bus.db" --create --flush-every 0 >"$D/daemon.log" 2>&1 &
 SUP=$!
 ready=0
 for _ in {1..50}; do
@@ -43,7 +43,7 @@ for _ in {1..50}; do
   sleep 0.1
 done
 [ "$ready" = 1 ] || { cat "$D/daemon.log"; fail "daemon ready with preserved arguments"; }
-export AGENT_BUS_TOKEN=$(awk '$1 == "owner@test" { print $2 }' "$D/token")
+export AGENT_BUS_TOKEN=$(AGENT_BUS_ADDR="$D/user-$(id -un).sock" "$BIN/agent-bus-token" owner@test)
 BUS=$(pgrep -P "$SUP" -x agent-busd)
 title() { ps -ww -o args= -p "$1" | sed 's/[[:space:]]*$//'; }
 await_title() {

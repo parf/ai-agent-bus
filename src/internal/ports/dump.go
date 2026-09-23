@@ -1,7 +1,8 @@
 package ports
 
-// The dump port: what a restart must not lose, and nothing about how it is
-// written down. See docs/04-messaging.md#durability.
+// The durable-state port: what a restart must not lose, and nothing about how
+// it is written down. See docs/constitution.md#persistence-and-loading and
+// docs/04-messaging.md#durability.
 
 import (
 	"time"
@@ -22,33 +23,59 @@ type Queue struct {
 	Messages         []protocol.Envelope
 }
 
-// Snapshot is the daemon's memory at a moment. Registry records travel with
-// the queues: a reloaded inbox that belongs to no record is a backlog nobody
-// can read. The git snapshot is backup and peer sync, not this
-// (Plans/R1/registry.md#registry-sync).
+// Snapshot is the daemon's durable state as a store loads it. Registry
+// records travel with the queues: a reloaded inbox that belongs to no record
+// is a backlog nobody can read.
 type Snapshot struct {
-	// OwnerEstablished distinguishes a legacy snapshot that predates durable
-	// daemon ownership from a current snapshot whose missing Owner is damage.
+	// OwnerEstablished distinguishes a store that has never had a daemon Owner
+	// from one whose missing Owner is damage.
 	OwnerEstablished bool   `json:"owner_established,omitempty"`
 	Owner            string `json:"owner,omitempty"`
-	// AccountsEstablished separates a legacy snapshot, whose command-line
-	// mappings seed the first current run, from an intentionally empty map.
+	// AccountsEstablished separates a first run, whose command-line mappings
+	// seed the map, from an intentionally empty map.
 	AccountsEstablished bool                      `json:"accounts_established,omitempty"`
 	Accounts            []protocol.AccountMapping `json:"accounts,omitempty"`
 	Users               []protocol.User           `json:",omitempty"`
 	At                  time.Time
-	Clean               bool // written by a graceful stop; false means the run was still going
+	Clean               bool // the last run stopped gracefully; false means it was still going
 	Records             []protocol.Record
 	Groups              map[string][]string `json:",omitempty"`
 	Queues              []Queue
 }
 
-// Dump snapshots in-memory state and reads it back.
-type Dump interface {
-	// Save replaces the snapshot. The previous one is not kept: a reload
-	// that could pick an older file would deliver consumed messages twice.
-	Save(Snapshot) error
-	// Load reports false when there is nothing to reload, which is how a
-	// first start is told from one that follows a death.
-	Load() (Snapshot, bool, error)
+// Change is one management write: every entity it touches, as it will be
+// once committed. A nil value removes that entity. Nothing outside the change
+// is rewritten, so an edit of one record costs one record
+// (docs/10-modules.md#07-implementation-requirements).
+type Change struct {
+	// Owner, when set, is the daemon Owner after the change.
+	Owner *string
+	// Accounts, when set, replaces the local-account map.
+	Accounts map[string]string
+	Users    map[string]*protocol.User
+	Records  map[string]*protocol.Record
+	Groups   map[string]*[]string
+	// DropQueues names queues whose durable state goes with their record.
+	DropQueues []string
+}
+
+// Empty reports whether the change writes nothing.
+func (c Change) Empty() bool {
+	return c.Owner == nil && c.Accounts == nil && len(c.Users) == 0 &&
+		len(c.Records) == 0 && len(c.Groups) == 0 && len(c.DropQueues) == 0
+}
+
+// Store keeps the durable state. Management writes commit one Change as one
+// transaction before the daemon publishes it; queue contents and counters
+// travel separately, on their own cadence, never once per message.
+type Store interface {
+	// Load reads the whole durable state. An unreadable, incompatible or
+	// damaged store is an error, never an empty node.
+	Load() (Snapshot, error)
+	// Commit applies one change atomically: all of it, or none of it.
+	Commit(Change) error
+	// SaveQueues replaces the durable state of the queues given, and records
+	// whether this save is the graceful stop's.
+	SaveQueues(queues []Queue, clean bool) error
+	Close() error
 }

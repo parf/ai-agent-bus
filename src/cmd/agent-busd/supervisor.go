@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/parf/ai-agent-bus/internal/dump/jsonfile"
+	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 )
 
 func runSupervisor(c config) {
@@ -142,11 +142,21 @@ func runSupervisor(c config) {
 }
 
 func supervisorAccounts(c config) (accounts, error) {
-	snapshot, found, err := jsonfile.New(c.dumpF).Load()
+	if c.create {
+		if err := os.MkdirAll(filepath.Dir(c.db), 0o700); err != nil {
+			return accounts{}, err
+		}
+	}
+	st, err := sqlite.Open(c.db, c.create)
 	if err != nil {
 		return accounts{}, err
 	}
-	if !found || !snapshot.AccountsEstablished && len(snapshot.Accounts) == 0 {
+	snapshot, err := st.Load()
+	st.Close() // the bus child takes the database next, exclusively
+	if err != nil {
+		return accounts{}, err
+	}
+	if !snapshot.AccountsEstablished && len(snapshot.Accounts) == 0 {
 		return editableAccounts(c.users)
 	}
 	if !snapshot.AccountsEstablished {

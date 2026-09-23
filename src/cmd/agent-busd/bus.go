@@ -25,12 +25,11 @@ import (
 	"github.com/parf/ai-agent-bus/internal/core"
 	dirfile "github.com/parf/ai-agent-bus/internal/directory/file"
 	"github.com/parf/ai-agent-bus/internal/directory/github"
-	"github.com/parf/ai-agent-bus/internal/dump/jsonfile"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/signature/sshkeygen"
-	"github.com/parf/ai-agent-bus/internal/store/file"
+	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 )
 
 func runBus(c config) {
@@ -41,18 +40,27 @@ func runBus(c config) {
 	if err != nil {
 		log.Fatalf("owner: %v", err)
 	}
-	// Queues, stats and the registry are memory; the snapshot is what a
-	// restart reads back. See docs/04-messaging.md#durability.
-	bus, snap := core.New(), jsonfile.New(c.dumpF)
-	if s, found, err := snap.Load(); err != nil {
-		log.Fatalf("dump %s: %v", c.dumpF, err)
-	} else if found {
-		if !s.Clean {
-			log.Printf("WARNING: the last run did not stop cleanly; anything queued after %s is gone",
+	// Every durable entity is in the database, taken exclusively: a second
+	// daemon on the same file cannot serve (docs/constitution.md#persistence-and-loading).
+	// Queues live in memory between flushes. See docs/04-messaging.md#durability.
+	st, err := sqlite.Open(c.db, c.create)
+	if err != nil {
+		log.Fatalf("database: %v", err)
+	}
+	defer st.Close()
+	bus := core.New()
+	if s, err := st.Load(); err != nil {
+		log.Fatalf("database %s: %v", c.db, err)
+	} else {
+		if !s.Clean && !s.At.IsZero() {
+			log.Printf("WARNING: the last run did not stop cleanly; queue changes after %s are gone",
 				s.At.Format(time.RFC3339))
 		}
 		bus.Restore(s)
 	}
+	// Bound before the first write, so setup's seed below commits like any
+	// other change.
+	bus.Persistence(st)
 	if err := bus.EstablishDaemonOwner(me.String()); err != nil {
 		log.Fatalf("owner: %v", err)
 	}
@@ -66,16 +74,15 @@ func runBus(c config) {
 		log.Fatalf("local accounts: %v", err)
 	}
 	owner := bus.DaemonOwner()
-	tokens, err := auth.Load(file.NewTokens(c.tokenF), owner)
+	tokens, err := auth.Load(st.Tokens(), owner)
 	if err != nil {
 		log.Fatalf("token: %v", err)
 	}
-	bus.Persistence(snap)
 	// Written straight away and not clean: the next start needs to tell a
-	// first one from one that follows a death, and only a file on disk can.
+	// first one from one that follows a death, and only the database can.
 	save := func(clean bool) {
-		if err := bus.Checkpoint(clean); err != nil {
-			log.Printf("dump: %v", err)
+		if err := bus.FlushQueues(clean); err != nil {
+			log.Printf("flush: %v", err)
 		}
 	}
 	save(false)
@@ -99,7 +106,9 @@ func runBus(c config) {
 	// cannot disagree about one name. After owner establishment for the same
 	// reason the sweep is: a record of the owner would be wreckage until the
 	// durable owner is restored or the first-run seed is applied.
-	if purged := bus.Orphans(); len(purged) > 0 {
+	if purged, err := bus.Orphans(); err != nil {
+		log.Fatalf("orphaned records: %v", err)
+	} else if len(purged) > 0 {
 		log.Printf("deleted %d records whose owner the daemon does not know", len(purged))
 	}
 	// Their credentials are not dropped here. Every name that just went has no
@@ -158,7 +167,7 @@ func runBus(c config) {
 		}
 		serve(in.l, face.HandlerFor(name))
 	}
-	log.Printf("bus serving %d listeners for %s (tokens %s)", len(srvs), owner, c.tokenF)
+	log.Printf("bus serving %d listeners for %s (database %s)", len(srvs), owner, c.db)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)

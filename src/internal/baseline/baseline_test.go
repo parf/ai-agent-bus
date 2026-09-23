@@ -11,13 +11,12 @@ package baseline_test
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/core"
-	"github.com/parf/ai-agent-bus/internal/dump/jsonfile"
+	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -147,16 +146,22 @@ func BenchmarkConcurrentSendConsume(b *testing.B) {
 }
 
 // BenchmarkManage is a one-field edit acknowledged only once durable. Through
-// 0.6 that is a full snapshot through the JSON adapter, so the write volume it
-// reports is the whole registry and backlog, not the edited record: the figure
-// K.17 must bring down to the record itself.
+// 0.6 that was a full snapshot through the JSON adapter — the whole registry
+// and backlog per edit (Plans/MVP/0.7-baseline.md). From 0.7 it is one record
+// committed to SQLite; core's TestOneEditCommitsOneRecord is what proves the
+// write volume, and this measures what it costs.
 func BenchmarkManage(b *testing.B) {
 	for _, n := range sizes {
 		for _, backlog := range []int{0, 10_000} {
 			b.Run(fmt.Sprintf("records%d/backlog%d", n, backlog), func(b *testing.B) {
 				bus := node(b, n, backlog)
-				path := filepath.Join(b.TempDir(), "snapshot.json")
-				bus.Persistence(jsonfile.New(path))
+				path := filepath.Join(b.TempDir(), "bus.db")
+				st, err := sqlite.Open(path, true)
+				if err != nil {
+					b.Fatal(err)
+				}
+				defer st.Close()
+				bus.Persistence(st)
 				b.ReportAllocs()
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
@@ -165,12 +170,7 @@ func BenchmarkManage(b *testing.B) {
 						b.Fatal(err)
 					}
 				}
-				b.StopTimer()
-				st, err := os.Stat(path)
-				if err != nil {
-					b.Fatal(err)
-				}
-				b.ReportMetric(float64(st.Size()), "written-B/op")
+
 			})
 		}
 	}

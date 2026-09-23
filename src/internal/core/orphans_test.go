@@ -52,7 +52,7 @@ func TestAStoppedOwnerIsNotAMissingOne(t *testing.T) {
 		}
 	}
 
-	if purged := b.Orphans(); len(purged) != 1 || purged[0] != "wreck@h" {
+	if purged, _ := b.Orphans(); len(purged) != 1 || purged[0] != "wreck@h" {
 		t.Fatalf("purged %v, want only wreck@h", purged)
 	}
 	for _, name := range controls {
@@ -77,7 +77,7 @@ func TestDeletionRunsToAFixedPoint(t *testing.T) {
 		wreck("c@h", "b@h"),
 		wreck("live@h", "active@h"),
 	)
-	purged := b.Orphans()
+	purged, _ := b.Orphans()
 	if len(purged) != 3 {
 		t.Fatalf("purged %v, want a@h b@h c@h", purged)
 	}
@@ -190,7 +190,7 @@ func TestAPurgeAsksNeitherGuardThatUnregisterAsks(t *testing.T) {
 		}
 	}
 
-	purged := b.Orphans()
+	purged, _ := b.Orphans()
 	if len(purged) != 3 {
 		t.Fatalf("purged %v, want owns@h kid@h queued@h", purged)
 	}
@@ -230,7 +230,7 @@ func TestARegisteredUsersOwnRecordIsNotWreckage(t *testing.T) {
 
 	// The service beside it is the control: the same missing owner, and it
 	// goes. So this is about the person, not about the fixture.
-	if purged := b.Orphans(); len(purged) != 1 || purged[0] != "svc@h" {
+	if purged, _ := b.Orphans(); len(purged) != 1 || purged[0] != "svc@h" {
 		t.Fatalf("purged %v, want only svc@h", purged)
 	}
 	rec, ok := b.Lookup("owner@h", "active@h")
@@ -316,7 +316,7 @@ func TestAnOwnershipCycleSurvives(t *testing.T) {
 		wreck("under@h", "z@h"),
 		wreck("gone@h", "nobody@h"),
 	)
-	if purged := b.Orphans(); len(purged) != 1 || purged[0] != "gone@h" {
+	if purged, _ := b.Orphans(); len(purged) != 1 || purged[0] != "gone@h" {
 		t.Fatalf("purged %v, want only gone@h", purged)
 	}
 	for _, name := range []string{"x@h", "y@h", "z@h", "under@h"} {
@@ -342,7 +342,7 @@ func TestAMaintainerInTheStoreIsAUser(t *testing.T) {
 	if k := b.identityKind("vouched@h"); k != protocol.DirectoryUser {
 		t.Fatalf("a restored maintainer is %q, not a user", k)
 	}
-	if purged := b.Orphans(); len(purged) != 0 {
+	if purged, _ := b.Orphans(); len(purged) != 0 {
 		t.Errorf("a restored maintainer's records were taken as wreckage: %v", purged)
 	}
 }

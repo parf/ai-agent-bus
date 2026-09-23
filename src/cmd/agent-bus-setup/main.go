@@ -32,6 +32,7 @@ const (
 	svcDir     = stateRoot + "/service.d"
 	runHome    = stateRoot + "/runner"
 	unitPath   = "/etc/systemd/system/agent-busd.service"
+	dbPath     = svcHome + "/agent-bus.db"
 )
 
 // dirs is the layout, and the modes are the design rather than a default: the
@@ -159,6 +160,7 @@ func setup() error {
 		steps = append([]string{"install the complete release under " + installRoot}, steps...)
 	}
 	steps = append(steps,
+		fmt.Sprintf("initialize the database %s as %s", dbPath, svcAccount),
 		fmt.Sprintf("write %s", unitPath),
 		"reload systemd and start agent-busd")
 	if *keyF != "" {
@@ -216,6 +218,12 @@ func setup() error {
 		if err := os.Chmod(d.path, d.mode); err != nil {
 			return err
 		}
+	}
+	// The database is made here, explicitly, as the daemon's account: the unit
+	// never creates one, so a database lost later refuses the start rather
+	// than silently becoming an empty node (Plans/MVP/0.7-cutover.md#procedure).
+	if err := run("runuser", "-u", svcAccount, "--", *exe, "-owner", me.String(), "-db", dbPath, "-init"); err != nil {
+		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(unitPath), 0o755); err != nil {
 		return err
@@ -337,7 +345,7 @@ StateDirectoryMode=0700
 RuntimeDirectory=%[5]s
 # 0711: everyone walks through to their own socket, nobody reads the rest.
 RuntimeDirectoryMode=0711
-ExecStart=%[3]s -addr %[4]s -socket %[6]s -token-file %[2]s/token -dump-file %[2]s/dump.json -owner %[7]s -web`,
+ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -owner %[7]s -web`,
 		svcAccount, svcHome, exe, addr, filepath.Base(api.SystemRuntimeDir), api.SystemSocket(), owner)
 	for _, u := range users {
 		fmt.Fprintf(&b, " -user %s", u)

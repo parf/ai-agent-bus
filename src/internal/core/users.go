@@ -115,7 +115,7 @@ func (b *Bus) ownerSuspension(name string) error {
 // spares on that ground still answers for nobody here, and grants nothing.
 func (b *Bus) Authenticate(name string) error {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	return b.acting(name)
 }
 
@@ -168,7 +168,7 @@ func (b *Bus) IssueFor(caller, name string, mint func(string) (string, error)) (
 		return "", err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return "", err
 	}
@@ -197,7 +197,7 @@ func (b *Bus) isAdministrator(name string) bool {
 }
 func (b *Bus) IsAdministrator(name string) bool {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	return b.acting(name) == nil && b.isAdministrator(name)
 }
 
@@ -210,7 +210,7 @@ func (b *Bus) IsPerson(name string) bool {
 		return false
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	_, known := b.users[n]
 	return known
 }
@@ -232,7 +232,7 @@ func (b *Bus) IsPerson(name string) bool {
 // about users at all: a sweep that looked only for a record would take it.
 func (b *Bus) Ownerless(names []string) []string {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	out := []string{}
 	for _, raw := range names {
 		name, err := canon(raw)
@@ -281,7 +281,7 @@ func (b *Bus) RemoveOwnerless(caller, name string, forget func(string) error) er
 		return err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return err
 	}
@@ -515,16 +515,16 @@ func (b *Bus) applyGithubProfile(u *protocol.User, p ports.DirectoryProfile, nam
 func (b *Bus) githubChange(caller, name, login string) (ports.DirectoryProfile, string, bool, error) {
 	b.mu.Lock()
 	if err := b.acting(caller); err != nil {
-		b.mu.Unlock()
+		b.unlock()
 		return ports.DirectoryProfile{}, "", false, err
 	}
 	if !b.mayEditUser(caller, name) {
-		b.mu.Unlock()
+		b.unlock()
 		return ports.DirectoryProfile{}, "", false, ErrNotOwner
 	}
 	oldLogin := b.users[name].GithubUser
 	provider := b.github
-	b.mu.Unlock()
+	b.unlock()
 	if oldLogin == login {
 		return ports.DirectoryProfile{}, oldLogin, false, nil
 	}
@@ -555,7 +555,7 @@ func (b *Bus) EditOwnEmail(caller, raw string) (protocol.User, error) {
 		return protocol.User{}, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.User{}, err
 	}
@@ -569,8 +569,8 @@ func (b *Bus) EditOwnEmail(caller, raw string) (protocol.User, error) {
 		}
 	}
 	u.Email = email
-	b.users[who] = u
-	if err := b.checkpoint(false); err != nil {
+	b.setUser(who, u)
+	if err := b.commit(); err != nil {
 		return protocol.User{}, err
 	}
 	return b.userView(who, who), nil
@@ -601,7 +601,7 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 		return protocol.User{}, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	// Before the authority question, because "you are nobody" and "you are
 	// suspended" are not "that is not yours": they are different codes to a
 	// caller (docs/05-discovery.md#refusals), and a predicate that answers
@@ -681,12 +681,12 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 		if _, backed := b.dirs[parsed.Realm]; backed {
 			return protocol.User{}, ErrEnrol
 		}
-		b.records[in.Name] = protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Full: protocol.OverflowStrict, At: time.Now()}
+		b.setRecord(in.Name, protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Full: protocol.OverflowStrict, At: time.Now()})
 		b.ensure(in.Name)
 	}
-	b.users[in.Name] = in
+	b.setUser(in.Name, in)
 	b.recheckReaders()
-	if err := b.checkpoint(false); err != nil {
+	if err := b.commit(); err != nil {
 		return protocol.User{}, err
 	}
 	return b.userView(who, in.Name), nil
@@ -706,16 +706,16 @@ func (b *Bus) RefreshGithub(caller, name string) (protocol.User, error) {
 	}
 	b.mu.Lock()
 	if err := b.acting(who); err != nil {
-		b.mu.Unlock()
+		b.unlock()
 		return protocol.User{}, err
 	}
 	if !b.mayEditUser(who, name) {
-		b.mu.Unlock()
+		b.unlock()
 		return protocol.User{}, ErrNotOwner
 	}
 	old, exists := b.users[name]
 	provider := b.github
-	b.mu.Unlock()
+	b.unlock()
 	if !exists {
 		return protocol.User{}, ErrUnknown
 	}
@@ -730,7 +730,7 @@ func (b *Bus) RefreshGithub(caller, name string) (protocol.User, error) {
 		return protocol.User{}, fmt.Errorf("%w: GitHub profile: %s", ErrProfile, err)
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.User{}, err
 	}
@@ -747,8 +747,8 @@ func (b *Bus) RefreshGithub(caller, name string) (protocol.User, error) {
 	if err := b.applyGithubProfile(&current, p, name); err != nil {
 		return protocol.User{}, err
 	}
-	b.users[name] = current
-	if err := b.checkpoint(false); err != nil {
+	b.setUser(name, current)
+	if err := b.commit(); err != nil {
 		return protocol.User{}, err
 	}
 	return b.userView(who, name), nil
@@ -786,7 +786,7 @@ func (b *Bus) userView(caller, name string) protocol.User {
 
 func (b *Bus) Users(caller string, credentialNames []string) []protocol.User {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	// Including the caller's own row: a name that may not act is shown
 	// nothing, and one of the rows this can produce is a junk credential,
 	// which must not be able to look itself up.
@@ -827,7 +827,7 @@ func (b *Bus) SetUserState(caller, name, state string) (protocol.User, error) {
 		return protocol.User{}, err
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return protocol.User{}, err
 	}
@@ -847,9 +847,9 @@ func (b *Bus) SetUserState(caller, name, state string) (protocol.User, error) {
 		return protocol.User{}, ErrNotOwner
 	}
 	u.Name, u.State = name, state
-	b.users[name] = u
+	b.setUser(name, u)
 	b.recheckReaders()
-	if err := b.checkpoint(false); err != nil {
+	if err := b.commit(); err != nil {
 		return protocol.User{}, err
 	}
 	return b.userView(who, name), nil

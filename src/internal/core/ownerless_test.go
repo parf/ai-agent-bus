@@ -99,7 +99,7 @@ func TestTheTwoSweepsAgreeAboutOneName(t *testing.T) {
 	if got := b.Ownerless([]string{"absent@h"}); len(got) != 1 {
 		t.Errorf("a name the daemon holds nothing for is not swept: %v", got)
 	}
-	if purged := b.Orphans(); len(purged) != 1 || purged[0] != "theirs@h" {
+	if purged, _ := b.Orphans(); len(purged) != 1 || purged[0] != "theirs@h" {
 		t.Fatalf("the orphan was not deleted: %v", purged)
 	}
 	if _, still := b.Lookup("owner@h", "theirs@h"); still {

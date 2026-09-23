@@ -32,9 +32,9 @@ import (
 // daemon, and inventing a rule for it here would be inventing the rule too.
 //
 // Caller does not hold b.mu.
-func (b *Bus) Orphans() []string {
+func (b *Bus) Orphans() ([]string, error) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	defer b.unlock()
 	gone := []string{}
 	for {
 		round := []string{}
@@ -61,7 +61,10 @@ func (b *Bus) Orphans() []string {
 	if len(gone) != 0 {
 		b.recheckReaders()
 	}
-	return gone
+	if err := b.commit(); err != nil {
+		return nil, err
+	}
+	return gone, nil
 }
 
 // wreckage says a record answers for nobody. Caller holds b.mu.
