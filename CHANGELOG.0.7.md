@@ -5,6 +5,11 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](Plans/CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.19 — 2026-09-23
+
+A database that has never been written is not reported as an unclean stop.
+The live node is reinstalled on 0.7.
+
 ## 0.7.18 — 2026-09-23
 
 Setup over a running node uses its existing database instead of initializing

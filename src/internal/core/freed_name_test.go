@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -89,5 +90,20 @@ func TestAFailedCommitIsReported(t *testing.T) {
 	}
 	if !rep.has("error: a management write was not committed and nothing changed: database or disk is full") {
 		t.Fatalf("the failed commit was not reported: %v", rep.lines)
+	}
+}
+
+// A fresh database has had no run to lose, so it is not an unclean stop; one
+// written by a run that never stopped gracefully is.
+func TestAFreshDatabaseIsNotAnUncleanStop(t *testing.T) {
+	b := New()
+	b.Restore(ports.Snapshot{})
+	if b.Status().Unclean {
+		t.Fatal("a fresh database reads as an unclean stop")
+	}
+	c := New()
+	c.Restore(ports.Snapshot{At: time.Now()})
+	if !c.Status().Unclean {
+		t.Fatal("a run that did not stop gracefully reads as clean")
 	}
 }

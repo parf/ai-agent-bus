@@ -158,7 +158,8 @@ func (b *Bus) Restore(s ports.Snapshot) {
 			b.accounts[mapping.Account] = principal
 		}
 	}
-	b.unclean = !s.Clean
+	// A database that has never been written has had no run to lose.
+	b.unclean = !s.Clean && !s.At.IsZero()
 	if s.NextRecordID > b.nextRecordID {
 		b.nextRecordID = s.NextRecordID
 	}
