@@ -1,8 +1,10 @@
 # Web face site map
 
-📌 **TL;DR:** Every address the admin web face (`agent-bus-web`, port 6780)
-answers, what each page is for and where it links, as built in 0.8.10. It owns
-the route map only: what a page shows is owned by
+📌 **TL;DR:** An internal working document, not part of the linked docs set:
+the reference for rewriting the web face from Go to TypeScript. It lists every
+address the admin web face (`agent-bus-web`, port 6780) answers, what each page
+is for and where it links, as built in 0.8.10. No other document links here,
+and it owns no contract: what a page shows is owned by
 [pages](../../Plans/MVP/web/pages.md#pages), its fields by
 [forms](../../Plans/MVP/web/forms.md#the-set), and the contract by
 [discovery § dashboard](../05-discovery.md#dashboard).
