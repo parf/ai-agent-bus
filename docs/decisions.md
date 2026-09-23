@@ -11,7 +11,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | Decision topic | Substance | Why |
 |---|---|---|
 | Activity is a per-record day ring of ten-minute slots on the node's local clock, saved in SQLite; a slot carries only counts | [activity history](05-discovery.md#activity-history) | 2026-09-23 owner answers: persisted with the regular save batch, node local time, a clock-aligned ring; then the owner's simplification that down time is zero and the open slot carries no partial mark. Built in 0.8.12 |
-| The anonymous page carries the project's description, links and picture | [discovery § rules it is built to](05-discovery.md#rules-it-is-built-to) | 2026-09-23 owner instruction; the picture is fetched from the project repository, the single exception to the no-external-asset rule |
+| The anonymous page carries the project's description, links and picture | [discovery § rules it is built to](05-discovery.md#rules-it-is-built-to) | 2026-09-23 owner instruction; the picture is a downscaled copy this node serves, like every other asset |
 | A Personal Group is named `@<owner>/<name>[@realm]`; a prefixed Group is its Owner's and is never transferred (Q109) | [constitution § Group](constitution.md#-group) | 2026-09-23 owner answer; the prefix is the User's whole name, so Users never compete for a personal name and the realm stays the Owner's choice; moving one is an administrator's database edit and restart |
 | Daemon logs live under `/var/log/agent-bus/` with ordinary logrotate, readable by `adm` (Q96) | [errors and alerts](constitution.md#errors-and-alerts) | 2026-09-22 owner answer |
 | An Agent may send to a User its own ACL admits; the daemon does not recognize replies (Q94, Q104) | [constitution § Channels](constitution.md#-channels) | 2026-09-22 owner answers; whoever may reach an Agent may be answered by it, so an Agent open to `*` may send to every User, matching stays the sender's topic + tag, a User has no list of its own, and no User sends to a User |
@@ -285,6 +285,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Earlier design | Replacement |
 |---|---|
+| The anonymous page's picture is fetched from the project repository (2026-09-23) | [Served from this node](05-discovery.md#rules-it-is-built-to) — owner reversal the same day; the page's own `img-src 'self'` refused the external picture, so the exception bought a blank space and no picture |
 | Activity keeps about 24 hours of in-memory samples every ten minutes from process start, with a partial final sample and history empty after restart (2026-09-18, built 0.5.67) | [Day ring on the node clock](05-discovery.md#activity-history) — 2026-09-23 owner answers; saved across restarts, and unobserved time is zero rather than absent |
 | 0.7.0 is set only when the 0.7 plan is finished (Q103, 2026-09-22) | [0.7.0 starts with the first code](../CLAUDE.md#versioning) — owner revision the same day |
 | Personal is limited to one kind — services, then agents (2026-09-17, 2026-09-18) | [Personal is on every kind](03-records.md#personal-and-shared) — 2026-09-21 owner decision; it is still a flag, never a kind |

@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.13 — 2026-09-23
+
+The sign-in page's project picture is served by this node, as a downscaled
+copy in the binary: the page's own `img-src 'self'` refused the repository-hosted
+original, so it showed nothing at all.
+
 ## 0.8.12 — 2026-09-23
 
 Activity is a day ring per record: 144 ten-minute slots of the node's local

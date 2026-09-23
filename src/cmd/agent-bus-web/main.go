@@ -95,6 +95,16 @@ func dashboard(bus *caller, tls bool) http.Handler {
 	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	})
+	// The one bitmap this node serves. It is answered before any credential,
+	// because the page that shows it is the one a stranger reaches.
+	mux.HandleFunc("GET /agent-bus.jpg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		// Overrides the frame's no-store: this file changes when the binary
+		// does, and re-sending 119KB on every visit to the sign-in form is
+		// the whole reason it is not the original.
+		w.Header().Set("Cache-Control", "max-age=86400")
+		w.Write(busPicture)
+	})
 
 	loadView := func(w http.ResponseWriter, r *http.Request) (view, bool) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -225,7 +235,7 @@ func dashboard(bus *caller, tls bool) http.Handler {
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		}
-		if r.URL.Path != "/healthz" && r.URL.Path != "/ui.js" && r.URL.Path != "/avatar" && r.URL.Path != "/signout" {
+		if r.URL.Path != "/healthz" && r.URL.Path != "/ui.js" && r.URL.Path != "/avatar" && r.URL.Path != "/signout" && r.URL.Path != "/agent-bus.jpg" {
 			r = bus.pageRequest(r)
 		}
 		mux.ServeHTTP(w, r)
@@ -712,7 +722,7 @@ var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark"
 <main>
 <a id=main tabindex=-1></a>
 <div class=page-title><h1>{{titleMark "credentials"}} Sign in to AgentBus</h1></div>
-<p class=hero><img src="https://github.com/parf/ai-agent-bus/raw/main/docs/img/agent-bus.png" alt="A red double-decker named Agents Bus, carrying AI and non-AI riders: Claude, OpenAI, Slack, Telegram, Email and a shell" width=640 height=427 loading=lazy></p>
+<p class=hero><img src=/agent-bus.jpg alt="A red double-decker named Agents Bus, carrying AI and non-AI riders: Claude, OpenAI, Slack, Telegram, Email and a shell" width=648 height=432></p>
 <form method=post action=/signin>
 {{with .Return}}<input type=hidden name=return value="{{.}}">{{end}}
  <p><label>token <input type=password name=token autofocus></label>
