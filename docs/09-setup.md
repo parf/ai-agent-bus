@@ -228,9 +228,19 @@ path or package registry; publishing the MCP face or a container stays
 `INSTALL.md` is the standalone supported path exercised by
 [installation acceptance](#installation-acceptance).
 
+**Deploying a commit.** From 0.8.19 `sudo src/release.sh [commit]` is how a
+checkout's node changes: it builds that commit (HEAD by default) from
+`git archive`, never the working tree, into
+`/usr/local/lib/agent-bus/releases/<version>-<sha>`, switches
+`/usr/local/lib/agent-bus/current` to it with one rename, points
+`/usr/local/bin` through `current`, restarts the daemon and checks it reports
+that version. Uncommitted edits, anyone's, never reach the live node. The last
+five releases are kept; `--rollback` switches to the previous one.
+
 **Development install.** `src/git-install.sh` symlinks the built programs into
 `/usr/local/bin` instead of copying them, so a change is a build and a restart
-rather than a reinstall. The checkout must live outside `/home`: the daemon runs
+rather than a reinstall. That serves the working tree itself, so a node that
+other workers share is deployed with `release.sh` instead. The checkout must live outside `/home`: the daemon runs
 behind `ProtectHome=yes` and cannot exec a binary in a home directory at all.
 The script refuses one that does and says where to move it; `--revert` copies
 real binaries back. Daemon state under `/var/lib/agent-bus` is untouched, except
@@ -329,7 +339,8 @@ Building the daemon and CLI needs cgo and a C compiler for
 `src/build.sh [output-directory]` builds all Go programs with one stamp;
 the output directory is relative to `src/` and defaults to that directory.
 The build supplies `build_info` as `user@hostname YYYY-MM-DD HH:MM:SS`, using
-the builder's local time, through Go linker flags. It never rewrites source.
+the builder's local time, through Go linker flags; `release.sh` appends the
+commit's short SHA. It never rewrites source.
 Every Go program's `--version` prints the shared SemVer on the first line
 and `build_info: <stamp>` on the second; no daemon connection or privileges
 are needed.

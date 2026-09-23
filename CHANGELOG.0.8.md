@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.19 — 2026-09-23
+
+`src/release.sh` deploys a commit, never the working tree, into its own release
+directory with rollback; `build_info` names the commit it was built from.
+
 ## 0.8.18 — 2026-09-23
 
 Push retries only a 403 that says the principal is suspended; any other 403

@@ -103,6 +103,7 @@ The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the proje
 | No behaviour change | Docs, tests and refactoring alone do not require a bump |
 | Changelog | Every version bump includes a one- or two-line version summary in the current line's changelog — `CHANGELOG.0.8.md` at the repository root from `0.8.0` — newest version on top. One file per release line, and a finished line's file moves to `Plans/`; historical release numbers stay in theirs and are never rewritten to match the current version |
 | Build evidence | Shipped Go binaries must carry [setup § build information](docs/09-setup.md#build-information) and expose it through the version query. Use the documented build script; never ship an unstamped development build |
+| Deploy | The live node changes only through `sudo src/release.sh`, which builds a commit, never the working tree ([setup § install](docs/09-setup.md#install)). Commit first, then deploy |
 
 ## Git
 
