@@ -166,10 +166,13 @@ type adminView struct {
 	ClearFilters  string
 	Matched       int
 	CategoryTotal int
-	Start         int
-	End           int
-	HasFilters    bool
-	Owners        []string
+	// PersonalHere counts the Personal records of this page's own kind,
+	// which the shared view omits, so its empty state can say where they are.
+	PersonalHere int
+	Start        int
+	End          int
+	HasFilters   bool
+	Owners       []string
 	// Channels is either channel section; Queues and PubSub say which. They
 	// are two sections, each with its own list, registration and settings.
 	Channels     bool
@@ -700,6 +703,9 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			case record.Personal:
 				if record.Kind != protocol.KindUser && (v.DaemonOwner || record.Owner == v.You) {
 					personalServices++
+					if listPathFor(record.Kind) == r.URL.Path {
+						v.PersonalHere++
+					}
 				}
 			case pubsubRecord(record.Kind):
 				allPubSub++
@@ -1071,7 +1077,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		}
 		// Any User may create a group, which that User then owns
 		// (docs/constitution.md#-group).
-		v.SectionLinks = []viewLink{{Href: "/groups", Label: "All groups", Count: len(v.Groups), Counted: true, Current: true}, {Href: "/groups/new", Label: "Register group"}}
+		v.SectionLinks = []viewLink{{Href: "/groups", Label: "All", Count: len(v.Groups), Counted: true, Current: true}, {Href: "/groups/new", Label: "Register group"}}
 		render(w, groupList, v)
 	})
 	mux.HandleFunc("GET /group", func(w http.ResponseWriter, r *http.Request) {
@@ -1672,7 +1678,9 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 </form>
 </div>
 {{if eq .CategoryTotal 0}}
-<section class="empty-state editor-card"><h2>No {{if .Queues}}queues{{else if .PubSub}}pub/sub topics{{else if .Agents}}agents{{else if .PersonalPage}}Personal records{{else}}services{{end}} yet</h2>
+{{if and .PersonalHere (not .PersonalPage)}}<section class="empty-state editor-card personal-elsewhere"><h2>No shared {{if .Queues}}queues{{else if .PubSub}}pub/sub topics{{else if .Agents}}agents{{else}}services{{end}}</h2>
+<p>{{number .PersonalHere}} Personal {{if .Queues}}queue{{else if .PubSub}}pub/sub topic{{else if .Agents}}agent{{else}}service{{end}}{{if eq .PersonalHere 1}} is{{else}}s are{{end}} under the <a class=personal-view href=/personal>Personal</a> tab, which this list omits.</p>
+{{else}}<section class="empty-state editor-card"><h2>No {{if .Queues}}queues{{else if .PubSub}}pub/sub topics{{else if .Agents}}agents{{else if .PersonalPage}}Personal records{{else}}services{{end}} yet</h2>{{end}}
 {{if .Queues}}<p>A queue holds work without a separate service process and hands each message to one reader.</p><p><a href=/queues/new>Register a queue</a></p>
 {{else if .PubSub}}<p>A pub/sub topic copies each accepted message to the inboxes on its Deliver-To list and keeps nothing itself.</p><p><a href=/pubsub/new>Register a pub/sub topic</a></p>
 {{else if .Agents}}<p>An agent is a name on this bus with a queue something reads. It carries no address of its own: callers send to the name and the daemon delivers.</p><p><a href=/agents/new>Register an agent</a></p>

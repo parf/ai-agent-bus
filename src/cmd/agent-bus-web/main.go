@@ -429,6 +429,7 @@ const head = `<!doctype html>
  input[type=checkbox]{width:auto}
  textarea{max-width:100%;box-sizing:border-box;font:13px ui-monospace,monospace}
  button,select{font:inherit;padding:.3rem .5rem}
+ select{max-width:100%}
  form+form{margin-top:1rem}
  .site-header{display:grid;grid-template-columns:80px minmax(0,1fr);column-gap:1rem;align-items:center;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #aaa;padding-bottom:1rem;margin-bottom:1rem}
  .node-logo{grid-column:1;grid-row:1 / span 2}
@@ -449,7 +450,9 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
  .node-logo{width:64px;height:auto}
  .node-summary{gap:.5rem 1rem;margin:0;font-size:.875rem;overflow-x:auto}
  .node-navigation{display:flex;align-items:center;gap:1.5rem;min-width:0}
- .node-navigation nav{display:flex;align-items:center;gap:1.5rem;line-height:2.4;overflow-x:auto}
+ /* The sections wrap rather than scroll: a scrolled strip hides every entry
+    past the edge on a phone, with nothing to say that more are there. */
+ .node-navigation nav{display:flex;flex-wrap:wrap;align-items:center;gap:0 1.5rem;line-height:2.4}
  .node-navigation nav a{color:var(--text-1);text-decoration:none;border-bottom:3px solid transparent}
  .node-navigation nav .page-title-mark{width:1.05em;height:1.05em;margin-right:.3em;vertical-align:-.15em}
  .node-navigation nav a[aria-current=page]{color:var(--accent);border-bottom-color:var(--accent)}
@@ -466,6 +469,7 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
 .page-title{margin-bottom:.5rem}
  .page-title h1{font-size:1.75rem;line-height:1.2;margin:.5rem 0}
  .page-title-mark{font-size:1.35em}
+ .page-title h1 code{font-size:1em}
  .help-button{border-color:var(--border-strong);color:var(--text-2);cursor:pointer}
  .context-help{border-color:var(--border-strong);border-radius:6px;background:var(--surface-1);box-shadow:none}
  .section-nav{gap:.5rem 1.5rem;margin:.25rem 0 1.25rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
@@ -558,7 +562,7 @@ button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
 .attention-item h3{margin:0;font-size:1rem}
 .attention-item p{margin:.35rem 0 0}
 .node-strip{display:flex;flex-wrap:wrap;gap:1px;max-width:64rem;margin:1rem 0;background:var(--border)}
-.node-fact{display:flex;flex-direction:column;flex:1 1 8rem;padding:1rem;background:var(--surface-2)}
+.node-fact{display:flex;flex-direction:column;flex:1 1 7rem;padding:1rem;background:var(--surface-2)}
 .node-fact-note{font-size:.95rem;font-weight:600;color:var(--text-2)}
  /* What the node holds is one row, how it is running is the next. Without an
     explicit break the split is whatever the viewport happens to wrap at. */
@@ -599,7 +603,7 @@ button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
   .node-logo{width:48px}
   .node-summary{white-space:nowrap}
   .node-navigation{display:block}
-  .node-navigation nav{gap:1rem}
+  .node-navigation nav{gap:0 1rem}
   .who{display:block;margin:.25rem 0}
  input{width:100%}
  .record-search{grid-template-columns:1fr auto}
@@ -621,7 +625,7 @@ button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
   .service-dashboard{grid-template-columns:1fr}
   .activity-fact{grid-column:auto}
   .task-card{padding:1rem}
-  table:not(.record-table){display:block;overflow-x:auto}
+  table:not(.record-table):not(.fit-table){display:block;overflow-x:auto}
  }
 </style>
 `
@@ -744,16 +748,16 @@ var diagnosticsPage = template.Must(template.New("diagnostics").Funcs(template.F
 
 <section class=dashboard-section><div class=page-title><h2 id=refusals>Refusals</h2><button type=button class=help-button popovertarget=refusals-help aria-label="About refusal counts" data-tooltip="Whole-node handled API refusals since process start. Zero is measured; router misses and internal failures are excluded.">ⓘ</button></div>
 <div popover id=refusals-help class=context-help><h2>Refusal counts</h2><ul><li>The reason set is closed, so absence from the sparse daemon map becomes a zero measurement here.</li><li>Counts include handled API refusals whatever the caller&rsquo;s standing, including malformed requests and bad credentials.</li><li>A request the router rejected before any handler ran is not a caller refusal; internal failures are not counted either.</li><li>These lifetime values cannot say how quickly refusals are rising.</li></ul></div>
-<table><caption>Refusals since this daemon started, by reason</caption><thead><tr><th scope=col>reason<th scope=col class=num>count</tr></thead><tbody>{{range .Refusals}}<tr><td><code>{{.Reason}}</code><td class=num>{{number .Count}}</tr>{{end}}</tbody></table></section>
+<table class=fit-table><caption>Refusals since this daemon started, by reason</caption><thead><tr><th scope=col>Reason<th scope=col class=num>Count</tr></thead><tbody>{{range .Refusals}}<tr><td><code>{{.Reason}}</code><td class=num>{{number .Count}}</tr>{{end}}</tbody></table></section>
 
 <section class=dashboard-section><div class=page-title><h2 id=stuck>Inboxes holding messages</h2><button type=button class=help-button popovertarget=backlog-help aria-label="About held messages" data-tooltip="A held message is not automatically stuck. Readers counts current requests, not health; expired work may remain until pruning; capacity is only what was true when observed.">ⓘ</button></div><div popover id=backlog-help class=context-help><h2>Held messages</h2><ul><li>A scheduled reader may simply be between pulls.</li><li>This observation does not prune first, so held work may already have outlived its TTL.</li><li>At capacity records what was true when observed, never the next send.</li><li>Readers counts outstanding reads, filtered and unfiltered together. Zero is not health, and a positive count promises neither a match nor completed work.</li></ul></div>
-<table><caption>Inboxes holding messages, longest wait first — visible to you</caption><thead><tr><th scope=col>name<th scope=col class=num>readers<th scope=col class=num>held now<th scope=col class=num>oldest held<th scope=col>capacity</tr></thead><tbody>
+<table class=fit-table><caption>Inboxes holding messages, longest wait first — visible to you</caption><thead><tr><th scope=col>Name<th scope=col class=num>Readers<th scope=col class=num>Held now<th scope=col class=num>Oldest held<th scope=col>Capacity</tr></thead><tbody>
 {{range .Backlogs}}<tr><td><a href="{{recordHref .}}"><code>{{.Name}}</code></a><td class=num>{{readerCount .Readers}}<td class=num>{{number .Queued}}<td class=num>{{if .Oldest}}{{.Oldest}}{{else}}<span class=muted>&mdash;</span>{{end}}<td>{{if .AtBound}}<b class=warn>at capacity when observed</b>{{else}}<span class=muted>&mdash;</span>{{end}}</tr>
 {{else}}<tr><td colspan=5 class=muted>every queue you can see is empty</tr>{{end}}</tbody></table></section>
 
 ` + exchangesTemplate + `
 <section class=dashboard-section><div class=page-title><h2 id=loss>Loss by name</h2><button type=button class=help-button popovertarget=loss-help aria-label="About message loss" data-tooltip="Dropped is queue overflow; Expired is retention. Only caller-visible records appear.">ⓘ</button></div><div popover id=loss-help class=context-help><h2>Message loss</h2><ul><li>Dropped counts overflow decisions for the named inbox.</li><li>Expired counts messages removed by retention.</li><li>Only records visible to you appear here.</li></ul></div>
-<table><thead><tr><th scope=col>name<th scope=col class=num>dropped<th scope=col class=num>expired</tr></thead><tbody>{{range .Losses}}<tr><td><a href="{{recordHref .}}"><code>{{.Name}}</code></a><td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}</tr>{{else}}<tr><td colspan=3 class=muted>nothing lost</tr>{{end}}</tbody></table></section>
+<table class=fit-table><thead><tr><th scope=col>Name<th scope=col class=num>Dropped<th scope=col class=num>Expired</tr></thead><tbody>{{range .Losses}}<tr><td><a href="{{recordHref .}}"><code>{{.Name}}</code></a><td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}</tr>{{else}}<tr><td colspan=3 class=muted>nothing lost</tr>{{end}}</tbody></table></section>
 {{if .Leftovers}}<section class=dashboard-section aria-labelledby=leftovers><div class=page-title><h2 id=leftovers>Leftover names</h2><button type=button class=help-button popovertarget=leftovers-help aria-label="About leftover names" data-tooltip="Names that are neither a User nor an Agent. Rare; usually left by a record ignored at load.">ⓘ</button></div><div popover id=leftovers-help class=context-help><h2>Leftover names</h2><ul><li>Every name is a User or an Agent. These are neither, and appear here only while one exists.</li><li>A credential with no record is usually left by a record ignored at load, and kept so repairing that record finds its credential.</li><li>A self-owned record with no User profile has no User to answer for it; inspect it before deciding whether it is needed.</li></ul></div>
-<table class=leftovers-table><thead><tr><th scope=col>name<th scope=col>what it is<th scope=col>next step</tr></thead><tbody>{{range .Leftovers}}<tr><td><code>{{.Name}}</code><td>{{if eq .Kind "record"}}Self-owned record, no User profile{{else}}Credential with no record{{end}}<td>{{if eq .Kind "record"}}<a href="/user?name={{.Name}}&return=/diagnostics">Inspect before deciding</a>{{else if .CanRemove}}<a href="/user?name={{.Name}}&return=/diagnostics">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}</tr>{{end}}</tbody></table></section>{{end}}
+<table class="leftovers-table fit-table"><thead><tr><th scope=col>Name<th scope=col>What it is<th scope=col>Next step</tr></thead><tbody>{{range .Leftovers}}<tr><td><code>{{.Name}}</code><td>{{if eq .Kind "record"}}Self-owned record, no User profile{{else}}Credential with no record{{end}}<td>{{if eq .Kind "record"}}<a href="/user?name={{.Name}}&return=/diagnostics">Inspect before deciding</a>{{else if .CanRemove}}<a href="/user?name={{.Name}}&return=/diagnostics">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}</tr>{{end}}</tbody></table></section>{{end}}
 `))

@@ -21,8 +21,6 @@ type accountView struct {
 
 func credentialKind(kind string) string {
 	switch kind {
-	case "person":
-		return "User"
 	case "unregistered":
 		return "Unregistered"
 	default:
@@ -95,6 +93,6 @@ var accountPage = template.Must(template.New("account").Funcs(template.FuncMap{"
 <section class="editor-card compact-card"><h2>Owned records</h2>{{range .Owned}}<p><a href="{{recordPath .Name $.RecordKinds}}"><code>{{.Name}}</code></a> <span class=fact-pill>{{entityLabel .Kind}}</span></p>{{else}}<p class=muted>No records owned by this identity are visible.</p>{{end}}</section>
 </div>
 <section class=dashboard-section><h2>Credentials</h2>
-{{if .NoNames}}<p class=muted>{{.NoNames}}</p>{{else}}<table><thead><tr><th scope=col>Name</th><th scope=col>Kind</th>{{if .ForeignOwner}}<th scope=col>Owner</th>{{end}}<th scope=col>Fingerprint</th><th scope=col>Issued</th><th scope=col>Last used</th></tr></thead><tbody>{{range .Names}}<tr><td><code>{{.Name}}</code></td><td>{{credentialKind .Kind}}</td>{{if $.ForeignOwner}}<td>{{if ne .Owner $.You}}<code>{{.Owner}}</code>{{else}}<span class=muted>&mdash;</span>{{end}}</td>{{end}}<td><code>{{.Fingerprint}}</code></td><td>{{if .Issued.IsZero}}<span class=muted>unavailable</span>{{else}}{{.Issued.Format "2006-01-02 15:04"}}{{end}}</td><td>{{if .Used.IsZero}}<span class=muted>not this run</span>{{else}}{{.Used.Format "2006-01-02 15:04"}}{{end}}</td></tr>{{else}}<tr><td colspan={{if .ForeignOwner}}6{{else}}5{{end}} class=muted>You hold no credential.</td></tr>{{end}}</tbody></table>{{end}}
+{{if .NoNames}}<p class=muted>{{.NoNames}}</p>{{else}}<table class="record-table credentials-table"><thead><tr><th scope=col>Name</th><th scope=col>Kind</th>{{if .ForeignOwner}}<th scope=col>Owner</th>{{end}}<th scope=col>Fingerprint</th><th scope=col>Issued</th><th scope=col>Last used</th></tr></thead><tbody>{{range .Names}}<tr><td data-label=Name><code>{{.Name}}</code></td><td data-label=Kind>{{credentialKind .Kind}}</td>{{if $.ForeignOwner}}<td data-label=Owner>{{if ne .Owner $.You}}<code>{{.Owner}}</code>{{else}}<span class=muted>&mdash;</span>{{end}}</td>{{end}}<td data-label=Fingerprint><code>{{.Fingerprint}}</code></td><td data-label=Issued>{{if .Issued.IsZero}}<span class=muted>unavailable</span>{{else}}{{.Issued.Format "2006-01-02 15:04"}}{{end}}</td><td data-label="Last used">{{if .Used.IsZero}}<span class=muted>not this run</span>{{else}}{{.Used.Format "2006-01-02 15:04"}}{{end}}</td></tr>{{else}}<tr><td colspan={{if .ForeignOwner}}6{{else}}5{{end}} class=muted>You hold no credential.</td></tr>{{end}}</tbody></table>{{end}}
 <div class=credential-note><strong>Rotate your identity credential</strong><p><code>agent-bus-token {{.You}} --rotate</code></p><p class=muted>The replaced credential remains valid until the next rotation.</p></div></section>
 `))

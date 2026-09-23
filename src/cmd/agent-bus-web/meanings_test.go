@@ -282,9 +282,9 @@ func TestNumericTableColumnsAreRightAligned(t *testing.T) {
 	for path, wants := range map[string][]string{
 		"/agents":   {`th.num,td.num{text-align:right`, `<th scope=col class=num>Readers`, `<th scope=col class=num>Queued`, `<td class=num data-label=Readers>0`},
 		"/activity": {`<th scope=col class=num>Accepted`, `<th scope=col class=num>Refused`, `<td class=num>0`},
-		"/diagnostics": {`<th scope=col class=num>count`, `<th scope=col class=num>readers`, `<th scope=col class=num>held now`,
-			`<th scope=col class=num>oldest held`, `<th scope=col class=num>Envelopes`,
-			`<th scope=col class=num>dropped`, `<th scope=col class=num>expired`, `<td class=num>0`, `<td class=num data-label="Envelopes">1`},
+		"/diagnostics": {`<th scope=col class=num>Count`, `<th scope=col class=num>Readers`, `<th scope=col class=num>Held now`,
+			`<th scope=col class=num>Oldest held`, `<th scope=col class=num>Envelopes`,
+			`<th scope=col class=num>Dropped`, `<th scope=col class=num>Expired`, `<td class=num>0`, `<td class=num data-label="Envelopes">1`},
 	} {
 		body := m.get(path)
 		for _, want := range wants {

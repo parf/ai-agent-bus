@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.9 — 2026-09-23
+
+Web page review: the section navigation wraps on a phone, an empty shared list
+points to its Personal records, and Diagnostics, Account, Group and Overview layouts fit.
+
 ## 0.8.8 — 2026-09-23
 
 The web Users page lists Users only, like the other list pages: one toolbar,
