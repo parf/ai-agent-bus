@@ -225,6 +225,20 @@ func validateKind(r protocol.Record) error {
 			return fmt.Errorf("%w: a %s holds no configuration", ErrKind, r.Kind)
 		}
 	}
+	// The target state is checked as the write was: a stored secret that is
+	// not an env file, or a configuration that is not compact JSON, is one no
+	// write of this version produced, and no legacy exception is loaded.
+	if r.Secret != "" {
+		if err := validEnv(r.Secret); err != nil {
+			return err
+		}
+	}
+	if len(r.Config) > 0 {
+		var compact bytes.Buffer
+		if err := json.Compact(&compact, r.Config); err != nil || !bytes.Equal(compact.Bytes(), r.Config) {
+			return fmt.Errorf("%w: a stored configuration must be compact JSON", ErrConfig)
+		}
+	}
 	if onBus(r) {
 		return nil
 	}
@@ -547,10 +561,9 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	return r.Public(), nil
 }
 
-// Config reads one back — for the service itself and nobody else, its owner
-// included. Setup data goes in and is used, not read back. An owner is told
-// that configuring worked (Configure answers without the configuration),
-// which is all an owner needs.
+// Config reads one back — for an agent, the agent itself and nobody else, its
+// owner included; for a service, which has no principal, whoever its ACL
+// admits. Setup data goes in and is used, not read back by whoever wrote it.
 //
 // It is in no listing either, so there is no other way to one.
 func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
@@ -568,10 +581,16 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 		return nil, err
 	}
 	r, known := b.records[n]
-	if !known {
+	if !known || !b.may(who, r) && !b.mayReadPrivate(who, r) {
 		return nil, fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
-	if n != who {
+	if !holdsPrivate(r.Kind) {
+		return nil, fmt.Errorf("%w: a %s holds no configuration", ErrConfig, r.Kind)
+	}
+	// Read by the record's own principal where it has one — an agent, and not
+	// its owner — and otherwise by whoever its ACL admits
+	// (docs/constitution.md#-private-values).
+	if !b.mayReadPrivate(who, r) {
 		return nil, fmt.Errorf("%w: only %s may read it", ErrPrivate, n)
 	}
 	return r.Config, nil
@@ -597,6 +616,9 @@ func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
 	}
 	if secret == "" {
 		return protocol.Record{}, fmt.Errorf("%w, and an empty one is the absence of one", ErrNoSecret)
+	}
+	if err := validEnv(secret); err != nil {
+		return protocol.Record{}, err
 	}
 	b.mu.Lock()
 	defer b.unlock()

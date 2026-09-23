@@ -657,6 +657,7 @@ var codes = []struct {
 	{core.ErrKind, http.StatusBadRequest, "malformed"},
 	{core.ErrConfig, http.StatusBadRequest, "malformed"},
 	{core.ErrSecret, http.StatusBadRequest, "malformed"},
+	{core.ErrEnv, http.StatusBadRequest, "malformed"},
 	{core.ErrNoSecret, http.StatusNotFound, "unknown"},
 	{core.ErrReceipt, http.StatusBadRequest, "malformed"},
 	{core.ErrTTL, http.StatusBadRequest, "malformed"},

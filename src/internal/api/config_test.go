@@ -128,10 +128,13 @@ func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 	if w := do("POST", "/configure", "owner@h", `{"kind":"agent","name":"#mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
 		t.Fatalf("configure: %d %s", w.Code, w.Body.String())
 	}
-	for _, who := range []string{"owner@h", "nosy@h"} {
+	// The owner sees the agent and is refused its configuration; a caller who
+	// may not see the name learns only that there is no such name, as with a
+	// secret (docs/06-services.md#secrets).
+	for who, want := range map[string]int{"owner@h": http.StatusForbidden, "nosy@h": http.StatusNotFound} {
 		w := do("GET", "/config?name=%23mail/parf@h", who, "")
-		if w.Code != http.StatusForbidden {
-			t.Fatalf("%s read it: %d %s", who, w.Code, w.Body.String())
+		if w.Code != want {
+			t.Fatalf("%s read it: %d %s, want %d", who, w.Code, w.Body.String(), want)
 		}
 		if strings.Contains(w.Body.String(), "FIXTURE") {
 			t.Fatalf("the refusal to %s carried the configuration: %s", who, w.Body.String())
@@ -144,5 +147,22 @@ func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 	// The owner can still SET one; it just never comes back.
 	if w := do("POST", "/configure", "owner@h", `{"kind":"agent","name":"#mail/parf@h","config":{"password":"SECOND"}}`); w.Code != 200 {
 		t.Fatalf("the owner lost the right to configure: %d %s", w.Code, w.Body.String())
+	}
+}
+
+// A secret that is not an env file is a malformed request, and the refusal
+// does not repeat it.
+func TestAnInvalidSecretIsAMalformedRequest(t *testing.T) {
+	bus := core.New()
+	s, tok := serverFor(t, bus, "owner@h")
+	if _, err := bus.Register(protocol.Record{Name: "db@h", Kind: protocol.KindService, Owner: "owner@h", Addr: "db:5432", Proto: "postgresql"}); err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest("POST", "/secret", strings.NewReader(`{"name":"db@h","secret":"hunter2"}`))
+	r.Header.Set(HeaderToken, tok("owner@h"))
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest || strings.Contains(w.Body.String(), "hunter2") || !strings.Contains(w.Body.String(), "line 1") {
+		t.Fatalf("an invalid secret answered %d %s", w.Code, w.Body.String())
 	}
 }

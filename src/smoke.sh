@@ -1470,11 +1470,13 @@ is_empty "an unconfigured record has no digest at all" \
 has "configuring creates the record, so it can be sent to" \
   "$(ab owner@srv1 send '#code-review/cfg@rdvp' "it exists" >/dev/null; ab '#code-review/cfg@rdvp' consume --wait 2s)" 'it exists'
 
+# A stranger the record's ACL does not admit learns only that there is no such
+# name, as for a secret (docs/03-records.md#configuring-a-template).
 has "a stranger may not read it either" \
-  "$(ab nosy@srv1 agent-template '#code-review/cfg@rdvp' 2>&1)" 'private to the record'
+  "$(ab nosy@srv1 agent-template '#code-review/cfg@rdvp' 2>&1)" 'no such name'
 # The text alone would still read right if every refusal collapsed to a 500.
-has "and is refused as forbidden, not as our own fault" \
-  "$(code nosy@srv1 "/config?name=%23code-review/cfg@rdvp")" '403'
+has "and is refused as unknown, not as our own fault" \
+  "$(code nosy@srv1 "/config?name=%23code-review/cfg@rdvp")" '404'
 
 has "and may not overwrite it" \
   "$(ab nosy@srv1 agent-template '#code-review/cfg@rdvp' '{"model":"theirs"}' 2>&1)" 'belongs to someone else'

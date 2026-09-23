@@ -5,6 +5,12 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.8 — 2026-09-22
+
+A secret must be an env file; a stored non-conforming secret or non-compact
+configuration is ignored at load; a service's configuration is read through
+its ACL, an agent's by the agent alone.
+
 ## 0.7.7 — 2026-09-22
 
 Email, GitHub login and case-insensitive Twitter/X name are unique across
