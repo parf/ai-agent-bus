@@ -19,14 +19,16 @@ bindir=/usr/local/bin
 unit=agent-busd.service
 want=/usr/local/src
 
-build=yes revert=no
+build=yes revert=no reinstall=no
 for a in "$@"; do case $a in
     --revert)   revert=yes ;;
+    --reinstall) reinstall=yes ;;
     --no-build) build=no ;;
     -h|--help)  sed -n '2,12p' "$0"
                 echo
                 echo "  $0 [--no-build]   symlink this checkout into $bindir"
                 echo "  $0 --revert       copy the real binaries back"
+                echo "  $0 --reinstall    link, then set the daemon's state aside and install fresh (the 0.7 cutover)"
                 exit 0 ;;
     *) echo "unknown option: $a" >&2; exit 2 ;;
 esac; done
@@ -113,7 +115,14 @@ for p in "${launchers[@]}"; do
     fi
 done
 
-systemctl restart "$unit"
+if [ "$reinstall" = yes ]; then
+    # The cutover, against the linked daemon: stop, set the old state and the
+    # unit's drop-ins aside, initialize a fresh database, write the unit and
+    # bootstrap the installer (Plans/MVP/0.7-cutover.md#procedure).
+    "$src/agent-bus-setup" --reinstall --exec "$bindir/agent-busd"
+else
+    systemctl restart "$unit"
+fi
 # active is not serving: the listener is up a moment after the unit is, and a
 # script that returns between the two teaches you to add your own sleep.
 for _ in $(seq 30); do

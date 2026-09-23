@@ -7,6 +7,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -90,9 +91,13 @@ func setup() error {
 	dry := fs.Bool("dry-run", false, "say what would be done and change nothing")
 	upgrade := fs.Bool("upgrade", false, "upgrade an existing packaged installation, preserving configuration and state")
 	recover := fs.Bool("recover", false, "roll back an interrupted packaged upgrade")
+	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state aside, and install fresh: the 0.7 cutover")
 	var users list
 	fs.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
 	fs.Parse(os.Args[1:])
+	if *reinstall && (*upgrade || *recover) {
+		return fmt.Errorf("--reinstall cannot be combined with --upgrade or --recover")
+	}
 	if *upgrade || *recover {
 		if *upgrade && *recover {
 			return fmt.Errorf("choose one of --upgrade or --recover")
@@ -165,10 +170,16 @@ func setup() error {
 	if *keyF == "" {
 		*keyF = installerKey()
 	}
-	steps := []string{
+	aside := fmt.Sprintf("%s.before-0.7-%s", svcHome, time.Now().Format("20060102-150405"))
+	steps := []string{}
+	if *reinstall {
+		steps = append(steps, "stop agent-busd; a node that will not stop is not reinstalled",
+			fmt.Sprintf("set aside everything in %s, and the unit's drop-ins, in the root-only %s; nothing there is read again", svcHome, aside))
+	}
+	steps = append(steps,
 		fmt.Sprintf("create the system account %s with home %s", svcAccount, svcHome),
 		fmt.Sprintf("create the system account %s with home %s", runAccount, runHome),
-	}
+	)
 	for _, d := range dirs {
 		steps = append(steps, fmt.Sprintf("make %s %s's own, %#o", d.path, d.owner, d.mode))
 	}
@@ -197,6 +208,11 @@ func setup() error {
 			"Nothing after this step does: the daemon runs as %s.\n"+
 			"Use --dry-run to see the steps, or --print-unit for the unit alone",
 			steps[0], unitPath, strings.Join(os.Args, " "), svcAccount)
+	}
+	if *reinstall {
+		if err := setAside(aside); err != nil {
+			return err
+		}
 	}
 	// sshd executes even a forced command through the account's shell. The
 	// daemon account therefore needs sh; restrict,command= on every issued key
@@ -305,6 +321,53 @@ func setup() error {
 	}
 	fmt.Printf("agent-busd runs as %s, owned by %s, state in %s; services are %s's, in %s\n",
 		svcAccount, me, svcHome, runAccount, svcDir)
+	return nil
+}
+
+// setAside is the reinstall's first half (Plans/MVP/0.7-cutover.md#procedure):
+// the daemon is stopped, and everything it kept — the database or the 0.6
+// dump, the credentials, authorized keys — and every drop-in that would
+// override the new unit moves into one root-only directory beside its home.
+// Nothing there is read again. A daemon that will not stop is not
+// reinstalled, and an existing set-aside directory is never overwritten.
+func setAside(aside string) error {
+	if err := run("systemctl", "stop", "agent-busd"); err != nil {
+		return fmt.Errorf("agent-busd will not stop, so it is not reinstalled: %w", err)
+	}
+	if out, _ := exec.Command("systemctl", "is-active", "agent-busd").Output(); strings.TrimSpace(string(out)) == "active" {
+		return fmt.Errorf("agent-busd is still active, so it is not reinstalled")
+	}
+	if err := os.Mkdir(aside, 0o700); err != nil {
+		return fmt.Errorf("set aside: %w", err)
+	}
+	moveAll := func(from, into string) error {
+		entries, err := os.ReadDir(from)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if len(entries) == 0 {
+			return nil
+		}
+		if err := os.MkdirAll(into, 0o700); err != nil {
+			return err
+		}
+		for _, e := range entries {
+			if err := os.Rename(filepath.Join(from, e.Name()), filepath.Join(into, e.Name())); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := moveAll(svcHome, filepath.Join(aside, "home")); err != nil {
+		return fmt.Errorf("set aside %s: %w", svcHome, err)
+	}
+	if err := moveAll(unitPath+".d", filepath.Join(aside, "agent-busd.service.d")); err != nil {
+		return fmt.Errorf("set aside the unit's drop-ins: %w", err)
+	}
+	fmt.Printf("set aside the old daemon state in %s\n", aside)
 	return nil
 }
 
