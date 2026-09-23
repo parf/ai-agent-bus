@@ -20,13 +20,22 @@ func TestPublicPageDescribesTheProject(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := string(page)
-	if !strings.Contains(out, "Sign in to AgentBus") {
+	if !strings.Contains(out, "<h1>One bus for agents, bots and services</h1>") {
 		t.Fatalf("not the signed-out page: %.200s", out)
 	}
-	footer := section(t, out, "<footer", "</footer>")
+	body := section(t, out, "<main>", "<footer")
+	// What this is, said on the page rather than only in the small print.
 	for _, want := range []string{
 		"Connect AI and NON-AI agents, bots and services so they can find and message each other.",
 		"One daemon gives you a registry, message queues, an MCP server, dashboard and much more",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the signed-out page does not say %q", want)
+		}
+	}
+	// The project's links are on it, and in the footer of it.
+	footer := section(t, out, "<footer", "</footer>")
+	for _, want := range []string{
 		`href="https://github.com/parf/ai-agent-bus"`,
 		`href="https://parf.dev/"`,
 		"Serg Parf",
@@ -34,8 +43,10 @@ func TestPublicPageDescribesTheProject(t *testing.T) {
 		if !strings.Contains(footer, want) {
 			t.Errorf("the signed-out footer does not carry %q", want)
 		}
+		if !strings.Contains(body, want) {
+			t.Errorf("the signed-out page does not carry %q where a visitor reads it", want)
+		}
 	}
-	body := section(t, out, "<main>", "<footer")
 	if !strings.Contains(body, "src=/agent-bus.jpg") {
 		t.Errorf("the signed-out page does not show the project picture: %.400s", body)
 	}
@@ -133,6 +144,37 @@ func readBody(t *testing.T, w *httptest.ResponseRecorder) string {
 		t.Fatal(err)
 	}
 	return string(page)
+}
+
+// A visitor is asked for a token, so the page says where one comes from: a
+// hover tooltip on the control beside the heading, and the same two commands
+// in a popover for anyone who cannot hover.
+func TestTheSignInFormSaysHowToGetAToken(t *testing.T) {
+	m := meaningFixture(t)
+	w := httptest.NewRecorder()
+	dashboard(&caller{client: m.backend.Client(), base: m.backend.URL}, false).
+		ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
+	out := readBody(t, w)
+	card := section(t, out, "<div class=signin-card>", "</main>")
+	if !strings.Contains(card, `name=token`) {
+		t.Fatal("the sign-in card has no token field")
+	}
+	control := section(t, card, "<button type=button class=help-button", ">")
+	if !strings.Contains(control, "popovertarget=token-help") {
+		t.Error("the help control opens nothing")
+	}
+	hover := section(t, control, `data-tooltip="`, `"`)
+	for _, want := range []string{"agent-bus-token", "ssh agent-busd@"} {
+		if !strings.Contains(hover, want) {
+			t.Errorf("hovering the control does not mention %q: %q", want, hover)
+		}
+	}
+	help := section(t, out, "<div popover id=token-help", "</ul>")
+	for _, want := range []string{"agent-bus-token", "ssh agent-busd@"} {
+		if !strings.Contains(help, want) {
+			t.Errorf("the token help does not mention %q", want)
+		}
+	}
 }
 
 func TestASignedInPageKeepsTheProjectPitchOut(t *testing.T) {

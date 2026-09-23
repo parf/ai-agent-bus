@@ -138,7 +138,7 @@ func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 	public, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	publicPage := string(public)
-	if resp.StatusCode != http.StatusOK || !strings.Contains(publicPage, `🔑</span> Sign in to AgentBus</h1>`) {
+	if resp.StatusCode != http.StatusOK || !strings.Contains(publicPage, `🔑</span> Sign in</h2>`) {
 		t.Fatal("public sign-in page lost its credential title")
 	}
 	if strings.Count(publicPage, `<a class=skip-link href=#main>Skip to main content</a>`) != 1 ||

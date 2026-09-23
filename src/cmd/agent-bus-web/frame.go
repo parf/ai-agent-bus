@@ -27,8 +27,9 @@ type pageInfo struct {
 	// disagreeing.
 	At string
 	// Public marks the page a stranger reaches without a credential. Its
-	// footer says what this project is and where to read about it; a page
-	// behind a session is for somebody already here and does not.
+	// footer carries the project's links; what the project is, the page
+	// itself says. A page behind a session is for somebody already here and
+	// carries neither.
 	Public bool
 }
 
@@ -100,7 +101,6 @@ const frameHeaderEnd = `</header>
 var frameFooter = template.Must(template.New("footer").Funcs(template.FuncMap{"number": number}).Parse(`</main>
 <footer class=site-footer aria-label="Node and build information">
 {{with .Node}}<div class=footer-node><span><strong>Owner</strong> <code>{{if .Owner}}{{.Owner}}{{else}}unavailable{{end}}</code></span><span><strong>Uptime</strong> {{if .Up}}{{.Up}}{{else}}unavailable{{end}}</span>{{with $.At}}<span><strong>Generated</strong> {{.}}</span>{{end}}</div>{{else}}<div class=footer-node><span>Node information unavailable</span>{{with .At}}<span><strong>Generated</strong> {{.}}</span>{{end}}</div>{{end}}
-{{if .Public}}<div class=footer-about><p>Connect AI and NON-AI agents, bots and services so they can find and message each other. One daemon gives you a registry, message queues, an MCP server, dashboard and much more&hellip;</p>
-<p>Github: <a href="https://github.com/parf/ai-agent-bus">github.com/parf/ai-agent-bus</a> (docs &amp; updates) &middot; Author: <a href="https://parf.dev/">Serg Parf</a></p></div>{{end}}
+{{if .Public}}<div class=footer-about><p>Github: <a href="https://github.com/parf/ai-agent-bus">github.com/parf/ai-agent-bus</a> (docs &amp; updates) &middot; Author: <a href="https://parf.dev/">Serg Parf</a></p></div>{{end}}
 </footer>
 </html>`))

@@ -474,8 +474,24 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
 .footer-node{display:flex;flex-wrap:wrap;gap:.35rem 1.25rem;margin-bottom:.35rem}
 .footer-about{max-width:60rem;margin:.75rem auto 0;text-align:center;white-space:normal}
 .footer-about p{margin:.35rem 0}
-.hero{margin:1rem 0}
-.hero img{max-width:100%;height:auto}
+.hero{margin:0}
+.hero img{max-width:100%;height:auto;border-radius:6px}
+.landing{max-width:56rem;margin:0 auto;text-align:center}
+.landing h1{margin:1.25rem 0 .5rem;font-size:1.9rem;line-height:1.2}
+.landing .lede{max-width:44rem;margin:0 auto .6rem;font-size:1.05rem}
+.landing .muted{max-width:44rem;margin:0 auto}
+.landing-features{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:.75rem;margin:1.5rem 0;text-align:left}
+.landing-feature{padding:.85rem 1rem;border:1px solid var(--border);border-radius:6px;background:var(--surface-2)}
+.landing-feature strong{display:block;margin-bottom:.25rem}
+.landing-links{margin:1.25rem 0 0}
+.landing-links a+a{margin-left:.35rem}
+.signin-card{max-width:30rem;margin:2rem auto 0;padding:1.25rem 1.5rem 1.5rem;border:1px solid var(--border);border-radius:6px;background:var(--surface-1)}
+.signin-card .page-title{justify-content:center;margin-bottom:.9rem}
+.signin-card .page-title h2{margin:0;font-size:1.15rem}
+.signin-row{display:flex;gap:.5rem;margin-top:.3rem}
+.signin-row input{flex:1 1 auto;min-width:0;min-height:2.45rem;padding:.4rem .55rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-1);font:inherit}
+.signin-row button{flex:none;min-height:2.45rem;padding:0 1rem;border:1px solid var(--border-strong);border-radius:3px;background:var(--surface-2);font:inherit;cursor:pointer}
+.signin-card label{font-size:.8rem;color:var(--text-2)}
 .build-tip{text-decoration:underline dotted;text-underline-offset:.2em;cursor:help}
 .page-title{margin-bottom:.5rem}
  .page-title h1{font-size:1.75rem;line-height:1.2;margin:.5rem 0}
@@ -721,17 +737,34 @@ func (s signin) Frame() pageInfo { p := s.pageInfo; p.Public = true; return p }
 var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(head + `<title>Sign in · agent-bus</title><a class=skip-link href=#main>Skip to main content</a>` + frameHeader + frameHeaderEnd + `
 <main>
 <a id=main tabindex=-1></a>
-<div class=page-title><h1>{{titleMark "credentials"}} Sign in to AgentBus</h1></div>
+<div class=landing>
 <p class=hero><img src=/agent-bus.jpg alt="A red double-decker named Agents Bus, carrying AI and non-AI riders: Claude, OpenAI, Slack, Telegram, Email and a shell" width=648 height=432></p>
+<h1>One bus for agents, bots and services</h1>
+<p class=lede>Connect AI and NON-AI agents, bots and services so they can find and message each other. One daemon gives you a registry, message queues, an MCP server, dashboard and much more&hellip;</p>
+<div class=landing-features>
+<div class=landing-feature><strong>{{titleMark "identity"}} Registry</strong>Who and what is on the bus: users, agents, queues, services and groups. Every record has an owner and a list of who may reach it.</div>
+<div class=landing-feature><strong>{{titleMark "queue"}} Messages</strong>Queues hold what was sent until somebody reads it. Pub/sub copies one publication to everyone subscribed.</div>
+<div class=landing-feature><strong>{{titleMark "agents"}} MCP server</strong>An agent reaches the bus through MCP, so finding a peer and sending it a message are tools the model already knows how to call.</div>
+<div class=landing-feature><strong>{{titleMark "overview"}} Dashboard</strong>This web face, once you are signed in: what is registered, what is waiting, and what has gone wrong.</div>
+</div>
+<p class=landing-links><a href="https://github.com/parf/ai-agent-bus">GitHub &mdash; docs &amp; updates</a> &middot; by <a href="https://parf.dev/">Serg Parf</a></p>
+</div>
+
+<div class=signin-card>
+<div class=page-title><h2>{{titleMark "credentials"}} Sign in</h2><button type=button class=help-button popovertarget=token-help aria-label="How to get a token" data-tooltip="A token is what every call carries. Run agent-bus-token &lt;name&gt; on the box, or ssh agent-busd@&lt;node&gt; token from anywhere your key reaches.">&#9432;</button></div>
+<div popover id=token-help class=context-help><h2>Getting a token</h2><ul>
+<li>On this box: <code>agent-bus-token &lt;name&gt;</code></li>
+<li>From anywhere your key reaches: <code>ssh agent-busd@&lt;node&gt; token</code></li>
+<li>Asking again returns the token you already have. It does not expire on its own.</li>
+</ul></div>
 <form method=post action=/signin>
 {{with .Return}}<input type=hidden name=return value="{{.}}">{{end}}
- <p><label>token <input type=password name=token autofocus></label>
- <button type=submit>sign in</button>
-{{with .Refused}}<p class=muted>{{.}}{{end}}
+<label for=token>token</label>
+<div class=signin-row><input id=token type=password name=token autofocus><button type=submit>sign in</button></div>
+{{with .Refused}}<p class=warn>{{.}}{{end}}
 </form>
-<p class=muted>A token is what every call carries. Get one with
- <code>agent-bus-token &lt;name&gt;</code> on the box, or
- <code>ssh agent-busd@&lt;node&gt; token</code> from anywhere your key reaches.
+</div>
+</main>
 `))
 
 var overviewPage = template.Must(template.New("overview").Funcs(template.FuncMap{"titleMark": titleMark, "number": number, "figure": figure}).Parse(shell("overview", "Overview") + `<div class=page-title><h1>{{titleMark "overview"}} Overview</h1><button type=button class=help-button popovertarget=overview-help aria-label="About Overview" data-tooltip="Only enumerated observations appear. An empty list does not claim the node is healthy.">ⓘ</button></div><div popover id=overview-help class=context-help><h2>Overview scope</h2><ul><li>Attention items cover the conditions the daemon reports over records visible to you, plus node-wide refusals and the previous-stop marker.</li><li>A backlog by itself is ordinary work and is not called unhealthy.</li><li>The node totals and your caller-visible lists have different scopes and never have to agree.</li></ul></div>

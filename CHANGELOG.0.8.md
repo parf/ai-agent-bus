@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.15 — 2026-09-23
+
+The page a stranger reaches is a landing page: the picture, what agent-bus is,
+the project's links, and the sign-in card at the bottom with an ⓘ that says how
+to get a token.
+
 ## 0.8.14 — 2026-09-23
 
 Activity review fixes: a read ticks the rings first, a damaged stored day is
