@@ -280,7 +280,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         // A new address is a record its User owns, and only that User is
         // issued its credential, so a face holding one agent's token cannot
         // move to it. The ab-* launchers act for the User and can
-        // (Plans/MVP/QUESTIONS.md#open-questions, Q105).
+        // (docs/08-runner-role.md#explicit-session-rename, Q105).
         return text(`renaming ${bus.name} needs an ab-* launcher: the new address would be ${next}, and this face holds only its own agent's credential. No address was changed.`, true);
 
       }
