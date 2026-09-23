@@ -10,6 +10,9 @@ const (
 
 // User is an administrator-vouched profile, separate from service registration.
 type User struct {
+	// ID is the internal user_id: stable, persisted, never reused and never
+	// the public identity (docs/constitution.md#-user).
+	ID         uint32 `json:"-"`
 	Name       string `json:"name"`
 	PersonName string `json:"person_name,omitempty"`
 	Email      string `json:"email,omitempty"`
@@ -30,6 +33,9 @@ type User struct {
 	PhotoSource    string    `json:"photo_source,omitempty"`
 	PhotoFetchedAt time.Time `json:"photo_fetched_at,omitempty,omitzero"`
 	State          string    `json:"state"`
+	// Created and Updated are the system's lifecycle stamps.
+	Created time.Time `json:"created_at,omitzero"`
+	Updated time.Time `json:"updated_at,omitzero"`
 	// Derived by the daemon for the current visitor, never accepted as claims.
 	Kind          string   `json:"kind"`
 	CanRemove     bool     `json:"can_remove,omitempty"`

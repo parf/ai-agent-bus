@@ -57,6 +57,8 @@ var (
 	// membership change: emptying a group leaves every record that names it
 	// alone, and unmapping the name would not have.
 	ErrNoRemoval = errors.New("a group is retired by emptying its membership; there is no removal")
+	// Every internal ID has been handed out once; none is ever reused.
+	ErrExhausted = errors.New("no internal IDs are left to give a new entity")
 )
 
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.
@@ -108,6 +110,13 @@ type Bus struct {
 	// flushed is each queue's counters as last saved, so a queue flush writes
 	// only what moved since (snapshot.go).
 	flushed map[string]queueMark
+	// nextRecordID and nextUserID are the next internal IDs; they only grow,
+	// so an ID is never reused (docs/constitution.md#common-record-fields).
+	// recordByID and userByID are the derived indexes, rebuilt on load.
+	nextRecordID, nextUserID uint32
+	recordByID               map[uint32]string
+	userByID                 map[uint32]string
+	idsExhausted             bool
 	accounts map[string]string
 	// activeAccounts is what the supervisor actually opened for this run.
 	// accounts may move ahead after a durable administrative edit; the
@@ -162,6 +171,10 @@ func New() *Bus {
 		refused:        map[string]int{},
 		inboxes:        map[string]*inbox{},
 		flushed:        map[string]queueMark{},
+		nextRecordID:   1,
+		nextUserID:     1,
+		recordByID:     map[uint32]string{},
+		userByID:       map[uint32]string{},
 		started:        time.Now(),
 	}
 }

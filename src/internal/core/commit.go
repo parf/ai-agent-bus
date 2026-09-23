@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -27,11 +28,14 @@ type staged struct {
 	owner      *string
 	accounts   map[string]string
 	accountsOn bool
+	// The ID high-water marks before the write, when it moved them.
+	nextRecordID, nextUserID uint32
+	idsOn                    bool
 }
 
 func (s *staged) empty() bool {
 	return len(s.records) == 0 && len(s.users) == 0 && len(s.groups) == 0 &&
-		len(s.inboxes) == 0 && s.owner == nil && !s.accountsOn
+		len(s.inboxes) == 0 && s.owner == nil && !s.accountsOn && !s.idsOn
 }
 
 func (b *Bus) stage() *staged {
@@ -50,14 +54,44 @@ func (b *Bus) stage() *staged {
 // outside Restore. Caller holds b.mu.
 func (b *Bus) setRecord(name string, r protocol.Record) {
 	s := b.stage()
+	old, had := b.records[name]
 	if _, seen := s.records[name]; !seen {
-		if old, had := b.records[name]; had {
+		if had {
 			s.records[name] = &old
 		} else {
 			s.records[name] = nil
 		}
 	}
+	// An existing record keeps its identity and its birth; a new one is
+	// given the next ID, which is never handed out again.
+	if had {
+		r.ID, r.Created = old.ID, old.Created
+	} else {
+		r.ID = b.takeID(&b.nextRecordID)
+		r.Created = time.Now()
+	}
+	if r.Created.IsZero() {
+		r.Created = time.Now()
+	}
 	b.records[name] = r
+	b.recordByID[r.ID] = name
+}
+
+// takeID hands out the next ID from a high-water mark and moves the mark,
+// staging the old value so a failed write gives it back. The mark never
+// wraps: past the last ID there are no more.
+func (b *Bus) takeID(next *uint32) uint32 {
+	s := b.stage()
+	if !s.idsOn {
+		s.nextRecordID, s.nextUserID, s.idsOn = b.nextRecordID, b.nextUserID, true
+	}
+	id := *next
+	if id == 0 || id == ^uint32(0) {
+		b.idsExhausted = true
+		return 0
+	}
+	*next = id + 1
+	return id
 }
 
 func (b *Bus) dropRecord(name string) {
@@ -65,10 +99,11 @@ func (b *Bus) dropRecord(name string) {
 		return
 	}
 	s := b.stage()
+	old := b.records[name]
 	if _, seen := s.records[name]; !seen {
-		old := b.records[name]
 		s.records[name] = &old
 	}
+	delete(b.recordByID, old.ID)
 	delete(b.records, name)
 }
 
@@ -87,14 +122,24 @@ func (b *Bus) dropInbox(name string) {
 
 func (b *Bus) setUser(name string, u protocol.User) {
 	s := b.stage()
+	old, had := b.users[name]
 	if _, seen := s.users[name]; !seen {
-		if old, had := b.users[name]; had {
+		if had {
 			s.users[name] = &old
 		} else {
 			s.users[name] = nil
 		}
 	}
+	now := time.Now()
+	if had {
+		u.ID, u.Created = old.ID, old.Created
+	} else {
+		u.ID = b.takeID(&b.nextUserID)
+		u.Created = now
+	}
+	u.Updated = now
 	b.users[name] = u
+	b.userByID[u.ID] = name
 }
 
 func (b *Bus) setGroup(name string, members []string) {
@@ -135,6 +180,11 @@ func (b *Bus) commit() error {
 	b.staging = nil
 	if s == nil || s.empty() {
 		return nil
+	}
+	if b.idsExhausted {
+		b.idsExhausted = false
+		b.rollback(s)
+		return ErrExhausted
 	}
 	if b.store == nil {
 		return nil
@@ -198,24 +248,39 @@ func (b *Bus) change(s *staged) ports.Change {
 	if s.accountsOn {
 		c.Accounts = cloneAccounts(b.accounts)
 	}
+	if s.idsOn {
+		nextRecord, nextUser := b.nextRecordID, b.nextUserID
+		c.NextRecordID, c.NextUserID = &nextRecord, &nextUser
+	}
 	return c
 }
 
 // rollback restores every staged entity to its value before the write.
 func (b *Bus) rollback(s *staged) {
 	for name, old := range s.records {
+		if now, has := b.records[name]; has {
+			delete(b.recordByID, now.ID)
+		}
 		if old == nil {
 			delete(b.records, name)
 		} else {
 			b.records[name] = *old
+			b.recordByID[old.ID] = name
 		}
 	}
 	for name, old := range s.users {
+		if now, has := b.users[name]; has {
+			delete(b.userByID, now.ID)
+		}
 		if old == nil {
 			delete(b.users, name)
 		} else {
 			b.users[name] = *old
+			b.userByID[old.ID] = name
 		}
+	}
+	if s.idsOn {
+		b.nextRecordID, b.nextUserID = s.nextRecordID, s.nextUserID
 	}
 	for name, old := range s.groups {
 		if old == nil {

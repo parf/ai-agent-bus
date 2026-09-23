@@ -41,6 +41,10 @@ type Snapshot struct {
 	Records             []protocol.Record
 	Groups              map[string][]string `json:",omitempty"`
 	Queues              []Queue
+	// NextRecordID and NextUserID are the next internal IDs to hand out.
+	// They only grow, so an ID is never reused after its entity is removed
+	// (docs/constitution.md#common-record-fields).
+	NextRecordID, NextUserID uint32
 }
 
 // Change is one management write: every entity it touches, as it will be
@@ -57,12 +61,15 @@ type Change struct {
 	Groups   map[string]*[]string
 	// DropQueues names queues whose durable state goes with their record.
 	DropQueues []string
+	// NextRecordID and NextUserID, when set, are the new high-water marks.
+	NextRecordID, NextUserID *uint32
 }
 
 // Empty reports whether the change writes nothing.
 func (c Change) Empty() bool {
 	return c.Owner == nil && c.Accounts == nil && len(c.Users) == 0 &&
-		len(c.Records) == 0 && len(c.Groups) == 0 && len(c.DropQueues) == 0
+		len(c.Records) == 0 && len(c.Groups) == 0 && len(c.DropQueues) == 0 &&
+		c.NextRecordID == nil && c.NextUserID == nil
 }
 
 // Store keeps the durable state. Management writes commit one Change as one

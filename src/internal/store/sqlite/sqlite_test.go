@@ -49,10 +49,12 @@ func TestDatabaseIsPrivate(t *testing.T) {
 func TestCommitThenLoad(t *testing.T) {
 	s, path := open(t)
 	owner := "admin@h"
-	user := protocol.User{Name: "admin@h", State: "active", Email: "a@example.com"}
-	rec := protocol.Record{Name: "svc@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"@ops"}}
+	user := protocol.User{ID: 7, Name: "admin@h", State: "active", Email: "a@example.com"}
+	rec := protocol.Record{ID: 9, Name: "svc@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"@ops"}}
 	members := []string{"admin@h"}
+	nextRec, nextUser := uint32(10), uint32(8)
 	if err := s.Commit(ports.Change{
+		NextRecordID: &nextRec, NextUserID: &nextUser,
 		Owner:    &owner,
 		Accounts: map[string]string{"parf": "admin@h"},
 		Users:    map[string]*protocol.User{user.Name: &user},
@@ -77,11 +79,14 @@ func TestCommitThenLoad(t *testing.T) {
 	if !snap.OwnerEstablished || snap.Owner != owner || !snap.AccountsEstablished || len(snap.Accounts) != 1 || !snap.Clean {
 		t.Fatalf("meta %+v", snap)
 	}
-	if len(snap.Users) != 1 || snap.Users[0].Email != "a@example.com" {
+	if len(snap.Users) != 1 || snap.Users[0].Email != "a@example.com" || snap.Users[0].ID != 7 {
 		t.Fatalf("users %+v", snap.Users)
 	}
-	if len(snap.Records) != 1 || snap.Records[0].Allow[0] != "@ops" {
+	if len(snap.Records) != 1 || snap.Records[0].Allow[0] != "@ops" || snap.Records[0].ID != 9 {
 		t.Fatalf("records %+v", snap.Records)
+	}
+	if snap.NextRecordID != 10 || snap.NextUserID != 8 {
+		t.Fatalf("high-water marks %d %d", snap.NextRecordID, snap.NextUserID)
 	}
 	if len(snap.Groups["@ops"]) != 1 {
 		t.Fatalf("groups %+v", snap.Groups)
@@ -94,7 +99,7 @@ func TestCommitThenLoad(t *testing.T) {
 // Removing a record in one change removes its queue in the same change.
 func TestDropQueueGoesWithTheRecord(t *testing.T) {
 	s, _ := open(t)
-	rec := protocol.Record{Name: "svc@h", Kind: protocol.KindAgent, Owner: "admin@h"}
+	rec := protocol.Record{ID: 1, Name: "svc@h", Kind: protocol.KindAgent, Owner: "admin@h"}
 	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{rec.Name: &rec}}); err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +121,7 @@ func TestDropQueueGoesWithTheRecord(t *testing.T) {
 // A commit that fails part-way leaves nothing of itself behind.
 func TestFailedCommitWritesNothing(t *testing.T) {
 	s, _ := open(t)
-	good := protocol.Record{Name: "a@h", Kind: protocol.KindAgent, Owner: "admin@h"}
+	good := protocol.Record{ID: 1, Name: "a@h", Kind: protocol.KindAgent, Owner: "admin@h"}
 	if _, err := s.db.Exec(`CREATE TRIGGER refuse BEFORE INSERT ON groups BEGIN SELECT RAISE(ABORT, 'refused'); END`); err != nil {
 		t.Fatal(err)
 	}

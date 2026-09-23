@@ -355,6 +355,9 @@ Owner holds node-wide management authority
 **Built in 0.7.1**, through `modernc.org/sqlite` behind the store ports. The
 daemon is told where the database is with `-db`; setup runs `agent-busd -init`
 once, as the daemon account, to create it, and the unit never passes `-create`.
+Every record and user carries an internal ID from 0.7.3: stable, persisted,
+never on an answer, and never handed out twice, because the database keeps each
+high-water mark rather than deriving it from what is left.
 The [0.7 transition](../Plans/MVP/0.7-cutover.md#scope) uses clean reinstall: the
 0.6 JSON dump and token file are neither read nor kept as stores. Additional
 database adapters remain [R1 work](../Plans/R1/storage.md#backends). Durability is

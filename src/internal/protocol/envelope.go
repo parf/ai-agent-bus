@@ -110,6 +110,10 @@ func (m *MaintainerList) UnmarshalJSON(data []byte) error {
 // is pushing a description; the thing itself need not know the bus exists.
 // See docs/03-records.md#five-record-kinds.
 type Record struct {
+	// ID is the internal registry_id: stable, persisted, never reused and
+	// never the public identity, so it is on no answer
+	// (docs/constitution.md#common-record-fields).
+	ID   uint32 `json:"-"`
 	Name string `json:"name"`
 	Kind string `json:"kind"`           // one of Kinds; a closed set
 	Addr string `json:"addr,omitempty"` // host:port, a path, a URL
@@ -144,6 +148,9 @@ type Record struct {
 	Personal bool      `json:"personal,omitempty"`
 	Disabled bool      `json:"disabled,omitempty"`
 	At       time.Time `json:"at"`
+	// Created is when the record was first stored; At is when it last was.
+	// Both are the system's, never a caller's.
+	Created time.Time `json:"created_at,omitzero"`
 
 	// Allow is the service ACL: who may see and use this. It is a field on
 	// the record, not something inside Config, because the daemon enforces

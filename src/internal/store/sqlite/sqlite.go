@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,12 +29,12 @@ import (
 // schema is the layout this daemon reads and writes. A database carrying any
 // other version is refused rather than guessed at: before 1.1 there is no
 // compatibility obligation, and 0.7 starts from a clean reinstall.
-const schema = 1
+const schema = 2
 
 var tables = []string{
 	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
-	`CREATE TABLE users (name TEXT PRIMARY KEY, body TEXT NOT NULL)`,
-	`CREATE TABLE records (name TEXT PRIMARY KEY, body TEXT NOT NULL)`,
+	`CREATE TABLE users (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, body TEXT NOT NULL)`,
+	`CREATE TABLE records (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, kind TEXT NOT NULL, body TEXT NOT NULL)`,
 	`CREATE TABLE groups (name TEXT PRIMARY KEY, members TEXT NOT NULL)`,
 	`CREATE TABLE accounts (account TEXT PRIMARY KEY, principal TEXT NOT NULL)`,
 	`CREATE TABLE queues (name TEXT PRIMARY KEY, in_count INTEGER NOT NULL, out_count INTEGER NOT NULL, dropped INTEGER NOT NULL, expired INTEGER NOT NULL)`,
@@ -204,25 +205,40 @@ func (s *Store) Load() (ports.Snapshot, error) {
 		snap.Accounts = append(snap.Accounts, m)
 	}
 	rows.Close()
-	if err := eachBody(tx, `SELECT name, body FROM users ORDER BY name`, func(name string, body []byte) error {
+	if err := eachIDBody(tx, `SELECT name, id, body FROM users ORDER BY name`, func(name string, id uint32, body []byte) error {
 		var u protocol.User
 		if err := json.Unmarshal(body, &u); err != nil {
 			return fmt.Errorf("user %s: %w", name, err)
 		}
+		u.ID = id
 		snap.Users = append(snap.Users, u)
 		return nil
 	}); err != nil {
 		return snap, err
 	}
-	if err := eachBody(tx, `SELECT name, body FROM records ORDER BY name`, func(name string, body []byte) error {
+	if err := eachIDBody(tx, `SELECT name, id, body FROM records ORDER BY name`, func(name string, id uint32, body []byte) error {
 		var r protocol.Record
 		if err := json.Unmarshal(body, &r); err != nil {
 			return fmt.Errorf("record %s: %w", name, err)
 		}
+		r.ID = id
 		snap.Records = append(snap.Records, r)
 		return nil
 	}); err != nil {
 		return snap, err
+	}
+	for key, into := range map[string]*uint32{"next_record_id": &snap.NextRecordID, "next_user_id": &snap.NextUserID} {
+		v, has, err := meta(tx, key)
+		if err != nil {
+			return snap, err
+		}
+		if has {
+			n, err := strconv.ParseUint(v, 10, 32)
+			if err != nil {
+				return snap, fmt.Errorf("meta %s: %w", key, err)
+			}
+			*into = uint32(n)
+		}
 	}
 	snap.Groups = map[string][]string{}
 	if err := eachBody(tx, `SELECT name, members FROM groups ORDER BY name`, func(name string, body []byte) error {
@@ -279,6 +295,29 @@ func (s *Store) Load() (ports.Snapshot, error) {
 		snap.Queues = append(snap.Queues, *queues[name])
 	}
 	return snap, tx.Commit()
+}
+
+func eachIDBody(tx *sql.Tx, query string, each func(string, uint32, []byte) error) error {
+	rows, err := tx.Query(query)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		var id int64
+		var body []byte
+		if err := rows.Scan(&name, &id, &body); err != nil {
+			return err
+		}
+		if id <= 0 || id > 1<<32-1 {
+			return fmt.Errorf("%s has an id out of range: %d", name, id)
+		}
+		if err := each(name, uint32(id), body); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
 }
 
 func eachBody(tx *sql.Tx, query string, each func(string, []byte) error) error {
@@ -344,7 +383,7 @@ func (s *Store) Commit(c ports.Change) error {
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(`INSERT INTO users (name, body) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET body = excluded.body`, name, body); err != nil {
+		if _, err := tx.Exec(`INSERT INTO users (name, id, body) VALUES (?, ?, ?) ON CONFLICT(name) DO UPDATE SET id = excluded.id, body = excluded.body`, name, u.ID, body); err != nil {
 			return err
 		}
 	}
@@ -359,7 +398,7 @@ func (s *Store) Commit(c ports.Change) error {
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(`INSERT INTO records (name, body) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET body = excluded.body`, name, body); err != nil {
+		if _, err := tx.Exec(`INSERT INTO records (name, id, kind, body) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET id = excluded.id, kind = excluded.kind, body = excluded.body`, name, r.ID, r.Kind, body); err != nil {
 			return err
 		}
 	}
@@ -375,6 +414,16 @@ func (s *Store) Commit(c ports.Change) error {
 			return err
 		}
 		if _, err := tx.Exec(`INSERT INTO groups (name, members) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET members = excluded.members`, name, body); err != nil {
+			return err
+		}
+	}
+	if c.NextRecordID != nil {
+		if err := setMeta(tx, "next_record_id", strconv.FormatUint(uint64(*c.NextRecordID), 10)); err != nil {
+			return err
+		}
+	}
+	if c.NextUserID != nil {
+		if err := setMeta(tx, "next_user_id", strconv.FormatUint(uint64(*c.NextUserID), 10)); err != nil {
 			return err
 		}
 	}

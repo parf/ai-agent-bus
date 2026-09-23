@@ -51,6 +51,8 @@ type State struct {
 	groups   map[string][]string
 	queues   map[string]ports.Queue
 	clean    bool
+	nextRec  uint32
+	nextUser uint32
 	// Enter, when set, is closed as the first commit starts, which then waits
 	// for Release: a test's way to hold a write open.
 	Enter, Release chan struct{}
@@ -73,7 +75,8 @@ func (s *State) Load() (ports.Snapshot, error) {
 	snap := ports.Snapshot{
 		OwnerEstablished: s.hasOwner, Owner: s.owner,
 		AccountsEstablished: s.hasAccts, Clean: s.clean,
-		Groups: map[string][]string{},
+		Groups:       map[string][]string{},
+		NextRecordID: s.nextRec, NextUserID: s.nextUser,
 	}
 	for account, principal := range s.accounts {
 		snap.Accounts = append(snap.Accounts, protocol.AccountMapping{Account: account, Principal: principal})
@@ -140,6 +143,12 @@ func (s *State) Commit(c ports.Change) error {
 	}
 	for _, name := range c.DropQueues {
 		delete(s.queues, name)
+	}
+	if c.NextRecordID != nil {
+		s.nextRec = *c.NextRecordID
+	}
+	if c.NextUserID != nil {
+		s.nextUser = *c.NextUserID
 	}
 	s.Commits++
 	return nil

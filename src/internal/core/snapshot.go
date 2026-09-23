@@ -26,6 +26,8 @@ func (b *Bus) snapshot() ports.Snapshot {
 		AccountsEstablished: true,
 		At:                  time.Now(),
 		Groups:              map[string][]string{},
+		NextRecordID:        b.nextRecordID,
+		NextUserID:          b.nextUserID,
 	}
 	for account, principal := range b.accounts {
 		s.Accounts = append(s.Accounts, protocol.AccountMapping{Account: account, Principal: principal})
@@ -160,6 +162,12 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		}
 	}
 	b.unclean = !s.Clean
+	if s.NextRecordID > b.nextRecordID {
+		b.nextRecordID = s.NextRecordID
+	}
+	if s.NextUserID > b.nextUserID {
+		b.nextUserID = s.NextUserID
+	}
 	for _, user := range s.Users {
 		// A snapshot may come from another version or an embedding caller.
 		// Derived answers belong to this process and its current visitor.
@@ -219,6 +227,7 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		}
 		b.records[r.Name] = r
 	}
+	b.indexIDs()
 	// Personal validation asks about OTHER records, so it runs once they are
 	// all here: a snapshot does not promise that a Personal record's ACL is
 	// listed after the records it names.
@@ -244,4 +253,79 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		in.queue = append(in.queue, q.Messages...)
 		b.flushed[q.Name] = queueMark{in.in, in.out, in.dropped, in.expired}
 	}
+}
+
+// indexIDs rebuilds the ID indexes from the loaded entities and moves the
+// high-water marks past every ID in use. A stored database always carries an
+// ID; an entity without one comes from a test or an embedding caller and is
+// given the next. Two entities claiming one ID are damage: the second is
+// ignored and reported (docs/constitution.md#persistence-and-loading).
+// Caller holds b.mu.
+func (b *Bus) indexIDs() {
+	b.recordByID, b.userByID = map[uint32]string{}, map[uint32]string{}
+	names := make([]string, 0, len(b.records))
+	for name := range b.records {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		r := b.records[name]
+		if r.ID >= b.nextRecordID {
+			b.nextRecordID = r.ID + 1
+		}
+	}
+	for _, name := range names {
+		r := b.records[name]
+		if r.ID == 0 {
+			r.ID = b.nextRecordID
+			b.nextRecordID++
+			b.records[name] = r
+		}
+		if other, taken := b.recordByID[r.ID]; taken {
+			b.report(ports.Alert, "stored records %s and %s share internal ID %d; %s is ignored", other, name, r.ID, name)
+			delete(b.records, name)
+			continue
+		}
+		b.recordByID[r.ID] = name
+	}
+	users := make([]string, 0, len(b.users))
+	for name := range b.users {
+		users = append(users, name)
+	}
+	sort.Strings(users)
+	for _, name := range users {
+		if u := b.users[name]; u.ID >= b.nextUserID {
+			b.nextUserID = u.ID + 1
+		}
+	}
+	for _, name := range users {
+		u := b.users[name]
+		if u.ID == 0 {
+			u.ID = b.nextUserID
+			b.nextUserID++
+			b.users[name] = u
+		}
+		if other, taken := b.userByID[u.ID]; taken {
+			b.report(ports.Alert, "stored users %s and %s share internal ID %d; %s is ignored", other, name, u.ID, name)
+			delete(b.users, name)
+			continue
+		}
+		b.userByID[u.ID] = name
+	}
+}
+
+// RecordName and UserName answer an internal ID with the name it belongs to,
+// from the index rebuilt at load.
+func (b *Bus) RecordName(id uint32) (string, bool) {
+	b.mu.Lock()
+	defer b.unlock()
+	name, ok := b.recordByID[id]
+	return name, ok
+}
+
+func (b *Bus) UserName(id uint32) (string, bool) {
+	b.mu.Lock()
+	defer b.unlock()
+	name, ok := b.userByID[id]
+	return name, ok
 }

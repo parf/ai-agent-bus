@@ -5,6 +5,11 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.3 — 2026-09-23
+
+Every record and user carries a stable internal ID that is persisted, never
+public and never reused, with its index rebuilt at every load.
+
 ## 0.7.2 — 2026-09-23
 
 The daemon keeps three logs under `-log-dir`: an audit log of every
