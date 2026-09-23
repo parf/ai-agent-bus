@@ -25,7 +25,7 @@ Signed out, every address leads to the sign-in page. Signed in, every page has:
 
 | Address | Page | Links to |
 |---|---|---|
-| `/` | Signed out: sign in with a token. Signed in: [Overview](../../Plans/MVP/web/pages.md#overview-): attention items, the node strip (eight tiles, one per record kind, readers and calls) and a Find row | Find: agents and queues holding work (`?sort=queued&work=held`), `/services` |
+| `/` | Signed out: a landing page (the project's description, links and picture) with sign-in by token at its foot. Signed in: [Overview](../../Plans/MVP/web/pages.md#overview-): attention items, the node strip (eight tiles, one per record kind, readers and calls) and a Find row | Find: agents and queues holding work (`?sort=queued&work=held`), `/services` |
 | `/agents` · `/services` · `/queues` · `/pubsub` | [One kind's records](../../Plans/MVP/web/pages.md#agents-agents--services-services--queues-queues--pubsub-pubsub): search, Status, Readers and Queue filters, Sort. All and My omit Personal records; an empty shared list says how many Personal ones the Personal tab holds | Tabs All · My (`?scope=my`) · Personal (`/personal?kind=<this kind>`, counting that kind) · Register; each row → its record page |
 | `/personal` | Personal records of every kind, or one with `?kind=agent`, `service`, `queue` or `pubsub`, for each owner you may act for, with the same toolbar and a Kind filter | Owner chooser; rows → record pages |
 | `/agents/new` · `/services/new` · `/queues/new` · `/pubsub/new` | [Register a record](../../Plans/MVP/web/pages.md#register-agentsnew--servicesnew--queuesnew--pubsubnew) of that kind. An agent's name is `#name[@realm]` | Back to its list |

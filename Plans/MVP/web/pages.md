@@ -616,9 +616,10 @@ was last used, and the command
 
 ---
 
-## Sign in `/`
+## Landing and sign in `/`
 
-Signed out, `/` is the sign-in page and the form posts to `POST /signin`.
+Signed out, `/` is a landing page — the project's description, links and
+picture — with signing in at its foot; the form posts to `POST /signin`.
 
 Token, and how to get one. The form takes a token and nothing else — there is no
 name to type, so there is no second failure message to read as an oracle for

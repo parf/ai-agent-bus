@@ -68,7 +68,7 @@ The planned page map follows. `⚠` marks a page that does not exist today.
 | Group | `/group?name=` | One group: members and authority-scoped editor | built |
 | Register group | `/groups/new` | Create one | built; success opens Group detail |
 | Account | `/account` | Own identity, own credentials, how to rotate | built in 0.5.79; the signed-in name opens it |
-| Sign in | `/signin` | Token, and how to get one | exists |
+| Landing and sign in | `/` (form posts to `/signin`) | The project's description, links and picture; a token, and how to get one | built; landing from 0.8.15 |
 | Problem | — | Refusal, expired session, unavailable bus, not found | one page for all four |
 
 **Names stay query parameters.** I proposed path segments and both peers showed
