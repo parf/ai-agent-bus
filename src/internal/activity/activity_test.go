@@ -1,6 +1,7 @@
 package activity
 
 import (
+	"encoding/binary"
 	"testing"
 	"time"
 	_ "time/tzdata"
@@ -12,7 +13,7 @@ var nepal = time.FixedZone("NPT", 5*3600+45*60)
 
 func at(day, h, m int) time.Time { return time.Date(2026, time.September, day, h, m, 0, 0, nepal) }
 
-func dayOf(r *Ring, now time.Time, total Counts) [Slots]Slot {
+func dayOf(r *Ring, now time.Time, total Counts) []Slot {
 	d := DayAt(now)
 	d.Add(r, total)
 	return d.Slots()
@@ -265,5 +266,55 @@ func TestDaySumsRings(t *testing.T) {
 	}
 	if got := s[Slots-1].Counts; got != (Counts{In: 1, Out: 1, Expired: 2}) {
 		t.Fatalf("open 09:10 sums to %+v", got)
+	}
+}
+
+// A save that does not describe a ring is refused whole, never half-read.
+func TestADamagedSaveIsRefused(t *testing.T) {
+	r := Start(at(23, 10, 0), Counts{})
+	r.Tick(at(23, 10, 10), in(1))
+	good := r.Save(in(1))
+	if _, err := Restore(good, at(23, 10, 12), in(1)); err != nil {
+		t.Fatalf("a good save was refused: %v", err)
+	}
+	header := func(start, end int64) []byte {
+		b := binary.AppendVarint([]byte{format}, start)
+		return binary.AppendVarint(b, end)
+	}
+	for name, data := range map[string][]byte{
+		"end before start":  header(10, 5),
+		"longer than a day": append(header(0, Slots), make([]byte, 5*(Slots+1))...),
+		"a trailing byte":   append(append([]byte(nil), good...), 0),
+		"short":             {format, 5, 3},
+		"unknown format":    append([]byte{format + 1}, good[1:]...),
+	} {
+		back, err := Restore(data, at(23, 10, 12), in(1))
+		if err != ErrDamaged {
+			t.Errorf("%s restored: %v", name, err)
+			continue
+		}
+		back.Save(in(1)) // a refused save leaves a ring that still works
+		if s := dayOf(&back, at(23, 10, 12), in(1)); s[Slots-2].In != 0 {
+			t.Errorf("%s: the fresh ring holds %d", name, s[Slots-2].In)
+		}
+	}
+}
+
+// A total that went back counted nothing; it never takes a slot below zero.
+func TestATotalThatGoesBackCountsNothing(t *testing.T) {
+	r := Start(at(23, 10, 0), in(5))
+	r.Tick(at(23, 10, 10), in(2))
+	if s := dayOf(&r, at(23, 10, 10), in(1)); s[Slots-2].In != 0 || s[Slots-1].In != 0 {
+		t.Fatalf("slots %d and %d from a total that went back", s[Slots-2].In, s[Slots-1].In)
+	}
+}
+
+// A zero Ring starts at its first Tick and counts all of total there.
+func TestAZeroRingStartsAtItsFirstTick(t *testing.T) {
+	var r Ring
+	r.Tick(at(23, 10, 3), in(4))
+	r.Tick(at(23, 10, 10), in(6))
+	if s := dayOf(&r, at(23, 10, 10), in(6)); s[Slots-2].In != 6 || !s[Slots-2].At.Equal(at(23, 10, 0)) {
+		t.Fatalf("first slot of a zero ring: %s %d, want 10:00 with 6", s[Slots-2].At, s[Slots-2].In)
 	}
 }

@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -105,6 +106,8 @@ func TestActivitySurvivesARestart(t *testing.T) {
 	clock.t = localAt(12, 0)
 	b.TickActivity(clock.t)
 	b.RecordRefusal("#svc@h")
+	b.Refuse("auth")
+	clock.t = localAt(12, 5) // the save is after 12:00; the tick put them there
 	if err := b.FlushQueues(true); err != nil {
 		t.Fatal(err)
 	}
@@ -130,8 +133,86 @@ func TestActivitySurvivesARestart(t *testing.T) {
 		}
 	}
 	all, _ := back.Activity("admin@h", "")
-	if all[n-8].Refused != 1 {
-		t.Fatalf("node refusals at 11:50 after restart: %+v", all[n-8].Counts)
+	if all[n-8].Refused != 1 || all[n-7].Refused != 1 {
+		t.Fatalf("node refusals at 11:50 and 12:00 after restart: %d and %d, want 1 and 1", all[n-8].Refused, all[n-7].Refused)
+	}
+}
+
+// A read between a boundary and the next minute tick already has the new
+// slot open: what arrives after it is counted there, not in the slot before.
+func TestActivityReadsAtTheBusClock(t *testing.T) {
+	clock := &testClock{localAt(10, 0)}
+	b := New()
+	b.Clock(clock.now)
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "alice@h")
+	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"*"}})
+	b.Send(protocol.Envelope{From: "alice@h", To: "#svc@h", Body: "at 10:00"})
+	b.Refuse("auth")
+	clock.t = localAt(10, 10).Add(20 * time.Second) // no minute tick yet
+	last(t, b, "alice@h", "#svc@h")
+	last(t, b, "admin@h", "")
+	b.Send(protocol.Envelope{From: "alice@h", To: "#svc@h", Body: "at 10:10"})
+	b.Refuse("auth")
+	if closed, open := last(t, b, "alice@h", "#svc@h"); closed.In != 1 || open.In != 1 {
+		t.Fatalf("read before the tick: 10:00=%d 10:10=%d, want 1 and 1", closed.In, open.In)
+	}
+	if closed, open := last(t, b, "admin@h", ""); closed.Refused != 1 || open.Refused != 1 {
+		t.Fatalf("node refusals read before the tick: 10:00=%d 10:10=%d, want 1 and 1", closed.Refused, open.Refused)
+	}
+	fresh := New()
+	fresh.Clock(clock.now)
+	fresh.SetDaemonOwner("admin@h")
+	fresh.Refuse("auth")
+	fresh.Refuse("auth")
+	if _, open := last(t, fresh, "admin@h", ""); open.Refused != 2 {
+		t.Fatalf("a node ring never ticked reads %d refusals, want both", open.Refused)
+	}
+}
+
+// A damaged stored day is reported once, starts empty, and is saved again so
+// the next start reads it.
+func TestADamagedStoredDayIsReportedOnce(t *testing.T) {
+	clock := &testClock{localAt(9, 0)}
+	st := memory.NewState()
+	b := New()
+	b.Clock(clock.now)
+	b.Persistence(st)
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "alice@h")
+	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"*"}})
+	b.Send(protocol.Envelope{From: "alice@h", To: "#svc@h", Body: "x"})
+	if err := st.SaveQueues([]ports.Queue{{Name: "#svc@h", In: 1, Activity: []byte{1, 3, 5}}}, nil, true); err != nil {
+		t.Fatal(err)
+	}
+	saved := stored(t, b, st)
+	restart := func(s ports.Snapshot) (*Bus, *reports) {
+		rep := &reports{}
+		r := New()
+		r.Clock(clock.now)
+		r.Journal(rep)
+		r.Persistence(st)
+		r.Restore(s)
+		return r, rep
+	}
+	back, rep := restart(saved)
+	var warned int
+	for _, l := range rep.lines {
+		if strings.HasPrefix(l, ports.Warning.String()+": stored activity of #svc@h is unreadable") {
+			warned++
+		}
+	}
+	if warned != 1 {
+		t.Fatalf("%d warnings for the damaged day, want 1: %v", warned, rep.lines)
+	}
+	if _, open := last(t, back, "alice@h", "#svc@h"); open.In != 0 {
+		t.Fatalf("the damaged day did not start empty: %+v", open.Counts)
+	}
+	if err := back.FlushQueues(true); err != nil {
+		t.Fatal(err)
+	}
+	if _, rep = restart(stored(t, back, st)); len(rep.lines) != 0 {
+		t.Fatalf("the next start still reports: %v", rep.lines)
 	}
 }
 

@@ -599,7 +599,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				}
 			}
 		}
-		var points []core.ActivityPoint
+		var points []protocol.ActivitySlot
 		if err := c.get(cookie(r), "/activity?name="+url.QueryEscape(v.Record.Name), &points); err != nil {
 			v.Activity = activityView(nil, v.Record.Name, v.Status.Up, false)
 			v.Activity.Unavailable = sectionProblem("record activity", err)

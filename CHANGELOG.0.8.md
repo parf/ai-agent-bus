@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.14 — 2026-09-23
+
+Activity review fixes: a read ticks the rings first, a damaged stored day is
+refused whole and reported once, the node ring follows the bus clock, and `/activity` has its own wire type.
+
 ## 0.8.13 — 2026-09-23
 
 The sign-in page's project picture is served by this node, as a downscaled

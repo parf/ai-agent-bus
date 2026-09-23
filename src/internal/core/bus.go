@@ -199,7 +199,6 @@ func New() *Bus {
 		userByID:       map[uint32]string{},
 		started:        time.Now(),
 		clock:          time.Now,
-		node:           activity.Start(time.Now(), activity.Counts{}),
 	}
 }
 

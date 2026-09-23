@@ -231,10 +231,13 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		in.in, in.out = q.In, q.Out
 		in.dropped, in.expired = q.Dropped, q.Expired
 		in.queue = append(in.queue, q.Messages...)
-		in.act = b.restoreActivity(q.Name, q.Activity, in.totals())
-		b.flushed[q.Name] = queueMark{in.in, in.out, in.dropped, in.expired, in.refused}
+		var readable bool
+		in.act, readable = b.restoreActivity(q.Name, q.Activity, in.totals())
+		if readable {
+			b.flushed[q.Name] = queueMark{in.in, in.out, in.dropped, in.expired, in.refused}
+		}
 	}
-	b.node = b.restoreActivity("the node", s.Activity, b.refusedTotal())
+	b.node, _ = b.restoreActivity("the node", s.Activity, b.refusedTotal())
 }
 
 // indexIDs rebuilds the ID indexes from the loaded entities and moves the

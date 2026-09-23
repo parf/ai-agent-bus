@@ -93,8 +93,15 @@ func (s *Server) removeSubscriber(w http.ResponseWriter, r *http.Request, caller
 }
 
 func (s *Server) activity(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	points, err := s.bus.Activity(caller.String(), r.URL.Query().Get("name"))
-	s.reply(w, points, err)
+	day, err := s.bus.Activity(caller.String(), r.URL.Query().Get("name"))
+	var out []protocol.ActivitySlot
+	if err == nil {
+		out = make([]protocol.ActivitySlot, len(day))
+		for i, d := range day {
+			out[i] = protocol.ActivitySlot{At: d.At, In: d.In, Out: d.Out, Dropped: d.Dropped, Expired: d.Expired, Refused: d.Refused}
+		}
+	}
+	s.reply(w, out, err)
 }
 
 func (s *Server) users(w http.ResponseWriter, r *http.Request, caller protocol.Name) {

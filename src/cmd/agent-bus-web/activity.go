@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 type activitySeries struct {
@@ -31,21 +31,21 @@ type activityPresentation struct {
 	Series                    []activitySeries
 	Ticks                     []activityTick
 	Zero                      []string
-	Points                    []core.ActivityPoint
+	Points                    []protocol.ActivitySlot
 	Unavailable               string
 }
 
 type activityMetric struct {
 	label, class string
-	get          func(core.Counts) int
+	get          func(protocol.ActivitySlot) int
 }
 
 var activityMetrics = []activityMetric{
-	{"Accepted", "activity-accepted", func(c core.Counts) int { return c.In }},
-	{"Dequeued", "activity-output", func(c core.Counts) int { return c.Out }},
-	{"Dropped", "activity-dropped", func(c core.Counts) int { return c.Dropped }},
-	{"Expired", "activity-expired", func(c core.Counts) int { return c.Expired }},
-	{"Refused", "activity-refused", func(c core.Counts) int { return c.Refused }},
+	{"Accepted", "activity-accepted", func(c protocol.ActivitySlot) int { return c.In }},
+	{"Dequeued", "activity-output", func(c protocol.ActivitySlot) int { return c.Out }},
+	{"Dropped", "activity-dropped", func(c protocol.ActivitySlot) int { return c.Dropped }},
+	{"Expired", "activity-expired", func(c protocol.ActivitySlot) int { return c.Expired }},
+	{"Refused", "activity-refused", func(c protocol.ActivitySlot) int { return c.Refused }},
 }
 
 // activityX is where slot i of a day sits on the fixed 24-hour axis.
@@ -60,7 +60,7 @@ func activityX(i, slots int) float64 {
 // and therefore the same scale for the same daemon answer: the last day, one
 // point per ten-minute slot on a fixed axis with a tick at every hour. A slot
 // nobody counted is zero like any quiet one, so every line is continuous.
-func activityView(points []core.ActivityPoint, scope, uptime string, table bool) activityPresentation {
+func activityView(points []protocol.ActivitySlot, scope, uptime string, table bool) activityPresentation {
 	v := activityPresentation{Scope: scope, Named: scope != "", Uptime: uptime, ShowTable: table, Points: points}
 	if len(points) == 0 {
 		return v
@@ -81,7 +81,7 @@ func activityView(points []core.ActivityPoint, scope, uptime string, table bool)
 	totals := make([]int, len(activityMetrics))
 	for i, metric := range activityMetrics {
 		for _, point := range points {
-			value := metric.get(point.Counts)
+			value := metric.get(point)
 			maxima[i] = max(maxima[i], value)
 			totals[i] += value
 		}
@@ -97,7 +97,7 @@ func activityView(points []core.ActivityPoint, scope, uptime string, table bool)
 		}
 		xy := make([]string, 0, len(points))
 		for j, point := range points {
-			y := 125 - 100*float64(metric.get(point.Counts))/float64(v.Max)
+			y := 125 - 100*float64(metric.get(point))/float64(v.Max)
 			xy = append(xy, fmt.Sprintf("%.1f,%.1f", activityX(j, len(points)), y))
 		}
 		v.Series = append(v.Series, activitySeries{Label: metric.label, Class: metric.class, Points: strings.Join(xy, " "), Total: totals[i]})
@@ -137,7 +137,7 @@ func (c *caller) activityRoutes(mux *http.ServeMux) {
 			return
 		}
 		sort.Slice(v.Records, func(i, j int) bool { return v.Records[i].Name < v.Records[j].Name })
-		var points []core.ActivityPoint
+		var points []protocol.ActivitySlot
 		if err := c.get(cookie(r), "/activity?name="+url.QueryEscape(name), &points); err != nil {
 			fail(w, r, v.You, err)
 			return

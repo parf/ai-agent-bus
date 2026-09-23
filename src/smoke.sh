@@ -562,6 +562,16 @@ ab owner@srv1 register '#fixer@srv1' --allow '*' --kind agent --descr "fixes thi
 ab owner@srv1 register '#asker@srv1' --allow '*' --kind agent >/dev/null
 has "ls shows the description" "$(ab '#asker@srv1' ls)" 'fixes things'
 
+sec "a send moves the record's day by exactly one"
+# The whole day, not the open slot: a boundary between the two reads moves the
+# message into the slot before, and the day still holds it once.
+ab owner@srv1 register '#tally@srv1' --allow '*' --kind agent >/dev/null || exit 1
+day_in() { tbody "$(tok owner@srv1)" "/activity?name=%23tally%40srv1" | grep -o '"in":[0-9]*' | awk -F: '{s+=$2} END {print s+0}'; }
+BEFORE=$(day_in)
+ab '#asker@srv1' send '#tally@srv1' "count me" >/dev/null
+has "the day counts one more accepted" "$(day_in)" "^$((BEFORE+1))\$"
+has "the day is 144 slots" "$(tbody "$(tok owner@srv1)" "/activity?name=%23tally%40srv1" | grep -o '"at":' | wc -l)" '^144$'
+
 sec "send, then reply matched by topic and tag"
 ab '#fixer@srv1' consume --wait 10s > "$D/got.json" & CPID=$!
 sleep 0.3

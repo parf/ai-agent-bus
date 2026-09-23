@@ -80,34 +80,46 @@ func (b *Bus) Activity(caller, name string) ([]ActivityPoint, error) {
 			return nil, ErrUnknown
 		}
 	}
+	// Each ring is ticked to now first, so a read between a boundary and the
+	// minute tick already has the new slot open, and what arrives after the
+	// read is counted in it.
 	now := b.clock()
 	day := activity.DayAt(now)
-	for n, r := range b.records {
-		if name != "" && n != name || !b.live(r) || !b.canSee(caller, r) {
-			continue
-		}
-		if in := b.inboxes[n]; in != nil {
+	add := func(name string) {
+		if in := b.inboxes[name]; in != nil {
+			in.act.Tick(now, in.totals())
 			day.Add(&in.act, in.totals())
 		}
 	}
+	if name != "" {
+		add(name)
+		return day.Slots(), nil
+	}
+	for n, r := range b.records {
+		if b.live(r) && b.canSee(caller, r) {
+			add(n)
+		}
+	}
 	slots := day.Slots()
-	if name == "" && caller == b.admin {
+	if caller == b.admin {
 		node := activity.DayAt(now)
+		b.node.Tick(now, b.refusedTotal())
 		node.Add(&b.node, b.refusedTotal())
 		for i, s := range node.Slots() {
 			slots[i].Refused = s.Refused
 		}
 	}
-	return slots[:], nil
+	return slots, nil
 }
 
 // restoreActivity puts a saved ring back, or starts a fresh one when the save
 // is missing or damaged — reported, since a lost day is somebody's question.
-// Caller holds b.mu.
-func (b *Bus) restoreActivity(what string, saved []byte, total Counts) activity.Ring {
+// ok is false for a damaged one, which the caller saves again so the report
+// is made once. Caller holds b.mu.
+func (b *Bus) restoreActivity(what string, saved []byte, total Counts) (r activity.Ring, ok bool) {
 	r, err := activity.Restore(saved, b.clock(), total)
 	if err != nil {
 		b.report(ports.Warning, "stored activity of %s is unreadable and starts empty: %v", what, err)
 	}
-	return r
+	return r, err == nil
 }

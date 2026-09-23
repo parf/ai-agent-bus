@@ -19,17 +19,18 @@ import (
 
 // dayFrom is a daemon's answer: 144 ten-minute slots from start, with counts
 // where set says.
-func dayFrom(start time.Time, set map[int]core.Counts) []core.ActivityPoint {
-	points := make([]core.ActivityPoint, 144)
+func dayFrom(start time.Time, set map[int]protocol.ActivitySlot) []protocol.ActivitySlot {
+	points := make([]protocol.ActivitySlot, 144)
 	for i := range points {
-		points[i] = core.ActivityPoint{At: start.Add(time.Duration(i) * 10 * time.Minute), Counts: set[i]}
+		points[i] = set[i]
+		points[i].At = start.Add(time.Duration(i) * 10 * time.Minute)
 	}
 	return points
 }
 
 func TestActivityViewDrawsAFixedDayWithHourTicks(t *testing.T) {
 	start := time.Date(2026, time.September, 22, 15, 20, 0, 0, time.UTC)
-	points := dayFrom(start, map[int]core.Counts{0: {In: 2, Out: 1}, 4: {In: 4, Dropped: 1}, 143: {Out: 3, Refused: 2}})
+	points := dayFrom(start, map[int]protocol.ActivitySlot{0: {In: 2, Out: 1}, 4: {In: 4, Dropped: 1}, 143: {Out: 3, Refused: 2}})
 	detail := activityView(points, "#svc@h", "42m", false)
 	full := activityView(points, "#svc@h", "42m", true)
 	if detail.Max != 4 || full.Max != 4 {

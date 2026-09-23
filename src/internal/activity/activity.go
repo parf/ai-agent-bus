@@ -26,11 +26,7 @@ const (
 // Counts is one interval's traffic, or — handed to Tick, Save, Restore and
 // Add — a record's cumulative counters, which only grow within a run.
 type Counts struct {
-	In      int `json:"in"`
-	Out     int `json:"out"`
-	Dropped int `json:"dropped"`
-	Expired int `json:"expired"`
-	Refused int `json:"refused"`
+	In, Out, Dropped, Expired, Refused int
 }
 
 func (c *Counts) add(o Counts) {
@@ -47,8 +43,9 @@ func (c Counts) since(o Counts) Counts {
 	return Counts{max(0, c.In-o.In), max(0, c.Out-o.Out), max(0, c.Dropped-o.Dropped), max(0, c.Expired-o.Expired), max(0, c.Refused-o.Refused)}
 }
 
-// Ring is one record's day. The zero Ring is empty and ticks from its first
-// Tick; Start and Restore are how a caller means to begin.
+// Ring is one record's day. Start and Restore are how a caller means to
+// begin; a zero Ring starts at its first Tick, counting everything in total
+// as that slot's.
 //
 // Its slots are addressed by a civil slot number — days since 1970-01-01 of
 // the local date, times 144, plus the slot of that day — so a daylight-saving
@@ -81,8 +78,7 @@ func Start(now time.Time, total Counts) Ring {
 // first.
 func (r *Ring) Tick(now time.Time, total Counts) {
 	if r.at == 0 && r.end == 0 {
-		*r = Start(now, total)
-		return
+		*r = Start(now, Counts{})
 	}
 	u := now.Unix()
 	if u < r.at {
@@ -149,13 +145,13 @@ func (d *Day) Add(r *Ring, total Counts) {
 
 // Slot is one ten-minute interval of a Day: when it starts, and its counts.
 type Slot struct {
-	At time.Time `json:"at"`
+	At time.Time
 	Counts
 }
 
 // Slots is the day, oldest first; the last one is the slot still open.
-func (d *Day) Slots() [Slots]Slot {
-	var out [Slots]Slot
+func (d *Day) Slots() []Slot {
+	out := make([]Slot, Slots)
 	for i := range out {
 		out[i] = Slot{At: slotTime(d.end-(Slots-1)+int64(i), d.loc), Counts: d.slots[i]}
 	}
