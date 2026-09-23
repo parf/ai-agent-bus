@@ -450,6 +450,10 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
 .account-link[aria-current=page]{font-weight:700;text-decoration:none}
 .site-footer{max-width:104rem;margin:2rem auto 0;padding:1rem;border-color:var(--border);color:var(--text-2)}
 .footer-node{display:flex;flex-wrap:wrap;gap:.35rem 1.25rem;margin-bottom:.35rem}
+.footer-about{max-width:60rem;margin:.75rem auto 0;text-align:center;white-space:normal}
+.footer-about p{margin:.35rem 0}
+.hero{margin:1rem 0}
+.hero img{max-width:100%;height:auto}
 .build-tip{text-decoration:underline dotted;text-underline-offset:.2em;cursor:help}
 .page-title{margin-bottom:.5rem}
  .page-title h1{font-size:1.75rem;line-height:1.2;margin:.5rem 0}
@@ -685,10 +689,15 @@ type signin struct {
 	Return  string
 }
 
+// The sign-in page is the one a stranger reaches, so it is where the project
+// says what it is. Every other page is already behind a credential.
+func (s signin) Frame() pageInfo { p := s.pageInfo; p.Public = true; return p }
+
 var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(head + `<title>Sign in · agent-bus</title><a class=skip-link href=#main>Skip to main content</a>` + frameHeader + frameHeaderEnd + `
 <main>
 <a id=main tabindex=-1></a>
 <div class=page-title><h1>{{titleMark "credentials"}} Sign in to AgentBus</h1></div>
+<p class=hero><img src="https://github.com/parf/ai-agent-bus/raw/main/docs/img/agent-bus.png" alt="A red double-decker named Agents Bus, carrying AI and non-AI riders: Claude, OpenAI, Slack, Telegram, Email and a shell" width=640 height=427 loading=lazy></p>
 <form method=post action=/signin>
 {{with .Return}}<input type=hidden name=return value="{{.}}">{{end}}
  <p><label>token <input type=password name=token autofocus></label>
