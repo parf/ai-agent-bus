@@ -76,16 +76,13 @@ registration and settings; old `/channels` addresses redirect to the right one.
 
 `agent-bus ls -h` has a LAST USED column and a lookup carries `last_used` too;
 groups are marked 👥 like every kind; usage lines show the realm as optional.
+It also carries what shipped under a repeated 0.8.2: a listing carries each
+name's `last_used` and puts the most recently used first; `ab_ls` says how long ago.
 
 ## 0.8.2 — 2026-09-23
 
 Push stops when the daemon refuses the credential or the read, instead of
 asking again every two seconds for as long as the session lives.
-
-## 0.8.2 — 2026-09-23
-
-A listing carries each name's `last_used` and puts the most recently used
-first; `ab_ls` says how long ago.
 
 ## 0.8.1 — 2026-09-23
 
