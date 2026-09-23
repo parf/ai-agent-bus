@@ -18,7 +18,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
-func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
+func TestDirectoryListsUsersAndDiagnosticsTheLeftovers(t *testing.T) {
 	b := core.New()
 	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
 	if err != nil {
@@ -62,6 +62,12 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	}
 	for i := 0; i < 30; i++ {
 		if _, err := tokens.Issue(fmt.Sprintf("unused-%02d@h", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Enough Users to page: the directory lists Users only.
+	for i := 0; i < 30; i++ {
+		if _, err := b.SetUser("owner@h", protocol.User{Name: fmt.Sprintf("zz-member-%02d@h", i)}, true); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -153,15 +159,22 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	if !strings.Contains(people, "smoke/person@h") || !strings.Contains(people, "self@h") || strings.Contains(people, "unused-") {
 		t.Error("users table hides a real user or labels other identities as users")
 	}
+	// Only Users are rows: a credential with no record is Diagnostics' to
+	// show (docs/05-discovery.md#overview-and-diagnostics), and an Agent has its own page.
 	directory := section(t, page, "<main>", "</main>")
-	if !strings.Contains(directory, "Other identities — review and cleanup") || !strings.Contains(directory, "unused-00@h") {
-		t.Error("non-user identities were hidden")
-	}
-	if strings.Contains(directory, "holds@h") {
-		t.Error("the directory gives an Agent a row")
+	if strings.Contains(directory, "unused-00@h") || strings.Contains(directory, "holds@h") {
+		t.Error("the user directory gives a credential-only name or an Agent a row")
 	}
 	if !strings.Contains(page, "Next page") || !strings.Contains(page, "</main>") {
 		t.Error("directory is unbounded or its main landmark is unclosed")
+	}
+	diagnostics, _ := request("owner@h", "/diagnostics", "", nil, 200)
+	leftovers := section(t, diagnostics, "<h2 id=leftovers>", "</section>")
+	if !strings.Contains(leftovers, "<tr><td><code>unused-00@h</code><td>Credential with no record<td><a href=\"/user?name=unused-00%40h&return=/diagnostics\">Review credential removal</a>") {
+		t.Error("Diagnostics does not list a credential with no record, with its removal review")
+	}
+	if strings.Contains(leftovers, "<code>smoke/person@h</code>") || strings.Contains(leftovers, "holds@h") {
+		t.Error("Diagnostics lists a User or an Agent as a leftover")
 	}
 	private, _ := request("smoke/person@h", "/users", "", nil, 200)
 	private = section(t, private, "<main>", "</main>") // Public header names the daemon owner; directory visibility is unchanged.
@@ -183,11 +196,12 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	if strings.Contains(section(t, hiddenRecords, "<main>", "</main>"), "held@h") {
 		t.Error("directory-visible user detail exposed a record hidden from this caller")
 	}
-	filtered := "/users?kind=other&page=2&q=unused"
-	page, _ = request("owner@h", filtered, "", nil, 200)
-	if !strings.Contains(page, "unused-29@h") || strings.Contains(page, "unused-00@h") || strings.Contains(page, "self@h") {
-		t.Error("directory search/filter/paging failed")
+	paged, _ := request("owner@h", "/users?page=2&q=member", "", nil, 200)
+	paged = section(t, paged, "<tbody>", "</tbody>")
+	if !strings.Contains(paged, "<code>zz-member-29@h</code>") || strings.Contains(paged, "<code>zz-member-00@h</code>") || strings.Contains(paged, "<code>self@h</code>") {
+		t.Error("directory search/paging failed")
 	}
+	filtered := "/diagnostics"
 	page, _ = request("maintainer@h", "/user?name=unused-29@h&return="+url.QueryEscape(filtered), "", nil, 200)
 	if !strings.Contains(page, "Review credential removal…") || strings.Contains(page, `name=action value=remove-credential`) {
 		t.Fatal("maintainer cannot review cleanup")

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/parf/ai-agent-bus/internal/display"
@@ -82,16 +83,21 @@ func visibleUserResources(u protocol.User, kinds, owners map[string]string) prot
 
 type peopleView struct {
 	adminView
-	Users                                        []protocol.User
-	User                                         protocol.User
-	New                                          bool
-	People, Other                                []protocol.User
-	Query, Kind, State, Return, Previous, Next   string
-	PeopleCount, OtherCount, Matched, Start, End int
-	ActiveCount, InactiveCount                   int
-	StateLinks                                   []viewLink
-	RecordKinds                                  map[string]string
-	RecordOwners                                 map[string]string
+	Users                                []protocol.User
+	User                                 protocol.User
+	New                                  bool
+	People                               []protocol.User
+	Query, State, Return, Previous, Next string
+	PeopleCount, Matched, Start, End     int
+	ActiveCount, InactiveCount           int
+	StateLinks                           []viewLink
+	RecordKinds                          map[string]string
+	RecordOwners                         map[string]string
+	// Agents counts each User's agents; LastUsed is when a User's own
+	// credential last made a call, from the listing (docs/05-discovery.md#what-a-listing-answers).
+	Agents   map[string]int
+	LastUsed map[string]time.Time
+	Now      time.Time
 }
 
 // identityLabel and identityGlyph mark the node's daemon owner as the
@@ -121,9 +127,11 @@ func identityGlyph(u protocol.User, recordKinds map[string]string) string {
 	return ""
 }
 
+// directoryReturn keeps a way back to the page that led here: the user
+// directory, or Diagnostics, which lists leftover credentials.
 func directoryReturn(raw string) string {
 	u, err := url.Parse(local(raw))
-	if err != nil || u.Path != "/users" {
+	if err != nil || u.Path != "/users" && u.Path != "/diagnostics" {
 		return "/users"
 	}
 	u.Fragment = ""
@@ -141,7 +149,8 @@ func userState(u protocol.User) string {
 
 // stateBadge is the marker shown after a name that is not active. Active users
 // get nothing: marking the ordinary majority marks nothing
-// (Plans/MVP/web/glyphs.md#the-rule-that-matters-most).
+// (Plans/MVP/web/glyphs.md#the-rule-that-matters-most), and the directory has
+// no state column for the same reason (docs/decisions.md#dashboard-implementation-defaults).
 func stateBadge(u protocol.User) template.HTML {
 	if userState(u) == protocol.StatusInactive {
 		return `<span class="state-badge state-inactive">INACTIVE</span>`
@@ -151,14 +160,9 @@ func stateBadge(u protocol.User) template.HTML {
 
 func (p *peopleView) directory(r *http.Request) {
 	p.Query = strings.TrimSpace(r.URL.Query().Get("q"))
-	p.Kind = r.URL.Query().Get("kind")
-	if p.Kind != "users" && p.Kind != "other" {
-		p.Kind = ""
-	}
-	// Active is the default view. The filter applies to registered users,
-	// which are the only entries with a lifecycle state; a credential with
-	// no profile is not inactive, it has no state to be in, so the Other
-	// section is unaffected by this choice.
+	// Active is the default view. Only Users are listed: every name is a
+	// User or an Agent, and Agents have their own page. A credential left
+	// with no record is Diagnostics' to show (docs/05-discovery.md#overview-and-diagnostics).
 	p.State = r.URL.Query().Get("state")
 	switch p.State {
 	case protocol.StatusInactive, "all":
@@ -167,21 +171,16 @@ func (p *peopleView) directory(r *http.Request) {
 	}
 	var matched []protocol.User
 	for _, u := range p.Users {
-		person := u.Kind == protocol.DirectoryUser
-		if person {
-			p.PeopleCount++
-			if userState(u) == protocol.StatusInactive {
-				p.InactiveCount++
-			} else {
-				p.ActiveCount++
-			}
-		} else {
-			p.OtherCount++
-		}
-		if p.Kind == "users" && !person || p.Kind == "other" && person {
+		if u.Kind != protocol.DirectoryUser {
 			continue
 		}
-		if person && p.State != "all" && userState(u) != p.State {
+		p.PeopleCount++
+		if userState(u) == protocol.StatusInactive {
+			p.InactiveCount++
+		} else {
+			p.ActiveCount++
+		}
+		if p.State != "all" && userState(u) != p.State {
 			continue
 		}
 		if !strings.Contains(strings.ToLower(u.Name+" "+u.PersonName+" "+u.Email+" "+u.GithubUser+" "+u.GithubCompany+" "+u.GithubLocation+" "+u.GithubTwitterUsername), strings.ToLower(p.Query)) {
@@ -198,9 +197,6 @@ func (p *peopleView) directory(r *http.Request) {
 		q := url.Values{}
 		if p.Query != "" {
 			q.Set("q", p.Query)
-		}
-		if p.Kind != "" {
-			q.Set("kind", p.Kind)
 		}
 		if p.State != "active" {
 			q.Set("state", p.State)
@@ -219,13 +215,7 @@ func (p *peopleView) directory(r *http.Request) {
 	if len(matched) > 0 {
 		p.Start, p.End = start+1, end
 	}
-	for _, u := range matched[start:end] {
-		if u.Kind == protocol.DirectoryUser {
-			p.People = append(p.People, u)
-		} else {
-			p.Other = append(p.Other, u)
-		}
-	}
+	p.People = matched[start:end]
 }
 
 func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
@@ -249,21 +239,34 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		}
 		p.RecordKinds = make(map[string]string, len(records))
 		p.RecordOwners = make(map[string]string, len(records))
+		p.Agents, p.LastUsed, p.Now = map[string]int{}, map[string]time.Time{}, time.Now()
 		for _, record := range records {
 			p.RecordKinds[record.Name] = record.Kind
 			if record.Kind != protocol.KindGroup {
 				p.RecordOwners[record.Name] = record.Owner
 			}
+			if record.Kind == protocol.KindAgent {
+				p.Agents[record.Owner]++
+			}
+			if record.LastUsed != nil {
+				p.LastUsed[record.Name] = *record.LastUsed
+			}
 		}
 		return p, true
 	}
 	mux.HandleFunc("GET /users", func(w http.ResponseWriter, r *http.Request) {
+		// The Other filter is gone: what it listed is Diagnostics' now, and
+		// an old link lands there. kind=users was every row, and is ignored.
+		if r.URL.Query().Get("kind") == "other" {
+			http.Redirect(w, r, "/diagnostics#leftovers", http.StatusSeeOther)
+			return
+		}
 		p, ok := load(w, r)
 		if !ok {
 			return
 		}
 		p.directory(r)
-		p.SectionLinks = []viewLink{{Href: "/users", Label: "All identities", Count: p.PeopleCount + p.OtherCount, Counted: true, Current: true}}
+		p.SectionLinks = []viewLink{{Href: "/users", Label: "All", Count: p.PeopleCount, Counted: true, Current: true}}
 		if p.Administrator {
 			p.SectionLinks = append(p.SectionLinks, viewLink{Href: "/users/new", Label: "Register user"})
 		}
@@ -271,15 +274,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		if p.Query != "" {
 			filterBase.Set("q", p.Query)
 		}
-		p.FilterLinks = []viewLink{
-			{Href: pageURL("/users", cloneValues(filterBase)), Label: "All", Count: p.PeopleCount + p.OtherCount, Counted: true, Current: p.Kind == ""},
-			{Href: queryWith("/users", filterBase, "kind", "users"), Label: "👤 Users", Count: p.PeopleCount, Counted: true, Current: p.Kind == "users"},
-			{Href: queryWith("/users", filterBase, "kind", "other"), Label: "Other", Count: p.OtherCount, Counted: true, Current: p.Kind == "other"},
-		}
 		stateBase := cloneValues(filterBase)
-		if p.Kind != "" {
-			stateBase.Set("kind", p.Kind)
-		}
 		p.StateLinks = []viewLink{
 			{Href: pageURL("/users", cloneValues(stateBase)), Label: "Active", Count: p.ActiveCount, Counted: true, Current: p.State == "active"},
 			{Href: queryWith("/users", stateBase, "state", "inactive"), Label: "Inactive", Count: p.InactiveCount, Counted: true, Current: p.State == "inactive"},
@@ -505,36 +500,37 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 	})
 }
 
-var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"authorityLabel": authorityLabel, "identityGlyph": identityGlyph, "identityLabel": identityLabel, "userState": userState, "stateBadge": stateBadge, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number, "recordPath": recordPath}).Parse(shell("users", "Users") + `
-<div class=page-title><h1>{{titleMark "users"}} Users and other identities</h1><button type=button class=help-button popovertarget=identity-types-help aria-label="About identity types">ⓘ</button></div>
-<div popover id=identity-types-help class=context-help><h2>About identity types</h2><ul>
-<li>Registered users have a profile.</li>
-<li>Registered names have a record of their own and no user profile.</li>
-<li>A credential with no registered name has neither profile nor registered record.</li>
-<li>Those counts are computed by this page over identities visible to you before search and kind filters. They are not figures the daemon reported and not a count of the credential store.</li>
-<li>Nothing is inferred from how a name is spelled.</li>
+var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"authorityLabel": authorityLabel, "identityGlyph": identityGlyph, "identityLabel": identityLabel, "userState": userState, "stateBadge": stateBadge, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number, "ago": registrationUpdatedAt}).Parse(shell("users", "Users") + `
+<div class=page-title><h1>{{titleMark "users"}} Users</h1><button type=button class=help-button popovertarget=users-help aria-label="About users">ⓘ</button></div>
+<div popover id=users-help class=context-help><h2>About users</h2><ul>
+<li>A User is a person on this node, and owns every record: agents, services, queues, topics and groups. Agents are listed under Agents.</li>
+<li>A User is Active or Inactive; an inactive one is struck and marked INACTIVE beside the name. An inactive User, and everything they own, answers as unknown until reactivated.</li>
+<li>Last used is when the User's own credential last made a call, as the daemon reports it.</li>
+<li>Agents counts the agents each User owns that are visible to you. That figure, and the counts beside the tabs and filters, are worked out by this page, not figures the daemon reported.</li>
 </ul></div>
 <nav class=section-nav aria-label="User views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}{{if .Counted}} ({{number .Count}}){{end}}</a>{{end}}</nav>
-<p>{{number .PeopleCount}} registered users · {{number .OtherCount}} other identities visible to you.</p>
-<form method=get action=/users>
-<label>Search <input type=search name=q value="{{.Query}}" placeholder="Name, identity, email or GitHub login"></label>
-{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}<button>Search</button> <a href=/users>Clear filters</a></form>
-<nav class=filter-nav aria-label="Identity type filter">Show: {{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}} ({{number .Count}})</a>{{end}}</nav>
-<nav class=filter-nav aria-label="User state filter">State: {{range .StateLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}} ({{number .Count}})</a>{{end}}</nav>
-<p>Showing {{number .Start}}–{{number .End}} of {{number .Matched}} matching identities.</p>
-<section aria-labelledby=people-heading><h2 id=people-heading>Registered users</h2>
-<table><thead><tr><th scope=col>Person / identity</th><th scope=col>Authority</th></tr></thead><tbody>
-{{range .People}}<tr><td><span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<span>{{$struck := ne (userState .) "active"}}{{with .PersonName}}<strong>{{if $struck}}<s>{{.}}</s>{{else}}{{.}}{{end}}</strong><br>{{end}}{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{if $struck}}<s>{{.Name}}</s>{{else}}{{.Name}}{{end}}</code></a> {{stateBadge .}}{{with .GithubCompany}}<br><span class=muted>{{.}}</span>{{end}}</span></span></td><td>{{authorityLabel .DaemonOwner .Administrator}}</td></tr>
-{{else}}<tr><td colspan=2>No registered users on this page.</td></tr>{{end}}</tbody></table></section>
-<section aria-labelledby=other-heading><h2 id=other-heading>Other identities — review and cleanup</h2>
-{{if .Other}}
-<table><thead><tr><th scope=col>Identity</th><th scope=col>What it is</th><th scope=col>Why it is here / next step</th></tr></thead><tbody>
-{{range .Other}}<tr><td>{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{.Name}}</code></a></td>
-<td>{{if eq .Kind "record"}}Registered name{{else}}Credential with no registered name{{end}}</td>
-<td>{{if eq .Kind "record"}}A self-owned record, not a user profile. <a href="{{recordPath .Name $.RecordKinds}}">Inspect the record</a> before deciding whether it is needed.
-{{else}}No user profile and no registered record. {{if .CanRemove}}<a href="/user?name={{.Name}}&return={{$.Return}}">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}{{end}}</td></tr>
-{{end}}</tbody></table>{{else}}<p class=muted>No other identities match this view. Use the Other filter when its count is nonzero.</p>{{end}}</section>
+<div class=record-toolbar>
+<form class=record-search method=get action=/users>
+<label for=record-query class=visually-hidden>Search users</label><input id=record-query type=search name=q value="{{.Query}}" placeholder="Search by name, identity, email or GitHub login">
+{{if ne .State "active"}}<input type=hidden name=state value="{{.State}}">{{end}}
+<div class=record-choices><nav class=filter-nav aria-label="Status filter"><span>Status</span>{{range .StateLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}} ({{number .Count}})</a>{{end}}</nav></div>
+<noscript><button>Search</button></noscript>
+</form>
+</div>
+{{if .People}}
+<table class="record-table users-table"><caption>Showing {{number .Start}}&ndash;{{number .End}} of {{number .Matched}} matching users.</caption><thead><tr><th scope=col>User</th><th scope=col>Authority</th><th scope=col>Contact</th><th scope=col class=num>Agents</th><th scope=col>Last used</th></tr></thead><tbody>
+{{range .People}}{{$struck := ne (userState .) "active"}}<tr><td class=record-name-cell><span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<span>{{with .PersonName}}<strong>{{if $struck}}<s>{{.}}</s>{{else}}{{.}}{{end}}</strong><br>{{end}}{{if identityGlyph . $.RecordKinds}}<span role=img aria-label="{{identityLabel . $.RecordKinds}}">{{identityGlyph . $.RecordKinds}}</span> {{end}}<a href="/user?name={{.Name}}&return={{$.Return}}"><code>{{if $struck}}<s>{{.Name}}</s>{{else}}{{.Name}}{{end}}</code></a> {{stateBadge .}}{{with .GithubCompany}}<br><span class=muted>{{.}}</span>{{end}}</span></span></td>
+<td data-label=Authority>{{authorityLabel .DaemonOwner .Administrator}}</td>
+<td data-label=Contact>{{with .Email}}<span class=contact-line>{{.}}</span>{{end}}{{with .GithubUser}}<span class=contact-line><span class=muted>GitHub</span> <code>{{.}}</code></span>{{end}}{{if not (or .Email .GithubUser)}}<span class=muted>&mdash;</span>{{end}}</td>
+<td class=num data-label=Agents>{{with index $.Agents .Name}}{{number .}}{{else}}<span class=muted>0</span>{{end}}</td>
+<td data-label="Last used">{{$at := index $.LastUsed .Name}}{{if not $at.IsZero}}<time datetime="{{$at.Format "2006-01-02T15:04:05Z07:00"}}" title="{{$at.Format "2006-01-02 15:04"}}">{{ago $at $.Now}}</time>{{else if $struck}}<span class=muted title="Not reported while inactive">&mdash;</span>{{else}}<span class=muted>never</span>{{end}}</td></tr>
+{{end}}</tbody></table>
 <nav aria-label="Directory pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
+{{else}}
+<section class="empty-state editor-card"><h2>{{if .Query}}No user matches this search{{else if eq .State "inactive"}}No inactive users{{else}}No users yet{{end}}</h2>
+<p>A User is a person on this node; every record belongs to one.</p>{{if .Query}}<p><a href=/users>Clear the search</a></p>{{else if .Administrator}}<p><a href=/users/new>Register a user</a></p>{{end}}
+</section>
+{{end}}
 `))
 
 // A user has one profile form, and adding a person and editing one are the

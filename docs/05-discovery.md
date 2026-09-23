@@ -147,7 +147,7 @@ what the daemon permits. “All” means all visible to that visitor.
 | Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which have their own tab. Administrative availability and reader observation are distinct facts |
 | Services | 📡 records alone — something [external](03-records.md#record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
 | Personal | Owner-tagged agents grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
-| Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory opens on active users; **Active**, **Inactive** and **All states** are counted filters, and an inactive user is marked beside the name rather than in a column of its own. Applicable daemon-authorized actions sit behind **Change**. Deactivation and unused-credential removal use consequence confirmations |
+| Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory lists 👤 Users only, laid out like the other list pages: one search and **Status** toolbar (**Active**, **Inactive**, **All states**, counted; opens on Active), then User, Authority, Contact, Agents owned and Last used columns, or an empty-state card when nothing matches. An inactive User is struck and marked beside the name rather than in a column of its own. From 0.8.8 it has no Other section: a name that is neither User nor Agent is [a Diagnostics leftover](#overview-and-diagnostics). Applicable daemon-authorized actions sit behind **Change**. Deactivation and unused-credential removal use consequence confirmations |
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
 | Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work. Split from the combined Channels tab in 0.8.4 |
@@ -341,7 +341,10 @@ entries, and repeating them there was duplication the owner removed at 0.5.83.
 Holding-work links are real URL filters rather than preselected prose.
 
 Diagnostics retains the detailed refusal, held-work, bounded envelope and loss
-evidence. Record names link to their visible record detail. It no
+evidence. Record names link to their visible record detail. **From 0.8.8 it
+lists leftover names** — a credential with no record, or a self-owned record
+with no User — **only while one exists**, each with its removal review; the
+retired `/users?kind=other` link redirects there. It no
 longer repeats the registry catalogue; the registry sections are its searchable
 home. A daemon failure renders a recovery page without exposing the socket or
 other backend address, which is the general rule in

@@ -2346,6 +2346,13 @@ has "the profile form asks for the fields a person has" \
   "$(asked "$USEREDIT")" '^name=company name=email name=github_user name=location name=name name=person_name name=twitter $'
 has "adding a person and editing one ask the same questions" \
   "$(asked "$USEREDIT")" "^$(asked "$USERNEW")\$"
+# The user directory takes Last used from the real token store: the signed-in
+# owner's credential made this request, so their own row carries a time.
+OWNROW=$(curl -s -b "$JAR" "$WEB/users" | tr -d '\n' | sed 's/<tr>/\n<tr>/g' | grep '^<tr>' | grep -F "<code>$OWNER</code>")
+has "the user directory says when the owner's credential was last used" \
+  "$OWNROW" '<td data-label="Last used"><time datetime='
+has "an old Other-filter link lands on Diagnostics' leftover names" \
+  "$(curl -s -b "$JAR" -o /dev/null -w '%{http_code} %{redirect_url}' "$WEB/users?kind=other")" '^303 .*/diagnostics#leftovers$'
 GRPNEW=$(curl -s -b "$JAR" "$WEB/groups/new")
 GRPEDIT=$(curl -s -b "$JAR" "$WEB/group/edit?name=%40smoke-ops")
 has "the group form asks for the fields a group has" \

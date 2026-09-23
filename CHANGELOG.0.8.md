@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.8 — 2026-09-23
+
+The web Users page lists Users only, like the other list pages: one toolbar,
+Contact, Agents and Last used columns, an empty-state card; leftover names move
+to Diagnostics, shown only while one exists, and `/users?kind=other` redirects there.
+
 ## 0.8.7 — 2026-09-23
 
 The signed-out page says what agent-bus is, shows the project's picture and

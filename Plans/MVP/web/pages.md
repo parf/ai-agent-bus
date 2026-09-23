@@ -459,20 +459,25 @@ by name. The registry table does not come with it.
 
 **Answers:** who is here, and what may they administer?
 
-**Section navigation:** All identities (`#`) · Register user. The count covers
-the caller-visible mixed directory before search or kind filters. The register entry appears
-only for callers who may create one and opens `/users/new`; it does not sit as a
+**0.8.8: Users only, laid out like the other list pages.** Every name is a
+User or an Agent, so the "other identities" section and its **Other** filter
+are gone; a leftover name is listed on Diagnostics while one exists, and
+`/users?kind=other` redirects there ([overview and diagnostics](../../../docs/05-discovery.md#overview-and-diagnostics)).
+
+**Section navigation:** All (`#`) · Register user. The count covers the
+caller-visible Users before search. The register entry appears only for
+callers who may create one and opens `/users/new`; it does not sit as a
 separate primary action beside the directory heading.
 
 | Field | Decision |
 |---|---|
-| `PeopleCount` / `OtherCount` | **keep**, with scope labelled: caller-visible directory, before the search |
-| Search, kind filter, paging, `Matched`, clear-filters | keep |
-| Person name, full name, GitHub login, authority | keep |
-| User state | **0.5.83: not a column.** Nearly every row reads active, so the column spent width on the answer nobody is looking for. A person whose state is not active is struck through and carries a marker beside the name &mdash; `INACTIVE` quiet, `BANNED` loud &mdash; and the directory opens on **Active**, with counted **Active**, **Inactive**, **Banned** and **All states** filters so the hidden rows are declared. The filter applies to the person directory only: a credential-only identity has no lifecycle state to filter on |
+| `PeopleCount` | **keep**, with scope labelled: caller-visible Users, before the search |
+| Search, Status filter, paging, `Matched` | keep, in one `record-toolbar`; a search with no match gets an empty-state card with a way to clear it |
+| Person name, email, GitHub login, authority | keep; email and GitHub login share a Contact column |
+| Agents | count of caller-visible agents each User owns, computed by the face and said so in the help |
+| Last used | when the User's own credential last made a call, from the listing; `never` when unused, a dash while inactive, since the inactive listing does not report it |
+| User state | **0.5.83: not a column**, kept in 0.8.8. Nearly every row reads active, so a column would spend width on the answer nobody is looking for. An inactive person is struck through and carries `INACTIVE` beside the name, and the directory opens on **Active**, with counted **Active**, **Inactive** and **All states** filters so the hidden rows are declared |
 | Search over GitHub metadata | include company, location and Twitter/X handle from the daemon; the existing Email search covers an imported public email. No browser-side provider lookup |
-| Empty cleanup table plus its explanation | **collapse** to a count and a link while empty; expand only when candidates exist ([C10](review/codex.md#junk-and-misleading-content)) |
-| Classification of an unclassified identity | **keep as a word.** Never a colour, never inferred from a slash or a runtime prefix in a name |
 | Photo | **use.** Show the locally imported GitHub photo, then Gravatar fallback, then generated initials. The list uses a small thumbnail beside the name; no remote browser request and no per-row daemon lookup ([W07](../done/web-review.md#findings)) |
 | **Register user** | **entry point, which the draft lost** — codex's [S07](review/codex.md#specification-review-round-one). The form exists in [forms](forms.md#the-set) with no page offering it. Its conditional entry now lives in the second-level navigation and opens `/users/new`. Invalid input returns that form with its values and a field-level error, never a problem page. Success lands on the new user's page. Until 0.5.32 the SSH verb could not onboard anybody either ([H.5.9](../done/user-add-provisions.md#scope), now shipped), so this page was the only remaining route and had no entry point — which is what made its absence a gap rather than an omission |
 

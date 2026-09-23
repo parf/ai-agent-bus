@@ -654,15 +654,15 @@ func (m *meanings) section(body, id string) string {
 }
 
 // Kinds of identity, and the directory had one word for all of them
-// (Plans/MVP/done/web-review.md W06). From 0.7 a directory row is a User or a
-// credential with nothing behind it; an Agent is not a person and has no row,
-// and a self-owned record no longer exists to be one. Every one of them is on
-// the page at once, because a label only lies next to the thing it should
-// have said.
+// (Plans/MVP/done/web-review.md W06). From 0.7 every name is a User or an
+// Agent: the directory lists Users, Agents have their own page, and a
+// credential with nothing behind it is a leftover Diagnostics names
+// (docs/05-discovery.md#overview-and-diagnostics). Every one of them is present at once,
+// because a label only lies next to the thing it should have said.
 //
-// Each check reads the row for its own name. The page also carries a legend
-// naming the kinds in prose, so a body-wide search for any of them passes
-// whether or not a single row is labelled at all.
+// Each check reads the row for its own name. The help names the kinds in
+// prose, so a body-wide search for any of them passes whether or not a single
+// row is labelled at all.
 func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	m := meaningFixture(t)
 	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "person@h"}, true); err != nil {
@@ -679,19 +679,18 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := m.get("/users")
-	for _, kind := range []struct{ name, says string }{
-		{"person@h", `aria-label="👤 User">👤</span> <a`},
-		{"junk@h", "<td>Credential with no registered name</td>"},
-	} {
-		if !strings.Contains(m.row(body, kind.name), kind.says) {
-			t.Errorf("%s is not named as %q: %s", kind.name, kind.says, m.row(body, kind.name))
-		}
+	if row := m.row(body, "person@h"); !strings.Contains(row, `aria-label="👤 User">👤</span> <a`) {
+		t.Errorf("person@h is not named as a User: %s", row)
 	}
-	if row := m.row(body, "junk@h"); !strings.HasPrefix(row, `<td><a `) {
-		t.Errorf("credential-only identity was given a prefix before its stated name: %s", row)
+	if strings.Contains(body, "<code>junk@h</code>") || strings.Contains(body, "<code>#named@h</code>") {
+		t.Error("the user directory gives a credential-only name or an Agent a row")
 	}
-	if strings.Contains(body, "<code>#named@h</code>") {
-		t.Error("the directory gives an Agent a row")
+	leftovers := m.section(m.get("/diagnostics"), "leftovers")
+	if row := m.row(leftovers, "junk@h"); !strings.HasPrefix(row, "<td><code>junk@h</code><td>Credential with no record<td>") {
+		t.Errorf("Diagnostics does not name junk@h as a credential with no record: %s", row)
+	}
+	if strings.Contains(leftovers, "<code>#named@h</code>") || strings.Contains(leftovers, "<code>person@h</code>") {
+		t.Error("Diagnostics names an Agent or a User as a leftover")
 	}
 	// Named from what the daemon holds, never read off the spelling. A name
 	// with a slash in it is a User like any other once it has a profile.
@@ -715,12 +714,14 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	m.register(protocol.Record{Name: "#bot@h", Owner: "admin@h", Kind: "agent"})
 	m.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindQueue})
 
+	// kind=users was the Users filter; every row is a User now, so it is ignored.
 	users := m.get("/users?kind=users")
 	if row := m.row(users, "person@h"); !strings.Contains(row, `aria-label="👤 User">👤</span> <a`) || strings.Contains(row, `<span class=muted>👤 User</span>`) {
 		t.Errorf("registered user has no identity label: %s", row)
 	}
-	if !strings.Contains(users, `href="/users?kind=users" aria-current=true>👤 Users`) || strings.Contains(users, `kind=%F0`) {
-		t.Errorf("directory filter mixed its displayed label into the URL value: %s", users)
+	// The status filter carries plain words in its URLs, never a label.
+	if !strings.Contains(users, `<a href="/users?state=inactive">Inactive (0)</a>`) || strings.Contains(users, `state=%F0`) || strings.Contains(users, `kind=`) {
+		t.Errorf("directory filter mixed its displayed label into the URL value: %s", section(t, users, "<main>", "</main>"))
 	}
 
 	m.register(protocol.Record{Name: "db@h", Owner: "admin@h", Kind: protocol.KindService, Addr: "db.example:5432", Proto: "postgresql"})
@@ -778,14 +779,15 @@ func TestFaceComputedCountsAreMarkedAsTheFacesOwn(t *testing.T) {
 	m := meaningFixture(t)
 	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#named@h", Owner: "admin@h"})
 	body := m.get("/users")
-	if !strings.Contains(body, "by this page") {
-		t.Error("the directory counts do not say the face computed them")
+	help := section(t, body, "<div popover id=users-help class=context-help>", "</div>")
+	if !strings.Contains(help, "<li>Agents counts the agents each User owns that are visible to you.") {
+		t.Error("the directory does not say what its Agents count counts, or for whom")
 	}
-	if !strings.Contains(body, "not figures the daemon reported") {
+	if !strings.Contains(help, "are worked out by this page, not figures the daemon reported.</li>") {
 		t.Error("the directory counts are not distinguished from daemon answers")
 	}
-	if !strings.Contains(body, "not a count of the credential store") {
-		t.Error("the directory counts do not state their scope")
+	if row := m.row(body, "admin@h"); !strings.Contains(row, "<td class=num data-label=Agents>1</td>") {
+		t.Errorf("the count the help describes is not on the owner's row: %s", row)
 	}
 }
 
@@ -961,29 +963,24 @@ func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 	}
 }
 
-// The unclassified category is permanent and its occupancy is not. A page that
-// only names the category when one exists tells an operator nothing about the
-// empty case, which is the case they are usually looking at.
-func TestTheUnclassifiedCategoryReadsTheSameWayEmptyAsPopulated(t *testing.T) {
+// A leftover name is rare since 0.7 — every name is a User or an Agent — so
+// Diagnostics names the category only while one exists, and the user
+// directory never does (docs/05-discovery.md#overview-and-diagnostics). This replaced a
+// permanent Other section on /users that was empty on almost every node.
+func TestLeftoverNamesAppearOnlyWhileOneExists(t *testing.T) {
 	m := meaningFixture(t)
-	empty := m.get("/users")
-	if !strings.Contains(empty, "credential with no registered name") {
-		t.Error("with none of them present the directory does not name the category at all")
+	if empty := m.get("/diagnostics"); strings.Contains(empty, "id=leftovers") {
+		t.Error("Diagnostics shows a leftover section with nothing in it")
 	}
-	if !strings.Contains(empty, "No other identities match this view") {
-		t.Error("an empty section is dropped rather than said to be empty")
-	}
-	// And the same words survive one arriving, so the empty page is not a
-	// different page with a different vocabulary.
 	if _, err := m.tokens.Issue("junk@h"); err != nil {
 		t.Fatal(err)
 	}
-	full := m.get("/users")
-	if !strings.Contains(full, "credential with no registered name") {
-		t.Error("the category is named only while empty")
+	full := m.get("/diagnostics")
+	if row := m.row(m.section(full, "leftovers"), "junk@h"); !strings.Contains(row, "<td>Credential with no record<td>") {
+		t.Errorf("the leftover section does not say what junk@h is: %s", row)
 	}
-	if strings.Contains(full, "No other identities match this view") {
-		t.Error("the section still says it is empty while holding a row")
+	if users := section(t, m.get("/users"), "<main>", "</main>"); strings.Contains(users, "junk@h") {
+		t.Error("the user directory still lists a credential with no record")
 	}
 }
 

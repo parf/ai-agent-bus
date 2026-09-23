@@ -554,19 +554,41 @@ func TestRegistrationLivesOnDedicatedSectionPages(t *testing.T) {
 
 func TestSmallURLFiltersAreLinksAndRetainSearch(t *testing.T) {
 	m := meaningFixture(t)
-	page := m.get("/users?q=alice&kind=users")
+	page := m.get("/users?q=alice&state=inactive")
 	for _, want := range []string{
-		`href="/users?q=alice">All`,
-		`href="/users?kind=users&amp;q=alice" aria-current=true>👤 Users`,
-		`href="/users?kind=other&amp;q=alice">Other`,
-		`type=hidden name=kind value="users"`,
+		`<a href="/users?q=alice">Active (1)</a>`,
+		`<a href="/users?q=alice&amp;state=inactive" aria-current=true>Inactive (0)</a>`,
+		`<a href="/users?q=alice&amp;state=all">All states (1)</a>`,
+		`<input type=hidden name=state value="inactive">`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("directory state link lost %q", want)
 		}
 	}
-	if strings.Contains(page, `<select name=kind>`) {
-		t.Error("three-value identity filter remained a select")
+	if strings.Contains(page, `<select name=state>`) || strings.Contains(page, `name=kind`) {
+		t.Error("the status filter became a select, or the retired identity filter remains")
+	}
+}
+
+// The retired Other filter's links land on the section that now lists what
+// it did, and the retired Users filter is every row, so it is ignored.
+func TestRetiredDirectoryKindFiltersStillResolve(t *testing.T) {
+	m := meaningFixture(t)
+	req, err := http.NewRequest("GET", m.web.URL+"/users?kind=other&q=x", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.AddCookie(m.session)
+	resp, err := m.client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/diagnostics#leftovers" {
+		t.Errorf("kind=other answered %d %q, want 303 to /diagnostics#leftovers", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	if row := m.row(m.get("/users?kind=users"), "admin@h"); !strings.Contains(row, "<code>admin@h</code>") {
+		t.Errorf("kind=users no longer shows the directory: %s", row)
 	}
 }
 

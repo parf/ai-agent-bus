@@ -103,11 +103,11 @@ being old.
 
 | Field | Means | We call it | Never |
 |---|---|---|---|
-| identity kind | user, record, or credential-only | a word: registered user / registered name / credential with no registered name | a colour, or a guess from a slash or prefix in the name |
+| identity kind | user, record, or credential-only | a word: a User is a directory row; on Diagnostics' leftover names, *self-owned record, no User profile* / *credential with no record* | a colour, or a guess from a slash or prefix in the name |
 | `Services` | records this identity owns | owned records | — |
 | `Groups` | memberships visible to the caller | memberships, or *no memberships* | — |
 | group members, withheld | the caller may not see them | **not visible to you** | an empty array shown as zero members |
-| `PeopleCount`, `OtherCount` | counts over the caller-visible directory before search | labelled with that scope, **and marked as the face's own** — they are fields of `peopleView` in the web child, not daemon answers, and sit beside `Services` and `Groups`, which are | presenting a face-computed figure and a daemon-reported one as the same kind of fact. Provenance is the same class of distinction as declared-versus-observed, and this file's rule covers it |
+| `PeopleCount`, `Agents` | counts over the caller-visible Users before search, and of each User's caller-visible agents | labelled with that scope, **and marked as the face's own** — they are fields of `peopleView` in the web child, not daemon answers, and sit beside `Services` and `Groups`, which are | presenting a face-computed figure and a daemon-reported one as the same kind of fact. Provenance is the same class of distinction as declared-versus-observed, and this file's rule covers it |
 
 <a id="github-profile"></a>
 

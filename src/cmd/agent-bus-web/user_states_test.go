@@ -36,7 +36,7 @@ func TestTheUserDirectoryOpensOnActiveUsersAndMarksOnlyTheOthers(t *testing.T) {
 		}
 	}
 	// The column is gone; nothing says "active" on a row that is.
-	if strings.Contains(first, "<th scope=col>State</th>") {
+	if strings.Contains(first, "<th scope=col>State</th>") || strings.Contains(first, "<th scope=col>Status</th>") {
 		t.Errorf("the directory still carries a State column: %s", first)
 	}
 	// Element form: the class names live in the inline stylesheet that every
@@ -69,7 +69,7 @@ func TestTheUserDirectoryOpensOnActiveUsersAndMarksOnlyTheOthers(t *testing.T) {
 	}
 
 	// The counts are of users in each state, not of the rows on the page.
-	states := section(t, first, `<nav class=filter-nav aria-label="User state filter">`, "</nav>")
+	states := section(t, first, `<nav class=filter-nav aria-label="Status filter">`, "</nav>")
 	for _, want := range []string{"Active (", "Inactive (2)", "All states ("} {
 		if !strings.Contains(states, want) {
 			t.Errorf("the state filter lacks %q: %s", want, states)

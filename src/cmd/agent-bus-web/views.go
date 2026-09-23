@@ -340,6 +340,10 @@ type view struct {
 	Refusals  []refusal
 	Exchanges []exchange
 	NoFeed    string // this caller may not read the feed
+	// Leftovers are credentials with no record behind them — rare since
+	// 0.7, kept for an operator to repair an ignored record — shown only
+	// when there is one (docs/05-discovery.md#overview-and-diagnostics).
+	Leftovers []protocol.User
 }
 
 // attention is an observed condition, never a health verdict. A record gets at

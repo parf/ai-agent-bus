@@ -81,10 +81,10 @@ func TestListHelpUsesVisibleAccessiblePopoverControls(t *testing.T) {
 
 	users := m.get("/users")
 	for _, want := range []string{
-		`class=help-button popovertarget=identity-types-help aria-label="About identity types">ⓘ</button>`,
-		`<div popover id=identity-types-help class=context-help>`,
-		`<h2>About identity types</h2><ul>`,
-		"credential with no registered name", "not figures the daemon reported",
+		`class=help-button popovertarget=users-help aria-label="About users">ⓘ</button>`,
+		`<div popover id=users-help class=context-help>`,
+		`<h2>About users</h2><ul>`,
+		"<li>A User is Active or Inactive; an inactive one is struck and marked INACTIVE beside the name.", "not figures the daemon reported.</li>",
 	} {
 		if !strings.Contains(users, want) {
 			t.Errorf("Users help missing %q", want)
@@ -160,7 +160,7 @@ func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 		"/personal":                      `👾</span> Personal</h1>`,
 		"/queues":                        `📮</span> Queues</h1>`,
 		"/pubsub":                        `📣</span> PubSub</h1>`,
-		"/users":                         `👤</span> Users and other identities</h1>`,
+		"/users":                         `👤</span> Users</h1>`,
 		"/groups":                        `👥</span> Groups</h1>`,
 		"/activity":                      `</svg> Activity graphs</h1>`,
 		"/services/new":                  `📡</span> Register service</h1>`,

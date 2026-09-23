@@ -159,6 +159,14 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		} else {
 			v.Exchanges = exchanges(feed)
 		}
+		var identities []protocol.User
+		if err := bus.get(cookie(r), "/users", &identities); err == nil {
+			for _, u := range identities {
+				if u.Kind != protocol.DirectoryUser {
+					v.Leftovers = append(v.Leftovers, u)
+				}
+			}
+		}
 		render(w, diagnosticsPage, v)
 	})
 
@@ -482,6 +490,8 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
  th{font-size:.75rem;letter-spacing:.02em;color:var(--text-2);background:var(--surface-3)}
  th,td{padding:.55rem .7rem;border-color:var(--border);vertical-align:middle}
  .record-table{font-size:.875rem}
+ .users-table .contact-line{display:inline-block;margin-right:.9rem;overflow-wrap:anywhere}
+ .users-table td[data-label="Last used"]{white-space:nowrap}
  .record-table tbody tr:hover{background:var(--surface-2)}
  .record-name-cell{min-width:15rem;padding-left:.9rem}
  .record-name{display:inline-flex;flex-direction:column;gap:.08rem;text-decoration:none}
@@ -744,4 +754,6 @@ var diagnosticsPage = template.Must(template.New("diagnostics").Funcs(template.F
 ` + exchangesTemplate + `
 <section class=dashboard-section><div class=page-title><h2 id=loss>Loss by name</h2><button type=button class=help-button popovertarget=loss-help aria-label="About message loss" data-tooltip="Dropped is queue overflow; Expired is retention. Only caller-visible records appear.">ⓘ</button></div><div popover id=loss-help class=context-help><h2>Message loss</h2><ul><li>Dropped counts overflow decisions for the named inbox.</li><li>Expired counts messages removed by retention.</li><li>Only records visible to you appear here.</li></ul></div>
 <table><thead><tr><th scope=col>name<th scope=col class=num>dropped<th scope=col class=num>expired</tr></thead><tbody>{{range .Losses}}<tr><td><a href="{{recordHref .}}"><code>{{.Name}}</code></a><td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}</tr>{{else}}<tr><td colspan=3 class=muted>nothing lost</tr>{{end}}</tbody></table></section>
+{{if .Leftovers}}<section class=dashboard-section aria-labelledby=leftovers><div class=page-title><h2 id=leftovers>Leftover names</h2><button type=button class=help-button popovertarget=leftovers-help aria-label="About leftover names" data-tooltip="Names that are neither a User nor an Agent. Rare; usually left by a record ignored at load.">ⓘ</button></div><div popover id=leftovers-help class=context-help><h2>Leftover names</h2><ul><li>Every name is a User or an Agent. These are neither, and appear here only while one exists.</li><li>A credential with no record is usually left by a record ignored at load, and kept so repairing that record finds its credential.</li><li>A self-owned record with no User profile has no User to answer for it; inspect it before deciding whether it is needed.</li></ul></div>
+<table class=leftovers-table><thead><tr><th scope=col>name<th scope=col>what it is<th scope=col>next step</tr></thead><tbody>{{range .Leftovers}}<tr><td><code>{{.Name}}</code><td>{{if eq .Kind "record"}}Self-owned record, no User profile{{else}}Credential with no record{{end}}<td>{{if eq .Kind "record"}}<a href="/user?name={{.Name}}&return=/diagnostics">Inspect before deciding</a>{{else if .CanRemove}}<a href="/user?name={{.Name}}&return=/diagnostics">Review credential removal</a>{{else}}An authorized administrator can review removal.{{end}}</tr>{{end}}</tbody></table></section>{{end}}
 `))
