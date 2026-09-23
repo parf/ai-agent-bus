@@ -798,8 +798,9 @@ if slow; then
   sec "a call does not damage what it calls from"
   ab owner@srv1 register '#keeper@srv1' --allow '*' --kind agent --addr host:1234 --descr "KEEP ME" >/dev/null
   # the whole record, not a word from it: kind, addr, description, owner and the
-  # timestamp all change if the caller re-states itself.
-  record() { ab '#keeper@srv1' ls | grep -o '{[^}]*"name":"#keeper@srv1"[^}]*}'; }
+  # timestamp all change if the caller re-states itself. last_used is the one
+  # field a call is meant to move (docs/05-discovery.md#what-a-listing-answers).
+  record() { ab '#keeper@srv1' ls | grep -o '{[^}]*"name":"#keeper@srv1"[^}]*}' | sed 's/,"last_used":"[^"]*"//'; }
   before=$(record)
   ab '#keeper@srv1' call '#svc@srv1' --wait 1s "nobody is listening" >/dev/null 2>&1
   after=$(record)

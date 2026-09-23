@@ -277,6 +277,23 @@ func (t *Tokens) Holds(names []string) []Held {
 	return out
 }
 
+// LastUsed is when each named credential last authenticated a call, live
+// rather than as of the last flush. A name with no credential, or one never
+// used, is absent.
+func (t *Tokens) LastUsed(names []string) map[string]time.Time {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	out := make(map[string]time.Time, len(names))
+	for _, n := range names {
+		if h, has := t.tok[n]; has && h.used != nil {
+			if ns := h.used.Load(); ns > 0 {
+				out[n] = time.Unix(0, ns)
+			}
+		}
+	}
+	return out
+}
+
 // Forget drops a principal's credential. It goes with the address: a name
 // that is no longer registered answers for nothing, and a credential left
 // behind is both clutter in its holder's list and a thing that still

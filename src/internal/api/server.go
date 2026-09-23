@@ -575,8 +575,32 @@ func (s *Server) names(w http.ResponseWriter, r *http.Request, caller protocol.N
 	ok(w, held)
 }
 
+// ls answers the listing most recently active first: each record carries
+// when its credential last authenticated a call, and those never used follow
+// by name (docs/05-discovery.md#what-a-listing-answers).
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	ok(w, s.bus.List(caller.String(), r.URL.Query().Get("kind")))
+	recs := s.bus.List(caller.String(), r.URL.Query().Get("kind"))
+	names := make([]string, len(recs))
+	for i := range recs {
+		names[i] = recs[i].Name
+	}
+	used := s.tokens.LastUsed(names)
+	for i := range recs {
+		if at, has := used[recs[i].Name]; has {
+			recs[i].LastUsed = &at
+		}
+	}
+	sort.SliceStable(recs, func(i, j int) bool {
+		a, b := recs[i].LastUsed, recs[j].LastUsed
+		if (a == nil) != (b == nil) {
+			return a != nil
+		}
+		if a != nil && !a.Equal(*b) {
+			return a.After(*b)
+		}
+		return recs[i].Name < recs[j].Name
+	})
+	ok(w, recs)
 }
 
 // inactive is the web face's one read-only view of inactive records

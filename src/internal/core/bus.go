@@ -847,6 +847,7 @@ func clearLiveRecord(r *protocol.Record) {
 	r.CanManage, r.CanTransfer, r.RouteAllowed = false, false, nil
 	r.Reading, r.Readers, r.Queued, r.In, r.Out = false, nil, 0, 0, 0
 	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
+	r.LastUsed = nil
 }
 
 // boundOf is how many messages a record's inbox may hold: what it declared,

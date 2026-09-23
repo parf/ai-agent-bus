@@ -236,6 +236,10 @@ type Record struct {
 	// a record that declares no bound takes the daemon's, and a reader has
 	// no way to know what that is.
 	AtBound bool `json:"at_bound,omitempty"`
+	// LastUsed is when the name's credential last authenticated a call:
+	// what tells a session someone is in from one left behind. Nil when the
+	// name holds no credential or it has never been used.
+	LastUsed *time.Time `json:"last_used,omitempty"`
 }
 
 // AccountMapping says which bus principal one local OS account's private

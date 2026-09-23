@@ -9,6 +9,11 @@ previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 Push stops when the daemon refuses the credential or the read, instead of
 asking again every two seconds for as long as the session lives.
 
+## 0.8.2 — 2026-09-23
+
+A listing carries each name's `last_used` and puts the most recently used
+first; `ab_ls` says how long ago.
+
 ## 0.8.1 — 2026-09-23
 
 `consume --topic` or `--tag` alone selects on that field only; a topic filter

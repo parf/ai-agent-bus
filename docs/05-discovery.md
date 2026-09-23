@@ -31,6 +31,7 @@ So a caller reading a listing needs more than a name:
 | **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, since then ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
 | **`oldest`** | how long the message at the head of its queue has been waiting | its queue is empty |
 | **`at_bound`** | its queue held the limit it is allowed **when the question was asked**. Not a prediction about the next message: a waiting reader is handed one without it ever queueing, and enqueueing prunes what has expired before it tests fullness, so if the queue is still full then the record's [overflow policy](04-messaging.md#overflow) applies — refuse, or forget the oldest | there is room. The daemon answers it because a record that declares no bound takes the daemon's, and a reader cannot know what that is |
+| **`last_used`** | when the name's credential last authenticated a call, live; the listing puts the most recently used first, then the never used by name. Built in 0.8.2 | the name holds no credential, or it was never used |
 
 These are **observations attached to the listing**, not values a registrant
 may state. Traffic and loss counters survive through snapshots; `readers` and

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { catalogue } from "./catalogue.ts";
+import { ago, catalogue } from "./catalogue.ts";
 
 describe("catalogue reader count", () => {
   test("distinguishes unavailable from measured zero", () => {
@@ -15,5 +15,16 @@ describe("catalogue reader count", () => {
     // It has no queue here, so it makes no claim about one.
     expect(text).not.toContain("readers");
     expect(text).not.toContain("queued");
+  });
+});
+
+describe("catalogue last use", () => {
+  test("says how long ago a name was last used, and nothing when it never was", () => {
+    const now = Date.parse("2026-09-23T12:00:00Z");
+    expect(catalogue({ name: "#a@h", kind: "agent", owner: "o", readers: 1, last_used: "2026-09-23T11:57:00Z" }, now)).toContain("last used 3m ago");
+    expect(catalogue({ name: "#b@h", kind: "agent", owner: "o", readers: 0 }, now)).not.toContain("last used");
+    expect(ago("2026-09-23T11:59:30Z", now)).toBe("just now");
+    expect(ago("2026-09-23T07:00:00Z", now)).toBe("5h ago");
+    expect(ago("2026-09-20T12:00:00Z", now)).toBe("3d ago");
   });
 });

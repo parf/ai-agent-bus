@@ -44,7 +44,7 @@ export type Record_ = { name: string; kind: string; addr?: string; descr?: strin
   // How to call it, and whether anything is actually serving it. A registry
   // entry says a name exists; these say whether a call through the bus will
   // reach anyone (docs/05-discovery.md#what-a-listing-answers).
-  protocol?: string; reading?: boolean; readers?: number; queued?: number;
+  protocol?: string; reading?: boolean; readers?: number; queued?: number; last_used?: string;
   // The digest of a configuration, never the configuration itself: it is
   // how a caller sees that a service is configured, and that its setup
   // still matches the one it knew (docs/03-records.md#why-a-digest-at-all).

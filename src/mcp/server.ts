@@ -179,7 +179,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         return text(
           records.length === 0
             ? "nothing is registered"
-            : records.map(catalogue).join("\n"),
+            : records.map((r) => catalogue(r)).join("\n"),
         );
       }
       case "ab_send": {
