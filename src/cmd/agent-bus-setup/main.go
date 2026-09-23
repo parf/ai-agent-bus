@@ -82,7 +82,7 @@ func main() {
 
 func setup() error {
 	fs := flag.CommandLine
-	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: `user@realm`")
+	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: a `name`, the installer's account name by default")
 	addr := fs.String("addr", "127.0.0.1:6767", "the daemon's loopback `address`")
 	exe := fs.String("exec", "", "source-build or package-less acceptance `path` to agent-busd; bypasses package installation")
 	keyF := fs.String("key", "", "the installer's public `key`, to be the first user; defaults to their id_ed25519.pub")
@@ -136,7 +136,7 @@ func setup() error {
 	// a mapped local account like every other, which is the whole claim of
 	// the split made concrete.
 	// See docs/09-setup.md#the-two-units.
-	users = append(users, runAccount+"=runner@"+me.Realm)
+	users = append(users, runAccount+"="+runAccount)
 	explicitExe := *exe != ""
 	if !explicitExe {
 		self, err := os.Executable()
@@ -416,20 +416,9 @@ func invoker() string {
 	return ""
 }
 
-func defaultInstaller() string {
-	who := invoker()
-	if who == "" {
-		return ""
-	}
-	host, err := os.Hostname()
-	if err != nil || host == "" {
-		host = "localhost"
-	}
-	if i := strings.IndexByte(host, '.'); i > 0 {
-		host = host[:i]
-	}
-	return who + "@" + host
-}
+// defaultInstaller is the installer's account name alone: a User's name
+// defaults to it, with no realm appended (docs/01-identity-and-roles.md#names).
+func defaultInstaller() string { return invoker() }
 
 func run(name string, args ...string) error {
 	return runIn(nil, name, args...)

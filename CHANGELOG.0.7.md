@@ -5,6 +5,11 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.4 — 2026-09-23
+
+The realm is optional: `alice` is a complete name, distinct from
+`alice@srv1`, and setup's default Owner is the installer's bare account name.
+
 ## 0.7.3 — 2026-09-23
 
 Every record and user carries a stable internal ID that is persisted, never

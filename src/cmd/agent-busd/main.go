@@ -106,7 +106,7 @@ func initDatabase(path string) error {
 func requiredOwner(value string) (protocol.Name, error) {
 	name, err := protocol.ParseName(value)
 	if err != nil {
-		return protocol.Name{}, fmt.Errorf("required --owner user@realm: %w", err)
+		return protocol.Name{}, fmt.Errorf("required --owner name: %w", err)
 	}
 	return name, nil
 }

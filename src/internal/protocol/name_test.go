@@ -49,9 +49,43 @@ func TestNameLengthIsBounded(t *testing.T) {
 	}
 }
 
+// A realm-less name is a complete name, not a shorthand: nothing is appended
+// to it, and it is not the same name as any realm-qualified one
+// (docs/01-identity-and-roles.md#names).
+func TestARealmIsOptional(t *testing.T) {
+	for in, want := range map[string]Name{
+		"parf":                {Local: "parf"},
+		" Parf ":              {Local: "parf"},
+		"claude/home":         {Template: "claude", Local: "home"},
+		"parf@srv1":           {Local: "parf", Realm: "srv1"},
+		"mail/parf@comfi.com": {Template: "mail", Local: "parf", Realm: "comfi.com"},
+	} {
+		n, err := ParseName(in)
+		if err != nil || n != want {
+			t.Fatalf("%q parsed as %+v, %v", in, n, err)
+		}
+	}
+	bare, _ := ParseName("alice")
+	qualified, _ := ParseName("alice@srv1")
+	if bare.String() != "alice" || bare.String() == qualified.String() {
+		t.Fatalf("alice and alice@srv1 are two names: %q, %q", bare, qualified)
+	}
+	// The last "@" separates the realm, so an "@" inside the local part
+	// always comes with a realm after it.
+	if n, _ := ParseName("parf@comfi.com@srv1"); n.Local != "parf@comfi.com" || n.Realm != "srv1" {
+		t.Fatalf("split on the wrong @: %+v", n)
+	}
+	// Bounded without the separator it does not have.
+	if _, err := ParseName(strings.Repeat("a", MaxName)); err != nil {
+		t.Fatalf("a %d-character realm-less name should fit: %v", MaxName, err)
+	}
+	if _, err := ParseName(strings.Repeat("a", MaxName+1)); err == nil {
+		t.Fatal("a realm-less name longer than the bound was accepted")
+	}
+}
+
 func TestParseNameRejects(t *testing.T) {
 	for _, in := range []string{
-		"parf",           // no realm
 		"@localhost",     // no local part
 		"parf@",          // no realm part
 		"parf@локалхост", // not ASCII

@@ -20,9 +20,10 @@ A record is one of [five kinds](03-records.md#five-record-kinds): 👤 `user`, �
 
 ## Names
 
-Names look like `alice@host` or `template/instance@host`. The realm after the
-last `@` identifies a namespace, not the process's physical location. Names are
-lowercase; the runner completes a bare name with the local hostname.
+Names look like `alice`, `alice@host` or `template/instance@host`. The realm
+after the last `@` identifies a namespace, not the process's physical location,
+and is optional. Names are lowercase and taken as written: nothing completes a
+bare name with a hostname.
 
 <details>
 <summary>Name syntax and examples</summary>
@@ -32,7 +33,7 @@ lowercase; the runner completes a bare name with the local hostname.
 | Length | At most 64 ASCII characters, including separators |
 | Components | Start alphanumeric; use `a-z`, `0-9`, `.`, `_`, `-` |
 | Local part | Also allows `+` and internal `@`; each `@`-separated part must be non-empty |
-| Realm | Follows the last `@`; contains neither `@` nor `/` |
+| Realm | Optional; follows the last `@` and contains neither `@` nor `/`. A name with no `@` has no realm |
 | Template | Optional prefix separated by one `/`; part of the identity, not a lookup |
 | Normalization | Lowercase and trim the whole name and each component; internal spaces are invalid |
 
@@ -44,26 +45,24 @@ separate names, records and configurations.
 
 </details>
 
-**Pending for 0.7:** an Agent's canonical name begins with `#` — `#worker`,
-`#worker@srv1`, `#claude/home@srv1` — the way a group name begins with `@`, so
-one name column is unique across every kind and no lookup is needed to know
-what a name refers to. In a URL that `#` is percent-encoded as `%23`. The realm
-becomes optional on every name and every kind. A name
+**Built in 0.7.4:** the realm is optional on every name and every kind. A name
 without a realm is a complete name rather than a shorthand: nothing is appended
 to it, and `alice` and `alice@srv1` are two distinct principals that may both
 exist, each reachable only by its own spelling. The two separators are fixed
 whatever else a name contains: the first `/` separates the template, and the
-last `@` separates the realm. A realm-less name is therefore one carrying no
-`@` at all. Every name valid today keeps its realm split; an Agent's name also
-gains its `#`, so an unprefixed former Agent name now names a User. Nothing
-completes a bare name with the local hostname any more; a name is taken as
-written. A new User's name defaults to the
-Unix account name alone, the daemon Owner's included, so the clean reinstall
-bootstraps `parf` rather than `parf@host`. Agents that would otherwise collide
-across machines still carry a realm: the
-[launchers](08-runner-role.md#session-names) keep deriving
-`#runtime/instance@host`, with the host name as the realm, because a bare
-`#runner` would be the same name on every node.
+last `@` separates the realm, so a realm-less name is one carrying no `@` at
+all. Every name valid before keeps its template and realm split. Setup's
+default Owner is the installer's Unix account name alone, so the clean
+reinstall bootstraps `parf` rather than `parf@host`, and the runner account's
+principal is its own account name. Agents that would otherwise collide across
+machines still carry a realm: the [launchers](08-runner-role.md#session-names)
+keep deriving `runtime/instance@host`, with the host name as the realm.
+
+**Pending for 0.7:** an Agent's canonical name begins with `#` — `#worker`,
+`#worker@srv1`, `#claude/home@srv1` — the way a group name begins with `@`, so
+one name column is unique across every kind and no lookup is needed to know
+what a name refers to. In a URL that `#` is percent-encoded as `%23`. An Agent's
+name gains its `#`, so an unprefixed former Agent name then names a User.
 
 ## Role names and scopes
 

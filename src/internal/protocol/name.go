@@ -7,8 +7,10 @@ import (
 	"strings"
 )
 
-// A principal is user@realm; a service is [template/]name@host. The name is
-// the identity — never a provider's numeric id. See docs/01-identity-and-roles.md#names.
+// A name is [template/]local[@realm]. The realm is optional and part of the
+// identity: `alice` and `alice@srv1` are two names, and nothing appends a realm
+// to one that has none. The name is the identity — never a provider's numeric
+// id. See docs/01-identity-and-roles.md#names.
 //
 // Every name is canonicalised as lower-case and ASCII only, trimmed as a whole
 // and again per component, so "mail-sender / parf@comfi.com @ host" is the one
@@ -81,32 +83,35 @@ const MaxName = 64
 type Name struct {
 	Template string // agent template this record was configured from, or ""
 	Local    string // user, or service name
-	Realm    string // the name a daemon answers for: a host by default, a pool, a provider
+	Realm    string // the namespace after the last "@", or "" for a name with none
 }
 
 func (n Name) String() string {
-	if n.Template == "" {
-		return n.Local + "@" + n.Realm
+	s := n.Local
+	if n.Template != "" {
+		s = n.Template + "/" + s
 	}
-	return n.Template + "/" + n.Local + "@" + n.Realm
+	if n.Realm != "" {
+		s += "@" + n.Realm
+	}
+	return s
 }
 
-// ParseName accepts "user@realm" or "template/name@realm" in any
+// ParseName accepts "name", "name@realm" or "template/name@realm" in any
 // capitalisation, with surrounding space, and returns the one canonical form.
-// A bare "user" is not a name: the realm is what makes it addressable from
-// anywhere. The realm is whatever follows the LAST "@", and never holds a "/"
-// — a realm is a name, not a path.
+// The realm is whatever follows the LAST "@", and never holds a "/" — a realm
+// is a name, not a path. A name with no "@" at all has no realm, and is a
+// complete name rather than a shorthand for one.
 func ParseName(s string) (Name, error) {
 	s = strings.TrimSpace(s)
 	if !isASCII(s) {
 		return Name{}, fmt.Errorf("name %q is not ASCII: names are ASCII only", s)
 	}
 	lower := strings.ToLower(s)
-	at := strings.LastIndex(lower, "@")
-	if at < 0 {
-		return Name{}, fmt.Errorf("name %q has no realm: want user@realm", s)
+	local, realm, hasRealm := lower, "", false
+	if at := strings.LastIndex(lower, "@"); at >= 0 {
+		local, realm, hasRealm = lower[:at], lower[at+1:], true
 	}
-	local, realm := lower[:at], lower[at+1:]
 	local, realm = strings.TrimSpace(local), strings.TrimSpace(realm)
 	var template string
 	if before, after, cut := strings.Cut(local, "/"); cut {
@@ -118,12 +123,15 @@ func ParseName(s string) (Name, error) {
 	if !isLocal(local) {
 		return Name{}, fmt.Errorf("bad name %q: a-z 0-9 . _ - + @ only, starting alphanumeric", s)
 	}
-	if !part(realm, false) {
+	if hasRealm && !part(realm, false) {
 		return Name{}, fmt.Errorf("bad realm in %q: a-z 0-9 . _ - only, starting alphanumeric", s)
 	}
 	// Counted rather than rendered: String allocates, and this runs on every
 	// call the daemon serves.
-	size := len(local) + 1 + len(realm)
+	size := len(local)
+	if hasRealm {
+		size += 1 + len(realm)
+	}
 	if template != "" {
 		size += len(template) + 1
 	}

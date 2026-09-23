@@ -84,7 +84,7 @@ func TestAccountMapRefusesUnknownInactiveAndDamagedState(t *testing.T) {
 	for _, damaged := range []ports.Snapshot{
 		{Accounts: []protocol.AccountMapping{{Account: "os", Principal: "alice@h"}}},
 		{AccountsEstablished: true, Accounts: []protocol.AccountMapping{{Account: "", Principal: "alice@h"}}},
-		{AccountsEstablished: true, Accounts: []protocol.AccountMapping{{Account: "os", Principal: "bad"}}},
+		{AccountsEstablished: true, Accounts: []protocol.AccountMapping{{Account: "os", Principal: "-bad"}}},
 		{AccountsEstablished: true, Accounts: []protocol.AccountMapping{{Account: "os", Principal: "alice@h"}, {Account: "os", Principal: "bob@h"}}},
 	} {
 		clone := New()

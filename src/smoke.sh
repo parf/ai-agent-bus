@@ -542,7 +542,7 @@ is_empty "so the topic names nobody" \
 # against a name that exists, or the refusal is about the caller instead
 # and the pair passes whichever field the daemon reads.
 has "and /subscribe no longer reads a topic field" \
-  "$(post_body sub-a@srv1 /subscribe '{"topic":"news@srv1"}' 2>&1)" 'has no realm'
+  "$(post_body sub-a@srv1 /subscribe '{"topic":"news@srv1"}' 2>&1)" 'bad name \\"\\"'
 has "while the channel field names the channel for real" \
   "$(post_body sub-a@srv1 /subscribe '{"channel":"news@srv1"}' 2>&1)" 'delivers to'
 deliver_to news@srv1 '["sub-a@srv1","sub-b@srv1"]' >/dev/null
@@ -1187,7 +1187,7 @@ has "--follow keeps reading" "$(cat "$D/follow.out")" 'first'
 has "--follow reads the next one too" "$(cat "$D/follow.out")" 'second'
 out=$("$D/agent-busd" -addr 127.0.0.1:$((PORT+1)) -socket "$D/no-owner.sock" -db "$D/no-owner.db" -create -flush-every 0 2>&1); rc=$?
 bad_exit "the daemon refuses to derive ownership from the OS account" $rc
-has "and requires an explicit owner before opening listeners" "$out" 'required --owner user@realm'
+has "and requires an explicit owner before opening listeners" "$out" 'required --owner name'
 out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -owner "$OWNER" -db "$D/public.db" -create -flush-every 0 2>&1); rc=$?
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
@@ -1944,7 +1944,7 @@ has "the installer still gets a socket of their own" "$UNIT" "[-]user $(id -un)=
 # The runner reaches the local bus over a socket like any other account, so
 # the daemon has to know it is one.
 # See docs/09-setup.md#the-two-units.
-has "and so does the runner, which is a client like anyone else" "$UNIT" "[-]user agent-bus-runner=runner@${OWNER#*@}"
+has "and so does the runner, under its own account name, which is a client like anyone else" "$UNIT" "[-]user agent-bus-runner=agent-bus-runner"
 out=$("$D/agent-bus-setup" --owner "$OWNER" 2>&1); rc=$?
 bad_exit "setup without root refuses rather than half-installing" $rc
 is_empty "and does not try the first step before finding that out" \
@@ -1967,7 +1967,10 @@ has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
 has "and the start" "$out" 'would reload systemd'
 has "and hands the first user to the program that owns that file" "$out" "would make $OWNER the first user"
 out=$("$D/agent-bus-setup" --print-unit --owner parf 2>&1); rc=$?
-bad_exit "an owner without a realm is refused before anything is written" $rc
+ok_exit "an owner without a realm is a whole name" $rc
+has "and is written as given, with nothing appended" "$out" '-owner parf -web'
+out=$("$D/agent-bus-setup" --print-unit --owner -parf 2>&1); rc=$?
+bad_exit "while an owner that is no name is refused before anything is written" $rc
 
 sec "the admin program owns what the account owns"
 # Everything an operator does to the account's files, and nothing a user
