@@ -9,7 +9,7 @@ ordinary use needs neither.
 
 | MVP | Scope |
 |---|---|
-| Built | Distributable archive, installer, administration, token helper, accounts, daemon unit and stamped builds; fresh-host installation and populated upgrade/recovery acceptance. |
+| Built | Distributable archive, installer, administration, token helper, accounts, daemon unit and stamped builds; fresh-host installation, populated upgrade/recovery and [backup/restore](#backup-and-restore) acceptance. |
 | Pending | Installed runtime/browser acceptance. |
 
 ## The programs
@@ -304,7 +304,9 @@ does not select the future runner backup mechanism.
 SSH onboarding is accepted through an actual sshd installation for both
 ordinary and operator keys, including the documented token command,
 entitlement enforcement and restricted access. Checking generated
-`authorized_keys` text alone is insufficient. The [SSH onboarding evidence](../Plans/MVP/done/ssh-onboarding.md#checks) records the real-sshd exercise and its environment limits.
+`authorized_keys` text alone is insufficient. The [SSH onboarding evidence](../Plans/MVP/done/ssh-onboarding.md#checks) records the real-sshd exercise and its environment limits; its [0.7 re-run](../Plans/MVP/done/ssh-onboarding.md#07-re-run) adds realm-less names, two-token rotation and credentials surviving a restart.
+
+[Backup and restore](#backup-and-restore) is accepted on packaged hosts.
 
 [H.1.1](../Plans/MVP/done/upgrade-recovery.md#checks) records completed upgrade/recovery acceptance;
 [H.5.2](../Plans/MVP/done/ssh-onboarding.md#checks) records the completed SSH exercise.
@@ -366,6 +368,49 @@ defined in [messaging § durability](04-messaging.md#durability).
 Follow the [reinstall procedure](../Plans/MVP/0.7-cutover.md#procedure) for 0.7
 bootstrap and client reconnection. SQLite state and backups retain the daemon
 account's private directory and file boundary.
+
+## Backup and restore
+
+**A backup is the stopped daemon home.** The daemon holds its database
+exclusively, so no online copy exists: `sqlite3 .backup` and every other reader
+get `database is locked`. A graceful stop flushes queues and counters and
+checkpoints the WAL into `agent-bus.db`, so the stopped home is complete and
+consistent. The pause is the stop plus the start.
+
+| Step | As root |
+|---|---|
+| Back up | `systemctl stop agent-busd`, then `tar -C /var/lib/agent-bus -cpf <backup>.tar daemon`, `chmod 600 <backup>.tar`, `systemctl start agent-busd` |
+| Restore | Install the same release (on a new host, `agent-bus-setup` as in [install](#install)), `systemctl stop agent-busd`, `rm -rf /var/lib/agent-bus/daemon`, `tar -C /var/lib/agent-bus -xpf <backup>.tar`, `systemctl start agent-busd` |
+
+<details>
+<summary>What it covers and what to keep in mind</summary>
+
+- The home holds the database (users, records, groups, configurations,
+  secrets, credentials, ownership, queue contents and counters) and
+  `.ssh/authorized_keys`; together they are the node. The archive holds live
+  credentials and secrets: keep it root-only.
+- Restore **replaces the whole home**. Copying only `agent-bus.db` over a
+  home that still has an `agent-bus.db-wal` from the state being replaced —
+  left by any unclean stop — lets SQLite replay that newer WAL onto the older
+  database.
+- A restore is exactly the backed-up state: later users, keys, records,
+  rotations and traffic are gone, and credentials issued after the backup
+  stop authenticating.
+- The local-account map is restored with the database; a new host needs the
+  same OS accounts for their sockets. Logs, the unit and the runner's
+  `service.d` are not part of the backup.
+- A backup taken without the stop is not supported: the database file lacks
+  what is still in the WAL and in memory.
+
+**Built and accepted in 0.7.19** by `src/acceptance/backup-restore.sh`: a
+populated disposable host is backed up twice, an older backup restored over
+newer uncleanly stopped state returns exactly that older state, and a fresh
+host restored from the newer one matches its listings, owners, `config_sha`,
+`secret_sha`, queued and in/out/dropped counts and credentials, then keeps
+unflushed traffic over a graceful restart and loses only post-flush traffic
+in a bus-child crash ([durability](04-messaging.md#durability)).
+
+</details>
 
 ## Logs
 
