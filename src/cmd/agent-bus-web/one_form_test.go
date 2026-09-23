@@ -94,9 +94,11 @@ func TestAFormAsksOnlyWhatItsKindHas(t *testing.T) {
 		// Every kind may be Personal from 0.7 (docs/03-records.md#personal-and-shared),
 		// and an agent and a queue have a one-slot Deliver-To route
 		// (docs/constitution.md#-channels); a service has neither a queue nor a route.
+		// An agent holds a secret of its own, which only it reads back
+		// (docs/constitution.md#-private-values).
 		{protocol.KindAgent, "/agents/new",
-			[]string{"descr", "ttl", "bound", "overflow", "allow", "personal", "subs"},
-			[]string{"addr", "protocol", "secret", "maintainers"}},
+			[]string{"descr", "ttl", "bound", "overflow", "allow", "personal", "subs", "secret"},
+			[]string{"addr", "protocol", "maintainers"}},
 		{protocol.KindService, "/services/new",
 			[]string{"descr", "addr", "protocol", "secret", "allow", "personal"},
 			[]string{"ttl", "bound", "overflow", "subs", "maintainers"}},
@@ -182,6 +184,13 @@ func TestAUserAndAGroupAreAddedAndEditedByTheSameForm(t *testing.T) {
 	} {
 		asked := controls(t, m.get(c.new))
 		offered := controls(t, m.get(c.edit))
+		// A group's Maintainers are set once it exists, as a record's are.
+		if c.what == "group" {
+			if !strings.Contains(" "+strings.Join(offered, " ")+" ", " maintainers ") {
+				t.Errorf("the group settings form does not ask for Maintainers: %v", offered)
+			}
+			offered = without(offered, "maintainers")
+		}
 		if strings.Join(asked, " ") != strings.Join(offered, " ") {
 			t.Errorf("a %s is added with %v and edited with %v", c.what, asked, offered)
 		}

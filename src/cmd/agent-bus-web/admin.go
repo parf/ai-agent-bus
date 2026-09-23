@@ -260,6 +260,45 @@ func (v adminView) mayEditGroup(name string) bool {
 	return v.Administrator || v.GroupRecords[name].CanManage
 }
 
+// GroupValue and GroupTicked are what a group form control shows: what was
+// submitted when this render is a refused submission coming back, and the
+// stored value otherwise.
+func (v adminView) GroupValue(name, stored string) string {
+	if v.Form.Is("save") {
+		return v.Form.Value(name)
+	}
+	return stored
+}
+
+func (v adminView) GroupTicked(name string, stored bool) bool {
+	if v.Form.Is("save") {
+		return v.Form.Checked(name)
+	}
+	return stored
+}
+
+// GroupMayAssign is whether this caller may set a group's owner-only fields,
+// Personal and Maintainers: its Owner or the daemon Owner, and nobody for the
+// protected group, which has neither (docs/constitution.md#-group).
+// Registering a group makes you its Owner.
+func (v adminView) GroupMayAssign() bool {
+	if !v.Editing {
+		return true
+	}
+	return v.GroupName != core.AdministratorsGroup && v.GroupVisible && v.GroupRecord.CanTransfer
+}
+
+// GroupDescrEditable is whether the form can offer the description back: an
+// Administrator may edit a group whose record it cannot read, and a field
+// showing an empty value it never saw would clear the stored one on save.
+func (v adminView) GroupDescrEditable() bool { return !v.Editing || v.GroupVisible }
+
+// GroupSecretEditable is whether this caller may write a group's secret: its
+// managers, and not an Administrator by being one (docs/constitution.md#-private-values).
+func (v adminView) GroupSecretEditable() bool {
+	return !v.Editing || v.GroupVisible && v.GroupRecord.CanManage
+}
+
 // loadGroups reads both answers a group page needs: every group the caller
 // may name, with the membership they may read, and the group records they
 // may see, which carry Owner and Maintainers.
@@ -473,6 +512,9 @@ func (c *caller) post(cred, path string, value any) error {
 // recordSection is the navigation section a record's pages belong to.
 func recordSection(r protocol.Record) string {
 	switch {
+	case r.Kind == protocol.KindGroup:
+		// A group is on Groups, Personal or not: the Personal view lists none.
+		return "groups"
 	case r.Personal:
 		return "personal"
 	case pubsubRecord(r.Kind):
@@ -1073,6 +1115,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		}
 		v.Current, v.Editing, v.GroupName = "groups", true, name
 		v.GroupMembers = append([]string(nil), members...)
+		v.GroupRecord, v.GroupVisible = v.GroupRecords[name]
 		v.CanEditGroup = v.mayEditGroup(name)
 		if !v.CanEditGroup {
 			fail(w, r, v.You, &busError{code: http.StatusForbidden, message: "that group's membership cannot be changed by you"})
@@ -1363,7 +1406,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			// registration carries neither the bytes nor their digest
 			// (docs/06-services.md#secrets). An empty field means no secret,
 			// which is what the daemon refuses to store anyway.
-			if secret := formSecret(r.PostForm.Get("secret")); secret != "" && kind == protocol.KindService {
+			if secret := formSecret(r.PostForm.Get("secret")); secret != "" && holdsSecret(kind) {
 				if secretErr := c.post(cookie(r), "/secret", struct {
 					Name   string `json:"name"`
 					Secret string `json:"secret"`
@@ -1373,7 +1416,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 					// is now taken, so this says exactly what happened and
 					// where the credential can still be put.
 					localProblem(w, r, v.You, http.StatusBadGateway,
-						"The service was registered and its secret was not stored: "+sectionProblem("secret", secretErr)+
+						"The "+strings.ToLower(recordNoun(kind))+" was registered and its secret was not stored: "+sectionProblem("secret", secretErr)+
 							" Set it with: agent-bus secret "+name+" '...'")
 					return
 				}
@@ -1460,20 +1503,106 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			localProblem(w, r, v.You, http.StatusBadRequest, "That group action is not available.")
 			return
 		}
-		err := c.post(cookie(r), "/group", struct {
-			Name    string
-			Members []string
-		}{r.PostForm.Get("name"), strings.Fields(r.PostForm.Get("members"))})
+		name := r.PostForm.Get("name")
+		created := r.PostForm.Get("new") == "1"
+		members := strings.Fields(r.PostForm.Get("members"))
+		if members == nil {
+			members = []string{} // an empty list, not an absent one: JSON null would change nothing
+		}
+		sort.Strings(members)
+		// A group is one form and, once it exists, one change: its members
+		// are its allow list, so description, members, Maintainers and
+		// Personal go to the daemon together and are refused together
+		// (docs/constitution.md#-group). Registration is SetGroup, which is
+		// the one call that creates a group; the protected group's members
+		// change only through it too, and it takes the description alone.
+		change := core.Management{Name: name}
+		if r.PostForm.Has("descr") {
+			descr := r.PostForm.Get("descr")
+			change.Descr = &descr
+		}
+		if r.PostForm.Has("edit_sharing") {
+			maintainers := protocol.MaintainerList(strings.Fields(r.PostForm.Get("maintainers")))
+			if maintainers == nil {
+				maintainers = protocol.MaintainerList{}
+			}
+			change.Maintainers = &maintainers
+		}
+		if r.PostForm.Has("edit_personal") {
+			personal := r.PostForm.Get("personal") == "on"
+			change.Personal = &personal
+		}
+		var err error
+		viaSetGroup := created || strings.EqualFold(strings.TrimSpace(name), core.AdministratorsGroup)
+		if !viaSetGroup {
+			// A save naming no group registers one, as it always has: SetGroup
+			// answers for an absent name exactly as a registration would.
+			var groups map[string][]string
+			if err := c.get(cookie(r), "/groups", &groups); err != nil {
+				fail(w, r, v.You, err)
+				return
+			}
+			if _, exists := groups[strings.ToLower(strings.TrimSpace(name))]; !exists {
+				viaSetGroup, created = true, true
+			}
+		}
+		if !viaSetGroup {
+			withMembers := change
+			withMembers.Allow = &members
+			err = c.post(cookie(r), "/manage", withMembers)
+		}
+		if viaSetGroup {
+			err = c.post(cookie(r), "/group", struct {
+				Name    string
+				Members []string
+			}{name, members})
+			// What SetGroup does not carry follows it, and only when there is
+			// something to say: a new group's Owner is its creator, so the
+			// owner-only fields are theirs to set. The protected group takes
+			// the description alone.
+			if created && change.Descr != nil && *change.Descr == "" {
+				change.Descr = nil
+			}
+			if !created || change.Personal != nil && !*change.Personal {
+				change.Personal = nil
+			}
+			change.Maintainers = nil
+			if err == nil && (change.Descr != nil || change.Personal != nil) {
+				if err = c.post(cookie(r), "/manage", change); err != nil && created {
+					localProblem(w, r, v.You, http.StatusBadGateway,
+						"The group was registered and its description or classification was not stored: "+sectionProblem("group", err)+
+							" Change them on its settings page.")
+					return
+				}
+			}
+		}
+		// The secret is its own verb, exactly as for a service
+		// (docs/06-services.md#secrets). Empty means leave the stored one.
+		if secret := formSecret(r.PostForm.Get("secret")); err == nil && secret != "" {
+			if secretErr := c.post(cookie(r), "/secret", struct {
+				Name   string `json:"name"`
+				Secret string `json:"secret"`
+			}{name, secret}); secretErr != nil {
+				localProblem(w, r, v.You, http.StatusBadGateway,
+					"The group was saved and its secret was not stored: "+sectionProblem("secret", secretErr)+
+						" Set it with: agent-bus secret "+name+" '...'")
+				return
+			}
+		}
 		if err != nil {
 			code, message, preserve := formRefusal(err)
-			// A refusal naming one of the typed members is about that line,
+			// A refusal naming one of the typed lines is about that line,
 			// whatever its code, and says so; the lines stay as typed.
 			field := ""
 			if code != 0 {
-				field, message = lineRefusal(message, listField{"members", "Members", r.PostForm.Get("members")})
+				lists := []listField{{"members", "Members", r.PostForm.Get("members")}}
+				if r.PostForm.Has("edit_sharing") {
+					lists = append(lists, listField{"maintainers", "Maintainers", r.PostForm.Get("maintainers")})
+				}
+				field, message = lineRefusal(message, lists...)
 			}
 			if preserve || field != "" {
-				v.Form = retainedForm("save", message, r.PostForm, "name", "members", "new")
+				v.Form = retainedForm("save", message, r.PostForm, "name", "members", "new", "descr", "maintainers", "personal")
 				v.Form.Field = field
 				if r.PostForm.Get("new") == "1" {
 					if field == "" {
@@ -1483,7 +1612,9 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 					renderForm(w, code, groupNew, v)
 					return
 				}
-				v.Form.Field = "members"
+				if v.Form.Field == "" {
+					v.Form.Field = "members"
+				}
 				v.GroupName = r.PostForm.Get("name")
 				if groupsErr := c.loadGroups(r, &v); groupsErr != nil {
 					fail(w, r, v.You, groupsErr)
@@ -1494,6 +1625,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 					return
 				}
 				v.GroupMembers = strings.Fields(r.PostForm.Get("members"))
+				v.GroupRecord, v.GroupVisible = v.GroupRecords[v.GroupName]
 				v.CanEditGroup = v.mayEditGroup(v.GroupName)
 				if !v.CanEditGroup {
 					fail(w, r, v.You, err)
@@ -1621,8 +1753,8 @@ var serviceDanger = template.Must(template.New("service-danger").Funcs(template.
 {{with .Record}}<p><a href="{{href .}}?name={{.Name}}">Back to {{.Name}}</a></p>
 <div class=page-title><h1>{{titleMark "problem"}} Danger Zone · {{.Name}}</h1></div>` + formErrorSummary + `
 {{if holdsConfig .Kind}}<h2>Replace configuration</h2><form id=form-configure method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=configure><label>New configuration <textarea name=config rows=6 cols=60 required autocomplete=off aria-invalid="{{if $.Form.Invalid "config"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "config"}}configure-error{{end}}"></textarea></label><p>Existing private configuration and a refused replacement are never displayed.</p>{{if $.Form.Is "configure"}}<p class=warn id=configure-error>{{$.Form.Error}}</p>{{end}}<button>Replace configuration</button></form>{{end}}
-{{if .CanTransfer}}{{if ne .Name .Owner}}<h2>Transfer ownership</h2><form id=form-transfer method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=transfer><label>New owner <input name=owner required value="{{if $.Form.Is "transfer"}}{{$.Form.Value "owner"}}{{end}}" aria-invalid="{{if $.Form.Invalid "owner"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "owner"}}transfer-error{{end}}"></label>{{if $.Form.Is "transfer"}}<p class=warn id=transfer-error>{{$.Form.Error}}</p>{{end}}<p>The new owner must have a registered identity. Existing service credentials remain valid; transfer does not revoke copies already held.</p><button>Continue to confirmation</button></form>{{end}}{{end}}
-<h2>Remove registration</h2><form method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=delete><p><strong>No registration, no access:</strong> the credential goes with the address. Drain the queue and stop readers first; the confirmation page re-reads both before describing the consequence.</p><button>Continue to confirmation</button></form>{{end}}`))
+{{if and .CanTransfer (ne .Name "@administrators")}}{{if ne .Name .Owner}}<h2>Transfer ownership</h2><form id=form-transfer method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=transfer><label>New owner <input name=owner required value="{{if $.Form.Is "transfer"}}{{$.Form.Value "owner"}}{{end}}" aria-invalid="{{if $.Form.Invalid "owner"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "owner"}}transfer-error{{end}}"></label>{{if $.Form.Is "transfer"}}<p class=warn id=transfer-error>{{$.Form.Error}}</p>{{end}}<p>The new owner must have a registered identity. Existing service credentials remain valid; transfer does not revoke copies already held.</p><button>Continue to confirmation</button></form>{{end}}{{end}}
+{{if ne .Kind "group"}}<h2>Remove registration</h2><form method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=delete><p><strong>No registration, no access:</strong> the credential goes with the address. Drain the queue and stop readers first; the confirmation page re-reads both before describing the consequence.</p><button>Continue to confirmation</button></form>{{else}}<p class=muted>A group is retired by emptying its members, never removed: its name is what every list naming it resolves.</p>{{end}}{{end}}`))
 var serviceConfirm = template.Must(template.New("service-confirm").Funcs(template.FuncMap{"readerSnapshot": readerSnapshot, "readerCount": readerCount, "titleMark": titleMark}).Parse(shellTitle("records", `{{if eq .Action "transfer"}}Confirm ownership transfer{{else}}Confirm removal{{end}} · {{.Record.Name}}`) + `
 {{with .Record}}<p><a href="/service-danger?name={{.Name}}">Back to the Danger Zone</a></p>
 {{if eq $.Action "transfer"}}<div class=page-title><h1>{{titleMark "problem"}} Confirm ownership transfer</h1></div><p>Transfer <code>{{.Name}}</code> from <code>{{.Owner}}</code> to <code>{{$.NewOwner}}</code>?</p><p>The new owner must still be registered and active when the daemon applies this. Credentials already held are not revoked.</p><form method=post action=/service><input type=hidden name=action value=transfer><input type=hidden name=name value="{{.Name}}"><input type=hidden name=owner value="{{$.NewOwner}}"><input type=hidden name=expected_owner value="{{.Owner}}"><input type=hidden name=confirmed value=1><button>Transfer ownership</button></form>
@@ -1634,20 +1766,25 @@ var groupDetail = template.Must(template.New("group-detail").Funcs(template.Func
 <p><a href=/groups>Back to Groups</a></p><div class=page-title><h1><span role=img aria-label="Group">{{groupGlyph}}</span> <code>{{.GroupName}}</code></h1>{{if eq .GroupName "@administrators"}}<span class=fact-pill>protected</span><button type=button class=help-button popovertarget=administrators-help aria-label="About the Administrators group" data-tooltip="Members administer users and ordinary groups. They do not automatically manage every Service or Channel; assign this group as a resource Maintainer when that is wanted. Only the daemon Owner changes membership.">ⓘ</button>{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Daemon administration group. What membership grants is stated below; every other group on this node confers only what a resource assigns it.</p><div popover id=administrators-help class=context-help><h2>How this group behaves</h2><ul><li>It accepts direct user identities only. A snapshot that nests a group inside it is refused at startup.</li><li>It cannot be emptied, and the daemon Owner is always a member.</li><li>Adding an Administrator creates a user profile; removing the membership keeps that profile.</li><li>An ordinary group may name <code>@administrators</code>. Its direct members then receive that ordinary group&rsquo;s access or Maintainer grant, and no Administrator authority.</li></ul></div>
 <section class="dashboard-section admin-rights"><h2>What membership grants</h2><ul><li><strong>Ordinary users.</strong> See the whole user directory, register new users, and edit, deactivate or reactivate users below your own level.</li><li><strong>Ordinary groups.</strong> Change the membership of any ordinary group, including one assigned as a resource&rsquo;s Maintainer &mdash; you may add yourself, or a user you created, without asking that resource&rsquo;s owner.</li><li><strong>Membership lists.</strong> Read the full membership of every group.</li></ul>
 <h2>What it does not grant</h2><ul><li><strong>The Owner, or each other.</strong> An Administrator cannot edit the daemon Owner or another Administrator, and cannot grant either position.</li><li><strong>Services, Queues and PubSub.</strong> Administering the node is not managing its resources. That comes only from being named in a resource&rsquo;s Maintainers list; put <code>@administrators</code> there when every Administrator should manage it.</li><li><strong>This group.</strong> Only the daemon Owner changes who is in it.</li></ul></section>{{end}}
-<div class=detail-meta>{{if .GroupVisible}}<span>Owner: <code>{{.GroupRecord.Owner}}</code></span>{{if eq .GroupName "@administrators"}}<span>👮 Maintainers: none &mdash; this group has none, and its Owner follows daemon ownership</span>{{else}}<span>👮 Maintainers: {{with .GroupRecord.Maintainers}}{{join . ", "}}{{else}}none{{end}}</span>{{end}}{{if .GroupRecord.Personal}}<span>Personal</span>{{end}}{{else}}<span class=muted>Owner and Maintainers are not visible to you.</span>{{end}}</div>` + formErrorSummary + `
+<div class=detail-meta>{{if .GroupVisible}}<span>Owner: <code>{{.GroupRecord.Owner}}</code></span>{{if eq .GroupName "@administrators"}}<span>👮 Maintainers: none &mdash; this group has none, and its Owner follows daemon ownership</span>{{else}}<span>👮 Maintainers: {{with .GroupRecord.Maintainers}}{{join . ", "}}{{else}}none{{end}}</span>{{end}}{{if .GroupRecord.Personal}}<span>Personal</span>{{end}}{{else}}<span class=muted>Owner and Maintainers are not visible to you.</span>{{end}}</div>{{if .GroupVisible}}{{with .GroupRecord.Descr}}<p class=group-description>{{.}}</p>{{end}}{{end}}` + formErrorSummary + `
 {{if .CanEditGroup}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}</div>
-<p><a id=members-edit class=editor-link href="/group/edit?name={{urlquery .GroupName}}">Edit members</a></p></section>{{else}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{if not (.MembersVisible .GroupName)}}<span class=muted>Membership is not visible to you.</span>{{else}}{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Only the daemon owner changes this protected group.</p>{{else}}<p class=muted>Its Owner, its Maintainers and the daemon Administrators change this group&rsquo;s membership.</p>{{end}}</section>{{end}}
-<section class=dashboard-section><h2>Used by visible records</h2>{{if .GroupReferences}}<table><thead><tr><th scope=col>Record</th><th scope=col>Kind</th><th scope=col>Uses this group</th></tr></thead><tbody>{{range .GroupReferences}}<tr><td><a href="{{recordKindPath .Name .Kind}}"><code>{{.Name}}</code></a></td><td>{{entityLabel .Kind}}</td><td>{{range $i,$use := .Uses}}{{if $i}} · {{end}}{{$use}}{{end}}</td></tr>{{end}}</tbody></table>{{else}}<p class=muted>No caller-visible record refers to this group.</p>{{end}}</section>`))
+<p><a id=members-edit class=editor-link href="/group/edit?name={{urlquery .GroupName}}">Edit group</a></p></section>{{else}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{if not (.MembersVisible .GroupName)}}<span class=muted>Membership is not visible to you.</span>{{else}}{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Only the daemon owner changes this protected group.</p>{{else}}<p class=muted>Its Owner, its Maintainers and the daemon Administrators change this group&rsquo;s membership.</p>{{end}}</section>{{end}}
+<section class=dashboard-section><h2>Used by visible records</h2>{{if .GroupReferences}}<table><thead><tr><th scope=col>Record</th><th scope=col>Kind</th><th scope=col>Uses this group</th></tr></thead><tbody>{{range .GroupReferences}}<tr><td><a href="{{recordKindPath .Name .Kind}}"><code>{{.Name}}</code></a></td><td>{{entityLabel .Kind}}</td><td>{{range $i,$use := .Uses}}{{if $i}} · {{end}}{{$use}}{{end}}</td></tr>{{end}}</tbody></table>{{else}}<p class=muted>No caller-visible record refers to this group.</p>{{end}}</section>
+{{if and .GroupVisible .GroupRecord.CanManage}}<p><a class=danger href="/service-danger?name={{urlquery .GroupName}}">Danger Zone</a></p>{{end}}`))
 
 // A group has one form, and registering one and changing its membership are
 // the same form. The two used to be separate markup and had already drifted
 // in what they said about `@owner` and in how much of the list they showed.
 // See Plans/MVP/web/forms.md#rules.
-const groupFields = `{{define "group-fields"}}<div class=form-grid>
+const groupFields = `{{define "group-fields"}}{{$assign := .GroupMayAssign}}<div class=form-grid>
 {{if .Editing}}<input type=hidden name=name value="{{.GroupName}}">
 {{else}}<label class="form-field form-field-wide">Name <input name=name placeholder="@operators" required value="{{.Form.Value "name"}}" aria-invalid="{{if .Form.Invalid "name"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "name"}}group-error{{end}}"><small>One name for the set. It cannot be changed afterwards. You become its Owner.</small>{{if eq (.Form.Value "name") "@owner"}}<small><code>@owner</code> is runtime ACL syntax and cannot be registered as a group.</small>{{end}}</label>
 {{end}}
-<label class="form-field form-field-wide">Members <textarea name=members rows=8 placeholder="user@realm&#10;#agent@realm&#10;@nested-group" aria-invalid="{{if .Form.Invalid "members"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "members"}}group-error{{end}}">{{if .Form.Is "save"}}{{.Form.Value "members"}}{{else}}{{join .GroupMembers "\n"}}{{end}}</textarea><small>One user, <code>#agent</code> or nested group per line; <code>@owner</code> is reserved for ACLs.</small></label></div>
+<label class="form-field form-field-wide">Description <input name=descr {{if not .GroupDescrEditable}}disabled{{end}} value="{{.GroupValue "descr" .GroupRecord.Descr}}" placeholder="What this group is for"><small>{{if .GroupDescrEditable}}Shown beside the group&rsquo;s name.{{else}}This group&rsquo;s record is not visible to you, so its description is left as it is.{{end}}</small></label>
+<label class="form-field form-field-wide">Members <textarea name=members rows=8 placeholder="user@realm&#10;#agent@realm&#10;@nested-group" aria-invalid="{{if .Form.Invalid "members"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "members"}}group-error{{end}}">{{if .Form.Is "save"}}{{.Form.Value "members"}}{{else}}{{join .GroupMembers "\n"}}{{end}}</textarea><small>One user, <code>#agent</code> or nested group per line; <code>@owner</code> is reserved for ACLs.</small></label>
+{{if $assign}}<input type=hidden name=edit_personal value=1>{{end}}<fieldset class=form-field-wide><legend>Classification</legend><div class=choice-row><label><input type=checkbox name=personal {{if not $assign}}disabled{{end}} {{if .GroupTicked "personal" .GroupRecord.Personal}}checked{{end}}> Personal</label><span class=muted>Puts this group in its Owner&rsquo;s Personal view; its members still receive what it is granted.</span></div><small>{{if $assign}}A Personal group&rsquo;s members and Maintainers may name only its Owner and the Owner&rsquo;s own agents.{{else if eq .GroupName "@administrators"}}The protected group is never Personal.{{else}}Shown for reference: only this group&rsquo;s Owner or the daemon Owner may change it.{{end}}</small></fieldset>
+{{if .Editing}}{{if $assign}}<input type=hidden name=edit_sharing value=1>{{end}}<label class="form-field form-field-wide">Maintainers<textarea name=maintainers rows=5 {{if not $assign}}disabled{{end}} aria-invalid="{{if .Form.Invalid "maintainers"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "maintainers"}}group-error{{end}}">{{.GroupValue "maintainers" (join .GroupRecord.Maintainers "\n")}}</textarea><small>{{if $assign}}One user, group or agent per line. They change this group&rsquo;s members as its Owner does.{{else if eq .GroupName "@administrators"}}The protected group has no Maintainers: only the daemon Owner changes it.{{else}}Shown for reference: only this group&rsquo;s Owner or the daemon Owner may change it.{{end}}</small></label>{{end}}
+<label class="form-field form-field-wide">Secret<textarea name=secret rows=4 autocomplete=off spellcheck=false placeholder="TOKEN=..." {{if not .GroupSecretEditable}}disabled{{end}}></textarea><small>{{if not .GroupSecretEditable}}Only this group&rsquo;s Owner and Maintainers write its secret.{{else if .Editing}}Leave empty to keep the stored secret. Anything here replaces it; every member reads it back with <code>agent-bus secret {{.GroupName}}</code>.{{else}}Optional. Every member reads it back with <code>agent-bus secret</code>.{{end}}</small></label></div>
 {{if .Form.Is "save"}}<p class=warn id=group-error>{{.Form.Error}}</p>{{end}}{{end}}`
 
 var groupNew = template.Must(template.New("group-new").Funcs(template.FuncMap{"titleMark": titleMark, "join": strings.Join}).Parse(shell("groups", "Register group") + `
@@ -1659,7 +1796,7 @@ var groupNew = template.Must(template.New("group-new").Funcs(template.FuncMap{"t
 var groupEdit = template.Must(template.New("group-edit").Funcs(template.FuncMap{"titleMark": titleMark, "join": strings.Join}).Parse(shellTitle("groups", `Edit {{.GroupName}}`) + `
 <p><a href="/group?name={{urlquery .GroupName}}">Back to {{.GroupName}}</a></p><div class=page-title><h1>{{titleMark "groups"}} Edit <code>{{.GroupName}}</code></h1></div>
 ` + formErrorSummary + `<form id=form-save class="editor-card task-card" method=post action=/groups><input type=hidden name=action value=save>` +
-	`{{template "group-fields" .}}<div class=form-actions><button>Save members</button></div></form>` + groupFields))
+	`{{template "group-fields" .}}<div class=form-actions><button>Save group</button></div></form>` + groupFields))
 
 // holdsConfig says whether a kind carries a configuration at all: an Agent, a
 // Service and a Group do, and nothing else (docs/constitution.md#-private-values).

@@ -15,7 +15,7 @@ rules all of them obey.
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
 | Never echo a secret | Not a token, not private configuration, not a service secret. The configuration and secret fields are always empty and `autocomplete=off`, including after a refusal |
 | A multi-line value is the bytes that were typed | A browser submits a textarea with CRLF whatever the page was served with. Where the daemon stores bytes as sent — a [service secret](../../../docs/06-services.md#secrets) — the face normalises them back, or a two-line credential is stored with a carriage return nobody typed |
-| A form asks only what its kind has | A 👾 and a 📮 hold an inbox, so they declare its TTL, capacity and overflow; a 📣 keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#subscribers) instead; a 📡 has no queue here and holds the one [secret](../../../docs/06-services.md#secrets) the daemon stores. From 0.8.4 each is a section of its own: `/queues/new` and `/pubsub/new`, and the old `/channels/new` redirects to the one its kind names |
+| A form asks only what its kind has | A 👾 and a 📮 hold an inbox, so they declare its TTL, capacity and overflow; a 📣 keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#subscribers) instead; a 📡 has no queue here; a 📡, a 👾 and a 👥 hold a [secret](../../../docs/06-services.md#secrets) and offer its field. From 0.8.4 each is a section of its own: `/queues/new` and `/pubsub/new`, and the old `/channels/new` redirects to the one its kind names |
 | Success returns to what changed | The section that changed, with a specific result. Service and Channel registration and ordinary edits return to the affected resource; removal returns to the matching collection ([C06](review/codex.md#junk-and-misleading-content)) |
 | Only offer transitions that apply | Built in 0.5.79: active offers Pause/Ban, paused offers Activate/Ban and banned offers Activate only when daemon-returned authority permits it |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
@@ -100,22 +100,24 @@ it without offering it. Personal and Maintainers are disabled unless the caller
 is the Owner or a daemon administrator, and the secret field is never filled in
 again — on either form.
 
-| Field | 👾 | 📡 | 📮 | 📣 |
-|---|---|---|---|---|
-| name, description, allow list | ✓ | ✓ | ✓ | ✓ |
-| Maintainers (Edit only: a registration cannot carry them) | ✓ | ✓ | ✓ | ✓ |
-| address, protocol, [secret](../../../docs/06-services.md#secrets) | | ✓ | | |
-| TTL, capacity, overflow | ✓ | | ✓ | |
-| [Deliver-To](../../../docs/04-messaging.md#subscribers) | | | | ✓ |
-| Personal | ✓ | | | |
+| Field | 👾 | 📡 | 📮 | 📣 | 👤 inbox | 👥 |
+|---|---|---|---|---|---|---|
+| name, description | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| allow list | ✓ | ✓ | ✓ | ✓ | | members |
+| Maintainers (Edit only: a registration cannot carry them) | ✓ | ✓ | ✓ | ✓ | | ✓ |
+| Personal | ✓ | ✓ | ✓ | ✓ | always | ✓ |
+| address, protocol | | ✓ | | | | |
+| [secret](../../../docs/06-services.md#secrets) | ✓ | ✓ | | | | ✓ |
+| TTL, capacity, overflow | ✓ | | ✓ | | ✓ | |
+| [Deliver-To](../../../docs/04-messaging.md#subscribers) | one slot | | one slot | list | | |
 | Replace configuration | Service, Channel | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
 | Enable / Disable | Service, Channel | — | the identity section |
 | Transfer ownership | Service, Channel | new owner | **Danger Zone** only; **confirm**, then the identity section |
 | Remove registration | Service, Channel | — | **Danger Zone** only; **confirm**, then the list it came from |
 | Take myself off Deliver-To | Channel, pub/sub | — | the subscribers section |
 | Remove a recipient | Channel, pub/sub | subscriber | the subscribers section |
-| Register a group | `/groups/new` | name, members | the new group's page |
-| Edit a group | `/group/edit?name=` | *the same set, filled in* | its page |
+| Register a group | `/groups/new` | name, description, members, Personal, secret | the new group's page |
+| Edit a group | `/group/edit?name=` | *the same set, filled in*, and Maintainers | its page; transfer and configuration are in its Danger Zone |
 | Register a user | `/users/new` | name, person name, email, GitHub login, company, location, Twitter/X | the new user's page |
 | Edit a user | `/user/edit?name=` | *the same set, filled in* | their page |
 | Change state | User | the applicable transitions only | the identity section; **confirm** for ban |

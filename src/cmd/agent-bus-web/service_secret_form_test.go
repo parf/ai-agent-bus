@@ -43,11 +43,10 @@ func TestRegisteringAServiceStoresTheSecretItWasGivenAndNeverShowsItAgain(t *tes
 	if !strings.Contains(page, "<textarea name=secret rows=4 autocomplete=off") {
 		t.Fatalf("service registration offers no secret field: %s", page)
 	}
-	// Only where a secret means anything. A kind reached by sending to its
-	// name has nothing outside to authenticate to, and the daemon refuses a
-	// secret on one, so a form that offered the field would be offering a
-	// refusal.
-	for _, path := range []string{"/agents/new", "/queues/new", "/pubsub/new"} {
+	// Only where a secret means anything. A queue and a topic hold none, and
+	// the daemon refuses a secret on one, so a form that offered the field
+	// would be offering a refusal. An agent holds one of its own.
+	for _, path := range []string{"/queues/new", "/pubsub/new"} {
 		if strings.Contains(m.get(path), "name=secret") {
 			t.Errorf("%s offers a secret to a kind that cannot hold one", path)
 		}

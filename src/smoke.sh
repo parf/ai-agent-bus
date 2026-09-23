@@ -2293,12 +2293,13 @@ lacks "and a topic is not asked about one it will not have" "$NEWT" 'name=ttl\|n
 # The exact field, because name=subs-anything contains name=subs.
 has "a topic declares who it delivers to" "$NEWT" '<textarea name=subs '
 lacks "and a queue, which delivers to one reader, is not asked" "$NEWQ" '<textarea name=subs'
-# The service form is the only one with a credential to offer, because it is
-# the only kind with something outside to authenticate to.
+# A service and an agent hold a secret, so their forms offer one; a queue and
+# a topic hold none (docs/constitution.md#-private-values).
 NEWS=$(curl -s -b "$JAR" "$WEB/services/new")
 has "the service form offers a secret field" "$NEWS" '<textarea name=secret rows=4 autocomplete=off'
-lacks "no other registration does" \
-  "$(printf '%s\n%s\n%s' "$NEWQ" "$NEWT" "$(curl -s -b "$JAR" "$WEB/agents/new")")" 'name=secret'
+has "and so does the agent form" "$(curl -s -b "$JAR" "$WEB/agents/new")" '<textarea name=secret rows=4 autocomplete=off'
+lacks "no channel registration does" \
+  "$(printf '%s\n%s' "$NEWQ" "$NEWT")" 'name=secret'
 # Registered through the page, read back through the daemon: the bytes the
 # form sent are the bytes stored, newlines and all.
 curl -s -b "$JAR" -o /dev/null -H "Origin: $WEB" \
@@ -2348,9 +2349,10 @@ has "adding a person and editing one ask the same questions" \
 GRPNEW=$(curl -s -b "$JAR" "$WEB/groups/new")
 GRPEDIT=$(curl -s -b "$JAR" "$WEB/group/edit?name=%40smoke-ops")
 has "the group form asks for the fields a group has" \
-  "$(asked "$GRPEDIT")" '^name=members name=name $'
-has "registering a group and editing one ask the same questions" \
-  "$(asked "$GRPEDIT")" "^$(asked "$GRPNEW")\$"
+  "$(asked "$GRPEDIT")" '^name=descr name=maintainers name=members name=name name=personal name=secret $'
+# One difference, as for a record: Maintainers are set once the group exists.
+has "registering a group asks what editing one does, but Maintainers" \
+  "$(asked "$GRPNEW")" "^$(asked "$GRPEDIT" | sed 's/name=maintainers //')\$"
 # The form says whether it carried the owner-only fields. Without that flag a
 # save cannot change them, which is how a Maintainer's save leaves them alone.
 has "the owner's form states that it carries the sharing fields" \

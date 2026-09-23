@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.5 — 2026-09-23
+
+Every web settings form offers every field its kind may change: a group's
+description, Personal, Maintainers, secret and Danger Zone; an agent's secret.
+
 ## 0.8.4 — 2026-09-23
 
 The web Channels section is two: 📮 Queues and 📣 PubSub, each with its own list,

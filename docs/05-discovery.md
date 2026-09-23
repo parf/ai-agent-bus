@@ -283,16 +283,24 @@ and one field set rendered by both — for a 👤 user and a 👥 group as much 
 for a record
 ([forms](../Plans/MVP/web/forms.md#rules)) — so a 👾 and a 📮 declare the TTL,
 capacity and overflow of the inbox they hold, a 📣 declares a
-[Deliver-To list](04-messaging.md#subscribers) and no queue policy, and a 📡
-offers the one field for its [secret](06-services.md#secrets), written by a
-second call to that verb and never filled in again. What differs between the
+[Deliver-To list](04-messaging.md#subscribers) and no queue policy, and a 📡, a
+👾 and a 👥 offer a field for their [secret](06-services.md#secrets), written by a
+second call to that verb and never filled in again. **From 0.8.5 every settings
+form offers every field the daemon lets that kind's manager change**
+([record fields](constitution.md#common-record-fields)): a 👤 user's own inbox
+its description and queue policy and no allow list or Maintainers, which the
+daemon refuses on it; a 👥 group its description, members, Personal,
+Maintainers and secret, saved in one daemon change, with owner transfer and
+configuration in its Danger Zone and no removal, a group being retired by
+emptying it. Status stays a separate action beside each record, and a group has
+none: no view shows an inactive group to reactivate it from. What differs between the
 two is what is already in the form: a field the caller may not change is shown
 disabled rather than hidden, and the form states separately that it carried the
 owner-only fields, so a Maintainer saving a description cannot clear what it
 was not offered. User detail states the
 profile beside identity, authority, groups, lifecycle and owned resources, and
 links to the profile form. Groups use a compact Group/Members table; selecting
-a name opens one group, and the way to its membership form appears only when
+a name opens one group, its description and a Danger Zone for its managers, and the way to its settings form appears only when
 the caller may change it — as does the form itself, which refuses whoever the
 link was withheld from.
 Diagnostics keeps refusal, held-work, retained-envelope and loss evidence
