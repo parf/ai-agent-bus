@@ -5,6 +5,12 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.15 — 2026-09-23
+
+`--reinstall` replaces whichever packaged release is installed (0.6 included),
+selecting the new one only after the old state is set aside; setup creates
+`/etc/logrotate.d` on hosts without logrotate.
+
 ## 0.7.14 — 2026-09-23
 
 The faces carry the 0.7 model: `agent-bus manage` and `group`, line-numbered

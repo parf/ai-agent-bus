@@ -143,6 +143,7 @@ func setup() error {
 	// See docs/09-setup.md#the-two-units.
 	users = append(users, runAccount+"="+runAccount)
 	explicitExe := *exe != ""
+	var selectRelease func() error
 	if !explicitExe {
 		self, err := os.Executable()
 		if err != nil {
@@ -150,6 +151,26 @@ func setup() error {
 		}
 		if *printUnit || *dry || os.Geteuid() != 0 {
 			*exe = filepath.Join(filepath.Dir(self), "agent-busd")
+		} else if *reinstall {
+			bundle, err := checkBundle(filepath.Dir(self))
+			if err != nil {
+				return err
+			}
+			// A reinstall replaces whichever release is installed, so the
+			// "already installed" refusal is not asked. The release is staged
+			// and verified now but selected only once the old daemon has
+			// stopped and its state is set aside.
+			if _, err := stageBundle(bundle); err != nil {
+				return fmt.Errorf("install package: %w", err)
+			}
+			*exe = filepath.Join(installRoot, "current", "agent-busd")
+			selectRelease = func() error {
+				if err := installCommandLinks(); err != nil {
+					return err
+				}
+				_, err := selectBundle(bundle.releaseID)
+				return err
+			}
 		} else {
 			bundle, err := checkBundle(filepath.Dir(self))
 			if err != nil {
@@ -214,6 +235,11 @@ func setup() error {
 			return err
 		}
 	}
+	if selectRelease != nil {
+		if err := selectRelease(); err != nil {
+			return fmt.Errorf("install package: %w", err)
+		}
+	}
 	// sshd executes even a forced command through the account's shell. The
 	// daemon account therefore needs sh; restrict,command= on every issued key
 	// supplies the SSH boundary. The runner has no SSH entry point.
@@ -261,6 +287,11 @@ func setup() error {
 		return err
 	}
 	if err := os.Chmod(logDir, 0o750|os.ModeSetgid); err != nil {
+		return err
+	}
+	// A host without logrotate installed has no logrotate.d; the rule is
+	// still written, so installing logrotate later rotates these logs.
+	if err := os.MkdirAll(filepath.Dir(logrotate), 0o755); err != nil {
 		return err
 	}
 	if err := os.WriteFile(logrotate, []byte(logrotateConf), 0o644); err != nil {
