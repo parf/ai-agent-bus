@@ -361,7 +361,7 @@ Owner holds node-wide management authority
 
 | Built store | Holds |
 |---|---|
-| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters and clean-stop marker |
+| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [day of activity](05-discovery.md#activity-history) and clean-stop marker; schema 5 from 0.8.12, migrated from 4 at open |
 | Memory only | Browser sessions, outstanding readers, uptime and recent envelope feed |
 
 **Built in 0.7.1**, through `modernc.org/sqlite` behind the store ports. The

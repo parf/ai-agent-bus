@@ -418,7 +418,8 @@ checks, depth and provenance.
 
 **Built in 0.7.1:** one SQLite database is the runtime store for records,
 users, groups, the daemon Owner, the local-account map, credentials, queue
-contents and the four per-queue counters ([storage](09-setup.md#storage)).
+contents, the four per-queue counters and, from 0.8.12, each record's
+[day of activity](05-discovery.md#activity-history) ([storage](09-setup.md#storage)).
 A management change commits immediately, and only the entities it touched.
 Traffic updates queues in memory; queue state is flushed as one batch every
 minute (`-flush-every`) and at a graceful stop, never once per message, and a

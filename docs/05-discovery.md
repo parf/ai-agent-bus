@@ -149,7 +149,7 @@ what the daemon permits. “All” means all visible to that visitor.
 | Personal | Owner-tagged agents grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
 | Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory lists 👤 Users only, laid out like the other list pages: one search and **Status** toolbar (**Active**, **Inactive**, **All states**, counted; opens on Active), then User, Authority, Contact, Agents owned and Last used columns, or an empty-state card when nothing matches. An inactive User is struck and marked beside the name rather than in a column of its own. From 0.8.8 it has no Other section: a name that is neither User nor Agent is [a Diagnostics leftover](#overview-and-diagnostics). Applicable daemon-authorized actions sit behind **Change**. Deactivation and unused-credential removal use consequence confirmations |
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
-| Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
+| Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Inline SVG over [the last day](#activity-history) in ten-minute slots of the node clock |
 | Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work. Split from the combined Channels tab in 0.8.4 |
 | PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a topic keeps nothing. Split from the combined Channels tab in 0.8.4 |
 
@@ -358,32 +358,30 @@ other backend address, which is the general rule in
 
 ### Activity history
 
-**Built in 0.5.67.** Service and channel detail embeds one compact,
-record-scoped graph and links to the same filtered `/activity` view with its
-sample table. Both views use actual sample timestamps and one scale across the
-displayed nonzero series. Zero-only series are summarized; no retained sample
-is described as collecting after restart rather than as zero. The displayed
-window, current uptime and partial final sample are stated beside the graph.
+**Built in 0.8.12.** Each record keeps its last day of traffic: a ring of 144
+ten-minute slots of the node's local clock, 00:00, 00:10 … 23:50, saved with
+its queue and restored at start. Service and channel detail embeds the
+record's day and links to the same filtered `/activity` view with its slot
+table; the unfiltered view sums what the caller may see.
 
-The four delivery series on the unfiltered view cover records currently visible
-to the caller. Refused is node-wide for the daemon Owner and covers visible
-records for other callers. A named view is record-scoped for
-all five series. Dequeued means handed to a reader, never completed work.
+<details><summary>Rules</summary>
 
-The bus samples record counters every ten minutes, independently of dashboard
-visits. It keeps about 24 hours plus the baseline for differences; the dashboard
-also includes the current partial interval, which may be shorter than ten minutes.
-History is in memory and starts fresh after restart. Export remains
+| | |
+|---|---|
+| Slot | Ten minutes of node local time holding that interval's Accepted, Dequeued, Dropped, Expired and Refused. At each boundary the record's cumulative counters are differenced once; nothing is added to the send or consume path |
+| Day | The 144 slots, oldest first. The last is the current slot, read live and still counting |
+| Zero | A slot carries its counts and nothing else. Time the daemon was down, or an hour daylight saving skipped, reads zero like a quiet interval |
+| Clock | Slots close at :00, :10 … :50 local time whenever the daemon started; the bus ticks at every minute of the clock. A clock that steps back moves nothing, and its counts stay in the open slot. A daylight-saving fall repeats 01:00–01:50, and the second pass overwrites the first |
+| Durability | Every queue save writes the record's day as it stands, the open slot's counts included, in the same batch. A restart drops what is older than a day and reads the time since the save as zero; a restart inside the open slot keeps what it counted. Node-wide refusals are saved beside the queues |
+| Lifecycle | Removal deletes the day in the removal's commit. A transfer keeps it: activity belongs to the name. An inactive record's day is kept and served to nobody |
+| Scope | A named view is record-scoped for all five series. The unfiltered view sums the live records the caller may see; Refused is node-wide for the daemon Owner, on the terms [refusals](#refusals) sets — every endpoint refusal, including authentication failures and malformed requests, and not the router's rejections or our own failures. Pub/sub copies count in the subscriber inboxes that accept them. Dequeued means handed to a reader, never completed work. Bodies never enter this history |
+| Web | A fixed 24-hour axis with a tick at every hour and a label every third; one continuous line per nonzero series, on one scale; zero-only series are summarized; the table lists each slot by its start time |
+
+The ring, its pointers and every clock rule live in `src/internal/activity`;
+the store keeps each day in its queue's row. Export remains
 [R1](../Plans/R1/discovery.md#dashboard-extensions).
 
-Graphs and their accessible value table report accepted, dequeued, dropped,
-expired and refused counts. Aggregates include only currently visible records;
-pub/sub copies count in the subscriber inboxes that accept them. Per-record
-refusals count failed sends and reads; the daemon Owner also sees node refusal
-totals, on the terms [refusals](#refusals) sets — every
-endpoint refusal, including authentication failures and malformed requests, and
-not the router's rejections or our own failures. Bodies never
-enter this history.
+</details>
 
 Who receives a 📣 copy is the channel manager's
 [Deliver-To list](04-messaging.md#subscribers); a name can take itself off it
@@ -433,9 +431,8 @@ The total needs no sampler at all: it is the counter itself. The minute and
 hour windows come from a **separate 61-sample history of that counter** — plain
 readings, no records and no names in it — taken by the bus **at every minute
 of the clock** (built in 0.8.11; before it the readings rode the ten-minute
-activity tick). It is not the per-record activity
-the dashboard graphs; those samples stay what they were and are counted
-per record.
+activity tick). It is not the per-record [activity](#activity-history) the
+dashboard graphs, which is counted per record.
 
 **Why a total rather than a day.** A day window was asked for and withdrawn.
 The counter is process-local and resets with the daemon, so on any node
