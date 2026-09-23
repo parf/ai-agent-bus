@@ -102,7 +102,8 @@ again — on either form.
 
 | Field | 👾 | 📡 | 📮 | 📣 |
 |---|---|---|---|---|
-| name, description, allow list, Maintainers | ✓ | ✓ | ✓ | ✓ |
+| name, description, allow list | ✓ | ✓ | ✓ | ✓ |
+| Maintainers (Edit only: a registration cannot carry them) | ✓ | ✓ | ✓ | ✓ |
 | address, protocol, [secret](../../../docs/06-services.md#secrets) | | ✓ | | |
 | TTL, capacity, overflow | ✓ | | ✓ | |
 | [Deliver-To](../../../docs/04-messaging.md#subscribers) | | | | ✓ |

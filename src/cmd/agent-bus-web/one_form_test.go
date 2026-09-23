@@ -68,6 +68,10 @@ func TestEveryKindAsksTheSameQuestionsToRegisterAndToEdit(t *testing.T) {
 		m.register(record)
 		asked := controls(t, m.get(c.new))
 		offered := controls(t, m.get(c.edit+"?name="+url.QueryEscape(name)))
+		// Maintainers are the one question only the settings form asks: a
+		// registration cannot carry them. TestRegistrationDoesNotAskForMaintainers
+		// holds both sides of that exception.
+		offered = without(offered, "maintainers")
 		if strings.Join(asked, " ") != strings.Join(offered, " ") {
 			t.Errorf("a %s is registered with %v and edited with %v", c.kind, asked, offered)
 		}
@@ -91,17 +95,17 @@ func TestAFormAsksOnlyWhatItsKindHas(t *testing.T) {
 		// and an agent and a queue have a one-slot Deliver-To route
 		// (docs/constitution.md#-channels); a service has neither a queue nor a route.
 		{protocol.KindAgent, "/agents/new",
-			[]string{"descr", "ttl", "bound", "overflow", "allow", "personal", "maintainers", "subs"},
-			[]string{"addr", "protocol", "secret"}},
+			[]string{"descr", "ttl", "bound", "overflow", "allow", "personal", "subs"},
+			[]string{"addr", "protocol", "secret", "maintainers"}},
 		{protocol.KindService, "/services/new",
-			[]string{"descr", "addr", "protocol", "secret", "allow", "maintainers", "personal"},
-			[]string{"ttl", "bound", "overflow", "subs"}},
+			[]string{"descr", "addr", "protocol", "secret", "allow", "personal"},
+			[]string{"ttl", "bound", "overflow", "subs", "maintainers"}},
 		{protocol.KindQueue, "/channels/new?kind=queue",
-			[]string{"descr", "ttl", "bound", "overflow", "allow", "maintainers", "personal", "subs"},
-			[]string{"addr", "protocol", "secret"}},
+			[]string{"descr", "ttl", "bound", "overflow", "allow", "personal", "subs"},
+			[]string{"addr", "protocol", "secret", "maintainers"}},
 		{protocol.KindPubSub, "/channels/new?kind=pubsub",
-			[]string{"descr", "subs", "allow", "maintainers", "personal"},
-			[]string{"addr", "protocol", "secret", "ttl", "bound", "overflow"}},
+			[]string{"descr", "subs", "allow", "personal"},
+			[]string{"addr", "protocol", "secret", "ttl", "bound", "overflow", "maintainers"}},
 	} {
 		asked := " " + strings.Join(controls(t, m.get(c.path)), " ") + " "
 		for _, want := range c.present {
@@ -115,6 +119,47 @@ func TestAFormAsksOnlyWhatItsKindHas(t *testing.T) {
 			}
 		}
 	}
+}
+
+// A registration cannot carry Maintainers — the daemon drops them — so a
+// registration form that asked for them would take an answer and discard it.
+// The settings form of the record it made still asks, for its Owner.
+func TestRegistrationDoesNotAskForMaintainers(t *testing.T) {
+	m := meaningFixture(t)
+	for _, c := range []struct{ kind, new, edit string }{
+		{protocol.KindAgent, "/agents/new", "/agent/edit"},
+		{protocol.KindService, "/services/new", "/service/edit"},
+		{protocol.KindQueue, "/channels/new?kind=queue", "/channel/edit"},
+		{protocol.KindPubSub, "/channels/new?kind=pubsub", "/channel/edit"},
+	} {
+		name := c.kind + "-maint@h"
+		if c.kind == protocol.KindAgent {
+			name = "#" + name
+		}
+		record := protocol.Record{Name: name, Kind: c.kind, Owner: "admin@h"}
+		if c.kind == protocol.KindService {
+			record.Addr, record.Proto = "host:1", "https"
+		}
+		m.register(record)
+		registration := m.get(c.new)
+		if strings.Contains(registration, "name=maintainers") || strings.Contains(registration, "name=edit_sharing") {
+			t.Errorf("the %s registration form asks for Maintainers a registration cannot carry", c.kind)
+		}
+		settings := m.get(c.edit + "?name=" + url.QueryEscape(name))
+		if !strings.Contains(settings, "<textarea name=maintainers rows=5") || !strings.Contains(settings, "name=edit_sharing value=1") {
+			t.Errorf("the %s settings form no longer asks its Owner for Maintainers", c.kind)
+		}
+	}
+}
+
+func without(list []string, drop string) []string {
+	var out []string
+	for _, v := range list {
+		if v != drop {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // A user and a group are the same rule: the form that adds one and the form
