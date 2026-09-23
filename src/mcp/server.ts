@@ -17,6 +17,7 @@ import { Codex } from "./codex.ts";
 import { version } from "./version.ts";
 import { describe, codexMessage } from "./messages.ts";
 import { readFileSync } from "node:fs";
+import { markFace } from "./face-mark.ts";
 
 if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv[2]!)) {
   console.log(version);
@@ -33,6 +34,8 @@ function loadSessionEnv(): void {
   }
 }
 loadSessionEnv();
+// Cleared only when the runtime lets this face go; see face-mark.ts.
+const unmark = markFace(process.env.AGENT_BUS_SESSION_FILE);
 
 let bus = new Bus();
 
@@ -163,7 +166,7 @@ const server = new Server(
       `You are ${bus.name} on the agent bus. ab_ls finds other participants, ab_send messages one, ` +
       `ab_consume takes the next message from your inbox, ab_reply answers one you received. ` +
       `Your own output never reaches the peer: answer with the tool the message says to use — ab_reply for one you took with ab_consume, and a pushed delivery spells out its own call. ` +
-      `A reply is matched by topic and tag. The face registers this name at start and stops being reachable if the daemon restarts; restart it with the daemon.`,
+      `A reply is matched by topic and tag. The face registers this name at start and reconnects by itself, under the same name, after a daemon restart.`,
   },
 );
 
@@ -420,11 +423,11 @@ function shutDown(why: string): void {
     try { f(); } catch { /* going away anyway */ }
   }
 }
-server.onclose = () => shutDown("the client closed the connection");
+server.onclose = () => { unmark(); shutDown("the client closed the connection"); };
 // The SDK's stdio transport does not translate EOF into onclose. A killed
 // runtime closes this pipe; its inbox reader must not outlive that runtime.
-process.stdin.on("end", () => { shutDown("the client exited"); process.exit(0); });
-for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => { shutDown(sig); process.exit(0); });
+process.stdin.on("end", () => { unmark(); shutDown("the client exited"); process.exit(0); });
+for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => { unmark(); shutDown(sig); process.exit(0); });
 process.on("exit", () => shutDown("exit"));
 
 if (mode === "claude") {

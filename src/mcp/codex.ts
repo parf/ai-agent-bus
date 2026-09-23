@@ -113,6 +113,12 @@ export class Codex {
     return result.thread;
   }
 
+  /** Restart the App Server's MCP servers from its configuration: the one
+   *  in-place recovery for a face that died under it. */
+  async reloadMcp(): Promise<void> {
+    await this.#request("config/mcpServer/reload");
+  }
+
   async rename(title: string): Promise<void> {
     if (!this.#thread) throw new Error("codex: no session bound yet");
     await this.#request("thread/name/set", { threadId: this.#thread, name: title });

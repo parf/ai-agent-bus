@@ -10,7 +10,7 @@ session behind a name with bus tools loaded.
 | MVP | Scope |
 |---|---|
 | Built | Script agents, bounded parallel execution, graceful stop, logs, optional systemd sandbox, runtime adapters and smart launchers with MCP tools. |
-| Pending | Full live-runtime and fresh-host acceptance of [runtime integration delivery](#runtime-integration-delivery), including [sidecar isolation and recovery](#runtime-isolation-and-recovery). |
+| Pending | Full live-runtime and fresh-host acceptance of [runtime integration delivery](#runtime-integration-delivery). [Isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host, not yet on a fresh host. |
 
 ## What the runner does
 
@@ -287,7 +287,7 @@ not coordinated by the local session locks; default state stays on its launching
 Every shipped runtime must keep session control private to its OS account.
 **Built:** launcher-owned Codex and OpenCode servers require per-run credentials;
 launcher rename control requires its own capability. Loopback alone is not a
-boundary. **H.9.5 acceptance remains open:** the [interactive evidence](../Plans/MVP/done/runtime-interactive.md#scope) covers Codex and OpenCode; Claude still needs the same co-exercise.
+boundary.
 
 <details>
 <summary>Credentials and measured scope</summary>
@@ -312,10 +312,33 @@ login ([Claude channel checks](../Plans/MVP/done/runtime-interactive.md#claude-c
 After a daemon restart or sidecar failure, an open interactive session must
 resume bus delivery or clearly report that integration is inactive and how
 to recover. Recovery instructions must lead to a successful correlated
-exchange in that session. This adds no replay or exactly-once guarantee:
+exchange in that session. **Built in 0.8.24** and accepted live for all three
+runtimes ([recovery evidence](../Plans/MVP/done/runtime-recovery.md#checks)):
+
+| Failure | What the session does |
+|---|---|
+| Graceful daemon restart; bus-child crash | Stays open and resumes by itself, under the same name and runtime session: push keeps asking after a short backoff, each tool call is its own request, and names and credentials are durable |
+| MCP face dies under Codex or OpenCode | The launcher reports the bus tools inactive and stops push, so new messages stay queued; it restarts the face through the runtime and reports delivery resumed |
+| MCP face dies under Claude | The launcher reports tools and channel inactive and says to type `/mcp`, select agent-bus and choose Reconnect; Claude owns its MCP servers |
+| Face still down after 20 s; push inactive | The launcher prints the resume command for the same session |
+| Codex App Server or OpenCode server dies | The session ends; the launcher prints `ab-codex resume <id>` or `ab-opencode --session <id>`, which reopens the same session under the same name |
+
+<details>
+<summary>How a lost face is noticed</summary>
+
+The face runs under the runtime, not the launcher, and no runtime reports its
+death or restarts it unasked. Each face leaves a mark in the launcher's private
+run directory and clears it when its runtime lets it go; a mark whose process
+is gone is a face that died. Codex restarts it on `config/mcpServer/reload`,
+OpenCode on an MCP disconnect and connect.
+
+</details>
+
+This adds no replay or exactly-once guarantee:
 [consumption](04-messaging.md#one-reader-per-inbox) and
-[snapshots](04-messaging.md#durability) retain their loss boundaries.
-[H.9.6](../Plans/MVP/TODO.md#remaining-work) owns live acceptance.
+[snapshots](04-messaging.md#durability) retain their loss boundaries. A message
+consumed at the moment of a failure may be lost, and after a crash one consumed
+since the last flush may arrive again under its own `message_id`.
 
 ## Sandboxing
 

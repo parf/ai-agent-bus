@@ -117,7 +117,7 @@ An indexed target may still be pending implementation. The linked substance wins
 | OpenCode explicit session binding | [adapters](08-runner-role.md#adapters) | 2026-09-13 installed launcher verification |
 | OpenCode user-wrapper precedence | [running the launchers](08-runner-role.md#running-the-launchers) | 2026-09-13 fish launcher verification |
 | MVP web credential and state boundary | [web authority](11-processes.md#web-authority-boundary) | 2026-09-13 owner-approved release review |
-| MVP runtime sidecar isolation and recovery | [runtime acceptance](08-runner-role.md#runtime-isolation-and-recovery) | 2026-09-13 owner-approved release review; endpoint authentication built 2026-09-17, interactive acceptance remains open |
+| MVP runtime sidecar isolation and recovery | [runtime acceptance](08-runner-role.md#runtime-isolation-and-recovery) | 2026-09-13 owner-approved release review; endpoint authentication built 2026-09-17; recovery built in 0.8.24 and accepted live 2026-09-23 |
 | MVP upgrade, recovery and real SSH acceptance | [installation acceptance](09-setup.md#installation-acceptance) | 2026-09-13 owner-approved release review; SSH accepted in 0.5.45 and populated upgrade/recovery in 0.5.69 |
 | MVP installed browser acceptance | [browser acceptance](05-discovery.md#browser-acceptance) | 2026-09-13 owner-approved release review |
 | Administrative crash recovery | [policy status](04-messaging.md#administrative-crash-recovery) | 2026-09-13 owner-approved review; guarantee settled 2026-09-15, implemented 2026-09-17 in 0.5.47 |

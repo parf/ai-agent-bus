@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.24 — 2026-09-23
+
+A launcher notices its MCP face dying, keeps messages queued, restores it
+through Codex or OpenCode (Claude: `/mcp` → Reconnect) and prints the exact
+resume command when its runtime server dies; H.9.6 recovery accepted live.
+
 ## 0.8.20 — 2026-09-23
 
 Web problem pages show the daemon's sentence rather than its JSON envelope and

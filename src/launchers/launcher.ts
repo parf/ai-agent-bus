@@ -8,6 +8,7 @@ import { Codex } from "../mcp/codex.ts";
 import { Opencode } from "../mcp/opencode.ts";
 import { sidecarMessage } from "../mcp/messages.ts";
 import { startPush, sleep, type Push } from "../mcp/push.ts";
+import { faceMarks } from "../mcp/face-mark.ts";
 import { version } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeTitle, sameBase, type Session } from "./sessions.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
@@ -450,6 +451,39 @@ See docs/08-runner-role.md#smart-launchers.`);
   }));
   Object.assign(faceEnv, control.env);
   saveEnv();
+  // The same session, the same binding: what to type when this one cannot recover in place.
+  const resumeHint = () => `resume this session with \`ab-${runtime} ${codex ? `resume ${session.id}` : opencode ? `--session ${session.id}` : `--resume ${session.id}`}\` in ${cwd}`;
+  // The MCP face runs under the runtime, which neither restarts it nor tells us
+  // when it dies: the session keeps typing, its bus tools fail, and a pushed
+  // message would be consumed with nothing to answer it. So a lost face stops
+  // delivery, is reported, and is brought back where the runtime allows it
+  // (docs/08-runner-role.md#runtime-isolation-and-recovery).
+  let faceLost = 0, faceStuck = false, faceResume: (() => void) | undefined;
+  const watchFaces = async () => {
+    if (stopping) return; // faces end with the session; that is no loss
+    const faces = faceMarks(runDir!);
+    if (faces.lost) {
+      const wasPushing = !!push?.running();
+      push?.stop();
+      await push?.done;
+      push = undefined;
+      if (wasPushing) faceResume = () => codex ? bindThread({ id: session.id }) : bindSession(session.id);
+      faceLost = Date.now();
+      faceStuck = false;
+      warn(`the agent-bus MCP server of this session stopped; its bus tools${runtime === "claude" ? " and bus messages" : ""} are unavailable and new messages stay queued for ${name}`);
+      if (codex) { warn("reloading the agent-bus MCP server"); await codex.reloadMcp().catch(e => warn(`reload failed: ${e}`)); }
+      else if (opencode) { warn("reconnecting the agent-bus MCP server"); await opencode.reconnectMcp("agent-bus").catch(e => warn(`reconnect failed: ${e}`)); }
+      else warn("to restore it, type /mcp in this session, select agent-bus and choose Reconnect");
+    } else if (faceLost && faces.live) {
+      faceLost = 0;
+      faceResume?.();
+      faceResume = undefined;
+      note(`the agent-bus MCP server is back; bus delivery resumed for ${name}`);
+    } else if (faceLost && !faceStuck && Date.now() - faceLost > 20_000) {
+      faceStuck = true;
+      warn(`the agent-bus MCP server is still down; ${runtime === "claude" ? "type /mcp and reconnect agent-bus, or " : ""}${resumeHint()}`);
+    }
+  };
   let refreshing = false;
   poll = setInterval(async () => {
     if (refreshing || stopping) return;
@@ -472,7 +506,8 @@ See docs/08-runner-role.md#smart-launchers.`);
         faceEnv.AGENT_BUS_DESCR = next;
         saveEnv();
       }
-      if (push && !push.running()) warn("bus push is inactive; restart this launcher to reconnect");
+      await watchFaces();
+      if (push && !push.running()) warn(`bus push is inactive; ${resumeHint()}`);
     }); } catch (e) { warn(`session metadata refresh failed: ${e}`); }
     finally { refreshing = false; }
   }, 2000);
@@ -481,7 +516,7 @@ See docs/08-runner-role.md#smart-launchers.`);
   const tui = start([binary, ...runtimeArgs, ...titleArgs], { ...cleanEnv, ...faceEnv, ...tuiEnv });
   if (serverChild) {
     const what = codex ? "App Server" : "opencode server";
-    return await Promise.race([tui.exited, serverChild.exited.then(() => { throw new Error(`the ${what} stopped while the session was running`); })]);
+    return await Promise.race([tui.exited, serverChild.exited.then(() => { throw new Error(`the ${what} stopped while the session was running; ${resumeHint()}`); })]);
   }
   return await tui.exited;
 }
