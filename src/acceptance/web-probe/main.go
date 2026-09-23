@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -15,17 +16,34 @@ import (
 	"time"
 )
 
-var state, runtimeDir string // disposable paths, supplied at build time
+var state, logDir, runtimeDir string // disposable paths, supplied at build time
+
+// Every file the web must neither read nor modify, keyed as the gate names
+// them: the database and its journal files, the daemon's logs and the SSH
+// authorization. Whether each is visible at all is reported beside the
+// refusal, as evidence of how it was refused.
+func targets() map[string]string {
+	return map[string]string{
+		"agent-bus.db":         filepath.Join(state, "agent-bus.db"),
+		"agent-bus.db-wal":     filepath.Join(state, "agent-bus.db-wal"),
+		"agent-bus.db-shm":     filepath.Join(state, "agent-bus.db-shm"),
+		".ssh/authorized_keys": filepath.Join(state, ".ssh/authorized_keys"),
+		"audit.log":            filepath.Join(logDir, "audit.log"),
+		"error.log":            filepath.Join(logDir, "error.log"),
+		"debug.log":            filepath.Join(logDir, "debug.log"),
+	}
+}
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		result := map[string]any{}
-		for _, name := range []string{"token", "dump.json", ".ssh/authorized_keys"} {
-			path := filepath.Join(state, name)
+		for name, path := range targets() {
 			_, err := os.ReadFile(path)
 			result["read "+name] = err != nil
+			result["visible "+name] = !errors.Is(err, os.ErrNotExist)
 			// These are disposable files. Actually write if permitted: merely
 			// observing an error on stat would not test modification authority.
+			// No O_CREATE: an absent target must stay absent.
 			f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0)
 			denied := err != nil
 			if err == nil {
@@ -35,12 +53,19 @@ func main() {
 			}
 			result["write "+name] = denied
 		}
+		for label, dir := range map[string]string{"create in state": state, "create in logs": logDir} {
+			f, err := os.OpenFile(filepath.Join(dir, "web-created"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+			result[label] = err != nil
+			if err == nil {
+				f.Close()
+			}
+		}
 		conn, err := net.DialTimeout("unix", filepath.Join(runtimeDir, "user-agent-busd.sock"), time.Second)
 		result["mapped socket"] = err != nil
 		if conn != nil {
 			conn.Close()
 		}
-		_, err = os.ReadFile("/proc/" + r.Header.Get("X-Probe-Host-Pid") + "/root" + state + "/token")
+		_, err = os.ReadFile("/proc/" + r.Header.Get("X-Probe-Host-Pid") + "/root" + state + "/agent-bus.db")
 		result["host proc root"] = err != nil
 		_, err = os.ReadFile("/proc/" + r.Header.Get("X-Probe-Host-Pid") + "/status")
 		result["host process visibility"] = err != nil
