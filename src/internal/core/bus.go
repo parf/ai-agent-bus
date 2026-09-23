@@ -1537,6 +1537,20 @@ type Status struct {
 	// rather than as a node with none of them.
 	// See docs/03-records.md#record-kinds.
 	Kinds map[string]int `json:"kinds"`
+	// Records inactive only because their owning User is, and the messages
+	// they hold. Node-wide, so it is answered to the daemon Owner and the
+	// Administrators — who can reactivate that User — and absent for anybody
+	// else, which a face must read as unobserved rather than as none.
+	// See docs/05-discovery.md#overview-and-diagnostics.
+	OwnerInactive *OwnerInactive `json:"owner_inactive,omitempty"`
+}
+
+// OwnerInactive counts what an inactive User's reactivation would bring back:
+// records whose own status is active, owned by a User who is not, other than
+// that User's own record.
+type OwnerInactive struct {
+	Records  int `json:"records"`
+	Messages int `json:"messages"`
 }
 
 // Uptime reads only the process start time, immutable after New. Public node
@@ -1546,6 +1560,39 @@ func (b *Bus) Uptime() string { return time.Since(b.started).Round(time.Second).
 func (b *Bus) Status() Status {
 	b.mu.Lock()
 	defer b.unlock()
+	return b.status()
+}
+
+// StatusFor is Status as caller may read it: the owner-inactive count only to
+// the daemon Owner and an active Administrator.
+func (b *Bus) StatusFor(caller string) Status {
+	b.mu.Lock()
+	defer b.unlock()
+	s := b.status()
+	if caller == b.admin || b.acting(caller) == nil && b.isAdministrator(caller) {
+		s.OwnerInactive = b.ownerInactive()
+	}
+	return s
+}
+
+// ownerInactive is the count behind OwnerInactive. Caller holds b.mu.
+func (b *Bus) ownerInactive() *OwnerInactive {
+	out := &OwnerInactive{}
+	for name, r := range b.records {
+		// A record owned by no User is a leftover, not a suspension.
+		if _, isUser := b.users[r.Owner]; !isUser || b.userActive(r.Owner) || r.Status == protocol.StatusInactive || name == r.Owner {
+			continue
+		}
+		out.Records++
+		if in := b.inboxes[name]; in != nil {
+			out.Messages += len(in.queue)
+		}
+	}
+	return out
+}
+
+// status is the node-wide answer. Caller holds b.mu.
+func (b *Bus) status() Status {
 	s := Status{
 		Up:    b.Uptime(),
 		Kinds: map[string]int{},

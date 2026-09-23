@@ -400,6 +400,13 @@ func attentionItems(status core.Status, records []protocol.Record) []attention {
 		// and it cannot be climbing (Plans/MVP/web/pages.md#overview).
 		out = append(out, attention{Kind: "refusal", Level: "blue", Title: "Requests were refused", Reason: item.Reason, Count: item.Count, Href: "/diagnostics#refusals", Link: "View refusal reasons"})
 	}
+	// One node-wide item from the daemon's own count, never a join the face
+	// makes over records. An absent count is unobserved — an older daemon or
+	// a caller who is not answered it — and raises nothing
+	// (docs/05-discovery.md#overview-and-diagnostics).
+	if oi := status.OwnerInactive; oi != nil && oi.Records > 0 {
+		out = append(out, attention{Kind: "owner-inactive", Level: "orange", Title: "Records inactive because their owner is", Count: oi.Records, Queued: oi.Messages, Href: "/users?state=inactive", Link: "View inactive users"})
+	}
 	for _, r := range records {
 		inactive := recordInactive(r)
 		if !r.AtBound && r.Dropped+r.Expired == 0 && !(inactive && r.Queued > 0) {

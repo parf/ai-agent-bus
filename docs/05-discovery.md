@@ -334,6 +334,20 @@ and its explanation are hidden rather than shown empty, so absence is absence
 rather than a block that has to be read to learn it says nothing. The page still
 makes no health claim, because it now makes no claim.
 
+**Records inactive because their owner is — built in 0.8.22.** `GET /status`
+carries `owner_inactive`: how many records are inactive only because their
+owning User is, and how many messages they hold. It counts records whose own
+status is active, owned by an inactive User, other than that User's own
+record — what reactivating the User would bring back. The Overview shows one
+orange, node-wide item from those two numbers when the first is non-zero,
+linking to the inactive Users; the face joins nothing per record.
+
+| | |
+|---|---|
+| who is answered | the daemon Owner and active Administrators, who can reactivate a User. Anybody else gets no field: the count says that somebody was made inactive, which is not an ordinary caller's business |
+| absent field | unobserved — an older daemon or a caller not answered — and raises no item. It never reads as zero |
+| beside the per-record items | an inactive record the caller may see still gets its own item from the [read-only inactive view](constitution.md#common-record-fields); the node-wide count may include records the page does not list |
+
 The node strip is node-wide. **From 0.5.82 it also carries the call counters**
 moved out of the shared footer, and registered records are counted one tile per kind — Agents,
 Services, Queues, PubSub, Users and Groups
