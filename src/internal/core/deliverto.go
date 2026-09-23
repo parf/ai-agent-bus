@@ -75,6 +75,12 @@ func (b *Bus) normalizeDeliverTo(in []string, r protocol.Record) ([]string, erro
 			if !deliverToAccepts(r.Kind, target.Kind) {
 				return nil, fmt.Errorf("%w: deliver-to %s must be an agent, a queue or a pubsub, and a %s takes no delivered copy", ErrBadName, term, target.Kind)
 			}
+			// A route is stored only where its destination lists the
+			// forwarding record itself, and is checked again at delivery
+			// (docs/constitution.md#-channels).
+			if oneSlot && !b.admits(target, r.Name) {
+				return nil, fmt.Errorf("%w: %s does not allow %s, so it cannot be %s's route", ErrNotAllow, term, r.Name, r.Name)
+			}
 		}
 		if seen[term] {
 			return nil, fmt.Errorf("%w: duplicate deliver-to %s", ErrBadName, term)

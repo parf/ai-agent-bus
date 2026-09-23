@@ -17,8 +17,8 @@ func deltaFixture(t *testing.T) *Bus {
 	known(t, b, "alice@h", "bob@h", "carol@h", "maint@h")
 	provision(t, b, nil,
 		protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "alice@h", Allow: []string{"bob@h"}, Maintainers: protocol.MaintainerList{"maint@h"}, Full: protocol.OverflowStrict},
-		protocol.Record{Name: "#box@h", Kind: protocol.KindAgent, Owner: "alice@h", Full: protocol.OverflowStrict},
-		protocol.Record{Name: "#other@h", Kind: protocol.KindAgent, Owner: "alice@h", Full: protocol.OverflowStrict},
+		protocol.Record{Name: "#box@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"jobs@h", "alice@h"}, Full: protocol.OverflowStrict},
+		protocol.Record{Name: "#other@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"jobs@h"}, Full: protocol.OverflowStrict},
 	)
 	return b
 }

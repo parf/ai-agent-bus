@@ -816,7 +816,7 @@ func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 // registration and persistence. They are reconstructed from the caller and
 // inbox only when an answer leaves the core.
 func clearLiveRecord(r *protocol.Record) {
-	r.CanManage, r.CanTransfer = false, false
+	r.CanManage, r.CanTransfer, r.RouteAllowed = false, false, nil
 	r.Reading, r.Readers, r.Queued, r.In, r.Out = false, nil, 0, 0, 0
 	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
 }
@@ -974,6 +974,9 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 		return protocol.Envelope{}, fmt.Errorf("%w, not %q", ErrReceipt, e.Receipt)
 	}
 	e.To, e.From = to, from
+	// Provenance is the daemon's: a caller stating where a message came
+	// through, or how far it travelled, grants it nothing.
+	e.OriginalTo, e.Forwards = "", 0
 	e.ID = newID()
 	e.At = time.Now()
 	d, err := life(rec.TTL, e.TTL)
@@ -999,15 +1002,70 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 		e.Deadline = e.At.Add(w)
 	}
 	// A 📮 channel is an inbox with a name, so publishing to one is an
-	// ordinary send. A 📣 channel keeps nothing of its own instead.
+	// ordinary send. A 📣 channel keeps nothing of its own instead, and an
+	// agent or queue with a route passes the message on.
 	if rec.Kind == protocol.KindPubSub {
 		return b.fanout(rec, e)
 	}
-	if err := b.deliver(rec, b.ensure(to), e); err != nil {
+	if err := b.route(rec, e); err != nil {
 		return protocol.Envelope{}, err
 	}
 	b.note(e)
 	return e, nil
+}
+
+// route puts e into rec: into its inbox, or — for an 👾 or 📮 with a
+// one-slot deliver_to — one forwarding step on, into the destination, which
+// the source keeps no copy of and counts nothing for
+// (docs/constitution.md#-channels). Every check comes before anything is
+// stored, so a refusal answers the original sender with nothing changed.
+// Caller holds the lock.
+func (b *Bus) route(rec protocol.Record, e protocol.Envelope) error {
+	if rec.Kind == protocol.KindPubSub {
+		_, err := b.fanout(rec, e)
+		return err
+	}
+	if (rec.Kind == protocol.KindAgent || rec.Kind == protocol.KindQueue) && len(rec.Subs) == 1 {
+		next := rec.Subs[0]
+		if e.Forwards+1 > maxForwards {
+			return fmt.Errorf("%w: at %s", ErrForwards, next)
+		}
+		dst, ok := b.entity(next)
+		if !ok {
+			return fmt.Errorf("no such route destination: %s, from %s (%w)", next, rec.Name, ErrUnknown)
+		}
+		// The destination's ACL must list the forwarding record itself:
+		// neither the sender's nor the source's Owner's access stands in.
+		if !b.admits(dst, rec.Name) {
+			return fmt.Errorf("%s may not forward to %s: %w", rec.Name, next, ErrNotAllow)
+		}
+		e.Forwards++
+		if e.OriginalTo == "" {
+			e.OriginalTo = rec.Name
+		}
+		e.To = dst.Name
+		// The destination's own TTL, as for a direct send.
+		if d, err := life(dst.TTL, e.TTL); err == nil {
+			e.Expires = time.Time{}
+			if d > 0 {
+				e.Expires = e.At.Add(d)
+			}
+		}
+		return b.route(dst, e)
+	}
+	return b.deliver(rec, b.ensure(rec.Name), e)
+}
+
+// admits says whether a record's allow list itself names name — the one list
+// a forwarding hop is judged by (docs/constitution.md#-channels). Caller holds
+// b.mu.
+func (b *Bus) admits(r protocol.Record, name string) bool {
+	for _, s := range r.Allow {
+		if s == "*" || s == name || b.member(name, s) || b.runtimeTerm(name, s, r) {
+			return true
+		}
+	}
+	return false
 }
 
 // deliver puts one envelope into one inbox: into a waiter if one is there,
@@ -1064,9 +1122,6 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 // as a drop and the others still go. A publisher a stopped reader can block
 // is a queue, and a 📮 channel is what that caller wanted.
 // Caller holds the lock.
-func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envelope, error) {
-	return b.fanoutAt(topic, e, 0)
-}
 
 // maxForwards is how many forwarding steps a message may take: the step that
 // would go past it is refused before anything is stored
@@ -1076,9 +1131,12 @@ const maxForwards = 10
 // ErrForwards is a message that would take one forwarding step too many.
 var ErrForwards = errors.New("the message would pass through more than ten forwarding steps")
 
-// fanoutAt publishes e to topic as its hops'th forwarding step. A 📣 recipient
-// is a further publication, one step on. Caller holds the lock.
-func (b *Bus) fanoutAt(topic protocol.Record, e protocol.Envelope, hops int) (protocol.Envelope, error) {
+// fanout publishes e to topic. Each recipient is a branch one forwarding step
+// on, answered by its own destination's rules — a 📣 recipient a further
+// publication. The topic stores nothing; its in counts publications at least
+// one recipient took, and its out the copies accepted
+// (docs/constitution.md#pubsub-routing). Caller holds the lock.
+func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envelope, error) {
 	// The topic's ACL is not consulted here. It says who may publish, and
 	// who receives is this separate list — so a recipient goes on receiving
 	// whether or not it could ever publish, and the way to stop the copies
@@ -1114,35 +1172,40 @@ func (b *Bus) fanoutAt(topic protocol.Record, e protocol.Envelope, hops int) (pr
 			failed, why = append(failed, s), append(why, fmt.Errorf("%w: %s is inactive", ErrUnknown, s))
 			continue
 		}
-		if sub.Kind == protocol.KindPubSub {
-			if hops+1 > maxForwards {
-				failed, why = append(failed, s), append(why, fmt.Errorf("%w: at %s", ErrForwards, s))
-				continue
-			}
-			if _, err := b.fanoutAt(sub, e, hops+1); err != nil {
-				failed, why = append(failed, s), append(why, err)
-				continue
-			}
-			delivered++
+		// Each branch is a forwarding step, and is answered by its own
+		// destination's rules, its route included.
+		if e.Forwards+1 > maxForwards {
+			failed, why = append(failed, s), append(why, fmt.Errorf("%w: at %s", ErrForwards, s))
 			continue
 		}
 		c := e
-		c.To = s
-		if err := b.deliver(sub, b.ensure(s), c); err != nil {
+		c.To, c.Forwards = s, e.Forwards+1
+		if c.OriginalTo == "" {
+			c.OriginalTo = topic.Name
+		}
+		if err := b.route(sub, c); err != nil {
 			failed, why = append(failed, s), append(why, err)
 			continue
 		}
 		delivered++
 	}
-	if delivered == 0 && len(failed) == 0 && len(topic.Subs) > 0 {
-		b.report(ports.Warning, "a publication to %s had no recipient left: no deliver-to term reached an active recipient", topic.Name)
-		return protocol.Envelope{}, fmt.Errorf("no recipient of %s is left to take it (%w)", topic.Name, ErrUnknown)
+	if delivered == 0 && len(failed) == 0 {
+		// Nothing to take it is the flow broken, not a success nobody hears:
+		// an empty list, or one whose every term reached no active recipient.
+		if len(topic.Subs) > 0 {
+			b.report(ports.Warning, "a publication to %s had no recipient left: no deliver-to term reached an active recipient", topic.Name)
+		}
+		return protocol.Envelope{}, fmt.Errorf("%s has no recipient to take it (%w)", topic.Name, ErrUnknown)
 	}
 	if delivered == 0 && len(failed) > 0 {
 		b.report(ports.Warning, "a publication to %s reached none of its %d recipients: %s", topic.Name, len(failed), strings.Join(failed, ", "))
 		return protocol.Envelope{}, fmt.Errorf("no recipient of %s took it: %w", topic.Name, why[0])
 	}
-	b.ensure(topic.Name).in++ // publications accepted; none is kept
+	// Routing counters, neither depth nor consumption: one publication in,
+	// one out per accepted copy, never again when a copy is read.
+	router := b.ensure(topic.Name)
+	router.in++
+	router.out += delivered
 	b.note(e)
 	for i, s := range failed {
 		// The copy that could not land is the RECIPIENT's loss: its page is

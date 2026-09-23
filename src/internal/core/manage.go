@@ -704,6 +704,11 @@ func (b *Bus) visible(caller string, r protocol.Record) protocol.Record {
 	} else {
 		r.Status = protocol.StatusActive
 	}
+	if (r.Kind == protocol.KindAgent || r.Kind == protocol.KindQueue) && len(r.Subs) == 1 {
+		dst, ok := b.entity(r.Subs[0])
+		allowed := ok && b.admits(dst, r.Name)
+		r.RouteAllowed = &allowed
+	}
 	r.CanManage = b.manages(caller, r)
 	r.CanTransfer = caller == r.Owner || caller == b.admin
 	return r

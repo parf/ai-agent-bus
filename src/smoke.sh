@@ -562,11 +562,12 @@ ab '#sub-b@srv1' consume --wait 5s >/dev/null
 is_empty "while the topic itself keeps nothing" \
   "$(ab owner@srv1 ls news@srv1 | grep -o '"queued":[1-9][0-9]*')"
 has "though its publications are counted" "$(ab owner@srv1 ls news@srv1)" '"in":2'
-# Nobody listening is not an error, and is not a message kept for later.
+# Nobody to take it is a broken flow, refused and counted nowhere
+# (docs/constitution.md#pubsub-routing), and not a message kept for later.
 ab owner@srv1 channel create void@srv1 --allow '*' --kind pubsub >/dev/null
-ok_exit "a publish with nobody on the list is accepted" \
-  "$(ab drive-by@srv1 publish --channel void@srv1 "into the void" >/dev/null 2>&1; echo $?)"
-is_empty "and kept for nobody" "$(ab owner@srv1 ls void@srv1 | grep -o '"queued":[1-9][0-9]*')"
+has "a publish with nobody on the list is refused" \
+  "$(ab drive-by@srv1 publish --channel void@srv1 "into the void" 2>&1)" 'has no recipient to take it'
+is_empty "and kept and counted for nobody" "$(ab owner@srv1 ls void@srv1 | grep -o '"queued":[1-9][0-9]*\|"in":[1-9][0-9]*')"
 # Leaving is the one thing a recipient may do to the list, and it stops the
 # copies. Not the same as never having been on it.
 ab '#sub-b@srv1' unsubscribe news@srv1 >/dev/null

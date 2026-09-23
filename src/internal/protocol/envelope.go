@@ -37,6 +37,11 @@ type Envelope struct {
 	// now, not when it bounces.
 	// See docs/04-messaging.md#reply-routing.
 	ReplyTo *ReplyTo `json:"reply_to,omitempty"`
+	// OriginalTo names the destination a forwarded or published message came
+	// through, and Forwards counts its forwarding steps; both are the
+	// daemon's, never a caller's (docs/constitution.md#-channels).
+	OriginalTo string `json:"original_to,omitempty"`
+	Forwards   int    `json:"forwards,omitempty"`
 
 	// TTL is how long this message is worth delivering, stated by the
 	// sender; the receiver's queue bounds it. A question nobody should
@@ -209,11 +214,15 @@ type Record struct {
 	// See docs/05-discovery.md#what-a-listing-answers.
 	CanManage   bool `json:"can_manage,omitempty"`
 	CanTransfer bool `json:"can_transfer,omitempty"`
-	Reading     bool `json:"reading,omitempty"` // an unfiltered read is outstanding; retained for compatibility
-	Readers     *int `json:"readers,omitempty"` // all outstanding reads, filtered and unfiltered together; nil means unobserved
-	Queued      int  `json:"queued,omitempty"`  // messages waiting in it
-	In          int  `json:"in,omitempty"`      // accepted for it since the daemon started
-	Out         int  `json:"out,omitempty"`     // handed to a reader of it since then
+	// RouteAllowed says whether a one-slot deliver_to is usable now: its
+	// destination is live and still lists this record. A configured route is
+	// not always an allowed one (docs/constitution.md#-channels).
+	RouteAllowed *bool `json:"route_allowed,omitempty"`
+	Reading      bool  `json:"reading,omitempty"` // an unfiltered read is outstanding; retained for compatibility
+	Readers      *int  `json:"readers,omitempty"` // all outstanding reads, filtered and unfiltered together; nil means unobserved
+	Queued       int   `json:"queued,omitempty"`  // messages waiting in it
+	In           int   `json:"in,omitempty"`      // accepted for it since the daemon started
+	Out          int   `json:"out,omitempty"`     // handed to a reader of it since then
 	// Loss, per inbox rather than per daemon: a total tells an operator that
 	// something is losing work, and not which name to go and look at.
 	Dropped int `json:"dropped,omitempty"` // lost to its overflow, or skipped while off, since then

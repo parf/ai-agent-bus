@@ -92,8 +92,9 @@ func TestANameCannotPutItselfOnADeliverToList(t *testing.T) {
 	}
 	// And the publication proves it rather than the field: the ACL admits
 	// everyone, which is exactly what no longer decides delivery.
-	if _, err := b.Send(protocol.Envelope{From: "a@h", To: "news@h", Body: "x"}); err != nil {
-		t.Fatalf("publish: %v", err)
+	// The list is empty, so the publication is refused: nothing takes it.
+	if _, err := b.Send(protocol.Envelope{From: "a@h", To: "news@h", Body: "x"}); !errors.Is(err, ErrUnknown) {
+		t.Fatalf("publish to an empty list: %v", err)
 	}
 	if r, _ := b.Lookup("a@h", "#eager@h"); r.Queued != 0 {
 		t.Fatalf("a name the ACL admits was delivered to %d times", r.Queued)
@@ -119,8 +120,9 @@ func TestARecipientTheACLDoesNotAdmitCanStillTakeItselfOff(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	if _, err := b.Send(protocol.Envelope{From: "a@h", To: "news@h", Body: "x"}); err != nil {
-		t.Fatalf("publish: %v", err)
+	// The list is empty, so the publication is refused: nothing takes it.
+	if _, err := b.Send(protocol.Envelope{From: "a@h", To: "news@h", Body: "x"}); !errors.Is(err, ErrUnknown) {
+		t.Fatalf("publish to an empty list: %v", err)
 	}
 	if _, err := b.Consume(ctx, "#outsider@h", "", "", false, false); err == nil {
 		t.Fatal("a copy arrived after leaving")
