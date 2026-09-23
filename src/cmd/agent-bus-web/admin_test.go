@@ -251,7 +251,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if !strings.Contains(hidden, "No such name") || hiddenShape != missingShape {
 		t.Fatal("Danger Zone distinguished a hidden record from a missing one")
 	}
-	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); !strings.Contains(body, "#svc@h") {
+	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); !strings.Contains(body, listedRecord("/agent", "#svc@h")) {
 		t.Fatal("own active agent missing")
 	}
 	disable := url.Values{"action": {"deactivate"}, "name": {"#svc@h"}}
@@ -263,13 +263,13 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); strings.Contains(body, "#svc@h") {
 		t.Fatal("inactive agent appears active")
 	}
-	if body := request("owner@h", "GET", "/agents?scope=my&state=inactive", "", nil, 200); !strings.Contains(body, "#svc@h") {
+	if body := request("owner@h", "GET", "/agents?scope=my&state=inactive", "", nil, 200); !strings.Contains(body, listedRecord("/agent", "#svc@h")) {
 		t.Fatal("inactive agent missing")
 	}
 	// Inactive is no such record to every edit but its reactivation.
 	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"save"}, "name": {"#svc@h"}, "descr": {"while inactive"}}, 404)
 	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"reactivate"}, "name": {"#svc@h"}}, 303)
-	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); !strings.Contains(body, "#svc@h") {
+	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); !strings.Contains(body, listedRecord("/agent", "#svc@h")) {
 		t.Fatal("reactivated agent is not active")
 	}
 	// A Group is an ordinary record, so an ordinary user may create one; an

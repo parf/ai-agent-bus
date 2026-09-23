@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.20 — 2026-09-23
+
+Web problem pages show the daemon's sentence rather than its JSON envelope and
+name a suspension; the session cookie has no Max-Age of its own.
+
 ## 0.8.19 — 2026-09-23
 
 `src/release.sh` deploys a commit, never the working tree, into its own release

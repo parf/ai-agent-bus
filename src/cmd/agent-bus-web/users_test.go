@@ -151,7 +151,7 @@ func TestRequiredDashboardTabs(t *testing.T) {
 	if len(rec.Subs) != 1 || rec.Subs[0] != "#admin-box@h" {
 		t.Fatal("the Deliver-To editor did not write the list")
 	}
-	if body := request("/pubsub", nil, 200); !strings.Contains(body, "news@h") {
+	if body := request("/pubsub", nil, 200); !strings.Contains(body, listedRecord("/pubsub/topic", "news@h")) {
 		t.Fatal("channel missing")
 	}
 	if body := request("/service?name=news@h", nil, 200); !strings.Contains(body, "value=remove-subscriber") {

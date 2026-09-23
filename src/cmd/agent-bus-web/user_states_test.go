@@ -27,7 +27,7 @@ func TestTheUserDirectoryOpensOnActiveUsersAndMarksOnlyTheOthers(t *testing.T) {
 	// Default view: active only. Two of the three are inactive, so a filter
 	// that did nothing would show all three here.
 	first := m.get("/users")
-	if !strings.Contains(first, "steady@h") {
+	if !strings.Contains(first, listedUser("steady@h")) {
 		t.Fatalf("the default directory does not list an active user: %s", first)
 	}
 	for _, hidden := range []string{"resting@h", "barred@h"} {

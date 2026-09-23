@@ -165,7 +165,7 @@ func TestHoldingWorkLinksAreRealFilters(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := m.get("/agents?sort=queued&work=held")
-	if !strings.Contains(page, `aria-label="Queue filter"`) || !strings.Contains(page, `aria-current=true>Holding work</a>`) || !strings.Contains(page, "#quiet@h") {
+	if !strings.Contains(page, `aria-label="Queue filter"`) || !strings.Contains(page, `aria-current=true>Holding work</a>`) || !strings.Contains(page, listedRecord("/agent", "#quiet@h")) {
 		t.Fatal("holding-work URL does not render its state and matching record")
 	}
 	for _, empty := range []string{"#reading@h", "#off@h", "elsewhere@h"} {
