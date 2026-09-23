@@ -16,12 +16,16 @@ import threading
 import time
 import urllib.request
 
+sys.dont_write_bytecode = True
+from disposable import Fixture  # noqa: E402
+
 source = Path(__file__).resolve().parent.parent
 binary, out = (Path(p).resolve() for p in sys.argv[1:])
 out.mkdir(mode=0o755)
 name = f"agent-bus-g12-{os.getpid()}"
-state, runtime = Path('/var/lib')/name, Path('/run')/name
-unit_path = Path('/run/systemd/system')/(name+'.service')
+fx = Fixture(name)
+state, runtime = fx.state, fx.runtime
+owner_name = 'owner@fixture'
 account = pwd.getpwnam('agent-busd')
 checks = 0
 
@@ -73,20 +77,14 @@ def web_pid():
 def read_root(path): return root('cat',path)
 def values(path): return dict(line.split() for line in read_root(path).splitlines())
 def unit_text(delegated=True):
-    text=run(binary/'agent-bus-setup','--print-unit','--owner','owner@fixture','--addr','127.0.0.1:0','--exec',binary/'agent-busd')
-    text=text.replace('/var/lib/agent-bus/daemon',str(state)).replace('StateDirectory=agent-bus/daemon','StateDirectory='+name).replace('/run/agent-bus',str(runtime)).replace('RuntimeDirectory=agent-bus\n','RuntimeDirectory='+name+'\n')
-    lines=[]
-    for line in text.splitlines():
-        if line.startswith('ExecStart='): line+=' -dump-every 0'
-        if not delegated and line.startswith(('Delegate=','DelegateSubgroup=')): continue
-        lines.append(line)
+    lines=fx.unit(binary/'agent-bus-setup',binary/'agent-busd',owner_name,flags='-flush-every 0',
+                  keep=lambda line: delegated or not line.startswith(('Delegate=','DelegateSubgroup='))).splitlines()
     # Outer safety cap remains above the helper's finite allocation, so it
     # cannot masquerade as the web limit when that limit is mutated away.
     return '\n'.join(lines).replace('[Install]',f'Environment=AGENT_BUS_WEB_ADDR=127.0.0.1:{port}\nMemoryMax=768M\n[Install]')+'\n'
 
 def install(text):
-    (out/'unit.service').write_text(text)
-    root('cp',out/'unit.service',unit_path);root('systemctl','daemon-reload');root('systemctl','start',name)
+    fx.install(text,out);root('systemctl','start',name)
 
 def stop(): root('systemctl','stop',name)
 def journal(): return root('journalctl','-u',name,'--no-pager','-o','cat')
@@ -94,6 +92,7 @@ def journal(): return root('journalctl','-u',name,'--no-pager','-o','cat')
 with socket.socket() as s: s.bind(('127.0.0.1',0));port=s.getsockname()[1]
 run('go','build','-o',out/'pressure','./acceptance/resource-pressure',cwd=source)
 try:
+    fx.prepare(binary/'agent-busd',owner_name)
     install(unit_text())
     wait(lambda:api()[0]==200,'bus ready')
     supervisor=int(run('systemctl','show',name,'-p','MainPID','--value').strip())
@@ -104,7 +103,7 @@ try:
     expected={'memory.max':'268435456','memory.swap.max':'0','memory.oom.group':'1','pids.max':'64','cpu.max':'100000 100000'}
     check(all(read_root(web_group/k).strip()==v for k,v in expected.items()),'all configured web limits installed')
     check(page(),'actual web serves under the limits')
-    token=root('cat',state/'token').split()[1]
+    token=fx.owner_token(owner_name)
     for kind,event,key in [('cpu','cpu.stat','nr_throttled'),('pids','pids.events','max'),('memory','memory.events','oom_kill')]:
         before=int(values(web_group/event)[key]);failures=[];successes=[];done=threading.Event()
         def positive():
@@ -151,6 +150,4 @@ try:
     print(f'checks {checks}, failed 0',flush=True)
 finally:
     (out/'journal.log').write_text(journal())
-    stop()
-    root('rm','-f',unit_path);root('systemctl','daemon-reload')
-    root('rm','-rf',state)
+    fx.remove()

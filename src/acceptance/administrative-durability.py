@@ -13,7 +13,8 @@ import subprocess as sp
 import sys
 import time
 
-from disposable import Fixture, root, run
+sys.dont_write_bytecode = True
+from disposable import Fixture, root, run  # noqa: E402
 
 binary, out = (Path(p).resolve() for p in sys.argv[1:])
 out.mkdir(mode=0o700)  # an existing evidence directory must not be overwritten
