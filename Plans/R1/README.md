@@ -15,6 +15,7 @@ backends are owner-assigned; other scope remains proposed and subject to the own
 | Peer registry | [Peer registry](registry.md#registry-sync) |
 | Shared locks | [Shared locks](locks.md#shared-locks) |
 | Key-value store | [Key-value store](kv.md#per-name-storage) |
+| MCP Resource records | [Resource records](resources.md#resource-records) |
 | Managed services and pools | [Managed services and pools](runner.md#what-the-runner-does) |
 | Discovery and observability | [Discovery and observability](discovery.md#where-a-member-says-it-is) |
 | One front door (proposed) | [One front door](discovery.md#one-front-door) |
