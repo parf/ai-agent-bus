@@ -20,11 +20,10 @@ run one job twice.
 |---|---|
 | **why the daemon, and not a service** | a pool already shares exactly one thing — the bus it talks to ([runner § one name on many hosts](runner.md#one-name-on-many-hosts)). Anything else able to order two writers is a second authority to install and keep agreeing with, and **a lock service could not itself be a pool** without consensus: two processes behind one name would both believe they had granted it |
 | **and because it is small** | the three verbs, a deadline and a map. Enough services need it that leaving it out means each of them invents one, which is the case for building it in rather than against |
-| **basic is the whole of it** | the verbs above, the ttl, the set. Fair queuing among waiters, reentrancy, locks that outlive their holder — none of that is here, and whoever needs one of them is describing a service of their own |
+| **basic is the whole of it** | the verbs above, the ttl, the set. Fair queuing among waiters, reentrancy, fencing numbers that let a guarded resource refuse a stalled holder, locks that outlive their holder — none of that is here, and whoever needs one of them is describing a service of their own |
 | **every lock has a ttl, and it is asked for** | holders die. Without a deadline one crash wedges a pool forever, so there is no lock without one and holding it longer means asking again. A `release` is the fast path, never the only one |
-| **each grant carries a number that only goes up** | a ttl alone is not safety: a holder that stalled past its deadline still believes it holds the lock. The number is what lets whatever the lock guards refuse the older holder, and it never repeats — a daemon that restarted issues higher numbers than the run before it, which is the one thing memory alone cannot answer ([Q108](QUESTIONS.md#open-questions)) |
-| **it is memory, not storage** | a map of names to holder, deadline and number, in the daemon's own process. No SQLite table, no dump, nothing written per grant: it is small enough that anything else is cost without an answer, and the [key-value store](kv.md#per-name-storage) is where a value that must survive belongs |
-| **so a restart releases everything** | queues and stats survive a restart ([durability](../../docs/04-messaging.md#durability)); locks must not. A lock that outlived the daemon that granted it is a claim about processes nobody watched in the meantime. That is the honest answer, and the reason the number above exists |
+| **it is memory, not storage** | a Go `sync.Map` of names to holder and deadline, in the daemon's own process. No SQLite table, no dump, nothing written per lock: it is small enough that anything else is cost without an answer, and the [key-value store](kv.md#per-name-storage) is where a value that must survive belongs |
+| **so a restart releases everything** | queues and stats survive a restart ([durability](../../docs/04-messaging.md#durability)); locks must not. A lock that outlived the daemon that granted it is a claim about processes nobody watched in the meantime. Nothing is carried across, numbers included: there are none |
 | **the holder is a principal** | the token says who ([access](../../docs/02-access.md#access)), so a listing can answer *who holds this* — and the daemon watches no connection, here as everywhere. The ttl is what ends a lock, not a socket closing |
 | **it holds nothing** | a lock says who may act and stores no value. What the holders agree *about* lives in a store of its own ([key-value store](kv.md#per-name-storage)), or, for a service that may not be read by the daemon holding it, in the one [1.2 is still exploring](../R1.2/exploration.md#shared-secrets-and-a-kv-with-locks) |
 
@@ -44,8 +43,8 @@ holds one of the things.
 | **empty behaves like a held lock** | `lock` waits for the first one returned, `try-lock` is refused now. Nothing new: it is the two forms above, asked of a set |
 | **and it answers how many are free** | cheap, and the number a dashboard or a queue-depth alarm wants |
 
-Everything else is unchanged — a ttl on every grant, a number that only goes
-up, and nothing kept across a restart.
+Everything else is unchanged — a ttl on every lock, and nothing kept across a
+restart.
 
 **From the daemon's side this is not a second mechanism.** A plain named lock
 is a member of the **default set**, and the sets above are the same thing with
