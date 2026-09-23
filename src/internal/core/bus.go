@@ -259,6 +259,15 @@ func validateKind(r protocol.Record) error {
 		if r.Name == AdministratorsGroup && (len(r.Maintainers) != 0 || r.Personal) {
 			return fmt.Errorf("%w: %s has no maintainers and is never personal", ErrNotOwner, AdministratorsGroup)
 		}
+		// A prefix reserves the name for its User, and a Personal group
+		// must carry its owner's (docs/constitution.md#-group).
+		prefix, prefixed := groupOwner(r.Name)
+		if prefixed && r.Owner != "" && prefix != r.Owner {
+			return fmt.Errorf("%w: %s is reserved for %s", ErrNotOwner, r.Name, prefix)
+		}
+		if r.Personal && !prefixed {
+			return fmt.Errorf("%w: a personal group is named @<owner>/<name>, and %s is not", ErrKind, r.Name)
+		}
 	}
 	// Deliver-To is what a 📣 does instead of holding a queue, so it is the
 	// one kind that has one: the other three receive rather than fan out.

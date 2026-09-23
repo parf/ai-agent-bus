@@ -292,8 +292,30 @@ func groupName(n string) bool {
 	if len(n) < 2 || len(n) > protocol.MaxName || n[0] != '@' {
 		return false
 	}
-	parsed, err := protocol.ParseName(n[1:])
-	return err == nil && !parsed.Agent && parsed.String() == n[1:]
+	// A prefixed group is its owner's: everything before the first "/" is a
+	// User's whole name, realm and all, and the rest is the group's own name
+	// with a realm of its choosing — "@alice@srv1/friends@batch1"
+	// (docs/constitution.md#-group).
+	if owner, rest, cut := strings.Cut(n[1:], "/"); cut {
+		return plainName(owner) && plainName(rest)
+	}
+	return plainName(n[1:])
+}
+
+// plainName is a canonical name with neither an agent's "#" nor a "/".
+func plainName(s string) bool {
+	parsed, err := protocol.ParseName(s)
+	return err == nil && !parsed.Agent && parsed.Template == "" && parsed.String() == s
+}
+
+// groupOwner is the User a prefixed group's name is reserved for, and false
+// for a group in the shared namespace.
+func groupOwner(n string) (string, bool) {
+	if !strings.HasPrefix(n, "@") {
+		return "", false
+	}
+	owner, _, cut := strings.Cut(n[1:], "/")
+	return owner, cut
 }
 
 // normalizeMaintainers validates the whole replacement before Manage stores
@@ -570,6 +592,11 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		}
 		if r.Kind == protocol.KindUser {
 			return protocol.Record{}, fmt.Errorf("%w: a user's own record cannot be transferred", ErrNotOwner)
+		}
+		// Its name says whose it is, and a name never changes: moving one is
+		// an administrator editing the database and restarting the daemon.
+		if prefix, ok := groupOwner(name); ok && owner != prefix {
+			return protocol.Record{}, fmt.Errorf("%w: %s is named for %s and cannot be transferred; create @%s/… instead", ErrKind, name, prefix, owner)
 		}
 		// An agent's credentials go with it, in this same commit: its pair
 		// names its Owner, and a transfer that committed without them would

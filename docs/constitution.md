@@ -446,6 +446,17 @@ authority remains.
 Nested resolution MUST use a visited set, and grants membership only when a
 finite path reaches the requested actor.
 
+A name MAY carry its Owner's prefix: `@<owner>/<name>[@realm]`, where
+`<owner>` is the User's whole name, realm included, and the realm after the
+group's own name is the Owner's choice — `@alice@srv1/friends@batch1` is
+`alice@srv1`'s. The prefix reserves the name: only that User creates or holds
+it. A Personal Group MUST carry its Owner's prefix, so Users never compete for
+a personal name, and one without it is refused. A prefixed Group MUST NOT be
+transferred, because its name says whose it is and a name never changes; moving
+one is an administrator editing the database and restarting the daemon. A
+stored Group whose prefix is not its Owner, or a Personal one without a prefix,
+is incorrect and ignored at load. Unprefixed names are the shared namespace.
+
 The protected `@administrators` group is outside this model: its Owner MUST be
 the daemon Owner and MUST NOT be assigned independently of daemon ownership, it
 has no Maintainers, and only the daemon Owner changes its direct membership.

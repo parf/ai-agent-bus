@@ -172,12 +172,12 @@ type adminView struct {
 	Owners        []string
 	// Channels is either channel section; Queues and PubSub say which. They
 	// are two sections, each with its own list, registration and settings.
-	Channels      bool
-	Queues        bool
-	PubSub        bool
-	Agents        bool
-	Services      bool
-	PersonalPage  bool
+	Channels     bool
+	Queues       bool
+	PubSub       bool
+	Agents       bool
+	Services     bool
+	PersonalPage bool
 	// NewKind is the kind a registration page is registering, empty on the
 	// page that asks which. The fields differ by kind rather than by section:
 	// a queue declares TTL, capacity and overflow, and a pub/sub topic holds
@@ -1550,6 +1550,15 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			withMembers := change
 			withMembers.Allow = &members
 			err = c.post(cookie(r), "/manage", withMembers)
+		}
+		// A Personal group is named for its owner, who registering is the
+		// caller. Said before anything is created, so a refusal leaves no half
+		// made group behind (docs/constitution.md#-group).
+		if prefix := "@" + v.You + "/"; created && change.Personal != nil && *change.Personal &&
+			!strings.HasPrefix(strings.ToLower(strings.TrimSpace(name)), strings.ToLower(prefix)) {
+			localProblem(w, r, v.You, http.StatusBadRequest,
+				"A Personal group is named for its owner: call it "+prefix+"<name>.")
+			return
 		}
 		if viaSetGroup {
 			err = c.post(cookie(r), "/group", struct {

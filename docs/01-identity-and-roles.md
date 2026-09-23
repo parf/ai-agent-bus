@@ -287,7 +287,9 @@ different thing entirely.
 ## Groups
 
 **Built in 0.7.10:** a Group is an ordinary record of kind `group`, named
-`@name`, whose `allow` list is its membership
+`@name`, or `@<owner>/<name>` for one reserved to its Owner and required of
+a Personal one (built in 0.8.6, [constitution § Group](constitution.md#-group)),
+whose `allow` list is its membership
 ([constitution § Group](constitution.md#-group)). Any User creates one, and it
 belongs to that User. Its Owner, its Maintainers and the daemon's
 Administrators change its membership; nobody else does. Members are actors —

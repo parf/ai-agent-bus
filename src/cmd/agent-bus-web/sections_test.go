@@ -80,12 +80,12 @@ func TestOldChannelAddressesStillLandSomewhere(t *testing.T) {
 	m := meaningFixture(t)
 	m.register(protocol.Record{Name: "work@h", Owner: "admin@h", Kind: protocol.KindQueue})
 	for path, want := range map[string]string{
-		"/channels":                                "/queues",
-		"/channels?kind=queue&q=w":                 "/queues?q=w",
-		"/channels?kind=pubsub&sort=updated":       "/pubsub?sort=updated",
-		"/channels/new":                            "/queues/new",
-		"/channels/new?kind=queue":                 "/queues/new",
-		"/channels/new?kind=pubsub":                "/pubsub/new",
+		"/channels":                          "/queues",
+		"/channels?kind=queue&q=w":           "/queues?q=w",
+		"/channels?kind=pubsub&sort=updated": "/pubsub?sort=updated",
+		"/channels/new":                      "/queues/new",
+		"/channels/new?kind=queue":           "/queues/new",
+		"/channels/new?kind=pubsub":          "/pubsub/new",
 	} {
 		code, to := m.redirect(path)
 		if code != http.StatusMovedPermanently || (want != "" && to != want) {

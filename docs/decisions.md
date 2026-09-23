@@ -10,6 +10,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| A Personal Group is named `@<owner>/<name>[@realm]`; a prefixed Group is its Owner's and is never transferred (Q109) | [constitution § Group](constitution.md#-group) | 2026-09-23 owner answer; the prefix is the User's whole name, so Users never compete for a personal name and the realm stays the Owner's choice; moving one is an administrator's database edit and restart |
 | Daemon logs live under `/var/log/agent-bus/` with ordinary logrotate, readable by `adm` (Q96) | [errors and alerts](constitution.md#errors-and-alerts) | 2026-09-22 owner answer |
 | An Agent may send to a User its own ACL admits; the daemon does not recognize replies (Q94, Q104) | [constitution § Channels](constitution.md#-channels) | 2026-09-22 owner answers; whoever may reach an Agent may be answered by it, so an Agent open to `*` may send to every User, matching stays the sender's topic + tag, a User has no list of its own, and no User sends to a User |
 | Renaming is for `ab-*` sessions only; a bare MCP face refuses it (Q105) | [explicit session rename](08-runner-role.md#explicit-session-rename) | 2026-09-23 owner answer; an Agent is never issued another Agent's credential, so only a launcher, which acts for the User, moves an address |

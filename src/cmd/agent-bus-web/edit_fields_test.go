@@ -137,11 +137,17 @@ func TestNewlyOfferedFieldsReachTheDaemon(t *testing.T) {
 	if got, err := m.bus.Secret("@crew", "mate@h"); err != nil || got != "CREW=three" {
 		t.Errorf("the group's secret was not stored: %q %v", got, err)
 	}
-	// Personal, which a Personal group's cohort then has to fit.
+	// Personal, which a Personal group's cohort then has to fit, and which
+	// only a group named for its owner may be (docs/constitution.md#-group).
 	m.post(t, "/groups", url.Values{"action": {"save"}, "name": {"@crew"}, "members": {"admin@h"}, "descr": {"The crew"},
+		"edit_sharing": {"1"}, "maintainers": {""}, "edit_personal": {"1"}, "personal": {"on"}}, 400)
+	if err := m.bus.SetGroup("admin@h", "@admin@h/crew", []string{"admin@h"}); err != nil {
+		t.Fatal(err)
+	}
+	m.post(t, "/groups", url.Values{"action": {"save"}, "name": {"@admin@h/crew"}, "members": {"admin@h"}, "descr": {"Mine"},
 		"edit_sharing": {"1"}, "maintainers": {""}, "edit_personal": {"1"}, "personal": {"on"}}, 303)
-	if crew, _ = m.bus.Lookup("admin@h", "@crew"); !crew.Personal || len(crew.Maintainers) != 0 {
-		t.Errorf("the group's Personal choice was not stored: %+v", crew)
+	if own, _ := m.bus.Lookup("admin@h", "@admin@h/crew"); !own.Personal || own.Descr != "Mine" {
+		t.Errorf("the group's Personal choice was not stored: %+v", own)
 	}
 	m.post(t, "/groups", url.Values{"action": {"save"}, "name": {"@crew"}, "members": {"admin@h\nmate@h"}, "descr": {"The crew"},
 		"edit_sharing": {"1"}, "maintainers": {"mate@h"}, "edit_personal": {"1"}}, 303)
@@ -159,11 +165,19 @@ func TestNewlyOfferedFieldsReachTheDaemon(t *testing.T) {
 	}
 
 	// Registration carries the description, Personal and the secret.
-	m.post(t, "/groups", url.Values{"action": {"save"}, "new": {"1"}, "name": {"@fresh"}, "members": {"admin@h"}, "descr": {"Fresh"}, "edit_personal": {"1"}, "personal": {"on"}, "secret": {"FRESH=four"}}, 303)
-	if fresh, _ := m.bus.Lookup("admin@h", "@fresh"); fresh.Descr != "Fresh" || !fresh.Personal {
+	// An unprefixed Personal registration is refused before anything exists.
+	body, _ := m.post(t, "/groups", url.Values{"action": {"save"}, "new": {"1"}, "name": {"@fresh"}, "members": {"admin@h"}, "edit_personal": {"1"}, "personal": {"on"}}, 400)
+	if !strings.Contains(body, "call it @admin@h/&lt;name&gt;") {
+		t.Errorf("the refusal does not say how to name it: %s", body)
+	}
+	if _, known := m.bus.Lookup("admin@h", "@fresh"); known {
+		t.Error("a refused Personal registration left a group behind")
+	}
+	m.post(t, "/groups", url.Values{"action": {"save"}, "new": {"1"}, "name": {"@admin@h/fresh"}, "members": {"admin@h"}, "descr": {"Fresh"}, "edit_personal": {"1"}, "personal": {"on"}, "secret": {"FRESH=four"}}, 303)
+	if fresh, _ := m.bus.Lookup("admin@h", "@admin@h/fresh"); fresh.Descr != "Fresh" || !fresh.Personal {
 		t.Errorf("a registered group lost its description or Personal: %+v", fresh)
 	}
-	if got, err := m.bus.Secret("@fresh", "admin@h"); err != nil || got != "FRESH=four" {
+	if got, err := m.bus.Secret("@admin@h/fresh", "admin@h"); err != nil || got != "FRESH=four" {
 		t.Errorf("a registered group's secret was not stored: %q %v", got, err)
 	}
 
