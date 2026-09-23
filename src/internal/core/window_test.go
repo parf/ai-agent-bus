@@ -65,7 +65,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 			return err
 		}},
 		{"set-user-state", func(b *Bus, c string) error {
-			_, err := b.SetUserState(c, "someone@h", "paused")
+			_, err := b.SetUserState(c, "someone@h", "inactive")
 			return err
 		}},
 		{"remove-ownerless", func(b *Bus, c string) error {
@@ -105,7 +105,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 				if err := b.SetGroup("admin@h", AdministratorsGroup, []string{"admin@h", "paused@h"}); err != nil {
 					t.Fatal(err)
 				}
-				if _, err := b.SetUserState("admin@h", "paused@h", "paused"); err != nil {
+				if _, err := b.SetUserState("admin@h", "paused@h", "inactive"); err != nil {
 					t.Fatal(err)
 				}
 				if err := v.call(b, caller.who); !errors.Is(err, caller.want) {
@@ -231,7 +231,7 @@ func TestATransferCannotHandARecordToSomebodyWhoCannotAct(t *testing.T) {
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "banned@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.SetUserState("admin@h", "banned@h", "banned"); err != nil {
+	if _, err := b.SetUserState("admin@h", "banned@h", "inactive"); err != nil {
 		t.Fatal(err)
 	}
 	to := "banned@h"
@@ -375,7 +375,7 @@ func TestListingsShowNothingToACallerThatMayNotAct(t *testing.T) {
 			if err := b.SetGroup("admin@h", AdministratorsGroup, []string{"admin@h", "paused@h"}); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := b.SetUserState("admin@h", "paused@h", "paused"); err != nil {
+			if _, err := b.SetUserState("admin@h", "paused@h", "inactive"); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := b.Send(protocol.Envelope{From: "#svc@h", To: "#svc@h", Body: "x"}); err != nil {

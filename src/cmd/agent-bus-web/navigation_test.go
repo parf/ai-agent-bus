@@ -43,7 +43,7 @@ func TestReaderFiltersKeepMeasuredZeroSeparateFromUnavailable(t *testing.T) {
 	}
 }
 
-func TestServiceReaderFilterIsIndependentFromDelivery(t *testing.T) {
+func TestServiceReaderFilterIsIndependentFromStatus(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
 	m.attachReader("#reading@h")
@@ -56,17 +56,18 @@ func TestServiceReaderFilterIsIndependentFromDelivery(t *testing.T) {
 	if strings.Contains(none, ">#reading@h<") || !strings.Contains(none, ">#quiet@h<") {
 		t.Fatal("measured-zero Readers filter collapsed with a positive count")
 	}
-	disabled := m.get("/agents?readers=none&state=inactive")
-	if !strings.Contains(disabled, ">#off@h<") || strings.Contains(disabled, ">#quiet@h<") || !strings.Contains(disabled, `/agents?readers=none&amp;state=active`) {
-		t.Fatal("reader and delivery filters do not compose or retain each other")
+	inactive := m.get("/agents?readers=none&state=inactive")
+	if !strings.Contains(inactive, ">#off@h<") || strings.Contains(inactive, ">#quiet@h<") || !strings.Contains(inactive, `/agents?readers=none&amp;state=active`) {
+		t.Fatal("reader and status filters do not compose or retain each other")
 	}
 }
 
 func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
-	// A service has no queue here, so its listing carries no reader or delivery
-	// filter to retain; the pages that do keep theirs across paging.
+	// A service has no queue here, so its listing carries no reader filter to
+	// retain; status belongs to every record, so every listing keeps it.
 	// See docs/03-records.md#five-record-kinds.
-	queueFilters := []string{"readers=none", "state=active"}
+	queueFilters := []string{"readers=none"}
+	statusFilter := []string{"state=active"}
 	for _, tc := range []struct {
 		path     string
 		kind     string
@@ -74,9 +75,9 @@ func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
 		personal bool
 		filters  []string
 	}{
-		{"/services", protocol.KindService, "svc", false, nil},
-		{"/personal", protocol.KindAgent, "personal", true, queueFilters},
-		{"/channels", protocol.KindQueue, "channel", false, queueFilters},
+		{"/services", protocol.KindService, "svc", false, statusFilter},
+		{"/personal", protocol.KindAgent, "personal", true, append(append([]string{}, queueFilters...), statusFilter...)},
+		{"/channels", protocol.KindQueue, "channel", false, append(append([]string{}, queueFilters...), statusFilter...)},
 	} {
 		t.Run(tc.stem, func(t *testing.T) {
 			m := meaningFixture(t)
@@ -117,7 +118,7 @@ func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
 			}
 			// The filters a service has no answer for are not offered on it.
 			for _, absent := range queueFilters {
-				if tc.filters == nil && strings.Contains(page, absent) {
+				if tc.kind == protocol.KindService && strings.Contains(page, absent) {
 					t.Errorf("%s offers %q, which is a question about a queue it does not have", tc.path, absent)
 				}
 			}
@@ -206,17 +207,20 @@ func TestCompactUserEditorExplainsSSHOnboarding(t *testing.T) {
 func TestCompactSelectorsSubmitOnChange(t *testing.T) {
 	m := meaningFixture(t)
 	agents := m.get("/agents")
-	if !strings.Contains(agents, `<span aria-hidden=true>🔛</span> Delivery`) || !strings.Contains(agents, `name=sort data-submit-on-change`) || strings.Contains(agents, `<button>Filter</button>`) {
-		t.Fatal("agent filters lack the delivery glyph or retain a visible Filter button")
+	if !strings.Contains(agents, `aria-label="Status filter"><span>Status</span>`) || !strings.Contains(agents, `name=sort data-submit-on-change`) || strings.Contains(agents, `<button>Filter</button>`) {
+		t.Fatal("agent filters lack the status filter or retain a visible Filter button")
 	}
-	// Sorting is a question about any listing; the delivery filter is a
-	// question about a queue, and a service has none.
+	// Sorting and status are questions about any listing; the reader and
+	// queue filters are questions about a queue, and a service has none.
 	services := m.get("/services")
 	if !strings.Contains(services, `name=sort data-submit-on-change`) || strings.Contains(services, `<button>Filter</button>`) {
 		t.Fatal("service sorting does not apply on change, or a visible Filter button remains")
 	}
-	if strings.Contains(services, `</span> Delivery`) || strings.Contains(services, `aria-label="Reader filter"`) || strings.Contains(services, `aria-label="Queue filter"`) {
+	if strings.Contains(services, `aria-label="Reader filter"`) || strings.Contains(services, `aria-label="Queue filter"`) {
 		t.Fatal("the services page offers a filter about a queue it does not have")
+	}
+	if !strings.Contains(services, `aria-label="Status filter"><span>Status</span>`) {
+		t.Fatal("the services page does not offer the status every record has")
 	}
 	activity := m.get("/activity")
 	if !strings.Contains(activity, `name=name data-submit-on-change`) || strings.Contains(activity, `<button>Filter</button>`) {
@@ -290,7 +294,7 @@ func TestSectionNavigationCountsOnlyCallerVisibleCategories(t *testing.T) {
 		`href="/personal?state=inactive" class="personal-view">Personal (1)</a>`,
 		`href="/agents/new" class="">Register agent</a>`,
 		`href="/agents?scope=my">All</a>`,
-		`href="/agents?scope=my&amp;state=active">Enabled</a>`,
+		`href="/agents?scope=my&amp;state=active">Active</a>`,
 	} {
 		if !strings.Contains(agents, want) {
 			t.Errorf("agent navigation missing %q", want)

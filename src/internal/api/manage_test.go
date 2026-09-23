@@ -55,23 +55,37 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	// group was in use: there is nothing to be in use for.
 	call("admin@h", "/group", `{"kind":"agent","name":"@ops","remove":true}`, 400)
 	call("alice@h", "/send", `{"to":"#svc@h","body":"preserved"}`, 200)
-	call("alice@h", "/manage", `{"kind":"agent","name":"#svc@h","disabled":true}`, 200)
-	var omitted protocol.Record
-	if err := json.Unmarshal([]byte(call("alice@h", "/lookup?name=%23svc@h", "", 200)), &omitted); err != nil {
-		t.Fatal(err)
+	call("alice@h", "/manage", `{"kind":"agent","name":"#svc@h","status":"inactive"}`, 200)
+	// Inactive is no such record: it is only in the one read-only view.
+	call("alice@h", "/lookup?name=%23svc@h", "", 404)
+	inactiveOne := func() protocol.Record {
+		t.Helper()
+		var list []protocol.Record
+		if err := json.Unmarshal([]byte(call("alice@h", "/inactive", "", 200)), &list); err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range list {
+			if r.Name == "#svc@h" {
+				return r
+			}
+		}
+		t.Fatalf("the inactive record is not in its owner's inactive view: %+v", list)
+		return protocol.Record{}
 	}
-	if !reflect.DeepEqual(omitted.Maintainers, protocol.MaintainerList{"@ops"}) {
-		t.Fatalf("omitted Maintainers cleared the list: %#v", omitted.Maintainers)
+	if omitted := inactiveOne(); !reflect.DeepEqual(omitted.Maintainers, protocol.MaintainerList{"@ops"}) || omitted.Status != protocol.StatusInactive {
+		t.Fatalf("a status edit changed more than the status: %+v", omitted)
 	}
-	call("alice@h", "/send", `{"to":"#svc@h","body":"refused"}`, 409)
-	call("#svc@h", "/consume?wait=0s", "", 409)
-	call("#svc@h", "/register", `{"kind":"agent","name":"#svc@h","disabled":false,"maintainers":"","allow":["alice@h"]}`, 200)
-	var rec protocol.Record
-	json.Unmarshal([]byte(call("alice@h", "/lookup?name=%23svc@h", "", 200)), &rec)
-	if !rec.Disabled || !reflect.DeepEqual(rec.Maintainers, protocol.MaintainerList{"@ops"}) || rec.Queued != 1 || !rec.CanManage || !rec.CanTransfer {
-		t.Fatalf("registration overwrote owner controls: %+v", rec)
+	call("alice@h", "/send", `{"to":"#svc@h","body":"refused"}`, 404)
+	// The agent itself is inactive, so it is refused as a caller.
+	call("#svc@h", "/consume?wait=0s", "", 403)
+	// Its name stays reserved: nobody registers over it, its owner included.
+	call("alice@h", "/register", `{"kind":"agent","name":"#svc@h","maintainers":"","allow":["alice@h"]}`, 412)
+	if rec := inactiveOne(); !reflect.DeepEqual(rec.Maintainers, protocol.MaintainerList{"@ops"}) || rec.Queued != 1 || !rec.CanManage || !rec.CanTransfer {
+		t.Fatalf("a refused registration changed the inactive record: %+v", rec)
 	}
-	call("alice@h", "/unregister", `{"kind":"agent","name":"#svc@h"}`, 409)
+	// Every operation naming it but its reactivation is refused, removal too.
+	call("alice@h", "/unregister", `{"kind":"agent","name":"#svc@h"}`, 404)
+	call("alice@h", "/manage", `{"kind":"agent","name":"#svc@h","descr":"while inactive"}`, 404)
 	// Restoration includes policy, flat membership, configuration and backlog.
 	snapshot, err := json.Marshal(bus.Snapshot())
 	if err != nil {
@@ -86,8 +100,8 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	}
 	restored.Restore(snap)
 	s = New(restored, s.tokens, "admin@h")
-	call("#svc@h", "/consume?wait=0s", "", 409)
-	call("maint@h", "/manage", `{"kind":"agent","name":"#svc@h","disabled":false}`, 200)
+	call("#svc@h", "/consume?wait=0s", "", 403)
+	call("maint@h", "/manage", `{"kind":"agent","name":"#svc@h","status":"active"}`, 200)
 	if got := call("#svc@h", "/consume?wait=0s", "", 200); !strings.Contains(got, "preserved") {
 		t.Fatal(got)
 	}
@@ -101,7 +115,7 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	afterTransfer := core.New()
 	afterTransfer.Restore(restored.Snapshot())
 	s = New(afterTransfer, s.tokens, "admin@h")
-	call("alice@h", "/manage", `{"kind":"agent","name":"#svc@h","disabled":true}`, 403)
+	call("alice@h", "/manage", `{"kind":"agent","name":"#svc@h","status":"inactive"}`, 403)
 	call("alice@h", "/token", `{"kind":"agent","name":"#svc@h"}`, 403)
 	call("bob@h", "/token", `{"kind":"agent","name":"#svc@h"}`, 200)
 	call("bob@h", "/configure", `{"kind":"agent","name":"#svc@h","config":{"new":true}}`, 200)

@@ -421,6 +421,54 @@ func (c *caller) post(cred, path string, value any) error {
 	return c.request(cred, "POST", path, bytes.NewReader(body), nil)
 }
 
+// recordSection is the navigation section a record's pages belong to.
+func recordSection(r protocol.Record) string {
+	switch {
+	case r.Personal:
+		return "personal"
+	case channelRecord(r.Kind):
+		return "channels"
+	case agentRecord(r.Kind):
+		return "agents"
+	}
+	return "services"
+}
+
+// recordInactive reads a record's status; empty is active.
+func recordInactive(r protocol.Record) bool { return r.Status == protocol.StatusInactive }
+
+// allRecords is every record the caller may see in a listing: /ls answers
+// only active ones, and /inactive is the one read of the rest.
+func (c *caller) allRecords(cred string) ([]protocol.Record, error) {
+	var active, inactive []protocol.Record
+	if err := c.get(cred, "/ls", &active); err != nil {
+		return nil, err
+	}
+	if err := c.get(cred, "/inactive", &inactive); err != nil {
+		return nil, err
+	}
+	for i := range inactive {
+		inactive[i].Status = protocol.StatusInactive
+	}
+	return append(active, inactive...), nil
+}
+
+// inactiveRecord finds name among the caller's inactive records. A failed
+// read finds nothing, so the page falls through to /lookup and its answer.
+func (c *caller) inactiveRecord(cred, name string) (protocol.Record, bool) {
+	var inactive []protocol.Record
+	if err := c.get(cred, "/inactive", &inactive); err != nil {
+		return protocol.Record{}, false
+	}
+	for _, r := range inactive {
+		if r.Name == name {
+			r.Status = protocol.StatusInactive
+			return r, true
+		}
+	}
+	return protocol.Record{}, false
+}
+
 func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	c.activityRoutes(mux)
 	c.userRoutes(mux, tls)
@@ -429,16 +477,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			fail(w, r, v.You, err)
 			return false
 		}
-		switch {
-		case v.Record.Personal:
-			v.Current = "personal"
-		case channelRecord(v.Record.Kind):
-			v.Current = "channels"
-		case agentRecord(v.Record.Kind):
-			v.Current = "agents"
-		default:
-			v.Current = "services"
-		}
+		v.Current = recordSection(v.Record)
 		return true
 	}
 	loadServiceDetails := func(w http.ResponseWriter, r *http.Request, v *adminView, name string) bool {
@@ -476,8 +515,8 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if !ok {
 			return
 		}
-		var records []protocol.Record
-		if err := c.get(cookie(r), "/ls", &records); err != nil {
+		records, err := c.allRecords(cookie(r))
+		if err != nil {
 			fail(w, r, v.You, err)
 			return
 		}
@@ -512,7 +551,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			// A service has no queue here, so none of the questions about one
 			// has an answer to filter or sort by.
 			// See docs/03-records.md#five-record-kinds.
-			v.State, v.Readers, v.Work = "", "", ""
+			v.Readers, v.Work = "", ""
 			if v.Sort == "queued" {
 				v.Sort = ""
 			}
@@ -594,7 +633,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			// the face distinguish an empty registry category from a filter that
 			// happens to match nothing.
 			v.CategoryTotal++
-			if v.State == "active" && record.Disabled || v.State == "inactive" && !record.Disabled {
+			if v.State == protocol.StatusActive && recordInactive(record) || v.State == protocol.StatusInactive && !recordInactive(record) {
 				continue
 			}
 			if !matchesReaderFilter(record.Readers, v.Readers) {
@@ -691,8 +730,8 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		filterPath := r.URL.Path
 		v.FilterLinks = []viewLink{
 			{Href: pageURL(filterPath, cloneValues(filterBase)), Label: "All", Current: v.State == ""},
-			{Href: queryWith(filterPath, filterBase, "state", "active"), Label: "Enabled", Current: v.State == "active"},
-			{Href: queryWith(filterPath, filterBase, "state", "inactive"), Label: "Disabled", Current: v.State == "inactive"},
+			{Href: queryWith(filterPath, filterBase, "state", "active"), Label: "Active", Current: v.State == "active"},
+			{Href: queryWith(filterPath, filterBase, "state", "inactive"), Label: "Inactive", Current: v.State == "inactive"},
 		}
 		if v.Channels {
 			// The three kinds this page lists, and no more: an agent is on its
@@ -839,6 +878,17 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if !ok {
 			return
 		}
+		// An inactive record is no such record to /lookup, and its one view
+		// is the /inactive answer: a read-only page built from that entry
+		// alone, with its reactivation for whoever may manage it
+		// (docs/constitution.md#common-record-fields).
+		if record, found := c.inactiveRecord(cookie(r), r.URL.Query().Get("name")); found {
+			v.Record = record
+			v.Current = recordSection(record)
+			v.Return = recordReturn(r.URL.Query().Get("return"), record.Kind, record.Personal)
+			render(w, inactiveDetail, v)
+			return
+		}
 		if !loadServiceDetails(w, r, &v, r.URL.Query().Get("name")) {
 			return
 		}
@@ -871,6 +921,21 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	mux.HandleFunc("GET /service/edit", recordEditPage)
 	mux.HandleFunc("GET /channel/edit", recordEditPage)
 	mux.HandleFunc("GET /agent/edit", recordEditPage)
+	mux.HandleFunc("GET /service-deactivate", func(w http.ResponseWriter, r *http.Request) {
+		v, ok := c.signedIn(w, r)
+		if !ok {
+			return
+		}
+		if !loadRecord(w, r, &v, r.URL.Query().Get("name")) {
+			return
+		}
+		if !v.Record.CanManage || v.Record.Kind == protocol.KindUser {
+			fail(w, r, v.You, &busError{code: http.StatusForbidden, message: "only the owner or an assigned Maintainer can deactivate this record"})
+			return
+		}
+		v.Return = recordReturn(r.URL.Query().Get("return"), v.Record.Kind, v.Record.Personal)
+		render(w, recordDeactivate, v)
+	})
 	mux.HandleFunc("GET /service-danger", func(w http.ResponseWriter, r *http.Request) {
 		v, ok := c.signedIn(w, r)
 		if !ok {
@@ -1177,9 +1242,22 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 					return
 				}
 			}
-		case "enable", "disable":
-			disabled := r.PostForm.Get("action") == "disable"
-			change.Disabled = &disabled
+		case "deactivate", "reactivate":
+			// A status-only edit: the one change an inactive record accepts
+			// (docs/constitution.md#common-record-fields). A deactivation reads
+			// the kind first, because afterwards /lookup answers unknown and
+			// the redirect would lose its section; a reactivation is read
+			// after the change, as every other edit is.
+			status := protocol.StatusInactive
+			if action == "reactivate" {
+				status = protocol.StatusActive
+			} else {
+				var current protocol.Record
+				if lookupErr := c.get(cookie(r), "/lookup?name="+url.QueryEscape(name), &current); lookupErr == nil {
+					targetKind, targetPersonal = current.Kind, current.Personal
+				}
+			}
+			change.Status = &status
 			err = c.post(cookie(r), "/manage", change)
 		case "transfer":
 			owner := r.PostForm.Get("owner")
@@ -1352,8 +1430,8 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 {{if .Channels}}<li>All counts the caller-visible queues, pub/sub topics and user queues.</li><li>A channel carries messages without a service process of its own.</li>{{else if or .Agents .PersonalPage}}<li>An agent is a name on this bus with a queue something reads. All and My omit Personal agents; My is the caller-owned subset. Personal is an owner-set grouping tag and does not change access.</li>{{else}}<li>A service record is information about something external: where it is, how to speak to it, what it is for, and the credential to use. It is not on this bus, so nothing is sent to it and nothing reads it here.</li><li>Who may read that information is the record&rsquo;s allow list, exactly as for any other record.</li>{{end}}
 <li>Category counts use the records visible to you before toolbar filters; they are not node-wide totals or page counts.</li>
 {{if .Channels}}<li>A queue holds work for one reader; a pub/sub topic copies each accepted message to subscribers and holds no backlog of its own.</li>{{end}}
-{{if not .Services}}<li>Enabled is a stored delivery setting. It does not establish that a send will be accepted; the owner&rsquo;s access and ACL are checked separately.</li>
-<li>Readers counts outstanding filtered and unfiltered reads. Zero may be between reads; a positive count proves neither a matching message nor completed work.</li>
+<li>Status is Active or Inactive. An inactive record is hidden from every other listing and answers as unknown to every call but its reactivation; the Inactive filter is the one view of it.{{if not .Services}} Active does not establish that a send will be accepted; the owner&rsquo;s access, the ACL and queue capacity are checked separately.{{end}}</li>
+{{if not .Services}}<li>Readers counts outstanding filtered and unfiltered reads. Zero may be between reads; a positive count proves neither a matching message nor completed work.</li>
 <li>Accepted and Dequeued are cumulative across restarts. Dequeued means handed to a reader, not completed.</li>
 <li>Reached external is a caller-supplied hint. None of it is health; the daemon does not observe whether a process is alive.</li>{{end}}
 </ul></div>
@@ -1363,7 +1441,7 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 <form class=record-search method=get action="{{if .Channels}}/channels{{else if .Agents}}/agents{{else if .PersonalPage}}/personal{{else}}/services{{end}}">
 <label for=record-query class=visually-hidden>Search records</label><input id=record-query type=search name=q value="{{.Query}}" placeholder="Search by name, owner, or description">
 {{with .Mine}}<input type=hidden name=scope value="{{.}}">{{end}}{{with .State}}<input type=hidden name=state value="{{.}}">{{end}}{{with .Readers}}<input type=hidden name=readers value="{{.}}">{{end}}{{with .Work}}<input type=hidden name=work value="{{.}}">{{end}}{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}{{with .OwnerFilter}}<input type=hidden name=owner value="{{.}}">{{end}}
-{{if not .Services}}<div class=record-choices><nav class=filter-nav aria-label="Delivery filter"><span><span aria-hidden=true>🔛</span> Delivery</span>{{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Reader filter"><span>Readers</span>{{range .ReaderLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Queue filter"><span>Queue</span>{{range .WorkLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{with .KindLinks}}<nav class=filter-nav aria-label="Kind filter"><span>Kind</span>{{range .}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}</div>{{end}}
+<div class=record-choices><nav class=filter-nav aria-label="Status filter"><span>Status</span>{{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{if not .Services}}<nav class=filter-nav aria-label="Reader filter"><span>Readers</span>{{range .ReaderLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Queue filter"><span>Queue</span>{{range .WorkLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{with .KindLinks}}<nav class=filter-nav aria-label="Kind filter"><span>Kind</span>{{range .}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}{{end}}</div>
 <label for=record-sort>Sort</label><select id=record-sort name=sort data-submit-on-change><option value="" {{if eq .Sort ""}}selected{{end}}>Name (A&ndash;Z)</option><option value=updated {{if eq .Sort "updated"}}selected{{end}}>Recently updated</option>{{if not .Services}}<option value=queued {{if eq .Sort "queued"}}selected{{end}}>{{if .Channels}}Work{{else}}Queued{{end}} (high&ndash;low)</option>{{end}}</select><noscript><button>Apply</button></noscript>
 </form>
 </div>
@@ -1377,14 +1455,14 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 {{if .PersonalPage}}<p class=muted>{{if .DaemonOwner}}This per-owner view contains only Personal agents visible through your normal access; it is not a node-wide inventory.{{else}}Your Personal agents.{{end}}</p>{{end}}
 {{if eq .Matched 0}}<section class="empty-state editor-card"><h2>No records match these filters</h2><p>Change the active filters above or <a href="{{.ClearFilters}}">clear filters</a>.</p></section>{{else}}
 <table class=record-table><caption>Showing {{number .Start}}&ndash;{{number .End}} of {{number .Matched}} matching records, caller-visible on this page and not a count of this node.{{if .HasFilters}} <a href="{{.ClearFilters}}">Clear filters</a>{{end}}</caption>
-{{if .Channels}}<thead><tr><th scope=col>Channel<th scope=col>Type<th scope=col>Delivery mode<th scope=col>Owner<th scope=col>Delivery<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Held<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Subscribers<th scope=col>Updated</tr></thead>
-{{else if .Services}}<thead><tr><th scope=col>Service<th scope=col>Type<th scope=col>Owner<th scope=col>Address<th scope=col>Protocol<th scope=col>Updated</tr></thead>
-{{else}}<thead><tr><th scope=col>{{if or .Agents .PersonalPage}}Agent{{else}}Service{{end}}<th scope=col>Type<th scope=col>Owner<th scope=col>Delivery<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Queued<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col>Updated</tr></thead>{{end}}
+{{if .Channels}}<thead><tr><th scope=col>Channel<th scope=col>Type<th scope=col>Delivery mode<th scope=col>Owner<th scope=col>Status<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Held<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Subscribers<th scope=col>Updated</tr></thead>
+{{else if .Services}}<thead><tr><th scope=col>Service<th scope=col>Type<th scope=col>Owner<th scope=col>Status<th scope=col>Address<th scope=col>Protocol<th scope=col>Updated</tr></thead>
+{{else}}<thead><tr><th scope=col>{{if or .Agents .PersonalPage}}Agent{{else}}Service{{end}}<th scope=col>Type<th scope=col>Owner<th scope=col>Status<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Queued<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col>Updated</tr></thead>{{end}}
 <tbody>
 {{range .Records}}<tr><td class="record-name-cell{{if eq .Owner $.You}} owned-record{{end}}{{if .Personal}} personal-record{{end}}"><a class=record-name href="{{href .}}?name={{.Name}}&return={{$.Return}}">{{if .Descr}}<span class=record-description>{{.Descr}}</span><code>{{.Name}}</code>{{else}}<code class=record-description>{{.Name}}</code>{{end}}</a>{{if .Personal}} <span class=personal-marker>Personal</span>{{end}}
-{{if $.Channels}}<td data-label=Type>{{identityKind .Kind .Name $.NodeOwner}}<td data-label="Delivery mode">{{deliveryLabel .}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if external .}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Held>{{if copies .Kind}}<span class=muted>&mdash;</span>{{else}}{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td class=num data-label=Subscribers>{{if copies .Kind}}{{number (len .Subs)}}{{else}}<span class=muted>&mdash;</span>{{end}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
-{{else if $.Services}}<td data-label=Type>{{identityKind .Kind .Name $.NodeOwner}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Address><code>{{.Addr}}</code><td data-label=Protocol><code>{{.Proto}}</code><td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
-{{else}}<td data-label=Type>{{identityKind .Kind .Name $.NodeOwner}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Delivery>{{if .Disabled}}<span class=status-glyph role=img aria-label=Disabled title=Disabled>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Enabled title=Enabled>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if external .}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Queued>{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}{{end}}</tr>{{end}}
+{{if $.Channels}}<td data-label=Type>{{identityKind .Kind .Name $.NodeOwner}}<td data-label="Delivery mode">{{deliveryLabel .}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Status>{{if eq .Status "inactive"}}<span class=status-glyph role=img aria-label=Inactive title=Inactive>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Active title=Active>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if external .}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Held>{{if copies .Kind}}<span class=muted>&mdash;</span>{{else}}{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td class=num data-label=Subscribers>{{if copies .Kind}}{{number (len .Subs)}}{{else}}<span class=muted>&mdash;</span>{{end}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
+{{else if $.Services}}<td data-label=Type>{{identityKind .Kind .Name $.NodeOwner}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Status>{{if eq .Status "inactive"}}<span class=status-glyph role=img aria-label=Inactive title=Inactive>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Active title=Active>🔛</span>{{end}}<td data-label=Address><code>{{.Addr}}</code><td data-label=Protocol><code>{{.Proto}}</code><td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
+{{else}}<td data-label=Type>{{identityKind .Kind .Name $.NodeOwner}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Status>{{if eq .Status "inactive"}}<span class=status-glyph role=img aria-label=Inactive title=Inactive>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Active title=Active>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if external .}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Queued>{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}{{end}}</tr>{{end}}
 </tbody></table>
 {{end}}
 <nav aria-label="Record pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
@@ -1412,14 +1490,14 @@ var serviceNew = template.Must(template.New("service-new").Funcs(recordFormFuncs
 {{define "new-heading"}}Register {{if eq .NewKind "agent"}}agent{{else if eq .NewKind "service"}}service{{else if eq .NewKind "queue"}}queue{{else if eq .NewKind "pubsub"}}pub/sub topic{{else}}channel{{end}}{{end}}` + recordFields + recordFieldHelp))
 var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"identityKind": identityKind, "onList": onList, "href": detailPath, "join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel, "copies": copies, "external": external, "deliveryMode": deliveryMode, "recordNoun": recordNoun, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number}).Parse(shellTitle("records", `{{recordNoun .Record.Kind}} {{.Record.Name}}`) + `
 <p><a href="{{.Return}}">Back to records</a></p>{{with .Record}}<div class=page-title><h1>{{titleMark .Kind}} {{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1></div>` + formErrorSummary + `<div class=detail-meta><span class=fact-pill>{{identityKind .Kind .Name $.NodeOwner}}</span><span>Owner: {{with $.OwnerUser}}<span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<a href="/user?name={{.Name}}"><code>{{.Name}}</code></a></span>{{else}}<code>{{.Owner}}</code>{{end}}</span>{{with .Maintainers}}<span>👮 Maintainers: {{join . ", "}}</span>{{end}}{{with deliveryMode .}}<span>Delivery: {{.}}</span>{{end}}</div>
-<div class=service-dashboard>{{if external .}}<section class=fact-card><div class=page-title><h2>Where it is</h2><button type=button class=help-button popovertarget=external-help aria-label="About an external service" data-tooltip="What the record says about something outside this bus. The daemon stores these words and checks none of them.">ⓘ</button></div>
+<div class=service-dashboard><section class=fact-card><div class=page-title><h2>Status</h2><button type=button class=help-button popovertarget=status-help aria-label="About record status" data-tooltip="Active or inactive. Active does not establish that a send will be accepted: the daemon also checks owner access, the ACL and queue capacity.">ⓘ</button></div>
+<p><strong><span class=status-glyph role=img aria-label=Active title=Active>🔛</span></strong> Active</p>{{if and .CanManage (ne .Kind "user")}}<form class=record-state-action method=get action=/service-deactivate><input type=hidden name=name value="{{.Name}}"><button class=danger-action>Deactivate…</button></form>{{end}}</section>
+<div popover id=status-help class=context-help><h2>About record status</h2><ul><li>Active does not establish that a send will be accepted.</li><li>The daemon also checks owner access, the allow list and queue capacity.</li><li>An inactive record is hidden from listings and answers as unknown to every call but its reactivation. Its queued work is kept.</li><li>A record is also inactive while its owner is; it returns with its owner.</li></ul></div>
+{{if external .}}<section class=fact-card><div class=page-title><h2>Where it is</h2><button type=button class=help-button popovertarget=external-help aria-label="About an external service" data-tooltip="What the record says about something outside this bus. The daemon stores these words and checks none of them.">ⓘ</button></div>
 <dl><dt>Address<dd><strong><code>{{.Addr}}</code></strong><dt>Protocol<dd><strong><code>{{.Proto}}</code></strong><dt>Secret<dd>{{if .SecretSHA}}<code>{{.SecretSHA}}</code>{{else}}<span class=muted>none</span>{{end}}</dl>
 <p class=muted>Updated {{if .At.IsZero}}&iquest;{{else}}{{.At.Format "2006-01-02 15:04:05"}}{{end}} · Config {{if .ConfigSHA}}<code>{{.ConfigSHA}}</code>{{else}}&mdash;{{end}}</p></section>
 <div popover id=external-help class=context-help><h2>About an external service</h2><ul><li>This record is information for the people and agents its allow list admits: where the thing is, how to speak to it and what it is for.</li><li>The address and the protocol are the registration&rsquo;s own words. The daemon neither reaches the thing nor checks that it is there.</li><li>Nothing is sent to this name and nothing reads it here, so it has no delivery setting, no queue and no counters.</li><li>Secret is the digest of the stored credential, and this page shows nothing else of it. Whoever the allow list admits reads the bytes with <code>agent-bus secret {{.Name}}</code>.</li></ul></div>
-{{else}}<section class=fact-card><div class=page-title><h2>Delivery</h2><button type=button class=help-button popovertarget=delivery-help aria-label="About delivery state" data-tooltip="Stored setting only. The daemon also checks owner access, ACL and queue capacity; Disabled does not reveal why it is off.">ⓘ</button></div>
-<p><strong><span class=status-glyph role=img aria-label="{{if .Disabled}}Disabled{{else}}Enabled{{end}}" title="{{if .Disabled}}Disabled{{else}}Enabled{{end}}">{{if .Disabled}}🚫{{else}}🔛{{end}}</span></strong> {{if .Disabled}}Disabled{{else}}Enabled{{end}}</p>{{if .CanManage}}<form class=record-state-action method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value="{{if .Disabled}}enable{{else}}disable{{end}}">{{if .Disabled}}Enable{{else}}Disable{{end}} delivery</button></form>{{end}}</section>
-<div popover id=delivery-help class=context-help><h2>About delivery state</h2><ul><li>This stored setting does not establish that a send will be accepted.</li><li>The daemon also checks owner access, the allow list and queue capacity.</li><li>The disabled bit does not say whether the owner turned it off or the name stopped being active.</li></ul></div>
-<section class=fact-card><div class=page-title><h2>Policy</h2><button type=button class=help-button popovertarget=policy-help aria-label="About record policy" data-tooltip="Queue values are this record's stored policy. External remains a caller hint, and unset values are described without guessing resolved defaults.">ⓘ</button></div>
+{{else}}<section class=fact-card><div class=page-title><h2>Policy</h2><button type=button class=help-button popovertarget=policy-help aria-label="About record policy" data-tooltip="Queue values are this record's stored policy. External remains a caller hint, and unset values are described without guessing resolved defaults.">ⓘ</button></div>
 <dl><dt>Reached<dd><strong>{{if .Proto}}external{{else}}this bus{{end}}</strong><dt>Queue bound<dd>{{if .Bound}}{{number .Bound}}{{else}}default{{end}}<dt>Retention<dd>{{if .TTL}}{{.TTL}}{{else}}none{{end}}<dt>When full<dd>{{if eq .Full "ring"}}drop the oldest{{else}}refuse{{end}}</dl></section>
 <div popover id=policy-help class=context-help><h2>About record policy</h2><ul>{{if .Proto}}<li>External is a caller-supplied hint, not proof of anything.</li>{{end}}{{if not .Bound}}<li>An unset queue bound uses the daemon default; its resolved value is not readable here.</li>{{end}}{{if not .TTL}}<li>Unset retention means no queue-imposed expiry; a message may still specify its own.</li>{{end}}<li>The overflow policy always belongs to this record.</li></ul></div>
 <section class=fact-card><div class=page-title><h2>Queue &amp; counters</h2><button type=button class=help-button popovertarget=observed-help aria-label="About live counters" data-tooltip="Readers are outstanding requests, not health. Queue reads may precede pruning. Counters survive restart; Dequeued is not completion.">ⓘ</button></div>
@@ -1437,6 +1515,23 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 <p><a id=settings class=editor-link href="{{href .}}/edit?name={{.Name}}{{with $.Return}}&amp;return={{urlquery .}}{{end}}">Edit settings</a></p></section>
 <p><a class=danger href="/service-danger?name={{.Name}}">Danger Zone</a></p>
 {{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}` + activityViewTemplate))
+
+// inactiveDetail is the one read-only view of an inactive record, built from
+// its /inactive entry: nothing else answers for it
+// (docs/constitution.md#common-record-fields).
+var inactiveDetail = template.Must(template.New("inactive-record").Funcs(template.FuncMap{"identityKind": identityKind, "recordNoun": recordNoun, "titleMark": titleMark, "number": number, "external": external}).Parse(shellTitle("records", `{{recordNoun .Record.Kind}} {{.Record.Name}}`) + `
+<p><a href="{{.Return}}">Back to records</a></p>{{with .Record}}<div class=page-title><h1>{{titleMark .Kind}} {{.Name}} <span class="state-badge state-inactive">INACTIVE</span></h1></div>
+<div class=detail-meta><span class=fact-pill>{{identityKind .Kind .Name $.NodeOwner}}</span><span>Owner: <code>{{.Owner}}</code></span></div>
+<section class=fact-card><div class=page-title><h2>Status</h2></div><p><strong><span class=status-glyph role=img aria-label=Inactive title=Inactive>🚫</span></strong> Inactive</p>
+<ul><li>This record is hidden from listings and answers as unknown to every call but its reactivation.</li><li>Its queued work is kept{{if not (external .)}}: {{number .Queued}} held when observed{{end}}.</li><li>A record is also inactive while its owner is. It then returns with its owner, and reactivating it here is refused until then.</li></ul>
+{{if and .CanManage (ne .Kind "user")}}<form class=record-state-action method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value=reactivate>Reactivate</button></form>{{else}}<p class=muted>Its owner and assigned maintainers can reactivate it.</p>{{end}}</section>{{end}}`))
+
+// recordDeactivate confirms the one record edit that hides it.
+var recordDeactivate = template.Must(template.New("record-deactivate").Funcs(template.FuncMap{"titleMark": titleMark, "href": detailPath, "number": number}).Parse(shellTitle("records", `Confirm deactivation · {{.Record.Name}}`) + `
+{{with .Record}}<p><a href="{{href .}}?name={{.Name}}">Back to {{.Name}}</a></p>
+<div class=page-title><h1>{{titleMark "problem"}} Confirm deactivation</h1></div>
+<section class="editor-card compact-card"><p>Deactivate <code>{{.Name}}</code>?</p><ul><li>It is hidden from listings and answers as unknown to every call but its reactivation.</li><li>Queued work is kept ({{number .Queued}} held now), and running processes are not stopped.</li><li>Its owner or an assigned Maintainer can reactivate it from the Inactive view.</li></ul>
+<form method=post action=/service><input type=hidden name=name value="{{.Name}}"><button class=danger-action name=action value=deactivate>Deactivate</button> <a href="{{href .}}?name={{.Name}}">Cancel</a></form></section>{{end}}`))
 var serviceDanger = template.Must(template.New("service-danger").Funcs(template.FuncMap{"readerCount": readerCount, "href": detailPath, "titleMark": titleMark, "holdsConfig": holdsConfig}).Parse(shellTitle("records", `Danger Zone · {{.Record.Name}}`) + `
 {{with .Record}}<p><a href="{{href .}}?name={{.Name}}">Back to {{.Name}}</a></p>
 <div class=page-title><h1>{{titleMark "problem"}} Danger Zone · {{.Name}}</h1></div>` + formErrorSummary + `
@@ -1452,7 +1547,7 @@ var groupList = template.Must(template.New("groups").Funcs(template.FuncMap{"gro
 <table class="record-table group-table"><caption>{{number (len .Groups)}} groups</caption><thead><tr><th scope=col>Group</th><th scope=col>Members</th></tr></thead><tbody>{{range $name,$members := .Groups}}<tr><td data-label=Group><span role=img aria-label="Group">{{groupGlyph}}</span> <a href="/group?name={{urlquery $name}}"><code>{{$name}}</code></a>{{if eq $name "@administrators"}} <span class=fact-pill>protected</span>{{end}}</td><td data-label=Members>{{if not $.Administrator}}<span class=muted>Not visible to you</span>{{else}}{{range $i,$member := $members}}{{if $i}}, {{end}}<code>{{$member}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</td></tr>{{else}}<tr><td colspan=2>No groups registered.</td></tr>{{end}}</tbody></table>`))
 var groupDetail = template.Must(template.New("group-detail").Funcs(template.FuncMap{"join": strings.Join, "groupGlyph": groupGlyph, "titleMark": titleMark, "recordKindPath": recordKindPath, "entityLabel": entityLabel}).Parse(shellTitle("groups", `Group {{.GroupName}}`) + `
 <p><a href=/groups>Back to Groups</a></p><div class=page-title><h1><span role=img aria-label="Group">{{groupGlyph}}</span> <code>{{.GroupName}}</code></h1>{{if eq .GroupName "@administrators"}}<span class=fact-pill>protected</span><button type=button class=help-button popovertarget=administrators-help aria-label="About the Administrators group" data-tooltip="Members administer users and ordinary groups. They do not automatically manage every Service or Channel; assign this group as a resource Maintainer when that is wanted. Only the daemon Owner changes membership.">ⓘ</button>{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Daemon administration group. What membership grants is stated below; every other group on this node confers only what a resource assigns it.</p><div popover id=administrators-help class=context-help><h2>How this group behaves</h2><ul><li>It accepts direct user identities only. A snapshot that nests a group inside it is refused at startup.</li><li>It cannot be emptied, and the daemon Owner is always a member.</li><li>Adding an Administrator creates a user profile; removing the membership keeps that profile.</li><li>An ordinary group may name <code>@administrators</code>. Its direct members then receive that ordinary group&rsquo;s access or Maintainer grant, and no Administrator authority.</li></ul></div>
-<section class="dashboard-section admin-rights"><h2>What membership grants</h2><ul><li><strong>Ordinary users.</strong> See the whole user directory, register new users, and edit, pause, ban or reactivate users below your own level.</li><li><strong>Ordinary groups.</strong> Change the membership of any ordinary group, including one assigned as a resource&rsquo;s Maintainer &mdash; you may add yourself, or a user you created, without asking that resource&rsquo;s owner.</li><li><strong>Membership lists.</strong> Read the full membership of every group.</li></ul>
+<section class="dashboard-section admin-rights"><h2>What membership grants</h2><ul><li><strong>Ordinary users.</strong> See the whole user directory, register new users, and edit, deactivate or reactivate users below your own level.</li><li><strong>Ordinary groups.</strong> Change the membership of any ordinary group, including one assigned as a resource&rsquo;s Maintainer &mdash; you may add yourself, or a user you created, without asking that resource&rsquo;s owner.</li><li><strong>Membership lists.</strong> Read the full membership of every group.</li></ul>
 <h2>What it does not grant</h2><ul><li><strong>The Owner, or each other.</strong> An Administrator cannot edit the daemon Owner or another Administrator, and cannot grant either position.</li><li><strong>Services and Channels.</strong> Administering the node is not managing its resources. That comes only from being named in a resource&rsquo;s Maintainers list; put <code>@administrators</code> there when every Administrator should manage it.</li><li><strong>This group.</strong> Only the daemon Owner changes who is in it.</li></ul></section>{{end}}` + formErrorSummary + `
 {{if .CanEditGroup}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}</div>
 <p><a id=members-edit class=editor-link href="/group/edit?name={{urlquery .GroupName}}">Edit members</a></p></section>{{else}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{if not .Administrator}}<span class=muted>Membership is not visible to you.</span>{{else}}{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Only the daemon owner changes this protected group.</p>{{else}}<p class=muted>Daemon administrators manage this group.</p>{{end}}</section>{{end}}

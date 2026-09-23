@@ -19,7 +19,7 @@ func ownerFixture(t *testing.T) *Bus {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.SetUserState("owner@h", "paused@h", "paused"); err != nil {
+	if _, err := b.SetUserState("owner@h", "paused@h", "inactive"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"alice@h"}}); err != nil {
@@ -145,9 +145,9 @@ func TestDamagedDurableOwnerFailsClosed(t *testing.T) {
 		"inactive": {
 			OwnerEstablished: true,
 			Owner:            "owner@h",
-			Users:            []protocol.User{{Name: "owner@h", State: "paused"}},
+			Users:            []protocol.User{{Name: "owner@h", Status: "inactive"}},
 		},
-		"unmarked-owner": {Owner: "owner@h", Users: []protocol.User{{Name: "owner@h", State: "active"}}},
+		"unmarked-owner": {Owner: "owner@h", Users: []protocol.User{{Name: "owner@h", Status: "active"}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			b := New()

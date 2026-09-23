@@ -758,37 +758,34 @@ func TestLivenessIsAssignedNotMerged(t *testing.T) {
 	}
 }
 
-// A disabled recipient is skipped, and the skip is its own loss: nothing is
-// queued for it and the publisher is told nothing, so the only place the gap
-// can show is its own drop count. A recipient that cannot be reached at all
-// is not the same fact and is not counted — it is not entitled to the copy.
-// And the topic's ACL says who may publish, so it decides none of this: a
-// name on the Deliver-To list receives whether or not the ACL admits it.
-// See docs/04-messaging.md#subscribers.
-func TestAPublicationADisabledRecipientCannotTakeCountsAsItsDrop(t *testing.T) {
+// An inactive recipient beside live ones is that recipient's own loss: the
+// publication succeeds, the copy is discarded, its own drop count moves and
+// the error log names topic and recipient. An agent whose User is inactive is
+// inactive too. And the topic's ACL says who may publish, so it decides none
+// of this: a name on the Deliver-To list receives whether or not the ACL
+// admits it. See docs/constitution.md#common-record-fields.
+func TestAPublicationAnInactiveRecipientCannotTakeCountsAsItsDrop(t *testing.T) {
 	b := New()
+	rep := &reports{}
+	b.Journal(rep)
 	b.SetDaemonOwner("admin@srv")
 	known(t, b, "a@srv", "pub@srv")
-	// The ACL names the publisher and nobody else: none of the four below may
-	// publish here, and all four are on the list.
+	// The ACL names the publisher and nobody else: none of the recipients
+	// below may publish here, and all are on the list.
 	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"pub@srv"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
 	for _, s := range []string{"#live@srv", "#off@srv", "#outsider@srv"} {
 		mustRegister(t, b, protocol.Record{Name: s, Allow: []string{"*"}, Kind: "agent", Owner: "a@srv"})
 	}
 	if _, err := b.SetUser("admin@srv", protocol.User{Name: "paused@srv"}, true); err != nil {
-		t.Fatalf("the person who gets suspended: %v", err)
+		t.Fatalf("the person who becomes inactive: %v", err)
 	}
-	// The recipient that becomes unreachable is an agent of that person: a
-	// User takes no published copy of its own (docs/constitution.md#-channels).
 	mustRegister(t, b, protocol.Record{Name: "#pauseds@srv", Allow: []string{"*"}, Kind: "agent", Owner: "paused@srv"})
 	delivers(t, b, "a@srv", "news@srv", "#live@srv", "#off@srv", "#pauseds@srv", "#outsider@srv")
-	if _, err := b.Manage("a@srv", Management{Name: "#off@srv", Disabled: ptr(true)}); err != nil {
-		t.Fatalf("disable: %v", err)
+	if _, err := b.Manage("a@srv", Management{Name: "#off@srv", Status: ptr(protocol.StatusInactive)}); err != nil {
+		t.Fatalf("deactivate: %v", err)
 	}
-	// Unreachable rather than turned off: a suspended name takes no copies
-	// and has lost nothing it was entitled to.
-	if _, err := b.SetUserState("admin@srv", "paused@srv", "paused"); err != nil {
-		t.Fatalf("suspend: %v", err)
+	if _, err := b.SetUserState("admin@srv", "paused@srv", protocol.StatusInactive); err != nil {
+		t.Fatalf("deactivate the user: %v", err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "news@srv", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
@@ -800,16 +797,63 @@ func TestAPublicationADisabledRecipientCannotTakeCountsAsItsDrop(t *testing.T) {
 	}{
 		{"#live@srv", 1, 0},
 		{"#off@srv", 0, 1},
-		{"#pauseds@srv", 0, 0},
+		{"#pauseds@srv", 0, 1},
 		{"#outsider@srv", 1, 0},
 	} {
-		r, ok := b.Lookup("admin@srv", c.name)
-		if !ok {
-			t.Fatalf("%s is gone", c.name)
+		in := b.inboxes[c.name]
+		queued, dropped := 0, 0
+		if in != nil {
+			queued, dropped = len(in.queue), in.dropped
 		}
-		if r.Queued != c.queued || r.Dropped != c.dropped {
-			t.Fatalf("%s holds %d and dropped %d, want %d and %d", c.name, r.Queued, r.Dropped, c.queued, c.dropped)
+		if queued != c.queued || dropped != c.dropped {
+			t.Fatalf("%s holds %d and dropped %d, want %d and %d", c.name, queued, dropped, c.queued, c.dropped)
 		}
+	}
+	for _, s := range []string{"#off@srv", "#pauseds@srv"} {
+		if !rep.has("a copy of a publication to news@srv was not delivered to " + s) {
+			t.Errorf("the discarded copy for %s was not logged: %v", s, rep.lines)
+		}
+	}
+	if rep.has("#live@srv") || rep.has("#outsider@srv") {
+		t.Errorf("a delivered copy was logged as a failure: %v", rep.lines)
+	}
+	// Inactive records are no such records to a listing, whoever asks.
+	if _, ok := b.Lookup("admin@srv", "#off@srv"); ok {
+		t.Error("an inactive record is visible to a lookup")
+	}
+}
+
+// A publication no recipient takes is refused before anything is stored or
+// counted, with a log entry.
+func TestAPublicationNoRecipientTakesIsRefused(t *testing.T) {
+	b := New()
+	rep := &reports{}
+	b.Journal(rep)
+	b.SetDaemonOwner("admin@srv")
+	known(t, b, "a@srv", "pub@srv")
+	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"pub@srv"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "#off@srv", Allow: []string{"*"}, Kind: "agent", Owner: "a@srv"})
+	mustRegister(t, b, protocol.Record{Name: "#full@srv", Allow: []string{"*"}, Kind: "agent", Owner: "a@srv", Bound: 1})
+	delivers(t, b, "a@srv", "news@srv", "#off@srv", "#full@srv")
+	if _, err := b.Send(protocol.Envelope{From: "a@srv", To: "#full@srv", Body: "fills it"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Manage("a@srv", Management{Name: "#off@srv", Status: ptr(protocol.StatusInactive)}); err != nil {
+		t.Fatal(err)
+	}
+	topicIn := b.inboxes["news@srv"].in
+	fullIn, fullDropped := b.inboxes["#full@srv"].in, b.inboxes["#full@srv"].dropped
+	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "news@srv", Body: "x"}); err == nil {
+		t.Fatal("a publication no recipient took was accepted")
+	}
+	if b.inboxes["news@srv"].in != topicIn || b.inboxes["#full@srv"].in != fullIn || b.inboxes["#full@srv"].dropped != fullDropped {
+		t.Fatal("a refused publication counted something")
+	}
+	if off := b.inboxes["#off@srv"]; off != nil && off.dropped != 0 {
+		t.Fatal("a refused publication counted a drop")
+	}
+	if !rep.has("a publication to news@srv reached none of its 2 recipients") {
+		t.Fatalf("the refused publication was not logged: %v", rep.lines)
 	}
 }
 
@@ -857,7 +901,7 @@ func TestEveryPathThatStoresARecordAsksTheSameShapeQuestion(t *testing.T) {
 		rep := &reports{}
 		restarted.Journal(rep)
 		restarted.Restore(ports.Snapshot{
-			Users:   []protocol.User{{Name: "alice@h", State: "active"}},
+			Users:   []protocol.User{{Name: "alice@h", Status: "active"}},
 			Records: []protocol.Record{{Name: "alice@h", Owner: "alice@h", Kind: protocol.KindUser, Personal: true}, record},
 		})
 		if err := restarted.EstablishDaemonOwner("alice@h"); err != nil {
@@ -873,7 +917,7 @@ func TestEveryPathThatStoresARecordAsksTheSameShapeQuestion(t *testing.T) {
 	// Falsifiable: a snapshot of records this version can serve restores.
 	restarted := New()
 	restarted.Restore(ports.Snapshot{
-		Users: []protocol.User{{Name: "alice@h", State: "active"}},
+		Users: []protocol.User{{Name: "alice@h", Status: "active"}},
 		Records: []protocol.Record{
 			{Name: "alice@h", Owner: "alice@h", Kind: protocol.KindUser, Personal: true},
 			// The Personal record is listed BEFORE the agent its ACL names, so
@@ -982,7 +1026,6 @@ func TestAnExternalServiceHasNoQueueHere(t *testing.T) {
 	for _, change := range []Management{
 		{Name: "db@h", TTL: ptr("1h")},
 		{Name: "db@h", Bound: ptr(10)},
-		{Name: "db@h", Disabled: ptr(true)},
 	} {
 		if _, err := b.Manage("alice@h", change); !errors.Is(err, ErrKind) {
 			t.Fatalf("manage %+v: err = %v, want ErrKind", change, err)

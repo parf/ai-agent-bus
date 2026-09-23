@@ -190,6 +190,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /activity", g(s.activity))
 	mux.HandleFunc("POST /group", g(s.audited("group", s.group)))
 	mux.HandleFunc("GET /ls", g(s.ls))
+	mux.HandleFunc("GET /inactive", g(s.inactive))
 	mux.HandleFunc("GET /lookup", g(s.lookup))
 	mux.HandleFunc("GET /recent", g(s.recent))
 	mux.HandleFunc("GET /names", g(s.names))
@@ -578,6 +579,12 @@ func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name
 	ok(w, s.bus.List(caller.String(), r.URL.Query().Get("kind")))
 }
 
+// inactive is the web face's one read-only view of inactive records
+// (docs/constitution.md#common-record-fields).
+func (s *Server) inactive(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	ok(w, s.bus.Inactive(caller.String()))
+}
+
 func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in protocol.Envelope
 	if !s.read(w, r, &in) {
@@ -651,7 +658,6 @@ var codes = []struct {
 	// being told the same thing a bad token is told, which is that what they
 	// presented does not make them anybody.
 	{core.ErrNoPrincipal, http.StatusUnauthorized, "credential"},
-	{core.ErrDisabled, http.StatusConflict, "disabled"},
 	{core.ErrBadName, http.StatusBadRequest, "malformed"},
 	{core.ErrOverflow, http.StatusBadRequest, "malformed"},
 	{core.ErrKind, http.StatusBadRequest, "malformed"},

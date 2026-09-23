@@ -78,7 +78,7 @@ func TestRestoreIgnoresAUserSharingAnIdentity(t *testing.T) {
 		b.Journal(rep)
 		b.Restore(ports.Snapshot{Clean: true,
 			Users: []protocol.User{
-				{Name: "alice@h", ID: 1, Email: "a@example.com", GithubUser: "alice-gh", GithubTwitterUsername: "alice_x", State: "active"},
+				{Name: "alice@h", ID: 1, Email: "a@example.com", GithubUser: "alice-gh", GithubTwitterUsername: "alice_x", Status: "active"},
 				second,
 			},
 			Records: []protocol.Record{

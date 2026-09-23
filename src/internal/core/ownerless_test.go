@@ -25,7 +25,7 @@ func TestOwnerlessIsNoRecordAndNoUser(t *testing.T) {
 	// A person with a profile and no record of their own — SetUser makes one,
 	// so make this one the way a directory restore would.
 	b.Restore(ports.Snapshot{
-		Users:   []protocol.User{{Name: "person@h", State: "active"}, {Name: "banned@h", State: "banned"}},
+		Users:   []protocol.User{{Name: "person@h", Status: "active"}, {Name: "banned@h", Status: "inactive"}},
 		Records: []protocol.Record{userRecord("person@h"), userRecord("banned@h")},
 	})
 
@@ -55,7 +55,7 @@ func TestTheSweepNeedsRestoreAndTheOwnerFirst(t *testing.T) {
 		t.Errorf("before restore %v is ownerless; the test cannot show the ordering matters", got)
 	}
 	early.Restore(ports.Snapshot{
-		Users:   []protocol.User{{Name: "person@h", State: "active"}},
+		Users:   []protocol.User{{Name: "person@h", Status: "active"}},
 		Records: []protocol.Record{userRecord("person@h"), {Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h", Full: protocol.OverflowStrict}},
 	})
 	if got := early.Ownerless([]string{"person@h", "#svc@h"}); len(got) != 0 {

@@ -282,7 +282,7 @@ func TestForcedCommandFollowsTheFlag(t *testing.T) {
 
 func TestLocalPersonNameComesFromAccountLookup(t *testing.T) {
 	d := newDaemon()
-	d.profiles["owner@h"] = protocol.User{Name: "owner@h", State: "active", Email: "owner@example.com"}
+	d.profiles["owner@h"] = protocol.User{Name: "owner@h", Status: "active", Email: "owner@example.com"}
 	t.Setenv("AGENT_BUS_ADDR", d.serve(t))
 	lookedUp := ""
 	lookup := func(account string) (*user.User, error) {
@@ -296,14 +296,14 @@ func TestLocalPersonNameComesFromAccountLookup(t *testing.T) {
 		t.Fatalf("looked up %q, want alice", lookedUp)
 	}
 	got := d.profiles["owner@h"]
-	if got.PersonName != "Alice From Passwd" || got.Email != "owner@example.com" || got.State != "active" {
+	if got.PersonName != "Alice From Passwd" || got.Email != "owner@example.com" || got.Status != "active" {
 		t.Fatalf("local import changed the wrong profile fields: %+v", got)
 	}
 }
 
 func TestLocalImportPreservesExplicitPersonName(t *testing.T) {
 	d := newDaemon()
-	d.profiles["owner@h"] = protocol.User{Name: "owner@h", PersonName: "Administrator Choice", State: "active"}
+	d.profiles["owner@h"] = protocol.User{Name: "owner@h", PersonName: "Administrator Choice", Status: "active"}
 	t.Setenv("AGENT_BUS_ADDR", d.serve(t))
 	if err := userImportLocal([]string{"owner@h", "alice"}, func(string) (*user.User, error) {
 		return &user.User{Name: "Passwd Choice"}, nil

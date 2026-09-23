@@ -193,45 +193,34 @@ name and never overwrite an existing one.
 
 ## User states
 
-**Active** users may use their granted access. **Paused** and **banned** users
-cannot; the records they directly own are suspended too. Suspension keeps
-credentials and queued work, stops no process, and is reversible. Users are
-not deleted in MVP.
+**Built in 0.7.9:** a User is **active** or **inactive**, with no second
+level. An inactive User cannot act — every token, session, local socket and
+enrolment is refused as `403 suspended` — and every record it owns is
+inactive too, so it is [no such entity](constitution.md#common-record-fields):
+hidden and answered as unknown (`404`) to every caller, readable only through
+the web face's read-only view. Inactivity keeps credentials and queued work,
+stops no process, and is reversible. Users are never deleted.
 
-**Pending for 0.7:** paused and banned become one `inactive` state, with no
-second suspension level. Users remain non-deletable. An active Administrator or
-the daemon Owner may reactivate an inactive ordinary User. An Administrator may
-not change another Administrator; only the daemon Owner may reactivate an
-inactive Administrator. The daemon Owner must remain active. Agent ownership is
-also removed. An inactive User's records are inactive too, and an inactive
-record is [no such entity](constitution.md#common-record-fields): hidden and
-answered as unknown, readable only through the web face's read-only call, so
-the ownership-chain exception below no longer exists in the 0.7 model.
-
-**An active, authorized caller may drain an inactive identity's inbox.** The
-target's inactivity alone does not block reading queued work; new deliveries
-remain refused. This is existing behavior through 0.6; **pending for 0.7** it
-ends, because an inactive record can be read only by that read-only call.
+| Who | May change a User's status |
+|---|---|
+| daemon Owner | any User but itself: the daemon Owner stays active |
+| an active Administrator | an ordinary User, never another Administrator |
+| anyone else | no one |
 
 <details>
-<summary>Suspension, reactivation and inboxes</summary>
+<summary>Inactivity, reactivation and inboxes</summary>
 
-* Tokens, browser sessions, local sockets and enrolment cannot bypass suspension;
-  calls are refused as `403 suspended`. The daemon owner must remain active.
-* An authorized Administrator can reactivate a paused ordinary user. Ban-lifting
-  authority follows the [Administrator rule](#daemon-administrators).
-* State changes cancel blocked reads that lose authority. A record's own
-  credential is refused too; direct-owner suspension is checked for delivery
-  and reading, and a suspended name takes no 📣 copies
-  ([Deliver-To](04-messaging.md#subscribers)). Taking yourself off a Deliver-To
-  list remains possible for an active caller. Already delivered work cannot be recalled.
-* Suspension follows the **direct owner**, not an ownership chain. If Alice owns
-  agent A and A owns B, pausing Alice suspends A, not B.
-* Credentials are kept, not rotated or revoked. Lifting the state restores their
-  use. Stored state survives restart; queued messages keep their existing expiry.
-* Draining still requires access and obeys the stored Disabled setting. A record
-  whose separate owner is suspended remains unreadable under the direct-owner
-  suspension rule; permission to drain an inactive identity does not bypass it.
+* A status change releases every blocked read that loses authority, and an
+  inactive record's own readers. Already delivered work cannot be recalled.
+* Inactivity follows the **direct owner**; only a User owns records, so there
+  is no chain to follow.
+* Credentials are kept, not rotated or revoked. Reactivation restores their
+  use. Stored status survives restart; queued messages keep their expiry.
+* Nobody drains an inactive record's inbox, however admitted: the work waits
+  for its reactivation. This replaces the earlier drain permission.
+* A copy published to an inactive recipient beside live ones is that
+  recipient's `dropped` and an error-log warning; see
+  [Deliver-To](04-messaging.md#subscribers).
 
 </details>
 
@@ -262,10 +251,13 @@ membership. Human editors use one plain term per line, as ACL editors do.
   may replace the list; only they may transfer ownership. Naming a group
   delegates its membership to [group administration](#groups); it does not give
   the record's owner control over who Administrators add to it.
-* Disabling refuses deliveries and inbox reads, cancels blocked reads, and
-  retains queued messages. A 📡 takes no Disabled setting, having no delivery
-  to turn off. Enabling does not start a process. Removing access
-  cancels reads relying on it; delivered work is not recalled.
+* Built in 0.7.9: a record's `status` is `active` or `inactive`, on every
+  kind but a 👤, which lives with its User. Deactivating makes it no such
+  entity, releases its blocked reads and retains queued messages; its name
+  stays reserved, so nothing registers over it. Only its Owner or a
+  Maintainer reactivates it, by a status-only edit; every other operation
+  naming it is refused as unknown. Reactivating does not start a process.
+  Removing access cancels reads relying on it; delivered work is not recalled.
 * Re-registration retains the [protected settings](#registration).
 * Management includes configuration, access, availability and removal, subject
   to [removal conditions](#unregistering). Only the record itself may fetch its
@@ -293,7 +285,7 @@ assignment.
 as Maintainers. They may add themselves or another user they create, without
 additional approval from the record's owner. Choosing the group accepts those
 membership changes on every resource using it. This is intended, built behavior.
-Retire an ordinary group by emptying it; groups are not deleted, paused or banned.
+Retire an ordinary group by emptying it; groups are not deleted.
 **Pending for 0.7:** a Group is a record with `status`, and an inactive Group
 grants nothing and is [no such entity](constitution.md#common-record-fields)
 while its name stays reserved.
@@ -354,7 +346,7 @@ names. Ordinary re-registration instead permits authorized updates under the
 [management rules](#record-authority).
 
 Re-registration preserves ownership, private configuration, subscriptions,
-assigned Maintainers and the disabled setting. Omitting the ACL retains its
+assigned Maintainers and the status. Omitting the ACL retains its
 grants; an explicit ACL replaces them. Use management to deliberately clear
 grants.
 
@@ -423,7 +415,8 @@ and so, on the same start, is every record it owned.
 An ignored record's stored queue is ignored and reported with it. A record
 later registered under the freed name starts with no stored queue, so the old
 messages never reach the new owner. Each start reads the database afresh, so
-an ignored record is reported again until an operator repairs or removes it.
+an ignored record is reported again until an operator repairs or removes it, or
+the name is registered again: the new record replaces the stored row.
 Ownership is checked one step: an Agent never owns a record, so there are no
 ownership chains to follow.
 

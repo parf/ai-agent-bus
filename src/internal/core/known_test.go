@@ -68,7 +68,7 @@ func provisionState(b *Bus, users []string, records ...protocol.Record) error {
 		if err != nil {
 			return err
 		}
-		s.Users = append(s.Users, protocol.User{Name: n, State: "active"})
+		s.Users = append(s.Users, protocol.User{Name: n, Status: "active"})
 		if !have[n] {
 			s.Records = append(s.Records, protocol.Record{Name: n, Kind: protocol.KindUser, Owner: n, Personal: true, Full: protocol.OverflowStrict, At: time.Now()})
 			have[n] = true
@@ -124,7 +124,7 @@ func person(b *Bus, names ...string) {
 // the least a stored state needs for the records those Users own to load.
 func withUsers(s ports.Snapshot, names ...string) ports.Snapshot {
 	for _, n := range names {
-		s.Users = append(s.Users, protocol.User{Name: n, State: "active"})
+		s.Users = append(s.Users, protocol.User{Name: n, Status: "active"})
 		s.Records = append(s.Records, userRecord(n))
 	}
 	return s

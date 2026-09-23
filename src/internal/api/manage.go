@@ -134,9 +134,9 @@ func (s *Server) githubRefresh(w http.ResponseWriter, r *http.Request, caller pr
 }
 
 func (s *Server) userState(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	var in struct{ Name, State string }
+	var in struct{ Name, Status string }
 	if s.read(w, r, &in) {
-		u, err := s.bus.SetUserState(caller.String(), in.Name, in.State)
+		u, err := s.bus.SetUserState(caller.String(), in.Name, in.Status)
 		s.reply(w, u, err)
 	}
 }

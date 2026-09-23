@@ -28,82 +28,6 @@ const (
 // group may be called and none may contain.
 func reservedTerm(n string) bool { return n == OwnerGroup || n == AgentTerm }
 
-func (b *Bus) active(name string) bool {
-	state := b.users[name].State
-	return state == "" || state == "active"
-}
-
-// carriesUserState says whether a record can have a person or an agent behind
-// it to suspend. Only a user's queue and an agent's do: a queue, a pub/sub
-// topic and an external service are not somebody, so a user record that
-// happens to share a name says nothing about them and must not pause them.
-// See docs/03-records.md#five-record-kinds.
-func (b *Bus) carriesUserState(name string) bool {
-	r, known := b.records[name]
-	if !known {
-		return true // a bare name is asked about as a person
-	}
-	return r.Kind == protocol.KindUser || r.Kind == protocol.KindAgent
-}
-
-// activeName is active(), asked only of a name that could be suspended.
-func (b *Bus) activeName(name string) bool {
-	return !b.carriesUserState(name) || b.active(name)
-}
-
-// suspension says why calls involving name are refused, or nil. There are two
-// ways for somebody to be behind a name — be it, or own it — and a suspension
-// on either side refuses the same way: `403 suspended`, one suspension seen
-// from either side, with nothing the caller can do about it in either case
-// (docs/01-identity-and-roles.md#user-states).
-//
-// Deliberately **not** folded into active(). active asks about a name's own
-// user state and is asked at a dozen places about people, where a record
-// lookup would mean nothing; this asks about somebody else's state and only of
-// a record.
-//
-// It is also kept out of visible(), which already merges: it reports
-// r.Disabled OR !active(r.Name) (manage.go), so the bit says *delivery is off*
-// without saying which of two reasons it is. A third input would merge a third
-// distinct fact into a field that cannot carry the two it has
-// (Plans/MVP/web/data-dictionary.md#fields). Owner suspension stays a separate
-// question so a face can answer it separately, or not at all, rather than
-// answering it wrongly.
-//
-// The message names the side because the code cannot: an operator reading a
-// log should not have to guess which of two people is suspended, while the
-// caller is told no more than it was already entitled to know.
-// Caller holds b.mu.
-func (b *Bus) suspension(name string) error {
-	if !b.activeName(name) {
-		return ErrInactive
-	}
-	return b.ownerSuspension(name)
-}
-
-// ownerSuspension is the half that is about **somebody else**: a service, and
-// the person who owns it. It is separate from the name's own state, and the
-// separation is load-bearing rather than tidy.
-//
-// Q63 permits an active, authorized caller to drain an inactive name's own
-// inbox while Send refuses new deliveries (docs/01-identity-and-roles.md#user-states).
-// This asks only about a separate owner and returns nil for a self-owned
-// record, where there is no separate owner to ask about.
-//
-// It is also **not transitive**. If a service owns a service, suspending the
-// person at the top does not reach the bottom one: the contract is *every
-// service they own* (docs/01-identity-and-roles.md#user-states),
-// and ownership is the direct relation the record states. Following the chain
-// would be a different and larger rule.
-// Caller holds b.mu.
-func (b *Bus) ownerSuspension(name string) error {
-	r, ok := b.records[name]
-	if !ok || r.Owner == name || b.active(r.Owner) {
-		return nil
-	}
-	return fmt.Errorf("%w: %s is owned by %s, whose access is suspended", ErrInactive, name, r.Owner)
-}
-
 // Authenticate says whether this name may act at all, and says why not in two
 // different ways, because they are two different answers to give a caller.
 //
@@ -145,11 +69,11 @@ func (b *Bus) acting(name string) error {
 	if err := b.knows(name); err != nil {
 		return err
 	}
-	// Both sides, at the edge and again here: a suspended person's agent
-	// holds a credential that is kept rather than revoked, and kept is not
-	// accepted — while the state lasts it grants no access, theirs or their
-	// agents' (docs/01-identity-and-roles.md#user-states).
-	return b.suspension(name)
+	// Both sides, at the edge and again here: an inactive User's agent holds
+	// a credential that is kept rather than revoked, and kept is not accepted
+	// — while the status lasts it grants no access, theirs or their agents'
+	// (docs/01-identity-and-roles.md#user-states).
+	return b.callerActive(name)
 }
 
 // IssueFor answers the whole of who may have name's credential, and mints it,
@@ -182,6 +106,11 @@ func (b *Bus) IssueFor(caller, name string, mint func(string, ports.CredentialPa
 	}
 	if err := b.knows(n); err != nil {
 		return "", err
+	}
+	// An inactive User or record is no such name to issue for; its existing
+	// credentials are kept and grant nothing until it is active again.
+	if r, known := b.records[n]; known && !b.live(r) {
+		return "", fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
 	if who != b.admin && who != n {
 		r, known := b.record(n)
@@ -706,20 +635,17 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 	if r, ok := b.records[in.Name]; ok && r.Owner != r.Name {
 		return protocol.User{}, fmt.Errorf("%w: that name is somebody else's record", ErrProfile)
 	}
-	if in.State == "" {
-		in.State = old.State
-		if in.State == "" {
-			in.State = "active"
+	if in.Status == "" {
+		in.Status = old.Status
+		if in.Status == "" {
+			in.Status = protocol.StatusActive
 		}
 	}
-	if in.State != "active" && in.State != "paused" && in.State != "banned" {
-		return protocol.User{}, fmt.Errorf("%w: invalid user state", ErrProfile)
+	if in.Status != protocol.StatusActive && in.Status != protocol.StatusInactive {
+		return protocol.User{}, fmt.Errorf("%w: a user's status is active or inactive", ErrProfile)
 	}
-	if in.Name == b.admin && in.State != "active" {
+	if in.Name == b.admin && in.Status != protocol.StatusActive {
 		return protocol.User{}, fmt.Errorf("%w: the daemon owner must remain active", ErrNotOwner)
-	}
-	if old.State == "banned" && in.State != "banned" && who != b.admin && !b.isAdministrator(who) {
-		return protocol.User{}, ErrNotOwner
 	}
 	if field, _ := b.identityClash(in.Name, in); field != "" {
 		return protocol.User{}, fmt.Errorf("%w: identifying field already belongs to another user: %s", ErrProfile, field)
@@ -834,9 +760,9 @@ func (b *Bus) userView(caller, name string) protocol.User {
 	u.Name = name
 	u.Kind = b.identityKind(name)
 	if u.Kind != protocol.DirectoryUser {
-		u.State = ""
-	} else if u.State == "" {
-		u.State = "active"
+		u.Status = ""
+	} else if u.Status == "" {
+		u.Status = protocol.StatusActive
 	}
 	u.DaemonOwner = name == b.admin
 	u.Administrator = b.isAdministrator(name)
@@ -909,8 +835,8 @@ func (b *Bus) SetUserState(caller, name, state string) (protocol.User, error) {
 	if !b.mayEditUser(who, name) {
 		return protocol.User{}, ErrNotOwner
 	}
-	if state != "active" && state != "paused" && state != "banned" {
-		return protocol.User{}, ErrProfile
+	if state != protocol.StatusActive && state != protocol.StatusInactive {
+		return protocol.User{}, fmt.Errorf("%w: a user's status is active or inactive", ErrProfile)
 	}
 	u, known := b.users[name]
 	if !known {
@@ -918,10 +844,12 @@ func (b *Bus) SetUserState(caller, name, state string) (protocol.User, error) {
 			return protocol.User{}, ErrUnknown
 		}
 	}
-	if name == b.admin && state != "active" || u.State == "banned" && state != "banned" && who != b.admin && !b.isAdministrator(who) {
-		return protocol.User{}, ErrNotOwner
+	// An Administrator changes ordinary Users only, and the daemon Owner
+	// either; the Owner stays active (docs/01-identity-and-roles.md#user-states).
+	if name == b.admin && state != protocol.StatusActive {
+		return protocol.User{}, fmt.Errorf("%w: the daemon owner must remain active", ErrNotOwner)
 	}
-	u.Name, u.State = name, state
+	u.Name, u.Status = name, state
 	b.setUser(name, u)
 	b.recheckReaders()
 	if err := b.commit(); err != nil {

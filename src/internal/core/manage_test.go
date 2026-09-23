@@ -16,7 +16,7 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 	// active and still on the ACL, and the read ends anyway because the
 	// service stopped answering under it
 	// (docs/01-identity-and-roles.md#user-states).
-	for _, change := range []string{"disable", "acl", "empty-acl", "membership", "user", "owner"} {
+	for _, change := range []string{"deactivate", "acl", "empty-acl", "membership", "user", "owner"} {
 		t.Run(change, func(t *testing.T) {
 			b := New()
 			b.SetDaemonOwner("admin@h")
@@ -43,28 +43,31 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 			}
 			var err error
 			switch change {
-			case "disable":
-				_, err = b.Manage("owner@h", Management{Name: "queue@h", Disabled: ptr(true)})
+			case "deactivate":
+				_, err = b.Manage("owner@h", Management{Name: "queue@h", Status: ptr(protocol.StatusInactive)})
 			case "acl":
 				_, err = b.Manage("owner@h", Management{Name: "queue@h", Allow: ptr([]string{"owner@h"})})
 			case "empty-acl":
 				_, err = b.Manage("owner@h", Management{Name: "queue@h", Allow: ptr([]string{})})
 			case "user":
-				_, err = b.SetUserState("admin@h", "reader@h", "paused")
+				_, err = b.SetUserState("admin@h", "reader@h", "inactive")
 			case "owner":
-				_, err = b.SetUserState("admin@h", "owner@h", "paused")
+				_, err = b.SetUserState("admin@h", "owner@h", "inactive")
 			case "membership":
 				err = b.SetGroup("admin@h", "@readers", nil)
 			}
 			if err != nil {
 				t.Fatal(err)
 			}
+			// The reader that stopped acting is told so; a queue that stopped
+			// being an entity — itself or through its Owner — is no such
+			// inbox now (docs/constitution.md#common-record-fields).
 			want := ErrNotAllow
-			if change == "user" || change == "owner" {
+			switch change {
+			case "user":
 				want = ErrInactive
-			}
-			if change == "disable" {
-				want = ErrDisabled
+			case "owner", "deactivate":
+				want = ErrUnknown
 			}
 			if got := <-result; !errors.Is(got, want) {
 				t.Fatalf("blocked read: got %v, want %v", got, want)
@@ -89,15 +92,18 @@ func TestManagementRejectsPartialInvalidChanges(t *testing.T) {
 	}
 }
 
-// A disable can wake a blocked reader while a concurrent request unregisters
-// the now-idle address. The reader's cancellation cleanup must not recreate it.
+// A deactivation can wake a blocked reader while later requests reactivate and
+// unregister the now-idle address. The reader's cleanup must not recreate it.
 func TestCanceledReaderCannotRecreateRemovedInbox(t *testing.T) {
 	b := New()
 	known(t, b, "owner@h")
 	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h"})
 	w := &waiter{caller: "#svc@h", ch: make(chan protocol.Envelope, 1), stopped: make(chan error, 1)}
 	b.inboxes["#svc@h"].waiters = append(b.inboxes["#svc@h"].waiters, w)
-	if _, err := b.Manage("owner@h", Management{Name: "#svc@h", Disabled: ptr(true)}); err != nil {
+	if _, err := b.Manage("owner@h", Management{Name: "#svc@h", Status: ptr(protocol.StatusInactive)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Manage("owner@h", Management{Name: "#svc@h", Status: ptr(protocol.StatusActive)}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Unregister("#svc@h", "owner@h"); err != nil {

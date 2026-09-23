@@ -2656,11 +2656,11 @@ orph_checks() {
   for s in '#lost@srv1' '#chain-a@srv1' '#steady@srv1' '#napped@srv1' '#barred-svc@srv1' '#owner-svc@srv1'; do
     oab send "$s" "queued before the stop" >/dev/null
   done
-  # Suspended after the queues exist: a suspended owner's agent refuses
-  # delivery, so seeding second would seed nothing and the controls would
+  # Deactivated after the queues exist: an inactive owner's agent is no such
+  # receiver, so seeding second would seed nothing and the controls would
   # survive with nothing to lose.
-  opost /user/state '{"name":"napping@srv1","state":"paused"}'
-  opost /user/state '{"name":"barred@srv1","state":"banned"}'
+  opost /user/state '{"name":"napping@srv1","status":"inactive"}'
+  opost /user/state '{"name":"barred@srv1","status":"inactive"}'
   LOSTTOK=$(otok '#lost@srv1')
   CHAINTOK=$(otok '#chain-a@srv1')
   has "the records authenticate before the start that ignores them" \
@@ -2719,8 +2719,14 @@ orph_checks() {
     "$(ocode "$LOSTTOK")" '401'
   has "nor the one for the ignored User's agent" "$(ocode "$CHAINTOK")" '401'
   # Every control keeps its queue. A stopped owner is not a missing one.
-  for s in '#steady@srv1' '#napped@srv1' '#barred-svc@srv1' '#owner-svc@srv1'; do
+  for s in '#steady@srv1' '#owner-svc@srv1'; do
     has "$s survives the start with its queue" "$(oab ls "$s")" '"queued":1'
+  done
+  # An inactive User's agents are no such records, and so are only in the
+  # read-only view — where they are, with their queues, not ignored.
+  OINACT=$(curl -s --unix-socket "$D/orph/bus.sock" -H "X-Agent-Bus-Token: $OTOK" http://unix/inactive)
+  for s in '#napped@srv1' '#barred-svc@srv1'; do
+    has "$s survives the start with its queue" "$(printf '%s' "$OINACT" | grep -o "{\"name\":\"$s\"[^}]*")" '"queued":1'
   done
   # The name is free on the running bus, and carries nothing across.
   oas keeper@srv1 register '#lost@srv1' --kind agent --allow '*' --descr "somebody else's now" >/dev/null

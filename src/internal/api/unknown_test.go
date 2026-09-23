@@ -78,7 +78,7 @@ func TestAnUnknownNameCannotActAndCannotBeIssuedACredential(t *testing.T) {
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "paused@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.SetUserState("admin@h", "paused@h", "paused"); err != nil {
+	if _, err := b.SetUserState("admin@h", "paused@h", "inactive"); err != nil {
 		t.Fatal(err)
 	}
 	if code, body := call("paused@h", "GET", "/status", ""); code != 403 {

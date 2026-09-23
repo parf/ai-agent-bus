@@ -330,7 +330,7 @@ type attention struct {
 	Oldest             string
 	Overflow           string // the configured policy, stated as a setting
 	Dropped, Expired   int
-	Disabled, AtBound  bool
+	Inactive, AtBound  bool
 }
 
 func recordHref(r protocol.Record) string {
@@ -373,22 +373,23 @@ func attentionItems(status core.Status, records []protocol.Record) []attention {
 		out = append(out, attention{Kind: "refusal", Level: "blue", Title: "Requests were refused", Reason: item.Reason, Count: item.Count, Href: "/diagnostics#refusals", Link: "View refusal reasons"})
 	}
 	for _, r := range records {
-		if !r.AtBound && r.Dropped+r.Expired == 0 && !(r.Disabled && r.Queued > 0) {
+		inactive := recordInactive(r)
+		if !r.AtBound && r.Dropped+r.Expired == 0 && !(inactive && r.Queued > 0) {
 			continue
 		}
 		item := attention{
 			Kind: "record", Level: "orange", Name: r.Name, Href: recordHref(r), Link: "View record",
 			Queued: r.Queued, Oldest: r.Oldest, Dropped: r.Dropped, Expired: r.Expired,
-			Disabled: r.Disabled, AtBound: r.AtBound,
+			Inactive: inactive, AtBound: r.AtBound,
 		}
-		// Precedence is the spec's, and it is not severity order: a disabled
+		// Precedence is the spec's, and it is not severity order: an inactive
 		// record at its bound is not urgent, because nothing is being
 		// accepted and capacity is not what is wrong with it. The condition
 		// that explains the other wins, and the rest stay as supporting
 		// facts (Plans/MVP/web/glyphs.md#attention-levels).
 		switch {
-		case r.Disabled && r.Queued > 0:
-			item.Title = "Delivery is off and work is held"
+		case inactive && r.Queued > 0:
+			item.Title = "Inactive and work is held"
 			if r.AtBound {
 				item.Overflow = whenFull(r)
 			}

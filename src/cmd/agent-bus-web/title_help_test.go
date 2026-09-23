@@ -97,7 +97,7 @@ func TestServiceExplanationsUseImmediateTooltipsAndStructuredPopovers(t *testing
 	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "admin@h"})
 	page := m.get("/service?name=%23svc@h")
 	for _, want := range []string{
-		`popovertarget=delivery-help aria-label="About delivery state" data-tooltip="Stored setting only.`,
+		`popovertarget=status-help aria-label="About record status" data-tooltip="Active or inactive.`,
 		`popovertarget=policy-help aria-label="About record policy" data-tooltip="Queue values are this record's stored policy.`,
 		`popovertarget=observed-help aria-label="About live counters" data-tooltip="Readers are outstanding requests`,
 		`popovertarget=record-activity-help aria-label="About this activity history" data-tooltip="About 24 hours`,
@@ -107,7 +107,7 @@ func TestServiceExplanationsUseImmediateTooltipsAndStructuredPopovers(t *testing
 			t.Errorf("service detail lacks immediate help %q", want)
 		}
 	}
-	for _, id := range []string{"delivery-help", "policy-help", "observed-help", "record-activity-help"} {
+	for _, id := range []string{"status-help", "policy-help", "observed-help", "record-activity-help"} {
 		if !strings.Contains(page, `<div popover id=`+id+` class=context-help>`) {
 			t.Errorf("service detail lost structured %s popover", id)
 		}

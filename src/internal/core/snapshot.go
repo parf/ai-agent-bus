@@ -201,12 +201,7 @@ func (b *Bus) Restore(s ports.Snapshot) {
 			sort.Strings(b.groups[AdministratorsGroup])
 		}
 	}
-	// A snapshot written before administrators had to be users can hold one who
-	// is not; the invariant is restored rather than trusted. This happens after
-	// the durable-owner check so it cannot manufacture a missing owner profile.
-	b.administratorsAreUsers()
-	// Restore loads; it commits nothing. What administratorsAreUsers derived
-	// stays in memory as the load's own repair rather than a staged write.
+	// Restore loads; it commits nothing and repairs nothing.
 	b.staging = nil
 	for _, r := range s.Records {
 		// A snapshot may have been written by another version or supplied by
@@ -217,6 +212,7 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	}
 	b.indexIDs()
 	b.ignoreIncorrect()
+	b.ignoreNonUserAdministrators()
 	for _, q := range s.Queues {
 		// A queue whose record is absent, ignored, or of a kind that holds no
 		// queue is incorrect like the record would be: ignored and reported,
@@ -352,6 +348,30 @@ func (b *Bus) ignoreIncorrect() {
 		}
 		if len(gone) == 0 {
 			return
+		}
+	}
+}
+
+// ignoreNonUserAdministrators ignores every @administrators line that names
+// no User once the load has ignored what it could not have written: only a
+// User administers, and a missing one is not manufactured. A daemon Owner so
+// ignored refuses the start. Caller holds b.mu.
+func (b *Bus) ignoreNonUserAdministrators() {
+	members := b.groups[AdministratorsGroup]
+	kept := members[:0:0]
+	for _, m := range members {
+		if _, user := b.users[m]; !user {
+			b.report(ports.Alert, "stored %s member %s is ignored: it is no user", AdministratorsGroup, m)
+			continue
+		}
+		kept = append(kept, m)
+	}
+	if len(kept) != len(members) {
+		b.groups[AdministratorsGroup] = kept
+	}
+	if b.ownerRestoreErr == nil && b.admin != "" && b.ownerRestored {
+		if _, user := b.users[b.admin]; !user {
+			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner %s is not a registered user", b.admin)
 		}
 	}
 }

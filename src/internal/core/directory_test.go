@@ -15,8 +15,8 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 	b.Restore(ports.Snapshot{
 		Users: []protocol.User{
 			{Name: "smoke/person@h"}, // blank fields, test-like name
-			{Name: "paused@h", State: "paused"},
-			{Name: "banned@h", State: "banned"},
+			{Name: "paused@h", Status: "inactive"},
+			{Name: "banned@h", Status: "inactive"},
 		},
 		Records: []protocol.Record{userRecord("smoke/person@h"), userRecord("paused@h"), userRecord("banned@h")},
 	})
@@ -41,11 +41,11 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 			if !ok || u.Kind != kind {
 				t.Errorf("%s sees %s as %q, want %q", caller, name, u.Kind, kind)
 			}
-			if kind != protocol.DirectoryUser && (u.State != "" || u.CanEdit || u.CanActivate) {
+			if kind != protocol.DirectoryUser && (u.Status != "" || u.CanEdit || u.CanActivate) {
 				t.Errorf("non-user %s has invented lifecycle/controls: %+v", name, u)
 			}
 		}
-		if got["paused@h"].State != "paused" || got["banned@h"].State != "banned" {
+		if got["paused@h"].Status != "inactive" || got["banned@h"].Status != "inactive" {
 			t.Error("non-active users were lost or relabelled")
 		}
 	}
@@ -72,7 +72,7 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 	if got := b.Ownerless(credentials); len(got) != 2 || got[0] != "#unused@h" || got[1] != "unprofiled@h" {
 		t.Fatalf("classification disagrees with sweep: %v", got)
 	}
-	for _, state := range []string{"paused", "banned"} {
+	for _, state := range []string{"inactive"} {
 		if _, err := b.SetUserState("owner@h", "maintainer@h", state); err != nil {
 			t.Fatal(err)
 		}

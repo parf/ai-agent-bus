@@ -32,7 +32,8 @@ type User struct {
 	PhotoPNG       []byte    `json:"photo_png,omitempty"`
 	PhotoSource    string    `json:"photo_source,omitempty"`
 	PhotoFetchedAt time.Time `json:"photo_fetched_at,omitempty,omitzero"`
-	State          string    `json:"state"`
+	// Status is active or inactive (docs/constitution.md#-user).
+	Status string `json:"status"`
 	// Created and Updated are the system's lifecycle stamps.
 	Created time.Time `json:"created_at,omitzero"`
 	Updated time.Time `json:"updated_at,omitzero"`

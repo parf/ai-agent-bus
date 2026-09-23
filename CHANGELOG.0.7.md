@@ -5,6 +5,12 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.9 — 2026-09-22
+
+Users and records are active or inactive; an inactive one is no such entity,
+its name reserved, readable only in the web face's `/inactive` view; paused,
+banned and `disabled` are gone. A publication no recipient takes is refused.
+
 ## 0.7.8 — 2026-09-22
 
 A secret must be an env file; a stored non-conforming secret or non-compact

@@ -145,9 +145,12 @@ type Record struct {
 	// Personal groups a service in the owner's web view. It changes neither
 	// delivery nor access; core only enforces which authority assignments may
 	// coexist with it. See docs/03-records.md#personal-and-shared.
-	Personal bool      `json:"personal,omitempty"`
-	Disabled bool      `json:"disabled,omitempty"`
-	At       time.Time `json:"at"`
+	Personal bool `json:"personal,omitempty"`
+	// Status is active or inactive; empty reads as active. An inactive
+	// record is no such entity to everything but its reactivation and the
+	// web face's read-only view (docs/constitution.md#common-record-fields).
+	Status string    `json:"status,omitempty"`
+	At     time.Time `json:"at"`
 	// Created is when the record was first stored; At is when it last was.
 	// Both are the system's, never a caller's.
 	Created time.Time `json:"created_at,omitzero"`

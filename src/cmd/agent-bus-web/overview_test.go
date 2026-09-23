@@ -90,8 +90,8 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 func TestAttentionItemsAreEnumeratedAndOnePerRecord(t *testing.T) {
 	items := attentionItems(core.Status{Unclean: true, Refused: map[string]int{"acl": 2}}, []protocol.Record{
 		{Kind: protocol.KindAgent, Name: "ordinary@h", Queued: 8},
-		{Kind: protocol.KindAgent, Name: "#full@h", Queued: 4, Oldest: "2m", AtBound: true, Disabled: true, Dropped: 3, Expired: 1},
-		{Kind: protocol.KindAgent, Name: "#off@h", Queued: 2, Disabled: true},
+		{Kind: protocol.KindAgent, Name: "#full@h", Queued: 4, Oldest: "2m", AtBound: true, Status: protocol.StatusInactive, Dropped: 3, Expired: 1},
+		{Kind: protocol.KindAgent, Name: "#off@h", Queued: 2, Status: protocol.StatusInactive},
 		{Kind: protocol.KindAgent, Name: "#lost@h", Dropped: 1},
 		{Name: "news@h", Kind: protocol.KindQueue, Queued: 1, AtBound: true, Full: protocol.OverflowRing},
 	})
@@ -125,11 +125,11 @@ func TestAttentionItemsAreEnumeratedAndOnePerRecord(t *testing.T) {
 	if lost := seen["#lost@h"]; lost.Level != "orange" || lost.Title != "Messages were lost from this inbox" {
 		t.Errorf("cumulative loss is %q/%q, want orange and the loss title", lost.Level, lost.Title)
 	}
-	// Disabled outranks at-bound: nothing is being accepted, so capacity is
+	// Inactive outranks at-bound: nothing is being accepted, so capacity is
 	// not what is wrong with the record. The capacity stays as a fact.
 	full := seen["#full@h"]
-	if full.Level != "orange" || full.Title != "Delivery is off and work is held" {
-		t.Errorf("a disabled record at its bound is %q/%q, want orange and the disabled title", full.Level, full.Title)
+	if full.Level != "orange" || full.Title != "Inactive and work is held" || !full.Inactive {
+		t.Errorf("an inactive record at its bound is %q/%q, want orange and the inactive title", full.Level, full.Title)
 	}
 	if !full.AtBound || full.Dropped != 3 || full.Expired != 1 || full.Overflow == "" {
 		t.Fatalf("the winning condition hid supporting facts: %#v", full)
@@ -268,5 +268,28 @@ func TestAFailedEnvelopeSectionDoesNotExposeTheBackendAddress(t *testing.T) {
 	}
 	if strings.Contains(page, `{"error"`) {
 		t.Error("the envelope section prints the daemon's raw JSON body")
+	}
+}
+
+// An inactive record is not in /ls, so its held work reaches Overview only
+// because the page also reads /inactive.
+func TestOverviewNamesWorkHeldByAnInactiveRecord(t *testing.T) {
+	m := meaningFixture(t)
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#off@h", Owner: "admin@h"})
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#off@h", Body: "held"}); err != nil {
+		t.Fatal(err)
+	}
+	off := protocol.StatusInactive
+	if _, err := m.bus.Manage("admin@h", core.Management{Name: "#off@h", Status: &off}); err != nil {
+		t.Fatal(err)
+	}
+	var item string
+	for _, article := range strings.Split(m.get("/"), "<article ")[1:] {
+		if strings.Contains(article, "<code>#off@h</code>") {
+			item = article
+		}
+	}
+	if !strings.Contains(item, "<h3>Inactive and work is held</h3>") || !strings.Contains(item, "1 held now") || !strings.Contains(item, " · inactive") {
+		t.Fatalf("Overview does not name the inactive record's held work: %q", item)
 	}
 }

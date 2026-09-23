@@ -159,3 +159,55 @@ func TestARevocationCannotRaceAStaleAuthorizationIntoAWrite(t *testing.T) {
 		t.Fatal("the stale authorization wrote")
 	}
 }
+
+// A transferred agent leaves its old Owner's cohort, so every Personal record
+// of that Owner loses its grants to it in the transfer's own commit: it would
+// otherwise admit an agent outside the cohort it names, and be ignored at the
+// next start. A shared record keeps its grant.
+func TestATransferTakesTheAgentOutOfItsOldOwnersPersonalRecords(t *testing.T) {
+	b := authorityFixture(t)
+	provision(t, b, nil,
+		protocol.Record{Name: "#helper@h", Kind: protocol.KindAgent, Owner: "alice@h", Full: protocol.OverflowStrict},
+		protocol.Record{Name: "pq@h", Kind: protocol.KindQueue, Owner: "alice@h", Personal: true, Allow: []string{"#helper@h", "@owner"}, Maintainers: protocol.MaintainerList{"#helper@h"}, Full: protocol.OverflowStrict},
+		protocol.Record{Name: "shared@h", Kind: protocol.KindQueue, Owner: "alice@h", Allow: []string{"#helper@h"}, Full: protocol.OverflowStrict},
+	)
+	bob := "bob@h"
+	if _, err := b.Manage("alice@h", Management{Name: "#helper@h", Owner: &bob}); err != nil {
+		t.Fatal(err)
+	}
+	pq, _ := b.Lookup("alice@h", "pq@h")
+	if len(pq.Allow) != 1 || pq.Allow[0] != "@owner" || len(pq.Maintainers) != 0 {
+		t.Fatalf("the Personal record still names the transferred agent: allow %v maintainers %v", pq.Allow, pq.Maintainers)
+	}
+	if _, ok := b.Lookup("#helper@h", "pq@h"); ok {
+		t.Fatal("bob's agent still reaches alice's Personal record")
+	}
+	if shared, _ := b.Lookup("alice@h", "shared@h"); len(shared.Allow) != 1 {
+		t.Fatalf("a shared record lost its grant: %v", shared.Allow)
+	}
+	// And the next start reads it back as written.
+	rep := &reports{}
+	c := New()
+	c.Journal(rep)
+	c.Restore(b.Snapshot())
+	if rep.has("pq@h is ignored") {
+		t.Fatalf("a record this version wrote was ignored at restart: %v", rep.lines)
+	}
+}
+
+// @administrators takes Users only: an agent's name, or a record that is not
+// a User's own, would otherwise become a User under a name no User may have.
+func TestAdministratorsTakeUsersOnly(t *testing.T) {
+	b := authorityFixture(t)
+	for _, bad := range []string{"#svc@h", "#ghost@h", "jobs@h"} {
+		if err := b.SetGroup("admin@h", AdministratorsGroup, []string{"admin@h", bad}); !errors.Is(err, ErrBadName) {
+			t.Errorf("%s was made an administrator: %v", bad, err)
+		}
+		if b.IsPerson(bad) {
+			t.Errorf("a User was manufactured under %s", bad)
+		}
+	}
+	if err := b.SetGroup("admin@h", AdministratorsGroup, []string{"admin@h", "bob@h"}); err != nil {
+		t.Fatalf("a User could not be made an administrator: %v", err)
+	}
+}

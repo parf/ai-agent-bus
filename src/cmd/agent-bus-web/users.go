@@ -74,7 +74,7 @@ type peopleView struct {
 	People, Other                                []protocol.User
 	Query, Kind, State, Return, Previous, Next   string
 	PeopleCount, OtherCount, Matched, Start, End int
-	ActiveCount, PausedCount, BannedCount        int
+	ActiveCount, InactiveCount                   int
 	StateLinks                                   []viewLink
 	RecordKinds                                  map[string]string
 }
@@ -115,24 +115,21 @@ func directoryReturn(raw string) string {
 	return u.RequestURI()
 }
 
-// userState normalises a directory entry's lifecycle state. A blank value is
-// an active user, which is how the detail page reads it too.
+// userState normalises a directory entry's status. A blank value is an
+// active user, which is how the detail page reads it too.
 func userState(u protocol.User) string {
-	if u.State == "" {
-		return "active"
+	if u.Status == "" {
+		return protocol.StatusActive
 	}
-	return u.State
+	return u.Status
 }
 
 // stateBadge is the marker shown after a name that is not active. Active users
 // get nothing: marking the ordinary majority marks nothing
 // (Plans/MVP/web/glyphs.md#the-rule-that-matters-most).
 func stateBadge(u protocol.User) template.HTML {
-	switch userState(u) {
-	case "paused":
+	if userState(u) == protocol.StatusInactive {
 		return `<span class="state-badge state-inactive">INACTIVE</span>`
-	case "banned":
-		return `<span class="state-badge state-banned">BANNED</span>`
 	}
 	return ""
 }
@@ -149,7 +146,7 @@ func (p *peopleView) directory(r *http.Request) {
 	// section is unaffected by this choice.
 	p.State = r.URL.Query().Get("state")
 	switch p.State {
-	case "paused", "banned", "all":
+	case protocol.StatusInactive, "all":
 	default:
 		p.State = "active"
 	}
@@ -158,12 +155,9 @@ func (p *peopleView) directory(r *http.Request) {
 		person := u.Kind == protocol.DirectoryUser
 		if person {
 			p.PeopleCount++
-			switch u.State {
-			case "paused":
-				p.PausedCount++
-			case "banned":
-				p.BannedCount++
-			default:
+			if userState(u) == protocol.StatusInactive {
+				p.InactiveCount++
+			} else {
 				p.ActiveCount++
 			}
 		} else {
@@ -231,8 +225,10 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			fail(w, r, v.You, err)
 			return p, false
 		}
-		var records []protocol.Record
-		if err := c.get(cookie(r), "/ls", &records); err != nil {
+		// Inactive records too: an inactive user's records are all inactive,
+		// and their page still names what they own.
+		records, err := c.allRecords(cookie(r))
+		if err != nil {
 			fail(w, r, v.You, err)
 			return p, false
 		}
@@ -267,8 +263,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		}
 		p.StateLinks = []viewLink{
 			{Href: pageURL("/users", cloneValues(stateBase)), Label: "Active", Count: p.ActiveCount, Counted: true, Current: p.State == "active"},
-			{Href: queryWith("/users", stateBase, "state", "paused"), Label: "Inactive", Count: p.PausedCount, Counted: true, Current: p.State == "paused"},
-			{Href: queryWith("/users", stateBase, "state", "banned"), Label: "Banned", Count: p.BannedCount, Counted: true, Current: p.State == "banned"},
+			{Href: queryWith("/users", stateBase, "state", "inactive"), Label: "Inactive", Count: p.InactiveCount, Counted: true, Current: p.State == "inactive"},
 			{Href: queryWith("/users", stateBase, "state", "all"), Label: "All states", Count: p.PeopleCount, Counted: true, Current: p.State == "all"},
 		}
 		render(w, peoplePage, p)
@@ -330,7 +325,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		}
 		fail(w, r, p.You, &busError{code: http.StatusNotFound})
 	})
-	mux.HandleFunc("GET /user-ban", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /user-deactivate", func(w http.ResponseWriter, r *http.Request) {
 		p, ok := load(w, r)
 		if !ok {
 			return
@@ -340,12 +335,12 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			if u.Name != r.URL.Query().Get("name") {
 				continue
 			}
-			if u.Kind != protocol.DirectoryUser || u.DaemonOwner || !u.CanActivate || u.State == "banned" {
-				fail(w, r, p.You, &busError{code: http.StatusForbidden, message: "that user cannot be banned by you in their current state"})
+			if u.Kind != protocol.DirectoryUser || u.DaemonOwner || !u.CanActivate || userState(u) == protocol.StatusInactive {
+				fail(w, r, p.You, &busError{code: http.StatusForbidden, message: "that user cannot be deactivated by you in their current state"})
 				return
 			}
 			p.User = u
-			render(w, userBanPage, p)
+			render(w, userDeactivatePage, p)
 			return
 		}
 		fail(w, r, p.You, &busError{code: http.StatusNotFound})
@@ -452,8 +447,8 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			}{u, r.PostForm.Get("action") == "create", true})
 		case "refresh-github":
 			err = c.post(cookie(r), "/user/github-refresh", map[string]string{"name": r.PostForm.Get("name")})
-		case "active", "paused", "banned":
-			err = c.post(cookie(r), "/user/state", map[string]string{"name": r.PostForm.Get("name"), "state": r.PostForm.Get("action")})
+		case protocol.StatusActive, protocol.StatusInactive:
+			err = c.post(cookie(r), "/user/state", map[string]string{"name": r.PostForm.Get("name"), "status": r.PostForm.Get("action")})
 		default:
 			localProblem(w, r, v.You, http.StatusBadRequest, "That user action is not available.")
 			return
@@ -522,6 +517,7 @@ var peoplePage = template.Must(template.New("people").Funcs(template.FuncMap{"au
 {{end}}</tbody></table>{{else}}<p class=muted>No other identities match this view. Use the Other filter when its count is nonzero.</p>{{end}}</section>
 <nav aria-label="Directory pages">{{with .Previous}}<a href="{{.}}">Previous page</a>{{end}} {{with .Next}}<a href="{{.}}">Next page</a>{{end}}</nav>
 `))
+
 // A user has one profile form, and adding a person and editing one are the
 // same form. The two used to be separate markup in the one template and had
 // already drifted in what they said about the GitHub login.
@@ -547,7 +543,7 @@ var userEdit = template.Must(template.New("user-edit").Funcs(template.FuncMap{"t
 	`{{template "user-fields" .}}<div class=form-actions><button>Save profile</button></div></form>
 ` + userFields))
 
-var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"authorityLabel": authorityLabel, "identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "registrationUpdated": registrationUpdated, "githubProfileURL": githubProfileURL, "twitterProfileURL": twitterProfileURL, "recordPath": recordPath}).Parse(shellTitle("users", `{{if .New}}Add user{{else}}{{.User.Name}}{{end}}`) + `
+var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"authorityLabel": authorityLabel, "identityLabel": identityLabel, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "registrationUpdated": registrationUpdated, "githubProfileURL": githubProfileURL, "twitterProfileURL": twitterProfileURL, "recordPath": recordPath, "userState": userState}).Parse(shellTitle("users", `{{if .New}}Add user{{else}}{{.User.Name}}{{end}}`) + `
 <p><a href="{{.Return}}">Back to directory</a></p>
 <div class=page-title><h1 style="overflow-wrap:anywhere">{{if .New}}{{titleMark "user"}}{{else if eq .User.Kind "user"}}{{with photoData .User}}<img class=profile-photo-large src="{{.}}" alt="">{{else}}<span class=profile-initial-large aria-hidden=true>{{profileInitial .User}}</span>{{end}}{{else}}{{titleMark "identity"}}{{end}} {{if .New}}Add user{{else}}{{.User.Name}}{{end}}</h1></div>` + formErrorSummary + `
 {{if .New}}
@@ -563,18 +559,18 @@ var personPage = template.Must(template.New("person").Funcs(template.FuncMap{"au
 <p><a id=profile-edit class=editor-link href="/user/edit?name={{.User.Name}}{{with .Return}}&amp;return={{urlquery .}}{{end}}">Edit profile</a></p></section>{{else}}<section class="editor-card compact-card"><div class=page-title><h2>Profile</h2><button type=button class=help-button popovertarget=profile-source-help aria-label="About profile fields" data-tooltip="These are AgentBus User fields. GitHub may supply initial or refreshed values; authorized profile edits can change them.">ⓘ</button></div><dl>{{with .User.PersonName}}<dt>Person name</dt><dd>{{.}}</dd>{{end}}{{with .User.Email}}<dt>Email</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubUser}}<dt>GitHub login</dt><dd><a href="{{githubProfileURL .}}">@{{.}}</a></dd>{{end}}{{with .User.GithubCompany}}<dt>Company</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubLocation}}<dt>Location</dt><dd>{{.}}</dd>{{end}}{{with .User.GithubTwitterUsername}}<dt>Twitter/X</dt><dd><a href="{{twitterProfileURL .}}">@{{.}}</a></dd>{{end}}</dl><p class=muted>Trusted profile fields are edited by a daemon administrator.</p></section><div popover id=profile-source-help class=context-help><h2>Profile fields</h2><p>These values belong to the AgentBus User profile. Public GitHub data may fill or refresh them, but GitHub is not a separate profile on this page.</p></div>{{end}}
 </div><aside class=person-sidebar>
 <section class="editor-card compact-card"><h2>Identity</h2><div class=detail-meta>{{with identityLabel .User .RecordKinds}}<span class=fact-pill>{{.}}</span>{{end}}<span class=fact-pill>{{authorityLabel .User.DaemonOwner .User.Administrator}}</span></div><h2>Groups</h2><div class=choice-row>{{range .User.Groups}}<a class=group-chip href="/group?name={{.}}">{{.}}</a>{{else}}<span class=muted>No memberships</span>{{end}}</div></section>
-<section class="editor-card compact-card"><div class=page-title><h2>Access</h2><button type=button class=help-button popovertarget=user-access-help aria-label="About user access states" data-tooltip="Pause and ban block bus access and new inbox deliveries; queued work stays and running processes are not stopped.">ⓘ</button></div><p>Current: {{if eq .User.State "active"}}<span class="user-state user-state-active"><span aria-hidden=true>●</span> Active</span>{{else if eq .User.State "paused"}}<span class="user-state user-state-paused"><span aria-hidden=true>●</span> Paused</span>{{else}}<span class="user-state user-state-banned"><span aria-hidden=true>●</span> Banned</span>{{end}}</p>{{if and (not .User.DaemonOwner) .User.CanActivate}}<details class=access-change><summary>Change</summary><div class=access-actions>{{if ne .User.State "active"}}<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=active>Activate</button></form>{{end}}{{if eq .User.State "active"}}<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=paused>Pause</button></form>{{end}}{{if ne .User.State "banned"}}<form method=get action=/user-ban><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action>Ban…</button></form>{{end}}</div></details>{{end}}</section><div popover id=user-access-help class=context-help><h2>User access states</h2><ul><li>Pause and ban block bus access and new deliveries to this user's inbox.</li><li>Queued work is retained and running service processes are not stopped.</li><li>Administrators may lift a ban on an ordinary user; the daemon Owner controls protected authority levels.</li></ul></div>
+<section class="editor-card compact-card"><div class=page-title><h2>Access</h2><button type=button class=help-button popovertarget=user-access-help aria-label="About user status" data-tooltip="Inactive blocks bus access and makes every record the user owns inactive; queued work and tokens are kept and running processes are not stopped.">ⓘ</button></div><p>Current: {{if eq (userState .User) "inactive"}}<span class="user-state user-state-inactive"><span aria-hidden=true>●</span> Inactive</span>{{else}}<span class="user-state user-state-active"><span aria-hidden=true>●</span> Active</span>{{end}}</p>{{if and (not .User.DaemonOwner) .User.CanActivate}}<details class=access-change><summary>Change</summary><div class=access-actions>{{if eq (userState .User) "inactive"}}<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button name=action value=active>Reactivate</button></form>{{else}}<form method=get action=/user-deactivate><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action>Deactivate…</button></form>{{end}}</div></details>{{end}}</section><div popover id=user-access-help class=context-help><h2>User status</h2><ul><li>An inactive user has no bus access, and every record the user owns is inactive: hidden from listings and answered as unknown.</li><li>Queued work and tokens are kept, and running service processes are not stopped.</li><li>An Administrator may change an ordinary user; only the daemon Owner may change an Administrator. The daemon Owner stays active.</li></ul></div>
 <section class="editor-card compact-card"><h2>Owned records</h2>{{range .User.Services}}<p><a href="{{recordPath . $.RecordKinds}}">{{.}}</a></p>{{else}}<p class=muted>None</p>{{end}}</section>
 </aside></div>
 {{end}}
 ` + userFields))
 
-var userBanPage = template.Must(template.New("user-ban").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shellTitle("users", `Confirm ban · {{.User.Name}}`) + `
+var userDeactivatePage = template.Must(template.New("user-deactivate").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shellTitle("users", `Confirm deactivation · {{.User.Name}}`) + `
 <p><a href="/user?name={{.User.Name}}&return={{.Return}}">Back to user</a></p>
-<div class=page-title><h1>{{titleMark "problem"}} Confirm ban</h1></div>
-<section class="editor-card compact-card"><p>Ban <code>{{.User.Name}}</code>?</p><ul><li>Bus access and new inbox deliveries stop.</li><li>Queued work stays, and running processes are not stopped.</li></ul>
-{{if .User.Administrator}}<p>Only the daemon Owner can activate this Administrator later.</p>{{else}}<p>An authorized Administrator or the daemon Owner can activate this user later.</p>{{end}}
-<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action name=action value=banned>Ban user</button> <a href="/user?name={{.User.Name}}&return={{.Return}}">Cancel</a></form></section>
+<div class=page-title><h1>{{titleMark "problem"}} Confirm deactivation</h1></div>
+<section class="editor-card compact-card"><p>Deactivate <code>{{.User.Name}}</code>?</p><ul><li>Bus access stops, and every record this user owns becomes inactive: hidden from listings and answered as unknown.</li><li>Queued work and tokens are kept, and running processes are not stopped.</li></ul>
+{{if .User.Administrator}}<p>Only the daemon Owner can reactivate this Administrator later.</p>{{else}}<p>An authorized Administrator or the daemon Owner can reactivate this user later.</p>{{end}}
+<form method=post action=/user><input type=hidden name=name value="{{.User.Name}}"><input type=hidden name=return value="{{.Return}}"><button class=danger-action name=action value=inactive>Deactivate user</button> <a href="/user?name={{.User.Name}}&return={{.Return}}">Cancel</a></form></section>
 `))
 
 var credentialRemovePage = template.Must(template.New("credential-remove").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(shellTitle("users", `Confirm credential removal · {{.User.Name}}`) + `

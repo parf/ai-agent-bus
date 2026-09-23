@@ -102,18 +102,21 @@ func TestRequiredDashboardTabs(t *testing.T) {
 	if body := request("/users", nil, 200); !strings.Contains(body, "Alice") {
 		t.Fatal("user was not listed")
 	}
-	if body := request("/user?name=alice@h", nil, 200); !strings.Contains(body, "alice@example.com") || !strings.Contains(body, ">Ban…</button>") ||
-		!strings.Contains(body, "Administrators may lift a ban on an ordinary user") || strings.Contains(body, "Only the daemon owner can lift a ban") {
+	if body := request("/user?name=alice@h", nil, 200); !strings.Contains(body, "alice@example.com") || !strings.Contains(body, ">Deactivate…</button>") ||
+		!strings.Contains(body, "An Administrator may change an ordinary user; only the daemon Owner may change an Administrator") || strings.Contains(body, "lift a ban") {
 		t.Fatal("missing profile or lifecycle controls")
 	}
 	request("/user", url.Values{"action": {"save"}, "name": {"alice@h"}, "person_name": {"Alice Updated"}, "email": {"alice@example.com"}}, 303)
-	for _, state := range []string{"paused", "banned", "active"} {
+	for _, state := range []string{protocol.StatusInactive, protocol.StatusActive} {
 		request("/user", url.Values{"action": {state}, "name": {"alice@h"}}, 303)
-		stateClass := "user-state-" + state
+		// The element form: every page's inline stylesheet names both classes.
+		stateClass := `<span class="user-state user-state-` + state + `">`
 		if body := request("/user?name=alice@h", nil, 200); !strings.Contains(body, stateClass) || !strings.Contains(body, "Alice Updated") {
-			t.Fatal("lifecycle change failed or erased profile")
+			t.Fatalf("lifecycle change to %s failed or erased profile", state)
 		}
 	}
+	// A retired state is refused rather than silently read as one of these.
+	request("/user", url.Values{"action": {"banned"}, "name": {"alice@h"}}, 400)
 	avatar := request("/avatar?name=alice@h", nil, 200)
 	if !strings.Contains(avatar, "<svg") || !strings.Contains(avatar, ">A</text>") {
 		t.Fatal("local avatar absent")

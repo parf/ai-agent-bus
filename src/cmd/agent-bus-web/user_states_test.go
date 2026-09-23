@@ -18,15 +18,14 @@ func TestTheUserDirectoryOpensOnActiveUsersAndMarksOnlyTheOthers(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := m.bus.SetUserState("admin@h", "resting@h", "paused"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := m.bus.SetUserState("admin@h", "barred@h", "banned"); err != nil {
-		t.Fatal(err)
+	for _, who := range []string{"resting@h", "barred@h"} {
+		if _, err := m.bus.SetUserState("admin@h", who, protocol.StatusInactive); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	// Default view: active only. Three states exist in the fixture, so a
-	// filter that did nothing would show all three here.
+	// Default view: active only. Two of the three are inactive, so a filter
+	// that did nothing would show all three here.
 	first := m.get("/users")
 	if !strings.Contains(first, "steady@h") {
 		t.Fatalf("the default directory does not list an active user: %s", first)
@@ -46,23 +45,18 @@ func TestTheUserDirectoryOpensOnActiveUsersAndMarksOnlyTheOthers(t *testing.T) {
 		t.Error("an active row carries a state marker")
 	}
 
-	// Each state is reachable and counted, and each marks its rows.
-	for _, probe := range []struct {
-		query, name, badge string
-	}{
-		{"?state=paused", "resting@h", `<span class="state-badge state-inactive">INACTIVE</span>`},
-		{"?state=banned", "barred@h", `<span class="state-badge state-banned">BANNED</span>`},
-	} {
-		body := m.get("/users" + probe.query)
-		if !strings.Contains(body, probe.badge) {
-			t.Errorf("%s does not mark its rows: %s", probe.query, body)
+	// The inactive state is reachable and counted, and it marks its rows.
+	body := m.get("/users?state=inactive")
+	if n := strings.Count(body, `<span class="state-badge state-inactive">INACTIVE</span>`); n != 2 {
+		t.Errorf("the inactive view marks %d rows, want 2: %s", n, body)
+	}
+	for _, name := range []string{"resting@h", "barred@h"} {
+		if !strings.Contains(body, "<s>"+name+"</s>") {
+			t.Errorf("the inactive view does not strike the name of %s: %s", name, body)
 		}
-		if !strings.Contains(body, "<s>"+probe.name+"</s>") {
-			t.Errorf("%s does not strike the name of %s: %s", probe.query, probe.name, body)
-		}
-		if strings.Contains(body, ">steady@h<") {
-			t.Errorf("%s also lists the active user", probe.query)
-		}
+	}
+	if strings.Contains(body, ">steady@h<") {
+		t.Error("the inactive view also lists the active user")
 	}
 
 	// Every state at once remains reachable, or the directory would have no
@@ -76,10 +70,13 @@ func TestTheUserDirectoryOpensOnActiveUsersAndMarksOnlyTheOthers(t *testing.T) {
 
 	// The counts are of users in each state, not of the rows on the page.
 	states := section(t, first, `<nav class=filter-nav aria-label="User state filter">`, "</nav>")
-	for _, want := range []string{"Active (", "Inactive (1)", "Banned (1)"} {
+	for _, want := range []string{"Active (", "Inactive (2)", "All states ("} {
 		if !strings.Contains(states, want) {
 			t.Errorf("the state filter lacks %q: %s", want, states)
 		}
+	}
+	if strings.Contains(states, "Banned") {
+		t.Errorf("the state filter still offers a retired state: %s", states)
 	}
 	if !strings.Contains(states, `aria-current=true>Active`) {
 		t.Errorf("the default view does not mark Active as current: %s", states)

@@ -46,7 +46,7 @@ func TestSelfProfileRouteCarriesOnlyEmail(t *testing.T) {
 		`"name":"alice@h"`,
 		`"person_name":"Forged"`,
 		`"github_user":"forged"`,
-		`"state":"banned"`,
+		`"status":"inactive"`,
 	} {
 		call("alice@h", "/profile", `{"email":"other@example.com",`+field+`}`, 400)
 	}
@@ -58,7 +58,7 @@ func TestSelfProfileRouteCarriesOnlyEmail(t *testing.T) {
 		t.Fatal(err)
 	}
 	call("#svc@h", "/profile", `{"email":"svc@example.com"}`, 404)
-	if _, err := b.SetUserState("owner@h", "alice@h", "paused"); err != nil {
+	if _, err := b.SetUserState("owner@h", "alice@h", "inactive"); err != nil {
 		t.Fatal(err)
 	}
 	call("alice@h", "/profile", `{"email":"paused@example.com"}`, 403)

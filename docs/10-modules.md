@@ -46,9 +46,11 @@ Pending requirements for the [0.7 work](../Plans/MVP/0.7.0-TODO.md#verification)
 
 ### Statistics persistence
 
-Pending for 0.7: counters and last-use timestamps update in memory, without a
-database write per request, message or increment. Coalesce dirty values into
-one batch every minute; skip unchanged values and empty batches. Runtime-only metrics
+Counters and last-use timestamps update in memory, without a database write
+per request, message or increment, and are coalesced into one batch every
+minute, skipping unchanged values and empty batches. Built for queue counters
+in 0.7.1 and credential last use in 0.7.6; the PubSub router counters are
+[K.15](../Plans/MVP/0.7.0-TODO.md). Runtime-only metrics
 stay in memory. Persisted statistics flush on graceful shutdown; a crash may
 lose updates since the last successful flush. Retain dirty updates after failed
 flushes and preserve increments arriving during a flush. Retry on the next

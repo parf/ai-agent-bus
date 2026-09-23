@@ -12,7 +12,7 @@ func TestPersistenceFailureIsAnHTTPFailureAndCanBeRetried(t *testing.T) {
 	d := memory.NewState()
 	d.Err = errors.New("fixture database failed")
 	b.Persistence(d)
-	if code, body := post(t, s, token, "admin@h", "/user/state", `{"kind":"agent","name":"plain@h","state":"banned"}`); code != 500 {
+	if code, body := post(t, s, token, "admin@h", "/user/state", `{"kind":"agent","name":"plain@h","status":"inactive"}`); code != 500 {
 		t.Fatalf("failed persistence answered %d, want 500: %s", code, body)
 	}
 	// A write whose commit failed published nothing.
@@ -20,7 +20,7 @@ func TestPersistenceFailureIsAnHTTPFailureAndCanBeRetried(t *testing.T) {
 		t.Fatalf("a ban whose commit failed took effect: %v", err)
 	}
 	d.Err = nil
-	if code, body := post(t, s, token, "admin@h", "/user/state", `{"kind":"agent","name":"plain@h","state":"banned"}`); code != 200 {
+	if code, body := post(t, s, token, "admin@h", "/user/state", `{"kind":"agent","name":"plain@h","status":"inactive"}`); code != 200 {
 		t.Fatalf("retry after disk recovery answered %d: %s", code, body)
 	}
 	if d.Commits != 1 {

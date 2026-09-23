@@ -17,7 +17,7 @@ func known(t *testing.T, b *core.Bus, names ...string) {
 	t.Helper()
 	s := ports.Snapshot{Clean: true}
 	user := func(name string) {
-		s.Users = append(s.Users, protocol.User{Name: name, State: "active"})
+		s.Users = append(s.Users, protocol.User{Name: name, Status: "active"})
 		s.Records = append(s.Records, protocol.Record{
 			Name: name, Owner: name, Kind: protocol.KindUser, Personal: true,
 			Full: protocol.OverflowStrict, At: time.Now(),

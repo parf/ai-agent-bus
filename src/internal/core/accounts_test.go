@@ -71,7 +71,7 @@ func TestAccountMapRefusesUnknownInactiveAndDamagedState(t *testing.T) {
 	if _, err := b.SetAccount("owner@h", "new-os", "unknown@h", false); !errors.Is(err, ErrNoPrincipal) {
 		t.Fatalf("unknown principal was mapped: %v", err)
 	}
-	if _, err := b.SetUserState("owner@h", "bob@h", "paused"); err != nil {
+	if _, err := b.SetUserState("owner@h", "bob@h", "inactive"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.SetAccount("owner@h", "new-os", "bob@h", false); !errors.Is(err, ErrInactive) {

@@ -146,7 +146,7 @@ what the daemon permits. “All” means all visible to that visitor.
 | Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which have their own tab. Administrative availability and reader observation are distinct facts |
 | Services | 📡 records alone — something [external](03-records.md#five-record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
 | Personal | Owner-tagged agents grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
-| Users | List and details; add, edit, activate, pause and ban; show caller-visible owned records, linked group membership and administrative authority. The directory opens on active users; **Active**, **Inactive**, **Banned** and **All states** are counted filters, and a state other than active is marked beside the name rather than in a column of its own. Applicable daemon-authorized actions sit behind **Change**. Ban and unused-credential removal use consequence confirmations |
+| Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory opens on active users; **Active**, **Inactive** and **All states** are counted filters, and an inactive user is marked beside the name rather than in a column of its own. Applicable daemon-authorized actions sit behind **Change**. Deactivation and unused-credential removal use consequence confirmations |
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
 | Channels | List and details for 📮 queue, 📣 pub/sub and 👤 user records — every name on this bus that is delivered to and is not an agent; create, edit and remove; subscriptions, owner, Maintainers list, permissions, TTL, capacity and overflow policy. A Type column names each row, and the **Kind filter selects by the kind the daemon stated** rather than by that name, which is what keeps the daemon owner's own inbox under 👤 User while its cell names the authority. The filter offers only the kinds the page lists. From 0.6.3 agent records are on Agents instead |
@@ -306,7 +306,7 @@ that makes the column scannable.
 
 **Built in 0.5.80.** Overview is the short signed-in landing page. It enumerates
 only supported attention conditions: an unclean prior stop, nonzero refusal
-reasons, queue capacity, loss, and disabled records still holding work. Ordinary
+reasons, queue capacity, loss, and inactive records still holding work. Ordinary
 backlog is work rather than an alarm. One record produces one item while the
 item retains every supporting fact. **From 0.5.83 an Overview with nothing to
 report carries no attention section at all**: by owner instruction the heading
@@ -528,10 +528,9 @@ handler runs, and a failure of ours, which is a `500`.
 |---|---|---|
 | `credential` | `401` | the token is not one, none came at all, or it backs a name the daemon knows nothing about — all three are *who are you*, and none of them is a state anybody can lift ([access § what a call carries](02-access.md#what-a-call-carries)) |
 | `acl` | `403` | the service, the record's owner, or a private configuration said no ([identity § acl](02-access.md#acl)) |
-| `suspended` | `403` | a user state is in the way: the caller's own, or that of the owner of the name being called ([user lifecycle](01-identity-and-roles.md#user-states), [services of a paused or banned user](01-identity-and-roles.md#user-states)) |
+| `suspended` | `403` | the caller is inactive: an inactive User, or an agent inactive itself or through its User ([user states](01-identity-and-roles.md#user-states)) |
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](02-access.md#proving-possession)) |
-| `unknown` | `404` | no such name ([messaging § verbs](04-messaging.md#verbs)) |
-| `disabled` | `409` | the receiver's record is turned off by its owner ([owner control](01-identity-and-roles.md#record-authority)). **Pending for 0.7:** gone; an inactive target answers `unknown`, being [no such entity](constitution.md#common-record-fields), and an inactive caller keeps `suspended` |
+| `unknown` | `404` | no such name — absent, or inactive and so [no such entity](constitution.md#common-record-fields) ([messaging § verbs](04-messaging.md#verbs)) |
 | `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-roles.md#unregistering)), or a credential is backed by a user, record or retained service ([cleanup](02-access.md#ownerless-credentials)) |
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity-and-roles.md#registration)) |
@@ -544,16 +543,12 @@ not* — authenticated, and refused for lack of permission. Retrying a `403` wit
 the same credential is a caller asking the same question twice; a `401` is
 worth presenting a credential for.
 
-**One suspension, one reason.** A call refused because the caller is banned and
-one refused because the *owner of the name they called* is banned are the same
-fact seen from two sides, and get the same code and the same reason rather than
-a second of each. The caller is told what they can act on either way, which is
-nothing: no credential they could present and no permission anybody could grant
-makes a suspended name answer, and the code already says do not retry this.
-
-A record's own state is a reason of its own, and deliberately not `unknown`:
-*turned off* and *no such name* send a caller to different places, so they are
-never the same answer. Declared states beyond `disabled` are
+**An inactive caller and an inactive target are different answers.** A caller
+that is inactive is told it is the one refused, `403 suspended`: it is
+somebody, and nothing it presents makes it active. A target that is inactive,
+itself or through its User, is no such name, `404 unknown`, whoever asks —
+the daemon Owner included — because an inactive record is no entity at all.
+Declared states beyond active and inactive are
 [R1.1 work](../Plans/R1.1/records.md#down-and-retired) and would each bring
 their own reason rather than borrow one.
 

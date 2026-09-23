@@ -28,7 +28,7 @@ func TestTheAdministratorsGroupStatesItsAuthorityAndNoOtherGroupDoes(t *testing.
 	// the directory, registration, and editing below one's own level.
 	// #groups: ordinary group membership, including Maintainer groups.
 	granted := []string{
-		"See the whole user directory, register new users, and edit, pause, ban or reactivate users below your own level.",
+		"See the whole user directory, register new users, and edit, deactivate or reactivate users below your own level.",
 		"Change the membership of any ordinary group, including one assigned as a resource&rsquo;s Maintainer",
 		"you may add yourself, or a user you created, without asking that resource&rsquo;s owner.",
 		"Read the full membership of every group.",

@@ -107,18 +107,28 @@ func TestTheLevelsAreNested(t *testing.T) {
 	}
 }
 
-// A snapshot written before the rule can hold a administrator with no profile.
-// Restoring one must not carry the gap forward.
-func TestRestoreMakesOldAdministratorsUsers(t *testing.T) {
+// An @administrators line naming no User is one no write of this version
+// made. It is ignored and reported, not repaired: no User, no record and no ID
+// are manufactured for it (docs/constitution.md#persistence-and-loading).
+func TestRestoreIgnoresAnAdministratorWhoIsNoUser(t *testing.T) {
 	b := New()
+	rep := &reports{}
+	b.Journal(rep)
 	b.SetDaemonOwner("owner@h")
+	next := b.nextRecordID
 	b.Restore(ports.Snapshot{Groups: map[string][]string{
 		AdministratorsGroup: {"owner@h", "legacy@h"},
 	}})
-	if !b.IsAdministrator("legacy@h") {
-		t.Fatal("the restored administrator is not one")
+	if b.IsAdministrator("legacy@h") || b.IsPerson("legacy@h") {
+		t.Fatal("an administrator with no User was repaired into one")
 	}
-	if !b.IsPerson("legacy@h") {
-		t.Error("a administrator restored from an older snapshot is still not a user")
+	if !rep.has("stored @administrators member legacy@h is ignored") {
+		t.Errorf("the ignored administrator was not reported: %v", rep.lines)
+	}
+	if b.nextRecordID != next {
+		t.Errorf("the restore took record IDs: %d, then %d", next, b.nextRecordID)
+	}
+	if !b.IsAdministrator("owner@h") {
+		t.Error("the daemon Owner stopped being an administrator")
 	}
 }

@@ -212,3 +212,9 @@ func agentSpelling(name string) string {
 	}
 	return AgentPrefix + name
 }
+
+// The two values of a User's and a record's status.
+const (
+	StatusActive   = "active"
+	StatusInactive = "inactive"
+)

@@ -136,12 +136,12 @@ func (m *meanings) shapes() {
 	m.t.Helper()
 	// The daemon owner is a User and already has its own user record.
 	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#reading@h", Owner: "admin@h", Descr: "a reader is on it"})
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#quiet@h", Owner: "admin@h", Allow: []string{"*"}, Descr: "enabled, nobody reading"})
-	// Through Manage, because Register clears the bit (bus.go:226): delivery
-	// is turned off by its owner, not declared at registration.
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#off@h", Owner: "admin@h", Descr: "the owner turned it off"})
-	off := true
-	if _, err := m.bus.Manage("admin@h", core.Management{Name: "#off@h", Disabled: &off}); err != nil {
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#quiet@h", Owner: "admin@h", Allow: []string{"*"}, Descr: "active, nobody reading"})
+	// Through Manage: a record is deactivated by whoever manages it, not
+	// declared inactive at registration.
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#off@h", Owner: "admin@h", Descr: "the owner deactivated it"})
+	off := protocol.StatusInactive
+	if _, err := m.bus.Manage("admin@h", core.Management{Name: "#off@h", Status: &off}); err != nil {
 		m.t.Fatal(err)
 	}
 	m.register(protocol.Record{Kind: protocol.KindService, Name: "elsewhere@h", Owner: "admin@h", Descr: "reached another way", Addr: "elsewhere.example", Proto: "https"})
@@ -181,40 +181,71 @@ func (m *meanings) attachReader(name string, topic ...string) <-chan protocol.En
 	return got
 }
 
-// Disabled says delivery is off and does not say why. "Inactive" reads as
-// broken, and the record may be perfectly healthy and deliberately paused.
-func TestDeliveryIsEnabledOrDisabledAndNeverInactive(t *testing.T) {
+// Status is Active or Inactive, and an inactive record is gone from /ls: the
+// listing shows it only because the face reads /inactive, and its page is
+// the read-only view built from that answer rather than a 404.
+func TestStatusIsActiveOrInactiveAndInactiveStaysVisible(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	// Read out of each record's own row. "Disabled" is also an option in the
-	// listing's own delivery filter, so a page-wide match is satisfied by a
-	// listing that labels every record Enabled.
+	// Read out of each record's own row. "Inactive" is also an option in the
+	// listing's own status filter, so a page-wide match is satisfied by a
+	// listing that labels every record Active.
 	listing := m.get("/agents")
 	for _, want := range []struct{ name, cell string }{
-		{"#off@h", "aria-label=Disabled"}, {"#quiet@h", "aria-label=Enabled"},
+		{"#off@h", "aria-label=Inactive"}, {"#quiet@h", "aria-label=Active"},
 	} {
 		if !strings.Contains(m.row(listing, want.name), want.cell) {
 			t.Errorf("%s has no %q cell: %s", want.name, want.cell, m.row(listing, want.name))
 		}
 	}
-	for _, page := range []string{"/agents", "/agent?name=%23off@h"} {
-		body := m.get(page)
-		if !strings.Contains(body, "Disabled") {
-			t.Errorf("%s does not say delivery is disabled", page)
-		}
-		if strings.Contains(body, "Inactive") {
-			t.Errorf("%s calls a disabled record Inactive, which reads as broken", page)
+	// The filter splits them, each way.
+	if active := m.get("/agents?state=active"); strings.Contains(active, ">#off@h<") || !strings.Contains(active, ">#quiet@h<") {
+		t.Error("the Active filter does not hold exactly the active records")
+	}
+	if inactive := m.get("/agents?state=inactive"); !strings.Contains(inactive, ">#off@h<") || strings.Contains(inactive, ">#quiet@h<") {
+		t.Error("the Inactive filter does not hold exactly the inactive records")
+	}
+	// The page of an inactive record is its read-only view, not the daemon's
+	// unknown, and it offers reactivation to whoever manages it.
+	detail := section(t, m.get("/agent?name=%23off@h"), "<main>", "</main>")
+	for _, want := range []string{"aria-label=Inactive", `name=action value=reactivate`, "returns with its owner"} {
+		if !strings.Contains(detail, want) {
+			t.Errorf("the inactive record page lacks %q: %s", want, detail)
 		}
 	}
-	// The positive control: an enabled record says so on the same page, so
-	// "Disabled" is a distinction and not a constant.
-	if !strings.Contains(m.get("/service?name=%23quiet@h"), "Enabled") {
-		t.Error("an enabled record is not labelled Enabled")
+	if strings.Contains(detail, "Deactivate…") || strings.Contains(detail, "Edit settings") {
+		t.Error("the inactive record page offers an edit the daemon answers as unknown")
 	}
-	// And the bit cannot be read as the owner's decision, because the daemon
-	// merges that with the name having stopped being active.
-	if !strings.Contains(m.get("/service?name=%23off@h"), "does not say whether the owner turned it off") {
-		t.Error("the page does not say the disabled bit cannot say why")
+	// The positive control: an active record says so on its own page, with
+	// the opposite transition, so neither is a constant.
+	quiet := section(t, m.get("/agent?name=%23quiet@h"), "<main>", "</main>")
+	if !strings.Contains(quiet, "aria-label=Active") || !strings.Contains(quiet, "Deactivate…") || strings.Contains(quiet, `value=reactivate`) {
+		t.Error("an active record is not labelled Active with its one transition")
+	}
+}
+
+// Deactivating a record is confirmed first, and only by whoever manages it.
+func TestRecordDeactivationIsConfirmedByItsManagerOnly(t *testing.T) {
+	m := meaningFixture(t)
+	m.shapes()
+	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "plain@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	confirm := section(t, m.get("/service-deactivate?name=%23quiet@h"), "<main>", "</main>")
+	if !strings.Contains(confirm, "Confirm deactivation") || !strings.Contains(confirm, `name=action value=deactivate`) {
+		t.Fatalf("the confirmation lacks its final action: %s", confirm)
+	}
+	// Opening it changed nothing.
+	if _, ok := m.bus.Lookup("admin@h", "#quiet@h"); !ok {
+		t.Fatal("the confirmation page deactivated the record")
+	}
+	// #quiet@h admits everyone, so plain@h reads it and manages nothing.
+	plain := m.as("plain@h")
+	if _, status := getAs(t, plain, "/service-deactivate?name=%23quiet@h"); status != http.StatusForbidden {
+		t.Errorf("a reader who does not manage the record opened its deactivation: %d", status)
+	}
+	if body, _ := getAs(t, plain, "/agent?name=%23quiet@h"); strings.Contains(body, "Deactivate…") {
+		t.Error("a reader who does not manage the record is offered its deactivation")
 	}
 }
 
@@ -230,10 +261,10 @@ func TestReadersAreObservedAndNeverCalledOfflineOrServing(t *testing.T) {
 			t.Errorf("the listing says %q, which is health language the daemon does not supply", banned)
 		}
 	}
-	if !strings.Contains(m.row(body, "#reading@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>1") {
+	if !strings.Contains(m.row(body, "#reading@h"), "aria-label=Active title=Active>🔛</span><td class=num data-label=Readers>1") {
 		t.Errorf("the outstanding read is not counted: %s", m.row(body, "#reading@h"))
 	}
-	if !strings.Contains(m.row(body, "#quiet@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>0") {
+	if !strings.Contains(m.row(body, "#quiet@h"), "aria-label=Active title=Active>🔛</span><td class=num data-label=Readers>0") {
 		t.Errorf("the measured zero is not shown: %s", m.row(body, "#quiet@h"))
 	}
 	if !strings.Contains(body, "None of it is health") {
@@ -574,7 +605,7 @@ func TestQueueObservationsSayWhenTheyWereTrue(t *testing.T) {
 	// the queue ever held anything. Matched as the template writes it — the
 	// first version of this looked for lowercase "oldest held: 0" against a
 	// page that says "Oldest held:", so it could not have fired.
-	empty := m.get("/service?name=%23off@h")
+	empty := m.get("/service?name=%23reading@h")
 	if strings.Contains(empty, "<dt>Oldest held<dd>0") {
 		t.Error("an absent oldest is rendered as a measured zero")
 	}
@@ -783,10 +814,10 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 		// Whoever is reading, the words for the three facts are the same. A
 		// label that changed with rank would be saying something about the
 		// caller rather than about the record.
-		if !strings.Contains(body, "Delivery") || !strings.Contains(body, "Reader") {
+		if !strings.Contains(body, "<th scope=col>Status") || !strings.Contains(body, "Reader") {
 			t.Errorf("%s does not get the same columns", who)
 		}
-		if strings.Contains(body, "Serving") || strings.Contains(body, "Inactive") {
+		if strings.Contains(body, "Serving") || strings.Contains(body, "Delivery") || strings.Contains(body, "Enabled") {
 			t.Errorf("%s is shown the old vocabulary", who)
 		}
 		if !strings.Contains(body, "not a count of this node") {
@@ -845,8 +876,8 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 }
 
 // Pub/sub and queue are what the record declares about delivery, and a
-// service declares neither. "Delivery" elsewhere on these pages is the
-// disabled bit, which is a different fact about a different thing, so both
+// service declares neither. Status beside it on these pages is a different
+// fact about a different thing, so both
 // have to be readable at once without either standing in for the other.
 func TestPubSubAndQueueDeliveryAreNamedAndNeitherIsGuessed(t *testing.T) {
 	m := meaningFixture(t)
@@ -866,11 +897,11 @@ func TestPubSubAndQueueDeliveryAreNamedAndNeitherIsGuessed(t *testing.T) {
 			t.Errorf("an external service is shown the delivery %q", guess)
 		}
 	}
-	// Both records are enabled, so the declared mode cannot be being read off
-	// the disabled bit that the listing calls Delivery.
+	// Both records are active, so the declared mode cannot be being read off
+	// the status the listing shows beside it.
 	for _, name := range []string{"fanout@h", "onebyone@h"} {
-		if !strings.Contains(m.row(m.get("/channels"), name), "aria-label=Enabled") {
-			t.Errorf("%s is not enabled, so its mode and its delivery state are not separable here", name)
+		if !strings.Contains(m.row(m.get("/channels"), name), "aria-label=Active") {
+			t.Errorf("%s is not active, so its mode and its status are not separable here", name)
 		}
 	}
 }
@@ -889,7 +920,7 @@ func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 	if !strings.Contains(m.row(body, "#quiet@h"), "<td class=num>0<td class=num>1<td class=num>") {
 		t.Errorf("the backlog does not show readers=0 and held=1: %s", m.row(body, "#quiet@h"))
 	}
-	if !strings.Contains(m.row(m.get("/agents"), "#reading@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>1") {
+	if !strings.Contains(m.row(m.get("/agents"), "#reading@h"), "aria-label=Active title=Active>🔛</span><td class=num data-label=Readers>1") {
 		t.Error("an unfiltered read is not counted")
 	}
 	// A read restricted to a topic is counted while a nonmatching backlog stays.
@@ -956,29 +987,27 @@ func TestTheUnclassifiedCategoryReadsTheSameWayEmptyAsPopulated(t *testing.T) {
 	}
 }
 
-// The delivery setting is not an answer about the next send. `visible` merges
-// the stored bit with the name having stopped being active, and that is all it
-// merges: a suspended OWNER is checked separately, at Send. So a record can
-// read Enabled while every send to it is refused, and the page has to say so
-// rather than presenting the setting as availability.
-func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
+// Active is not an answer about the next send. The status says the record is
+// an entity; the ACL, the owner's access and queue capacity are checked at
+// Send. So a record can read Active while a send to it is refused, and the
+// page has to say so rather than presenting the status as availability.
+func TestTheActiveStatusDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 	m := meaningFixture(t)
-	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"alice@h", "bob@h"} {
+		if _, err := m.bus.SetUser("admin@h", protocol.User{Name: name}, true); err != nil {
+			t.Fatal(err)
+		}
 	}
 	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"admin@h"}})
-	if _, err := m.bus.SetUserState("admin@h", "alice@h", "paused"); err != nil {
-		t.Fatal(err)
-	}
-	// The fact the page must not contradict.
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#svc@h", Body: "x"}); err == nil {
+	// The fact the page must not contradict: bob is not on the allow list.
+	if _, err := m.bus.Send(protocol.Envelope{From: "bob@h", To: "#svc@h", Body: "x"}); err == nil {
 		t.Fatal("the fixture's send was accepted, so there is nothing to misreport")
 	}
-	if !strings.Contains(m.get("/service?name=%23svc@h"), "aria-label=\"Enabled\" title=\"Enabled\">🔛") {
-		t.Fatal("the fixture no longer produces an enabled record whose sends are refused")
+	if !strings.Contains(m.get("/agent?name=%23svc@h"), "aria-label=Active title=Active>🔛") {
+		t.Fatal("the fixture no longer produces an active record whose sends are refused")
 	}
-	if !strings.Contains(m.row(m.get("/agents"), "#svc@h"), "aria-label=Enabled") {
-		t.Fatal("the listing no longer shows the record as enabled")
+	if !strings.Contains(m.row(m.get("/agents"), "#svc@h"), "aria-label=Active") {
+		t.Fatal("the listing no longer shows the record as active")
 	}
 	// On both pages. Correcting the detail page and leaving the listing's
 	// legend saying the withdrawn thing is the same shape as correcting one
@@ -989,7 +1018,7 @@ func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 			t.Errorf("%s says the record takes delivery now, which this send disproves", page)
 		}
 		if !strings.Contains(body, "does not establish that a send will be accepted") {
-			t.Errorf("%s presents the delivery setting as an answer about the next send", page)
+			t.Errorf("%s presents the status as an answer about the next send", page)
 		}
 		if !strings.Contains(body, "owner") {
 			t.Errorf("%s does not name the owner's access as one of the other checks", page)

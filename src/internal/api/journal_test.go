@@ -87,7 +87,7 @@ func TestAuditEntriesForEditsAndNoneForTraffic(t *testing.T) {
 		{"/configure", `{"name":"#svc@h","config":{"k":"` + canaryConfig + `"}}`, "configure", "#svc@h", "ok"},
 		{"/register", `{"name":"db@h","addr":"db:5432","protocol":"postgresql"}`, "register", "db@h", "ok"},
 		{"/secret", `{"name":"db@h","secret":"PW=` + canarySecret + `"}`, "set-secret", "db@h", "ok"},
-		{"/user/state", `{"name":"bob@h","state":"paused"}`, "user-state", "bob@h", "refused 403"},
+		{"/user/state", `{"name":"bob@h","status":"inactive"}`, "user-state", "bob@h", "refused 403"},
 	}
 	for _, c := range calls {
 		send(s, alice, "POST", c.path, c.body, "192.0.2.7:4000")
@@ -119,8 +119,8 @@ func TestAuditEntriesForEditsAndNoneForTraffic(t *testing.T) {
 func TestSuspensionAndReactivationAreAudited(t *testing.T) {
 	s, tok, rec := journalFixture(t)
 	admin := tok("admin@h")
-	send(s, admin, "POST", "/user/state", `{"name":"bob@h","state":"paused"}`, "")
-	send(s, admin, "POST", "/user/state", `{"name":"bob@h","state":"active"}`, "")
+	send(s, admin, "POST", "/user/state", `{"name":"bob@h","status":"inactive"}`, "")
+	send(s, admin, "POST", "/user/state", `{"name":"bob@h","status":"active"}`, "")
 	if len(rec.audit) != 2 || rec.audit[0].Operation != "user-state" || rec.audit[1].Result != "ok" {
 		t.Fatalf("%+v", rec.audit)
 	}

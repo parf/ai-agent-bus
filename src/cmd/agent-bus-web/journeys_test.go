@@ -117,8 +117,17 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	if _, status := getAs(t, m.as("visitor@h"), "/channel/edit?name=news@h"); status != http.StatusForbidden {
 		t.Errorf("a visitor reached the settings form directly: %d", status)
 	}
-	if location, status := postAs(t, m, "/service", url.Values{"action": {"disable"}, "name": {"jobs@h"}}); status != http.StatusSeeOther || location != "/channel?name=jobs%40h" {
-		t.Fatalf("Channel mutation returned to %q with %d, want its Channel detail", location, status)
+	// Both directions: after a deactivation /lookup answers unknown, so the
+	// section has to have been read before the change. An empty kind reads
+	// as a channel path, so the agent is the case that can tell.
+	for _, target := range []struct{ name, detail string }{
+		{"jobs@h", "/channel?name=jobs%40h"}, {"#worker@h", "/agent?name=%23worker%40h"},
+	} {
+		for _, action := range []string{"deactivate", "reactivate"} {
+			if location, status := postAs(t, m, "/service", url.Values{"action": {action}, "name": {target.name}}); status != http.StatusSeeOther || location != target.detail {
+				t.Fatalf("%s %s returned to %q with %d, want %s", target.name, action, location, status, target.detail)
+			}
+		}
 	}
 	danger := m.get("/service-danger?name=jobs@h")
 	if !strings.Contains(danger, `href="/channel?name=jobs%40h"`) {

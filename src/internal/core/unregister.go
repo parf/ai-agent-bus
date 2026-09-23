@@ -28,7 +28,7 @@ func (b *Bus) Unregister(name, caller string) error {
 	if err := b.acting(who); err != nil {
 		return err
 	}
-	r, known := b.records[n]
+	r, known := b.entity(n)
 	if !known {
 		return fmt.Errorf("%w: %s", ErrUnknown, n)
 	}

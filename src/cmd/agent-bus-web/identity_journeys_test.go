@@ -33,18 +33,18 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 
 	active := m.get("/user?name=alice@h")
 	activeMain := section(t, active, "<main>", "</main>")
-	for _, want := range []string{`href="/group?name=%40ops"`, ">Owned records</h2>", `href="/channel?name=alice-channel%40h"`, `href="/service?name=alice-service%40h"`, `href="/agent?name=%23alice-inbox%40h"`, `user-state-active`, `<details class=access-change>`, `>Change</summary>`, ">Pause</button>", ">Ban…</button>"} {
+	for _, want := range []string{`href="/group?name=%40ops"`, ">Owned records</h2>", `href="/channel?name=alice-channel%40h"`, `href="/service?name=alice-service%40h"`, `href="/agent?name=%23alice-inbox%40h"`, `user-state-active`, `<details class=access-change>`, `>Change</summary>`, ">Deactivate…</button>"} {
 		if !strings.Contains(activeMain, want) {
 			t.Errorf("active user detail lacks %q", want)
 		}
 	}
-	for _, style := range []string{`.user-state-active{color:var(--green)}`, `.user-state-paused{color:var(--orange)}`, `.user-state-banned{color:var(--red)}`, `.access-change summary{color:var(--red)`} {
+	for _, style := range []string{`.user-state-active{color:var(--green)}`, `.user-state-inactive{color:var(--red)}`, `.access-change summary{color:var(--red)`} {
 		if !strings.Contains(active, style) {
 			t.Errorf("user access presentation lacks %q", style)
 		}
 	}
-	if strings.Contains(activeMain, ">Activate</button>") || strings.Contains(activeMain, `name=action value=banned`) {
-		t.Error("active user exposes an inapplicable transition or bypasses ban confirmation")
+	if strings.Contains(activeMain, ">Reactivate</button>") || strings.Contains(activeMain, `name=action value=inactive`) {
+		t.Error("active user exposes an inapplicable transition or bypasses deactivation confirmation")
 	}
 	group := m.get("/group?name=%40ops")
 	for _, want := range []string{`href="/channel?name=alice-channel%40h"`, "ACL via @outer", "#outer-service@h"} {
@@ -53,28 +53,37 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 		}
 	}
 	ordinary := m.as("alice@h").get("/user?name=alice@h")
-	if !strings.Contains(ordinary, ">Access</h2>") || !strings.Contains(ordinary, "user-state-active") || strings.Contains(ordinary, `class=access-change`) || strings.Contains(ordinary, ">Ban…</button>") {
+	if !strings.Contains(ordinary, ">Access</h2>") || !strings.Contains(ordinary, "user-state-active") || strings.Contains(ordinary, `class=access-change`) || strings.Contains(ordinary, ">Deactivate…</button>") {
 		t.Fatal("ordinary user was shown administrative lifecycle controls")
 	}
-	confirm := m.get("/user-ban?name=alice@h")
+	confirm := m.get("/user-deactivate?name=alice@h")
 	confirm = section(t, confirm, "<main>", "</main>")
-	if !strings.Contains(confirm, "Confirm ban") || !strings.Contains(confirm, `name=action value=banned`) || strings.Contains(confirm, "user-state-banned") {
-		t.Fatal("ban confirmation is absent, mutates state, or lacks its final action")
+	if !strings.Contains(confirm, "Confirm deactivation") || !strings.Contains(confirm, `name=action value=inactive`) || strings.Contains(confirm, "user-state-inactive") {
+		t.Fatal("deactivation confirmation is absent, mutates state, or lacks its final action")
+	}
+	// Opening the confirmation changed nothing on the daemon.
+	for _, user := range m.bus.Users("admin@h", nil) {
+		if user.Name == "alice@h" && user.Status != protocol.StatusActive {
+			t.Fatalf("the confirmation page changed the user: %q", user.Status)
+		}
 	}
 
-	if _, err := m.bus.SetUserState("admin@h", "alice@h", "paused"); err != nil {
+	if _, err := m.bus.SetUserState("admin@h", "alice@h", protocol.StatusInactive); err != nil {
 		t.Fatal(err)
 	}
-	paused := m.get("/user?name=alice@h")
-	if !strings.Contains(paused, ">Activate</button>") || !strings.Contains(paused, ">Ban…</button>") || strings.Contains(paused, ">Pause</button>") {
-		t.Fatal("paused user does not show exactly the applicable transitions")
+	inactive := section(t, m.get("/user?name=alice@h"), "<main>", "</main>")
+	if !strings.Contains(inactive, ">Reactivate</button>") || !strings.Contains(inactive, "user-state-inactive") || strings.Contains(inactive, ">Deactivate…</button>") || strings.Contains(inactive, "user-state-active") {
+		t.Fatal("inactive user does not show exactly the applicable transition")
 	}
-	if _, err := m.bus.SetUserState("admin@h", "alice@h", "banned"); err != nil {
-		t.Fatal(err)
+	// There is nothing left to confirm: the page refuses rather than offering
+	// the same transition again.
+	if _, status := getAs(t, m, "/user-deactivate?name=alice@h"); status != http.StatusForbidden {
+		t.Errorf("an inactive user's deactivation confirmation answered %d, want 403", status)
 	}
-	banned := m.get("/user?name=alice@h")
-	if !strings.Contains(banned, ">Activate</button>") || strings.Contains(banned, ">Pause</button>") || strings.Contains(banned, ">Ban…</button>") {
-		t.Fatal("banned user does not show exactly the applicable transition")
+	// Every record an inactive user owns is inactive and gone from /ls; the
+	// user's page still names them, read from /inactive.
+	if !strings.Contains(inactive, `href="/agent?name=%23alice-inbox%40h"`) {
+		t.Error("an inactive user's page lost the records the user owns")
 	}
 	account := m.get("/account")
 	if !strings.Contains(account, " Account</h1>") || !strings.Contains(account, `class=account-link href=/account aria-current=page`) || !strings.Contains(account, "Fingerprint") || !strings.Contains(account, "agent-bus-token admin@h --rotate") || !strings.Contains(account, "#outer-service@h") {
@@ -98,13 +107,13 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 	}
 }
 
-func TestBanConfirmationStillRequiresTheDaemonAuthority(t *testing.T) {
+func TestDeactivationConfirmationStillRequiresTheDaemonAuthority(t *testing.T) {
 	m := meaningFixture(t)
 	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
 		t.Fatal(err)
 	}
 	alice := m.as("alice@h")
-	req, err := http.NewRequest(http.MethodGet, alice.web.URL+"/user-ban?name=alice@h", nil)
+	req, err := http.NewRequest(http.MethodGet, alice.web.URL+"/user-deactivate?name=alice@h", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +129,7 @@ func TestBanConfirmationStillRequiresTheDaemonAuthority(t *testing.T) {
 
 	// A forged final form is still refused by the daemon even when the browser
 	// confirmation is skipped.
-	form := url.Values{"action": {"banned"}, "name": {"alice@h"}}
+	form := url.Values{"action": {protocol.StatusInactive}, "name": {"alice@h"}}
 	req, err = http.NewRequest(http.MethodPost, alice.web.URL+"/user", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatal(err)
@@ -138,8 +147,8 @@ func TestBanConfirmationStillRequiresTheDaemonAuthority(t *testing.T) {
 	}
 	users := m.bus.Users("admin@h", nil)
 	for _, user := range users {
-		if user.Name == "alice@h" && user.State != "active" {
-			t.Fatal("refused forged ban changed the user")
+		if user.Name == "alice@h" && user.Status != protocol.StatusActive {
+			t.Fatal("refused forged deactivation changed the user")
 		}
 	}
 }

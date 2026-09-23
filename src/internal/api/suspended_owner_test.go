@@ -10,10 +10,10 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// H.5.7: every service a paused or banned user owns refuses calls while that
-// lasts (docs/01-identity-and-roles.md#user-states). The
-// check is on the called name, not on who is asking, so these are all about
-// what `svc@h` answers rather than about who alice@h is.
+// An inactive User makes every record it owns inactive, and an inactive record
+// is no such entity to every caller: 404, not a separate suspended state
+// (docs/constitution.md#-user). The User's own agents are refused as callers,
+// 403 suspended. Nothing is destroyed, so reactivation restores everything.
 
 type suspendFixture struct {
 	bus   *core.Bus
@@ -72,7 +72,7 @@ func (f suspendFixture) raw(token, method, path, body string, want int) string {
 
 func (f suspendFixture) state(name, state string) {
 	f.t.Helper()
-	f.call("admin@h", "POST", "/user/state", `{"kind":"agent","name":"`+name+`","state":"`+state+`"}`, 200)
+	f.call("admin@h", "POST", "/user/state", `{"kind":"agent","name":"`+name+`","status":"`+state+`"}`, 200)
 }
 
 func (f suspendFixture) refusals() map[string]int {
@@ -84,30 +84,27 @@ func (f suspendFixture) refusals() map[string]int {
 	return st.Refused
 }
 
-// The whole rule in one run: refused for everybody while it lasts, and serving
-// again the moment it is lifted.
-func TestASuspendedOwnersServiceRefusesEveryCaller(t *testing.T) {
+// The whole rule in one run: no such record for everybody while it lasts, and
+// serving again the moment the User is active.
+func TestAnInactiveOwnersRecordsAreNoSuchEntity(t *testing.T) {
 	f := suspendedOwnerFixture(t)
 	f.call("bystander@h", "POST", "/send", `{"to":"#svc@h","body":"before"}`, 200)
 
-	for _, state := range []string{"paused", "banned"} {
+	for _, state := range []string{"inactive"} {
 		f.state("alice@h", state)
 
-		// A stranger on the ACL, a daemon administrator, the daemon owner, and
-		// the service's own principal. Not one of them is the suspended
-		// person, which is the point: the check is on the called name.
+		// A stranger on the ACL, a daemon administrator and the daemon owner.
+		// Not one of them is the inactive person, which is the point: the
+		// called record is no such record, whoever asks.
 		for _, who := range []string{"bystander@h", "maint@h", "admin@h"} {
-			body := f.call(who, "POST", "/send", `{"to":"#svc@h","body":"during"}`, 403)
-			if !strings.Contains(body, "suspended") {
-				t.Errorf("%s sending to a %s owner's service was refused without saying why: %s", who, state, body)
+			body := f.call(who, "POST", "/send", `{"to":"#svc@h","body":"during"}`, 404)
+			if !strings.Contains(body, "no such receiver") {
+				t.Errorf("%s sending to a %s owner's agent was not told there is no such receiver: %s", who, state, body)
 			}
 		}
-		// The service reading its own inbox, on its own credential.
+		// The agent itself, on its own credential, is an inactive caller.
 		f.call("#svc@h", "GET", "/consume?wait=0s", "", 403)
-
-		// Not 404. The name exists and the caller may see it; answering
-		// not-found would say it had never been registered.
-		f.call("bystander@h", "GET", "/lookup?name=%23svc@h", "", 200)
+		f.call("bystander@h", "GET", "/lookup?name=%23svc@h", "", 404)
 
 		// Positive control, in the same state: an active owner's service is
 		// untouched, so the refusal is about alice and not about the daemon.
@@ -119,18 +116,26 @@ func TestASuspendedOwnersServiceRefusesEveryCaller(t *testing.T) {
 	}
 }
 
-// Nothing is destroyed by either state. This is the half that makes the rule
-// liftable: a ban that reaped the work could not be undone.
+// Nothing is destroyed by inactivity. This is the half that makes the rule
+// reversible: a deactivation that reaped the work could not be undone.
 func TestSuspensionDestroysNothing(t *testing.T) {
 	f := suspendedOwnerFixture(t)
 	f.call("bystander@h", "POST", "/send", `{"to":"#svc@h","body":"queued before the pause"}`, 200)
 	aliceHeld, svcHeld := f.token("alice@h"), f.token("#svc@h")
-	f.state("alice@h", "banned")
+	f.state("alice@h", "inactive")
 
-	// The record is still there, and still says what it said.
-	var rec protocol.Record
-	if err := json.Unmarshal([]byte(f.call("admin@h", "GET", "/lookup?name=%23svc@h", "", 200)), &rec); err != nil {
+	// The record is still there, and still says what it said: hidden from
+	// lookup, and in the daemon Owner's read-only view of inactive records.
+	f.call("admin@h", "GET", "/lookup?name=%23svc@h", "", 404)
+	var inactive []protocol.Record
+	if err := json.Unmarshal([]byte(f.call("admin@h", "GET", "/inactive", "", 200)), &inactive); err != nil {
 		t.Fatal(err)
+	}
+	var rec protocol.Record
+	for _, r := range inactive {
+		if r.Name == "#svc@h" {
+			rec = r
+		}
 	}
 	if rec.Owner != "alice@h" {
 		t.Errorf("the ban changed the record's owner: %q", rec.Owner)
@@ -147,7 +152,7 @@ func TestSuspensionDestroysNothing(t *testing.T) {
 	for _, u := range people {
 		if u.Name == "alice@h" {
 			found = true
-			if u.State != "banned" {
+			if u.Status != "inactive" {
 				t.Errorf("the banned user's record does not say so: %+v", u)
 			}
 		}
@@ -158,7 +163,7 @@ func TestSuspensionDestroysNothing(t *testing.T) {
 
 	// An Administrator may lift an ordinary user's ban. The credentials and
 	// queue below were retained across that Administrator-authorized lift.
-	f.call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","state":"active"}`, 200)
+	f.call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","status":"active"}`, 200)
 
 	// Both credentials still work, and these are the bytes held before the
 	// ban rather than freshly minted ones, so this is kept-not-revoked rather
@@ -177,15 +182,15 @@ func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 	f := suspendedOwnerFixture(t)
 	f.call("alice@h", "POST", "/register", `{"name":"jobs@h","kind":"queue","allow":["bystander@h","admin@h"],"share":true}`, 200)
 	f.call("bystander@h", "POST", "/send", `{"to":"jobs@h","body":"waiting"}`, 200)
-	f.state("alice@h", "paused")
+	f.state("alice@h", "inactive")
 
-	body := f.call("bystander@h", "GET", "/consume?inbox=jobs@h&wait=0s", "", 403)
-	if !strings.Contains(body, "suspended") {
-		t.Errorf("a third-party read was refused without saying why: %s", body)
+	body := f.call("bystander@h", "GET", "/consume?inbox=jobs@h&wait=0s", "", 404)
+	if !strings.Contains(body, "no inbox for jobs@h") {
+		t.Errorf("a third-party read was not told there is no such inbox: %s", body)
 	}
-	// The daemon owner is explicitly listed, and owner suspension still
-	// blocks that otherwise-valid read authority.
-	f.call("admin@h", "GET", "/consume?inbox=jobs@h&wait=0s", "", 403)
+	// The daemon owner is explicitly listed, and the inactive owner still
+	// makes the queue no such inbox to that otherwise-valid read authority.
+	f.call("admin@h", "GET", "/consume?inbox=jobs@h&wait=0s", "", 404)
 
 	// The work is still there when the state is lifted; nothing was drained
 	// or discarded while it was refused.
@@ -195,61 +200,65 @@ func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 	}
 }
 
-// Writing a suspended owner's Deliver-To list is a call the owner cannot
-// answer for; a recipient leaving is not.
-func TestASuspendedOwnerCannotWriteDeliverToAndARecipientMayStillLeave(t *testing.T) {
+// An inactive owner cannot write, and nobody names, its topic; it sends no
+// copies meanwhile, so a recipient loses nothing by waiting, and leaves once
+// the topic is back.
+func TestAnInactiveOwnersTopicIsNamedByNobodyUntilItIsBack(t *testing.T) {
 	f := suspendedOwnerFixture(t)
 	// A published copy lands in an agent, never in a User's own inbox, so the
 	// recipients are the two people's agents.
 	f.call("bystander@h", "POST", "/register", `{"kind":"agent","name":"#bystander-box@h","allow":["*"]}`, 200)
 	f.call("maint@h", "POST", "/register", `{"kind":"agent","name":"#maint-box@h","allow":["*"]}`, 200)
 	f.call("alice@h", "POST", "/register", `{"name":"feed@h","kind":"pubsub","allow":["bystander@h","maint@h"],"subs":["#bystander-box@h"]}`, 200)
-	f.state("alice@h", "paused")
+	f.state("alice@h", "inactive")
 
 	f.call("alice@h", "POST", "/manage", `{"name":"feed@h","subs":["#bystander-box@h","#maint-box@h"]}`, 403)
-	// Already on the list, and free to go: trapping somebody in a channel
-	// they can no longer use would be a worse answer than letting them leave.
-	f.call("#bystander-box@h", "POST", "/subscribe", `{"channel":"feed@h","off":true}`, 200)
+	f.call("#bystander-box@h", "POST", "/subscribe", `{"channel":"feed@h","off":true}`, 404)
+	f.call("maint@h", "POST", "/send", `{"to":"feed@h","body":"nobody hears"}`, 404)
 
 	f.state("alice@h", "active")
+	f.call("#bystander-box@h", "POST", "/subscribe", `{"channel":"feed@h","off":true}`, 200)
 	f.call("alice@h", "POST", "/manage", `{"name":"feed@h","subs":["#maint-box@h"]}`, 200)
 }
 
-// Suspension follows the record's User owner, and every record has one: what
-// an agent registers is its User's, so a record made by an agent is suspended
+// Inactivity follows the record's User owner, and every record has one: what
+// an agent registers is its User's, so a record made by an agent is inactive
 // with that User too (docs/constitution.md#-registry-record).
-func TestSuspensionReachesWhatAnAgentMade(t *testing.T) {
+func TestInactivityReachesWhatAnAgentMade(t *testing.T) {
 	f := suspendedOwnerFixture(t)
 	f.call("alice@h", "POST", "/register", `{"kind":"agent","name":"#parent@h","allow":["bystander@h","#parent@h"]}`, 200)
 	f.call("#parent@h", "POST", "/register", `{"kind":"agent","name":"#child@h","allow":["bystander@h"]}`, 200)
-	f.state("alice@h", "paused")
+	f.state("alice@h", "inactive")
 
-	f.call("bystander@h", "POST", "/send", `{"to":"#parent@h","body":"refused"}`, 403)
-	f.call("bystander@h", "POST", "/send", `{"to":"#child@h","body":"refused too"}`, 403)
+	f.call("bystander@h", "POST", "/send", `{"to":"#parent@h","body":"refused"}`, 404)
+	f.call("bystander@h", "POST", "/send", `{"to":"#child@h","body":"refused too"}`, 404)
 }
 
 // The reason is counted where the code is decided
 // (docs/05-discovery.md#refusals), so a refusal nobody can see is not one.
-func TestASuspendedOwnersRefusalIsCounted(t *testing.T) {
+func TestAnInactiveOwnersRefusalsAreCounted(t *testing.T) {
 	f := suspendedOwnerFixture(t)
-	f.state("alice@h", "paused")
+	f.state("alice@h", "inactive")
 
-	// Two paths reach a 403 and both must count. A caller refused by a
-	// handler goes through reply(); the service's own credential is refused
-	// at the gate, before any handler runs, and the gate hands the same error
-	// to the same reply() rather than answering for itself.
+	// Two paths and two reasons, each counted. A caller naming the inactive
+	// record is refused by a handler as unknown; the agent's own credential is
+	// refused at the gate as suspended, and the gate hands the error to the
+	// same reply() rather than answering for itself.
 	//
 	// Measured immediately around each request, and exactly one: a baseline
-	// taken before the pause would also accept an increment at pause time, or
-	// a double count, without proving this request produced one.
-	for _, c := range []struct{ who, method, path, body string }{
-		{"bystander@h", "POST", "/send", `{"to":"#svc@h","body":"counted"}`},
-		{"#svc@h", "GET", "/status", ""},
+	// taken before the deactivation would also accept an increment at that
+	// moment, or a double count, without proving this request produced one.
+	for _, c := range []struct {
+		who, method, path, body, reason string
+		code                            int
+	}{
+		{"bystander@h", "POST", "/send", `{"to":"#svc@h","body":"counted"}`, "unknown", 404},
+		{"#svc@h", "GET", "/status", "", "suspended", 403},
 	} {
-		before := f.refusals()["suspended"]
-		f.call(c.who, c.method, c.path, c.body, 403)
-		if after := f.refusals()["suspended"]; after != before+1 {
-			t.Errorf("%s %s: the suspended counter went %d to %d, want one more", c.who, c.path, before, after)
+		before := f.refusals()[c.reason]
+		f.call(c.who, c.method, c.path, c.body, c.code)
+		if after := f.refusals()[c.reason]; after != before+1 {
+			t.Errorf("%s %s: the %s counter went %d to %d, want one more", c.who, c.path, c.reason, before, after)
 		}
 	}
 }

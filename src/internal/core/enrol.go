@@ -65,7 +65,7 @@ func (b *Bus) Challenge(name string) (string, error) {
 		return "", fmt.Errorf("%w: %s", ErrBadName, err)
 	}
 	b.mu.Lock()
-	if !b.active(n.String()) {
+	if _, user := b.users[n.String()]; user && !b.userActive(n.String()) {
 		b.unlock()
 		return "", ErrInactive
 	}

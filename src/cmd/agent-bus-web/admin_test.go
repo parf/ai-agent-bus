@@ -188,7 +188,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 	// A service has no queue, so its form asks nothing about one, and the save
 	// changes only what the form showed.
 	external := request("owner@h", "GET", "/service?name=db@h", "", nil, 200)
-	for _, absent := range []string{"name=bound", "name=ttl", "name=overflow", "Disable delivery"} {
+	for _, absent := range []string{"name=bound", "name=ttl", "name=overflow"} {
 		if strings.Contains(external, absent) {
 			t.Fatalf("the service editor offers %q, which is about a queue it does not have", absent)
 		}
@@ -254,17 +254,23 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); !strings.Contains(body, "#svc@h") {
 		t.Fatal("own active agent missing")
 	}
-	disable := url.Values{"action": {"disable"}, "name": {"#svc@h"}}
+	disable := url.Values{"action": {"deactivate"}, "name": {"#svc@h"}}
 	request("owner@h", "POST", "/service", "https://evil.example", disable, 403)
 	request("owner@h", "POST", "/service", "", disable, 403)
 	request("other@h", "POST", "/service", web.URL, disable, 403)
 	request("admin@h", "POST", "/service", web.URL, disable, 303)
 	request("owner@h", "POST", "/service", web.URL, disable, 303)
-	if body := request("owner@h", "GET", "/services?scope=my&state=active", "", nil, 200); strings.Contains(body, "#svc@h") {
-		t.Fatal("disabled service appears active")
+	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); strings.Contains(body, "#svc@h") {
+		t.Fatal("inactive agent appears active")
 	}
 	if body := request("owner@h", "GET", "/agents?scope=my&state=inactive", "", nil, 200); !strings.Contains(body, "#svc@h") {
-		t.Fatal("disabled agent missing")
+		t.Fatal("inactive agent missing")
+	}
+	// Inactive is no such record to every edit but its reactivation.
+	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"save"}, "name": {"#svc@h"}, "descr": {"while inactive"}}, 404)
+	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"reactivate"}, "name": {"#svc@h"}}, 303)
+	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); !strings.Contains(body, "#svc@h") {
+		t.Fatal("reactivated agent is not active")
 	}
 	group := url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"other@h\nadmin@h"}}
 	request("owner@h", "POST", "/groups", web.URL, group, 403)
@@ -349,7 +355,15 @@ admin@h</textarea>`) {
 	if !strings.Contains(danger, "Replace configuration") || !strings.Contains(danger, "Remove registration") || strings.Contains(danger, "Transfer ownership") {
 		t.Fatal("maintainer Danger Zone controls wrong")
 	}
-	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"enable"}, "name": {"#svc@h"}}, 303)
+	// A Maintainer may take the record out of service and bring it back.
+	request("other@h", "POST", "/service", web.URL, disable, 303)
+	if _, ok := b.Lookup("other@h", "#svc@h"); ok {
+		t.Fatal("a Maintainer's deactivation left the record readable")
+	}
+	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"reactivate"}, "name": {"#svc@h"}}, 303)
+	if _, ok := b.Lookup("other@h", "#svc@h"); !ok {
+		t.Fatal("a Maintainer's reactivation did not bring the record back")
+	}
 	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"transfer"}, "name": {"#svc@h"}, "owner": {"other@h"}}, 403)
 	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"save"}, "name": {"#svc@h"}, "descr": {"updated"}, "allow": {"owner@h"}, "bound": {"3"}, "overflow": {"strict"}}, 303)
 	record, _ := b.Lookup("owner@h", "#svc@h")

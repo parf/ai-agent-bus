@@ -77,7 +77,7 @@ func (b *Bus) Activity(caller, name string) ([]ActivityPoint, error) {
 	b.mu.Lock()
 	defer b.unlock()
 	if name != "" {
-		r, known := b.records[name]
+		r, known := b.entity(name)
 		if !known || !b.canSee(caller, r) {
 			return nil, ErrUnknown
 		}

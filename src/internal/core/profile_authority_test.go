@@ -34,7 +34,7 @@ func TestUserEditsOnlyTheirOwnEmail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Email != "new@example.com" || got.PersonName != "Alice" || got.GithubUser != "alice-gh" || got.State != "active" {
+	if got.Email != "new@example.com" || got.PersonName != "Alice" || got.GithubUser != "alice-gh" || got.Status != "active" {
 		t.Fatalf("self edit changed protected fields or missed normalization: %+v", got)
 	}
 	if !got.CanSetEmail || got.CanEdit {
@@ -61,7 +61,7 @@ func TestUserEditsOnlyTheirOwnEmail(t *testing.T) {
 	if _, err := b.EditOwnEmail("#svc@h", "svc@example.com"); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("record-only identity edited a profile: %v", err)
 	}
-	if _, err := b.SetUserState("admin@h", "alice@h", "paused"); err != nil {
+	if _, err := b.SetUserState("admin@h", "alice@h", "inactive"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.EditOwnEmail("alice@h", "paused@example.com"); !errors.Is(err, ErrInactive) {
@@ -77,7 +77,7 @@ func TestAdministratorUnbansOnlyOrdinaryUsers(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#alice-svc@h", Owner: "alice@h", Allow: []string{"admin@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.SetUserState("admin@h", "alice@h", "banned"); err != nil {
+	if _, err := b.SetUserState("admin@h", "alice@h", "inactive"); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Authenticate("#alice-svc@h"); !errors.Is(err, ErrInactive) {
@@ -96,7 +96,7 @@ func TestAdministratorUnbansOnlyOrdinaryUsers(t *testing.T) {
 		t.Fatalf("unban did not restore directly owned service: %v", err)
 	}
 
-	if _, err := b.SetUserState("owner@h", "peer@h", "banned"); err != nil {
+	if _, err := b.SetUserState("owner@h", "peer@h", "inactive"); err != nil {
 		t.Fatal(err)
 	}
 	for _, target := range []string{"peer@h", "admin@h", "owner@h"} {
@@ -105,10 +105,10 @@ func TestAdministratorUnbansOnlyOrdinaryUsers(t *testing.T) {
 		}
 	}
 
-	if _, err := b.SetUserState("admin@h", "bob@h", "banned"); err != nil {
+	if _, err := b.SetUserState("admin@h", "bob@h", "inactive"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.SetUser("admin@h", protocol.User{Name: "bob@h", PersonName: "Bob", Email: "bob@example.com", GithubUser: "bob-gh", State: "active"}, false); err != nil {
+	if _, err := b.SetUser("admin@h", protocol.User{Name: "bob@h", PersonName: "Bob", Email: "bob@example.com", GithubUser: "bob-gh", Status: "active"}, false); err != nil {
 		t.Fatalf("administrator could not unban through administrative profile update: %v", err)
 	}
 }

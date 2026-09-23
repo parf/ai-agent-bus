@@ -132,7 +132,17 @@ func dashboard(bus *caller, tls bool) http.Handler {
 		if !ok {
 			return
 		}
-		v.Attention = attentionItems(v.Status, v.Records)
+		// Inactive records are not in /ls; work they hold is still held, and
+		// /inactive is the one place it can be seen from.
+		var inactive []protocol.Record
+		if err := bus.get(cookie(r), "/inactive", &inactive); err != nil {
+			fail(w, r, v.You, err)
+			return
+		}
+		for i := range inactive {
+			inactive[i].Status = protocol.StatusInactive
+		}
+		v.Attention = attentionItems(v.Status, append(append([]protocol.Record{}, v.Records...), inactive...))
 		render(w, overviewPage, v)
 	})
 
@@ -504,8 +514,7 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
 button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
 .user-state{display:inline-flex;align-items:center;gap:.35rem;font-weight:700}
 .user-state-active{color:var(--green)}
-.user-state-paused{color:var(--orange)}
-.user-state-banned{color:var(--red)}
+.user-state-inactive{color:var(--red)}
 .access-change{margin-top:.8rem;padding-top:.65rem;border-top:1px solid var(--border)}
 .access-change summary{color:var(--red);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:.2em}
 .access-change[open] summary{margin-bottom:.75rem}
@@ -544,7 +553,6 @@ button.danger-action{color:#fff;background:var(--red);border-color:var(--red)}
 .node-fact strong{display:block;margin-top:auto;padding-top:.15rem;font-size:1.55rem;font-variant-numeric:tabular-nums;text-align:right}
 .state-badge{display:inline-block;padding:0 .35rem;border-radius:2px;font-size:.72rem;font-weight:700;letter-spacing:.04em;vertical-align:.08em}
 .state-inactive{color:var(--text-2);border:1px solid var(--border-strong)}
-.state-banned{background:var(--red);color:#ffd83d}
 .overview-links{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin-top:1rem}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem 1.25rem}
 .form-field{display:flex;flex-direction:column;gap:.3rem;font-weight:600}
@@ -696,7 +704,7 @@ var overviewPage = template.Must(template.New("overview").Funcs(template.FuncMap
 {{if .Attention}}<section class=dashboard-section aria-labelledby=attention><h2 id=attention>Needs attention</h2>
 <div class=attention-list>{{range .Attention}}<article class="attention-item attention-{{.Level}}"><h3>{{.Title}}</h3>
 {{if eq .Kind "refusal"}}<p><code>{{.Reason}}</code> · {{number .Count}} since this daemon started</p>
-{{else if eq .Kind "record"}}<p><code>{{.Name}}</code> · {{number .Queued}} held now{{with .Oldest}} · oldest {{.}}{{end}}{{if .Disabled}} · delivery off{{end}}{{if .AtBound}} · at capacity{{end}}{{with .Overflow}} · {{.}}{{end}}{{if .Dropped}} · {{number .Dropped}} dropped{{end}}{{if .Expired}} · {{number .Expired}} expired{{end}}</p>
+{{else if eq .Kind "record"}}<p><code>{{.Name}}</code> · {{number .Queued}} held now{{with .Oldest}} · oldest {{.}}{{end}}{{if .Inactive}} · inactive{{end}}{{if .AtBound}} · at capacity{{end}}{{with .Overflow}} · {{.}}{{end}}{{if .Dropped}} · {{number .Dropped}} dropped{{end}}{{if .Expired}} · {{number .Expired}} expired{{end}}</p>
 {{else}}<p>Memory from the previous run may not have reached the snapshot.</p>{{end}}
 <p class=muted><a href="{{.Href}}">{{.Link}}</a></p></article>{{end}}</div>
 </section>{{end}}

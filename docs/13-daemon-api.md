@@ -87,7 +87,8 @@ most need daemon administration.
 | Route | |
 |---|---|
 | `GET /users` · `POST /user` | the people this node knows, and adding or editing one ([users and profiles](01-identity-and-roles.md#users-and-profiles)) |
-| `POST /user/state` | active, paused or banned ([user states](01-identity-and-roles.md#user-states)) |
+| `POST /user/state` | `{"name", "status"}`, active or inactive ([user states](01-identity-and-roles.md#user-states)) |
+| `GET /inactive` | the one read-only view of inactive records, for the web face ([record status](constitution.md#common-record-fields)) |
 | `POST /user/github-refresh` · `POST /profile` | refresh a provider snapshot; edit the profile fields |
 | `POST /identity/remove` | remove a person and what answered for them ([orphaned records](01-identity-and-roles.md#orphaned-records)) |
 | `GET /groups` · `POST /group` | group membership ([groups](01-identity-and-roles.md#groups)) |

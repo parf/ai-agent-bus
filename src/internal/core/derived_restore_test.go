@@ -18,7 +18,7 @@ import (
 func forged() protocol.User {
 	return protocol.User{
 		Name: "alice@h", PersonName: "Alice", Email: "alice@example.com",
-		State: "paused", GithubUser: "alice", GithubCompany: "ACME",
+		Status: "inactive", GithubUser: "alice", GithubCompany: "ACME",
 		GithubLocation: "Boston", GithubTwitterUsername: "alice",
 		GithubProfileAt: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC),
 		GithubAvatarURL: "https://example.invalid/a.png", GithubGravatarID: "abc",
@@ -90,7 +90,7 @@ func TestRestoreKeepsDurableProfileLifecycleAndProviderState(t *testing.T) {
 	}{
 		{"PersonName", got.PersonName, want.PersonName},
 		{"Email", got.Email, want.Email},
-		{"State", got.State, want.State},
+		{"State", got.Status, want.Status},
 		{"GithubUser", got.GithubUser, want.GithubUser},
 		{"GithubCompany", got.GithubCompany, want.GithubCompany},
 		{"GithubLocation", got.GithubLocation, want.GithubLocation},

@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,7 +35,6 @@ var (
 	// ErrStaleCredential is a credential whose User/Agent pair is not who
 	// the name is now: refused as if it did not exist.
 	ErrStaleCredential = errors.New("that credential no longer answers for that name")
-	ErrDisabled        = errors.New("delivery to that name is turned off")
 	ErrUnknown         = errors.New("no such name")
 	ErrTwoReads        = errors.New("inbox already has a reader, and neither asked to share it")
 	ErrBadName         = errors.New("bad name")
@@ -201,6 +202,9 @@ func validateKind(r protocol.Record) error {
 	if !protocol.ValidKind(r.Kind) {
 		return fmt.Errorf("%w: %q is not one of %s", ErrKind, r.Kind, protocol.KindNames())
 	}
+	if err := validStatus(r.Status); err != nil {
+		return err
+	}
 	// An Agent's name begins with "#" and nothing else's does, so the name
 	// alone says the kind (docs/constitution.md#actors-and-ascii-textarea-syntax).
 	// Neither is completed, guessed or tolerated.
@@ -247,9 +251,6 @@ func validateKind(r protocol.Record) error {
 	}
 	if r.TTL != "" || r.Bound != 0 || r.Full != "" {
 		return fmt.Errorf("%w: a service has no queue here, so it takes no TTL, capacity or overflow policy", ErrKind)
-	}
-	if r.Disabled {
-		return fmt.Errorf("%w: a service has no delivery here to turn off", ErrKind)
 	}
 	return nil
 }
@@ -396,7 +397,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	}
 	r.Config, r.ConfigSHA = nil, ""
 	r.Secret, r.SecretSHA = "", ""
-	r.Maintainers, r.Disabled = nil, false
+	// A registration states no status: a new record is active, and an
+	// existing one keeps its own.
+	r.Maintainers, r.Status = nil, ""
 	clearLiveRecord(&r)
 	// Publishing a name is open to anyone; changing one that exists belongs
 	// to its owner, and to the record itself — a service registering on
@@ -404,6 +407,12 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// other principal that could hold that name's credential.
 	// See docs/01-identity-and-roles.md#ownership.
 	if old, known := b.record(name); known {
+		// An inactive record keeps its name reserved: nothing registers over
+		// it, and only a status edit brings it back
+		// (docs/constitution.md#common-record-fields).
+		if !b.live(old) {
+			return protocol.Record{}, fmt.Errorf("%w: %s is reserved by an inactive record", ErrExists, name)
+		}
 		// A record's kind is what it is for good: a registration cannot turn
 		// a user's own record, or anything else, into another kind
 		// (docs/constitution.md#authority-rules).
@@ -425,7 +434,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		if r.Subs == nil {
 			r.Subs = old.Subs
 		}
-		r.Maintainers, r.Disabled = append(protocol.MaintainerList(nil), old.Maintainers...), old.Disabled
+		r.Maintainers, r.Status = append(protocol.MaintainerList(nil), old.Maintainers...), old.Status
 		// Personal is the owner's classification. A service refreshes its own
 		// metadata on every start and cannot clear or set that owner choice.
 		r.Personal = old.Personal
@@ -458,8 +467,8 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		if err := b.applyGithubProfile(&user, profile, name); err != nil {
 			return protocol.Record{}, err
 		}
-		if user.State == "" {
-			user.State = "active"
+		if user.Status == "" {
+			user.Status = protocol.StatusActive
 		}
 		b.setUser(name, user)
 	}
@@ -521,6 +530,11 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		return protocol.Record{}, err
 	}
 	r, known := b.record(n)
+	// An inactive record is no such name to configure, and its name stays
+	// reserved, so this is no way to create over it either.
+	if known && !b.live(r) {
+		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
+	}
 	if !known {
 		// Creating here obeys what creating anywhere else obeys. This is a
 		// creation path as much as registration is, and a rule only one of
@@ -580,7 +594,7 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 	if err := b.acting(who); err != nil {
 		return nil, err
 	}
-	r, known := b.records[n]
+	r, known := b.entity(n)
 	if !known || !b.may(who, r) && !b.mayReadPrivate(who, r) {
 		return nil, fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
@@ -625,7 +639,7 @@ func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
 	if err := b.acting(who); err != nil {
 		return protocol.Record{}, err
 	}
-	r, known := b.record(n)
+	r, known := b.entity(n)
 	if !known {
 		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
@@ -666,7 +680,7 @@ func (b *Bus) Secret(name, caller string) (string, error) {
 	if err := b.acting(who); err != nil {
 		return "", err
 	}
-	r, known := b.records[n]
+	r, known := b.entity(n)
 	// Asked before the kind and before the secret exists, so a caller who may
 	// not see the name learns only that — the same order Send uses. A record
 	// with a principal of its own reads its secret itself; any other is read
@@ -692,7 +706,7 @@ func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	r, ok := b.records[n]
+	r, ok := b.entity(n)
 	// A name you may not see does not exist as far as you are concerned:
 	// hiding it and refusing it are different answers, and discovery is the
 	// half that hides. See docs/02-access.md#acl.
@@ -788,11 +802,34 @@ func (b *Bus) List(caller, kind string) []protocol.Record {
 		// Two things are held back: what the caller may not see at all,
 		// and the configuration, which is nobody's but the service's — a
 		// digest of it is what a query gets instead.
-		if !b.canSee(caller, r) {
+		// An inactive record is in no listing; the web face's read-only
+		// view below is the one place it shows.
+		if !b.live(r) || !b.canSee(caller, r) {
 			continue
 		}
 		out = append(out, b.visible(caller, r))
 	}
+	return out
+}
+
+// Inactive is the one read-only view of inactive records, for the web face:
+// each shown to the actors its ACL admits, and always to the daemon Owner. It
+// reads; nothing else names an inactive record except its reactivation
+// (docs/constitution.md#common-record-fields).
+func (b *Bus) Inactive(caller string) []protocol.Record {
+	b.mu.Lock()
+	defer b.unlock()
+	if b.acting(caller) != nil {
+		return []protocol.Record{}
+	}
+	out := []protocol.Record{}
+	for _, r := range b.records {
+		if b.live(r) || caller != b.admin && !b.may(caller, r) {
+			continue
+		}
+		out = append(out, b.visible(caller, r))
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }
 
@@ -853,7 +890,9 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	if err := b.acting(from); err != nil {
 		return protocol.Envelope{}, err
 	}
-	rec, known := b.records[to]
+	// An inactive receiver is no such receiver, whoever asks: the daemon
+	// owner is refused as readily as a stranger (docs/constitution.md#common-record-fields).
+	rec, known := b.entity(to)
 	if !known {
 		return protocol.Envelope{}, fmt.Errorf("no such receiver: %s (%w)", to, ErrUnknown)
 	}
@@ -872,14 +911,6 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	} else if !b.may(from, rec) {
 		return protocol.Envelope{}, fmt.Errorf("%s may not send to %s: %w", from, to, ErrNotAllow)
 	}
-	// The check is on the called name rather than on who is asking, so the
-	// daemon owner is refused here as readily as a stranger.
-	if err := b.suspension(to); err != nil {
-		return protocol.Envelope{}, err
-	}
-	if rec.Disabled {
-		return protocol.Envelope{}, ErrDisabled
-	}
 	// Asked after the ACL, so a caller who may not see the name is told that
 	// and not which kind it is. See docs/03-records.md#five-record-kinds.
 	if !onBus(rec) {
@@ -893,7 +924,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 		if err != nil {
 			return protocol.Envelope{}, fmt.Errorf("reply-to: %w", err)
 		}
-		if _, known := b.records[back]; !known {
+		if _, known := b.entity(back); !known {
 			return protocol.Envelope{}, fmt.Errorf("no such reply address: %s (%w)", back, ErrUnknown)
 		}
 		e.ReplyTo = &protocol.ReplyTo{Name: back, Topic: e.ReplyTo.Topic, Tag: e.ReplyTo.Tag}
@@ -995,41 +1026,52 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 // is a queue, and a 📮 channel is what that caller wanted.
 // Caller holds the lock.
 func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envelope, error) {
-	b.ensure(topic.Name).in++ // publications accepted; none is kept
-	b.note(e)
 	// The topic's ACL is not consulted here. It says who may publish, and
 	// who receives is this separate list — so a recipient goes on receiving
 	// whether or not it could ever publish, and the way to stop the copies
 	// is to take the name off the list.
 	// See docs/04-messaging.md#subscribers.
+	//
+	// Whether the caller is refused depends on whether anything gets
+	// through (docs/constitution.md#common-record-fields): a copy that one
+	// recipient cannot take is that recipient's own drop, written to the
+	// error log, while the others still get theirs; a publication that no
+	// recipient takes is refused before anything is stored or counted.
+	var failed []string
+	var why []error
+	delivered := 0
 	for _, s := range b.deliverTo(topic) {
 		sub, known := b.records[s]
-		// Asked again at every publish, not only when the list was written:
-		// a name can be unregistered or suspended after the owner put it
-		// there, and neither leaves an inbox for the copy to land in. A kind
-		// that cannot receive is the snapshot case, Manage having refused one
-		// since 0.6.15. None of the three is a drop: there is nothing here
-		// that was entitled to the copy.
-		if !known || !canReceive(sub) || b.suspension(s) != nil {
+		// A kind that cannot receive is the snapshot case, Manage having
+		// refused one since 0.6.15; a name with no record was never on the
+		// list, removal taking its references with it. Neither is a
+		// recipient, so neither is a failed one.
+		if !known || !canReceive(sub) {
 			continue
 		}
-		// Turned off on purpose, which is not the same fact as the three
-		// above: a recipient that is gone or suspended is not entitled to the
-		// copy, while a disabled one still is and simply cannot take it.
-		// Nothing is queued for it and the publisher is told nothing, so its
-		// own drop count is the only place the gap can show — the same place
-		// an overflow loss shows. See docs/04-messaging.md#subscribers.
-		if sub.Disabled {
-			b.ensure(s).dropped++
+		if !b.live(sub) {
+			failed, why = append(failed, s), append(why, fmt.Errorf("%w: %s is inactive", ErrUnknown, s))
 			continue
 		}
 		c := e
 		c.To = s
 		if err := b.deliver(sub, b.ensure(s), c); err != nil {
-			// The copy that would not fit is the SUBSCRIBER's loss: its
-			// bound refused it, and its page is where that has to show.
-			b.ensure(s).dropped++
+			failed, why = append(failed, s), append(why, err)
+			continue
 		}
+		delivered++
+	}
+	if delivered == 0 && len(failed) > 0 {
+		b.report(ports.Warning, "a publication to %s reached none of its %d recipients: %s", topic.Name, len(failed), strings.Join(failed, ", "))
+		return protocol.Envelope{}, fmt.Errorf("no recipient of %s took it: %w", topic.Name, why[0])
+	}
+	b.ensure(topic.Name).in++ // publications accepted; none is kept
+	b.note(e)
+	for i, s := range failed {
+		// The copy that could not land is the RECIPIENT's loss: its page is
+		// where that has to show, and the error log says which and why.
+		b.ensure(s).dropped++
+		b.report(ports.Warning, "a copy of a publication to %s was not delivered to %s: %s", topic.Name, s, why[i])
 	}
 	return e, nil
 }
@@ -1054,7 +1096,7 @@ func (b *Bus) Subscribe(caller, channel string, on bool) (protocol.Record, error
 	if err := b.acting(who); err != nil {
 		return protocol.Record{}, err
 	}
-	r, known := b.records[n]
+	r, known := b.entity(n)
 	// A channel you may not see does not exist as far as you are concerned,
 	// exactly as a lookup answers — except to a name it delivers to, which
 	// would otherwise have no way to stop copies it never asked for. Being
@@ -1168,11 +1210,11 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 	// would let any caller name leave a permanent entry behind — and the
 	// wait could never end anyway, because Send refuses an unknown
 	// receiver, so nothing can ever arrive in it.
-	if _, known := b.records[name]; !known {
+	rec, known := b.entity(name)
+	if !known {
 		b.unlock()
 		return protocol.Envelope{}, fmt.Errorf("no inbox for %s: register it first (%w)", name, ErrUnknown)
 	}
-	rec := b.records[name]
 	if !b.may(caller, rec) {
 		b.unlock()
 		return protocol.Envelope{}, ErrNotAllow
@@ -1181,17 +1223,6 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 	if !onBus(rec) {
 		b.unlock()
 		return protocol.Envelope{}, fmt.Errorf("%w: %s is external and has no queue here to read", ErrKind, name)
-	}
-	// Q63 permits draining an inactive name's own inbox by an active,
-	// authorized caller. Only a separate owner's suspension blocks this path.
-	// See docs/01-identity-and-roles.md#user-states.
-	if err := b.ownerSuspension(name); err != nil {
-		b.unlock()
-		return protocol.Envelope{}, err
-	}
-	if rec.Disabled {
-		b.unlock()
-		return protocol.Envelope{}, ErrDisabled
 	}
 	in := b.ensure(name)
 	// Never handed to a consumer: the check is here, where the message would

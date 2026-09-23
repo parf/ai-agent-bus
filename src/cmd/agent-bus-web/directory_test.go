@@ -114,8 +114,10 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	reads.Store(0)
 	before := len(tokens.Names())
 	page, _ := request("owner@h", "/users", "", nil, 200)
-	if reads.Load() != 4 {
-		t.Fatalf("directory fetched %d bus answers, want identity + status + users + one record listing", reads.Load())
+	// The record listing is two reads: /ls answers active records only, and
+	// /inactive the rest (docs/constitution.md#common-record-fields).
+	if reads.Load() != 5 {
+		t.Fatalf("directory fetched %d bus answers, want identity + status + users + the active and inactive record listings", reads.Load())
 	}
 	if strings.Contains(page, "/avatar?") {
 		t.Error("directory reintroduced one avatar request per row")

@@ -50,7 +50,7 @@ func TestDatabaseIsPrivate(t *testing.T) {
 func TestCommitThenLoad(t *testing.T) {
 	s, path := open(t)
 	owner := "admin@h"
-	user := protocol.User{ID: 7, Name: "admin@h", State: "active", Email: "a@example.com"}
+	user := protocol.User{ID: 7, Name: "admin@h", Status: "active", Email: "a@example.com"}
 	rec := protocol.Record{ID: 9, Name: "svc@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"@ops"}}
 	members := []string{"admin@h"}
 	nextRec, nextUser := uint32(10), uint32(8)

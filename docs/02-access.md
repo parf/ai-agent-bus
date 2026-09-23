@@ -147,7 +147,8 @@ references for Queue sources.
 **ACL governs other principals' access to a record**, whichever of the five
 [kinds](03-records.md#five-record-kinds) it is. A record does not
 need to list itself in its own ACL: it may read its own inbox independently.
-Caller standing, owner suspension and the record's Disabled setting still apply.
+Caller standing and the record's status still apply: an inactive record, or
+one whose User is inactive, is no such record.
 On a 📡 the list governs who may **read** the record — its address, protocol,
 description and [secret](06-services.md#secrets) — because a
 service has no delivery to govern. On a 📣 it governs who may **publish**;
@@ -268,14 +269,13 @@ never performs cleanup.
 * Eligibility is checked again at removal. A newly created profile or record
   prevents cleanup; age, inactivity and ownership of other records are not
   alternative eligibility tests.
-* Registered users retain credentials even while paused or banned. The daemon
+* Registered users retain credentials even while inactive. The daemon
   owner has a profile and survives by the same rule. Credential-only entries
   can remain visible until cleanup; directory counts cover visible entries.
-* **Startup revocation is best effort today.** If saving a revocation fails, the
-  daemon logs it and continues. Old bytes can then authenticate a later holder
-  of the same name; re-registration also prevents later ownerless sweeps from
-  retrying. Further hardening was deferred by the owner on 2026-09-17;
-  no change to this behavior is scheduled.
+* **Startup revocation is best effort.** If saving a revocation fails, the
+  daemon logs it and continues, and the row lingers until the next sweep. The
+  old bytes answer for nobody meanwhile: a later holder of the name has a new
+  internal ID, so the [credential pair](#what-a-call-carries) refuses them.
 * Explicit [unregistration](01-identity-and-roles.md#unregistering) instead
   abandons removal if its required credential-store write fails.
 

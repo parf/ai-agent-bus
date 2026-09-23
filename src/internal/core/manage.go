@@ -20,8 +20,9 @@ type Management struct {
 	Allow *[]string `json:"allow,omitempty"`
 	// Subs is the 📣 Deliver-To list: who receives a copy, which the ACL
 	// above no longer decides. See docs/04-messaging.md#subscribers.
-	Subs        *[]string                `json:"subs,omitempty"`
-	Disabled    *bool                    `json:"disabled,omitempty"`
+	Subs *[]string `json:"subs,omitempty"`
+	// Status is active or inactive; the one edit an inactive record takes.
+	Status      *string                  `json:"status,omitempty"`
 	Maintainers *protocol.MaintainerList `json:"maintainers,omitempty"`
 	Personal    *bool                    `json:"personal,omitempty"`
 	Owner       *string                  `json:"owner,omitempty"`
@@ -100,7 +101,7 @@ func (b *Bus) administratorsAreUsers() {
 			continue
 		}
 		if _, known := b.users[name]; !known {
-			b.setUser(name, protocol.User{Name: name, State: "active"})
+			b.setUser(name, protocol.User{Name: name, Status: protocol.StatusActive})
 		}
 		// Every User has exactly one user record (docs/constitution.md#-user).
 		if _, known := b.records[name]; !known {
@@ -261,9 +262,9 @@ func groupName(n string) bool {
 }
 
 // normalizeMaintainers validates the whole replacement before Manage stores
-// any of it. Named users, services and agents may be direct Maintainers;
-// ordinary groups inherit their nested membership. Topics, credential-only
-// names, duplicates and wildcard authority are deliberately refused.
+// any of it. Named users and agents may be direct Maintainers; ordinary groups
+// inherit their nested membership. Every other record, credential-only names,
+// duplicates and wildcard authority are deliberately refused.
 // Caller holds b.mu.
 func (b *Bus) normalizeMaintainers(in protocol.MaintainerList, r protocol.Record) (protocol.MaintainerList, error) {
 	out := make(protocol.MaintainerList, 0, len(in))
@@ -355,7 +356,10 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 		}
 		includesOwner := false
 		for _, member := range normalized {
-			if groupName(member) {
+			// A User's name only: a group, an agent or any record that is not
+			// a User's own would become a User under a name no User may have
+			// (docs/constitution.md#-group).
+			if r, known := b.records[member]; groupName(member) || protocol.IsAgentName(member) || known && r.Kind != protocol.KindUser {
 				return fmt.Errorf("%w: %s accepts direct user identities only", ErrBadName, AdministratorsGroup)
 			}
 			if member == b.admin {
@@ -446,6 +450,15 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	if !ok {
 		return protocol.Record{}, ErrUnknown
 	}
+	// An inactive record takes one edit, its reactivation, and nothing else:
+	// to every other change it is no such record. A record inactive because
+	// its User is comes back with its User, not by this edit
+	// (docs/constitution.md#common-record-fields).
+	if !b.live(r) {
+		if change.Status == nil || !statusOnly(change) || !b.userActive(r.Owner) {
+			return protocol.Record{}, ErrUnknown
+		}
+	}
 	if !b.manages(who, r) {
 		return protocol.Record{}, ErrNotOwner
 	}
@@ -475,6 +488,20 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		// leave every one naming the old Owner (docs/02-access.md#token-lifetime).
 		if r.Kind == protocol.KindAgent && owner != r.Owner {
 			b.stageCredential(name, &ports.CredentialPair{UserID: b.users[owner].ID, AgentID: r.ID})
+			// And it leaves its old Owner's cohort: every Personal record of
+			// that Owner loses its grants to it in this same commit, or the
+			// record would admit an agent outside the cohort it names
+			// (docs/03-records.md#personal-and-shared).
+			for other, o := range b.records {
+				if other == name || o.Owner != r.Owner || !o.Personal {
+					continue
+				}
+				allow, maint := drop1(o.Allow, name), drop1(o.Maintainers, name)
+				if len(allow) != len(o.Allow) || len(maint) != len(o.Maintainers) {
+					o.Allow, o.Maintainers = allow, maint
+					b.setRecord(other, o)
+				}
+			}
 		}
 		r.Owner = owner
 	}
@@ -519,8 +546,18 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	if change.Proto != nil {
 		r.Proto = *change.Proto
 	}
-	if change.Disabled != nil {
-		r.Disabled = *change.Disabled
+	if change.Status != nil {
+		if err := validStatus(*change.Status); err != nil {
+			return protocol.Record{}, err
+		}
+		// A User's own record lives exactly as its User does; the User's
+		// status is changed where Users are (docs/constitution.md#-user).
+		if r.Kind == protocol.KindUser {
+			return protocol.Record{}, fmt.Errorf("%w: a user's own record takes its status from the user", ErrBadName)
+		}
+		if *change.Status != "" {
+			r.Status = *change.Status
+		}
 	}
 	if change.TTL != nil {
 		if *change.TTL != "" {
@@ -571,24 +608,19 @@ func (b *Bus) recheckReaders() {
 
 func (b *Bus) recheckInbox(name string) {
 	if in := b.inboxes[name]; in != nil {
-		r := b.records[name]
-		suspended := b.ownerSuspension(name)
+		r, live := b.entity(name)
 		for i := len(in.waiters) - 1; i >= 0; i-- {
 			w := in.waiters[i]
-			if r.Disabled || suspended != nil || !b.may(w.caller, r) {
+			// A record that stopped being an entity releases every reader:
+			// what it read is no such inbox now. A caller that stopped
+			// acting is told so, and one the ACL dropped is told that.
+			if !live || !b.may(w.caller, r) {
 				err := ErrNotAllow
+				if !live {
+					err = fmt.Errorf("%w: %s is inactive", ErrUnknown, name)
+				}
 				if e := b.acting(w.caller); e != nil {
 					err = e
-				}
-				if r.Disabled {
-					err = ErrDisabled
-				}
-				// Last, because a reader blocked on a service whose owner has
-				// just been suspended is being told about the suspension, not
-				// about the ACL it still satisfies. SetUserState rechecks
-				// readers, so this fires at the moment of the pause.
-				if suspended != nil {
-					err = suspended
 				}
 				w.stopped <- err
 				in.waiters = drop(in.waiters, i)
@@ -600,7 +632,11 @@ func (b *Bus) recheckInbox(name string) {
 // visible adds daemon-derived control permissions, never caller claims.
 func (b *Bus) visible(caller string, r protocol.Record) protocol.Record {
 	r = b.withLiveness(r.Name, r.Public())
-	r.Disabled = r.Disabled || !b.activeName(r.Name)
+	if !b.live(r) {
+		r.Status = protocol.StatusInactive
+	} else {
+		r.Status = protocol.StatusActive
+	}
 	r.CanManage = b.manages(caller, r)
 	r.CanTransfer = caller == r.Owner || caller == b.admin
 	return r
@@ -626,7 +662,7 @@ func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Rec
 	if err := b.acting(who); err != nil {
 		return protocol.Record{}, err
 	}
-	r, ok := b.records[name]
+	r, ok := b.entity(name)
 	if !ok {
 		return protocol.Record{}, ErrUnknown
 	}
@@ -642,4 +678,10 @@ func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Rec
 		return protocol.Record{}, err
 	}
 	return r.Public(), nil
+}
+
+// statusOnly says whether a change edits nothing but the status.
+func statusOnly(c Management) bool {
+	return c.Descr == nil && c.Addr == nil && c.Proto == nil && c.Allow == nil && c.Subs == nil &&
+		c.Maintainers == nil && c.Personal == nil && c.Owner == nil && c.TTL == nil && c.Bound == nil && c.Full == nil
 }

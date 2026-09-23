@@ -213,8 +213,10 @@ changes Personal and its assignments is checked as one final record, so an
 owner can remove sharing while enabling Personal, or disable Personal while
 adding sharing, in one operation.
 
-Assignment validity is checked when a record is written. If an allowed agent is
-later removed, the name remains stored but grants nobody; the next write must
-remove it or restore that agent before the Personal record can be saved again.
+Assignment validity is checked when a record is written, and kept true after
+it: removing an allowed agent takes every reference to it in the removal's
+commit ([unregistering](01-identity-and-roles.md#unregistering)), and
+transferring one to another User takes it off its old Owner's Personal
+records in the transfer's commit, since it has left that cohort.
 
 </details>

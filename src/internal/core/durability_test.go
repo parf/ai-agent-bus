@@ -72,7 +72,7 @@ func administrativeChanges() []durableChange {
 		}
 	}
 	return []durableChange{
-		{"ban", func(b *Bus) error { _, e := b.SetUserState("admin@h", "bob@h", "banned"); return e }, banned},
+		{"ban", func(b *Bus) error { _, e := b.SetUserState("admin@h", "bob@h", "inactive"); return e }, banned},
 		{"self-email", func(b *Bus) error { _, e := b.EditOwnEmail("bob@h", "new@example.com"); return e }, func(t *testing.T, b *Bus) {
 			users := b.Users("bob@h", nil)
 			if len(users) != 1 || users[0].Email != "new@example.com" {
@@ -80,7 +80,7 @@ func administrativeChanges() []durableChange {
 			}
 		}},
 		{"profile-ban", func(b *Bus) error {
-			_, e := b.SetUser("admin@h", protocol.User{Name: "bob@h", State: "banned"}, false)
+			_, e := b.SetUser("admin@h", protocol.User{Name: "bob@h", Status: "inactive"}, false)
 			return e
 		}, banned},
 		{"group-removal", func(b *Bus) error { return b.SetGroup("admin@h", "@readers", []string{"friend@h"}) }, hidden},
@@ -185,7 +185,7 @@ func TestFailedCommitPublishesNothing(t *testing.T) {
 	d := memory.NewState()
 	b := durabilityFixture(t, d)
 	d.Err = boom
-	if _, err := b.SetUserState("admin@h", "bob@h", "banned"); !errors.Is(err, boom) {
+	if _, err := b.SetUserState("admin@h", "bob@h", "inactive"); !errors.Is(err, boom) {
 		t.Fatalf("got %v", err)
 	}
 	if err := b.Authenticate("bob@h"); err != nil {
@@ -252,7 +252,7 @@ func TestHeldCommitSerializesTheNextWrite(t *testing.T) {
 	go func() { old <- b.SetGroup("admin@h", "@readers", []string{"bob@h", "friend@h", "alice@h"}) }()
 	<-d.Enter
 	newer := make(chan error, 1)
-	go func() { _, err := b.SetUserState("admin@h", "bob@h", "banned"); newer <- err }()
+	go func() { _, err := b.SetUserState("admin@h", "bob@h", "inactive"); newer <- err }()
 	select {
 	case err := <-newer:
 		close(d.Release)

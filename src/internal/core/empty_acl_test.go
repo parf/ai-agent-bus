@@ -37,7 +37,7 @@ func restrictedFixture(t *testing.T, restored bool) *Bus {
 	if err := b.SetGroup("admin@h", "@readers", []string{"outsider@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.SetUserState("admin@h", "paused@h", "paused"); err != nil {
+	if _, err := b.SetUserState("admin@h", "paused@h", "inactive"); err != nil {
 		t.Fatal(err)
 	}
 	if restored {
@@ -150,7 +150,7 @@ func TestExplicitGrantsStillShareAndRemovingWildcardClosesAccess(t *testing.T) {
 
 func TestOwnInboxReadDoesNotNeedAnACLEntryButStillObeysState(t *testing.T) {
 	for _, allow := range [][]string{nil, {"#peer@h"}} {
-		for _, state := range []string{"active", "disabled", "owner-paused"} {
+		for _, state := range []string{"active", "inactive", "owner-inactive"} {
 			b := restrictedFixture(t, false)
 			if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Allow: &allow}); err != nil {
 				t.Fatal(err)
@@ -160,13 +160,13 @@ func TestOwnInboxReadDoesNotNeedAnACLEntryButStillObeysState(t *testing.T) {
 			}
 			var want error
 			switch state {
-			case "disabled":
-				if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Disabled: ptr(true)}); err != nil {
+			case "inactive":
+				if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Status: ptr(protocol.StatusInactive)}); err != nil {
 					t.Fatal(err)
 				}
-				want = ErrDisabled
-			case "owner-paused":
-				if _, err := b.SetUserState("admin@h", "alice@h", "paused"); err != nil {
+				want = ErrInactive
+			case "owner-inactive":
+				if _, err := b.SetUserState("admin@h", "alice@h", "inactive"); err != nil {
 					t.Fatal(err)
 				}
 				want = ErrInactive

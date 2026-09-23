@@ -39,7 +39,7 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	// Not 403 any more: the removal is refused before anyone asks whose group
 	// it is, so the daemon owner is refused it on the same terms as everybody.
 	call("admin@h", "POST", "/group", `{"kind":"agent","name":"@administrators","remove":true}`, 400)
-	call("admin@h", "POST", "/user/state", `{"kind":"agent","name":"admin@h","state":"paused"}`, 403)
+	call("admin@h", "POST", "/user/state", `{"kind":"agent","name":"admin@h","status":"inactive"}`, 403)
 	call("admin@h", "POST", "/user", `{"kind":"agent","name":"duplicate@h","email":"ALICE@EXAMPLE.COM","create":true}`, 400)
 	call("admin@h", "POST", "/user", `{"kind":"agent","name":"duplicate@h","github_user":"ALICE-CODE","create":true}`, 400)
 	call("admin@h", "POST", "/user", `{"kind":"agent","name":"distinct@h","email":"alice+alerts@example.com","create":true}`, 200)
@@ -67,14 +67,15 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","state":"paused"}`, 200)
+	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","status":"inactive"}`, 200)
 	call("alice@h", "GET", "/status", "", 403)
-	var pausedRecord protocol.Record
-	json.Unmarshal([]byte(call("admin@h", "GET", "/lookup?name=alice@h", "", 200)), &pausedRecord)
-	if !pausedRecord.Disabled {
-		t.Fatal("paused user inbox is advertised as active")
+	// An inactive User's own record is no such inbox, to the daemon Owner too,
+	// and shows only in the read-only view of inactive records.
+	call("admin@h", "GET", "/lookup?name=alice@h", "", 404)
+	if got := call("admin@h", "GET", "/inactive", "", 200); !strings.Contains(got, `"name":"alice@h"`) || !strings.Contains(got, `"status":"inactive"`) {
+		t.Fatalf("the inactive user's record is not in the daemon Owner's inactive view: %s", got)
 	}
-	call("admin@h", "POST", "/send", `{"to":"alice@h","body":"new"}`, 403)
+	call("#svc@h", "POST", "/send", `{"to":"alice@h","body":"new"}`, 403)
 	for _, h := range []struct {
 		local bool
 		token string
@@ -106,7 +107,7 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	restored.Restore(snapshot)
 	s = New(restored, s.tokens, "admin@h")
 	call("alice@h", "GET", "/status", "", 403)
-	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","state":"active"}`, 200)
+	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","status":"active"}`, 200)
 	// The service answers again the moment the state is lifted. That the
 	// *same bytes* still work — kept rather than reissued — is pinned in
 	// TestSuspensionDestroysNothing, which holds the credential across the
@@ -115,12 +116,12 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	if got := call("alice@h", "GET", "/consume?wait=0s", "", 200); !strings.Contains(got, "retained") {
 		t.Fatal("pause lost queued work")
 	}
-	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","state":"banned"}`, 200)
+	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","status":"inactive"}`, 200)
 	call("alice@h", "POST", "/register", `{"kind":"agent","name":"#another@h"}`, 403)
-	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","state":"active"}`, 200)
+	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","status":"active"}`, 200)
 	call("alice@h", "GET", "/status", "", 200)
-	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","state":"banned"}`, 200)
-	call("maint@h", "POST", "/user", `{"kind":"agent","name":"alice@h","person_name":"Vouched","email":"alice@example.com","github_user":"alice-code","state":"active"}`, 200)
+	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","status":"inactive"}`, 200)
+	call("maint@h", "POST", "/user", `{"kind":"agent","name":"alice@h","person_name":"Vouched","email":"alice@example.com","github_user":"alice-code","status":"active"}`, 200)
 	call("alice@h", "GET", "/status", "", 200)
 	// Removing a maintainer affects an already issued credential.
 	call("admin@h", "POST", "/group", `{"kind":"agent","name":"@administrators","members":["admin@h","peer@h"]}`, 200)

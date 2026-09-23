@@ -381,9 +381,9 @@ an inbox rather than hand it to whoever is connected.
 | who may be on it | 👾 **agents** and `@group` terms; a 👤 user takes no published copy and is refused for its kind. A 📡 service has none. **Pending for 0.7** ([K.15](../Plans/MVP/0.7.0-TODO.md)): 📮 queues and 📣 topics as recipients ([constitution § Channels](constitution.md#-channels)) |
 | `@group` | allowed, and **expanded at publication**, nested groups included, each name once. Membership therefore decides delivery when the publish happens, not when the list was written |
 | taking **yourself** off | always allowed, because it is your inbox that fills. Putting yourself back on is the manager's call |
-| checked again at **every publish** | that the recipient still exists, is on the bus and is **active**. **Pending for 0.7:** an inactive recipient's copy is discarded, counted as its `dropped` and logged, while the publication succeeds for the others ([constitution](constitution.md#common-record-fields)). A suspended user takes no copies, and neither does a name that has since been unregistered. Neither counts as a drop: there is nothing it was entitled to take |
+| checked again at **every publish** | that the recipient still exists, is on the bus and is **active**. Built in 0.7.9: an inactive recipient — itself or through its User — is a failed recipient: its copy is discarded, counted as its `dropped` and written to the error log naming topic and recipient, while the publication succeeds for the others ([constitution](constitution.md#common-record-fields)). A copy its bound refuses is a failed recipient the same way |
+| **no** recipient takes it | the publication is refused before anything is stored or counted, with an error-log warning; the caller is told why the first recipient failed. A topic whose list is empty still accepts a publication until [K.15](../Plans/MVP/0.7.0-TODO.md) settles that case |
 | whose bound, TTL and overflow apply | the **recipient's**, because the copy is in the recipient's inbox |
-| a recipient that is **turned off** | is skipped, and the skipped copy **is** counted as its drop — a different fact from the row above: it is still entitled to the copy and simply cannot take it. Nothing is queued for it and the publisher is told nothing, so its own count is the only place the gap can show |
 | a recipient that will not read | loses its own copies and **stops nothing**: the publish still succeeds for everyone else, and the copy that would not fit is counted as a drop ([overflow](#overflow)). A publisher one stopped reader can block is a queue topic, which is the other kind and is what that caller wanted |
 
 ## Overflow
@@ -393,7 +393,7 @@ Declared per topic at creation, inboxes included:
 | Mode | Full queue | For |
 |---|---|---|
 | **strict** (default) | **reject the send/publish** with an error to the producer | anything that is work: losing one silently is worse than failing loudly, so this is what you get unless you ask otherwise |
-| **ring** | drop the **oldest**, and count it in stats (the same count a [disabled subscriber](#subscribers) adds to) | alerts, telemetry, progress — the newest matters most and a gap is not a bug |
+| **ring** | drop the **oldest**, and count it in stats (the same count an [inactive recipient](#subscribers) adds to) | alerts, telemetry, progress — the newest matters most and a gap is not a bug |
 
 **A rejected send answers `429`.** A full queue is the sender outrunning the
 reader, which is what that code is for — and deliberately not `503`, which
@@ -461,8 +461,8 @@ Individual message acknowledgements retain the
 [queue durability boundary](#durability).
 
 Publication in this implementation is the lock being released, so it cannot
-fail after a commit. **Pending for 0.7:** `inactive` replaces the separate
-paused/banned states.
+fail after a commit. Whether that meets the constitution's publication rule is
+[Q106](../Plans/MVP/QUESTIONS.md#open-questions).
 
 Browser sessions remain process-local; after restart, callers sign in again.
 Persistent tokens and mapped sockets are checked against the recovered policy.
