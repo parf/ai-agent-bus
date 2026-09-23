@@ -550,7 +550,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if v.Services {
 			// A service has no queue here, so none of the questions about one
 			// has an answer to filter or sort by.
-			// See docs/03-records.md#five-record-kinds.
+			// See docs/03-records.md#record-kinds.
 			v.Readers, v.Work = "", ""
 			if v.Sort == "queued" {
 				v.Sort = ""
@@ -593,6 +593,11 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		owners := map[string]bool{}
 		allServices, myServices, personalServices, allChannels, allAgents, myAgents := 0, 0, 0, 0, 0, 0
 		for _, record := range records {
+			// A Group is a record from 0.7 and has its own page, Groups;
+			// it is no agent, service or channel (docs/constitution.md#-group).
+			if record.Kind == protocol.KindGroup {
+				continue
+			}
 			// Every kind may be Personal from 0.7, and a User's own record
 			// always is: the main collections show shared records only, and
 			// the Personal tab the rest but for users, whose page is Users.
@@ -736,7 +741,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if v.Channels {
 			// The three kinds this page lists, and no more: an agent is on its
 			// own page now, so a filter for one here would only ever empty the
-			// table. See docs/03-records.md#five-record-kinds.
+			// table. See docs/03-records.md#record-kinds.
 			kindBase := cloneValues(filterBase)
 			kindBase.Del("kind")
 			if v.State != "" {
@@ -1178,7 +1183,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			// Each form offers the fields its own kind has, and a save changes
 			// only what its form showed: sending an empty value for a field the
 			// page never rendered would clear it.
-			// See docs/03-records.md#five-record-kinds.
+			// See docs/03-records.md#record-kinds.
 			if r.PostForm.Has("addr") || r.PostForm.Has("protocol") {
 				addr, proto := r.PostForm.Get("addr"), r.PostForm.Get("protocol")
 				change.Addr, change.Proto = &addr, &proto

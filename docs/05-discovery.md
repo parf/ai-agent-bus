@@ -16,7 +16,7 @@ The CLI listings, the MCP minimum and the dashboard tabs are here.
 
 **Being in the registry and being callable are different facts.** "There is a
 MySQL on `db1:3306`" is a complete 📡 registration ([records § five record
-kinds](03-records.md#five-record-kinds)) and nothing on this bus
+kinds](03-records.md#record-kinds)) and nothing on this bus
 answers for it; an agent template is registered and deliberately does not run
 ([records § agent templates](03-records.md#agent-templates)).
 So a caller reading a listing needs more than a name:
@@ -40,7 +40,7 @@ request will be handled.
 
 **A 📡 answers none of them.** It has no queue here, so the daemon states no
 reader count and no queued total for one rather than reporting a zero it never
-measured ([records § five record kinds](03-records.md#five-record-kinds)).
+measured ([records § five record kinds](03-records.md#record-kinds)).
 
 An inbox that was drained and one nobody ever wrote to both read as empty.
 `in` and `out` are what tell them apart, and they are per name: a busy bus
@@ -144,7 +144,7 @@ what the daemon permits. “All” means all visible to that visitor.
 | Tab | Required functionality |
 |---|---|
 | Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which have their own tab. Administrative availability and reader observation are distinct facts |
-| Services | 📡 records alone — something [external](03-records.md#five-record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
+| Services | 📡 records alone — something [external](03-records.md#record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
 | Personal | Owner-tagged agents grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
 | Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory opens on active users; **Active**, **Inactive** and **All states** are counted filters, and an inactive user is marked beside the name rather than in a column of its own. Applicable daemon-authorized actions sit behind **Change**. Deactivation and unused-credential removal use consequence confirmations |
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
@@ -176,7 +176,7 @@ reader observations independently. Reader choices distinguish a positive count,
 measured zero and an unavailable observation; none is a health claim. Search,
 kind, owner and sort remain URL state beside those filters. Services offers
 none of the three: they are observations of a queue, and a
-[service has none](03-records.md#five-record-kinds).
+[service has none](03-records.md#record-kinds).
 
 The web face filters and sorts one caller-visible `/ls` answer, then shows at
 most 25 rows. It reports the matching count, bounds invalid page numbers and
@@ -662,10 +662,10 @@ and human-readable CLI output, use:
 | 👾 Agent | An agent, and the queue named after it |
 | 📮 Queue | A queue registered for its own sake |
 | 📣 PubSub | A pub/sub topic |
-| 📡 Service | Something [external](03-records.md#five-record-kinds), not on this bus |
+| 📡 Service | Something [external](03-records.md#record-kinds), not on this bus |
 | 👥 Group | Group or team |
 
-Every row above names a [stored kind](03-records.md#five-record-kinds),
+Every row above names a [stored kind](03-records.md#record-kinds),
 so a label states what the daemon said rather than what a page inferred. A kind
 the daemon did not state stays unlabeled.
 

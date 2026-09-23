@@ -184,13 +184,17 @@ func TestNestedGroupsPersistAndDamagedProtectedNestingFailsStartup(t *testing.T)
 		t.Fatalf("nested grant did not survive restore: %v", err)
 	}
 
+	// Groups are records: the damage is an @administrators record naming a
+	// nested group, which no write of this version produces.
 	damaged := snapshot
-	damaged.Groups = make(map[string][]string, len(snapshot.Groups))
-	for name, members := range snapshot.Groups {
-		damaged.Groups[name] = append([]string(nil), members...)
+	damaged.Records = nil
+	for _, r := range snapshot.Records {
+		r.Allow = append([]string(nil), r.Allow...)
+		if r.Name == AdministratorsGroup {
+			r.Allow = append(r.Allow, "@ops")
+		}
+		damaged.Records = append(damaged.Records, r)
 	}
-	damaged.Groups["@ops"] = []string{"reader@h"}
-	damaged.Groups[AdministratorsGroup] = append(damaged.Groups[AdministratorsGroup], "@ops")
 	broken := New()
 	broken.Restore(damaged)
 	if err := broken.EstablishDaemonOwner("owner@h"); err == nil {

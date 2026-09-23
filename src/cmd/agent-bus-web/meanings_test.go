@@ -311,7 +311,7 @@ func TestReaderCountDistinguishesUnavailableFromMeasuredZero(t *testing.T) {
 
 // A service is external, so the page has no reader observation to make about
 // it and does not invent one. The reader column belongs to the records that
-// have a queue. See docs/03-records.md#five-record-kinds.
+// have a queue. See docs/03-records.md#record-kinds.
 func TestExternalDoesNotStandInForTheReaderObservation(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()

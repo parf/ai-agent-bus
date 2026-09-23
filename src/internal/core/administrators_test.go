@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
+	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 // The owner runs the administrators group and cannot step out of it. Nothing
@@ -116,9 +117,9 @@ func TestRestoreIgnoresAnAdministratorWhoIsNoUser(t *testing.T) {
 	b.Journal(rep)
 	b.SetDaemonOwner("owner@h")
 	next := b.nextRecordID
-	b.Restore(ports.Snapshot{Groups: map[string][]string{
-		AdministratorsGroup: {"owner@h", "legacy@h"},
-	}})
+	admins := b.records[AdministratorsGroup]
+	admins.Allow = []string{"legacy@h", "owner@h"}
+	b.Restore(ports.Snapshot{Records: []protocol.Record{admins}})
 	if b.IsAdministrator("legacy@h") || b.IsPerson("legacy@h") {
 		t.Fatal("an administrator with no User was repaired into one")
 	}

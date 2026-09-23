@@ -272,7 +272,7 @@ func ls(args []string) error {
 		// A service is external and has no queue here, so it has no reader
 		// count and no backlog to report: a zero would be an observation of
 		// something that does not exist.
-		// See docs/03-records.md#five-record-kinds.
+		// See docs/03-records.md#record-kinds.
 		readers, queued := readerCount(r.Readers), strconv.Itoa(r.Queued)
 		if r.Kind == protocol.KindService {
 			readers, queued = "-", "-"
@@ -542,7 +542,7 @@ func channel(args []string) error {
 	}
 	// A channel is a record kind rather than a mode on one, so --kind names
 	// the kind directly and there is nothing else to store.
-	// See docs/03-records.md#five-record-kinds.
+	// See docs/03-records.md#record-kinds.
 	kind := flags["kind"]
 	if kind == "" {
 		kind = protocol.KindQueue

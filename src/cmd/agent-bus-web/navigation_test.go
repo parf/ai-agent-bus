@@ -65,7 +65,7 @@ func TestServiceReaderFilterIsIndependentFromStatus(t *testing.T) {
 func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
 	// A service has no queue here, so its listing carries no reader filter to
 	// retain; status belongs to every record, so every listing keeps it.
-	// See docs/03-records.md#five-record-kinds.
+	// See docs/03-records.md#record-kinds.
 	queueFilters := []string{"readers=none"}
 	statusFilter := []string{"state=active"}
 	for _, tc := range []struct {

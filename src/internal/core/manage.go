@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -48,12 +49,23 @@ func (b *Bus) SetDaemonOwner(owner string) {
 // setDaemonOwner updates the role nesting while caller holds b.mu.
 func (b *Bus) setDaemonOwner(owner string) {
 	b.setOwner(owner)
-	if !b.member(owner, AdministratorsGroup) {
-		next := append(append([]string{}, b.groups[AdministratorsGroup]...), owner)
-		sort.Strings(next)
-		b.setGroup(AdministratorsGroup, next)
-	}
 	b.administratorsAreUsers()
+	// The protected group is the daemon Owner's and follows daemon ownership
+	// in this same write: it is never assigned on its own
+	// (docs/constitution.md#-group).
+	members := []string{owner}
+	if r, ok := b.records[AdministratorsGroup]; ok {
+		members = append([]string{}, r.Allow...)
+		if !slices.Contains(members, owner) {
+			members = append(members, owner)
+			sort.Strings(members)
+		}
+	}
+	b.setGroup(AdministratorsGroup, owner, members)
+	if r := b.records[AdministratorsGroup]; r.Owner != owner {
+		r.Owner = owner
+		b.setRecord(AdministratorsGroup, r)
+	}
 }
 
 // EstablishDaemonOwner applies setup's owner only to a first or legacy
@@ -93,7 +105,11 @@ func (b *Bus) DaemonOwner() string {
 // Being taken out of the group does not take the profile away again: a user is
 // never deleted, only made inactive (docs/01-identity-and-roles.md#user-states).
 func (b *Bus) administratorsAreUsers() {
-	for _, name := range b.groups[AdministratorsGroup] {
+	members := append([]string{}, b.records[AdministratorsGroup].Allow...)
+	if b.admin != "" && !slices.Contains(members, b.admin) {
+		members = append(members, b.admin)
+	}
+	for _, name := range members {
 		// Administrative authority is direct-only. A damaged snapshot is
 		// refused at startup; do not manufacture a user for its group name on
 		// the way to that refusal.
@@ -146,6 +162,10 @@ func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
 	for _, raw := range in {
 		a := strings.TrimSpace(raw)
 		switch {
+		case r.Kind == protocol.KindGroup && (a == "*" || reservedTerm(a)):
+			// A Group's allow is its membership: actors, never the wildcard
+			// or a runtime term, which name nobody in particular.
+			return nil, fmt.Errorf("%w: %s cannot be a member of group %s", ErrBadName, a, r.Name)
 		case a == "*" || a == OwnerGroup:
 		case a == AgentTerm:
 			if r.Kind != protocol.KindAgent {
@@ -156,7 +176,7 @@ func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
 			if !groupName(a) {
 				return nil, fmt.Errorf("%w: invalid ACL group %q", ErrBadName, raw)
 			}
-			if _, ok := b.groups[a]; !ok {
+			if _, ok := b.groupMembers(a); !ok {
 				return nil, fmt.Errorf("%w: ACL group %s", ErrUnknown, a)
 			}
 		default:
@@ -239,7 +259,8 @@ func (b *Bus) memberThrough(caller, group string, seen map[string]bool) bool {
 		return false
 	}
 	seen[group] = true
-	for _, member := range b.groups[group] {
+	members, _ := b.groupMembers(group)
+	for _, member := range members {
 		if member == caller {
 			return true
 		}
@@ -282,7 +303,7 @@ func (b *Bus) normalizeMaintainers(in protocol.MaintainerList, r protocol.Record
 			case !groupName(term):
 				return nil, fmt.Errorf("%w: invalid maintainers group %q", ErrBadName, raw)
 			default:
-				if _, ok := b.groups[term]; !ok {
+				if _, ok := b.groupMembers(term); !ok {
 					return nil, fmt.Errorf("%w: maintainer %s", ErrUnknown, term)
 				}
 			}
@@ -310,10 +331,11 @@ func (b *Bus) normalizeMaintainers(in protocol.MaintainerList, r protocol.Record
 	return out, nil
 }
 
-// Groups are daemon-local sets of principals and ordinary groups.
-// Administrators edit ordinary groups; only the daemon owner changes direct
-// administrative membership. Record ownership does not grant daemon
-// administration.
+// SetGroup writes a Group's whole membership. A Group is an ordinary record
+// (docs/constitution.md#-group): whoever may own a record creates one, owned
+// by their User, and its Owner, its Maintainers and the daemon's
+// Administrators change its membership. The protected @administrators is the
+// daemon Owner's alone, takes Users only, and always holds the Owner.
 func (b *Bus) SetGroup(caller, name string, members []string) error {
 	who, err := canon(caller)
 	if err != nil {
@@ -330,7 +352,7 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	for _, m := range members {
 		m = strings.TrimSpace(m)
 		if reservedTerm(strings.ToLower(m)) {
-			return fmt.Errorf("%w: %s is direct ACL syntax and cannot be nested in a group", ErrBadName, m)
+			return fmt.Errorf("%w: %s is direct ACL syntax and cannot be a group member", ErrBadName, m)
 		}
 		n := m
 		if !groupName(m) {
@@ -347,10 +369,10 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	if err := b.acting(who); err != nil {
 		return err
 	}
-	if !b.isAdministrator(who) {
-		return ErrNotOwner
-	}
-	if name == AdministratorsGroup {
+	old, exists := b.records[name]
+	owner := ""
+	switch {
+	case name == AdministratorsGroup:
 		if who != b.admin {
 			return ErrNotOwner
 		}
@@ -369,8 +391,31 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 		if !includesOwner {
 			return fmt.Errorf("%w: owner must remain an administrator", ErrNotOwner)
 		}
+		owner = b.admin
+	case !exists:
+		if owner, err = b.ownerFor(who); err != nil {
+			return err
+		}
+		if err := b.mayOwn(owner, name); err != nil {
+			return err
+		}
+	case old.Kind != protocol.KindGroup:
+		return fmt.Errorf("%w: %s is a %s, not a group", ErrKind, name, old.Kind)
+	case !b.live(old):
+		return fmt.Errorf("%w: %s", ErrUnknown, name)
+	case !b.manages(who, old) && !b.isAdministrator(who):
+		return ErrNotOwner
+	default:
+		owner = old.Owner
 	}
-	b.setGroup(name, normalized)
+	b.setGroup(name, owner, normalized)
+	r := b.records[name]
+	if err := validateKind(r); err != nil {
+		return err
+	}
+	if err := b.validatePersonal(r); err != nil {
+		return err
+	}
 	if name == AdministratorsGroup {
 		b.administratorsAreUsers()
 	}
@@ -378,6 +423,9 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	return b.commit()
 }
 
+// Groups names every live Group the caller may name in a list, and the
+// membership of those whose membership the caller may read: Administrators
+// read all, and a Group's own ACL — its membership — and managers read it.
 func (b *Bus) Groups(caller string) map[string][]string {
 	b.mu.Lock()
 	defer b.unlock()
@@ -385,11 +433,13 @@ func (b *Bus) Groups(caller string) map[string][]string {
 	if b.acting(caller) != nil {
 		return out
 	}
-	for group, members := range b.groups {
-		// Names are available for assignment. Membership lists are administrative.
-		out[group] = []string{}
-		if b.isAdministrator(caller) {
-			out[group] = append(out[group], members...)
+	for name, r := range b.records {
+		if r.Kind != protocol.KindGroup || !b.live(r) {
+			continue
+		}
+		out[name] = []string{}
+		if b.isAdministrator(caller) || b.may(caller, r) {
+			out[name] = append(out[name], r.Allow...)
 		}
 	}
 	return out
@@ -449,6 +499,12 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	r, ok := b.records[name]
 	if !ok {
 		return protocol.Record{}, ErrUnknown
+	}
+	// The protected group changes only through its own rule: its Owner
+	// follows daemon ownership, it has no Maintainers, and its membership is
+	// the daemon Owner's to set with SetGroup (docs/constitution.md#-group).
+	if name == AdministratorsGroup && (change.Owner != nil || change.Maintainers != nil || change.Allow != nil || change.Personal != nil || change.Status != nil) {
+		return protocol.Record{}, fmt.Errorf("%w: %s changes only with daemon ownership and its own membership rule", ErrNotOwner, AdministratorsGroup)
 	}
 	// An inactive record takes one edit, its reactivation, and nothing else:
 	// to every other change it is no such record. A record inactive because

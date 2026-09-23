@@ -38,7 +38,7 @@ readable prose and `subs` stays the wire field. Subscribing named the old
 self-service join, which the manager's list replaces.
 
 **Service means the external case and nothing else.** From 0.6.3 it is one of
-the [five record kinds](03-records.md#five-record-kinds): a card
+the [record kinds](03-records.md#record-kinds): a card
 describing something this bus does not run. Anything running behind a bus name
 is an **agent**. Say record for a registered name whose kind does not matter to
 the sentence. Personal is an owner-selected
@@ -69,7 +69,7 @@ glyph may appear, how it renders and what it must never carry on its own.
 | 📣 | `U+1F4E3` | PubSub | a pub/sub channel | built in 0.6.3 |
 
 `📡`, `📮` and `📣` arrived with the
-[five record kinds](03-records.md#five-record-kinds) in 0.6.3, where
+[record kinds](03-records.md#record-kinds) in 0.6.3, where
 `📡` took Service from `⚙️`. `⚙️` labels no record now and is held for the
 daemon; nothing carries it yet.
 History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
@@ -95,7 +95,7 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | Personal agent | Owner-tagged agent classification with a dedicated web view; access remains ordinary record access | [definition](03-records.md#personal-and-shared) |
 | Protocol hint | How a caller reaches an external service | [definition](06-services.md#how-to-call-it) |
 | Registry configuration | Private setup fetched by the record it belongs to | [definition](03-records.md#configuring-a-template) |
-| Record kind | What a record is, as one of five stored values | [definition](03-records.md#five-record-kinds) |
+| Record kind | What a record is, as one of five stored values | [definition](03-records.md#record-kinds) |
 | Service secret | Credential held on an external service record, read by principals it admits | [definition](06-services.md#secrets) |
 | Channel | The 📮 or 📣 **record** published to: a name nobody acts as | [definition](07-channels.md#the-two-channel-kinds) |
 | Topic | A **label on one message**, matched by a filtered read — never a record | [definition](04-messaging.md#envelope) |

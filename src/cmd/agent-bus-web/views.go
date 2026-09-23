@@ -169,9 +169,9 @@ func identityKind(kind, name, daemonOwner string) string {
 // the services. Four of the five kinds are names on this bus that something is
 // delivered to; only a service is external, and it is the one thing nothing is
 // served from here.
-// See docs/03-records.md#five-record-kinds.
+// See docs/03-records.md#record-kinds.
 func channelRecord(kind string) bool {
-	return kind != protocol.KindService && kind != protocol.KindAgent
+	return kind != protocol.KindService && kind != protocol.KindAgent && kind != protocol.KindGroup
 }
 
 // agentRecord reports whether a record belongs on the agents page. An agent is
@@ -233,7 +233,7 @@ func deliveryMode(record protocol.Record) string {
 // and it is the kind that must carry an address and a protocol; a populated
 // endpoint on anything else is not evidence that the thing is external, so the
 // kind is what the page reads.
-// See docs/03-records.md#five-record-kinds.
+// See docs/03-records.md#record-kinds.
 func external(record protocol.Record) bool { return record.Kind == protocol.KindService }
 
 // copies reports whether a kind delivers a copy to every subscriber. Only
@@ -287,7 +287,7 @@ type kindTotal struct {
 // kindTotals names the four things a record can be, in the order the navigation
 // lists them, and gives each its own node-wide count. A queue and a pub/sub
 // topic are both channels here, which is the only place the four differ from
-// the five kinds (docs/03-records.md#five-record-kinds).
+// the five kinds (docs/03-records.md#record-kinds).
 //
 // A daemon that stated no kinds gets nothing rather than four zeros: the strip
 // would otherwise read as an empty node beside a total that says eleven.
@@ -300,6 +300,7 @@ func kindTotals(kinds map[string]int) []kindTotal {
 		{"Services", kinds[protocol.KindService]},
 		{"Channels", kinds[protocol.KindQueue] + kinds[protocol.KindPubSub]},
 		{"Users", kinds[protocol.KindUser]},
+		{"Groups", kinds[protocol.KindGroup]},
 	}
 }
 

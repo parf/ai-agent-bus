@@ -68,6 +68,14 @@ var (
 // canon normalises a name so that "  x@y " and "x@y" are the same inbox.
 // It lives here, not in a face, so every face gets the same answer.
 func canon(s string) (string, error) {
+	// A Group's name is "@" and a name by the same rules, trimmed and
+	// lower-cased like any other (docs/constitution.md#-group).
+	if t := strings.ToLower(strings.TrimSpace(s)); strings.HasPrefix(t, "@") {
+		if !groupName(t) {
+			return "", fmt.Errorf("%w: invalid group name %q", ErrBadName, s)
+		}
+		return t, nil
+	}
 	n, err := protocol.ParseName(s)
 	if err != nil {
 		return "", fmt.Errorf("%w: %s", ErrBadName, err)
@@ -134,7 +142,6 @@ type Bus struct {
 	mu                sync.Mutex
 	activity          []activitySample
 	records           map[string]protocol.Record
-	groups            map[string][]string
 	admin             string
 	// ownerRestored means a current snapshot, rather than setup, supplied
 	// admin. ownerRestoreErr is retained until startup validates that durable
@@ -168,7 +175,6 @@ func New() *Bus {
 		accounts:       map[string]string{},
 		activeAccounts: map[string]string{},
 		records:        map[string]protocol.Record{},
-		groups:         map[string][]string{},
 		users:          map[string]protocol.User{},
 		refused:        map[string]int{},
 		inboxes:        map[string]*inbox{},
@@ -188,8 +194,10 @@ func New() *Bus {
 // names something on this bus reads; a service is reached at its own address by
 // whoever wants it, so nothing is delivered to it, nothing is consumed from it,
 // and it never has a queue to hold, bound or expire.
-// See docs/03-records.md#five-record-kinds.
-func onBus(r protocol.Record) bool { return r.Kind != protocol.KindService }
+// See docs/03-records.md#record-kinds.
+func onBus(r protocol.Record) bool {
+	return r.Kind != protocol.KindService && r.Kind != protocol.KindGroup
+}
 
 // validateKind is what every stored record must satisfy, whichever path
 // stores it. A service describes something this bus does not run, so it has to
@@ -197,7 +205,7 @@ func onBus(r protocol.Record) bool { return r.Kind != protocol.KindService }
 // name with nothing behind it and no way to find out. For the same reason it
 // carries no queue settings and no delivery switch — there is no queue for
 // them to be about.
-// See docs/03-records.md#five-record-kinds.
+// See docs/03-records.md#record-kinds.
 func validateKind(r protocol.Record) error {
 	if !protocol.ValidKind(r.Kind) {
 		return fmt.Errorf("%w: %q is not one of %s", ErrKind, r.Kind, protocol.KindNames())
@@ -212,6 +220,27 @@ func validateKind(r protocol.Record) error {
 		return fmt.Errorf("%w: an agent's name begins with #, and %s does not", ErrKind, r.Name)
 	} else if r.Kind != protocol.KindAgent && agent {
 		return fmt.Errorf("%w: only an agent's name begins with #, and %s is a %s", ErrKind, r.Name, r.Kind)
+	}
+	// A Group's name begins with "@" and nothing else's does. A Group is a
+	// list of actors and nothing more: no queue, no address, no delivery of
+	// its own (docs/constitution.md#-group).
+	if group := strings.HasPrefix(r.Name, "@"); r.Kind == protocol.KindGroup && !group {
+		return fmt.Errorf("%w: a group's name begins with @, and %s does not", ErrKind, r.Name)
+	} else if r.Kind != protocol.KindGroup && group {
+		return fmt.Errorf("%w: only a group's name begins with @, and %s is a %s", ErrKind, r.Name, r.Kind)
+	}
+	if r.Kind == protocol.KindGroup {
+		if reservedTerm(r.Name) {
+			return fmt.Errorf("%w: %s is a runtime term, never a stored group", ErrBadName, r.Name)
+		}
+		if r.Addr != "" || r.Proto != "" || r.TTL != "" || r.Bound != 0 || r.Full != "" {
+			return fmt.Errorf("%w: a group holds no queue and no address", ErrKind)
+		}
+		// The protected group has no Maintainers and is never Personal:
+		// its membership is the daemon Owner's alone (docs/constitution.md#-group).
+		if r.Name == AdministratorsGroup && (len(r.Maintainers) != 0 || r.Personal) {
+			return fmt.Errorf("%w: %s has no maintainers and is never personal", ErrNotOwner, AdministratorsGroup)
+		}
 	}
 	// Deliver-To is what a 📣 does instead of holding a queue, so it is the
 	// one kind that has one: the other three receive rather than fan out.
@@ -243,7 +272,7 @@ func validateKind(r protocol.Record) error {
 			return fmt.Errorf("%w: a stored configuration must be compact JSON", ErrConfig)
 		}
 	}
-	if onBus(r) {
+	if r.Kind != protocol.KindService {
 		return nil
 	}
 	if r.Addr == "" || r.Proto == "" {
@@ -292,7 +321,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// A caller that states nothing gets the external case: registering by
 	// hand is how a thing that is not on this bus gets described, and every
 	// caller that means one of the other four says so.
-	// See docs/03-records.md#five-record-kinds.
+	// See docs/03-records.md#record-kinds.
 	if r.Kind == "" {
 		r.Kind = protocol.KindService
 		if protocol.IsAgentName(name) {
@@ -489,7 +518,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 // exist yet: configuring an agent template is what produces a configured
 // name. What it creates is an agent, the kind that has a queue from the moment
 // it exists — a service could not be created here, having no address to be
-// registered with. See docs/03-records.md#five-record-kinds.
+// registered with. See docs/03-records.md#record-kinds.
 //
 // The configuration is opaque. The only thing checked is that it is JSON —
 // the same "stored raw, shape-checked only" rule the MCP method info follows
@@ -912,7 +941,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 		return protocol.Envelope{}, fmt.Errorf("%s may not send to %s: %w", from, to, ErrNotAllow)
 	}
 	// Asked after the ACL, so a caller who may not see the name is told that
-	// and not which kind it is. See docs/03-records.md#five-record-kinds.
+	// and not which kind it is. See docs/03-records.md#record-kinds.
 	if !onBus(rec) {
 		return protocol.Envelope{}, fmt.Errorf("%w: %s is external — call it at %s, it is not sent to over this bus", ErrKind, to, rec.Addr)
 	}
@@ -1037,6 +1066,14 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 	// recipient cannot take is that recipient's own drop, written to the
 	// error log, while the others still get theirs; a publication that no
 	// recipient takes is refused before anything is stored or counted.
+	// An inactive Group on the list grants nothing: its members take no copy
+	// through it, it is no failed recipient and adds no drop, and the log says
+	// so (docs/constitution.md#common-record-fields).
+	for _, term := range topic.Subs {
+		if r, ok := b.records[term]; ok && r.Kind == protocol.KindGroup && !b.live(r) {
+			b.report(ports.Warning, "a publication to %s ignored its deliver-to group %s, which is inactive", topic.Name, term)
+		}
+	}
 	var failed []string
 	var why []error
 	delivered := 0
@@ -1060,6 +1097,10 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 			continue
 		}
 		delivered++
+	}
+	if delivered == 0 && len(failed) == 0 && len(topic.Subs) > 0 {
+		b.report(ports.Warning, "a publication to %s had no recipient left: no deliver-to term reached an active recipient", topic.Name)
+		return protocol.Envelope{}, fmt.Errorf("no recipient of %s is left to take it (%w)", topic.Name, ErrUnknown)
 	}
 	if delivered == 0 && len(failed) > 0 {
 		b.report(ports.Warning, "a publication to %s reached none of its %d recipients: %s", topic.Name, len(failed), strings.Join(failed, ", "))
@@ -1311,7 +1352,7 @@ type Status struct {
 	// not the node holds one. A total alone cannot say which of the four
 	// listings grew, and an absent kind here would read as an older daemon
 	// rather than as a node with none of them.
-	// See docs/03-records.md#five-record-kinds.
+	// See docs/03-records.md#record-kinds.
 	Kinds map[string]int `json:"kinds"`
 }
 

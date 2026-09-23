@@ -39,7 +39,7 @@ func (b *Bus) normalizeDeliverTo(in []string) ([]string, error) {
 			if !groupName(term) {
 				return nil, fmt.Errorf("%w: invalid deliver-to group %q", ErrBadName, raw)
 			}
-			if _, ok := b.groups[term]; !ok {
+			if _, ok := b.groupMembers(term); !ok {
 				return nil, fmt.Errorf("%w: deliver-to %s", ErrUnknown, term)
 			}
 		} else {
@@ -85,7 +85,8 @@ func (b *Bus) deliverTo(topic protocol.Record) []string {
 				return // already expanded, or nested in itself
 			}
 			walked[term] = true
-			for _, m := range b.groups[term] {
+			members, _ := b.groupMembers(term)
+			for _, m := range members {
 				if groupName(m) && term == AdministratorsGroup {
 					continue
 				}

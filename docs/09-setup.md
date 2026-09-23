@@ -89,7 +89,7 @@ not restore the old name automatically.
 ## Record kind upgrade
 
 From 0.6.0 `kind` is a closed set of five
-([records](03-records.md#five-record-kinds)). `generic`, `topic` and the `mode`
+([records](03-records.md#record-kinds)). `generic`, `topic` and the `mode`
 field are gone, and **a daemon of this line refuses to start on a snapshot
 holding any of them**, naming the record rather than converting it. There is no
 compatibility obligation before 1.1, so nothing is migrated at load time.

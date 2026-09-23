@@ -70,3 +70,14 @@ func validStatus(s string) error {
 	}
 	return nil
 }
+
+// groupMembers is a live Group's membership, its allow list; an absent or
+// inactive Group has none and grants nothing (docs/constitution.md#-group).
+// Caller holds b.mu.
+func (b *Bus) groupMembers(name string) ([]string, bool) {
+	r, ok := b.records[name]
+	if !ok || r.Kind != protocol.KindGroup || !b.live(r) {
+		return nil, false
+	}
+	return r.Allow, true
+}

@@ -1286,7 +1286,7 @@ has "human missing lookup reports the error" "$human_error" 'no such name'
 ab owner@srv1 register human-external@srv1 --allow '*' --protocol http --addr http://localhost >/dev/null
 # A service is external and has no queue here, so the listing reports no reader
 # count and no backlog for it rather than a zero it never measured.
-# See docs/03-records.md#five-record-kinds.
+# See docs/03-records.md#record-kinds.
 has "an external service reports no queue it does not have" \
   "$(ab owner@srv1 ls -h human-external@srv1)" '^human-external@srv1  *📡 Service  *owner@srv1  *-  *-'
 has "while an agent's own counts are still measured" \
@@ -2178,7 +2178,7 @@ has "the strip reports sampled hour calls" "$NODE" '<span>Calls, hour</span><str
 has "the strip reports total calls" "$NODE" '<span>Calls, total</span><strong>[0-9]'
 # One cell per thing a record can be, because a single total cannot say which
 # of the four listings grew. Each is asked for separately.
-for label in Agents Services Channels Users; do
+for label in Agents Services Channels Users Groups; do
   has "the strip counts $label on its own" "$NODE" \
     "<span>$label</span><strong>\\([0-9]\\|<span class=muted>&mdash;\\)"
 done
@@ -2190,11 +2190,11 @@ lacks "and no longer sums them into one cell" "$NODE" \
 # A dash counts as nothing, which is what it means. Empty is what the strip
 # prints for a kind the node has none of.
 STRIPSUM=$(printf '%s' "$NODE" \
-  | grep -o '<span>\(Agents\|Services\|Channels\|Users\)</span><strong>[0-9,]*' \
+  | grep -o '<span>\(Agents\|Services\|Channels\|Users\|Groups\)</span><strong>[0-9,]*' \
   | grep -o '[0-9,]*$' | tr -d ',' | awk '{n+=$1} END{print n+0}')
 NODETOTAL=$(tbody "$TOKEN" /status | grep -o '"services":[0-9]*' | grep -o '[0-9]*$')
 has "the daemon states a registry total for them to be checked against" "$NODETOTAL" '^[0-9]\+$'
-has "and the four counts add up to it" "$STRIPSUM" "^$NODETOTAL$"
+has "and the five counts add up to it" "$STRIPSUM" "^$NODETOTAL$"
 # What the node holds leads; how it is running follows on its own row. Asked
 # as the order of the markup, because every cell is on the page either way.
 has "how the node stands now leads, and what it has done since start follows" \
@@ -2238,7 +2238,7 @@ lacks "an ordinary group claims no authority of its own" "$ORDGRP" 'What members
 # Root is Overview and is allowed to be short; the retained envelopes are on
 # Three pages, one per thing a record is: an agent is on this bus and is
 # somebody, a queue is a channel it reads through, and a service is external
-# (docs/03-records.md#five-record-kinds). Each listing paginates,
+# (docs/03-records.md#record-kinds). Each listing paginates,
 # so the three questions about one name are asked of a search for that name.
 ab "$OWNER" channel create smoke-chan@srv1 --allow '*' --descr "a registered channel" >/dev/null
 AGENTS=$(curl -s -b "$JAR" "$WEB/agents?q=human%40srv1")
@@ -2682,9 +2682,10 @@ orph_checks() {
   # otherwise turn back into a profile. A stored owner must fail closed on that
   # damage rather than silently resurrecting setup's seed.
   cp "$ODB" "$D/orph/before-owner-edit.db"
-  osql "DELETE FROM users WHERE name = '$OWNER'; UPDATE groups SET members = '[]' WHERE name = '@administrators'"
+  # A Group is a record: its membership is the record's allow list.
+  osql "DELETE FROM users WHERE name = '$OWNER'; UPDATE records SET body = json_set(body, '\$.allow', json('[]')) WHERE name = '@administrators'"
   EDUSERS=$(osql 'SELECT name FROM users')
-  EDGROUPS=$(osql "SELECT name || '=' || members FROM groups")
+  EDGROUPS=$(osql "SELECT name || '=' || coalesce(json_extract(body, '\$.allow'), '[]') FROM records WHERE kind = 'group'")
   has "the edited store still lists the users it kept" "$EDUSERS" 'keeper@srv1'
   has "and still has a maintainers group to read" "$EDGROUPS" '@administrators='
   lacks "but no profile for the daemon owner, as a hand-edited store may not" \

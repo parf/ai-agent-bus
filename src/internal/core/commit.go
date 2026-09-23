@@ -23,7 +23,6 @@ import (
 type staged struct {
 	records    map[string]*protocol.Record
 	users      map[string]*protocol.User
-	groups     map[string]*[]string
 	inboxes    map[string]*inbox
 	owner      *string
 	accounts   map[string]string
@@ -37,7 +36,7 @@ type staged struct {
 }
 
 func (s *staged) empty() bool {
-	return len(s.records) == 0 && len(s.users) == 0 && len(s.groups) == 0 &&
+	return len(s.records) == 0 && len(s.users) == 0 &&
 		len(s.inboxes) == 0 && s.owner == nil && !s.accountsOn && !s.idsOn && len(s.creds) == 0
 }
 
@@ -46,7 +45,6 @@ func (b *Bus) stage() *staged {
 		b.staging = &staged{
 			records: map[string]*protocol.Record{},
 			users:   map[string]*protocol.User{},
-			groups:  map[string]*[]string{},
 			inboxes: map[string]*inbox{},
 		}
 	}
@@ -145,17 +143,17 @@ func (b *Bus) setUser(name string, u protocol.User) {
 	b.userByID[u.ID] = name
 }
 
-func (b *Bus) setGroup(name string, members []string) {
-	s := b.stage()
-	if _, seen := s.groups[name]; !seen {
-		if old, had := b.groups[name]; had {
-			kept := append([]string(nil), old...)
-			s.groups[name] = &kept
-		} else {
-			s.groups[name] = nil
-		}
+// setGroup writes a Group's membership, its allow list, creating the Group's
+// record owned by owner when there is none: a Group is an ordinary record
+// (docs/constitution.md#-group). Caller holds b.mu.
+func (b *Bus) setGroup(name, owner string, members []string) {
+	r, had := b.records[name]
+	if !had {
+		r = protocol.Record{Name: name, Kind: protocol.KindGroup, Owner: owner}
 	}
-	b.groups[name] = members
+	r.Allow = append([]string{}, members...)
+	r.At = time.Now()
+	b.setRecord(name, r)
 }
 
 func (b *Bus) setOwner(owner string) {
@@ -228,17 +226,6 @@ func (b *Bus) change(s *staged) ports.Change {
 			}
 		}
 	}
-	if len(s.groups) > 0 {
-		c.Groups = map[string]*[]string{}
-		for name := range s.groups {
-			if members, has := b.groups[name]; has {
-				members := append([]string{}, members...)
-				c.Groups[name] = &members
-			} else {
-				c.Groups[name] = nil
-			}
-		}
-	}
 	for name := range s.inboxes {
 		if _, back := b.inboxes[name]; !back {
 			c.DropQueues = append(c.DropQueues, name)
@@ -297,13 +284,6 @@ func (b *Bus) rollback(s *staged) {
 	}
 	if s.idsOn {
 		b.nextRecordID, b.nextUserID = s.nextRecordID, s.nextUserID
-	}
-	for name, old := range s.groups {
-		if old == nil {
-			delete(b.groups, name)
-		} else {
-			b.groups[name] = *old
-		}
 	}
 	for name, in := range s.inboxes {
 		b.inboxes[name] = in

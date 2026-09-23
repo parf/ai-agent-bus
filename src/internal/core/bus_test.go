@@ -687,6 +687,9 @@ func TestAKindTheDaemonDoesNotKnowIsRefused(t *testing.T) {
 		if ok == protocol.KindAgent {
 			r.Name = "#" + r.Name
 		}
+		if ok == protocol.KindGroup {
+			r.Name = "@" + r.Name
+		}
 		if ok == protocol.KindService {
 			r.Addr, r.Proto = "db.example", "mysql"
 		}
@@ -983,7 +986,7 @@ func TestAUserNameIsNotAlsoAQueueName(t *testing.T) {
 // An external service is a card saying where something outside is and how to
 // speak to it, readable by whoever its ACL admits. It is not on this bus, so
 // none of the three doors into a queue opens on it and none of the settings a
-// queue has may be stored. See docs/03-records.md#five-record-kinds.
+// queue has may be stored. See docs/03-records.md#record-kinds.
 func TestAnExternalServiceHasNoQueueHere(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")

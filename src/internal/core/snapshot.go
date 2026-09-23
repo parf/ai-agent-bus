@@ -26,7 +26,6 @@ func (b *Bus) snapshot() ports.Snapshot {
 		Owner:               b.admin,
 		AccountsEstablished: true,
 		At:                  time.Now(),
-		Groups:              map[string][]string{},
 		NextRecordID:        b.nextRecordID,
 		NextUserID:          b.nextUserID,
 	}
@@ -36,9 +35,6 @@ func (b *Bus) snapshot() ports.Snapshot {
 	sort.Slice(s.Accounts, func(i, j int) bool { return s.Accounts[i].Account < s.Accounts[j].Account })
 	for _, user := range b.users {
 		s.Users = append(s.Users, user)
-	}
-	for name, members := range b.groups {
-		s.Groups[name] = append([]string{}, members...)
 	}
 	for _, r := range b.records {
 		s.Records = append(s.Records, r)
@@ -175,30 +171,33 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		clearDerivedUser(&user)
 		b.users[user.Name] = user
 	}
-	for name, members := range s.Groups {
-		b.groups[name] = append([]string{}, members...)
-	}
-	if b.ownerRestoreErr == nil {
-		if _, stored := b.groups[OwnerGroup]; stored {
-			b.ownerRestoreErr = fmt.Errorf("snapshot contains runtime ACL term %s as a stored group", OwnerGroup)
+	// The groups that carry authority are checked before anything serves: a
+	// stored runtime term, a nested administrators group, or one whose Owner
+	// is not the daemon Owner refuses the start (docs/constitution.md#-group).
+	for _, r := range s.Records {
+		if b.ownerRestoreErr != nil {
+			break
 		}
-	}
-	if b.ownerRestoreErr == nil {
-		for _, member := range b.groups[AdministratorsGroup] {
-			if groupName(member) {
-				b.ownerRestoreErr = fmt.Errorf("snapshot %s contains nested group %s; administrative membership is direct-only", AdministratorsGroup, member)
-				break
+		switch {
+		case reservedTerm(r.Name):
+			b.ownerRestoreErr = fmt.Errorf("snapshot contains runtime ACL term %s as a stored group", r.Name)
+		case r.Name == AdministratorsGroup:
+			for _, member := range r.Allow {
+				if groupName(member) {
+					b.ownerRestoreErr = fmt.Errorf("snapshot %s contains nested group %s; administrative membership is direct-only", AdministratorsGroup, member)
+					break
+				}
+			}
+			if b.ownerRestoreErr == nil && s.OwnerEstablished && r.Owner != b.admin {
+				b.ownerRestoreErr = fmt.Errorf("snapshot %s is owned by %s, not the daemon owner %s", AdministratorsGroup, r.Owner, b.admin)
 			}
 		}
 	}
 	if s.OwnerEstablished && b.ownerRestoreErr == nil {
 		if _, known := b.users[b.admin]; !known {
 			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner %s is not a registered user", b.admin)
-		} else if err := b.acting(b.admin); err != nil {
-			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner %s is not active: %w", b.admin, err)
-		} else if !b.member(b.admin, AdministratorsGroup) {
-			b.groups[AdministratorsGroup] = append(b.groups[AdministratorsGroup], b.admin)
-			sort.Strings(b.groups[AdministratorsGroup])
+		} else if !b.userActive(b.admin) {
+			b.ownerRestoreErr = fmt.Errorf("snapshot daemon owner %s is not active", b.admin)
 		}
 	}
 	// Restore loads; it commits nothing and repairs nothing.
@@ -357,17 +356,20 @@ func (b *Bus) ignoreIncorrect() {
 // User administers, and a missing one is not manufactured. A daemon Owner so
 // ignored refuses the start. Caller holds b.mu.
 func (b *Bus) ignoreNonUserAdministrators() {
-	members := b.groups[AdministratorsGroup]
-	kept := members[:0:0]
-	for _, m := range members {
-		if _, user := b.users[m]; !user {
-			b.report(ports.Alert, "stored %s member %s is ignored: it is no user", AdministratorsGroup, m)
-			continue
+	admins, ok := b.records[AdministratorsGroup]
+	if ok {
+		kept := admins.Allow[:0:0]
+		for _, m := range admins.Allow {
+			if _, user := b.users[m]; !user {
+				b.report(ports.Alert, "stored %s member %s is ignored: it is no user", AdministratorsGroup, m)
+				continue
+			}
+			kept = append(kept, m)
 		}
-		kept = append(kept, m)
-	}
-	if len(kept) != len(members) {
-		b.groups[AdministratorsGroup] = kept
+		if len(kept) != len(admins.Allow) {
+			admins.Allow = kept
+			b.records[AdministratorsGroup] = admins
+		}
 	}
 	if b.ownerRestoreErr == nil && b.admin != "" && b.ownerRestored {
 		if _, user := b.users[b.admin]; !user {

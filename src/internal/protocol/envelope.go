@@ -108,7 +108,7 @@ func (m *MaintainerList) UnmarshalJSON(data []byte) error {
 
 // Record is one registered name, of one of the five kinds below. Registering
 // is pushing a description; the thing itself need not know the bus exists.
-// See docs/03-records.md#five-record-kinds.
+// See docs/03-records.md#record-kinds.
 type Record struct {
 	// ID is the internal registry_id: stable, persisted, never reused and
 	// never the public identity, so it is on no answer
@@ -295,7 +295,7 @@ const (
 // Record kinds: a closed set, so the daemon answers what a record is rather
 // than a reader inferring it. A queue and a pub/sub topic are kinds of their
 // own, which is why no separate mode is stored.
-// See docs/03-records.md#five-record-kinds.
+// See docs/03-records.md#record-kinds.
 const (
 	KindUser    = "user"    // the queue a person reads
 	KindAgent   = "agent"   // the queue an agent reads
@@ -308,7 +308,7 @@ const (
 )
 
 // Kinds is the whole set, in the order an error message should name them.
-var Kinds = []string{KindUser, KindAgent, KindQueue, KindPubSub, KindService}
+var Kinds = []string{KindUser, KindAgent, KindQueue, KindPubSub, KindService, KindGroup}
 
 // ValidKind reports whether the daemon knows this kind. An empty kind is not
 // one: a caller that states nothing is given the default before it gets here.

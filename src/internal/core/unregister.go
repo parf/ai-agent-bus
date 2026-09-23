@@ -35,6 +35,11 @@ func (b *Bus) Unregister(name, caller string) error {
 	if !b.manages(who, r) {
 		return fmt.Errorf("%w: %s", ErrNotOwner, n)
 	}
+	// A Group is retired by emptying it, never removed: its name is what
+	// every list naming it resolves (docs/01-identity-and-roles.md#groups).
+	if r.Kind == protocol.KindGroup {
+		return fmt.Errorf("%w: %s is a group; retire it by emptying it", ErrNoRemoval, n)
+	}
 	// A User's own record goes with the User, and a User is never removed
 	// (docs/constitution.md#-user).
 	if r.Kind == protocol.KindUser {
@@ -75,11 +80,6 @@ func (b *Bus) forgetName(name string) {
 		if len(allow) != len(r.Allow) || len(maint) != len(r.Maintainers) || len(subs) != len(r.Subs) {
 			r.Allow, r.Maintainers, r.Subs = allow, maint, subs
 			b.setRecord(other, r)
-		}
-	}
-	for group, members := range b.groups {
-		if next := drop1(members, name); len(next) != len(members) {
-			b.setGroup(group, next)
 		}
 	}
 }

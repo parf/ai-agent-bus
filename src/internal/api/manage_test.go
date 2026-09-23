@@ -41,8 +41,11 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	call("alice@h", "/register", `{"kind":"agent","name":"#svc@h","allow":["alice@h"]}`, 200)
 	call("admin@h", "/manage", `{"kind":"agent","name":"#svc@h","descr":"node owner may manage every service"}`, 200)
 	call("bob@h", "/manage", `{"kind":"agent","name":"#svc@h","owner":"bob@h"}`, 403)
-	call("alice@h", "/group", `{"kind":"agent","name":"@ops","members":["alice@h"]}`, 403)
+	// A Group is an ordinary record: alice may make one of her own, and may
+	// not edit a group someone else owns.
+	call("alice@h", "/group", `{"kind":"agent","name":"@alices","members":["alice@h"]}`, 200)
 	call("admin@h", "/group", `{"kind":"agent","name":"@ops","members":["maint@h"]}`, 200)
+	call("alice@h", "/group", `{"kind":"agent","name":"@ops","members":["alice@h"]}`, 403)
 	managed := call("alice@h", "/manage", `{"kind":"agent","name":"#svc@h","maintainers":"@ops","bound":2,"ttl":"1h","overflow":"strict","descr":"owned"}`, 200)
 	if !strings.Contains(managed, `"maintainers":["@ops"]`) || strings.Contains(managed, `"maintainers":"@ops"`) {
 		t.Fatalf("legacy management input was not answered with the array spelling: %s", managed)

@@ -14,7 +14,7 @@ answer. Owner decision of 2026-09-18.
 | Pub/sub channel | every admitted subscriber | **read and write, separately** |
 | A person's own queue | that person, and nobody else | who may write |
 | An agent's queue | that agent's processor, and nobody else | who may write |
-| An external-service record | nothing is delivered to it at all ([service](../../docs/03-records.md#five-record-kinds)) | who may view and edit the entry |
+| An external-service record | nothing is delivered to it at all ([service](../../docs/03-records.md#record-kinds)) | who may view and edit the entry |
 
 A queue and a channel are the only records where both ends are open, because
 they exist to be shared: somebody publishes, somebody else takes. For the other

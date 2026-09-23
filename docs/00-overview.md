@@ -14,7 +14,7 @@ Values have one owning section; other pages link to it.
 | [Constitution](constitution.md#project-constitution) | Intended model and accepted changes awaiting reconciliation with implementation and topic docs |
 | [Identity and roles](01-identity-and-roles.md#identities) | Names, users, roles, groups and resource lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
-| [Records](03-records.md#five-record-kinds) | Record kinds, registration, agent templates, configuration and Personal |
+| [Records](03-records.md#record-kinds) | Record kinds, registration, agent templates, configuration and Personal |
 | [Services](06-services.md#what-a-service-is) | The external 📡 case: address, protocol, secrets and what it has no queue for |
 | [Channels](07-channels.md#the-two-channel-kinds) | The 📮 and 📣 kinds: delivery, retention and what publish stamps |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and snapshots |

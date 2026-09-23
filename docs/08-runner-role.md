@@ -15,7 +15,7 @@ session behind a name with bus tools loaded.
 ## What the runner does
 
 `agent-bus start` stays in the foreground, registers an 👾
-[agent](03-records.md#five-record-kinds) — the kind that has a
+[agent](03-records.md#record-kinds) — the kind that has a
 queue here — obtains its credential and reads that queue. It runs the script once per message. It does
 not manage installed instances, autostart, reload or restart policies.
 
@@ -23,7 +23,7 @@ not manage installed instances, autostart, reload or restart policies.
 
 A script agent is a **script behind an 👾 agent record**: the name is an
 agent because that is the kind with a queue to read
-([records § five record kinds](03-records.md#five-record-kinds)). A 📡
+([records § five record kinds](03-records.md#record-kinds)). A 📡
 `service` is the external case, and nothing runs behind one here.
 
 | Form | Input | Output |

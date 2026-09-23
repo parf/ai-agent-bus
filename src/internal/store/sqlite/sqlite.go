@@ -29,13 +29,12 @@ import (
 // schema is the layout this daemon reads and writes. A database carrying any
 // other version is refused rather than guessed at: before 1.1 there is no
 // compatibility obligation, and 0.7 starts from a clean reinstall.
-const schema = 3
+const schema = 4
 
 var tables = []string{
 	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
 	`CREATE TABLE users (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, body TEXT NOT NULL)`,
 	`CREATE TABLE records (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, kind TEXT NOT NULL, body TEXT NOT NULL)`,
-	`CREATE TABLE groups (name TEXT PRIMARY KEY, members TEXT NOT NULL)`,
 	`CREATE TABLE accounts (account TEXT PRIMARY KEY, principal TEXT NOT NULL)`,
 	`CREATE TABLE queues (name TEXT PRIMARY KEY, in_count INTEGER NOT NULL, out_count INTEGER NOT NULL, dropped INTEGER NOT NULL, expired INTEGER NOT NULL)`,
 	`CREATE TABLE messages (queue TEXT NOT NULL, seq INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY (queue, seq))`,
@@ -240,17 +239,6 @@ func (s *Store) Load() (ports.Snapshot, error) {
 			*into = uint32(n)
 		}
 	}
-	snap.Groups = map[string][]string{}
-	if err := eachBody(tx, `SELECT name, members FROM groups ORDER BY name`, func(name string, body []byte) error {
-		var members []string
-		if err := json.Unmarshal(body, &members); err != nil {
-			return fmt.Errorf("group %s: %w", name, err)
-		}
-		snap.Groups[name] = members
-		return nil
-	}); err != nil {
-		return snap, err
-	}
 	queues := map[string]*ports.Queue{}
 	var order []string
 	rows, err = tx.Query(`SELECT name, in_count, out_count, dropped, expired FROM queues ORDER BY name`)
@@ -399,21 +387,6 @@ func (s *Store) Commit(c ports.Change) error {
 			return err
 		}
 		if _, err := tx.Exec(`INSERT INTO records (name, id, kind, body) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET id = excluded.id, kind = excluded.kind, body = excluded.body`, name, r.ID, r.Kind, body); err != nil {
-			return err
-		}
-	}
-	for name, members := range c.Groups {
-		if members == nil {
-			if _, err := tx.Exec(`DELETE FROM groups WHERE name = ?`, name); err != nil {
-				return err
-			}
-			continue
-		}
-		body, err := json.Marshal(*members)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(`INSERT INTO groups (name, members) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET members = excluded.members`, name, body); err != nil {
 			return err
 		}
 	}

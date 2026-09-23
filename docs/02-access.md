@@ -145,7 +145,7 @@ provider answers. Private keys stay with the signing tool.
 references for Queue sources.
 
 **ACL governs other principals' access to a record**, whichever of the five
-[kinds](03-records.md#five-record-kinds) it is. A record does not
+[kinds](03-records.md#record-kinds) it is. A record does not
 need to list itself in its own ACL: it may read its own inbox independently.
 Caller standing and the record's status still apply: an inactive record, or
 one whose User is inactive, is no such record.
@@ -169,7 +169,7 @@ also admits every active Agent, which acts for its User.
 
 **`@owner` is a runtime ACL term for the record's direct Owner and every 👾
 `agent` directly owned by that Owner.** No other
-[kind](03-records.md#five-record-kinds) joins the cohort: a 📮, a
+[kind](03-records.md#record-kinds) joins the cohort: a 📮, a
 📣 and a 👤 are destinations or people rather than callers acting for an owner,
 and a 📡 calls nothing here at all. Ownership is one step: an agent owned by
 another agent does not inherit the human owner's cohort. The term follows current registry

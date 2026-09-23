@@ -161,7 +161,7 @@ is queued. One table answering both is what buried delivery mode
 its own document title, heading, navigation state, columns and detail route.
 
 **0.6.3: one listing per thing a record is**, decided by the [five
-kinds](../../../docs/03-records.md#five-record-kinds) and superseding
+kinds](../../../docs/03-records.md#record-kinds) and superseding
 the 0.5.84 arrangement below. Agents is first in the menu and holds 👾 alone,
 because agents are what the bus exists to carry messages between; Services holds
 📡 alone, which is the external case; Channels holds 📮 📣 👤 and keeps the Kind

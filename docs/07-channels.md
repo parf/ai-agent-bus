@@ -21,7 +21,7 @@ owner, an ACL and a queue.
 
 | | Is | Spelled |
 |---|---|---|
-| **Channel** | a 📮 or 📣 [record](03-records.md#five-record-kinds) | `channel create`, `publish --channel`, `subscribe <channel>`, and `channel` on the wire |
+| **Channel** | a 📮 or 📣 [record](03-records.md#record-kinds) | `channel create`, `publish --channel`, `subscribe <channel>`, and `channel` on the wire |
 | **Topic** | a label on one [envelope](04-messaging.md#envelope), matched by a filtered read | `send --topic`, `consume --topic`, `reply --topic`, and `topic` on the wire |
 
 The old spellings are not kept as aliases: before 1.1 there is no compatibility
@@ -30,7 +30,7 @@ obligation, and a second name for one thing is a second thing to explain.
 ## The two channel kinds
 
 A channel is registered like any other record and is **first-class** in the
-same registry. Two of the [five kinds](03-records.md#five-record-kinds) are
+same registry. Two of the [six kinds](03-records.md#record-kinds) are
 channels — the Redis model:
 
 | Kind | Delivery | Retention | No subscribers at publish time | Redis analogue |

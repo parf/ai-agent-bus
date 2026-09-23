@@ -16,7 +16,7 @@ relevant; [implementation work](../Plans/MVP/TODO.md#authority-model) and
 
 A **User** is a registered person. A **principal** is the identity a credential
 represents; it must have a user profile or a registry record to use the bus.
-A record is one of [five kinds](03-records.md#five-record-kinds): 👤 `user`, 👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service`.
+A record is one of [six kinds](03-records.md#record-kinds): 👤 `user`, 👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service`.
 
 ## Names
 
@@ -227,7 +227,7 @@ stops no process, and is reversible. Users are never deleted.
 ## Record authority
 
 **These rules are about a record, whichever of the
-[five kinds](03-records.md#five-record-kinds) it is.**
+[six kinds](03-records.md#record-kinds) it is.**
 
 A record has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
@@ -278,17 +278,20 @@ different thing entirely.
 
 ## Groups
 
+**Built in 0.7.10:** a Group is an ordinary record of kind `group`, named
+`@name`, whose `allow` list is its membership
+([constitution § Group](constitution.md#-group)). Any User creates one, and it
+belongs to that User. Its Owner, its Maintainers and the daemon's
+Administrators change its membership; nobody else does. Members are actors —
+Users, Agents and other Groups — never the wildcard or a runtime term.
 For shared management, create a group and add it to each resource's Maintainers
 list. A list may instead name a record directly. There is no automatic global
-assignment.
-**Administrators control ordinary group membership**, including groups assigned
-as Maintainers. They may add themselves or another user they create, without
-additional approval from the record's owner. Choosing the group accepts those
-membership changes on every resource using it. This is intended, built behavior.
-Retire an ordinary group by emptying it; groups are not deleted.
-**Pending for 0.7:** a Group is a record with `status`, and an inactive Group
-grants nothing and is [no such entity](constitution.md#common-record-fields)
-while its name stays reserved.
+assignment. Choosing a group accepts its membership changes on every resource
+using it. Retire an ordinary group by emptying it; groups are not deleted. An
+inactive Group grants nothing and is
+[no such entity](constitution.md#common-record-fields) while its name stays
+reserved; at a publication it is skipped with an error-log warning and counts
+no drop.
 Ordinary groups may contain principals and other groups. Their membership
 follows the stored graph: cycles terminate, unknown group references stay inert
 until populated, and any path to a principal grants effective membership.
@@ -296,15 +299,20 @@ until populated, and any path to a principal grants effective membership.
 <details>
 <summary>Administrative membership and shared-group limits</summary>
 
-* The protected `@administrators` group grants daemon administration. Only the
-  daemon owner changes it; the owner always remains a member. An added
-  Administrator gets a user profile; removing membership keeps that profile.
-  Ordinary group membership creates no profiles. See [upgrade migration](09-setup.md#administrator-name-migration).
-* Groups are daemon-local membership lists, not principals: they have no
-  credential. Emptying a group preserves references to its name; adding members
+* The protected `@administrators` group grants daemon administration. Its
+  Owner is the daemon Owner and moves with daemon ownership in the same write;
+  it has no Maintainers, is never Personal, and takes no owner, Maintainer,
+  membership or status change through record management. Only the daemon
+  Owner changes its membership, with Users only; the Owner always remains a
+  member. An added Administrator gets a user profile; removing membership
+  keeps that profile. Ordinary group membership creates no profiles. A
+  restored one owned by anyone else refuses the start.
+* Groups are not principals: they have no credential. Every member reads a
+  Group's [private values](constitution.md#-private-values). Emptying a group preserves references to its name; adding members
   later makes those references effective again. The protected group cannot be emptied.
 * Group names are available for resource-owner assignments; full membership
-  lists are visible to Administrators. Owning a record grants no daemon
+  lists are visible to Administrators and to whom a Group's own ACL — its
+  membership — and managers admit. Owning a record grants no daemon
   user/group administration.
 * Nested membership is built in 0.5.57. Stored group lists show direct entries;
   user views report effective membership. ACL and Maintainer checks use the
@@ -337,7 +345,7 @@ An owner must have a profile or record of its own. Enrolment creates a profile
 and self-owned record. Ordinary registration that states no `kind` creates a 📡
 `service`, which is why it must also carry an address and a protocol; a caller
 meaning one of the other four
-[kinds](03-records.md#five-record-kinds) says so, and `--personal`
+[kinds](03-records.md#record-kinds) says so, and `--personal`
 says `agent`.
 
 A conditional creation refuses an existing canonical name, even for its owner;

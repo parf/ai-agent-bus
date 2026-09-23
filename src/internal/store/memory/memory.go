@@ -105,7 +105,6 @@ type State struct {
 	hasAccts bool
 	users    map[string]protocol.User
 	records  map[string]protocol.Record
-	groups   map[string][]string
 	queues   map[string]ports.Queue
 	tokens   *Tokens
 	clean    bool
@@ -122,7 +121,6 @@ func NewState() *State {
 		accounts: map[string]string{},
 		users:    map[string]protocol.User{},
 		records:  map[string]protocol.Record{},
-		groups:   map[string][]string{},
 		queues:   map[string]ports.Queue{},
 		tokens:   NewTokens(),
 	}
@@ -138,7 +136,6 @@ func (s *State) Load() (ports.Snapshot, error) {
 	snap := ports.Snapshot{
 		OwnerEstablished: s.hasOwner, Owner: s.owner,
 		AccountsEstablished: s.hasAccts, Clean: s.clean,
-		Groups:       map[string][]string{},
 		NextRecordID: s.nextRec, NextUserID: s.nextUser,
 	}
 	for account, principal := range s.accounts {
@@ -150,9 +147,6 @@ func (s *State) Load() (ports.Snapshot, error) {
 	}
 	for _, r := range s.records {
 		snap.Records = append(snap.Records, r)
-	}
-	for name, members := range s.groups {
-		snap.Groups[name] = append([]string{}, members...)
 	}
 	for _, q := range s.queues {
 		q.Messages = append([]protocol.Envelope(nil), q.Messages...)
@@ -195,13 +189,6 @@ func (s *State) Commit(c ports.Change) error {
 			delete(s.records, name)
 		} else {
 			s.records[name] = *r
-		}
-	}
-	for name, members := range c.Groups {
-		if members == nil {
-			delete(s.groups, name)
-		} else {
-			s.groups[name] = append([]string{}, (*members)...)
 		}
 	}
 	for _, name := range c.DropQueues {

@@ -9,10 +9,10 @@ for, never inferred from which fields are filled in.
 
 | MVP | Scope |
 |---|---|
-| Built | [Five record kinds](#five-record-kinds) closing `kind`, registry records, [agent templates](#agent-templates), private registry configuration and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](#agent-templates). |
+| Built | [Six record kinds](#record-kinds) closing `kind`, registry records, [agent templates](#agent-templates), private registry configuration and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](#agent-templates). |
 | Pending | Nothing here. The 📮 and 📣 kinds are owned by [channels](07-channels.md#status), and the 📡 kind by [services](06-services.md#status). |
 
-## Five record kinds
+## Record kinds
 
 `kind` is a closed set. The daemon answers what a record is, rather than a page
 inferring it from which fields happen to be filled in.
@@ -24,10 +24,11 @@ inferring it from which fields happen to be filled in.
 | 📮 | `queue` | a [topic](07-channels.md#the-two-channel-kinds) created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
 | 📣 | `pubsub` | a [pub/sub topic](07-channels.md#the-two-channel-kinds): it keeps nothing and copies each publication to everyone on its [Deliver-To list](04-messaging.md#subscribers) | a user or an agent | nobody |
 | 📡 | `service` | a description of something [**external**](06-services.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
+| 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-roles.md#groups), its name begins with `@`, and it has no queue | a user or an agent | nobody |
 
-**Pending for 0.7:** 👥 `group` joins the enum as a sixth kind, so a Group is an
-ordinary registry record rather than a thing beside the registry
-([constitution § record kind](constitution.md#-record-kind)).
+Built in 0.7.10: a Group is an ordinary registry record in the shared ID
+space rather than a thing beside the registry
+([constitution § Group](constitution.md#-group)).
 
 Registering with no kind stores `service`, because describing something outside
 is the case a bare `register` is usually for. `--personal` names an `agent`.
@@ -82,7 +83,7 @@ The kind says how a name is reached, and there are only two answers.
 `name@realm` stands alone; `template/instance@realm` says which **agent
 template** that instance was configured from. The prefix is naming, not a group
 and not an instruction to fan out: the parser accepts it for a name of any
-[kind](#five-record-kinds) and reads no meaning out of it. Each complete name is
+[kind](#record-kinds) and reads no meaning out of it. Each complete name is
 a record of its own, with its own configuration and — for the four kinds that
 have one — its own queue. Nothing parses configuration out of an instance's
 name.
@@ -115,7 +116,7 @@ The record is created if it does not exist, with the defaults a bare
 registration gets — configuring is not a second way to describe a record, only
 the way to give it a configuration. What it creates is an 👾 `agent`: a 📡
 `service` could not be created here, having no address to be registered with
-([five record kinds](#five-record-kinds)). A standalone `name@realm` takes a
+([record kinds](#record-kinds)). A standalone `name@realm` takes a
 configuration the same way; the template prefix is not what makes one
 configurable.
 
@@ -191,7 +192,7 @@ hundreds of per-user agents sit apart. Built in 0.7.5.
 
 | Rule | Requirement |
 |---|---|
-| Carried by | every kind; the tag is not a kind ([five record kinds](#five-record-kinds)) |
+| Carried by | every kind; the tag is not a kind ([record kinds](#record-kinds)) |
 | 👤 user record | always Personal and cannot be made shared |
 | `allow` and `maintainers` | only the Owner, the Owner's own agents by name, and the runtime [`@owner` and `@agent` terms](02-access.md#acl) |
 | Refused | another user's agent, an ordinary group, a user entry other than the Owner, and the [wildcard grant](02-access.md#acl) — each an error on every save, at creation and after it |

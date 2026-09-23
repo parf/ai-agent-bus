@@ -5,6 +5,12 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.10 — 2026-09-22
+
+Groups are records of kind `group` whose allow list is their membership; any
+User creates one; `@administrators` follows the daemon Owner; an inactive Group
+grants nothing; database schema 4 drops the separate groups table.
+
 ## 0.7.9 — 2026-09-22
 
 Users and records are active or inactive; an inactive one is no such entity,

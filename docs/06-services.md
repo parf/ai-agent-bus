@@ -14,9 +14,9 @@ need one. Its address and protocol are required.
 
 ## What a service is
 
-`service` is one of the [five record kinds](03-records.md#five-record-kinds),
+`service` is one of the [record kinds](03-records.md#record-kinds),
 and it is the **external** one. What runs behind a name on this bus is an
-[agent](03-records.md#five-record-kinds); `service` keeps the word for the thing
+[agent](03-records.md#record-kinds); `service` keeps the word for the thing
 a registration only describes.
 
 The record is **information for the people and agents its
@@ -43,7 +43,7 @@ agent-bus register mysql-prod@srv1 --addr host:3306 --protocol mysql
 
 **Call it directly**, at `addr`, speaking `protocol`. The bus is not in the path
 at all; the four kinds that have a queue are reached by sending to the name
-instead ([records § five record kinds](03-records.md#five-record-kinds)).
+instead ([records § five record kinds](03-records.md#record-kinds)).
 
 A service's `addr` and `protocol` are the registration's own words, stored raw
 and **never interpreted**. The daemon does not implement a second protocol and

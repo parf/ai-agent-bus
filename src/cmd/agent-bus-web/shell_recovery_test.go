@@ -197,6 +197,11 @@ func TestExpiredPermissionAndUnavailableRecoveriesAreFourDistinctAnswers(t *test
 	// Refused for want of permission: signing in again cannot help, so it
 	// must not be offered.
 	plain := signInAs("plain@h")
+	// A group somebody else owns: an ordinary user may create groups, but not
+	// edit this one.
+	if err := m.bus.SetGroup("admin@h", "@ops", []string{"admin@h"}); err != nil {
+		t.Fatal(err)
+	}
 	code, refused := ask("POST", "/groups", plain, url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"plain@h"}})
 	if code != http.StatusForbidden || !strings.Contains(refused, "Not yours to see") {
 		t.Fatalf("a permission refusal answered %d and did not name itself: %s", code, refused)

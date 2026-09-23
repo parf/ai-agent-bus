@@ -275,6 +275,9 @@ func TestRefusalsRecoverInsteadOfDeadEnding(t *testing.T) {
 	if len(plain.Cookies()) != 1 {
 		t.Fatal("the ordinary user did not get a session")
 	}
+	if err := b.SetGroup("admin@h", "@ops", []string{"admin@h"}); err != nil {
+		t.Fatal(err)
+	}
 	code, body = do("POST", "/groups", plain.Cookies()[0], url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"plain@h"}})
 	if code != http.StatusForbidden {
 		t.Fatalf("an ordinary user editing a group answered %d, want 403: %s", code, body)

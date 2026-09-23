@@ -272,9 +272,11 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); !strings.Contains(body, "#svc@h") {
 		t.Fatal("reactivated agent is not active")
 	}
+	// A Group is an ordinary record, so an ordinary user may create one; an
+	// existing group is its owner's and the Administrators', and nobody else's.
 	group := url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"other@h\nadmin@h"}}
-	request("owner@h", "POST", "/groups", web.URL, group, 403)
 	request("admin@h", "POST", "/groups", web.URL, group, 303)
+	request("owner@h", "POST", "/groups", web.URL, url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"owner@h"}}, 403)
 	groups := request("admin@h", "GET", "/groups", "", nil, 200)
 	if !strings.Contains(groups, `<table class="record-table group-table">`) || !strings.Contains(groups, `href="/group?name=%40ops"`) || !strings.Contains(groups, `<code>admin@h</code>, <code>other@h</code>`) || strings.Contains(groups, `<textarea name=members`) {
 		t.Fatalf("group listing did not become a linked membership table: %s", groups)

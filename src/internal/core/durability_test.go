@@ -227,7 +227,7 @@ func TestOneEditCommitsOneRecord(t *testing.T) {
 	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Descr: &descr}); err != nil {
 		t.Fatal(err)
 	}
-	if len(d.last.Records) != 1 || d.last.Records["#svc@h"] == nil || len(d.last.Users) != 0 || len(d.last.Groups) != 0 {
+	if len(d.last.Records) != 1 || d.last.Records["#svc@h"] == nil || len(d.last.Users) != 0 {
 		t.Fatalf("one edit committed %+v", d.last)
 	}
 }
