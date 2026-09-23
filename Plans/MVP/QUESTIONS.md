@@ -1,13 +1,13 @@
 # MVP questions
 
-📌 **TL;DR:** No 0.7 question is open. Q105, Q106 and Q108 were settled on 2026-09-23.
+📌 **TL;DR:** No MVP question is open. Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
 
 ## Open questions
 
-None. Q105, Q106 and Q108 were settled on 2026-09-23 and Q94–Q104 on
+None. Q115, Q105, Q106 and Q108 were settled on 2026-09-23 and Q94–Q104 on
 2026-09-22, all moved to the
 [decision index](../../docs/decisions.md#settled).
 

@@ -219,7 +219,7 @@ no machinery. Making the wait exclusive for the length of an exchange would
 mean a reservation in the daemon, and the daemon keeps no exchange state
 ([reply routing](#reply-routing)).
 
-**`consume` is at-most-once**: the message is handed over and gone. A reader
+**`consume` is at-most-once**, except across a crash ([durability](#durability)): the message is handed over and gone. A reader
 that dies between taking a message and acting on it loses that message, and
 that is the accepted cost — it keeps `ack` an optional business receipt rather
 than a dequeue contract, and keeps the daemon from tracking in-flight state
@@ -428,7 +428,11 @@ expiry after reload, and a drained inbox stays drained.
 
 The store records whether the last stop was clean. A start after an unclean
 stop reports the potential gap since the last flush: traffic after it may be
-lost. A consumer being offline is different, because its queue remains in the
+lost. That includes a consumption: a message consumed after the last flush may
+be handed over again after an unclean stop, with the same `message_id`, so a
+receiver can recognise the repeat. This is the one exception to
+[at-most-once](#one-reader-per-inbox) consume, and only a crash opens it: a
+graceful stop saves everything. A consumer being offline is different, because its queue remains in the
 running daemon. Uptime and browser sessions describe the current process
 lifetime, not recovered state.
 
