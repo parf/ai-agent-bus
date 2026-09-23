@@ -18,6 +18,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -109,6 +110,7 @@ func IsUserSocket(path string) bool {
 const maxWait = 60 * time.Second
 
 type Server struct {
+	journal          ports.Journal
 	calls            func(time.Time) protocol.CallStats
 	bus              *core.Bus
 	tokens           *auth.Tokens
@@ -169,34 +171,36 @@ func (s *Server) routes(g guard) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /identity", s.identity)
 	mux.HandleFunc("GET /status", g(s.status))
-	mux.HandleFunc("POST /register", g(s.register))
-	mux.HandleFunc("POST /unregister", g(s.unregister))
-	mux.HandleFunc("POST /manage", g(s.manage))
-	mux.HandleFunc("POST /owner", g(s.owner))
+	mux.HandleFunc("POST /register", g(s.audited("register", s.register)))
+	mux.HandleFunc("POST /unregister", g(s.audited("unregister", s.unregister)))
+	mux.HandleFunc("POST /manage", g(s.audited("manage", s.manage)))
+	mux.HandleFunc("POST /owner", g(s.audited("transfer-daemon-owner", s.owner)))
 	mux.HandleFunc("GET /accounts", g(s.accounts))
-	mux.HandleFunc("POST /account", g(s.account))
+	mux.HandleFunc("POST /account", g(s.audited("account-map", s.account)))
 	mux.HandleFunc("GET /groups", g(s.groups))
 	mux.HandleFunc("GET /users", g(s.users))
-	mux.HandleFunc("POST /user", g(s.user))
-	mux.HandleFunc("POST /user/github-refresh", g(s.githubRefresh))
-	mux.HandleFunc("POST /profile", g(s.profile))
-	mux.HandleFunc("POST /user/state", g(s.userState))
-	mux.HandleFunc("POST /identity/remove", g(s.removeIdentity))
+	mux.HandleFunc("POST /user", g(s.audited("user", s.user)))
+	mux.HandleFunc("POST /user/github-refresh", g(s.audited("github-refresh", s.githubRefresh)))
+	mux.HandleFunc("POST /profile", g(s.audited("profile", s.profile)))
+	mux.HandleFunc("POST /user/state", g(s.audited("user-state", s.userState)))
+	mux.HandleFunc("POST /identity/remove", g(s.audited("remove-identity", s.removeIdentity)))
 	mux.HandleFunc("GET /activity", g(s.activity))
-	mux.HandleFunc("POST /group", g(s.group))
+	mux.HandleFunc("POST /group", g(s.audited("group", s.group)))
 	mux.HandleFunc("GET /ls", g(s.ls))
 	mux.HandleFunc("GET /lookup", g(s.lookup))
 	mux.HandleFunc("GET /recent", g(s.recent))
 	mux.HandleFunc("GET /names", g(s.names))
-	mux.HandleFunc("POST /subscribe", g(s.subscribe))
-	mux.HandleFunc("POST /subscriber/remove", g(s.removeSubscriber))
-	mux.HandleFunc("POST /configure", g(s.configure))
+	mux.HandleFunc("POST /subscribe", g(s.audited("subscribe", s.subscribe)))
+	mux.HandleFunc("POST /subscriber/remove", g(s.audited("remove-subscriber", s.removeSubscriber)))
+	mux.HandleFunc("POST /configure", g(s.audited("configure", s.configure)))
 	mux.HandleFunc("GET /config", g(s.config))
-	mux.HandleFunc("POST /secret", g(s.setSecret))
+	mux.HandleFunc("POST /secret", g(s.audited("set-secret", s.setSecret)))
 	mux.HandleFunc("GET /secret", g(s.secret))
 	mux.HandleFunc("POST /send", g(s.send))
 	mux.HandleFunc("GET /consume", g(s.consume))
 	mux.HandleFunc("POST /token", g(s.token))
+	mux.HandleFunc("GET /debug", g(s.debugLog))
+	mux.HandleFunc("POST /debug", g(s.audited("debug-log", s.debugLog)))
 	mux.HandleFunc("POST /session", g(s.session))
 	mux.HandleFunc("DELETE /session", g(s.endSession))
 	// Enrolment needs no credential, because it is
@@ -205,7 +209,7 @@ func (s *Server) routes(g guard) http.Handler {
 	// realm somebody vouches for can be enrolled into at all.
 	// See docs/02-access.md#proving-possession.
 	mux.HandleFunc("POST /enrol", func(w http.ResponseWriter, r *http.Request) {
-		s.enrol(w, r, protocol.Name{})
+		s.audited("enrol", s.enrol)(w, r, protocol.Name{})
 	})
 	// The API has no page, and a person who typed its address into a browser
 	// wants the dashboard. `{$}` is the exact root and nothing below it: a
@@ -221,7 +225,7 @@ func (s *Server) routes(g guard) http.Handler {
 			http.Redirect(w, r, s.dash, http.StatusMovedPermanently)
 		})
 	}
-	return mux
+	return s.logged(mux)
 }
 
 // auth reads the caller out of the token, which is the whole of it: a token
@@ -241,6 +245,7 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 			s.refuse(w, http.StatusUnauthorized, "credential", "bad token")
 			return
 		}
+		noteCaller(r, name)
 		if err := s.bus.Authenticate(name.String()); err != nil {
 			s.reply(w, nil, err)
 			return
@@ -257,6 +262,7 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 func (s *Server) onSocket(me protocol.Name) guard {
 	return func(next func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
+			noteCaller(r, me)
 			if err := s.bus.Authenticate(me.String()); err != nil {
 				s.reply(w, nil, err)
 				return

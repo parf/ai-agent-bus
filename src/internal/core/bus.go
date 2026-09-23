@@ -100,6 +100,9 @@ type inbox struct {
 
 type Bus struct {
 	store ports.Store
+	// journal is where conceptual errors and warnings are reported
+	// (docs/constitution.md#errors-and-alerts).
+	journal ports.Journal
 	// staging is the undo log of the management write in progress (commit.go).
 	staging *staged
 	// flushed is each queue's counters as last saved, so a queue flush writes

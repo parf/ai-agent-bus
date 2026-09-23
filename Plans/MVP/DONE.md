@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| K.14, K.22 Daemon logs | An always-on audit log of administrative actions and entity edits, an error log copied to syslog, and an Owner-switched debug log of requests, none carrying a credential or a body | [0.7.2 evidence](done/daemon-logs.md#checks) |
 | K.1.1, K.1.3 SQLite store | One exclusively held SQLite database replaces the JSON snapshot and token file; a management write commits only its entities before it is answered, and a failed commit publishes nothing | [0.7.1 evidence](done/sqlite-store.md#checks) |
 | Records are named for what they are | An agent's record is an Inbox, listed with the channels rather than the services, with a Type column, a Kind filter and a delivery reading that matches [inbox queues](../../docs/04-messaging.md#inbox-queues) | [0.5.84 evidence](done/records-are-inboxes.md#checks) |
 | Owner corrections on the rendered dashboard | Nine instructions from one reading: the page's age moves to the shared footer, an empty attention section disappears, a listing states count and scope in one caption, the user directory opens on active users and marks only the others, and the `@administrators` page states its authority | [0.5.83 evidence](done/web-owner-corrections.md#checks) |

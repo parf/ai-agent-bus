@@ -36,6 +36,8 @@ const (
 
 type config struct {
 	addr, sock, owner, db string
+	logDir                 string
+	debugLog               bool
 	create, init           bool
 	dash                   string
 	every                  time.Duration
@@ -54,6 +56,8 @@ func main() {
 	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", ""), "initial daemon owner (required; later transfers are durable)")
 	flag.StringVar(&c.db, "db", env("AGENT_BUS_DB", defaultDB()), "the SQLite database holding every durable entity, credential and queue")
 	flag.BoolVar(&c.create, "create", false, "create the database when it does not exist; without it a missing database refuses the start")
+	flag.StringVar(&c.logDir, "log-dir", env("AGENT_BUS_LOG_DIR", ""), "where debug.log, audit.log and error.log are written; defaults to logs/ beside the database")
+	flag.BoolVar(&c.debugLog, "debug-log", false, "write debug.log, a line per request, from the start; the daemon owner can also switch it at run time")
 	flag.BoolVar(&c.init, "init", false, "create the database if it is absent, check it, and exit: what setup runs before the first start")
 	flag.DurationVar(&c.every, "flush-every", time.Minute, "how often queue contents and counters are saved while running; 0 saves them only at a graceful stop")
 	flag.BoolVar(&c.web, "web", false, "run the dashboard as a child too (docs/05-discovery.md#dashboard)")
@@ -61,6 +65,9 @@ func main() {
 	flag.Var(&c.vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
 	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
 	flag.Parse()
+	if c.logDir == "" {
+		c.logDir = filepath.Join(filepath.Dir(c.db), "logs")
+	}
 	if _, err := requiredOwner(c.owner); err != nil {
 		log.Fatalf("owner: %v", err)
 	}

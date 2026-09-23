@@ -243,3 +243,18 @@ func (b *Bus) discard() {
 		b.rollback(s)
 	}
 }
+
+// Journal binds where the bus reports warnings, errors and alerts.
+func (b *Bus) Journal(j ports.Journal) {
+	b.mu.Lock()
+	defer b.unlock()
+	b.journal = j
+}
+
+// report writes one warning, error or alert. Caller may hold b.mu: the journal
+// never calls back into the bus.
+func (b *Bus) report(sev ports.Severity, format string, args ...any) {
+	if b.journal != nil {
+		b.journal.Report(sev, fmt.Sprintf(format, args...))
+	}
+}

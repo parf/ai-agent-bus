@@ -161,13 +161,13 @@ done
 # empty. See docs/10-modules.md#the-rule.
 sec "the layers hold"
 is_empty "core never imports an adapter" \
-  "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump|directory|signature)')"
+  "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump|directory|signature|journal)')"
 is_empty "nor does a face" \
-  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-web ./cmd/agent-bus-setup ./cmd/agent-bus-token ./cmd/agent-bus-admin | grep -E 'internal/(store|dump|directory|signature)')"
+  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-web ./cmd/agent-bus-setup ./cmd/agent-bus-token ./cmd/agent-bus-admin | grep -E 'internal/(store|dump|directory|signature|journal)')"
 is_empty "and a port names no outside world of its own" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -E '^(os|net|net/http|os/exec|database/sql)$')"
 has "while the process that assembles them holds the ones that persist" \
-  "$(go list -deps ./cmd/agent-busd | grep -E 'internal/(store|dump|directory|signature)' | tr '\n' ' ')" 'internal/directory/file .*internal/directory/github .*internal/signature/sshkeygen .*internal/store/sqlite'
+  "$(go list -deps ./cmd/agent-busd | grep -E 'internal/(store|dump|directory|signature|journal)' | tr '\n' ' ')" 'internal/directory/file .*internal/directory/github .*internal/journal .*internal/signature/sshkeygen .*internal/store/sqlite'
 has "and core is what asks for it" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/auth 2>&1)" 'internal/ports'
 
@@ -1931,7 +1931,8 @@ is_empty "and never as whoever ran setup" "$(printf '%s' "$UNIT" | grep -x "User
 has "the database lives under that account's home" "$UNIT" 'db /var/lib/agent-bus/daemon/agent-bus.db'
 # The daemon is confined to its own home, so the runner's is out of reach even
 # before either account's mode is consulted.
-has "and it may write there and nowhere else" "$UNIT" '^ReadWritePaths=/var/lib/agent-bus/daemon$'
+has "and it may write there and to its logs, nowhere else" "$UNIT" '^ReadWritePaths=/var/lib/agent-bus/daemon /var/log/agent-bus$'
+has "which it is told the place of" "$UNIT" 'log-dir /var/log/agent-bus'
 # systemd owns that directory's mode once StateDirectory names it, and re-applies
 # its own default on every start. Left unstated, the 0700 setup made becomes
 # 0755 the moment the daemon first runs, which no test passing a home would see.
@@ -2876,6 +2877,37 @@ is_empty "a supervisor killed outright leaves no bus behind" "$LEFT"
 # A build that does leave one must not leave it for the next run, holding a
 # port. By the pids taken above, never by a pattern.
 [ -n "$LEFT" ] && kill -9 $LEFT 2>/dev/null
+
+sec "the daemon keeps three logs"
+# docs/constitution.md#logs. The main fixture's logs are beside its database.
+LOGD=$D/logs
+has "an audit log and an error log exist from the start" \
+  "$([ -f "$LOGD/audit.log" ] && [ -f "$LOGD/error.log" ] && echo yes)" 'yes'
+is_empty "and no debug log, which nobody asked for" "$(ls "$LOGD/debug.log" 2>/dev/null)"
+has "they are the daemon account's to write and its group's to read" \
+  "$(stat -c %a "$LOGD/audit.log")" '^640$'
+ab alice@srv1 register audited@srv1 --kind agent --allow '*' --descr "LOGCANARY-descr" >/dev/null
+AUDIT=$(cat "$LOGD/audit.log")
+has "an entity edit is audited with its actor, operation, target and result" "$AUDIT" \
+  'actor="alice@srv1" op="register" target="audited@srv1" result="ok"'
+has "a refused edit is audited too" \
+  "$(post_body bob@srv1 /manage '{"name":"audited@srv1","descr":"not bob'"'"'s"}' >/dev/null; cat "$LOGD/audit.log")" \
+  'actor="bob@srv1" op="manage" target="audited@srv1" result="refused 403"'
+ab alice@srv1 send audited@srv1 "LOGCANARY-body" >/dev/null
+lacks "a send writes no audit entry" "$(cat "$LOGD/audit.log")" 'op="send"'
+lacks "and no value the caller sent reaches the log" "$(cat "$LOGD/"*.log)" 'LOGCANARY'
+lacks "nor any credential" "$(cat "$LOGD/"*.log)" "$TOKEN"
+has "only the daemon owner switches the debug log" \
+  "$(post_code alice@srv1 /debug '{"on":true}')" '^403$'
+is_empty "and a refused switch leaves it off" "$(ls "$LOGD/debug.log" 2>/dev/null)"
+has "the daemon owner can" "$(post_body "$OWNER" /debug '{"on":true}')" '"on":true'
+ab alice@srv1 ls audited@srv1 >/dev/null
+has "and then every request has a line" "$(cat "$LOGD/debug.log")" 'caller="alice@srv1" GET "/lookup" status=200'
+post_body "$OWNER" /debug '{"on":false}' >/dev/null
+ab alice@srv1 status >/dev/null
+lacks "until it is switched off again" "$(cat "$LOGD/debug.log")" '"/status"'
+has "while the line before the switch is still there" "$(cat "$LOGD/debug.log")" '"/lookup"'
+lacks "and the debug log holds no credential either" "$(cat "$LOGD/debug.log")" "$(tok alice@srv1)"
 
 if slow; then
   sec "the MCP face"

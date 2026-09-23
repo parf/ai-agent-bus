@@ -364,6 +364,23 @@ Follow the [reinstall procedure](../Plans/MVP/0.7-cutover.md#procedure) for 0.7
 bootstrap and client reconnection. SQLite state and backups retain the daemon
 account's private directory and file boundary.
 
+## Logs
+
+**Built in 0.7.2.** The daemon writes the [three logs](constitution.md#logs)
+under `-log-dir`, which setup makes `/var/log/agent-bus/`: owned by
+`agent-busd`, group `adm`, mode `2750`, so every log the daemon creates there is
+readable by `adm` and by nobody else. The files are `0640`.
+
+| File | Written |
+|---|---|
+| `audit.log` | always: one line per administrative action or entity edit — actor, operation, target, result and, over TCP, the client address |
+| `error.log` | always: warnings, errors and alerts, each also sent to syslog |
+| `debug.log` | only when asked for, by `-debug-log` at start or by the daemon Owner with `POST /debug {"on": true}` at run time |
+
+Without `-log-dir` a development daemon writes them to `logs/` beside its
+database. Setup installs `/etc/logrotate.d/agent-bus`: weekly, eight kept,
+compressed, by copy and truncate so the daemon never reopens a file.
+
 ## The two accounts
 
 The installer creates both system accounts now. Only the daemon's runtime is

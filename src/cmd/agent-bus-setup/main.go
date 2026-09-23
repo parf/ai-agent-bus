@@ -33,7 +33,23 @@ const (
 	runHome    = stateRoot + "/runner"
 	unitPath   = "/etc/systemd/system/agent-busd.service"
 	dbPath     = svcHome + "/agent-bus.db"
+	logDir     = "/var/log/agent-bus"
+	logrotate  = "/etc/logrotate.d/agent-bus"
 )
+
+// logrotateConf rotates the three logs by copying and truncating, so the
+// daemon never has to reopen a file (docs/constitution.md#logs).
+const logrotateConf = `/var/log/agent-bus/*.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su agent-busd adm
+}
+`
 
 // dirs is the layout, and the modes are the design rather than a default: the
 // daemon's home and the runner's are each their own account's alone, and
@@ -160,6 +176,7 @@ func setup() error {
 		steps = append([]string{"install the complete release under " + installRoot}, steps...)
 	}
 	steps = append(steps,
+		fmt.Sprintf("make %s the daemon's to write and adm's to read, rotated by %s", logDir, logrotate),
 		fmt.Sprintf("initialize the database %s as %s", dbPath, svcAccount),
 		fmt.Sprintf("write %s", unitPath),
 		"reload systemd and start agent-busd")
@@ -218,6 +235,20 @@ func setup() error {
 		if err := os.Chmod(d.path, d.mode); err != nil {
 			return err
 		}
+	}
+	// The logs are the daemon's to write and adm's to read: set-group-ID to
+	// adm, so every file the daemon creates there is adm's group too.
+	if err := os.MkdirAll(logDir, 0o750); err != nil {
+		return err
+	}
+	if err := run("chown", svcAccount+":adm", logDir); err != nil {
+		return err
+	}
+	if err := os.Chmod(logDir, 0o750|os.ModeSetgid); err != nil {
+		return err
+	}
+	if err := os.WriteFile(logrotate, []byte(logrotateConf), 0o644); err != nil {
+		return err
 	}
 	// The database is made here, explicitly, as the daemon's account: the unit
 	// never creates one, so a database lost later refuses the start rather
@@ -345,8 +376,8 @@ StateDirectoryMode=0700
 RuntimeDirectory=%[5]s
 # 0711: everyone walks through to their own socket, nobody reads the rest.
 RuntimeDirectoryMode=0711
-ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -owner %[7]s -web`,
-		svcAccount, svcHome, exe, addr, filepath.Base(api.SystemRuntimeDir), api.SystemSocket(), owner)
+ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -log-dir %[8]s -owner %[7]s -web`,
+		svcAccount, svcHome, exe, addr, filepath.Base(api.SystemRuntimeDir), api.SystemSocket(), owner, logDir)
 	for _, u := range users {
 		fmt.Fprintf(&b, " -user %s", u)
 	}
@@ -365,11 +396,11 @@ NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
-ReadWritePaths=%s
+ReadWritePaths=%s %s
 
 [Install]
 WantedBy=multi-user.target
-`, svcHome)
+`, svcHome, logDir)
 	return b.String()
 }
 

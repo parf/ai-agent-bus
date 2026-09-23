@@ -25,6 +25,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/core"
 	dirfile "github.com/parf/ai-agent-bus/internal/directory/file"
 	"github.com/parf/ai-agent-bus/internal/directory/github"
+	"github.com/parf/ai-agent-bus/internal/journal"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -48,13 +49,22 @@ func runBus(c config) {
 		log.Fatalf("database: %v", err)
 	}
 	defer st.Close()
+	// The three logs (docs/constitution.md#logs). Opened before anything can
+	// need reporting, and closed last.
+	logs, err := journal.Open(c.logDir, c.debugLog)
+	if err != nil {
+		log.Fatalf("logs: %v", err)
+	}
+	defer logs.Close()
 	bus := core.New()
+	bus.Journal(logs)
 	if s, err := st.Load(); err != nil {
 		log.Fatalf("database %s: %v", c.db, err)
 	} else {
 		if !s.Clean && !s.At.IsZero() {
-			log.Printf("WARNING: the last run did not stop cleanly; queue changes after %s are gone",
-				s.At.Format(time.RFC3339))
+			msg := fmt.Sprintf("the last run did not stop cleanly; queue changes after %s are gone", s.At.Format(time.RFC3339))
+			log.Print("WARNING: " + msg)
+			logs.Report(ports.Warning, msg)
 		}
 		bus.Restore(s)
 	}
@@ -83,6 +93,7 @@ func runBus(c config) {
 	save := func(clean bool) {
 		if err := bus.FlushQueues(clean); err != nil {
 			log.Printf("flush: %v", err)
+			logs.Report(ports.Error, "queue flush failed: "+err.Error())
 		}
 	}
 	save(false)
@@ -93,6 +104,7 @@ func runBus(c config) {
 		log.Fatal(err)
 	}
 	face := api.New(bus, tokens, owner)
+	face.Journal(logs)
 	face.LocalAccounts(ownerAccount(), validateLocalAccount)
 	face.Dashboard(c.dash)
 	face.Calls(callHistory.Snapshot)
