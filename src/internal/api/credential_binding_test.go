@@ -190,6 +190,14 @@ func TestATransferRebindsTheAgentsCredentialInItsOwnCommit(t *testing.T) {
 	if n.log.has("ignored") {
 		t.Fatalf("a restart after a committed transfer ignored something: %s", n.log.all())
 	}
+	// And the new Owner governs after the restart, the old one not at all.
+	descr := "bob's"
+	if _, err := n.bus.Manage("bob@h", core.Management{Name: "#worker@h", Descr: &descr}); err != nil {
+		t.Fatalf("after a restart the new owner cannot govern: %v", err)
+	}
+	if _, err := n.bus.Manage("alice@h", core.Management{Name: "#worker@h", Descr: &descr}); !errors.Is(err, core.ErrNotOwner) {
+		t.Fatalf("after a restart the old owner still governs: %v", err)
+	}
 }
 
 func TestAFailedTransferKeepsTheOwnerAndTheCredential(t *testing.T) {
