@@ -37,7 +37,7 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 
 ## Verification
 
-Code changes require `src/smoke.sh --slow` green; it runs vet and race tests. The fast subset is edit-loop feedback only. Break each behavioral fix and watch its named check fail; reproduce review findings before accepting them. For a documentation-only change, check internal paths and anchors, scope/status consistency and question/decision migration; no version bump or runtime test rerun is required solely for prose edits.
+Code changes require `src/smoke.sh --slow` green: vet, race tests and every check but the heavy set, run as parallel shards in under a minute. `--heavy` adds the heavy set, on demand. The fast subset is edit-loop feedback only. Break each behavioral fix and watch its named check fail; reproduce review findings before accepting them. For a documentation-only change, check internal paths and anchors, scope/status consistency and question/decision migration; no version bump or runtime test rerun is required solely for prose edits.
 
 ### Mutation first, then belief
 

@@ -42,12 +42,15 @@ bash ./build.sh       # build every Go program with build information
 bash ./package.sh     # self-contained Linux archive under ../tmp/dist
 go test -race ./...
 ./smoke.sh            # fast: everything under a second, for the edit-run loop
-./smoke.sh --slow     # all of it, plus the race detector — what a change is measured against
+./smoke.sh --slow     # the gate, race detector included, under a minute — what a change is measured against
+./smoke.sh --heavy    # everything, including what cannot fit that minute; on demand
 ```
 
-`smoke.sh` needs `bun` for the MCP half. It uses a temporary socket and token
-of its own, so it never touches a daemon you are running; `PORT=` moves its
-loopback port if the default one is taken.
+`smoke.sh` needs `bun` for the MCP half. It builds once and runs its shards in
+parallel, each with a temporary socket, token and daemon of its own, so it never
+touches a daemon you are running. `PORT=` moves its loopback base; a run owns
+fifteen ports per shard from there, so two runs at once need bases a few
+hundred apart.
 
 A check here is not believed until it has been seen to fail —
 [working rules § verification](../CLAUDE.md#verification).
