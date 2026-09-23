@@ -58,7 +58,7 @@ dest="$root/releases/$version-$sha"
 if [ ! -x "$dest/agent-busd" ]; then
     work=$(as_owner mktemp -d "$src/../tmp/release.XXXXXX")
     trap 'rm -rf "$work"' EXIT
-    as_owner sh -c "git -C '$src' archive '$commit' src LICENSE.md | tar -x -C '$work'"
+    as_owner sh -c "git -C '$src/..' archive '$commit' src LICENSE.md | tar -x -C '$work'"
     # The MCP face's dependencies are not in Git; hard links cost nothing.
     as_owner cp -al "$src/mcp/node_modules" "$work/src/mcp/node_modules"
     as_owner env BUILD_COMMIT="$sha" "$work/src/build.sh" "$work/out" >/dev/null
