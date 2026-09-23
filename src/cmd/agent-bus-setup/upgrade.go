@@ -240,6 +240,13 @@ func unitAddress(unit []byte) (string, error) {
 }
 
 func waitIdentity(addr, wantVersion string, timeout time.Duration) error {
+	_, err := waitNodeIdentity(addr, wantVersion, "", timeout)
+	return err
+}
+
+// waitNodeIdentity waits until the daemon at addr reports wantVersion and,
+// when one is given, wantBuild as its build_info, and returns what it said.
+func waitNodeIdentity(addr, wantVersion, wantBuild string, timeout time.Duration) (protocol.NodeIdentity, error) {
 	deadline := time.Now().Add(timeout)
 	client := &http.Client{Timeout: 500 * time.Millisecond}
 	var last error
@@ -249,17 +256,17 @@ func waitIdentity(addr, wantVersion string, timeout time.Duration) error {
 			var got protocol.NodeIdentity
 			err = json.NewDecoder(resp.Body).Decode(&got)
 			_ = resp.Body.Close()
-			if err == nil && resp.StatusCode == http.StatusOK && got.Version == wantVersion {
-				return nil
+			if err == nil && resp.StatusCode == http.StatusOK && got.Version == wantVersion && (wantBuild == "" || got.Build == wantBuild) {
+				return got, nil
 			}
 			if err == nil {
-				err = fmt.Errorf("identity reports version %q, want %q", got.Version, wantVersion)
+				err = fmt.Errorf("identity reports %q (%s), want %q (%s)", got.Version, got.Build, wantVersion, wantBuild)
 			}
 		}
 		last = err
 		time.Sleep(100 * time.Millisecond)
 	}
-	return fmt.Errorf("identity at %s was not healthy: %w", addr, last)
+	return protocol.NodeIdentity{}, fmt.Errorf("identity at %s was not healthy: %w", addr, last)
 }
 
 func waitRunningRelease(releaseID string, timeout time.Duration) error {

@@ -34,7 +34,7 @@ def sign_in(browser, base: str, token: str):
     context = browser.new_context(viewport={"width": 375, "height": 820})
     page = context.new_page()
     page.goto(base, wait_until="domcontentloaded")
-    page.get_by_label("token").fill(token)
+    page.get_by_role("textbox", name="token").fill(token)
     page.get_by_role("button", name="sign in").click()
     page.wait_for_load_state("domcontentloaded")
     check(page.locator("form.who code").count() == 1, "browser role did not sign in")

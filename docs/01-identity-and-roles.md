@@ -96,6 +96,8 @@ crosses scopes and belongs only to the daemon Owner, never to Administrators.
 
 The daemon owner has root-like authority. Setup supplies the required first
 owner; the daemon then stores that position and a transfer survives restart.
+The daemon account's socket speaks for the Owner of each request, so a transfer
+moves it at once ([local socket](02-access.md#local-socket)).
 
 * Assign and revoke Administrators; edit, activate, pause and ban them.
 * Manage users and all groups.

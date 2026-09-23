@@ -312,7 +312,10 @@ Setup flags seed the editable account map once. The stored map is then
 authoritative and Owner/Administrators change it through the existing
 [administration path](09-setup.md#administering-the-account-map); a full daemon
 restart replaces the listeners. The daemon account's implicit socket stays
-outside that map.
+outside that map and answers as the daemon Owner of each request, so a transfer
+moves it without a restart. A stored mapping whose principal is no User or Agent
+is [ignored at load](constitution.md#persistence-and-loading): its socket is
+not served, it is not listed, and `account remove` still deletes its row.
 
 </details>
 

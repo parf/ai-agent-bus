@@ -10,6 +10,23 @@ A launcher notices its MCP face dying, keeps messages queued, restores it
 through Codex or OpenCode (Claude: `/mcp` → Reconnect) and prints the exact
 resume command when its runtime server dies; H.9.6 recovery accepted live.
 
+## 0.8.23 — 2026-09-23
+
+Setup over a running node restarts it for a changed unit or release, waits for
+that release and build, and reports the durable Owner; `--reinstall` refuses a
+daemon holding its home outside systemd and rolls a midway failure back.
+
+## 0.8.22 — 2026-09-23
+
+`/status` counts records inactive through their owner and the messages they
+hold, for Administrators; the Overview shows one attention item from it.
+
+## 0.8.21 — 2026-09-23
+
+Restore ignores and reports a group nesting a missing group and an account
+mapping for nobody, whose socket goes unserved; a duplicate-ID record keeps its
+credential; the daemon account's socket follows an Owner transfer live.
+
 ## 0.8.20 — 2026-09-23
 
 Web problem pages show the daemon's sentence rather than its JSON envelope and

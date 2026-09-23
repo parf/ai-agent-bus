@@ -7,6 +7,9 @@ decision.
 
 ## Measured state
 
+**Resolved 2026-09-23:** after the 0.7 reinstall none of these names exists on the
+live node; the record below is history.
+
 Read-only inspection on 2026-09-17 found:
 
 | Name | Profile and record | Authority | Stored entry points |

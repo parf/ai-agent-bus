@@ -108,7 +108,7 @@ def main() -> None:
         page = context.new_page()
         page.goto(args.base, wait_until="domcontentloaded")
         check(page.locator('input[name="token"]').count() == 1, "anonymous sign-in form is absent")
-        page.get_by_label("token").fill(token)
+        page.get_by_role("textbox", name="token").fill(token)
         page.get_by_role("button", name="sign in").click()
         page.wait_for_load_state("domcontentloaded")
         check(page.locator("form.who code").inner_text() == "owner@fresh", "visible sign-in did not become the owner")
@@ -147,7 +147,7 @@ def main() -> None:
         wait_page(page, args.base + "/", False)
         check(page.locator("form.who").count() == 0, "old session retained authority after bus restart")
 
-        page.get_by_label("token").fill(token)
+        page.get_by_role("textbox", name="token").fill(token)
         page.get_by_role("button", name="sign in").click()
         page.wait_for_load_state("domcontentloaded")
         check(page.locator("form.who code").inner_text() == "owner@fresh", "sign-in after bus restart failed")

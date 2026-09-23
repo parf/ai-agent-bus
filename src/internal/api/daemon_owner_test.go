@@ -14,6 +14,8 @@ import (
 func TestDaemonOwnerTransferChangesEveryPublicOwnerAnswer(t *testing.T) {
 	b := core.New()
 	s, token := serverFor(t, b, "owner@h")
+	// Built before the transfer, as the bus child builds it at start.
+	ownerSocket := s.HandlerForOwner()
 	for _, name := range []string{"next@h", "alice@h"} {
 		if _, err := b.SetUser("owner@h", protocol.User{Name: name}, true); err != nil {
 			t.Fatal(err)
@@ -59,27 +61,43 @@ func TestDaemonOwnerTransferChangesEveryPublicOwnerAnswer(t *testing.T) {
 		}
 	}
 
-	// The supervisor keeps the daemon account's socket mapped to the setup
-	// seed. After transfer it still authenticates the former Owner, whose
-	// retained Administrator position may manage groups but has no root resource
-	// override. The new Owner reaches that override through their own credential.
+	// The daemon account's socket speaks for the daemon Owner of each request,
+	// so the transfer moves it at once, without a restart: it now answers as
+	// the new Owner, who holds the root resource override.
+	onOwnerSocket := func(method, path, body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, path, strings.NewReader(body))
+		w := httptest.NewRecorder()
+		ownerSocket.ServeHTTP(w, r)
+		return w
+	}
+	w = onOwnerSocket(http.MethodGet, "/status", "")
+	var onSocket struct {
+		You         string `json:"you"`
+		DaemonOwner bool   `json:"daemon_owner"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &onSocket); err != nil || onSocket.You != "next@h" || !onSocket.DaemonOwner {
+		t.Fatalf("the daemon account's socket did not follow the transfer: %s (%v)", w.Body.String(), err)
+	}
+	if w := onOwnerSocket(http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"socket root"}`); w.Code != http.StatusOK {
+		t.Fatalf("the daemon account's socket lacks the new Owner's root management: %d %s", w.Code, w.Body.String())
+	}
+	// The former Owner's own socket, where one is mapped, keeps its retained
+	// Administrator work and loses the root override.
 	seed, err := protocol.ParseName("owner@h")
 	if err != nil {
 		t.Fatal(err)
 	}
-	onSeedSocket := func(method, path, body string) *httptest.ResponseRecorder {
-		r := httptest.NewRequest(method, path, strings.NewReader(body))
-		w := httptest.NewRecorder()
-		s.HandlerFor(seed).ServeHTTP(w, r)
-		return w
-	}
-	if w := onSeedSocket(http.MethodGet, "/groups", ""); w.Code != http.StatusOK {
-		t.Fatalf("former owner's socket lost Administrator work: %d %s", w.Code, w.Body.String())
-	}
-	if w := onSeedSocket(http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"former root"}`); w.Code != http.StatusForbidden {
+	if w := serveOn(s.HandlerFor(seed), http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"former root"}`); w.Code != http.StatusForbidden {
 		t.Fatalf("former owner's socket retained root management: %d %s", w.Code, w.Body.String())
 	}
 	if w := call("next@h", http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"new root"}`); w.Code != http.StatusOK {
 		t.Fatalf("new owner lacks root management: %d %s", w.Code, w.Body.String())
 	}
+}
+
+func serveOn(h http.Handler, method, path, body string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	return w
 }

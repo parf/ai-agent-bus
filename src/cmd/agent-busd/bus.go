@@ -160,20 +160,16 @@ func runBus(c config) {
 		}()
 	}
 	for _, in := range inherited() {
-		// The daemon account's socket answers as the durable daemon Owner,
-		// which a transfer moves, not as the setup seed on the command line.
-		if in.owner {
-			in.who = owner
+		h, err := socketHandler(bus, face, in)
+		if err != nil {
+			log.Fatal(err)
 		}
-		if in.who == "" {
-			serve(in.l, face.Handler())
+		if h == nil {
+			log.Printf("socket for %s is not served: its account mapping was ignored at load", in.who)
+			in.l.Close()
 			continue
 		}
-		name, err := protocol.ParseName(in.who)
-		if err != nil {
-			log.Fatalf("fd for %q: %v", in.who, err)
-		}
-		serve(in.l, face.HandlerFor(name))
+		serve(in.l, h)
 	}
 	log.Printf("bus serving %d listeners for %s (database %s)", len(srvs), owner, c.db)
 
@@ -271,6 +267,30 @@ func configureDirectories(bus *core.Bus, specs []string, profiles githubDirector
 	bus.Directories(dirs, sshkeygen.New())
 	bus.ProfileDirectory(profiles)
 	return nil
+}
+
+// socketHandler is what one inherited listener serves, or nil when it is not
+// to be served at all.
+func socketHandler(bus *core.Bus, face *api.Server, in inlet) (http.Handler, error) {
+	// The daemon account's socket answers as the daemon Owner of each
+	// request, which a transfer moves, not as the setup seed on the command
+	// line.
+	if in.owner {
+		return face.HandlerForOwner(), nil
+	}
+	if in.who == "" {
+		return face.Handler(), nil
+	}
+	name, err := protocol.ParseName(in.who)
+	if err != nil {
+		return nil, fmt.Errorf("fd for %q: %w", in.who, err)
+	}
+	// A mapping ignored at load names nobody; its socket is not served, or it
+	// would answer for whoever took the name next (docs/02-access.md#local-socket).
+	if bus.Unserved(name.String()) {
+		return nil, nil
+	}
+	return face.HandlerFor(name), nil
 }
 
 // a listener the supervisor opened, and the principal it speaks for — empty

@@ -3037,8 +3037,9 @@ has "and is a record owned by its creator" "$(ab owner@srv1 ls @cli-crew)" '"kin
 }
 transfer() {
 sec "the daemon account's socket follows the daemon Owner across a transfer"
-# The socket is the daemon Owner's, not the setup seed's: after a transfer and
-# a restart with the same -owner flag it answers as the new Owner.
+# The socket is the daemon Owner's, not the setup seed's: after a transfer,
+# with or without a restart under the same -owner flag it answers as the new
+# Owner.
 mkdir -p "$D/xfer"
 xfer_up() {
   "$D/agent-busd" -addr 127.0.0.1:$((PORT+2)) -socket "$D/xfer/bus.sock" \
@@ -3054,6 +3055,8 @@ xfer_checks() {
     "$(curl -s --unix-socket "$XSOCK" http://unix/status)" "\"you\":\"$OWNER\""
   curl -fsS --unix-socket "$XSOCK" -d '{"name":"heir@srv1","create":true}' http://unix/user >/dev/null
   curl -fsS --unix-socket "$XSOCK" -d '{"name":"heir@srv1"}' http://unix/owner >/dev/null
+  has "after the transfer, without a restart, it is the new Owner" \
+    "$(curl -s --unix-socket "$XSOCK" http://unix/status)" '"you":"heir@srv1","administrator":true,"daemon_owner":true'
   xfer_down
   xfer_up second || { echo "  FAIL the transfer fixture did not restart"; fail=$((fail+1)); return 1; }
   has "after the transfer and a restart it is the new Owner" \

@@ -10,6 +10,7 @@ An indexed target may still be pending implementation. The linked substance wins
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| The daemon counts records inactive through their owner in `/status`, for Administrators; the Overview shows one item from it | [overview and diagnostics](05-discovery.md#overview-and-diagnostics) | 2026-09-23 owner decision on F.13.7's transport; one number from the daemon, no face-side per-record join |
 | Activity is a per-record day ring of ten-minute slots on the node's local clock, saved in SQLite; a slot carries only counts | [activity history](05-discovery.md#activity-history) | 2026-09-23 owner answers: persisted with the regular save batch, node local time, a clock-aligned ring; then the owner's simplification that down time is zero and the open slot carries no partial mark. Built in 0.8.12 |
 | A crash may hand a message consumed since the last flush over again, with the same `message_id` (Q115) | [durability](04-messaging.md#durability) | 2026-09-23 owner answer: simplicity and performance first; the window is one flush and opens only on a crash; the `message_id` lets a receiver drop the repeat |
 | Push retries a suspended principal every 30 minutes; only an unknown credential and a second reader stop it | [runner § adapters](08-runner-role.md#adapters) | 2026-09-23 owner answer; suspension is reversible, so push resumes after reactivation |
