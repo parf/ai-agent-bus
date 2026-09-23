@@ -172,17 +172,23 @@ cat >/root/fresh-echo.sh <<'SH'
 printf 'fresh reply: %s\n' "$1"
 SH
 chmod 0755 /root/fresh-echo.sh
-/usr/local/bin/agent-bus start fresh-echo@fresh --algo=args --allow owner@fresh /root/fresh-echo.sh >/evidence/service.log 2>&1 &
-service_pid=$!
-trap 'kill "$service_pid" 2>/dev/null || true; wait "$service_pid" 2>/dev/null || true' EXIT
+# An agent's name begins with #. The owner is a User: its reply arrives
+# because the agent's allow list admits it, with nothing registered for the
+# caller, and a User is never registered as an agent.
+/usr/local/bin/agent-bus start '#fresh-echo@fresh' --algo=args --allow owner@fresh /root/fresh-echo.sh >/evidence/agent.log 2>&1 &
+agent_pid=$!
+trap 'kill "$agent_pid" 2>/dev/null || true; wait "$agent_pid" 2>/dev/null || true' EXIT
 for _ in $(seq 1 100); do
-  /usr/local/bin/agent-bus ls fresh-echo@fresh >/dev/null 2>&1 && break
+  /usr/local/bin/agent-bus ls '#fresh-echo@fresh' >/dev/null 2>&1 && break
   sleep .1
 done
-/usr/local/bin/agent-bus register owner@fresh --kind agent --allow fresh-echo@fresh >/evidence/reply-grant.log
-reply=$(/usr/local/bin/agent-bus call fresh-echo@fresh --wait 5s 'installation works')
-grep -q 'fresh reply: installation works' <<<"$reply" || fail "installed service call did not return its unique reply"
-pass "new user calls a real service using only installed programs"
+if /usr/local/bin/agent-bus register owner@fresh --kind agent --allow '#fresh-echo@fresh' >/evidence/user-as-agent.log 2>&1; then
+  fail "a User was registered as an agent"
+fi
+grep -q "an agent's name begins with #, and owner@fresh does not" /evidence/user-as-agent.log || fail "User-as-agent refusal did not give its reason"
+reply=$(timeout 15 /usr/local/bin/agent-bus call '#fresh-echo@fresh' --wait 5s 'installation works')
+grep -q 'fresh reply: installation works' <<<"$reply" || fail "installed agent call did not return its unique reply"
+pass "new user calls a real script agent using only installed programs; a User is refused as an agent"
 python /fixture/browser-roles.py --base http://127.0.0.1:6780 \
   --owner-token /root/owner.token --administrator-token /root/alice.token \
   --resource-owner-token /root/bob.token --maintainer-token /root/carol.token \
@@ -212,7 +218,8 @@ done
 pass "complete stamped release is installed without build-host paths"
 
 before=$(readlink /usr/local/lib/agent-bus/current)
-./agent-bus-setup --owner owner@fresh >/evidence/reinstall.log
+./agent-bus-setup --owner owner@fresh >/evidence/reinstall.log 2>&1 ||
+  { cat /evidence/reinstall.log >&2; fail "identical package reinstall failed"; }
 after=$(readlink /usr/local/lib/agent-bus/current)
 [ "$before" = "$after" ] || fail "identical reinstall selected another release"
 [ "$(find /usr/local/lib/agent-bus/releases -mindepth 1 -maxdepth 1 -type d | wc -l)" -eq 1 ] || fail "identical reinstall duplicated the release"

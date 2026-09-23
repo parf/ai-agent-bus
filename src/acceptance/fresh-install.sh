@@ -31,3 +31,4 @@ for _ in $(seq 1 100); do
 done
 case ${state:-} in running|degraded) ;; *) echo "systemd did not start: ${state:-unknown}" >&2; exit 1 ;; esac
 podman exec "$name" bash /fixture/run.sh | tee "$out/evidence/result.log"
+exit "${PIPESTATUS[0]}"

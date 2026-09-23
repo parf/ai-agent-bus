@@ -122,13 +122,17 @@ def main() -> None:
         check(cookie["secure"] is False, "plain installed HTTP unexpectedly marks the cookie Secure")
         check(token not in page.url and token not in page.content(), "token reached the URL or rendered page")
 
-        routes = ["/", "/services", "/personal", "/channels", "/users", "/groups", "/activity"]
+        # Every tab is its own page: "/" also answers an unknown path, so each
+        # is held to its own title rather than to having one.
+        routes = {"/": "Overview", "/agents": "Agents", "/services": "Services", "/personal": "Personal",
+                  "/channels": "Channels", "/users": "Users", "/groups": "Groups", "/activity": "Activity"}
         titles = {}
-        for route in routes:
+        for route, title in routes.items():
             page.goto(args.base + route, wait_until="domcontentloaded")
             check(page.locator("h1").count() == 1, f"{route} has no unique title")
             check(page.locator("form.who code").inner_text() == "owner@fresh", f"{route} lost the signed-in identity")
             titles[route] = page.locator("h1").inner_text()
+            check(title in titles[route], f"{route} is titled {titles[route]!r}, not {title}")
         page.screenshot(path=args.evidence / "browser-owner.png", full_page=True)
 
         old_web = web_renderer()
