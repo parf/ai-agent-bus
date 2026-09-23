@@ -154,7 +154,7 @@ func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 		"/diagnostics":                   `</svg> Diagnostics</h1>`,
 		"/services":                      `📡</span> Services</h1>`,
 		"/agents":                        `👾</span> Agents</h1>`,
-		"/personal":                      `👾</span> Personal agents</h1>`,
+		"/personal":                      `👾</span> Personal</h1>`,
 		"/channels":                      `</svg> Channels</h1>`,
 		"/users":                         `👤</span> Users and other identities</h1>`,
 		"/groups":                        `👥</span> Groups</h1>`,

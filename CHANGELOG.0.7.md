@@ -5,6 +5,12 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.14 — 2026-09-23
+
+The faces carry the 0.7 model: `agent-bus manage` and `group`, line-numbered
+list errors, Personal on every kind, route status, user-created groups; an
+unprefixed agent term is refused with its `#` spelling; names render cheaper.
+
 ## 0.7.13 — 2026-09-23
 
 `agent-bus-setup --reinstall` and `git-install.sh --reinstall` stop the daemon,

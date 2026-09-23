@@ -142,6 +142,13 @@ type adminView struct {
 	GroupMembers    []string
 	GroupReferences []groupReference
 	CanEditGroup    bool
+	// GroupRecords are the Group records the caller may see, by name: their
+	// Owner and Maintainers, and — being visible — their membership
+	// (docs/constitution.md#-group). A group listed in Groups and absent here
+	// is one the caller may name and not read.
+	GroupRecords map[string]protocol.Record
+	GroupRecord  protocol.Record
+	GroupVisible bool
 	// Editing says which side of the one record form this render is: the
 	// settings page rather than the registration page. They ask the same
 	// questions; see recordform.go.
@@ -228,6 +235,45 @@ func referencesToGroup(records []protocol.Record, groups map[string][]string, ta
 		}
 	}
 	return refs
+}
+
+// MembersVisible says whether this caller may read a group's membership:
+// Administrators read every group's, and anyone else the ones they may see —
+// being in it, or managing it. Otherwise an empty list and a hidden one would
+// read the same.
+func (v adminView) MembersVisible(name string) bool {
+	_, visible := v.GroupRecords[name]
+	return v.Administrator || visible
+}
+
+// mayEditGroup is who changes a group's membership: its Owner, its
+// Maintainers and the daemon's Administrators, and for the protected
+// @administrators the daemon Owner alone (docs/constitution.md#-group). The
+// daemon decides at submission; this only chooses which controls to offer.
+func (v adminView) mayEditGroup(name string) bool {
+	if name == core.AdministratorsGroup {
+		return v.DaemonOwner
+	}
+	return v.Administrator || v.GroupRecords[name].CanManage
+}
+
+// loadGroups reads both answers a group page needs: every group the caller
+// may name, with the membership they may read, and the group records they
+// may see, which carry Owner and Maintainers.
+func (c *caller) loadGroups(r *http.Request, v *adminView) error {
+	if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
+		return err
+	}
+	if err := c.get(cookie(r), "/ls", &v.Records); err != nil {
+		return err
+	}
+	v.GroupRecords = map[string]protocol.Record{}
+	for _, record := range v.Records {
+		if record.Kind == protocol.KindGroup {
+			v.GroupRecords[record.Name] = record
+		}
+	}
+	return nil
 }
 
 // formState carries only fields that are safe to render back after a refused
@@ -685,6 +731,10 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		case v.Channels:
 			v.SectionLinks = []viewLink{
 				{Href: pageURL("/channels", stateQuery), Label: "All", Count: allChannels, Counted: true, Current: true},
+				// Every kind may be Personal, and a Personal channel is on
+				// the Personal page rather than here, so the way there is
+				// offered here too (docs/03-records.md#personal-and-shared).
+				{Href: "/personal", Label: "Personal", Class: "personal-view", Count: personalServices, Counted: true},
 				{Href: "/channels/new", Label: "Register channel"},
 			}
 		case v.Agents, v.PersonalPage:
@@ -700,13 +750,14 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				{Href: "/agents/new", Label: "Register agent"},
 			}
 		default:
-			// Services, which is the only page left here: Personal is agent-only
-			// and was taken by the branch above, so nothing on this one can be it.
+			// Services, which is the only page left here. A Personal service
+			// is on the Personal page, as a Personal channel is.
 			allQuery, myQuery := cloneValues(stateQuery), cloneValues(stateQuery)
 			myQuery.Set("scope", "my")
 			v.SectionLinks = []viewLink{
 				{Href: pageURL("/services", allQuery), Label: "All", Count: allServices, Counted: true, Current: v.Mine == ""},
 				{Href: pageURL("/services", myQuery), Label: "My", Class: "my-view", Count: myServices, Counted: true, Current: v.Mine == "my"},
+				{Href: "/personal", Label: "Personal", Class: "personal-view", Count: personalServices, Counted: true},
 				{Href: "/services/new", Label: "Register service"},
 			}
 		}
@@ -960,14 +1011,13 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if !ok {
 			return
 		}
-		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
+		if err := c.loadGroups(r, &v); err != nil {
 			fail(w, r, v.You, err)
 			return
 		}
-		v.SectionLinks = []viewLink{{Href: "/groups", Label: "All groups", Count: len(v.Groups), Counted: true, Current: true}}
-		if v.Administrator {
-			v.SectionLinks = append(v.SectionLinks, viewLink{Href: "/groups/new", Label: "Register group"})
-		}
+		// Any User may create a group, which that User then owns
+		// (docs/constitution.md#-group).
+		v.SectionLinks = []viewLink{{Href: "/groups", Label: "All groups", Count: len(v.Groups), Counted: true, Current: true}, {Href: "/groups/new", Label: "Register group"}}
 		render(w, groupList, v)
 	})
 	mux.HandleFunc("GET /group", func(w http.ResponseWriter, r *http.Request) {
@@ -975,7 +1025,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if !ok {
 			return
 		}
-		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
+		if err := c.loadGroups(r, &v); err != nil {
 			fail(w, r, v.You, err)
 			return
 		}
@@ -988,11 +1038,8 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		v.Current = "groups"
 		v.GroupName = name
 		v.GroupMembers = append([]string(nil), members...)
-		v.CanEditGroup = v.Administrator && (v.DaemonOwner || name != core.AdministratorsGroup)
-		if err := c.get(cookie(r), "/ls", &v.Records); err != nil {
-			fail(w, r, v.You, err)
-			return
-		}
+		v.GroupRecord, v.GroupVisible = v.GroupRecords[name]
+		v.CanEditGroup = v.mayEditGroup(name)
 		v.GroupReferences = referencesToGroup(v.Records, v.Groups, name)
 		render(w, groupDetail, v)
 	})
@@ -1002,7 +1049,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if !ok {
 			return
 		}
-		if err := c.get(cookie(r), "/groups", &v.Groups); err != nil {
+		if err := c.loadGroups(r, &v); err != nil {
 			fail(w, r, v.You, err)
 			return
 		}
@@ -1014,7 +1061,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		}
 		v.Current, v.Editing, v.GroupName = "groups", true, name
 		v.GroupMembers = append([]string(nil), members...)
-		v.CanEditGroup = v.Administrator && (v.DaemonOwner || name != core.AdministratorsGroup)
+		v.CanEditGroup = v.mayEditGroup(name)
 		if !v.CanEditGroup {
 			fail(w, r, v.You, &busError{code: http.StatusForbidden, message: "that group's membership cannot be changed by you"})
 			return
@@ -1027,10 +1074,6 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			return
 		}
 		v.Current = "groups"
-		if !v.Administrator {
-			fail(w, r, v.You, &busError{code: http.StatusForbidden, message: "only a daemon Administrator can register a group"})
-			return
-		}
 		render(w, groupNew, v)
 	})
 	// The view goes through to the handler so a refused submission can be
@@ -1343,9 +1386,21 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			return
 		}
 		if err != nil {
-			if code, message, preserve := formRefusal(err); preserve {
-				field := ""
+			code, message, preserve := formRefusal(err)
+			// A refusal about one submitted line goes back to the form with
+			// that line named, whichever code it came with: a route the
+			// destination does not allow is a 403 about a line the person
+			// typed, and a bare problem page would lose every other field.
+			var field string
+			if action == "save" || action == "create" {
+				if code != 0 {
+					field, message = lineRefusal(message, submittedLists(r.PostForm, action)...)
+				}
+				preserve = preserve || field != ""
+			}
+			if preserve {
 				switch {
+				case field != "":
 				case action == "create" && code == http.StatusPreconditionFailed:
 					field = "name"
 				case action == "save" && strings.Contains(message, "maintainer"):
@@ -1395,16 +1450,27 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			Members []string
 		}{r.PostForm.Get("name"), strings.Fields(r.PostForm.Get("members"))})
 		if err != nil {
-			if code, message, preserve := formRefusal(err); preserve {
+			code, message, preserve := formRefusal(err)
+			// A refusal naming one of the typed members is about that line,
+			// whatever its code, and says so; the lines stay as typed.
+			field := ""
+			if code != 0 {
+				field, message = lineRefusal(message, listField{"members", "Members", r.PostForm.Get("members")})
+			}
+			if preserve || field != "" {
 				v.Form = retainedForm("save", message, r.PostForm, "name", "members", "new")
+				v.Form.Field = field
 				if r.PostForm.Get("new") == "1" {
+					if field == "" {
+						v.Form.Field = "name"
+					}
 					v.Current = "groups"
 					renderForm(w, code, groupNew, v)
 					return
 				}
 				v.Form.Field = "members"
 				v.GroupName = r.PostForm.Get("name")
-				if groupsErr := c.get(cookie(r), "/groups", &v.Groups); groupsErr != nil {
+				if groupsErr := c.loadGroups(r, &v); groupsErr != nil {
 					fail(w, r, v.You, groupsErr)
 					return
 				}
@@ -1413,7 +1479,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 					return
 				}
 				v.GroupMembers = strings.Fields(r.PostForm.Get("members"))
-				v.CanEditGroup = v.Administrator && (v.DaemonOwner || v.GroupName != core.AdministratorsGroup)
+				v.CanEditGroup = v.mayEditGroup(v.GroupName)
 				if !v.CanEditGroup {
 					fail(w, r, v.You, err)
 					return
@@ -1429,10 +1495,10 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	}))
 }
 
-var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{"identityKind": identityKind, "readerCount": readerCount, "registrationUpdated": registrationUpdated, "entityLabel": entityLabel, "copies": copies, "deliveryLabel": deliveryLabel, "external": external, "titleMark": titleMark, "number": number, "href": detailPath}).Parse(shellTitle("records", `{{if .Channels}}Channels{{else if .Agents}}Agents{{else if .PersonalPage}}Personal agents{{else}}Services{{end}}`) + `
-<div class=page-title><h1>{{if .Channels}}{{titleMark "channels"}} Channels{{else if .Agents}}{{titleMark "agent"}} Agents{{else if .PersonalPage}}{{titleMark "agent"}} Personal agents{{else}}{{titleMark "services"}} Services{{end}}</h1><button type=button class=help-button popovertarget=service-views-help aria-label="About service views">ⓘ</button></div>
+var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{"identityKind": identityKind, "readerCount": readerCount, "registrationUpdated": registrationUpdated, "entityLabel": entityLabel, "copies": copies, "deliveryLabel": deliveryLabel, "external": external, "titleMark": titleMark, "number": number, "href": detailPath}).Parse(shellTitle("records", `{{if .Channels}}Channels{{else if .Agents}}Agents{{else if .PersonalPage}}Personal{{else}}Services{{end}}`) + `
+<div class=page-title><h1>{{if .Channels}}{{titleMark "channels"}} Channels{{else if .Agents}}{{titleMark "agent"}} Agents{{else if .PersonalPage}}{{titleMark "personal"}} Personal{{else}}{{titleMark "services"}} Services{{end}}</h1><button type=button class=help-button popovertarget=service-views-help aria-label="About service views">ⓘ</button></div>
 <div popover id=service-views-help class=context-help><h2>About these records</h2><ul>
-{{if .Channels}}<li>All counts the caller-visible queues, pub/sub topics and user queues.</li><li>A channel carries messages without a service process of its own.</li>{{else if or .Agents .PersonalPage}}<li>An agent is a name on this bus with a queue something reads. All and My omit Personal agents; My is the caller-owned subset. Personal is an owner-set grouping tag and does not change access.</li>{{else}}<li>A service record is information about something external: where it is, how to speak to it, what it is for, and the credential to use. It is not on this bus, so nothing is sent to it and nothing reads it here.</li><li>Who may read that information is the record&rsquo;s allow list, exactly as for any other record.</li>{{end}}
+{{if .Channels}}<li>All counts the caller-visible queues, pub/sub topics and user queues.</li><li>A channel carries messages without a service process of its own.</li>{{else if .PersonalPage}}<li>Personal holds records of every kind but a user&rsquo;s own whose Owner marked them Personal: their audience is the Owner and the Owner&rsquo;s own agents. The shared pages omit them; a user&rsquo;s own record is always Personal and is on Users instead.</li><li>Hiding a record from the shared pages revokes nothing: whoever its allow list admits still reaches it.</li>{{else if .Agents}}<li>An agent is a name on this bus with a queue something reads. All and My omit Personal agents; My is the caller-owned subset. Personal is an owner-set classification and does not revoke access.</li>{{else}}<li>A service record is information about something external: where it is, how to speak to it, what it is for, and the credential to use. It is not on this bus, so nothing is sent to it and nothing reads it here.</li><li>Who may read that information is the record&rsquo;s allow list, exactly as for any other record.</li>{{end}}
 <li>Category counts use the records visible to you before toolbar filters; they are not node-wide totals or page counts.</li>
 {{if .Channels}}<li>A queue holds work for one reader; a pub/sub topic copies each accepted message to subscribers and holds no backlog of its own.</li>{{end}}
 <li>Status is Active or Inactive. An inactive record is hidden from every other listing and answers as unknown to every call but its reactivation; the Inactive filter is the one view of it.{{if not .Services}} Active does not establish that a send will be accepted; the owner&rsquo;s access, the ACL and queue capacity are checked separately.{{end}}</li>
@@ -1440,7 +1506,7 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 <li>Accepted and Dequeued are cumulative across restarts. Dequeued means handed to a reader, not completed.</li>
 <li>Reached external is a caller-supplied hint. None of it is health; the daemon does not observe whether a process is alive.</li>{{end}}
 </ul></div>
-<nav class=section-nav aria-label="{{if .Channels}}Channel{{else if or .Agents .PersonalPage}}Agent{{else}}Service{{end}} views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true class="{{.Class}}">{{else}}<a href="{{.Href}}" class="{{.Class}}">{{end}}{{.Label}}{{if .Counted}} ({{number .Count}}){{end}}</a>{{end}}</nav>
+<nav class=section-nav aria-label="{{if .Channels}}Channel{{else if .PersonalPage}}Personal{{else if .Agents}}Agent{{else}}Service{{end}} views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true class="{{.Class}}">{{else}}<a href="{{.Href}}" class="{{.Class}}">{{end}}{{.Label}}{{if .Counted}} ({{number .Count}}){{end}}</a>{{end}}</nav>
 {{if .PersonalPage}}{{if .DaemonOwner}}<form method=get><label>Owner <select name=owner><option value="">All visible owners</option>{{range .Owners}}<option {{if eq . $.OwnerFilter}}selected{{end}}>{{.}}</option>{{end}}</select></label>{{with .State}}<input type=hidden name=state value="{{.}}">{{end}}{{with .Readers}}<input type=hidden name=readers value="{{.}}">{{end}}{{with .Work}}<input type=hidden name=work value="{{.}}">{{end}}{{with .Query}}<input type=hidden name=q value="{{.}}">{{end}}{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}{{with .Sort}}<input type=hidden name=sort value="{{.}}">{{end}} <button>Choose owner</button></form>{{else}}<p>Owned by <code>{{.You}}</code></p>{{end}}{{end}}
 <div class=record-toolbar>
 <form class=record-search method=get action="{{if .Channels}}/channels{{else if .Agents}}/agents{{else if .PersonalPage}}/personal{{else}}/services{{end}}">
@@ -1451,18 +1517,18 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 </form>
 </div>
 {{if eq .CategoryTotal 0}}
-<section class="empty-state editor-card"><h2>No {{if .Channels}}channels{{else if .Agents}}agents{{else if .PersonalPage}}Personal agents{{else}}services{{end}} yet</h2>
+<section class="empty-state editor-card"><h2>No {{if .Channels}}channels{{else if .Agents}}agents{{else if .PersonalPage}}Personal records{{else}}services{{end}} yet</h2>
 {{if .Channels}}<p>A channel routes messages without a separate service process. A queue hands each message to one reader; a pub/sub topic copies each message to its subscribers.</p><p><a href=/channels/new>Register a channel</a></p>
 {{else if .Agents}}<p>An agent is a name on this bus with a queue something reads. It carries no address of its own: callers send to the name and the daemon delivers.</p><p><a href=/agents/new>Register an agent</a></p>
-{{else if .PersonalPage}}<p>Personal is an owner-set grouping for agents; it does not change access.</p><p><a href=/agents/new>Register an agent</a></p>
+{{else if .PersonalPage}}<p>Personal is an Owner-set classification for any record but a user&rsquo;s own. It moves the record off the shared pages and revokes no access.</p><p><a href=/agents/new>Register an agent</a></p>
 {{else}}<p>A service record tells the people and agents its allow list admits where something external is, how to speak to it and what it is for. Nothing is sent to it here.</p><p><a href=/services/new>Register a service</a></p>{{end}}</section>
 {{else}}
-{{if .PersonalPage}}<p class=muted>{{if .DaemonOwner}}This per-owner view contains only Personal agents visible through your normal access; it is not a node-wide inventory.{{else}}Your Personal agents.{{end}}</p>{{end}}
+{{if .PersonalPage}}<p class=muted>{{if .DaemonOwner}}This per-owner view contains only Personal records visible through your normal access; it is not a node-wide inventory.{{else}}Your Personal records.{{end}}</p>{{end}}
 {{if eq .Matched 0}}<section class="empty-state editor-card"><h2>No records match these filters</h2><p>Change the active filters above or <a href="{{.ClearFilters}}">clear filters</a>.</p></section>{{else}}
 <table class=record-table><caption>Showing {{number .Start}}&ndash;{{number .End}} of {{number .Matched}} matching records, caller-visible on this page and not a count of this node.{{if .HasFilters}} <a href="{{.ClearFilters}}">Clear filters</a>{{end}}</caption>
 {{if .Channels}}<thead><tr><th scope=col>Channel<th scope=col>Type<th scope=col>Delivery mode<th scope=col>Owner<th scope=col>Status<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Held<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Subscribers<th scope=col>Updated</tr></thead>
 {{else if .Services}}<thead><tr><th scope=col>Service<th scope=col>Type<th scope=col>Owner<th scope=col>Status<th scope=col>Address<th scope=col>Protocol<th scope=col>Updated</tr></thead>
-{{else}}<thead><tr><th scope=col>{{if or .Agents .PersonalPage}}Agent{{else}}Service{{end}}<th scope=col>Type<th scope=col>Owner<th scope=col>Status<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Queued<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col>Updated</tr></thead>{{end}}
+{{else}}<thead><tr><th scope=col>{{if .PersonalPage}}Record{{else if .Agents}}Agent{{else}}Service{{end}}<th scope=col>Type<th scope=col>Owner<th scope=col>Status<th scope=col class=num>Readers<th scope=col>Reached<th scope=col class=num>Queued<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col>Updated</tr></thead>{{end}}
 <tbody>
 {{range .Records}}<tr><td class="record-name-cell{{if eq .Owner $.You}} owned-record{{end}}{{if .Personal}} personal-record{{end}}"><a class=record-name href="{{href .}}?name={{.Name}}&return={{$.Return}}">{{if .Descr}}<span class=record-description>{{.Descr}}</span><code>{{.Name}}</code>{{else}}<code class=record-description>{{.Name}}</code>{{end}}</a>{{if .Personal}} <span class=personal-marker>Personal</span>{{end}}
 {{if $.Channels}}<td data-label=Type>{{identityKind .Kind .Name $.NodeOwner}}<td data-label="Delivery mode">{{deliveryLabel .}}<td data-label=Owner><code>{{.Owner}}</code><td data-label=Status>{{if eq .Status "inactive"}}<span class=status-glyph role=img aria-label=Inactive title=Inactive>🚫</span>{{else}}<span class=status-glyph role=img aria-label=Active title=Active>🔛</span>{{end}}<td class=num data-label=Readers>{{readerCount .Readers}}<td data-label=Reached>{{if external .}}external{{else}}<span class=muted>&mdash;</span>{{end}}<td class=num data-label=Held>{{if copies .Kind}}<span class=muted>&mdash;</span>{{else}}{{number .Queued}}{{if .AtBound}} <span class=warn>at capacity when observed</span>{{end}}{{end}}<td class=num data-label=Accepted>{{number .In}}<td class=num data-label=Dequeued>{{number .Out}}<td class=num data-label=Subscribers>{{if copies .Kind}}{{number (len .Subs)}}{{else}}<span class=muted>&mdash;</span>{{end}}<td data-label=Updated>{{if .At.IsZero}}<span class=muted>&iquest;</span>{{else}}{{registrationUpdated .At}}{{end}}
@@ -1493,7 +1559,7 @@ var serviceNew = template.Must(template.New("service-new").Funcs(recordFormFuncs
 	`{{template "record-fields" .}}<div class=form-actions><button>{{template "new-heading" .}}</button></div></form>
 {{template "record-field-help" .}}{{end}}
 {{define "new-heading"}}Register {{if eq .NewKind "agent"}}agent{{else if eq .NewKind "service"}}service{{else if eq .NewKind "queue"}}queue{{else if eq .NewKind "pubsub"}}pub/sub topic{{else}}channel{{end}}{{end}}` + recordFields + recordFieldHelp))
-var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"identityKind": identityKind, "onList": onList, "href": detailPath, "join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel, "copies": copies, "external": external, "deliveryMode": deliveryMode, "recordNoun": recordNoun, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number}).Parse(shellTitle("records", `{{recordNoun .Record.Kind}} {{.Record.Name}}`) + `
+var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap{"identityKind": identityKind, "onList": onList, "href": detailPath, "join": strings.Join, "readerCount": readerCount, "entityLabel": entityLabel, "copies": copies, "external": external, "deliveryMode": deliveryMode, "recordNoun": recordNoun, "titleMark": titleMark, "photoData": photoData, "profileInitial": profileInitial, "number": number, "routes": routes, "routeState": routeState}).Parse(shellTitle("records", `{{recordNoun .Record.Kind}} {{.Record.Name}}`) + `
 <p><a href="{{.Return}}">Back to records</a></p>{{with .Record}}<div class=page-title><h1>{{titleMark .Kind}} {{.Name}}{{if .Personal}} <span class=muted>· Personal</span>{{end}}</h1></div>` + formErrorSummary + `<div class=detail-meta><span class=fact-pill>{{identityKind .Kind .Name $.NodeOwner}}</span><span>Owner: {{with $.OwnerUser}}<span class=identity-with-photo>{{with photoData .}}<img class=profile-photo src="{{.}}" alt="">{{else}}<span class=profile-initial aria-hidden=true>{{profileInitial .}}</span>{{end}}<a href="/user?name={{.Name}}"><code>{{.Name}}</code></a></span>{{else}}<code>{{.Owner}}</code>{{end}}</span>{{with .Maintainers}}<span>👮 Maintainers: {{join . ", "}}</span>{{end}}{{with deliveryMode .}}<span>Delivery: {{.}}</span>{{end}}</div>
 <div class=service-dashboard><section class=fact-card><div class=page-title><h2>Status</h2><button type=button class=help-button popovertarget=status-help aria-label="About record status" data-tooltip="Active or inactive. Active does not establish that a send will be accepted: the daemon also checks owner access, the ACL and queue capacity.">ⓘ</button></div>
 <p><strong><span class=status-glyph role=img aria-label=Active title=Active>🔛</span></strong> Active</p>{{if and .CanManage (ne .Kind "user")}}<form class=record-state-action method=get action=/service-deactivate><input type=hidden name=name value="{{.Name}}"><button class=danger-action>Deactivate…</button></form>{{end}}</section>
@@ -1511,12 +1577,18 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 <div popover id=observed-help class=context-help><h2>About observed counters</h2><ul><li>Readers counts outstanding filtered and unfiltered reads; zero is not an offline signal.</li><li>The read does not prune first, so Held and Oldest may include work already past its TTL.</li><li>Counters are cumulative across restarts. Dequeued is handed to a reader, which is not completed.</li></ul></div>{{end}}
 {{template "activity-view" $}}
 <p class=activity-fact><a href="/activity?name={{.Name}}">View all activity and sample values</a></p></div>
+{{if routes .Kind}}<section class="dashboard-section route" id=route><h2>Deliver-To route</h2>
+{{with .Subs}}{{$dest := index . 0}}<p>Forwards to <code>{{$dest}}</code>: a message sent to <code>{{$.Record.Name}}</code> moves there and is not kept here.</p>
+{{$state := routeState $.Record}}{{if eq $state "allowed"}}<p class=route-state><strong>Route allowed now.</strong> <code>{{$dest}}</code>&rsquo;s allow list admits <code>{{$.Record.Name}}</code> at this moment.</p>{{else if eq $state "refused"}}<p class="route-state warn"><strong>Configured, but <code>{{$dest}}</code> does not allow <code>{{$.Record.Name}}</code> now</strong> &mdash; or <code>{{$dest}}</code> is inactive or no longer registered. Sends to <code>{{$.Record.Name}}</code> are refused until it does; the route stays configured.</p>{{else}}<p class=route-state>Whether this route is usable now was not reported.</p>{{end}}
+<p>The identity checked at <code>{{$dest}}</code> is <code>{{$.Record.Name}}</code> itself &mdash; not the original sender, and not this record&rsquo;s Owner. A sender still has to pass <code>{{$.Record.Name}}</code>&rsquo;s own allow list: an allowed route admits nobody that list does not.</p>
+{{else}}<p>No route. A message sent here stays in this {{recordNoun $.Record.Kind}}&rsquo;s own queue.</p>{{end}}
+{{if .CanManage}}<p><a href="{{href .}}/edit?name={{.Name}}{{with $.Return}}&amp;return={{urlquery .}}{{end}}">{{if .Subs}}Replace or clear the route{{else}}Set a route{{end}} in the settings</a></p>{{end}}</section>{{end}}
 {{if copies .Kind}}<details><summary>Deliver-To</summary>
 <p class=muted>Who receives a copy of every publication. Whoever manages the channel writes this list; the allow list above it is who may publish.</p>
 {{range .Subs}}<p><code>{{.}}</code>{{if $.Record.CanManage}} <form method=post action=/service><input type=hidden name=name value="{{$.Record.Name}}"><input type=hidden name=subscriber value="{{.}}"><button name=action value=remove-subscriber>Remove</button></form>{{end}}</p>{{else}}<p>Nobody. A publication here reaches no inbox.</p>{{end}}
 {{if onList .Subs $.You}}<form method=post action=/service><input type=hidden name=name value="{{.Name}}"><button name=action value=unsubscribe>Take my inbox off this list</button></form>{{end}}</details>{{end}}
 {{if .CanManage}}
-<section class="editor-card compact-card"><h2>Settings</h2><p>Description, address, queue policy, access{{if copies .Kind}}, Deliver-To{{end}} and Maintainers are edited on one page, the same one that registered this {{recordNoun .Kind}}.</p>
+<section class="editor-card compact-card"><h2>Settings</h2><p>Description, address, queue policy, access{{if copies .Kind}}, Deliver-To{{end}}{{if routes .Kind}}, the Deliver-To route{{end}}, Personal and Maintainers are edited on one page, the same one that registered this {{recordNoun .Kind}}.</p>
 <p><a id=settings class=editor-link href="{{href .}}/edit?name={{.Name}}{{with $.Return}}&amp;return={{urlquery .}}{{end}}">Edit settings</a></p></section>
 <p><a class=danger href="/service-danger?name={{.Name}}">Danger Zone</a></p>
 {{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}` + activityViewTemplate))
@@ -1548,14 +1620,15 @@ var serviceConfirm = template.Must(template.New("service-confirm").Funcs(templat
 {{if eq $.Action "transfer"}}<div class=page-title><h1>{{titleMark "problem"}} Confirm ownership transfer</h1></div><p>Transfer <code>{{.Name}}</code> from <code>{{.Owner}}</code> to <code>{{$.NewOwner}}</code>?</p><p>The new owner must still be registered and active when the daemon applies this. Credentials already held are not revoked.</p><form method=post action=/service><input type=hidden name=action value=transfer><input type=hidden name=name value="{{.Name}}"><input type=hidden name=owner value="{{$.NewOwner}}"><input type=hidden name=expected_owner value="{{.Owner}}"><input type=hidden name=confirmed value=1><button>Transfer ownership</button></form>
 {{else}}<div class=page-title><h1>{{titleMark "problem"}} Confirm removal</h1></div><p>Remove <code>{{.Name}}</code>? It currently holds <strong>{{.Queued}}</strong> messages and has <strong>{{readerCount .Readers}}</strong> outstanding reads.</p><p>The address and its credential go with it; nothing answers to this name afterwards. A person&rsquo;s own credential stays because it is not this record&rsquo;s to remove.</p><form method=post action=/service><input type=hidden name=action value=delete><input type=hidden name=name value="{{.Name}}"><input type=hidden name=expected_owner value="{{.Owner}}"><input type=hidden name=expected_queued value="{{.Queued}}"><input type=hidden name=expected_readers value="{{readerSnapshot .Readers}}"><input type=hidden name=confirmed value=1><button>Remove registration</button></form>{{end}}{{end}}`))
 var groupList = template.Must(template.New("groups").Funcs(template.FuncMap{"groupGlyph": groupGlyph, "titleMark": titleMark, "number": number}).Parse(shell("groups", "Groups") + `
-<div class=page-title><h1>{{titleMark "groups"}} Groups</h1><button type=button class=help-button popovertarget=groups-help aria-label="About group membership" data-tooltip="Groups are reusable authority lists. Select a group to inspect its members and edit them when your daemon authority permits.">ⓘ</button></div><div popover id=groups-help class=context-help><h2>Group membership</h2><ul><li>Select a group to inspect or edit its membership.</li><li><code>@owner</code> is runtime ACL syntax and cannot be created or nested as a group.</li><li>Administrators may edit ordinary groups; only the daemon owner changes <code>@administrators</code>.</li></ul></div><nav class=section-nav aria-label="Group views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}{{if .Counted}} ({{number .Count}}){{end}}</a>{{end}}</nav>
-<table class="record-table group-table"><caption>{{number (len .Groups)}} groups</caption><thead><tr><th scope=col>Group</th><th scope=col>Members</th></tr></thead><tbody>{{range $name,$members := .Groups}}<tr><td data-label=Group><span role=img aria-label="Group">{{groupGlyph}}</span> <a href="/group?name={{urlquery $name}}"><code>{{$name}}</code></a>{{if eq $name "@administrators"}} <span class=fact-pill>protected</span>{{end}}</td><td data-label=Members>{{if not $.Administrator}}<span class=muted>Not visible to you</span>{{else}}{{range $i,$member := $members}}{{if $i}}, {{end}}<code>{{$member}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</td></tr>{{else}}<tr><td colspan=2>No groups registered.</td></tr>{{end}}</tbody></table>`))
+<div class=page-title><h1>{{titleMark "groups"}} Groups</h1><button type=button class=help-button popovertarget=groups-help aria-label="About group membership" data-tooltip="Groups are reusable authority lists. Any user may register one; its Owner, Maintainers and the daemon Administrators edit its members.">ⓘ</button></div><div popover id=groups-help class=context-help><h2>Group membership</h2><ul><li>Select a group to inspect or edit its membership.</li><li><code>@owner</code> is runtime ACL syntax and cannot be created or nested as a group.</li><li>Any signed-in user may register a group and becomes its Owner.</li><li>A group&rsquo;s Owner, its Maintainers and the daemon Administrators change its membership; only the daemon owner changes <code>@administrators</code>.</li><li>Owner, Maintainers and members are shown for the groups you may see: those you are in or manage, or every group if you are an Administrator.</li></ul></div><nav class=section-nav aria-label="Group views">{{range .SectionLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}{{if .Counted}} ({{number .Count}}){{end}}</a>{{end}}</nav>
+<table class="record-table group-table"><caption>{{number (len .Groups)}} groups</caption><thead><tr><th scope=col>Group</th><th scope=col>Owner</th><th scope=col>Maintainers</th><th scope=col>Members</th></tr></thead><tbody>{{range $name,$members := .Groups}}<tr><td data-label=Group><span role=img aria-label="Group">{{groupGlyph}}</span> <a href="/group?name={{urlquery $name}}"><code>{{$name}}</code></a>{{if eq $name "@administrators"}} <span class=fact-pill>protected</span>{{end}}</td>{{with index $.GroupRecords $name}}<td data-label=Owner><code>{{.Owner}}</code></td><td data-label=Maintainers>{{range $i,$m := .Maintainers}}{{if $i}}, {{end}}<code>{{$m}}</code>{{else}}<span class=muted>None</span>{{end}}</td>{{else}}<td data-label=Owner><span class=muted>Not visible to you</span></td><td data-label=Maintainers><span class=muted>Not visible to you</span></td>{{end}}<td data-label=Members>{{if not ($.MembersVisible $name)}}<span class=muted>Not visible to you</span>{{else}}{{range $i,$member := $members}}{{if $i}}, {{end}}<code>{{$member}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</td></tr>{{else}}<tr><td colspan=4>No groups registered.</td></tr>{{end}}</tbody></table>`))
 var groupDetail = template.Must(template.New("group-detail").Funcs(template.FuncMap{"join": strings.Join, "groupGlyph": groupGlyph, "titleMark": titleMark, "recordKindPath": recordKindPath, "entityLabel": entityLabel}).Parse(shellTitle("groups", `Group {{.GroupName}}`) + `
 <p><a href=/groups>Back to Groups</a></p><div class=page-title><h1><span role=img aria-label="Group">{{groupGlyph}}</span> <code>{{.GroupName}}</code></h1>{{if eq .GroupName "@administrators"}}<span class=fact-pill>protected</span><button type=button class=help-button popovertarget=administrators-help aria-label="About the Administrators group" data-tooltip="Members administer users and ordinary groups. They do not automatically manage every Service or Channel; assign this group as a resource Maintainer when that is wanted. Only the daemon Owner changes membership.">ⓘ</button>{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Daemon administration group. What membership grants is stated below; every other group on this node confers only what a resource assigns it.</p><div popover id=administrators-help class=context-help><h2>How this group behaves</h2><ul><li>It accepts direct user identities only. A snapshot that nests a group inside it is refused at startup.</li><li>It cannot be emptied, and the daemon Owner is always a member.</li><li>Adding an Administrator creates a user profile; removing the membership keeps that profile.</li><li>An ordinary group may name <code>@administrators</code>. Its direct members then receive that ordinary group&rsquo;s access or Maintainer grant, and no Administrator authority.</li></ul></div>
 <section class="dashboard-section admin-rights"><h2>What membership grants</h2><ul><li><strong>Ordinary users.</strong> See the whole user directory, register new users, and edit, deactivate or reactivate users below your own level.</li><li><strong>Ordinary groups.</strong> Change the membership of any ordinary group, including one assigned as a resource&rsquo;s Maintainer &mdash; you may add yourself, or a user you created, without asking that resource&rsquo;s owner.</li><li><strong>Membership lists.</strong> Read the full membership of every group.</li></ul>
-<h2>What it does not grant</h2><ul><li><strong>The Owner, or each other.</strong> An Administrator cannot edit the daemon Owner or another Administrator, and cannot grant either position.</li><li><strong>Services and Channels.</strong> Administering the node is not managing its resources. That comes only from being named in a resource&rsquo;s Maintainers list; put <code>@administrators</code> there when every Administrator should manage it.</li><li><strong>This group.</strong> Only the daemon Owner changes who is in it.</li></ul></section>{{end}}` + formErrorSummary + `
+<h2>What it does not grant</h2><ul><li><strong>The Owner, or each other.</strong> An Administrator cannot edit the daemon Owner or another Administrator, and cannot grant either position.</li><li><strong>Services and Channels.</strong> Administering the node is not managing its resources. That comes only from being named in a resource&rsquo;s Maintainers list; put <code>@administrators</code> there when every Administrator should manage it.</li><li><strong>This group.</strong> Only the daemon Owner changes who is in it.</li></ul></section>{{end}}
+<div class=detail-meta>{{if .GroupVisible}}<span>Owner: <code>{{.GroupRecord.Owner}}</code></span>{{if eq .GroupName "@administrators"}}<span>👮 Maintainers: none &mdash; this group has none, and its Owner follows daemon ownership</span>{{else}}<span>👮 Maintainers: {{with .GroupRecord.Maintainers}}{{join . ", "}}{{else}}none{{end}}</span>{{end}}{{if .GroupRecord.Personal}}<span>Personal</span>{{end}}{{else}}<span class=muted>Owner and Maintainers are not visible to you.</span>{{end}}</div>` + formErrorSummary + `
 {{if .CanEditGroup}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}</div>
-<p><a id=members-edit class=editor-link href="/group/edit?name={{urlquery .GroupName}}">Edit members</a></p></section>{{else}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{if not .Administrator}}<span class=muted>Membership is not visible to you.</span>{{else}}{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Only the daemon owner changes this protected group.</p>{{else}}<p class=muted>Daemon administrators manage this group.</p>{{end}}</section>{{end}}
+<p><a id=members-edit class=editor-link href="/group/edit?name={{urlquery .GroupName}}">Edit members</a></p></section>{{else}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{if not (.MembersVisible .GroupName)}}<span class=muted>Membership is not visible to you.</span>{{else}}{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Only the daemon owner changes this protected group.</p>{{else}}<p class=muted>Its Owner, its Maintainers and the daemon Administrators change this group&rsquo;s membership.</p>{{end}}</section>{{end}}
 <section class=dashboard-section><h2>Used by visible records</h2>{{if .GroupReferences}}<table><thead><tr><th scope=col>Record</th><th scope=col>Kind</th><th scope=col>Uses this group</th></tr></thead><tbody>{{range .GroupReferences}}<tr><td><a href="{{recordKindPath .Name .Kind}}"><code>{{.Name}}</code></a></td><td>{{entityLabel .Kind}}</td><td>{{range $i,$use := .Uses}}{{if $i}} · {{end}}{{$use}}{{end}}</td></tr>{{end}}</tbody></table>{{else}}<p class=muted>No caller-visible record refers to this group.</p>{{end}}</section>`))
 
 // A group has one form, and registering one and changing its membership are
@@ -1564,9 +1637,9 @@ var groupDetail = template.Must(template.New("group-detail").Funcs(template.Func
 // See Plans/MVP/web/forms.md#rules.
 const groupFields = `{{define "group-fields"}}<div class=form-grid>
 {{if .Editing}}<input type=hidden name=name value="{{.GroupName}}">
-{{else}}<label class="form-field form-field-wide">Name <input name=name placeholder="@operators" required value="{{.Form.Value "name"}}" aria-invalid="{{if .Form.Is "save"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Is "save"}}group-error{{end}}"><small>One name for the set. It cannot be changed afterwards.</small>{{if eq (.Form.Value "name") "@owner"}}<small><code>@owner</code> is runtime ACL syntax and cannot be registered as a group.</small>{{end}}</label>
+{{else}}<label class="form-field form-field-wide">Name <input name=name placeholder="@operators" required value="{{.Form.Value "name"}}" aria-invalid="{{if .Form.Invalid "name"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "name"}}group-error{{end}}"><small>One name for the set. It cannot be changed afterwards. You become its Owner.</small>{{if eq (.Form.Value "name") "@owner"}}<small><code>@owner</code> is runtime ACL syntax and cannot be registered as a group.</small>{{end}}</label>
 {{end}}
-<label class="form-field form-field-wide">Members <textarea name=members rows=8 placeholder="user@realm&#10;@nested-group" aria-invalid="{{if .Form.Invalid "members"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "members"}}group-error{{end}}">{{if .Form.Is "save"}}{{.Form.Value "members"}}{{else}}{{join .GroupMembers "\n"}}{{end}}</textarea><small>One identity or nested group per line; <code>@owner</code> is reserved for ACLs.</small></label></div>
+<label class="form-field form-field-wide">Members <textarea name=members rows=8 placeholder="user@realm&#10;#agent@realm&#10;@nested-group" aria-invalid="{{if .Form.Invalid "members"}}true{{else}}false{{end}}" aria-describedby="{{if .Form.Invalid "members"}}group-error{{end}}">{{if .Form.Is "save"}}{{.Form.Value "members"}}{{else}}{{join .GroupMembers "\n"}}{{end}}</textarea><small>One user, <code>#agent</code> or nested group per line; <code>@owner</code> is reserved for ACLs.</small></label></div>
 {{if .Form.Is "save"}}<p class=warn id=group-error>{{.Form.Error}}</p>{{end}}{{end}}`
 
 var groupNew = template.Must(template.New("group-new").Funcs(template.FuncMap{"titleMark": titleMark, "join": strings.Join}).Parse(shell("groups", "Register group") + `
@@ -1582,6 +1655,24 @@ var groupEdit = template.Must(template.New("group-edit").Funcs(template.FuncMap{
 
 // holdsConfig says whether a kind carries a configuration at all: an Agent, a
 // Service and a Group do, and nothing else (docs/constitution.md#-private-values).
+// routes says whether a kind has a one-slot Deliver-To route: an 👾 and a 📮
+// forward, a 📣 fans out through a list instead (docs/constitution.md#-channels).
+func routes(kind string) bool { return kind == protocol.KindAgent || kind == protocol.KindQueue }
+
+// routeState is the daemon's route_allowed read as a word: "allowed" and
+// "refused" are what it said, and "" is that it said nothing. The pointer is
+// dereferenced here because a template's if is true for any non-nil pointer,
+// false included.
+func routeState(r protocol.Record) string {
+	switch {
+	case r.RouteAllowed == nil:
+		return ""
+	case *r.RouteAllowed:
+		return "allowed"
+	}
+	return "refused"
+}
+
 func holdsConfig(kind string) bool {
 	return kind == protocol.KindAgent || kind == protocol.KindService || kind == protocol.KindGroup
 }

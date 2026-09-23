@@ -66,6 +66,11 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus secret <name> -                 set a service's secret, bytes on stdin
   agent-bus secret <name> 'TOKEN=abc'       the same, inline
   agent-bus secret <name>                   print it
+  agent-bus manage <name> [--descr d] [--status active|inactive] [--owner user]
+                          [--deliver-to name]  an agent's or queue's one route, '' to clear
+                          [--add-allow a,b] [--add-to-set-allow a,b] [--remove-allow a,b]
+                          and the same for maintainers and deliver-to: --add-maintainers ...
+  agent-bus group <@name> [member ...]   set a group's members; with none, print them
   agent-bus enrol <user@realm> [--key ~/.ssh/id_ed25519]
                             prove you hold a key that realm publishes for you
 
@@ -145,6 +150,10 @@ func main() {
 		err = stopVerb(rest)
 	case "logs":
 		err = logsVerb(rest)
+	case "manage":
+		err = manage(rest)
+	case "group":
+		err = group(rest)
 	case "enrol", "enroll":
 		err = enrol(rest)
 	case "reply":
@@ -990,4 +999,94 @@ func split(args []string) ([]string, map[string]string) {
 func die(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", a...)
 	os.Exit(1)
+}
+
+// manage edits one record: its description, status, owner and route, and its
+// lists either whole or by add, add_to_set and remove deltas the daemon
+// resolves against the record as it finds it
+// (docs/01-identity-and-roles.md#record-authority).
+func manage(args []string) error {
+	pos, flags := split(args)
+	if len(pos) != 1 {
+		return fmt.Errorf("manage wants one record name")
+	}
+	fields := map[string]string{"allow": "allow", "maintainers": "maintainers", "deliver-to": "subs"}
+	allowed := []string{"descr", "status", "owner", "deliver-to"}
+	for _, op := range []string{"add", "add-to-set", "remove"} {
+		for f := range fields {
+			allowed = append(allowed, op+"-"+f)
+		}
+	}
+	if err := only(flags, allowed...); err != nil {
+		return err
+	}
+	change := map[string]any{"name": pos[0]}
+	for _, k := range []string{"descr", "status", "owner"} {
+		if v, ok := flags[k]; ok {
+			change[k] = v
+		}
+	}
+	if v, ok := flags["deliver-to"]; ok {
+		change["subs"] = terms(v)
+	}
+	for _, op := range []string{"add", "add-to-set", "remove"} {
+		delta := map[string][]string{}
+		for f, key := range fields {
+			if v, ok := flags[op+"-"+f]; ok {
+				delta[key] = terms(v)
+			}
+		}
+		if len(delta) != 0 {
+			change[strings.ReplaceAll(op, "-", "_")] = delta
+		}
+	}
+	if len(change) == 1 {
+		return fmt.Errorf("manage %s changes nothing; name a field", pos[0])
+	}
+	return post("/manage", change)
+}
+
+// terms is a comma-separated list, blanks dropped; empty is the empty list.
+func terms(v string) []string {
+	out := []string{}
+	for _, s := range strings.Split(v, ",") {
+		if s = strings.TrimSpace(s); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// group sets a Group's whole membership, or prints it
+// (docs/01-identity-and-roles.md#groups).
+func group(args []string) error {
+	pos, flags := split(args)
+	if err := only(flags); err != nil {
+		return err
+	}
+	if len(pos) == 0 || !strings.HasPrefix(pos[0], "@") {
+		return fmt.Errorf("group wants a group name beginning with @, then its members")
+	}
+	if len(pos) == 1 {
+		body, code, err := call("GET", "/groups", nil, nil)
+		if err != nil {
+			return err
+		}
+		if code >= 400 {
+			return fmt.Errorf("%s", strings.TrimSpace(string(body)))
+		}
+		var groups map[string][]string
+		if err := json.Unmarshal(body, &groups); err != nil {
+			return err
+		}
+		members, ok := groups[strings.ToLower(pos[0])]
+		if !ok {
+			return fmt.Errorf("no such group: %s", pos[0])
+		}
+		for _, m := range members {
+			fmt.Println(m)
+		}
+		return nil
+	}
+	return post("/group", map[string]any{"name": pos[0], "members": pos[1:]})
 }

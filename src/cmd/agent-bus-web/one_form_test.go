@@ -87,18 +87,21 @@ func TestAFormAsksOnlyWhatItsKindHas(t *testing.T) {
 		present []string
 		absent  []string
 	}{
+		// Every kind may be Personal from 0.7 (docs/03-records.md#personal-and-shared),
+		// and an agent and a queue have a one-slot Deliver-To route
+		// (docs/constitution.md#-channels); a service has neither a queue nor a route.
 		{protocol.KindAgent, "/agents/new",
-			[]string{"descr", "ttl", "bound", "overflow", "allow", "personal", "maintainers"},
-			[]string{"addr", "protocol", "secret", "subs"}},
+			[]string{"descr", "ttl", "bound", "overflow", "allow", "personal", "maintainers", "subs"},
+			[]string{"addr", "protocol", "secret"}},
 		{protocol.KindService, "/services/new",
-			[]string{"descr", "addr", "protocol", "secret", "allow", "maintainers"},
-			[]string{"ttl", "bound", "overflow", "subs", "personal"}},
+			[]string{"descr", "addr", "protocol", "secret", "allow", "maintainers", "personal"},
+			[]string{"ttl", "bound", "overflow", "subs"}},
 		{protocol.KindQueue, "/channels/new?kind=queue",
-			[]string{"descr", "ttl", "bound", "overflow", "allow", "maintainers"},
-			[]string{"addr", "protocol", "secret", "subs", "personal"}},
+			[]string{"descr", "ttl", "bound", "overflow", "allow", "maintainers", "personal", "subs"},
+			[]string{"addr", "protocol", "secret"}},
 		{protocol.KindPubSub, "/channels/new?kind=pubsub",
-			[]string{"descr", "subs", "allow", "maintainers"},
-			[]string{"addr", "protocol", "secret", "ttl", "bound", "overflow", "personal"}},
+			[]string{"descr", "subs", "allow", "maintainers", "personal"},
+			[]string{"addr", "protocol", "secret", "ttl", "bound", "overflow"}},
 	} {
 		asked := " " + strings.Join(controls(t, m.get(c.path)), " ") + " "
 		for _, want := range c.present {

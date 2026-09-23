@@ -526,13 +526,19 @@ func TestRegistrationLivesOnDedicatedSectionPages(t *testing.T) {
 	ordinary := m.as("ordinary@h")
 	users := ordinary.get("/users")
 	groups := ordinary.get("/groups")
-	if strings.Contains(users, "/users/new") || strings.Contains(groups, "/groups/new") {
+	if strings.Contains(users, "/users/new") {
 		t.Error("ordinary user was offered an administrative registration link")
 	}
-	for _, path := range []string{"/users/new", "/groups/new"} {
-		if _, status := getAs(t, ordinary, path); status != http.StatusForbidden {
-			t.Errorf("%s returned %d to an ordinary user, want 403", path, status)
-		}
+	if _, status := getAs(t, ordinary, "/users/new"); status != http.StatusForbidden {
+		t.Errorf("/users/new returned %d to an ordinary user, want 403", status)
+	}
+	// A Group is an ordinary record from 0.7, so any User may create one
+	// (docs/constitution.md#-group).
+	if !strings.Contains(groups, `href="/groups/new"`) {
+		t.Error("an ordinary user is not offered group registration")
+	}
+	if page, status := getAs(t, ordinary, "/groups/new"); status != http.StatusOK || !strings.Contains(page, `Register group</button>`) {
+		t.Errorf("/groups/new returned %d to an ordinary user, want the form", status)
 	}
 
 	location, status := postAs(t, m, "/user", url.Values{

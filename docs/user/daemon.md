@@ -40,7 +40,7 @@ Worth knowing:
 
 | Flag | |
 |---|---|
-| `-owner user@realm` | who this daemon belongs to. Defaults to you |
+| `-owner user` | who this daemon belongs to, realm optional. Defaults to you |
 | `-user account=user@realm` | seed a local account mapping on the first current start — repeat per person |
 | `-key path` | a different public key for the first user |
 | `-addr` · `-exec` | listen address, and which `agent-busd` to run |
@@ -88,12 +88,14 @@ The flags:
 
 | Flag | |
 |---|---|
-| `-owner user@realm` | whose daemon this is. The owner is always an administrator |
+| `-owner user` | whose daemon this is, realm optional. The owner is always an administrator |
 | `-user account=user@realm` | first-current-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
 | `-directory realm=github` | a realm and what vouches for enrolment. `realm=/path/to/keys` for a directory of key files; public GitHub profile metadata does not require this flag |
 | `-addr` · `-socket` | the loopback address and the unix socket path |
-| `-token-file` | the token store; created if missing |
-| `-dump-file` · `-dump-every` | where the snapshot goes, and how often. `0` turns the periodic dump off |
+| `-db path` | the one SQLite database: registry, users, groups, credentials, queues. Held exclusively; a missing one refuses the start |
+| `-init` · `-create` | make the database: `-init` alone and exit, `-create` then serve. Only an explicit act creates one |
+| `-flush-every` | how often queue contents and counters are written, one batch; `0` only at a graceful stop |
+| `-log-dir` · `-debug-log` | where `audit.log`, `error.log` and the on-demand `debug.log` go, and whether the last starts on |
 | `-web` | run the dashboard as a child too |
 
 ## 💾 What it keeps, and what it does not
@@ -101,11 +103,12 @@ The flags:
 | Kind | Where it lives | Survives a restart? |
 |---|---|---|
 | 📇 registry — agents, channels, services, people | its database | ✅ yes |
-| 🎟️ tokens | the token store | ✅ yes |
-| 📬 queued messages, statistics | **memory**, snapshotted to the dump file | ⚠️ across a **graceful** restart, yes |
+| 🎟️ tokens | the same database | ✅ yes |
+| 📬 queued messages, statistics | **memory**, flushed to the database in batches | ⚠️ across a **graceful** restart, yes; a crash loses what came since the last flush |
 | 🔋 liveness — who is reading, who is up | memory | ❌ no, and should not — it is re-learned in a second |
 
-💡 So: `systemctl restart` keeps the queues. A crash or `kill -9` does not.
+💡 So: `systemctl restart` keeps the queues. A crash or `kill -9` keeps them
+as of the last flush.
 That is a deliberate trade — bounded in-memory queues are why there is no
 broker to install.
 
@@ -183,7 +186,7 @@ runner is a separate program under a separate account, not a child.
 | refuses the address | `-addr` is not loopback. That is the check doing its job |
 | the dashboard did not start | the port it was given is somebody else's, or not yours to bind — the log says which |
 | a user has no socket | check `agent-bus-admin account list`; add the mapping and restart the full daemon |
-| the queues are empty after a restart | it did not exit gracefully, so the dump was never written |
+| the queues are missing recent messages after a restart | it did not exit gracefully, so what arrived since the last flush was never written |
 
 ---
 

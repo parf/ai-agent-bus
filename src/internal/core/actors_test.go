@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -102,5 +104,42 @@ func TestAGroupNameFollowsTheNameGrammar(t *testing.T) {
 		if groupName(bad) {
 			t.Errorf("%s was accepted as a group name", bad)
 		}
+	}
+}
+
+// An unprefixed term names a User. One that names no User while an agent
+// holds the name with its "#" is refused with the agent's spelling, never
+// retyped: in an ACL, a Group, the Maintainers and a deliver_to list.
+func TestAnUnmarkedAgentTermIsRefusedWithItsSpelling(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "alice@h")
+	provision(t, b, nil,
+		protocol.Record{Name: "#worker@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}, Full: protocol.OverflowStrict},
+		protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "alice@h", Full: protocol.OverflowStrict},
+		protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "alice@h", Allow: []string{"*"}},
+	)
+	for what, err := range map[string]error{
+		"allow": func() error {
+			_, e := b.Manage("alice@h", Management{Name: "jobs@h", Allow: &[]string{"worker@h"}})
+			return e
+		}(),
+		"maintainers": func() error {
+			_, e := b.Manage("alice@h", Management{Name: "jobs@h", Maintainers: ptr(protocol.MaintainerList{"worker@h"})})
+			return e
+		}(),
+		"deliver_to": func() error {
+			_, e := b.Manage("alice@h", Management{Name: "news@h", Subs: &[]string{"worker@h"}})
+			return e
+		}(),
+		"members": b.SetGroup("alice@h", "@crew", []string{"worker@h"}),
+	} {
+		if !errors.Is(err, ErrBadName) || !strings.Contains(fmt.Sprint(err), "#worker@h") {
+			t.Errorf("%s took an unmarked agent term: %v", what, err)
+		}
+	}
+	// The marked spelling is accepted.
+	if _, err := b.Manage("alice@h", Management{Name: "jobs@h", Allow: &[]string{"#worker@h"}}); err != nil {
+		t.Fatalf("the agent's own spelling: %v", err)
 	}
 }

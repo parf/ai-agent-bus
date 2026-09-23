@@ -89,15 +89,20 @@ func TestTheRecordEditorCarriesTheDeliverToListBackAndForth(t *testing.T) {
 	}
 }
 
-// The field follows the kind, like every other one on this form: only a 📣
-// has a Deliver-To list, and a save from a form that never showed the field
-// must not be refused for a list it could not have sent.
-func TestOnlyAPubSubEditorShowsDeliverToAndOtherKindsStillSave(t *testing.T) {
+// The field follows the kind, like every other one on this form: a 📣 has a
+// Deliver-To list, an 👾 and a 📮 a one-slot route (docs/constitution.md#-channels),
+// and a 📡 neither. A save from a form that never showed the field must not
+// be refused for a list it could not have sent.
+func TestDeliverToFollowsTheKindAndOtherKindsStillSave(t *testing.T) {
 	m := meaningFixture(t)
 	m.register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "admin@h", Descr: "Jobs", Allow: []string{"*"}})
+	m.register(protocol.Record{Name: "db@h", Kind: protocol.KindService, Owner: "admin@h", Addr: "host:1", Proto: "https"})
 	editor := editorOf(t, m.get("/channel/edit?name=jobs@h"))
-	if strings.Contains(editor, "name=subs") || strings.Contains(editor, "edit_subs") {
-		t.Fatal("a queue's editor offers a Deliver-To list")
+	if strings.Contains(editor, "<textarea name=subs") || !strings.Contains(editor, "<input name=subs ") {
+		t.Fatalf("a queue's editor does not offer its one-slot route as a single line: %s", editor)
+	}
+	if service := editorOf(t, m.get("/service/edit?name=db@h")); strings.Contains(service, "name=subs") || strings.Contains(service, "edit_subs") {
+		t.Fatal("a service's editor offers a Deliver-To field")
 	}
 	m.post(t, "/service", url.Values{
 		"action": {"save"}, "name": {"jobs@h"}, "descr": {"Job queue"},
@@ -123,7 +128,7 @@ func TestRegisteringAPubSubTopicCarriesTheDeliverToListItDeclared(t *testing.T) 
 		t.Fatal("the pub/sub registration form does not ask who it delivers to")
 	}
 	if queue := m.get("/channels/new?kind=queue"); strings.Contains(queue, field) {
-		t.Fatal("the queue registration form asks for a Deliver-To list")
+		t.Fatal("the queue registration form asks for a Deliver-To list rather than its one slot")
 	}
 	m.post(t, "/service", url.Values{
 		"action": {"create"}, "kind": {"pubsub"}, "name": {"feed@h"},

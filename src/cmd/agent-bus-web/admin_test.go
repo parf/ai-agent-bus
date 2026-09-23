@@ -290,11 +290,17 @@ func TestDashboardOwnerControls(t *testing.T) {
 other@h</textarea>`) || strings.Contains(groupEditor, `<input name=members`) {
 		t.Fatalf("group membership did not round-trip through its line editor: %s", groupEditor)
 	}
-	ordinaryGroup := request("other@h", "GET", "/group?name=%40ops", "", nil, 200)
-	if strings.Contains(ordinaryGroup, `<textarea name=members`) || !strings.Contains(ordinaryGroup, `Membership is not visible to you.`) {
-		t.Fatalf("ordinary user either gained the group editor or lost visible membership: %s", ordinaryGroup)
+	// A member reads the membership (the group's allow list is its
+	// membership, docs/constitution.md#-group) and gains no editor by it.
+	memberGroup := request("other@h", "GET", "/group?name=%40ops", "", nil, 200)
+	if strings.Contains(memberGroup, `id=members-edit`) || strings.Contains(memberGroup, `Membership is not visible to you.`) || !strings.Contains(memberGroup, `<code class=member-line>other@h</code>`) {
+		t.Fatalf("a member either gained the group editor or lost the membership it may read: %s", memberGroup)
 	}
-	ordinaryGroups := request("other@h", "GET", "/groups", "", nil, 200)
+	ordinaryGroup := request("owner@h", "GET", "/group?name=%40ops", "", nil, 200)
+	if strings.Contains(ordinaryGroup, `id=members-edit`) || !strings.Contains(ordinaryGroup, `Membership is not visible to you.`) {
+		t.Fatalf("a non-member either gained the group editor or saw a membership it may not read: %s", ordinaryGroup)
+	}
+	ordinaryGroups := request("owner@h", "GET", "/groups", "", nil, 200)
 	if !strings.Contains(ordinaryGroups, `Not visible to you`) || strings.Contains(ordinaryGroups, `No members`) {
 		t.Fatalf("ordinary group list represented hidden membership as empty: %s", ordinaryGroups)
 	}

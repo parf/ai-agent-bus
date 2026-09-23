@@ -70,6 +70,9 @@ func (b *Bus) normalizeDeliverTo(in []string, r protocol.Record) ([]string, erro
 			}
 			target, registered := b.entity(term)
 			if !registered {
+				if err := b.unmarkedAgent(term); err != nil {
+					return nil, err
+				}
 				return nil, fmt.Errorf("%w: deliver-to %s, which has to be registered first so its copies have somewhere to land", ErrUnknown, term)
 			}
 			if !deliverToAccepts(r.Kind, target.Kind) {

@@ -146,7 +146,7 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 		t.Fatal("the agents list state was lost on the way to a record and back")
 	}
 	admin, _ := p.request("admin@h", "GET", "/personal?owner=alice%40h", nil, 200)
-	if !strings.Contains(admin, "#alice-personal@h") || strings.Contains(admin, "#bob-personal@h") || !strings.Contains(admin, "only Personal agents visible through your normal access") {
+	if !strings.Contains(admin, "#alice-personal@h") || strings.Contains(admin, "#bob-personal@h") || !strings.Contains(admin, "only Personal records visible through your normal access") {
 		t.Fatalf("daemon-owner visible-only owner view is misstated: %s", admin)
 	}
 	if !strings.Contains(admin, `class="record-name-cell personal-record"`) || strings.Contains(admin, `class="record-name-cell owned-record personal-record"`) || strings.Contains(admin, "Yours") || !strings.Contains(admin, `class=personal-marker>Personal</span>`) {

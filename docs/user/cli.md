@@ -117,10 +117,27 @@ agent-bus secret db@demo - < .env              # or from a file
 password=$(agent-bus secret db@demo)           # read it back
 ```
 
-What you wrote is what comes back, byte for byte — the bus stores it and never
-looks inside. 🔍 Nobody else is shown it: every listing, every record answer
+What you wrote is what comes back, byte for byte. It must be an env file —
+`KEY=value` lines, `#` comments — and the bus checks that much and never looks
+further inside. 🔍 Nobody else is shown it: every listing, every record answer
 and the web page carry a **digest** of it instead, so you can see that it
-changed without being handed it. Only a 📡 has one.
+changed without being handed it. A 📡 service, an 👾 agent (read by that agent
+alone) and a 👥 group (read by its members) have one.
+
+### ✏️ Changing a record
+
+```sh
+agent-bus manage jobs@demo --add-to-set-allow bob@demo        # add, unless already there
+agent-bus manage jobs@demo --remove-allow bob@demo            # take it out
+agent-bus manage jobs@demo --deliver-to '#worker@demo'        # route the queue to an agent
+agent-bus manage jobs@demo --status inactive                  # hide it; --status active brings it back
+agent-bus group @crew alice@demo '#worker@demo'               # a group's whole membership
+```
+
+Every list — allow, maintainers, deliver-to — takes `--add-`, `--add-to-set-`
+and `--remove-`, applied to the record as the bus finds it, so two people
+editing at once lose nothing. An inactive record is in no listing and answers
+as if it did not exist until it is reactivated.
 
 ## ✉️ Sending and receiving
 

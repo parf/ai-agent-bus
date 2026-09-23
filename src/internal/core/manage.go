@@ -190,6 +190,9 @@ func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
 			if a, err = canon(a); err != nil {
 				return nil, err
 			}
+			if err := b.unmarkedAgent(a); err != nil {
+				return nil, err
+			}
 		}
 		if seen[a] {
 			continue
@@ -322,6 +325,9 @@ func (b *Bus) normalizeMaintainers(in protocol.MaintainerList, r protocol.Record
 			_, user := b.users[term]
 			record, registered := b.records[term]
 			if !user && !registered {
+				if err := b.unmarkedAgent(term); err != nil {
+					return nil, err
+				}
 				return nil, fmt.Errorf("%w: maintainer %s", ErrUnknown, term)
 			}
 			if !user && record.Kind != protocol.KindAgent {
@@ -374,6 +380,11 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	defer b.unlock()
 	if err := b.acting(who); err != nil {
 		return err
+	}
+	for _, m := range normalized {
+		if err := b.unmarkedAgent(m); err != nil && !groupName(m) {
+			return err
+		}
 	}
 	old, exists := b.records[name]
 	owner := ""
@@ -750,6 +761,20 @@ func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Rec
 		return protocol.Record{}, err
 	}
 	return r.Public(), nil
+}
+
+// unmarkedAgent refuses an unprefixed term that names no User while an Agent
+// holds the same name with its "#": an unprefixed term names a User, and the
+// agent it was probably meant for is named, never guessed or retyped
+// (docs/constitution.md#actors-and-ascii-textarea-syntax). Caller holds b.mu.
+func (b *Bus) unmarkedAgent(term string) error {
+	if _, user := b.users[term]; user || protocol.IsAgentName(term) {
+		return nil
+	}
+	if r, ok := b.records["#"+term]; ok && r.Kind == protocol.KindAgent {
+		return fmt.Errorf("%w: %s names no user; an agent's name begins with #, so the agent is #%s", ErrBadName, term, term)
+	}
+	return nil
 }
 
 // ListDelta names terms to add to or remove from each list: the ACL — a

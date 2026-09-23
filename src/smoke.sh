@@ -2323,7 +2323,7 @@ asked() { printf '%s' "$1" | sed 's/</\n</g' | grep -o '^<\(input\|textarea\|sel
   | grep -o 'name=[a-z_]*$' | grep -v 'name=\(kind\|new\|action\|return\|edit_[a-z]*\)$' | sort -u | tr '\n' ' '; }
 # Both sides non-empty first, or two forms that asked nothing would agree.
 has "the service form asks for the fields a service has" \
-  "$(asked "$SVCEDIT")" '^name=addr name=allow name=descr name=maintainers name=name name=protocol name=secret $'
+  "$(asked "$SVCEDIT")" '^name=addr name=allow name=descr name=maintainers name=name name=personal name=protocol name=secret $'
 has "registering a service and editing one ask the same questions" \
   "$(asked "$SVCEDIT")" "^$(asked "$(curl -s -b "$JAR" "$WEB/services/new")")\$"
 # The same rule for the other two entities: a person and a group are added and
@@ -2774,6 +2774,37 @@ orph_checks() {
 }
 orph_checks
 orph_down
+
+sec "the CLI manages a record: status, lists by delta, routes and groups"
+# K.16: management through the supported face, each answer read back from the
+# daemon rather than from the command's own output.
+ab owner@srv1 channel create cli-jobs@srv1 --allow owner@srv1 >/dev/null
+ab owner@srv1 register '#cli-box@srv1' --kind agent --allow cli-jobs@srv1 >/dev/null
+users cli-bob@srv1
+ab owner@srv1 manage cli-jobs@srv1 --add-to-set-allow cli-bob@srv1 >/dev/null
+has "add_to_set adds a term" "$(ab owner@srv1 ls cli-jobs@srv1)" '"allow":\["owner@srv1","cli-bob@srv1"\]'
+ab owner@srv1 manage cli-jobs@srv1 --add-to-set-allow cli-bob@srv1 >/dev/null
+has "and adds it once" "$(ab owner@srv1 ls cli-jobs@srv1)" '"allow":\["owner@srv1","cli-bob@srv1"\]'
+has "add refuses a term already there" \
+  "$(ab owner@srv1 manage cli-jobs@srv1 --add-allow cli-bob@srv1 2>&1)" 'already names cli-bob@srv1'
+has "an unmarked agent term is refused with its spelling" \
+  "$(ab owner@srv1 manage cli-jobs@srv1 --add-allow cli-box@srv1 2>&1)" 'the agent is #cli-box@srv1'
+ab owner@srv1 manage cli-jobs@srv1 --remove-allow cli-bob@srv1 >/dev/null
+has "remove takes it" "$(ab owner@srv1 ls cli-jobs@srv1)" '"allow":\["owner@srv1"\]'
+ab owner@srv1 manage cli-jobs@srv1 --deliver-to '#cli-box@srv1' >/dev/null
+has "a route is stored and allowed" "$(ab owner@srv1 ls cli-jobs@srv1)" '"subs":\["#cli-box@srv1"\].*"route_allowed":true'
+ab owner@srv1 send cli-jobs@srv1 "routed" >/dev/null
+has "and a message sent to the queue moves to the agent" \
+  "$(ab '#cli-box@srv1' consume --wait 2s)" '"original_to":"cli-jobs@srv1"'
+ab owner@srv1 manage cli-jobs@srv1 --status inactive >/dev/null
+is_empty "an inactive record is in no listing" "$(ab owner@srv1 ls 2>/dev/null | grep -o '"name":"cli-jobs@srv1"')"
+has "and only in the inactive view" \
+  "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" http://unix/inactive)" '"name":"cli-jobs@srv1"'
+ab owner@srv1 manage cli-jobs@srv1 --status active >/dev/null
+has "and reactivation brings it back" "$(ab owner@srv1 ls cli-jobs@srv1)" '"status":"active"'
+ab owner@srv1 group @cli-crew cli-bob@srv1 '#cli-box@srv1' >/dev/null
+has "a group is set and read back" "$(ab owner@srv1 group @cli-crew | LC_ALL=C sort | tr '\n' ' ')" '^#cli-box@srv1 cli-bob@srv1 $'
+has "and is a record owned by its creator" "$(ab owner@srv1 ls @cli-crew)" '"kind":"group".*"owner":"owner@srv1"'
 
 sec "a corrupt credential pair is reported to both logs, and a refusal to neither"
 # docs/constitution.md#errors-and-alerts: a violated invariant or corrupt

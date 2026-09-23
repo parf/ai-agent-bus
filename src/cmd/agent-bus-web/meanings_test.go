@@ -760,7 +760,7 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	// The editable value is on the settings form, and it is the daemon's
 	// plain syntax there: the glyph belongs to the label above.
 	editor := m.get("/agent/edit?name=%23svc@h")
-	if !strings.Contains(editor, `<textarea name=allow rows=5 placeholder="agent@realm&#10;@group&#10;@owner&#10;*">peer@h</textarea>`) {
+	if !strings.Contains(editor, `<textarea name=allow rows=5 placeholder="#agent@realm&#10;user@realm&#10;@group&#10;@owner&#10;*" aria-invalid="false" aria-describedby="">peer@h</textarea>`) {
 		t.Errorf("the settings form lost its plain ACL value: %s", editorOf(t, editor))
 	}
 	for _, k := range protocol.Kinds {
