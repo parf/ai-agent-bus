@@ -208,7 +208,9 @@ func (b *Bus) ownerless(name string) bool {
 	// anything to delete them; Orphans runs first now, and a name with no
 	// record and no profile owns nothing by the time this is asked — every
 	// record it owned was wreckage and went with it.
-	return b.identityKind(name) == protocol.DirectoryCredential
+	// An ignored record stays in the database for an operator, and so does
+	// its credential: repairing the row must not find the token gone.
+	return b.identityKind(name) == protocol.DirectoryCredential && !b.ignored[name]
 }
 
 // RemoveOwnerless holds the same lock used to create profiles and records

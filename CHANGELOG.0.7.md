@@ -5,6 +5,15 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](Plans/CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.20 — 2026-09-23
+
+Final review's fixes: a nested group must exist; delivery re-asks authority at
+the hand-over, and status and owner changes release readers; a user record is
+its User's and carries no lists; `*` admits no channel as a route source; an
+ignored record keeps its credential until its name is registered afresh;
+account mappings are actors' and go with the name; the daemon account's socket
+follows the daemon Owner.
+
 ## 0.7.19 — 2026-09-23
 
 A database that has never been written is not reported as an unclean stop.

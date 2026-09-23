@@ -191,7 +191,7 @@ func setup() error {
 	if *keyF == "" {
 		*keyF = installerKey()
 	}
-	aside := fmt.Sprintf("%s.before-0.7-%s", svcHome, time.Now().Format("20060102-150405"))
+	aside := fmt.Sprintf("%s.before-0.7-%s-%d", svcHome, time.Now().Format("20060102-150405.000000"), os.Getpid())
 	steps := []string{}
 	if *reinstall {
 		steps = append(steps, "stop agent-busd; a node that will not stop is not reinstalled",

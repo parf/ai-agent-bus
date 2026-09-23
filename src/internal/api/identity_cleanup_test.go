@@ -92,7 +92,6 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 		if shape == "record" {
 			name = "#" + name
 		}
-		cred := token(name)
 		call("owner@h", "GET", "/users", "", 200)
 		switch shape {
 		case "user":
@@ -104,6 +103,9 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		// Taken once the name is somebody: a credential stored before it was
+		// born is dropped by the birth, so nothing earlier answers for it.
+		cred := token(name)
 		call("owner@h", "POST", "/identity/remove", `{"kind":"agent","name":"`+name+`"}`, 409)
 		if _, ok := s.tokens.Principal(cred); !ok {
 			t.Errorf("stale directory row removed %s", shape)

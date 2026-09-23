@@ -70,6 +70,10 @@ func (b *Bus) setRecord(name string, r protocol.Record) {
 	} else {
 		r.ID = b.takeID(&b.nextRecordID)
 		r.Created = time.Now()
+		// A record born under a name owns no credential yet. One may still be
+		// stored there for an ignored record the name used to belong to; it
+		// goes in this commit, or its old pair would block the new holder.
+		b.stageCredential(name, nil)
 	}
 	if r.Created.IsZero() {
 		r.Created = time.Now()

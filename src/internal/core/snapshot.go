@@ -325,6 +325,7 @@ func (b *Bus) ignoreIncorrect() {
 			if why := b.incorrect(b.records[name]); why != "" {
 				b.report(ports.Alert, "stored record %s is ignored: %s", name, why)
 				gone = append(gone, name)
+				b.ignored[name] = true
 			}
 		}
 		users := make([]string, 0, len(b.users))

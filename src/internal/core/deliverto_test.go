@@ -206,7 +206,14 @@ func TestDeliverToFollowsTheKind(t *testing.T) {
 	if _, err := b.Manage("a@h", Management{Name: "news@h", Subs: &[]string{"#reader@h", "@crew", "jobs@h"}}); err != nil {
 		t.Fatalf("a pubsub list refused a valid set: %v", err)
 	}
-	// One slot on an agent or a queue: an agent, a queue or a pubsub.
+	// One slot on an agent or a queue: an agent, a queue or a pubsub, whose
+	// allow names the source — "*" admits no queue.
+	if _, err := b.Manage("a@h", Management{Name: "jobs@h", Subs: &[]string{"#reader@h"}}); !errors.Is(err, ErrNotAllow) {
+		t.Fatalf("a route to an agent open only to \"*\" was stored: %v", err)
+	}
+	if _, err := b.Manage(fixtureOwner, Management{Name: "#reader@h", Allow: &[]string{"*", "jobs@h"}}); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := b.Manage("a@h", Management{Name: "jobs@h", Subs: &[]string{"#reader@h"}}); err != nil {
 		t.Fatalf("a queue's one slot refused an agent: %v", err)
 	}

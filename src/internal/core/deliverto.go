@@ -44,6 +44,11 @@ func (b *Bus) normalizeDeliverTo(in []string, r protocol.Record) ([]string, erro
 	if len(in) > 0 && r.Kind != protocol.KindPubSub && !oneSlot {
 		return nil, fmt.Errorf("%w: a %s has no deliver_to", ErrKind, r.Kind)
 	}
+	// The shape before any term: one slot holds one destination, and that
+	// is a question about the field, not about who is on it.
+	if oneSlot && len(in) > 1 {
+		return nil, fmt.Errorf("%w: a %s's deliver_to holds one destination, not %d", ErrBadName, r.Kind, len(in))
+	}
 	out := make([]string, 0, len(in))
 	seen := map[string]bool{}
 	for _, raw := range in {

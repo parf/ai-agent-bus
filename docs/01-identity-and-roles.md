@@ -7,9 +7,9 @@ credentials and checks belong to [Access](02-access.md#what-a-call-carries).
 
 ## Scope
 
-Names, profiles, registration, resource ownership and nested groups are built.
-The role model below also includes **accepted, pending changes**, marked where
-relevant; [implementation work](../Plans/MVP/TODO.md#authority-model) and
+Names, profiles, registration, resource ownership, groups and status are built
+as the [constitution](constitution.md#project-constitution) states them;
+[remaining work](../Plans/MVP/TODO.md#authority-model) and
 [open choices](../Plans/MVP/QUESTIONS.md#open-questions) stay in the plans.
 
 ## Identities

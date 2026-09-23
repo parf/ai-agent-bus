@@ -58,6 +58,18 @@ func (b *Bus) Unregister(name, caller string) error {
 	// the old bytes must not answer for whoever registers the name next.
 	// See docs/02-access.md#token-lifetime.
 	b.stageCredential(n, nil)
+	// A local account mapped to the name goes with it, or whoever registered
+	// the name next would inherit that account's socket.
+	next, dropped := cloneAccounts(b.accounts), false
+	for account, principal := range next {
+		if principal == n {
+			delete(next, account)
+			dropped = true
+		}
+	}
+	if dropped {
+		b.setAccounts(next)
+	}
 	b.forgetName(n)
 	// The name has stopped being a principal, so its reads of other inboxes
 	// have stopped being reads anybody is entitled to. Its own inbox is gone;

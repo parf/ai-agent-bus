@@ -65,8 +65,14 @@ func TestAGroupsMembersAreActorsThatExist(t *testing.T) {
 			t.Errorf("%s as a member through an allow list was accepted", member)
 		}
 	}
+	if err := b.SetGroup("alice@h", "@crew", []string{"@later"}); !errors.Is(err, ErrUnknown) {
+		t.Errorf("a group nothing holds as a member: %v", err)
+	}
+	if err := b.SetGroup("alice@h", "@later", []string{"alice@h"}); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.SetGroup("alice@h", "@crew", []string{"alice@h", "#box@h", "@later"}); err != nil {
-		t.Fatalf("a user, an agent and a group reference: %v", err)
+		t.Fatalf("a user, an agent and a live group: %v", err)
 	}
 }
 

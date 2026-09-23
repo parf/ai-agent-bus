@@ -36,7 +36,12 @@ func TestNestedGroupsGrantAccessAndManagement(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@middle", []string{"@leaf"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.SetGroup("admin@h", "@outer", []string{"@middle", "@missing"}); err != nil {
+	// A group that does not exist yet is no member: whoever created it later
+	// would join @outer by doing so.
+	if err := b.SetGroup("admin@h", "@outer", []string{"@middle", "@missing"}); !errors.Is(err, ErrUnknown) {
+		t.Fatalf("a group took a nested group nothing holds: %v", err)
+	}
+	if err := b.SetGroup("admin@h", "@outer", []string{"@middle"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#shared@h", Owner: "alice@h", Allow: []string{"@outer"}}); err != nil {
@@ -79,22 +84,30 @@ func TestNestedGroupsGrantAccessAndManagement(t *testing.T) {
 
 func TestNestedGroupsResolveUnknownsCyclesAndRevocation(t *testing.T) {
 	b := nestedGroupsFixture(t)
+	// A subgroup nothing holds is refused rather than left to be claimed.
+	if err := b.SetGroup("admin@h", "@future-edge", []string{"@future"}); !errors.Is(err, ErrUnknown) {
+		t.Fatalf("a group took a subgroup nothing holds: %v", err)
+	}
+	if err := b.SetGroup("admin@h", "@future", []string{"future@h"}); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.SetGroup("admin@h", "@future-edge", []string{"@future"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#future-box@h", Owner: "alice@h", Allow: []string{"@future-edge"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "future@h", To: "#future-box@h"}); !errors.Is(err, ErrNotAllow) {
-		t.Fatalf("unknown subgroup was not inert: %v", err)
-	}
-	if err := b.SetGroup("admin@h", "@future", []string{"future@h"}); err != nil {
-		t.Fatal(err)
-	}
 	if _, err := b.Send(protocol.Envelope{From: "future@h", To: "#future-box@h"}); err != nil {
-		t.Fatalf("populated subgroup did not become effective: %v", err)
+		t.Fatalf("a populated subgroup did not grant: %v", err)
 	}
 
+	// A cycle, built from groups that exist, still terminates.
+	if err := b.SetGroup("admin@h", "@cycle-b", []string{"reader@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.SetGroup("admin@h", "@cycle-a", []string{"@cycle-b"}); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.SetGroup("admin@h", "@cycle-a", []string{"@cycle-a", "@cycle-b"}); err != nil {
 		t.Fatal(err)
 	}
@@ -105,10 +118,10 @@ func TestNestedGroupsResolveUnknownsCyclesAndRevocation(t *testing.T) {
 		t.Fatal("cycle did not terminate with graph-reachability semantics")
 	}
 
-	if err := b.SetGroup("admin@h", "@nested-reader", []string{"@reader-leaf"}); err != nil {
+	if err := b.SetGroup("admin@h", "@reader-leaf", []string{"reader@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.SetGroup("admin@h", "@reader-leaf", []string{"reader@h"}); err != nil {
+	if err := b.SetGroup("admin@h", "@nested-reader", []string{"@reader-leaf"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#wait@h", Owner: "alice@h", Allow: []string{"@nested-reader"}}); err != nil {

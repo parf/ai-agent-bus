@@ -23,7 +23,7 @@ func known(t *testing.T, b *Bus, names ...string) {
 			records = append(records, protocol.Record{Name: name, Kind: protocol.KindAgent, Owner: fixtureOwner, Allow: []string{"*"}})
 		} else {
 			users = append(users, name)
-			records = append(records, protocol.Record{Name: name, Kind: protocol.KindUser, Owner: name, Personal: true, Allow: []string{"*"}})
+			records = append(records, protocol.Record{Name: name, Kind: protocol.KindUser, Owner: name, Personal: true})
 		}
 	}
 	provision(t, b, append(users, fixtureOwner), records...)

@@ -60,7 +60,8 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 		t.Fatalf("explicit profile detail clear was ignored: %+v", users[0])
 	}
 	call("alice@h", "POST", "/register", `{"kind":"agent","name":"#svc@h"}`, 200)
-	call("alice@h", "POST", "/manage", `{"kind":"agent","name":"alice@h","allow":["admin@h"]}`, 200)
+	// A user record carries no allow list: who reaches it is the User rule.
+	call("alice@h", "POST", "/manage", `{"kind":"agent","name":"alice@h","allow":["admin@h"]}`, 400)
 	// A user takes messages from an agent it may reach, here its own.
 	call("#svc@h", "POST", "/send", `{"to":"alice@h","body":"retained"}`, 200)
 	session, err := s.tokens.StartSession("alice@h")

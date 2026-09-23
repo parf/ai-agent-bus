@@ -160,6 +160,11 @@ func runBus(c config) {
 		}()
 	}
 	for _, in := range inherited() {
+		// The daemon account's socket answers as the durable daemon Owner,
+		// which a transfer moves, not as the setup seed on the command line.
+		if in.owner {
+			in.who = owner
+		}
 		if in.who == "" {
 			serve(in.l, face.Handler())
 			continue
@@ -258,6 +263,9 @@ func configureDirectories(bus *core.Bus, specs []string, profiles githubDirector
 type inlet struct {
 	l   net.Listener
 	who string
+	// owner marks the daemon account's socket, which answers as the durable
+	// daemon Owner rather than a name fixed at supervisor start.
+	owner bool
 }
 
 // inherited turns the fds the supervisor passed into listeners. They arrive
@@ -280,7 +288,7 @@ func inherited() []inlet {
 		if rest, ok := strings.CutPrefix(what, "user:"); ok {
 			who = rest
 		}
-		in = append(in, inlet{l: l, who: who})
+		in = append(in, inlet{l: l, who: who, owner: what == "owner:"})
 	}
 	return in
 }

@@ -21,9 +21,6 @@ func TestAnInactiveUsersInboxIsDrainedByNobodyAndKeepsItsWork(t *testing.T) {
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "alice@h", Allow: ptr([]string{"admin@h"})}); err != nil {
-		t.Fatal(err)
-	}
 	if _, err := b.Send(protocol.Envelope{From: "#sender@h", To: "alice@h", Body: "to the person"}); err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +35,7 @@ func TestAnInactiveUsersInboxIsDrainedByNobodyAndKeepsItsWork(t *testing.T) {
 	if _, err := b.SetUserState("admin@h", "alice@h", protocol.StatusActive); err != nil {
 		t.Fatal(err)
 	}
-	e, err := b.ConsumeAs(ctx, "admin@h", "alice@h", "", "", false, false)
+	e, err := b.ConsumeAs(ctx, "alice@h", "alice@h", "", "", false, false)
 	if err != nil || !strings.Contains(e.Body, "to the person") {
 		t.Fatalf("the work queued before the deactivation was lost: %+v %v", e, err)
 	}

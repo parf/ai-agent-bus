@@ -94,7 +94,13 @@ func runSupervisor(c config) {
 			log.Fatalf("socket for %s: %v", u.account, err)
 		}
 		paths = append(paths, path)
-		names = append(names, "user:"+u.name.String())
+		// The daemon account's own socket is the daemon Owner's, whoever
+		// that is after a transfer; the bus child resolves it from the store.
+		if u.account == ownerAccount() {
+			names = append(names, "owner:")
+		} else {
+			names = append(names, "user:"+u.name.String())
+		}
 		ls = append(ls, l)
 	}
 	fds := make([]*os.File, len(ls))

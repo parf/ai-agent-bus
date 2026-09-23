@@ -2808,6 +2808,32 @@ ab owner@srv1 group @cli-crew cli-bob@srv1 '#cli-box@srv1' >/dev/null
 has "a group is set and read back" "$(ab owner@srv1 group @cli-crew | LC_ALL=C sort | tr '\n' ' ')" '^#cli-box@srv1 cli-bob@srv1 $'
 has "and is a record owned by its creator" "$(ab owner@srv1 ls @cli-crew)" '"kind":"group".*"owner":"owner@srv1"'
 
+sec "the daemon account's socket follows the daemon Owner across a transfer"
+# The socket is the daemon Owner's, not the setup seed's: after a transfer and
+# a restart with the same -owner flag it answers as the new Owner.
+mkdir -p "$D/xfer"
+xfer_up() {
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+15)) -socket "$D/xfer/bus.sock" \
+    -owner "$OWNER" -db "$D/xfer/bus.db" -create -flush-every 0 >"$D/xfer/$1.log" 2>&1 &
+  XPID=$!
+  ready "$D/xfer/bus.sock" || return 1
+}
+xfer_down() { kill "$XPID" 2>/dev/null; wait "$XPID" 2>/dev/null; }
+xfer_checks() {
+  xfer_up first || { echo "  FAIL the transfer fixture did not start"; fail=$((fail+1)); return 1; }
+  XSOCK="$D/xfer/user-$ACCOUNT.sock"
+  has "the daemon account's socket is the seed Owner at first" \
+    "$(curl -s --unix-socket "$XSOCK" http://unix/status)" "\"you\":\"$OWNER\""
+  curl -fsS --unix-socket "$XSOCK" -d '{"name":"heir@srv1","create":true}' http://unix/user >/dev/null
+  curl -fsS --unix-socket "$XSOCK" -d '{"name":"heir@srv1"}' http://unix/owner >/dev/null
+  xfer_down
+  xfer_up second || { echo "  FAIL the transfer fixture did not restart"; fail=$((fail+1)); return 1; }
+  has "after the transfer and a restart it is the new Owner" \
+    "$(curl -s --unix-socket "$XSOCK" http://unix/status)" '"you":"heir@srv1","administrator":true,"daemon_owner":true'
+}
+xfer_checks
+xfer_down
+
 sec "a corrupt credential pair is reported to both logs, and a refusal to neither"
 # docs/constitution.md#errors-and-alerts: a violated invariant or corrupt
 # stored state produces one syslog message and the same line in error.log; an

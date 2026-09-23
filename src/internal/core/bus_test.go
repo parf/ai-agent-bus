@@ -683,6 +683,10 @@ func TestAKindTheDaemonDoesNotKnowIsRefused(t *testing.T) {
 		}
 	}
 	for _, ok := range protocol.Kinds {
+		// A user record is made with its User, never registered for one.
+		if ok == protocol.KindUser {
+			continue
+		}
 		r := protocol.Record{Name: "t-" + ok + "@h", Kind: ok, Owner: "o@h"}
 		if ok == protocol.KindAgent {
 			r.Name = "#" + r.Name

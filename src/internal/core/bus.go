@@ -125,6 +125,8 @@ type Bus struct {
 	staging *staged
 	// creds is the face's credential index, bound at start (credentials.go).
 	creds ports.CredentialIndex
+	// ignored names the stored records this start ignored (snapshot.go).
+	ignored map[string]bool
 	// flushed is each queue's counters as last saved, so a queue flush writes
 	// only what moved since (snapshot.go).
 	flushed map[string]queueMark
@@ -179,6 +181,7 @@ func New() *Bus {
 		accounts:       map[string]string{},
 		activeAccounts: map[string]string{},
 		records:        map[string]protocol.Record{},
+		ignored:        map[string]bool{},
 		users:          map[string]protocol.User{},
 		refused:        map[string]int{},
 		inboxes:        map[string]*inbox{},
@@ -232,6 +235,17 @@ func validateKind(r protocol.Record) error {
 		return fmt.Errorf("%w: a group's name begins with @, and %s does not", ErrKind, r.Name)
 	} else if r.Kind != protocol.KindGroup && group {
 		return fmt.Errorf("%w: only a group's name begins with @, and %s is a %s", ErrKind, r.Name, r.Kind)
+	}
+	// A User's own record is its User's, and carries neither allow nor
+	// maintainers: who reaches it follows the User delivery rule
+	// (docs/constitution.md#common-record-fields).
+	if r.Kind == protocol.KindUser {
+		if r.Owner != "" && r.Owner != r.Name {
+			return fmt.Errorf("%w: a user record belongs to its own user", ErrKind)
+		}
+		if len(r.Allow) != 0 || len(r.Maintainers) != 0 {
+			return fmt.Errorf("%w: a user record has no allow list and no maintainers", ErrKind)
+		}
 	}
 	if r.Kind == protocol.KindGroup {
 		if reservedTerm(r.Name) {
@@ -360,7 +374,14 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	if r.Full != "" && r.Full != protocol.OverflowStrict && r.Full != protocol.OverflowRing {
 		return protocol.Record{}, fmt.Errorf("%w, not %q", ErrOverflow, r.Full)
 	}
-	if err := validateKind(r); err != nil {
+	// The shape alone here, before the lock: whose it is, and so whether a
+	// user record is its own, is known only once the owner is resolved, and
+	// a name somebody else holds is refused for that first.
+	shape := r
+	if shape.Kind == protocol.KindUser {
+		shape.Owner = shape.Name
+	}
+	if err := validateKind(shape); err != nil {
 		return protocol.Record{}, err
 	}
 	b.mu.Lock()
@@ -486,6 +507,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		if r.Allow == nil {
 			r.Allow = old.Allow
 		}
+	}
+	if err := validateKind(r); err != nil {
+		return protocol.Record{}, err
 	}
 	if err := b.validatePersonal(r); err != nil {
 		return protocol.Record{}, err
@@ -1069,11 +1093,23 @@ func (b *Bus) route(rec protocol.Record, e protocol.Envelope) error {
 // b.mu.
 func (b *Bus) admits(r protocol.Record, name string) bool {
 	for _, s := range r.Allow {
-		if s == "*" || s == name || b.member(name, s) || b.runtimeTerm(name, s, r) {
+		// "*" is every active User and Agent (docs/02-access.md#acl), so it
+		// admits a forwarding agent and never a queue or topic source.
+		if s == "*" && b.actor(name) || s == name || b.member(name, s) || b.runtimeTerm(name, s, r) {
 			return true
 		}
 	}
 	return false
+}
+
+// actor says whether name speaks on the bus: a User or a live Agent.
+// Caller holds b.mu.
+func (b *Bus) actor(name string) bool {
+	if _, user := b.users[name]; user {
+		return true
+	}
+	r, ok := b.entity(name)
+	return ok && r.Kind == protocol.KindAgent
 }
 
 // deliver puts one envelope into one inbox: into a waiter if one is there,
@@ -1082,6 +1118,19 @@ func (b *Bus) admits(r protocol.Record, name string) bool {
 // obeys the receiver's bound and overflow exactly as a send does.
 // Caller holds the lock.
 func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error {
+	// Asked again here, at the hand-over: a waiter whose standing went while
+	// it blocked is released, never handed the message
+	// (docs/constitution.md#common-record-fields).
+	for i := len(in.waiters) - 1; i >= 0; i-- {
+		if w := in.waiters[i]; !b.may(w.caller, rec) {
+			err := ErrNotAllow
+			if e := b.acting(w.caller); e != nil {
+				err = e
+			}
+			w.stopped <- err
+			in.waiters = drop(in.waiters, i)
+		}
+	}
 	// A waiter that asked for this topic and tag is served ahead of the
 	// unfiltered reader — otherwise a `call` loses its reply to whichever
 	// reader happened to block first.

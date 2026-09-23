@@ -681,7 +681,10 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	b.setRecord(name, r)
 	// A Group grants on other records' lists, so its edit can take authority
 	// from readers blocked anywhere.
-	if r.Kind == protocol.KindGroup {
+	// A Group grants on other records' lists, a status or owner change can
+	// take a reader's own standing, and a transfer rewrites the old Owner's
+	// Personal lists: each can take authority from readers blocked anywhere.
+	if r.Kind == protocol.KindGroup || change.Status != nil || change.Owner != nil {
 		b.recheckReaders()
 	} else {
 		b.recheckInbox(name)
@@ -780,12 +783,15 @@ func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Rec
 }
 
 // groupMember says whether a term may be a Group's member: an actor — a User
-// or a live Agent — or another Group, which may be named before it is
-// populated and is inert until it is (docs/constitution.md#-group). A queue, a
-// service, a pubsub or a name nothing holds is refused: a grant made to a name
-// before it exists would pass to whoever registered it. Caller holds b.mu.
+// or a live Agent — or a live Group (docs/constitution.md#-group). A queue, a
+// service, a pubsub or a name nothing holds is refused, a group name included:
+// a grant made to a name before it exists would pass to whoever created it.
+// Caller holds b.mu.
 func (b *Bus) groupMember(term string) error {
 	if groupName(term) {
+		if _, ok := b.groupMembers(term); !ok {
+			return fmt.Errorf("%w: group member %s", ErrUnknown, term)
+		}
 		return nil
 	}
 	if err := b.unmarkedAgent(term); err != nil {

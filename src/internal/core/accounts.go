@@ -115,6 +115,10 @@ func (b *Bus) SetAccount(caller, account, principal string, remove bool) (protoc
 		if err := b.acting(mapped); err != nil {
 			return protocol.AccountMappings{}, fmt.Errorf("mapped principal: %w", err)
 		}
+		// Only a User or an Agent speaks, so only one is a socket's principal.
+		if !b.actor(mapped) {
+			return protocol.AccountMappings{}, fmt.Errorf("%w: a local account maps to a user or an agent, and %s is neither", ErrKind, mapped)
+		}
 		next := cloneAccounts(b.accounts)
 		next[account] = mapped
 		b.setAccounts(next)

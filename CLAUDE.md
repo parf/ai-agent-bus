@@ -101,7 +101,7 @@ The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the proje
 | Stable | An even minor (`0.6`, `0.8`) is a feature line. An odd minor (`0.7`, `0.9`) is major development whose code may be broken; when it passes all tests and reviews — including a final full Fable review — its commit subject is exactly `STABLE - passed all tests and reviews`, and the next even line begins |
 | Later releases | Before stability, MINOR advances the release line. From major one, breaking changes bump MAJOR, compatible features MINOR, fixes PATCH; reset lower components when advancing a higher one |
 | No behaviour change | Docs, tests and refactoring alone do not require a bump |
-| Changelog | Every version bump includes a one- or two-line version summary in the current line's changelog — `CHANGELOG.0.7.md` from `0.7.0` — newest version on top. One file per release line; historical release numbers stay in theirs and are never rewritten to match the current version |
+| Changelog | Every version bump includes a one- or two-line version summary in the current line's changelog — `CHANGELOG.0.7.md` at the repository root from `0.7.0` — newest version on top. One file per release line, and a finished line's file moves to `Plans/`; historical release numbers stay in theirs and are never rewritten to match the current version |
 | Build evidence | Shipped Go binaries must carry [setup § build information](docs/09-setup.md#build-information) and expose it through the version query. Use the documented build script; never ship an unstamped development build |
 
 ## Git
