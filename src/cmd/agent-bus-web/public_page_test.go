@@ -33,15 +33,15 @@ func TestPublicPageDescribesTheProject(t *testing.T) {
 			t.Errorf("the signed-out page does not say %q", want)
 		}
 	}
-	// The project's links are on it, and in the footer of it.
-	footer := section(t, out, "<footer", "</footer>")
+	// The project's links, once. They were in the footer as well, and one
+	// short page saying the same thing twice is what that looked like.
 	for _, want := range []string{
 		`href="https://github.com/parf/ai-agent-bus"`,
 		`href="https://parf.dev/"`,
 		"Serg Parf",
 	} {
-		if !strings.Contains(footer, want) {
-			t.Errorf("the signed-out footer does not carry %q", want)
+		if n := strings.Count(out, want); n != 1 {
+			t.Errorf("the signed-out page carries %q %d times, not once", want, n)
 		}
 		if !strings.Contains(body, want) {
 			t.Errorf("the signed-out page does not carry %q where a visitor reads it", want)
@@ -191,10 +191,9 @@ func TestASignedInPageKeepsTheProjectPitchOut(t *testing.T) {
 	if strings.Contains(out, "Sign in to AgentBus") {
 		t.Fatalf("expected a signed-in page, got the sign-in form")
 	}
-	footer := section(t, out, "<footer", "</footer>")
 	for _, unwanted := range []string{"Connect AI and NON-AI agents", "github.com/parf/ai-agent-bus", "Serg Parf"} {
-		if strings.Contains(footer, unwanted) {
-			t.Errorf("a signed-in footer carries %q", unwanted)
+		if strings.Contains(out, unwanted) {
+			t.Errorf("a signed-in page carries %q", unwanted)
 		}
 	}
 }

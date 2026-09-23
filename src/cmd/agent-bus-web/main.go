@@ -472,8 +472,6 @@ main{max-width:104rem;margin:0 auto;padding:2rem 1rem}
 .account-link[aria-current=page]{font-weight:700;text-decoration:none}
 .site-footer{max-width:104rem;margin:2rem auto 0;padding:1rem;border-color:var(--border);color:var(--text-2)}
 .footer-node{display:flex;flex-wrap:wrap;gap:.35rem 1.25rem;margin-bottom:.35rem}
-.footer-about{max-width:60rem;margin:.75rem auto 0;text-align:center;white-space:normal}
-.footer-about p{margin:.35rem 0}
 .hero{margin:0}
 .hero img{max-width:100%;height:auto;border-radius:6px}
 .landing{max-width:56rem;margin:0 auto;text-align:center}
@@ -729,10 +727,6 @@ type signin struct {
 	Refused string
 	Return  string
 }
-
-// The sign-in page is the one a stranger reaches, so it is where the project
-// says what it is. Every other page is already behind a credential.
-func (s signin) Frame() pageInfo { p := s.pageInfo; p.Public = true; return p }
 
 var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark": titleMark}).Parse(head + `<title>Sign in · agent-bus</title><a class=skip-link href=#main>Skip to main content</a>` + frameHeader + frameHeaderEnd + `
 <main>
