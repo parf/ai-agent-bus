@@ -245,8 +245,18 @@ func validateKind(r protocol.Record) error {
 	// Deliver-To is what a 📣 does instead of holding a queue, so it is the
 	// one kind that has one: the other three receive rather than fan out.
 	// See docs/04-messaging.md#subscribers.
-	if r.Kind != protocol.KindPubSub && len(r.Subs) != 0 {
-		return fmt.Errorf("%w: a %s delivers to nobody, so it carries no deliver-to list", ErrKind, r.Kind)
+	// deliver_to: a list on a 📣, one slot on an 👾 or 📮, and nothing on any
+	// other kind (docs/constitution.md#common-record-fields).
+	switch r.Kind {
+	case protocol.KindPubSub:
+	case protocol.KindAgent, protocol.KindQueue:
+		if len(r.Subs) > 1 {
+			return fmt.Errorf("%w: a %s's deliver_to holds one destination, not %d", ErrKind, r.Kind, len(r.Subs))
+		}
+	default:
+		if len(r.Subs) != 0 {
+			return fmt.Errorf("%w: a %s delivers to nobody, so it carries no deliver_to", ErrKind, r.Kind)
+		}
 	}
 	// config and secret are private values of the kinds the field table gives
 	// them, and of no other (docs/constitution.md#-private-values).
@@ -411,7 +421,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// against the registry, which needs the lock.
 	// See docs/04-messaging.md#subscribers.
 	if len(r.Subs) > 0 {
-		list, err := b.normalizeDeliverTo(r.Subs)
+		list, err := b.normalizeDeliverTo(r.Subs, r)
 		if err != nil {
 			return protocol.Record{}, err
 		}
@@ -1055,6 +1065,20 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 // is a queue, and a 📮 channel is what that caller wanted.
 // Caller holds the lock.
 func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envelope, error) {
+	return b.fanoutAt(topic, e, 0)
+}
+
+// maxForwards is how many forwarding steps a message may take: the step that
+// would go past it is refused before anything is stored
+// (docs/constitution.md#-channels).
+const maxForwards = 10
+
+// ErrForwards is a message that would take one forwarding step too many.
+var ErrForwards = errors.New("the message would pass through more than ten forwarding steps")
+
+// fanoutAt publishes e to topic as its hops'th forwarding step. A 📣 recipient
+// is a further publication, one step on. Caller holds the lock.
+func (b *Bus) fanoutAt(topic protocol.Record, e protocol.Envelope, hops int) (protocol.Envelope, error) {
 	// The topic's ACL is not consulted here. It says who may publish, and
 	// who receives is this separate list — so a recipient goes on receiving
 	// whether or not it could ever publish, and the way to stop the copies
@@ -1083,11 +1107,23 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		// refused one since 0.6.15; a name with no record was never on the
 		// list, removal taking its references with it. Neither is a
 		// recipient, so neither is a failed one.
-		if !known || !canReceive(sub) {
+		if !known || !canReceive(sub) && sub.Kind != protocol.KindPubSub {
 			continue
 		}
 		if !b.live(sub) {
 			failed, why = append(failed, s), append(why, fmt.Errorf("%w: %s is inactive", ErrUnknown, s))
+			continue
+		}
+		if sub.Kind == protocol.KindPubSub {
+			if hops+1 > maxForwards {
+				failed, why = append(failed, s), append(why, fmt.Errorf("%w: at %s", ErrForwards, s))
+				continue
+			}
+			if _, err := b.fanoutAt(sub, e, hops+1); err != nil {
+				failed, why = append(failed, s), append(why, err)
+				continue
+			}
+			delivered++
 			continue
 		}
 		c := e

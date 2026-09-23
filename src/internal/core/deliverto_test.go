@@ -171,7 +171,7 @@ func TestADeliverToListIsRefusedWholeAndStoresNothing(t *testing.T) {
 		want error
 	}{
 		{"a service has no inbox", []string{"#good@h", "db@h"}, ErrBadName},
-		{"a queue is a destination, not a reader", []string{"#good@h", "jobs@h"}, ErrBadName},
+		{"a user takes no published copy", []string{"#good@h", "a@h"}, ErrBadName},
 		{"nobody registered it", []string{"#good@h", "ghost@h"}, ErrUnknown},
 		{"no such group", []string{"#good@h", "@nobody"}, ErrUnknown},
 		{"@owner is an ACL term about publishing", []string{"#good@h", OwnerGroup}, ErrBadName},
@@ -187,17 +187,46 @@ func TestADeliverToListIsRefusedWholeAndStoresNothing(t *testing.T) {
 	}
 }
 
-// Only a 📣 fans out, so only a 📣 has a list saying where. The other kinds
-// receive rather than copy, and a stored list on one is state no publication
-// would ever read.
-func TestOnlyAPubSubTopicHasADeliverToList(t *testing.T) {
+// deliver_to is a list on a 📣, one slot on an 👾 or 📮, and nothing on any
+// other kind; each term is refused for its kind, never for permission
+// (docs/constitution.md#common-record-fields).
+func TestDeliverToFollowsTheKind(t *testing.T) {
 	b := New()
-	known(t, b, "a@h", "#reader@h")
+	known(t, b, "a@h", "#reader@h", "#other@h")
 	mustRegister(t, b, protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "a@h"})
-	if _, err := b.Manage("a@h", Management{Name: "jobs@h", Subs: &[]string{"#reader@h"}}); !errors.Is(err, ErrKind) {
-		t.Fatalf("a queue took a deliver-to list: %v", err)
+	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h"})
+	mustRegister(t, b, protocol.Record{Name: "db@h", Kind: protocol.KindService, Owner: "a@h", Addr: "db:1", Proto: "pg"})
+	mustRegister(t, b, protocol.Record{Name: "#mine@h", Kind: protocol.KindAgent, Owner: "a@h"})
+	if err := b.SetGroup("a@h", "@crew", []string{"#reader@h"}); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "#worker@h", Kind: protocol.KindAgent, Owner: "a@h", Subs: []string{"#reader@h"}}); !errors.Is(err, ErrKind) {
-		t.Fatalf("an agent registered with a deliver-to list: %v", err)
+	// A 📣 list takes an agent, a group, a queue and a pubsub.
+	if _, err := b.Manage("a@h", Management{Name: "news@h", Subs: &[]string{"#reader@h", "@crew", "jobs@h"}}); err != nil {
+		t.Fatalf("a pubsub list refused a valid set: %v", err)
+	}
+	// One slot on an agent or a queue: an agent, a queue or a pubsub.
+	if _, err := b.Manage("a@h", Management{Name: "jobs@h", Subs: &[]string{"#reader@h"}}); err != nil {
+		t.Fatalf("a queue's one slot refused an agent: %v", err)
+	}
+	for why, c := range map[string]struct {
+		name string
+		list []string
+		want error
+	}{
+		"two destinations": {"jobs@h", []string{"#reader@h", "#other@h"}, ErrBadName},
+		"a group is many":  {"jobs@h", []string{"@crew"}, ErrBadName},
+		"a user":           {"#mine@h", []string{"a@h"}, ErrBadName},
+		"a service":        {"#mine@h", []string{"db@h"}, ErrBadName},
+		"no record":        {"#mine@h", []string{"ghost@h"}, ErrUnknown},
+		"a user record":    {"a@h", []string{"#reader@h"}, ErrKind},
+		"a service's slot": {"db@h", []string{"#reader@h"}, ErrKind},
+	} {
+		list := c.list
+		if _, err := b.Manage("a@h", Management{Name: c.name, Subs: &list}); !errors.Is(err, c.want) {
+			t.Errorf("%s: %v, want %v", why, err, c.want)
+		}
+	}
+	if r, _ := b.Lookup("a@h", "jobs@h"); len(r.Subs) != 1 || r.Subs[0] != "#reader@h" {
+		t.Fatalf("a refused write changed the queue's slot: %v", r.Subs)
 	}
 }

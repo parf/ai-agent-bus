@@ -5,6 +5,12 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.11 — 2026-09-22
+
+Lists take atomic `add`, `add_to_set` and `remove` deltas; `deliver_to` is a
+one-slot field on agents and queues; a pubsub list delivers into queues and
+through further topics, at most ten steps.
+
 ## 0.7.10 — 2026-09-22
 
 Groups are records of kind `group` whose allow list is their membership; any

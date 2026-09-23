@@ -378,7 +378,8 @@ an inbox rather than hand it to whoever is connected.
 | | |
 |---|---|
 | who writes Deliver-To | whoever **manages** the channel — its owner or a Maintainer ([record authority](01-identity-and-roles.md#record-authority)) — at registration and afterwards. Delivery is granted, never taken |
-| who may be on it | 👾 **agents** and `@group` terms; a 👤 user takes no published copy and is refused for its kind. A 📡 service has none. **Pending for 0.7** ([K.15](../Plans/MVP/0.7.0-TODO.md)): 📮 queues and 📣 topics as recipients ([constitution § Channels](constitution.md#-channels)) |
+| who may be on it | 👾 **agents**, `@group` terms, 📮 **queues** — the copy lands in the queue's inbox — and 📣 **topics**, a further publication one forwarding step on, at most ten; two topics listing each other end with that error. A 👤 user and a 📡 service are refused for their kind, and a name with no record as unknown. Built in 0.7.11 ([constitution § Channels](constitution.md#-channels)) |
+| an 👾 or 📮's own `deliver_to` | **one slot**: an agent, a queue or a pubsub, never a group. Stored and validated from 0.7.11; forwarding through it is [K.15](../Plans/MVP/0.7.0-TODO.md) |
 | `@group` | allowed, and **expanded at publication**, nested groups included, each name once. Membership therefore decides delivery when the publish happens, not when the list was written |
 | taking **yourself** off | always allowed, because it is your inbox that fills. Putting yourself back on is the manager's call |
 | checked again at **every publish** | that the recipient still exists, is on the bus and is **active**. Built in 0.7.9: an inactive recipient — itself or through its User — is a failed recipient: its copy is discarded, counted as its `dropped` and written to the error log naming topic and recipient, while the publication succeeds for the others ([constitution](constitution.md#common-record-fields)). A copy its bound refuses is a failed recipient the same way |

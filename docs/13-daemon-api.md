@@ -47,7 +47,7 @@ to mangle it ([secrets](06-services.md#secrets)).
 | Route | |
 |---|---|
 | `POST /register` · `POST /unregister` | state a record, or remove an idle one ([registration](01-identity-and-roles.md#registration), [unregistering](01-identity-and-roles.md#unregistering)) |
-| `POST /manage` | one record's description, address, protocol, queue settings, allow list, 📣 Deliver-To list, Maintainers, Personal, delivery switch and owner ([record authority](01-identity-and-roles.md#record-authority)) |
+| `POST /manage` | one record's description, address, protocol, queue settings, allow list, `deliver_to`, Maintainers, Personal, status and owner, each list whole or by `add` / `add_to_set` / `remove` deltas ([record authority](01-identity-and-roles.md#record-authority)) |
 | `GET /ls` · `GET /lookup` | the records the caller may see, or one of them ([what a listing answers](05-discovery.md#what-a-listing-answers)) |
 
 ## Messaging

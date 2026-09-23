@@ -576,13 +576,14 @@ is_empty "and one that left gets nothing" "$(ab '#sub-b@srv1' consume --wait 1s)
 has "and the topic no longer names it" "$(ab owner@srv1 ls news@srv1)" '"subs":\["#sub-a@srv1"\]'
 # A User takes no published copy; the list names agents and groups.
 has "a known user cannot be on the list" \
-  "$(deliver_to news@srv1 '["#sub-a@srv1","nobody-here@srv1"]' 2>&1)" 'a user takes no published copy'
+  "$(deliver_to news@srv1 '["#sub-a@srv1","nobody-here@srv1"]' 2>&1)" 'a user takes no delivered copy'
 has "and a refused list stores none of itself" "$(ab owner@srv1 ls news@srv1)" '"subs":\["#sub-a@srv1"\]'
 # A queue topic that EXISTS, so the refusal is about its kind and not about
 # the name being unknown.
 ab owner@srv1 channel create work@srv1 --allow '*' --descr "a queue topic" >/dev/null
-has "and a queue has nobody to deliver to" \
-  "$(deliver_to work@srv1 '["#sub-a@srv1"]' 2>&1)" 'delivers to nobody'
+# A queue's deliver_to is one slot (docs/04-messaging.md#subscribers).
+has "and a queue delivers to one destination, not two" \
+  "$(deliver_to work@srv1 '["#sub-a@srv1","#sub-b@srv1"]' 2>&1)" 'holds one destination'
 out=$(ab '#sub-a@srv1' subscribe work@srv1 2>&1); rc=$?
 bad_exit "nor is a queue topic something to leave" $rc
 has "refused for its kind, not for being unknown" "$out" 'only a pubsub channel has a deliver-to list'

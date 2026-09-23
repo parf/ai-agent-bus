@@ -258,6 +258,14 @@ membership. Human editors use one plain term per line, as ACL editors do.
   Maintainer reactivates it, by a status-only edit; every other operation
   naming it is refused as unknown. Reactivating does not start a process.
   Removing access cancels reads relying on it; delivered work is not recalled.
+* Built in 0.7.11: every list — `allow` (a Group's membership), `maintainers`
+  and `deliver_to` — is written whole, or changed by `add`, `add_to_set` and
+  `remove` deltas that resolve against the record as the write finds it, so
+  concurrent writers lose nothing. `add` refuses a term already there, and an
+  occupied one-slot `deliver_to`; `add_to_set` adds what is absent and
+  succeeds on what is present; `remove` is a no-op for what is absent. A list
+  written whole and by a delta in one write is refused, and a delta takes the
+  same authority and checks as the whole write it becomes.
 * Re-registration retains the [protected settings](#registration).
 * Management includes configuration, access, availability and removal, subject
   to [removal conditions](#unregistering). Only the record itself may fetch its

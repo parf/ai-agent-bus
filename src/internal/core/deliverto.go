@@ -12,27 +12,44 @@ import (
 // traffic, and neither stands in for the other. It is stored in Record.Subs.
 // See docs/04-messaging.md#subscribers.
 
-// canReceive is the kinds a copy can be put into. A User receives only
-// replies to what it sent, never a published copy
-// (docs/constitution.md#-channels), and a 📡 has no queue at all. **Pending
-// for 0.7:** a 📮 or 📣 recipient, which is forwarding (K.15).
+// canReceive is the kinds a published copy can be put into: an Agent's or a
+// Queue's inbox. A 📣 recipient is a further publication, and a User receives
+// only replies to what it sent, never a published copy
+// (docs/constitution.md#-channels); a 📡 has no queue at all.
 func canReceive(r protocol.Record) bool {
-	return r.Kind == protocol.KindAgent
+	return r.Kind == protocol.KindAgent || r.Kind == protocol.KindQueue
 }
 
-// normalizeDeliverTo checks a whole replacement before Manage or a
-// registration stores any of it, the way a Maintainer list is checked. A
-// group is kept as the group rather than flattened into its members here, so
-// that adding somebody to it adds them to the delivery; expansion is
-// deliverTo's job, at the publish.
-// Caller holds b.mu.
-func (b *Bus) normalizeDeliverTo(in []string) ([]string, error) {
+// deliverToKinds is where each kind's deliver_to may point: a 📣 list takes
+// Agents, Groups, Queues and PubSubs; the one slot of an 👾 or 📮 takes an
+// Agent, a Queue or a PubSub (docs/constitution.md#common-record-fields).
+func deliverToAccepts(owner, target string) bool {
+	switch target {
+	case protocol.KindAgent, protocol.KindQueue, protocol.KindPubSub:
+		return owner == protocol.KindPubSub || owner == protocol.KindAgent || owner == protocol.KindQueue
+	case protocol.KindGroup:
+		return owner == protocol.KindPubSub
+	}
+	return false
+}
+
+// normalizeDeliverTo checks a whole replacement for r's deliver_to before any
+// of it is stored, the way a Maintainer list is checked. Each term is resolved
+// against the registry and refused for its kind, never for permission; a
+// group is kept as the group rather than flattened, so that adding somebody to
+// it adds them to the delivery — expansion is deliverTo's job, at the publish.
+// An 👾 or 📮 holds at most one destination. Caller holds b.mu.
+func (b *Bus) normalizeDeliverTo(in []string, r protocol.Record) ([]string, error) {
+	oneSlot := r.Kind == protocol.KindAgent || r.Kind == protocol.KindQueue
+	if len(in) > 0 && r.Kind != protocol.KindPubSub && !oneSlot {
+		return nil, fmt.Errorf("%w: a %s has no deliver_to", ErrKind, r.Kind)
+	}
 	out := make([]string, 0, len(in))
 	seen := map[string]bool{}
 	for _, raw := range in {
 		var term string
 		if strings.HasPrefix(strings.TrimSpace(raw), "@") {
-			term = strings.TrimSpace(raw)
+			term = strings.ToLower(strings.TrimSpace(raw))
 			if reservedTerm(term) {
 				return nil, fmt.Errorf("%w: %s is a runtime ACL term about who may publish, not a set of inboxes", ErrBadName, term)
 			}
@@ -42,18 +59,21 @@ func (b *Bus) normalizeDeliverTo(in []string) ([]string, error) {
 			if _, ok := b.groupMembers(term); !ok {
 				return nil, fmt.Errorf("%w: deliver-to %s", ErrUnknown, term)
 			}
+			if !deliverToAccepts(r.Kind, protocol.KindGroup) {
+				return nil, fmt.Errorf("%w: a %s delivers to one destination, and group %s is many", ErrBadName, r.Kind, term)
+			}
 		} else {
 			var err error
 			term, err = canon(raw)
 			if err != nil {
 				return nil, err
 			}
-			r, registered := b.records[term]
+			target, registered := b.entity(term)
 			if !registered {
 				return nil, fmt.Errorf("%w: deliver-to %s, which has to be registered first so its copies have somewhere to land", ErrUnknown, term)
 			}
-			if !canReceive(r) {
-				return nil, fmt.Errorf("%w: deliver-to %s must be an agent or a group, and a %s takes no published copy", ErrBadName, term, r.Kind)
+			if !deliverToAccepts(r.Kind, target.Kind) {
+				return nil, fmt.Errorf("%w: deliver-to %s must be an agent, a queue or a pubsub, and a %s takes no delivered copy", ErrBadName, term, target.Kind)
 			}
 		}
 		if seen[term] {
@@ -61,6 +81,9 @@ func (b *Bus) normalizeDeliverTo(in []string) ([]string, error) {
 		}
 		seen[term] = true
 		out = append(out, term)
+	}
+	if oneSlot && len(out) > 1 {
+		return nil, fmt.Errorf("%w: a %s's deliver_to holds one destination, not %d", ErrBadName, r.Kind, len(out))
 	}
 	return out, nil
 }

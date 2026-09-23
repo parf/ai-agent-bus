@@ -153,3 +153,36 @@ func TestRegistrationNeverSetsMaintainersInEitherWireShape(t *testing.T) {
 		}
 	}
 }
+
+// The list deltas are on the wire as add, add_to_set and remove.
+func TestListDeltasOnTheWire(t *testing.T) {
+	bus := core.New()
+	s, tok := serverFor(t, bus, "admin@h")
+	for _, who := range []string{"alice@h", "bob@h"} {
+		if _, err := bus.SetUser("admin@h", protocol.User{Name: who}, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	call := func(body string, want int) string {
+		t.Helper()
+		r := httptest.NewRequest("POST", "/manage", strings.NewReader(body))
+		r.Header.Set(HeaderToken, tok("alice@h"))
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, r)
+		if w.Code != want {
+			t.Fatalf("%s: %d %s, want %d", body, w.Code, w.Body.String(), want)
+		}
+		return w.Body.String()
+	}
+	if _, err := bus.Register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "alice@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := call(`{"name":"jobs@h","add_to_set":{"allow":["bob@h"]}}`, 200); !strings.Contains(got, `"allow":["bob@h"]`) {
+		t.Fatalf("add_to_set: %s", got)
+	}
+	call(`{"name":"jobs@h","add_to_set":{"allow":["bob@h"]}}`, 200)
+	call(`{"name":"jobs@h","add":{"allow":["bob@h"]}}`, 409)
+	if got := call(`{"name":"jobs@h","remove":{"allow":["bob@h"]}}`, 200); strings.Contains(got, `"bob@h"`) {
+		t.Fatalf("remove: %s", got)
+	}
+}

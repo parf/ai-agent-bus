@@ -22,6 +22,12 @@ type Management struct {
 	// Subs is the 📣 Deliver-To list: who receives a copy, which the ACL
 	// above no longer decides. See docs/04-messaging.md#subscribers.
 	Subs *[]string `json:"subs,omitempty"`
+	// Add, AddToSet and Remove are deltas on the lists, applied to the record
+	// as it is when the write holds the registry, so concurrent writers never
+	// lose one another's terms (docs/constitution.md#persistence-and-loading).
+	Add      *ListDelta `json:"add,omitempty"`
+	AddToSet *ListDelta `json:"add_to_set,omitempty"`
+	Remove   *ListDelta `json:"remove,omitempty"`
 	// Status is active or inactive; the one edit an inactive record takes.
 	Status      *string                  `json:"status,omitempty"`
 	Maintainers *protocol.MaintainerList `json:"maintainers,omitempty"`
@@ -500,12 +506,6 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	if !ok {
 		return protocol.Record{}, ErrUnknown
 	}
-	// The protected group changes only through its own rule: its Owner
-	// follows daemon ownership, it has no Maintainers, and its membership is
-	// the daemon Owner's to set with SetGroup (docs/constitution.md#-group).
-	if name == AdministratorsGroup && (change.Owner != nil || change.Maintainers != nil || change.Allow != nil || change.Personal != nil || change.Status != nil) {
-		return protocol.Record{}, fmt.Errorf("%w: %s changes only with daemon ownership and its own membership rule", ErrNotOwner, AdministratorsGroup)
-	}
 	// An inactive record takes one edit, its reactivation, and nothing else:
 	// to every other change it is no such record. A record inactive because
 	// its User is comes back with its User, not by this edit
@@ -514,6 +514,17 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		if change.Status == nil || !statusOnly(change) || !b.userActive(r.Owner) {
 			return protocol.Record{}, ErrUnknown
 		}
+	}
+	// Deltas are resolved here, against the record as the write finds it,
+	// and then checked exactly as a whole-list write is.
+	if err := applyDeltas(r, &change); err != nil {
+		return protocol.Record{}, err
+	}
+	// The protected group changes only through its own rule: its Owner
+	// follows daemon ownership, it has no Maintainers, and its membership is
+	// the daemon Owner's to set with SetGroup (docs/constitution.md#-group).
+	if name == AdministratorsGroup && (change.Owner != nil || change.Maintainers != nil || change.Allow != nil || change.Personal != nil || change.Status != nil) {
+		return protocol.Record{}, fmt.Errorf("%w: %s changes only with daemon ownership and its own membership rule", ErrNotOwner, AdministratorsGroup)
 	}
 	if !b.manages(who, r) {
 		return protocol.Record{}, ErrNotOwner
@@ -580,7 +591,7 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		// Not asked here whether the kind has a list at all: validateKind
 		// below asks that of the record this edit would leave behind, which
 		// is the one question every path that stores one asks.
-		list, err := b.normalizeDeliverTo(*change.Subs)
+		list, err := b.normalizeDeliverTo(*change.Subs, r)
 		if err != nil {
 			return protocol.Record{}, err
 		}
@@ -736,8 +747,113 @@ func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Rec
 	return r.Public(), nil
 }
 
+// ListDelta names terms to add to or remove from each list: the ACL — a
+// Group's membership — the Maintainers, and deliver_to.
+type ListDelta struct {
+	Allow       []string `json:"allow,omitempty"`
+	Maintainers []string `json:"maintainers,omitempty"`
+	Subs        []string `json:"subs,omitempty"`
+}
+
+func (d *ListDelta) empty() bool {
+	return d == nil || len(d.Allow) == 0 && len(d.Maintainers) == 0 && len(d.Subs) == 0
+}
+
+// listTerm is a term as its list stores it, so a delta compares like with
+// like: a name canonical, a group or runtime term lower-cased, the wildcard
+// itself. Whether it is valid there is the list's own normalizer's question.
+func listTerm(raw string) (string, error) {
+	t := strings.TrimSpace(raw)
+	if t == "*" {
+		return t, nil
+	}
+	if strings.HasPrefix(t, "@") {
+		return strings.ToLower(t), nil
+	}
+	return canon(t)
+}
+
+// applyDeltas turns the change's deltas into whole-list writes against r as
+// it is now, then leaves every check to the path a whole-list write takes.
+// add refuses a term already there, and a one-slot deliver_to that is
+// occupied; add_to_set adds what is absent and succeeds on what is present;
+// remove takes what is there and is a no-op for what is not. A list may not
+// be both written whole and changed by a delta in one write, and an invalid
+// delta changes nothing (docs/01-identity-and-roles.md#record-authority).
+func applyDeltas(r protocol.Record, change *Management) error {
+	if change.Add.empty() && change.AddToSet.empty() && change.Remove.empty() {
+		return nil
+	}
+	lists := []struct {
+		field   string
+		current []string
+		whole   bool
+		add     func(*ListDelta) []string
+		set     func([]string)
+	}{
+		{"allow", r.Allow, change.Allow != nil, func(d *ListDelta) []string { return d.Allow }, func(l []string) { change.Allow = &l }},
+		{"maintainers", r.Maintainers, change.Maintainers != nil, func(d *ListDelta) []string { return d.Maintainers }, func(l []string) { m := protocol.MaintainerList(l); change.Maintainers = &m }},
+		{"deliver_to", r.Subs, change.Subs != nil, func(d *ListDelta) []string { return d.Subs }, func(l []string) { change.Subs = &l }},
+	}
+	oneSlot := r.Kind == protocol.KindAgent || r.Kind == protocol.KindQueue
+	for _, l := range lists {
+		pick := func(d *ListDelta) []string {
+			if d == nil {
+				return nil
+			}
+			return l.add(d)
+		}
+		add, toSet, remove := pick(change.Add), pick(change.AddToSet), pick(change.Remove)
+		if len(add)+len(toSet)+len(remove) == 0 {
+			continue
+		}
+		if l.whole {
+			return fmt.Errorf("%w: %s is both written whole and changed by a delta", ErrBadName, l.field)
+		}
+		next := append([]string{}, l.current...)
+		has := func(t string) bool { return slices.Contains(next, t) }
+		for _, raw := range remove {
+			t, err := listTerm(raw)
+			if err != nil {
+				return err
+			}
+			next = slices.DeleteFunc(next, func(x string) bool { return x == t })
+		}
+		for _, raw := range add {
+			t, err := listTerm(raw)
+			if err != nil {
+				return err
+			}
+			if has(t) {
+				return fmt.Errorf("%w: %s already names %s", ErrBusy, l.field, t)
+			}
+			if l.field == "deliver_to" && oneSlot && len(next) > 0 {
+				return fmt.Errorf("%w: %s is occupied by %s; remove it or write the field whole", ErrBusy, l.field, next[0])
+			}
+			next = append(next, t)
+		}
+		for _, raw := range toSet {
+			t, err := listTerm(raw)
+			if err != nil {
+				return err
+			}
+			if has(t) {
+				continue
+			}
+			if l.field == "deliver_to" && oneSlot && len(next) > 0 {
+				return fmt.Errorf("%w: %s is occupied by %s; remove it or write the field whole", ErrBusy, l.field, next[0])
+			}
+			next = append(next, t)
+		}
+		l.set(next)
+	}
+	change.Add, change.AddToSet, change.Remove = nil, nil, nil
+	return nil
+}
+
 // statusOnly says whether a change edits nothing but the status.
 func statusOnly(c Management) bool {
 	return c.Descr == nil && c.Addr == nil && c.Proto == nil && c.Allow == nil && c.Subs == nil &&
+		c.Add.empty() && c.AddToSet.empty() && c.Remove.empty() &&
 		c.Maintainers == nil && c.Personal == nil && c.Owner == nil && c.TTL == nil && c.Bound == nil && c.Full == nil
 }
