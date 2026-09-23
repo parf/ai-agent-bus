@@ -32,6 +32,15 @@ A durable queue whose record is absent or cannot hold a queue is such an
 incorrect record: startup MUST ignore and report it, and MUST NOT silently drop
 or reattach that backlog.
 
+Startup also ignores and reports what no write of this version allows, and
+keeps an ignored record's credential for the operator who repairs it:
+
+| Stored | Ignored because |
+|---|---|
+| a record | it shares an internal ID with an earlier one |
+| a Group | a nested member names no stored Group, so its grant would pass to whoever created the name |
+| a local account mapping | its principal is no User or Agent; its socket is [not served](02-access.md#local-socket) |
+
 Identity changes MUST invalidate stale credentials and grants in durable state
 and memory together:
 

@@ -180,10 +180,10 @@ legacy state and is written into the snapshot. Later starts trust the stored
 Owner, so changing the flag does not transfer authority. Use the daemon-owner
 transfer API instead.
 
-The configured value still maps the daemon OS account's private socket. A
-transfer changes daemon authority, not that local-account mapping; configure a
-socket for the new Owner or use their token to act as them. A current snapshot
-whose stored Owner is damaged fails startup.
+The daemon OS account's private socket answers as the current daemon Owner,
+not the configured value: a transfer moves it at once, without a restart
+([local socket](02-access.md#local-socket)). A current snapshot whose stored
+Owner is damaged fails startup.
 
 **Downgrade:** an older daemon ignores the durable Owner fields and derives
 authority from its configured `--owner` again. Resource ACLs and Administrator

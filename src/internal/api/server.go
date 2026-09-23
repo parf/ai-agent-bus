@@ -167,7 +167,15 @@ func (s *Server) Handler() http.Handler { return s.routes(s.auth) }
 // it stands in for the token, it is not an exemption from having one.
 // See docs/02-access.md#local-socket.
 func (s *Server) HandlerFor(principal protocol.Name) http.Handler {
-	return s.routes(s.onSocket(principal))
+	return s.routes(s.onSocket(func() (protocol.Name, error) { return principal, nil }))
+}
+
+// HandlerForOwner serves the daemon account's socket, which speaks for the
+// daemon Owner as of each request: a transfer moves it without a restart.
+func (s *Server) HandlerForOwner() http.Handler {
+	return s.routes(s.onSocket(func() (protocol.Name, error) {
+		return protocol.ParseName(s.bus.DaemonOwner())
+	}))
 }
 
 func (s *Server) routes(g guard) http.Handler {
@@ -270,9 +278,14 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 // there is nothing to set up. The socket is a credential of the same kind as
 // a token, not an exemption from having one.
 // See docs/02-access.md#local-socket.
-func (s *Server) onSocket(me protocol.Name) guard {
+func (s *Server) onSocket(who func() (protocol.Name, error)) guard {
 	return func(next func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
+			me, err := who()
+			if err != nil {
+				s.reply(w, nil, err)
+				return
+			}
 			noteCaller(r, me)
 			if err := s.bus.Authenticate(me.String()); err != nil {
 				s.reply(w, nil, err)

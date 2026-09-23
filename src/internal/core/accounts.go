@@ -53,7 +53,13 @@ func sameAccounts(a, b map[string]string) bool {
 }
 
 func (b *Bus) accountView() protocol.AccountMappings {
-	out := protocol.AccountMappings{RestartRequired: !sameAccounts(b.accounts, b.activeAccounts)}
+	// An ignored mapping's socket is open but not served, so it is not a
+	// difference a restart would apply.
+	active := cloneAccounts(b.activeAccounts)
+	for account := range b.ignoredAccounts {
+		delete(active, account)
+	}
+	out := protocol.AccountMappings{RestartRequired: !sameAccounts(b.accounts, active)}
 	for account, principal := range b.accounts {
 		out.Mappings = append(out.Mappings, protocol.AccountMapping{Account: account, Principal: principal})
 	}
@@ -105,7 +111,8 @@ func (b *Bus) SetAccount(caller, account, principal string, remove bool) (protoc
 		return protocol.AccountMappings{}, ErrNotOwner
 	}
 	if remove {
-		if _, ok := b.accounts[account]; !ok {
+		_, ok := b.accounts[account]
+		if _, ignored := b.ignoredAccounts[account]; !ok && !ignored {
 			return protocol.AccountMappings{}, ErrUnknown
 		}
 		next := cloneAccounts(b.accounts)
@@ -126,5 +133,21 @@ func (b *Bus) SetAccount(caller, account, principal string, remove bool) (protoc
 	if err := b.commit(); err != nil {
 		return protocol.AccountMappings{}, err
 	}
+	// The map just written is the database's whole map, so an ignored row
+	// under this account is gone with it.
+	delete(b.ignoredAccounts, account)
 	return b.accountView(), nil
+}
+
+// Unserved says whether a socket for principal belongs to a stored mapping
+// this start ignored, and so is not to be served (docs/02-access.md#local-socket).
+func (b *Bus) Unserved(principal string) bool {
+	b.mu.Lock()
+	defer b.unlock()
+	for _, p := range b.ignoredAccounts {
+		if p == principal {
+			return true
+		}
+	}
+	return false
 }

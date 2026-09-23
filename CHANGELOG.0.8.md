@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.21 — 2026-09-23
+
+Restore ignores and reports a group nesting a missing group and an account
+mapping for nobody, whose socket goes unserved; a duplicate-ID record keeps its
+credential; the daemon account's socket follows an Owner transfer live.
+
 ## 0.8.20 — 2026-09-23
 
 Web problem pages show the daemon's sentence rather than its JSON envelope and

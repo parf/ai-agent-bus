@@ -145,7 +145,10 @@ type Bus struct {
 	// activeAccounts is what the supervisor actually opened for this run.
 	// accounts may move ahead after a durable administrative edit; the
 	// difference is the precise "restart required" fact returned to callers.
-	activeAccounts    map[string]string
+	activeAccounts map[string]string
+	// ignoredAccounts are stored mappings this start ignored because their
+	// principal is no User or Agent (snapshot.go): not served, still removable.
+	ignoredAccounts   map[string]string
 	accountsRestored  bool
 	accountRestoreErr error
 	users             map[string]protocol.User

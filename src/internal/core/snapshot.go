@@ -218,6 +218,7 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	b.indexIDs()
 	b.ignoreIncorrect()
 	b.ignoreNonUserAdministrators()
+	b.ignoreActorlessAccounts()
 	for _, q := range s.Queues {
 		// A queue whose record is absent, ignored, or of a kind that holds no
 		// queue is incorrect like the record would be: ignored and reported,
@@ -269,6 +270,7 @@ func (b *Bus) indexIDs() {
 		if other, taken := b.recordByID[r.ID]; taken {
 			b.report(ports.Alert, "stored records %s and %s share internal ID %d; %s is ignored", other, name, r.ID, name)
 			delete(b.records, name)
+			b.ignored[name] = true
 			continue
 		}
 		b.recordByID[r.ID] = name
@@ -390,6 +392,26 @@ func (b *Bus) ignoreNonUserAdministrators() {
 	}
 }
 
+// ignoreActorlessAccounts ignores and reports every stored account mapping
+// whose principal is no User or Agent once the load has ignored what it could
+// not have written: a socket for nobody would answer for whoever took the name
+// next. The row stays in the database, and removing it is still an ordinary
+// account edit (docs/02-access.md#local-socket). Caller holds b.mu.
+func (b *Bus) ignoreActorlessAccounts() {
+	b.ignoredAccounts = map[string]string{}
+	for account, principal := range b.accounts {
+		if _, user := b.users[principal]; user {
+			continue
+		}
+		if r, ok := b.records[principal]; ok && r.Kind == protocol.KindAgent {
+			continue
+		}
+		b.report(ports.Alert, "stored local account %s is ignored: its principal %s is no user or agent", account, principal)
+		b.ignoredAccounts[account] = principal
+		delete(b.accounts, account)
+	}
+}
+
 // ignoreSharedIdentities ignores every stored User that holds an identifying
 // field an earlier User (by ID) already holds: no write of this version lets
 // two Users share an email, a GitHub login or a Twitter/X name. The first
@@ -447,6 +469,15 @@ func (b *Bus) incorrect(r protocol.Record) string {
 	}
 	if err := b.validatePersonal(r); err != nil {
 		return err.Error()
+	}
+	// A nested group nothing holds would pass its grant to whoever created
+	// it, which no write of this version allows (manage.go groupMember).
+	if r.Kind == protocol.KindGroup {
+		for _, m := range r.Allow {
+			if g, ok := b.records[m]; groupName(m) && (!ok || g.Kind != protocol.KindGroup) {
+				return "its member " + m + " is no group"
+			}
+		}
 	}
 	return ""
 }
