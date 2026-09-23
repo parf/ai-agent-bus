@@ -27,7 +27,8 @@ or the status of each job — without a database of its own beside the bus.
 back cannot divide a list between them; `set_if` and `inc` can, because the
 daemon that holds the value is the one that decides. That is the same argument
 as [shared locks](locks.md#shared-locks) — one authority a pool already shares
-— applied to the value rather than to the right to act.
+— applied to the value rather than to the right to act. The lock is the daemon's
+memory and goes with it; a value put here is stored and does not.
 
 **Not the R1.2 store.** [Shared secrets and a KV with
 locks](../R1.2/exploration.md#shared-secrets-and-a-kv-with-locks) asks about a

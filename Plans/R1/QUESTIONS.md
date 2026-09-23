@@ -17,6 +17,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q18 | Final R1 scope | owner | [R1 scope](README.md#scope) |
 | Q19 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../docs/03-records.md#configuring-a-template) |
 | Q20 | A chaining namespace and an agent template both want the `/` | owner, with chaining | [overview § chaining](federation.md#chaining) |
+| Q108 | What a restarted daemon seeds the lock number from, when no lock state is kept | owner, with R1 | [shared locks](locks.md#shared-locks) |
 | Q107 | Who may read and write a registry record's store — the record's ACL, its Maintainers, or only the principal of that name | owner, with R1 | [key-value store](kv.md#per-name-storage) |
 | Q33 | Whether backup is a runner verb, a bundled service, or neither | owner | [context](runner.md#backing-it-up) |
 | Q35 | How authorization caches observe policy changes and explicit revocations, including disconnected peers and live sessions | owner, with R1 | [AUTH consistency](auth.md#consistency-window) |
