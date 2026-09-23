@@ -33,18 +33,18 @@ func editorOf(t *testing.T, page string) string {
 // See docs/04-messaging.md#subscribers.
 func TestTheRecordEditorCarriesTheDeliverToListBackAndForth(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Name: "reader@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}})
+	m.register(protocol.Record{Name: "#reader@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}})
 	if err := m.bus.SetGroup("admin@h", "@team", []string{"admin@h"}); err != nil {
 		t.Fatal(err)
 	}
 	m.register(protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "admin@h", Descr: "News", Allow: []string{"*"}})
-	if _, err := m.bus.Manage("admin@h", core.Management{Name: "news@h", Subs: &[]string{"reader@h", "@team"}}); err != nil {
+	if _, err := m.bus.Manage("admin@h", core.Management{Name: "news@h", Subs: &[]string{"#reader@h", "@team"}}); err != nil {
 		t.Fatal(err)
 	}
 
 	editor := editorOf(t, m.get("/channel/edit?name=news@h"))
 	// The fixture collapses whitespace, so the two lines arrive as one.
-	if !strings.Contains(editor, "reader@h @team</textarea>") {
+	if !strings.Contains(editor, "#reader@h @team</textarea>") {
 		t.Fatalf("the editor did not offer the stored list back: %s", editor)
 	}
 	if !strings.Contains(editor, "name=edit_subs value=1") {
@@ -55,14 +55,14 @@ func TestTheRecordEditorCarriesTheDeliverToListBackAndForth(t *testing.T) {
 	m.post(t, "/service", url.Values{
 		"action": {"save"}, "name": {"news@h"}, "descr": {"Newsroom"},
 		"edit_allow": {"1"}, "allow": {"*"},
-		"edit_subs": {"1"}, "subs": {"reader@h\n@team"},
+		"edit_subs": {"1"}, "subs": {"#reader@h\n@team"},
 		"ttl": {""}, "bound": {"0"}, "overflow": {"strict"},
 	}, 303)
 	r, _ := m.bus.Lookup("admin@h", "news@h")
 	if r.Descr != "Newsroom" {
 		t.Fatalf("the description was not saved: %q", r.Descr)
 	}
-	if len(r.Subs) != 2 || r.Subs[0] != "reader@h" || r.Subs[1] != "@team" {
+	if len(r.Subs) != 2 || r.Subs[0] != "#reader@h" || r.Subs[1] != "@team" {
 		t.Fatalf("an unrelated save changed the Deliver-To list to %v", r.Subs)
 	}
 
@@ -114,7 +114,7 @@ func TestOnlyAPubSubEditorShowsDeliverToAndOtherKindsStillSave(t *testing.T) {
 // not a list somebody has to add afterwards.
 func TestRegisteringAPubSubTopicCarriesTheDeliverToListItDeclared(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Name: "reader@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}})
+	m.register(protocol.Record{Name: "#reader@h", Kind: protocol.KindAgent, Owner: "admin@h", Allow: []string{"*"}})
 	// The exact field, not a prefix of it: name=subs-anything contains
 	// name=subs and would pass a looser search while submitting nothing.
 	const field = "<textarea name=subs "
@@ -127,13 +127,13 @@ func TestRegisteringAPubSubTopicCarriesTheDeliverToListItDeclared(t *testing.T) 
 	}
 	m.post(t, "/service", url.Values{
 		"action": {"create"}, "kind": {"pubsub"}, "name": {"feed@h"},
-		"descr": {"Feed"}, "allow": {"*"}, "subs": {"reader@h"},
+		"descr": {"Feed"}, "allow": {"*"}, "subs": {"#reader@h"},
 	}, 303)
 	r, ok := m.bus.Lookup("admin@h", "feed@h")
 	if !ok {
 		t.Fatal("the topic was not registered")
 	}
-	if len(r.Subs) != 1 || r.Subs[0] != "reader@h" {
+	if len(r.Subs) != 1 || r.Subs[0] != "#reader@h" {
 		t.Fatalf("the declared Deliver-To list became %v", r.Subs)
 	}
 }
@@ -144,29 +144,25 @@ func TestRegisteringAPubSubTopicCarriesTheDeliverToListItDeclared(t *testing.T) 
 // and a button that did nothing would be worse than no button.
 func TestTheLeaveControlAppearsOnlyForANameOnTheListItself(t *testing.T) {
 	m := meaningFixture(t)
-	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "visitor@h"}, true); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "grouped@h"}, true); err != nil {
-		t.Fatal(err)
-	}
-	if err := m.bus.SetGroup("admin@h", "@team", []string{"grouped@h"}); err != nil {
+	m.register(protocol.Record{Name: "#visitor@h", Kind: protocol.KindAgent, Owner: "admin@h"})
+	m.register(protocol.Record{Name: "#grouped@h", Kind: protocol.KindAgent, Owner: "admin@h"})
+	if err := m.bus.SetGroup("admin@h", "@team", []string{"#grouped@h"}); err != nil {
 		t.Fatal(err)
 	}
 	m.register(protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "admin@h", Allow: []string{"*"}})
-	if _, err := m.bus.Manage("admin@h", core.Management{Name: "news@h", Subs: &[]string{"visitor@h", "@team"}}); err != nil {
+	if _, err := m.bus.Manage("admin@h", core.Management{Name: "news@h", Subs: &[]string{"#visitor@h", "@team"}}); err != nil {
 		t.Fatal(err)
 	}
 	const leave = "value=unsubscribe"
-	if page := m.as("visitor@h").get("/channel?name=news@h"); !strings.Contains(page, leave) {
+	if page := m.as("#visitor@h").get("/channel?name=news@h"); !strings.Contains(page, leave) {
 		t.Fatal("a name on the list is not offered the way off it")
 	}
-	if page := m.as("grouped@h").get("/channel?name=news@h"); strings.Contains(page, leave) {
+	if page := m.as("#grouped@h").get("/channel?name=news@h"); strings.Contains(page, leave) {
 		t.Fatal("a name that receives through a group is offered a removal that would take nothing out")
 	}
 	// And it takes the name off rather than putting one on, which is the
 	// only direction this control has: the two used to be one form.
-	m.as("visitor@h").post(t, "/service", url.Values{"action": {"unsubscribe"}, "name": {"news@h"}}, 303)
+	m.as("#visitor@h").post(t, "/service", url.Values{"action": {"unsubscribe"}, "name": {"news@h"}}, 303)
 	r, _ := m.bus.Lookup("admin@h", "news@h")
 	if len(r.Subs) != 1 || r.Subs[0] != "@team" {
 		t.Fatalf("the list after the recipient left is %v", r.Subs)

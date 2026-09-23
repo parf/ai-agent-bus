@@ -59,9 +59,10 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	if users[0].GithubCompany != "" || users[0].GithubLocation != "" || users[0].GithubTwitterUsername != "" {
 		t.Fatalf("explicit profile detail clear was ignored: %+v", users[0])
 	}
-	call("alice@h", "POST", "/register", `{"kind":"agent","name":"svc@h"}`, 200)
+	call("alice@h", "POST", "/register", `{"kind":"agent","name":"#svc@h"}`, 200)
 	call("alice@h", "POST", "/manage", `{"kind":"agent","name":"alice@h","allow":["admin@h"]}`, 200)
-	call("admin@h", "POST", "/send", `{"to":"alice@h","body":"retained"}`, 200)
+	// A user takes messages from an agent it may reach, here its own.
+	call("#svc@h", "POST", "/send", `{"to":"alice@h","body":"retained"}`, 200)
 	session, err := s.tokens.StartSession("alice@h")
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +98,7 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	// (docs/01-identity-and-roles.md#user-states). The
 	// credential itself survives — the call below proves it works again once
 	// the state is lifted, so nothing was revoked.
-	call("svc@h", "GET", "/status", "", 403)
+	call("#svc@h", "GET", "/status", "", 403)
 	restored := core.New()
 	snapshot := b.Snapshot()
 	data, _ := json.Marshal(snapshot)
@@ -110,12 +111,12 @@ func TestUserAdministrationAndLifecycle(t *testing.T) {
 	// *same bytes* still work — kept rather than reissued — is pinned in
 	// TestSuspensionDestroysNothing, which holds the credential across the
 	// ban; this helper mints one per call and could not tell the difference.
-	call("svc@h", "GET", "/status", "", 200)
+	call("#svc@h", "GET", "/status", "", 200)
 	if got := call("alice@h", "GET", "/consume?wait=0s", "", 200); !strings.Contains(got, "retained") {
 		t.Fatal("pause lost queued work")
 	}
 	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","state":"banned"}`, 200)
-	call("alice@h", "POST", "/register", `{"kind":"agent","name":"another@h"}`, 403)
+	call("alice@h", "POST", "/register", `{"kind":"agent","name":"#another@h"}`, 403)
 	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","state":"active"}`, 200)
 	call("alice@h", "GET", "/status", "", 200)
 	call("maint@h", "POST", "/user/state", `{"kind":"agent","name":"alice@h","state":"banned"}`, 200)

@@ -31,17 +31,18 @@ func durabilityFixture(t *testing.T, st ports.Store) *Bus {
 		t.Fatal(err)
 	}
 	for _, r := range []protocol.Record{
-		{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"@readers"}},
+		{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"@readers"}},
 		{Name: "topic@h", Owner: "alice@h", Kind: protocol.KindPubSub, Allow: []string{"*"}},
+		{Kind: protocol.KindAgent, Name: "#bob-box@h", Owner: "bob@h"},
 	} {
 		if _, err := b.Register(r); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "topic@h", Subs: ptr([]string{"bob@h"})}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "topic@h", Subs: ptr([]string{"#bob-box@h"})}); err != nil {
 		t.Fatal(err)
 	}
-	if _, visible := b.Lookup("bob@h", "svc@h"); !visible {
+	if _, visible := b.Lookup("bob@h", "#svc@h"); !visible {
 		t.Fatal("fixture does not grant Bob access")
 	}
 	return b
@@ -60,13 +61,13 @@ func administrativeChanges() []durableChange {
 		}
 	}
 	hidden := func(t *testing.T, b *Bus) {
-		if _, ok := b.Lookup("bob@h", "svc@h"); ok {
+		if _, ok := b.Lookup("bob@h", "#svc@h"); ok {
 			t.Fatal("acknowledged restriction was not recovered")
 		}
 	}
 	unsubscribed := func(t *testing.T, b *Bus) {
 		r, ok := b.Lookup("alice@h", "topic@h")
-		if !ok || slices.Contains(r.Subs, "bob@h") {
+		if !ok || slices.Contains(r.Subs, "#bob-box@h") {
 			t.Fatal("acknowledged unsubscribe was not recovered")
 		}
 	}
@@ -85,22 +86,22 @@ func administrativeChanges() []durableChange {
 		{"group-removal", func(b *Bus) error { return b.SetGroup("admin@h", "@readers", []string{"friend@h"}) }, hidden},
 		{"acl", func(b *Bus) error {
 			a := []string{"friend@h"}
-			_, e := b.Manage("alice@h", Management{Name: "svc@h", Allow: &a})
+			_, e := b.Manage("alice@h", Management{Name: "#svc@h", Allow: &a})
 			return e
 		}, hidden},
 		{"refresh-acl", func(b *Bus) error {
-			_, e := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"friend@h"}})
+			_, e := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"friend@h"}})
 			return e
 		}, hidden},
-		{"unregister", func(b *Bus) error { return b.Unregister("svc@h", "alice@h") }, func(t *testing.T, b *Bus) {
-			if _, ok := b.Lookup("alice@h", "svc@h"); ok {
+		{"unregister", func(b *Bus) error { return b.Unregister("#svc@h", "alice@h") }, func(t *testing.T, b *Bus) {
+			if _, ok := b.Lookup("alice@h", "#svc@h"); ok {
 				t.Fatal("acknowledged removal was not recovered")
 			}
 		}},
-		{"unsubscribe", func(b *Bus) error { _, e := b.Subscribe("bob@h", "topic@h", false); return e }, unsubscribed},
-		{"remove-subscriber", func(b *Bus) error { _, e := b.RemoveSubscriber("alice@h", "topic@h", "bob@h"); return e }, unsubscribed},
-		{"configure", func(b *Bus) error { _, e := b.Configure("svc@h", "alice@h", json.RawMessage(`{"new":true}`)); return e }, func(t *testing.T, b *Bus) {
-			v, e := b.Config("svc@h", "svc@h")
+		{"unsubscribe", func(b *Bus) error { _, e := b.Subscribe("#bob-box@h", "topic@h", false); return e }, unsubscribed},
+		{"remove-subscriber", func(b *Bus) error { _, e := b.RemoveSubscriber("alice@h", "topic@h", "#bob-box@h"); return e }, unsubscribed},
+		{"configure", func(b *Bus) error { _, e := b.Configure("#svc@h", "alice@h", json.RawMessage(`{"new":true}`)); return e }, func(t *testing.T, b *Bus) {
+			v, e := b.Config("#svc@h", "#svc@h")
 			if e != nil || string(v) != `{"new":true}` {
 				t.Fatal("acknowledged configuration was not recovered")
 			}
@@ -188,28 +189,28 @@ func TestFailedCommitPublishesNothing(t *testing.T) {
 		t.Fatalf("a ban whose commit failed took effect: %v", err)
 	}
 	a := []string{"friend@h"}
-	if _, err := b.Manage("alice@h", Management{Name: "svc@h", Allow: &a}); !errors.Is(err, boom) {
+	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Allow: &a}); !errors.Is(err, boom) {
 		t.Fatalf("got %v", err)
 	}
-	if _, ok := b.Lookup("bob@h", "svc@h"); !ok {
+	if _, ok := b.Lookup("bob@h", "#svc@h"); !ok {
 		t.Fatal("an ACL edit whose commit failed took effect")
 	}
-	if err := b.Unregister("svc@h", "alice@h"); !errors.Is(err, boom) {
+	if err := b.Unregister("#svc@h", "alice@h"); !errors.Is(err, boom) {
 		t.Fatalf("got %v", err)
 	}
-	if _, ok := b.Lookup("alice@h", "svc@h"); !ok {
+	if _, ok := b.Lookup("alice@h", "#svc@h"); !ok {
 		t.Fatal("a removal whose commit failed took effect")
 	}
 	if err := b.SetGroup("admin@h", "@readers", []string{"friend@h"}); !errors.Is(err, boom) {
 		t.Fatalf("got %v", err)
 	}
-	if _, ok := b.Lookup("bob@h", "svc@h"); !ok {
+	if _, ok := b.Lookup("bob@h", "#svc@h"); !ok {
 		t.Fatal("a group edit whose commit failed took effect")
 	}
 	// And a restart reads what was committed before the failures.
 	d.Err = nil
 	recovered := recoverFrom(t, d)
-	if _, ok := recovered.Lookup("bob@h", "svc@h"); !ok {
+	if _, ok := recovered.Lookup("bob@h", "#svc@h"); !ok {
 		t.Fatal("the committed state was not what the store held")
 	}
 }
@@ -220,10 +221,10 @@ func TestOneEditCommitsOneRecord(t *testing.T) {
 	b := durabilityFixture(t, d)
 	d.last = ports.Change{}
 	descr := "edited"
-	if _, err := b.Manage("alice@h", Management{Name: "svc@h", Descr: &descr}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Descr: &descr}); err != nil {
 		t.Fatal(err)
 	}
-	if len(d.last.Records) != 1 || d.last.Records["svc@h"] == nil || len(d.last.Users) != 0 || len(d.last.Groups) != 0 {
+	if len(d.last.Records) != 1 || d.last.Records["#svc@h"] == nil || len(d.last.Users) != 0 || len(d.last.Groups) != 0 {
 		t.Fatalf("one edit committed %+v", d.last)
 	}
 }

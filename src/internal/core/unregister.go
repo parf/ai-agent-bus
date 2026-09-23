@@ -57,6 +57,11 @@ func (b *Bus) UnregisterAnd(name, caller string, forget func(string) error) erro
 	if !b.manages(who, r) {
 		return fmt.Errorf("%w: %s", ErrNotOwner, n)
 	}
+	// A User's own record goes with the User, and a User is never removed
+	// (docs/constitution.md#-user).
+	if r.Kind == protocol.KindUser {
+		return fmt.Errorf("%w: %s is a user's own record, and a user is never removed", ErrBusy, n)
+	}
 	// Removing the record that makes a name a principal, while that name still
 	// owns others, leaves every one of them owned by somebody the daemon no
 	// longer knows: the wreckage the deletion rule exists for

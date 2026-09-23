@@ -17,21 +17,21 @@ import (
 // auth parses a name, the handler decodes, core parses both ends.
 func BenchmarkSendAndConsume(b *testing.B) {
 	bus := core.New()
-	if _, err := bus.Register(protocol.Record{Name: "sink@h", Kind: protocol.KindAgent, Owner: "sink@h"}); err != nil {
+	if _, err := bus.Register(protocol.Record{Name: "#sink@h", Kind: protocol.KindAgent, Owner: "#sink@h"}); err != nil {
 		b.Fatal(err)
 	}
 	// Two principals, because a token now backs one name: the benchmark
 	// pays the lookup the real path pays.
 	store := memory.NewTokens(
 		ports.Credential{Name: "src@h", Current: "src-tok"},
-		ports.Credential{Name: "sink@h", Current: "sink-tok"},
+		ports.Credential{Name: "#sink@h", Current: "sink-tok"},
 	)
 	tokens, err := auth.Load(store, "src@h")
 	if err != nil {
 		b.Fatal(err)
 	}
 	h := New(bus, tokens, "src@h").Handler()
-	body := []byte(`{"to":"sink@h","body":"x"}`)
+	body := []byte(`{"to":"#sink@h","body":"x"}`)
 
 	do := func(who, token, method, target string, payload []byte) {
 		r := httptest.NewRequest(method, target, bytes.NewReader(payload))
@@ -47,6 +47,6 @@ func BenchmarkSendAndConsume(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		do("src@h", "src-tok", "POST", "/send", body)
-		do("sink@h", "sink-tok", "GET", "/consume?wait=0s", nil)
+		do("#sink@h", "sink-tok", "GET", "/consume?wait=0s", nil)
 	}
 }

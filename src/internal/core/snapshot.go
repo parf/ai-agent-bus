@@ -212,40 +212,18 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		// an embedding caller. Live fields belong to this process and its
 		// current inboxes, never to durable registry state.
 		clearLiveRecord(&r)
-		// A record this daemon would not accept is not silently kept: it would
-		// be state the daemon cannot describe, and describing a record is the
-		// whole reason the set is closed. Nothing before 1.1 carries a
-		// compatibility obligation, so this refuses rather than converts, and
-		// it asks the same question registration asks rather than a weaker one
-		// — an unknown kind and a service with no address are equally records
-		// this version cannot serve.
-		// See docs/03-records.md#five-record-kinds.
-		if b.recordRestoreErr == nil {
-			if err := validateKind(r); err != nil {
-				b.recordRestoreErr = fmt.Errorf("snapshot record %s cannot be restored: %w", r.Name, err)
-			}
-		}
 		b.records[r.Name] = r
 	}
 	b.indexIDs()
-	// Personal validation asks about OTHER records, so it runs once they are
-	// all here: a snapshot does not promise that a Personal record's ACL is
-	// listed after the records it names.
-	for _, r := range s.Records {
-		if b.recordRestoreErr != nil {
-			break
-		}
-		if err := b.validatePersonal(b.records[r.Name]); err != nil {
-			b.recordRestoreErr = fmt.Errorf("snapshot record %s cannot be restored: %w", r.Name, err)
-		}
-	}
+	b.ignoreIncorrect()
 	for _, q := range s.Queues {
-		// A queue under a service name is a snapshot this version could not
-		// have written, and restoring it would leave messages nothing can
-		// ever read. Refused rather than dropped, for the same reason an
-		// unknown kind is. See docs/03-records.md#five-record-kinds.
-		if r, known := b.records[q.Name]; known && !onBus(r) && b.recordRestoreErr == nil {
-			b.recordRestoreErr = fmt.Errorf("snapshot queue %s cannot be restored: %w: a service has no queue here", q.Name, ErrKind)
+		// A queue whose record is absent, ignored, or of a kind that holds no
+		// queue is incorrect like the record would be: ignored and reported,
+		// never reattached (docs/constitution.md#persistence-and-loading).
+		r, known := b.records[q.Name]
+		if !known || !onBus(r) {
+			b.report(ports.Alert, "stored queue %s has no record that can hold it; its %d messages are ignored", q.Name, len(q.Messages))
+			continue
 		}
 		in := b.ensure(q.Name)
 		in.in, in.out = q.In, q.Out
@@ -328,4 +306,68 @@ func (b *Bus) UserName(id uint32) (string, bool) {
 	defer b.unlock()
 	name, ok := b.userByID[id]
 	return name, ok
+}
+
+// ignoreIncorrect takes out of the loaded view every entity this version could
+// not have written, and reports each: an incorrect record is always ignored —
+// not loaded, not repaired — while the rest of the node starts
+// (docs/constitution.md#persistence-and-loading). It runs to a fixed point,
+// because ignoring a User makes the records that User owned incorrect too.
+// The database is not touched; what is ignored stays there for an operator.
+// Caller holds b.mu.
+func (b *Bus) ignoreIncorrect() {
+	for {
+		var gone []string
+		names := make([]string, 0, len(b.records))
+		for name := range b.records {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			if why := b.incorrect(b.records[name]); why != "" {
+				b.report(ports.Alert, "stored record %s is ignored: %s", name, why)
+				gone = append(gone, name)
+			}
+		}
+		users := make([]string, 0, len(b.users))
+		for name := range b.users {
+			users = append(users, name)
+		}
+		sort.Strings(users)
+		for _, name := range users {
+			if r, has := b.records[name]; !has || r.Kind != protocol.KindUser {
+				b.report(ports.Alert, "stored user %s has no user record of its own and is ignored", name)
+				delete(b.userByID, b.users[name].ID)
+				delete(b.users, name)
+				gone = append(gone, "user "+name)
+			}
+		}
+		for _, name := range gone {
+			if r, has := b.records[name]; has {
+				delete(b.recordByID, r.ID)
+				delete(b.records, name)
+			}
+		}
+		if len(gone) == 0 {
+			return
+		}
+	}
+}
+
+// incorrect says why a stored record could not have been written by this
+// version, or "" when it could. Caller holds b.mu.
+func (b *Bus) incorrect(r protocol.Record) string {
+	if err := validateKind(r); err != nil {
+		return err.Error()
+	}
+	if _, user := b.users[r.Owner]; !user {
+		return "its owner " + r.Owner + " is not a user"
+	}
+	if r.Kind == protocol.KindUser && r.Owner != r.Name {
+		return "a user record belongs to its own user"
+	}
+	if err := b.validatePersonal(r); err != nil {
+		return err.Error()
+	}
+	return ""
 }

@@ -42,34 +42,34 @@ func TestAnUnknownNameCannotActAndCannotBeIssuedACredential(t *testing.T) {
 		{"POST", "/send", `{"to":"admin@h","body":"x"}`},
 		{"POST", "/manage", `{"kind":"agent","name":"admin@h","disabled":true}`},
 		{"POST", "/unregister", `{"kind":"agent","name":"admin@h"}`},
-		{"POST", "/register", `{"kind":"agent","name":"theirs@h"}`},
-		{"POST", "/register", `{"kind":"agent","name":"ghost@h"}`},
+		{"POST", "/register", `{"kind":"agent","name":"#theirs@h"}`},
+		{"POST", "/register", `{"kind":"agent","name":"#ghost@h"}`},
 	} {
-		if code, body := call("ghost@h", probe.method, probe.path, probe.body); code != 401 {
+		if code, body := call("#ghost@h", probe.method, probe.path, probe.body); code != 401 {
 			t.Errorf("%s %s as an unknown name: %d %s, want 401", probe.method, probe.path, code, body)
 		}
 	}
-	if _, known := b.Lookup("admin@h", "theirs@h"); known {
+	if _, known := b.Lookup("admin@h", "#theirs@h"); known {
 		t.Fatal("a refused registration left a record behind")
 	}
 
 	// Nobody is handed a credential either, however authorised the asker.
-	if code, body := call("admin@h", "POST", "/token", `{"kind":"agent","name":"nobody@h"}`); code != 401 {
+	if code, body := call("admin@h", "POST", "/token", `{"kind":"agent","name":"#nobody@h"}`); code != 401 {
 		t.Fatalf("a credential was minted for a name the daemon knows nothing about: %d %s", code, body)
 	}
 
 	// Somebody registers the name; now it is real, may hold a credential, and
 	// may own things of its own.
-	if code, body := call("admin@h", "POST", "/register", `{"kind":"agent","name":"ghost@h"}`); code != 200 {
+	if code, body := call("admin@h", "POST", "/register", `{"kind":"agent","name":"#ghost@h"}`); code != 200 {
 		t.Fatalf("the owner could not register the name: %d %s", code, body)
 	}
-	if code, body := call("admin@h", "POST", "/token", `{"kind":"agent","name":"ghost@h"}`); code != 200 {
+	if code, body := call("admin@h", "POST", "/token", `{"kind":"agent","name":"#ghost@h"}`); code != 200 {
 		t.Fatalf("a registered name could not be issued a credential: %d %s", code, body)
 	}
-	if code, body := call("ghost@h", "GET", "/status", ""); code != 200 {
+	if code, body := call("#ghost@h", "GET", "/status", ""); code != 200 {
 		t.Fatalf("a registered name is still refused: %d %s", code, body)
 	}
-	if code, body := call("ghost@h", "POST", "/register", `{"kind":"agent","name":"theirs@h"}`); code != 200 {
+	if code, body := call("#ghost@h", "POST", "/register", `{"kind":"agent","name":"#theirs@h"}`); code != 200 {
 		t.Fatalf("a known name could not register a service: %d %s", code, body)
 	}
 
@@ -86,8 +86,8 @@ func TestAnUnknownNameCannotActAndCannotBeIssuedACredential(t *testing.T) {
 	}
 
 	// A service that owns itself has no profile and is not collateral.
-	known(t, b, "svc@h")
-	if code, body := call("svc@h", "GET", "/status", ""); code != 200 {
+	known(t, b, "#svc@h")
+	if code, body := call("#svc@h", "GET", "/status", ""); code != 200 {
 		t.Fatalf("a self-owned service was refused: %d %s", code, body)
 	}
 
@@ -123,12 +123,12 @@ var privateRoutes = []string{
 func TestEveryPrivateRouteRefusesAnUnregisteredName(t *testing.T) {
 	b := core.New()
 	s, token := serverFor(t, b, "admin@h")
-	leftover := token("ghost@h")
-	session, err := s.tokens.StartSession("ghost@h")
+	leftover := token("#ghost@h")
+	session, err := s.tokens.StartSession("#ghost@h")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ghost, err := protocol.ParseName("ghost@h")
+	ghost, err := protocol.ParseName("#ghost@h")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestEveryPrivateRouteRefusesAnUnregisteredName(t *testing.T) {
 			{"a browser session", session},
 			{"the mapped account on its socket", ""},
 		} {
-			body := `{"kind":"agent","name":"ghost@h","config":{},"create":true}`
+			body := `{"kind":"agent","name":"#ghost@h","config":{},"create":true}`
 			r := httptest.NewRequest(method, path, strings.NewReader(body))
 			w := httptest.NewRecorder()
 			if how.credential == "" {
@@ -155,7 +155,7 @@ func TestEveryPrivateRouteRefusesAnUnregisteredName(t *testing.T) {
 			}
 		}
 	}
-	if _, made := b.Lookup("admin@h", "ghost@h"); made {
+	if _, made := b.Lookup("admin@h", "#ghost@h"); made {
 		t.Fatal("probing left a record behind for a name nobody registered")
 	}
 }

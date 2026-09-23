@@ -221,7 +221,10 @@ and credential files are private to the launching OS account.
 **Built.** With an `ab-*` launcher, `ab_rename(name)` changes the runtime
 session title and bus address together. Codex and OpenCode use their own
 session APIs; Claude appends its existing title metadata. Without a name,
-the launcher reads the runtime's current title immediately.
+the launcher reads the runtime's current title immediately. Without a
+launcher, a bare MCP face holding only its agent's credential refuses a
+named rename and changes nothing, because the new address is its User's
+record ([Q105](../Plans/MVP/QUESTIONS.md#open-questions)).
 
 The launcher owns the transition: claim a unique address as the launching
 account, acquire its credential, update the runtime title, stop the old inbox

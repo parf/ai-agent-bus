@@ -25,33 +25,33 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 		call func(b *Bus, caller string) error
 	}{
 		{"register", func(b *Bus, c string) error {
-			_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "fresh@h", Owner: c})
+			_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#fresh@h", Owner: c})
 			return err
 		}},
-		{"register-self", func(b *Bus, c string) error {
-			_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: c, Owner: c})
+		{"register", func(b *Bus, c string) error {
+			_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#made-by-caller@h", Owner: c})
 			return err
 		}},
 		{"configure", func(b *Bus, c string) error {
-			_, err := b.Configure("target@h", c, json.RawMessage(`{"k":1}`))
+			_, err := b.Configure("#target@h", c, json.RawMessage(`{"k":1}`))
 			return err
 		}},
 		{"config", func(b *Bus, c string) error { _, err := b.Config(c, c); return err }},
-		{"unregister", func(b *Bus, c string) error { return b.Unregister("target@h", c) }},
+		{"unregister", func(b *Bus, c string) error { return b.Unregister("#target@h", c) }},
 		{"send", func(b *Bus, c string) error {
-			_, err := b.Send(protocol.Envelope{From: c, To: "target@h", Body: "x"})
+			_, err := b.Send(protocol.Envelope{From: c, To: "#target@h", Body: "x"})
 			return err
 		}},
 		{"leave-deliver-to", func(b *Bus, c string) error { _, err := b.Subscribe(c, "news@h", false); return err }},
 		{"consume", func(b *Bus, c string) error {
 			ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 			defer cancel()
-			_, err := b.ConsumeAs(ctx, c, "target@h", "", "", false, false)
+			_, err := b.ConsumeAs(ctx, c, "#target@h", "", "", false, false)
 			return err
 		}},
 		{"manage", func(b *Bus, c string) error {
 			descr := "mine now"
-			_, err := b.Manage(c, Management{Name: "target@h", Descr: &descr})
+			_, err := b.Manage(c, Management{Name: "#target@h", Descr: &descr})
 			return err
 		}},
 		{"remove-subscriber", func(b *Bus, c string) error {
@@ -74,7 +74,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 			})
 		}},
 		{"issue", func(b *Bus, c string) error {
-			_, err := b.IssueFor(c, "target@h", func(string) (string, error) {
+			_, err := b.IssueFor(c, "#target@h", func(string) (string, error) {
 				t.Error("a credential was minted for a caller that may not act")
 				return "tok", nil
 			})
@@ -92,8 +92,8 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 			t.Run(v.name+"/"+caller.who, func(t *testing.T) {
 				b := New()
 				b.SetDaemonOwner("admin@h")
-				known(t, b, "target@h", "sub@h")
-				provision(t, b, protocol.Record{
+				known(t, b, "#target@h", "sub@h")
+				provision(t, b, nil, protocol.Record{
 					Name: "news@h", Kind: protocol.KindPubSub,
 				})
 				// Paused is a maintainer, so nothing it is refused for can be
@@ -121,13 +121,13 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 func TestARemovedCallerCannotRegisterItselfBack(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "gone@h")
-	if err := b.Unregister("gone@h", "gone@h"); err != nil {
+	known(t, b, "#gone@h")
+	if err := b.Unregister("#gone@h", "#gone@h"); err != nil {
 		t.Fatal(err)
 	}
 	for _, r := range []protocol.Record{
-		{Kind: protocol.KindAgent, Name: "gone@h", Owner: "gone@h"},
-		{Kind: protocol.KindAgent, Name: "gone@h"}, // owner defaulted to the name is the same claim
+		{Kind: protocol.KindAgent, Name: "#gone@h", Owner: "#gone@h"},
+		{Kind: protocol.KindAgent, Name: "#gone@h"}, // owner defaulted to the name is the same claim
 	} {
 		if _, err := b.Register(r); !errors.Is(err, ErrNoPrincipal) {
 			t.Fatalf("a name the daemon no longer knows registered itself back: %v", err)
@@ -135,7 +135,7 @@ func TestARemovedCallerCannotRegisterItselfBack(t *testing.T) {
 	}
 	// And the legitimate caller for that shape still has it: enrolment has
 	// proved a key, and says so rather than borrowing a clause anyone reaches.
-	if _, err := b.register(protocol.Record{Kind: protocol.KindAgent, Name: "gone@h", Owner: "gone@h"}, true, false, ports.DirectoryProfile{}); err != nil {
+	if _, err := b.register(protocol.Record{Kind: protocol.KindAgent, Name: "#gone@h", Owner: "#gone@h"}, true, false, ports.DirectoryProfile{}); err != nil {
 		t.Fatalf("enrolment could not write a newcomer its record: %v", err)
 	}
 }
@@ -147,28 +147,28 @@ func TestIssuingDoesNotHandOverACredentialOwnershipHasMovedOn(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "first@h", "second@h")
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "first@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "first@h"}); err != nil {
 		t.Fatal(err)
 	}
 	mint := func(name string) (string, error) { return "credential for " + name, nil }
-	if _, err := b.IssueFor("first@h", "svc@h", mint); err != nil {
+	if _, err := b.IssueFor("first@h", "#svc@h", mint); err != nil {
 		t.Fatalf("the owner could not have its service's credential: %v", err)
 	}
 	owner := "second@h"
-	if _, err := b.Manage("first@h", Management{Name: "svc@h", Owner: &owner}); err != nil {
+	if _, err := b.Manage("first@h", Management{Name: "#svc@h", Owner: &owner}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.IssueFor("first@h", "svc@h", mint); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.IssueFor("first@h", "#svc@h", mint); !errors.Is(err, ErrNotOwner) {
 		t.Fatalf("the former owner was issued the current owner's credential: %v", err)
 	}
-	if _, err := b.IssueFor("second@h", "svc@h", mint); err != nil {
+	if _, err := b.IssueFor("second@h", "#svc@h", mint); err != nil {
 		t.Fatalf("the new owner was refused its own service's credential: %v", err)
 	}
 	// The daemon owner and the name itself keep their standing routes.
-	if _, err := b.IssueFor("admin@h", "svc@h", mint); err != nil {
+	if _, err := b.IssueFor("admin@h", "#svc@h", mint); err != nil {
 		t.Fatalf("the daemon owner was refused: %v", err)
 	}
-	if _, err := b.IssueFor("svc@h", "svc@h", mint); err != nil {
+	if _, err := b.IssueFor("#svc@h", "#svc@h", mint); err != nil {
 		t.Fatalf("a name was refused its own credential: %v", err)
 	}
 }
@@ -180,13 +180,13 @@ func TestIssuingHoldsTheRegistryWhileItDecidesAndMints(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "first@h", "second@h")
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "first@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "first@h"}); err != nil {
 		t.Fatal(err)
 	}
 	minting, release := make(chan struct{}), make(chan struct{})
 	issued := make(chan error, 1)
 	go func() {
-		_, err := b.IssueFor("first@h", "svc@h", func(string) (string, error) {
+		_, err := b.IssueFor("first@h", "#svc@h", func(string) (string, error) {
 			close(minting)
 			<-release
 			return "credential", nil
@@ -199,7 +199,7 @@ func TestIssuingHoldsTheRegistryWhileItDecidesAndMints(t *testing.T) {
 	transferring, transferred := make(chan struct{}), make(chan error, 1)
 	go func() {
 		close(transferring)
-		_, err := b.Manage("first@h", Management{Name: "svc@h", Owner: &owner})
+		_, err := b.Manage("first@h", Management{Name: "#svc@h", Owner: &owner})
 		transferred <- err
 	}()
 	<-transferring
@@ -224,7 +224,7 @@ func TestATransferCannotHandARecordToSomebodyWhoCannotAct(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "owner@h")
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "banned@h"}, true); err != nil {
@@ -234,10 +234,10 @@ func TestATransferCannotHandARecordToSomebodyWhoCannotAct(t *testing.T) {
 		t.Fatal(err)
 	}
 	to := "banned@h"
-	if _, err := b.Manage("owner@h", Management{Name: "svc@h", Owner: &to}); !errors.Is(err, ErrInactive) {
+	if _, err := b.Manage("owner@h", Management{Name: "#svc@h", Owner: &to}); !errors.Is(err, ErrInactive) {
 		t.Fatalf("a record was handed to somebody who cannot act: %v", err)
 	}
-	if r, _ := b.Lookup("owner@h", "svc@h"); r.Owner != "owner@h" {
+	if r, _ := b.Lookup("owner@h", "#svc@h"); r.Owner != "owner@h" {
 		t.Fatalf("the refused transfer moved the record anyway: owner is %s", r.Owner)
 	}
 }
@@ -249,31 +249,31 @@ func TestATransferCannotHandARecordToSomebodyWhoCannotAct(t *testing.T) {
 func TestRemovingAnAddressAndItsCredentialIsOneOperation(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "svc@h")
+	known(t, b, "#svc@h")
 	refuse := errors.New("the credential store is not writable")
-	if err := b.UnregisterAnd("svc@h", "svc@h", func(string) error { return refuse }); !errors.Is(err, refuse) {
+	if err := b.UnregisterAnd("#svc@h", "#svc@h", func(string) error { return refuse }); !errors.Is(err, refuse) {
 		t.Fatalf("a failed credential write was not reported: %v", err)
 	}
-	if _, ok := b.Lookup("svc@h", "svc@h"); !ok {
+	if _, ok := b.Lookup("#svc@h", "#svc@h"); !ok {
 		t.Fatal("the record went even though its credential could not be dropped")
 	}
-	if b.Authenticate("svc@h") != nil {
+	if b.Authenticate("#svc@h") != nil {
 		t.Fatal("the name stopped being a principal in a removal that failed")
 	}
 
 	dropped := []string{}
-	if err := b.UnregisterAnd("svc@h", "svc@h", func(n string) error {
+	if err := b.UnregisterAnd("#svc@h", "#svc@h", func(n string) error {
 		dropped = append(dropped, n)
 		return nil
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(dropped) != 1 || dropped[0] != "svc@h" {
+	if len(dropped) != 1 || dropped[0] != "#svc@h" {
 		t.Fatalf("the credential was not dropped with the address: %v", dropped)
 	}
 
-	// A person is the exception, decided on the same facts the removal is:
-	// their credential is how they call at all.
+	// A person is the exception: their own record goes with them and they are
+	// never removed, so the removal is refused and their credential kept.
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "someone@h"}, true); err != nil {
 		t.Fatal(err)
 	}
@@ -281,11 +281,11 @@ func TestRemovingAnAddressAndItsCredentialIsOneOperation(t *testing.T) {
 	if err := b.UnregisterAnd("someone@h", "someone@h", func(n string) error {
 		dropped = append(dropped, n)
 		return nil
-	}); err != nil {
-		t.Fatal(err)
+	}); !errors.Is(err, ErrBusy) {
+		t.Fatalf("a user's own record was removed: %v", err)
 	}
 	if len(dropped) != 0 {
-		t.Fatalf("a person was logged out by giving up a record: %v", dropped)
+		t.Fatalf("a person was logged out: %v", dropped)
 	}
 }
 
@@ -295,11 +295,11 @@ func TestRemovingAnAddressAndItsCredentialIsOneOperation(t *testing.T) {
 func TestRemovingHoldsTheRegistryWhileItDropsTheCredential(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "svc@h", "other@h")
+	known(t, b, "#svc@h", "#other@h")
 	forgetting, release := make(chan struct{}), make(chan struct{})
 	removed := make(chan error, 1)
 	go func() {
-		removed <- b.UnregisterAnd("svc@h", "svc@h", func(string) error {
+		removed <- b.UnregisterAnd("#svc@h", "#svc@h", func(string) error {
 			close(forgetting)
 			<-release
 			return nil
@@ -310,7 +310,7 @@ func TestRemovingHoldsTheRegistryWhileItDropsTheCredential(t *testing.T) {
 	claiming, claimed := make(chan struct{}), make(chan error, 1)
 	go func() {
 		close(claiming)
-		_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "other@h"})
+		_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "#other@h"})
 		claimed <- err
 	}()
 	<-claiming
@@ -333,15 +333,15 @@ func TestRemovingHoldsTheRegistryWhileItDropsTheCredential(t *testing.T) {
 func TestARemovedPrincipalsBlockedReadIsReleased(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "reader@h")
-	provision(t, b, protocol.Record{Kind: protocol.KindAgent, Name: "shared@h", Owner: "admin@h", Allow: []string{"reader@h"}})
+	known(t, b, "#reader@h")
+	provision(t, b, nil, protocol.Record{Kind: protocol.KindAgent, Name: "#shared@h", Owner: "admin@h", Allow: []string{"#reader@h"}})
 	stopped := make(chan error, 1)
 	go func() {
-		_, err := b.ConsumeAs(context.Background(), "reader@h", "shared@h", "", "", false, false)
+		_, err := b.ConsumeAs(context.Background(), "#reader@h", "#shared@h", "", "", false, false)
 		stopped <- err
 	}()
-	waitForWaiters(t, b, "shared@h", 1)
-	if err := b.Unregister("reader@h", "reader@h"); err != nil {
+	waitForWaiters(t, b, "#shared@h", 1)
+	if err := b.Unregister("#reader@h", fixtureOwner); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -363,7 +363,7 @@ func TestListingsShowNothingToACallerThatMayNotAct(t *testing.T) {
 		t.Run(caller, func(t *testing.T) {
 			b := New()
 			b.SetDaemonOwner("admin@h")
-			known(t, b, "svc@h")
+			known(t, b, "#svc@h")
 			if _, err := b.SetUser("admin@h", protocol.User{Name: "paused@h"}, true); err != nil {
 				t.Fatal(err)
 			}
@@ -375,7 +375,7 @@ func TestListingsShowNothingToACallerThatMayNotAct(t *testing.T) {
 			if _, err := b.SetUserState("admin@h", "paused@h", "paused"); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := b.Send(protocol.Envelope{From: "svc@h", To: "svc@h", Body: "x"}); err != nil {
+			if _, err := b.Send(protocol.Envelope{From: "#svc@h", To: "#svc@h", Body: "x"}); err != nil {
 				t.Fatal(err)
 			}
 			// Administrative standing does not bypass inactivity. The history
@@ -384,7 +384,7 @@ func TestListingsShowNothingToACallerThatMayNotAct(t *testing.T) {
 			if got := b.List(caller, ""); len(got) != 0 {
 				t.Errorf("list: %+v", got)
 			}
-			if _, ok := b.Lookup(caller, "svc@h"); ok {
+			if _, ok := b.Lookup(caller, "#svc@h"); ok {
 				t.Error("lookup answered")
 			}
 			if got := b.Owned(caller); len(got) != 0 {
@@ -396,10 +396,10 @@ func TestListingsShowNothingToACallerThatMayNotAct(t *testing.T) {
 			if got := b.Groups(caller); len(got) != 0 {
 				t.Errorf("groups: %v", got)
 			}
-			if got := b.Users(caller, []string{"svc@h"}); len(got) != 0 {
+			if got := b.Users(caller, []string{"#svc@h"}); len(got) != 0 {
 				t.Errorf("users: %+v", got)
 			}
-			if points, err := b.Activity(caller, "svc@h"); err == nil && len(points) != 0 {
+			if points, err := b.Activity(caller, "#svc@h"); err == nil && len(points) != 0 {
 				t.Errorf("activity: %+v %v", points, err)
 			}
 		})

@@ -35,7 +35,7 @@ func TestDangerZoneNeverRendersRetainedConfiguration(t *testing.T) {
 	render(w, serviceDanger, adminView{
 		You: "owner@h",
 		Record: protocol.Record{
-			Name: "svc@h", Owner: "owner@h", Kind: protocol.KindAgent, CanManage: true, CanTransfer: true,
+			Name: "#svc@h", Owner: "owner@h", Kind: protocol.KindAgent, CanManage: true, CanTransfer: true,
 		},
 		Form: formState{Action: "configure", Target: "configure", Field: "config", Error: "refused", Values: map[string]string{"config": secret}},
 	})
@@ -79,10 +79,10 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if err := b.SetGroup("admin@h", core.AdministratorsGroup, []string{"admin@h", "operator@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h", Descr: "service", Allow: []string{"owner@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h", Descr: "service", Allow: []string{"owner@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Configure("svc@h", "owner@h", json.RawMessage(`{"secret":"NEVER-RENDER-THIS"}`)); err != nil {
+	if _, err := b.Configure("#svc@h", "owner@h", json.RawMessage(`{"secret":"NEVER-RENDER-THIS"}`)); err != nil {
 		t.Fatal(err)
 	}
 	// An external one beside it: only a service carries an endpoint, so it is
@@ -132,11 +132,11 @@ func TestDashboardOwnerControls(t *testing.T) {
 		return string(body)
 	}
 	request("", "GET", "/services", "", nil, 401)
-	page := request("owner@h", "GET", "/service?name=svc@h", "", nil, 200)
-	if !strings.Contains(page, `>Edit settings</a>`) || !strings.Contains(page, `href="/agent/edit?name=svc%40h`) {
+	page := request("owner@h", "GET", "/service?name=%23svc@h", "", nil, 200)
+	if !strings.Contains(page, `>Edit settings</a>`) || !strings.Contains(page, `href="/agent/edit?name=%23svc%40h`) {
 		t.Fatal("owner detail is missing the way to its settings form")
 	}
-	editor := request("owner@h", "GET", "/agent/edit?name=svc@h", "", nil, 200)
+	editor := request("owner@h", "GET", "/agent/edit?name=%23svc@h", "", nil, 200)
 	if !strings.Contains(editor, ">Save settings</button>") || !strings.Contains(editor, `class=danger`) || !strings.Contains(editor, `>Danger Zone</a>`) {
 		t.Fatal("the settings form is missing its save or its Danger Zone link")
 	}
@@ -147,7 +147,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 	}
 	refusedSettings := request("owner@h", "POST", "/service", web.URL, url.Values{
 		"action":     {"save"},
-		"name":       {"svc@h"},
+		"name":       {"#svc@h"},
 		"descr":      {"Changed & retained"},
 		"ttl":        {"2h"},
 		"overflow":   {"ring"},
@@ -173,7 +173,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 		t.Fatal("unrecognised submitted field was reflected into the form")
 	}
 	// The endpoint is offered where it means something, and a refusal keeps it.
-	if agent := request("owner@h", "GET", "/agent?name=svc@h", "", nil, 200); strings.Contains(agent, "name=addr") || strings.Contains(agent, "name=protocol") {
+	if agent := request("owner@h", "GET", "/agent?name=%23svc@h", "", nil, 200); strings.Contains(agent, "name=addr") || strings.Contains(agent, "name=protocol") {
 		t.Fatal("an agent's settings offer an endpoint, which would make it read as external")
 	}
 	refusedExternal := request("owner@h", "POST", "/service", web.URL, url.Values{
@@ -200,7 +200,7 @@ func TestDashboardOwnerControls(t *testing.T) {
 	if kept, _ := b.Lookup("owner@h", "db@h"); kept.Addr != "db.example:5432" || kept.Proto != "postgresql" || kept.Full != "" || kept.Bound != 0 {
 		t.Fatalf("a service save lost its endpoint or acquired a queue setting: %+v", kept)
 	}
-	danger := request("owner@h", "GET", "/service-danger?name=svc@h", "", nil, 200)
+	danger := request("owner@h", "GET", "/service-danger?name=%23svc@h", "", nil, 200)
 	for _, label := range []string{"Replace configuration", "Transfer ownership", "Remove registration"} {
 		if !strings.Contains(danger, label) {
 			t.Fatalf("Danger Zone missing owner control: %s", label)
@@ -208,62 +208,62 @@ func TestDashboardOwnerControls(t *testing.T) {
 	}
 	const refusedSecret = "REFUSED-CONFIG-MUST-NOT-RETURN"
 	refusedConfig := request("owner@h", "POST", "/service", web.URL, url.Values{
-		"action": {"configure"}, "name": {"svc@h"}, "config": {`{"secret":"` + refusedSecret},
+		"action": {"configure"}, "name": {"#svc@h"}, "config": {`{"secret":"` + refusedSecret},
 	}, 400)
 	if !strings.Contains(refusedConfig, "submitted configuration is not shown again") ||
 		strings.Contains(refusedConfig, refusedSecret) ||
 		!strings.Contains(refusedConfig, `name=config rows=6 cols=60 required autocomplete=off`) {
 		t.Fatal("refused private configuration was not cleared safely")
 	}
-	page = request("admin@h", "GET", "/service?name=svc@h", "", nil, 200)
+	page = request("admin@h", "GET", "/service?name=%23svc@h", "", nil, 200)
 	if !strings.Contains(page, "Danger Zone") || strings.Contains(page, "Replace configuration") {
 		t.Fatal("daemon owner detail did not use the same Danger Zone boundary")
 	}
-	danger = request("admin@h", "GET", "/service-danger?name=svc@h", "", nil, 200)
+	danger = request("admin@h", "GET", "/service-danger?name=%23svc@h", "", nil, 200)
 	for _, label := range []string{"Replace configuration", "Transfer ownership", "Remove registration"} {
 		if !strings.Contains(danger, label) {
 			t.Fatalf("daemon owner Danger Zone missing node-wide control: %s", label)
 		}
 	}
 	for _, who := range []string{"owner@h", "admin@h"} {
-		request(who, "POST", "/service-confirm", "https://evil.example", url.Values{"action": {"delete"}, "name": {"svc@h"}}, 403)
-		request(who, "POST", "/service-confirm", "", url.Values{"action": {"delete"}, "name": {"svc@h"}}, 403)
+		request(who, "POST", "/service-confirm", "https://evil.example", url.Values{"action": {"delete"}, "name": {"#svc@h"}}, 403)
+		request(who, "POST", "/service-confirm", "", url.Values{"action": {"delete"}, "name": {"#svc@h"}}, 403)
 	}
-	request("owner@h", "POST", "/service-confirm", "https://evil.example", url.Values{"action": {"transfer"}, "name": {"svc@h"}, "owner": {"other@h"}}, 403)
-	request("owner@h", "POST", "/service-confirm", "", url.Values{"action": {"transfer"}, "name": {"svc@h"}, "owner": {"other@h"}}, 403)
-	confirm := request("owner@h", "POST", "/service-confirm", web.URL, url.Values{"action": {"transfer"}, "name": {"svc@h"}, "owner": {"other@h"}}, 200)
+	request("owner@h", "POST", "/service-confirm", "https://evil.example", url.Values{"action": {"transfer"}, "name": {"#svc@h"}, "owner": {"other@h"}}, 403)
+	request("owner@h", "POST", "/service-confirm", "", url.Values{"action": {"transfer"}, "name": {"#svc@h"}, "owner": {"other@h"}}, 403)
+	confirm := request("owner@h", "POST", "/service-confirm", web.URL, url.Values{"action": {"transfer"}, "name": {"#svc@h"}, "owner": {"other@h"}}, 200)
 	if !strings.Contains(confirm, "Confirm ownership transfer") || !strings.Contains(confirm, `name=confirmed value=1`) {
 		t.Fatal("transfer did not stop on a server-rendered confirmation")
 	}
-	if record, _ := b.Lookup("owner@h", "svc@h"); record.Owner != "owner@h" {
+	if record, _ := b.Lookup("owner@h", "#svc@h"); record.Owner != "owner@h" {
 		t.Fatal("rendering the transfer confirmation changed the record")
 	}
-	hidden := request("other@h", "GET", "/service-danger?name=svc@h", "", nil, 404)
-	missing := request("other@h", "GET", "/service-danger?name=missing@h", "", nil, 404)
+	hidden := request("other@h", "GET", "/service-danger?name=%23svc@h", "", nil, 404)
+	missing := request("other@h", "GET", "/service-danger?name=%23missing@h", "", nil, 404)
 	hiddenShape := hidden[strings.Index(hidden, "<main>"):]
 	missingShape := missing[strings.Index(missing, "<main>"):]
-	for _, spelling := range []string{"svc@h", url.QueryEscape("svc@h")} {
+	for _, spelling := range []string{"#svc@h", url.QueryEscape("#svc@h"), "%23svc@h"} {
 		hiddenShape = strings.ReplaceAll(hiddenShape, spelling, "NAME")
 	}
-	for _, spelling := range []string{"missing@h", url.QueryEscape("missing@h")} {
+	for _, spelling := range []string{"#missing@h", url.QueryEscape("#missing@h"), "%23missing@h"} {
 		missingShape = strings.ReplaceAll(missingShape, spelling, "NAME")
 	}
 	if !strings.Contains(hidden, "No such name") || hiddenShape != missingShape {
 		t.Fatal("Danger Zone distinguished a hidden record from a missing one")
 	}
-	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); !strings.Contains(body, "svc@h") {
+	if body := request("owner@h", "GET", "/agents?scope=my&state=active", "", nil, 200); !strings.Contains(body, "#svc@h") {
 		t.Fatal("own active agent missing")
 	}
-	disable := url.Values{"action": {"disable"}, "name": {"svc@h"}}
+	disable := url.Values{"action": {"disable"}, "name": {"#svc@h"}}
 	request("owner@h", "POST", "/service", "https://evil.example", disable, 403)
 	request("owner@h", "POST", "/service", "", disable, 403)
 	request("other@h", "POST", "/service", web.URL, disable, 403)
 	request("admin@h", "POST", "/service", web.URL, disable, 303)
 	request("owner@h", "POST", "/service", web.URL, disable, 303)
-	if body := request("owner@h", "GET", "/services?scope=my&state=active", "", nil, 200); strings.Contains(body, "svc@h") {
+	if body := request("owner@h", "GET", "/services?scope=my&state=active", "", nil, 200); strings.Contains(body, "#svc@h") {
 		t.Fatal("disabled service appears active")
 	}
-	if body := request("owner@h", "GET", "/agents?scope=my&state=inactive", "", nil, 200); !strings.Contains(body, "svc@h") {
+	if body := request("owner@h", "GET", "/agents?scope=my&state=inactive", "", nil, 200); !strings.Contains(body, "#svc@h") {
 		t.Fatal("disabled agent missing")
 	}
 	group := url.Values{"action": {"save"}, "name": {"@ops"}, "members": {"other@h\nadmin@h"}}
@@ -325,14 +325,14 @@ other@h</textarea>`) || strings.Contains(groupEditor, `<input name=members`) {
 	// Classification and sharing have no form of their own any more: they are
 	// fields of Edit settings, and a save states separately that it carried
 	// them so that a caller who may not edit them cannot clear them.
-	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"save"}, "name": {"svc@h"}, "edit_sharing": {"1"}, "maintainers": {"@ops\nadmin@h"}}, 303)
-	page = request("owner@h", "GET", "/agent/edit?name=svc@h", "", nil, 200)
+	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"save"}, "name": {"#svc@h"}, "edit_sharing": {"1"}, "maintainers": {"@ops\nadmin@h"}}, 303)
+	page = request("owner@h", "GET", "/agent/edit?name=%23svc@h", "", nil, 200)
 	if !strings.Contains(page, `<textarea name=maintainers rows=5`) || !strings.Contains(page, `>@ops
 admin@h</textarea>`) {
 		t.Fatalf("Maintainers list did not round-trip through its line editor: %s", page)
 	}
 	refusedMaintainers := request("owner@h", "POST", "/service", web.URL, url.Values{
-		"action": {"save"}, "name": {"svc@h"}, "edit_sharing": {"1"},
+		"action": {"save"}, "name": {"#svc@h"}, "edit_sharing": {"1"},
 		"edit_allow": {"1"}, "allow": {"owner@h"}, "maintainers": {"missing@h\n@ops"},
 	}, 404)
 	if !strings.Contains(refusedMaintainers, "Check this form") ||
@@ -341,26 +341,26 @@ admin@h</textarea>`) {
 		!strings.Contains(refusedMaintainers, ">owner@h</textarea>") {
 		t.Fatalf("a refused sharing edit did not recover into Edit settings with its lines intact: %s", refusedMaintainers)
 	}
-	page = request("other@h", "GET", "/agent/edit?name=svc@h", "", nil, 200)
+	page = request("other@h", "GET", "/agent/edit?name=%23svc@h", "", nil, 200)
 	if !strings.Contains(page, "Save settings") || !strings.Contains(page, "Danger Zone") || strings.Contains(page, "Transfer ownership") {
 		t.Fatal("maintainer controls wrong")
 	}
-	danger = request("other@h", "GET", "/service-danger?name=svc@h", "", nil, 200)
+	danger = request("other@h", "GET", "/service-danger?name=%23svc@h", "", nil, 200)
 	if !strings.Contains(danger, "Replace configuration") || !strings.Contains(danger, "Remove registration") || strings.Contains(danger, "Transfer ownership") {
 		t.Fatal("maintainer Danger Zone controls wrong")
 	}
-	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"enable"}, "name": {"svc@h"}}, 303)
-	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"transfer"}, "name": {"svc@h"}, "owner": {"other@h"}}, 403)
-	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"save"}, "name": {"svc@h"}, "descr": {"updated"}, "allow": {"owner@h"}, "bound": {"3"}, "overflow": {"strict"}}, 303)
-	record, _ := b.Lookup("owner@h", "svc@h")
+	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"enable"}, "name": {"#svc@h"}}, 303)
+	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"transfer"}, "name": {"#svc@h"}, "owner": {"other@h"}}, 403)
+	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"save"}, "name": {"#svc@h"}, "descr": {"updated"}, "allow": {"owner@h"}, "bound": {"3"}, "overflow": {"strict"}}, 303)
+	record, _ := b.Lookup("owner@h", "#svc@h")
 	if record.Descr != "updated" || record.Bound != 3 {
 		t.Fatal("form did not change daemon record")
 	}
-	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"configure"}, "name": {"svc@h"}, "config": {`{"secret":"NEVER-RENDER-THIS","new":true}`}}, 303)
-	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"transfer"}, "name": {"svc@h"}, "owner": {"other@h"}}, 303)
+	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"configure"}, "name": {"#svc@h"}, "config": {`{"secret":"NEVER-RENDER-THIS","new":true}`}}, 303)
+	request("owner@h", "POST", "/service", web.URL, url.Values{"action": {"transfer"}, "name": {"#svc@h"}, "owner": {"other@h"}}, 303)
 	request("owner@h", "POST", "/service", web.URL, disable, 403)
-	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"delete"}, "name": {"svc@h"}}, 303)
-	if _, ok := b.Lookup("other@h", "svc@h"); ok {
+	request("other@h", "POST", "/service", web.URL, url.Values{"action": {"delete"}, "name": {"#svc@h"}}, 303)
+	if _, ok := b.Lookup("other@h", "#svc@h"); ok {
 		t.Fatal("delete form did not unregister")
 	}
 }

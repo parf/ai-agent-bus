@@ -15,15 +15,16 @@ import (
 func TestSuspensionDidNotSettleTheDrainQuestion(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	for _, who := range []string{"alice@h", "sender@h"} {
+	known(t, b, "#sender@h")
+	for _, who := range []string{"alice@h"} {
 		if _, err := b.SetUser("admin@h", protocol.User{Name: who}, true); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "alice@h", Allow: ptr([]string{"sender@h", "admin@h"})}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "alice@h", Allow: ptr([]string{"admin@h"})}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "sender@h", To: "alice@h", Body: "to the person"}); err != nil {
+	if _, err := b.Send(protocol.Envelope{From: "#sender@h", To: "alice@h", Body: "to the person"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.SetUserState("admin@h", "alice@h", "paused"); err != nil {

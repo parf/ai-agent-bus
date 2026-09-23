@@ -58,11 +58,14 @@ principal is its own account name. Agents that would otherwise collide across
 machines still carry a realm: the [launchers](08-runner-role.md#session-names)
 keep deriving `runtime/instance@host`, with the host name as the realm.
 
-**Pending for 0.7:** an Agent's canonical name begins with `#` — `#worker`,
+**Built in 0.7.5:** an Agent's canonical name begins with `#` — `#worker`,
 `#worker@srv1`, `#claude/home@srv1` — the way a group name begins with `@`, so
 one name column is unique across every kind and no lookup is needed to know
-what a name refers to. In a URL that `#` is percent-encoded as `%23`. An Agent's
-name gains its `#`, so an unprefixed former Agent name then names a User.
+what a name refers to. In a URL that `#` is percent-encoded as `%23`. The kind
+is `agent` exactly when the name carries `#`; an unprefixed name names a User,
+a channel or a service. The CLI's `--agent worker@srv1` spelling adds the `#`
+and never a second one. Every record, an Agent's included, is owned by a User,
+and a User cannot be created under a `#` name.
 
 ## Role names and scopes
 
@@ -406,19 +409,22 @@ is required. Drain live queued work and stop all readers first.
 
 ## Orphaned records
 
-At startup, a non-user record whose owner has neither a profile nor a record is
-deleted with its queued work. Cleanup repeats until no such records remain;
-[credential cleanup](02-access.md#ownerless-credentials) follows it.
+**Built in 0.7.5:** every owner is a User, so a record whose owner is not a
+User is one no running daemon wrote. At startup it is
+[ignored and reported](constitution.md#persistence-and-loading), not deleted:
+it is not loaded, its name is free on the running bus, and the database keeps
+it for an operator. A User without its own 👤 record is ignored the same way,
+and so, on the same start, is every record it owned.
+[Credential cleanup](02-access.md#ownerless-credentials) follows it.
 
 <details>
-<summary>Cleanup boundaries</summary>
+<summary>Loading boundaries</summary>
 
-Deletion also removes configuration, subscriptions and group membership, releases
-blocked readers and frees the name. Unlike manual removal, backlog is no reason
-to keep a record nobody owns. A registered user's own record is spared.
-
-Ownership is checked one step, not followed to a person: self-owned records and
-cycles whose owners all have records survive. Failed credential revocation at
-startup has a separate [unresolved failure policy](02-access.md#ownerless-credentials).
+An ignored record's stored queue is ignored and reported with it. A record
+later registered under the freed name starts with no stored queue, so the old
+messages never reach the new owner. Each start reads the database afresh, so
+an ignored record is reported again until an operator repairs or removes it.
+Ownership is checked one step: an Agent never owns a record, so there are no
+ownership chains to follow.
 
 </details>

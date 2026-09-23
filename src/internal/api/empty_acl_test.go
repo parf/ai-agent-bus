@@ -18,7 +18,7 @@ func TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "private@h", Owner: "alice@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#private@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
 	request := func(who, method, path, body string, status int) string {
@@ -32,14 +32,14 @@ func TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP(t *testing.T) {
 		}
 		return w.Body.String()
 	}
-	request("alice@h", "GET", "/lookup?name=private@h", "", 200)
-	request("admin@h", "GET", "/lookup?name=private@h", "", 200)
-	request("admin@h", "POST", "/send", `{"to":"private@h","body":"forbidden"}`, 403)
+	request("alice@h", "GET", "/lookup?name=%23private@h", "", 200)
+	request("admin@h", "GET", "/lookup?name=%23private@h", "", 200)
+	request("admin@h", "POST", "/send", `{"to":"#private@h","body":"forbidden"}`, 403)
 	for _, who := range []string{"outsider@h"} {
-		hidden := request(who, "GET", "/lookup?name=private@h", "", 404)
+		hidden := request(who, "GET", "/lookup?name=%23private@h", "", 404)
 		missing := request(who, "GET", "/lookup?name=missing@h", "", 404)
 		// Each response may echo the requested name; compare the same name.
-		if strings.ReplaceAll(hidden, "private@h", "missing@h") != missing {
+		if strings.ReplaceAll(hidden, "#private@h", "missing@h") != missing {
 			t.Fatal("hidden and missing lookup answers differ")
 		}
 		var rows []protocol.Record
@@ -47,18 +47,18 @@ func TestEmptyACLIsHiddenAndRefusesOtherCallersOverHTTP(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, r := range rows {
-			if r.Name == "private@h" {
+			if r.Name == "#private@h" {
 				t.Fatalf("%s lists hidden record", who)
 			}
 		}
-		request(who, "POST", "/send", `{"to":"private@h","body":"forbidden"}`, 403)
+		request(who, "POST", "/send", `{"to":"#private@h","body":"forbidden"}`, 403)
 	}
-	request("alice@h", "POST", "/manage", `{"kind":"agent","name":"private@h","allow":["*"]}`, 200)
-	request("outsider@h", "GET", "/lookup?name=private@h", "", 200)
-	request("outsider@h", "POST", "/send", `{"to":"private@h","body":"granted"}`, 200)
-	if body := request("private@h", "GET", "/consume?wait=1ms", "", 200); !strings.Contains(body, "granted") {
+	request("alice@h", "POST", "/manage", `{"kind":"agent","name":"#private@h","allow":["*"]}`, 200)
+	request("outsider@h", "GET", "/lookup?name=%23private@h", "", 200)
+	request("outsider@h", "POST", "/send", `{"to":"#private@h","body":"granted"}`, 200)
+	if body := request("#private@h", "GET", "/consume?wait=1ms", "", 200); !strings.Contains(body, "granted") {
 		t.Fatal("own inbox did not deliver the granted message")
 	}
-	request("alice@h", "POST", "/manage", `{"kind":"agent","name":"private@h","allow":[]}`, 200)
-	request("outsider@h", "GET", "/lookup?name=private@h", "", 404)
+	request("alice@h", "POST", "/manage", `{"kind":"agent","name":"#private@h","allow":[]}`, 200)
+	request("outsider@h", "GET", "/lookup?name=%23private@h", "", 404)
 }

@@ -81,10 +81,20 @@ const MaxName = 64
 
 // Name is how every principal is written.
 type Name struct {
+	// Agent is the leading "#" an Agent's name carries, the way a Group's
+	// carries "@": part of the name everywhere, so the name alone says the
+	// kind (docs/constitution.md#actors-and-ascii-textarea-syntax).
+	Agent    bool
 	Template string // agent template this record was configured from, or ""
 	Local    string // user, or service name
 	Realm    string // the namespace after the last "@", or "" for a name with none
 }
+
+// AgentPrefix begins every Agent's canonical name.
+const AgentPrefix = "#"
+
+// IsAgentName says whether a name is spelled as an Agent's.
+func IsAgentName(s string) bool { return strings.HasPrefix(strings.TrimSpace(s), AgentPrefix) }
 
 func (n Name) String() string {
 	s := n.Local
@@ -93,6 +103,9 @@ func (n Name) String() string {
 	}
 	if n.Realm != "" {
 		s += "@" + n.Realm
+	}
+	if n.Agent {
+		s = AgentPrefix + s
 	}
 	return s
 }
@@ -106,6 +119,15 @@ func ParseName(s string) (Name, error) {
 	s = strings.TrimSpace(s)
 	if !isASCII(s) {
 		return Name{}, fmt.Errorf("name %q is not ASCII: names are ASCII only", s)
+	}
+	// The prefix is the first character or nowhere: "#" is in no component.
+	agent := strings.HasPrefix(s, AgentPrefix)
+	if agent {
+		s = s[len(AgentPrefix):]
+		// Nothing comes between the prefix and the name: "# x" is not "#x".
+		if s == "" || s != strings.TrimLeft(s, " \t\n\r\v\f") {
+			return Name{}, fmt.Errorf("name %q: the agent prefix is followed directly by the name", "#"+s)
+		}
 	}
 	lower := strings.ToLower(s)
 	local, realm, hasRealm := lower, "", false
@@ -132,13 +154,16 @@ func ParseName(s string) (Name, error) {
 	if hasRealm {
 		size += 1 + len(realm)
 	}
+	if agent {
+		size += len(AgentPrefix)
+	}
 	if template != "" {
 		size += len(template) + 1
 	}
 	if size > MaxName {
 		return Name{}, fmt.Errorf("name %q is %d characters: at most %d", s, size, MaxName)
 	}
-	return Name{Template: template, Local: local, Realm: realm}, nil
+	return Name{Agent: agent, Template: template, Local: local, Realm: realm}, nil
 }
 
 func isASCII(s string) bool {
@@ -156,3 +181,34 @@ func isASCII(s string) bool {
 // rather than in whatever tool checks it.
 // See docs/01-identity-and-roles.md#registration.
 const SigNamespace = "agent-bus"
+
+// ExpandAgentFlags rewrites every `--agent NAME` or `--agent=NAME` in a command
+// line to the name it stands for, prefixed with "#" unless it already is, in
+// the position the flag held. A shell reads an unquoted "#" as the start of a
+// comment, so this is how a command line names an Agent without quoting
+// (docs/constitution.md#actors-and-ascii-textarea-syntax). A trailing
+// `--agent` with no name is left for the command to refuse.
+func ExpandAgentFlags(args []string) []string {
+	out := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "--agent" && i+1 < len(args):
+			out = append(out, agentSpelling(args[i+1]))
+			i++
+		case strings.HasPrefix(a, "--agent="):
+			out = append(out, agentSpelling(strings.TrimPrefix(a, "--agent=")))
+		default:
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+func agentSpelling(name string) string {
+	name = strings.TrimSpace(name)
+	if strings.HasPrefix(name, AgentPrefix) {
+		return name
+	}
+	return AgentPrefix + name
+}

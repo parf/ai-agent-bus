@@ -11,8 +11,8 @@ import (
 
 func exchangeFixture() (protocol.Envelope, protocol.Envelope) {
 	at := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
-	r := protocol.Envelope{ID: "original", From: "alice@h", To: "worker@h", Topic: "job", Tag: "tag", At: at, Deadline: at.Add(time.Second)}
-	e := protocol.Envelope{ID: "receipt", From: "worker@h", To: "alice@h", Topic: "job", Tag: "tag", Receipt: "done", Re: r.ID, At: at.Add(2 * time.Second)}
+	r := protocol.Envelope{ID: "original", From: "alice@h", To: "#worker@h", Topic: "job", Tag: "tag", At: at, Deadline: at.Add(time.Second)}
+	e := protocol.Envelope{ID: "receipt", From: "#worker@h", To: "alice@h", Topic: "job", Tag: "tag", Receipt: "done", Re: r.ID, At: at.Add(2 * time.Second)}
 	return r, e
 }
 
@@ -226,16 +226,19 @@ func TestExchangeRenderingPreservesEvidenceAndMissingHistory(t *testing.T) {
 func TestRedirectedExchangeEvidenceIsScopedToTheViewer(t *testing.T) {
 	b := core.New()
 	b.SetDaemonOwner("owner@h")
-	for _, name := range []string{"alice@h", "worker@h", "third@h"} {
+	known(t, b, "alice@h")
+	// The third party is an agent anybody may write to: a User's own record
+	// names nobody on its allow list, so a worker could not answer one.
+	for _, name := range []string{"#worker@h", "#third@h"} {
 		if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: name, Owner: "owner@h", Allow: []string{"*"}}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	request, err := b.Send(protocol.Envelope{From: "alice@h", To: "worker@h", Topic: "input", Tag: "one", ReplyTo: &protocol.ReplyTo{Name: "third@h", Topic: "output", Tag: "two"}})
+	request, err := b.Send(protocol.Envelope{From: "alice@h", To: "#worker@h", Topic: "input", Tag: "one", ReplyTo: &protocol.ReplyTo{Name: "#third@h", Topic: "output", Tag: "two"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt, err := b.Send(protocol.Envelope{From: "worker@h", To: "third@h", Topic: "output", Tag: "two", Receipt: "done", Re: request.ID})
+	receipt, err := b.Send(protocol.Envelope{From: "#worker@h", To: "#third@h", Topic: "output", Tag: "two", Receipt: "done", Re: request.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +250,7 @@ func TestRedirectedExchangeEvidenceIsScopedToTheViewer(t *testing.T) {
 	if len(requester) != 1 || requester[0].ID != request.ID || requester[0].Done {
 		t.Fatal("requester's partial history invented completion")
 	}
-	third := exchanges(b.Recent("third@h"))
+	third := exchanges(b.Recent("#third@h"))
 	if len(third) != 1 || third[0].ID != receipt.ID || third[0].Done || third[0].Re != request.ID || third[0].Notice == "" {
 		t.Fatal("third-party partial history invented original or lost reference")
 	}

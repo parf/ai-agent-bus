@@ -27,7 +27,7 @@ func forged() protocol.User {
 
 		Kind: "forged", Administrator: true, DaemonOwner: true,
 		CanEdit: true, CanSetEmail: true, CanActivate: true, CanRemove: true,
-		Groups: []string{"@administrators"}, Services: []string{"svc@h"},
+		Groups: []string{"@administrators"}, Services: []string{"#svc@h"},
 	}
 }
 
@@ -49,7 +49,7 @@ func derivedClaims(u protocol.User) []string {
 
 func TestRestoredDerivedFieldsAreStrippedAndDoNotReachTheNextSnapshot(t *testing.T) {
 	b := New()
-	b.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{forged()}})
+	b.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{forged()}, Records: []protocol.Record{userRecord("alice@h")}})
 
 	b.mu.Lock()
 	stored := b.users["alice@h"]
@@ -79,7 +79,7 @@ func TestRestoredDerivedFieldsAreStrippedAndDoNotReachTheNextSnapshot(t *testing
 func TestRestoreKeepsDurableProfileLifecycleAndProviderState(t *testing.T) {
 	b := New()
 	want := forged()
-	b.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{want}})
+	b.Restore(ports.Snapshot{Clean: true, Users: []protocol.User{want}, Records: []protocol.Record{userRecord("alice@h")}})
 	b.mu.Lock()
 	got := b.users["alice@h"]
 	b.mu.Unlock()

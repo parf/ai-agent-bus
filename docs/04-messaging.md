@@ -91,7 +91,7 @@ and who?" to anyone whose access allows the lookup.
 
 ## Request and reply
 
-**Pending for 0.7:** a 👤 User takes a direct send from an Agent exactly when
+**Built in 0.7.5:** a 👤 User takes a direct send from an Agent exactly when
 that Agent's ACL admits the User — whoever may reach an Agent may be answered
 by it — and never from another User. The daemon does not recognize replies:
 matching stays the sender's topic + tag. A User is not a topic recipient, no forwarding route
@@ -378,7 +378,7 @@ an inbox rather than hand it to whoever is connected.
 | | |
 |---|---|
 | who writes Deliver-To | whoever **manages** the channel — its owner or a Maintainer ([record authority](01-identity-and-roles.md#record-authority)) — at registration and afterwards. Delivery is granted, never taken |
-| who may be on it | 👤 **users** and 👾 **agents**: the kinds that have an inbox here. A 📡 service has none, and a channel is a destination rather than a reader. **Pending for 0.7:** 👾 agents, 👥 groups, 📮 queues and 📣 topics, but not 👤 users ([constitution § Channels](constitution.md#-channels)) |
+| who may be on it | 👾 **agents** and `@group` terms; a 👤 user takes no published copy and is refused for its kind. A 📡 service has none. **Pending for 0.7** ([K.15](../Plans/MVP/0.7.0-TODO.md)): 📮 queues and 📣 topics as recipients ([constitution § Channels](constitution.md#-channels)) |
 | `@group` | allowed, and **expanded at publication**, nested groups included, each name once. Membership therefore decides delivery when the publish happens, not when the list was written |
 | taking **yourself** off | always allowed, because it is your inbox that fills. Putting yourself back on is the manager's call |
 | checked again at **every publish** | that the recipient still exists, is on the bus and is **active**. **Pending for 0.7:** an inactive recipient's copy is discarded, counted as its `dropped` and logged, while the publication succeeds for the others ([constitution](constitution.md#common-record-fields)). A suspended user takes no copies, and neither does a name that has since been unregistered. Neither counts as a drop: there is nothing it was entitled to take |
@@ -430,9 +430,12 @@ lifetime, not recovered state.
 The daemon takes SQLite's exclusive lock when it opens the database, so a
 second daemon on the same file cannot serve. A missing database is created only
 by `agent-busd -init` or `-create`, never silently at start; an unreadable,
-damaged or incompatible one refuses the start. **Pending for 0.7:** a queue
-whose durable record is absent or cannot hold one is ignored and reported under
-the [incorrect-record rule](constitution.md#persistence-and-loading).
+damaged or incompatible one refuses the start. A queue whose durable record is
+absent, ignored or cannot hold one is ignored and reported under the
+[incorrect-record rule](constitution.md#persistence-and-loading), and stays in
+the database. A record later registered under that name starts with no stored
+queue: its first commit drops the old one, so its messages never reach a new
+owner.
 
 ## Administrative crash recovery
 

@@ -28,32 +28,32 @@ func recordID(t *testing.T, b *Bus, name string) uint32 {
 func TestRecordIDsAreStableAndNeverReused(t *testing.T) {
 	d := memory.NewState()
 	b := durabilityFixture(t, d)
-	svc := recordID(t, b, "svc@h")
+	svc := recordID(t, b, "#svc@h")
 	if svc == 0 {
 		t.Fatal("a stored record has no ID")
 	}
 	descr := "edited"
-	if _, err := b.Manage("alice@h", Management{Name: "svc@h", Descr: &descr}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Descr: &descr}); err != nil {
 		t.Fatal(err)
 	}
-	if recordID(t, b, "svc@h") != svc {
+	if recordID(t, b, "#svc@h") != svc {
 		t.Fatal("an edit changed the record's ID")
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "last@h", Owner: "alice@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#last@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
-	last := recordID(t, b, "last@h")
-	if err := b.Unregister("last@h", "alice@h"); err != nil {
+	last := recordID(t, b, "#last@h")
+	if err := b.Unregister("#last@h", "alice@h"); err != nil {
 		t.Fatal(err)
 	}
 	recovered := recoverFrom(t, d)
-	if recordID(t, recovered, "svc@h") != svc {
+	if recordID(t, recovered, "#svc@h") != svc {
 		t.Fatal("a restart changed the record's ID")
 	}
-	if _, err := recovered.Register(protocol.Record{Kind: protocol.KindAgent, Name: "next@h", Owner: "alice@h"}); err != nil {
+	if _, err := recovered.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#next@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if next := recordID(t, recovered, "next@h"); next <= last {
+	if next := recordID(t, recovered, "#next@h"); next <= last {
 		t.Fatalf("a record created after a restart reused ID %d (the removed record had %d)", next, last)
 	}
 }
@@ -80,9 +80,9 @@ func TestUserIDsAreStable(t *testing.T) {
 func TestIDIndexIsRebuiltOnLoad(t *testing.T) {
 	d := memory.NewState()
 	b := durabilityFixture(t, d)
-	svc := recordID(t, b, "svc@h")
+	svc := recordID(t, b, "#svc@h")
 	recovered := recoverFrom(t, d)
-	if name, ok := recovered.RecordName(svc); !ok || name != "svc@h" {
+	if name, ok := recovered.RecordName(svc); !ok || name != "#svc@h" {
 		t.Fatalf("ID %d answers %q, %v after a restart", svc, name, ok)
 	}
 }
@@ -93,10 +93,10 @@ func TestIDExhaustionRefusesRatherThanWraps(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	b.Restore(ports.Snapshot{NextRecordID: ^uint32(0)})
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "late@h", Owner: "admin@h"}); !errors.Is(err, ErrExhausted) {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#late@h", Owner: "admin@h"}); !errors.Is(err, ErrExhausted) {
 		t.Fatalf("got %v", err)
 	}
-	if _, ok := b.Lookup("admin@h", "late@h"); ok {
+	if _, ok := b.Lookup("admin@h", "#late@h"); ok {
 		t.Fatal("a refused registration was kept")
 	}
 }
@@ -104,7 +104,7 @@ func TestIDExhaustionRefusesRatherThanWraps(t *testing.T) {
 // An internal ID is on no answer.
 func TestIDsAreNotPublic(t *testing.T) {
 	b := durabilityFixture(t, nil)
-	r, ok := b.Lookup("alice@h", "svc@h")
+	r, ok := b.Lookup("alice@h", "#svc@h")
 	if !ok || r.ID == 0 {
 		t.Fatal("fixture")
 	}

@@ -58,13 +58,15 @@ existing records are registered again under the kind they should carry.
 
 ### Restoring a record
 
-Restore asks the same shape question registration does, and **refuses** a record
-this version could not have registered: an unknown kind, a
-[service](06-services.md#it-has-no-queue-here) without an address or a protocol,
-a service carrying queue settings or a queue, a
-[secret](06-services.md#secrets) on anything but a service, or
-[Personal](#personal-and-shared) on anything but an agent. The daemon names the
-record and the reason rather than converting it or coming up pretending.
+Restore asks the same shape question registration does. A record this version
+could not have registered is [ignored and reported](constitution.md#persistence-and-loading),
+never converted: an unknown kind, a kind that disagrees with the name's `#`, a
+[service](06-services.md#it-has-no-queue-here) without an address or a
+protocol, a service carrying queue settings or a queue, a
+[secret](06-services.md#secrets) on a kind that holds none, an owner that is
+not a User, or a [Personal](#personal-and-shared) record whose lists reach
+outside its cohort. The report names the record and the reason, and the rest
+of the node starts.
 
 ## How to call it
 
@@ -182,57 +184,31 @@ cfg=$(agent-bus agent-template "$AGENT_BUS_NAME")
 
 ## Personal and shared
 
-An owner may tag their agent **Personal**. Without that tag, it is
-**non-Personal**. The tag hides personal agents from the main web pages to
-reduce clutter; access works exactly as for any other record.
-The stored classification, assignment limits and web grouping are built.
+A record is **Personal** or **shared**. Personal states an intended audience —
+the Owner and the agents that Owner owns — and keeps the web interface
+readable: a few company-wide shared agents stay on the main pages while the
+hundreds of per-user agents sit apart. Built in 0.7.5.
 
 | Rule | Requirement |
 |---|---|
-| Carried by | an 👾 `agent` and nothing else; the tag is not a kind ([five record kinds](#five-record-kinds)) |
-| ACL entries | Only other agents; a user's own queue does not turn that user into one |
-| Groups | Not valid ACL entries, even when every member is an agent |
-| Runtime `@owner` | Not valid; a Personal agent lists the agents it admits directly |
-| Sharing with users | Requires making the agent non-Personal; a user entry cannot coexist with the Personal tag |
-| Maintainers | Cannot be assigned while the agent is Personal; shared maintenance requires making it non-Personal |
-| Broad access | The [wildcard grant](02-access.md#acl) is not valid for a Personal agent |
-| Main web pages | Exclude Personal agents; find them in the dedicated tab instead |
-| User's web view | A **Personal** tab shows that user's Personal agents |
-| Daemon owner's web view | Personal agents can be filtered per owner across the node-wide inventory visible through Owner management |
+| Carried by | every kind; the tag is not a kind ([five record kinds](#five-record-kinds)) |
+| 👤 user record | always Personal and cannot be made shared |
+| `allow` and `maintainers` | only the Owner, the Owner's own agents by name, and the runtime [`@owner` and `@agent` terms](02-access.md#acl) |
+| Refused | another user's agent, an ordinary group, a user entry other than the Owner, and the [wildcard grant](02-access.md#acl) — each an error on every save, at creation and after it |
+| Everything else | unaffected: delivery, `deliver_to` and forwarding behave as on a shared record |
+| Main web pages | exclude Personal records; they are on the **Personal** tab instead |
+| Launchers | the [`ab-*` launchers](08-runner-role.md#session-names) register their session agents Personal, with `@owner` in the ACL |
 
-The tag introduces no separate access policy and no sixth kind. Apart from
-these assignment restrictions and web grouping, ordinary
-[access rules](02-access.md#acl), ownership and delivery are unchanged. Hiding
-an agent from the main web pages does not revoke authorized access or remove it
-from the registry.
-
-Users, channels and services cannot carry Personal. The owner extended the
-classification to every kind on 2026-09-21; see the pending note below.
-
-**Pending for 0.7:** Personal is no longer an agent-only tag. Every kind
-carries it, and a 👤 is always Personal and cannot be made shared, because
-everything not Personal is shared and a User is not. Its purpose is to keep
-the web interface readable: a few company-wide shared agents stay on the main
-pages while the hundreds of per-user agents sit apart. Personal states an
-intended audience — the Owner and the
-agents that Owner owns — rather than only a web classification, and the
-assignment rules follow that meaning instead of forbidding assignment
-outright. The Owner may name their own agents in both the ACL and Maintainers,
-directly or through the runtime
-[`@owner` and `@agent` terms](02-access.md#acl). What stays invalid is every
-term reaching outside that cohort: another user's agent, an ordinary group, a
-user entry other than the Owner, and the wildcard grant, each an error on every
-save of `allow` or `maintainers`, at creation and after it. Personal restricts
-nothing else: delivery, `deliver_to` and forwarding are unaffected. The
-[`ab-*` launchers](08-runner-role.md#session-names) register their session
-agents as Personal, which is what keeps a node's session records out of the
-shared web pages while their Owner still reaches them.
+Hiding a record from the main web pages does not revoke authorized access or
+remove it from the registry.
 
 <details>
 <summary>How the stored classification changes</summary>
 
 Only the owner changes Personal. A new registration may state it; an agent
-refreshing its metadata preserves the owner's stored choice. A request that
+refreshing its metadata preserves the owner's stored choice. A stored record
+whose lists reach outside its cohort is
+[ignored and reported](constitution.md#persistence-and-loading) at load. A request that
 changes Personal and its assignments is checked as one final record, so an
 owner can remove sharing while enabling Personal, or disable Personal while
 adding sharing, in one operation.

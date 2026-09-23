@@ -39,6 +39,8 @@ export type Record_ = { name: string; kind: string; addr?: string; descr?: strin
   // not, so this is what a record says about itself, not a filter to apply
   // here (docs/02-access.md#acl).
   allow?: string[];
+  // Personal records admit only their owner's cohort (docs/03-records.md#personal-and-shared).
+  personal?: boolean;
   // How to call it, and whether anything is actually serving it. A registry
   // entry says a name exists; these say whether a call through the bus will
   // reach anyone (docs/05-discovery.md#what-a-listing-answers).
@@ -107,7 +109,7 @@ export class Bus {
     return text ? JSON.parse(text) : null;
   }
 
-  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[] }, createOnly = false): Promise<Record_> {
+  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; personal?: boolean }, createOnly = false): Promise<Record_> {
     return this.#call("POST", "/register", rec, undefined, createOnly ? { "If-None-Match": "*" } : {});
   }
 
@@ -145,16 +147,20 @@ export class Bus {
 // A session that was launched by a plugin manifest cannot be told its own
 // name, so it derives one: runtime plus where it is working, which is how a
 // human refers to a session anyway. The NATS version names channels the same way.
-// The rule is docs/01-identity-and-roles.md#names — a-z0-9._- either side, 64 total.
+// The rule is docs/01-identity-and-roles.md#names — a-z0-9._- either side, 64 total,
+// and an Agent's name begins with "#", which counts toward the 64.
 export function defaultName(env: NodeJS.ProcessEnv = process.env, separator: "." | "/" = "."): string {
   const realm = slug(env.AGENT_BUS_REALM || hostname());
   const runtime = slug(env.AGENT_BUS_RUNTIME || "agent");
   const where = slug(env.AGENT_BUS_CWD || process.cwd());
   // Trim from the front: the tail of a path is the part that identifies it.
-  const room = MAX_NAME - realm.length - 1 - runtime.length - 1;
+  const room = MAX_NAME - AGENT_PREFIX.length - realm.length - 1 - runtime.length - 1;
   const tail = where.length > room ? where.slice(where.length - room) : where;
-  return `${runtime}${separator}${trimEdges(tail)}@${realm}`;
+  return `${AGENT_PREFIX}${runtime}${separator}${trimEdges(tail)}@${realm}`;
 }
+
+// AGENT_PREFIX begins every Agent's name (docs/constitution.md#actors-and-ascii-textarea-syntax).
+export const AGENT_PREFIX = "#";
 
 const MAX_NAME = 64;
 

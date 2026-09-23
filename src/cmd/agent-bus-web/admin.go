@@ -554,17 +554,21 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		owners := map[string]bool{}
 		allServices, myServices, personalServices, allChannels, allAgents, myAgents := 0, 0, 0, 0, 0, 0
 		for _, record := range records {
+			// Every kind may be Personal from 0.7, and a User's own record
+			// always is: the main collections show shared records only, and
+			// the Personal tab the rest but for users, whose page is Users.
+			// See docs/03-records.md#personal-and-shared.
 			switch {
+			case record.Personal:
+				if record.Kind != protocol.KindUser && (v.DaemonOwner || record.Owner == v.You) {
+					personalServices++
+				}
 			case channelRecord(record.Kind):
 				allChannels++
-			case agentRecord(record.Kind) && !record.Personal:
+			case agentRecord(record.Kind):
 				allAgents++
 				if record.Owner == v.You {
 					myAgents++
-				}
-			case record.Personal:
-				if v.DaemonOwner || record.Owner == v.You {
-					personalServices++
 				}
 			default:
 				allServices++
@@ -573,14 +577,14 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				}
 			}
 			if v.PersonalPage {
-				if !agentRecord(record.Kind) || !record.Personal {
+				if !record.Personal || record.Kind == protocol.KindUser {
 					continue
 				}
 				owners[record.Owner] = true
 				if v.OwnerFilter != "" && record.Owner != v.OwnerFilter {
 					continue
 				}
-			} else if listPathFor(record.Kind) != r.URL.Path || (v.Agents && record.Personal) {
+			} else if listPathFor(record.Kind) != r.URL.Path || record.Personal {
 				continue
 			}
 			if v.Mine == "my" && record.Owner != v.You {
@@ -701,7 +705,8 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			}
 			v.KindLinks = []viewLink{
 				{Href: pageURL(filterPath, cloneValues(kindBase)), Label: "All", Current: v.Kind == ""},
-				{Href: queryWith(filterPath, kindBase, "kind", protocol.KindUser), Label: entityLabel(protocol.KindUser), Current: v.Kind == protocol.KindUser},
+				// A user's record is Personal and is not listed here, so no
+				// switch offers it (docs/03-records.md#personal-and-shared).
 				{Href: queryWith(filterPath, kindBase, "kind", protocol.KindQueue), Label: entityLabel(protocol.KindQueue), Current: v.Kind == protocol.KindQueue},
 				{Href: queryWith(filterPath, kindBase, "kind", protocol.KindPubSub), Label: entityLabel(protocol.KindPubSub), Current: v.Kind == protocol.KindPubSub},
 			}
@@ -1432,10 +1437,10 @@ var serviceDetail = template.Must(template.New("service").Funcs(template.FuncMap
 <p><a id=settings class=editor-link href="{{href .}}/edit?name={{.Name}}{{with $.Return}}&amp;return={{urlquery .}}{{end}}">Edit settings</a></p></section>
 <p><a class=danger href="/service-danger?name={{.Name}}">Danger Zone</a></p>
 {{else}}<p>{{.Descr}}</p><p>You can view this record; its owner and assigned maintainers can manage it.</p>{{end}}{{end}}` + activityViewTemplate))
-var serviceDanger = template.Must(template.New("service-danger").Funcs(template.FuncMap{"readerCount": readerCount, "href": detailPath, "titleMark": titleMark}).Parse(shellTitle("records", `Danger Zone · {{.Record.Name}}`) + `
+var serviceDanger = template.Must(template.New("service-danger").Funcs(template.FuncMap{"readerCount": readerCount, "href": detailPath, "titleMark": titleMark, "holdsConfig": holdsConfig}).Parse(shellTitle("records", `Danger Zone · {{.Record.Name}}`) + `
 {{with .Record}}<p><a href="{{href .}}?name={{.Name}}">Back to {{.Name}}</a></p>
 <div class=page-title><h1>{{titleMark "problem"}} Danger Zone · {{.Name}}</h1></div>` + formErrorSummary + `
-<h2>Replace configuration</h2><form id=form-configure method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=configure><label>New configuration <textarea name=config rows=6 cols=60 required autocomplete=off aria-invalid="{{if $.Form.Invalid "config"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "config"}}configure-error{{end}}"></textarea></label><p>Existing private configuration and a refused replacement are never displayed.</p>{{if $.Form.Is "configure"}}<p class=warn id=configure-error>{{$.Form.Error}}</p>{{end}}<button>Replace configuration</button></form>
+{{if holdsConfig .Kind}}<h2>Replace configuration</h2><form id=form-configure method=post action=/service><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=configure><label>New configuration <textarea name=config rows=6 cols=60 required autocomplete=off aria-invalid="{{if $.Form.Invalid "config"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "config"}}configure-error{{end}}"></textarea></label><p>Existing private configuration and a refused replacement are never displayed.</p>{{if $.Form.Is "configure"}}<p class=warn id=configure-error>{{$.Form.Error}}</p>{{end}}<button>Replace configuration</button></form>{{end}}
 {{if .CanTransfer}}{{if ne .Name .Owner}}<h2>Transfer ownership</h2><form id=form-transfer method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=transfer><label>New owner <input name=owner required value="{{if $.Form.Is "transfer"}}{{$.Form.Value "owner"}}{{end}}" aria-invalid="{{if $.Form.Invalid "owner"}}true{{else}}false{{end}}" aria-describedby="{{if $.Form.Invalid "owner"}}transfer-error{{end}}"></label>{{if $.Form.Is "transfer"}}<p class=warn id=transfer-error>{{$.Form.Error}}</p>{{end}}<p>The new owner must have a registered identity. Existing service credentials remain valid; transfer does not revoke copies already held.</p><button>Continue to confirmation</button></form>{{end}}{{end}}
 <h2>Remove registration</h2><form method=post action=/service-confirm><input type=hidden name=name value="{{.Name}}"><input type=hidden name=action value=delete><p><strong>No registration, no access:</strong> the credential goes with the address. Drain the queue and stop readers first; the confirmation page re-reads both before describing the consequence.</p><button>Continue to confirmation</button></form>{{end}}`))
 var serviceConfirm = template.Must(template.New("service-confirm").Funcs(template.FuncMap{"readerSnapshot": readerSnapshot, "readerCount": readerCount, "titleMark": titleMark}).Parse(shellTitle("records", `{{if eq .Action "transfer"}}Confirm ownership transfer{{else}}Confirm removal{{end}} · {{.Record.Name}}`) + `
@@ -1473,3 +1478,9 @@ var groupEdit = template.Must(template.New("group-edit").Funcs(template.FuncMap{
 <p><a href="/group?name={{urlquery .GroupName}}">Back to {{.GroupName}}</a></p><div class=page-title><h1>{{titleMark "groups"}} Edit <code>{{.GroupName}}</code></h1></div>
 ` + formErrorSummary + `<form id=form-save class="editor-card task-card" method=post action=/groups><input type=hidden name=action value=save>` +
 	`{{template "group-fields" .}}<div class=form-actions><button>Save members</button></div></form>` + groupFields))
+
+// holdsConfig says whether a kind carries a configuration at all: an Agent, a
+// Service and a Group do, and nothing else (docs/constitution.md#-private-values).
+func holdsConfig(kind string) bool {
+	return kind == protocol.KindAgent || kind == protocol.KindService || kind == protocol.KindGroup
+}

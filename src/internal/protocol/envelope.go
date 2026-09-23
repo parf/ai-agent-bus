@@ -299,6 +299,9 @@ const (
 	KindQueue   = "queue"   // a queue created to be shared
 	KindPubSub  = "pubsub"  // copied to every subscriber, keeps nothing
 	KindService = "service" // something external, not on this bus
+	// KindGroup is a named list of actors, whose allow list is its
+	// membership (docs/constitution.md#-group). It has no queue.
+	KindGroup = "group"
 )
 
 // Kinds is the whole set, in the order an error message should name them.

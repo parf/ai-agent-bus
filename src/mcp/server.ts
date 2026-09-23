@@ -77,12 +77,12 @@ const tools = [
   {
     name: "ab_send",
     description:
-      "Send a message to a registered participant by name (user@realm). This means the bus accepted it, not that the peer read it — only a reply proves that. " +
+      "Send a message to a registered participant by name: an agent's name begins with # (#runtime/session@host), a user's does not. This means the bus accepted it, not that the peer read it — only a reply proves that. " +
       "Pass a topic and a tag you have not used before if you intend to wait for the answer: a reply is matched on both.",
     inputSchema: {
       type: "object",
       properties: {
-        to: { type: "string", description: "receiver, as name@realm" },
+        to: { type: "string", description: "receiver: #agent-name@realm for an agent, or a user's or channel's name" },
         text: { type: "string", description: "the message body" },
         topic: { type: "string", description: "conversation id, e.g. one exchange" },
         tag: { type: "string", description: "your label for this message; a reply carries it back" },
@@ -277,36 +277,12 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         if (!title) return text(renameHelp(), true);
         const next = derive(title);
         if (next === bus.name) return text(`already registered as ${bus.name}. ${renameHelp()}`, true);
+        // A new address is a record its User owns, and only that User is
+        // issued its credential, so a face holding one agent's token cannot
+        // move to it. The ab-* launchers act for the User and can
+        // (Plans/MVP/QUESTIONS.md#open-questions, Q105).
+        return text(`renaming ${bus.name} needs an ab-* launcher: the new address would be ${next}, and this face holds only its own agent's credential. No address was changed.`, true);
 
-        const previous = bus;
-        // A reader of its own inbox is a waiter, and the daemon refuses to
-        // unregister an address somebody is waiting on. Stop reading first.
-        push?.stop();
-        push = undefined;
-        let moved: Bus;
-        try {
-          // New address first: a failure here leaves the session exactly where
-          // it was, which is the only safe direction to fail in.
-          await previous.register({ name: next, kind: "agent", descr: title, allow: withOwnerACL(undefined) }, true);
-          moved = await previous.as(next);
-        } catch (err) {
-          readInbox();
-          throw err;
-        }
-        bus = moved;
-        readInbox();
-
-        // Releasing the old address is the part that is allowed to fail: it is
-        // busy exactly when dropping it would lose something.
-        let old = `released ${previous.name}`;
-        try {
-          await previous.unregister(previous.name);
-        } catch (err) {
-          old = err instanceof BusError
-            ? `kept ${previous.name}: ${err.message}`
-            : `kept ${previous.name}: ${err}`;
-        }
-        return text(`registered as ${bus.name} (${title}); ${old}. Peers that knew the old address must look it up again with ab_ls.`);
       }
       default:
         return text(`unknown tool ${req.params.name}`, true);

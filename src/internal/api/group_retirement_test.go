@@ -78,10 +78,10 @@ func TestAnEmptiedGroupSurvivesASnapshotRoundTrip(t *testing.T) {
 	if err := bus.SetGroup("admin@h", "@ops", []string{"maint@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if code, body := post(t, s, token, "alice@h", "/register", `{"kind":"agent","name":"svc@h","allow":["alice@h","@ops"]}`); code != 200 {
+	if code, body := post(t, s, token, "alice@h", "/register", `{"kind":"agent","name":"#svc@h","allow":["alice@h","@ops"]}`); code != 200 {
 		t.Fatalf("register answered %d: %s", code, body)
 	}
-	if code, body := post(t, s, token, "alice@h", "/manage", `{"kind":"agent","name":"svc@h","maintainers":"@ops"}`); code != 200 {
+	if code, body := post(t, s, token, "alice@h", "/manage", `{"kind":"agent","name":"#svc@h","maintainers":"@ops"}`); code != 200 {
 		t.Fatalf("assigning maintainers answered %d: %s", code, body)
 	}
 	if code, body := post(t, s, token, "admin@h", "/group", `{"kind":"agent","name":"@ops","members":[]}`); code != 200 {
@@ -97,7 +97,7 @@ func TestAnEmptiedGroupSurvivesASnapshotRoundTrip(t *testing.T) {
 	if len(members) != 0 {
 		t.Errorf("the emptied group came back with members: %v", members)
 	}
-	rec, found := restarted.Lookup("alice@h", "svc@h")
+	rec, found := restarted.Lookup("alice@h", "#svc@h")
 	if !found {
 		t.Fatal("the record did not survive the snapshot")
 	}
@@ -114,14 +114,14 @@ func TestEmptyingAGroupLeavesTheRecordsThatNameIt(t *testing.T) {
 	if err := bus.SetGroup("admin@h", "@ops", []string{"maint@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if code, body := post(t, s, token, "alice@h", "/register", `{"kind":"agent","name":"svc@h","allow":["alice@h","@ops"]}`); code != 200 {
+	if code, body := post(t, s, token, "alice@h", "/register", `{"kind":"agent","name":"#svc@h","allow":["alice@h","@ops"]}`); code != 200 {
 		t.Fatalf("register answered %d: %s", code, body)
 	}
-	if code, body := post(t, s, token, "alice@h", "/manage", `{"kind":"agent","name":"svc@h","maintainers":"@ops"}`); code != 200 {
+	if code, body := post(t, s, token, "alice@h", "/manage", `{"kind":"agent","name":"#svc@h","maintainers":"@ops"}`); code != 200 {
 		t.Fatalf("assigning maintainers answered %d: %s", code, body)
 	}
 	// The member manages it through the group, which is what emptying revokes.
-	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"svc@h","descr":"through the group"}`); code != 200 {
+	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"#svc@h","descr":"through the group"}`); code != 200 {
 		t.Fatalf("a member could not manage through the group: %d %s", code, body)
 	}
 
@@ -132,13 +132,13 @@ func TestEmptyingAGroupLeavesTheRecordsThatNameIt(t *testing.T) {
 	if _, ok := bus.Groups("admin@h")["@ops"]; !ok {
 		t.Error("emptying the membership took the group name with it")
 	}
-	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"svc@h","descr":"revoked"}`); code != 403 {
+	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"#svc@h","descr":"revoked"}`); code != 403 {
 		t.Errorf("a former member still confers management: %d %s", code, body)
 	}
 	// The record still names the emptied group in both places. Deletion
 	// could not have left this true, which is why it was refused above.
 	var rec protocol.Record
-	req := httptest.NewRequest("GET", "/lookup?name=svc@h", nil)
+	req := httptest.NewRequest("GET", "/lookup?name=%23svc@h", nil)
 	req.Header.Set(HeaderToken, token("alice@h"))
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
@@ -157,7 +157,7 @@ func TestEmptyingAGroupLeavesTheRecordsThatNameIt(t *testing.T) {
 	if code, body := post(t, s, token, "admin@h", "/group", `{"kind":"agent","name":"@ops","members":["maint@h"]}`); code != 200 {
 		t.Fatalf("refilling answered %d: %s", code, body)
 	}
-	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"svc@h","descr":"restored"}`); code != 200 {
+	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"#svc@h","descr":"restored"}`); code != 200 {
 		t.Errorf("refilling the group did not restore management: %d %s", code, body)
 	}
 }

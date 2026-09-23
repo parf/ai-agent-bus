@@ -84,16 +84,15 @@ await_title "replacement bus resets its calls" "$NEW" "agent-busd $VERSION ; Cal
 timeout 5 "$BIN/agent-bus" status >/dev/null
 await_title "replacement bus still serves the inherited socket" "$NEW" "agent-busd $VERSION ; Calls: 1 ; bus"
 
-# Replies enter the caller's inbox under an explicit fixture grant.
-"$BIN/agent-bus" register "$AGENT_BUS_NAME" --kind agent --allow title@test >/dev/null
-"$BIN/agent-bus" start title@test --algo args 'printf "%s"' -4 >"$D/runner.log" 2>&1 &
+# The owner is a User; the agent's own ACL admitting it is what lets the reply in.
+"$BIN/agent-bus" start '#title@test' --allow owner@test --algo args 'printf "%s"' -4 >"$D/runner.log" 2>&1 &
 RUN=$!
-await_title "runner identifies its version and service" "$RUN" "agent-bus-runner $VERSION ; Calls: 0 ; title@test"
+await_title "runner identifies its version and service" "$RUN" "agent-bus-runner $VERSION ; Calls: 0 ; #title@test"
 for i in {1..5}; do
   same "runner still executes its script and returns its argument" \
-    "$(timeout 8 "$BIN/agent-bus" call title@test --wait 5s "hello-$i" 2>>"$D/runner.log" | sed -n 's/.*"body":"\([^"]*\)".*/\1/p')" "hello-$i"
+    "$(timeout 8 "$BIN/agent-bus" call '#title@test' --wait 5s "hello-$i" 2>>"$D/runner.log" | sed -n 's/.*"body":"\([^"]*\)".*/\1/p')" "hello-$i"
 done
-await_title "runner counts messages taken" "$RUN" "agent-bus-runner $VERSION ; Calls: 5 ; title@test"
+await_title "runner counts messages taken" "$RUN" "agent-bus-runner $VERSION ; Calls: 5 ; #title@test"
 sleep 1.1
-same "blocked runner does not invent calls" "$(title "$RUN")" "agent-bus-runner $VERSION ; Calls: 5 ; title@test"
+same "blocked runner does not invent calls" "$(title "$RUN")" "agent-bus-runner $VERSION ; Calls: 5 ; #title@test"
 same "build_info is build time, not query time" "$("$BIN/agent-busd" --version)" "$(printf '%s\nbuild_info: %s' "$VERSION" "$stamp")"

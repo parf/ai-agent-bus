@@ -79,11 +79,11 @@ func TestPolicyChangesCancelBlockedReaders(t *testing.T) {
 func TestManagementRejectsPartialInvalidChanges(t *testing.T) {
 	b := New()
 	known(t, b, "owner@h")
-	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h", Descr: "original"})
-	if _, err := b.Manage("owner@h", Management{Name: "svc@h", Descr: ptr("lost"), Bound: ptr(-1)}); !errors.Is(err, ErrBound) {
+	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h", Descr: "original"})
+	if _, err := b.Manage("owner@h", Management{Name: "#svc@h", Descr: ptr("lost"), Bound: ptr(-1)}); !errors.Is(err, ErrBound) {
 		t.Fatal(err)
 	}
-	got, _ := b.Lookup("owner@h", "svc@h")
+	got, _ := b.Lookup("owner@h", "#svc@h")
 	if got.Descr != "original" {
 		t.Fatal("invalid change partly applied")
 	}
@@ -94,17 +94,17 @@ func TestManagementRejectsPartialInvalidChanges(t *testing.T) {
 func TestCanceledReaderCannotRecreateRemovedInbox(t *testing.T) {
 	b := New()
 	known(t, b, "owner@h")
-	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h"})
-	w := &waiter{caller: "svc@h", ch: make(chan protocol.Envelope, 1), stopped: make(chan error, 1)}
-	b.inboxes["svc@h"].waiters = append(b.inboxes["svc@h"].waiters, w)
-	if _, err := b.Manage("owner@h", Management{Name: "svc@h", Disabled: ptr(true)}); err != nil {
+	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h"})
+	w := &waiter{caller: "#svc@h", ch: make(chan protocol.Envelope, 1), stopped: make(chan error, 1)}
+	b.inboxes["#svc@h"].waiters = append(b.inboxes["#svc@h"].waiters, w)
+	if _, err := b.Manage("owner@h", Management{Name: "#svc@h", Disabled: ptr(true)}); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.Unregister("svc@h", "owner@h"); err != nil {
+	if err := b.Unregister("#svc@h", "owner@h"); err != nil {
 		t.Fatal(err)
 	}
-	b.settle("svc@h", w)
-	if _, exists := b.inboxes["svc@h"]; exists {
+	b.settle("#svc@h", w)
+	if _, exists := b.inboxes["#svc@h"]; exists {
 		t.Fatal("canceled reader recreated an unregistered inbox")
 	}
 }
@@ -114,11 +114,11 @@ func TestChannelManagersCanRemoveButStrangersCannot(t *testing.T) {
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "owner@h")
 	b.Register(protocol.Record{Name: "news@h", Owner: "owner@h", Allow: []string{"*"}, Kind: protocol.KindPubSub})
-	known(t, b, "subscriber@h", "stranger@h", "maint@h")
-	if _, err := b.Manage("owner@h", Management{Name: "news@h", Subs: ptr([]string{"subscriber@h"})}); err != nil {
+	known(t, b, "#subscriber@h", "stranger@h", "maint@h")
+	if _, err := b.Manage("owner@h", Management{Name: "news@h", Subs: ptr([]string{"#subscriber@h"})}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.RemoveSubscriber("stranger@h", "news@h", "subscriber@h"); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.RemoveSubscriber("stranger@h", "news@h", "#subscriber@h"); !errors.Is(err, ErrNotOwner) {
 		t.Fatal("stranger removed subscription", err)
 	}
 	if err := b.SetGroup("admin@h", "@ops", []string{"maint@h"}); err != nil {
@@ -127,7 +127,7 @@ func TestChannelManagersCanRemoveButStrangersCannot(t *testing.T) {
 	if _, err := b.Manage("owner@h", Management{Name: "news@h", Maintainers: ptr(protocol.MaintainerList{"@ops"})}); err != nil {
 		t.Fatal(err)
 	}
-	r, err := b.RemoveSubscriber("maint@h", "news@h", "subscriber@h")
+	r, err := b.RemoveSubscriber("maint@h", "news@h", "#subscriber@h")
 	if err != nil || len(r.Subs) != 0 {
 		t.Fatal("channel maintainer could not remove subscription", err)
 	}

@@ -77,9 +77,9 @@ func TestAuditEntriesForEditsAndNoneForTraffic(t *testing.T) {
 	s, tok, rec := journalFixture(t)
 	alice := tok("alice@h")
 	calls := []struct{ path, body, op, target, result string }{
-		{"/register", `{"kind":"agent","name":"svc@h","allow":["bob@h"]}`, "register", "svc@h", "ok"},
-		{"/manage", `{"name":"svc@h","descr":"edited"}`, "manage", "svc@h", "ok"},
-		{"/configure", `{"name":"svc@h","config":{"k":"` + canaryConfig + `"}}`, "configure", "svc@h", "ok"},
+		{"/register", `{"kind":"agent","name":"#svc@h","allow":["bob@h"]}`, "register", "#svc@h", "ok"},
+		{"/manage", `{"name":"#svc@h","descr":"edited"}`, "manage", "#svc@h", "ok"},
+		{"/configure", `{"name":"#svc@h","config":{"k":"` + canaryConfig + `"}}`, "configure", "#svc@h", "ok"},
 		{"/register", `{"name":"db@h","addr":"db:5432","protocol":"postgresql"}`, "register", "db@h", "ok"},
 		{"/secret", `{"name":"db@h","secret":"PW=` + canarySecret + `"}`, "set-secret", "db@h", "ok"},
 		{"/user/state", `{"name":"bob@h","state":"paused"}`, "user-state", "bob@h", "refused 403"},
@@ -88,8 +88,8 @@ func TestAuditEntriesForEditsAndNoneForTraffic(t *testing.T) {
 		send(s, alice, "POST", c.path, c.body, "192.0.2.7:4000")
 	}
 	// Traffic and credentials: no entry.
-	send(s, alice, "POST", "/send", `{"to":"svc@h","body":"`+canaryBody+`"}`, "")
-	send(s, tok("svc@h"), "GET", "/consume?wait=0s", "", "")
+	send(s, alice, "POST", "/send", `{"to":"#svc@h","body":"`+canaryBody+`"}`, "")
+	send(s, tok("#svc@h"), "GET", "/consume?wait=0s", "", "")
 	send(s, alice, "POST", "/token", `{"name":"alice@h"}`, "")
 	send(s, alice, "GET", "/ls", "", "")
 	if len(rec.audit) != len(calls) {
@@ -142,7 +142,7 @@ func TestDebugLogIsTheOwnersAndOnDemand(t *testing.T) {
 	if code, body := send(s, tok("admin@h"), "POST", "/debug", `{"on":true}`, ""); code != 200 || !strings.Contains(body, `"on":true`) {
 		t.Fatalf("owner switch answered %d %s", code, body)
 	}
-	send(s, tok("alice@h"), "POST", "/send", `{"to":"nobody@h","body":"`+canaryBody+`"}`, "")
+	send(s, tok("alice@h"), "POST", "/send", `{"to":"#nobody@h","body":"`+canaryBody+`"}`, "")
 	// The switch that turned it on is the first line; the send is the second.
 	if len(rec.requests) != 2 || rec.requests[1].Caller != "alice@h" || rec.requests[1].Path != "/send" || rec.requests[1].Status != 404 {
 		t.Fatalf("request lines %+v", rec.requests)

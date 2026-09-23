@@ -55,10 +55,10 @@ func TestUserEditsOnlyTheirOwnEmail(t *testing.T) {
 	if _, err := b.EditOwnEmail("alice@h", "not an address"); !errors.Is(err, ErrProfile) {
 		t.Fatalf("invalid self email: %v", err)
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.EditOwnEmail("svc@h", "svc@example.com"); !errors.Is(err, ErrUnknown) {
+	if _, err := b.EditOwnEmail("#svc@h", "svc@example.com"); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("record-only identity edited a profile: %v", err)
 	}
 	if _, err := b.SetUserState("admin@h", "alice@h", "paused"); err != nil {
@@ -74,13 +74,13 @@ func TestUserEditsOnlyTheirOwnEmail(t *testing.T) {
 
 func TestAdministratorUnbansOnlyOrdinaryUsers(t *testing.T) {
 	b := profileAuthorityFixture(t)
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "alice-svc@h", Owner: "alice@h", Allow: []string{"admin@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#alice-svc@h", Owner: "alice@h", Allow: []string{"admin@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.SetUserState("admin@h", "alice@h", "banned"); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.Authenticate("alice-svc@h"); !errors.Is(err, ErrInactive) {
+	if err := b.Authenticate("#alice-svc@h"); !errors.Is(err, ErrInactive) {
 		t.Fatalf("banned owner's service stayed active: %v", err)
 	}
 	views := b.Users("admin@h", nil)
@@ -92,7 +92,7 @@ func TestAdministratorUnbansOnlyOrdinaryUsers(t *testing.T) {
 	if _, err := b.SetUserState("admin@h", "alice@h", "active"); err != nil {
 		t.Fatalf("administrator could not unban ordinary user: %v", err)
 	}
-	if err := b.Authenticate("alice-svc@h"); err != nil {
+	if err := b.Authenticate("#alice-svc@h"); err != nil {
 		t.Fatalf("unban did not restore directly owned service: %v", err)
 	}
 

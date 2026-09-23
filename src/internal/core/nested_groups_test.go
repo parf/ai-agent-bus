@@ -19,7 +19,7 @@ func nestedGroupsFixture(t *testing.T) *Bus {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "worker@h", Owner: "alice@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#worker@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.SetGroup("owner@h", AdministratorsGroup, []string{"owner@h", "admin@h"}); err != nil {
@@ -30,7 +30,7 @@ func nestedGroupsFixture(t *testing.T) *Bus {
 
 func TestNestedGroupsGrantAccessAndManagement(t *testing.T) {
 	b := nestedGroupsFixture(t)
-	if err := b.SetGroup("admin@h", "@leaf", []string{"reader@h", "worker@h"}); err != nil {
+	if err := b.SetGroup("admin@h", "@leaf", []string{"reader@h", "#worker@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.SetGroup("admin@h", "@middle", []string{"@leaf"}); err != nil {
@@ -39,30 +39,30 @@ func TestNestedGroupsGrantAccessAndManagement(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@outer", []string{"@middle", "@missing"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "shared@h", Owner: "alice@h", Allow: []string{"@outer"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#shared@h", Owner: "alice@h", Allow: []string{"@outer"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "managed@h", Owner: "alice@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#managed@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "managed@h", Maintainers: ptr(protocol.MaintainerList{"@outer"})}); err != nil {
+	if _, err := b.Manage("alice@h", Management{Name: "#managed@h", Maintainers: ptr(protocol.MaintainerList{"@outer"})}); err != nil {
 		t.Fatal(err)
 	}
-	for _, caller := range []string{"reader@h", "worker@h"} {
-		if _, err := b.Send(protocol.Envelope{From: caller, To: "shared@h", Body: caller}); err != nil {
+	for _, caller := range []string{"reader@h", "#worker@h"} {
+		if _, err := b.Send(protocol.Envelope{From: caller, To: "#shared@h", Body: caller}); err != nil {
 			t.Fatalf("nested ACL refused %s: %v", caller, err)
 		}
 	}
-	if _, err := b.Send(protocol.Envelope{From: "stranger@h", To: "shared@h"}); !errors.Is(err, ErrNotAllow) {
+	if _, err := b.Send(protocol.Envelope{From: "stranger@h", To: "#shared@h"}); !errors.Is(err, ErrNotAllow) {
 		t.Fatalf("stranger received nested grant: %v", err)
 	}
-	for _, caller := range []string{"reader@h", "worker@h"} {
+	for _, caller := range []string{"reader@h", "#worker@h"} {
 		descr := "changed through nested Maintainers by " + caller
-		if _, err := b.Manage(caller, Management{Name: "managed@h", Descr: &descr}); err != nil {
+		if _, err := b.Manage(caller, Management{Name: "#managed@h", Descr: &descr}); err != nil {
 			t.Fatalf("nested Maintainer %s could not manage: %v", caller, err)
 		}
 	}
-	if got, _ := b.Lookup("reader@h", "managed@h"); got.Descr != "changed through nested Maintainers by worker@h" {
+	if got, _ := b.Lookup("reader@h", "#managed@h"); got.Descr != "changed through nested Maintainers by #worker@h" {
 		t.Fatalf("nested Maintainer change missing: %+v", got)
 	}
 
@@ -82,16 +82,16 @@ func TestNestedGroupsResolveUnknownsCyclesAndRevocation(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@future-edge", []string{"@future"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "future-box@h", Owner: "alice@h", Allow: []string{"@future-edge"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#future-box@h", Owner: "alice@h", Allow: []string{"@future-edge"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "future@h", To: "future-box@h"}); !errors.Is(err, ErrNotAllow) {
+	if _, err := b.Send(protocol.Envelope{From: "future@h", To: "#future-box@h"}); !errors.Is(err, ErrNotAllow) {
 		t.Fatalf("unknown subgroup was not inert: %v", err)
 	}
 	if err := b.SetGroup("admin@h", "@future", []string{"future@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "future@h", To: "future-box@h"}); err != nil {
+	if _, err := b.Send(protocol.Envelope{From: "future@h", To: "#future-box@h"}); err != nil {
 		t.Fatalf("populated subgroup did not become effective: %v", err)
 	}
 
@@ -111,17 +111,17 @@ func TestNestedGroupsResolveUnknownsCyclesAndRevocation(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@reader-leaf", []string{"reader@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "wait@h", Owner: "alice@h", Allow: []string{"@nested-reader"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#wait@h", Owner: "alice@h", Allow: []string{"@nested-reader"}}); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	stopped := make(chan error, 1)
 	go func() {
-		_, err := b.ConsumeAs(ctx, "reader@h", "wait@h", "", "", false, false)
+		_, err := b.ConsumeAs(ctx, "reader@h", "#wait@h", "", "", false, false)
 		stopped <- err
 	}()
-	waitForWaiters(t, b, "wait@h", 1)
+	waitForWaiters(t, b, "#wait@h", 1)
 	if err := b.SetGroup("admin@h", "@reader-leaf", nil); err != nil {
 		t.Fatal(err)
 	}
@@ -151,13 +151,13 @@ func TestAdministratorMembershipStaysDirect(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@admin-readers", []string{AdministratorsGroup}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "admin-box@h", Owner: "alice@h", Allow: []string{"@admin-readers"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#admin-box@h", Owner: "alice@h", Allow: []string{"@admin-readers"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "admin@h", To: "admin-box@h"}); err != nil {
+	if _, err := b.Send(protocol.Envelope{From: "admin@h", To: "#admin-box@h"}); err != nil {
 		t.Fatalf("ordinary group did not resolve direct Administrators for access: %v", err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "reader@h", To: "admin-box@h"}); !errors.Is(err, ErrNotAllow) {
+	if _, err := b.Send(protocol.Envelope{From: "reader@h", To: "#admin-box@h"}); !errors.Is(err, ErrNotAllow) {
 		t.Fatalf("non-Administrator followed protected access edge: %v", err)
 	}
 }
@@ -170,7 +170,7 @@ func TestNestedGroupsPersistAndDamagedProtectedNestingFailsStartup(t *testing.T)
 	if err := b.SetGroup("admin@h", "@outer", []string{"@leaf"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "persisted@h", Owner: "alice@h", Allow: []string{"@outer"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#persisted@h", Owner: "alice@h", Allow: []string{"@outer"}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -180,7 +180,7 @@ func TestNestedGroupsPersistAndDamagedProtectedNestingFailsStartup(t *testing.T)
 	if err := recovered.EstablishDaemonOwner("contrary@h"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := recovered.Send(protocol.Envelope{From: "reader@h", To: "persisted@h"}); err != nil {
+	if _, err := recovered.Send(protocol.Envelope{From: "reader@h", To: "#persisted@h"}); err != nil {
 		t.Fatalf("nested grant did not survive restore: %v", err)
 	}
 

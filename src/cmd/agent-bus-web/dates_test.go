@@ -48,7 +48,7 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 	session := resp.Cookies()[0]
 
 	before := time.Now()
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h", Descr: "service"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h", Descr: "service"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Register(protocol.Record{Name: "chan@h", Owner: "owner@h", Kind: protocol.KindQueue}); err != nil {
@@ -74,7 +74,7 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 	// Detail retains the full write time. Lists use the compact form tested
 	// below, where this new record is "now" rather than a second timestamp.
 	stamp := before.Format("2006-01-02 15:04")
-	if body := get("/service?name=svc@h"); !strings.Contains(body, stamp) {
+	if body := get("/service?name=%23svc@h"); !strings.Contains(body, stamp) {
 		t.Fatalf("detail does not carry the record's date %q", stamp)
 	}
 	for _, page := range []string{"/agents", "/channels"} {

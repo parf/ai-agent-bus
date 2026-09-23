@@ -8,9 +8,9 @@ const root = resolve(import.meta.dir, "../../tmp/launcher-smoke");
 mkdirSync(root, { recursive: true });
 const dir = mkdtempSync(join(root, "run-"));
 const owner = new Bus();
-const peerName = `launcher-peer-${process.pid}@srv1`;
+const peerName = `#launcher-peer-${process.pid}@srv1`;
 await owner.register({ name: peerName, kind: "agent", allow: ["*"] });
-const deniedName = `launcher-denied-${process.pid}@srv1`;
+const deniedName = `#launcher-denied-${process.pid}@srv1`;
 await owner.register({ name: deniedName, kind: "agent", allow: ["nobody@srv1"] });
 const peer = await owner.as(peerName);
 const stop = new AbortController();
@@ -95,7 +95,7 @@ try {
     // The claim is about the address. A label suffix here only means an
     // earlier runtime in this run still holds the same label, which the
     // collision checks below own.
-    check(`${runtime} migrates a saved dot address to template/instance`, !!registered && registered.name.startsWith(`${runtime}/named-session@`) && !!registered.descr?.startsWith("Named session") && !(await owner.ls()).some(r => r.name === legacy));
+    check(`${runtime} migrates a saved dot address to template/instance`, !!registered && registered.name.startsWith(`#${runtime}/named-session@`) && !!registered.descr?.startsWith("Named session") && !(await owner.ls()).some(r => r.name === legacy));
     check(`${runtime} releases its session locks`, !readdirSync(state).some(f => f.endsWith(".lock")));
     const serverPID = rows.find(r => r.kind === "server-ready")?.pid;
     let alive = false;
@@ -135,7 +135,7 @@ try {
     check(`${runtime} resumes after renaming`, await resumed.exited === 17);
     const again = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
     const renamed = again.find(r => r.kind === "identity")?.data.name;
-    check(`${runtime} changes its address after a rename on restart`, !!renamed && renamed !== previous && renamed.startsWith(`${runtime}/renamed-session@`) && again.some(r => r.kind === "identity" && r.data.label.startsWith("Renamed session")));
+    check(`${runtime} changes its address after a rename on restart`, !!renamed && renamed !== previous && renamed.startsWith(`#${runtime}/renamed-session@`) && again.some(r => r.kind === "identity" && r.data.label.startsWith("Renamed session")));
     const renameDiagnostic = await resumedErr;
     const old = (await owner.ls()).find(r => r.name === previous);
     if (runtime !== "claude") {

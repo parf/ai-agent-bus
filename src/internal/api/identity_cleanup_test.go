@@ -27,16 +27,16 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 		}
 		return w.Body.Bytes()
 	}
-	previous := token("unused@h")
-	current, err := s.tokens.Rotate("unused@h")
+	previous := token("#unused@h")
+	current, err := s.tokens.Rotate("#unused@h")
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := s.tokens.StartSession("unused@h")
+	session, err := s.tokens.StartSession("#unused@h")
 	if err != nil {
 		t.Fatal(err)
 	}
-	unrelated := token("unrelated@h")
+	unrelated := token("#unrelated@h")
 	for _, who := range []string{"owner@h", "maintainer@h"} {
 		var rows []protocol.User
 		if err := json.Unmarshal(call(who, "GET", "/users", "", 200), &rows); err != nil {
@@ -44,7 +44,7 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 		}
 		found := false
 		for _, row := range rows {
-			if row.Name == "unused@h" {
+			if row.Name == "#unused@h" {
 				found = row.Kind == protocol.DirectoryCredential && row.CanRemove
 			}
 		}
@@ -61,13 +61,13 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	// (docs/02-access.md#what-a-call-carries) — and a registered principal,
 	// which does reach one, is refused there for not being a maintainer. The
 	// first alone would stop pinning the authorization check.
-	call("unused@h", "POST", "/identity/remove", `{"kind":"agent","name":"unused@h"}`, 401)
+	call("#unused@h", "POST", "/identity/remove", `{"kind":"agent","name":"#unused@h"}`, 401)
 	known(t, b, "ordinary@h")
-	call("ordinary@h", "POST", "/identity/remove", `{"kind":"agent","name":"unused@h"}`, 403)
+	call("ordinary@h", "POST", "/identity/remove", `{"kind":"agent","name":"#unused@h"}`, 403)
 	if _, ok := s.tokens.Principal(current); !ok {
 		t.Fatal("reading or denied removal changed the credential")
 	}
-	call("maintainer@h", "POST", "/identity/remove", `{"kind":"agent","name":"unused@h"}`, 200)
+	call("maintainer@h", "POST", "/identity/remove", `{"kind":"agent","name":"#unused@h"}`, 200)
 	for label, value := range map[string]string{"current": current, "previous": previous, "session": session} {
 		if _, ok := s.tokens.Principal(value); ok {
 			t.Errorf("%s still authenticates after manual cleanup", label)
@@ -85,16 +85,16 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	// one for the recheck to meet.
 	for _, shape := range []string{"user", "record"} {
 		name := shape + "@h"
+		if shape == "record" {
+			name = "#" + name
+		}
 		cred := token(name)
 		call("owner@h", "GET", "/users", "", 200)
 		switch shape {
 		case "user":
 			if _, err := b.SetUser("owner@h", protocol.User{Name: name}, true); err != nil {
 				t.Fatal(err)
-			}
-			if err := b.Unregister(name, name); err != nil {
-				t.Fatal(err)
-			} // profile alone protects it
+			} // a profile, and the user record that comes with it
 		case "record":
 			if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: name, Owner: "owner@h"}); err != nil {
 				t.Fatal(err)
@@ -110,7 +110,7 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	if counts := b.Status().Refused; counts["busy"] != 4 || counts["malformed"] != 0 {
 		t.Fatalf("valid cleanup conflicts counted as malformed requests: %v", counts)
 	}
-	call("owner@h", "POST", "/identity/remove", `{"kind":"agent","name":"unrelated@h"}`, 200)
+	call("owner@h", "POST", "/identity/remove", `{"kind":"agent","name":"#unrelated@h"}`, 200)
 	if _, ok := s.tokens.Principal(unrelated); ok {
 		t.Error("owner cleanup did not remove eligible credential")
 	}

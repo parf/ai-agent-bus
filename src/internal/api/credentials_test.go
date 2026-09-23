@@ -43,20 +43,20 @@ func TestNamesSayWhoseCredentialAndWhatFor(t *testing.T) {
 	}
 
 	call("admin@h", "POST", "/user", `{"kind":"agent","name":"alice@h","person_name":"Alice","create":true}`, 200)
-	call("alice@h", "POST", "/register", `{"name":"svc@h","kind":"agent","descr":"a service"}`, 200)
+	call("alice@h", "POST", "/register", `{"name":"#svc@h","kind":"agent","descr":"a service"}`, 200)
 	var minted struct{ Token string }
-	if err := json.Unmarshal([]byte(call("alice@h", "POST", "/token", `{"kind":"agent","name":"svc@h"}`, 200)), &minted); err != nil {
+	if err := json.Unmarshal([]byte(call("alice@h", "POST", "/token", `{"kind":"agent","name":"#svc@h"}`, 200)), &minted); err != nil {
 		t.Fatal(err)
 	}
 	svcToken := minted.Token
 	if svcToken == "" {
-		t.Fatal("no credential came back for svc@h")
+		t.Fatal("no credential came back for #svc@h")
 	}
 
 	held := names("alice@h")
-	svc, has := held["svc@h"]
+	svc, has := held["#svc@h"]
 	if !has {
-		t.Fatalf("a credential was issued for svc@h but the holder is not told: %+v", held)
+		t.Fatalf("a credential was issued for #svc@h but the holder is not told: %+v", held)
 	}
 	// Whose it is and what it is for: a name list that cannot tell a person
 	// from a service cannot be read.
@@ -67,7 +67,7 @@ func TestNamesSayWhoseCredentialAndWhatFor(t *testing.T) {
 		t.Fatalf("a person's own credential is not marked as theirs: %+v", me)
 	}
 
-	call("alice@h", "POST", "/unregister", `{"kind":"agent","name":"svc@h"}`, 200)
+	call("alice@h", "POST", "/unregister", `{"kind":"agent","name":"#svc@h"}`, 200)
 
 	// The credential goes with the address, and the test for that is whether
 	// it still authenticates — not whether the name is listed. An
@@ -82,7 +82,7 @@ func TestNamesSayWhoseCredentialAndWhatFor(t *testing.T) {
 	}
 
 	held = names("alice@h")
-	if leftover, still := held["svc@h"]; still {
+	if leftover, still := held["#svc@h"]; still {
 		t.Fatalf("a credential for a removed address is still listed: %+v", leftover)
 	}
 	// A person's own is not a service's: it is how they call at all, and

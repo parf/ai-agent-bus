@@ -109,25 +109,10 @@ func runBus(c config) {
 	face.Dashboard(c.dash)
 	face.Calls(callHistory.Snapshot)
 
-	// A record whose owner the daemon knows nothing about is wreckage, and it
-	// goes first — with its queues, whatever is in them
-	// (docs/01-identity-and-roles.md#orphaned-records).
-	//
-	// Before the credential sweep below, because deleting a record is what
-	// makes its name answer for nothing: the two run in that order so they
-	// cannot disagree about one name. After owner establishment for the same
-	// reason the sweep is: a record of the owner would be wreckage until the
-	// durable owner is restored or the first-run seed is applied.
-	if purged, err := bus.Orphans(); err != nil {
-		log.Fatalf("orphaned records: %v", err)
-	} else if len(purged) > 0 {
-		log.Printf("deleted %d records whose owner the daemon does not know", len(purged))
-	}
-	// Their credentials are not dropped here. Every name that just went has no
-	// record and no profile now, which is exactly what the sweep below asks,
-	// so a loop here would be a second place deciding the same thing — and a
-	// second place to get it wrong. Proved by mutation: removing it changed
-	// nothing, and removing both is what the smoke's reuse check catches.
+	// A record whose owner is not a User was ignored at load and reported
+	// (docs/constitution.md#persistence-and-loading), so its name is not
+	// known here; the credential sweep below is what takes a credential that
+	// answered for it.
 
 	// A credential whose name has no record and no registered user answers for
 	// nothing, and is dropped here — at start, at a known moment, never by

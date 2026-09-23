@@ -15,22 +15,22 @@ func TestActivityIsBoundedAndFiltered(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "alice@h", "bob@h")
-	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "visible@h", Owner: "alice@h", Allow: []string{"alice@h"}, Bound: 1, Full: "ring"})
-	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "hidden@h", Owner: "bob@h", Allow: []string{"bob@h"}})
+	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#visible@h", Owner: "alice@h", Allow: []string{"alice@h"}, Bound: 1, Full: "ring"})
+	b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#hidden@h", Owner: "bob@h", Allow: []string{"bob@h"}})
 	start := time.Now().Add(-2 * time.Minute)
 	b.SampleActivity(start)
-	b.Send(protocol.Envelope{From: "alice@h", To: "visible@h", Body: "first"})
-	b.Send(protocol.Envelope{From: "alice@h", To: "visible@h", Body: "second"})
-	b.Send(protocol.Envelope{From: "bob@h", To: "hidden@h", Body: "secret"})
-	b.Consume(context.Background(), "visible@h", "", "", false, false)
-	b.Send(protocol.Envelope{From: "alice@h", To: "visible@h", Body: "expires", TTL: "1ns"})
+	b.Send(protocol.Envelope{From: "alice@h", To: "#visible@h", Body: "first"})
+	b.Send(protocol.Envelope{From: "alice@h", To: "#visible@h", Body: "second"})
+	b.Send(protocol.Envelope{From: "bob@h", To: "#hidden@h", Body: "secret"})
+	b.Consume(context.Background(), "#visible@h", "", "", false, false)
+	b.Send(protocol.Envelope{From: "alice@h", To: "#visible@h", Body: "expires", TTL: "1ns"})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	b.Consume(ctx, "visible@h", "", "", false, false)
-	b.RecordRefusal("VISIBLE@h")
+	b.Consume(ctx, "#visible@h", "", "", false, false)
+	b.RecordRefusal("#VISIBLE@h")
 	b.Refuse("acl")
 	b.SampleActivity(start.Add(time.Minute))
-	points, err := b.Activity("alice@h", "visible@h")
+	points, err := b.Activity("alice@h", "#visible@h")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestActivityIsBoundedAndFiltered(t *testing.T) {
 	if all[0].In != 3 {
 		t.Fatal("hidden service leaked into aggregate")
 	}
-	if _, err := b.Activity("alice@h", "hidden@h"); err != ErrUnknown {
+	if _, err := b.Activity("alice@h", "#hidden@h"); err != ErrUnknown {
 		t.Fatal("forbidden graph returned")
 	}
 	for i := 0; i < activityKept+20; i++ {

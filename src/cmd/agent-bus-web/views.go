@@ -198,7 +198,7 @@ func detailPathFor(kind string) string {
 // excluded from /agents, so a Back link or a post-removal redirect that went
 // there would name a listing which cannot show the record it came from.
 func listPathForRecord(kind string, personal bool) string {
-	if personal && agentRecord(kind) {
+	if personal && kind != protocol.KindUser {
 		return "/personal"
 	}
 	return listPathFor(kind)

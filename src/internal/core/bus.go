@@ -46,10 +46,10 @@ var (
 	ErrExists      = errors.New("that name is already registered")
 	ErrBusy        = errors.New("cannot unregister a busy inbox")
 	ErrPrivate     = errors.New("a configuration is private to the record it belongs to")
-	ErrSecret      = errors.New("a secret is stored on a service and on no other kind")
+	ErrSecret      = errors.New("a secret is stored on an agent, a service or a group and on no other kind")
 	ErrNoSecret    = errors.New("that service holds no secret")
 	ErrNotAllow    = errors.New("not on that record's allow list")
-	ErrPersonal    = errors.New("a personal agent may name only direct agent identities in its ACL and cannot have maintainers")
+	ErrPersonal    = errors.New("a personal record's allow and maintainers name only its owner and the owner's agents")
 	ErrEnrol       = errors.New("enrolment")
 	// A group is retired by emptying its membership
 	// (docs/01-identity-and-roles.md#groups), so there is no removal to
@@ -136,10 +136,7 @@ type Bus struct {
 	ownerRestored   bool
 	ownerRestoreErr error
 
-	// recordRestoreErr holds a stored record this daemon cannot describe, and
-	// is reported at startup beside the owner checks: coming up on it would
-	// serve state nothing can name.
-	recordRestoreErr error
+
 	// How many calls were refused, and for what. Counted because a bus that
 	// is quiet and one that is refusing everything look identical from
 	// outside — see docs/05-discovery.md#what-it-shows.
@@ -200,20 +197,31 @@ func validateKind(r protocol.Record) error {
 	if !protocol.ValidKind(r.Kind) {
 		return fmt.Errorf("%w: %q is not one of %s", ErrKind, r.Kind, protocol.KindNames())
 	}
+	// An Agent's name begins with "#" and nothing else's does, so the name
+	// alone says the kind (docs/constitution.md#actors-and-ascii-textarea-syntax).
+	// Neither is completed, guessed or tolerated.
+	if agent := protocol.IsAgentName(r.Name); r.Kind == protocol.KindAgent && !agent {
+		return fmt.Errorf("%w: an agent's name begins with #, and %s does not", ErrKind, r.Name)
+	} else if r.Kind != protocol.KindAgent && agent {
+		return fmt.Errorf("%w: only an agent's name begins with #, and %s is a %s", ErrKind, r.Name, r.Kind)
+	}
 	// Deliver-To is what a 📣 does instead of holding a queue, so it is the
 	// one kind that has one: the other three receive rather than fan out.
 	// See docs/04-messaging.md#subscribers.
 	if r.Kind != protocol.KindPubSub && len(r.Subs) != 0 {
 		return fmt.Errorf("%w: a %s delivers to nobody, so it carries no deliver-to list", ErrKind, r.Kind)
 	}
-	if onBus(r) {
-		// A credential for reaching something outside means nothing on a kind
-		// that is reached by sending to its name, and a snapshot holding one
-		// is state this daemon cannot describe.
-		// See docs/06-services.md#secrets.
+	// config and secret are private values of the kinds the field table gives
+	// them, and of no other (docs/constitution.md#-private-values).
+	if !holdsPrivate(r.Kind) {
 		if r.Secret != "" || r.SecretSHA != "" {
-			return fmt.Errorf("%w: a %s has nothing outside to authenticate to, so it holds no secret", ErrKind, r.Kind)
+			return fmt.Errorf("%w: a %s holds no secret", ErrKind, r.Kind)
 		}
+		if len(r.Config) > 0 || r.ConfigSHA != "" {
+			return fmt.Errorf("%w: a %s holds no configuration", ErrKind, r.Kind)
+		}
+	}
+	if onBus(r) {
 		return nil
 	}
 	if r.Addr == "" || r.Proto == "" {
@@ -226,6 +234,22 @@ func validateKind(r protocol.Record) error {
 		return fmt.Errorf("%w: a service has no delivery here to turn off", ErrKind)
 	}
 	return nil
+}
+
+// holdsPrivate says whether a kind carries config and secret: an Agent, a
+// Service and a Group do, and nothing else (docs/constitution.md#common-record-fields).
+func holdsPrivate(kind string) bool {
+	return kind == protocol.KindAgent || kind == protocol.KindService || kind == protocol.KindGroup
+}
+
+// mayReadPrivate is who reads a record's private values: its own principal
+// where it has one, and otherwise the actors its allow list admits.
+// Caller holds b.mu.
+func (b *Bus) mayReadPrivate(caller string, r protocol.Record) bool {
+	if r.Kind == protocol.KindAgent {
+		return caller == r.Name && b.acting(caller) == nil
+	}
+	return b.may(caller, r)
 }
 
 func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
@@ -252,13 +276,18 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// See docs/03-records.md#five-record-kinds.
 	if r.Kind == "" {
 		r.Kind = protocol.KindService
+		if protocol.IsAgentName(name) {
+			r.Kind = protocol.KindAgent
+		}
 	}
-	// A registration that names no owner is the name answering for itself,
-	// which is what registering one has always meant where no realm vouches
-	// for it (docs/01-identity-and-roles.md#registration). Defaulted here beside the
-	// others, so that "owned by nobody" is not a state a record can be in.
-	if r.Owner == "" {
-		r.Owner = name
+	// The face puts the caller in Owner. What is stored is the User the
+	// caller is or acts for: every record is owned by a User, and an Agent
+	// that creates one gains no authority over it by doing so
+	// (docs/constitution.md#-registry-record). A registration that names
+	// nobody is a User's own name registering itself.
+	caller := r.Owner
+	if caller == "" {
+		caller = name
 	}
 	// An overflow policy is about a queue, so only a record that has one gets
 	// the default. A service stating one is a caller error, which validateKind
@@ -278,10 +307,17 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// daemon does not yet know — it has just proved the realm's key for it
 	// (docs/02-access.md#proving-possession) — and it says so here rather
 	// than through a clause in mayOwn that every other caller could reach.
-	if !enrolled {
-		if err := b.mayOwn(r.Owner, name); err != nil {
+	if enrolled {
+		r.Owner = name
+	} else {
+		owner, err := b.ownerFor(caller)
+		if err != nil {
 			return protocol.Record{}, err
 		}
+		if err := b.mayOwn(owner, name); err != nil {
+			return protocol.Record{}, err
+		}
+		r.Owner = owner
 	}
 	if _, exists := b.records[name]; createOnly && exists {
 		return protocol.Record{}, ErrExists
@@ -333,6 +369,13 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		}
 		r.Subs = list
 	}
+	if r.Allow != nil {
+		allow, err := b.normalizeAllow(r.Allow, r)
+		if err != nil {
+			return protocol.Record{}, err
+		}
+		r.Allow = allow
+	}
 	r.Config, r.ConfigSHA = nil, ""
 	r.Secret, r.SecretSHA = "", ""
 	r.Maintainers, r.Disabled = nil, false
@@ -343,7 +386,12 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// other principal that could hold that name's credential.
 	// See docs/01-identity-and-roles.md#ownership.
 	if old, known := b.record(name); known {
-		caller := r.Owner // the face puts the caller here, not a claim
+		// A record's kind is what it is for good: a registration cannot turn
+		// a user's own record, or anything else, into another kind
+		// (docs/constitution.md#authority-rules).
+		if old.Kind != r.Kind {
+			return protocol.Record{}, fmt.Errorf("%w: %s is a %s, and a registration does not change a kind", ErrExists, name, old.Kind)
+		}
 		if old.Owner != "" && !b.manages(caller, old) {
 			return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, name, old.Owner)
 		}
@@ -467,7 +515,14 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		}
 		// Configuring is not a second way to describe a record, only a way
 		// to give one config, so this takes a bare registration's defaults.
-		r = protocol.Record{Name: n, Kind: protocol.KindAgent, Owner: who, Full: protocol.OverflowStrict}
+		owner, err := b.ownerFor(who)
+		if err != nil {
+			return protocol.Record{}, err
+		}
+		r = protocol.Record{Name: n, Kind: protocol.KindAgent, Owner: owner, Full: protocol.OverflowStrict}
+		if err := validateKind(r); err != nil {
+			return protocol.Record{}, err
+		}
 	} else if !b.manages(who, r) {
 		// Writing is the owner's, and the service's own. Reading is neither:
 		// see Config.
@@ -475,6 +530,9 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	}
 	r.Config = cfg
 	r.At = time.Now()
+	if err := validateKind(r); err != nil {
+		return protocol.Record{}, err
+	}
 	b.setRecord(n, r)
 	if onBus(r) {
 		b.ensure(n)
@@ -520,9 +578,9 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 // grammar anything checks (Q77). Only an empty secret is refused, because it
 // reads back exactly like never having set one.
 //
-// A secret lives on a service and on no other kind. Every other kind is
-// reached by sending to its name, so there is nothing for a credential here
-// to unlock, and storing one would be a field that says something untrue.
+// A secret lives on an agent, a service or a group (holdsPrivate). A user,
+// queue or pubsub record is only reached by sending to its name, so there is
+// nothing for a credential there to unlock.
 // See docs/06-services.md#secrets.
 func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
 	n, err := canon(name)
@@ -545,7 +603,7 @@ func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
 	if !known {
 		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
-	if onBus(r) {
+	if !holdsPrivate(r.Kind) {
 		return protocol.Record{}, fmt.Errorf("%w: %s is %s", ErrSecret, n, r.Kind)
 	}
 	// Writing is the owner's and the record's own, exactly as a configuration
@@ -584,11 +642,13 @@ func (b *Bus) Secret(name, caller string) (string, error) {
 	}
 	r, known := b.records[n]
 	// Asked before the kind and before the secret exists, so a caller who may
-	// not see the name learns only that — the same order Send uses.
-	if !known || !b.may(who, r) {
+	// not see the name learns only that — the same order Send uses. A record
+	// with a principal of its own reads its secret itself; any other is read
+	// by whoever its ACL admits (docs/constitution.md#-private-values).
+	if !known || !b.mayReadPrivate(who, r) {
 		return "", fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
-	if onBus(r) {
+	if !holdsPrivate(r.Kind) {
 		return "", fmt.Errorf("%w: %s is %s", ErrSecret, n, r.Kind)
 	}
 	if r.Secret == "" {
@@ -774,7 +834,16 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// Writing goes through the same two layers as reading: a principal that
 	// may not see a service may not enqueue to it either, and is told so
 	// rather than left to wonder. See docs/02-access.md#acl.
-	if !b.may(from, rec) {
+	//
+	// A User's own inbox has no list of its own: an Agent may send to a User
+	// exactly when that Agent's ACL admits the User — whoever may reach an
+	// Agent may be answered by it — and no User sends to another
+	// (docs/constitution.md#-channels).
+	if rec.Kind == protocol.KindUser {
+		if err := b.mayDeliverToUser(from, rec); err != nil {
+			return protocol.Envelope{}, err
+		}
+	} else if !b.may(from, rec) {
 		return protocol.Envelope{}, fmt.Errorf("%s may not send to %s: %w", from, to, ErrNotAllow)
 	}
 	// The check is on the called name rather than on who is asking, so the
@@ -915,7 +984,7 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		// that cannot receive is the snapshot case, Manage having refused one
 		// since 0.6.15. None of the three is a drop: there is nothing here
 		// that was entitled to the copy.
-		if !known || !canReceive(sub) || !b.activeName(s) {
+		if !known || !canReceive(sub) || b.suspension(s) != nil {
 			continue
 		}
 		// Turned off on purpose, which is not the same fact as the three

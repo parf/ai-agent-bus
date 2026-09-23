@@ -24,28 +24,13 @@ func TestTheDaemonOwnerIsMarkedWhereARowWouldOtherwiseSayUser(t *testing.T) {
 	owned := display.DaemonOwnerGlyph + " Daemon owner"
 	user := display.Entity(protocol.KindUser)
 
-	// A person's own inbox is a record, and the channels listing is where one
-	// is shown. Asked of the row, not of the page: the signed-in owner's name
-	// is in the header of every page here.
-	channels := m.get("/channels")
-	ownerRow := row(t, channels, "admin@h")
-	otherRow := row(t, channels, "other@h")
-	if !strings.Contains(ownerRow, owned) {
-		t.Errorf("the daemon owner's row does not name the authority: %s", ownerRow)
+	// A person's own inbox is Personal, so it is on no shared listing: the
+	// Channels page does not show it (docs/03-records.md#personal-and-shared).
+	// Asked of other@h: the signed-in owner's name is in every page header.
+	if channels := m.get("/channels"); strings.Contains(channels, "other@h") {
+		t.Errorf("a user's own record is on the shared Channels page")
 	}
-	if strings.Contains(ownerRow, user) {
-		t.Errorf("the daemon owner's row still reads as one more user: %s", ownerRow)
-	}
-	// The other half of the same fact: a mark that is on every row is a column
-	// heading, and this is the row that proves it is not.
-	if !strings.Contains(otherRow, user) {
-		t.Errorf("an ordinary person lost the entity label: %s", otherRow)
-	}
-	if strings.Contains(otherRow, display.DaemonOwnerGlyph) {
-		t.Errorf("an ordinary person is marked as the daemon owner: %s", otherRow)
-	}
-
-	// The detail page behind that row says the same thing.
+	// The detail page behind a user's record still names the authority.
 	detail := m.get("/channel?name=admin%40h")
 	if !strings.Contains(detail, "<span class=fact-pill>"+owned+"</span>") {
 		t.Errorf("the daemon owner's record page does not name the authority: %s", section(t, detail, "<div class=detail-meta>", "</div>"))
@@ -60,7 +45,7 @@ func TestTheDaemonOwnerIsMarkedWhereARowWouldOtherwiseSayUser(t *testing.T) {
 	// from the label rather than the glyph. A row-wide search passed with the
 	// glyph left unmarked.
 	people := m.get("/users")
-	ownerRow, otherRow = row(t, people, "admin@h"), row(t, people, "other@h")
+	ownerRow, otherRow := row(t, people, "admin@h"), row(t, people, "other@h")
 	marked := `aria-label="` + owned + `">` + display.DaemonOwnerGlyph + "<"
 	plain := `aria-label="` + user + `">` + display.EntityGlyph(protocol.KindUser) + "<"
 	if !strings.Contains(ownerRow, marked) {
@@ -91,12 +76,10 @@ func row(t *testing.T, page, name string) string {
 	return ""
 }
 
-// The Channels page lists three kinds, so its Kind switch is the only thing
-// that tells them apart. The daemon owner's own inbox is the case where the
-// switch and the label disagree on purpose: the row is selected by the kind the
-// daemon stated and labelled by the authority that outranks it, so a filter
-// written against the visible label would lose the one row it most needs.
-func TestTheChannelsKindSwitchSelectsByKindAndNotByTheVisibleLabel(t *testing.T) {
+// The Channels page lists the two channel kinds, so its Kind switch is what
+// tells them apart; a user's record is Personal and is neither listed nor
+// offered (docs/03-records.md#personal-and-shared).
+func TestTheChannelsKindSwitchSelectsByKind(t *testing.T) {
 	m := meaningFixture(t)
 	for _, record := range []protocol.Record{
 		{Name: "work@h", Owner: "admin@h", Kind: protocol.KindQueue},
@@ -104,54 +87,24 @@ func TestTheChannelsKindSwitchSelectsByKindAndNotByTheVisibleLabel(t *testing.T)
 	} {
 		m.register(record)
 	}
-	for name, create := range map[string]bool{"admin@h": false, "other@h": true} {
-		if _, err := m.bus.SetUser("admin@h", protocol.User{Name: name}, create); err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-	}
-
-	// Every kind the page lists is offered, each by its own label.
 	all := m.get("/channels")
-	for _, kind := range []string{protocol.KindUser, protocol.KindQueue, protocol.KindPubSub} {
+	for _, kind := range []string{protocol.KindQueue, protocol.KindPubSub} {
 		if !strings.Contains(all, `href="/channels?kind=`+kind+`"`) {
 			t.Errorf("the Kind switch does not offer %s: %s", kind, section(t, all, `aria-label="Kind filter"`, "</nav>"))
 		}
 	}
-
-	// Each selection keeps its own kind and drops the other two. Asked in both
-	// directions, because a filter that returned everything would satisfy the
-	// first half of every case on its own.
-	for kind, kept := range map[string]string{
-		protocol.KindUser:   "other@h",
-		protocol.KindQueue:  "work@h",
-		protocol.KindPubSub: "shout@h",
-	} {
+	if strings.Contains(all, `href="/channels?kind=`+protocol.KindUser+`"`) {
+		t.Error("the Kind switch offers users, whose records are not listed here")
+	}
+	for kind, kept := range map[string]string{protocol.KindQueue: "work@h", protocol.KindPubSub: "shout@h"} {
 		page := m.get("/channels?kind=" + kind)
 		if !strings.Contains(page, kept) {
 			t.Errorf("Kind %s lost %s: %s", kind, kept, page)
 		}
-		for other, name := range map[string]string{
-			protocol.KindUser:   "other@h",
-			protocol.KindQueue:  "work@h",
-			protocol.KindPubSub: "shout@h",
-		} {
-			if other == kind {
-				continue
-			}
-			if strings.Contains(page, `>`+name+`</code>`) {
-				t.Errorf("Kind %s also returned the %s record %s: %s", kind, other, name, page)
+		for other, name := range map[string]string{protocol.KindQueue: "work@h", protocol.KindPubSub: "shout@h"} {
+			if other != kind && strings.Contains(page, `>`+name+`</code>`) {
+				t.Errorf("Kind %s also returned the %s record %s", kind, other, name)
 			}
 		}
-	}
-
-	// And the row whose label is not its kind. admin@h is a user record and is
-	// selected as one, while its Type cell names the authority.
-	users := m.get("/channels?kind=" + protocol.KindUser)
-	owner := row(t, users, "admin@h")
-	if !strings.Contains(owner, display.DaemonOwnerGlyph+" Daemon owner") {
-		t.Errorf("the daemon owner's row is not labelled by its authority: %s", owner)
-	}
-	if strings.Contains(users, `>work@h</code>`) {
-		t.Errorf("Kind User returned a queue: %s", users)
 	}
 }

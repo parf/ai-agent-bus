@@ -18,7 +18,7 @@ import (
 func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "ordinary backlog"}); err != nil {
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#quiet@h", Body: "ordinary backlog"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -67,14 +67,14 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 			t.Errorf("the Find row repeats a menu entry, %q: %s", duplicated, find)
 		}
 	}
-	for _, detail := range []string{"Refusals since this daemon started", "Exchanges in retained history", "Registry", "quiet@h"} {
+	for _, detail := range []string{"Refusals since this daemon started", "Exchanges in retained history", "Registry", "#quiet@h"} {
 		if strings.Contains(overview, detail) {
 			t.Errorf("Overview still carries detailed Diagnostics content %q", detail)
 		}
 	}
 
 	diagnostics := m.get("/diagnostics")
-	for _, want := range []string{"Refusals since this daemon started", "Inboxes holding messages", "Exchanges in retained history", "Loss by name", `href="/agent?name=quiet%40h"`} {
+	for _, want := range []string{"Refusals since this daemon started", "Inboxes holding messages", "Exchanges in retained history", "Loss by name", `href="/agent?name=%23quiet%40h"`} {
 		if !strings.Contains(diagnostics, want) {
 			t.Errorf("Diagnostics lacks %q", want)
 		}
@@ -90,9 +90,9 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 func TestAttentionItemsAreEnumeratedAndOnePerRecord(t *testing.T) {
 	items := attentionItems(core.Status{Unclean: true, Refused: map[string]int{"acl": 2}}, []protocol.Record{
 		{Kind: protocol.KindAgent, Name: "ordinary@h", Queued: 8},
-		{Kind: protocol.KindAgent, Name: "full@h", Queued: 4, Oldest: "2m", AtBound: true, Disabled: true, Dropped: 3, Expired: 1},
-		{Kind: protocol.KindAgent, Name: "off@h", Queued: 2, Disabled: true},
-		{Kind: protocol.KindAgent, Name: "lost@h", Dropped: 1},
+		{Kind: protocol.KindAgent, Name: "#full@h", Queued: 4, Oldest: "2m", AtBound: true, Disabled: true, Dropped: 3, Expired: 1},
+		{Kind: protocol.KindAgent, Name: "#off@h", Queued: 2, Disabled: true},
+		{Kind: protocol.KindAgent, Name: "#lost@h", Dropped: 1},
 		{Name: "news@h", Kind: protocol.KindQueue, Queued: 1, AtBound: true, Full: protocol.OverflowRing},
 	})
 	if len(items) != 6 { // previous stop, one refusal and four exceptional records
@@ -122,12 +122,12 @@ func TestAttentionItemsAreEnumeratedAndOnePerRecord(t *testing.T) {
 	}
 	// Losses are cumulative across restarts and may predate this run, so they
 	// are notable rather than urgent.
-	if lost := seen["lost@h"]; lost.Level != "orange" || lost.Title != "Messages were lost from this inbox" {
+	if lost := seen["#lost@h"]; lost.Level != "orange" || lost.Title != "Messages were lost from this inbox" {
 		t.Errorf("cumulative loss is %q/%q, want orange and the loss title", lost.Level, lost.Title)
 	}
 	// Disabled outranks at-bound: nothing is being accepted, so capacity is
 	// not what is wrong with the record. The capacity stays as a fact.
-	full := seen["full@h"]
+	full := seen["#full@h"]
 	if full.Level != "orange" || full.Title != "Delivery is off and work is held" {
 		t.Errorf("a disabled record at its bound is %q/%q, want orange and the disabled title", full.Level, full.Title)
 	}
@@ -143,8 +143,8 @@ func TestAttentionItemsAreEnumeratedAndOnePerRecord(t *testing.T) {
 	if news.Overflow != "when full: drop the oldest" {
 		t.Errorf("at capacity did not name the configured overflow policy: %q", news.Overflow)
 	}
-	if seen["off@h"].Overflow != "" {
-		t.Errorf("a record that is not at capacity states an overflow policy: %q", seen["off@h"].Overflow)
+	if seen["#off@h"].Overflow != "" {
+		t.Errorf("a record that is not at capacity states an overflow policy: %q", seen["#off@h"].Overflow)
 	}
 	if seen["news@h"].Href != "/channel?name=news%40h" {
 		t.Fatalf("channel attention link = %q", seen["news@h"].Href)
@@ -161,14 +161,14 @@ func TestAttentionItemsAreEnumeratedAndOnePerRecord(t *testing.T) {
 func TestHoldingWorkLinksAreRealFilters(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "held"}); err != nil {
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#quiet@h", Body: "held"}); err != nil {
 		t.Fatal(err)
 	}
 	page := m.get("/agents?sort=queued&work=held")
-	if !strings.Contains(page, `aria-label="Queue filter"`) || !strings.Contains(page, `aria-current=true>Holding work</a>`) || !strings.Contains(page, "quiet@h") {
+	if !strings.Contains(page, `aria-label="Queue filter"`) || !strings.Contains(page, `aria-current=true>Holding work</a>`) || !strings.Contains(page, "#quiet@h") {
 		t.Fatal("holding-work URL does not render its state and matching record")
 	}
-	for _, empty := range []string{"reading@h", "off@h", "elsewhere@h"} {
+	for _, empty := range []string{"#reading@h", "#off@h", "elsewhere@h"} {
 		if strings.Contains(page, ">"+empty+"<") {
 			t.Errorf("empty record %s survived the holding-work filter", empty)
 		}
@@ -185,7 +185,7 @@ func TestEveryAttentionLinkPointsAtASectionThatExists(t *testing.T) {
 	m.shapes()
 	m.register(protocol.Record{Name: "news@h", Owner: "admin@h", Kind: protocol.KindPubSub, Allow: []string{"*"}})
 	items := attentionItems(core.Status{Unclean: true, Refused: map[string]int{"acl": 1}}, []protocol.Record{
-		{Kind: protocol.KindAgent, Name: "quiet@h", Queued: 1, AtBound: true},
+		{Kind: protocol.KindAgent, Name: "#quiet@h", Queued: 1, AtBound: true},
 		{Name: "news@h", Kind: protocol.KindQueue, Dropped: 1},
 	})
 	if len(items) != 4 {

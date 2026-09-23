@@ -17,8 +17,9 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 	}
 	m.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindQueue, Descr: "Jobs", Allow: []string{"*"}})
 	m.register(protocol.Record{Name: "news@h", Owner: "admin@h", Kind: protocol.KindPubSub, Descr: "News", Allow: []string{"*"}})
-	m.register(protocol.Record{Name: "worker@h", Owner: "admin@h", Kind: "agent", Descr: "Worker", Allow: []string{"*"}})
-	if _, err := m.bus.Manage("admin@h", core.Management{Name: "news@h", Subs: &[]string{"visitor@h"}}); err != nil {
+	m.register(protocol.Record{Name: "#worker@h", Owner: "admin@h", Kind: "agent", Descr: "Worker", Allow: []string{"*"}})
+	m.register(protocol.Record{Name: "#visitor-box@h", Owner: "visitor@h", Kind: "agent"})
+	if _, err := m.bus.Manage("admin@h", core.Management{Name: "news@h", Subs: &[]string{"#visitor-box@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
@@ -47,8 +48,8 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 		t.Error("Channels page still uses the Service table vocabulary")
 	}
 	agents := m.get("/agents")
-	agent := m.row(agents, "worker@h")
-	for _, want := range []string{`data-label=Type>👾 Agent`, `/agent?name=worker%40h`} {
+	agent := m.row(agents, "#worker@h")
+	for _, want := range []string{`data-label=Type>👾 Agent`, `/agent?name=%23worker%40h`} {
 		if !strings.Contains(agent, want) {
 			t.Errorf("agent row lacks %q: %s", want, agent)
 		}
@@ -157,14 +158,14 @@ func TestRecordListsDistinguishNoCategoryFromNoFilterMatches(t *testing.T) {
 
 func TestRecordDetailDocumentTitleFollowsStatedKind(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Name: "worker@h", Owner: "admin@h", Kind: protocol.KindAgent})
+	m.register(protocol.Record{Name: "#worker@h", Owner: "admin@h", Kind: protocol.KindAgent})
 	m.register(protocol.Record{Name: "api@h", Owner: "admin@h", Kind: protocol.KindService, Addr: "host:1", Proto: "https"})
 	m.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindQueue})
 	m.register(protocol.Record{Name: "news@h", Owner: "admin@h", Kind: protocol.KindPubSub})
 	for name, want := range map[string]string{
-		"worker@h": "Agent", "api@h": "Service", "jobs@h": "Queue", "news@h": "PubSub",
+		"#worker@h": "Agent", "api@h": "Service", "jobs@h": "Queue", "news@h": "PubSub",
 	} {
-		if body := m.get("/service?name=" + name); !strings.Contains(body, "<title>"+want+" "+name+" · agent-bus</title>") {
+		if body := m.get("/service?name=" + url.QueryEscape(name)); !strings.Contains(body, "<title>"+want+" "+name+" · agent-bus</title>") {
 			t.Errorf("%s is not titled %q", name, want)
 		}
 	}
@@ -176,12 +177,12 @@ func TestRecordDetailDocumentTitleFollowsStatedKind(t *testing.T) {
 func TestTheChannelFormStoresTheKindAndNothingBesideIt(t *testing.T) {
 	m := meaningFixture(t)
 	if location, status := postAs(t, m, "/service", url.Values{
-		"action": {"create"}, "name": {"worker@h"}, "kind": {protocol.KindAgent},
+		"action": {"create"}, "name": {"#worker@h"}, "kind": {protocol.KindAgent},
 		"mode": {protocol.KindPubSub}, "allow": {"*"},
-	}); status != http.StatusSeeOther || location != "/agent?name=worker%40h" {
+	}); status != http.StatusSeeOther || location != "/agent?name=%23worker%40h" {
 		t.Fatalf("agent registration returned to %q with %d, want its Agent detail", location, status)
 	}
-	if record, ok := m.bus.Lookup("admin@h", "worker@h"); !ok || record.Kind != protocol.KindAgent {
+	if record, ok := m.bus.Lookup("admin@h", "#worker@h"); !ok || record.Kind != protocol.KindAgent {
 		t.Errorf("the agent stored kind %q, want %s", record.Kind, protocol.KindAgent)
 	}
 	// Falsifiable the other way: the same form does register the kind that

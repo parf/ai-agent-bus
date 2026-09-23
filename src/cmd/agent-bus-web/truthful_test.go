@@ -47,10 +47,7 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	}
 	session := resp.Cookies()[0]
 
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "admin@h", Owner: "admin@h"}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "admin@h", Descr: "service"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "admin@h", Descr: "service"}); err != nil {
 		t.Fatal(err)
 	}
 	// An ordinary group beside the protected one, so "no delete button" cannot
@@ -78,7 +75,7 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 		return string(body)
 	}
 
-	service := get("/service-danger?name=svc@h")
+	service := get("/service-danger?name=%23svc@h")
 	if strings.Contains(service, "Credentials remain valid") {
 		t.Error("removal help still promises the credential survives; api.unregister forgets it")
 	}
@@ -219,21 +216,21 @@ func TestRefusalsRecoverInsteadOfDeadEnding(t *testing.T) {
 	// An anonymous deep link enters sign-in at the address it asked for, and
 	// carries that address in the form. It used to be `401 sign in required`
 	// in plain text, with no form anywhere on it.
-	code, body := do("GET", "/service?name=svc@h", nil, nil)
+	code, body := do("GET", "/service?name=%23svc@h", nil, nil)
 	if code != http.StatusUnauthorized {
 		t.Errorf("an anonymous deep link answered %d, want 401", code)
 	}
 	if !strings.Contains(body, `action=/signin`) {
 		t.Error("an anonymous deep link does not offer the sign-in form")
 	}
-	if !strings.Contains(body, `name=return value="/service?name=svc@h"`) {
+	if !strings.Contains(body, `name=return value="/service?name=%23svc@h"`) {
 		t.Errorf("the deep link is not carried back into the form: %s", body)
 	}
 
 	// And signing in from there goes to that page, not to the front page.
-	resp := signIn("admin@h", url.Values{"return": {"/service?name=svc@h"}})
+	resp := signIn("admin@h", url.Values{"return": {"/service?name=%23svc@h"}})
 	resp.Body.Close()
-	if to := resp.Header.Get("Location"); to != "/service?name=svc@h" {
+	if to := resp.Header.Get("Location"); to != "/service?name=%23svc@h" {
 		t.Errorf("sign-in returned to %q, not to where the deep link was going", to)
 	}
 	if len(resp.Cookies()) != 1 {

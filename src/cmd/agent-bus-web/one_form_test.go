@@ -58,6 +58,9 @@ func TestEveryKindAsksTheSameQuestionsToRegisterAndToEdit(t *testing.T) {
 		{protocol.KindPubSub, "/channels/new?kind=pubsub", "/channel/edit"},
 	} {
 		name := c.kind + "-form@h"
+		if c.kind == protocol.KindAgent {
+			name = "#" + name // an agent's name begins with #
+		}
 		record := protocol.Record{Name: name, Kind: c.kind, Owner: "admin@h"}
 		if c.kind == protocol.KindService {
 			record.Addr, record.Proto = "host:1", "https"

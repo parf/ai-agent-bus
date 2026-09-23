@@ -34,29 +34,29 @@ func delivers(t *testing.T, b *Bus, manager, channel string, names ...string) {
 // unfiltered reader, even though the reader blocked first. Without this a
 // `call` loses its reply to whatever else is reading the inbox.
 func TestFilteredWaiterBeatsEarlierUnfilteredReader(t *testing.T) {
-	b := newBusWith(t, "svc@h", "peer@h")
+	b := newBusWith(t, "#svc@h", "#peer@h")
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	unfiltered := make(chan protocol.Envelope, 1)
 	go func() {
-		e, err := b.Consume(ctx, "svc@h", "", "", false, false)
+		e, err := b.Consume(ctx, "#svc@h", "", "", false, false)
 		if err == nil {
 			unfiltered <- e
 		}
 	}()
-	waitForWaiters(t, b, "svc@h", 1)
+	waitForWaiters(t, b, "#svc@h", 1)
 
 	filtered := make(chan protocol.Envelope, 1)
 	go func() {
-		e, err := b.Consume(ctx, "svc@h", "t", "g", true, false)
+		e, err := b.Consume(ctx, "#svc@h", "t", "g", true, false)
 		if err == nil {
 			filtered <- e
 		}
 	}()
-	waitForWaiters(t, b, "svc@h", 2)
+	waitForWaiters(t, b, "#svc@h", 2)
 
-	if _, err := b.Send(protocol.Envelope{From: "peer@h", To: "svc@h", Topic: "t", Tag: "g", Body: "reply"}); err != nil {
+	if _, err := b.Send(protocol.Envelope{From: "#peer@h", To: "#svc@h", Topic: "t", Tag: "g", Body: "reply"}); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -75,7 +75,7 @@ func TestFilteredWaiterBeatsEarlierUnfilteredReader(t *testing.T) {
 // fired at the same moment: either Consume returns it, or it is still queued.
 func TestCancelDoesNotSwallowAMessage(t *testing.T) {
 	for i := 0; i < 300; i++ {
-		b := newBusWith(t, "svc@h", "peer@h")
+		b := newBusWith(t, "#svc@h", "#peer@h")
 		ctx, cancel := context.WithCancel(context.Background())
 
 		got := make(chan protocol.Envelope, 1)
@@ -83,14 +83,14 @@ func TestCancelDoesNotSwallowAMessage(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if e, err := b.Consume(ctx, "svc@h", "", "", false, false); err == nil {
+			if e, err := b.Consume(ctx, "#svc@h", "", "", false, false); err == nil {
 				got <- e
 			}
 		}()
-		waitForWaiters(t, b, "svc@h", 1)
+		waitForWaiters(t, b, "#svc@h", 1)
 
 		go cancel()
-		if _, err := b.Send(protocol.Envelope{From: "peer@h", To: "svc@h", Body: "keepme"}); err != nil {
+		if _, err := b.Send(protocol.Envelope{From: "#peer@h", To: "#svc@h", Body: "keepme"}); err != nil {
 			t.Fatal(err)
 		}
 		wg.Wait()
@@ -100,7 +100,7 @@ func TestCancelDoesNotSwallowAMessage(t *testing.T) {
 		default:
 			// not delivered, so it must still be waiting in the queue
 			read, cancel2 := context.WithTimeout(context.Background(), time.Second)
-			e, err := b.Consume(read, "svc@h", "", "", false, false)
+			e, err := b.Consume(read, "#svc@h", "", "", false, false)
 			cancel2()
 			if err != nil || e.Body != "keepme" {
 				t.Fatalf("iteration %d: message lost between cancel and send (err %v)", i, err)
@@ -115,40 +115,40 @@ func TestCancelDoesNotSwallowAMessage(t *testing.T) {
 func TestNamesAreCanonical(t *testing.T) {
 	b := New()
 	known(t, b, "owner@h")
-	if _, err := b.Register(protocol.Record{Name: "  svc@h  ", Kind: "agent", Owner: "owner@h", Allow: []string{"peer@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "  #svc@h  ", Kind: "agent", Owner: "owner@h", Allow: []string{"#peer@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "peer@h", Owner: "owner@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#peer@h", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: " peer@h", To: "svc@h ", Body: "hi"}); err != nil {
+	if _, err := b.Send(protocol.Envelope{From: " #peer@h", To: "#svc@h ", Body: "hi"}); err != nil {
 		t.Fatalf("send to the registered name failed: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	e, err := b.Consume(ctx, "svc@h", "", "", false, false)
+	e, err := b.Consume(ctx, "#svc@h", "", "", false, false)
 	if err != nil || e.Body != "hi" {
 		t.Fatalf("consume: %v %q", err, e.Body)
 	}
-	if e.From != "peer@h" {
+	if e.From != "#peer@h" {
 		t.Fatalf("sender not canonical: %q", e.From)
 	}
 }
 
 // One outstanding unfiltered read per inbox; a filtered waiter is fine beside it.
 func TestSecondUnfilteredReaderRefused(t *testing.T) {
-	b := newBusWith(t, "svc@h")
+	b := newBusWith(t, "#svc@h")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	go b.Consume(ctx, "svc@h", "", "", false, false)
-	waitForWaiters(t, b, "svc@h", 1)
+	go b.Consume(ctx, "#svc@h", "", "", false, false)
+	waitForWaiters(t, b, "#svc@h", 1)
 
-	if _, err := b.Consume(ctx, "svc@h", "", "", false, false); err != ErrTwoReads {
+	if _, err := b.Consume(ctx, "#svc@h", "", "", false, false); err != ErrTwoReads {
 		t.Fatalf("want ErrTwoReads, got %v", err)
 	}
 	done := make(chan error, 1)
-	go func() { _, err := b.Consume(ctx, "svc@h", "t", "g", true, false); done <- err }()
-	waitForWaiters(t, b, "svc@h", 2)
+	go func() { _, err := b.Consume(ctx, "#svc@h", "t", "g", true, false); done <- err }()
+	waitForWaiters(t, b, "#svc@h", 2)
 	cancel()
 	if err := <-done; err == ErrTwoReads {
 		t.Fatal("a filtered waiter must be allowed alongside the reader")
@@ -160,7 +160,7 @@ func TestSecondUnfilteredReaderRefused(t *testing.T) {
 // the handoff is where a second reader would otherwise take a message twice.
 // See docs/04-messaging.md#one-reader-per-inbox.
 func TestSharingReadersEachTakeOneFromAnEmptyInbox(t *testing.T) {
-	b := newBusWith(t, "pool@h", "sender@h")
+	b := newBusWith(t, "#pool@h", "sender@h")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	const workers = 4
@@ -168,7 +168,7 @@ func TestSharingReadersEachTakeOneFromAnEmptyInbox(t *testing.T) {
 	errs := make(chan error, workers)
 	for range workers {
 		go func() {
-			e, err := b.Consume(ctx, "pool@h", "", "", false, true)
+			e, err := b.Consume(ctx, "#pool@h", "", "", false, true)
 			if err != nil {
 				errs <- err
 				return
@@ -176,9 +176,9 @@ func TestSharingReadersEachTakeOneFromAnEmptyInbox(t *testing.T) {
 			got <- e.Body
 		}()
 	}
-	waitForWaiters(t, b, "pool@h", workers)
+	waitForWaiters(t, b, "#pool@h", workers)
 	for i := range workers {
-		if _, err := b.Send(protocol.Envelope{From: "sender@h", To: "pool@h", Body: fmt.Sprint(i)}); err != nil {
+		if _, err := b.Send(protocol.Envelope{From: "sender@h", To: "#pool@h", Body: fmt.Sprint(i)}); err != nil {
 			t.Fatalf("send %d: %v", i, err)
 		}
 	}
@@ -202,11 +202,11 @@ func TestSharingReadersEachTakeOneFromAnEmptyInbox(t *testing.T) {
 // gets the old refusal, whichever of the two arrived first.
 func TestSharingIsRefusedBesideAReaderThatWantsTheInboxToItself(t *testing.T) {
 	for _, first := range []bool{false, true} {
-		b := newBusWith(t, "svc@h")
+		b := newBusWith(t, "#svc@h")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		go b.Consume(ctx, "svc@h", "", "", false, first)
-		waitForWaiters(t, b, "svc@h", 1)
-		if _, err := b.Consume(ctx, "svc@h", "", "", false, !first); err != ErrTwoReads {
+		go b.Consume(ctx, "#svc@h", "", "", false, first)
+		waitForWaiters(t, b, "#svc@h", 1)
+		if _, err := b.Consume(ctx, "#svc@h", "", "", false, !first); err != ErrTwoReads {
 			t.Fatalf("sharing=%v then %v: want ErrTwoReads, got %v", first, !first, err)
 		}
 		cancel()
@@ -214,11 +214,11 @@ func TestSharingIsRefusedBesideAReaderThatWantsTheInboxToItself(t *testing.T) {
 }
 
 func TestSendToUnknownName(t *testing.T) {
-	b := newBusWith(t, "peer@h")
-	if _, err := b.Send(protocol.Envelope{From: "peer@h", To: "ghost@h"}); !errors.Is(err, ErrUnknown) {
+	b := newBusWith(t, "#peer@h")
+	if _, err := b.Send(protocol.Envelope{From: "#peer@h", To: "ghost@h"}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("want ErrUnknown, got %v", err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "peer@h", To: "no-realm"}); err == nil {
+	if _, err := b.Send(protocol.Envelope{From: "#peer@h", To: "no-realm"}); err == nil {
 		t.Fatal("a name without a realm must be refused")
 	}
 }
@@ -262,14 +262,14 @@ func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 	known(t, b, "a@srv")
 	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
 	known(t, b, "pub@srv")
-	known(t, b, "one@srv", "two@srv")
-	delivers(t, b, "a@srv", "news@srv", "one@srv", "two@srv")
+	known(t, b, "#one@srv", "#two@srv")
+	delivers(t, b, "a@srv", "news@srv", "#one@srv", "#two@srv")
 	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "news@srv", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	for _, s := range []string{"one@srv", "two@srv"} {
+	for _, s := range []string{"#one@srv", "#two@srv"} {
 		e, err := b.Consume(ctx, s, "", "", false, false)
 		if err != nil {
 			t.Fatalf("%s got nothing: %v", s, err)
@@ -290,29 +290,29 @@ func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 // See docs/04-messaging.md#subscribers.
 func TestRestatingATopicKeepsItsDeliverToListUnlessItStatesOne(t *testing.T) {
 	b := New()
-	known(t, b, "a@srv", "stranger@srv", "one@srv", "two@srv")
+	known(t, b, "a@srv", "stranger@srv", "#one@srv", "#two@srv")
 	topic := protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"}
 	mustRegister(t, b, topic)
-	delivers(t, b, "a@srv", "news@srv", "one@srv")
+	delivers(t, b, "a@srv", "news@srv", "#one@srv")
 
 	restated := topic
 	restated.Descr = "again"
 	mustRegister(t, b, restated)
-	if r, ok := b.Lookup("a@srv", "news@srv"); !ok || len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
+	if r, ok := b.Lookup("a@srv", "news@srv"); !ok || len(r.Subs) != 1 || r.Subs[0] != "#one@srv" {
 		t.Fatalf("the list after a restate that stated none: %v", r.Subs)
 	}
 
 	stated := topic
-	stated.Subs = []string{"two@srv"}
+	stated.Subs = []string{"#two@srv"}
 	mustRegister(t, b, stated)
-	if r, _ := b.Lookup("a@srv", "news@srv"); len(r.Subs) != 1 || r.Subs[0] != "two@srv" {
+	if r, _ := b.Lookup("a@srv", "news@srv"); len(r.Subs) != 1 || r.Subs[0] != "#two@srv" {
 		t.Fatalf("the list the owner restated: %v", r.Subs)
 	}
 
 	// Declared at creation, because creating a topic and saying who it
 	// delivers to is one act.
-	mustRegister(t, b, protocol.Record{Name: "fresh@srv", Kind: protocol.KindPubSub, Owner: "a@srv", Subs: []string{"one@srv"}})
-	if r, _ := b.Lookup("a@srv", "fresh@srv"); len(r.Subs) != 1 || r.Subs[0] != "one@srv" {
+	mustRegister(t, b, protocol.Record{Name: "fresh@srv", Kind: protocol.KindPubSub, Owner: "a@srv", Subs: []string{"#one@srv"}})
+	if r, _ := b.Lookup("a@srv", "fresh@srv"); len(r.Subs) != 1 || r.Subs[0] != "#one@srv" {
 		t.Fatalf("the list a new topic declared: %v", r.Subs)
 	}
 
@@ -321,7 +321,7 @@ func TestRestatingATopicKeepsItsDeliverToListUnlessItStatesOne(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Name: "news@srv", Kind: protocol.KindPubSub, Owner: "stranger@srv", Subs: []string{"stranger@srv"}}); err == nil {
 		t.Fatal("a stranger restated the topic")
 	}
-	if r, _ := b.Lookup("a@srv", "news@srv"); len(r.Subs) != 1 || r.Subs[0] != "two@srv" {
+	if r, _ := b.Lookup("a@srv", "news@srv"); len(r.Subs) != 1 || r.Subs[0] != "#two@srv" {
 		t.Fatalf("a stranger changed the list: %v", r.Subs)
 	}
 }
@@ -332,8 +332,8 @@ func TestRestatingATopicKeepsItsDeliverToListUnlessItStatesOne(t *testing.T) {
 // other end of the same rule, and without it the guard has no check.
 func TestAnAnswerNeverCarriesLivenessItWasHandedIn(t *testing.T) {
 	b := New()
-	known(t, b, "claimer@srv")
-	got := b.withLiveness("claimer@srv", protocol.Record{Kind: protocol.KindAgent, Name: "claimer@srv", Reading: true, Readers: ptr(9), Queued: 9, In: 9, Out: 9,
+	known(t, b, "#claimer@srv")
+	got := b.withLiveness("#claimer@srv", protocol.Record{Kind: protocol.KindAgent, Name: "#claimer@srv", Reading: true, Readers: ptr(9), Queued: 9, In: 9, Out: 9,
 		Dropped: 9, Expired: 9, Oldest: "99h",
 	})
 	if got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 || got.In != 0 || got.Out != 0 ||
@@ -425,23 +425,23 @@ func TestConsumedMessagesAreReleased(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b := New()
-			known(t, b, "sink@h", "s@h")
+			known(t, b, "#sink@h", "s@h")
 			const n = 100
 			for i := 0; i < n; i++ {
 				if _, err := b.Send(protocol.Envelope{
-					To: "sink@h", From: "s@h", Tag: fmt.Sprint(i), Body: bigBody(i),
+					To: "#sink@h", From: "s@h", Tag: fmt.Sprint(i), Body: bigBody(i),
 				}); err != nil {
 					t.Fatal(err)
 				}
 			}
 			for _, tag := range tc.order(n) {
-				if _, err := b.Consume(context.Background(), "sink@h", "", fmt.Sprint(tag), true, false); err != nil {
+				if _, err := b.Consume(context.Background(), "#sink@h", "", fmt.Sprint(tag), true, false); err != nil {
 					t.Fatalf("tag %d: %v", tag, err)
 				}
 			}
 			b.mu.Lock()
 			defer b.mu.Unlock()
-			q := b.inboxes["sink@h"].queue
+			q := b.inboxes["#sink@h"].queue
 			if len(q) != 0 {
 				t.Fatalf("queue is not empty: %d", len(q))
 			}
@@ -455,15 +455,15 @@ func TestConsumedMessagesAreReleased(t *testing.T) {
 // What a ring drops is dropped, not kept in the slack behind the queue.
 func TestRingDropsAreReleased(t *testing.T) {
 	b := New()
-	provision(t, b, protocol.Record{Kind: protocol.KindAgent, Name: "ringy@h", Allow: []string{"s@h"}, Full: protocol.OverflowRing})
+	provision(t, b, nil, protocol.Record{Kind: protocol.KindAgent, Name: "#ringy@h", Allow: []string{"s@h"}, Full: protocol.OverflowRing})
 	known(t, b, "s@h")
 	for i := 0; i < maxQueue+50; i++ {
-		if _, err := b.Send(protocol.Envelope{To: "ringy@h", From: "s@h", Body: bigBody(i)}); err != nil {
+		if _, err := b.Send(protocol.Envelope{To: "#ringy@h", From: "s@h", Body: bigBody(i)}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	b.mu.Lock()
-	q := b.inboxes["ringy@h"].queue
+	q := b.inboxes["#ringy@h"].queue
 	if len(q) != maxQueue {
 		b.mu.Unlock()
 		t.Fatalf("queue holds %d, want %d", len(q), maxQueue)
@@ -476,14 +476,14 @@ func TestRingDropsAreReleased(t *testing.T) {
 
 	const dropped = 50
 	for i := 0; i < dropped; i++ {
-		if _, err := b.Send(protocol.Envelope{To: "ringy@h", From: "s@h", Body: bigBody(9000 + i)}); err != nil {
+		if _, err := b.Send(protocol.Envelope{To: "#ringy@h", From: "s@h", Body: bigBody(9000 + i)}); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	q = b.inboxes["ringy@h"].queue
+	q = b.inboxes["#ringy@h"].queue
 	if len(q) != maxQueue {
 		t.Fatalf("after the drops the queue holds %d, want %d", len(q), maxQueue)
 	}
@@ -510,30 +510,30 @@ func TestRingDropsAreReleased(t *testing.T) {
 // A waiter that has been served or has given up must not stay reachable.
 func TestServedWaitersAreReleased(t *testing.T) {
 	b := New()
-	known(t, b, "w@h", "s@h")
+	known(t, b, "#w@h", "s@h")
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		if _, err := b.Consume(context.Background(), "w@h", "t", "g", true, false); err != nil {
+		if _, err := b.Consume(context.Background(), "#w@h", "t", "g", true, false); err != nil {
 			t.Error(err)
 		}
 	}()
 	for i := 0; i < 200; i++ {
 		b.mu.Lock()
-		n := len(b.inboxes["w@h"].waiters)
+		n := len(b.inboxes["#w@h"].waiters)
 		b.mu.Unlock()
 		if n == 1 {
 			break
 		}
 		time.Sleep(time.Millisecond)
 	}
-	if _, err := b.Send(protocol.Envelope{To: "w@h", From: "s@h", Topic: "t", Tag: "g", Body: "hi"}); err != nil {
+	if _, err := b.Send(protocol.Envelope{To: "#w@h", From: "s@h", Topic: "t", Tag: "g", Body: "hi"}); err != nil {
 		t.Fatal(err)
 	}
 	<-done
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	ws := b.inboxes["w@h"].waiters
+	ws := b.inboxes["#w@h"].waiters
 	if len(ws) != 0 {
 		t.Fatalf("%d waiters left", len(ws))
 	}
@@ -548,21 +548,21 @@ func TestServedWaitersAreReleased(t *testing.T) {
 // not look like changing it: the digest a query gets is over what is stored.
 func TestAConfigurationIsStoredCompacted(t *testing.T) {
 	b := New()
-	known(t, b, "svc@h")
-	if _, err := b.Configure("svc@h", "svc@h", []byte("{ \"k\" : \"v\" }\n")); err != nil {
+	known(t, b, "#svc@h")
+	if _, err := b.Configure("#svc@h", "#svc@h", []byte("{ \"k\" : \"v\" }\n")); err != nil {
 		t.Fatal(err)
 	}
 	// Read it back the one way there is: Configure answers without it.
-	stored, err := b.Config("svc@h", "svc@h")
+	stored, err := b.Config("#svc@h", "#svc@h")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := string(stored); got != `{"k":"v"}` {
 		t.Fatalf("stored %q", got)
 	}
-	spaced, _ := b.Lookup("svc@h", "svc@h")
-	known(t, b, "other@h")
-	compact, err := b.Configure("other@h", "other@h", []byte(`{"k":"v"}`))
+	spaced, _ := b.Lookup("#svc@h", "#svc@h")
+	known(t, b, "#other@h")
+	compact, err := b.Configure("#other@h", "#other@h", []byte(`{"k":"v"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -578,7 +578,7 @@ func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
 	b := New()
 	known(t, b, "parf@srv1")
 	rec, err := b.Register(protocol.Record{
-		Name: "plain@h", Kind: protocol.KindAgent, Owner: "parf@srv1",
+		Name: "#plain@h", Kind: protocol.KindAgent, Owner: "parf@srv1",
 		Config: []byte(`{"smuggled":true}`), ConfigSHA: "forged-by-the-caller",
 	})
 	if err != nil {
@@ -592,7 +592,7 @@ func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
 	}
 
 	// And configuring it for real produces one that is actually derived.
-	cfg, err := b.Configure("plain@h", "parf@srv1", []byte(`{"k":"v"}`))
+	cfg, err := b.Configure("#plain@h", "parf@srv1", []byte(`{"k":"v"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -605,15 +605,15 @@ func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
 // it cannot read.
 func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 	b := New()
-	known(t, b, "svc@h")
-	if _, err := b.Configure("svc@h", "svc@h", []byte(`{"k":"v"}`)); err != nil {
+	known(t, b, "#svc@h")
+	if _, err := b.Configure("#svc@h", "#svc@h", []byte(`{"k":"v"}`)); err != nil {
 		t.Fatal(err)
 	}
-	real, known := b.Lookup("svc@h", "svc@h")
+	real, known := b.Lookup("#svc@h", "#svc@h")
 	if !known {
 		t.Fatal("the configured service is not registered")
 	}
-	again, err := b.Register(protocol.Record{Name: "svc@h", Kind: protocol.KindAgent, Owner: "svc@h", ConfigSHA: "forged"})
+	again, err := b.Register(protocol.Record{Name: "#svc@h", Kind: protocol.KindAgent, Owner: "#svc@h", ConfigSHA: "forged"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -650,22 +650,22 @@ func TestConsumingFromAnUnregisteredNameIsRefused(t *testing.T) {
 func TestARegistrationCannotClaimLiveState(t *testing.T) {
 	b := New()
 	known(t, b, "o@h")
-	rec, err := b.Register(protocol.Record{Name: "probe@h", Kind: "agent", Owner: "o@h", Reading: true, Readers: ptr(99), Queued: 77})
+	rec, err := b.Register(protocol.Record{Name: "#probe@h", Kind: "agent", Owner: "o@h", Reading: true, Readers: ptr(99), Queued: 77})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if rec.Reading || rec.Readers != nil || rec.Queued != 0 {
 		t.Fatalf("the registration answer carried live state: reading=%v readers=%v queued=%d", rec.Reading, rec.Readers, rec.Queued)
 	}
-	got, ok := b.Lookup("probe@h", "probe@h")
+	got, ok := b.Lookup("#probe@h", "#probe@h")
 	if !ok {
 		t.Fatal("not registered")
 	}
 	if got.Reading || got.Readers == nil || *got.Readers != 0 {
 		t.Fatalf("stored or absent reader state survived into a lookup: reading=%v readers=%v", got.Reading, got.Readers)
 	}
-	for _, r := range b.List("probe@h", "") {
-		if r.Name == "probe@h" && (r.Reading || r.Readers == nil || *r.Readers != 0) {
+	for _, r := range b.List("#probe@h", "") {
+		if r.Name == "#probe@h" && (r.Reading || r.Readers == nil || *r.Readers != 0) {
 			t.Fatalf("stored or absent reader state survived into a listing: reading=%v readers=%v", r.Reading, r.Readers)
 		}
 	}
@@ -684,6 +684,9 @@ func TestAKindTheDaemonDoesNotKnowIsRefused(t *testing.T) {
 	}
 	for _, ok := range protocol.Kinds {
 		r := protocol.Record{Name: "t-" + ok + "@h", Kind: ok, Owner: "o@h"}
+		if ok == protocol.KindAgent {
+			r.Name = "#" + r.Name
+		}
 		if ok == protocol.KindService {
 			r.Addr, r.Proto = "db.example", "mysql"
 		}
@@ -711,15 +714,15 @@ func TestAKindTheDaemonDoesNotKnowIsRefused(t *testing.T) {
 // tested directly. A mutation of it survived the whole acceptance suite.
 func TestLivenessIsAssignedNotMerged(t *testing.T) {
 	b := New()
-	known(t, b, "svc@h")
-	dirty := protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Reading: true, Readers: ptr(99), Queued: 77}
+	known(t, b, "#svc@h")
+	dirty := protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Reading: true, Readers: ptr(99), Queued: 77}
 	look := func(name string, r protocol.Record) protocol.Record {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		return b.withLiveness(name, r)
 	}
 
-	if got := look("svc@h", dirty); got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 {
+	if got := look("#svc@h", dirty); got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 {
 		t.Fatalf("an idle empty inbox answered reading=%v readers=%v queued=%d", got.Reading, got.Readers, got.Queued)
 	}
 	if got := look("no-inbox@h", dirty); got.Reading || got.Readers == nil || *got.Readers != 0 || got.Queued != 0 {
@@ -728,29 +731,29 @@ func TestLivenessIsAssignedNotMerged(t *testing.T) {
 
 	// A waiting unfiltered reader is reported, and only while it waits.
 	done := make(chan struct{})
-	go func() { defer close(done); _, _ = b.Consume(context.Background(), "svc@h", "", "", false, false) }()
-	for deadline := time.Now().Add(2 * time.Second); !look("svc@h", protocol.Record{}).Reading; {
+	go func() { defer close(done); _, _ = b.Consume(context.Background(), "#svc@h", "", "", false, false) }()
+	for deadline := time.Now().Add(2 * time.Second); !look("#svc@h", protocol.Record{}).Reading; {
 		if time.Now().After(deadline) {
 			t.Fatal("a waiting unfiltered reader was never reported")
 		}
 		time.Sleep(2 * time.Millisecond)
 	}
 	known(t, b, "x@h")
-	if _, err := b.Send(protocol.Envelope{From: "x@h", To: "svc@h", Body: "go"}); err != nil {
+	if _, err := b.Send(protocol.Envelope{From: "x@h", To: "#svc@h", Body: "go"}); err != nil {
 		t.Fatal(err)
 	}
 	<-done
-	if got := look("svc@h", dirty); got.Reading {
+	if got := look("#svc@h", dirty); got.Reading {
 		t.Fatal("the reader is gone and is still reported")
 	}
 
 	// A backlog is counted, not merely cleared.
 	for i := 0; i < 3; i++ {
-		if _, err := b.Send(protocol.Envelope{From: "x@h", To: "svc@h", Body: "q"}); err != nil {
+		if _, err := b.Send(protocol.Envelope{From: "x@h", To: "#svc@h", Body: "q"}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if got := look("svc@h", protocol.Record{}); got.Queued != 3 {
+	if got := look("#svc@h", protocol.Record{}); got.Queued != 3 {
 		t.Fatalf("three queued messages reported as %d", got.Queued)
 	}
 }
@@ -769,14 +772,17 @@ func TestAPublicationADisabledRecipientCannotTakeCountsAsItsDrop(t *testing.T) {
 	// The ACL names the publisher and nobody else: none of the four below may
 	// publish here, and all four are on the list.
 	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"pub@srv"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
-	for _, s := range []string{"live@srv", "off@srv", "outsider@srv"} {
+	for _, s := range []string{"#live@srv", "#off@srv", "#outsider@srv"} {
 		mustRegister(t, b, protocol.Record{Name: s, Allow: []string{"*"}, Kind: "agent", Owner: "a@srv"})
 	}
 	if _, err := b.SetUser("admin@srv", protocol.User{Name: "paused@srv"}, true); err != nil {
 		t.Fatalf("the person who gets suspended: %v", err)
 	}
-	delivers(t, b, "a@srv", "news@srv", "live@srv", "off@srv", "paused@srv", "outsider@srv")
-	if _, err := b.Manage("a@srv", Management{Name: "off@srv", Disabled: ptr(true)}); err != nil {
+	// The recipient that becomes unreachable is an agent of that person: a
+	// User takes no published copy of its own (docs/constitution.md#-channels).
+	mustRegister(t, b, protocol.Record{Name: "#pauseds@srv", Allow: []string{"*"}, Kind: "agent", Owner: "paused@srv"})
+	delivers(t, b, "a@srv", "news@srv", "#live@srv", "#off@srv", "#pauseds@srv", "#outsider@srv")
+	if _, err := b.Manage("a@srv", Management{Name: "#off@srv", Disabled: ptr(true)}); err != nil {
 		t.Fatalf("disable: %v", err)
 	}
 	// Unreachable rather than turned off: a suspended name takes no copies
@@ -792,10 +798,10 @@ func TestAPublicationADisabledRecipientCannotTakeCountsAsItsDrop(t *testing.T) {
 		queued  int
 		dropped int
 	}{
-		{"live@srv", 1, 0},
-		{"off@srv", 0, 1},
-		{"paused@srv", 0, 0},
-		{"outsider@srv", 1, 0},
+		{"#live@srv", 1, 0},
+		{"#off@srv", 0, 1},
+		{"#pauseds@srv", 0, 0},
+		{"#outsider@srv", 1, 0},
 	} {
 		r, ok := b.Lookup("admin@srv", c.name)
 		if !ok {
@@ -844,15 +850,24 @@ func TestEveryPathThatStoresARecordAsksTheSameShapeQuestion(t *testing.T) {
 		"unknown kind":        {Name: "x@h", Owner: "alice@h", Kind: "generic"},
 		"service, no address": {Name: "x@h", Owner: "alice@h", Kind: protocol.KindService, Proto: "https"},
 		"service, no proto":   {Name: "x@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "h:1"},
-		"personal queue":      {Name: "x@h", Owner: "alice@h", Kind: protocol.KindQueue, Personal: true},
+		"agent without its #": {Name: "x@h", Owner: "alice@h", Kind: protocol.KindAgent},
+		"owned by nobody":     {Name: "x@h", Owner: "ghost@h", Kind: protocol.KindQueue},
 	} {
 		restarted := New()
+		rep := &reports{}
+		restarted.Journal(rep)
 		restarted.Restore(ports.Snapshot{
 			Users:   []protocol.User{{Name: "alice@h", State: "active"}},
-			Records: []protocol.Record{record},
+			Records: []protocol.Record{{Name: "alice@h", Owner: "alice@h", Kind: protocol.KindUser, Personal: true}, record},
 		})
-		if err := restarted.EstablishDaemonOwner("alice@h"); err == nil {
-			t.Errorf("a snapshot holding a %s record started a daemon", name)
+		if err := restarted.EstablishDaemonOwner("alice@h"); err != nil {
+			t.Fatalf("an ignored record stopped the start: %v", err)
+		}
+		if _, loaded := restarted.Lookup("alice@h", "x@h"); loaded {
+			t.Errorf("a snapshot holding a %s record served it", name)
+		}
+		if !rep.has("stored record x@h is ignored") {
+			t.Errorf("the ignored %s record was not reported: %v", name, rep.lines)
 		}
 	}
 	// Falsifiable: a snapshot of records this version can serve restores.
@@ -860,10 +875,11 @@ func TestEveryPathThatStoresARecordAsksTheSameShapeQuestion(t *testing.T) {
 	restarted.Restore(ports.Snapshot{
 		Users: []protocol.User{{Name: "alice@h", State: "active"}},
 		Records: []protocol.Record{
+			{Name: "alice@h", Owner: "alice@h", Kind: protocol.KindUser, Personal: true},
 			// The Personal record is listed BEFORE the agent its ACL names, so
 			// this also fails if Personal is validated mid-restore.
-			{Name: "mine@h", Owner: "alice@h", Kind: protocol.KindAgent, Personal: true, Allow: []string{"peer@h"}},
-			{Name: "peer@h", Owner: "alice@h", Kind: protocol.KindAgent},
+			{Name: "#mine@h", Owner: "alice@h", Kind: protocol.KindAgent, Personal: true, Allow: []string{"#peer@h"}},
+			{Name: "#peer@h", Owner: "alice@h", Kind: protocol.KindAgent},
 			{Name: "db@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "h:1", Proto: "https"},
 		},
 	})
@@ -895,56 +911,28 @@ func TestEnrolmentRecordsAPersonAsOne(t *testing.T) {
 	// an agent.
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "owner@h")
-	if _, err := b.Register(protocol.Record{Name: "bot@h", Owner: "owner@h", Kind: protocol.KindAgent}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "#bot@h", Owner: "owner@h", Kind: protocol.KindAgent}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := b.Lookup("owner@h", "bot@h"); got.Kind != protocol.KindAgent {
+	if got, _ := b.Lookup("owner@h", "#bot@h"); got.Kind != protocol.KindAgent {
 		t.Errorf("an ordinary agent registered as kind %q", got.Kind)
 	}
 }
 
-// A pause is a fact about somebody. Only a user's queue and an agent's have a
-// somebody behind them, so a queue, a pub/sub topic or an external service that
-// happens to share a name with a paused user is not itself paused: the state
-// belongs to the person, and the record is not the person.
-func TestOnlyAKindWithSomebodyBehindItCarriesTheirState(t *testing.T) {
+// A user's name and a record's name are one namespace: a queue, a pub/sub
+// topic or a service cannot be called what a User is called, because the
+// User's own record already has the name (docs/constitution.md#common-record-fields).
+func TestAUserNameIsNotAlsoAQueueName(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "alice@h")
-	for _, name := range []string{"queue@h", "agent@h"} {
-		if _, err := b.SetUser("admin@h", protocol.User{Name: name}, true); err != nil {
-			t.Fatal(err)
-		}
+	if _, err := b.SetUser("admin@h", protocol.User{Name: "queue@h"}, true); err != nil {
+		t.Fatal(err)
 	}
-	// SetUser gives each name a user's own queue; these restate two of them as
-	// what they really are, which is the collision the rule is about.
-	for _, r := range []protocol.Record{
-		{Name: "queue@h", Owner: "queue@h", Kind: protocol.KindQueue, Allow: []string{"*"}},
-		{Name: "agent@h", Owner: "agent@h", Kind: protocol.KindAgent, Allow: []string{"*"}},
-	} {
-		if _, err := b.Register(r); err != nil {
-			t.Fatal(err)
-		}
+	if _, err := b.Register(protocol.Record{Name: "queue@h", Owner: "admin@h", Kind: protocol.KindQueue}); err == nil {
+		t.Fatal("a queue took a user's name")
 	}
-	for _, name := range []string{"queue@h", "agent@h"} {
-		if _, err := b.SetUserState("admin@h", name, "paused"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// The agent has somebody behind it, so the pause reaches it.
-	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "agent@h", Body: "held"}); !errors.Is(err, ErrInactive) {
-		t.Errorf("a paused agent still took a message: %v", err)
-	}
-	// The queue does not, so it keeps working.
-	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "queue@h", Body: "work"}); err != nil {
-		t.Errorf("a passive queue was paused by a user of the same name: %v", err)
-	}
-	// And a listing does not report it as disabled either.
-	if got, ok := b.Lookup("alice@h", "queue@h"); !ok || got.Disabled {
-		t.Errorf("a passive queue is listed as disabled: %+v", got)
-	}
-	if got, ok := b.Lookup("alice@h", "agent@h"); !ok || !got.Disabled {
-		t.Errorf("a paused agent is not listed as disabled: %+v", got)
+	if r, ok := b.Lookup("admin@h", "queue@h"); !ok || r.Kind != protocol.KindUser {
+		t.Fatalf("the user's own record changed: %+v", r)
 	}
 }
 
@@ -955,7 +943,7 @@ func TestOnlyAKindWithSomebodyBehindItCarriesTheirState(t *testing.T) {
 func TestAnExternalServiceHasNoQueueHere(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "alice@h", "peer@h")
+	known(t, b, "alice@h", "#peer@h")
 	service := protocol.Record{
 		Name: "db@h", Owner: "alice@h", Kind: protocol.KindService,
 		Addr: "db.example:5432", Proto: "postgresql", Allow: []string{"*"},
@@ -1012,10 +1000,10 @@ func TestAnExternalServiceHasNoQueueHere(t *testing.T) {
 	}
 
 	// The queue a peer does have is untouched by any of it.
-	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "peer@h", Body: "hello"}); err != nil {
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "#peer@h", Body: "hello"}); err != nil {
 		t.Fatalf("an ordinary send broke: %v", err)
 	}
-	if peer, _ := b.Lookup("alice@h", "peer@h"); peer.Queued != 1 || peer.Readers == nil {
+	if peer, _ := b.Lookup("alice@h", "#peer@h"); peer.Queued != 1 || peer.Readers == nil {
 		t.Fatalf("an agent lost its queue facts: %+v", peer)
 	}
 }

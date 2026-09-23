@@ -69,7 +69,7 @@ func TestADegradedSectionSaysSoWithoutNamingTheBackend(t *testing.T) {
 		t.Fatal("sign in did not return a session")
 	}
 	session := resp.Cookies()[0]
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "admin@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "admin@h"}); err != nil {
 		t.Fatal(err)
 	}
 	get := func(path string) (int, string) {
@@ -91,7 +91,7 @@ func TestADegradedSectionSaysSoWithoutNamingTheBackend(t *testing.T) {
 	// would produce if any part of the transport text reached the page.
 	where := strings.TrimPrefix(backend.URL, "http://")
 
-	sections := map[string]string{"/service?name=svc@h": "Activity unavailable", "/account": "Credentials"}
+	sections := map[string]string{"/service?name=%23svc@h": "Activity unavailable", "/account": "Credentials"}
 	for path, marker := range sections {
 		code, body := get(path)
 		if code != http.StatusOK {
@@ -254,7 +254,7 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 	// Credentials with no user profile behind them, so the removal
 	// confirmation is its own page rather than the refusal a directory user
 	// gets for a credential that is not removable this way.
-	for _, who := range []string{"worker@h", "runner@h"} {
+	for _, who := range []string{"#worker@h", "runner@h"} {
 		if _, err := m.tokens.Issue(who); err != nil {
 			t.Fatal(err)
 		}
@@ -262,7 +262,7 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 	for _, record := range []protocol.Record{
 		{Name: "service@h", Owner: "admin@h", Kind: protocol.KindService, Addr: "host:1", Proto: "https"},
 		{Name: "second@h", Owner: "admin@h", Kind: protocol.KindService, Addr: "host:2", Proto: "https"},
-		{Name: "agent@h", Owner: "admin@h", Kind: "agent"},
+		{Name: "#agent@h", Owner: "admin@h", Kind: "agent"},
 		{Name: "channel@h", Owner: "admin@h", Kind: protocol.KindQueue},
 		{Name: "other-channel@h", Owner: "admin@h", Kind: protocol.KindQueue},
 	} {
@@ -295,7 +295,7 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		{"/user?name=bob@h", "<a href=/users aria-current=page>", ""},
 		{"/user-ban?name=alice@h", "<a href=/users aria-current=page>", ""},
 		{"/user-ban?name=bob@h", "<a href=/users aria-current=page>", ""},
-		{"/credential-remove?name=worker@h", "<a href=/users aria-current=page>", ""},
+		{"/credential-remove?name=%23worker@h", "<a href=/users aria-current=page>", ""},
 		{"/credential-remove?name=runner@h", "<a href=/users aria-current=page>", ""},
 		{"/groups", "<a href=/groups aria-current=page>", ""},
 		{"/groups/new", "<a href=/groups aria-current=page>", ""},
@@ -306,13 +306,13 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		{"/service?name=service@h", "<a href=/services aria-current=page>", ""},
 		{"/service?name=second@h", "<a href=/services aria-current=page>", ""},
 		// An agent belongs to the Agents section, whichever route reaches it.
-		{"/agent?name=agent@h", "<a href=/agents aria-current=page>", ""},
-		{"/service?name=agent@h", "<a href=/agents aria-current=page>", "Agent agent@h · agent-bus"},
+		{"/agent?name=%23agent@h", "<a href=/agents aria-current=page>", ""},
+		{"/service?name=%23agent@h", "<a href=/agents aria-current=page>", "Agent #agent@h · agent-bus"},
 		{"/channel?name=channel@h", "<a href=/channels aria-current=page>", ""},
 		{"/channel?name=other-channel@h", "<a href=/channels aria-current=page>", ""},
 		{"/service-danger?name=service@h", "<a href=/services aria-current=page>", ""},
 		{"/service-danger?name=second@h", "<a href=/services aria-current=page>", ""},
-		{"/service-danger?name=agent@h", "<a href=/agents aria-current=page>", ""},
+		{"/service-danger?name=%23agent@h", "<a href=/agents aria-current=page>", ""},
 		{"/service-danger?name=channel@h", "<a href=/channels aria-current=page>", ""},
 		// The retained legacy topic URL is the same page at its old address.
 		{"/service?name=channel@h", "<a href=/channels aria-current=page>", "Queue channel@h · agent-bus"},
@@ -390,7 +390,7 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		// A Channel reaches the same confirmation and belongs under Channels.
 		{"channel remove", "<a href=/channels aria-current=page>", url.Values{"action": {"delete"}, "name": {"channel@h"}}},
 		// So does an agent, and it belongs under Agents.
-		{"agent remove", "<a href=/agents aria-current=page>", url.Values{"action": {"delete"}, "name": {"agent@h"}}},
+		{"agent remove", "<a href=/agents aria-current=page>", url.Values{"action": {"delete"}, "name": {"#agent@h"}}},
 	} {
 		body, code := postBody(t, m, "/service-confirm", action.form)
 		if code != http.StatusOK {

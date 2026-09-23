@@ -463,7 +463,7 @@ See docs/08-runner-role.md#smart-launchers.`);
         const used = new Set((await owner.ls()).filter(r => r.name !== name).map(r => r.descr));
         let next = title;
         for (let n = 2; used.has(next) || (next !== label && !bindings!.lock(`label:${next}`)); n++) next = `${title} #${n}`;
-        await owner.register({ name, kind: "agent", descr: next });
+        await owner.register({ name, kind: "agent", descr: next, personal: true });
         label = next;
         session.name = title;
         terminal?.set(next);

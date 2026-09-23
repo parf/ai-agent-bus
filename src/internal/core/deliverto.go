@@ -12,12 +12,12 @@ import (
 // traffic, and neither stands in for the other. It is stored in Record.Subs.
 // See docs/04-messaging.md#subscribers.
 
-// canReceive is the kinds a copy can be put into: the ones with an inbox here
-// that somebody reads. A 📡 has no queue at all, and a 📮 or 📣 is a
-// destination rather than a reader — a channel forwarding to a channel is a
-// delivery graph nothing in this daemon walks.
+// canReceive is the kinds a copy can be put into. A User receives only
+// replies to what it sent, never a published copy
+// (docs/constitution.md#-channels), and a 📡 has no queue at all. **Pending
+// for 0.7:** a 📮 or 📣 recipient, which is forwarding (K.15).
 func canReceive(r protocol.Record) bool {
-	return r.Kind == protocol.KindUser || r.Kind == protocol.KindAgent
+	return r.Kind == protocol.KindAgent
 }
 
 // normalizeDeliverTo checks a whole replacement before Manage or a
@@ -33,8 +33,8 @@ func (b *Bus) normalizeDeliverTo(in []string) ([]string, error) {
 		var term string
 		if strings.HasPrefix(strings.TrimSpace(raw), "@") {
 			term = strings.TrimSpace(raw)
-			if term == OwnerGroup {
-				return nil, fmt.Errorf("%w: %s is a runtime ACL term about who may publish, not a set of inboxes", ErrBadName, OwnerGroup)
+			if reservedTerm(term) {
+				return nil, fmt.Errorf("%w: %s is a runtime ACL term about who may publish, not a set of inboxes", ErrBadName, term)
 			}
 			if !groupName(term) {
 				return nil, fmt.Errorf("%w: invalid deliver-to group %q", ErrBadName, raw)
@@ -53,7 +53,7 @@ func (b *Bus) normalizeDeliverTo(in []string) ([]string, error) {
 				return nil, fmt.Errorf("%w: deliver-to %s, which has to be registered first so its copies have somewhere to land", ErrUnknown, term)
 			}
 			if !canReceive(r) {
-				return nil, fmt.Errorf("%w: deliver-to %s must be a user, an agent or a group, and a %s has no inbox a copy can land in", ErrBadName, term, r.Kind)
+				return nil, fmt.Errorf("%w: deliver-to %s must be an agent or a group, and a %s takes no published copy", ErrBadName, term, r.Kind)
 			}
 		}
 		if seen[term] {

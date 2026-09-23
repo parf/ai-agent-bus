@@ -64,9 +64,6 @@ func (b *Bus) EstablishDaemonOwner(seed string) error {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if b.recordRestoreErr != nil {
-		return b.recordRestoreErr
-	}
 	if b.ownerRestoreErr != nil {
 		return b.ownerRestoreErr
 	}
@@ -104,20 +101,75 @@ func (b *Bus) administratorsAreUsers() {
 		if _, known := b.users[name]; !known {
 			b.setUser(name, protocol.User{Name: name, State: "active"})
 		}
+		// Every User has exactly one user record (docs/constitution.md#-user).
+		if _, known := b.records[name]; !known {
+			b.setRecord(name, protocol.Record{Name: name, Owner: name, Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict, At: time.Now()})
+			b.ensure(name)
+		}
 	}
 }
 
 func (b *Bus) resourceManages(caller string, r protocol.Record) bool {
-	return b.acting(caller) == nil && (caller == r.Owner || caller == r.Name || b.maintains(caller, r.Maintainers))
+	return b.acting(caller) == nil && (caller == r.Owner || caller == r.Name || b.maintains(caller, r))
 }
 
-func (b *Bus) maintains(caller string, terms protocol.MaintainerList) bool {
-	for _, term := range terms {
-		if term == caller || b.member(caller, term) {
+func (b *Bus) maintains(caller string, r protocol.Record) bool {
+	for _, term := range r.Maintainers {
+		if term == caller || b.member(caller, term) || b.runtimeTerm(caller, term, r) {
 			return true
 		}
 	}
 	return false
+}
+
+// runtimeTerm answers the two terms that name nobody stored: @owner, the
+// record's Owner and the Agents that Owner directly owns, and @agent, an
+// Agent record's own principal. Both resolve at each check.
+// See docs/constitution.md#actors-and-ascii-textarea-syntax. Caller holds b.mu.
+func (b *Bus) runtimeTerm(caller, term string, r protocol.Record) bool {
+	switch term {
+	case OwnerGroup:
+		return b.sameResourceOwner(caller, r.Owner)
+	case AgentTerm:
+		return r.Kind == protocol.KindAgent && caller == r.Name
+	}
+	return false
+}
+
+// normalizeAllow validates an ACL as a whole before anything stores it: one
+// bad term refuses the lot. Caller holds b.mu.
+func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
+	out := make([]string, 0, len(in))
+	seen := map[string]bool{}
+	for _, raw := range in {
+		a := strings.TrimSpace(raw)
+		switch {
+		case a == "*" || a == OwnerGroup:
+		case a == AgentTerm:
+			if r.Kind != protocol.KindAgent {
+				return nil, fmt.Errorf("%w: %s names an agent record's own principal, and %s is a %s", ErrBadName, AgentTerm, r.Name, r.Kind)
+			}
+		case strings.HasPrefix(a, "@"):
+			a = strings.ToLower(a)
+			if !groupName(a) {
+				return nil, fmt.Errorf("%w: invalid ACL group %q", ErrBadName, raw)
+			}
+			if _, ok := b.groups[a]; !ok {
+				return nil, fmt.Errorf("%w: ACL group %s", ErrUnknown, a)
+			}
+		default:
+			var err error
+			if a, err = canon(a); err != nil {
+				return nil, err
+			}
+		}
+		if seen[a] {
+			continue
+		}
+		seen[a] = true
+		out = append(out, a)
+	}
+	return out, nil
 }
 
 // manages includes the daemon Owner's accepted node-wide management override.
@@ -141,25 +193,33 @@ func (b *Bus) validatePersonal(r protocol.Record) error {
 	if !r.Personal {
 		return nil
 	}
-	if r.Kind != protocol.KindAgent {
-		return fmt.Errorf("%w: only an agent may be personal", ErrPersonal)
+	// A user's own record is always Personal, and who reaches it follows the
+	// user delivery rule rather than its lists (docs/constitution.md#-channels).
+	if r.Kind == protocol.KindUser {
+		return nil
 	}
-	// An agent record may also be a user's own name, and a person is not
-	// somebody's personal agent.
-	if _, user := b.users[r.Name]; user {
-		return fmt.Errorf("%w: a user identity is not a personal agent", ErrPersonal)
-	}
-	if len(r.Maintainers) != 0 {
-		return fmt.Errorf("%w: remove maintainers first", ErrPersonal)
-	}
-	for _, name := range r.Allow {
-		if name == "*" || strings.HasPrefix(name, "@") || name == r.Name {
-			return fmt.Errorf("%w: %s is not another agent", ErrPersonal, name)
+	// Personal is an audience: the Owner and the Agents that Owner owns. Its
+	// lists may name that cohort, directly or by @owner and @agent, and
+	// nothing wider; every save is checked against the whole record.
+	// See docs/03-records.md#personal-and-shared.
+	cohort := func(term string) bool {
+		switch {
+		case term == r.Owner, term == OwnerGroup:
+			return true
+		case term == AgentTerm:
+			return r.Kind == protocol.KindAgent
 		}
-		other, known := b.records[name]
-		_, user := b.users[name]
-		if !known || user || other.Kind != protocol.KindAgent {
-			return fmt.Errorf("%w: %s is not a registered agent", ErrPersonal, name)
+		other, known := b.records[term]
+		return known && other.Kind == protocol.KindAgent && other.Owner == r.Owner
+	}
+	for _, term := range r.Allow {
+		if !cohort(term) {
+			return fmt.Errorf("%w: %s reaches outside the owner's own agents", ErrPersonal, term)
+		}
+	}
+	for _, term := range r.Maintainers {
+		if !cohort(term) {
+			return fmt.Errorf("%w: %s reaches outside the owner's own agents", ErrPersonal, term)
 		}
 	}
 	return nil
@@ -187,16 +247,15 @@ func (b *Bus) memberThrough(caller, group string, seen map[string]bool) bool {
 	}
 	return false
 }
+// groupName says whether n is a Group's name: "@" and then a name by the
+// ordinary rules, realm included (docs/constitution.md#common-record-fields),
+// lowercase as written and within the one bound on every name.
 func groupName(n string) bool {
-	if len(n) < 2 || len(n) > 64 || n[0] != '@' {
+	if len(n) < 2 || len(n) > protocol.MaxName || n[0] != '@' {
 		return false
 	}
-	for _, c := range n[1:] {
-		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-' || c == '_' || c == '.') {
-			return false
-		}
-	}
-	return true
+	parsed, err := protocol.ParseName(n[1:])
+	return err == nil && !parsed.Agent && parsed.String() == n[1:]
 }
 
 // normalizeMaintainers validates the whole replacement before Manage stores
@@ -204,21 +263,25 @@ func groupName(n string) bool {
 // ordinary groups inherit their nested membership. Topics, credential-only
 // names, duplicates and wildcard authority are deliberately refused.
 // Caller holds b.mu.
-func (b *Bus) normalizeMaintainers(in protocol.MaintainerList) (protocol.MaintainerList, error) {
+func (b *Bus) normalizeMaintainers(in protocol.MaintainerList, r protocol.Record) (protocol.MaintainerList, error) {
 	out := make(protocol.MaintainerList, 0, len(in))
 	seen := map[string]bool{}
 	for _, raw := range in {
 		var term string
 		if strings.HasPrefix(strings.TrimSpace(raw), "@") {
-			term = strings.TrimSpace(raw)
-			if term == OwnerGroup {
-				return nil, fmt.Errorf("%w: %s is runtime ACL access, not a Maintainer group", ErrBadName, OwnerGroup)
-			}
-			if !groupName(term) {
+			term = strings.ToLower(strings.TrimSpace(raw))
+			switch {
+			case term == OwnerGroup:
+			case term == AgentTerm:
+				if r.Kind != protocol.KindAgent {
+					return nil, fmt.Errorf("%w: %s names an agent record's own principal, and %s is a %s", ErrBadName, AgentTerm, r.Name, r.Kind)
+				}
+			case !groupName(term):
 				return nil, fmt.Errorf("%w: invalid maintainers group %q", ErrBadName, raw)
-			}
-			if _, ok := b.groups[term]; !ok {
-				return nil, fmt.Errorf("%w: maintainer %s", ErrUnknown, term)
+			default:
+				if _, ok := b.groups[term]; !ok {
+					return nil, fmt.Errorf("%w: maintainer %s", ErrUnknown, term)
+				}
 			}
 		} else {
 			var err error
@@ -253,8 +316,9 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	if err != nil {
 		return err
 	}
-	if name == OwnerGroup {
-		return fmt.Errorf("%w: %s is a runtime ACL term and cannot be created", ErrBadName, OwnerGroup)
+	name = strings.ToLower(strings.TrimSpace(name))
+	if reservedTerm(name) {
+		return fmt.Errorf("%w: %s is a runtime ACL term and cannot be created", ErrBadName, name)
 	}
 	if !groupName(name) {
 		return fmt.Errorf("%w: invalid group", ErrBadName)
@@ -262,8 +326,8 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	normalized := []string{}
 	for _, m := range members {
 		m = strings.TrimSpace(m)
-		if m == OwnerGroup {
-			return fmt.Errorf("%w: %s is direct ACL syntax and cannot be nested in a group", ErrBadName, OwnerGroup)
+		if reservedTerm(strings.ToLower(m)) {
+			return fmt.Errorf("%w: %s is direct ACL syntax and cannot be nested in a group", ErrBadName, m)
 		}
 		n := m
 		if !groupName(m) {
@@ -391,11 +455,9 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		if err != nil {
 			return protocol.Record{}, err
 		}
-		// A transfer cannot manufacture an identity or turn a directory-enrolled
-		// person into somebody else's service.
-		target, known := b.records[owner]
-		if !known || target.Owner != owner {
-			return protocol.Record{}, fmt.Errorf("%w: new owner must be a registered self-owned principal", ErrBadName)
+		// Only a User owns records (docs/constitution.md#-registry-record).
+		if _, user := b.users[owner]; !user {
+			return protocol.Record{}, fmt.Errorf("%w: new owner must be a registered user", ErrBadName)
 		}
 		// And one who may act. Handing a record to a paused or banned name
 		// leaves it owned by somebody who cannot answer for it, which is the
@@ -403,19 +465,24 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		if err := b.acting(owner); err != nil {
 			return protocol.Record{}, err
 		}
-		if r.Name == r.Owner {
-			return protocol.Record{}, fmt.Errorf("%w: a self-owned identity cannot be transferred", ErrNotOwner)
+		if r.Kind == protocol.KindUser {
+			return protocol.Record{}, fmt.Errorf("%w: a user's own record cannot be transferred", ErrNotOwner)
 		}
 		r.Owner = owner
 	}
 	if change.Maintainers != nil {
-		maintainers, err := b.normalizeMaintainers(*change.Maintainers)
+		maintainers, err := b.normalizeMaintainers(*change.Maintainers, r)
 		if err != nil {
 			return protocol.Record{}, err
 		}
 		r.Maintainers = maintainers
 	}
 	if change.Personal != nil {
+		// Everything not Personal is shared, and a User is not
+		// (docs/constitution.md#common-record-fields).
+		if r.Kind == protocol.KindUser && !*change.Personal {
+			return protocol.Record{}, fmt.Errorf("%w: a user's own record is always personal", ErrPersonal)
+		}
 		r.Personal = *change.Personal
 	}
 	if change.Subs != nil {
@@ -429,24 +496,9 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		r.Subs = list
 	}
 	if change.Allow != nil {
-		allow := make([]string, 0, len(*change.Allow))
-		for _, a := range *change.Allow {
-			if a != "*" {
-				if strings.HasPrefix(a, "@") {
-					if a != OwnerGroup {
-						if _, ok := b.groups[a]; !ok {
-							return protocol.Record{}, fmt.Errorf("%w: ACL group", ErrUnknown)
-						}
-					}
-				} else {
-					var err error
-					a, err = canon(a)
-					if err != nil {
-						return protocol.Record{}, err
-					}
-				}
-			}
-			allow = append(allow, a)
+		allow, err := b.normalizeAllow(*change.Allow, r)
+		if err != nil {
+			return protocol.Record{}, err
 		}
 		r.Allow = allow
 	}

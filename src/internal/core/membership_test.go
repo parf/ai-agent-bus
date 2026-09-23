@@ -28,16 +28,16 @@ func restored(t *testing.T, records ...protocol.Record) *Bus {
 // left the membership behind, and whoever took the freed name inherited it.
 func TestAnUnregisteredNameKeepsNoGroupMembership(t *testing.T) {
 	b := restored(t)
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "active@h", Kind: protocol.KindAgent}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "#svc@h", Owner: "active@h", Kind: protocol.KindAgent}); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.SetGroup("owner@h", "@ops", []string{"svc@h"}); err != nil {
+	if err := b.SetGroup("owner@h", "@ops", []string{"#svc@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "secret@h", Owner: "active@h", Kind: protocol.KindAgent, Allow: []string{"@ops"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "#secret@h", Owner: "active@h", Kind: protocol.KindAgent, Allow: []string{"@ops"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.Unregister("svc@h", "active@h"); err != nil {
+	if err := b.Unregister("#svc@h", "active@h"); err != nil {
 		t.Fatal(err)
 	}
 	if members := b.Groups("owner@h")["@ops"]; len(members) != 0 {
@@ -45,25 +45,31 @@ func TestAnUnregisteredNameKeepsNoGroupMembership(t *testing.T) {
 	}
 	// Somebody else takes the freed name. Without the strip above they arrive
 	// already in @ops, and reach a record only @ops may reach.
-	if _, err := b.Register(protocol.Record{Name: "svc@h", Owner: "other@h", Kind: protocol.KindAgent}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "#svc@h", Owner: "other@h", Kind: protocol.KindAgent}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "svc@h", To: "secret@h", Body: "inherited"}); !errors.Is(err, ErrNotAllow) {
+	if _, err := b.Send(protocol.Envelope{From: "#svc@h", To: "#secret@h", Body: "inherited"}); !errors.Is(err, ErrNotAllow) {
 		t.Fatalf("whoever took the freed name inherited its group: %v", err)
 	}
 }
 
-// A person keeps their standing when a record of theirs goes: they are still a
-// user, and being a maintainer is not something unregistering takes away.
-func TestRemovingAPersonsRecordLeavesTheirMemberships(t *testing.T) {
+// A person's own record goes with the person, and a person is never removed:
+// unregistering it is refused, and their standing is untouched
+// (docs/constitution.md#-user).
+func TestAUsersOwnRecordCannotBeUnregistered(t *testing.T) {
 	b := restored(t)
 	if err := b.SetGroup("owner@h", "@ops", []string{"active@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.Unregister("active@h", "active@h"); err != nil {
-		t.Fatal(err)
+	for _, caller := range []string{"active@h", "owner@h"} {
+		if err := b.Unregister("active@h", caller); !errors.Is(err, ErrBusy) {
+			t.Fatalf("%s removed a user's own record: %v", caller, err)
+		}
+	}
+	if r, ok := b.Lookup("owner@h", "active@h"); !ok || r.Kind != protocol.KindUser {
+		t.Fatalf("the user's own record changed: %+v", r)
 	}
 	if members := b.Groups("owner@h")["@ops"]; len(members) != 1 || members[0] != "active@h" {
-		t.Fatalf("a person lost a membership by removing a record: %v", members)
+		t.Fatalf("a person lost a membership: %v", members)
 	}
 }

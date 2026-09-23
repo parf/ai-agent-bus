@@ -19,7 +19,7 @@ func TestDaemonOwnerTransferChangesEveryPublicOwnerAnswer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
 	call := func(who, method, path, body string) *httptest.ResponseRecorder {
@@ -76,10 +76,10 @@ func TestDaemonOwnerTransferChangesEveryPublicOwnerAnswer(t *testing.T) {
 	if w := onSeedSocket(http.MethodGet, "/groups", ""); w.Code != http.StatusOK {
 		t.Fatalf("former owner's socket lost Administrator work: %d %s", w.Code, w.Body.String())
 	}
-	if w := onSeedSocket(http.MethodPost, "/manage", `{"kind":"agent","name":"svc@h","descr":"former root"}`); w.Code != http.StatusForbidden {
+	if w := onSeedSocket(http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"former root"}`); w.Code != http.StatusForbidden {
 		t.Fatalf("former owner's socket retained root management: %d %s", w.Code, w.Body.String())
 	}
-	if w := call("next@h", http.MethodPost, "/manage", `{"kind":"agent","name":"svc@h","descr":"new root"}`); w.Code != http.StatusOK {
+	if w := call("next@h", http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"new root"}`); w.Code != http.StatusOK {
 		t.Fatalf("new owner lacks root management: %d %s", w.Code, w.Body.String())
 	}
 }

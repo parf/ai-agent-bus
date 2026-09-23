@@ -8,7 +8,7 @@ mkdirSync(root, { recursive: true });
 const dir = mkdtempSync(join(root, "run-"));
 const owner = new Bus();
 const me = (await owner.status()).you;
-const peerName = `rename-peer-${process.pid}@srv1`;
+const peerName = `#rename-peer-${process.pid}@srv1`;
 await owner.register({ name: peerName, kind: "agent", allow: ["*"] });
 const peer = await owner.as(peerName);
 const abort = new AbortController();

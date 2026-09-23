@@ -19,19 +19,19 @@ func TestOwnerlessIsNoRecordAndNoUser(t *testing.T) {
 	b.SetDaemonOwner("owner@h")
 
 	// A service, owned by the owner. Its credential answers for the record.
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h"}); err != nil {
 		t.Fatal(err)
 	}
 	// A person with a profile and no record of their own — SetUser makes one,
 	// so make this one the way a directory restore would.
-	b.Restore(ports.Snapshot{Users: []protocol.User{
-		{Name: "person@h", State: "active"},
-		{Name: "banned@h", State: "banned"},
-	}})
+	b.Restore(ports.Snapshot{
+		Users:   []protocol.User{{Name: "person@h", State: "active"}, {Name: "banned@h", State: "banned"}},
+		Records: []protocol.Record{userRecord("person@h"), userRecord("banned@h")},
+	})
 
 	got := b.Ownerless([]string{
 		"owner@h",  // the daemon owner: a profile, written by Administrator
-		"svc@h",    // a record of its own
+		"#svc@h",    // a record of its own
 		"person@h", // a registered user
 		"banned@h", // a banned one is still registered
 		"junk@h",   // neither
@@ -51,14 +51,14 @@ func TestTheSweepNeedsRestoreAndTheOwnerFirst(t *testing.T) {
 	// reads as ownerless.
 	early := New()
 	early.SetDaemonOwner("owner@h")
-	if got := early.Ownerless([]string{"person@h", "svc@h"}); len(got) != 2 {
+	if got := early.Ownerless([]string{"person@h", "#svc@h"}); len(got) != 2 {
 		t.Errorf("before restore %v is ownerless; the test cannot show the ordering matters", got)
 	}
 	early.Restore(ports.Snapshot{
 		Users:   []protocol.User{{Name: "person@h", State: "active"}},
-		Records: []protocol.Record{{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h"}},
+		Records: []protocol.Record{userRecord("person@h"), {Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h", Full: protocol.OverflowStrict}},
 	})
-	if got := early.Ownerless([]string{"person@h", "svc@h"}); len(got) != 0 {
+	if got := early.Ownerless([]string{"person@h", "#svc@h"}); len(got) != 0 {
 		t.Errorf("after restore %v is still ownerless", got)
 	}
 
@@ -83,42 +83,28 @@ func TestTheSweepNeedsRestoreAndTheOwnerFirst(t *testing.T) {
 // went. See docs/02-access.md#ownerless-credentials.
 func TestTheTwoSweepsAgreeAboutOneName(t *testing.T) {
 	b := New()
+	rep := &reports{}
+	b.Journal(rep)
 	b.SetDaemonOwner("owner@h")
-	// absent@h holds no record and no profile, and owns a service. Restored
-	// rather than registered: registering a record owned by a name the daemon
-	// knows nothing about is refused now
-	// (docs/01-identity-and-roles.md#orphaned-records), so an old store is the
-	// only place this state still comes from \u2014 which is the state the sweeps
-	// have to be safe against.
+	// absent@h holds no record and no profile. A record it "owns" is one no
+	// version wrote: it is ignored at load and reported, not kept
+	// (docs/constitution.md#persistence-and-loading).
 	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
-		{Name: "theirs@h", Owner: "absent@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict},
+		{Name: "#theirs@h", Owner: "absent@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict},
 	}})
-
-	// Order is the whole of it. Before the records go, the credential is
-	// behind something and taking it would strand theirs@h.
-	if got := b.Ownerless([]string{"absent@h"}); len(got) != 1 {
-		t.Errorf("a name the daemon holds nothing for is not swept: %v", got)
+	if _, still := b.Lookup("owner@h", "#theirs@h"); still {
+		t.Error("a record owned by nobody was loaded")
 	}
-	if purged, _ := b.Orphans(); len(purged) != 1 || purged[0] != "theirs@h" {
-		t.Fatalf("the orphan was not deleted: %v", purged)
+	if !rep.has("#theirs@h is ignored") {
+		t.Errorf("the ignored record was not reported: %v", rep.lines)
 	}
-	if _, still := b.Lookup("owner@h", "theirs@h"); still {
-		t.Error("the orphan is still in the registry")
-	}
-	// And now nothing is stranded by taking it, which is what makes the
-	// guard unnecessary rather than merely removed.
+	// So the credential behind it answers for nothing and is swept.
 	if got := b.Ownerless([]string{"absent@h"}); len(got) != 1 || got[0] != "absent@h" {
-		t.Errorf("the credential behind a deleted orphan survived: %v", got)
+		t.Errorf("the credential behind an ignored record survived: %v", got)
 	}
-
-	// Positive control: the same name with nothing of its own is swept, so the
-	// check above is about owning services and not about the name.
-	if got := b.Ownerless([]string{"nobody@h"}); len(got) != 1 {
-		t.Errorf("a name owning nothing is not swept either: %v", got)
-	}
-	// And a self-owned record is kept by the record test, not by this one.
+	// And a user's own record is kept by the record test, not by this one.
 	known(t, b, "self@h")
 	if got := b.Ownerless([]string{"self@h"}); len(got) != 0 {
-		t.Errorf("a self-owned record was swept: %v", got)
+		t.Errorf("a user was swept: %v", got)
 	}
 }

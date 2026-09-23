@@ -24,16 +24,16 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 	m.register(protocol.Record{Name: "alice-channel@h", Owner: "alice@h", Kind: protocol.KindQueue, Allow: []string{"@ops"}})
 	// An inbox beside a service under one owner, so the route each owned
 	// record links to is a claim about its kind and not about the list.
-	m.register(protocol.Record{Name: "alice-inbox@h", Owner: "alice@h", Kind: "agent"})
-	m.register(protocol.Record{Name: "outer-service@h", Owner: "admin@h", Kind: protocol.KindAgent, Allow: []string{"@outer"}})
-	m.register(protocol.Record{Name: "agent@h", Owner: "admin@h", Kind: "agent"})
-	if _, err := m.tokens.Issue("agent@h"); err != nil {
+	m.register(protocol.Record{Name: "#alice-inbox@h", Owner: "alice@h", Kind: "agent"})
+	m.register(protocol.Record{Name: "#outer-service@h", Owner: "admin@h", Kind: protocol.KindAgent, Allow: []string{"@outer"}})
+	m.register(protocol.Record{Name: "#agent@h", Owner: "admin@h", Kind: "agent"})
+	if _, err := m.tokens.Issue("#agent@h"); err != nil {
 		t.Fatal(err)
 	}
 
 	active := m.get("/user?name=alice@h")
 	activeMain := section(t, active, "<main>", "</main>")
-	for _, want := range []string{`href="/group?name=%40ops"`, ">Owned records</h2>", `href="/channel?name=alice-channel%40h"`, `href="/service?name=alice-service%40h"`, `href="/agent?name=alice-inbox%40h"`, `user-state-active`, `<details class=access-change>`, `>Change</summary>`, ">Pause</button>", ">Ban…</button>"} {
+	for _, want := range []string{`href="/group?name=%40ops"`, ">Owned records</h2>", `href="/channel?name=alice-channel%40h"`, `href="/service?name=alice-service%40h"`, `href="/agent?name=%23alice-inbox%40h"`, `user-state-active`, `<details class=access-change>`, `>Change</summary>`, ">Pause</button>", ">Ban…</button>"} {
 		if !strings.Contains(activeMain, want) {
 			t.Errorf("active user detail lacks %q", want)
 		}
@@ -47,7 +47,7 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 		t.Error("active user exposes an inapplicable transition or bypasses ban confirmation")
 	}
 	group := m.get("/group?name=%40ops")
-	for _, want := range []string{`href="/channel?name=alice-channel%40h"`, "ACL via @outer", "outer-service@h"} {
+	for _, want := range []string{`href="/channel?name=alice-channel%40h"`, "ACL via @outer", "#outer-service@h"} {
 		if !strings.Contains(group, want) {
 			t.Errorf("group detail lacks caller-visible impact %q", want)
 		}
@@ -77,7 +77,7 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 		t.Fatal("banned user does not show exactly the applicable transition")
 	}
 	account := m.get("/account")
-	if !strings.Contains(account, " Account</h1>") || !strings.Contains(account, `class=account-link href=/account aria-current=page`) || !strings.Contains(account, "Fingerprint") || !strings.Contains(account, "agent-bus-token admin@h --rotate") || !strings.Contains(account, "outer-service@h") {
+	if !strings.Contains(account, " Account</h1>") || !strings.Contains(account, `class=account-link href=/account aria-current=page`) || !strings.Contains(account, "Fingerprint") || !strings.Contains(account, "agent-bus-token admin@h --rotate") || !strings.Contains(account, "#outer-service@h") {
 		t.Fatal("profile-backed account lacks its identity or credential journey")
 	}
 	// Root was the diagnostics wall when this was written, so it asked "/".
@@ -90,7 +90,7 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 		t.Fatal("signed-in identity does not link to Account")
 	}
 
-	serviceAccount := m.as("agent@h").get("/account")
+	serviceAccount := m.as("#agent@h").get("/account")
 	for _, want := range []string{"This identity has a registered record", "Agent", "Fingerprint", ">Owner</th>", "<code>admin@h</code>"} {
 		if !strings.Contains(serviceAccount, want) {
 			t.Errorf("service-principal Account lacks %q", want)

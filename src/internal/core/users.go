@@ -18,7 +18,15 @@ const (
 	// it means that record's direct Owner and the Service or Agent principals
 	// the same Owner directly owns.
 	OwnerGroup = "@owner"
+	// AgentTerm is the other contextual term: on an Agent's record, that
+	// Agent's own principal. Like @owner it is never a stored group, and it
+	// is valid on no other kind (docs/constitution.md#actors-and-ascii-textarea-syntax).
+	AgentTerm = "@agent"
 )
+
+// reservedTerm says whether a name is one of the runtime terms, which no
+// group may be called and none may contain.
+func reservedTerm(n string) bool { return n == OwnerGroup || n == AgentTerm }
 
 func (b *Bus) active(name string) bool {
 	state := b.users[name].State
@@ -358,7 +366,25 @@ func (b *Bus) mayOwn(owner, name string) error {
 		}
 		return err
 	}
+	if _, user := b.users[owner]; !user {
+		return fmt.Errorf("%w: %s is not a user, and only a user owns records", ErrNotOwner, owner)
+	}
 	return nil
+}
+
+// ownerFor is the User a caller is, or acts for: an Agent's is its own
+// record's Owner. Anybody else owns nothing. Caller holds b.mu.
+func (b *Bus) ownerFor(caller string) (string, error) {
+	if _, user := b.users[caller]; user {
+		return caller, nil
+	}
+	if r, known := b.records[caller]; known && r.Kind == protocol.KindAgent {
+		return r.Owner, nil
+	}
+	if err := b.knows(caller); err != nil {
+		return "", err
+	}
+	return "", fmt.Errorf("%w: %s is neither a user nor an agent acting for one, so it cannot own a record", ErrNotOwner, caller)
 }
 
 func (b *Bus) mayEditUser(caller, name string) bool {
@@ -596,6 +622,11 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 	if err != nil {
 		return protocol.User{}, err
 	}
+	// A User's name is unprefixed: "#" begins an Agent's
+	// (docs/constitution.md#actors-and-ascii-textarea-syntax).
+	if protocol.IsAgentName(in.Name) {
+		return protocol.User{}, fmt.Errorf("%w: %s is an agent's name, not a user's", ErrProfile, in.Name)
+	}
 	providerProfile, observedGithub, githubChanged, err := b.githubChange(who, in.Name, in.GithubUser)
 	if err != nil {
 		return protocol.User{}, err
@@ -681,7 +712,7 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 		if _, backed := b.dirs[parsed.Realm]; backed {
 			return protocol.User{}, ErrEnrol
 		}
-		b.setRecord(in.Name, protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Full: protocol.OverflowStrict, At: time.Now()})
+		b.setRecord(in.Name, protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict, At: time.Now()})
 		b.ensure(in.Name)
 	}
 	b.setUser(in.Name, in)

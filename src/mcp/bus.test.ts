@@ -10,4 +10,5 @@ test("launcher registration adds @owner without erasing or duplicating explicit 
 test("transport fixture sharing does not erase the launcher's owner cohort", () => {
   expect(withFixtureSharing([ownerACL, "peer@example"])).toEqual([ownerACL, "peer@example", "*"]);
   expect(withFixtureSharing(["*", ownerACL])).toEqual(["*", ownerACL]);
+  expect(withFixtureSharing(["#peer@example"], true)).toEqual(["#peer@example", ownerACL]);
 });

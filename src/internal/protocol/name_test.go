@@ -84,6 +84,32 @@ func TestARealmIsOptional(t *testing.T) {
 	}
 }
 
+// An Agent's name begins with "#", which is part of the name: `#alice@team`
+// and `alice@team` are two names, and a "#" anywhere else is no name at all.
+func TestAgentPrefix(t *testing.T) {
+	n, err := ParseName("  #Claude/Home@Srv1 ")
+	if err != nil || !n.Agent || n.Template != "claude" || n.Local != "home" || n.Realm != "srv1" {
+		t.Fatalf("parsed %+v, %v", n, err)
+	}
+	if n.String() != "#claude/home@srv1" {
+		t.Fatalf("rendered %q", n)
+	}
+	plain, _ := ParseName("alice@team")
+	agent, _ := ParseName("#alice@team")
+	if plain.String() == agent.String() || plain.Agent {
+		t.Fatalf("the prefix was lost: %q, %q", plain, agent)
+	}
+	for _, bad := range []string{"#", "##x", "x#y", "# x", "#@h", "a/#b"} {
+		if n, err := ParseName(bad); err == nil {
+			t.Fatalf("%q was accepted as %q", bad, n)
+		}
+	}
+	// The prefix counts toward the bound.
+	if _, err := ParseName("#" + strings.Repeat("a", MaxName)); err == nil {
+		t.Fatal("a prefixed name past the bound was accepted")
+	}
+}
+
 func TestParseNameRejects(t *testing.T) {
 	for _, in := range []string{
 		"@localhost",     // no local part
@@ -282,7 +308,9 @@ func TestTheCharsetIsExhaustive(t *testing.T) {
 			// the last-"@" split, and the name is read differently.
 			{"host", "parf@aa" + string(c) + "aa", tail(lower, false) || c == '@'},
 			{"template", "aa" + string(c) + "aa/claude@host", tail(lower, false)},
-			{"first character of the instance name", string(c) + "aa@host", alnum(lower)},
+			// "#" is the Agent prefix, the one character a name may begin
+			// with that no component takes.
+			{"first character of the instance name", string(c) + "aa@host", alnum(lower) || c == '#'},
 			{"first character of the host", "parf@" + string(c) + "aa", alnum(lower)},
 		} {
 			if c == '/' && tc.what != "host" {
@@ -371,5 +399,21 @@ func BenchmarkParseName(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+// `--agent worker@srv1` is `#worker@srv1`, in the flag's own position, and a
+// name already carrying its "#" is never given a second.
+func TestExpandAgentFlags(t *testing.T) {
+	got := ExpandAgentFlags([]string{"send", "--agent", "worker@srv1", "hello", "--agent=#done@srv1", "--topic", "t"})
+	want := []string{"send", "#worker@srv1", "hello", "#done@srv1", "--topic", "t"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("got %q", got)
+	}
+	if got := ExpandAgentFlags([]string{"--agent", "#x@h"}); got[0] != "#x@h" {
+		t.Fatalf("a second prefix was added: %q", got)
+	}
+	if got := ExpandAgentFlags([]string{"ls", "--agent"}); len(got) != 2 || got[1] != "--agent" {
+		t.Fatalf("a trailing --agent was swallowed: %q", got)
 	}
 }

@@ -13,11 +13,11 @@ import (
 func TestIssuingHoldsTheRegistryWhileItMints(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "svc@h")
+	known(t, b, "#svc@h")
 	minting, release := make(chan struct{}), make(chan struct{})
 	issued := make(chan error, 1)
 	go func() {
-		_, err := b.IssueFor("svc@h", "svc@h", func(string) (string, error) {
+		_, err := b.IssueFor("#svc@h", "#svc@h", func(string) (string, error) {
 			close(minting)
 			<-release
 			return "credential", nil
@@ -32,7 +32,7 @@ func TestIssuingHoldsTheRegistryWhileItMints(t *testing.T) {
 	removing, removed := make(chan struct{}), make(chan error, 1)
 	go func() {
 		close(removing)
-		removed <- b.Unregister("svc@h", "svc@h")
+		removed <- b.Unregister("#svc@h", "#svc@h")
 	}()
 	<-removing
 	select {

@@ -22,7 +22,7 @@ func ownerFixture(t *testing.T) *Bus {
 	if _, err := b.SetUserState("owner@h", "paused@h", "paused"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"alice@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"alice@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Register(protocol.Record{Name: "news@h", Owner: "alice@h", Kind: protocol.KindQueue}); err != nil {
@@ -36,7 +36,7 @@ func TestDaemonOwnerManagesAndSeesEveryResourceWithoutOpeningItsACL(t *testing.T
 	if err := b.SetGroup("owner@h", AdministratorsGroup, []string{"owner@h", "admin@h"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"svc@h", "news@h"} {
+	for _, name := range []string{"#svc@h", "news@h"} {
 		r, ok := b.Lookup("owner@h", name)
 		if !ok || !r.CanManage || !r.CanTransfer {
 			t.Fatalf("owner lacks node-wide controls for %s: %+v, %v", name, r, ok)
@@ -52,10 +52,10 @@ func TestDaemonOwnerManagesAndSeesEveryResourceWithoutOpeningItsACL(t *testing.T
 			t.Fatalf("Administrator managed %s without record authority: %v", name, err)
 		}
 	}
-	if _, err := b.Configure("svc@h", "owner@h", []byte(`{"root":true}`)); err != nil {
+	if _, err := b.Configure("#svc@h", "owner@h", []byte(`{"root":true}`)); err != nil {
 		t.Fatalf("owner could not configure another user's service: %v", err)
 	}
-	if _, err := b.Configure("svc@h", "admin@h", []byte(`{"root":false}`)); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Configure("#svc@h", "admin@h", []byte(`{"root":false}`)); !errors.Is(err, ErrNotOwner) {
 		t.Fatalf("Administrator configured another user's service: %v", err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "news@h", Body: "closed"}); !errors.Is(err, ErrNotAllow) {
@@ -65,7 +65,7 @@ func TestDaemonOwnerManagesAndSeesEveryResourceWithoutOpeningItsACL(t *testing.T
 
 func TestDaemonOwnerTransferMovesRootWithoutOpeningResourceACLs(t *testing.T) {
 	b := ownerFixture(t)
-	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "svc@h", Body: "before"}); !errors.Is(err, ErrNotAllow) {
+	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#svc@h", Body: "before"}); !errors.Is(err, ErrNotAllow) {
 		t.Fatalf("node owner unexpectedly inherited message access: %v", err)
 	}
 	if _, err := b.TransferDaemonOwner("owner@h", "owner@h"); !errors.Is(err, ErrBadName) {
@@ -89,19 +89,19 @@ func TestDaemonOwnerTransferMovesRootWithoutOpeningResourceACLs(t *testing.T) {
 	if members := b.Groups("next@h")[AdministratorsGroup]; !slices.Contains(members, "owner@h") || !slices.Contains(members, "next@h") {
 		t.Fatalf("transfer did not preserve and add Administrator membership: %v", members)
 	}
-	if _, ok := b.Lookup("owner@h", "svc@h"); ok {
+	if _, ok := b.Lookup("owner@h", "#svc@h"); ok {
 		t.Fatal("former owner retained node-wide visibility")
 	}
-	if r, ok := b.Lookup("next@h", "svc@h"); !ok || !r.CanManage || !r.CanTransfer {
+	if r, ok := b.Lookup("next@h", "#svc@h"); !ok || !r.CanManage || !r.CanTransfer {
 		t.Fatalf("new owner lacks node-wide controls: %+v, %v", r, ok)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "svc@h", Body: "old"}); !errors.Is(err, ErrNotAllow) {
+	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#svc@h", Body: "old"}); !errors.Is(err, ErrNotAllow) {
 		t.Fatalf("former owner gained message access: %v", err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "next@h", To: "svc@h", Body: "after"}); !errors.Is(err, ErrNotAllow) {
+	if _, err := b.Send(protocol.Envelope{From: "next@h", To: "#svc@h", Body: "after"}); !errors.Is(err, ErrNotAllow) {
 		t.Fatalf("new owner unexpectedly inherited message access: %v", err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "svc@h", Body: "record event"}); err != nil {
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "#svc@h", Body: "record event"}); err != nil {
 		t.Fatal(err)
 	}
 	if got := b.Recent("owner@h"); len(got) != 0 {
@@ -141,7 +141,7 @@ func TestDamagedDurableOwnerFailsClosed(t *testing.T) {
 	for name, snapshot := range map[string]ports.Snapshot{
 		"missing":      {OwnerEstablished: true},
 		"invalid":      {OwnerEstablished: true, Owner: "bad"},
-		"unregistered": {OwnerEstablished: true, Owner: "gone@h"},
+		"unregistered": {OwnerEstablished: true, Owner: "#gone@h"},
 		"inactive": {
 			OwnerEstablished: true,
 			Owner:            "owner@h",

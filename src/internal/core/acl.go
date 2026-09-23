@@ -1,6 +1,10 @@
 package core
 
-import "github.com/parf/ai-agent-bus/internal/protocol"
+import (
+	"fmt"
+
+	"github.com/parf/ai-agent-bus/internal/protocol"
+)
 
 // ACL decisions live in one place because every verb goes through them and a
 // second copy is how one path stays open.
@@ -27,7 +31,7 @@ func (b *Bus) may(caller string, r protocol.Record) bool {
 		return false
 	}
 	for _, s := range r.Allow {
-		if s == "*" || s == caller || (s == OwnerGroup && b.sameResourceOwner(caller, r.Owner)) || b.member(caller, s) {
+		if s == "*" || s == caller || b.runtimeTerm(caller, s, r) || b.member(caller, s) {
 			return true
 		}
 	}
@@ -46,4 +50,22 @@ func (b *Bus) sameResourceOwner(caller, owner string) bool {
 	}
 	r, ok := b.records[caller]
 	return ok && r.Owner == owner && r.Kind == protocol.KindAgent
+}
+
+// mayDeliverToUser is the User delivery rule: a User's inbox takes a message
+// from the User itself, and from an Agent whose own ACL admits that User. It
+// takes none from another User and none from anything else.
+// See docs/constitution.md#-channels. Caller holds b.mu.
+func (b *Bus) mayDeliverToUser(from string, user protocol.Record) error {
+	if from == user.Name {
+		return nil
+	}
+	sender, known := b.records[from]
+	if !known || sender.Kind != protocol.KindAgent {
+		return fmt.Errorf("%s may not send to %s: a user takes messages only from agents it may reach: %w", from, user.Name, ErrNotAllow)
+	}
+	if !b.may(user.Name, sender) {
+		return fmt.Errorf("%s may not send to %s: %s's ACL does not admit %s: %w", from, user.Name, from, user.Name, ErrNotAllow)
+	}
+	return nil
 }

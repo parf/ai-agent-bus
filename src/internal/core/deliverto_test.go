@@ -17,8 +17,8 @@ import (
 func TestAGroupOnDeliverToIsExpandedWhenThePublishHappens(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "a@h", "pub@h", "early@h", "late@h")
-	if err := b.SetGroup("admin@h", "@team", []string{"early@h"}); err != nil {
+	known(t, b, "a@h", "pub@h", "#early@h", "#late@h")
+	if err := b.SetGroup("admin@h", "@team", []string{"#early@h"}); err != nil {
 		t.Fatal(err)
 	}
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h", Allow: []string{"*"}})
@@ -28,7 +28,7 @@ func TestAGroupOnDeliverToIsExpandedWhenThePublishHappens(t *testing.T) {
 		t.Fatalf("publish: %v", err)
 	}
 	// Added to the group, not to the list, and between two publications.
-	if err := b.SetGroup("admin@h", "@team", []string{"early@h", "late@h"}); err != nil {
+	if err := b.SetGroup("admin@h", "@team", []string{"#early@h", "#late@h"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "second"}); err != nil {
@@ -37,7 +37,7 @@ func TestAGroupOnDeliverToIsExpandedWhenThePublishHappens(t *testing.T) {
 	for _, c := range []struct {
 		name   string
 		queued int
-	}{{"early@h", 2}, {"late@h", 1}} {
+	}{{"#early@h", 2}, {"#late@h", 1}} {
 		r, ok := b.Lookup("admin@h", c.name)
 		if !ok {
 			t.Fatalf("%s is gone", c.name)
@@ -58,18 +58,18 @@ func TestAGroupOnDeliverToIsExpandedWhenThePublishHappens(t *testing.T) {
 func TestANameOnDeliverToTwiceOverGetsOneCopy(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "a@h", "pub@h", "both@h")
+	known(t, b, "a@h", "pub@h", "#both@h")
 	for _, g := range []string{"@left", "@right"} {
-		if err := b.SetGroup("admin@h", g, []string{"both@h"}); err != nil {
+		if err := b.SetGroup("admin@h", g, []string{"#both@h"}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h", Allow: []string{"*"}})
-	delivers(t, b, "a@h", "news@h", "@left", "both@h", "@right")
+	delivers(t, b, "a@h", "news@h", "@left", "#both@h", "@right")
 	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
-	if r, _ := b.Lookup("admin@h", "both@h"); r.Queued != 1 {
+	if r, _ := b.Lookup("admin@h", "#both@h"); r.Queued != 1 {
 		t.Fatalf("one publication landed %d times", r.Queued)
 	}
 }
@@ -78,13 +78,13 @@ func TestANameOnDeliverToTwiceOverGetsOneCopy(t *testing.T) {
 // topic's ACL, so a name adding itself would be answering to nobody at all.
 func TestANameCannotPutItselfOnADeliverToList(t *testing.T) {
 	b := New()
-	known(t, b, "a@h", "eager@h")
+	known(t, b, "a@h", "#eager@h")
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h", Allow: []string{"*"}})
 
-	if _, err := b.Subscribe("eager@h", "news@h", true); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Subscribe("#eager@h", "news@h", true); !errors.Is(err, ErrNotOwner) {
 		t.Fatalf("joining: err = %v, want ErrNotOwner", err)
 	}
-	if _, err := b.Manage("eager@h", Management{Name: "news@h", Subs: &[]string{"eager@h"}}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("#eager@h", Management{Name: "news@h", Subs: &[]string{"#eager@h"}}); !errors.Is(err, ErrNotOwner) {
 		t.Fatalf("writing the list: err = %v, want ErrNotOwner", err)
 	}
 	if r, _ := b.Lookup("a@h", "news@h"); len(r.Subs) != 0 {
@@ -95,7 +95,7 @@ func TestANameCannotPutItselfOnADeliverToList(t *testing.T) {
 	if _, err := b.Send(protocol.Envelope{From: "a@h", To: "news@h", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
-	if r, _ := b.Lookup("a@h", "eager@h"); r.Queued != 0 {
+	if r, _ := b.Lookup("a@h", "#eager@h"); r.Queued != 0 {
 		t.Fatalf("a name the ACL admits was delivered to %d times", r.Queued)
 	}
 }
@@ -105,13 +105,13 @@ func TestANameCannotPutItselfOnADeliverToList(t *testing.T) {
 // from the one name that most needs to stop it.
 func TestARecipientTheACLDoesNotAdmitCanStillTakeItselfOff(t *testing.T) {
 	b := New()
-	known(t, b, "a@h", "outsider@h")
+	known(t, b, "a@h", "#outsider@h")
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h"})
-	delivers(t, b, "a@h", "news@h", "outsider@h")
-	if _, ok := b.Lookup("outsider@h", "news@h"); ok {
+	delivers(t, b, "a@h", "news@h", "#outsider@h")
+	if _, ok := b.Lookup("#outsider@h", "news@h"); ok {
 		t.Fatal("the fixture admits the outsider, so this proves nothing")
 	}
-	if _, err := b.Subscribe("outsider@h", "news@h", false); err != nil {
+	if _, err := b.Subscribe("#outsider@h", "news@h", false); err != nil {
 		t.Fatalf("leaving: %v", err)
 	}
 	if r, _ := b.Lookup("a@h", "news@h"); len(r.Subs) != 0 {
@@ -122,7 +122,7 @@ func TestARecipientTheACLDoesNotAdmitCanStillTakeItselfOff(t *testing.T) {
 	if _, err := b.Send(protocol.Envelope{From: "a@h", To: "news@h", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
-	if _, err := b.Consume(ctx, "outsider@h", "", "", false, false); err == nil {
+	if _, err := b.Consume(ctx, "#outsider@h", "", "", false, false); err == nil {
 		t.Fatal("a copy arrived after leaving")
 	}
 }
@@ -132,13 +132,13 @@ func TestARecipientTheACLDoesNotAdmitCanStillTakeItselfOff(t *testing.T) {
 func TestLeavingIsRefusedWhenTheDeliveryComesThroughAGroup(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "a@h", "member@h")
-	if err := b.SetGroup("admin@h", "@team", []string{"member@h"}); err != nil {
+	known(t, b, "a@h", "#member@h")
+	if err := b.SetGroup("admin@h", "@team", []string{"#member@h"}); err != nil {
 		t.Fatal(err)
 	}
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h", Allow: []string{"*"}})
 	delivers(t, b, "a@h", "news@h", "@team")
-	_, err := b.Subscribe("member@h", "news@h", false)
+	_, err := b.Subscribe("#member@h", "news@h", false)
 	if err == nil {
 		t.Fatal("leaving reported success and removed nothing")
 	}
@@ -148,7 +148,7 @@ func TestLeavingIsRefusedWhenTheDeliveryComesThroughAGroup(t *testing.T) {
 	if _, err := b.Send(protocol.Envelope{From: "a@h", To: "news@h", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
-	if r, _ := b.Lookup("admin@h", "member@h"); r.Queued != 1 {
+	if r, _ := b.Lookup("admin@h", "#member@h"); r.Queued != 1 {
 		t.Fatalf("the copy the refusal promised did not arrive: %d held", r.Queued)
 	}
 }
@@ -159,29 +159,29 @@ func TestLeavingIsRefusedWhenTheDeliveryComesThroughAGroup(t *testing.T) {
 func TestADeliverToListIsRefusedWholeAndStoresNothing(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "a@h", "good@h")
+	known(t, b, "a@h", "#good@h")
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h"})
 	mustRegister(t, b, protocol.Record{Name: "db@h", Kind: protocol.KindService, Owner: "a@h", Addr: "db:5432", Proto: "postgresql"})
 	mustRegister(t, b, protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "a@h"})
-	delivers(t, b, "a@h", "news@h", "good@h")
+	delivers(t, b, "a@h", "news@h", "#good@h")
 
 	for _, c := range []struct {
 		why  string
 		list []string
 		want error
 	}{
-		{"a service has no inbox", []string{"good@h", "db@h"}, ErrBadName},
-		{"a queue is a destination, not a reader", []string{"good@h", "jobs@h"}, ErrBadName},
-		{"nobody registered it", []string{"good@h", "ghost@h"}, ErrUnknown},
-		{"no such group", []string{"good@h", "@nobody"}, ErrUnknown},
-		{"@owner is an ACL term about publishing", []string{"good@h", OwnerGroup}, ErrBadName},
-		{"the same inbox twice", []string{"good@h", "good@h"}, ErrBadName},
+		{"a service has no inbox", []string{"#good@h", "db@h"}, ErrBadName},
+		{"a queue is a destination, not a reader", []string{"#good@h", "jobs@h"}, ErrBadName},
+		{"nobody registered it", []string{"#good@h", "ghost@h"}, ErrUnknown},
+		{"no such group", []string{"#good@h", "@nobody"}, ErrUnknown},
+		{"@owner is an ACL term about publishing", []string{"#good@h", OwnerGroup}, ErrBadName},
+		{"the same inbox twice", []string{"#good@h", "#good@h"}, ErrBadName},
 	} {
 		list := c.list
 		if _, err := b.Manage("a@h", Management{Name: "news@h", Subs: &list}); !errors.Is(err, c.want) {
 			t.Errorf("%s: err = %v, want %v", c.why, err, c.want)
 		}
-		if r, _ := b.Lookup("a@h", "news@h"); len(r.Subs) != 1 || r.Subs[0] != "good@h" {
+		if r, _ := b.Lookup("a@h", "news@h"); len(r.Subs) != 1 || r.Subs[0] != "#good@h" {
 			t.Fatalf("%s: a refused list left %v behind", c.why, r.Subs)
 		}
 	}
@@ -192,12 +192,12 @@ func TestADeliverToListIsRefusedWholeAndStoresNothing(t *testing.T) {
 // would ever read.
 func TestOnlyAPubSubTopicHasADeliverToList(t *testing.T) {
 	b := New()
-	known(t, b, "a@h", "reader@h")
+	known(t, b, "a@h", "#reader@h")
 	mustRegister(t, b, protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "a@h"})
-	if _, err := b.Manage("a@h", Management{Name: "jobs@h", Subs: &[]string{"reader@h"}}); !errors.Is(err, ErrKind) {
+	if _, err := b.Manage("a@h", Management{Name: "jobs@h", Subs: &[]string{"#reader@h"}}); !errors.Is(err, ErrKind) {
 		t.Fatalf("a queue took a deliver-to list: %v", err)
 	}
-	if _, err := b.Register(protocol.Record{Name: "worker@h", Kind: protocol.KindAgent, Owner: "a@h", Subs: []string{"reader@h"}}); !errors.Is(err, ErrKind) {
+	if _, err := b.Register(protocol.Record{Name: "#worker@h", Kind: protocol.KindAgent, Owner: "a@h", Subs: []string{"#reader@h"}}); !errors.Is(err, ErrKind) {
 		t.Fatalf("an agent registered with a deliver-to list: %v", err)
 	}
 }

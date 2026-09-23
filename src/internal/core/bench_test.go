@@ -10,11 +10,11 @@ import (
 
 func benchBus(tb testing.TB, backlog int) *Bus {
 	b := New()
-	if _, err := b.Register(protocol.Record{Name: "sink@h", Kind: protocol.KindAgent, Owner: "sink@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Name: "#sink@h", Kind: protocol.KindAgent, Owner: "#sink@h"}); err != nil {
 		tb.Fatal(err)
 	}
 	for i := 0; i < backlog; i++ {
-		if _, err := b.Send(protocol.Envelope{From: "src@h", To: "sink@h", Body: fmt.Sprint(i)}); err != nil {
+		if _, err := b.Send(protocol.Envelope{From: "src@h", To: "#sink@h", Body: fmt.Sprint(i)}); err != nil {
 			tb.Fatal(err)
 		}
 	}
@@ -30,10 +30,10 @@ func BenchmarkSendConsume(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if _, err := bus.Send(protocol.Envelope{From: "src@h", To: "sink@h", Body: "x"}); err != nil {
+				if _, err := bus.Send(protocol.Envelope{From: "src@h", To: "#sink@h", Body: "x"}); err != nil {
 					b.Fatal(err)
 				}
-				if _, err := bus.Consume(context.Background(), "sink@h", "", "", false, false); err != nil {
+				if _, err := bus.Consume(context.Background(), "#sink@h", "", "", false, false); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -44,18 +44,18 @@ func BenchmarkSendConsume(b *testing.B) {
 // A full ring drops the oldest on every send, which is the same shift.
 func BenchmarkSendIntoAFullRing(b *testing.B) {
 	bus := New()
-	if _, err := bus.Register(protocol.Record{Name: "ringy@h", Kind: protocol.KindAgent, Owner: "ringy@h", Full: protocol.OverflowRing}); err != nil {
+	if _, err := bus.Register(protocol.Record{Name: "#ringy@h", Kind: protocol.KindAgent, Owner: "#ringy@h", Full: protocol.OverflowRing}); err != nil {
 		b.Fatal(err)
 	}
 	for i := 0; i < maxQueue; i++ {
-		if _, err := bus.Send(protocol.Envelope{From: "src@h", To: "ringy@h", Body: fmt.Sprint(i)}); err != nil {
+		if _, err := bus.Send(protocol.Envelope{From: "src@h", To: "#ringy@h", Body: fmt.Sprint(i)}); err != nil {
 			b.Fatal(err)
 		}
 	}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := bus.Send(protocol.Envelope{From: "src@h", To: "ringy@h", Body: "x"}); err != nil {
+		if _, err := bus.Send(protocol.Envelope{From: "src@h", To: "#ringy@h", Body: "x"}); err != nil {
 			b.Fatal(err)
 		}
 	}

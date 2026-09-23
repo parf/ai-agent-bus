@@ -44,28 +44,24 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 	known(t, b, "self@h")
-	// holds@h is a principal without being a person: a self-owned record and
-	// no profile. The daemon supports it — it authenticates, it may be handed
-	// a record by transfer, and it may register records of its own — so it
-	// survives the orphan sweep and the directory has to show it as what it
-	// is. Restored rather than registered because that is where such a name
-	// comes from; the owner it needs would have to exist first.
-	//
-	// It owns a service, which is why credential cleanup must not be offered
-	// for it: taking the credential of a name that owns records is how orphans
-	// get manufactured, and the sweep no longer guards against that
-	// (docs/01-identity-and-roles.md#orphaned-records) because nothing reachable
-	// creates it. The classification is what keeps it safe.
+	// #holds@h is a principal without being a person: an Agent, owned by
+	// smoke/person@h, holding a credential. Agents are not people, so the
+	// directory gives it no row of either kind (docs/01-identity-and-roles.md#names).
+	// held@h is a service of the same User and names nobody on its allow
+	// list, so no other caller sees it: the hidden-record check needs that.
 	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
-		{Name: "holds@h", Owner: "holds@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict},
-		{Name: "service@h", Owner: "holds@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict},
+		{Name: "#holds@h", Owner: "smoke/person@h", Kind: protocol.KindAgent, Allow: []string{"*"}, Full: protocol.OverflowStrict},
+		{Name: "held@h", Owner: "smoke/person@h", Kind: protocol.KindService, Full: protocol.OverflowStrict},
 	}})
+	if r, ok := b.Lookup("owner@h", "#holds@h"); !ok || r.Owner != "smoke/person@h" {
+		t.Fatal("the fixture agent was not restored")
+	}
 	for i := 0; i < 30; i++ {
 		if _, err := tokens.Issue(fmt.Sprintf("unused-%02d@h", i)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := tokens.Issue("holds@h"); err != nil {
+	if _, err := tokens.Issue("#holds@h"); err != nil {
 		t.Fatal(err)
 	}
 	cookies := map[string]*http.Cookie{}
@@ -146,32 +142,39 @@ func TestDirectoryShowsJunkWithoutCallingItUsers(t *testing.T) {
 	if !strings.Contains(detail, "Daemon administrator") || strings.Contains(detail, "Daemon maintainer") {
 		t.Fatal("identity detail retained the old administrative role label")
 	}
-	if !strings.Contains(people, "smoke/person@h") || strings.Contains(people, "unused-") || strings.Contains(people, "self@h") {
+	// self@h is a User now, so it is listed with the people; an Agent is not
+	// a person and is listed nowhere.
+	if !strings.Contains(people, "smoke/person@h") || !strings.Contains(people, "self@h") || strings.Contains(people, "unused-") {
 		t.Error("users table hides a real user or labels other identities as users")
 	}
-	if !strings.Contains(page, "Other identities — review and cleanup") || !strings.Contains(page, "unused-00@h") || !strings.Contains(page, "self@h") {
+	directory := section(t, page, "<main>", "</main>")
+	if !strings.Contains(directory, "Other identities — review and cleanup") || !strings.Contains(directory, "unused-00@h") {
 		t.Error("non-user identities were hidden")
+	}
+	if strings.Contains(directory, "holds@h") {
+		t.Error("the directory gives an Agent a row")
 	}
 	if !strings.Contains(page, "Next page") || !strings.Contains(page, "</main>") {
 		t.Error("directory is unbounded or its main landmark is unclosed")
 	}
 	private, _ := request("smoke/person@h", "/users", "", nil, 200)
 	private = section(t, private, "<main>", "</main>") // Public header names the daemon owner; directory visibility is unchanged.
-	if strings.Contains(private, "unused-00@h") || strings.Contains(private, "holds@h") || strings.Contains(private, "owner@h") {
+	if strings.Contains(private, "unused-00@h") || strings.Contains(private, "#holds@h") || strings.Contains(private, "owner@h") {
 		t.Error("ordinary user can enumerate other identities")
 	}
-	for _, name := range []string{"self@h", "holds@h"} {
-		page, _ := request("owner@h", "/user?name="+name, "", nil, 200)
-		page = section(t, page, "<main>", "</main>")
-		if strings.Contains(page, "user-state-active") || strings.Contains(page, "Save profile") || strings.Contains(page, "value=remove-credential") {
-			t.Errorf("non-user %s has fabricated user controls or unsafe cleanup", name)
-		}
-		if name == "holds@h" && !strings.Contains(page, "service@h") {
-			t.Error("retained identity gives no service to investigate")
-		}
+	// An Agent has no directory entry to open, so its name finds nothing.
+	request("owner@h", "/user?name="+url.QueryEscape("#holds@h"), "", nil, 404)
+	// The User who owns the agent is where its records are investigated.
+	owner, _ := request("owner@h", "/user?name=smoke/person@h", "", nil, 200)
+	owner = section(t, owner, "<main>", "</main>")
+	if !strings.Contains(owner, "#holds@h") {
+		t.Error("the owning user's detail gives no records to investigate")
 	}
-	hiddenRecords, _ := request("maintainer@h", "/user?name=holds@h", "", nil, 200)
-	if strings.Contains(hiddenRecords, "service@h") {
+	if strings.Contains(owner, "value=remove-credential") {
+		t.Error("a user who owns records is offered credential cleanup")
+	}
+	hiddenRecords, _ := request("maintainer@h", "/user?name=smoke/person@h", "", nil, 200)
+	if strings.Contains(section(t, hiddenRecords, "<main>", "</main>"), "held@h") {
 		t.Error("directory-visible user detail exposed a record hidden from this caller")
 	}
 	filtered := "/users?kind=other&page=2&q=unused"

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -9,56 +8,53 @@ import (
 )
 
 // A snapshot is a file an operator can edit, so a stored record is asked the
-// same question a registration is. A secret belongs to the one kind that is
-// reached somewhere else; on any other it is a field saying something untrue,
-// and coming up on it would serve state the daemon cannot describe.
-// See docs/06-services.md#secrets.
-func TestRestoreRefusesASecretOnAKindWithAQueue(t *testing.T) {
+// same question a registration is. A secret belongs to the kinds the field
+// table gives one — an Agent, a Service and a Group — and a queue holding one
+// is a record this version could not have written: ignored and reported.
+// See docs/constitution.md#-private-values.
+func TestRestoreIgnoresASecretOnAKindThatHoldsNone(t *testing.T) {
 	b := New()
-	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
-		{Name: "worker@h", Kind: protocol.KindAgent, Owner: "owner@h", Secret: "TOKEN=abc"},
-	}})
-	err := b.EstablishDaemonOwner("owner@h")
-	if err == nil {
-		t.Fatal("restored an agent holding a secret")
+	rep := &reports{}
+	b.Journal(rep)
+	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+		{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "owner@h", Secret: "TOKEN=abc"},
+		{Name: "digest@h", Kind: protocol.KindQueue, Owner: "owner@h", SecretSHA: "deadbeef"},
+	}}, "owner@h"))
+	if err := b.EstablishDaemonOwner("owner@h"); err != nil {
+		t.Fatal(err)
 	}
-	// Named, so that whoever reads the refusal knows which record to edit.
-	if !strings.Contains(err.Error(), "worker@h") {
-		t.Errorf("refusal does not name the record: %v", err)
-	}
-	if !strings.Contains(err.Error(), "secret") {
-		t.Errorf("refusal does not say what is wrong with it: %v", err)
+	for _, name := range []string{"jobs@h", "digest@h"} {
+		if _, loaded := b.Lookup("owner@h", name); loaded {
+			t.Errorf("a queue holding a secret was loaded: %s", name)
+		}
+		// Named, so that whoever reads the report knows which record to edit.
+		if !rep.has("stored record "+name+" is ignored") || !rep.has("holds no secret") {
+			t.Errorf("the ignored %s was not reported with its reason: %v", name, rep.lines)
+		}
 	}
 }
 
-// The digest is derived, so a snapshot claiming one without the bytes is the
-// same lie in the other direction: it would say a credential is held.
-func TestRestoreRefusesASecretDigestOnAKindWithAQueue(t *testing.T) {
+// The controls: the kinds that hold one keep what they were given, or the
+// refusal above would be passing by refusing everything.
+func TestRestoreKeepsAServiceAndAnAgentSecret(t *testing.T) {
 	b := New()
-	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
-		{Name: "worker@h", Kind: protocol.KindAgent, Owner: "owner@h", SecretSHA: "deadbeef"},
-	}})
-	if err := b.EstablishDaemonOwner("owner@h"); err == nil {
-		t.Fatal("restored an agent claiming to hold a secret")
-	}
-}
-
-// The control: the kind that is reached elsewhere keeps what it was given,
-// or the refusal above would be passing by refusing everything.
-func TestRestoreKeepsAServiceSecret(t *testing.T) {
-	b := New()
-	b.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
+	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
 		{Name: "db@h", Kind: protocol.KindService, Owner: "owner@h",
 			Addr: "host:5432", Proto: "postgresql", Secret: "PGPASSWORD=kept"},
-	}})
+		{Name: "#worker@h", Kind: protocol.KindAgent, Owner: "owner@h", Secret: "TOKEN=abc", Full: protocol.OverflowStrict},
+	}}, "owner@h"))
 	if err := b.EstablishDaemonOwner("owner@h"); err != nil {
-		t.Fatalf("refused a service holding a secret: %v", err)
+		t.Fatalf("refused records holding secrets: %v", err)
 	}
 	got, err := b.Secret("db@h", "owner@h")
-	if err != nil {
-		t.Fatalf("reading the restored secret: %v", err)
+	if err != nil || got != "PGPASSWORD=kept" {
+		t.Fatalf("the restored service secret: %q, %v", got, err)
 	}
-	if got != "PGPASSWORD=kept" {
-		t.Errorf("restored secret is %q", got)
+	// An Agent's own principal reads its secret; its Owner does not.
+	if got, err := b.Secret("#worker@h", "#worker@h"); err != nil || got != "TOKEN=abc" {
+		t.Fatalf("the agent reading its own secret: %q, %v", got, err)
+	}
+	if _, err := b.Secret("#worker@h", "owner@h"); err == nil {
+		t.Fatal("an agent's owner read the agent's secret")
 	}
 }

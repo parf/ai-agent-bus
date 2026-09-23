@@ -22,7 +22,7 @@ func TestConditionalRegistrationClaimsNameOnce(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			r := httptest.NewRequest("POST", "/register", strings.NewReader(fmt.Sprintf(`{"kind":"agent","name":"Session@h","descr":"claim %d"}`, i)))
+			r := httptest.NewRequest("POST", "/register", strings.NewReader(fmt.Sprintf(`{"kind":"agent","name":"#Session@h","descr":"claim %d"}`, i)))
 			r.Header.Set(HeaderToken, credential)
 			r.Header.Set("If-None-Match", "*")
 			w := httptest.NewRecorder()
@@ -44,7 +44,7 @@ func TestConditionalRegistrationClaimsNameOnce(t *testing.T) {
 		t.Fatalf("concurrent claims succeeded %d times; want one", wins)
 	}
 	// Updating an existing record is still the ordinary registration contract.
-	r := httptest.NewRequest("POST", "/register", strings.NewReader(`{"kind":"agent","name":"session@h","descr":"renamed"}`))
+	r := httptest.NewRequest("POST", "/register", strings.NewReader(`{"kind":"agent","name":"#session@h","descr":"renamed"}`))
 	r.Header.Set(HeaderToken, credential)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)

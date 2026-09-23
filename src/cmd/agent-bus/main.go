@@ -69,6 +69,9 @@ const usage = `agent-bus — talk to agent-busd
   agent-bus enrol <user@realm> [--key ~/.ssh/id_ed25519]
                             prove you hold a key that realm publishes for you
 
+An agent's name begins with #, which a shell reads as a comment: quote it
+('#worker@srv1') or write --agent worker@srv1 wherever a name goes.
+
 Environment: AGENT_BUS_TOKEN, AGENT_BUS_ADDR.
 Without --addr or AGENT_BUS_ADDR, discover your local socket automatically.
 On your own socket no token is needed.
@@ -99,7 +102,7 @@ func main() {
 	if len(args) == 0 {
 		die(usage)
 	}
-	verb, rest := args[0], args[1:]
+	verb, rest := args[0], protocol.ExpandAgentFlags(args[1:])
 	var err error
 	switch verb {
 	case "status":

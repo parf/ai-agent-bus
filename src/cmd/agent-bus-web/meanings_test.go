@@ -16,7 +16,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/display"
-	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
@@ -135,14 +134,14 @@ func (m *meanings) register(r protocol.Record) {
 // vocabulary, which is why no single-fixture test caught it.
 func (m *meanings) shapes() {
 	m.t.Helper()
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "admin@h", Owner: "admin@h"})
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "reading@h", Owner: "admin@h", Descr: "a reader is on it"})
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "quiet@h", Owner: "admin@h", Allow: []string{"*"}, Descr: "enabled, nobody reading"})
+	// The daemon owner is a User and already has its own user record.
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#reading@h", Owner: "admin@h", Descr: "a reader is on it"})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#quiet@h", Owner: "admin@h", Allow: []string{"*"}, Descr: "enabled, nobody reading"})
 	// Through Manage, because Register clears the bit (bus.go:226): delivery
 	// is turned off by its owner, not declared at registration.
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "off@h", Owner: "admin@h", Descr: "the owner turned it off"})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#off@h", Owner: "admin@h", Descr: "the owner turned it off"})
 	off := true
-	if _, err := m.bus.Manage("admin@h", core.Management{Name: "off@h", Disabled: &off}); err != nil {
+	if _, err := m.bus.Manage("admin@h", core.Management{Name: "#off@h", Disabled: &off}); err != nil {
 		m.t.Fatal(err)
 	}
 	m.register(protocol.Record{Kind: protocol.KindService, Name: "elsewhere@h", Owner: "admin@h", Descr: "reached another way", Addr: "elsewhere.example", Proto: "https"})
@@ -192,13 +191,13 @@ func TestDeliveryIsEnabledOrDisabledAndNeverInactive(t *testing.T) {
 	// listing that labels every record Enabled.
 	listing := m.get("/agents")
 	for _, want := range []struct{ name, cell string }{
-		{"off@h", "aria-label=Disabled"}, {"quiet@h", "aria-label=Enabled"},
+		{"#off@h", "aria-label=Disabled"}, {"#quiet@h", "aria-label=Enabled"},
 	} {
 		if !strings.Contains(m.row(listing, want.name), want.cell) {
 			t.Errorf("%s has no %q cell: %s", want.name, want.cell, m.row(listing, want.name))
 		}
 	}
-	for _, page := range []string{"/agents", "/agent?name=off@h"} {
+	for _, page := range []string{"/agents", "/agent?name=%23off@h"} {
 		body := m.get(page)
 		if !strings.Contains(body, "Disabled") {
 			t.Errorf("%s does not say delivery is disabled", page)
@@ -209,12 +208,12 @@ func TestDeliveryIsEnabledOrDisabledAndNeverInactive(t *testing.T) {
 	}
 	// The positive control: an enabled record says so on the same page, so
 	// "Disabled" is a distinction and not a constant.
-	if !strings.Contains(m.get("/service?name=quiet@h"), "Enabled") {
+	if !strings.Contains(m.get("/service?name=%23quiet@h"), "Enabled") {
 		t.Error("an enabled record is not labelled Enabled")
 	}
 	// And the bit cannot be read as the owner's decision, because the daemon
 	// merges that with the name having stopped being active.
-	if !strings.Contains(m.get("/service?name=off@h"), "does not say whether the owner turned it off") {
+	if !strings.Contains(m.get("/service?name=%23off@h"), "does not say whether the owner turned it off") {
 		t.Error("the page does not say the disabled bit cannot say why")
 	}
 }
@@ -224,18 +223,18 @@ func TestDeliveryIsEnabledOrDisabledAndNeverInactive(t *testing.T) {
 func TestReadersAreObservedAndNeverCalledOfflineOrServing(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	m.attachReader("reading@h")
+	m.attachReader("#reading@h")
 	body := m.get("/agents")
 	for _, banned := range []string{"Serving", "Offline", ">offline<", ">serving<"} {
 		if strings.Contains(body, banned) {
 			t.Errorf("the listing says %q, which is health language the daemon does not supply", banned)
 		}
 	}
-	if !strings.Contains(m.row(body, "reading@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>1") {
-		t.Errorf("the outstanding read is not counted: %s", m.row(body, "reading@h"))
+	if !strings.Contains(m.row(body, "#reading@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>1") {
+		t.Errorf("the outstanding read is not counted: %s", m.row(body, "#reading@h"))
 	}
-	if !strings.Contains(m.row(body, "quiet@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>0") {
-		t.Errorf("the measured zero is not shown: %s", m.row(body, "quiet@h"))
+	if !strings.Contains(m.row(body, "#quiet@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>0") {
+		t.Errorf("the measured zero is not shown: %s", m.row(body, "#quiet@h"))
 	}
 	if !strings.Contains(body, "None of it is health") {
 		t.Error("the page does not say this is not health")
@@ -245,7 +244,7 @@ func TestReadersAreObservedAndNeverCalledOfflineOrServing(t *testing.T) {
 func TestNumericTableColumnsAreRightAligned(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "table alignment"}); err != nil {
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#quiet@h", Body: "table alignment"}); err != nil {
 		t.Fatal(err)
 	}
 	m.bus.SampleActivity(time.Now())
@@ -285,8 +284,8 @@ func TestReaderCountDistinguishesUnavailableFromMeasuredZero(t *testing.T) {
 func TestExternalDoesNotStandInForTheReaderObservation(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	m.attachReader("reading@h")
-	agent := m.row(m.get("/agents"), "reading@h")
+	m.attachReader("#reading@h")
+	agent := m.row(m.get("/agents"), "#reading@h")
 	if !strings.Contains(agent, `<td class=num data-label=Readers>1`) {
 		t.Errorf("an agent being read reports its reader: %s", agent)
 	}
@@ -318,7 +317,7 @@ func TestExternalDoesNotStandInForTheReaderObservation(t *testing.T) {
 func TestQueueCountersSayTheirScopeAndNeverSayCompleted(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "held"}); err != nil {
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#quiet@h", Body: "held"}); err != nil {
 		t.Fatal(err)
 	}
 	// The Services table now owns these record counters; Diagnostics no longer
@@ -327,11 +326,11 @@ func TestQueueCountersSayTheirScopeAndNeverSayCompleted(t *testing.T) {
 	// swapped without the numbers saying so. Equal counters make the column
 	// names unfalsifiable.
 	for i := 0; i < 2; i++ {
-		if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "held"}); err != nil {
+		if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#quiet@h", Body: "held"}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := m.bus.ConsumeAs(context.Background(), "quiet@h", "quiet@h", "", "", false, false); err != nil {
+	if _, err := m.bus.ConsumeAs(context.Background(), "#quiet@h", "#quiet@h", "", "", false, false); err != nil {
 		t.Fatal(err)
 	}
 	head := m.get("/agents")
@@ -343,10 +342,10 @@ func TestQueueCountersSayTheirScopeAndNeverSayCompleted(t *testing.T) {
 	}
 	// held now 2, accepted 3, dequeued 1 — in that order, so the columns are
 	// named for the numbers under them rather than the other way round.
-	if got := m.row(head, "quiet@h"); !strings.Contains(got, "data-label=Queued>2<td class=num data-label=Accepted>3<td class=num data-label=Dequeued>1") {
+	if got := m.row(head, "#quiet@h"); !strings.Contains(got, "data-label=Queued>2<td class=num data-label=Accepted>3<td class=num data-label=Dequeued>1") {
 		t.Errorf("the Services counters do not line up with their columns: %s", got)
 	}
-	for _, page := range []string{"/agents", "/agent?name=quiet@h"} {
+	for _, page := range []string{"/agents", "/agent?name=%23quiet@h"} {
 		body := m.get(page)
 		if !strings.Contains(body, "accepted") && !strings.Contains(body, "Accepted") {
 			t.Errorf("%s does not name what In counts", page)
@@ -361,8 +360,8 @@ func TestQueueCountersSayTheirScopeAndNeverSayCompleted(t *testing.T) {
 			t.Errorf("%s says the counters are since start, which a restart disproves", page)
 		}
 	}
-	if !strings.Contains(m.get("/service?name=quiet@h"), "not the same as the work being done") &&
-		!strings.Contains(m.get("/service?name=quiet@h"), "which is not completed") {
+	if !strings.Contains(m.get("/service?name=%23quiet@h"), "not the same as the work being done") &&
+		!strings.Contains(m.get("/service?name=%23quiet@h"), "which is not completed") {
 		t.Error("the page does not say dequeued is not completed")
 	}
 }
@@ -372,7 +371,7 @@ func TestQueueCountersSayTheirScopeAndNeverSayCompleted(t *testing.T) {
 func TestUnsetQueueSettingsAreStatedAsInheritanceRatherThanGuessed(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	body := m.get("/service?name=quiet@h")
+	body := m.get("/service?name=%23quiet@h")
 	for _, want := range []string{
 		"uses the daemon default",         // Bound really does resolve one
 		"not readable here",               // and the resolved number is not ours to show
@@ -390,11 +389,11 @@ func TestUnsetQueueSettingsAreStatedAsInheritanceRatherThanGuessed(t *testing.T)
 	if strings.Contains(body, "unset — refuse") {
 		t.Error("the page claims an unset overflow, which a registered record cannot have")
 	}
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "bounded@h", Owner: "admin@h", Allow: []string{"reader@h"}, Bound: 7, TTL: "1m", Full: protocol.OverflowRing})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#bounded@h", Owner: "admin@h", Allow: []string{"reader@h"}, Bound: 7, TTL: "1m", Full: protocol.OverflowRing})
 	// Read where the page states them, not anywhere on it: the management
 	// form below carries both values in its inputs, so a page-wide match is
 	// satisfied by a detail page that displays neither.
-	set := m.get("/service?name=bounded@h")
+	set := m.get("/service?name=%23bounded@h")
 	for _, want := range []string{"<dt>Queue bound<dd>7", "<dt>Retention<dd>1m", "<dt>When full<dd>drop the oldest"} {
 		if !strings.Contains(set, want) {
 			t.Errorf("a record that carries its own settings does not state %q", want)
@@ -408,7 +407,7 @@ func TestUnsetQueueSettingsAreStatedAsInheritanceRatherThanGuessed(t *testing.T)
 	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "reader@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	visitor := m.as("reader@h").get("/service?name=bounded@h")
+	visitor := m.as("reader@h").get("/service?name=%23bounded@h")
 	for _, want := range []string{"<dt>Queue bound<dd>7", "<dt>Retention<dd>1m"} {
 		if !strings.Contains(visitor, want) {
 			t.Errorf("a read-only visitor is not told %q", want)
@@ -532,10 +531,10 @@ func TestNodeTotalsSayTheyAreNodeWideAndListsSayTheyAreYours(t *testing.T) {
 func TestQueueObservationsSayWhenTheyWereTrue(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "held"}); err != nil {
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#quiet@h", Body: "held"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, page := range []string{"/diagnostics", "/service?name=quiet@h"} {
+	for _, page := range []string{"/diagnostics", "/service?name=%23quiet@h"} {
 		body := m.get(page)
 		if !strings.Contains(body, "does not prune") {
 			t.Errorf("%s does not say held may include messages already past their TTL", page)
@@ -546,8 +545,8 @@ func TestQueueObservationsSayWhenTheyWereTrue(t *testing.T) {
 	}
 	// And the row itself says it, on a queue that really is at its bound —
 	// as an observation, never as a claim about what the next send will do.
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "tiny@h", Owner: "admin@h", Bound: 1})
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "tiny@h", Body: "fills it"}); err != nil {
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#tiny@h", Owner: "admin@h", Bound: 1})
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#tiny@h", Body: "fills it"}); err != nil {
 		t.Fatal(err)
 	}
 	// On every surface that shows it. Dropping the label from the listing and
@@ -555,7 +554,7 @@ func TestQueueObservationsSayWhenTheyWereTrue(t *testing.T) {
 	for _, where := range []struct{ page, what string }{
 		{"/diagnostics", "the backlog table"}, {"/agents", "the listing"},
 	} {
-		full := m.row(m.get(where.page), "tiny@h")
+		full := m.row(m.get(where.page), "#tiny@h")
 		if !strings.Contains(full, "at capacity when observed") {
 			t.Errorf("%s does not say a queue is at its bound: %s", where.what, full)
 		}
@@ -563,19 +562,19 @@ func TestQueueObservationsSayWhenTheyWereTrue(t *testing.T) {
 			t.Errorf("%s states a prediction rather than an observation: %s", where.what, full)
 		}
 	}
-	detail := m.get("/service?name=tiny@h")
+	detail := m.get("/service?name=%23tiny@h")
 	if !strings.Contains(detail, "at capacity when observed") {
 		t.Error("the detail page does not say the queue is at its bound")
 	}
 	// And a queue below its bound says nothing, so the label is a distinction.
-	if strings.Contains(m.row(m.get("/diagnostics"), "quiet@h"), "at capacity") {
+	if strings.Contains(m.row(m.get("/diagnostics"), "#quiet@h"), "at capacity") {
 		t.Error("a queue below its bound is called at capacity")
 	}
 	// An empty age is not a zero age: the daemon says nothing about whether
 	// the queue ever held anything. Matched as the template writes it — the
 	// first version of this looked for lowercase "oldest held: 0" against a
 	// page that says "Oldest held:", so it could not have fired.
-	empty := m.get("/service?name=off@h")
+	empty := m.get("/service?name=%23off@h")
 	if strings.Contains(empty, "<dt>Oldest held<dd>0") {
 		t.Error("an absent oldest is rendered as a measured zero")
 	}
@@ -583,7 +582,7 @@ func TestQueueObservationsSayWhenTheyWereTrue(t *testing.T) {
 		t.Errorf("an absent oldest is not shown as absent")
 	}
 	// The positive control, so the field is readable when there is one.
-	if !strings.Contains(m.get("/service?name=quiet@h"), "<dt>Oldest held<dd>0s") {
+	if !strings.Contains(m.get("/service?name=%23quiet@h"), "<dt>Oldest held<dd>0s") {
 		t.Error("a queue that is holding something does not say how long it has")
 	}
 }
@@ -607,22 +606,6 @@ func (m *meanings) row(body, name string) string {
 	return ""
 }
 
-// own gives a name a record of its own and no profile — the shape the
-// directory calls a registered name. Put in through the store rather than
-// registered, because no live call found makes one: registering refuses a
-// self-owned record for a name that answers for nobody (mayOwn), handing one
-// over refuses an owner that is not already self-owned (manage.go), and
-// re-registration keeps the owner it had. Enrolment does not make one either
-// — its branch writes b.users[name] too (bus.go), so an enrolled name is a
-// user. What this stands in for is a snapshot carrying the shape, which the
-// directory has to render whether or not anything still creates it.
-func (m *meanings) own(name string) {
-	m.t.Helper()
-	m.bus.Restore(ports.Snapshot{Clean: true, Records: []protocol.Record{
-		{Name: name, Owner: name, Kind: "agent", Full: protocol.OverflowStrict, Allow: []string{"admin@h"}, At: time.Now()},
-	}})
-}
-
 // section returns one table, from the heading that names it to the end of the
 // table under it. A diagnostics page stacks several tables that share column
 // words, so a claim about one of them has to be read out of that one.
@@ -639,22 +622,26 @@ func (m *meanings) section(body, id string) string {
 	return body[at : at+end]
 }
 
-// Three kinds of identity, and the directory had one word for all of them
-// (Plans/MVP/done/web-review.md W06). Every one of them is on the page at
-// once, because a label only lies next to the thing it should have said.
+// Kinds of identity, and the directory had one word for all of them
+// (Plans/MVP/done/web-review.md W06). From 0.7 a directory row is a User or a
+// credential with nothing behind it; an Agent is not a person and has no row,
+// and a self-owned record no longer exists to be one. Every one of them is on
+// the page at once, because a label only lies next to the thing it should
+// have said.
 //
 // Each check reads the row for its own name. The page also carries a legend
-// naming all three kinds in prose, so a body-wide search for any of the three
-// passes whether or not a single row is labelled at all.
+// naming the kinds in prose, so a body-wide search for any of them passes
+// whether or not a single row is labelled at all.
 func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	m := meaningFixture(t)
 	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "person@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	// A record of its own and no profile. Self-owned, because that is what
-	// makes a name an identity rather than one of its owner's services: a
-	// record owned by somebody else belongs on /services and is not here.
-	m.own("named@h")
+	// An Agent that holds a credential: a principal, but nobody's profile.
+	m.register(protocol.Record{Name: "#named@h", Owner: "admin@h", Kind: protocol.KindAgent, Allow: []string{"admin@h"}})
+	if _, err := m.tokens.Issue("#named@h"); err != nil {
+		t.Fatal(err)
+	}
 	// A name with neither a profile nor a record, which has to be minted
 	// rather than registered: that is precisely what nothing else creates.
 	if _, err := m.tokens.Issue("junk@h"); err != nil {
@@ -663,7 +650,6 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	body := m.get("/users")
 	for _, kind := range []struct{ name, says string }{
 		{"person@h", `aria-label="👤 User">👤</span> <a`},
-		{"named@h", `aria-label="👾 Agent">👾</span> <a`},
 		{"junk@h", "<td>Credential with no registered name</td>"},
 	} {
 		if !strings.Contains(m.row(body, kind.name), kind.says) {
@@ -673,12 +659,16 @@ func TestTheDirectoryNamesThreeKindsOfIdentityAndGuessesNone(t *testing.T) {
 	if row := m.row(body, "junk@h"); !strings.HasPrefix(row, `<td><a `) {
 		t.Errorf("credential-only identity was given a prefix before its stated name: %s", row)
 	}
+	if strings.Contains(body, "<code>#named@h</code>") {
+		t.Error("the directory gives an Agent a row")
+	}
 	// Named from what the daemon holds, never read off the spelling. A name
-	// with a slash in it is a runtime session on this bus and is a registered
-	// name like any other.
-	m.own("claude/one@h")
-	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, "<td>Registered name</td>") || !strings.Contains(row, `aria-label="👾 Agent">👾</span> <a`) {
-		t.Error("a slashed name is not named the same way as any other record")
+	// with a slash in it is a User like any other once it has a profile.
+	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "claude/one@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if row := m.row(m.get("/users"), "claude/one@h"); !strings.Contains(row, `aria-label="👤 User">👤</span> <a`) {
+		t.Errorf("a slashed name is not named the same way as any other user: %s", row)
 	}
 	if strings.Contains(m.get("/users"), "Unclassified") {
 		t.Error("the directory invents a category for a name it can classify")
@@ -690,8 +680,8 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "person@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	m.register(protocol.Record{Name: "svc@h", Owner: "admin@h", Kind: protocol.KindAgent, Allow: []string{"peer@h"}})
-	m.register(protocol.Record{Name: "bot@h", Owner: "admin@h", Kind: "agent"})
+	m.register(protocol.Record{Name: "#svc@h", Owner: "admin@h", Kind: protocol.KindAgent, Allow: []string{"peer@h"}})
+	m.register(protocol.Record{Name: "#bot@h", Owner: "admin@h", Kind: "agent"})
 	m.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindQueue})
 
 	users := m.get("/users?kind=users")
@@ -707,8 +697,8 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 		t.Errorf("db@h has no service label: %s", row)
 	}
 	// Each kind is labelled where it is listed.
-	if row := m.row(m.get("/agents"), "bot@h"); !strings.Contains(row, "👾 Agent") {
-		t.Errorf("bot@h has no agent label: %s", row)
+	if row := m.row(m.get("/agents"), "#bot@h"); !strings.Contains(row, "👾 Agent") {
+		t.Errorf("#bot@h has no agent label: %s", row)
 	}
 	if row := m.row(m.get("/channels"), "jobs@h"); !strings.Contains(row, "📮 Queue") {
 		t.Errorf("jobs@h has no queue label: %s", row)
@@ -733,12 +723,12 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 		}
 	}
 
-	if detail := m.get("/service?name=svc@h"); !strings.Contains(detail, "class=fact-pill>👾 Agent") {
+	if detail := m.get("/service?name=%23svc@h"); !strings.Contains(detail, "class=fact-pill>👾 Agent") {
 		t.Error("detail lost its label")
 	}
 	// The editable value is on the settings form, and it is the daemon's
 	// plain syntax there: the glyph belongs to the label above.
-	editor := m.get("/agent/edit?name=svc@h")
+	editor := m.get("/agent/edit?name=%23svc@h")
 	if !strings.Contains(editor, `<textarea name=allow rows=5 placeholder="agent@realm&#10;@group&#10;@owner&#10;*">peer@h</textarea>`) {
 		t.Errorf("the settings form lost its plain ACL value: %s", editorOf(t, editor))
 	}
@@ -755,7 +745,7 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 // has merged them exactly as declared and observed must not be merged.
 func TestFaceComputedCountsAreMarkedAsTheFacesOwn(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "named@h", Owner: "admin@h"})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#named@h", Owner: "admin@h"})
 	body := m.get("/users")
 	if !strings.Contains(body, "by this page") {
 		t.Error("the directory counts do not say the face computed them")
@@ -784,12 +774,12 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 	}
 	// Something only its owner and a maintainer may see, so "visible to you"
 	// is a different set for each of the three.
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "private@h", Owner: "admin@h", Allow: []string{"admin@h"}})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#private@h", Owner: "admin@h", Allow: []string{"admin@h"}})
 
 	seen := map[string]bool{}
 	for _, who := range []string{"admin@h", "maint@h", "plain@h"} {
 		body := m.as(who).get("/agents")
-		seen[who] = strings.Contains(body, "private@h")
+		seen[who] = strings.Contains(body, "#private@h")
 		// Whoever is reading, the words for the three facts are the same. A
 		// label that changed with rank would be saying something about the
 		// caller rather than about the record.
@@ -823,27 +813,34 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 		{"admin@h", true}, {"maint@h", false}, {"plain@h", false},
 	} {
 		as := m.as(who.caller)
-		row := m.row(as.get("/agents"), "quiet@h")
+		row := m.row(as.get("/agents"), "#quiet@h")
 		if strings.Contains(row, ">Edit</a>") {
 			t.Errorf("%s sees the duplicate list Edit action", who.caller)
 		}
-		detail := as.get("/service?name=quiet@h")
+		detail := as.get("/service?name=%23quiet@h")
 		if strings.Contains(detail, `id=settings`) != who.getsSettings {
 			t.Errorf("%s receives the wrong detail authority", who.caller)
 		}
 	}
 	// And the caller's own record is theirs to manage, whoever they are, so
-	// the check above is about authority rather than about rank.
-	// Registering a user creates that user's own queue (core/users.go), which
-	// is a record of the user kind and is listed with the channels.
+	// the check above is about authority rather than about rank. A queue
+	// plain@h registered is listed as theirs.
+	m.register(protocol.Record{Kind: protocol.KindQueue, Name: "plain-jobs@h", Owner: "plain@h", Allow: []string{"*"}})
 	plain := m.as("plain@h")
-	if row := m.row(plain.get("/channels"), "plain@h"); !strings.Contains(row, `class="record-name-cell owned-record"`) || strings.Contains(row, "Yours") || !strings.Contains(plain.get("/channel?name=plain@h"), `id=settings`) {
+	if row := m.row(plain.get("/channels"), "plain-jobs@h"); !strings.Contains(row, `class="record-name-cell owned-record"`) || strings.Contains(row, "Yours") || !strings.Contains(plain.get("/channel?name=plain-jobs@h"), `id=settings`) {
 		t.Error("an ordinary caller is offered no control over their own record")
 	}
-	// The signed-in identity is named in the header of every page, so absence
-	// is asked of the listing's own row link.
-	if strings.Contains(plain.get("/services"), `class=record-name href="/service?name=plain%40h`) {
-		t.Error("a user's own inbox is still listed among the services")
+	// Registering a user creates that user's own record (core/users.go). It is
+	// Personal and is listed on no shared page, but its own page is still
+	// theirs to manage. The signed-in identity is named in the header of
+	// every page, so absence is asked of the listing's own row link.
+	for _, list := range []string{"/services", "/channels", "/agents"} {
+		if strings.Contains(plain.get(list), `class=record-name href="`+detailPathFor(protocol.KindUser)+`?name=plain%40h`) {
+			t.Errorf("a user's own record is still listed on %s", list)
+		}
+	}
+	if !strings.Contains(plain.get("/channel?name=plain@h"), `id=settings`) {
+		t.Error("an ordinary caller is offered no control over their own user record")
 	}
 }
 
@@ -883,26 +880,26 @@ func TestPubSubAndQueueDeliveryAreNamedAndNeitherIsGuessed(t *testing.T) {
 func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 	m := meaningFixture(t)
 	m.shapes()
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "quiet@h", Body: "held"}); err != nil {
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#quiet@h", Body: "held"}); err != nil {
 		t.Fatal(err)
 	}
-	m.attachReader("reading@h")
+	m.attachReader("#reading@h")
 	// The diagnostics page lists a queue with no read on it.
 	body := m.get("/diagnostics")
-	if !strings.Contains(m.row(body, "quiet@h"), "<td class=num>0<td class=num>1<td class=num>") {
-		t.Errorf("the backlog does not show readers=0 and held=1: %s", m.row(body, "quiet@h"))
+	if !strings.Contains(m.row(body, "#quiet@h"), "<td class=num>0<td class=num>1<td class=num>") {
+		t.Errorf("the backlog does not show readers=0 and held=1: %s", m.row(body, "#quiet@h"))
 	}
-	if !strings.Contains(m.row(m.get("/agents"), "reading@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>1") {
+	if !strings.Contains(m.row(m.get("/agents"), "#reading@h"), "aria-label=Enabled title=Enabled>🔛</span><td class=num data-label=Readers>1") {
 		t.Error("an unfiltered read is not counted")
 	}
 	// A read restricted to a topic is counted while a nonmatching backlog stays.
 	n := meaningFixture(t)
 	n.shapes()
-	if _, err := n.bus.Send(protocol.Envelope{From: "admin@h", To: "reading@h", Body: "held"}); err != nil {
+	if _, err := n.bus.Send(protocol.Envelope{From: "admin@h", To: "#reading@h", Body: "held"}); err != nil {
 		t.Fatal(err)
 	}
-	taken := n.attachReader("reading@h", "other")
-	row := n.row(n.get("/diagnostics"), "reading@h")
+	taken := n.attachReader("#reading@h", "other")
+	row := n.row(n.get("/diagnostics"), "#reading@h")
 	if !strings.Contains(row, "<td class=num>1<td class=num>1<td class=num>") {
 		t.Errorf("the filtered read and held message are not both reported: %s", row)
 	}
@@ -913,14 +910,14 @@ func TestReadersCountsFilteredAndUnfilteredWaits(t *testing.T) {
 	}
 	// And it does not say they will not take anything, which is false: a
 	// matching filtered waiter is served ahead of an unfiltered one.
-	for _, page := range []string{"/diagnostics", "/agents", "/agent?name=reading@h"} {
+	for _, page := range []string{"/diagnostics", "/agents", "/agent?name=%23reading@h"} {
 		if strings.Contains(n.get(page), "will not take") {
 			t.Errorf("%s says a filtered read will not take a message, which deliver disproves", page)
 		}
 	}
 	// The proof, on the fixture: the counted reader receives its match. Receipt,
 	// not only the count falling, proves the waiter was served.
-	if _, err := n.bus.Send(protocol.Envelope{From: "admin@h", To: "reading@h", Topic: "other", Body: "only this body"}); err != nil {
+	if _, err := n.bus.Send(protocol.Envelope{From: "admin@h", To: "#reading@h", Topic: "other", Body: "only this body"}); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -969,24 +966,24 @@ func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 	if _, err := m.bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h", Allow: []string{"admin@h"}})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"admin@h"}})
 	if _, err := m.bus.SetUserState("admin@h", "alice@h", "paused"); err != nil {
 		t.Fatal(err)
 	}
 	// The fact the page must not contradict.
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "svc@h", Body: "x"}); err == nil {
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#svc@h", Body: "x"}); err == nil {
 		t.Fatal("the fixture's send was accepted, so there is nothing to misreport")
 	}
-	if !strings.Contains(m.get("/service?name=svc@h"), "aria-label=\"Enabled\" title=\"Enabled\">🔛") {
+	if !strings.Contains(m.get("/service?name=%23svc@h"), "aria-label=\"Enabled\" title=\"Enabled\">🔛") {
 		t.Fatal("the fixture no longer produces an enabled record whose sends are refused")
 	}
-	if !strings.Contains(m.row(m.get("/agents"), "svc@h"), "aria-label=Enabled") {
+	if !strings.Contains(m.row(m.get("/agents"), "#svc@h"), "aria-label=Enabled") {
 		t.Fatal("the listing no longer shows the record as enabled")
 	}
 	// On both pages. Correcting the detail page and leaving the listing's
 	// legend saying the withdrawn thing is the same shape as correcting one
 	// face and leaving its sibling behind.
-	for _, page := range []string{"/agent?name=svc@h", "/agents"} {
+	for _, page := range []string{"/agent?name=%23svc@h", "/agents"} {
 		body := m.get(page)
 		if strings.Contains(body, "takes delivery now") {
 			t.Errorf("%s says the record takes delivery now, which this send disproves", page)
@@ -1002,10 +999,10 @@ func TestTheDeliverySettingDoesNotClaimASendWouldBeAccepted(t *testing.T) {
 
 func TestACLFormsExplainRestrictedEmptyLists(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "private@h", Owner: "admin@h"})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#private@h", Owner: "admin@h"})
 	// Both halves of the one form: registering and editing ask the same
 	// question, so they carry the same explanation of it.
-	for _, page := range []string{"/services/new", "/agent/edit?name=private@h"} {
+	for _, page := range []string{"/services/new", "/agent/edit?name=%23private@h"} {
 		body := m.get(page)
 		if !strings.Contains(body, "Empty allows only the owner and assigned Maintainers.") || !strings.Contains(body, "shares with every admitted principal") {
 			t.Errorf("%s does not explain the restricted default and explicit sharing", page)

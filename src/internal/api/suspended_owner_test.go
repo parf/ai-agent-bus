@@ -37,8 +37,8 @@ func suspendedOwnerFixture(t *testing.T) suspendFixture {
 	f := suspendFixture{bus, s, token, t}
 	// alice owns the service under test; steady owns the positive control, so
 	// every refusal below has a service beside it that answers throughout.
-	f.call("alice@h", "POST", "/register", `{"kind":"agent","name":"svc@h","allow":["alice@h","bystander@h","maint@h","admin@h"]}`, 200)
-	f.call("steady@h", "POST", "/register", `{"kind":"agent","name":"steady-svc@h","allow":["bystander@h"]}`, 200)
+	f.call("alice@h", "POST", "/register", `{"kind":"agent","name":"#svc@h","allow":["alice@h","bystander@h","maint@h","admin@h"]}`, 200)
+	f.call("steady@h", "POST", "/register", `{"kind":"agent","name":"#steady-svc@h","allow":["bystander@h"]}`, 200)
 	return f
 }
 
@@ -88,7 +88,7 @@ func (f suspendFixture) refusals() map[string]int {
 // again the moment it is lifted.
 func TestASuspendedOwnersServiceRefusesEveryCaller(t *testing.T) {
 	f := suspendedOwnerFixture(t)
-	f.call("bystander@h", "POST", "/send", `{"to":"svc@h","body":"before"}`, 200)
+	f.call("bystander@h", "POST", "/send", `{"to":"#svc@h","body":"before"}`, 200)
 
 	for _, state := range []string{"paused", "banned"} {
 		f.state("alice@h", state)
@@ -97,25 +97,25 @@ func TestASuspendedOwnersServiceRefusesEveryCaller(t *testing.T) {
 		// the service's own principal. Not one of them is the suspended
 		// person, which is the point: the check is on the called name.
 		for _, who := range []string{"bystander@h", "maint@h", "admin@h"} {
-			body := f.call(who, "POST", "/send", `{"to":"svc@h","body":"during"}`, 403)
+			body := f.call(who, "POST", "/send", `{"to":"#svc@h","body":"during"}`, 403)
 			if !strings.Contains(body, "suspended") {
 				t.Errorf("%s sending to a %s owner's service was refused without saying why: %s", who, state, body)
 			}
 		}
 		// The service reading its own inbox, on its own credential.
-		f.call("svc@h", "GET", "/consume?wait=0s", "", 403)
+		f.call("#svc@h", "GET", "/consume?wait=0s", "", 403)
 
 		// Not 404. The name exists and the caller may see it; answering
 		// not-found would say it had never been registered.
-		f.call("bystander@h", "GET", "/lookup?name=svc@h", "", 200)
+		f.call("bystander@h", "GET", "/lookup?name=%23svc@h", "", 200)
 
 		// Positive control, in the same state: an active owner's service is
 		// untouched, so the refusal is about alice and not about the daemon.
-		f.call("bystander@h", "POST", "/send", `{"to":"steady-svc@h","body":"unaffected"}`, 200)
+		f.call("bystander@h", "POST", "/send", `{"to":"#steady-svc@h","body":"unaffected"}`, 200)
 
 		f.state("alice@h", "active")
-		f.call("bystander@h", "POST", "/send", `{"to":"svc@h","body":"after"}`, 200)
-		f.call("svc@h", "GET", "/consume?wait=0s", "", 200)
+		f.call("bystander@h", "POST", "/send", `{"to":"#svc@h","body":"after"}`, 200)
+		f.call("#svc@h", "GET", "/consume?wait=0s", "", 200)
 	}
 }
 
@@ -123,13 +123,13 @@ func TestASuspendedOwnersServiceRefusesEveryCaller(t *testing.T) {
 // liftable: a ban that reaped the work could not be undone.
 func TestSuspensionDestroysNothing(t *testing.T) {
 	f := suspendedOwnerFixture(t)
-	f.call("bystander@h", "POST", "/send", `{"to":"svc@h","body":"queued before the pause"}`, 200)
-	aliceHeld, svcHeld := f.token("alice@h"), f.token("svc@h")
+	f.call("bystander@h", "POST", "/send", `{"to":"#svc@h","body":"queued before the pause"}`, 200)
+	aliceHeld, svcHeld := f.token("alice@h"), f.token("#svc@h")
 	f.state("alice@h", "banned")
 
 	// The record is still there, and still says what it said.
 	var rec protocol.Record
-	if err := json.Unmarshal([]byte(f.call("admin@h", "GET", "/lookup?name=svc@h", "", 200)), &rec); err != nil {
+	if err := json.Unmarshal([]byte(f.call("admin@h", "GET", "/lookup?name=%23svc@h", "", 200)), &rec); err != nil {
 		t.Fatal(err)
 	}
 	if rec.Owner != "alice@h" {
@@ -199,33 +199,33 @@ func TestAThirdPartyCannotReadASuspendedOwnersInbox(t *testing.T) {
 // answer for; a recipient leaving is not.
 func TestASuspendedOwnerCannotWriteDeliverToAndARecipientMayStillLeave(t *testing.T) {
 	f := suspendedOwnerFixture(t)
-	f.call("alice@h", "POST", "/register", `{"name":"feed@h","kind":"pubsub","allow":["bystander@h","maint@h"],"subs":["bystander@h"]}`, 200)
+	// A published copy lands in an agent, never in a User's own inbox, so the
+	// recipients are the two people's agents.
+	f.call("bystander@h", "POST", "/register", `{"kind":"agent","name":"#bystander-box@h","allow":["*"]}`, 200)
+	f.call("maint@h", "POST", "/register", `{"kind":"agent","name":"#maint-box@h","allow":["*"]}`, 200)
+	f.call("alice@h", "POST", "/register", `{"name":"feed@h","kind":"pubsub","allow":["bystander@h","maint@h"],"subs":["#bystander-box@h"]}`, 200)
 	f.state("alice@h", "paused")
 
-	f.call("alice@h", "POST", "/manage", `{"name":"feed@h","subs":["bystander@h","maint@h"]}`, 403)
+	f.call("alice@h", "POST", "/manage", `{"name":"feed@h","subs":["#bystander-box@h","#maint-box@h"]}`, 403)
 	// Already on the list, and free to go: trapping somebody in a channel
 	// they can no longer use would be a worse answer than letting them leave.
-	f.call("bystander@h", "POST", "/subscribe", `{"channel":"feed@h","off":true}`, 200)
+	f.call("#bystander-box@h", "POST", "/subscribe", `{"channel":"feed@h","off":true}`, 200)
 
 	f.state("alice@h", "active")
-	f.call("alice@h", "POST", "/manage", `{"name":"feed@h","subs":["maint@h"]}`, 200)
+	f.call("alice@h", "POST", "/manage", `{"name":"feed@h","subs":["#maint-box@h"]}`, 200)
 }
 
-// Suspension follows the record's stated owner and does not walk the chain.
-// The contract is "every service they own", and ownership is the direct
-// relation; a service may own a service, so the boundary is stated rather than
-// assumed.
-func TestSuspensionIsNotTransitive(t *testing.T) {
+// Suspension follows the record's User owner, and every record has one: what
+// an agent registers is its User's, so a record made by an agent is suspended
+// with that User too (docs/constitution.md#-registry-record).
+func TestSuspensionReachesWhatAnAgentMade(t *testing.T) {
 	f := suspendedOwnerFixture(t)
-	f.call("alice@h", "POST", "/register", `{"kind":"agent","name":"parent@h","allow":["bystander@h","parent@h"]}`, 200)
-	f.call("parent@h", "POST", "/register", `{"kind":"agent","name":"child@h","allow":["bystander@h"]}`, 200)
+	f.call("alice@h", "POST", "/register", `{"kind":"agent","name":"#parent@h","allow":["bystander@h","#parent@h"]}`, 200)
+	f.call("#parent@h", "POST", "/register", `{"kind":"agent","name":"#child@h","allow":["bystander@h"]}`, 200)
 	f.state("alice@h", "paused")
 
-	f.call("bystander@h", "POST", "/send", `{"to":"parent@h","body":"refused"}`, 403)
-	// One hop further down and the person at the top is not this record's
-	// owner any more. Reaching it would be a larger rule than the contract
-	// states, and would need a cycle answer this does not have.
-	f.call("bystander@h", "POST", "/send", `{"to":"child@h","body":"served"}`, 200)
+	f.call("bystander@h", "POST", "/send", `{"to":"#parent@h","body":"refused"}`, 403)
+	f.call("bystander@h", "POST", "/send", `{"to":"#child@h","body":"refused too"}`, 403)
 }
 
 // The reason is counted where the code is decided
@@ -243,8 +243,8 @@ func TestASuspendedOwnersRefusalIsCounted(t *testing.T) {
 	// taken before the pause would also accept an increment at pause time, or
 	// a double count, without proving this request produced one.
 	for _, c := range []struct{ who, method, path, body string }{
-		{"bystander@h", "POST", "/send", `{"to":"svc@h","body":"counted"}`},
-		{"svc@h", "GET", "/status", ""},
+		{"bystander@h", "POST", "/send", `{"to":"#svc@h","body":"counted"}`},
+		{"#svc@h", "GET", "/status", ""},
 	} {
 		before := f.refusals()["suspended"]
 		f.call(c.who, c.method, c.path, c.body, 403)

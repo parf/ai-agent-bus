@@ -35,11 +35,12 @@ func serverFor(t *testing.T, bus *core.Bus, owner string) (*Server, func(string)
 // handler used to append a newline into their spare capacity.
 func TestConcurrentConfigReads(t *testing.T) {
 	bus := core.New()
-	s, tok := serverFor(t, bus, "svc@h")
+	s, tok := serverFor(t, bus, "owner@h")
+	known(t, bus, "#svc@h")
 	h := s.Handler()
 	set := httptest.NewRequest("POST", "/configure",
-		strings.NewReader(`{"kind":"agent","name":"svc@h","config":{"a":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`))
-	set.Header.Set(HeaderToken, tok("svc@h"))
+		strings.NewReader(`{"kind":"agent","name":"#svc@h","config":{"a":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`))
+	set.Header.Set(HeaderToken, tok("#svc@h"))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, set)
 	if w.Code != 200 {
@@ -50,8 +51,8 @@ func TestConcurrentConfigReads(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			r := httptest.NewRequest(http.MethodGet, "/config?name=svc@h", nil)
-			r.Header.Set(HeaderToken, tok("svc@h"))
+			r := httptest.NewRequest(http.MethodGet, "/config?name=%23svc@h", nil)
+			r.Header.Set(HeaderToken, tok("#svc@h"))
 			h.ServeHTTP(httptest.NewRecorder(), r)
 		}()
 	}
@@ -62,7 +63,8 @@ func TestConcurrentConfigReads(t *testing.T) {
 // carries it. This escaped once on register and once on configure.
 func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 	bus := core.New()
-	s, tok := serverFor(t, bus, "svc@h")
+	s, tok := serverFor(t, bus, "owner@h")
+	known(t, bus, "#svc@h")
 	h := s.Handler()
 	post := func(path, user, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest("POST", path, strings.NewReader(body))
@@ -74,17 +76,17 @@ func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 	// Every participant is somebody first. A name the daemon holds nothing for
 	// cannot even be issued a credential, and this test is about
 	// configuration rather than about the gate.
-	for _, who := range []string{"owner@h", "other@h"} {
-		if _, err := bus.SetUser("svc@h", protocol.User{Name: who}, true); err != nil {
+	for _, who := range []string{"other@h"} {
+		if _, err := bus.SetUser("owner@h", protocol.User{Name: who}, true); err != nil {
 			t.Fatalf("fixture principal %s: %v", who, err)
 		}
 	}
-	if w := post("/configure", "owner@h", `{"kind":"agent","name":"mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
+	if w := post("/configure", "owner@h", `{"kind":"agent","name":"#mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
 		t.Fatalf("configure: %d %s", w.Code, w.Body.String())
 	} else if strings.Contains(w.Body.String(), "FIXTURE") {
 		t.Fatalf("configure echoed the configuration back: %s", w.Body.String())
 	}
-	if w := post("/register", "other@h", `{"kind":"agent","name":"mail/parf@h"}`); strings.Contains(w.Body.String(), "FIXTURE") {
+	if w := post("/register", "other@h", `{"kind":"agent","name":"#mail/parf@h"}`); strings.Contains(w.Body.String(), "FIXTURE") {
 		t.Fatalf("register handed out the configuration: %s", w.Body.String())
 	}
 	r := httptest.NewRequest("GET", "/ls", nil)
@@ -100,7 +102,8 @@ func TestNoAnswerCarriesAConfiguration(t *testing.T) {
 // The owner who set it cannot read it either — only the service can.
 func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 	bus := core.New()
-	s, tok := serverFor(t, bus, "svc@h")
+	s, tok := serverFor(t, bus, "owner@h")
+	known(t, bus, "#svc@h")
 	h := s.Handler()
 	do := func(method, path, user, body string) *httptest.ResponseRecorder {
 		var r *http.Request
@@ -117,16 +120,16 @@ func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 	// Every participant is somebody first. A name the daemon holds nothing for
 	// cannot even be issued a credential, and this test is about
 	// configuration rather than about the gate.
-	for _, who := range []string{"owner@h", "nosy@h"} {
-		if _, err := bus.SetUser("svc@h", protocol.User{Name: who}, true); err != nil {
+	for _, who := range []string{"nosy@h"} {
+		if _, err := bus.SetUser("owner@h", protocol.User{Name: who}, true); err != nil {
 			t.Fatalf("fixture principal %s: %v", who, err)
 		}
 	}
-	if w := do("POST", "/configure", "owner@h", `{"kind":"agent","name":"mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
+	if w := do("POST", "/configure", "owner@h", `{"kind":"agent","name":"#mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
 		t.Fatalf("configure: %d %s", w.Code, w.Body.String())
 	}
 	for _, who := range []string{"owner@h", "nosy@h"} {
-		w := do("GET", "/config?name=mail/parf@h", who, "")
+		w := do("GET", "/config?name=%23mail/parf@h", who, "")
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("%s read it: %d %s", who, w.Code, w.Body.String())
 		}
@@ -134,12 +137,12 @@ func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 			t.Fatalf("the refusal to %s carried the configuration: %s", who, w.Body.String())
 		}
 	}
-	w := do("GET", "/config?name=mail/parf@h", "mail/parf@h", "")
+	w := do("GET", "/config?name=%23mail/parf@h", "#mail/parf@h", "")
 	if w.Code != 200 || !strings.Contains(w.Body.String(), "FIXTURE") {
 		t.Fatalf("the service could not read its own: %d %s", w.Code, w.Body.String())
 	}
 	// The owner can still SET one; it just never comes back.
-	if w := do("POST", "/configure", "owner@h", `{"kind":"agent","name":"mail/parf@h","config":{"password":"SECOND"}}`); w.Code != 200 {
+	if w := do("POST", "/configure", "owner@h", `{"kind":"agent","name":"#mail/parf@h","config":{"password":"SECOND"}}`); w.Code != 200 {
 		t.Fatalf("the owner lost the right to configure: %d %s", w.Code, w.Body.String())
 	}
 }

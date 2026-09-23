@@ -48,10 +48,10 @@ func TestAdministratorRoleUsesItsOwnPublicName(t *testing.T) {
 	if code, _ := post(t, s, token, "owner@h", "/group", `{"name":"@maintainers","members":["ordinary@h"]}`); code != 200 {
 		t.Fatalf("an ordinary group named @maintainers: %d, want 200", code)
 	}
-	if code, body := post(t, s, token, "owner@h", "/register", `{"kind":"agent","name":"svc@h"}`); code != 200 {
+	if code, body := post(t, s, token, "owner@h", "/register", `{"kind":"agent","name":"#svc@h"}`); code != 200 {
 		t.Fatalf("register svc@h: %d %s", code, body)
 	}
-	if code, body := post(t, s, token, "owner@h", "/manage", `{"name":"svc@h","maintainers":["@maintainers"]}`); code != 200 {
+	if code, body := post(t, s, token, "owner@h", "/manage", `{"name":"#svc@h","maintainers":["@maintainers"]}`); code != 200 {
 		t.Fatalf("@maintainers as an ordinary maintainers grant: %d %s", code, body)
 	}
 	if code, _ := post(t, s, token, "admin@h", "/group", `{"name":"@administrators","members":["owner@h","admin@h","ordinary@h"]}`); code != 403 {

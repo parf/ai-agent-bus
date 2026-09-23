@@ -24,8 +24,8 @@ func TestActivityViewUsesActualTimeAndOneScale(t *testing.T) {
 		{At: start.Add(10 * time.Minute), Counts: core.Counts{In: 4, Dropped: 1}},
 		{At: start.Add(40 * time.Minute), Counts: core.Counts{Out: 3, Refused: 2}},
 	}
-	detail := activityView(points, "svc@h", "42m", false)
-	full := activityView(points, "svc@h", "42m", true)
+	detail := activityView(points, "#svc@h", "42m", false)
+	full := activityView(points, "#svc@h", "42m", true)
 	if detail.Max != 4 || full.Max != 4 {
 		t.Fatalf("shared maximum = %d / %d, want 4", detail.Max, full.Max)
 	}
@@ -55,7 +55,7 @@ func TestActivityViewUsesActualTimeAndOneScale(t *testing.T) {
 }
 
 func TestActivityViewMarksOnePartialSample(t *testing.T) {
-	v := activityView([]core.ActivityPoint{{At: time.Now(), Counts: core.Counts{In: 2}}}, "svc@h", "12s", false)
+	v := activityView([]core.ActivityPoint{{At: time.Now(), Counts: core.Counts{In: 2}}}, "#svc@h", "12s", false)
 	if v.Observed != "one partial sample" || len(v.Series) != 1 || !v.Series[0].Single || v.Series[0].X != "330.0" || v.Series[0].Y != "25.0" {
 		t.Fatalf("one partial sample has no visible point: %+v", v)
 	}
@@ -63,18 +63,18 @@ func TestActivityViewMarksOnePartialSample(t *testing.T) {
 
 func TestRecordActivityEmbedsChartAndFullViewKeepsValues(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "admin@h"})
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "admin@h"})
 	m.bus.SampleActivity(time.Now().Add(-2 * time.Minute))
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "svc@h", Body: "not rendered"}); err != nil {
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#svc@h", Body: "not rendered"}); err != nil {
 		t.Fatal(err)
 	}
-	detail := m.get("/service?name=svc@h")
+	detail := m.get("/service?name=%23svc@h")
 	for _, want := range []string{
 		"<h2>Activity</h2>", `aria-label="About this activity history"`, `<li>The daemon keeps about 24 hours`, `Samples are usually about ten minutes apart`, `class=activity-chart`, "Accepted: 1 in the shown samples",
 		`<circle class="activity-point activity-accepted"`,
 		"Shared scale: 0–1 per sample over the displayed nonzero series.",
 		"Dequeued means handed to a reader, not completed.",
-		`href="/activity?name=svc%40h">View all activity and sample values</a>`,
+		`href="/activity?name=%23svc%40h">View all activity and sample values</a>`,
 	} {
 		if !strings.Contains(detail, want) {
 			t.Errorf("detail lacks %q", want)
@@ -83,8 +83,8 @@ func TestRecordActivityEmbedsChartAndFullViewKeepsValues(t *testing.T) {
 	if strings.Contains(detail, "<summary>Sample values</summary>") || strings.Contains(detail, "not rendered") {
 		t.Fatal("compact detail exposed the full table or a message body")
 	}
-	full := m.get("/activity?name=svc%40h")
-	for _, want := range []string{`selected>svc@h</option>`, "<summary>Sample values</summary>", "<th scope=col class=num>Accepted", "About activity history"} {
+	full := m.get("/activity?name=%23svc%40h")
+	for _, want := range []string{`selected>#svc@h</option>`, "<summary>Sample values</summary>", "<th scope=col class=num>Accepted", "About activity history"} {
 		if !strings.Contains(full, want) {
 			t.Errorf("full Activity view lacks %q", want)
 		}
@@ -97,13 +97,13 @@ func TestRecordActivityEmbedsChartAndFullViewKeepsValues(t *testing.T) {
 
 func TestRecordActivityDistinguishesAbsentAndMeasuredZero(t *testing.T) {
 	m := meaningFixture(t)
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "admin@h"})
-	absent := m.get("/service?name=svc@h")
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "admin@h"})
+	absent := m.get("/service?name=%23svc@h")
 	if !strings.Contains(absent, "Activity history is not observed yet. Collecting the first sample after this daemon restart") || !strings.Contains(absent, "no zero series is inferred") || strings.Contains(absent, "class=activity-chart") {
 		t.Fatal("fresh history was rendered as zero, broken or charted")
 	}
 	m.bus.SampleActivity(time.Now().Add(-time.Minute))
-	zero := m.get("/service?name=svc@h")
+	zero := m.get("/service?name=%23svc@h")
 	if !strings.Contains(zero, "All five series: <strong>0</strong> in this window") || strings.Contains(zero, "Measured zero:") || strings.Contains(zero, "class=activity-chart") {
 		t.Fatal("measured zero was confused with absent history")
 	}
@@ -121,7 +121,7 @@ func TestRecordActivityAttemptsOnceAndDegradesWithoutLeakingHiddenRecord(t *test
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "owner@h", Allow: []string{"owner@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h", Allow: []string{"owner@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	var activityCalls atomic.Int32
@@ -156,7 +156,7 @@ func TestRecordActivityAttemptsOnceAndDegradesWithoutLeakingHiddenRecord(t *test
 	}
 	get := func(cookie *http.Cookie) (string, int) {
 		t.Helper()
-		req, _ := http.NewRequest(http.MethodGet, web.URL+"/service?name=svc%40h", nil)
+		req, _ := http.NewRequest(http.MethodGet, web.URL+"/service?name=%23svc%40h", nil)
 		req.AddCookie(cookie)
 		resp, err := client.Do(req)
 		if err != nil {
@@ -167,14 +167,14 @@ func TestRecordActivityAttemptsOnceAndDegradesWithoutLeakingHiddenRecord(t *test
 		return string(body), resp.StatusCode
 	}
 	owner, other := signIn("owner@h"), signIn("other@h")
-	if body, status := get(owner); status != http.StatusOK || !strings.Contains(body, "Activity unavailable") || !strings.Contains(body, "svc@h") || activityCalls.Load() != 1 {
+	if body, status := get(owner); status != http.StatusOK || !strings.Contains(body, "Activity unavailable") || !strings.Contains(body, "#svc@h") || activityCalls.Load() != 1 {
 		t.Fatalf("failed activity read: status=%d calls=%d body=%s", status, activityCalls.Load(), body)
 	}
 	failActivity = false
 	if body, status := get(owner); status != http.StatusOK || strings.Contains(body, "Activity unavailable") || activityCalls.Load() != 2 {
 		t.Fatalf("successful activity read: status=%d calls=%d", status, activityCalls.Load())
 	}
-	if body, status := get(other); status != http.StatusNotFound || activityCalls.Load() != 2 || strings.Contains(body, "svc@h") {
+	if body, status := get(other); status != http.StatusNotFound || activityCalls.Load() != 2 || strings.Contains(body, "#svc@h") {
 		t.Fatalf("hidden lookup reached activity or leaked the record: status=%d calls=%d body=%s", status, activityCalls.Load(), body)
 	}
 }

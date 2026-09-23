@@ -241,6 +241,16 @@ func (b *Bus) change(s *staged) ports.Change {
 			c.DropQueues = append(c.DropQueues, name)
 		}
 	}
+	// A record born in this write owns no stored queue. One may still be on
+	// disk under its name, left by an ignored record the name used to belong
+	// to, and the next start would hand that one's messages to the new owner.
+	// Its own in-memory inbox, if it has one yet, is written by the next flush.
+	for name, before := range s.records {
+		_, now := b.records[name]
+		if _, dropping := s.inboxes[name]; before == nil && now && !dropping {
+			c.DropQueues = append(c.DropQueues, name)
+		}
+	}
 	if s.owner != nil {
 		owner := b.admin
 		c.Owner = &owner

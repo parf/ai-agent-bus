@@ -172,17 +172,14 @@ func TestAHiddenNameCountsAsAMissingOneDoes(t *testing.T) {
 func TestWhatIsNotARefusalIsNotCounted(t *testing.T) {
 	c := refusalFixture(t)
 	tok := c.as("admin@h")
-	// The consume below omits inbox and therefore reads the caller's own, so
-	// the caller needs a record for that call to be an ordinary empty wait.
-	if _, err := c.bus.Register(protocol.Record{Kind: protocol.KindAgent, Name: "admin@h", Owner: "admin@h"}); err != nil {
-		t.Fatal(err)
-	}
+	// The consume below omits inbox and therefore reads the caller's own,
+	// which is the user record every User has.
 	for _, call := range []struct {
 		what, method, path, body string
 		code                     int
 	}{
 		{"a successful listing", "GET", "/ls", "", 200},
-		{"a successful registration", "POST", "/register", `{"kind":"agent","name":"fresh@h","owner":"admin@h"}`, 200},
+		{"a successful registration", "POST", "/register", `{"kind":"agent","name":"#fresh@h","owner":"admin@h"}`, 200},
 		// Nothing arrives, so the wait ends empty. That is an answer, not a
 		// refusal, and it is the commonest call this daemon serves.
 		{"a consume that waits and finds nothing", "GET", "/consume?wait=1ms", "", 204},

@@ -41,7 +41,7 @@ func main() {
 }
 
 func issue() error {
-	entitled, rotate, key, err := parse(os.Args[1:])
+	entitled, rotate, key, err := parse(protocol.ExpandAgentFlags(os.Args[1:]))
 	if err != nil {
 		return err
 	}

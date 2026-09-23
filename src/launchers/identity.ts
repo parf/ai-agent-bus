@@ -46,7 +46,9 @@ export async function claimIdentity(owner: Bus, bindings: Bindings, base: string
     for (let n = 2; used.has(label) || !bindings.lock(`label:${label}`); n++) label = `${title} #${n}`;
     try {
       const existing = records.find(r => r.name === name);
-      await owner.register({ name, kind: "agent", descr: label, allow: withOwnerACL(existing?.allow) }, !saved);
+      // Personal: a session belongs to the launching user, not on the shared
+      // web pages (docs/03-records.md#personal-and-shared).
+      await owner.register({ name, kind: "agent", descr: label, allow: withOwnerACL(existing?.allow), personal: true }, !saved);
       return { name, label };
     } catch (e) {
       if (saved || !(e instanceof BusError) || e.status !== 412) throw e;

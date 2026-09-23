@@ -722,9 +722,11 @@ Maintainers and Group membership use the same line-list textarea. Each
 Maintainer term occupies one line; each direct Group member, including a nested
 group, occupies one line. Display glyphs never enter these editable values.
 
-**Pending for 0.7:** an agent term carries a leading `#`, the way a group term
+**Built in 0.7.5:** an agent term carries a leading `#`, the way a group term
 carries `@`, and the stored line keeps it. A line without a marker names a
-user; the editors enforce this on save rather than guessing a kind. See
+user or a channel. **Pending** ([K.16](../Plans/MVP/0.7.0-TODO.md)): the
+editors reporting an offending line by number rather than relaying the
+daemon's refusal. See
 [typed actor terms](constitution.md#-registry-record).
 
 The [ACL contract](02-access.md#acl) defines access terms and their implementation status.

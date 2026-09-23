@@ -54,10 +54,10 @@ func TestSelfProfileRouteCarriesOnlyEmail(t *testing.T) {
 	// door when the narrow capability is attached.
 	call("alice@h", "/user", `{"kind":"agent","name":"alice@h","email":"other@example.com"}`, 403)
 
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "svc@h", Owner: "alice@h"}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h"}); err != nil {
 		t.Fatal(err)
 	}
-	call("svc@h", "/profile", `{"email":"svc@example.com"}`, 404)
+	call("#svc@h", "/profile", `{"email":"svc@example.com"}`, 404)
 	if _, err := b.SetUserState("owner@h", "alice@h", "paused"); err != nil {
 		t.Fatal(err)
 	}

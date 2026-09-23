@@ -55,7 +55,7 @@ func TestGithubProfileAndPhotoStayLocalAndVisibilityBounded(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "reports@h", Owner: "alice@h", Allow: []string{"visitor@h"}}); err != nil {
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#reports@h", Owner: "alice@h", Allow: []string{"visitor@h"}}); err != nil {
 		t.Fatal(err)
 	}
 	backend := httptest.NewServer(api.New(b, tokens, "owner@h").Handler())
@@ -162,11 +162,11 @@ func TestGithubProfileAndPhotoStayLocalAndVisibilityBounded(t *testing.T) {
 	if !bytes.Equal(avatar, photo) || header.Get("Content-Type") != "image/png" {
 		t.Fatalf("avatar did not serve normalized local bytes: %q %q", avatar, header.Get("Content-Type"))
 	}
-	service, _ := request("owner@h", "GET", "/service?name=reports@h", nil, 200)
+	service, _ := request("owner@h", "GET", "/service?name=%23reports@h", nil, 200)
 	if !bytes.Contains(service, []byte("data:image/png;base64,")) || !bytes.Contains(service, []byte(`/user?name=alice%40h`)) {
 		t.Fatalf("visible owner photo missing from service: %s", service)
 	}
-	hidden, _ := request("visitor@h", "GET", "/service?name=reports@h", nil, 200)
+	hidden, _ := request("visitor@h", "GET", "/service?name=%23reports@h", nil, 200)
 	if bytes.Contains(hidden, []byte("data:image/png;base64,")) || bytes.Contains(hidden, []byte(`/user?name=alice%40h`)) {
 		t.Fatalf("service leaked hidden owner profile: %s", hidden)
 	}

@@ -78,24 +78,24 @@ func TestUserServiceInputsRemainData(t *testing.T) {
 		}
 	}
 	var rec protocol.Record
-	call("POST", "/register", "owner@h", protocol.Record{Kind: protocol.KindAgent, Name: "probe@h", Descr: program, Addr: program, Proto: "exec"}, &rec)
+	call("POST", "/register", "owner@h", protocol.Record{Kind: protocol.KindAgent, Name: "#probe@h", Descr: program, Addr: program, Proto: "exec"}, &rec)
 	inert("registration")
 	if rec.Descr != program || rec.Addr != program || rec.Proto != "exec" {
 		t.Fatalf("registration discarded the probe: %+v", rec)
 	}
 	config := map[string]string{"command": program, "script": script}
-	call("POST", "/configure", "owner@h", map[string]any{"name": "probe@h", "config": config}, nil)
+	call("POST", "/configure", "owner@h", map[string]any{"name": "#probe@h", "config": config}, nil)
 	inert("configuration")
 	var stored map[string]string
-	call("GET", "/config?name=probe@h", "probe@h", nil, &stored)
+	call("GET", "/config?name=%23probe@h", "#probe@h", nil, &stored)
 	if stored["command"] != program || stored["script"] != script {
 		t.Fatalf("configuration did not retain the probe: %v", stored)
 	}
 	for _, body := range []string{program, script, "$(" + quote(program) + ")"} {
 		var sent, got protocol.Envelope
-		call("POST", "/send", "owner@h", protocol.Envelope{To: "probe@h", Body: body}, &sent)
+		call("POST", "/send", "owner@h", protocol.Envelope{To: "#probe@h", Body: body}, &sent)
 		inert("send")
-		call("GET", "/consume?wait=0s", "probe@h", nil, &got)
+		call("GET", "/consume?wait=0s", "#probe@h", nil, &got)
 		inert("consume")
 		if got.ID != sent.ID || got.Body != body {
 			t.Fatalf("message was not preserved: %+v", got)

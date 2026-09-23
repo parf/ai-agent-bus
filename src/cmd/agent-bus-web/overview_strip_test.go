@@ -28,8 +28,8 @@ import (
 func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	m := meaningFixture(t)
 	records := []protocol.Record{
-		{Name: "svc@h", Owner: "admin@h", Kind: protocol.KindAgent},
-		{Name: "bot@h", Owner: "admin@h", Kind: "agent"},
+		{Name: "#svc@h", Owner: "admin@h", Kind: protocol.KindAgent},
+		{Name: "#bot@h", Owner: "admin@h", Kind: "agent"},
 		{Name: "news@h", Owner: "admin@h", Kind: protocol.KindQueue},
 		{Name: "work@h", Owner: "admin@h", Kind: protocol.KindQueue},
 		{Name: "shout@h", Owner: "admin@h", Kind: protocol.KindPubSub},
@@ -40,10 +40,9 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	for _, record := range records {
 		m.register(record)
 	}
-	// A person's own inbox is created by adding the person, which is the only
-	// way a user record comes to exist. admin@h is a fifth person on the node
-	// and is deliberately not counted here: it holds a credential and has
-	// registered nothing, so no record carries its name.
+	// A person's own record is created by adding the person, which is the only
+	// way a user record comes to exist. admin@h, the daemon owner, is a User
+	// too and already has one, so the node holds five.
 	for _, name := range []string{"ann@h", "bo@h", "cy@h", "di@h"} {
 		if _, err := m.bus.SetUser("admin@h", protocol.User{Name: name}, true); err != nil {
 			t.Fatal(err)
@@ -55,7 +54,7 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	// One cell per thing a record can be, each with its own figure. The
 	// numbers differ from one another, so a cell that printed the wrong kind's
 	// count fails here rather than matching its neighbour.
-	for label, want := range map[string]string{"Agents": "2", "Channels": "3", "Users": "4"} {
+	for label, want := range map[string]string{"Agents": "2", "Channels": "3", "Users": "5"} {
 		cell := "<span>" + label + "</span><strong>" + want + "</strong>"
 		if !strings.Contains(strip, cell) {
 			t.Errorf("the strip does not count %s separately as %s: %s", label, want, strip)
@@ -209,19 +208,19 @@ func TestTheGenerationTimeIsStatedOnceAndOnlyInTheFooter(t *testing.T) {
 
 	// Populated: two records that each raise an item, so a per-item repeat
 	// would show up as three or more.
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "tiny@h", Owner: "admin@h", Bound: 1})
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "tiny@h", Body: "fills it"}); err != nil {
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#tiny@h", Owner: "admin@h", Bound: 1})
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#tiny@h", Body: "fills it"}); err != nil {
 		t.Fatal(err)
 	}
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "small@h", Owner: "admin@h", Bound: 1})
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "small@h", Body: "fills it"}); err != nil {
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#small@h", Owner: "admin@h", Bound: 1})
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#small@h", Body: "fills it"}); err != nil {
 		t.Fatal(err)
 	}
 	full := m.get("/")
 	if !strings.Contains(full, "Queue at capacity when observed") {
 		t.Fatalf("the fixture raised no attention item, so this check proves nothing: %s", full)
 	}
-	if !strings.Contains(full, ">tiny@h<") || !strings.Contains(full, ">small@h<") {
+	if !strings.Contains(full, ">#tiny@h<") || !strings.Contains(full, ">#small@h<") {
 		t.Fatal("the fixture did not raise both items")
 	}
 	now := section(t, section(t, full, "<footer ", "</footer>"), "<strong>Generated</strong> ", "</span>")
@@ -229,7 +228,7 @@ func TestTheGenerationTimeIsStatedOnceAndOnlyInTheFooter(t *testing.T) {
 		t.Errorf("a populated Overview states the generation time %d times, want 1", n)
 	}
 	// The item keeps its way through; only the repeated time went.
-	if !strings.Contains(full, `<p class=muted><a href="/agent?name=tiny%40h">View record</a></p>`) {
+	if !strings.Contains(full, `<p class=muted><a href="/agent?name=%23tiny%40h">View record</a></p>`) {
 		t.Errorf("an attention item lost its link with the repeated time: %s", full)
 	}
 	// Every page carries the footer, so every page is dated, not just this one.
@@ -261,8 +260,8 @@ func TestNeedsAttentionAppearsOnlyWhenSomethingWasObserved(t *testing.T) {
 		t.Fatalf("the quiet Overview did not render its node strip: %s", quiet)
 	}
 
-	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "tiny@h", Owner: "admin@h", Bound: 1})
-	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "tiny@h", Body: "fills it"}); err != nil {
+	m.register(protocol.Record{Kind: protocol.KindAgent, Name: "#tiny@h", Owner: "admin@h", Bound: 1})
+	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#tiny@h", Body: "fills it"}); err != nil {
 		t.Fatal(err)
 	}
 	raised := m.get("/")
