@@ -19,7 +19,7 @@ const env = { PATH: process.env.PATH!, TERM: "xterm-256color", LANG: "C.UTF-8" }
 const slots = [0, 1].map(slot => {
   const dir = join(out, `session-${slot}`), home = join(dir, "home"), cwd = join(dir, "work with spaces");
   mkdirSync(dir); mkdirSync(home); mkdirSync(cwd);
-  return { slot, dir, home, cwd, name: `${runtime}/test-${slot}@fixture`, output: "", model: new RuntimeModelFixture(slot, dir, `SERVICE-${slot}`, runtime), proc: undefined as ReturnType<typeof Bun.spawn> | undefined, requests: [] as any[] };
+  return { slot, dir, home, cwd, name: `#${runtime}/test-${slot}@fixture`, output: "", model: new RuntimeModelFixture(slot, dir, `SERVICE-${slot}`, runtime), proc: undefined as ReturnType<typeof Bun.spawn> | undefined, requests: [] as any[] };
 });
 const errors: string[] = [];
 const provider = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(req) {
@@ -52,13 +52,13 @@ try {
   await until(() => { try { token = Bun.spawnSync([join(bin, "agent-bus-token"), "owner@fixture"], { env: { ...process.env, AGENT_BUS_ADDR: join(out, `user-${userInfo().username}.sock`) } }).stdout.toString().trim(); return !!token; } catch { return false; } }, "disposable daemon ready");
   const ownerEnv = { ...env, AGENT_BUS_ADDR: join(out, "bus.sock"), AGENT_BUS_NAME: "owner@fixture", AGENT_BUS_TOKEN: token };
   const owner = new Bus(ownerEnv);
-  await owner.register({ name: "echo@fixture", allow: slots.map(s => s.name) });
-  await owner.register({ name: "forbidden@fixture", allow: ["nobody@fixture"] });
-  const service = await owner.as("echo@fixture");
+  await owner.register({ name: "#echo@fixture", kind: "agent", allow: slots.map(s => s.name) });
+  await owner.register({ name: "#forbidden@fixture", kind: "agent", allow: ["nobody@fixture"] });
+  const service = await owner.as("#echo@fixture");
   const peers = [];
   for (const s of slots) {
-    await owner.register({ name: `peer-${s.slot}@fixture`, allow: [s.name] });
-    peers.push(await owner.as(`peer-${s.slot}@fixture`));
+    await owner.register({ name: `#peer-${s.slot}@fixture`, kind: "agent", allow: [s.name] });
+    peers.push(await owner.as(`#peer-${s.slot}@fixture`));
     if (runtime === "codex") writeFileSync(join(s.home, "config.toml"), `model="fixture"\nmodel_provider="fixture"\n[model_providers.fixture]\nname="fixture"\nbase_url="http://127.0.0.1:${provider.port}/${s.slot}/v1"\nwire_api="responses"\nrequires_openai_auth=false\n[projects.${JSON.stringify(s.cwd)}]\ntrust_level="trusted"\n`);
     else {
       const config = join(s.home, "config/opencode"); mkdirSync(config, { recursive: true });
@@ -79,7 +79,7 @@ try {
   await until(() => slots.every(s => s.output.includes(`KEYBOARD-OK-${s.slot}`)), "both native TUIs answer keyboard input");
   check(true, "two native runtime TUIs answer their own keyboard input");
   for (const s of slots) {
-    await owner.register({ name: s.name, kind: "agent", allow: [`peer-${s.slot}@fixture`, "echo@fixture"] });
+    await owner.register({ name: s.name, kind: "agent", allow: [`#peer-${s.slot}@fixture`, "#echo@fixture"] });
     await peers[s.slot]!.send({ to: s.name, topic: "interactive", tag: `slot-${s.slot}`, body: `KICKOFF-${s.slot}` });
   }
   await until(() => slots.every(s => s.model.held), "two addressed pusher turns held at provider");

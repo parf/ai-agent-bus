@@ -54,19 +54,19 @@ try {
   await until(() => { try { token = Bun.spawnSync([join(bin, "agent-bus-token"), "owner@fixture"], { env: { ...process.env, AGENT_BUS_ADDR: join(out, `user-${userInfo().username}.sock`) } }).stdout.toString().trim(); return !!token; } catch { return false; } }, "daemon ready");
   const ownerEnv = { ...env, AGENT_BUS_ADDR: join(out, "bus.sock"), AGENT_BUS_NAME: "owner@fixture", AGENT_BUS_TOKEN: token };
   const owner = new Bus(ownerEnv);
-  await owner.register({ name: "peer@fixture", allow: ["claude/test@fixture"] });
-  const peer = await owner.as("peer@fixture");
-  proc = Bun.spawn([join(bin, "ab-claude")], { cwd, env: { ...ownerEnv, AGENT_BUS_NAME: "claude/test@fixture" }, terminal: { cols: 150, rows: 40, data(_t, b) {
+  await owner.register({ name: "#peer@fixture", kind: "agent", allow: ["#claude/test@fixture"] });
+  const peer = await owner.as("#peer@fixture");
+  proc = Bun.spawn([join(bin, "ab-claude")], { cwd, env: { ...ownerEnv, AGENT_BUS_NAME: "#claude/test@fixture" }, terminal: { cols: 150, rows: 40, data(_t, b) {
     const s = Buffer.from(b).toString(); output += s;
     if (s.includes("\x1b[6n")) proc?.terminal?.write("\x1b[1;1R");
   } } });
-  await until(async () => (await owner.ls()).some(r => r.name === "claude/test@fixture" && r.reading), "native MCP reader ready");
+  await until(async () => (await owner.ls()).some(r => r.name === "#claude/test@fixture" && r.reading), "native MCP reader ready");
   proc.terminal!.write("KEYBOARD-PROBE"); await Bun.sleep(300); proc.terminal!.write("\r");
   await until(() => text().includes("LOCAL-TURN-DONE") && calls > 0, "native keyboard turn answered by local provider");
   console.log("ok native keyboard turn with local provider");
-  await owner.register({ name: "claude/test@fixture", kind: "agent", allow: ["peer@fixture"] });
+  await owner.register({ name: "#claude/test@fixture", kind: "agent", allow: ["#peer@fixture"] });
   const before = calls;
-  await peer.send({ to: "claude/test@fixture", topic: "interactive", tag: "probe", body: "INCOMING-INTERACTIVE-CANARY" });
+  await peer.send({ to: "#claude/test@fixture", topic: "interactive", tag: "probe", body: "INCOMING-INTERACTIVE-CANARY" });
   if (text().includes("Channels are not currently available")) throw new Error("Claude reports Channels unavailable; interactive channel acceptance remains open");
   await until(() => calls > before && readFileSync(join(out, "provider.jsonl"), "utf8").includes("INCOMING-INTERACTIVE-CANARY"), "bus event reaches native channel input");
   console.log("ok native channel reaches local provider; full co-exercise still required");

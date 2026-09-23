@@ -44,7 +44,7 @@ export class RuntimeModelFixture {
       const response = user.match(new RegExp(`${this.secretPrefix}-[a-f0-9]+`))?.[0];
       if (response) {
         this.sawServiceResponse = response;
-        if (!output("reply")) item = call("reply", "ab_send", { to: `peer-${this.slot}@fixture`, topic: "interactive", tag: `slot-${this.slot}`, text: response });
+        if (!output("reply")) item = call("reply", "ab_send", { to: `#peer-${this.slot}@fixture`, topic: "interactive", tag: `slot-${this.slot}`, text: response });
         else {
           if (!JSON.stringify(output("reply")).includes("the bus accepted")) throw new Error("reply tool did not succeed");
           this.replied = true; item = message(`COMPLETE-${this.slot}: ${response}`);
@@ -52,14 +52,14 @@ export class RuntimeModelFixture {
       } else if (!output("list")) item = call("list", "ab_ls", {});
       else if (!output("deny")) {
         const listing = JSON.stringify(output("list"));
-        if (!listing.includes("echo@fixture") || listing.includes("forbidden@fixture")) throw new Error("MCP listing absent or leaked hidden service");
+        if (!listing.includes("#echo@fixture") || listing.includes("#forbidden@fixture")) throw new Error("MCP listing absent or leaked hidden service");
         this.listed = true;
-        item = call("deny", "ab_send", { to: "forbidden@fixture", text: "must refuse" });
+        item = call("deny", "ab_send", { to: "#forbidden@fixture", text: "must refuse" });
       } else if (!output("service")) {
         const denial = JSON.stringify(output("deny"));
         if (denial.includes("the bus accepted") || !/not found|not visible|refused|forbidden/i.test(denial)) throw new Error("forbidden MCP send did not refuse: " + denial);
         this.denied = true;
-        item = call("service", "ab_send", { to: "echo@fixture", topic: "interactive", tag: `slot-${this.slot}`, text: `QUESTION-${this.slot}` });
+        item = call("service", "ab_send", { to: "#echo@fixture", topic: "interactive", tag: `slot-${this.slot}`, text: `QUESTION-${this.slot}` });
       } else {
         if (!JSON.stringify(output("service")).includes("the bus accepted")) throw new Error("service call did not reach daemon");
         this.serviceSent = true; item = message(`REQUEST-SENT-${this.slot}`);
