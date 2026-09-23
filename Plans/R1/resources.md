@@ -22,7 +22,7 @@ It is not a content store, and a record here is not a copy of what it names.
 | What it is | one registered card for one MCP Resource, and one for one Resource Template |
 | Fields | the common ones unchanged: owner, name, description, `personal`, `maintainers`, `allow`, `status`, timestamps |
 | ACL | the same `allow` list, the same typed actor terms, the same [authority rules](../../docs/constitution.md#authority-rules). Whoever the list admits sees the card; everyone else gets no such entity |
-| What answers | whatever stands behind the name, reached the way everything on this bus is reached |
+| What answers | whatever stands behind the name, reached the way everything on this bus is reached; how a read reaches it without a queue here is [Q114](QUESTIONS.md#open-questions) |
 | Not a channel | as with [📡 Service](../../docs/06-services.md#it-has-no-queue-here): nothing is queued here, so `ttl`, `bound`, `overflow` and `deliver_to` are refused rather than ignored |
 | Inactive | the [no such entity](../../docs/constitution.md#common-record-fields) rule, unchanged |
 
