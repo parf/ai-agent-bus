@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.17 — 2026-09-23
+
+Push waits out a suspension, asking again every 30 minutes, and resumes after
+reactivation instead of going off for the session's life.
+
 ## 0.8.16 — 2026-09-23
 
 The project's links are on the landing page once: the footer copy of them is

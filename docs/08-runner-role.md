@@ -98,10 +98,12 @@ pushes into the *running* session. Claude Code, Codex and opencode are proven he
 | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
 
 **Push stops rather than repeats a refusal about who is asking.** A credential
-the daemon does not know, an identity that may not read that inbox, and an
-inbox somebody else already holds are all answers that asking again cannot
-change, so the loop says so once and leaves the session running without a
-channel. Only a transient failure is retried; a session that outlives its
+the daemon does not know and an inbox somebody else already holds are answers
+that asking again cannot change, so the loop says so once and leaves the
+session running without a channel. A suspended principal is different: it can
+be reactivated, so from 0.8.17 push says so once and asks again every 30
+minutes, and resumes by itself after reactivation (owner, 2026-09-23). A
+transient failure is retried after two seconds; a session that outlives its
 principal otherwise refuses its way through the daemon for as long as it lives.
 
 The adapter acknowledges to the bus only after the runtime has *accepted* the

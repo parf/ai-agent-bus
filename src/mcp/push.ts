@@ -17,14 +17,18 @@ export type Deliver = (e: Envelope) => Promise<void>;
 const WAIT = "55s"; // just under the daemon's 60s ceiling
 const BACKOFF_MS = 2_000;
 // Refusals about who is asking, which asking again cannot change: an unknown
-// credential, an identity that may not read here, and somebody else already
-// holding the inbox.
-const PERMANENT = new Set([401, 403, 409]);
+// credential, and somebody else already holding the inbox.
+const PERMANENT = new Set([401, 409]);
+// A suspended principal (403 on its own inbox) can be reactivated, which
+// restores everything (docs/01-identity-and-roles.md), so push waits and asks
+// again rather than going off for the rest of the session. Owner, 2026-09-23.
+export const SUSPENDED_RETRY_MS = 30 * 60_000;
 
 export type Push = { readonly running: () => boolean; stop: () => void; done: Promise<void> };
 
-export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void): Push {
+export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, suspendedRetryMs = SUSPENDED_RETRY_MS): Push {
   let stopped = false;
+  let suspended = false;
   const abort = new AbortController();
   const stop = () => {
     if (stopped) return;
@@ -52,11 +56,21 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void):
           stopped = true;
           return;
         }
+        if (err instanceof BusError && err.status === 403) {
+          if (!suspended) log(`push: ${bus.name} is suspended (${err.message}); asking again every ${Math.round(suspendedRetryMs / 60_000)} minutes`);
+          suspended = true;
+          await sleep(suspendedRetryMs, abort.signal);
+          continue;
+        }
         log(`push: consume failed: ${err instanceof BusError ? `${err.status} ${err.message}` : err}`);
         await sleep(BACKOFF_MS);
         continue;
       }
       if (stopped) return; // a message taken after stop would be lost anyway
+      if (suspended) {
+        suspended = false;
+        log(`push: ${bus.name} reads its inbox again`);
+      }
       if (!e) continue; // deadline, no message
       try {
         await deliver(e);
@@ -76,6 +90,11 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void):
   return { running: () => !stopped, stop, done };
 }
 
-export function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+// A stop ends the wait at once: a half-hour retry must not keep a stopped
+// push alive.
+export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((r) => {
+    const t = setTimeout(r, ms);
+    signal?.addEventListener("abort", () => { clearTimeout(t); r(); }, { once: true });
+  });
 }
