@@ -88,6 +88,8 @@ func TestAuditEntriesForEditsAndNoneForTraffic(t *testing.T) {
 		{"/register", `{"name":"db@h","addr":"db:5432","protocol":"postgresql"}`, "register", "db@h", "ok"},
 		{"/secret", `{"name":"db@h","secret":"PW=` + canarySecret + `"}`, "set-secret", "db@h", "ok"},
 		{"/user/state", `{"name":"bob@h","status":"inactive"}`, "user-state", "bob@h", "refused 403"},
+		// The web sends Go-cased field names; the target is still the group.
+		{"/group", `{"Name":"@alices","Members":["alice@h"]}`, "group", "@alices", "ok"},
 	}
 	for _, c := range calls {
 		send(s, alice, "POST", c.path, c.body, "192.0.2.7:4000")

@@ -5,6 +5,12 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](Plans/CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.18 — 2026-09-23
+
+Setup over a running node uses its existing database instead of initializing
+it again; group edits are audited under the group; the registration form stops
+asking for Maintainers a registration cannot carry.
+
 ## 0.7.17 — 2026-09-23
 
 Second review's fixes: group members and administrators must exist as actors,

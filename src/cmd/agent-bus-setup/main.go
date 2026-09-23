@@ -300,7 +300,14 @@ func setup() error {
 	// The database is made here, explicitly, as the daemon's account: the unit
 	// never creates one, so a database lost later refuses the start rather
 	// than silently becoming an empty node (Plans/MVP/0.7-cutover.md#procedure).
-	if err := run("runuser", "-u", svcAccount, "--", *exe, "-owner", me.String(), "-db", dbPath, "-init"); err != nil {
+	// An existing database is the node's state: setup over a running node,
+	// an identical reinstall included, uses it rather than initializing it
+	// again, which the daemon's exclusive lock would refuse anyway.
+	if _, err := os.Stat(dbPath); errors.Is(err, os.ErrNotExist) {
+		if err := run("runuser", "-u", svcAccount, "--", *exe, "-owner", me.String(), "-db", dbPath, "-init"); err != nil {
+			return err
+		}
+	} else if err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(unitPath), 0o755); err != nil {

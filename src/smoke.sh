@@ -2324,8 +2324,10 @@ asked() { printf '%s' "$1" | sed 's/</\n</g' | grep -o '^<\(input\|textarea\|sel
 # Both sides non-empty first, or two forms that asked nothing would agree.
 has "the service form asks for the fields a service has" \
   "$(asked "$SVCEDIT")" '^name=addr name=allow name=descr name=maintainers name=name name=personal name=protocol name=secret $'
-has "registering a service and editing one ask the same questions" \
-  "$(asked "$SVCEDIT")" "^$(asked "$(curl -s -b "$JAR" "$WEB/services/new")")\$"
+# One difference, on purpose: a registration carries no Maintainers, which are
+# set on the record once it exists (Plans/MVP/web/forms.md).
+has "registering a service asks what editing one does, but Maintainers" \
+  "$(asked "$(curl -s -b "$JAR" "$WEB/services/new")")" "^$(asked "$SVCEDIT" | sed 's/name=maintainers //')\$"
 # The same rule for the other two entities: a person and a group are added and
 # changed by one form each, on pages of their own.
 USERNEW=$(curl -s -b "$JAR" "$WEB/users/new")

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -136,10 +137,14 @@ func (s *Server) audited(op string, next func(http.ResponseWriter, *http.Request
 func target(body []byte, caller protocol.Name) string {
 	var fields map[string]json.RawMessage
 	if json.Unmarshal(body, &fields) == nil {
+		// Matched as the handlers decode them, without regard to case: a face
+		// that sends "Name" names the target as surely as one sending "name".
 		for _, f := range targetFields {
-			var v string
-			if raw, ok := fields[f]; ok && json.Unmarshal(raw, &v) == nil && v != "" {
-				return v
+			for k, raw := range fields {
+				var v string
+				if strings.EqualFold(k, f) && json.Unmarshal(raw, &v) == nil && v != "" {
+					return v
+				}
 			}
 		}
 	}
