@@ -4,8 +4,8 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 
 ## Per-name storage
 
-**The daemon keeps a named store for each User and each registry record, in
-SQLite, with atomic operations on it.** It gives a 👤 User or an 👾 Agent
+**The daemon keeps a named store for each User and each registry record, in its
+database, with atomic operations on it.** It gives a 👤 User or an 👾 Agent
 somewhere durable to put what it is doing — several workers dividing a batch,
 or the status of each job — without a database of its own beside the bus.
 
@@ -13,7 +13,7 @@ or the status of each job — without a database of its own beside the bus.
 |---|---|
 | Scope | one store per User and one per registry record; the same name in two stores is two values |
 | A value | `int`, `string`, `json` or `blob`, under a name |
-| Where it lives | the daemon's own [SQLite state](../../docs/09-setup.md#storage), under the storage rules that state already follows |
+| Where it lives | the daemon's own state, behind the same persistence ports as everything else it stores. SQLite is the first implementation and the default; the other [backends](storage.md#backends) serve it as they serve the rest |
 
 | Operation | |
 |---|---|
