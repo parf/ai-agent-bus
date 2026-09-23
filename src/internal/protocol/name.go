@@ -97,17 +97,52 @@ const AgentPrefix = "#"
 func IsAgentName(s string) bool { return strings.HasPrefix(strings.TrimSpace(s), AgentPrefix) }
 
 func (n Name) String() string {
-	s := n.Local
+	size := len(n.Local)
 	if n.Template != "" {
-		s = n.Template + "/" + s
+		size += len(n.Template) + 1
 	}
 	if n.Realm != "" {
-		s += "@" + n.Realm
+		size += len(n.Realm) + 1
 	}
 	if n.Agent {
-		s = AgentPrefix + s
+		size += len(AgentPrefix)
 	}
-	return s
+	// One allocation: names are rendered on every call's hot path.
+	var b strings.Builder
+	b.Grow(size)
+	if n.Agent {
+		b.WriteString(AgentPrefix)
+	}
+	if n.Template != "" {
+		b.WriteString(n.Template)
+		b.WriteByte('/')
+	}
+	b.WriteString(n.Local)
+	if n.Realm != "" {
+		b.WriteByte('@')
+		b.WriteString(n.Realm)
+	}
+	return b.String()
+}
+
+// Is says whether s is exactly n's canonical spelling, without rendering it.
+func (n Name) Is(s string) bool {
+	if n.Agent {
+		if !strings.HasPrefix(s, AgentPrefix) {
+			return false
+		}
+		s = s[len(AgentPrefix):]
+	}
+	if n.Template != "" {
+		if !strings.HasPrefix(s, n.Template+"/") {
+			return false
+		}
+		s = s[len(n.Template)+1:]
+	}
+	if n.Realm == "" {
+		return s == n.Local
+	}
+	return len(s) == len(n.Local)+1+len(n.Realm) && strings.HasPrefix(s, n.Local) && s[len(n.Local)] == '@' && s[len(n.Local)+1:] == n.Realm
 }
 
 // ParseName accepts "name", "name@realm" or "template/name@realm" in any

@@ -4,8 +4,8 @@
 // See Plans/MVP/0.7.0-TODO.md#verification.
 //
 // It sits outside core so that core keeps importing no adapter: the
-// management benchmark writes through the real JSON snapshot adapter, because
-// what 0.6 pays for a one-field edit is a whole-registry rewrite.
+// management benchmark writes through the real SQLite store, because what a
+// one-field edit costs on disk is the figure 0.7 was to change.
 package baseline_test
 
 import (
@@ -22,14 +22,14 @@ import (
 
 const (
 	owner  = "owner@h"
-	reader = "reader@h"
+	reader = "#reader@h"
 	team   = "@team"
 )
 
 // sizes are the registry sizes K.17 compares against.
 var sizes = []int{1_000, 10_000, 100_000}
 
-func agent(i int) string { return fmt.Sprintf("a%06d@h", i) }
+func agent(i int) string { return fmt.Sprintf("#a%06d@h", i) }
 
 // node builds a registry of n agents owned by one User, each admitting the
 // reader through a group, so authorization walks the membership path a real
@@ -39,7 +39,6 @@ func node(tb testing.TB, n, backlog int) *core.Bus {
 	tb.Helper()
 	b := core.New()
 	b.SetDaemonOwner(owner)
-	register(tb, b, protocol.Record{Name: owner, Kind: protocol.KindUser, Owner: owner})
 	register(tb, b, protocol.Record{Name: reader, Kind: protocol.KindAgent, Owner: owner})
 	if err := b.SetGroup(owner, team, []string{reader}); err != nil {
 		tb.Fatal(err)

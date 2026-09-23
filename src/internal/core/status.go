@@ -17,8 +17,12 @@ import (
 // userActive is a User's own status. A name that is no User is not active.
 // Caller holds b.mu.
 func (b *Bus) userActive(name string) bool {
-	u, ok := b.users[name]
-	return ok && u.Status != protocol.StatusInactive
+	// Field reads rather than a copy: this runs several times on every call,
+	// and a User is a large value.
+	if _, ok := b.users[name]; !ok {
+		return false
+	}
+	return b.users[name].Status != protocol.StatusInactive
 }
 
 // live says whether a record is an entity: its own status active and its
@@ -50,15 +54,14 @@ func (b *Bus) callerActive(name string) error {
 		}
 		return nil
 	}
-	r, ok := b.records[name]
-	if !ok {
+	if _, ok := b.records[name]; !ok {
 		return nil
 	}
-	if r.Status == protocol.StatusInactive {
+	if b.records[name].Status == protocol.StatusInactive {
 		return fmt.Errorf("%w: %s is inactive", ErrInactive, name)
 	}
-	if !b.userActive(r.Owner) {
-		return fmt.Errorf("%w: %s is owned by %s, who is inactive", ErrInactive, name, r.Owner)
+	if owner := b.records[name].Owner; !b.userActive(owner) {
+		return fmt.Errorf("%w: %s is owned by %s, who is inactive", ErrInactive, name, owner)
 	}
 	return nil
 }

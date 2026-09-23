@@ -80,6 +80,10 @@ func canon(s string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: %s", ErrBadName, err)
 	}
+	// Already canonical is the common case, and costs nothing to answer.
+	if n.Is(s) {
+		return s, nil
+	}
 	return n.String(), nil
 }
 
