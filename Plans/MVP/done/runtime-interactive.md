@@ -42,6 +42,11 @@ Every observation has a bounded wait; expiry fails the run. Later reruns have
 new evidence directories, not overwritten logs. Model traffic targets loopback;
 this harness does not claim network-namespace confinement.
 
+**0.7 rerun, 2026-09-23:** `tmp/rt-opencode3.log` 23 checks, 0 failed on the
+upstream OpenCode 1.18.30 build; `tmp/scripts/mutate-opencode.py` caught the
+`opencode-native-auth`, `opencode-mcp-tools` and `opencode-pusher` mutants. The
+Fedora `opencode-cli-1.18.30-1.fc44` binary failed every prompt and is removed.
+
 ## Mutations
 
 `tmp/runtime-interactive/mutate.py` rebuilds copied source into separate launcher
