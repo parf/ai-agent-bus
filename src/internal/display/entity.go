@@ -42,6 +42,8 @@ func EntityGlyph(kind string) string {
 		return "📣"
 	case "service":
 		return "📡"
+	case "group":
+		return GroupGlyph
 	default:
 		return ""
 	}
@@ -61,6 +63,8 @@ func Entity(kind string) string {
 		return "📣 PubSub"
 	case "service":
 		return "📡 Service"
+	case "group":
+		return GroupGlyph + " Group"
 	default:
 		return kind
 	}

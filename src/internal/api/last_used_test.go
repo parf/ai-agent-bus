@@ -52,6 +52,13 @@ func TestListingIsMostRecentlyUsedFirst(t *testing.T) {
 	if at["#a@h"] == nil || at["#b@h"] == nil || !at["#b@h"].After(*at["#a@h"]) {
 		t.Fatalf("last_used a=%v b=%v, want both set and b after a", at["#a@h"], at["#b@h"])
 	}
+	var one protocol.Record
+	if err := json.Unmarshal(call(owner, "/lookup?name=%23b@h"), &one); err != nil {
+		t.Fatal(err)
+	}
+	if one.LastUsed == nil || !one.LastUsed.Equal(*at["#b@h"]) {
+		t.Fatalf("lookup last_used %v, want the listing's %v", one.LastUsed, at["#b@h"])
+	}
 	if at["#0@h"] != nil {
 		t.Fatalf("a credential never used has last_used %v", at["#0@h"])
 	}

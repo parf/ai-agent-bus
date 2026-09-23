@@ -36,13 +36,13 @@ const (
 
 const usage = `agent-bus-admin — what the agent-busd account owns
 
-  agent-bus-admin user add <user@realm> <key.pub|-> [--admin]
-  agent-bus-admin user import-local <user@realm> <local-account>
+  agent-bus-admin user add <user[@realm]> <key.pub|-> [--admin]
+  agent-bus-admin user import-local <user[@realm]> <local-account>
   agent-bus-admin user list
-  agent-bus-admin user remove <user@realm>
-  agent-bus-admin token <user@realm> [--rotate]
+  agent-bus-admin user remove <user[@realm]>
+  agent-bus-admin token <user[@realm]> [--rotate]
   agent-bus-admin account list
-  agent-bus-admin account set <local-account> <user@realm>
+  agent-bus-admin account set <local-account> <user[@realm]>
   agent-bus-admin account remove <local-account>
 
 A key added here reaches one forced command and no shell: agent-bus-token,
@@ -141,7 +141,7 @@ func accountVerb(args []string) error {
 	case len(args) == 2 && (args[0] == "remove" || args[0] == "rm"):
 		change["account"], change["remove"] = args[1], true
 	default:
-		return fmt.Errorf("account wants list, set <local-account> <user@realm>, or remove <local-account>\n\n%s", usage)
+		return fmt.Errorf("account wants list, set <local-account> <user[@realm]>, or remove <local-account>\n\n%s", usage)
 	}
 	out, code, err := call("POST", "/account", change)
 	if err != nil {

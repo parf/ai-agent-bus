@@ -93,7 +93,7 @@ func setup() error {
 	recover := fs.Bool("recover", false, "roll back an interrupted packaged upgrade")
 	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state aside, and install fresh: the 0.7 cutover")
 	var users list
-	fs.Var(&users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
+	fs.Var(&users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")
 	fs.Parse(os.Args[1:])
 	if *reinstall && (*upgrade || *recover) {
 		return fmt.Errorf("--reinstall cannot be combined with --upgrade or --recover")

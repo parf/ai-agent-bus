@@ -52,7 +52,7 @@ the daemon refuses. **The daemon has to be running**: with no way to create the
 name, `user add` refuses rather than leaving a key that works before the name
 exists. Start the daemon and run it again.
 
-`user import-local <user@realm> <account>` fills a blank person name from the
+`user import-local <user[@realm]> <account>` fills a blank person name from the
 OS account database. It accepts an account name rather than profile text and
 preserves an existing name. Setup runs it when it installs the first user's
 key; an operator may run it later when setup found no key.
@@ -174,7 +174,7 @@ now comes only from resource authority or the record's ACL.
 
 ## Daemon ownership upgrade
 
-`--owner user@realm` (or `AGENT_BUS_OWNER`) is required; the daemon no longer
+`--owner user[@realm]` (or `AGENT_BUS_OWNER`) is required; the daemon no longer
 derives authority from the OS account name. On the first 0.5.55 start it seeds
 legacy state and is written into the snapshot. Later starts trust the stored
 Owner, so changing the flag does not transfer authority. Use the daemon-owner
@@ -267,7 +267,7 @@ that answers who may do anything else.
 
 ```sh
 agent-bus-admin account list
-agent-bus-admin account set <local-account> <user@realm>
+agent-bus-admin account set <local-account> <user[@realm]>
 agent-bus-admin account remove <local-account>
 sudo systemctl restart agent-busd
 ```

@@ -695,7 +695,7 @@ var anon = template.Must(template.New("anon").Funcs(template.FuncMap{"titleMark"
 {{with .Refused}}<p class=muted>{{.}}{{end}}
 </form>
 <p class=muted>A token is what every call carries. Get one with
- <code>agent-bus-token &lt;user@realm&gt;</code> on the box, or
+ <code>agent-bus-token &lt;name&gt;</code> on the box, or
  <code>ssh agent-busd@&lt;node&gt; token</code> from anywhere your key reaches.
 `))
 

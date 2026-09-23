@@ -1261,22 +1261,22 @@ sec "human listing"
 ab owner@srv1 register '#human@srv1' --allow '*' --kind agent --descr $'first\nsecond\tthird' >/dev/null
 ab owner@srv1 send '#human@srv1' queued >/dev/null
 human=$(ab owner@srv1 ls -h --kind agent)
-has "human listing has table columns" "$human" '^NAME  *KIND  *OWNER  *READERS  *QUEUED  *DESCRIPTION$'
-has "human listing shows queue and flattens description" "$human" '^#human@srv1  *👾 Agent  *owner@srv1  *0  *1  *first second third$'
+has "human listing has table columns" "$human" '^NAME  *KIND  *OWNER  *READERS  *QUEUED  *LAST USED  *DESCRIPTION$'
+has "human listing shows queue and flattens description" "$human" '^#human@srv1  *👾 Agent  *owner@srv1  *0  *1  *-  *first second third$'
 # The kind filter excludes the other four kinds, not merely the templates:
 # jobs@srv1 is a queue registered earlier and is a name this filter must drop.
 is_empty "human kind filter excludes the kinds it did not ask for" "$(printf '%s\n' "$human" | grep '^jobs@srv1 ')"
 has "and the queue is there when that is the kind asked for" \
   "$(ab owner@srv1 ls -h --kind queue)" '^jobs@srv1  *📮 Queue'
 has "human single lookup works with flag after name" \
-  "$(ab owner@srv1 ls '#human@srv1' -h)" '^#human@srv1  *👾 Agent  *owner@srv1  *0  *1  *first second third$'
+  "$(ab owner@srv1 ls '#human@srv1' -h)" '^#human@srv1  *👾 Agent  *owner@srv1  *0  *1  *-  *first second third$'
 abx '#human@srv1' consume --topic NeverArrives --wait 5s >"$D/human-reader" 2>&1 & HPID=$!
 for _ in $(seq 1 100); do
   human=$(ab owner@srv1 ls '#human@srv1' -h)
   printf '%s\n' "$human" | grep -q '^#human@srv1  *👾 Agent  *owner@srv1  *1  *1 ' && break
   sleep 0.01
 done
-has "human listing counts a filtered reader" "$human" '^#human@srv1  *👾 Agent  *owner@srv1  *1  *1  *first second third$'
+has "human listing counts a filtered reader" "$human" '^#human@srv1  *👾 Agent  *owner@srv1  *1  *1  *just now  *first second third$'
 kill "$HPID" 2>/dev/null; wait "$HPID" 2>/dev/null
 raw_human=$(ab owner@srv1 ls --kind agent)
 has "ordinary listing remains JSON" "$raw_human" '^\[.*"name":"#human@srv1"'
@@ -1292,6 +1292,9 @@ ab owner@srv1 register human-external@srv1 --allow '*' --protocol http --addr ht
 # See docs/03-records.md#record-kinds.
 has "an external service reports no queue it does not have" \
   "$(ab owner@srv1 ls -h human-external@srv1)" '^human-external@srv1  *📡 Service  *owner@srv1  *-  *-'
+# A group is marked like every other kind, and has no queue to count either.
+has "a group is marked and reports no queue it does not have" \
+  "$(ab "$OWNER" ls -h @administrators)" "^@administrators  *👥 Group  *$OWNER  *-  *-"
 has "while an agent's own counts are still measured" \
   "$(ab owner@srv1 ls -h '#human@srv1')" '^#human@srv1  *👾 Agent  *owner@srv1  *[0-9]  *[0-9]'
 # The legend has to spell the cell the table prints. It explained an em dash

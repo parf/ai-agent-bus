@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.3 — 2026-09-23
+
+`agent-bus ls -h` has a LAST USED column and a lookup carries `last_used` too;
+groups are marked 👥 like every kind; usage lines show the realm as optional.
+
 ## 0.8.2 — 2026-09-23
 
 Push stops when the daemon refuses the credential or the read, instead of

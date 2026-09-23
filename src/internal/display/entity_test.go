@@ -5,7 +5,7 @@ import "testing"
 func TestEntityUsesDisplayLabelsOnlyForStatedKinds(t *testing.T) {
 	for kind, want := range map[string]string{
 		"user": "👤 User", "person": "👤 User", "agent": "👾 Agent",
-		"queue": "📮 Queue", "pubsub": "📣 PubSub", "service": "📡 Service",
+		"queue": "📮 Queue", "pubsub": "📣 PubSub", "service": "📡 Service", "group": "👥 Group",
 		// Retired spellings are not kinds any more, so they pass through as
 		// stated rather than being labelled as something they no longer are.
 		"generic": "generic", "topic": "topic", "": "", "mystery": "mystery",
@@ -19,7 +19,7 @@ func TestEntityUsesDisplayLabelsOnlyForStatedKinds(t *testing.T) {
 func TestEntityGlyphUsesOnlyStatedKinds(t *testing.T) {
 	for kind, want := range map[string]string{
 		"user": "👤", "person": "👤", "agent": "👾",
-		"queue": "📮", "pubsub": "📣", "service": "📡",
+		"queue": "📮", "pubsub": "📣", "service": "📡", "group": "👥",
 		"generic": "", "topic": "", "": "", "mystery": "",
 	} {
 		if got := EntityGlyph(kind); got != want {

@@ -85,8 +85,8 @@ their own or a record they own. Unknown names must be created or enrolled first.
 | Path | Command |
 |---|---|
 | SSH | `export AGENT_BUS_TOKEN=$(ssh agent-busd@<node> token)` |
-| Local account | `agent-bus-token <user@realm>` |
-| Published key, no sshd needed | `agent-bus-token <user@realm> --key <ed25519>` |
+| Local account | `agent-bus-token <name>` |
+| Published key, no sshd needed | `agent-bus-token <name> --key <ed25519>` |
 
 The first two paths require access to the node's host. Over SSH, the
 `authorized_keys` forced command fixes the permitted identity; a caller cannot

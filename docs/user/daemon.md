@@ -41,7 +41,7 @@ Worth knowing:
 | Flag | |
 |---|---|
 | `-owner user` | who this daemon belongs to, realm optional. Defaults to you |
-| `-user account=user@realm` | seed a local account mapping on the first current start — repeat per person |
+| `-user account=user[@realm]` | seed a local account mapping on the first current start — repeat per person |
 | `-key path` | a different public key for the first user |
 | `-addr` · `-exec` | listen address, and which `agent-busd` to run |
 
@@ -89,7 +89,7 @@ The flags:
 | Flag | |
 |---|---|
 | `-owner user` | whose daemon this is, realm optional. The owner is always an administrator |
-| `-user account=user@realm` | first-current-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
+| `-user account=user[@realm]` | first-current-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
 | `-directory realm=github` | a realm and what vouches for enrolment. `realm=/path/to/keys` for a directory of key files; public GitHub profile metadata does not require this flag |
 | `-addr` · `-socket` | the loopback address and the unix socket path |
 | `-db path` | the one SQLite database: registry, users, groups, credentials, queues. Held exclusively; a missing one refuses the start |
@@ -153,7 +153,7 @@ A key added this way reaches exactly **one command and no shell**. 🔑 To give
 somebody their own socket — no token at all — use:
 
 ```sh
-agent-bus-admin account set <local-account> <user@realm>
+agent-bus-admin account set <local-account> <user[@realm]>
 sudo systemctl restart agent-busd
 ```
 

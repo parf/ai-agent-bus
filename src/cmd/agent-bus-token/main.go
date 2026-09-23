@@ -22,8 +22,10 @@ import (
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
-const usage = `agent-bus-token <user@realm> [--rotate] [--key <path>]
+const usage = `agent-bus-token <name> [--rotate] [--key <path>]
 
+  <name>    a User (alice, or alice@realm) or an agent (#name, or #name@realm);
+            the realm is optional (docs/01-identity-and-roles.md#names)
   --rotate  ask for a new credential; without it, asking twice is a read
   --key     prove the name with a key instead of a credential you already have
 

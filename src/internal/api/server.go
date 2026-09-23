@@ -489,6 +489,9 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.
 		s.refuse(w, http.StatusNotFound, "unknown", "no such name: "+name)
 		return
 	}
+	if at, has := s.tokens.LastUsed([]string{rec.Name})[rec.Name]; has {
+		rec.LastUsed = &at
+	}
 	ok(w, rec)
 }
 

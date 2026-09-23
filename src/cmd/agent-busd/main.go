@@ -63,7 +63,7 @@ func main() {
 	flag.BoolVar(&c.web, "web", false, "run the dashboard as a child too (docs/05-discovery.md#dashboard)")
 	flag.StringVar(&c.dash, "dashboard", env("AGENT_BUS_DASHBOARD", dashboard.URL), "where a browser opening the API `url` is sent; empty serves no root at all")
 	flag.Var(&c.vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
-	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user@realm`; repeatable")
+	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")
 	flag.Parse()
 	if c.logDir == "" {
 		c.logDir = filepath.Join(filepath.Dir(c.db), "logs")
@@ -129,7 +129,7 @@ func (a *accounts) String() string { return fmt.Sprintf("%d accounts", len(a.all
 func (a *accounts) Set(v string) error {
 	who, principal, ok := strings.Cut(v, "=")
 	if !ok || who == "" || principal == "" {
-		return fmt.Errorf("want account=user@realm, got %q", v)
+		return fmt.Errorf("want account=user[@realm], got %q", v)
 	}
 	name, err := protocol.ParseName(principal)
 	if err != nil {

@@ -71,7 +71,7 @@ const usage = `agent-bus — talk to agent-busd
                           [--add-allow a,b] [--add-to-set-allow a,b] [--remove-allow a,b]
                           and the same for maintainers and deliver-to: --add-maintainers ...
   agent-bus group <@name> [member ...]   set a group's members; with none, print them
-  agent-bus enrol <user@realm> [--key ~/.ssh/id_ed25519]
+  agent-bus enrol <user[@realm]> [--key ~/.ssh/id_ed25519]
                             prove you hold a key that realm publishes for you
 
 An agent's name begins with #, which a shell reads as a comment: quote it
@@ -267,7 +267,8 @@ func ls(args []string) error {
 		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tKIND\tOWNER\tREADERS\tQUEUED\tDESCRIPTION")
+	fmt.Fprintln(w, "NAME\tKIND\tOWNER\tREADERS\tQUEUED\tLAST USED\tDESCRIPTION")
+	now := time.Now()
 	// Keep metadata in one cell, including tabs, newlines and terminal controls.
 	cell := func(s string) string {
 		return strings.Map(func(c rune) rune {
@@ -283,10 +284,15 @@ func ls(args []string) error {
 		// something that does not exist.
 		// See docs/03-records.md#record-kinds.
 		readers, queued := readerCount(r.Readers), strconv.Itoa(r.Queued)
-		if r.Kind == protocol.KindService {
+		// A group is a list of members, and has no queue either.
+		if r.Kind == protocol.KindService || r.Kind == protocol.KindGroup {
 			readers, queued = "-", "-"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", cell(r.Name), display.Entity(r.Kind), cell(r.Owner), readers, queued, cell(r.Descr))
+		used := "-"
+		if r.LastUsed != nil {
+			used = display.Ago(*r.LastUsed, now)
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", cell(r.Name), display.Entity(r.Kind), cell(r.Owner), readers, queued, used, cell(r.Descr))
 	}
 	if err := w.Flush(); err != nil {
 		return err
@@ -294,7 +300,8 @@ func ls(args []string) error {
 	fmt.Println("\nREADERS  outstanding consume requests, filtered and unfiltered together; an observation, not health or completed work")
 	// The legend spells the cell it explains. The cells above print "-", and a
 	// legend naming a character the table never shows explains nothing.
-	fmt.Println("         -  for \U0001F4E1, which is external and has no queue here; unavailable means not measured, which is a different fact")
+	fmt.Println("         -  for \U0001F4E1, which is external and has no queue here, and for \U0001F465, a list of members; unavailable means not measured, which is a different fact")
+	fmt.Println("LAST USED  when the name's credential last made a call; -  it never has, or holds none")
 	return nil
 }
 

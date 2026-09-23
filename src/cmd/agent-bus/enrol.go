@@ -17,7 +17,7 @@ import (
 func enrol(args []string) error {
 	pos, flags := split(args)
 	if len(pos) != 1 {
-		return fmt.Errorf("enrol wants one name: agent-bus enrol <user@realm> [--key ~/.ssh/id_ed25519]")
+		return fmt.Errorf("enrol wants one name: agent-bus enrol <user[@realm]> [--key ~/.ssh/id_ed25519]")
 	}
 	name, err := protocol.ParseName(pos[0])
 	if err != nil {
