@@ -154,7 +154,7 @@ steps: register a name, point it at somebody else's inbox, and anyone permitted
 to send to *your* name is now writing into *theirs*. **The authority to route
 into a queue is the authority to put a message in it**, so routing is not a way
 to acquire reach you did not have. This is the shape of the escalation closed
-in [0.5.31](../../CHANGELOG.0.5.md#changelog-05).
+in [0.5.31](../CHANGELOG.0.5.md#changelog-05).
 
 Because a route can be changed later
 ([a route changes after registration](#a-route-changes-after-registration)),
