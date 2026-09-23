@@ -150,7 +150,8 @@ what the daemon permits. “All” means all visible to that visitor.
 | Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory opens on active users; **Active**, **Inactive** and **All states** are counted filters, and an inactive user is marked beside the name rather than in a column of its own. Applicable daemon-authorized actions sit behind **Change**. Deactivation and unused-credential removal use consequence confirmations |
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Use bounded history and inline SVG; [sampling and retention](#activity-history) are bounded |
-| Channels | List and details for 📮 queue, 📣 pub/sub and 👤 user records — every name on this bus that is delivered to and is not an agent; create, edit and remove; subscriptions, owner, Maintainers list, permissions, TTL, capacity and overflow policy. A Type column names each row, and the **Kind filter selects by the kind the daemon stated** rather than by that name, which is what keeps the daemon owner's own inbox under 👤 User while its cell names the authority. The filter offers only the kinds the page lists. From 0.6.3 agent records are on Agents instead |
+| Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work. Split from the combined Channels tab in 0.8.4 |
+| PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a topic keeps nothing. Split from the combined Channels tab in 0.8.4 |
 
 The [Personal view](03-records.md#personal-and-shared) is built. **Pending for
 0.7:** any kind may be Personal and a user record always is, so the main
@@ -159,7 +160,7 @@ collections show shared records only.
 ### Section navigation and registration
 
 **Built in 0.5.64, reassigned to Agents in 0.6.3.** Agents shows caller-visible
-**All**, **My** and **Personal** category counts; Services and Channels show
+**All**, **My** and **Personal** category counts; Services, Queues and PubSub show
 their caller-visible totals. Users and Groups show their visible directory
 totals. These are counts computed from the page's existing daemon answers, not
 node-wide metrics and not additional reads.
@@ -172,10 +173,10 @@ duplicates credential facts.
 
 ### Registry filters and paging
 
-**Built in 0.5.77.** Agents, Personal and Channels filter work held and live
-reader observations independently. Reader choices distinguish a positive count,
+**Built in 0.5.77.** Agents, Personal and Queues filter work held and live
+reader observations independently; PubSub filters neither, a topic holding no queue. Reader choices distinguish a positive count,
 measured zero and an unavailable observation; none is a health claim. Search,
-kind, owner and sort remain URL state beside those filters. Services offers
+owner and sort remain URL state beside those filters. Services offers
 none of the three: they are observations of a queue, and a
 [service has none](03-records.md#record-kinds).
 
@@ -189,30 +190,34 @@ and uses tabular figures. Prose-embedded counts remain part of their sentence.
 
 ### Agent, service and channel journeys
 
-**Built in 0.5.78, split by kind in 0.6.3.** The three registry pages share the
-compact frame and answer different questions. Agents identify a daemon-stated
-👾 and show queued inbox work. Services identify a 📡 and show where it is:
-address, protocol and description, and nothing about a queue. Channels have
-their own document title, heading and canonical `/channel` detail link, and
-carry the 📮 and 📣 records.
+**Built in 0.5.78, split by kind in 0.6.3 and 0.8.4.** The four registry pages
+share the compact frame and answer different questions. Agents identify a
+daemon-stated 👾 and show queued inbox work. Services identify a 📡 and show
+where it is: address, protocol and description, and nothing about a queue.
+Queues (`/queues`, detail `/queue`) carry the 📮 records and PubSub (`/pubsub`,
+detail `/pubsub/topic`), the 📣 records, each with its own title, glyph,
+heading, registration and settings page. No section has a Kind filter: each
+lists one kind.
 
-Each Channel row states its kind in a Type column, and the Kind filter offers
-only the two kinds the page lists. Channel rows state **Queue · one at a time**
-or **Pub/sub · copy to each**. The single **Work** column follows that kind: a
-queue reports messages held for a reader; pub/sub reports messages accepted for
-fan-out and never suggests a topic backlog. Pub/sub also reports its subscriber
-count; queue subscriber count is not applicable. Readers remains the live count
-of outstanding consume requests and is the same fact for both.
+A queue row reports messages held for a reader beside its Readers count; a
+pub/sub row reports messages accepted and copies delivered, and its Deliver-To
+count, and never suggests a topic backlog. The PubSub **Accepted** sort is the
+Queues **Queued** sort's counterpart.
 
-Search, delivery, kind, Readers, sort and page remain plain URL state through
-channel detail and back. A successful channel registration or ordinary edit
-returns to that channel. Caller-visible operational facts remain readable while
+The combined `/channels` page redirects permanently to `/pubsub` for
+`kind=pubsub` and to `/queues` otherwise, keeping the rest of its query;
+`/channels/new` redirects the same way, and `/channel` and `/channel/edit`
+still serve any channel record, so bookmarks keep working.
+
+Search, Readers, sort and page remain plain URL state through
+detail and back. A successful registration or ordinary edit
+returns to that record. Caller-visible operational facts remain readable while
 edit controls appear only when the daemon grants management authority. An empty
-Channels category explains channels and offers registration; a filtered empty
+Queues or PubSub category explains its kind and offers registration; a filtered empty
 result instead keeps its filters and offers to clear them.
 
-Registration opens dedicated `/agents/new`, `/services/new`, `/channels/new`,
-`/users/new` and `/groups/new` pages from the matching section navigation. User and Group
+Registration opens dedicated `/agents/new`, `/services/new`, `/queues/new`,
+`/pubsub/new`, `/users/new` and `/groups/new` pages from the matching section navigation. User and Group
 entries appear only when the daemon says the visitor is an Administrator;
 the routes repeat that authority check. The old empty `/user` registration URL
 continues to work.
@@ -242,7 +247,7 @@ record detail uses the daemon-stated kind, with the Service section mark as the
 fallback. The marks are fixed inline markup, never an external asset, caller
 text or a machine-readable value.
 
-The Services, Channels, Personal and Users collections keep their definitions
+The Services, Queues, PubSub, Personal and Users collections keep their definitions
 behind a visible `ⓘ` button using the browser's native popover. Service detail
 uses the same pattern for Delivery, Policy, Queue & counters and Activity: hovering or
 focusing the adjacent button shows the explanation immediately, while clicking
@@ -292,7 +297,7 @@ the caller may change it — as does the form itself, which refuses whoever the
 link was withheld from.
 Diagnostics keeps refusal, held-work, retained-envelope and loss evidence
 without duplicating the full registry catalogue or its former paragraph walls.
-The Services and Channels tables carry their own accepted/dequeued counters.
+The Services, Queues and PubSub tables carry their own accepted/dequeued counters.
 
 Human-facing integer counts use grouped decimal figures, including the compact
 footer, registry, diagnostics and Activity totals. JSON, URLs, form values and
@@ -328,8 +333,8 @@ entries, and repeating them there was duplication the owner removed at 0.5.83.
 Holding-work links are real URL filters rather than preselected prose.
 
 Diagnostics retains the detailed refusal, held-work, bounded envelope and loss
-evidence. Record names link to their visible Service or Channel detail. It no
-longer repeats the registry catalogue; Services and Channels are its searchable
+evidence. Record names link to their visible record detail. It no
+longer repeats the registry catalogue; the registry sections are its searchable
 home. A daemon failure renders a recovery page without exposing the socket or
 other backend address, which is the general rule in
 [shell and recovery](#shell-and-recovery).
@@ -743,4 +748,4 @@ shown by that confirmation and the daemon rechecks the operation itself. A
 changed visible fact returns a distinct stale-confirmation page; an unchanged
 current-state refusal keeps the daemon's own reason. Successful ordinary edits
 and configuration replacement return to the affected detail; successful
-removal returns to the matching Services or Channels list.
+removal returns to the matching section list.

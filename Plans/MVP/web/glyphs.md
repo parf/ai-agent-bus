@@ -66,7 +66,8 @@ already supplies its name.
 | Overview | 🏠 |
 | Services and service detail | 📡 Service, built in 0.6.3 |
 | Agent record detail | 👾 Agent |
-| Channels and channel detail | a small inline channel SVG |
+| Queues and queue detail | 📮 Queue, from 0.8.4 |
+| PubSub and topic detail | 📣 PubSub, from 0.8.4 |
 | Activity | a small inline graph SVG |
 | Users | 👤 User |
 | User detail | the locally imported profile photo; 👤 User when no photo exists |

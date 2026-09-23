@@ -33,7 +33,7 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 
 	active := m.get("/user?name=alice@h")
 	activeMain := section(t, active, "<main>", "</main>")
-	for _, want := range []string{`href="/group?name=%40ops"`, ">Owned records</h2>", `href="/channel?name=alice-channel%40h"`, `href="/service?name=alice-service%40h"`, `href="/agent?name=%23alice-inbox%40h"`, `user-state-active`, `<details class=access-change>`, `>Change</summary>`, ">Deactivate…</button>"} {
+	for _, want := range []string{`href="/group?name=%40ops"`, ">Owned records</h2>", `href="/queue?name=alice-channel%40h"`, `href="/service?name=alice-service%40h"`, `href="/agent?name=%23alice-inbox%40h"`, `user-state-active`, `<details class=access-change>`, `>Change</summary>`, ">Deactivate…</button>"} {
 		if !strings.Contains(activeMain, want) {
 			t.Errorf("active user detail lacks %q", want)
 		}
@@ -47,7 +47,7 @@ func TestAccountAndUserJourneysFollowDaemonFacts(t *testing.T) {
 		t.Error("active user exposes an inapplicable transition or bypasses deactivation confirmation")
 	}
 	group := m.get("/group?name=%40ops")
-	for _, want := range []string{`href="/channel?name=alice-channel%40h"`, "ACL via @outer", "#outer-service@h"} {
+	for _, want := range []string{`href="/queue?name=alice-channel%40h"`, "ACL via @outer", "#outer-service@h"} {
 		if !strings.Contains(group, want) {
 			t.Errorf("group detail lacks caller-visible impact %q", want)
 		}

@@ -290,10 +290,12 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		{"/services", "<a href=/services aria-current=page>", ""},
 		{"/agents", "<a href=/agents aria-current=page>", ""},
 		{"/personal", "<a href=/agents aria-current=page>", ""},
-		{"/channels", "<a href=/channels aria-current=page>", ""},
+		{"/queues", "<a href=/queues aria-current=page>", ""},
+		{"/pubsub", "<a href=/pubsub aria-current=page>", ""},
 		{"/agents/new", "<a href=/agents aria-current=page>", ""},
 		{"/services/new", "<a href=/services aria-current=page>", ""},
-		{"/channels/new", "<a href=/channels aria-current=page>", ""},
+		{"/queues/new", "<a href=/queues aria-current=page>", ""},
+		{"/pubsub/new", "<a href=/pubsub aria-current=page>", ""},
 		{"/users", "<a href=/users aria-current=page>", ""},
 		{"/users/new", "<a href=/users aria-current=page>", ""},
 		{"/user?name=alice@h", "<a href=/users aria-current=page>", ""},
@@ -313,14 +315,16 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		// An agent belongs to the Agents section, whichever route reaches it.
 		{"/agent?name=%23agent@h", "<a href=/agents aria-current=page>", ""},
 		{"/service?name=%23agent@h", "<a href=/agents aria-current=page>", "Agent #agent@h · agent-bus"},
-		{"/channel?name=channel@h", "<a href=/channels aria-current=page>", ""},
-		{"/channel?name=other-channel@h", "<a href=/channels aria-current=page>", ""},
+		{"/queue?name=channel@h", "<a href=/queues aria-current=page>", ""},
+		{"/queue?name=other-channel@h", "<a href=/queues aria-current=page>", ""},
+		// The old combined address is the same page.
+		{"/channel?name=channel@h", "<a href=/queues aria-current=page>", "Queue channel@h · agent-bus"},
 		{"/service-danger?name=service@h", "<a href=/services aria-current=page>", ""},
 		{"/service-danger?name=second@h", "<a href=/services aria-current=page>", ""},
 		{"/service-danger?name=%23agent@h", "<a href=/agents aria-current=page>", ""},
-		{"/service-danger?name=channel@h", "<a href=/channels aria-current=page>", ""},
+		{"/service-danger?name=channel@h", "<a href=/queues aria-current=page>", ""},
 		// The retained legacy topic URL is the same page at its old address.
-		{"/service?name=channel@h", "<a href=/channels aria-current=page>", "Queue channel@h · agent-bus"},
+		{"/service?name=channel@h", "<a href=/queues aria-current=page>", "Queue channel@h · agent-bus"},
 		{"/service?name=missing@h", "", ""},
 	}
 	seen := map[string]string{}
@@ -392,8 +396,8 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 	}{
 		{"remove", "<a href=/services aria-current=page>", url.Values{"action": {"delete"}, "name": {"service@h"}}},
 		{"transfer", "<a href=/services aria-current=page>", url.Values{"action": {"transfer"}, "name": {"second@h"}, "owner": {"alice@h"}}},
-		// A Channel reaches the same confirmation and belongs under Channels.
-		{"channel remove", "<a href=/channels aria-current=page>", url.Values{"action": {"delete"}, "name": {"channel@h"}}},
+		// A queue reaches the same confirmation and belongs under Queues.
+		{"channel remove", "<a href=/queues aria-current=page>", url.Values{"action": {"delete"}, "name": {"channel@h"}}},
 		// So does an agent, and it belongs under Agents.
 		{"agent remove", "<a href=/agents aria-current=page>", url.Values{"action": {"delete"}, "name": {"#agent@h"}}},
 	} {

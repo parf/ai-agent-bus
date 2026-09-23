@@ -619,7 +619,8 @@ var navItems = []struct{ Href, Label, Key string }{
 	{"/", "Overview", "overview"},
 	{"/agents", "Agents", "agents"},
 	{"/services", "Services", "services"},
-	{"/channels", "Channels", "channels"},
+	{"/queues", "Queues", "queues"},
+	{"/pubsub", "PubSub", "pubsub"},
 	{"/users", "Users", "users"},
 	{"/groups", "Groups", "groups"},
 	{"/activity", "Activity", "activity"},
@@ -657,7 +658,7 @@ func shellTitle(key, titleTemplate string) string {
 		// The section's own title mark, decorative here for the same reason:
 		// the link text beside it already names the section.
 		mark := string(titleMark(item.Key))
-		if key == "records" && (item.Key == "agents" || item.Key == "services" || item.Key == "channels") {
+		if key == "records" && (item.Key == "agents" || item.Key == "services" || item.Key == "queues" || item.Key == "pubsub") {
 			// Personal is a view of the agents, so it marks that entry.
 			if item.Key == "agents" {
 				nav.WriteString(`{{if or (eq .Current "agents") (eq .Current "personal")}}<a href=` + item.Href + ` aria-current=page>{{else}}<a href=` + item.Href + `>{{end}}` + mark + item.Label + `</a>`)
@@ -709,15 +710,15 @@ var overviewPage = template.Must(template.New("overview").Funcs(template.FuncMap
 <p class=muted><a href="{{.Href}}">{{.Link}}</a></p></article>{{end}}</div>
 </section>{{end}}
 
-<section class=dashboard-section aria-labelledby=node><div class=page-title><h2 id=node>This node</h2><button type=button class=help-button popovertarget=node-help aria-label="About node totals" data-tooltip="Whole-node values. Caller-visible lists may show a smaller set.">ⓘ</button></div><div popover id=node-help class=context-help><h2>Node totals</h2><ul><li>These values cover the whole daemon.</li><li>The first row is how the node stands right now; the second is what has happened since it started.</li><li>A dash is none. It is the same answer as zero, written so a quiet node does not read as a page of readings to check.</li><li>Agents, Services, Channels, Users and Groups count records by kind, node-wide; a queue and a pub/sub topic are both channels here. The five pages of those names show only what you may see, so their counts never have to agree with this strip.</li><li>Readers counts outstanding consume requests, not processes, sessions or health.</li><li>Calls counts HTTP requests reaching the daemon, node-wide, including refused ones. A window the daemon has not observed yet says so rather than reading zero.</li></ul></div>
+<section class=dashboard-section aria-labelledby=node><div class=page-title><h2 id=node>This node</h2><button type=button class=help-button popovertarget=node-help aria-label="About node totals" data-tooltip="Whole-node values. Caller-visible lists may show a smaller set.">ⓘ</button></div><div popover id=node-help class=context-help><h2>Node totals</h2><ul><li>These values cover the whole daemon.</li><li>The first row is how the node stands right now; the second is what has happened since it started.</li><li>A dash is none. It is the same answer as zero, written so a quiet node does not read as a page of readings to check.</li><li>Agents, Services, Queues, PubSub, Users and Groups count records by kind, node-wide. The six pages of those names show only what you may see, so their counts never have to agree with this strip.</li><li>Readers counts outstanding consume requests, not processes, sessions or health.</li><li>Calls counts HTTP requests reaching the daemon, node-wide, including refused ones. A window the daemon has not observed yet says so rather than reading zero.</li></ul></div>
 <div class=node-strip><div class=node-fact><span>Readers</span><strong>{{figure .Status.Waiting}}</strong></div><div class=node-fact><span>Queued</span><strong>{{figure .Status.Queued}}</strong></div>{{range .Totals}}<div class=node-fact><span>{{.Label}}</span><strong>{{figure .Count}}</strong></div>{{else}}<div class=node-fact><span>Records</span><strong>{{figure .Status.Services}}</strong></div>{{end}}<div class=node-break aria-hidden=true></div><div class=node-fact><span>Uptime</span><strong>{{.Status.Up}}</strong></div>
 {{with .Frame.Node}}{{with .Calls}}{{range .Windows}}<div class=node-fact><span>Calls, {{if eq .Window "1m"}}minute{{else}}hour{{end}}</span>{{if .Available}}<strong>{{figure .Count}}</strong>{{else}}<strong class=node-fact-note>collecting history</strong>{{end}}</div>{{end}}<div class=node-fact><span>Calls, total</span><strong>{{figure .Total}}</strong></div>{{else}}<div class=node-fact><span>Calls</span><strong class=node-fact-note>unavailable</strong></div>{{end}}{{else}}<div class=node-fact><span>Calls</span><strong class=node-fact-note>unavailable</strong></div>{{end}}</div>
 <p class=muted>Node-wide. The lists linked below contain only records visible to you; the two never have to agree.</p></section>
-<nav class=overview-links aria-label="Find records"><strong>Find</strong><a href="/agents?sort=queued&amp;work=held">Agents holding work</a><a href="/channels?sort=queued&amp;work=held">Channels holding work</a><a href="/services">External services</a></nav>
+<nav class=overview-links aria-label="Find records"><strong>Find</strong><a href="/agents?sort=queued&amp;work=held">Agents holding work</a><a href="/queues?sort=queued&amp;work=held">Queues holding work</a><a href="/services">External services</a></nav>
 `))
 
 // Diagnostics stays detailed and caller-scoped. It no longer duplicates the
-// registry catalogue; Services and Channels now carry every record fact that
+// registry catalogue; Services, Queues and PubSub now carry every record fact that
 // table uniquely exposed.
 var diagnosticsPage = template.Must(template.New("diagnostics").Funcs(template.FuncMap{"readerCount": readerCount, "recordHref": recordHref, "titleMark": titleMark, "number": number}).Parse(shell("diagnostics", "Diagnostics") + `<div class=page-title><h1>{{titleMark "diagnostics"}} Diagnostics</h1><button type=button class=help-button popovertarget=diagnostics-help aria-label="About diagnostics" data-tooltip="Caller-visible queues, loss and retained envelope evidence. Bodies are never shown.">ⓘ</button></div><div popover id=diagnostics-help class=context-help><h2>Diagnostics scope</h2><ul><li>Refusal counts cover the whole daemon; queue, loss and envelope sections contain only facts visible to you.</li><li>History is bounded and process-local.</li><li>Envelope metadata may be shown, but message bodies never are.</li></ul></div>
 <p><a href=/diagnostics>Refresh</a></p>

@@ -77,7 +77,7 @@ func TestListingAndDetailCarryTheRecordDate(t *testing.T) {
 	if body := get("/service?name=%23svc@h"); !strings.Contains(body, stamp) {
 		t.Fatalf("detail does not carry the record's date %q", stamp)
 	}
-	for _, page := range []string{"/agents", "/channels"} {
+	for _, page := range []string{"/agents", "/queues"} {
 		if body := get(page); !strings.Contains(body, "<td data-label=Updated>now") {
 			t.Fatalf("%s does not render the new record as updated now", page)
 		}

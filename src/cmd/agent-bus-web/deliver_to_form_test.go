@@ -42,7 +42,7 @@ func TestTheRecordEditorCarriesTheDeliverToListBackAndForth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	editor := editorOf(t, m.get("/channel/edit?name=news@h"))
+	editor := editorOf(t, m.get("/pubsub/topic/edit?name=news@h"))
 	// The fixture collapses whitespace, so the two lines arrive as one.
 	if !strings.Contains(editor, "#reader@h @team</textarea>") {
 		t.Fatalf("the editor did not offer the stored list back: %s", editor)
@@ -97,7 +97,7 @@ func TestDeliverToFollowsTheKindAndOtherKindsStillSave(t *testing.T) {
 	m := meaningFixture(t)
 	m.register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "admin@h", Descr: "Jobs", Allow: []string{"*"}})
 	m.register(protocol.Record{Name: "db@h", Kind: protocol.KindService, Owner: "admin@h", Addr: "host:1", Proto: "https"})
-	editor := editorOf(t, m.get("/channel/edit?name=jobs@h"))
+	editor := editorOf(t, m.get("/queue/edit?name=jobs@h"))
 	if strings.Contains(editor, "<textarea name=subs") || !strings.Contains(editor, "<input name=subs ") {
 		t.Fatalf("a queue's editor does not offer its one-slot route as a single line: %s", editor)
 	}
@@ -123,11 +123,11 @@ func TestRegisteringAPubSubTopicCarriesTheDeliverToListItDeclared(t *testing.T) 
 	// The exact field, not a prefix of it: name=subs-anything contains
 	// name=subs and would pass a looser search while submitting nothing.
 	const field = "<textarea name=subs "
-	form := m.get("/channels/new?kind=pubsub")
+	form := m.get("/pubsub/new")
 	if !strings.Contains(form, field) {
 		t.Fatal("the pub/sub registration form does not ask who it delivers to")
 	}
-	if queue := m.get("/channels/new?kind=queue"); strings.Contains(queue, field) {
+	if queue := m.get("/queues/new"); strings.Contains(queue, field) {
 		t.Fatal("the queue registration form asks for a Deliver-To list rather than its one slot")
 	}
 	m.post(t, "/service", url.Values{
@@ -159,10 +159,10 @@ func TestTheLeaveControlAppearsOnlyForANameOnTheListItself(t *testing.T) {
 		t.Fatal(err)
 	}
 	const leave = "value=unsubscribe"
-	if page := m.as("#visitor@h").get("/channel?name=news@h"); !strings.Contains(page, leave) {
+	if page := m.as("#visitor@h").get("/pubsub/topic?name=news@h"); !strings.Contains(page, leave) {
 		t.Fatal("a name on the list is not offered the way off it")
 	}
-	if page := m.as("#grouped@h").get("/channel?name=news@h"); strings.Contains(page, leave) {
+	if page := m.as("#grouped@h").get("/pubsub/topic?name=news@h"); strings.Contains(page, leave) {
 		t.Fatal("a name that receives through a group is offered a removal that would take nothing out")
 	}
 	// And it takes the name off rather than putting one on, which is the

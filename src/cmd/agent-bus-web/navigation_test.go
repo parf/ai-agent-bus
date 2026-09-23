@@ -77,7 +77,9 @@ func TestRecordListsPageAfterFilteringAndRetainURLState(t *testing.T) {
 	}{
 		{"/services", protocol.KindService, "svc", false, statusFilter},
 		{"/personal", protocol.KindAgent, "personal", true, append(append([]string{}, queueFilters...), statusFilter...)},
-		{"/channels", protocol.KindQueue, "channel", false, append(append([]string{}, queueFilters...), statusFilter...)},
+		{"/queues", protocol.KindQueue, "channel", false, append(append([]string{}, queueFilters...), statusFilter...)},
+		// A topic holds nothing, so it has no reader or held-work filter.
+		{"/pubsub", protocol.KindPubSub, "topic", false, statusFilter},
 	} {
 		t.Run(tc.stem, func(t *testing.T) {
 			m := meaningFixture(t)
@@ -308,12 +310,16 @@ func TestSectionNavigationCountsOnlyCallerVisibleCategories(t *testing.T) {
 			t.Errorf("%s was listed among the agents", elsewhere)
 		}
 	}
-	channels := ordinary.get("/channels")
-	if !strings.Contains(channels, `aria-current=true class="">All (1)</a>`) || !strings.Contains(channels, `href="/channels/new" class="">Register channel</a>`) {
-		t.Error("channel section navigation or count is wrong")
+	channels := ordinary.get("/queues")
+	if !strings.Contains(channels, `aria-current=true class="">All (1)</a>`) || !strings.Contains(channels, `href="/queues/new" class="">Register queue</a>`) {
+		t.Error("queue section navigation or count is wrong")
 	}
 	if !strings.Contains(channels, ">jobs@h<") || strings.Contains(channels, ">#mine@h<") {
-		t.Error("the channels page lost its channel or gained an agent")
+		t.Error("the queues page lost its queue or gained an agent")
+	}
+	// A queue is not a topic, so the PubSub section counts none.
+	if topics := ordinary.get("/pubsub"); !strings.Contains(topics, `aria-current=true class="">All (0)</a>`) || strings.Contains(topics, ">jobs@h<") {
+		t.Error("the PubSub section counted or listed a queue")
 	}
 	if services := ordinary.get("/services"); !strings.Contains(services, ">db@h<") || strings.Contains(services, ">#mine@h<") {
 		t.Error("the services page lost its external service or gained an agent")
@@ -455,7 +461,7 @@ func TestServiceListSearchKindSortAndCompactNames(t *testing.T) {
 
 func TestRegistrationLivesOnDedicatedSectionPages(t *testing.T) {
 	m := meaningFixture(t)
-	for _, listing := range []string{"/agents", "/services", "/channels", "/users", "/groups"} {
+	for _, listing := range []string{"/agents", "/services", "/queues", "/pubsub", "/users", "/groups"} {
 		body := m.get(listing)
 		if strings.Contains(body, `name=action value=create`) || strings.Contains(body, "<h2>Create group</h2>") {
 			t.Errorf("%s still embeds a registration form", listing)
@@ -477,18 +483,9 @@ func TestRegistrationLivesOnDedicatedSectionPages(t *testing.T) {
 	if !strings.Contains(agent, `<input type=hidden name=kind value=agent>`) || strings.Contains(agent, `name=addr`) {
 		t.Error("agent registration offers the wrong kind or an address it has no use for")
 	}
-	// The Channels section has two kinds and they do not ask for the same
-	// things, so each has its own page. The section page without a kind links
-	// to both rather than registering anything itself.
-	chooser := m.get("/channels/new")
-	if strings.Contains(chooser, "name=action value=create") {
-		t.Errorf("the channel chooser registers something itself: %s", chooser)
-	}
-	for _, kind := range []string{protocol.KindQueue, protocol.KindPubSub} {
-		if !strings.Contains(chooser, `href="/channels/new?kind=`+kind+`"`) {
-			t.Errorf("the channel chooser does not offer %s: %s", kind, chooser)
-		}
-		page := m.get("/channels/new?kind=" + kind)
+	// Queues and PubSub are two sections, each registering its own kind.
+	for kind, path := range map[string]string{protocol.KindQueue: "/queues/new", protocol.KindPubSub: "/pubsub/new"} {
+		page := m.get(path)
 		if !strings.Contains(page, `<input type=hidden name=kind value=`+kind+`>`) || strings.Contains(page, `<select name=kind>`) {
 			t.Errorf("%s registration does not carry its own plain kind: %s", kind, page)
 		}
@@ -497,8 +494,8 @@ func TestRegistrationLivesOnDedicatedSectionPages(t *testing.T) {
 	// holds nothing, so asking it the same questions would be asking about a
 	// queue that will never exist. Both halves, because a page that dropped
 	// the fields everywhere would satisfy the second on its own.
-	queue := m.get("/channels/new?kind=" + protocol.KindQueue)
-	topic := m.get("/channels/new?kind=" + protocol.KindPubSub)
+	queue := m.get("/queues/new")
+	topic := m.get("/pubsub/new")
 	for _, field := range []string{"name=ttl", "name=bound", "name=overflow"} {
 		if !strings.Contains(queue, field) {
 			t.Errorf("queue registration cannot declare %s: %s", field, queue)

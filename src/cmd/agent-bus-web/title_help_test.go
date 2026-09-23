@@ -12,7 +12,7 @@ import (
 
 func TestTitleMarksAreFixedDecorativePageCategories(t *testing.T) {
 	for category, visible := range map[string]string{
-		"credentials": "🔑", "services": "📡", "agent": "👾",
+		"credentials": "🔑", "services": "📡", "agent": "👾", "queues": "📮", "pubsub": "📣",
 		"users": "👤", "groups": "👥", "identity": "🪪",
 		// Overview is a glyph rather than the bus mark: the header already
 		// carries that logo, so the title repeated it instead of naming a page.
@@ -23,7 +23,7 @@ func TestTitleMarksAreFixedDecorativePageCategories(t *testing.T) {
 			t.Errorf("%s title mark = %q", category, got)
 		}
 	}
-	for _, category := range []string{"channels", "activity", "diagnostics", "problem"} {
+	for _, category := range []string{"activity", "diagnostics", "problem"} {
 		got := string(titleMark(category))
 		if !strings.Contains(got, "<svg") || !strings.Contains(got, "aria-hidden=") || !strings.Contains(got, `focusable="false"`) || !strings.Contains(got, "page-title-mark") {
 			t.Errorf("%s title mark is not a decorative inline image: %q", category, got)
@@ -67,12 +67,15 @@ func TestListHelpUsesVisibleAccessiblePopoverControls(t *testing.T) {
 	if strings.Contains(services, `<p class=muted>Three separate facts`) {
 		t.Error("the former Services prose wall remains in the primary flow")
 	}
-	channels := m.get("/channels")
-	if !strings.Contains(channels, "All counts the caller-visible queues, pub/sub topics and user queues") || strings.Contains(channels, "All and My omit Personal agents") {
-		t.Error("Channel help reused another category's explanation")
+	channels := m.get("/queues")
+	if !strings.Contains(channels, "All counts the caller-visible queues.") || strings.Contains(channels, "All and My omit Personal agents") || strings.Contains(channels, "pub/sub topics.") {
+		t.Error("Queue help reused another category's explanation")
+	}
+	if topics := m.get("/pubsub"); !strings.Contains(topics, "All counts the caller-visible pub/sub topics.") || strings.Contains(topics, "All counts the caller-visible queues.") {
+		t.Error("PubSub help reused another category's explanation")
 	}
 	agents := m.get("/agents")
-	if !strings.Contains(agents, "All and My omit Personal agents") || strings.Contains(agents, "All counts the caller-visible queues, pub/sub topics and user queues") {
+	if !strings.Contains(agents, "All and My omit Personal agents") || strings.Contains(agents, "All counts the caller-visible queues") {
 		t.Error("Agent help reused another category's explanation")
 	}
 
@@ -155,18 +158,20 @@ func TestPageTitlesUseSectionOrDaemonStatedKind(t *testing.T) {
 		"/services":                      `📡</span> Services</h1>`,
 		"/agents":                        `👾</span> Agents</h1>`,
 		"/personal":                      `👾</span> Personal</h1>`,
-		"/channels":                      `</svg> Channels</h1>`,
+		"/queues":                        `📮</span> Queues</h1>`,
+		"/pubsub":                        `📣</span> PubSub</h1>`,
 		"/users":                         `👤</span> Users and other identities</h1>`,
 		"/groups":                        `👥</span> Groups</h1>`,
 		"/activity":                      `</svg> Activity graphs</h1>`,
 		"/services/new":                  `📡</span> Register service</h1>`,
-		"/channels/new":                  `</svg> Register channel</h1>`,
+		"/queues/new":                    `📮</span> Register queue</h1>`,
+		"/pubsub/new":                    `📣</span> Register pub/sub topic</h1>`,
 		"/agents/new":                    `👾</span> Register agent</h1>`,
 		"/users/new":                     `👤</span> Add user</h1>`,
 		"/groups/new":                    `👥</span> Register group</h1>`,
 		"/service?name=service@h":        `📡</span> service@h</h1>`,
 		"/service?name=%23agent@h":       `👾</span> #agent@h</h1>`,
-		"/service?name=channel@h":        `</svg> channel@h</h1>`,
+		"/service?name=channel@h":        `📮</span> channel@h</h1>`,
 		"/service-danger?name=service@h": `</svg> Danger Zone · service@h</h1>`,
 	}
 	for path, want := range pages {

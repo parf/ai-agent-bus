@@ -54,8 +54,8 @@ func TestEveryKindAsksTheSameQuestionsToRegisterAndToEdit(t *testing.T) {
 	}{
 		{protocol.KindAgent, "/agents/new", "/agent/edit"},
 		{protocol.KindService, "/services/new", "/service/edit"},
-		{protocol.KindQueue, "/channels/new?kind=queue", "/channel/edit"},
-		{protocol.KindPubSub, "/channels/new?kind=pubsub", "/channel/edit"},
+		{protocol.KindQueue, "/queues/new", "/queue/edit"},
+		{protocol.KindPubSub, "/pubsub/new", "/pubsub/topic/edit"},
 	} {
 		name := c.kind + "-form@h"
 		if c.kind == protocol.KindAgent {
@@ -100,10 +100,10 @@ func TestAFormAsksOnlyWhatItsKindHas(t *testing.T) {
 		{protocol.KindService, "/services/new",
 			[]string{"descr", "addr", "protocol", "secret", "allow", "personal"},
 			[]string{"ttl", "bound", "overflow", "subs", "maintainers"}},
-		{protocol.KindQueue, "/channels/new?kind=queue",
+		{protocol.KindQueue, "/queues/new",
 			[]string{"descr", "ttl", "bound", "overflow", "allow", "personal", "subs"},
 			[]string{"addr", "protocol", "secret", "maintainers"}},
-		{protocol.KindPubSub, "/channels/new?kind=pubsub",
+		{protocol.KindPubSub, "/pubsub/new",
 			[]string{"descr", "subs", "allow", "personal"},
 			[]string{"addr", "protocol", "secret", "ttl", "bound", "overflow", "maintainers"}},
 	} {
@@ -129,8 +129,8 @@ func TestRegistrationDoesNotAskForMaintainers(t *testing.T) {
 	for _, c := range []struct{ kind, new, edit string }{
 		{protocol.KindAgent, "/agents/new", "/agent/edit"},
 		{protocol.KindService, "/services/new", "/service/edit"},
-		{protocol.KindQueue, "/channels/new?kind=queue", "/channel/edit"},
-		{protocol.KindPubSub, "/channels/new?kind=pubsub", "/channel/edit"},
+		{protocol.KindQueue, "/queues/new", "/queue/edit"},
+		{protocol.KindPubSub, "/pubsub/new", "/pubsub/topic/edit"},
 	} {
 		name := c.kind + "-maint@h"
 		if c.kind == protocol.KindAgent {

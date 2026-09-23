@@ -2184,23 +2184,23 @@ has "the strip reports sampled hour calls" "$NODE" '<span>Calls, hour</span><str
 has "the strip reports total calls" "$NODE" '<span>Calls, total</span><strong>[0-9]'
 # One cell per thing a record can be, because a single total cannot say which
 # of the four listings grew. Each is asked for separately.
-for label in Agents Services Channels Users Groups; do
+for label in Agents Services Queues PubSub Users Groups; do
   has "the strip counts $label on its own" "$NODE" \
     "<span>$label</span><strong>\\([0-9]\\|<span class=muted>&mdash;\\)"
 done
 lacks "and no longer sums them into one cell" "$NODE" \
-  '<span>Records</span>\|<span>Agents + Services + Channels + Users</span>'
+  '<span>Records</span>\|<span>Agents + Services + Channels + Users</span>\|<span>Channels</span>'
 # Against the daemon rather than against the page: four cells each holding a
 # plausible digit is what a constant looks like. Their sum is the node's whole
 # registry, which is the one number the old cell reported.
 # A dash counts as nothing, which is what it means. Empty is what the strip
 # prints for a kind the node has none of.
 STRIPSUM=$(printf '%s' "$NODE" \
-  | grep -o '<span>\(Agents\|Services\|Channels\|Users\|Groups\)</span><strong>[0-9,]*' \
+  | grep -o '<span>\(Agents\|Services\|Queues\|PubSub\|Users\|Groups\)</span><strong>[0-9,]*' \
   | grep -o '[0-9,]*$' | tr -d ',' | awk '{n+=$1} END{print n+0}')
 NODETOTAL=$(tbody "$TOKEN" /status | grep -o '"services":[0-9]*' | grep -o '[0-9]*$')
 has "the daemon states a registry total for them to be checked against" "$NODETOTAL" '^[0-9]\+$'
-has "and the five counts add up to it" "$STRIPSUM" "^$NODETOTAL$"
+has "and the six counts add up to it" "$STRIPSUM" "^$NODETOTAL$"
 # What the node holds leads; how it is running follows on its own row. Asked
 # as the order of the markup, because every cell is on the page either way.
 has "how the node stands now leads, and what it has done since start follows" \
@@ -2221,6 +2221,10 @@ NAV=$(printf '%s' "$PAGE" | grep 'nav aria-label=.sections.')
 has "the Overview menu entry carries its house mark" "$NAV" '>🏠</span>Overview</a>'
 has "and Diagnostics carries its own drawn one" "$NAV" '</svg>Diagnostics</a>'
 lacks "no menu entry is left unmarked" "$NAV" '<a href=/groups>Groups</a>'
+# Queues and PubSub are two sections now, each marked with its kind's glyph.
+has "Queues is a menu entry with its glyph" "$NAV" '<a href=/queues><span class=page-title-mark aria-hidden=true>📮</span>Queues</a>'
+has "and so is PubSub" "$NAV" '<a href=/pubsub><span class=page-title-mark aria-hidden=true>📣</span>PubSub</a>'
+lacks "and the combined Channels entry is gone" "$NAV" '>Channels</a>'
 # One page load is one observation, and the shared footer dates every page
 # (docs/05-discovery.md#overview-and-diagnostics). The body states no time and
 # offers no Refresh link; the browser already has one.
@@ -2248,19 +2252,24 @@ lacks "an ordinary group claims no authority of its own" "$ORDGRP" 'What members
 # so the three questions about one name are asked of a search for that name.
 ab "$OWNER" channel create smoke-chan@srv1 --allow '*' --descr "a registered channel" >/dev/null
 AGENTS=$(curl -s -b "$JAR" "$WEB/agents?q=human%40srv1")
-CHANS=$(curl -s -b "$JAR" "$WEB/channels")
+CHANS=$(curl -s -b "$JAR" "$WEB/queues")
 has "an agent's record is listed on the agents page" "$AGENTS" 'href="/agent?name=%23human%40srv1'
 has "and the row says what it is" "$AGENTS" '<td data-label=Type>👾 Agent'
-lacks "and it is not among the channels it reads through" \
-  "$(curl -s -b "$JAR" "$WEB/channels?q=human%40srv1")" 'name=%23human%40srv1'
+lacks "and it is not among the queues it reads through" \
+  "$(curl -s -b "$JAR" "$WEB/queues?q=human%40srv1")" 'name=%23human%40srv1'
 lacks "nor among the services, which are the ones this bus does not run" \
   "$(curl -s -b "$JAR" "$WEB/services?q=human%40srv1")" 'name=%23human%40srv1'
-has "a registered channel is listed as the queue it is" \
-  "$(curl -s -b "$JAR" "$WEB/channels?kind=queue&q=smoke-chan%40srv1")" '<td data-label=Type>📮 Queue'
-lacks "which the pub/sub filter excludes" \
-  "$(curl -s -b "$JAR" "$WEB/channels?kind=pubsub&q=smoke-chan%40srv1")" 'name=smoke-chan%40srv1'
-lacks "and the channels page offers no filter for a kind it never lists" \
-  "$CHANS" 'kind=agent'
+has "a registered channel is listed on Queues as the queue it is" \
+  "$(curl -s -b "$JAR" "$WEB/queues?q=smoke-chan%40srv1")" '<td data-label=Type>📮 Queue'
+has "the PubSub page renders, so the next check can fail" \
+  "$(curl -s -b "$JAR" "$WEB/pubsub")" '<h1><span class=page-title-mark aria-hidden=true>📣</span> PubSub</h1>'
+lacks "and PubSub does not list it" \
+  "$(curl -s -b "$JAR" "$WEB/pubsub?q=smoke-chan%40srv1")" 'name=smoke-chan%40srv1'
+lacks "and neither section offers a kind filter" \
+  "$CHANS" 'aria-label="Kind filter"'
+# An old bookmark of the combined page lands on the section its kind named.
+has "an old /channels?kind=pubsub bookmark lands on PubSub" \
+  "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -b "$JAR" "$WEB/channels?kind=pubsub")" '^301 .*/pubsub$'
 
 # A credential is read by the caller that needs it, not looked at in a
 # browser: the page carries the digest so that a change is visible, and the
@@ -2273,13 +2282,9 @@ lacks "while the secret itself is on no page" "$SVCPAGE" 'PGPASSWORD\|rotated'
 has "a service with no secret says so rather than showing a stale digest" \
   "$(curl -s -b "$JAR" "$WEB/service?name=keyless%40srv1")" '<dt>Secret<dd><span class=muted>none'
 # Registration asks each kind its own questions. The two channel kinds are two
-# pages, because a queue declares a policy the topic has no queue for.
-CHOOSE=$(curl -s -b "$JAR" "$WEB/channels/new")
-lacks "the channel chooser registers nothing itself" "$CHOOSE" 'name=action value=create'
-has "it offers the queue form" "$CHOOSE" 'href="/channels/new?kind=queue"'
-has "and the pub/sub form" "$CHOOSE" 'href="/channels/new?kind=pubsub"'
-NEWQ=$(curl -s -b "$JAR" "$WEB/channels/new?kind=queue")
-NEWT=$(curl -s -b "$JAR" "$WEB/channels/new?kind=pubsub")
+# sections, because a queue declares a policy the topic has no queue for.
+NEWQ=$(curl -s -b "$JAR" "$WEB/queues/new")
+NEWT=$(curl -s -b "$JAR" "$WEB/pubsub/new")
 has "the queue form carries its own kind" "$NEWQ" '<input type=hidden name=kind value=queue>'
 has "the pub/sub form carries its own" "$NEWT" '<input type=hidden name=kind value=pubsub>'
 has "a queue declares the policy of the queue it will hold" "$NEWQ" 'name=ttl'

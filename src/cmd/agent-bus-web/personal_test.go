@@ -112,7 +112,7 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 	// A Personal queue is listed there too; the owner's own user record, which
 	// is always Personal, is not. Asked of the row link: the signed-in name is
 	// in the header of every page.
-	if !strings.Contains(personal, `class=record-name href="/channel?name=alice-inbox%40h`) || strings.Contains(personal, `class=record-name href="/channel?name=alice%40h`) {
+	if !strings.Contains(personal, `class=record-name href="/queue?name=alice-inbox%40h`) || strings.Contains(personal, `class=record-name href="/queue?name=alice%40h`) {
 		t.Fatalf("the Personal page does not list Personal records of every kind but users: %s", personal)
 	}
 	if !strings.Contains(personal, `<a href=/agents aria-current=page>`) || strings.Count(personal, "aria-current=page>") != 1 {
@@ -125,8 +125,8 @@ func TestPersonalServicesAreGroupedWithoutChangingAccess(t *testing.T) {
 	if header.Get("Location") != "/personal" {
 		t.Fatalf("ordinary owner filter was silently reinterpreted: %q", header.Get("Location"))
 	}
-	channels, _ := p.request("alice@h", "GET", "/channels", nil, 200)
-	if !strings.Contains(channels, `class=record-name href="/channel?name=jobs%40h`) || strings.Contains(channels, "alice-inbox@h") || !strings.Contains(channels, `<a href=/channels aria-current=page>`) {
+	channels, _ := p.request("alice@h", "GET", "/queues", nil, 200)
+	if !strings.Contains(channels, `class=record-name href="/queue?name=jobs%40h`) || strings.Contains(channels, "alice-inbox@h") || !strings.Contains(channels, `<a href=/queues aria-current=page>`) {
 		t.Fatal("Personal grouping changed channels or their current navigation")
 	}
 	detail, _ := p.request("alice@h", "GET", "/agent?name=%23alice-personal%40h", nil, 200)

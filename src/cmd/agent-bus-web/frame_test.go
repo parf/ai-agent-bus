@@ -31,7 +31,7 @@ func TestEveryHTMLPageCarriesNodeIdentity(t *testing.T) {
 	if _, err := m.bus.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "admin@h"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"/", "/diagnostics", "/services", "/personal", "/channels", "/service?name=%23svc@h", "/groups", "/users", "/user?name=admin@h", "/user?new=1", "/activity", "/service?name=missing@h"} {
+	for _, path := range []string{"/", "/diagnostics", "/services", "/personal", "/queues", "/pubsub", "/service?name=%23svc@h", "/groups", "/users", "/user?name=admin@h", "/user?new=1", "/activity", "/service?name=missing@h"} {
 		t.Run(path, func(t *testing.T) {
 			r := httptest.NewRequest("GET", path, nil)
 			r.AddCookie(m.session)

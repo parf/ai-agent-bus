@@ -53,9 +53,12 @@ The planned page map follows. `⚠` marks a page that does not exist today.
 | My services | `/services?scope=my` | Find an external service owned by the caller | a filter on Services |
 | Service | `/service?name=` | One service: address, protocol, activity, access, configuration | the shared record page |
 | Register service | `/services/new` | Create one; address and protocol are required | built in 0.5.64, required fields in 0.6.3 |
-| Channels | `/channels` | Find a queue or a pub/sub topic | built in 0.5.64; agents moved out in 0.6.3 |
-| Channel | `/channel?name=` | One channel: subscribers, queue, activity, access | the shared record page |
-| Register channel | `/channels/new` | Create one, as a queue or a pub/sub topic | built in 0.5.64 |
+| Queues | `/queues` | Find a queue | split from Channels in 0.8.4; `/channels` redirects here unless `kind=pubsub` |
+| Queue | `/queue?name=` | One queue, or a user's own inbox: queue, route, activity, access | the shared record page; `/channel?name=` still serves it |
+| Register queue | `/queues/new` | Create one | split in 0.8.4 |
+| PubSub | `/pubsub` | Find a pub/sub topic | split from Channels in 0.8.4; `/channels?kind=pubsub` redirects here |
+| Pub/sub topic | `/pubsub/topic?name=` | One topic: Deliver-To list, activity, access | the shared record page |
+| Register pub/sub topic | `/pubsub/new` | Create one | split in 0.8.4 |
 | Activity | `/activity` | Observed traffic over a stated window | exists |
 | Diagnostics | `/diagnostics` | Retained envelopes, losses, refusals | is the homepage today |
 | Users | `/users` | Find a person or an identity | exists |
@@ -108,7 +111,8 @@ not a form appended to a list and not an unrelated heading action:
 | Section | Second-level navigation |
 |---|---|
 | Services | All (`#`) · My (`#`) · Personal (`#`) · Register service |
-| Channels | All channels · Register channel |
+| Queues | All (`#`) · Personal (`#`) · Register queue |
+| PubSub | All (`#`) · Personal (`#`) · Register pub/sub topic |
 | Users | All identities (`#`) · Register user |
 | Groups | All groups · Register group |
 

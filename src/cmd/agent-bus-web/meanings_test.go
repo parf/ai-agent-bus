@@ -731,13 +731,13 @@ func TestEntityLabelsUseDaemonKindsAndStayOutOfEditableSyntax(t *testing.T) {
 	if row := m.row(m.get("/agents"), "#bot@h"); !strings.Contains(row, "👾 Agent") {
 		t.Errorf("#bot@h has no agent label: %s", row)
 	}
-	if row := m.row(m.get("/channels"), "jobs@h"); !strings.Contains(row, "📮 Queue") {
+	if row := m.row(m.get("/queues"), "jobs@h"); !strings.Contains(row, "📮 Queue") {
 		t.Errorf("jobs@h has no queue label: %s", row)
 	}
 	// Each channel kind registers on its own page, and each carries its kind
 	// as the daemon's plain word.
-	for _, kind := range []string{protocol.KindQueue, protocol.KindPubSub} {
-		create := m.get("/channels/new?kind=" + kind)
+	for kind, path := range map[string]string{protocol.KindQueue: "/queues/new", protocol.KindPubSub: "/pubsub/new"} {
+		create := m.get(path)
 		if !strings.Contains(create, "name=kind value="+kind) {
 			t.Errorf("the %s form does not keep a plain kind value: %s", kind, create)
 		}
@@ -858,19 +858,19 @@ func TestOneFixtureReadsDifferentlyForOrdinaryMaintainerAndOwner(t *testing.T) {
 	// plain@h registered is listed as theirs.
 	m.register(protocol.Record{Kind: protocol.KindQueue, Name: "plain-jobs@h", Owner: "plain@h", Allow: []string{"*"}})
 	plain := m.as("plain@h")
-	if row := m.row(plain.get("/channels"), "plain-jobs@h"); !strings.Contains(row, `class="record-name-cell owned-record"`) || strings.Contains(row, "Yours") || !strings.Contains(plain.get("/channel?name=plain-jobs@h"), `id=settings`) {
+	if row := m.row(plain.get("/queues"), "plain-jobs@h"); !strings.Contains(row, `class="record-name-cell owned-record"`) || strings.Contains(row, "Yours") || !strings.Contains(plain.get("/queue?name=plain-jobs@h"), `id=settings`) {
 		t.Error("an ordinary caller is offered no control over their own record")
 	}
 	// Registering a user creates that user's own record (core/users.go). It is
 	// Personal and is listed on no shared page, but its own page is still
 	// theirs to manage. The signed-in identity is named in the header of
 	// every page, so absence is asked of the listing's own row link.
-	for _, list := range []string{"/services", "/channels", "/agents"} {
+	for _, list := range []string{"/services", "/queues", "/pubsub", "/agents"} {
 		if strings.Contains(plain.get(list), `class=record-name href="`+detailPathFor(protocol.KindUser)+`?name=plain%40h`) {
 			t.Errorf("a user's own record is still listed on %s", list)
 		}
 	}
-	if !strings.Contains(plain.get("/channel?name=plain@h"), `id=settings`) {
+	if !strings.Contains(plain.get("/queue?name=plain@h"), `id=settings`) {
 		t.Error("an ordinary caller is offered no control over their own user record")
 	}
 }
@@ -899,8 +899,8 @@ func TestPubSubAndQueueDeliveryAreNamedAndNeitherIsGuessed(t *testing.T) {
 	}
 	// Both records are active, so the declared mode cannot be being read off
 	// the status the listing shows beside it.
-	for _, name := range []string{"fanout@h", "onebyone@h"} {
-		if !strings.Contains(m.row(m.get("/channels"), name), "aria-label=Active") {
+	for name, list := range map[string]string{"fanout@h": "/pubsub", "onebyone@h": "/queues"} {
+		if !strings.Contains(m.row(m.get(list), name), "aria-label=Active") {
 			t.Errorf("%s is not active, so its mode and its status are not separable here", name)
 		}
 	}

@@ -47,7 +47,7 @@ func TestRegisteringAServiceStoresTheSecretItWasGivenAndNeverShowsItAgain(t *tes
 	// name has nothing outside to authenticate to, and the daemon refuses a
 	// secret on one, so a form that offered the field would be offering a
 	// refusal.
-	for _, path := range []string{"/agents/new", "/channels/new?kind=queue", "/channels/new?kind=pubsub"} {
+	for _, path := range []string{"/agents/new", "/queues/new", "/pubsub/new"} {
 		if strings.Contains(m.get(path), "name=secret") {
 			t.Errorf("%s offers a secret to a kind that cannot hold one", path)
 		}

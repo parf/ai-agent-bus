@@ -27,7 +27,7 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 		`class=node-strip`,
 		`🏠</span> Overview</h1>`,
 		`Node-wide. The lists linked below contain only records visible to you; the two never have to agree.`,
-		`href="/channels?sort=queued&amp;work=held"`, `href="/services">External services`,
+		`href="/queues?sort=queued&amp;work=held"`, `href="/services">External services`,
 	} {
 		if !strings.Contains(overview, want) {
 			t.Errorf("Overview lacks %q", want)
@@ -49,7 +49,7 @@ func TestOverviewIsShortAndDiagnosticsKeepsTheEvidence(t *testing.T) {
 	// listing that holds work, agents first. Users and Diagnostics are menu
 	// entries and were repeated here.
 	find := section(t, overview, `<nav class=overview-links aria-label="Find records">`, "</nav>")
-	for _, kept := range []string{"Agents holding work", "Channels holding work", "External services"} {
+	for _, kept := range []string{"Agents holding work", "Queues holding work", "External services"} {
 		if !strings.Contains(find, kept) {
 			t.Errorf("the Find row lost %q: %s", kept, find)
 		}
@@ -146,7 +146,7 @@ func TestAttentionItemsAreEnumeratedAndOnePerRecord(t *testing.T) {
 	if seen["#off@h"].Overflow != "" {
 		t.Errorf("a record that is not at capacity states an overflow policy: %q", seen["#off@h"].Overflow)
 	}
-	if seen["news@h"].Href != "/channel?name=news%40h" {
+	if seen["news@h"].Href != "/queue?name=news%40h" {
 		t.Fatalf("channel attention link = %q", seen["news@h"].Href)
 	}
 	// One ordered enum: red, then orange, then informational.

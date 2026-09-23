@@ -32,7 +32,11 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 		{Name: "#bot@h", Owner: "admin@h", Kind: "agent"},
 		{Name: "news@h", Owner: "admin@h", Kind: protocol.KindQueue},
 		{Name: "work@h", Owner: "admin@h", Kind: protocol.KindQueue},
+		{Name: "more@h", Owner: "admin@h", Kind: protocol.KindQueue},
 		{Name: "shout@h", Owner: "admin@h", Kind: protocol.KindPubSub},
+		{Name: "cry@h", Owner: "admin@h", Kind: protocol.KindPubSub},
+		{Name: "yell@h", Owner: "admin@h", Kind: protocol.KindPubSub},
+		{Name: "call@h", Owner: "admin@h", Kind: protocol.KindPubSub},
 		// No service on purpose: one of the four has to be zero, or the dash
 		// that stands in for it could not be seen on a count cell at all. The
 		// smoke run asserts the four against a daemon that has one.
@@ -54,7 +58,7 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	// One cell per thing a record can be, each with its own figure. The
 	// numbers differ from one another, so a cell that printed the wrong kind's
 	// count fails here rather than matching its neighbour.
-	for label, want := range map[string]string{"Agents": "2", "Channels": "3", "Users": "5"} {
+	for label, want := range map[string]string{"Agents": "2", "Queues": "3", "PubSub": "4", "Users": "5", "Groups": "1"} {
 		cell := "<span>" + label + "</span><strong>" + want + "</strong>"
 		if !strings.Contains(strip, cell) {
 			t.Errorf("the strip does not count %s separately as %s: %s", label, want, strip)
@@ -72,12 +76,10 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	if strings.Contains(strip, "<strong>0</strong>") {
 		t.Errorf("the strip still prints a zero: %s", strip)
 	}
-	// A queue and a pub/sub topic are one page and one cell, so Channels is a
-	// sum of two kinds rather than either of them.
-	for _, wrong := range []string{"<span>Channels</span><strong>2</strong>", "<span>Channels</span><strong>1</strong>"} {
-		if strings.Contains(strip, wrong) {
-			t.Errorf("Channels counts one kind instead of both: %s", strip)
-		}
+	// A queue and a pub/sub topic are two sections and two cells now; the
+	// combined cell is gone.
+	if strings.Contains(strip, "<span>Channels</span>") {
+		t.Errorf("the strip still sums queues and topics into Channels: %s", strip)
 	}
 	// The figures are read down a column, so they are ranged right in tabular
 	// numerals: the owner asked for it after reading them centred.
@@ -108,7 +110,7 @@ func TestTheNodeStripCarriesTheCallCountersAndNamesWhatItCounts(t *testing.T) {
 	// The first row is how the node stands now; the second is what has
 	// happened since it started. Uptime and the call counters are the only
 	// facts on the page that are about the past.
-	for _, now := range []string{"<span>Readers</span>", "<span>Queued</span>", "<span>Agents</span>", "<span>Services</span>", "<span>Channels</span>", "<span>Users</span>"} {
+	for _, now := range []string{"<span>Readers</span>", "<span>Queued</span>", "<span>Agents</span>", "<span>Services</span>", "<span>Queues</span>", "<span>PubSub</span>", "<span>Users</span>"} {
 		if at := strings.Index(strip, now); at < 0 || at > brk {
 			t.Errorf("%s is a current fact and is not on the first row: %s", now, strip)
 		}
@@ -232,7 +234,7 @@ func TestTheGenerationTimeIsStatedOnceAndOnlyInTheFooter(t *testing.T) {
 		t.Errorf("an attention item lost its link with the repeated time: %s", full)
 	}
 	// Every page carries the footer, so every page is dated, not just this one.
-	for _, route := range []string{"/agents", "/services", "/channels", "/users", "/groups", "/diagnostics", "/activity"} {
+	for _, route := range []string{"/agents", "/services", "/queues", "/pubsub", "/users", "/groups", "/diagnostics", "/activity"} {
 		page := m.get(route)
 		stamp := section(t, section(t, page, "<footer ", "</footer>"), "<strong>Generated</strong> ", "</span>")
 		if strings.TrimSpace(stamp) == "" {

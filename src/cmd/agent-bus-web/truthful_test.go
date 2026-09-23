@@ -94,10 +94,10 @@ func TestPagesDoNotPromiseWhatTheDaemonRefuses(t *testing.T) {
 	// anywhere on the page passes without any entry being marked at all.
 	marks := map[string]string{
 		"/": "<a href=/ aria-current=page>", "/services": "<a href=/services aria-current=page>",
-		"/agents": "<a href=/agents aria-current=page>", "/personal": "<a href=/agents aria-current=page>", "/channels": "<a href=/channels aria-current=page>", "/users": "<a href=/users aria-current=page>",
+		"/agents": "<a href=/agents aria-current=page>", "/personal": "<a href=/agents aria-current=page>", "/queues": "<a href=/queues aria-current=page>", "/pubsub": "<a href=/pubsub aria-current=page>", "/users": "<a href=/users aria-current=page>",
 		"/groups": "<a href=/groups aria-current=page>", "/activity": "<a href=/activity aria-current=page>", "/diagnostics": "<a href=/diagnostics aria-current=page>",
 	}
-	for _, path := range []string{"/", "/agents", "/services", "/personal", "/channels", "/users", "/groups", "/activity", "/diagnostics"} {
+	for _, path := range []string{"/", "/agents", "/services", "/personal", "/queues", "/pubsub", "/users", "/groups", "/activity", "/diagnostics"} {
 		body := get(path)
 		for _, want := range []string{
 			`<html lang=en>`,

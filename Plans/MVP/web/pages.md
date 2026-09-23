@@ -150,7 +150,7 @@ node-wide, the other is what this caller may see
 
 ---
 
-## Agents `/agents` · Services `/services` · Channels `/channels`
+## Agents `/agents` · Services `/services` · Queues `/queues` · PubSub `/pubsub`
 
 **Answers:** what can I use, who owns it, and is it in trouble?
 
@@ -165,7 +165,10 @@ kinds](../../../docs/03-records.md#record-kinds) and superseding
 the 0.5.84 arrangement below. Agents is first in the menu and holds 👾 alone,
 because agents are what the bus exists to carry messages between; Services holds
 📡 alone, which is the external case; Channels holds 📮 📣 👤 and keeps the Kind
-column and filter. Personal is a view of the agents, since Personal is
+column and filter. **0.8.4 splits Channels** into Queues (📮) and PubSub (📣),
+each a section with its own list, registration and settings, and no Kind
+filter ([web face](../../../docs/05-discovery.md#agent-service-and-channel-journeys)).
+Personal is a view of the agents, since Personal is
 agent-only. Delivery mode is no longer a field, so the mode filter is gone: a
 queue and a pub/sub topic are kinds of their own.
 
@@ -370,7 +373,7 @@ or to replace the consequence text.
 
 ---
 
-## Register `/agents/new` · `/services/new` · `/channels/new`
+## Register `/agents/new` · `/services/new` · `/queues/new` · `/pubsub/new`
 
 **Answers:** how do I create one?
 

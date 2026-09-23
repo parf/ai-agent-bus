@@ -33,19 +33,34 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 		}
 	}
 
-	page := m.get("/channels")
+	page := m.get("/queues")
+	topics := m.get("/pubsub")
 	for _, want := range []string{
-		`<title>Channels · agent-bus</title>`, `<th scope=col>Channel`,
-		`<th scope=col>Type`, `<th scope=col>Delivery mode`, `<th scope=col class=num>Held`,
+		`<title>Queues · agent-bus</title>`, `<th scope=col>Queue`,
+		`<th scope=col>Type`, `<th scope=col class=num>Held`,
 		`<th scope=col class=num>Accepted`, `<th scope=col class=num>Dequeued`,
-		`<th scope=col class=num>Subscribers`,
 	} {
 		if !strings.Contains(page, want) {
-			t.Errorf("Channels page lacks %q", want)
+			t.Errorf("Queues page lacks %q", want)
 		}
 	}
-	if strings.Contains(page, `<th scope=col>Service`) {
-		t.Error("Channels page still uses the Service table vocabulary")
+	for _, want := range []string{
+		`<title>PubSub · agent-bus</title>`, `<th scope=col>PubSub`,
+		`<th scope=col>Type`, `<th scope=col class=num>Accepted`,
+		`<th scope=col class=num>Copies out`, `<th scope=col class=num>Deliver-To`,
+	} {
+		if !strings.Contains(topics, want) {
+			t.Errorf("PubSub page lacks %q", want)
+		}
+	}
+	// A topic holds nothing, so its page has no held column to leave empty.
+	if strings.Contains(topics, `<th scope=col class=num>Held`) {
+		t.Error("the PubSub page still has a Held column")
+	}
+	for name, body := range map[string]string{"Queues": page, "PubSub": topics} {
+		if strings.Contains(body, `<th scope=col>Service`) {
+			t.Errorf("%s page still uses the Service table vocabulary", name)
+		}
 	}
 	agents := m.get("/agents")
 	agent := m.row(agents, "#worker@h")
@@ -54,74 +69,62 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 			t.Errorf("agent row lacks %q: %s", want, agent)
 		}
 	}
-	if strings.Contains(page, ">worker@h<") {
+	if strings.Contains(page, ">worker@h<") || strings.Contains(topics, ">worker@h<") {
 		t.Error("an agent is still listed among the channels")
 	}
 	if channel := m.row(page, "jobs@h"); !strings.Contains(channel, `data-label=Type>📮 Queue`) {
-		t.Errorf("a registered channel is not named one: %s", channel)
+		t.Errorf("a registered queue is not named one: %s", channel)
 	}
 	if services := m.get("/services"); strings.Contains(services, ">worker@h<") {
 		t.Error("an agent is still listed among the services")
 	}
+	if strings.Contains(page, ">news@h<") || strings.Contains(topics, ">jobs@h<") {
+		t.Error("a section lists the other channel kind")
+	}
 	queue := m.row(page, "jobs@h")
-	for _, want := range []string{"Queue · one at a time", `data-label=Held>2`, `data-label=Accepted>2`, `data-label=Subscribers><span class=muted>&mdash;</span>`} {
+	for _, want := range []string{`data-label=Held>2`, `data-label=Accepted>2`, `/queue?name=jobs%40h`} {
 		if !strings.Contains(queue, want) {
-			t.Errorf("queue channel row lacks %q: %s", want, queue)
+			t.Errorf("queue row lacks %q: %s", want, queue)
 		}
 	}
-	pubsub := m.row(page, "news@h")
-	for _, want := range []string{"Pub/sub · copy to each", `data-label=Held><span class=muted>&mdash;</span>`, `data-label=Accepted>3`, `data-label=Subscribers>1`, `/channel?name=news%40h`} {
+	pubsub := m.row(topics, "news@h")
+	for _, want := range []string{`data-label=Type>📣 PubSub`, `data-label=Accepted>3`, `data-label=Deliver-To>1`, `/pubsub/topic?name=news%40h`} {
 		if !strings.Contains(pubsub, want) {
-			t.Errorf("pub/sub channel row lacks %q: %s", want, pubsub)
+			t.Errorf("pub/sub row lacks %q: %s", want, pubsub)
 		}
 	}
-	// The page lists two kinds, so it offers the control that narrows to one.
-	// Delivery is not a second filter beside it: the kind IS the delivery.
-	queueOnly := m.get("/channels?kind=queue")
-	if !strings.Contains(queueOnly, `aria-label="Kind filter"`) || !strings.Contains(queueOnly, `aria-current=true>📮 Queue</a>`) ||
-		!strings.Contains(queueOnly, ">jobs@h<") || strings.Contains(queueOnly, ">news@h<") {
-		t.Error("the Kind filter is missing or did not isolate the queues")
+	// An old bookmark naming a kind is kept as the section that kind now has.
+	if code, to := m.redirect("/channels?kind=pubsub&readers=none"); code != http.StatusMovedPermanently || to != "/pubsub?readers=none" {
+		t.Errorf("the old pub/sub filter went to %d %q", code, to)
 	}
-	if pubsubOnly := m.get("/channels?kind=pubsub"); strings.Contains(pubsubOnly, ">jobs@h<") || !strings.Contains(pubsubOnly, ">news@h<") {
-		t.Error("the pub/sub filter admitted a queue or lost its topic")
+	if workOrder := m.get("/pubsub?sort=queued"); !strings.Contains(workOrder, `selected>Accepted (high&ndash;low)</option>`) {
+		t.Error("PubSub work sorting does not say it orders by what a topic accepted")
 	}
-	// A kind this page does not list is not a filter it honours: an old
-	// bookmark asking for one would otherwise report no matching records with
-	// no current Kind choice to explain why, and the channels would read as
-	// gone rather than as unfiltered.
-	stale := m.get("/channels?kind=agent")
-	if !strings.Contains(stale, ">jobs@h<") || !strings.Contains(stale, ">news@h<") || strings.Contains(stale, "No records match these filters") {
-		t.Errorf("a kind the channels page never lists emptied it: %s", stale)
-	}
-	workOrder := m.get("/channels?sort=queued")
-	if strings.Index(workOrder, ">news@h<") > strings.Index(workOrder, ">jobs@h<") || !strings.Contains(workOrder, ">Work (high&ndash;low)</option>") {
-		t.Error("Channel work sorting did not compare pub/sub accepted with queue held work")
-	}
-	statefulKind := m.get("/channels?kind=pubsub&readers=none&state=active&sort=queued")
-	for _, want := range []string{`name=kind value="pubsub"`, `kind=pubsub&amp;readers=none&amp;sort=queued&amp;state=inactive`, `return=%2fchannels%3fkind%3dpubsub%26page%3d1%26readers%3dnone%26sort%3dqueued%26state%3dactive`, `selected>Work (high&ndash;low)</option>`} {
-		if !strings.Contains(statefulKind, want) {
-			t.Errorf("Channel kind state lost %q", want)
+	stateful := m.get("/queues?readers=none&state=active&sort=queued")
+	for _, want := range []string{`readers=none&amp;sort=queued&amp;state=inactive`, `return=%2fqueues%3fpage%3d1%26readers%3dnone%26sort%3dqueued%26state%3dactive`, `selected>Queued (high&ndash;low)</option>`} {
+		if !strings.Contains(stateful, want) {
+			t.Errorf("Queues state lost %q", want)
 		}
 	}
 
-	owner := m.get("/channel?name=news@h&return=%2Fchannels%3Freaders%3Dnone%26page%3D2")
-	if !strings.Contains(owner, `<title>PubSub news@h · agent-bus</title>`) || !strings.Contains(owner, `href="/channels?readers=none&amp;page=2"`) || !strings.Contains(owner, `id=settings`) {
+	owner := m.get("/pubsub/topic?name=news@h&return=%2Fpubsub%3Freaders%3Dnone%26page%3D2")
+	if !strings.Contains(owner, `<title>PubSub news@h · agent-bus</title>`) || !strings.Contains(owner, `href="/pubsub?readers=none&amp;page=2"`) || !strings.Contains(owner, `id=settings`) {
 		t.Error("owner Channel detail lost its title, exact return or daemon-authorized editor")
 	}
-	visitor := m.as("visitor@h").get("/channel?name=news@h")
+	visitor := m.as("visitor@h").get("/pubsub/topic?name=news@h")
 	if strings.Contains(visitor, `id=settings`) || !strings.Contains(visitor, "Queue &amp; counters") || !strings.Contains(visitor, "Deliver-To") {
 		t.Error("visitor Channel detail either offers the way to the editor or hides readable operational facts")
 	}
 	// And the form itself refuses, rather than only the link being absent:
 	// a page nobody linked to is still a page somebody can type in.
-	if _, status := getAs(t, m.as("visitor@h"), "/channel/edit?name=news@h"); status != http.StatusForbidden {
+	if _, status := getAs(t, m.as("visitor@h"), "/pubsub/topic/edit?name=news@h"); status != http.StatusForbidden {
 		t.Errorf("a visitor reached the settings form directly: %d", status)
 	}
 	// Both directions: after a deactivation /lookup answers unknown, so the
 	// section has to have been read before the change. An empty kind reads
 	// as a channel path, so the agent is the case that can tell.
 	for _, target := range []struct{ name, detail string }{
-		{"jobs@h", "/channel?name=jobs%40h"}, {"#worker@h", "/agent?name=%23worker%40h"},
+		{"jobs@h", "/queue?name=jobs%40h"}, {"#worker@h", "/agent?name=%23worker%40h"},
 	} {
 		for _, action := range []string{"deactivate", "reactivate"} {
 			if location, status := postAs(t, m, "/service", url.Values{"action": {action}, "name": {target.name}}); status != http.StatusSeeOther || location != target.detail {
@@ -130,24 +133,29 @@ func TestChannelJourneyNamesModesAndWorkWithoutServiceLanguage(t *testing.T) {
 		}
 	}
 	danger := m.get("/service-danger?name=jobs@h")
-	if !strings.Contains(danger, `href="/channel?name=jobs%40h"`) {
+	if !strings.Contains(danger, `href="/queue?name=jobs%40h"`) {
 		t.Error("Channel Danger Zone returns through the generic Service detail")
 	}
-	if location, status := postAs(t, m, "/service", url.Values{"action": {"create"}, "name": {"created@h"}, "kind": {protocol.KindQueue}, "allow": {"*"}}); status != http.StatusSeeOther || location != "/channel?name=created%40h" {
+	if location, status := postAs(t, m, "/service", url.Values{"action": {"create"}, "name": {"created@h"}, "kind": {protocol.KindQueue}, "allow": {"*"}}); status != http.StatusSeeOther || location != "/queue?name=created%40h" {
 		t.Fatalf("Channel registration returned to %q with %d, want its Channel detail", location, status)
 	}
 }
 
 func TestRecordListsDistinguishNoCategoryFromNoFilterMatches(t *testing.T) {
 	empty := meaningFixture(t)
-	channels := empty.get("/channels")
-	for _, want := range []string{"No channels yet", "A channel routes messages", `href=/channels/new>Register a channel</a>`} {
-		if !strings.Contains(channels, want) {
-			t.Errorf("empty Channels page lacks %q", want)
+	for path, wants := range map[string][]string{
+		"/queues": {"No queues yet", "A queue holds work", `href=/queues/new>Register a queue</a>`},
+		"/pubsub": {"No pub/sub topics yet", "A pub/sub topic copies", `href=/pubsub/new>Register a pub/sub topic</a>`},
+	} {
+		channels := empty.get(path)
+		for _, want := range wants {
+			if !strings.Contains(channels, want) {
+				t.Errorf("empty %s page lacks %q", path, want)
+			}
 		}
-	}
-	if strings.Contains(channels, "No records match these filters") || strings.Contains(channels, `<table class=record-table>`) {
-		t.Error("empty Channels category was rendered as a filtered empty table")
+		if strings.Contains(channels, "No records match these filters") || strings.Contains(channels, `<table class=record-table>`) {
+			t.Errorf("empty %s category was rendered as a filtered empty table", path)
+		}
 	}
 	services := empty.get("/services")
 	if !strings.Contains(services, "No services yet") || !strings.Contains(services, `href=/services/new>Register a service</a>`) {
@@ -159,9 +167,9 @@ func TestRecordListsDistinguishNoCategoryFromNoFilterMatches(t *testing.T) {
 	}
 
 	empty.register(protocol.Record{Name: "jobs@h", Owner: "admin@h", Kind: protocol.KindQueue})
-	filtered := empty.get("/channels?q=absent")
-	if !strings.Contains(filtered, "No records match these filters") || !strings.Contains(filtered, `href="/channels">clear filters</a>`) || strings.Contains(filtered, "No channels yet") {
-		t.Error("zero filter matches were not distinguished from an empty Channels category")
+	filtered := empty.get("/queues?q=absent")
+	if !strings.Contains(filtered, "No records match these filters") || !strings.Contains(filtered, `href="/queues">clear filters</a>`) || strings.Contains(filtered, "No queues yet") {
+		t.Error("zero filter matches were not distinguished from an empty Queues category")
 	}
 }
 

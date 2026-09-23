@@ -114,11 +114,11 @@ func TestPersonalIsOfferedOnEveryKindToItsOwner(t *testing.T) {
 	if _, err := p.bus.Manage("alice@h", core.Management{Name: "alice-q@h", Maintainers: &maintainers}); err != nil {
 		t.Fatal(err)
 	}
-	owner, _ := p.request("alice@h", "GET", "/channel/edit?name=alice-q@h", nil, 200)
+	owner, _ := p.request("alice@h", "GET", "/queue/edit?name=alice-q@h", nil, 200)
 	if !strings.Contains(owner, "<input type=hidden name=edit_personal value=1>") || !strings.Contains(owner, "<input type=checkbox name=personal  >") {
 		t.Fatalf("the queue's Owner is not offered Personal: %s", owner)
 	}
-	maintainer, _ := p.request("bob@h", "GET", "/channel/edit?name=alice-q@h", nil, 200)
+	maintainer, _ := p.request("bob@h", "GET", "/queue/edit?name=alice-q@h", nil, 200)
 	if strings.Contains(maintainer, "name=edit_personal") || !strings.Contains(maintainer, "<input type=checkbox name=personal disabled >") {
 		t.Fatalf("a Maintainer was offered Personal: %s", maintainer)
 	}
@@ -132,7 +132,7 @@ func TestPersonalIsOfferedOnEveryKindToItsOwner(t *testing.T) {
 	if r, _ := p.bus.Lookup("alice@h", "alice-q@h"); !r.Personal {
 		t.Fatal("the Owner's Personal choice was not saved")
 	}
-	channels, _ := p.request("alice@h", "GET", "/channels", nil, 200)
+	channels, _ := p.request("alice@h", "GET", "/queues", nil, 200)
 	personal, _ := p.request("alice@h", "GET", "/personal", nil, 200)
 	if strings.Contains(channels, `<code class=record-description>alice-q@h</code>`) || !strings.Contains(personal, `<code class=record-description>alice-q@h</code>`) {
 		t.Fatalf("a Personal queue is not on the Personal page alone: %s", personal)
@@ -142,7 +142,7 @@ func TestPersonalIsOfferedOnEveryKindToItsOwner(t *testing.T) {
 		t.Fatalf("the Personal page still calls itself agents: %s", personal)
 	}
 	if !strings.Contains(channels, `<a href="/personal" class="personal-view">Personal (1)</a>`) {
-		t.Fatalf("the Channels page offers no way to its Personal records: %s", channels)
+		t.Fatalf("the Queues page offers no way to its Personal records: %s", channels)
 	}
 }
 
@@ -158,7 +158,7 @@ func TestARouteSaysWhetherItIsUsableAndWhoIsChecked(t *testing.T) {
 	m.register(protocol.Record{Name: "#dest@h", Owner: "admin@h", Allow: []string{"#src@h"}})
 	m.register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "admin@h"})
 
-	none := section(t, m.get("/channel?name=jobs@h"), "<section class=\"dashboard-section route\" id=route>", "</section>")
+	none := section(t, m.get("/queue?name=jobs@h"), "<section class=\"dashboard-section route\" id=route>", "</section>")
 	if !strings.Contains(none, "No route.") || !strings.Contains(none, ">Set a route in the settings</a>") {
 		t.Fatalf("a queue without a route does not say so: %s", none)
 	}

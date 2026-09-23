@@ -64,7 +64,7 @@ func TestDangerZoneUsesFreshConfirmationAndResourceReturnPaths(t *testing.T) {
 		}
 		detailPath := "/agent"
 		if name == "jobs@h" {
-			detailPath = "/channel"
+			detailPath = "/queue"
 		}
 		if !strings.Contains(danger, detailPath+`?name=`+url.QueryEscape(name)) {
 			t.Fatalf("%s Danger Zone lost its return state", name)
@@ -105,14 +105,14 @@ func TestDangerZoneUsesFreshConfirmationAndResourceReturnPaths(t *testing.T) {
 	_, header := p.request("alice@h", "POST", "/service", url.Values{
 		"action": {"save"}, "name": {"jobs@h"}, "bound": {"0"}, "overflow": {"strict"},
 	}, http.StatusSeeOther)
-	if header.Get("Location") != "/channel?name=jobs%40h" {
+	if header.Get("Location") != "/queue?name=jobs%40h" {
 		t.Fatalf("routine channel edit returned to %q", header.Get("Location"))
 	}
 	_, header = p.request("alice@h", "POST", "/service", url.Values{
 		"action": {"delete"}, "name": {"jobs@h"}, "confirmed": {"1"},
 		"expected_owner": {"alice@h"}, "expected_queued": {"0"}, "expected_readers": {"0"},
 	}, http.StatusSeeOther)
-	if header.Get("Location") != "/channels" {
+	if header.Get("Location") != "/queues" {
 		t.Fatalf("removed channel returned to %q", header.Get("Location"))
 	}
 
@@ -197,7 +197,7 @@ func TestDangerZoneUsesFreshConfirmationAndResourceReturnPaths(t *testing.T) {
 		name, want string
 	}{
 		{"#handoff@h", "/agents"},
-		{"handoff-channel@h", "/channels"},
+		{"handoff-channel@h", "/queues"},
 	} {
 		_, header = p.request("alice@h", "POST", "/service", url.Values{
 			"action": {"transfer"}, "name": {handoff.name}, "owner": {"bob@h"},

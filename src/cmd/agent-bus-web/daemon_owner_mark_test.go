@@ -25,13 +25,13 @@ func TestTheDaemonOwnerIsMarkedWhereARowWouldOtherwiseSayUser(t *testing.T) {
 	user := display.Entity(protocol.KindUser)
 
 	// A person's own inbox is Personal, so it is on no shared listing: the
-	// Channels page does not show it (docs/03-records.md#personal-and-shared).
+	// Queues page does not show it (docs/03-records.md#personal-and-shared).
 	// Asked of other@h: the signed-in owner's name is in every page header.
-	if channels := m.get("/channels"); strings.Contains(channels, "other@h") {
-		t.Errorf("a user's own record is on the shared Channels page")
+	if queues := m.get("/queues"); strings.Contains(queues, "other@h") {
+		t.Errorf("a user's own record is on the shared Queues page")
 	}
 	// The detail page behind a user's record still names the authority.
-	detail := m.get("/channel?name=admin%40h")
+	detail := m.get("/queue?name=admin%40h")
 	if !strings.Contains(detail, "<span class=fact-pill>"+owned+"</span>") {
 		t.Errorf("the daemon owner's record page does not name the authority: %s", section(t, detail, "<div class=detail-meta>", "</div>"))
 	}
@@ -74,37 +74,4 @@ func row(t *testing.T, page, name string) string {
 	}
 	t.Fatalf("no row names %s in %s", name, page)
 	return ""
-}
-
-// The Channels page lists the two channel kinds, so its Kind switch is what
-// tells them apart; a user's record is Personal and is neither listed nor
-// offered (docs/03-records.md#personal-and-shared).
-func TestTheChannelsKindSwitchSelectsByKind(t *testing.T) {
-	m := meaningFixture(t)
-	for _, record := range []protocol.Record{
-		{Name: "work@h", Owner: "admin@h", Kind: protocol.KindQueue},
-		{Name: "shout@h", Owner: "admin@h", Kind: protocol.KindPubSub},
-	} {
-		m.register(record)
-	}
-	all := m.get("/channels")
-	for _, kind := range []string{protocol.KindQueue, protocol.KindPubSub} {
-		if !strings.Contains(all, `href="/channels?kind=`+kind+`"`) {
-			t.Errorf("the Kind switch does not offer %s: %s", kind, section(t, all, `aria-label="Kind filter"`, "</nav>"))
-		}
-	}
-	if strings.Contains(all, `href="/channels?kind=`+protocol.KindUser+`"`) {
-		t.Error("the Kind switch offers users, whose records are not listed here")
-	}
-	for kind, kept := range map[string]string{protocol.KindQueue: "work@h", protocol.KindPubSub: "shout@h"} {
-		page := m.get("/channels?kind=" + kind)
-		if !strings.Contains(page, kept) {
-			t.Errorf("Kind %s lost %s: %s", kind, kept, page)
-		}
-		for other, name := range map[string]string{protocol.KindQueue: "work@h", protocol.KindPubSub: "shout@h"} {
-			if other != kind && strings.Contains(page, `>`+name+`</code>`) {
-				t.Errorf("Kind %s also returned the %s record %s", kind, other, name)
-			}
-		}
-	}
 }

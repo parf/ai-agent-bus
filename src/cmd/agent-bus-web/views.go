@@ -28,7 +28,6 @@ import (
 // result. The adjacent h1 text names the page, so every mark is decorative.
 func titleMark(category string) template.HTML {
 	const (
-		channel     = `<svg class=page-title-mark width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8h5l7-4v16l-7-4H4Z" fill="#3d718e" stroke="#172b3a" stroke-width="1.5"/><path d="M18 8c2 2 2 6 0 8" fill="none" stroke="#e83b32" stroke-width="2" stroke-linecap="round"/></svg>`
 		activity    = `<svg class=page-title-mark width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 20V4M3 20h18" fill="none" stroke="#172b3a" stroke-width="1.5"/><path d="m5 16 4-5 4 2 6-7" fill="none" stroke="#2255aa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 		diagnostics = `<svg class=page-title-mark width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="6" fill="none" stroke="#3d718e" stroke-width="2"/><path d="m15 15 6 6" stroke="#172b3a" stroke-width="2.5" stroke-linecap="round"/><path d="M7 10h6M10 7v6" stroke="#e83b32" stroke-width="1.5"/></svg>`
 		problem     = `<svg class=page-title-mark width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 22 21H2Z" fill="#ffdf83" stroke="#b00" stroke-width="1.5"/><path d="M12 8v6m0 3v.2" stroke="#172b3a" stroke-width="2" stroke-linecap="round"/></svg>`
@@ -41,19 +40,23 @@ func titleMark(category string) template.HTML {
 	case "credentials":
 		return `<span class=page-title-mark aria-hidden=true>🔑</span>`
 	case "agent", "agents", "personal":
-		return `<span class=page-title-mark aria-hidden=true>👾</span>`
-	case "channels", protocol.KindQueue, protocol.KindPubSub:
-		return channel
+		return entityMark(protocol.KindAgent)
+	// Each channel kind is a section of its own and carries its kind's own
+	// glyph, the one its rows carry (docs/05-discovery.md#what-it-shows).
+	case "queues", protocol.KindQueue:
+		return entityMark(protocol.KindQueue)
+	case protocol.KindPubSub: // the section and the kind share one word
+		return entityMark(protocol.KindPubSub)
 	case "activity":
 		return activity
 	case "services", protocol.KindService:
 		// The same mark the rows carry: a title that said something else about
 		// the record under it would be the page disagreeing with its own table.
-		return `<span class=page-title-mark aria-hidden=true>📡</span>`
+		return entityMark(protocol.KindService)
 	case "users", "user":
-		return `<span class=page-title-mark aria-hidden=true>👤</span>`
-	case "groups":
-		return `<span class=page-title-mark aria-hidden=true>👥</span>`
+		return entityMark(protocol.KindUser)
+	case "groups", protocol.KindGroup:
+		return entityMark(protocol.KindGroup)
 	case "identity":
 		return `<span class=page-title-mark aria-hidden=true>🪪</span>`
 	case "diagnostics":
@@ -63,6 +66,13 @@ func titleMark(category string) template.HTML {
 	default:
 		return `<span class=page-title-mark aria-hidden=true>⚙️</span>`
 	}
+}
+
+// entityMark is an entity's display glyph as a decorative title mark. The
+// glyph is display's, so a section, its navigation entry and its rows cannot
+// disagree about what marks the entity.
+func entityMark(kind string) template.HTML {
+	return template.HTML(`<span class=page-title-mark aria-hidden=true>` + display.EntityGlyph(kind) + `</span>`)
 }
 
 func readerCount(readers *int) string {
@@ -165,14 +175,19 @@ func identityKind(kind, name, daemonOwner string) string {
 	return display.Identity(kind, name != "" && name == daemonOwner)
 }
 
-// channelRecord reports whether a record belongs with the channels rather than
-// the services. Four of the five kinds are names on this bus that something is
-// delivered to; only a service is external, and it is the one thing nothing is
-// served from here.
+// channelRecord reports whether a record is a channel: a queue, a pub/sub
+// topic, or a user's own inbox. Only a service is external, an agent is
+// listed on its own, and a group delivers nothing.
 // See docs/03-records.md#record-kinds.
 func channelRecord(kind string) bool {
 	return kind != protocol.KindService && kind != protocol.KindAgent && kind != protocol.KindGroup
 }
+
+// queueRecord and pubsubRecord split the channels into their two sections. A
+// user's own record is the user's inbox, which is a queue: it holds work for
+// one reader.
+func queueRecord(kind string) bool  { return kind == protocol.KindQueue || kind == protocol.KindUser }
+func pubsubRecord(kind string) bool { return kind == protocol.KindPubSub }
 
 // agentRecord reports whether a record belongs on the agents page. An agent is
 // the thing this bus exists to carry messages between, so it is listed first
@@ -180,15 +195,20 @@ func channelRecord(kind string) bool {
 // services it calls.
 func agentRecord(kind string) bool { return kind == protocol.KindAgent }
 
-// detailPathFor and listPathFor are the one place a kind becomes a URL. Three
-// listings, one per thing a record can be: an agent on this bus, an external
-// service, or a channel something is delivered through.
+// detailPathFor and listPathFor are the one place a kind becomes a URL. One
+// section per entity: an agent on this bus, an external service, a queue, a
+// pub/sub topic and a group. The old combined /channels and /channel stay as
+// aliases so bookmarks keep working.
 func detailPathFor(kind string) string {
 	switch {
 	case agentRecord(kind):
 		return "/agent"
-	case channelRecord(kind):
-		return "/channel"
+	case queueRecord(kind):
+		return "/queue"
+	case pubsubRecord(kind):
+		return "/pubsub/topic"
+	case kind == protocol.KindGroup:
+		return "/group"
 	default:
 		return "/service"
 	}
@@ -198,7 +218,7 @@ func detailPathFor(kind string) string {
 // excluded from /agents, so a Back link or a post-removal redirect that went
 // there would name a listing which cannot show the record it came from.
 func listPathForRecord(kind string, personal bool) string {
-	if personal && kind != protocol.KindUser {
+	if personal && kind != protocol.KindUser && kind != protocol.KindGroup {
 		return "/personal"
 	}
 	return listPathFor(kind)
@@ -208,8 +228,12 @@ func listPathFor(kind string) string {
 	switch {
 	case agentRecord(kind):
 		return "/agents"
-	case channelRecord(kind):
-		return "/channels"
+	case queueRecord(kind):
+		return "/queues"
+	case pubsubRecord(kind):
+		return "/pubsub"
+	case kind == protocol.KindGroup:
+		return "/groups"
 	default:
 		return "/services"
 	}
@@ -284,10 +308,8 @@ type kindTotal struct {
 	Count int
 }
 
-// kindTotals names the four things a record can be, in the order the navigation
-// lists them, and gives each its own node-wide count. A queue and a pub/sub
-// topic are both channels here, which is the only place the four differ from
-// the five kinds (docs/03-records.md#record-kinds).
+// kindTotals names the six entities, in the order the navigation lists them,
+// and gives each its own node-wide count (docs/03-records.md#record-kinds).
 //
 // A daemon that stated no kinds gets nothing rather than four zeros: the strip
 // would otherwise read as an empty node beside a total that says eleven.
@@ -298,7 +320,8 @@ func kindTotals(kinds map[string]int) []kindTotal {
 	return []kindTotal{
 		{"Agents", kinds[protocol.KindAgent]},
 		{"Services", kinds[protocol.KindService]},
-		{"Channels", kinds[protocol.KindQueue] + kinds[protocol.KindPubSub]},
+		{"Queues", kinds[protocol.KindQueue]},
+		{"PubSub", kinds[protocol.KindPubSub]},
 		{"Users", kinds[protocol.KindUser]},
 		{"Groups", kinds[protocol.KindGroup]},
 	}

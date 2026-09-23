@@ -66,7 +66,7 @@ func TestRequiredDashboardTabs(t *testing.T) {
 		}
 		return string(body)
 	}
-	for _, path := range []string{"/services", "/personal", "/channels", "/users", "/groups", "/activity"} {
+	for _, path := range []string{"/services", "/personal", "/queues", "/pubsub", "/users", "/groups", "/activity"} {
 		request(path, nil, 200)
 	}
 	request("/user", url.Values{"action": {"create"}, "name": {"alice@h"}, "person_name": {"Alice"}, "email": {"ALICE@example.com"}}, 303)
@@ -152,7 +152,7 @@ func TestRequiredDashboardTabs(t *testing.T) {
 	if len(rec.Subs) != 1 || rec.Subs[0] != "#admin-box@h" {
 		t.Fatal("the Deliver-To editor did not write the list")
 	}
-	if body := request("/channels", nil, 200); !strings.Contains(body, "news@h") {
+	if body := request("/pubsub", nil, 200); !strings.Contains(body, "news@h") {
 		t.Fatal("channel missing")
 	}
 	if body := request("/service?name=news@h", nil, 200); !strings.Contains(body, "value=remove-subscriber") {

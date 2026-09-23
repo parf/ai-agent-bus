@@ -15,7 +15,7 @@ rules all of them obey.
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
 | Never echo a secret | Not a token, not private configuration, not a service secret. The configuration and secret fields are always empty and `autocomplete=off`, including after a refusal |
 | A multi-line value is the bytes that were typed | A browser submits a textarea with CRLF whatever the page was served with. Where the daemon stores bytes as sent — a [service secret](../../../docs/06-services.md#secrets) — the face normalises them back, or a two-line credential is stored with a carriage return nobody typed |
-| A form asks only what its kind has | A 👾 and a 📮 hold an inbox, so they declare its TTL, capacity and overflow; a 📣 keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#subscribers) instead; a 📡 has no queue here and holds the one [secret](../../../docs/06-services.md#secrets) the daemon stores. `/channels/new` therefore has no fields of its own: the section offers two forms and the page without a kind links to both |
+| A form asks only what its kind has | A 👾 and a 📮 hold an inbox, so they declare its TTL, capacity and overflow; a 📣 keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#subscribers) instead; a 📡 has no queue here and holds the one [secret](../../../docs/06-services.md#secrets) the daemon stores. From 0.8.4 each is a section of its own: `/queues/new` and `/pubsub/new`, and the old `/channels/new` redirects to the one its kind names |
 | Success returns to what changed | The section that changed, with a specific result. Service and Channel registration and ordinary edits return to the affected resource; removal returns to the matching collection ([C06](review/codex.md#junk-and-misleading-content)) |
 | Only offer transitions that apply | Built in 0.5.79: active offers Pause/Ban, paused offers Activate/Ban and banned offers Activate only when daemon-returned authority permits it |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
@@ -86,14 +86,14 @@ the world moved between the question and the answer.
 |---|---|---|---|
 | Sign in | Sign in | token; validated local return | the page asked for |
 | Sign out | shell | — | root |
-| Filter a list | Agents, Services, Channels, Users, Activity | GET only; search, view, state, kind, sort, page | the same list, filters in the URL |
+| Filter a list | Agents, Services, Queues, PubSub, Users, Activity | GET only; search, view, state, sort, page | the same list, filters in the URL |
 | Register a 👾 agent | `/agents/new` | *the agent field set* | the new agent's page |
 | Edit a 👾 agent | `/agent/edit?name=` | *the same set, filled in* | its page |
 | Register a 📡 service | `/services/new` | *the service field set* | the new service's page |
 | Edit a 📡 service | `/service/edit?name=` | *the same set, filled in* | its page |
-| Register a 📮 queue | `/channels/new?kind=queue` | *the queue field set* | the new queue's page |
-| Register a 📣 topic | `/channels/new?kind=pubsub` | *the pub/sub field set* | the new topic's page |
-| Edit a 📮 or 📣 | `/channel/edit?name=` | *the same set, filled in* | its page |
+| Register a 📮 queue | `/queues/new` | *the queue field set* | the new queue's page |
+| Register a 📣 topic | `/pubsub/new` | *the pub/sub field set* | the new topic's page |
+| Edit a 📮 / 📣 | `/queue/edit?name=` / `/pubsub/topic/edit?name=` | *the same set, filled in* | its page |
 
 The field set, per kind. Name is asked once and never changes, so Edit carries
 it without offering it. Personal and Maintainers are disabled unless the caller
