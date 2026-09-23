@@ -33,27 +33,27 @@ var (
 	// ErrStaleCredential is a credential whose User/Agent pair is not who
 	// the name is now: refused as if it did not exist.
 	ErrStaleCredential = errors.New("that credential no longer answers for that name")
-	ErrDisabled    = errors.New("delivery to that name is turned off")
-	ErrUnknown     = errors.New("no such name")
-	ErrTwoReads    = errors.New("inbox already has a reader, and neither asked to share it")
-	ErrBadName     = errors.New("bad name")
-	ErrReceipt     = errors.New(`a receipt is "ack" or "done"`)
-	ErrFull        = errors.New("the receiver's queue is full")
-	ErrOverflow    = errors.New("overflow is strict or ring")
-	ErrKind        = errors.New("unknown record kind")
-	ErrConfig      = errors.New("a configuration is JSON")
-	ErrTTL         = errors.New("a ttl is a duration, like 30s")
-	ErrWait        = errors.New("a wait is a duration, like 30s")
-	ErrBound       = errors.New("a bound is a positive number of messages")
-	ErrNotOwner    = errors.New("that record belongs to someone else")
-	ErrExists      = errors.New("that name is already registered")
-	ErrBusy        = errors.New("cannot unregister a busy inbox")
-	ErrPrivate     = errors.New("a configuration is private to the record it belongs to")
-	ErrSecret      = errors.New("a secret is stored on an agent, a service or a group and on no other kind")
-	ErrNoSecret    = errors.New("that service holds no secret")
-	ErrNotAllow    = errors.New("not on that record's allow list")
-	ErrPersonal    = errors.New("a personal record's allow and maintainers name only its owner and the owner's agents")
-	ErrEnrol       = errors.New("enrolment")
+	ErrDisabled        = errors.New("delivery to that name is turned off")
+	ErrUnknown         = errors.New("no such name")
+	ErrTwoReads        = errors.New("inbox already has a reader, and neither asked to share it")
+	ErrBadName         = errors.New("bad name")
+	ErrReceipt         = errors.New(`a receipt is "ack" or "done"`)
+	ErrFull            = errors.New("the receiver's queue is full")
+	ErrOverflow        = errors.New("overflow is strict or ring")
+	ErrKind            = errors.New("unknown record kind")
+	ErrConfig          = errors.New("a configuration is JSON")
+	ErrTTL             = errors.New("a ttl is a duration, like 30s")
+	ErrWait            = errors.New("a wait is a duration, like 30s")
+	ErrBound           = errors.New("a bound is a positive number of messages")
+	ErrNotOwner        = errors.New("that record belongs to someone else")
+	ErrExists          = errors.New("that name is already registered")
+	ErrBusy            = errors.New("cannot unregister a busy inbox")
+	ErrPrivate         = errors.New("a configuration is private to the record it belongs to")
+	ErrSecret          = errors.New("a secret is stored on an agent, a service or a group and on no other kind")
+	ErrNoSecret        = errors.New("that service holds no secret")
+	ErrNotAllow        = errors.New("not on that record's allow list")
+	ErrPersonal        = errors.New("a personal record's allow and maintainers name only its owner and the owner's agents")
+	ErrEnrol           = errors.New("enrolment")
 	// A group is retired by emptying its membership
 	// (docs/01-identity-and-roles.md#groups), so there is no removal to
 	// ask for. A request that asks anyway is refused rather than read as a
@@ -122,7 +122,7 @@ type Bus struct {
 	recordByID               map[uint32]string
 	userByID                 map[uint32]string
 	idsExhausted             bool
-	accounts map[string]string
+	accounts                 map[string]string
 	// activeAccounts is what the supervisor actually opened for this run.
 	// accounts may move ahead after a durable administrative edit; the
 	// difference is the precise "restart required" fact returned to callers.
@@ -140,7 +140,6 @@ type Bus struct {
 	// authority before serving anything.
 	ownerRestored   bool
 	ownerRestoreErr error
-
 
 	// How many calls were refused, and for what. Counted because a bus that
 	// is quiet and one that is refusing everything look identical from

@@ -100,7 +100,10 @@ func administrativeChanges() []durableChange {
 		}},
 		{"unsubscribe", func(b *Bus) error { _, e := b.Subscribe("#bob-box@h", "topic@h", false); return e }, unsubscribed},
 		{"remove-subscriber", func(b *Bus) error { _, e := b.RemoveSubscriber("alice@h", "topic@h", "#bob-box@h"); return e }, unsubscribed},
-		{"configure", func(b *Bus) error { _, e := b.Configure("#svc@h", "alice@h", json.RawMessage(`{"new":true}`)); return e }, func(t *testing.T, b *Bus) {
+		{"configure", func(b *Bus) error {
+			_, e := b.Configure("#svc@h", "alice@h", json.RawMessage(`{"new":true}`))
+			return e
+		}, func(t *testing.T, b *Bus) {
 			v, e := b.Config("#svc@h", "#svc@h")
 			if e != nil || string(v) != `{"new":true}` {
 				t.Fatal("acknowledged configuration was not recovered")

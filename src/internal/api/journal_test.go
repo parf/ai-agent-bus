@@ -21,12 +21,17 @@ type recorder struct {
 	debug    bool
 }
 
-func (r *recorder) Audit(e ports.AuditEntry) { r.mu.Lock(); r.audit = append(r.audit, e); r.mu.Unlock() }
+func (r *recorder) Audit(e ports.AuditEntry) {
+	r.mu.Lock()
+	r.audit = append(r.audit, e)
+	r.mu.Unlock()
+}
 func (r *recorder) Report(s ports.Severity, m string) {
 	r.mu.Lock()
 	r.reports = append(r.reports, s.String()+" "+m)
 	r.mu.Unlock()
 }
+
 // Request keeps every line it is handed, on or off: whether the API asks
 // while the log is off is what the tests check.
 func (r *recorder) Request(l ports.RequestLine) {
@@ -35,7 +40,7 @@ func (r *recorder) Request(l ports.RequestLine) {
 	r.requests = append(r.requests, l)
 }
 func (r *recorder) SetDebug(on bool) error { r.mu.Lock(); r.debug = on; r.mu.Unlock(); return nil }
-func (r *recorder) DebugOn() bool         { r.mu.Lock(); defer r.mu.Unlock(); return r.debug }
+func (r *recorder) DebugOn() bool          { r.mu.Lock(); defer r.mu.Unlock(); return r.debug }
 
 func journalFixture(t *testing.T) (*Server, func(string) string, *recorder) {
 	t.Helper()

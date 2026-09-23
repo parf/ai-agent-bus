@@ -31,7 +31,7 @@ func TestOwnerlessIsNoRecordAndNoUser(t *testing.T) {
 
 	got := b.Ownerless([]string{
 		"owner@h",  // the daemon owner: a profile, written by Administrator
-		"#svc@h",    // a record of its own
+		"#svc@h",   // a record of its own
 		"person@h", // a registered user
 		"banned@h", // a banned one is still registered
 		"junk@h",   // neither

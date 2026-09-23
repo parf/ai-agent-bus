@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 	"github.com/parf/ai-agent-bus/internal/ports"
+	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 )
 
 func TestBusChildRetainsEnvironment(t *testing.T) {

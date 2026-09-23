@@ -36,14 +36,14 @@ const (
 
 type config struct {
 	addr, sock, owner, db string
-	logDir                 string
-	debugLog               bool
-	create, init           bool
-	dash                   string
-	every                  time.Duration
-	users                            accounts
-	vouch                            values
-	web                              bool
+	logDir                string
+	debugLog              bool
+	create, init          bool
+	dash                  string
+	every                 time.Duration
+	users                 accounts
+	vouch                 values
+	web                   bool
 }
 
 func main() {

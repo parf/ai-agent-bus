@@ -16,8 +16,8 @@ import (
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/core"
-	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/store/sqlite"
 )
 
 const (

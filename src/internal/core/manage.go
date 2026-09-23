@@ -248,6 +248,7 @@ func (b *Bus) memberThrough(caller, group string, seen map[string]bool) bool {
 	}
 	return false
 }
+
 // groupName says whether n is a Group's name: "@" and then a name by the
 // ordinary rules, realm included (docs/constitution.md#common-record-fields),
 // lowercase as written and within the one bound on every name.

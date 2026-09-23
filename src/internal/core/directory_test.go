@@ -34,7 +34,7 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 		for name, kind := range map[string]string{
 			"owner@h": protocol.DirectoryUser, "maintainer@h": protocol.DirectoryUser,
 			"smoke/person@h": protocol.DirectoryUser, "paused@h": protocol.DirectoryUser,
-			"banned@h": protocol.DirectoryUser,
+			"banned@h":     protocol.DirectoryUser,
 			"unprofiled@h": protocol.DirectoryCredential, "#unused@h": protocol.DirectoryCredential,
 		} {
 			u, ok := got[name]

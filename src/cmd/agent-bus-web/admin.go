@@ -145,28 +145,28 @@ type adminView struct {
 	// Editing says which side of the one record form this render is: the
 	// settings page rather than the registration page. They ask the same
 	// questions; see recordform.go.
-	Editing         bool
-	Mine, State     string
-	Query, Kind     string
-	Readers         string
-	Work            string
-	Sort            string
-	OwnerFilter     string
-	Current         string
-	Return          string
-	Previous        string
-	Next            string
-	ClearFilters    string
-	Matched         int
-	CategoryTotal   int
-	Start           int
-	End             int
-	HasFilters      bool
-	Owners          []string
-	Channels        bool
-	Agents          bool
-	Services        bool
-	PersonalPage    bool
+	Editing       bool
+	Mine, State   string
+	Query, Kind   string
+	Readers       string
+	Work          string
+	Sort          string
+	OwnerFilter   string
+	Current       string
+	Return        string
+	Previous      string
+	Next          string
+	ClearFilters  string
+	Matched       int
+	CategoryTotal int
+	Start         int
+	End           int
+	HasFilters    bool
+	Owners        []string
+	Channels      bool
+	Agents        bool
+	Services      bool
+	PersonalPage  bool
 	// NewKind is the kind a registration page is registering, empty on the
 	// page that asks which. The fields differ by kind rather than by section:
 	// a queue declares TTL, capacity and overflow, and a pub/sub topic holds
@@ -1457,6 +1457,7 @@ var groupDetail = template.Must(template.New("group-detail").Funcs(template.Func
 {{if .CanEditGroup}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}</div>
 <p><a id=members-edit class=editor-link href="/group/edit?name={{urlquery .GroupName}}">Edit members</a></p></section>{{else}}<section class="editor-card compact-card"><h2>Members</h2><div class=member-list>{{if not .Administrator}}<span class=muted>Membership is not visible to you.</span>{{else}}{{range .GroupMembers}}<code class=member-line>{{.}}</code>{{else}}<span class=muted>No members</span>{{end}}{{end}}</div>{{if eq .GroupName "@administrators"}}<p class=muted>Only the daemon owner changes this protected group.</p>{{else}}<p class=muted>Daemon administrators manage this group.</p>{{end}}</section>{{end}}
 <section class=dashboard-section><h2>Used by visible records</h2>{{if .GroupReferences}}<table><thead><tr><th scope=col>Record</th><th scope=col>Kind</th><th scope=col>Uses this group</th></tr></thead><tbody>{{range .GroupReferences}}<tr><td><a href="{{recordKindPath .Name .Kind}}"><code>{{.Name}}</code></a></td><td>{{entityLabel .Kind}}</td><td>{{range $i,$use := .Uses}}{{if $i}} · {{end}}{{$use}}{{end}}</td></tr>{{end}}</tbody></table>{{else}}<p class=muted>No caller-visible record refers to this group.</p>{{end}}</section>`))
+
 // A group has one form, and registering one and changing its membership are
 // the same form. The two used to be separate markup and had already drifted
 // in what they said about `@owner` and in how much of the list they showed.
