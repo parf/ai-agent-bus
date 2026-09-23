@@ -164,6 +164,9 @@ collections show shared records only.
 their caller-visible totals. Users and Groups show their visible directory
 totals. These are counts computed from the page's existing daemon answers, not
 node-wide metrics and not additional reads.
+From 0.8.9 a shared list that is empty only because its records of that kind are
+Personal says how many are under the **Personal** tab and links there, rather
+than claiming there are none; which records each tab holds is unchanged.
 
 **Built in 0.5.79.** The signed-in identity links to Account outside the section
 row. Account shows its optional user profile or own record, caller-visible owned
