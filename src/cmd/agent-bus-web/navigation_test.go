@@ -293,7 +293,7 @@ func TestSectionNavigationCountsOnlyCallerVisibleCategories(t *testing.T) {
 	for _, want := range []string{
 		`href="/agents?state=inactive" class="">All (3)</a>`,
 		`href="/agents?scope=my&amp;state=inactive" aria-current=true class="my-view">My (2)</a>`,
-		`href="/personal?state=inactive" class="personal-view">Personal (1)</a>`,
+		`href="/personal?kind=agent&amp;state=inactive" class="personal-view">Personal (1)</a>`,
 		`href="/agents/new" class="">Register agent</a>`,
 		`href="/agents?scope=my">All</a>`,
 		`href="/agents?scope=my&amp;state=active">Active</a>`,

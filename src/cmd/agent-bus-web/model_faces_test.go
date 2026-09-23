@@ -141,7 +141,7 @@ func TestPersonalIsOfferedOnEveryKindToItsOwner(t *testing.T) {
 	if !strings.Contains(personal, "</span> Personal</h1>") || strings.Contains(personal, "Personal agents") {
 		t.Fatalf("the Personal page still calls itself agents: %s", personal)
 	}
-	if !strings.Contains(channels, `<a href="/personal" class="personal-view">Personal (1)</a>`) {
+	if !strings.Contains(channels, `<a href="/personal?kind=queue" class="personal-view">Personal (1)</a>`) {
 		t.Fatalf("the Queues page offers no way to its Personal records: %s", channels)
 	}
 }

@@ -64,7 +64,7 @@ func TestEmptySharedListPointsToItsPersonalRecords(t *testing.T) {
 		t.Fatal("the Agents page claims no agents while two Personal ones exist")
 	}
 	if !strings.Contains(agents, `<section class="empty-state editor-card personal-elsewhere"><h2>No shared agents</h2>`) ||
-		!strings.Contains(agents, `<p>2 Personal agents are under the <a class=personal-view href=/personal>Personal</a> tab, which this list omits.</p>`) {
+		!strings.Contains(agents, `<p>2 Personal agents are under the <a class=personal-view href="/personal?kind=agent">Personal</a> tab, which this list omits.</p>`) {
 		t.Fatalf("the empty Agents page does not point to its Personal agents: %s", agents)
 	}
 	if strings.Contains(agents, `class=record-name href="/agent?name=%23bob-one`) {
@@ -150,5 +150,40 @@ func TestServedStylesheetCarriesTheLayoutFixes(t *testing.T) {
 	groups, _ := p.request("admin@h", "GET", "/groups", nil, 200)
 	if !strings.Contains(groups, `<a href="/groups" aria-current=true>All (`) {
 		t.Error("the Groups tab is not named All, as every other section's is")
+	}
+}
+
+// A section's Personal tab counts that section's kind and opens the Personal
+// page narrowed to it; the Personal page itself filters by kind.
+func TestPersonalTabCountsItsOwnKind(t *testing.T) {
+	p := reviewFixture(t)
+	for _, r := range []protocol.Record{
+		{Kind: protocol.KindAgent, Name: "#mine-a@h", Owner: "bob@h", Allow: []string{"@owner"}, Personal: true},
+		{Kind: protocol.KindAgent, Name: "#mine-b@h", Owner: "bob@h", Allow: []string{"@owner"}, Personal: true},
+		{Kind: protocol.KindQueue, Name: "mine-q@h", Owner: "bob@h", Allow: []string{"@owner"}, Personal: true},
+	} {
+		if _, err := p.bus.Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for path, want := range map[string]string{
+		"/services": `<a href="/personal?kind=service" class="personal-view">Personal (0)</a>`,
+		"/queues":   `<a href="/personal?kind=queue" class="personal-view">Personal (1)</a>`,
+		"/pubsub":   `<a href="/personal?kind=pubsub" class="personal-view">Personal (0)</a>`,
+		"/agents":   `<a href="/personal?kind=agent" class="personal-view">Personal (2)</a>`,
+		"/personal": `<a href="/personal" aria-current=true class="personal-view">Personal (3)</a>`,
+	} {
+		if page, _ := p.request("bob@h", "GET", path, nil, 200); !strings.Contains(page, want) {
+			t.Errorf("%s: no %s", path, want)
+		}
+	}
+	queues, _ := p.request("bob@h", "GET", "/personal?kind=queue", nil, 200)
+	if !strings.Contains(queues, `class=record-name href="/queue?name=mine-q%40h`) || strings.Contains(queues, `href="/agent?name=%23mine-a`) {
+		t.Errorf("/personal?kind=queue is not narrowed to queues: %s", queues)
+	}
+	if !strings.Contains(queues, `<a href="/personal?kind=queue" aria-current=true class="personal-view">Personal (1)</a>`) ||
+		!strings.Contains(queues, `<nav class=filter-nav aria-label="Kind filter"><span>Kind</span>`) ||
+		!strings.Contains(queues, `aria-current=true>📮 Queue</a>`) {
+		t.Errorf("the narrowed Personal page does not say which kind it shows: %s", queues)
 	}
 }

@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.10 — 2026-09-23
+
+A section's Personal tab counts its own kind and opens `/personal?kind=…`;
+old `/channel` addresses redirect to the record's section.
+
 ## 0.8.9 — 2026-09-23
 
 Web page review: the section navigation wraps on a phone, an empty shared list

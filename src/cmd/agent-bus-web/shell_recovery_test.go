@@ -318,7 +318,7 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		{"/queue?name=channel@h", "<a href=/queues aria-current=page>", ""},
 		{"/queue?name=other-channel@h", "<a href=/queues aria-current=page>", ""},
 		// The old combined address is the same page.
-		{"/channel?name=channel@h", "<a href=/queues aria-current=page>", "Queue channel@h · agent-bus"},
+		{"/queue?name=channel@h", "<a href=/queues aria-current=page>", "Queue channel@h · agent-bus"},
 		{"/service-danger?name=service@h", "<a href=/services aria-current=page>", ""},
 		{"/service-danger?name=second@h", "<a href=/services aria-current=page>", ""},
 		{"/service-danger?name=%23agent@h", "<a href=/agents aria-current=page>", ""},

@@ -134,8 +134,12 @@ try {
     JSON.stringify(back),
   );
 
-  const missing = await call("ab_send", { to: peer });
-  check("ab_send without a body is refused, not sent empty", missing.isError, missing.text);
+  // The face's own refusal, before any call: the daemon would refuse an
+  // empty body too, so an error alone does not show the face checked it.
+  const missing = await call("ab_send", { to: peerName });
+  check("ab_send without a body is refused, not sent empty",
+    missing.isError && missing.text.includes("text is required"), missing.text);
+  check("and nothing reached the peer", (await peer.consume({ wait: "0s" })) === null, "");
 
   const bogus = await call("ab_reply", { message_id: "deadbeef", text: "x" });
   check("ab_reply refuses an id it did not consume", bogus.isError, bogus.text);

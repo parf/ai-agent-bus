@@ -1,7 +1,7 @@
 # Web face site map
 
 📌 **TL;DR:** Every address the admin web face (`agent-bus-web`, port 6780)
-answers, what each page is for and where it links, as built in 0.8.9. It owns
+answers, what each page is for and where it links, as built in 0.8.10. It owns
 the route map only: what a page shows is owned by
 [pages](../../Plans/MVP/web/pages.md#pages), its fields by
 [forms](../../Plans/MVP/web/forms.md#the-set), and the contract by
@@ -24,8 +24,8 @@ Signed out, every address leads to the sign-in page. Signed in, every page has:
 | Address | Page | Links to |
 |---|---|---|
 | `/` | Signed out: sign in with a token. Signed in: [Overview](../../Plans/MVP/web/pages.md#overview-): attention items, the node strip (eight tiles, one per record kind, readers and calls) and a Find row | Find: agents and queues holding work (`?sort=queued&work=held`), `/services` |
-| `/agents` · `/services` · `/queues` · `/pubsub` | [One kind's records](../../Plans/MVP/web/pages.md#agents-agents--services-services--queues-queues--pubsub-pubsub): search, Status, Readers and Queue filters, Sort. All and My omit Personal records; an empty shared list says how many Personal ones the Personal tab holds | Tabs All · My (`?scope=my`) · Personal (`/personal`) · Register; each row → its record page |
-| `/personal` | Personal records of every kind, for each owner you may act for, with the same toolbar | Owner chooser; rows → record pages |
+| `/agents` · `/services` · `/queues` · `/pubsub` | [One kind's records](../../Plans/MVP/web/pages.md#agents-agents--services-services--queues-queues--pubsub-pubsub): search, Status, Readers and Queue filters, Sort. All and My omit Personal records; an empty shared list says how many Personal ones the Personal tab holds | Tabs All · My (`?scope=my`) · Personal (`/personal?kind=<this kind>`, counting that kind) · Register; each row → its record page |
+| `/personal` | Personal records of every kind, or one with `?kind=agent`, `service`, `queue` or `pubsub`, for each owner you may act for, with the same toolbar and a Kind filter | Owner chooser; rows → record pages |
 | `/agents/new` · `/services/new` · `/queues/new` · `/pubsub/new` | [Register a record](../../Plans/MVP/web/pages.md#register-agentsnew--servicesnew--queuesnew--pubsubnew) of that kind. An agent's name is `#name[@realm]` | Back to its list |
 | `/agent?name=` · `/service?name=` · `/queue?name=` · `/pubsub/topic?name=` | [One record](../../Plans/MVP/web/pages.md#agent-agentname--service-servicename--queue-queuename--topic-pubsubtopicname): status, policy, queue and counters, activity, route, settings. An inactive record shows read-only with Reactivate | Owner → `/user`; Activity → `/activity?name=`; Settings; Deactivate…; Danger Zone |
 | `/agent/edit` · `/service/edit` · `/queue/edit` · `/pubsub/topic/edit` | Settings: the registration form filled in, plus Maintainers, for the Owner or a Maintainer | Back to the record |
@@ -57,4 +57,4 @@ Signed out, every address leads to the sign-in page. Signed in, every page has:
 | `GET /avatar?name=` | A profile photo |
 | `GET /healthz`, `/ui.js`, `/favicon.svg`, `/favicon.ico` | Liveness and assets |
 | `GET /channels`, `/channels/new` | Redirect to `/queues` or `/pubsub` (`kind=pubsub`), keeping the query |
-| `GET /channel?name=`, `/channel/edit?name=` | Still serve any queue or topic, for old bookmarks |
+| `GET /channel?name=`, `/channel/edit?name=` | Redirect a visible queue or topic to its `/queue` or `/pubsub/topic` address; anything else is answered as before |

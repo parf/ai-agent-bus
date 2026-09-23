@@ -169,10 +169,12 @@ type adminView struct {
 	// PersonalHere counts the Personal records of this page's own kind,
 	// which the shared view omits, so its empty state can say where they are.
 	PersonalHere int
-	Start        int
-	End          int
-	HasFilters   bool
-	Owners       []string
+	// KindLinks filter the Personal page, which holds every kind, to one.
+	KindLinks  []viewLink
+	Start      int
+	End        int
+	HasFilters bool
+	Owners     []string
 	// Channels is either channel section; Queues and PubSub say which. They
 	// are two sections, each with its own list, registration and settings.
 	Channels     bool
@@ -642,6 +644,11 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		v.Queues, v.PubSub, v.Agents = r.URL.Path == "/queues", r.URL.Path == "/pubsub", r.URL.Path == "/agents"
 		v.Channels = v.Queues || v.PubSub
 		v.Services, v.PersonalPage = r.URL.Path == "/services", r.URL.Path == "/personal"
+		// The Personal page holds every kind, and each section's Personal tab
+		// asks it for that section's own (docs/03-records.md#personal-and-shared).
+		if k := r.URL.Query().Get("kind"); v.PersonalPage && personalKind(k) {
+			v.Kind = k
+		}
 		if v.Services {
 			// A service has no queue here, so none of the questions about one
 			// has an answer to filter or sort by.
@@ -689,6 +696,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		}
 		owners := map[string]bool{}
 		allServices, myServices, personalServices, allQueues, allPubSub, allAgents, myAgents := 0, 0, 0, 0, 0, 0, 0
+		personalOf := map[string]int{}
 		for _, record := range records {
 			// A Group is a record from 0.7 and has its own page, Groups;
 			// it is no agent, service or channel (docs/constitution.md#-group).
@@ -703,6 +711,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			case record.Personal:
 				if record.Kind != protocol.KindUser && (v.DaemonOwner || record.Owner == v.You) {
 					personalServices++
+					personalOf[record.Kind]++
 					if listPathFor(record.Kind) == r.URL.Path {
 						v.PersonalHere++
 					}
@@ -728,6 +737,9 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				}
 				owners[record.Owner] = true
 				if v.OwnerFilter != "" && record.Owner != v.OwnerFilter {
+					continue
+				}
+				if v.Kind != "" && record.Kind != v.Kind {
 					continue
 				}
 			} else if listPathFor(record.Kind) != r.URL.Path || record.Personal {
@@ -782,13 +794,13 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 				// Every kind may be Personal, and a Personal queue is on
 				// the Personal page rather than here, so the way there is
 				// offered here too (docs/03-records.md#personal-and-shared).
-				{Href: "/personal", Label: "Personal", Class: "personal-view", Count: personalServices, Counted: true},
+				{Href: "/personal?kind=queue", Label: "Personal", Class: "personal-view", Count: personalOf[protocol.KindQueue], Counted: true},
 				{Href: "/queues/new", Label: "Register queue"},
 			}
 		case v.PubSub:
 			v.SectionLinks = []viewLink{
 				{Href: pageURL("/pubsub", stateQuery), Label: "All", Count: allPubSub, Counted: true, Current: true},
-				{Href: "/personal", Label: "Personal", Class: "personal-view", Count: personalServices, Counted: true},
+				{Href: "/personal?kind=pubsub", Label: "Personal", Class: "personal-view", Count: personalOf[protocol.KindPubSub], Counted: true},
 				{Href: "/pubsub/new", Label: "Register pub/sub topic"},
 			}
 		case v.Agents, v.PersonalPage:
@@ -800,7 +812,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			v.SectionLinks = []viewLink{
 				{Href: pageURL("/agents", agentQuery), Label: "All", Count: allAgents, Counted: true, Current: !v.PersonalPage && v.Mine == ""},
 				{Href: pageURL("/agents", myAgentQuery), Label: "My", Class: "my-view", Count: myAgents, Counted: true, Current: !v.PersonalPage && v.Mine == "my"},
-				{Href: pageURL("/personal", personalQuery), Label: "Personal", Class: "personal-view", Count: personalServices, Counted: true, Current: v.PersonalPage},
+				personalTab(v, personalQuery, personalServices, personalOf),
 				{Href: "/agents/new", Label: "Register agent"},
 			}
 		default:
@@ -811,7 +823,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 			v.SectionLinks = []viewLink{
 				{Href: pageURL("/services", allQuery), Label: "All", Count: allServices, Counted: true, Current: v.Mine == ""},
 				{Href: pageURL("/services", myQuery), Label: "My", Class: "my-view", Count: myServices, Counted: true, Current: v.Mine == "my"},
-				{Href: "/personal", Label: "Personal", Class: "personal-view", Count: personalServices, Counted: true},
+				{Href: "/personal?kind=service", Label: "Personal", Class: "personal-view", Count: personalOf[protocol.KindService], Counted: true},
 				{Href: "/services/new", Label: "Register service"},
 			}
 		}
@@ -834,7 +846,21 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 		if v.Sort != "" {
 			filterBase.Set("sort", v.Sort)
 		}
+		if v.Kind != "" {
+			filterBase.Set("kind", v.Kind)
+		}
 		filterPath := r.URL.Path
+		if v.PersonalPage {
+			kindBase := cloneValues(filterBase)
+			kindBase.Del("kind")
+			if v.State != "" {
+				kindBase.Set("state", v.State)
+			}
+			v.KindLinks = []viewLink{{Href: pageURL(filterPath, cloneValues(kindBase)), Label: "All", Current: v.Kind == ""}}
+			for _, k := range []string{protocol.KindAgent, protocol.KindService, protocol.KindQueue, protocol.KindPubSub} {
+				v.KindLinks = append(v.KindLinks, viewLink{Href: queryWith(filterPath, kindBase, "kind", k), Label: entityLabel(k), Current: v.Kind == k})
+			}
+		}
 		v.FilterLinks = []viewLink{
 			{Href: pageURL(filterPath, cloneValues(filterBase)), Label: "All", Current: v.State == ""},
 			{Href: queryWith(filterPath, filterBase, "state", "active"), Label: "Active", Current: v.State == "active"},
@@ -1010,7 +1036,29 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	mux.HandleFunc("GET /service", recordDetail) // one page, reached by the name of each listing
 	mux.HandleFunc("GET /queue", recordDetail)
 	mux.HandleFunc("GET /pubsub/topic", recordDetail)
-	mux.HandleFunc("GET /channel", recordDetail) // the old combined address, kept for bookmarks
+	// The old combined addresses, kept for bookmarks: a queue or topic the
+	// caller can see goes to its own section's address; anything else, an
+	// inactive record included, is answered here as before.
+	legacyChannel := func(page http.HandlerFunc, queue, topic string) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			var rec protocol.Record
+			if name := r.URL.Query().Get("name"); name != "" && c.get(cookie(r), "/lookup?name="+url.QueryEscape(name), &rec) == nil {
+				to := ""
+				switch rec.Kind {
+				case protocol.KindQueue:
+					to = queue
+				case protocol.KindPubSub:
+					to = topic
+				}
+				if to != "" {
+					http.Redirect(w, r, to+"?"+r.URL.RawQuery, http.StatusMovedPermanently)
+					return
+				}
+			}
+			page(w, r)
+		}
+	}
+	mux.HandleFunc("GET /channel", legacyChannel(recordDetail, "/queue", "/pubsub/topic"))
 	mux.HandleFunc("GET /agent", recordDetail)
 	// The settings form is a page, not a panel on the detail page: it is the
 	// registration form with the record already in it, so it has an address
@@ -1035,7 +1083,7 @@ func (c *caller) adminRoutes(mux *http.ServeMux, tls bool) {
 	mux.HandleFunc("GET /service/edit", recordEditPage)
 	mux.HandleFunc("GET /queue/edit", recordEditPage)
 	mux.HandleFunc("GET /pubsub/topic/edit", recordEditPage)
-	mux.HandleFunc("GET /channel/edit", recordEditPage) // the old combined address
+	mux.HandleFunc("GET /channel/edit", legacyChannel(recordEditPage, "/queue/edit", "/pubsub/topic/edit"))
 	mux.HandleFunc("GET /agent/edit", recordEditPage)
 	mux.HandleFunc("GET /service-deactivate", func(w http.ResponseWriter, r *http.Request) {
 		v, ok := c.signedIn(w, r)
@@ -1673,13 +1721,13 @@ var serviceList = template.Must(template.New("services").Funcs(template.FuncMap{
 <form class=record-search method=get action="{{if .Queues}}/queues{{else if .PubSub}}/pubsub{{else if .Agents}}/agents{{else if .PersonalPage}}/personal{{else}}/services{{end}}">
 <label for=record-query class=visually-hidden>Search records</label><input id=record-query type=search name=q value="{{.Query}}" placeholder="Search by name, owner, or description">
 {{with .Mine}}<input type=hidden name=scope value="{{.}}">{{end}}{{with .State}}<input type=hidden name=state value="{{.}}">{{end}}{{with .Readers}}<input type=hidden name=readers value="{{.}}">{{end}}{{with .Work}}<input type=hidden name=work value="{{.}}">{{end}}{{with .Kind}}<input type=hidden name=kind value="{{.}}">{{end}}{{with .OwnerFilter}}<input type=hidden name=owner value="{{.}}">{{end}}
-<div class=record-choices><nav class=filter-nav aria-label="Status filter"><span>Status</span>{{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{if not (or .Services .PubSub)}}<nav class=filter-nav aria-label="Reader filter"><span>Readers</span>{{range .ReaderLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Queue filter"><span>Queue</span>{{range .WorkLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}</div>
+<div class=record-choices>{{if .PersonalPage}}<nav class=filter-nav aria-label="Kind filter"><span>Kind</span>{{range .KindLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}<nav class=filter-nav aria-label="Status filter"><span>Status</span>{{range .FilterLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{if not (or .Services .PubSub)}}<nav class=filter-nav aria-label="Reader filter"><span>Readers</span>{{range .ReaderLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav><nav class=filter-nav aria-label="Queue filter"><span>Queue</span>{{range .WorkLinks}}{{if .Current}}<a href="{{.Href}}" aria-current=true>{{else}}<a href="{{.Href}}">{{end}}{{.Label}}</a>{{end}}</nav>{{end}}</div>
 <label for=record-sort>Sort</label><select id=record-sort name=sort data-submit-on-change><option value="" {{if eq .Sort ""}}selected{{end}}>Name (A&ndash;Z)</option><option value=updated {{if eq .Sort "updated"}}selected{{end}}>Recently updated</option>{{if not .Services}}<option value=queued {{if eq .Sort "queued"}}selected{{end}}>{{if .PubSub}}Accepted{{else}}Queued{{end}} (high&ndash;low)</option>{{end}}</select><noscript><button>Apply</button></noscript>
 </form>
 </div>
 {{if eq .CategoryTotal 0}}
 {{if and .PersonalHere (not .PersonalPage)}}<section class="empty-state editor-card personal-elsewhere"><h2>No shared {{if .Queues}}queues{{else if .PubSub}}pub/sub topics{{else if .Agents}}agents{{else}}services{{end}}</h2>
-<p>{{number .PersonalHere}} Personal {{if .Queues}}queue{{else if .PubSub}}pub/sub topic{{else if .Agents}}agent{{else}}service{{end}}{{if eq .PersonalHere 1}} is{{else}}s are{{end}} under the <a class=personal-view href=/personal>Personal</a> tab, which this list omits.</p>
+<p>{{number .PersonalHere}} Personal {{if .Queues}}queue{{else if .PubSub}}pub/sub topic{{else if .Agents}}agent{{else}}service{{end}}{{if eq .PersonalHere 1}} is{{else}}s are{{end}} under the <a class=personal-view href="/personal?kind={{if .Queues}}queue{{else if .PubSub}}pubsub{{else if .Agents}}agent{{else}}service{{end}}">Personal</a> tab, which this list omits.</p>
 {{else}}<section class="empty-state editor-card"><h2>No {{if .Queues}}queues{{else if .PubSub}}pub/sub topics{{else if .Agents}}agents{{else if .PersonalPage}}Personal records{{else}}services{{end}} yet</h2>{{end}}
 {{if .Queues}}<p>A queue holds work without a separate service process and hands each message to one reader.</p><p><a href=/queues/new>Register a queue</a></p>
 {{else if .PubSub}}<p>A pub/sub topic copies each accepted message to the inboxes on its Deliver-To list and keeps nothing itself.</p><p><a href=/pubsub/new>Register a pub/sub topic</a></p>
@@ -1837,4 +1885,28 @@ func routeState(r protocol.Record) string {
 
 func holdsConfig(kind string) bool {
 	return kind == protocol.KindAgent || kind == protocol.KindService || kind == protocol.KindGroup
+}
+
+// personalKind is a kind the Personal page can be narrowed to: every kind a
+// section lists, which a User's own record and a Group are not.
+func personalKind(k string) bool {
+	return k == protocol.KindAgent || k == protocol.KindService || k == protocol.KindQueue || k == protocol.KindPubSub
+}
+
+// personalTab is the Agents section's Personal tab, which is also the Personal
+// page's own: there it counts what the page holds, one kind or all of them;
+// from Agents it counts Personal agents and asks for those.
+func personalTab(v adminView, query url.Values, all int, of map[string]int) viewLink {
+	tab := viewLink{Label: "Personal", Class: "personal-view", Counted: true, Current: v.PersonalPage}
+	switch {
+	case v.PersonalPage && v.Kind != "":
+		query.Set("kind", v.Kind)
+		tab.Href, tab.Count = pageURL("/personal", query), of[v.Kind]
+	case v.PersonalPage:
+		tab.Href, tab.Count = pageURL("/personal", query), all
+	default:
+		query.Set("kind", protocol.KindAgent)
+		tab.Href, tab.Count = pageURL("/personal", query), of[protocol.KindAgent]
+	}
+	return tab
 }

@@ -92,11 +92,22 @@ func TestOldChannelAddressesStillLandSomewhere(t *testing.T) {
 			t.Errorf("%s: %d to %q, want 301 to %q", path, code, to, want)
 		}
 	}
-	// The old detail and settings addresses still serve the record.
-	if page := m.get("/channel?name=work%40h"); !strings.Contains(page, "work@h</h1>") {
-		t.Errorf("/channel no longer serves the record: %s", page)
+	// The old detail and settings addresses go to the record's own section.
+	m.register(protocol.Record{Name: "news@h", Owner: "admin@h", Kind: protocol.KindPubSub})
+	for path, want := range map[string]string{
+		"/channel?name=work%40h":      "/queue?name=work%40h",
+		"/channel/edit?name=work%40h": "/queue/edit?name=work%40h",
+		"/channel?name=news%40h":      "/pubsub/topic?name=news%40h",
+		"/channel/edit?name=news%40h": "/pubsub/topic/edit?name=news%40h",
+	} {
+		if code, to := m.redirect(path); code != http.StatusMovedPermanently || to != want {
+			t.Errorf("%s: %d to %q, want 301 to %q", path, code, to, want)
+		}
 	}
-	m.get("/channel/edit?name=work%40h")
+	// A name the caller cannot look up is still answered where it was asked.
+	if code, to := m.redirect("/channel?name=absent%40h"); code == http.StatusMovedPermanently {
+		t.Errorf("/channel for an unknown name redirected to %q", to)
+	}
 }
 
 // Every entity in the navigation is marked with its display glyph, and every
