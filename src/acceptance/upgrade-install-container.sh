@@ -13,6 +13,14 @@ wait_api() {
   done
   return 1
 }
+# A credential authenticates as exactly its principal over the shared socket.
+authenticates() {
+  local file=$1 who=$2 answer
+  answer=$(curl -sS --max-time 4 --unix-socket /run/agent-bus/bus.sock \
+    -H "X-Agent-Bus-Token: $(cat "$file")" -w '\n%{http_code}' http://bus/status) || return 1
+  [ "$(tail -n1 <<<"$answer")" = 200 ] && grep -q '"you":"'"$who"'"' <<<"$answer"
+}
+db=/var/lib/agent-bus/daemon/agent-bus.db
 unpack() {
   local source=$1 destination=$2 archive
   archive=$(find "$source" -maxdepth 1 -name 'agent-bus-*.tar.gz' -type f -print -quit)
@@ -40,9 +48,9 @@ agent-bus-admin account set nobody peer@fresh >/evidence/account-map.log
 systemctl restart agent-busd
 wait_api "$old_version" || fail "old API did not restart with the durable account map"
 
-agent-bus register queue@fresh --kind generic --allow owner@fresh >/dev/null
+agent-bus register queue@fresh --kind queue --allow owner@fresh >/dev/null
 agent-bus send queue@fresh --topic upgrade --tag retained 'queued before upgrade' >/dev/null
-agent-bus register protected@fresh --kind generic --allow peer@fresh >/dev/null
+agent-bus register protected@fresh --kind queue --allow peer@fresh >/dev/null
 nobody_socket="/run/agent-bus/user-nobody.sock"
 agent-bus-admin account list >/evidence/accounts-before.txt
 for _ in $(seq 1 100); do [ -S "$nobody_socket" ] && break; sleep .05; done
@@ -61,7 +69,17 @@ EOF
 systemctl daemon-reload
 sha256sum /etc/systemd/system/agent-busd.service /etc/systemd/system/agent-busd.service.d/operator.conf >/evidence/config.before.sha256
 cp /etc/systemd/system/agent-busd.service /evidence/unit.before
-sha256sum /var/lib/agent-bus/daemon/token /var/lib/agent-bus/daemon/.ssh/authorized_keys >/evidence/credentials.before.sha256
+# Credentials live in the database, which the daemon rewrites while it runs,
+# so they are held to what they authenticate rather than to a file hash.
+agent-bus-admin token owner@fresh >/root/owner.token
+agent-bus-admin token peer@fresh >/root/peer.token
+authenticates /root/owner.token owner@fresh || fail "owner credential positive control"
+authenticates /root/peer.token peer@fresh || fail "peer credential positive control"
+[ -f "$db" ] || fail "old release has no database"
+for legacy in token dump.json; do
+  [ ! -e "/var/lib/agent-bus/daemon/$legacy" ] || fail "0.7 install wrote the 0.6 $legacy"
+done
+sha256sum /var/lib/agent-bus/daemon/.ssh/authorized_keys >/evidence/credentials.before.sha256
 old_current=$(readlink /usr/local/lib/agent-bus/current)
 old_pid=$(systemctl show agent-busd -p MainPID --value)
 pass "populated old release has credentials, queued state, ACLs, local mappings and operator configuration"
@@ -114,8 +132,9 @@ pass "killed upgrade is recovered by the documented command"
 cp -a /root/new /root/broken
 cat >/root/broken/agent-busd <<'EOF'
 #!/bin/sh
-printf 'new-release-only credential\n' >/var/lib/agent-bus/daemon/token
-printf '{"new_release_only":true}\n' >/var/lib/agent-bus/daemon/dump.json
+printf 'new_release_only database\n' >/var/lib/agent-bus/daemon/agent-bus.db
+rm -f /var/lib/agent-bus/daemon/agent-bus.db-wal /var/lib/agent-bus/daemon/agent-bus.db-shm
+printf 'new_release_only\n' >/var/lib/agent-bus/daemon/new-release-only
 exit 73
 EOF
 chmod 0755 /root/broken/agent-busd
@@ -132,8 +151,11 @@ if /root/broken/agent-bus-setup --upgrade >/evidence/broken-start.out 2>&1; then
 fi
 grep -q 'rolled back' /evidence/broken-start.out || fail "failed start did not report rollback"
 wait_api "$old_version" || fail "automatic rollback did not restore the old daemon"
-(cd / && sha256sum -c /evidence/credentials.before.sha256 >/dev/null) || fail "rollback restored mismatched credentials"
-grep -q 'new_release_only' /var/lib/agent-bus/daemon/dump.json && fail "rollback retained new-release-only state"
+(cd / && sha256sum -c /evidence/credentials.before.sha256 >/dev/null) || fail "rollback restored mismatched SSH authorization"
+authenticates /root/owner.token owner@fresh || fail "rollback lost the owner credential"
+authenticates /root/peer.token peer@fresh || fail "rollback lost the peer credential"
+if grep -q 'new_release_only' "$db"; then fail "rollback retained the new release's database"; fi
+[ ! -e /var/lib/agent-bus/daemon/new-release-only ] || fail "rollback retained new-release-only state"
 agent-bus ls queue@fresh >/dev/null || fail "rollback did not restore the old registry state"
 pass "failed new release restores the old release with its matching credential and state tree"
 
@@ -141,8 +163,10 @@ pass "failed new release restores the old release with its matching credential a
 wait_api "$new_version" || fail "new API did not start"
 [ ! -e /usr/local/lib/agent-bus/upgrade.json ] || fail "successful upgrade left a recovery marker"
 sha256sum -c /evidence/config.before.sha256 >/dev/null || fail "operator unit configuration changed"
-sha256sum /var/lib/agent-bus/daemon/token /var/lib/agent-bus/daemon/.ssh/authorized_keys >/evidence/credentials.after.sha256
-[ "$(cat /evidence/credentials.before.sha256)" = "$(cat /evidence/credentials.after.sha256)" ] || fail "credentials changed across upgrade"
+sha256sum /var/lib/agent-bus/daemon/.ssh/authorized_keys >/evidence/credentials.after.sha256
+[ "$(cat /evidence/credentials.before.sha256)" = "$(cat /evidence/credentials.after.sha256)" ] || fail "SSH authorization changed across upgrade"
+authenticates /root/owner.token owner@fresh || fail "owner credential lost across upgrade"
+authenticates /root/peer.token peer@fresh || fail "peer credential lost across upgrade"
 
 sudo -u nobody env AGENT_BUS_ADDR="$nobody_socket" agent-bus ls protected@fresh >/evidence/peer-after.json
 grep -q 'protected@fresh' /evidence/peer-after.json || fail "ACL or local mapping was lost"
@@ -170,7 +194,8 @@ while read -r pid; do
 done < <(find "/sys/fs/cgroup/${cgroup#/}" -name cgroup.procs -type f -exec cat {} + | sort -u)
 [ "$daemons" -ge 2 ] && [ "$webs" -ge 1 ] && [ "$web_binds" -ge 1 ] || fail "new running set is incomplete: daemon=$daemons web=$webs web-bind=$web_binds"
 curl -fsS http://127.0.0.1:6780/ >/evidence/web.html
-grep -q "AgentBus V$new_version" /evidence/web.html || fail "web does not show the new node release"
+# The node summary's own element, not any mention of the version.
+grep -qF ">v$new_version</span></strong>" /evidence/web.html || fail "web does not show the new node release"
 pass "successful upgrade preserves state and configuration and runs one intended release"
 
 systemctl show agent-busd -p ActiveState -p MainPID -p ControlGroup >/evidence/unit-state.txt

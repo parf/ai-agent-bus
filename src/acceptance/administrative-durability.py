@@ -105,7 +105,7 @@ try:
               kind + " group setup")
         target = kind + "@durability"
         check(api("/register", owner, {"name": target, "kind": "queue", "allow": ["@readers"]})[0] == 200,
-              kind + " service setup")
+              kind + " queue setup")
         body = {"to": target, "body": "disposable access probe"}
         status, data = api("/session", victim, {})
         check(status == 200, kind + " existing session setup")
