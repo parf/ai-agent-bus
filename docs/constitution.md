@@ -16,7 +16,7 @@ durability rules, behind the existing storage ports.
 |---|---|
 | Durable | entities, credentials, queue contents, per-queue counters |
 | A management write | validates, commits the complete change as one transaction, then publishes |
-| Publication | one complete new view, never a mutation of the live maps in place |
+| Publication | no reader ever observes a write before its commit: a write stages its entities under the one registry lock every reader also takes, and a failed commit restores every one of them before the lock is released |
 | Atomicity | invalid input fails the whole write; no partial update is ever visible |
 | Startup | load every durable entity, then build derived indexes such as token to principal and user ID to status. An incorrect record is always ignored — not loaded, not repaired — and reported as a [conceptual error](#errors-and-alerts); the rest of the node still starts |
 | List fields | the API MUST provide atomic add, add-if-absent and remove for `allow`, `maintainers` and `deliver_to` |
@@ -448,8 +448,7 @@ boundary.
 ## Open questions
 
 The [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns every open
-choice. Two bear on this page: whether lock-held staging meets the
-publication rule (Q106), and which log a refused flow writes (Q108).
+choice. One bears on this page: which log a refused flow writes (Q108).
 
 ## History
 

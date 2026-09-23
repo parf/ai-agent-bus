@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** Two 0.7 questions are open: Q106 on how a committed write is published, Q108 on which log a refused flow writes. Q105 was settled on 2026-09-23.
+📌 **TL;DR:** One 0.7 question is open: Q108 on which log a refused flow writes. Q105 and Q106 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
@@ -10,7 +10,6 @@ withdrawn, and every ID stays reserved.
 | ID | Question | Blocks |
 |---|---|---|
 | Q108 | Which log takes the "daemon log entry" the [constitution](../../docs/constitution.md#common-record-fields) and K.11 require when a flow is refused? The term predates the three logs, and K.21 forbids an error-log line for an ordinary refusal such as an unknown name. Options: (a) error.log (with syslog) only for a flow that had recipients and lost them — a publication whose recipients all failed, a copy discarded beside working ones, a forwarding route whose destination is gone — while a direct send to an absent or inactive name is an ordinary refusal seen only in the debug log; (b) error.log for every refused flow, a direct send to an unknown name included. 0.7.9 does (a) | K.11, K.15 log wording |
-| Q106 | Does a write staged in the live maps under the registry lock, with an undo log and every reader behind the same lock, satisfy the constitution's "one complete new view, never a mutation of the live maps in place"? Built through 0.7.6: no reader can observe a staged or rolled-back write, a failed commit restores every entity, and the next write rewrites no stale state. Options: (a) accept it and reword the publication rule to "no reader observes a write before its commit"; (b) build copy-on-write views published by pointer, so reads need no lock. (a) keeps K.3's failure checks; (b) is a core-wide refactor | K.3 wording |
 
 Q94–Q104 were settled on 2026-09-22 and moved to the
 [decision index](../../docs/decisions.md#settled).

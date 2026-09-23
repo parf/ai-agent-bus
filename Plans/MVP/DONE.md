@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| K.3 Apply management changes through write-through persistence | Built in 0.7.1, rule settled 2026-09-23 | every write commits its own entities before it is answered and a failed commit restores them all ([sqlite store](done/sqlite-store.md#checks), `core` durability and window tests); publication is releasing the lock, per Q106 |
 | K.15 Forward Agent and Queue traffic | Built in 0.7.12 | `core` forwarding_test.go (one-slot forwarding from agent and queue sources, the hop ACL at configuration and delivery, revocation keeping the route, destination rules, the ten-step limit, a queue looping into its topic, routing counters in every recipient order, `route_allowed`) and TestAPubSubDeliversToQueuesAndThroughTopics; all thirteen mutants fail on an assertion |
 | K.21 Report [conceptual errors and alerts](../../docs/constitution.md#errors-and-alerts) to syslog and the error log | Built in 0.7.6 | [evidence](done/credential-pairs.md#checks); `error.log`, syslog and logrotate since 0.7.2 ([evidence](done/daemon-logs.md#checks)) |
 | K.13 Validate env secrets and JSON configuration on 👾, 📡 and 👥 | Built in 0.7.10 | 👾 and 📡 in 0.7.8: `core` TestASecretMustBeAnEnvFile, TestAnInvalidSecretIsRefusedAndStoresNothing, TestAConfigurationIsReadByTheRecordsPrincipalOrItsACL, TestRestoreIgnoresANonconformingPrivateValue, `api` TestAnInvalidSecretIsAMalformedRequest; 👥 in TestAGroupsSecretIsReadByItsMembers |

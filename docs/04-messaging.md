@@ -463,9 +463,8 @@ removal, which drops the removed name's queue in the same transaction.
 Individual message acknowledgements retain the
 [queue durability boundary](#durability).
 
-Publication in this implementation is the lock being released, so it cannot
-fail after a commit. Whether that meets the constitution's publication rule is
-[Q106](../Plans/MVP/QUESTIONS.md#open-questions).
+Publication is the lock being released, so it cannot fail after a commit
+([publication rule](constitution.md#persistence-and-loading)).
 
 Browser sessions remain process-local; after restart, callers sign in again.
 Persistent tokens and mapped sockets are checked against the recovered policy.
