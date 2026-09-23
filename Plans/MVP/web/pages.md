@@ -616,7 +616,9 @@ was last used, and the command
 
 ---
 
-## Sign in `/signin`
+## Sign in `/`
+
+Signed out, `/` is the sign-in page and the form posts to `POST /signin`.
 
 Token, and how to get one. The form takes a token and nothing else — there is no
 name to type, so there is no second failure message to read as an oracle for

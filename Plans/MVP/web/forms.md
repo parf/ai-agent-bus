@@ -167,8 +167,9 @@ The shared invalid-input return is built in 0.5.70 for current Service,
 Channel, User and Group forms. It preserves only allowlisted nonsensitive
 values, keeps private configuration empty, shows an alert summary and marks a
 field invalid only when the face can attribute it without interpreting daemon
-prose. The planned split of the remaining combined Service/Channel editors is
-still pending.
+prose. Since 0.8.4 each kind has its own register and settings addresses
+(`/queues/new`, `/queue/edit`, `/pubsub/new`, `/pubsub/topic/edit`, …), served
+by one shared record form.
 
 No group-delete form. The handler accepts the action and no template renders it;
 removing the verb from core and the API is [H.5.6](../TODO.md#objective).

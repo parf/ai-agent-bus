@@ -52,24 +52,27 @@ answer to *where am I* survives the collapse.
   └──────────────────────────────────────────────────────────┘
 
   This node  ⓘ                              ← labelled node-wide, always
-  ┌──────────┬──────────────┬────────┬─────────┬─────────────┬───────────┬────────────┐
-  │ Uptime   │ Services +   │ Queued │ Readers │ Calls,      │ Calls,    │ Calls,     │
-  │          │ Inboxes +    │        │         │ minute      │ hour      │ total      │
-  │     6d 4h│ Channels     │    604 │      12 │       1,204 │    58,003 │  4,910,220 │
-  │          │          231 │        │         │             │           │            │
-  └──────────┴──────────────┴────────┴─────────┴─────────────┴───────────┴────────────┘
+  ┌─────────┬────────┬────────┬──────────┬────────┬────────┬───────┬────────┐
+  │ Readers │ Queued │ Agents │ Services │ Queues │ PubSub │ Users │ Groups │
+  │      12 │    604 │    118 │       41 │     52 │     20 │     9 │      4 │
+  ├─────────┼────────┴────┬───┴──────────┴──┬─────┴────────┴───────┴────────┘
+  │ Uptime  │ Calls,      │ Calls,          │ Calls,
+  │   6d 4h │ minute 1,204│ hour 58,003     │ total 4,910,220
+  └─────────┴─────────────┴─────────────────┘
   Node-wide. A list below shows only what you may see; the two
   never have to agree.
 
   Find ▸ Agents holding work   Queues holding work   External services
 ```
 
-**Seven facts, and the figures sit on one baseline, ranged right.** The strip
-wraps rather than gridding, because a fixed four-column grid with seven cells
-leaves an empty cell showing as a block of border colour. From 0.5.83 each
+**Readers, Queued and one total per record kind on the first row, then Uptime
+and the call counters; the figures sit on one baseline, ranged right.** From
+0.8.9 the eight first-row facts fit one row. The strip wraps rather than
+gridding, because a fixed grid leaves an empty cell showing as a block of
+border colour. From 0.5.83 each
 figure is right-aligned in tabular numerals, so the digits of adjacent cells
-line up by place value instead of drifting with the width of the number. The record count names the three kinds
-it sums — it is every registered record — and the call counters moved here from
+line up by place value instead of drifting with the width of the number. Each
+kind has its own total, in the order the navigation lists them, and the call counters moved here from
 the shared footer at 0.5.82 ([what a node says about
 itself](../../../docs/05-discovery.md#what-a-node-says-about-itself)).
 
