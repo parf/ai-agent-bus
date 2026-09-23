@@ -9,20 +9,29 @@ import (
 )
 
 // A store that can be told to refuse, so both halves of every write are
-// reachable. The last set it was handed is kept even on a refusal, because
-// what a failed write *tried* to say is the thing worth checking.
+// reachable. What a write tried to do is kept even on a refusal, because that
+// is the thing worth checking.
 type brittle struct {
 	*memory.Tokens
 	fail    error
-	offered []ports.Credential
+	put     []ports.Credential
+	dropped []string
 }
 
-func (b *brittle) Save(creds []ports.Credential) error {
-	b.offered = append([]ports.Credential(nil), creds...)
+func (b *brittle) Put(c ports.Credential) error {
+	b.put = append(b.put, c)
 	if b.fail != nil {
 		return b.fail
 	}
-	return b.Tokens.Save(creds)
+	return b.Tokens.Put(c)
+}
+
+func (b *brittle) Drop(name string) error {
+	b.dropped = append(b.dropped, name)
+	if b.fail != nil {
+		return b.fail
+	}
+	return b.Tokens.Drop(name)
 }
 
 func has(creds []ports.Credential, name string) bool {
@@ -79,12 +88,9 @@ func TestForgetKeepsEverythingWhenTheWriteFails(t *testing.T) {
 		t.Error("the store lost the credential although the write failed")
 	}
 
-	// The set it offered is the one it meant to write: without the name.
-	if has(store.offered, "goes@h") {
-		t.Error("the write it attempted still contained the name being removed")
-	}
-	if !has(store.offered, "owner@h") {
-		t.Error("the write it attempted dropped an unrelated credential")
+	// The write it attempted was that one row, and nothing else.
+	if len(store.dropped) != 1 || store.dropped[0] != "goes@h" {
+		t.Errorf("the removal tried to drop %v", store.dropped)
 	}
 }
 
@@ -190,10 +196,15 @@ func TestMintHandsOutNothingItCouldNotWrite(t *testing.T) {
 	if who, ok := tok.Principal(first); !ok || who != "rotor@h" {
 		t.Error("a failed rotation took the credential that was already working")
 	}
-	if has(store.offered, "rotor@h") {
-		for _, c := range store.offered {
-			if c.Name == "rotor@h" && c.Current == first {
-				t.Error("the write it attempted was the old credential, so it wrote nothing new")
+	if last := store.put[len(store.put)-1]; last.Name != "rotor@h" || last.Current == first || last.Previous != first {
+		t.Errorf("the write it attempted was not the rotation: %+v", last)
+	}
+	if kept, _ := store.Load(); !has(kept, "rotor@h") {
+		t.Error("the store lost the credential that was working")
+	} else {
+		for _, c := range kept {
+			if c.Name == "rotor@h" && c.Current != first {
+				t.Error("the store holds the rotation it was told it could not write")
 			}
 		}
 	}

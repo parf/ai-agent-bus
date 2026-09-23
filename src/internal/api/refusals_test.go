@@ -38,11 +38,11 @@ type refusalStore struct {
 	err error
 }
 
-func (s *refusalStore) Save(creds []ports.Credential) error {
+func (s *refusalStore) Put(c ports.Credential) error {
 	if s.err != nil {
 		return s.err
 	}
-	return s.TokenStore.Save(creds)
+	return s.TokenStore.Put(c)
 }
 
 func refusalFixture(t *testing.T) *counted {

@@ -5,6 +5,12 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.6 — 2026-09-22
+
+Credentials carry a User/Agent ID pair checked on every call; a transfer
+rebinds and a removal deletes them in its own commit; stale pairs are ignored
+and alerted; last use persists in batches.
+
 ## 0.7.5 — 2026-09-22
 
 Agents are `#`-named and every record is owned by a User; Personal is valid on

@@ -8,30 +8,87 @@ package memory
 import (
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// Tokens holds the set, seeded with whatever the caller wants already there.
+// Tokens holds credentials by name, seeded with whatever the caller wants
+// already there. Err, when set, refuses every write.
 type Tokens struct {
 	mu    sync.Mutex
-	creds []ports.Credential
+	Err   error
+	creds map[string]ports.Credential
 }
 
-func NewTokens(seed ...ports.Credential) *Tokens { return &Tokens{creds: seed} }
+func NewTokens(seed ...ports.Credential) *Tokens {
+	t := &Tokens{creds: map[string]ports.Credential{}}
+	for _, c := range seed {
+		t.creds[c.Name] = c
+	}
+	return t
+}
 
 func (t *Tokens) Load() ([]ports.Credential, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return append([]ports.Credential(nil), t.creds...), nil
+	out := make([]ports.Credential, 0, len(t.creds))
+	for _, c := range t.creds {
+		out = append(out, c)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
 }
 
-func (t *Tokens) Save(creds []ports.Credential) error {
+func (t *Tokens) Put(c ports.Credential) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.creds = append([]ports.Credential(nil), creds...)
+	if t.Err != nil {
+		return t.Err
+	}
+	t.creds[c.Name] = c
 	return nil
+}
+
+func (t *Tokens) Drop(name string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.Err != nil {
+		return t.Err
+	}
+	delete(t.creds, name)
+	return nil
+}
+
+func (t *Tokens) Touch(used map[string]time.Time) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.Err != nil {
+		return t.Err
+	}
+	for name, at := range used {
+		if c, has := t.creds[name]; has {
+			c.Used = at
+			t.creds[name] = c
+		}
+	}
+	return nil
+}
+
+// apply is a committed change's credential half, as the database applies it
+// in the same transaction.
+func (t *Tokens) apply(pairs map[string]*ports.CredentialPair) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for name, p := range pairs {
+		if p == nil {
+			delete(t.creds, name)
+		} else if c, has := t.creds[name]; has {
+			c.CredentialPair = *p
+			t.creds[name] = c
+		}
+	}
 }
 
 // State is a durable-state store that keeps it in memory: a Change applies to
@@ -50,6 +107,7 @@ type State struct {
 	records  map[string]protocol.Record
 	groups   map[string][]string
 	queues   map[string]ports.Queue
+	tokens   *Tokens
 	clean    bool
 	nextRec  uint32
 	nextUser uint32
@@ -66,8 +124,13 @@ func NewState() *State {
 		records:  map[string]protocol.Record{},
 		groups:   map[string][]string{},
 		queues:   map[string]ports.Queue{},
+		tokens:   NewTokens(),
 	}
 }
+
+// Tokens is the credential half of the same state, as a database's
+// credentials are the same file: a committed change's credentials land here.
+func (s *State) Tokens() *Tokens { return s.tokens }
 
 func (s *State) Load() (ports.Snapshot, error) {
 	s.mu.Lock()
@@ -144,6 +207,7 @@ func (s *State) Commit(c ports.Change) error {
 	for _, name := range c.DropQueues {
 		delete(s.queues, name)
 	}
+	s.tokens.apply(c.Credentials)
 	if c.NextRecordID != nil {
 		s.nextRec = *c.NextRecordID
 	}

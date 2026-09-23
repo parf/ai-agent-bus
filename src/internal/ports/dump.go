@@ -61,6 +61,10 @@ type Change struct {
 	Groups   map[string]*[]string
 	// DropQueues names queues whose durable state goes with their record.
 	DropQueues []string
+	// Credentials rebinds the named credentials to a new pair, or removes
+	// them when nil, in this same transaction: a transfer that commits
+	// without its tokens, or a removal that leaves them, is not a change.
+	Credentials map[string]*CredentialPair
 	// NextRecordID and NextUserID, when set, are the new high-water marks.
 	NextRecordID, NextUserID *uint32
 }
@@ -68,7 +72,7 @@ type Change struct {
 // Empty reports whether the change writes nothing.
 func (c Change) Empty() bool {
 	return c.Owner == nil && c.Accounts == nil && len(c.Users) == 0 &&
-		len(c.Records) == 0 && len(c.Groups) == 0 && len(c.DropQueues) == 0 &&
+		len(c.Records) == 0 && len(c.Groups) == 0 && len(c.DropQueues) == 0 && len(c.Credentials) == 0 &&
 		c.NextRecordID == nil && c.NextUserID == nil
 }
 

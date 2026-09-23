@@ -30,6 +30,9 @@ var (
 	// profile and no record of its own. That is not a state to recover from,
 	// it is nobody (docs/02-access.md#what-a-call-carries).
 	ErrNoPrincipal = errors.New("that credential answers for nobody")
+	// ErrStaleCredential is a credential whose User/Agent pair is not who
+	// the name is now: refused as if it did not exist.
+	ErrStaleCredential = errors.New("that credential no longer answers for that name")
 	ErrDisabled    = errors.New("delivery to that name is turned off")
 	ErrUnknown     = errors.New("no such name")
 	ErrTwoReads    = errors.New("inbox already has a reader, and neither asked to share it")
@@ -107,6 +110,8 @@ type Bus struct {
 	journal ports.Journal
 	// staging is the undo log of the management write in progress (commit.go).
 	staging *staged
+	// creds is the face's credential index, bound at start (credentials.go).
+	creds ports.CredentialIndex
 	// flushed is each queue's counters as last saved, so a queue flush writes
 	// only what moved since (snapshot.go).
 	flushed map[string]queueMark

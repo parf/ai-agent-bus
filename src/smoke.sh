@@ -2764,6 +2764,59 @@ orph_checks() {
 orph_checks
 orph_down
 
+sec "a corrupt credential pair is reported to both logs, and a refusal to neither"
+# docs/constitution.md#errors-and-alerts: a violated invariant or corrupt
+# stored state produces one syslog message and the same line in error.log; an
+# ordinary refusal produces neither. One run exercises both, and each line is
+# looked for by a name unique to this run, so another daemon's lines on the
+# same host cannot satisfy it.
+mkdir -p "$D/pair"
+PAIRNAME="#pair-$$@srv1"
+GHOST="ghost-$$@srv1"
+pair_up() {
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/pair/bus.sock" \
+    -owner "$OWNER" -db "$D/pair/bus.db" -create -flush-every 0 >"$D/pair/$1.log" 2>&1 &
+  PPID_=$!
+  ready "$D/pair/bus.sock" || return 1
+  PTOK=$(owner_token "$D/pair")
+}
+pair_down() { kill "$PPID_" 2>/dev/null; wait "$PPID_" 2>/dev/null; }
+pab() { AGENT_BUS_ADDR=$D/pair/bus.sock AGENT_BUS_TOKEN=$PTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
+pcode() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/pair/bus.sock" -H "X-Agent-Bus-Token: $1" "http://unix/status"; }
+pair_checks() {
+  pair_up first || { echo "  FAIL the pair fixture's daemon did not start"; fail=$((fail+1)); return 1; }
+  pab register "$PAIRNAME" --kind agent >/dev/null
+  AGTOK=$(AGENT_BUS_ADDR=$D/pair/bus.sock AGENT_BUS_TOKEN=$PTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$PAIRNAME")
+  has "the agent's credential works before the damage" "$(pcode "$AGTOK")" '200'
+  pair_down
+  # The damage a lost write would leave: the row names a User the agent's
+  # Owner is not.
+  sqlite3 "$D/pair/bus.db" "UPDATE credentials SET user_id = user_id + 1000 WHERE name = '$PAIRNAME'"
+  rm -f "$D/pair/logs/error.log"
+  SINCE=$(date '+%Y-%m-%d %H:%M:%S')
+  pair_up second || { echo "  FAIL the start over the damaged pair did not come up"; fail=$((fail+1)); return 1; }
+  # And an ordinary refusal in the same run: an unknown receiver.
+  pab send "$GHOST" "nobody is here" >/dev/null 2>&1
+  has "the ordinary refusal was a refusal" "$(pab send "$GHOST" again 2>&1)" 'no such receiver'
+  has "the damaged credential authenticates nothing" "$(pcode "$AGTOK")" '401'
+  pair_down
+  sleep 1
+  ERRLOG=$(cat "$D/pair/logs/error.log" 2>/dev/null)
+  SYSLOG=$(journalctl -t agent-busd --since "$SINCE" --no-pager -o cat 2>/dev/null)
+  want="stored credential for $PAIRNAME is ignored"
+  has "the error log reports the corrupt pair" "$ERRLOG" "$want"
+  has "at alert severity" "$(printf '%s\n' "$ERRLOG" | grep -F "$want")" ' alert '
+  has "and syslog holds the same line" "$SYSLOG" "$want"
+  has "once in each" "$(printf '%s\n' "$ERRLOG" | grep -cF "$want") $(printf '%s\n' "$SYSLOG" | grep -cF "$want")" '^1 1$'
+  lacks "the error log names the refusal nowhere" "$ERRLOG" "$GHOST"
+  lacks "nor does syslog" "$SYSLOG" "$GHOST"
+  lacks "neither copy holds the credential" "$ERRLOG$SYSLOG" "$AGTOK"
+  is_empty "the error log holds warnings, errors and alerts only" \
+    "$(printf '%s\n' "$ERRLOG" | grep -v '^$' | grep -Ev '^[^ ]+ (warning|error|alert) ')"
+}
+pair_checks
+pair_down
+
 sec "the supervisor holds the sockets, and the bus serves them"
 # One binary, two roles. The process that may chown a socket never serves a
 # request; the process that serves is handed listeners that already exist and

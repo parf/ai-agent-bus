@@ -26,13 +26,18 @@ import (
 // See docs/02-access.md#token-lifetime.
 type held struct {
 	current, previous string
-	// When it was minted, and when it was last accepted. Issued is durable;
-	// used is this run's, like uptime and the envelope feed — writing the
-	// store on every authenticated call would put a disk write on the hot
-	// path to record something nobody reads more than once a day.
+	// When it was minted, and when it was last accepted. Both are durable;
+	// used reaches the store only in FlushUsed's batch — writing the store on
+	// every authenticated call would put a disk write on the hot path to
+	// record something nobody reads more than once a day.
 	// See docs/02-access.md#token-lifetime.
 	issued time.Time
-	used   *atomic.Int64 // unix nanoseconds; zero means not yet, this run
+	used   *atomic.Int64 // unix nanoseconds; zero means never
+	// flushed is the last-use time the store holds, so a flush writes only
+	// the credentials that were used since.
+	flushed int64
+	// pair is who this credential answers for (ports.Credential).
+	pair ports.CredentialPair
 }
 
 // Tokens is the whole credential store, in memory over a store port: what
@@ -46,6 +51,8 @@ type Tokens struct {
 	// Sessions are credentials too, and deliberately not in the two maps
 	// above: those are saved and these are never written down (sessions.go).
 	sess map[string]*session
+	// pairOf binds a credential issued outside core; nil until core is bound.
+	pairOf atomic.Pointer[func(string) (ports.CredentialPair, error)]
 }
 
 // Load reads the store, creating a token for owner on first run.
@@ -64,7 +71,12 @@ func Load(store ports.TokenStore, owner string) (*Tokens, error) {
 		if err != nil {
 			return nil, fmt.Errorf("credential store: %w", err)
 		}
-		t.keep(n.String(), held{current: c.Current, previous: c.Previous, issued: c.Issued})
+		h := held{current: c.Current, previous: c.Previous, issued: c.Issued, pair: c.CredentialPair, used: &atomic.Int64{}}
+		if !c.Used.IsZero() {
+			h.used.Store(c.Used.UnixNano())
+			h.flushed = c.Used.UnixNano()
+		}
+		t.keep(n.String(), h)
 	}
 	if _, has := t.tok[me.String()]; has {
 		return t, nil
@@ -79,28 +91,48 @@ func Load(store ports.TokenStore, owner string) (*Tokens, error) {
 // for the same person. An unknown one backs nobody, which is not the same as
 // backing everybody: the caller must treat false as a refusal.
 func (t *Tokens) Principal(token string) (string, bool) {
+	who, _, ok := t.Credential(token)
+	return who, ok
+}
+
+// Credential is Principal with what the credential answers for, which the
+// caller checks against the registry before trusting the name. A session
+// answers for whatever its token did; it carries no pair of its own, and the
+// zero pair it returns is bound like any unbound credential.
+func (t *Tokens) Credential(token string) (string, ports.CredentialPair, bool) {
 	if token == "" {
-		return "", false
+		return "", ports.CredentialPair{}, false
 	}
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	who, ok := t.who[token]
 	if ok {
-		if h := t.tok[who]; h.used != nil {
+		h := t.tok[who]
+		if h.used != nil {
 			h.used.Store(time.Now().UnixNano())
 		}
-		return who, true
+		return who, h.pair, true
 	}
 	// One lookup for every kind of credential, so there is no route that
 	// checks tokens and forgets sessions (docs/05-discovery.md#signing-in).
-	return t.session(token)
+	who, ok = t.session(token)
+	if !ok {
+		return "", ports.CredentialPair{}, false
+	}
+	return who, t.tok[who].pair, true
 }
 
 // Issue hands out name's token, making one if it has none. Asking again is a
 // read, not a rotation: the same credential comes back, so a second call
-// cannot lock out a service that is already using the first.
+// cannot lock out a service that is already using the first. The pair comes
+// from core when it is bound, and is left for binding otherwise.
 // See docs/02-access.md#token-lifetime.
 func (t *Tokens) Issue(name string) (string, error) {
+	return t.IssuePair(name, t.pairFor(name))
+}
+
+// IssuePair is Issue with the pair core decided while it still holds.
+func (t *Tokens) IssuePair(name string, pair ports.CredentialPair) (string, error) {
 	n, err := protocol.ParseName(name)
 	if err != nil {
 		return "", err
@@ -110,41 +142,68 @@ func (t *Tokens) Issue(name string) (string, error) {
 	if h, has := t.tok[n.String()]; has {
 		return h.current, nil
 	}
-	return t.mint(n.String(), held{})
+	return t.mint(n.String(), held{}, pair)
 }
 
 // Rotate issues a fresh token and demotes the current one to previous, which
 // still authenticates; the one before that is dropped.
 // See docs/02-access.md#token-lifetime.
 func (t *Tokens) Rotate(name string) (string, error) {
+	return t.RotatePair(name, t.pairFor(name))
+}
+
+// RotatePair is Rotate with the pair core decided while it still holds.
+func (t *Tokens) RotatePair(name string, pair ports.CredentialPair) (string, error) {
 	n, err := protocol.ParseName(name)
 	if err != nil {
 		return "", err
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return t.mint(n.String(), t.tok[n.String()])
+	return t.mint(n.String(), t.tok[n.String()], pair)
+}
+
+// pairFor asks core, outside this index's lock: core calls into the index
+// while holding its own, so asking it from inside ours would invert the
+// order. Unbound when core is not bound yet or the name is no principal.
+func (t *Tokens) pairFor(name string) ports.CredentialPair {
+	if f := t.pairOf.Load(); f != nil {
+		if p, err := (*f)(name); err == nil {
+			return p
+		}
+	}
+	return ports.CredentialPair{}
 }
 
 // mint makes a token for name, keeping was.current as the previous one, and
 // writes the store before handing anything back. Caller holds the lock.
-func (t *Tokens) mint(name string, was held) (string, error) {
+func (t *Tokens) mint(name string, was held, pair ports.CredentialPair) (string, error) {
 	var raw [24]byte
 	if _, err := rand.Read(raw[:]); err != nil {
 		return "", err
 	}
 	fresh := held{
 		current: hex.EncodeToString(raw[:]), previous: was.current,
-		issued: time.Now(), used: &atomic.Int64{},
+		issued: time.Now(), used: &atomic.Int64{}, pair: pair,
 	}
 	// A credential that was not written down is one a restart forgets, so it
 	// must not be handed out either. Written first, so there is nothing to put
 	// back: on a failure the maps were never touched.
-	if err := t.saving(name, fresh, false); err != nil {
+	if err := t.store.Put(credential(name, fresh)); err != nil {
 		return "", err
 	}
 	t.keep(name, fresh)
 	return fresh.current, nil
+}
+
+func credential(name string, h held) ports.Credential {
+	c := ports.Credential{Name: name, Current: h.current, Previous: h.previous, Issued: h.issued, CredentialPair: h.pair}
+	if h.used != nil {
+		if ns := h.used.Load(); ns > 0 {
+			c.Used = time.Unix(0, ns)
+		}
+	}
+	return c
 }
 
 // keep records what a principal holds, forgetting whatever it held before.
@@ -175,7 +234,7 @@ type Held struct {
 	Name        string    `json:"name"`
 	Fingerprint string    `json:"fingerprint"`
 	Issued      time.Time `json:"issued,omitempty"`
-	Used        time.Time `json:"used,omitempty"` // this run's; absent until it is used
+	Used        time.Time `json:"used,omitempty"` // as of the last flush or this run; absent until used
 	// Whose it is and what it is for, filled in by the caller that knows the
 	// registry. A person holds their own name; everything else is a service
 	// they registered, and says so (docs/05-discovery.md#dashboard).
@@ -244,7 +303,7 @@ func (t *Tokens) Forget(name string) error {
 		t.endSessionsFor(name)
 		return nil
 	}
-	if err := t.saving(name, held{}, true); err != nil {
+	if err := t.store.Drop(name); err != nil {
 		return err
 	}
 	delete(t.who, h.current)
@@ -268,32 +327,85 @@ func (t *Tokens) endSessionsFor(name string) {
 	}
 }
 
-// saving hands the store the whole set as it will be once this change is made:
-// name gains what, or goes when drop is set. Writing all of it every time is
-// what keeps the port this small — there is no update, only the current truth.
-//
-// Every write goes through here **before** the maps move, so the store and
-// memory never disagree in a direction anybody has to undo. Both failures are
-// then the same shape: nothing happened, and the error says so. Minting the
-// other way round hands out a credential the next restart has never heard of;
-// forgetting the other way round stops one working and brings it back at that
-// restart. One ordering, in one place, rather than a rollback per caller.
-func (t *Tokens) saving(name string, what held, drop bool) error {
-	creds := make([]ports.Credential, 0, len(t.tok)+1)
-	for n, h := range t.tok {
-		if n == name {
-			continue
+// Pairs returns what every held credential answers for (ports.CredentialIndex).
+func (t *Tokens) Pairs() map[string]ports.CredentialPair {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	out := make(map[string]ports.CredentialPair, len(t.tok))
+	for name, h := range t.tok {
+		out[name] = h.pair
+	}
+	return out
+}
+
+// Bind persists and publishes the pair of a credential issued unbound.
+func (t *Tokens) Bind(name string, p ports.CredentialPair) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	h, has := t.tok[name]
+	if !has {
+		return nil
+	}
+	h.pair = p
+	if err := t.store.Put(credential(name, h)); err != nil {
+		return err
+	}
+	t.tok[name] = h
+	return nil
+}
+
+// Rebind publishes a pair that a committed change has already written.
+func (t *Tokens) Rebind(name string, p ports.CredentialPair) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if h, has := t.tok[name]; has {
+		h.pair = p
+		t.tok[name] = h
+	}
+}
+
+// Discard stops a credential authenticating, and every session standing for
+// its name, without writing: the row went in a committed change, or is being
+// ignored at load and stays for an operator.
+func (t *Tokens) Discard(name string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if h, has := t.tok[name]; has {
+		delete(t.who, h.current)
+		if h.previous != "" {
+			delete(t.who, h.previous)
 		}
-		creds = append(creds, ports.Credential{
-			Name: n, Current: h.current, Previous: h.previous, Issued: h.issued,
-		})
+		delete(t.tok, name)
 	}
-	if !drop {
-		creds = append(creds, ports.Credential{
-			Name: name, Current: what.current, Previous: what.previous, Issued: what.issued,
-		})
+	t.endSessionsFor(name)
+}
+
+// PairOf is how core binds a credential issued outside it.
+func (t *Tokens) PairOf(f func(string) (ports.CredentialPair, error)) {
+	t.pairOf.Store(&f)
+}
+
+// FlushUsed writes the last-use times that moved since the last flush, as one
+// batch, on the queue flush's cadence: a disk write per authenticated call is
+// not a price anybody pays for a timestamp (docs/02-access.md#token-lifetime).
+func (t *Tokens) FlushUsed() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	moved := map[string]time.Time{}
+	for name, h := range t.tok {
+		if ns := h.used.Load(); ns > h.flushed {
+			moved[name] = time.Unix(0, ns)
+		}
 	}
-	return t.store.Save(creds)
+	if err := t.store.Touch(moved); err != nil {
+		return err
+	}
+	for name, at := range moved {
+		h := t.tok[name]
+		h.flushed = at.UnixNano()
+		t.tok[name] = h
+	}
+	return nil
 }
 
 // Names returns principal names only, for the daemon's filtered people view.

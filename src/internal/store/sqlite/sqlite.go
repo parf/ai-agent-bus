@@ -29,7 +29,7 @@ import (
 // schema is the layout this daemon reads and writes. A database carrying any
 // other version is refused rather than guessed at: before 1.1 there is no
 // compatibility obligation, and 0.7 starts from a clean reinstall.
-const schema = 2
+const schema = 3
 
 var tables = []string{
 	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -39,7 +39,7 @@ var tables = []string{
 	`CREATE TABLE accounts (account TEXT PRIMARY KEY, principal TEXT NOT NULL)`,
 	`CREATE TABLE queues (name TEXT PRIMARY KEY, in_count INTEGER NOT NULL, out_count INTEGER NOT NULL, dropped INTEGER NOT NULL, expired INTEGER NOT NULL)`,
 	`CREATE TABLE messages (queue TEXT NOT NULL, seq INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY (queue, seq))`,
-	`CREATE TABLE credentials (name TEXT PRIMARY KEY, current TEXT NOT NULL, previous TEXT NOT NULL, issued TEXT NOT NULL)`,
+	`CREATE TABLE credentials (name TEXT PRIMARY KEY, current TEXT NOT NULL, previous TEXT NOT NULL, issued TEXT NOT NULL, used TEXT NOT NULL DEFAULT '', user_id INTEGER NOT NULL DEFAULT 0, agent_id INTEGER NOT NULL DEFAULT 0)`,
 }
 
 // ErrMissing is a database that is not there and was not asked to be made.
@@ -427,6 +427,15 @@ func (s *Store) Commit(c ports.Change) error {
 			return err
 		}
 	}
+	for name, p := range c.Credentials {
+		if p == nil {
+			if _, err := tx.Exec(`DELETE FROM credentials WHERE name = ?`, name); err != nil {
+				return err
+			}
+		} else if _, err := tx.Exec(`UPDATE credentials SET user_id = ?, agent_id = ? WHERE name = ?`, p.UserID, p.AgentID, name); err != nil {
+			return err
+		}
+	}
 	for _, name := range c.DropQueues {
 		if _, err := tx.Exec(`DELETE FROM messages WHERE queue = ?`, name); err != nil {
 			return err
@@ -483,7 +492,7 @@ func (s *Store) Tokens() ports.TokenStore { return tokens{s} }
 type tokens struct{ s *Store }
 
 func (t tokens) Load() ([]ports.Credential, error) {
-	rows, err := t.s.db.Query(`SELECT name, current, previous, issued FROM credentials ORDER BY name`)
+	rows, err := t.s.db.Query(`SELECT name, current, previous, issued, used, user_id, agent_id FROM credentials ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
@@ -491,37 +500,61 @@ func (t tokens) Load() ([]ports.Credential, error) {
 	var out []ports.Credential
 	for rows.Next() {
 		var c ports.Credential
-		var issued string
-		if err := rows.Scan(&c.Name, &c.Current, &c.Previous, &issued); err != nil {
+		var issued, used string
+		if err := rows.Scan(&c.Name, &c.Current, &c.Previous, &issued, &used, &c.UserID, &c.AgentID); err != nil {
 			return nil, err
 		}
-		if issued != "" {
-			if c.Issued, err = time.Parse(time.RFC3339Nano, issued); err != nil {
-				return nil, fmt.Errorf("credential %s: %w", c.Name, err)
-			}
+		if c.Issued, err = parseTime(issued); err != nil {
+			return nil, fmt.Errorf("credential %s: %w", c.Name, err)
+		}
+		if c.Used, err = parseTime(used); err != nil {
+			return nil, fmt.Errorf("credential %s: %w", c.Name, err)
 		}
 		out = append(out, c)
 	}
 	return out, rows.Err()
 }
 
-func (t tokens) Save(creds []ports.Credential) error {
+func (t tokens) Put(c ports.Credential) error {
+	_, err := t.s.db.Exec(`INSERT INTO credentials (name, current, previous, issued, used, user_id, agent_id) VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(name) DO UPDATE SET current = excluded.current, previous = excluded.previous, issued = excluded.issued,
+		used = excluded.used, user_id = excluded.user_id, agent_id = excluded.agent_id`,
+		c.Name, c.Current, c.Previous, formatTime(c.Issued), formatTime(c.Used), c.UserID, c.AgentID)
+	return err
+}
+
+func (t tokens) Drop(name string) error {
+	_, err := t.s.db.Exec(`DELETE FROM credentials WHERE name = ?`, name)
+	return err
+}
+
+func (t tokens) Touch(used map[string]time.Time) error {
+	if len(used) == 0 {
+		return nil
+	}
 	tx, err := t.s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`DELETE FROM credentials`); err != nil {
-		return err
-	}
-	for _, c := range creds {
-		issued := ""
-		if !c.Issued.IsZero() {
-			issued = c.Issued.UTC().Format(time.RFC3339Nano)
-		}
-		if _, err := tx.Exec(`INSERT INTO credentials (name, current, previous, issued) VALUES (?, ?, ?, ?)`, c.Name, c.Current, c.Previous, issued); err != nil {
+	for name, at := range used {
+		if _, err := tx.Exec(`UPDATE credentials SET used = ? WHERE name = ?`, formatTime(at), name); err != nil {
 			return err
 		}
 	}
 	return tx.Commit()
+}
+
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339Nano)
+}
+
+func parseTime(s string) (time.Time, error) {
+	if s == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339Nano, s)
 }

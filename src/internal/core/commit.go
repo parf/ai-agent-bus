@@ -31,11 +31,14 @@ type staged struct {
 	// The ID high-water marks before the write, when it moved them.
 	nextRecordID, nextUserID uint32
 	idsOn                    bool
+	// creds is the write's credential half: a new pair, or nil to remove.
+	// Nothing in memory moves until the commit lands (credentials.go).
+	creds map[string]*ports.CredentialPair
 }
 
 func (s *staged) empty() bool {
 	return len(s.records) == 0 && len(s.users) == 0 && len(s.groups) == 0 &&
-		len(s.inboxes) == 0 && s.owner == nil && !s.accountsOn && !s.idsOn
+		len(s.inboxes) == 0 && s.owner == nil && !s.accountsOn && !s.idsOn && len(s.creds) == 0
 }
 
 func (b *Bus) stage() *staged {
@@ -186,16 +189,16 @@ func (b *Bus) commit() error {
 		b.rollback(s)
 		return ErrExhausted
 	}
-	if b.store == nil {
-		return nil
+	if b.store != nil {
+		if err := b.store.Commit(b.change(s)); err != nil {
+			b.rollback(s)
+			return fmt.Errorf("persist administrative state: %w", err)
+		}
+		for name := range s.inboxes {
+			delete(b.flushed, name)
+		}
 	}
-	if err := b.store.Commit(b.change(s)); err != nil {
-		b.rollback(s)
-		return fmt.Errorf("persist administrative state: %w", err)
-	}
-	for name := range s.inboxes {
-		delete(b.flushed, name)
-	}
+	b.publishCredentials(s.creds)
 	return nil
 }
 
@@ -250,6 +253,9 @@ func (b *Bus) change(s *staged) ports.Change {
 		if _, dropping := s.inboxes[name]; before == nil && now && !dropping {
 			c.DropQueues = append(c.DropQueues, name)
 		}
+	}
+	if len(s.creds) > 0 {
+		c.Credentials = s.creds
 	}
 	if s.owner != nil {
 		owner := b.admin

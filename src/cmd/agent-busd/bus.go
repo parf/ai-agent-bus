@@ -95,6 +95,12 @@ func runBus(c config) {
 			log.Printf("flush: %v", err)
 			logs.Report(ports.Error, "queue flush failed: "+err.Error())
 		}
+		// Last-use times ride the same cadence: one batch, never a write per
+		// authenticated call (docs/02-access.md#token-lifetime).
+		if err := tokens.FlushUsed(); err != nil {
+			log.Printf("credential use: %v", err)
+			logs.Report(ports.Error, "credential last-use flush failed: "+err.Error())
+		}
 	}
 	save(false)
 	// A realm somebody vouches for can only be entered by proving you hold

@@ -148,6 +148,9 @@ func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
 	if err := bus.EstablishDaemonOwner(owner); err != nil {
 		panic(err)
 	}
+	// After the owner is established, so the owner's own credential binds
+	// rather than being ignored as answering for nobody.
+	bus.BindCredentials(tokens)
 	return &Server{bus: bus, tokens: tokens}
 }
 
@@ -233,7 +236,7 @@ func (s *Server) routes(g guard) http.Handler {
 // wire to be somebody else with. See docs/02-access.md#what-a-call-carries.
 func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Name)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		who, known := s.tokens.Principal(r.Header.Get(HeaderToken))
+		who, pair, known := s.tokens.Credential(r.Header.Get(HeaderToken))
 		if !known {
 			s.refuse(w, http.StatusUnauthorized, "credential", "bad token")
 			return
@@ -242,6 +245,13 @@ func (s *Server) auth(next func(http.ResponseWriter, *http.Request, protocol.Nam
 		// cheap and keeps every handler taking a Name rather than a string.
 		name, err := protocol.ParseName(who)
 		if err != nil {
+			s.refuse(w, http.StatusUnauthorized, "credential", "bad token")
+			return
+		}
+		// Who the credential was issued for, against who the name is now: a
+		// credential left over from a name's previous holder answers for
+		// nothing (docs/02-access.md#what-a-call-carries).
+		if err := s.bus.CheckCredential(name.String(), pair); err != nil {
 			s.refuse(w, http.StatusUnauthorized, "credential", "bad token")
 			return
 		}
@@ -315,9 +325,9 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 		s.refuse(w, http.StatusBadRequest, "malformed", err.Error())
 		return
 	}
-	issue := s.tokens.Issue
+	issue := s.tokens.IssuePair
 	if in.Rotate {
-		issue = s.tokens.Rotate
+		issue = s.tokens.RotatePair
 	}
 	// Issued to somebody, never to nobody, and never to somebody who has
 	// stopped being the one entitled to it. This is the operation that filled
@@ -384,7 +394,7 @@ func (s *Server) unregister(w http.ResponseWriter, r *http.Request, caller proto
 	// Whether the name is a person, and so keeps its credential, is the
 	// registry's to answer while it still holds — asked out here it was
 	// answered after the record it depends on had already gone.
-	err := s.bus.UnregisterAnd(in.Name, caller.String(), s.tokens.Forget)
+	err := s.bus.Unregister(in.Name, caller.String())
 	s.reply(w, nil, err)
 }
 

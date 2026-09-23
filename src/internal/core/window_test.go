@@ -9,6 +9,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
 // Every verb asks who the caller is where it acts, not only at the edge.
@@ -74,7 +75,7 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 			})
 		}},
 		{"issue", func(b *Bus, c string) error {
-			_, err := b.IssueFor(c, "#target@h", func(string) (string, error) {
+			_, err := b.IssueFor(c, "#target@h", func(string, ports.CredentialPair) (string, error) {
 				t.Error("a credential was minted for a caller that may not act")
 				return "tok", nil
 			})
@@ -150,7 +151,7 @@ func TestIssuingDoesNotHandOverACredentialOwnershipHasMovedOn(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "first@h"}); err != nil {
 		t.Fatal(err)
 	}
-	mint := func(name string) (string, error) { return "credential for " + name, nil }
+	mint := func(name string, _ ports.CredentialPair) (string, error) { return "credential for " + name, nil }
 	if _, err := b.IssueFor("first@h", "#svc@h", mint); err != nil {
 		t.Fatalf("the owner could not have its service's credential: %v", err)
 	}
@@ -186,7 +187,7 @@ func TestIssuingHoldsTheRegistryWhileItDecidesAndMints(t *testing.T) {
 	minting, release := make(chan struct{}), make(chan struct{})
 	issued := make(chan error, 1)
 	go func() {
-		_, err := b.IssueFor("first@h", "#svc@h", func(string) (string, error) {
+		_, err := b.IssueFor("first@h", "#svc@h", func(string, ports.CredentialPair) (string, error) {
 			close(minting)
 			<-release
 			return "credential", nil
@@ -242,34 +243,44 @@ func TestATransferCannotHandARecordToSomebodyWhoCannotAct(t *testing.T) {
 	}
 }
 
-// Removing the address and dropping its credential are one operation, and the
-// order within it is the one that cannot strand anything: a store that will
-// not take the removal abandons the whole thing, rather than leaving a record
-// gone and a credential answering for it.
+// Removing the address and dropping its credential are one operation: the
+// credential's removal is in the removal's own commit, and a commit that fails
+// removes neither (docs/02-access.md#token-lifetime).
 func TestRemovingAnAddressAndItsCredentialIsOneOperation(t *testing.T) {
 	b := New()
+	st := memory.NewState()
+	b.Persistence(st)
+	idx := newIndex()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "#svc@h")
-	refuse := errors.New("the credential store is not writable")
-	if err := b.UnregisterAnd("#svc@h", "#svc@h", func(string) error { return refuse }); !errors.Is(err, refuse) {
-		t.Fatalf("a failed credential write was not reported: %v", err)
-	}
-	if _, ok := b.Lookup("#svc@h", "#svc@h"); !ok {
-		t.Fatal("the record went even though its credential could not be dropped")
-	}
-	if b.Authenticate("#svc@h") != nil {
-		t.Fatal("the name stopped being a principal in a removal that failed")
-	}
-
-	dropped := []string{}
-	if err := b.UnregisterAnd("#svc@h", "#svc@h", func(n string) error {
-		dropped = append(dropped, n)
-		return nil
-	}); err != nil {
+	b.BindCredentials(idx)
+	idx.held["#svc@h"] = mustPair(t, b, "#svc@h")
+	if err := st.Tokens().Put(ports.Credential{Name: "#svc@h", Current: "x", CredentialPair: idx.held["#svc@h"]}); err != nil {
 		t.Fatal(err)
 	}
-	if len(dropped) != 1 || dropped[0] != "#svc@h" {
-		t.Fatalf("the credential was not dropped with the address: %v", dropped)
+	st.Err = errors.New("the database is not writable")
+	if err := b.Unregister("#svc@h", "#svc@h"); err == nil {
+		t.Fatal("a failed commit was reported as a removal")
+	}
+	if _, ok := b.Lookup("#svc@h", "#svc@h"); !ok {
+		t.Fatal("the record went even though the commit failed")
+	}
+	if len(idx.discarded) != 0 {
+		t.Fatalf("the credential stopped working in a removal that failed: %v", idx.discarded)
+	}
+	if kept, _ := st.Tokens().Load(); len(kept) != 1 {
+		t.Fatalf("a failed commit removed the stored credential: %+v", kept)
+	}
+
+	st.Err = nil
+	if err := b.Unregister("#svc@h", "#svc@h"); err != nil {
+		t.Fatal(err)
+	}
+	if len(idx.discarded) != 1 || idx.discarded[0] != "#svc@h" {
+		t.Fatalf("the credential was not dropped with the address: %v", idx.discarded)
+	}
+	if kept, _ := st.Tokens().Load(); len(kept) != 0 {
+		t.Fatalf("the removal's commit kept the credential row: %+v", kept)
 	}
 
 	// A person is the exception: their own record goes with them and they are
@@ -277,49 +288,41 @@ func TestRemovingAnAddressAndItsCredentialIsOneOperation(t *testing.T) {
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "someone@h"}, true); err != nil {
 		t.Fatal(err)
 	}
-	dropped = dropped[:0]
-	if err := b.UnregisterAnd("someone@h", "someone@h", func(n string) error {
-		dropped = append(dropped, n)
-		return nil
-	}); !errors.Is(err, ErrBusy) {
+	idx.discarded = nil
+	if err := b.Unregister("someone@h", "someone@h"); !errors.Is(err, ErrBusy) {
 		t.Fatalf("a user's own record was removed: %v", err)
 	}
-	if len(dropped) != 0 {
-		t.Fatalf("a person was logged out: %v", dropped)
+	if len(idx.discarded) != 0 {
+		t.Fatalf("a person was logged out: %v", idx.discarded)
 	}
 }
 
-// The registry is still holding while the credential store is written, so the
-// name cannot be claimed by somebody else in between and have *their*
-// credential dropped instead.
-func TestRemovingHoldsTheRegistryWhileItDropsTheCredential(t *testing.T) {
+// The registry is still holding while the removal commits, so the name
+// cannot be claimed by somebody else in between.
+func TestRemovingHoldsTheRegistryWhileItCommits(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
-	known(t, b, "#svc@h", "#other@h")
-	forgetting, release := make(chan struct{}), make(chan struct{})
+	known(t, b, "#svc@h", "other@h")
+	st := memory.NewState()
+	st.Enter, st.Release = make(chan struct{}), make(chan struct{})
+	b.Persistence(st)
 	removed := make(chan error, 1)
-	go func() {
-		removed <- b.UnregisterAnd("#svc@h", "#svc@h", func(string) error {
-			close(forgetting)
-			<-release
-			return nil
-		})
-	}()
-	<-forgetting
+	go func() { removed <- b.Unregister("#svc@h", "#svc@h") }()
+	<-st.Enter
 
 	claiming, claimed := make(chan struct{}), make(chan error, 1)
 	go func() {
 		close(claiming)
-		_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "#other@h"})
+		_, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "other@h"})
 		claimed <- err
 	}()
 	<-claiming
 	select {
 	case err := <-claimed:
-		t.Fatalf("the name was claimed while its credential was being dropped: %v", err)
+		t.Fatalf("the name was claimed while its removal was committing: %v", err)
 	case <-time.After(100 * time.Millisecond):
 	}
-	close(release)
+	close(st.Release)
 	if err := <-removed; err != nil {
 		t.Fatalf("removal failed: %v", err)
 	}

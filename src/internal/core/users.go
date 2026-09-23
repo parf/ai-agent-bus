@@ -166,7 +166,7 @@ func (b *Bus) acting(name string) error {
 // shape and same hold as RemoveOwnerless, which is the other half of this:
 // one place decides, and it is still deciding when the store is written.
 // See docs/02-access.md#getting-a-token.
-func (b *Bus) IssueFor(caller, name string, mint func(string) (string, error)) (string, error) {
+func (b *Bus) IssueFor(caller, name string, mint func(string, ports.CredentialPair) (string, error)) (string, error) {
 	who, err := canon(caller)
 	if err != nil {
 		return "", err
@@ -189,7 +189,13 @@ func (b *Bus) IssueFor(caller, name string, mint func(string) (string, error)) (
 			return "", fmt.Errorf("%w: %s does not own %s", ErrNotOwner, who, n)
 		}
 	}
-	return mint(n)
+	// Decided here, while the registry still holds, so the pair written with
+	// the credential is the one a transfer would have to rebind.
+	pair, err := b.pairFor(n)
+	if err != nil {
+		return "", err
+	}
+	return mint(n, pair)
 }
 
 // knows says whether the daemon holds anything for this name beyond a

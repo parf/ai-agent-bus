@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -467,6 +468,12 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		}
 		if r.Kind == protocol.KindUser {
 			return protocol.Record{}, fmt.Errorf("%w: a user's own record cannot be transferred", ErrNotOwner)
+		}
+		// An agent's credentials go with it, in this same commit: its pair
+		// names its Owner, and a transfer that committed without them would
+		// leave every one naming the old Owner (docs/02-access.md#token-lifetime).
+		if r.Kind == protocol.KindAgent && owner != r.Owner {
+			b.stageCredential(name, &ports.CredentialPair{UserID: b.users[owner].ID, AgentID: r.ID})
 		}
 		r.Owner = owner
 	}

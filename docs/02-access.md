@@ -21,10 +21,13 @@ A token identifies one principal; an account socket can supply that identity
 locally. The daemon checks that the caller is known, active and authorized.
 Sending a name alongside a credential cannot change who is calling.
 
-**Pending for 0.7:** a token always names a User and an agent credential names
-its Agent as well, the User being that Agent's Owner. The Agent remains the
-acting principal and the User is who it acts for, so an inactive User refuses
-the agent's token too. See [constitution § Token](constitution.md#-token).
+**Built in 0.7.6:** a token always names a User and an agent credential names
+its Agent as well, the User being that Agent's Owner, both by internal ID. The
+Agent remains the acting principal and the User is who it acts for, so an
+inactive User refuses the agent's token too. Every call checks that pair
+against the registry as it is now; a credential whose pair disagrees answers
+for nothing. Only a User and an Agent are issued one: a queue, a topic and a
+service are reached, never speak. See [constitution § Token](constitution.md#-token).
 
 ```mermaid
 flowchart LR
@@ -221,17 +224,24 @@ later-populated group references. Entity glyphs are
 ## Token lifetime
 
 Principal tokens never expire or rotate because of time, inactivity or restart.
-Explicit rotation keeps the current and previous token valid. Record removal
-and [ownerless cleanup](#ownerless-credentials) can revoke non-user credentials;
-pausing or banning a user retains theirs.
+Explicit rotation keeps the current and previous token valid. Removing an
+agent deletes its credentials in the removal's own commit, and
+[ownerless cleanup](#ownerless-credentials) collects credentials that answer
+for nobody; pausing or banning a user retains theirs.
 
 <details>
 <summary>Persistence, rotation and sessions</summary>
 
 * Asking again retrieves the current token. `agent-bus-token <name> --rotate`
   issues another; the token preceding the previous one stops authenticating.
-* Token bytes and issuance time persist. Last-use tracking is in memory for
-  this run, without a disk write per call.
+* Token bytes, issuance time and the User/Agent pair persist. Last use is
+  written in one batch on the queue flush's cadence, never once per call, so
+  a crash may lose the uses since the last flush.
+* At start, a stored credential whose pair disagrees with ownership, or that a
+  kind holding none carries, can only come from a failed write: it is ignored,
+  authenticates nothing and is reported as an alert naming the User, the
+  Agent and the current Owner, never the credential. It is not repaired. A
+  credential issued before its principal was bound is bound on first check.
 * Credential listings show only identities the caller holds, using keyed
   fingerprints rather than token bytes.
 * A person's credential lasts while their user profile exists; MVP does not

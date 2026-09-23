@@ -37,7 +37,10 @@ func known(t *testing.T, b *core.Bus, names ...string) {
 			})
 			continue
 		}
-		user(n.String())
+		// An existing User keeps its ID, and the credentials bound to it.
+		if !b.IsPerson(n.String()) {
+			user(n.String())
+		}
 	}
 	if agents && !b.IsPerson(fixtureOwner) {
 		user(fixtureOwner)

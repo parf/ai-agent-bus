@@ -3,6 +3,8 @@ package core
 import (
 	"testing"
 	"time"
+
+	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
 // Deciding and then minting is not the same as deciding while minting. With
@@ -17,7 +19,7 @@ func TestIssuingHoldsTheRegistryWhileItMints(t *testing.T) {
 	minting, release := make(chan struct{}), make(chan struct{})
 	issued := make(chan error, 1)
 	go func() {
-		_, err := b.IssueFor("#svc@h", "#svc@h", func(string) (string, error) {
+		_, err := b.IssueFor("#svc@h", "#svc@h", func(string, ports.CredentialPair) (string, error) {
 			close(minting)
 			<-release
 			return "credential", nil
@@ -56,7 +58,7 @@ func TestIssuingRefusesANameTheDaemonDoesNotKnow(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	called := false
-	mint := func(string) (string, error) { called = true; return "credential", nil }
+	mint := func(string, ports.CredentialPair) (string, error) { called = true; return "credential", nil }
 	if _, err := b.IssueFor("admin@h", "ghost@h", mint); err == nil || called {
 		t.Fatalf("minted for a name with nothing behind it: err=%v called=%v", err, called)
 	}

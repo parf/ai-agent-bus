@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -145,12 +146,65 @@ func TestFailedCommitWritesNothing(t *testing.T) {
 func TestCredentials(t *testing.T) {
 	s, _ := open(t)
 	tok := s.Tokens()
-	if err := tok.Save([]ports.Credential{{Name: "a@h", Current: "c", Previous: "p"}}); err != nil {
+	pair := ports.CredentialPair{UserID: 3, AgentID: 7}
+	if err := tok.Put(ports.Credential{Name: "#a@h", Current: "c", Previous: "p", CredentialPair: pair}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tok.Put(ports.Credential{Name: "b@h", Current: "d", CredentialPair: ports.CredentialPair{UserID: 4}}); err != nil {
+		t.Fatal(err)
+	}
+	used := time.Date(2026, 9, 22, 12, 0, 0, 0, time.UTC)
+	if err := tok.Touch(map[string]time.Time{"#a@h": used}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := tok.Load()
-	if err != nil || len(got) != 1 || got[0].Previous != "p" {
+	if err != nil || len(got) != 2 || got[0].Name != "#a@h" || got[0].Previous != "p" || got[0].CredentialPair != pair || !got[0].Used.Equal(used) {
 		t.Fatalf("%+v %v", got, err)
+	}
+	// One row at a time: dropping one leaves the other.
+	if err := tok.Drop("#a@h"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := tok.Load(); len(got) != 1 || got[0].Name != "b@h" {
+		t.Fatalf("after a drop: %+v", got)
+	}
+}
+
+// A transfer rebinds, and a removal deletes, credentials in the change's own
+// transaction; a change that fails writes neither.
+func TestCommitCarriesCredentials(t *testing.T) {
+	s, _ := open(t)
+	tok := s.Tokens()
+	for _, n := range []string{"#moved@h", "#gone@h"} {
+		if err := tok.Put(ports.Credential{Name: n, Current: n, CredentialPair: ports.CredentialPair{UserID: 1, AgentID: 2}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Commit(ports.Change{Credentials: map[string]*ports.CredentialPair{
+		"#moved@h": {UserID: 9, AgentID: 2}, "#gone@h": nil,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := tok.Load()
+	if len(got) != 1 || got[0].Name != "#moved@h" || got[0].UserID != 9 {
+		t.Fatalf("after the commit: %+v", got)
+	}
+	// The queue drop runs after the credential statement, so a refusal there
+	// fails the transaction with the rebind already applied inside it.
+	if _, err := s.db.Exec(`CREATE TRIGGER refuse BEFORE DELETE ON messages BEGIN SELECT RAISE(ABORT, 'refused'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO messages (queue, seq, body) VALUES ('q@h', 0, '{}')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Commit(ports.Change{
+		Credentials: map[string]*ports.CredentialPair{"#moved@h": {UserID: 5, AgentID: 2}},
+		DropQueues:  []string{"q@h"},
+	}); err == nil {
+		t.Fatal("the commit should have failed")
+	}
+	if got, _ := tok.Load(); got[0].UserID != 9 {
+		t.Fatalf("a failed commit rebound a credential: %+v", got)
 	}
 }
 

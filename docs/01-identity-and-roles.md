@@ -359,23 +359,19 @@ grants.
 ## Ownership
 
 Changing a record's owner requires its current owner's or the daemon
-Owner's authority. Transfer changes who may manage the record and request its
-credential; it does not revoke existing tokens.
-
-**Pending for 0.7:** because every token also names a User, transferring an
-Agent moves its tokens to the new Owner instead of leaving them naming the
-former one. They keep working; who they act for changes with the record. See
-[constitution § Token](constitution.md#-token).
+Owner's authority, and the new owner is a User. Transfer changes who may
+manage the record and request its credential; it does not revoke existing
+tokens. Built in 0.7.6: transferring an Agent rebinds its tokens to the new
+Owner in the transfer's own commit, so they keep working and act for the new
+Owner; a transfer whose commit fails moves neither the record nor its tokens.
+See [constitution § Token](constitution.md#-token).
 
 <details>
-<summary>Transfer recipients and self-owned identities</summary>
+<summary>Transfer recipients and user records</summary>
 
-Today a recipient must be active and have a self-owned record: its name and
-owner are identical. A self-owned identity itself cannot be transferred.
-Ordinary user creation and enrolment create such records; Administrator
-membership creates a profile without guaranteeing one. Broadening recipient
-eligibility was deferred by the owner on 2026-09-17 as a rare case; these
-existing conditions remain unchanged.
+A recipient must be an active User. A User's own 👤 record cannot be
+transferred. User creation, enrolment and Administrator membership each
+create the User's record with it.
 
 Existing credentials and copies already held follow the
 [token lifetime policy](02-access.md#token-lifetime).
@@ -394,15 +390,15 @@ is required. Drain live queued work and stop all readers first.
 * Missing names are errors. Expired messages are pruned before checking whether
   live work or any reader still blocks removal, so even a refused removal can
   prune expired messages.
-* A non-user name cannot unregister while it owns other records; transfer or
-  remove those first. A registered user keeps its profile and owned records
-  when its own record is removed.
-* A non-user loses its credential and group membership; reads it held elsewhere
-  end too. Credential-store failure abandons the removal. A registered user
-  keeps their credential and group standing.
-* A removed non-user name is free for reuse, without priority for its former
-  owner. Re-registration starts with an empty inbox and no configuration or
-  subscriptions. Existing history remains history.
+* A User's own 👤 record is never removed, and only a User owns records, so
+  a removed name owns nothing.
+* The removal's one commit deletes the name's credentials and every reference
+  to it: ACL, Maintainer, Group member and Deliver-To entries. Reads it held
+  elsewhere end too. A commit that fails removes nothing.
+* A removed name is free for reuse, without priority for its former owner.
+  Re-registration starts with an empty inbox, no configuration, no references
+  and a new internal ID, so nothing the former holder kept answers for it.
+  Existing history remains history.
 * Reserving a retired name is [later work](../Plans/R1.1/records.md#down-and-retired).
 
 </details>
