@@ -185,7 +185,7 @@ so MVP withdrew that phrase from every face.
 ## How long a record lives
 
 **A record is `kept` or `ephemeral`, and that is a different axis from its
-kind.** Kind says what the thing is ([service kinds](../../docs/03-records.md#five-record-kinds));
+kind.** Kind says what the thing is ([service kinds](../../docs/03-records.md#record-kinds));
 this says whether the registry is meant to hold it after nobody is using it.
 
 | | Registered by | Expires |
@@ -231,7 +231,7 @@ deleted somewhere else*. The open question there gates this one.
 ## External services and their secrets
 
 Status: **promoted out of R1.1 on 2026-09-18.** The design is current MVP scope
-and lives in [five record kinds](../../docs/03-records.md#five-record-kinds)
+and lives in [record kinds](../../docs/03-records.md#record-kinds)
 and [service secrets](../../docs/06-services.md#secrets),
 planned in [0.6.0](../MVP/0.6.0-TODO.md#remaining-work). This section is a
 pointer, not a second copy.
