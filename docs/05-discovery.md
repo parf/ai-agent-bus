@@ -153,7 +153,7 @@ what the daemon permits. “All” means all visible to that visitor.
 | Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work. Split from the combined Channels tab in 0.8.4 |
 | PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a topic keeps nothing. Split from the combined Channels tab in 0.8.4 |
 
-The [Personal view](03-records.md#personal-and-shared) is built. **Pending for
+The [Personal view](03-records.md#personal-and-shared) is built. **Built in
 0.7:** any kind may be Personal and a user record always is, so the main
 collections show shared records only.
 
