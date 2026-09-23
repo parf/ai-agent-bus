@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -316,6 +317,7 @@ func (b *Bus) UserName(id uint32) (string, bool) {
 // The database is not touched; what is ignored stays there for an operator.
 // Caller holds b.mu.
 func (b *Bus) ignoreIncorrect() {
+	b.ignoreSharedIdentities()
 	for {
 		var gone []string
 		names := make([]string, 0, len(b.records))
@@ -350,6 +352,49 @@ func (b *Bus) ignoreIncorrect() {
 		}
 		if len(gone) == 0 {
 			return
+		}
+	}
+}
+
+// ignoreSharedIdentities ignores every stored User that holds an identifying
+// field an earlier User (by ID) already holds: no write of this version lets
+// two Users share an email, a GitHub login or a Twitter/X name. The first
+// keeps it; the later one is reported and ignored, and the records it owned
+// with it. Caller holds b.mu.
+func (b *Bus) ignoreSharedIdentities() {
+	names := make([]string, 0, len(b.users))
+	for name := range b.users {
+		names = append(names, name)
+	}
+	sort.Slice(names, func(i, j int) bool { return b.users[names[i]].ID < b.users[names[j]].ID })
+	held := map[string]string{}
+	for _, name := range names {
+		u := b.users[name]
+		keys := map[string]string{}
+		if u.Email != "" {
+			keys["email "+u.Email] = "email " + u.Email
+		}
+		if u.GithubUser != "" {
+			keys["github "+u.GithubUser] = "GitHub login " + u.GithubUser
+		}
+		if u.GithubTwitterUsername != "" {
+			keys["twitter "+strings.ToLower(u.GithubTwitterUsername)] = "Twitter/X name " + u.GithubTwitterUsername
+		}
+		clash := ""
+		for key, field := range keys {
+			if first, taken := held[key]; taken {
+				clash = fmt.Sprintf("its %s is %s's", field, first)
+				break
+			}
+		}
+		if clash != "" {
+			b.report(ports.Alert, "stored user %s is ignored: %s", name, clash)
+			delete(b.userByID, u.ID)
+			delete(b.users, name)
+			continue
+		}
+		for key := range keys {
+			held[key] = name
 		}
 	}
 }

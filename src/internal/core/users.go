@@ -414,6 +414,40 @@ func normalizedEmail(raw string) (string, error) {
 	return email, nil
 }
 
+// validTwitter is a Twitter/X handle: 1 to 15 ASCII letters, digits and _.
+func validTwitter(s string) bool {
+	if len(s) == 0 || len(s) > 15 {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+// identityClash names the identifying field of u that another User already
+// holds, or "": a normalized email, a GitHub login, and a Twitter/X name
+// compared without case. A person's name is never unique.
+// See docs/01-identity-and-roles.md#users-and-profiles. Caller holds b.mu.
+func (b *Bus) identityClash(name string, u protocol.User) (field, other string) {
+	for n, x := range b.users {
+		if n == name {
+			continue
+		}
+		switch {
+		case u.Email != "" && x.Email == u.Email:
+			return "email " + u.Email, n
+		case u.GithubUser != "" && x.GithubUser == u.GithubUser:
+			return "GitHub login " + u.GithubUser, n
+		case u.GithubTwitterUsername != "" && strings.EqualFold(x.GithubTwitterUsername, u.GithubTwitterUsername):
+			return "Twitter/X name " + u.GithubTwitterUsername, n
+		}
+	}
+	return "", ""
+}
+
 func normalizedProfile(in protocol.User) (protocol.User, error) {
 	name, err := canon(in.Name)
 	if err != nil {
@@ -439,8 +473,11 @@ func normalizedProfile(in protocol.User) (protocol.User, error) {
 	in.GithubCompany = strings.TrimSpace(in.GithubCompany)
 	in.GithubLocation = strings.TrimSpace(in.GithubLocation)
 	in.GithubTwitterUsername = strings.TrimPrefix(strings.TrimSpace(in.GithubTwitterUsername), "@")
-	if len(in.GithubCompany) > 200 || len(in.GithubLocation) > 200 || len(in.GithubTwitterUsername) > 64 {
+	if len(in.GithubCompany) > 200 || len(in.GithubLocation) > 200 {
 		return protocol.User{}, fmt.Errorf("%w: profile field is too long", ErrProfile)
+	}
+	if in.GithubTwitterUsername != "" && !validTwitter(in.GithubTwitterUsername) {
+		return protocol.User{}, fmt.Errorf("%w: a Twitter/X name is 1 to 15 letters, digits and _", ErrProfile)
 	}
 	if in.GithubUser != "" {
 		if len(in.GithubUser) > 39 || in.GithubUser[0] == '-' || in.GithubUser[len(in.GithubUser)-1] == '-' {
@@ -505,7 +542,7 @@ func (b *Bus) applyGithubProfile(u *protocol.User, p ports.DirectoryProfile, nam
 	}
 	company, location := strings.TrimSpace(p.Company), strings.TrimSpace(p.Location)
 	twitter := strings.TrimPrefix(strings.TrimSpace(p.TwitterUsername), "@")
-	if len(company) > 200 || len(location) > 200 || len(twitter) > 64 || len(p.AvatarURL) > 2048 || len(p.GravatarID) > 200 {
+	if len(company) > 200 || len(location) > 200 || len(p.AvatarURL) > 2048 || len(p.GravatarID) > 200 {
 		return fmt.Errorf("%w: GitHub profile field is too long", ErrProfile)
 	}
 	if u.PersonName == "" {
@@ -526,6 +563,14 @@ func (b *Bus) applyGithubProfile(u *protocol.User, p ports.DirectoryProfile, nam
 		}
 	}
 	u.GithubProfileAt = p.FetchedAt
+	// Imported identifying fields fill in only where they are valid and no
+	// other User holds them, as the email above does: an import never makes
+	// two people share an identity.
+	if twitter != "" {
+		if field, _ := b.identityClash(name, protocol.User{GithubTwitterUsername: twitter}); field != "" || !validTwitter(twitter) {
+			twitter = ""
+		}
+	}
 	u.GithubCompany, u.GithubLocation, u.GithubTwitterUsername = company, location, twitter
 	u.GithubAvatarURL, u.GithubGravatarID = strings.TrimSpace(p.AvatarURL), strings.TrimSpace(p.GravatarID)
 	switch {
@@ -595,12 +640,10 @@ func (b *Bus) EditOwnEmail(caller, raw string) (protocol.User, error) {
 	if !exists {
 		return protocol.User{}, ErrUnknown
 	}
-	for name, other := range b.users {
-		if name != who && email != "" && other.Email == email {
-			return protocol.User{}, fmt.Errorf("%w: identifying field already belongs to another user", ErrProfile)
-		}
-	}
 	u.Email = email
+	if field, _ := b.identityClash(who, protocol.User{Email: email}); field != "" {
+		return protocol.User{}, fmt.Errorf("%w: identifying field already belongs to another user: %s", ErrProfile, field)
+	}
 	b.setUser(who, u)
 	if err := b.commit(); err != nil {
 		return protocol.User{}, err
@@ -678,13 +721,8 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 	if old.State == "banned" && in.State != "banned" && who != b.admin && !b.isAdministrator(who) {
 		return protocol.User{}, ErrNotOwner
 	}
-	for name, user := range b.users {
-		if name == in.Name {
-			continue
-		}
-		if in.Email != "" && user.Email == in.Email || in.GithubUser != "" && user.GithubUser == in.GithubUser {
-			return protocol.User{}, fmt.Errorf("%w: identifying field already belongs to another user", ErrProfile)
-		}
+	if field, _ := b.identityClash(in.Name, in); field != "" {
+		return protocol.User{}, fmt.Errorf("%w: identifying field already belongs to another user: %s", ErrProfile, field)
 	}
 	if !githubChanged {
 		copyGithubDecoration(&in, old)

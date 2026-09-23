@@ -144,14 +144,18 @@ name and never overwrite an existing one.
   Twitter/X name. GitHub may populate these ordinary editable fields. The
   daemon separately retains trusted photo/provenance data and one bounded local
   thumbnail; a blank profile is still a registered user.
-* Email and GitHub login are syntax-checked, trimmed, compared in lowercase
-  ASCII and unique across profiles. Provider aliases such as dots and
-  plus-addresses are not merged. Person names need not be unique.
+* Email, GitHub login and Twitter/X name are syntax-checked, trimmed and
+  unique across profiles: email and GitHub login in lowercase ASCII, and the
+  Twitter/X name — 1 to 15 letters, digits and `_` — without regard to case.
+  Checked on add, edit, import and restore; a restore finding two Users with
+  one of them ignores the later and reports it. Provider aliases such as dots
+  and plus-addresses are not merged. Person names need not be unique.
 * A GitHub identity retains its own GitHub username. Proving cross-provider
   aliases is [later work](../Plans/R1.2/QUESTIONS.md#open-questions).
 * A GitHub challenge retains the provider's person name with the public keys;
   successful proof imports both from that lookup. A public GitHub email fills
-  only a blank Email and is skipped on a uniqueness collision. Fetching any of
+  only a blank Email, and an imported email or Twitter/X name is skipped on a
+  uniqueness collision. Fetching any of
   these facts remains evidence from GitHub, not authentication by itself.
 * Setting or changing a GitHub login attempts to fetch the public profile, but
   provider availability does not block the login field. An explicit Company,
