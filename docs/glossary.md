@@ -42,9 +42,17 @@ the [record kinds](03-records.md#record-kinds): a card
 describing something this bus does not run. Anything running behind a bus name
 is an **agent**. Say record for a registered name whose kind does not matter to
 the sentence. Personal is an owner-selected
-[classification](03-records.md#personal-and-shared), not a
-kind: an agent's today, any kind's from 0.7. `generic`, `topic` as a **kind**, and delivery *mode* named kinds before
-0.6.3 and name nothing now.
+[classification](03-records.md#personal-and-shared) of any kind, not a kind.
+`generic`, `topic` as a **kind**, and delivery *mode* named kinds before 0.6.3
+and name nothing now.
+
+**The name says the kind.** From 0.7 an agent's name begins with `#`
+(`#worker@srv1`), a group's with `@`, and any other name is a user, a channel
+or a service ([names](01-identity-and-roles.md#names)). The realm is optional:
+`parf` and `parf@srv1` are two names. **Inactive** is the one status besides
+active, and an inactive entity is no such entity
+([record status](constitution.md#common-record-fields)); *paused*, *banned*
+and *disabled* name nothing now.
 
 ## Glyphs
 

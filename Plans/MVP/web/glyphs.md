@@ -263,7 +263,7 @@ value rather than being replaced by a symbol.
 | Service and Channel detail | queue condition; refusal reason | section headings |
 | Activity | the absence vocabulary in the value table | the graph itself — label the axes |
 | Diagnostics | refusal reason; the absence vocabulary | per-envelope decoration |
-| Users and Groups | paused and banned states | classification of an identity — that is a word, not a colour |
+| Users and Groups | the inactive status | classification of an identity — that is a word, not a colour |
 | Forms and prose | nothing | everything |
 
 Disabled is a **decision, not a failure**, and takes the cancelled mark rather

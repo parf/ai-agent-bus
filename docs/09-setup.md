@@ -233,7 +233,17 @@ path or package registry; publishing the MCP face or a container stays
 rather than a reinstall. The checkout must live outside `/home`: the daemon runs
 behind `ProtectHome=yes` and cannot exec a binary in a home directory at all.
 The script refuses one that does and says where to move it; `--revert` copies
-real binaries back. Daemon state under `/var/lib/agent-bus` is untouched.
+real binaries back. Daemon state under `/var/lib/agent-bus` is untouched, except
+by `--reinstall`.
+
+**Reinstall.** `agent-bus-setup --reinstall` (and, on a checkout,
+`src/git-install.sh --reinstall`) is the one explicit way to start a node over:
+it stops the daemon, moves its whole home and the unit's drop-ins into a
+root-only `daemon.before-0.7-<time>` directory that nothing reads again, and
+installs fresh — new database, generated unit, the installer as Owner. Every
+old credential stops working. It replaces whichever release is installed,
+0.6 included; the [reinstall procedure](../Plans/MVP/0.7-cutover.md#procedure)
+owns the steps.
 
 The current link changes by one atomic rename after the complete release and
 all stable command links exist. A failed first install is recovered by running

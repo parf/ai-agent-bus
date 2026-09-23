@@ -50,7 +50,7 @@ Where a value's meaning depends on when it was computed, this file says so.
 | `Readers` | the live count of all outstanding filtered and unfiltered reads; omitted means unavailable, while explicit `0` is measured | the numeric **Readers** value; registry filters say **Reading now**, **No reader now** and **Unavailable** | "Serving"/"Offline". A busy process between pulls is not offline, and no count is health |
 | `Reading` | compatibility-only indication that an unfiltered read is outstanding | do not render; new consumers use [`Readers`](../../../docs/05-discovery.md#readers) | presenting an incomplete compatibility bit beside the complete count |
 | `Proto` | a caller-supplied hint that the thing is reached another way | **external** | treating it as proof of anything, or as a healthy state |
-| user `State` | active, paused or banned | active / paused / banned | conflating a user's state with a record's |
+| user `Status` | active or inactive | active / inactive | reading a user's status as a record's own; an inactive user makes every record it owns inactive too |
 
 **Queue counters persist; activity history does not.** The two are easy to
 conflate and we did: accepted, dequeued, dropped and expired are restored from
