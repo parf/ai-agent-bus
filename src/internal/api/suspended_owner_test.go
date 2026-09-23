@@ -103,7 +103,11 @@ func TestAnInactiveOwnersRecordsAreNoSuchEntity(t *testing.T) {
 			}
 		}
 		// The agent itself, on its own credential, is an inactive caller.
-		f.call("#svc@h", "GET", "/consume?wait=0s", "", 403)
+		// Push in the MCP face tells a suspension from every other 403 by this
+		// sentence (src/mcp/push.ts), and waits it out instead of stopping.
+		if body := f.call("#svc@h", "GET", "/consume?wait=0s", "", 403); !strings.Contains(body, "user access is suspended") {
+			t.Errorf("an inactive caller's refusal does not say it is suspended: %s", body)
+		}
 		f.call("bystander@h", "GET", "/lookup?name=%23svc@h", "", 404)
 
 		// Positive control, in the same state: an active owner's service is

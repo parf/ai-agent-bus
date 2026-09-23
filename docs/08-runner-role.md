@@ -102,7 +102,9 @@ the daemon does not know and an inbox somebody else already holds are answers
 that asking again cannot change, so the loop says so once and leaves the
 session running without a channel. A suspended principal is different: it can
 be reactivated, so from 0.8.17 push says so once and asks again every 30
-minutes, and resumes by itself after reactivation (owner, 2026-09-23). A
+minutes, and resumes by itself after reactivation (owner, 2026-09-23). It is
+told by the daemon's own sentence for it, "user access is suspended"; any other
+403 stops push as before. A
 transient failure is retried after two seconds; a session that outlives its
 principal otherwise refuses its way through the daemon for as long as it lives.
 

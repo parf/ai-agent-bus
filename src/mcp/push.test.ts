@@ -9,12 +9,13 @@ import { startPush } from "./push.ts";
 const settled = async (done: Promise<void>, ms: number) =>
   await Promise.race([done.then(() => "stopped"), Bun.sleep(ms).then(() => "still running")]);
 
-const refusing = (name: string, status: number, count: { calls: number }) => ({
+const refusing = (name: string, status: number, count: { calls: number }, message = "refused") => ({
   name,
-  consume: async () => { count.calls++; throw new BusError(status, "refused"); },
+  consume: async () => { count.calls++; throw new BusError(status, message); },
 }) as any;
+const SUSPENDED = '{"error":"user access is suspended"}';
 
-for (const status of [401]) {
+for (const status of [401, 403]) { // a 403 that is not a suspension stays permanent
   test(`a ${status} refusal stops push after one attempt`, async () => {
     const count = { calls: 0 };
     const said: string[] = [];
@@ -47,7 +48,7 @@ test("a 403 suspension is retried after the long wait, and push resumes", async 
     name: "#paused@srv1",
     consume: async () => {
       count.calls++;
-      if (suspended) { suspended = false; throw new BusError(403, "user access is suspended"); }
+      if (suspended) { suspended = false; throw new BusError(403, SUSPENDED); }
       if (count.calls === 2) return { message_id: "m1", from: "#a@srv1" };
       await Bun.sleep(50);
       return null;
@@ -66,9 +67,18 @@ test("a 403 suspension is retried after the long wait, and push resumes", async 
 
 test("a stop during the suspension wait ends push at once", async () => {
   const count = { calls: 0 };
-  const push = startPush(refusing("#paused@srv1", 403, count), async () => {}, () => {}, 60_000);
+  const push = startPush(refusing("#paused@srv1", 403, count, SUSPENDED), async () => {}, () => {}, 60_000);
   await Bun.sleep(20);
+  expect(push.running()).toBe(true); // waiting on the suspension, not stopped by it
   push.stop();
   expect(await settled(push.done, 200)).toBe("stopped");
   expect(count.calls).toBe(1);
+});
+
+test("a stop during the transient backoff ends push at once", async () => {
+  const count = { calls: 0 };
+  const push = startPush(refusing("#busy@srv1", 503, count), async () => {}, () => {});
+  await Bun.sleep(20);
+  push.stop();
+  expect(await settled(push.done, 200)).toBe("stopped");
 });

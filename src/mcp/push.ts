@@ -18,11 +18,15 @@ const WAIT = "55s"; // just under the daemon's 60s ceiling
 const BACKOFF_MS = 2_000;
 // Refusals about who is asking, which asking again cannot change: an unknown
 // credential, and somebody else already holding the inbox.
-const PERMANENT = new Set([401, 409]);
-// A suspended principal (403 on its own inbox) can be reactivated, which
-// restores everything (docs/01-identity-and-roles.md), so push waits and asks
-// again rather than going off for the rest of the session. Owner, 2026-09-23.
+const PERMANENT = new Set([401, 403, 409]);
+// A suspended principal can be reactivated, which restores everything
+// (docs/01-identity-and-roles.md), so push waits and asks again rather than
+// going off for the rest of the session (owner, 2026-09-23). A 403 covers
+// several refusals, so it is told by the daemon's own sentence for it
+// (core.ErrInactive); every other 403 stays permanent.
 export const SUSPENDED_RETRY_MS = 30 * 60_000;
+const SUSPENDED = "user access is suspended";
+const suspension = (err: unknown) => err instanceof BusError && err.status === 403 && err.message.includes(SUSPENDED);
 
 export type Push = { readonly running: () => boolean; stop: () => void; done: Promise<void> };
 
@@ -49,6 +53,12 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
         // long as the session lives, and never delivers anything — which is
         // what a session outliving its principal did, at a refusal every two
         // seconds for a day.
+        if (suspension(err)) {
+          if (!suspended) log(`push: ${bus.name} is suspended (${(err as BusError).message}); asking again every ${Math.round(suspendedRetryMs / 60_000)} minutes`);
+          suspended = true;
+          await sleep(suspendedRetryMs, abort.signal);
+          continue;
+        }
         if (err instanceof BusError && PERMANENT.has(err.status)) {
           log(err.status === 409
             ? `push: ${bus.name} already has a reader; not starting a second one`
@@ -56,14 +66,8 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
           stopped = true;
           return;
         }
-        if (err instanceof BusError && err.status === 403) {
-          if (!suspended) log(`push: ${bus.name} is suspended (${err.message}); asking again every ${Math.round(suspendedRetryMs / 60_000)} minutes`);
-          suspended = true;
-          await sleep(suspendedRetryMs, abort.signal);
-          continue;
-        }
         log(`push: consume failed: ${err instanceof BusError ? `${err.status} ${err.message}` : err}`);
-        await sleep(BACKOFF_MS);
+        await sleep(BACKOFF_MS, abort.signal);
         continue;
       }
       if (stopped) return; // a message taken after stop would be lost anyway
