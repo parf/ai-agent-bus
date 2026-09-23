@@ -80,7 +80,9 @@ def direct_group_save(page, name: str, members: str):
               form.method = 'post';
               form.action = '/groups';
               for (const [key, value] of Object.entries({action: 'save', name, members})) {
-                const input = document.createElement('input');
+                // A textarea, as the real form has: an input drops the
+                // newlines and would send one unparseable member.
+                const input = document.createElement('textarea');
                 input.name = key;
                 input.value = value;
                 form.appendChild(input);
@@ -299,6 +301,10 @@ def main() -> None:
         owner.locator('#form-save textarea[name="members"]').fill("owner@fresh\nalice@fresh\nowner-made@fresh")
         submit(owner, "Save members")
         check(owner.locator(".member-list code", has_text="owner-made@fresh").count() == 1, "daemon Owner did not change the protected group")
+        # The direct save the Administrator was refused succeeds for the
+        # daemon Owner, so that refusal was about authority, not the request.
+        own = direct_group_save(owner, "@administrators", "owner@fresh\nalice@fresh\nowner-made@fresh")
+        check(own["status"] == 200 and "Not yours to see" not in own["text"], "the direct group save is refused even for the daemon Owner")
         owner.goto(args.base + "/group/edit?name=%40browser-team", wait_until="domcontentloaded")
         owner.locator('#form-save textarea[name="members"]').fill("dave@fresh\ncarol@fresh\nbob@fresh")
         submit(owner, "Save members")

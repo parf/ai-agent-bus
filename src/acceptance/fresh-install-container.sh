@@ -186,7 +186,8 @@ if /usr/local/bin/agent-bus register owner@fresh --kind agent --allow '#fresh-ec
   fail "a User was registered as an agent"
 fi
 grep -q "an agent's name begins with #, and owner@fresh does not" /evidence/user-as-agent.log || fail "User-as-agent refusal did not give its reason"
-reply=$(timeout 15 /usr/local/bin/agent-bus call '#fresh-echo@fresh' --wait 5s 'installation works')
+reply=$(timeout 15 /usr/local/bin/agent-bus call '#fresh-echo@fresh' --wait 5s 'installation works' 2>&1) ||
+  fail "installed agent call got no reply: $reply"
 grep -q 'fresh reply: installation works' <<<"$reply" || fail "installed agent call did not return its unique reply"
 pass "new user calls a real script agent using only installed programs; a User is refused as an agent"
 python /fixture/browser-roles.py --base http://127.0.0.1:6780 \
