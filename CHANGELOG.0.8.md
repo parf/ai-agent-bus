@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.12 — 2026-09-23
+
+Activity is a day ring per record: 144 ten-minute slots of the node's local
+clock, saved with the queues (store schema 5) and restored at start; down time reads zero; the web draws a fixed day.
+
 ## 0.8.11 — 2026-09-23
 
 The call counter is read at every minute of the clock, so "Calls, minute" is

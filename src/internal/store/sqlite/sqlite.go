@@ -11,6 +11,7 @@ package sqlite
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,19 +27,26 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// schema is the layout this daemon reads and writes. A database carrying any
-// other version is refused rather than guessed at: before 1.1 there is no
-// compatibility obligation, and 0.7 starts from a clean reinstall.
-const schema = 4
+// schema is the layout this daemon reads and writes. A database at an older
+// version with a migration below is brought up to it at open, in one
+// transaction; any other version is refused rather than guessed at.
+const schema = 5
 
 var tables = []string{
 	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
 	`CREATE TABLE users (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, body TEXT NOT NULL)`,
 	`CREATE TABLE records (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, kind TEXT NOT NULL, body TEXT NOT NULL)`,
 	`CREATE TABLE accounts (account TEXT PRIMARY KEY, principal TEXT NOT NULL)`,
-	`CREATE TABLE queues (name TEXT PRIMARY KEY, in_count INTEGER NOT NULL, out_count INTEGER NOT NULL, dropped INTEGER NOT NULL, expired INTEGER NOT NULL)`,
+	`CREATE TABLE queues (name TEXT PRIMARY KEY, in_count INTEGER NOT NULL, out_count INTEGER NOT NULL, dropped INTEGER NOT NULL, expired INTEGER NOT NULL, activity BLOB NOT NULL DEFAULT x'')`,
 	`CREATE TABLE messages (queue TEXT NOT NULL, seq INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY (queue, seq))`,
 	`CREATE TABLE credentials (name TEXT PRIMARY KEY, current TEXT NOT NULL, previous TEXT NOT NULL, issued TEXT NOT NULL, used TEXT NOT NULL DEFAULT '', user_id INTEGER NOT NULL DEFAULT 0, agent_id INTEGER NOT NULL DEFAULT 0)`,
+}
+
+// migrations[v] takes a database from schema v to v+1.
+var migrations = map[int][]string{
+	// 0.8.12: a record's day of activity is saved with its queue, so it goes
+	// with the queue's row (docs/05-discovery.md#activity-history).
+	4: {`ALTER TABLE queues ADD COLUMN activity BLOB NOT NULL DEFAULT x''`},
 }
 
 // ErrMissing is a database that is not there and was not asked to be made.
@@ -131,6 +139,12 @@ func (s *Store) prepare(fresh bool) error {
 		}
 		version = schema
 	}
+	if steps, known := migrations[version]; known && version < schema {
+		if err := s.migrate(version, steps); err != nil {
+			return fmt.Errorf("database %s: migrate schema %d: %w", s.path, version, err)
+		}
+		return s.prepare(false)
+	}
 	if version != schema {
 		return fmt.Errorf("database %s has schema %d; this daemon reads %d", s.path, version, schema)
 	}
@@ -142,6 +156,23 @@ func (s *Store) prepare(fresh bool) error {
 		return fmt.Errorf("database %s failed its integrity check: %s", s.path, check)
 	}
 	return nil
+}
+
+func (s *Store) migrate(from int, steps []string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, step := range steps {
+		if _, err := tx.Exec(step); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, from+1)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // Close releases the database and its lock.
@@ -190,6 +221,13 @@ func (s *Store) Load() (ports.Snapshot, error) {
 		return snap, err
 	} else if has {
 		snap.At, _ = time.Parse(time.RFC3339Nano, v)
+	}
+	if v, has, err := meta(tx, "activity"); err != nil {
+		return snap, err
+	} else if has {
+		if snap.Activity, err = base64.StdEncoding.DecodeString(v); err != nil {
+			return snap, fmt.Errorf("meta activity: %w", err)
+		}
 	}
 	rows, err := tx.Query(`SELECT account, principal FROM accounts ORDER BY account`)
 	if err != nil {
@@ -241,13 +279,13 @@ func (s *Store) Load() (ports.Snapshot, error) {
 	}
 	queues := map[string]*ports.Queue{}
 	var order []string
-	rows, err = tx.Query(`SELECT name, in_count, out_count, dropped, expired FROM queues ORDER BY name`)
+	rows, err = tx.Query(`SELECT name, in_count, out_count, dropped, expired, activity FROM queues ORDER BY name`)
 	if err != nil {
 		return snap, err
 	}
 	for rows.Next() {
 		q := &ports.Queue{}
-		if err := rows.Scan(&q.Name, &q.In, &q.Out, &q.Dropped, &q.Expired); err != nil {
+		if err := rows.Scan(&q.Name, &q.In, &q.Out, &q.Dropped, &q.Expired, &q.Activity); err != nil {
 			rows.Close()
 			return snap, err
 		}
@@ -420,8 +458,9 @@ func (s *Store) Commit(c ports.Change) error {
 	return tx.Commit()
 }
 
-// SaveQueues replaces the given queues' state as one batch.
-func (s *Store) SaveQueues(qs []ports.Queue, clean bool) error {
+// SaveQueues replaces the given queues' state, and the node's activity, as
+// one batch.
+func (s *Store) SaveQueues(qs []ports.Queue, activity []byte, clean bool) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -431,9 +470,9 @@ func (s *Store) SaveQueues(qs []ports.Queue, clean bool) error {
 		if _, err := tx.Exec(`DELETE FROM messages WHERE queue = ?`, q.Name); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(`INSERT INTO queues (name, in_count, out_count, dropped, expired) VALUES (?, ?, ?, ?, ?)
-			ON CONFLICT(name) DO UPDATE SET in_count = excluded.in_count, out_count = excluded.out_count, dropped = excluded.dropped, expired = excluded.expired`,
-			q.Name, q.In, q.Out, q.Dropped, q.Expired); err != nil {
+		if _, err := tx.Exec(`INSERT INTO queues (name, in_count, out_count, dropped, expired, activity) VALUES (?, ?, ?, ?, ?, ?)
+			ON CONFLICT(name) DO UPDATE SET in_count = excluded.in_count, out_count = excluded.out_count, dropped = excluded.dropped, expired = excluded.expired, activity = excluded.activity`,
+			q.Name, q.In, q.Out, q.Dropped, q.Expired, blob(q.Activity)); err != nil {
 			return err
 		}
 		for i, e := range q.Messages {
@@ -452,6 +491,11 @@ func (s *Store) SaveQueues(qs []ports.Queue, clean bool) error {
 	}
 	if err := setMeta(tx, "clean", c); err != nil {
 		return err
+	}
+	if activity != nil {
+		if err := setMeta(tx, "activity", base64.StdEncoding.EncodeToString(activity)); err != nil {
+			return err
+		}
 	}
 	if err := setMeta(tx, "at", time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		return err
@@ -516,6 +560,14 @@ func (t tokens) Touch(used map[string]time.Time) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// blob is never NULL, which the column refuses.
+func blob(b []byte) []byte {
+	if b == nil {
+		return []byte{}
+	}
+	return b
 }
 
 func formatTime(t time.Time) string {

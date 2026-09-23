@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/activity"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -114,6 +115,9 @@ type inbox struct {
 
 	queue   []protocol.Envelope
 	waiters []*waiter
+	// act is its last day of traffic, differenced from the counters above at
+	// each ten-minute boundary (activity.go).
+	act activity.Ring
 }
 
 type Bus struct {
@@ -146,9 +150,12 @@ type Bus struct {
 	accountRestoreErr error
 	users             map[string]protocol.User
 	mu                sync.Mutex
-	activity          []activitySample
-	records           map[string]protocol.Record
-	admin             string
+	// node is the node-wide refusals' day, the daemon Owner's Refused series
+	// (activity.go). clock is the time as the bus reads it; a test moves it.
+	node    activity.Ring
+	clock   func() time.Time
+	records map[string]protocol.Record
+	admin   string
 	// ownerRestored means a current snapshot, rather than setup, supplied
 	// admin. ownerRestoreErr is retained until startup validates that durable
 	// authority before serving anything.
@@ -191,6 +198,8 @@ func New() *Bus {
 		recordByID:     map[uint32]string{},
 		userByID:       map[uint32]string{},
 		started:        time.Now(),
+		clock:          time.Now,
+		node:           activity.Start(time.Now(), activity.Counts{}),
 	}
 }
 
@@ -943,7 +952,7 @@ func drop(ws []*waiter, i int) []*waiter {
 func (b *Bus) ensure(name string) *inbox {
 	in, ok := b.inboxes[name]
 	if !ok {
-		in = &inbox{}
+		in = &inbox{act: activity.Start(b.clock(), activity.Counts{})}
 		b.inboxes[name] = in
 	}
 	return in

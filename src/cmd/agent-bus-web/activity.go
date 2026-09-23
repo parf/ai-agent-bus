@@ -15,19 +15,24 @@ import (
 type activitySeries struct {
 	Label, Class, Points string
 	Total                int
-	Single               bool
-	X, Y                 string
+}
+
+// activityTick is one hour on the day axis; Label is set on every third.
+type activityTick struct {
+	X     string
+	Label string
 }
 
 type activityPresentation struct {
-	Scope, Start, End, Observed, Uptime string
-	Named, ShowTable                    bool
-	AllZero                             bool
-	Max                                 int
-	Series                              []activitySeries
-	Zero                                []string
-	Points                              []core.ActivityPoint
-	Unavailable                         string
+	Scope, Start, End, Uptime string
+	Named, ShowTable          bool
+	AllZero                   bool
+	Max                       int
+	Series                    []activitySeries
+	Ticks                     []activityTick
+	Zero                      []string
+	Points                    []core.ActivityPoint
+	Unavailable               string
 }
 
 type activityMetric struct {
@@ -43,27 +48,35 @@ var activityMetrics = []activityMetric{
 	{"Refused", "activity-refused", func(c core.Counts) int { return c.Refused }},
 }
 
-// activityView gives detail and the complete Activity page the same displayed
-// series and therefore the same scale for the same daemon answer. X positions
-// come from timestamps rather than sample indexes; irregular samples stay
-// irregular on the chart.
+// activityX is where slot i of a day sits on the fixed 24-hour axis.
+func activityX(i, slots int) float64 {
+	if slots < 2 {
+		return 330
+	}
+	return 50 + 560*float64(i)/float64(slots-1)
+}
+
+// activityView gives detail and the complete Activity page the same series
+// and therefore the same scale for the same daemon answer: the last day, one
+// point per ten-minute slot on a fixed axis with a tick at every hour. A slot
+// nobody counted is zero like any quiet one, so every line is continuous.
 func activityView(points []core.ActivityPoint, scope, uptime string, table bool) activityPresentation {
 	v := activityPresentation{Scope: scope, Named: scope != "", Uptime: uptime, ShowTable: table, Points: points}
 	if len(points) == 0 {
 		return v
 	}
-	start, end := points[0].At, points[len(points)-1].At
-	v.Start, v.End = start.Format("Jan 2 15:04:05"), end.Format("Jan 2 15:04:05")
-	span := end.Sub(start)
-	if span < 0 {
-		span = 0
+	v.Start = points[0].At.Format("Jan 2 15:04")
+	v.End = points[len(points)-1].At.Add(10 * time.Minute).Format("Jan 2 15:04")
+	for i, p := range points {
+		if p.At.Minute() != 0 {
+			continue
+		}
+		tick := activityTick{X: fmt.Sprintf("%.1f", activityX(i, len(points)))}
+		if p.At.Hour()%3 == 0 {
+			tick.Label = p.At.Format("15:04")
+		}
+		v.Ticks = append(v.Ticks, tick)
 	}
-	if len(points) == 1 {
-		v.Observed = "one partial sample"
-	} else {
-		v.Observed = span.Round(time.Second).String()
-	}
-
 	maxima := make([]int, len(activityMetrics))
 	totals := make([]int, len(activityMetrics))
 	for i, metric := range activityMetrics {
@@ -83,39 +96,32 @@ func activityView(points []core.ActivityPoint, scope, uptime string, table bool)
 			continue
 		}
 		xy := make([]string, 0, len(points))
-		for _, point := range points {
-			x := 330.0
-			if span > 0 {
-				x = 50 + 560*float64(point.At.Sub(start))/float64(span)
-			}
+		for j, point := range points {
 			y := 125 - 100*float64(metric.get(point.Counts))/float64(v.Max)
-			xy = append(xy, fmt.Sprintf("%.1f,%.1f", x, y))
+			xy = append(xy, fmt.Sprintf("%.1f,%.1f", activityX(j, len(points)), y))
 		}
-		series := activitySeries{Label: metric.label, Class: metric.class, Points: strings.Join(xy, " "), Total: totals[i]}
-		if len(xy) == 1 {
-			series.Single, series.X, series.Y = true, "330.0", strings.SplitN(xy[0], ",", 2)[1]
-		}
-		v.Series = append(v.Series, series)
+		v.Series = append(v.Series, activitySeries{Label: metric.label, Class: metric.class, Points: strings.Join(xy, " "), Total: totals[i]})
 	}
 	return v
 }
 
-const activityViewTemplate = `{{define "activity-help"}}<ul><li>The daemon keeps about 24 hours of in-memory history and starts fresh after restart.</li><li>Samples are usually about ten minutes apart; the visible timestamps are the measured interval.</li><li>The current, partial interval may be shorter than ten minutes.</li><li>On an unfiltered view, Refused is node-wide for the daemon Owner and covers visible records for other callers.</li><li>Dequeued means handed to a reader, not completed.</li><li>Zero is measured; collecting history means no interval has been observed yet.</li></ul>{{end}}
+const activityViewTemplate = `{{define "activity-help"}}<ul><li>The last 24 hours in ten-minute slots of the node's clock, 00:00, 00:10 … 23:50, saved across restarts.</li><li>A time the daemon was down reads as zero, like a quiet one.</li><li>The last slot is the current one and is still counting.</li><li>On an unfiltered view, Refused is node-wide for the daemon Owner and covers visible records for other callers.</li><li>Dequeued means handed to a reader, not completed.</li></ul>{{end}}
 {{define "activity-view"}}{{with .Activity}}
-{{if not .ShowTable}}<section class="fact-card activity-fact"><div class=page-title><h2>Activity</h2><button type=button class=help-button popovertarget=record-activity-help aria-label="About this activity history" data-tooltip="About 24 hours in memory, sampled about every 10 minutes and reset on restart. The final interval may be shorter; Dequeued is not completion.">ⓘ</button></div><div popover id=record-activity-help class=context-help><h2>About activity</h2>{{template "activity-help" .}}</div>{{end}}
+{{if not .ShowTable}}<section class="fact-card activity-fact"><div class=page-title><h2>Activity</h2><button type=button class=help-button popovertarget=record-activity-help aria-label="About this activity history" data-tooltip="The last 24 hours in ten-minute slots of the node's clock, saved across restarts; down time reads as zero. Dequeued is not completion.">ⓘ</button></div><div popover id=record-activity-help class=context-help><h2>About activity</h2>{{template "activity-help" .}}</div>{{end}}
 {{if .Unavailable}}<p class=muted>Activity unavailable: {{.Unavailable}}</p>
 {{else if .Points}}
-<p>{{if .Named}}Scope: <code>{{.Scope}}</code> · {{else}}Scope: visible records · {{end}}Observed {{.Start}} to {{.End}} ({{.Observed}}) · final interval partial.</p>
-{{if .ShowTable}}<p class=muted>Cadence: about 10 minutes · Window: up to 24 hours · Uptime: {{if .Uptime}}{{.Uptime}}{{else}}unavailable{{end}}.</p>{{end}}
-{{if .Series}}<figure class=activity-figure><svg class=activity-chart viewBox="0 0 640 170" role=img aria-label="Activity per sample from {{.Start}} to {{.End}}; shared maximum {{number .Max}} over the displayed nonzero series">
-<path class=activity-axis d="M50 25 V125 H610"/><text x=10 y=30>{{number .Max}}</text><text x=34 y=130>0</text><text x=50 y=152>{{.Start}}</text><text x=610 y=152 text-anchor=end>{{.End}}</text>
-{{range .Series}}<polyline class="activity-line {{.Class}}" points="{{.Points}}"/>{{if .Single}}<circle class="activity-point {{.Class}}" cx="{{.X}}" cy="{{.Y}}" r=4/>{{end}}{{end}}</svg>
-<figcaption>Shared scale: 0–{{number .Max}} per sample over the displayed nonzero series.</figcaption>
-<ul class=activity-legend>{{range .Series}}<li><span class="activity-swatch {{.Class}}" aria-hidden=true></span>{{.Label}}: {{number .Total}} in the shown samples</li>{{end}}</ul></figure>
-{{else}}<p>All five series: <strong>0</strong> in this window.</p>{{end}}
-{{if not .AllZero}}{{with .Zero}}<p class=muted>Measured zero: {{join . ", "}}.</p>{{end}}{{end}}
-{{if .ShowTable}}<details><summary>Sample values</summary><table><thead><tr><th scope=col>Time<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Dropped<th scope=col class=num>Expired<th scope=col class=num>Refused</tr></thead><tbody>{{range .Points}}<tr><td>{{.At.Format "Jan 2 15:04:05"}}<td class=num>{{number .In}}<td class=num>{{number .Out}}<td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}<td class=num>{{number .Refused}}</tr>{{end}}</tbody></table></details>{{end}}
-{{else}}<p>Activity history is not observed yet. Collecting the first sample after this daemon restart{{if .Uptime}} (uptime: {{.Uptime}}){{end}}; no zero series is inferred.</p>{{end}}
+<p>{{if .Named}}Scope: <code>{{.Scope}}</code> · {{else}}Scope: visible records · {{end}}{{.Start}} to {{.End}}, ten-minute slots.</p>
+{{if .ShowTable}}<p class=muted>Window: the last 24 hours of the node's clock · Uptime: {{if .Uptime}}{{.Uptime}}{{else}}unavailable{{end}}.</p>{{end}}
+{{if .Series}}<figure class=activity-figure><svg class=activity-chart viewBox="0 0 640 170" role=img aria-label="Activity per ten-minute slot from {{.Start}} to {{.End}}; shared maximum {{number .Max}} over the displayed nonzero series">
+<path class=activity-axis d="M50 25 V125 H610"/><text x=10 y=30>{{number .Max}}</text><text x=34 y=130>0</text>
+{{range .Ticks}}<path class=activity-tick d="M{{.X}} 125 v4"/>{{if .Label}}<text class=activity-hour x={{.X}} y=145 text-anchor=middle>{{.Label}}</text>{{end}}{{end}}
+{{range .Series}}<polyline class="activity-line {{.Class}}" points="{{.Points}}"/>{{end}}</svg>
+<figcaption>Shared scale: 0–{{number .Max}} per ten-minute slot over the displayed nonzero series; a tick at every hour.</figcaption>
+<ul class=activity-legend>{{range .Series}}<li><span class="activity-swatch {{.Class}}" aria-hidden=true></span>{{.Label}}: {{number .Total}} in the last day</li>{{end}}</ul></figure>
+{{else}}<p>All five series: <strong>0</strong> in the last day.</p>{{end}}
+{{if not .AllZero}}{{with .Zero}}<p class=muted>Zero all day: {{join . ", "}}.</p>{{end}}{{end}}
+{{if .ShowTable}}<details><summary>Slot values</summary><table><thead><tr><th scope=col>Slot<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Dropped<th scope=col class=num>Expired<th scope=col class=num>Refused</tr></thead><tbody>{{range .Points}}<tr><td>{{.At.Format "Jan 2 15:04"}}<td class=num>{{number .In}}<td class=num>{{number .Out}}<td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}<td class=num>{{number .Refused}}</tr>{{end}}</tbody></table></details>{{end}}
+{{else}}<p class=muted>The daemon answered no activity.</p>{{end}}
 {{if not .ShowTable}}</section>{{end}}
 {{end}}{{end}}`
 

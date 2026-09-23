@@ -103,7 +103,7 @@ func TestServiceExplanationsUseImmediateTooltipsAndStructuredPopovers(t *testing
 		`popovertarget=status-help aria-label="About record status" data-tooltip="Active or inactive.`,
 		`popovertarget=policy-help aria-label="About record policy" data-tooltip="Queue values are this record's stored policy.`,
 		`popovertarget=observed-help aria-label="About live counters" data-tooltip="Readers are outstanding requests`,
-		`popovertarget=record-activity-help aria-label="About this activity history" data-tooltip="About 24 hours`,
+		`popovertarget=record-activity-help aria-label="About this activity history" data-tooltip="The last 24 hours in ten-minute slots`,
 		`.help-button[data-tooltip]:hover::after`,
 	} {
 		if !strings.Contains(page, want) {

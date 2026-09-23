@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"database/sql"
 	"errors"
 	"os"
 	"os/exec"
@@ -63,7 +64,7 @@ func TestCommitThenLoad(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SaveQueues([]ports.Queue{{Name: "svc@h", In: 3, Out: 1, Dropped: 1, Messages: []protocol.Envelope{{ID: "m1", Body: "one"}, {ID: "m2", Body: "two"}}}}, true); err != nil {
+	if err := s.SaveQueues([]ports.Queue{{Name: "svc@h", In: 3, Out: 1, Dropped: 1, Messages: []protocol.Envelope{{ID: "m1", Body: "one"}, {ID: "m2", Body: "two"}}}}, nil, true); err != nil {
 		t.Fatal(err)
 	}
 	s.Close()
@@ -108,7 +109,7 @@ func TestDropQueueGoesWithTheRecord(t *testing.T) {
 	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{rec.Name: &rec}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SaveQueues([]ports.Queue{{Name: "svc@h", In: 1, Messages: []protocol.Envelope{{ID: "m"}}}}, false); err != nil {
+	if err := s.SaveQueues([]ports.Queue{{Name: "svc@h", In: 1, Messages: []protocol.Envelope{{ID: "m"}}}}, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{rec.Name: nil}, DropQueues: []string{"svc@h"}}); err != nil {
@@ -279,4 +280,91 @@ func TestSecondOpenerIsRefused(t *testing.T) {
 		t.Fatalf("a released database stayed locked: %v", err)
 	}
 	third.Close()
+}
+
+// schema4 is the layout 0.8.11 and earlier wrote, verbatim.
+var schema4 = []string{
+	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+	`CREATE TABLE users (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, body TEXT NOT NULL)`,
+	`CREATE TABLE records (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, kind TEXT NOT NULL, body TEXT NOT NULL)`,
+	`CREATE TABLE accounts (account TEXT PRIMARY KEY, principal TEXT NOT NULL)`,
+	`CREATE TABLE queues (name TEXT PRIMARY KEY, in_count INTEGER NOT NULL, out_count INTEGER NOT NULL, dropped INTEGER NOT NULL, expired INTEGER NOT NULL)`,
+	`CREATE TABLE messages (queue TEXT NOT NULL, seq INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY (queue, seq))`,
+	`CREATE TABLE credentials (name TEXT PRIMARY KEY, current TEXT NOT NULL, previous TEXT NOT NULL, issued TEXT NOT NULL, used TEXT NOT NULL DEFAULT '', user_id INTEGER NOT NULL DEFAULT 0, agent_id INTEGER NOT NULL DEFAULT 0)`,
+	`INSERT INTO meta (key, value) VALUES ('owner', 'admin@h'), ('clean', '1')`,
+	`INSERT INTO users (name, id, body) VALUES ('admin@h', 1, '{"name":"admin@h","status":"active"}')`,
+	`INSERT INTO records (name, id, kind, body) VALUES ('svc@h', 2, 'agent', '{"name":"svc@h","kind":"agent","owner":"admin@h"}')`,
+	`INSERT INTO queues (name, in_count, out_count, dropped, expired) VALUES ('svc@h', 5, 4, 0, 1)`,
+	`INSERT INTO messages (queue, seq, body) VALUES ('svc@h', 0, '{"id":"m1","body":"kept"}')`,
+	`INSERT INTO credentials (name, current, previous, issued) VALUES ('admin@h', 'hash', '', '')`,
+	`PRAGMA user_version = 4`,
+}
+
+// A schema-4 database with data in it opens as schema 5, keeps every row,
+// and then carries each queue's activity and the node's.
+func TestSchemaFourMigratesWithItsData(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bus.db")
+	old, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range schema4 {
+		if _, err := old.Exec(stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	old.Close()
+	s, err := Open(path, false)
+	if err != nil {
+		t.Fatalf("schema 4 did not open: %v", err)
+	}
+	var version int
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != schema {
+		t.Fatalf("user_version %d after migration: %v", version, err)
+	}
+	snap, err := s.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.Owner != "admin@h" || !snap.Clean || len(snap.Users) != 1 || len(snap.Records) != 1 || snap.Activity != nil {
+		t.Fatalf("meta, users or records lost: %+v", snap)
+	}
+	if len(snap.Queues) != 1 || snap.Queues[0].In != 5 || snap.Queues[0].Expired != 1 || len(snap.Queues[0].Messages) != 1 || len(snap.Queues[0].Activity) != 0 {
+		t.Fatalf("queue after migration: %+v", snap.Queues)
+	}
+	if creds, err := s.Tokens().Load(); err != nil || len(creds) != 1 {
+		t.Fatalf("credentials after migration: %+v %v", creds, err)
+	}
+	q := snap.Queues[0]
+	q.Activity = []byte{1, 2, 3}
+	if err := s.SaveQueues([]ports.Queue{q}, []byte{9, 8}, true); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s, err = Open(path, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	snap, err = s.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(snap.Queues[0].Activity) != "\x01\x02\x03" || string(snap.Activity) != "\x09\x08" {
+		t.Fatalf("activity did not survive a reopen: queue %v node %v", snap.Queues[0].Activity, snap.Activity)
+	}
+	// nil leaves the node's day as it was saved.
+	if err := s.SaveQueues(nil, nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if snap, _ = s.Load(); string(snap.Activity) != "\x09\x08" {
+		t.Fatalf("an empty save cleared the node's day: %v", snap.Activity)
+	}
+	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{"svc@h": nil}, DropQueues: []string{"svc@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	var left int
+	if err := s.db.QueryRow(`SELECT count(*) FROM queues WHERE name = 'svc@h'`).Scan(&left); err != nil || left != 0 {
+		t.Fatalf("the removed record's queue row and its activity remain: %d %v", left, err)
+	}
 }

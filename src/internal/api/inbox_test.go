@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -62,14 +61,13 @@ func TestInboxSelectionIsIndependentOfMessageFilters(t *testing.T) {
 	// retired overload's "no such topic" diagnostic.
 	get("/consume?topic=missing@h&wait=1ms", http.StatusNoContent, "")
 
-	c.bus.SampleActivity(time.Now().Add(-time.Second))
 	get("/consume?inbox=#secret@h&wait=0s", http.StatusForbidden, "")
 	secret, err := c.bus.Activity("admin@h", "#secret@h")
-	if err != nil || len(secret) != 1 || secret[0].Refused != 1 {
+	if err != nil || len(secret) != 144 || secret[143].Refused != 1 {
 		t.Fatalf("selected inbox did not receive its refusal: %+v, %v", secret, err)
 	}
 	readerActivity, err := c.bus.Activity("admin@h", "#reader@h")
-	if err != nil || len(readerActivity) != 1 || readerActivity[0].Refused != 0 {
+	if err != nil || len(readerActivity) != 144 || readerActivity[143].Refused != 0 {
 		t.Fatalf("caller inbox was charged for target refusal: %+v, %v", readerActivity, err)
 	}
 	get("/consume?inbox=missing@h&wait=0s", http.StatusNotFound, "")

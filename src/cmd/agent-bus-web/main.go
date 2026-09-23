@@ -413,7 +413,8 @@ const head = `<!doctype html>
  .activity-chart{display:block;width:100%;height:auto;max-height:14rem}
  .activity-axis{fill:none;stroke:#87847b;stroke-width:1;vector-effect:non-scaling-stroke}
  .activity-line{fill:none;stroke-width:2.5;vector-effect:non-scaling-stroke}
- .activity-point{fill:#fff;stroke-width:3;vector-effect:non-scaling-stroke}
+ .activity-tick{fill:none;stroke:#87847b;stroke-width:1;vector-effect:non-scaling-stroke}
+ .activity-hour{font-size:11px;fill:#5f5c55}
  .activity-accepted{stroke:#1d5fa8;border-top-color:#1d5fa8}
  .activity-output{stroke:#8a5000;border-top-color:#8a5000;stroke-dasharray:8 4}
  .activity-dropped{stroke:#a8271b;border-top-color:#a8271b}

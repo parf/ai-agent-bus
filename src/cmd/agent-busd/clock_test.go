@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/callstats"
+	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 // fakeClock drives everyMinute: each wait it is asked for moves the clock on
@@ -41,7 +43,7 @@ func TestCallCounterIsReadEveryMinuteOfTheClock(t *testing.T) {
 	start := time.Date(2026, time.September, 23, 10, 7, 30, 0, time.Local)
 	clock := &fakeClock{now: start, wakes: 61, done: make(chan struct{})}
 	history.Sample(start)
-	tick := onMinute(history)
+	tick := onMinute(history, core.New())
 	everyMinute(clock.done, clock.Now, clock.After, func(at time.Time) {
 		calls.Add(1)
 		tick(at)
@@ -58,5 +60,38 @@ func TestCallCounterIsReadEveryMinuteOfTheClock(t *testing.T) {
 	}
 	if h := windows[1]; !h.Available || h.Observed != "1h0m0s" || h.Count != 60 {
 		t.Fatalf("Calls, hour: %+v, want 60 calls over one hour", h)
+	}
+}
+
+// The same minute tick closes the bus's activity slots on the clock: a
+// daemon started at 10:07:30 closes its first slot at 10:10, and what
+// arrives after that is the 10:10 slot's.
+func TestActivitySlotsCloseOnTheClock(t *testing.T) {
+	start := time.Date(2026, time.September, 23, 10, 7, 30, 0, time.Local)
+	clock := &fakeClock{now: start, wakes: 3, done: make(chan struct{})}
+	b := core.New()
+	b.Clock(clock.Now)
+	b.SetDaemonOwner("owner@h")
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "owner@h"}); err != nil {
+		t.Fatal(err)
+	}
+	send := func() {
+		if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#svc@h", Body: "x"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tick := onMinute(callstats.New(new(atomic.Uint64)), b)
+	everyMinute(clock.done, clock.Now, clock.After, func(at time.Time) {
+		tick(at)
+		send()
+	})
+	clock.now = clock.now.Add(30 * time.Second)
+	day, err := b.Activity("owner@h", "#svc@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed, open := day[len(day)-2], day[len(day)-1]
+	if closed.At.Hour() != 10 || closed.At.Minute() != 0 || closed.In != 2 || open.At.Minute() != 10 || open.In != 1 {
+		t.Fatalf("10:00 %s=%d and 10:10 %s=%d; want 2 and 1", closed.At, closed.In, open.At, open.In)
 	}
 }

@@ -49,8 +49,10 @@ func (b *Bus) snapshot() ports.Snapshot {
 			Name: name, In: in.in, Out: in.out,
 			Dropped: in.dropped, Expired: in.expired,
 			Messages: append([]protocol.Envelope(nil), in.queue...),
+			Activity: in.act.Save(in.totals()),
 		})
 	}
+	s.Activity = b.node.Save(b.refusedTotal())
 	return s
 }
 
@@ -64,9 +66,11 @@ func (b *Bus) Persistence(st ports.Store) {
 
 // queueMark is what a queue's counters were when it was last saved. Every
 // change to a queue's contents moves one of them — a delivery moves in, a
-// read out, a loss dropped or expired — so an unchanged mark is an unchanged
-// queue.
-type queueMark struct{ in, out, dropped, expired int }
+// read out, a loss dropped or expired — and every change to its activity one
+// of those or refused, so an unchanged mark is an unchanged queue. A ring
+// that only moved on through quiet slots needs no save: a restore reads the
+// time since as zero.
+type queueMark struct{ in, out, dropped, expired, refused int }
 
 // FlushQueues writes the queues whose state moved since the last flush, as one
 // batch: every minute and at a graceful stop, never once per message. clean
@@ -86,7 +90,7 @@ func (b *Bus) FlushQueues(clean bool) error {
 		if _, known := b.records[name]; !known {
 			continue
 		}
-		m := queueMark{in.in, in.out, in.dropped, in.expired}
+		m := queueMark{in.in, in.out, in.dropped, in.expired, in.refused}
 		if old, saved := b.flushed[name]; saved && old == m {
 			continue
 		}
@@ -94,10 +98,11 @@ func (b *Bus) FlushQueues(clean bool) error {
 			Name: name, In: in.in, Out: in.out,
 			Dropped: in.dropped, Expired: in.expired,
 			Messages: append([]protocol.Envelope(nil), in.queue...),
+			Activity: in.act.Save(in.totals()),
 		})
 		marks[name] = m
 	}
-	if err := b.store.SaveQueues(qs, clean); err != nil {
+	if err := b.store.SaveQueues(qs, b.node.Save(b.refusedTotal()), clean); err != nil {
 		return fmt.Errorf("persist queues: %w", err)
 	}
 	for name, m := range marks {
@@ -226,8 +231,10 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		in.in, in.out = q.In, q.Out
 		in.dropped, in.expired = q.Dropped, q.Expired
 		in.queue = append(in.queue, q.Messages...)
-		b.flushed[q.Name] = queueMark{in.in, in.out, in.dropped, in.expired}
+		in.act = b.restoreActivity(q.Name, q.Activity, in.totals())
+		b.flushed[q.Name] = queueMark{in.in, in.out, in.dropped, in.expired, in.refused}
 	}
+	b.node = b.restoreActivity("the node", s.Activity, b.refusedTotal())
 }
 
 // indexIDs rebuilds the ID indexes from the loaded entities and moves the

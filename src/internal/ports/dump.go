@@ -21,6 +21,10 @@ type Queue struct {
 	// where it happened rather than on a node-wide total.
 	Dropped, Expired int
 	Messages         []protocol.Envelope
+	// Activity is the record's last day of traffic, as package activity
+	// saves it: it goes and stays with the queue
+	// (docs/05-discovery.md#activity-history).
+	Activity []byte
 }
 
 // Snapshot is the daemon's durable state as a store loads it. Registry
@@ -40,6 +44,8 @@ type Snapshot struct {
 	Clean               bool // the last run stopped gracefully; false means it was still going
 	Records             []protocol.Record
 	Queues              []Queue
+	// Activity is the node-wide refusals' day, saved like a queue's.
+	Activity []byte `json:",omitempty"`
 	// NextRecordID and NextUserID are the next internal IDs to hand out.
 	// They only grow, so an ID is never reused after its entity is removed
 	// (docs/constitution.md#common-record-fields).
@@ -83,8 +89,9 @@ type Store interface {
 	Load() (Snapshot, error)
 	// Commit applies one change atomically: all of it, or none of it.
 	Commit(Change) error
-	// SaveQueues replaces the durable state of the queues given, and records
-	// whether this save is the graceful stop's.
-	SaveQueues(queues []Queue, clean bool) error
+	// SaveQueues replaces the durable state of the queues given and the
+	// node's own activity, and records whether this save is the graceful
+	// stop's.
+	SaveQueues(queues []Queue, activity []byte, clean bool) error
 	Close() error
 }

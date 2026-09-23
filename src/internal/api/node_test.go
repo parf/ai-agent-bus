@@ -26,7 +26,6 @@ func TestPublicNodeIdentityIsOnlyThePublishedFacts(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#private-inbox@h", Owner: "owner@h", Allow: []string{"owner@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	b.SampleActivity(time.Now().Add(-2 * time.Minute))
 	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#private-inbox@h", Body: "secret body"}); err != nil {
 		t.Fatal(err)
 	}

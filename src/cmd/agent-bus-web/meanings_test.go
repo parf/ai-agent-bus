@@ -278,7 +278,6 @@ func TestNumericTableColumnsAreRightAligned(t *testing.T) {
 	if _, err := m.bus.Send(protocol.Envelope{From: "admin@h", To: "#quiet@h", Body: "table alignment"}); err != nil {
 		t.Fatal(err)
 	}
-	m.bus.SampleActivity(time.Now())
 	for path, wants := range map[string][]string{
 		"/agents":   {`th.num,td.num{text-align:right`, `<th scope=col class=num>Readers`, `<th scope=col class=num>Queued`, `<td class=num data-label=Readers>0`},
 		"/activity": {`<th scope=col class=num>Accepted`, `<th scope=col class=num>Refused`, `<td class=num>0`},

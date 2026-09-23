@@ -1,57 +1,52 @@
 package core
 
-import "time"
+import (
+	"time"
 
-// ActivityInterval is the process-driven sampling cadence. ActivityWindow is
-// the longest window a caller can observe in the in-memory history.
-const (
-	ActivityInterval = 10 * time.Minute
-	ActivityWindow   = 24 * time.Hour
-	activityKept     = int(ActivityWindow/ActivityInterval) + 1
+	"github.com/parf/ai-agent-bus/internal/activity"
+	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
-type Counts struct {
-	In      int `json:"in"`
-	Out     int `json:"out"`
-	Dropped int `json:"dropped"`
-	Expired int `json:"expired"`
-	Refused int `json:"refused"`
-}
-type ActivityPoint struct {
-	At time.Time `json:"at"`
-	Counts
-}
-type activitySample struct {
-	at      time.Time
-	records map[string]Counts
-	refused int
+// Counts is one interval's traffic; ActivityPoint is one ten-minute slot of
+// the day, when it starts and its counts
+// (docs/05-discovery.md#activity-history).
+type (
+	Counts        = activity.Counts
+	ActivityPoint = activity.Slot
+)
+
+// totals is the inbox's cumulative counters, which its ring differences at
+// each boundary. Nothing on the send or consume path touches the ring.
+func (in *inbox) totals() Counts {
+	return Counts{In: in.in, Out: in.out, Dropped: in.dropped, Expired: in.expired, Refused: in.refused}
 }
 
-func (b *Bus) activitySnapshot(now time.Time) activitySample {
-	s := activitySample{at: now, records: map[string]Counts{}}
-	for name := range b.records {
-		if in := b.inboxes[name]; in != nil {
-			s.records[name] = Counts{in.in, in.out, in.dropped, in.expired, in.refused}
-		}
+// refusedTotal is every refusal this run, the node-wide series the daemon
+// Owner sees. Caller holds b.mu.
+func (b *Bus) refusedTotal() Counts {
+	n := 0
+	for _, v := range b.refused {
+		n += v
 	}
-	for _, n := range b.refused {
-		s.refused += n
-	}
-	return s
+	return Counts{Refused: n}
 }
 
-// SampleActivity is driven by the bus process, independently of page visits.
-func (b *Bus) SampleActivity(now time.Time) {
+// Clock replaces the time as the bus reads it, for a test that moves it.
+func (b *Bus) Clock(now func() time.Time) {
 	b.mu.Lock()
 	defer b.unlock()
-	if len(b.activity) > 0 && !now.After(b.activity[len(b.activity)-1].at) {
-		return
+	b.clock = now
+}
+
+// TickActivity is driven by the bus process at every minute of the clock;
+// each ring closes its slot at :00, :10 … :50 and ignores the rest.
+func (b *Bus) TickActivity(now time.Time) {
+	b.mu.Lock()
+	defer b.unlock()
+	for _, in := range b.inboxes {
+		in.act.Tick(now, in.totals())
 	}
-	if len(b.activity) == activityKept {
-		copy(b.activity, b.activity[1:])
-		b.activity = b.activity[:activityKept-1]
-	}
-	b.activity = append(b.activity, b.activitySnapshot(now))
+	b.node.Tick(now, b.refusedTotal())
 }
 
 func (b *Bus) RecordRefusal(name string) {
@@ -66,6 +61,9 @@ func (b *Bus) RecordRefusal(name string) {
 	}
 }
 
+// Activity is the last day of one record, or the sum of every live record the
+// caller may see: 144 slots, oldest first, the open one last. On the sum the
+// daemon Owner's Refused is node-wide.
 func (b *Bus) Activity(caller, name string) ([]ActivityPoint, error) {
 	if name != "" {
 		var err error
@@ -82,33 +80,34 @@ func (b *Bus) Activity(caller, name string) ([]ActivityPoint, error) {
 			return nil, ErrUnknown
 		}
 	}
-	samples := append([]activitySample{}, b.activity...)
-	samples = append(samples, b.activitySnapshot(time.Now()))
-	points := []ActivityPoint{}
-	total := func(s activitySample) Counts {
-		c := Counts{}
-		for n, r := range b.records {
-			if name != "" && n != name || !b.canSee(caller, r) {
-				continue
-			}
-			v := s.records[n]
-			c.In += v.In
-			c.Out += v.Out
-			c.Dropped += v.Dropped
-			c.Expired += v.Expired
-			c.Refused += v.Refused
-		}
-		if name == "" && caller == b.admin {
-			c.Refused = s.refused
-		}
-		return c
-	}
-	for i := 1; i < len(samples); i++ {
-		if time.Since(samples[i].at) > ActivityWindow {
+	now := b.clock()
+	day := activity.DayAt(now)
+	for n, r := range b.records {
+		if name != "" && n != name || !b.live(r) || !b.canSee(caller, r) {
 			continue
 		}
-		prev, next := total(samples[i-1]), total(samples[i])
-		points = append(points, ActivityPoint{samples[i].at, Counts{max(0, next.In-prev.In), max(0, next.Out-prev.Out), max(0, next.Dropped-prev.Dropped), max(0, next.Expired-prev.Expired), max(0, next.Refused-prev.Refused)}})
+		if in := b.inboxes[n]; in != nil {
+			day.Add(&in.act, in.totals())
+		}
 	}
-	return points, nil
+	slots := day.Slots()
+	if name == "" && caller == b.admin {
+		node := activity.DayAt(now)
+		node.Add(&b.node, b.refusedTotal())
+		for i, s := range node.Slots() {
+			slots[i].Refused = s.Refused
+		}
+	}
+	return slots[:], nil
+}
+
+// restoreActivity puts a saved ring back, or starts a fresh one when the save
+// is missing or damaged — reported, since a lost day is somebody's question.
+// Caller holds b.mu.
+func (b *Bus) restoreActivity(what string, saved []byte, total Counts) activity.Ring {
+	r, err := activity.Restore(saved, b.clock(), total)
+	if err != nil {
+		b.report(ports.Warning, "stored activity of %s is unreadable and starts empty: %v", what, err)
+	}
+	return r
 }

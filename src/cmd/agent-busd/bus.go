@@ -197,27 +197,12 @@ func runBus(c config) {
 			}
 		}()
 	}
-	bus.SampleActivity(time.Now())
-	activityTick := time.NewTicker(core.ActivityInterval)
-	activityDone := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case at := <-activityTick.C:
-				bus.SampleActivity(at)
-			case <-activityDone:
-				return
-			}
-		}
-	}()
 	clockDone := make(chan struct{})
-	go everyMinute(clockDone, time.Now, time.After, onMinute(callHistory))
+	go everyMinute(clockDone, time.Now, time.After, onMinute(callHistory, bus))
 	<-stop
 	// Join the periodic writer before the final clean checkpoint; no later
 	// tick may replace it with an unclean snapshot during shutdown.
 	stopSnapshots()
-	activityTick.Stop()
-	close(activityDone)
 	close(clockDone)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -251,10 +236,13 @@ func everyMinute(done <-chan struct{}, now func() time.Time, after func(time.Dur
 
 // onMinute is what the bus does at each minute of the clock: one reading of
 // the call counter, so "Calls, minute" is a minute and 61 readings an hour
-// (docs/05-discovery.md#what-a-node-says-about-itself).
-func onMinute(calls *callstats.History) func(time.Time) {
+// (docs/05-discovery.md#what-a-node-says-about-itself), and the activity
+// tick, which closes a slot at :00, :10 … :50 local time
+// (docs/05-discovery.md#activity-history).
+func onMinute(calls *callstats.History, bus *core.Bus) func(time.Time) {
 	return func(at time.Time) {
 		calls.Sample(at)
+		bus.TickActivity(at)
 	}
 }
 

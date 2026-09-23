@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
@@ -163,8 +162,7 @@ func TestRequiredDashboardTabs(t *testing.T) {
 	if len(rec.Subs) != 0 {
 		t.Fatal("removing a recipient failed")
 	}
-	b.SampleActivity(time.Now().Add(-time.Minute))
-	if body := request("/activity", nil, 200); !strings.Contains(body, "<svg") || !strings.Contains(body, "Sample values") {
+	if body := request("/activity", nil, 200); !strings.Contains(body, "<svg") || !strings.Contains(body, "<summary>Slot values</summary>") {
 		t.Fatal("graphs and accessible values absent")
 	}
 }

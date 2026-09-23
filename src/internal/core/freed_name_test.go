@@ -21,7 +21,7 @@ func TestANameFreedByAnIgnoredRecordInheritsNoStoredQueue(t *testing.T) {
 	}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.SaveQueues([]ports.Queue{{Name: "#lost@h", In: 1, Messages: []protocol.Envelope{{To: "#lost@h", Body: "for the old owner"}}}}, true); err != nil {
+	if err := st.SaveQueues([]ports.Queue{{Name: "#lost@h", In: 1, Messages: []protocol.Envelope{{To: "#lost@h", Body: "for the old owner"}}}}, nil, true); err != nil {
 		t.Fatal(err)
 	}
 	b := New()

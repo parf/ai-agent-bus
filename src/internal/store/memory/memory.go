@@ -110,6 +110,7 @@ type State struct {
 	clean    bool
 	nextRec  uint32
 	nextUser uint32
+	activity []byte
 	// Enter, when set, is closed as the first commit starts, which then waits
 	// for Release: a test's way to hold a write open.
 	Enter, Release chan struct{}
@@ -137,6 +138,7 @@ func (s *State) Load() (ports.Snapshot, error) {
 		OwnerEstablished: s.hasOwner, Owner: s.owner,
 		AccountsEstablished: s.hasAccts, Clean: s.clean,
 		NextRecordID: s.nextRec, NextUserID: s.nextUser,
+		Activity: append([]byte(nil), s.activity...),
 	}
 	for account, principal := range s.accounts {
 		snap.Accounts = append(snap.Accounts, protocol.AccountMapping{Account: account, Principal: principal})
@@ -150,6 +152,7 @@ func (s *State) Load() (ports.Snapshot, error) {
 	}
 	for _, q := range s.queues {
 		q.Messages = append([]protocol.Envelope(nil), q.Messages...)
+		q.Activity = append([]byte(nil), q.Activity...)
 		snap.Queues = append(snap.Queues, q)
 	}
 	return snap, nil
@@ -205,7 +208,7 @@ func (s *State) Commit(c ports.Change) error {
 	return nil
 }
 
-func (s *State) SaveQueues(qs []ports.Queue, clean bool) error {
+func (s *State) SaveQueues(qs []ports.Queue, activity []byte, clean bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.Err != nil {
@@ -213,7 +216,11 @@ func (s *State) SaveQueues(qs []ports.Queue, clean bool) error {
 	}
 	for _, q := range qs {
 		q.Messages = append([]protocol.Envelope(nil), q.Messages...)
+		q.Activity = append([]byte(nil), q.Activity...)
 		s.queues[q.Name] = q
+	}
+	if activity != nil {
+		s.activity = append([]byte(nil), activity...)
 	}
 	s.clean = clean
 	return nil
