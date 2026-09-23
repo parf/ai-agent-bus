@@ -89,3 +89,21 @@ Initial probes reproduced both recorded failures before source edits. An early
 container run failed on evidence-mount permissions; another reached the SSH
 checks but lacked `cmp` for its final assertion. Those red logs remain under
 `tmp/ssh-onboarding/`; only the corrected final run is acceptance evidence.
+
+## 0.7 re-run
+
+K.17, 2026-09-23, on the 0.7.19 build (SQLite, realm-less Owner `owner`).
+`tmp/k17-ssh-4` passed 17 checks. Added to the checks above:
+
+| Check | Evidence |
+|---|---|
+| Realm-less names | `ordinary` and `ordinary@ssh` are separate principals with separate keys; the `ordinary` key is refused `token ordinary@ssh` |
+| Rotation | After one SSH rotation current and previous authenticate; after a second the oldest answers 401 |
+| Restart | After a daemon restart both kept credentials authenticate and asking again returns the current one |
+| Readiness | The fixture waited on `/healthz`, which 0.7 does not serve, and never failed; it now waits on `/identity` and fails when the daemon is not up |
+
+Mutants, each failing an assertion: entitlement compared without the realm
+(`ordinary key obtained ordinary@ssh`), previous token not authenticated
+(`previous credential stopped at the first rotation`), previous token dropped
+on load (`previous credential after restart`).
+
