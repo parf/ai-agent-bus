@@ -188,8 +188,10 @@ func TestASignedInPageKeepsTheProjectPitchOut(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := string(page)
-	if strings.Contains(out, "Sign in to AgentBus") {
-		t.Fatalf("expected a signed-in page, got the sign-in form")
+	// Signed in is the sign-out form present and the token field absent: the
+	// heading this used to look for is no longer on the landing page.
+	if !strings.Contains(out, "<form method=post action=/signout") || strings.Contains(out, "name=token") {
+		t.Fatalf("expected a signed-in page, got the landing page")
 	}
 	for _, unwanted := range []string{"Connect AI and NON-AI agents", "github.com/parf/ai-agent-bus", "Serg Parf"} {
 		if strings.Contains(out, unwanted) {
