@@ -97,6 +97,13 @@ pushes into the *running* session. Claude Code, Codex and opencode are proven he
 | opencode | HTTP. The launcher starts `opencode serve`, selects an existing session or creates one, and attaches the TUI and pusher to that explicit session ID. `POST /session/{id}/prompt_async` delivers into that session. Initial TUI startup need not emit a selection event | built and smoke-tested here |
 | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
 
+**Push stops rather than repeats a refusal about who is asking.** A credential
+the daemon does not know, an identity that may not read that inbox, and an
+inbox somebody else already holds are all answers that asking again cannot
+change, so the loop says so once and leaves the session running without a
+channel. Only a transient failure is retried; a session that outlives its
+principal otherwise refuses its way through the daemon for as long as it lives.
+
 The adapter acknowledges to the bus only after the runtime has *accepted* the
 message. **Acceptance is not processing** — Claude Channels expose no later
 "the model handled it" signal — so anything that needs to know the work was

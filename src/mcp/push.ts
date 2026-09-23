@@ -16,6 +16,10 @@ export type Deliver = (e: Envelope) => Promise<void>;
 
 const WAIT = "55s"; // just under the daemon's 60s ceiling
 const BACKOFF_MS = 2_000;
+// Refusals about who is asking, which asking again cannot change: an unknown
+// credential, an identity that may not read here, and somebody else already
+// holding the inbox.
+const PERMANENT = new Set([401, 403, 409]);
 
 export type Push = { readonly running: () => boolean; stop: () => void; done: Promise<void> };
 
@@ -35,11 +39,16 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void):
         e = await bus.consume({ wait: WAIT }, abort.signal);
       } catch (err) {
         if (stopped) return;
-        // 409 is somebody else holding this inbox. That is a configuration
-        // mistake, not a transient one, and a loop that keeps retrying would
-        // steal the message from whoever legitimately owns the read.
-        if (err instanceof BusError && err.status === 409) {
-          log(`push: ${bus.name} already has a reader; not starting a second one`);
+        // A configuration mistake, not a transient one. Retrying 409 would
+        // steal the message from whoever legitimately owns the read; retrying
+        // a refused credential costs the daemon one refusal per backoff for as
+        // long as the session lives, and never delivers anything — which is
+        // what a session outliving its principal did, at a refusal every two
+        // seconds for a day.
+        if (err instanceof BusError && PERMANENT.has(err.status)) {
+          log(err.status === 409
+            ? `push: ${bus.name} already has a reader; not starting a second one`
+            : `push: ${bus.name} cannot read its inbox (${err.status} ${err.message}); push is off for this session`);
           stopped = true;
           return;
         }
