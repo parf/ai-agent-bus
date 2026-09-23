@@ -116,8 +116,4 @@ proposal](../Future/storage.md#storage) is not a remaining MVP database requirem
 
 ## Authority model
 
-Implement the pending changes in the [authority specification](../../docs/01-identity-and-roles.md#role-names-and-scopes); retain already-built permissions. Verify each dependent web control against the resulting authority before final browser acceptance.
-
-| Work | Acceptance |
-|---|---|
-| Historical smoke fixture cleanup | [Read-only provenance review](live-fixture-cleanup.md#measured-state) completed: all three remain active profiles/self-owned Agent records without stored SSH keys or tokens, and `chief@srv1` remains a direct Administrator. Cleanup awaits the Owner's authority decision; revoke or remove nothing implicitly |
+Built: the [authority specification](../../docs/01-identity-and-roles.md#role-names-and-scopes) has no pending change, and the historical fixture cleanup is [done](DONE.md#done--mvp). Each dependent web control is verified against it in [F.12](#remaining-work)'s installed browser acceptance.
