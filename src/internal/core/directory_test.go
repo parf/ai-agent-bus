@@ -20,6 +20,10 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 		},
 		Records: []protocol.Record{userRecord("smoke/person@h"), userRecord("paused@h"), userRecord("banned@h")},
 	})
+	// An administrator is a User first (docs/01-identity-and-roles.md#daemon-administrators).
+	if _, err := b.SetUser("owner@h", protocol.User{Name: "maintainer@h"}, true); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.SetGroup("owner@h", AdministratorsGroup, []string{"owner@h", "maintainer@h"}); err != nil {
 		t.Fatal(err)
 	}

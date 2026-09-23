@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -55,13 +56,26 @@ func recordKindPath(name, kind string) string {
 // The directory answer may name every record a user owns. Detail navigation
 // follows the separately authorized listing, so a directory-visible person
 // never becomes an oracle for record names hidden from this caller.
-func visibleUserResources(u protocol.User, kinds map[string]string) protocol.User {
+//
+// The daemon's own list names only live records, so an inactive user's page
+// takes the records it owns from the caller-visible listings, /inactive
+// included: they are the one place an inactive record shows.
+func visibleUserResources(u protocol.User, kinds, owners map[string]string) protocol.User {
+	seen := map[string]bool{}
 	services := make([]string, 0, len(u.Services))
 	for _, name := range u.Services {
-		if _, visible := kinds[name]; visible {
+		if _, visible := kinds[name]; visible && !seen[name] {
+			seen[name] = true
 			services = append(services, name)
 		}
 	}
+	for name, owner := range owners {
+		if owner == u.Name && name != u.Name && !seen[name] {
+			seen[name] = true
+			services = append(services, name)
+		}
+	}
+	sort.Strings(services)
 	u.Services = services
 	return u
 }
@@ -77,6 +91,7 @@ type peopleView struct {
 	ActiveCount, InactiveCount                   int
 	StateLinks                                   []viewLink
 	RecordKinds                                  map[string]string
+	RecordOwners                                 map[string]string
 }
 
 // identityLabel and identityGlyph mark the node's daemon owner as the
@@ -233,8 +248,12 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 			return p, false
 		}
 		p.RecordKinds = make(map[string]string, len(records))
+		p.RecordOwners = make(map[string]string, len(records))
 		for _, record := range records {
 			p.RecordKinds[record.Name] = record.Kind
+			if record.Kind != protocol.KindGroup {
+				p.RecordOwners[record.Name] = record.Owner
+			}
 		}
 		return p, true
 	}
@@ -296,7 +315,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 		}
 		for _, u := range p.Users {
 			if u.Name == name {
-				p.User = visibleUserResources(u, p.RecordKinds)
+				p.User = visibleUserResources(u, p.RecordKinds, p.RecordOwners)
 				render(w, personPage, p)
 				return
 			}
@@ -319,7 +338,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 				fail(w, r, p.You, &busError{code: http.StatusForbidden, message: "that profile cannot be edited by you"})
 				return
 			}
-			p.User = visibleUserResources(u, p.RecordKinds)
+			p.User = visibleUserResources(u, p.RecordKinds, p.RecordOwners)
 			render(w, userEdit, p)
 			return
 		}
@@ -359,7 +378,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 				fail(w, r, p.You, &busError{code: http.StatusForbidden, message: "that credential cannot be removed by you"})
 				return
 			}
-			p.User = visibleUserResources(u, p.RecordKinds)
+			p.User = visibleUserResources(u, p.RecordKinds, p.RecordOwners)
 			render(w, credentialRemovePage, p)
 			return
 		}
@@ -412,7 +431,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 				form := profileFromForm(r)
 				u.PersonName, u.Email, u.GithubUser = form.PersonName, form.Email, form.GithubUser
 				u.GithubCompany, u.GithubLocation, u.GithubTwitterUsername = form.GithubCompany, form.GithubLocation, form.GithubTwitterUsername
-				p.User = visibleUserResources(u, p.RecordKinds)
+				p.User = visibleUserResources(u, p.RecordKinds, p.RecordOwners)
 				renderForm(w, code, userEdit, p)
 				return true
 			}
@@ -465,7 +484,7 @@ func (c *caller) userRoutes(mux *http.ServeMux, tls bool) {
 						p.Return = directoryReturn(r.PostForm.Get("return"))
 						for _, u := range p.Users {
 							if u.Name == r.PostForm.Get("name") {
-								p.User, p.Form = visibleUserResources(u, p.RecordKinds), formState{Action: action, Target: action, Error: message}
+								p.User, p.Form = visibleUserResources(u, p.RecordKinds, p.RecordOwners), formState{Action: action, Target: action, Error: message}
 								renderForm(w, code, personPage, p)
 								return
 							}

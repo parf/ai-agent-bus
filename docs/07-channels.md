@@ -9,8 +9,7 @@ declares and what publishing puts on the message are owned here.
 
 | MVP | Scope |
 |---|---|
-| Built | [The two channel kinds](#the-two-channel-kinds), [what a channel declares](#what-a-channel-declares), [what publish puts on the message](#what-publish-puts-on-the-message) and their listing observations. |
-| Pending | 0.7 [PubSub routing](constitution.md#pubsub-routing); the tables below describe built behavior. |
+| Built | [The two channel kinds](#the-two-channel-kinds), [what a channel declares](#what-a-channel-declares), [what publish puts on the message](#what-publish-puts-on-the-message), their listing observations and [PubSub routing](constitution.md#pubsub-routing) (0.7.12). |
 
 ## Channel, not topic
 

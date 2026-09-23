@@ -170,7 +170,7 @@ func TestAnInactiveGroupGrantsNothing(t *testing.T) {
 	if b.member("bob@h", "@crew") {
 		t.Error("an inactive group still has members")
 	}
-	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "news@h", Body: "x"}); err == nil {
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "news@h", Body: "x"}); !errors.Is(err, ErrUnknown) {
 		t.Error("a publication whose only recipient was an inactive group was accepted")
 	}
 	if !rep.has("ignored its deliver-to group @crew, which is inactive") {

@@ -358,9 +358,9 @@ client-side adapters — see
 
 ### Subscribers
 
-The rules below describe built delivery. Pending 0.7
-[PubSub routing](constitution.md#pubsub-routing) revises aggregate failure reporting
-and adds routing counters and partial-delivery warnings.
+The rules below describe built delivery, including
+[PubSub routing](constitution.md#pubsub-routing): routing counters, partial-delivery
+warnings and the refusal of a publication no recipient takes (0.7.12).
 
 **A 📣 topic carries two lists, and they answer different questions.** Its
 [ACL](02-access.md#acl) says who may **publish** to it. Its **Deliver-To list**

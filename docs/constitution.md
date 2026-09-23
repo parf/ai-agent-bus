@@ -273,7 +273,7 @@ whatever its kind:
 | waiting readers that lose authority | released |
 | the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
 | the one exception | a dedicated read-only call for the web face shows inactive records to the actors their `allow` admits, and always to the daemon Owner. It reads; it sends, consumes, drains, transfers and removes nothing |
-| reactivation | a status edit by the record's Owner or a Maintainer, never a re-creation |
+| reactivation | a status edit by the record's Owner, a Maintainer or the daemon Owner, never a re-creation; to anyone else the record stays no such entity |
 
 An absent record is the same case. Whether the caller is refused depends on
 whether anything still gets through:
@@ -433,7 +433,9 @@ Invalid input rejects the complete write.
 ### 👥 Group
 
 A Group is an ordinary record whose `allow` is its membership: typed User,
-Agent or Group terms, which its Maintainers MAY add and remove. Its `name`
+Agent or Group terms naming Users and live Agents that exist — never a queue, a
+topic, a service or a name nothing holds — which its Owner, its Maintainers and
+the daemon's Administrators MAY add and remove. Its `name`
 begins with `@`.
 
 This extends the existing

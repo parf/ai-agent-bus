@@ -5,6 +5,13 @@ lines per version. 0.7 is an odd line: code may be broken until the
 `STABLE - passed all tests and reviews` commit. The previous line is
 [changelog 0.6](Plans/CHANGELOG.0.6.md#changelog-06).
 
+## 0.7.17 — 2026-09-23
+
+Second review's fixes: group members and administrators must exist as actors,
+a group edit releases the readers it no longer admits, inactive records are
+counted and listed nowhere, a forward is one feed entry, reinstall runs on a
+host with no unit.
+
 ## 0.7.16 — 2026-09-23
 
 A route that stops working and a management write the store refuses are both

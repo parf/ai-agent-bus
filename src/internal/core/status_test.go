@@ -64,8 +64,10 @@ func TestAnInactiveRecordIsNoSuchEntity(t *testing.T) {
 func TestOnlyTheOwnerOrAMaintainerReactivates(t *testing.T) {
 	b := statusFixture(t)
 	for _, who := range []string{"reader@h", "stranger@h"} {
-		if _, err := b.Manage(who, Management{Name: "jobs@h", Status: ptr(protocol.StatusActive)}); err == nil {
-			t.Errorf("%s reactivated a record it does not manage", who)
+		// No such record to anyone who could not reactivate it: not even its
+		// status is disclosed.
+		if _, err := b.Manage(who, Management{Name: "jobs@h", Status: ptr(protocol.StatusActive)}); !errors.Is(err, ErrUnknown) {
+			t.Errorf("%s reactivating a record it does not manage: %v, want unknown", who, err)
 		}
 	}
 	if _, err := b.Manage("maint@h", Management{Name: "jobs@h", Status: ptr(protocol.StatusActive)}); err != nil {

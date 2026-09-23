@@ -193,6 +193,11 @@ func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
 			if err := b.unmarkedAgent(a); err != nil {
 				return nil, err
 			}
+			if r.Kind == protocol.KindGroup {
+				if err := b.groupMember(a); err != nil {
+					return nil, err
+				}
+			}
 		}
 		if seen[a] {
 			continue
@@ -381,9 +386,11 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	if err := b.acting(who); err != nil {
 		return err
 	}
-	for _, m := range normalized {
-		if err := b.unmarkedAgent(m); err != nil && !groupName(m) {
-			return err
+	if name != AdministratorsGroup {
+		for _, m := range normalized {
+			if err := b.groupMember(m); err != nil {
+				return err
+			}
 		}
 	}
 	old, exists := b.records[name]
@@ -398,7 +405,7 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 			// A User's name only: a group, an agent or any record that is not
 			// a User's own would become a User under a name no User may have
 			// (docs/constitution.md#-group).
-			if r, known := b.records[member]; groupName(member) || protocol.IsAgentName(member) || known && r.Kind != protocol.KindUser {
+			if _, user := b.users[member]; groupName(member) || protocol.IsAgentName(member) || !user {
 				return fmt.Errorf("%w: %s accepts direct user identities only", ErrBadName, AdministratorsGroup)
 			}
 			if member == b.admin {
@@ -521,8 +528,9 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	// to every other change it is no such record. A record inactive because
 	// its User is comes back with its User, not by this edit
 	// (docs/constitution.md#common-record-fields).
+	// Its existence is disclosed to nobody who could not reactivate it.
 	if !b.live(r) {
-		if change.Status == nil || !statusOnly(change) || !b.userActive(r.Owner) {
+		if change.Status == nil || !statusOnly(change) || !b.userActive(r.Owner) || !b.manages(who, r) {
 			return protocol.Record{}, ErrUnknown
 		}
 	}
@@ -537,7 +545,9 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	if name == AdministratorsGroup && (change.Owner != nil || change.Maintainers != nil || change.Allow != nil || change.Personal != nil || change.Status != nil) {
 		return protocol.Record{}, fmt.Errorf("%w: %s changes only with daemon ownership and its own membership rule", ErrNotOwner, AdministratorsGroup)
 	}
-	if !b.manages(who, r) {
+	// A Group's membership is also the Administrators', through either door
+	// (docs/01-identity-and-roles.md#groups).
+	if !b.manages(who, r) && !(r.Kind == protocol.KindGroup && b.isAdministrator(who)) {
 		return protocol.Record{}, ErrNotOwner
 	}
 	if (change.Owner != nil || change.Maintainers != nil || change.Personal != nil) && who != r.Owner && who != b.admin {
@@ -669,7 +679,13 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	}
 	r.At = time.Now()
 	b.setRecord(name, r)
-	b.recheckInbox(name)
+	// A Group grants on other records' lists, so its edit can take authority
+	// from readers blocked anywhere.
+	if r.Kind == protocol.KindGroup {
+		b.recheckReaders()
+	} else {
+		b.recheckInbox(name)
+	}
 	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
@@ -761,6 +777,30 @@ func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Rec
 		return protocol.Record{}, err
 	}
 	return r.Public(), nil
+}
+
+// groupMember says whether a term may be a Group's member: an actor — a User
+// or a live Agent — or another Group, which may be named before it is
+// populated and is inert until it is (docs/constitution.md#-group). A queue, a
+// service, a pubsub or a name nothing holds is refused: a grant made to a name
+// before it exists would pass to whoever registered it. Caller holds b.mu.
+func (b *Bus) groupMember(term string) error {
+	if groupName(term) {
+		return nil
+	}
+	if err := b.unmarkedAgent(term); err != nil {
+		return err
+	}
+	if _, user := b.users[term]; user {
+		return nil
+	}
+	if r, ok := b.entity(term); ok && r.Kind == protocol.KindAgent {
+		return nil
+	}
+	if r, ok := b.records[term]; ok && b.live(r) {
+		return fmt.Errorf("%w: a group's members are users, agents and groups, and %s is a %s", ErrBadName, term, r.Kind)
+	}
+	return fmt.Errorf("%w: group member %s", ErrUnknown, term)
 }
 
 // unmarkedAgent refuses an unprefixed term that names no User while an Agent

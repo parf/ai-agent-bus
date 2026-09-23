@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -21,6 +22,10 @@ func TestOwnerRunsTheAdministratorsGroup(t *testing.T) {
 	}
 
 	// Adding one.
+	// An administrator is a User first (docs/01-identity-and-roles.md#daemon-administrators).
+	if _, err := b.SetUser("owner@h", protocol.User{Name: "second@h"}, true); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.SetGroup("owner@h", AdministratorsGroup, []string{"owner@h", "second@h"}); err != nil {
 		t.Fatalf("the owner could not add a administrator: %v", err)
 	}
@@ -53,6 +58,9 @@ func TestOwnerRunsTheAdministratorsGroup(t *testing.T) {
 	}
 	// Positive control: that same administrator may edit an ordinary group, so
 	// the refusal above is about which group and not about who asked.
+	if _, err := b.SetUser("owner@h", protocol.User{Name: "third@h"}, true); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.SetGroup("second@h", "@ops", []string{"third@h"}); err != nil {
 		t.Errorf("a administrator could not edit an ordinary group: %v", err)
 	}
@@ -76,6 +84,14 @@ func TestTheLevelsAreNested(t *testing.T) {
 		t.Error("the owner is not a registered user, so a sweep keyed on that would take its credential")
 	}
 
+	// An administrator is made from a User, never the other way round: the
+	// protected group takes Users only.
+	if err := b.SetGroup("owner@h", AdministratorsGroup, []string{"owner@h", "ghost@h"}); !errors.Is(err, ErrBadName) || b.IsPerson("ghost@h") {
+		t.Fatalf("an unknown name was made an administrator, or a User manufactured for it: %v", err)
+	}
+	if _, err := b.SetUser("owner@h", protocol.User{Name: "second@h"}, true); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.SetGroup("owner@h", AdministratorsGroup, []string{"owner@h", "second@h"}); err != nil {
 		t.Fatal(err)
 	}
@@ -100,11 +116,9 @@ func TestTheLevelsAreNested(t *testing.T) {
 
 	// A group that is not the administrators group confers nothing, so joining it
 	// is not what makes somebody a user.
-	if err := b.SetGroup("owner@h", "@ops", []string{"third@h"}); err != nil {
-		t.Fatal(err)
-	}
-	if b.IsPerson("third@h") {
-		t.Error("an ordinary group membership made a user, so the check above proves nothing")
+	// An ordinary group takes actors that exist and makes nobody a user.
+	if err := b.SetGroup("owner@h", "@ops", []string{"third@h"}); !errors.Is(err, ErrUnknown) || b.IsPerson("third@h") {
+		t.Errorf("an ordinary group took an unknown member, or made it a user: %v", err)
 	}
 }
 

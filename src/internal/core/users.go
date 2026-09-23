@@ -777,7 +777,7 @@ func (b *Bus) userView(caller, name string) protocol.User {
 	}
 	sort.Strings(u.Groups)
 	for _, r := range b.records {
-		if r.Owner == name && r.Name != name {
+		if r.Owner == name && r.Name != name && b.live(r) {
 			u.Services = append(u.Services, r.Name)
 		}
 	}

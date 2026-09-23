@@ -9,8 +9,7 @@ need one. Its address and protocol are required.
 
 | MVP | Scope |
 |---|---|
-| Built | The [record](#what-a-service-is), its required address and [protocol](#how-to-call-it), the [refusals](#it-has-no-queue-here) that follow from having no queue, restore asking the same question, and [secrets](#secrets). |
-| Pending | 0.7 [env-file validation](#secrets); newly supplied secrets must pass validation on the [clean reinstall](../Plans/MVP/0.7-cutover.md#scope). |
+| Built | The [record](#what-a-service-is), its required address and [protocol](#how-to-call-it), the [refusals](#it-has-no-queue-here) that follow from having no queue, restore asking the same question, and [secrets](#secrets) as validated env files (0.7.8). |
 
 ## What a service is
 
@@ -113,9 +112,8 @@ has a credential, whether a write landed, whether it has been rotated since,
 and whether two hosts hold the same one.
 
 **A secret is not [registry configuration](03-records.md#configuring-a-template).**
-Through 0.6 they are the same shape — an opaque blob the daemon never reads
-inside, absent from every listing, represented by a digest in any ordinary
-answer — and their mechanics differ at every other point:
+Both are private values absent from every listing and represented by a digest
+in any ordinary answer, and their mechanics differ at every other point:
 
 A secret is stored as written but must be an env file
 ([private values](constitution.md#-private-values)); there is no legacy
@@ -123,9 +121,9 @@ exception, so a non-conforming stored secret is ignored at load.
 
 | | Configuration | Secret |
 |---|---|---|
-| Content | JSON, checked for being JSON | **opaque bytes**; `KEY=value` is the caller's convention and the daemon never parses it |
-| Belongs to | any record configured from an [agent template](03-records.md#agent-templates) | a `service` record and no other kind |
-| Who reads it | the named record alone, and its owner is refused too | whoever the record's [ACL](02-access.md#acl) admits; no second list |
+| Content | JSON, validated and compacted | an env file, checked for basic syntax and stored as written |
+| Belongs to | an 👾 agent, a 📡 service or a 👥 group | the same three kinds |
+| Who reads it | an agent itself (its owner is refused), or whoever a service's or group's [ACL](02-access.md#acl) admits | the same |
 | What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
 
 **Built through 0.6, the daemon does not read inside a secret.** `KEY=value`

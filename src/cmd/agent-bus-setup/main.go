@@ -362,8 +362,13 @@ func setup() error {
 // Nothing there is read again. A daemon that will not stop is not
 // reinstalled, and an existing set-aside directory is never overwritten.
 func setAside(aside string) error {
-	if err := run("systemctl", "stop", "agent-busd"); err != nil {
-		return fmt.Errorf("agent-busd will not stop, so it is not reinstalled: %w", err)
+	// A host that never had the unit has nothing to stop: that is the fresh
+	// case, not a daemon that refuses to stop.
+	load, _ := exec.Command("systemctl", "show", "-p", "LoadState", "--value", "agent-busd").Output()
+	if strings.TrimSpace(string(load)) != "not-found" {
+		if err := run("systemctl", "stop", "agent-busd"); err != nil {
+			return fmt.Errorf("agent-busd will not stop, so it is not reinstalled: %w", err)
+		}
 	}
 	if out, _ := exec.Command("systemctl", "is-active", "agent-busd").Output(); strings.TrimSpace(string(out)) == "active" {
 		return fmt.Errorf("agent-busd is still active, so it is not reinstalled")

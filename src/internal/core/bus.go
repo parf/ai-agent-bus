@@ -1008,9 +1008,8 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// A 📮 channel is an inbox with a name, so publishing to one is an
 	// ordinary send. A 📣 channel keeps nothing of its own instead, and an
 	// agent or queue with a route passes the message on.
-	if rec.Kind == protocol.KindPubSub {
-		return b.fanout(rec, e)
-	}
+	// One send is one entry in the envelope feed, however many steps and
+	// copies it becomes.
 	if err := b.route(rec, e); err != nil {
 		return protocol.Envelope{}, err
 	}
@@ -1215,7 +1214,6 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 	router := b.ensure(topic.Name)
 	router.in++
 	router.out += delivered
-	b.note(e)
 	for i, s := range failed {
 		// The copy that could not land is the RECIPIENT's loss: its page is
 		// where that has to show, and the error log says which and why.
@@ -1472,15 +1470,18 @@ func (b *Bus) Status() Status {
 	b.mu.Lock()
 	defer b.unlock()
 	s := Status{
-		Up:       b.Uptime(),
-		Services: len(b.records),
-		Kinds:    map[string]int{},
+		Up:    b.Uptime(),
+		Kinds: map[string]int{},
 	}
 	for _, kind := range protocol.Kinds {
 		s.Kinds[kind] = 0
 	}
+	// Inactive records are no entities, so the node counts only the live.
 	for _, r := range b.records {
-		s.Kinds[r.Kind]++
+		if b.live(r) {
+			s.Kinds[r.Kind]++
+			s.Services++
+		}
 	}
 	// Summed, not counted a second time: the node's total has one home, and
 	// it is the inboxes that lost the work.
@@ -1513,7 +1514,7 @@ func (b *Bus) Owned(caller string) []string {
 	}
 	out := []string{caller}
 	for name, r := range b.records {
-		if name != caller && r.Owner == caller {
+		if name != caller && r.Owner == caller && b.live(r) {
 			out = append(out, name)
 		}
 	}
