@@ -6,7 +6,7 @@ only over the shared socket with the visitor's session, and looks like a
 modern product: dark-first, one design system, cross-page transitions, a
 command palette. The behaviour contract is [docs/web-face](../../docs/web-face/site-map.md#every-address)
 and nothing else; work steps are in [TODO](TODO.md#steps), open choices in
-[QUESTIONS](QUESTIONS.md#open-questions).
+[QUESTIONS](QUESTIONS.md#open-questions), later work in [FUTURE](FUTURE.md).
 
 ## Scope
 
@@ -39,9 +39,10 @@ checks are retired at [cutover](#cutover), not ported.
 | | |
 |---|---|
 | Account | system account `agent-bus-web`, `nologin`, no SSH keys, not in the account map; it owns nothing on disk |
-| Code | **development environment, kept simple:** `/var/lib/agent-bus/web` is a symlink straight to the git checkout, `/usr/local/src/ai-agent-bus/src/web` (owner, 2026-09-24). The account reads it and cannot write it. What runs is the working tree; `systemctl restart agent-bus-web` picks up edits |
-| Runtime | the system bun: `/usr/bin/bun run /var/lib/agent-bus/web/server.ts`, from source, no build step, no npm dependency; `--version` prints `src/internal/version/VERSION` |
-| Unit | `agent-bus-web.service`, its own locked-down systemd unit ([the unit](#the-unit)) |
+| Code | **development environment, kept simple:** `/var/lib/agent-bus/web` is a symlink straight to the git checkout, `/usr/local/src/ai-agent-bus/src/web` (owner, 2026-09-24). The account reads it and cannot write it. What runs is the working tree; `systemctl restart agent-bus-web` picks up edits. The checkout must sit outside `/home` (`ProtectHome=yes`); the whole checkout is readable to the account, read-only, which a development node accepts |
+| Runtime | the system bun: `ExecStart=/usr/bin/bun run /var/lib/agent-bus/web/server.ts`, `WorkingDirectory=/var/lib/agent-bus/web` so bun finds `tsconfig.json`; from source, no build step, no npm dependency; `--version` prints `src/internal/version/VERSION`, read at runtime (an interpreted face reports SemVer only, per [build information](../../docs/09-setup.md#build-information)) |
+| Unit | `agent-bus-web.service`, its own locked-down systemd unit ([the unit](#the-unit)), a checked-in file `src/web/agent-bus-web.service` |
+| Install | `src/web/install-dev.sh`, run once with sudo: creates the account, the link and the unit, and enables it. Not `agent-bus-setup`: the development environment stays simple |
 | Daemon link | `/run/agent-bus/bus.sock` (shared, mode `666`, [supplies no identity](../../docs/02-access.md#local-socket)). Mapped account sockets are mode `600` for other accounts, so it cannot open them |
 | Credential | none of its own. `POST /session` with the typed token, then the session id per call, as [shell § process model](../../docs/web-face/shell.md#process-model) states |
 | State | none: no session map, no cache, no writable path. A restart ends nothing |
@@ -56,15 +57,15 @@ listed with its reason.
 | Area | Directives |
 |---|---|
 | Identity | `User=agent-bus-web`, `Group=agent-bus-web`, `UMask=0077`; `After=agent-busd.service`, `Restart=on-failure`, `RestartSec=2` |
-| Privilege | `NoNewPrivileges=yes`, `CapabilityBoundingSet=` (empty), `AmbientCapabilities=`, `RestrictSUIDSGID=yes`, `LockPersonality=yes`, `RestrictRealtime=yes`, `RestrictNamespaces=yes`, `KeyringMode=private`, `RemoveIPC=yes` |
-| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `TemporaryFileSystem=/var/lib:ro` with `BindReadOnlyPaths=/var/lib/agent-bus/web` (resolves to the checkout) so no other state directory exists for it; the checkout under `/usr/local/src` is read-only by `ProtectSystem=strict` (`/run/agent-bus` is already read-only under `ProtectSystem=strict`; connecting to the socket needs no write) |
-| Exec | `NoExecPaths=/`, `ExecPaths=/usr/bin/bun /usr/lib /usr/lib64`: bun and the shared libraries it maps, nothing else |
+| Privilege | `NoNewPrivileges=yes`, `CapabilityBoundingSet=` (empty, so a listen port is ≥ 1024), `AmbientCapabilities=`, `RestrictSUIDSGID=yes`, `LockPersonality=yes`, `RestrictRealtime=yes`, `RestrictNamespaces=yes`, `KeyringMode=private`, `RemoveIPC=yes` |
+| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `TemporaryFileSystem=/var/lib:ro` with `BindReadOnlyPaths=/var/lib/agent-bus/web` (resolves to the checkout) so no other state directory exists for it; the checkout under `/usr/local/src` stays visible, read-only by `ProtectSystem=strict`, because bun resolves imports through the link's real path; `/run/agent-bus` is read-only too, and connecting to the socket needs no write |
+| Exec | `NoExecPaths=/`, `ExecPaths=/usr/bin/bun /usr/lib /usr/lib64`: bun and the shared libraries it maps, nothing else; the checkout is not executable (W.1 proves `ExecPaths` takes a file path) |
 | Kernel | `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectKernelLogs`, `ProtectControlGroups`, `ProtectClock`, `ProtectHostname`, `ProtectProc=invisible`, `ProcSubset=pid` |
 | System calls | `SystemCallArchitectures=native`, `SystemCallFilter=@system-service` minus `@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap`, `SystemCallErrorNumber=EPERM` |
-| Network | `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6`; `IPAddressDeny=any` with `IPAddressAllow=localhost`: it answers on loopback and makes no outbound connection (the visitor's browser, not the face, fetches the CDN). A non-loopback `AGENT_BUS_WEB_ADDR` widens `IPAddressAllow` by setup, never by hand |
+| Network | `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6`; `IPAddressDeny=any` with `IPAddressAllow=localhost`: it answers on loopback and makes no outbound connection (the visitor's browser, not the face, fetches the CDN). A non-loopback `AGENT_BUS_WEB_ADDR` widens `IPAddressAllow` in the unit file, as its own reviewed commit |
 | TLS | `LoadCredential=cert:… key:…` when configured, with `AGENT_BUS_WEB_CERT=%d/cert` and `AGENT_BUS_WEB_KEY=%d/key`: the face reads them from the credentials directory, never from their own paths |
 | Resources | `MemoryMax=256M`, `MemorySwapMax=0`, `TasksMax=64`, `CPUQuota=100%`, `LimitNOFILE=1024` |
-| Environment | only `AGENT_BUS_ADDR`, `AGENT_BUS_WEB_ADDR`, `BUN_RUNTIME_TRANSPILER_CACHE_PATH=0` (no cache to write) and, with TLS, the two paths above; nothing inherited |
+| Environment | only `AGENT_BUS_ADDR`, `AGENT_BUS_WEB_ADDR`, `BUN_RUNTIME_TRANSPILER_CACHE_PATH=0` (bun would otherwise write a transpiler cache; W.1 proves none is written) and, with TLS, the two paths above; nothing inherited. `AGENT_BUS_WEB_DEV` is never set by the unit |
 | Left out | `MemoryDenyWriteExecute`: bun's JavaScript JIT needs writable-executable memory. `PrivateNetwork`: it must listen |
 | Proven in W.1 | `PrivateUsers=yes` (socket `0666`, directory `0711`), `ProcSubset=pid` and the `@resources` removal (bun raises `RLIMIT_NOFILE` at start) are kept only if the face serves `/healthz` under this unit in the container; a directive that breaks it moves to Left out with its reason |
 
@@ -78,7 +79,7 @@ Built-in first, per [external tools](../../docs/10-modules.md#external-tools).
 | Daemon client | bun `fetch` with its `unix` socket option; one small module | no dependency; one place maps refusals |
 | HTML | server-rendered TSX through our own ~100-line JSX runtime (`tsconfig` `jsx: react`, `jsxFactory: h`) that escapes every string by default | type-checked templates, no React, no hydration; raw HTML only through one named helper |
 | CSS | one hand-written stylesheet on design tokens, served as a hashed `/app.<hash>.css`; no `style=` attributes anywhere, SVG colours by `fill` and classes | lets the CSP drop `style-src 'unsafe-inline'` ([Q117](DECISIONS.md#decisions)) |
-| Caching | hashed assets `public, max-age=31536000, immutable`; pages and everything else `no-store` | a hash in the name is what makes long caching safe; shell § security headers is amended in W.1 |
+| Caching | hashed assets, the landing picture among them (`/agent-bus.<hash>.jpg`), `public, max-age=31536000, immutable`, replacing the default; pages and everything else `no-store` | a hash in the name is what makes long caching safe; shell § security headers is amended in W.1 |
 | Client script | our own `/ui.<hash>.js` with the CDN libraries; pages may rely on both | CSP allows only this site and the pinned CDN |
 | Fonts | any open-licensed faces the design needs, loaded from the CDN ([external assets](#external-assets)); the look comes first, size second ([Q118](DECISIONS.md#decisions)) | — |
 | Popular JS libraries | loaded from the CDN, never imported or bundled into our code ([external assets](#external-assets)) | owner rule |
@@ -106,12 +107,12 @@ welcome, loaded by the browser from a CDN and **never imported into our code**
 | Directive | Value | Why |
 |---|---|---|
 | `script-src` | `'self'` and each library's exact CDN URL | the bare host would admit every file jsdelivr serves; SRI covers only tags we wrote |
-| `style-src` | `'self'` and each font stylesheet's exact URL | no `'unsafe-inline'`: injected CSS can leak page content or overlay a false control |
+| `style-src` | `'self'` and each font or library stylesheet's exact URL | no `'unsafe-inline'`: injected CSS can leak page content or overlay a false control |
 | `font-src` | `'self'` and each font package's exact `files/` path | today's `default-src 'none'` would block every font |
 | `connect-src` | `'self'` | the palette's `/palette.json` |
-
-A test renders every page and fails on a `style=` attribute; the browser check fails on any `securitypolicyviolation` event.
 | the rest | `default-src 'none'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'` | unchanged |
+
+A test renders every page and fails on a `style=` attribute; the browser check fails on any `securitypolicyviolation` event. Library stylesheets (uPlot's) are listed in `style-src` like the fonts'. A path in a CSP source is ignored after a redirect, so a test checks that every pinned URL answers `200`, not `30x`.
 
 ### Layout of the code
 
@@ -142,7 +143,7 @@ dense operator console, not a document.
 | Element | Direction |
 |---|---|
 | Theme | dark-first, light as equal; follows `prefers-color-scheme`, overridable by a toggle kept in a non-authority cookie `ab_theme` (`dark` or `light`, anything else ignored); the server writes `data-theme` on `<html>` so the first paint is right |
-| Palette | elevation tokens `--surface-0` … `--surface-3` of deep ink (`#0b0d12` → `#1c212b`), one focus-ring token, one electric accent (the bus red, softened to coral `#ff5a4e`, with an indigo secondary), semantic green / amber / red / blue for states; contrast AA on both themes |
+| Palette | per-theme `--accent` and `--accent-text` (coral on light surfaces fails AA for text, so text uses a darker shade); elevation tokens `--surface-0` … `--surface-3` of deep ink (`#0b0d12` → `#1c212b`), one focus-ring token, one electric accent (the bus red, softened to coral `#ff5a4e`, with an indigo secondary), semantic green / amber / red / blue for states; contrast AA on both themes |
 | Shell | left sidebar with the nine sections and their icons ([Q121](QUESTIONS.md#q121-icons)), collapsible to icons; glass top bar with release, host, account menu and the palette hint (`⌘K`); a phone gets a bottom bar and a drawer |
 | Type | two families: Geist for text and display (headings, landing, KPI figures), tabular figures (`tnum`) in every number; JetBrains Mono for names, addresses and ACL lines. Inter is the alternative shown on the W.2 style guide |
 | Surfaces | cards with 12 px radius, 1 px hairline borders, soft inner glow on hover; no heavy shadows |
@@ -174,20 +175,31 @@ behaviour in the step that builds it.
 
 | From | Change |
 |---|---|
-| [shell](../../docs/web-face/shell.md#differences-from-older-docs) | `HEAD` answered as `GET` without a body on every page and asset (`Bun.serve` does not do it by itself); one signed-out answer everywhere (`401`, `sign in to open this page`), `/` excepted; a real `404` page for unknown paths; a status failure never renders a blank account link; sign-out clears the cookie with the attributes it was set with; `Origin` required on every POST; assets cost no daemon call; `405` pages framed; no `Try again` on `404`; fonts and libraries from one pinned, hashed CDN in place of "no external asset" |
-| [node](../../docs/web-face/node.md#inconsistencies-worth-fixing-in-the-rewrite) | Diagnostics renders exchanges with `reply_to`; held and loss tables include inactive records; a `/users` failure shows a section notice; an unreachable daemon at sign-in says so; Activity accepts inactive records visible to the caller; one Uptime source per page |
-| [records](../../docs/web-face/records.md#differences-from-the-older-specs) | `kind` kept on paging, Back and Clear filters; the confirmation guard **always** applies to transfer and delete; managers see the description; detail addresses redirect to the kind's own path; a user inbox is not offered Remove; no unused daemon reads; valid HTML on Deliver-To |
-| [people](../../docs/web-face/people.md#worth-fixing-in-the-rewrite) | "Not visible to you" renders on hidden groups; register refuses an existing group name instead of replacing it; post-create failures say what was saved; no Transfer on `@<user>/…` groups; redirects use the daemon's stored name; one identity pill; Account lists inactive owned records; `/avatar` dropped (no page references it; photos stay inline `data:` URIs); `/users?kind=other` after sign-in |
+| [shell](../../docs/web-face/shell.md#differences-from-older-docs) | `HEAD` answered as `GET` without a body on every page and asset (node.md's `/` row and its non-GET `405` row both edited); one signed-out answer everywhere (`401`, `sign in to open this page`), `/` excepted; a real `404` page for unknown paths; a status failure never renders a blank account link; sign-out clears the cookie with the attributes it was set with; `Origin` required on every POST; assets cost no daemon call; `405` pages framed; no `Try again` on `404`; fonts and libraries from one pinned, hashed CDN in place of "no external asset" |
+| [node](../../docs/web-face/node.md#inconsistencies-worth-fixing-in-the-rewrite) | Diagnostics renders exchanges with `reply_to`; held and loss tables include inactive records; a `/users` failure shows a section notice; an unreachable daemon at sign-in says so; a refused sign-in answers `401` like an ended session; a receipt sent by a queue's consumer folds into the queue message it answers; Activity accepts inactive records visible to the caller; one Uptime source per page |
+| [records](../../docs/web-face/records.md#differences-from-the-older-specs) | `kind` kept on paging, Back and Clear filters; the confirmation guard **always** applies to transfer and delete; managers see the description; detail addresses redirect to the kind's own path; a user inbox is not offered Remove; no unused daemon reads; valid HTML on Deliver-To; the Agents `Reached` column goes (always `—`); a save keeps its `return` on success; a non-owner's Personal search costs no `303`; a daemon-refused transfer marks `owner` |
+| [people](../../docs/web-face/people.md#worth-fixing-in-the-rewrite) | "Not visible to you" renders on hidden groups; register refuses an existing group name instead of replacing it; post-create failures say what was saved; no Transfer on `@<user>/…` groups; redirects use the daemon's stored name; one identity pill; Account lists inactive owned records; `/avatar` dropped (no page references it; photos stay inline `data:` URIs); `/users?kind=other` after sign-in; a `Refresh from GitHub` control for `refresh-github` with its own form anchor; users edit their own email where `can_set_email` says so (`POST /profile`); filter counts follow the search and All (N) counts the current state; `email` refusals mark `email` and the Personal-naming refusal marks `name`; group-in-group reads `member via @outer`, not `ACL`; Account shows the status word, not raw `active` |
 
 ## Cutover
 
-1. The TS face runs beside the Go one on `127.0.0.1:6781` until every
-   [site-map](../../docs/web-face/site-map.md#every-address) row passes its checks.
-2. Setup installs the account, the `/var/lib/agent-bus/web` link and the unit;
-   the daemon unit stops passing `-web`; the TS face takes `6780`.
+1. `install-dev.sh` puts the TS face on `127.0.0.1:6781` beside the Go one on
+   `6780` until every [site-map](../../docs/web-face/site-map.md#every-address)
+   row passes its checks. Cookies ignore ports, so the two faces share
+   `agent_bus_session`, `ab_theme` and `ab_flash`: signing out of one ends both.
+   Accepted; compare them as `localhost` against `127.0.0.1` to keep them apart.
+2. One change flips the ports: the daemon unit stops passing `-web`
+   (`agent-bus-setup` writes it), and the TS unit takes `6780`.
 3. After the owner accepts the pages, one commit removes the Go face and
    everything that exists only for it ([W.11](TODO.md#steps) lists it).
-4. Current docs take the substance: [discovery § dashboard](../../docs/05-discovery.md#dashboard),
-   [processes § web authority boundary](../../docs/11-processes.md#web-authority-boundary),
-   [setup § the two accounts](../../docs/09-setup.md#the-two-accounts), with decision rows.
-   `docs/web-face/` stays the internal page spec, updated to the TS behaviour.
+4. Current docs take the substance, with decision rows:
+
+   | Doc | Sections |
+   |---|---|
+   | [discovery](../../docs/05-discovery.md#dashboard) | dashboard, where it listens (environment only, no `-addr` / `-cert` flags), signing in, shell and recovery, browser acceptance |
+   | [processes](../../docs/11-processes.md#web-authority-boundary) | the processes, web authority boundary, web resource limits, how a child is started (`-web` goes) |
+   | [setup](../../docs/09-setup.md#the-two-accounts) | install (bwrap requirement goes), the two accounts and the two units (a web account and unit now exist), build information |
+   | [modules](../../docs/10-modules.md#languages) | languages, external tools (bwrap row goes) |
+   | [glossary](../../docs/glossary.md#names) | the `agent-bus-web` entry |
+5. The five `docs/web-face/` TL;DRs become the TypeScript contract ("as built
+   in 0.8.x by `src/web`"), and their "differences" and "worth fixing" sections
+   are marked history, so one claim owns each behaviour.

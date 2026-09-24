@@ -1,7 +1,7 @@
 # Questions Web face rewrite
 
-📌 **TL;DR:** One open choice, settled on the W.2 style guide; Q116–Q120 are
-in [DECISIONS](DECISIONS.md#decisions). A new choice found while building is
+📌 **TL;DR:** One open choice, settled on the W.2 style guide; every other
+choice is in [DECISIONS](DECISIONS.md#decisions). A new choice found while building is
 added here with its recommendation first.
 
 ## Open questions
