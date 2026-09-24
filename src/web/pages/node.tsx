@@ -136,6 +136,12 @@ export async function activity(ctx: Ctx): Promise<Response> {
   const rec = records.find(r => r.name === name);
   const slots = rec?.status === "inactive" ? [] : (await ctx.get<Slot[]>("/activity", name ? { name } : undefined)) ?? [];
   const names = records.map(r => r.name).sort();
+  // Hits: everything the five series counted in the last day, per record, for the chooser.
+  const dayHits = (sl: Slot[] | null | undefined) => (sl ?? []).reduce((a, x) => a + (x.in ?? 0) + (x.out ?? 0) + (x.dropped ?? 0) + (x.expired ?? 0) + (x.refused ?? 0), 0);
+  const hits = new Map<string, number | undefined>(await Promise.all(records.map(async r =>
+    [r.name, r.status === "inactive" ? undefined : await ctx.get<Slot[]>("/activity", { name: r.name }).then(dayHits, () => undefined)] as const)));
+  const allHits = name ? await ctx.get<Slot[]>("/activity").then(dayHits, () => undefined) : dayHits(slots);
+  const hitLabel = (n: number | undefined, inactive?: boolean) => inactive ? " — inactive" : n == null ? "" : ` — ${number(n)} ${n === 1 ? "hit" : "hits"}`;
   const id = await ctx.identity();
   const start = slots[0]?.at, end = slots.at(-1)?.at;
   const endLabel = end ? slotEnd(end) : "";
@@ -143,13 +149,13 @@ export async function activity(ctx: Ctx): Promise<Response> {
   const body = <>
     <PageHead icon={<Icon name="activity" />} title="Activity graphs"
       help={<Help id="activity-help" label="About activity history" title="Activity history"
-        items={["The last 24 hours in ten-minute slots of the node's clock, 00:00 … 23:50, saved across restarts.", "Time the daemon was down reads as zero.", "The last slot is still counting.", "Unfiltered Refused is node-wide for the daemon Owner and covers visible records for others.", "Dequeued is not completion: a message taken is not a message finished."]} />}
+        items={["The last 24 hours in ten-minute slots of the node's clock, 00:00 … 23:50, saved across restarts.", "Time the daemon was down reads as zero.", "The last slot is still counting.", "Unfiltered Refused is node-wide for the daemon Owner and covers visible records for others.", "Dequeued is not completion: a message taken is not a message finished.", "The chooser shows each record's hits: everything its five series counted in the last day."]} />}
       sub={<>{name ? <>Scope: <code>{name}</code></> : "Scope: visible records"}{start ? <> · {slotLabel(start)} to {endLabel}, ten-minute slots</> : null} · Uptime {id?.up || st.up || "unavailable"}</>}>
       <form method="get" class="scope-form">
         <label for="scope-name" class="sr-only">Record</label>
         <select id="scope-name" name="name" data-submit-on-change>
-          <option value="">All visible</option>
-          {names.map(n => <option value={n} selected={n === name}>{n}</option>)}
+          <option value="">All visible{hitLabel(allHits)}</option>
+          {names.map(n => <option value={n} selected={n === name}>{n}{hitLabel(hits.get(n), records.find(r => r.name === n)?.status === "inactive")}</option>)}
         </select>
       </form>
     </PageHead>

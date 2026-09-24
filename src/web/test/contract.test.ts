@@ -216,6 +216,12 @@ describe("pages as the daemon owner", () => {
     expect(await (await req("/queue?name=owner@test", { cookie: s })).text()).not.toContain("/service-danger");
     expect((await req("/service-danger?name=owner@test", { cookie: s })).status).toBe(403);
   });
+  test("the Activity chooser shows each record's hits in the last day", async () => {
+    const t = await (await req("/activity", { cookie: s })).text();
+    expect(t).toMatch(/<option value="jobs@test">jobs@test — 1 hit<\/option>/);
+    expect(t).toMatch(/<option value="db@test">db@test — 0 hits<\/option>/);
+    expect(t).toMatch(/<option value="">All visible — \d+ hits?<\/option>/);
+  });
   test("an absent name is 404 No such name, with no Try again", async () => {
     const r = await req("/agent?name=%23nobody@test", { cookie: s });
     expect(r.status).toBe(404);

@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.35 — 2026-09-24
+
+The web face's Activity chooser shows each record's hits in the last day.
+
 ## 0.8.34 — 2026-09-24
 
 The web face takes Fable's review: only a hex session id is a session, `return`
