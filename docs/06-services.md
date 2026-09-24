@@ -126,12 +126,12 @@ exception, so a non-conforming stored secret is ignored at load.
 | Who reads it | an agent itself (its owner is refused), or whoever a service's or group's [ACL](02-access.md#acl) admits | the same |
 | What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
 
-**Built through 0.6, the daemon does not read inside a secret.** `KEY=value`
+**History, built through 0.6: the daemon did not read inside a secret.** `KEY=value`
 lines are what callers agree to write, not a grammar anything checks: blank
 lines, comments, `export`, duplicate keys and an invalid identifier are all the
 caller's business, and a malformed secret is discovered by whatever uses it.
 Only an empty secret is refused, because it reads back exactly like never having
-set one. The pending 0.7 rule above replaces this content contract.
+set one. The 0.7 rule above, built in 0.7.8, replaced this content contract.
 
 The rule that configuration never leaves the daemon for anyone but its own
 record is unchanged by this.

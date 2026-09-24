@@ -89,6 +89,13 @@ export class Opencode {
     this.#session = id;
   }
 
+  /** Start a configured MCP server again after its process died. */
+  async reconnectMcp(name: string): Promise<void> {
+    const q = `?directory=${encodeURIComponent(this.#cwd)}`;
+    await this.#request("POST", `/mcp/${encodeURIComponent(name)}/disconnect${q}`);
+    await this.#request("POST", `/mcp/${encodeURIComponent(name)}/connect${q}`);
+  }
+
   async rename(title: string): Promise<void> {
     if (!this.#session) throw new Error("opencode: no session bound yet");
     await this.#request("PATCH", `/session/${encodeURIComponent(this.#session)}`, { title });

@@ -26,7 +26,9 @@ owner=$(stat -c %U "$src")
 as_owner() { sudo -u "$owner" -- "$@"; }
 
 switch() { # release-dir
-    ln -sfn "$1" "$root/current.new"
+    # Relative, as a packaged install writes it: agent-bus-setup refuses an
+    # absolute current link.
+    ln -sfn "releases/$(basename "$1")" "$root/current.new"
     mv -T "$root/current.new" "$root/current"
     for p in "${progs[@]}"; do ln -sfn "$root/current/$p" "$bindir/$p"; done
     for p in "${launchers[@]}"; do ln -sfn "$root/current/launchers/$p" "$bindir/$p"; done

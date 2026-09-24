@@ -58,7 +58,7 @@ a failure, and any `FAIL` line makes the exit non-zero. It writes
 |---|---|
 | Host | AMD Ryzen 9 5900X, 24 threads, 125.7 GiB, Linux 7.2.4-200.fc44, load ≈1.1–1.9 (other agents working) |
 | Browser | Google Chrome 153.0.8010.36 through Playwright, headless |
-| Build | 0.8.22 working tree plus this change, `build.sh` output |
+| Build | 0.8.26 (this change merged over main at 0.8.25), `build.sh` output; the merged build reran green, 769/0 in 96 s |
 | Data | 3,000 records plus 500 Users, SQLite 1.1 MB. Seeding took 20 s; the 2,000 extra agents took 13 s |
 | Timing | Navigation Timing `responseEnd − requestStart`, median of 5 loads, loopback |
 

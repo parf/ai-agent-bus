@@ -81,7 +81,7 @@ func main() {
 	}
 }
 
-func setup() error {
+func setup() (err error) {
 	fs := flag.CommandLine
 	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: a `name`, the installer's account name by default")
 	addr := fs.String("addr", "127.0.0.1:6767", "the daemon's loopback `address`")
@@ -194,8 +194,8 @@ func setup() error {
 	aside := fmt.Sprintf("%s.before-0.7-%s-%d", svcHome, time.Now().Format("20060102-150405.000000"), os.Getpid())
 	steps := []string{}
 	if *reinstall {
-		steps = append(steps, "stop agent-busd; a node that will not stop is not reinstalled",
-			fmt.Sprintf("set aside everything in %s, and the unit's drop-ins, in the root-only %s; nothing there is read again", svcHome, aside))
+		steps = append(steps, "stop agent-busd; a node that will not stop, or a daemon holding its home outside systemd, is not reinstalled",
+			fmt.Sprintf("set aside everything in %s, and the unit's drop-ins, in the root-only %s; nothing there is read again unless a later step fails, which puts it all back", svcHome, aside))
 	}
 	steps = append(steps,
 		fmt.Sprintf("create the system account %s with home %s", svcAccount, svcHome),
@@ -211,7 +211,7 @@ func setup() error {
 		fmt.Sprintf("make %s the daemon's to write and adm's to read, rotated by %s", logDir, logrotate),
 		fmt.Sprintf("initialize the database %s as %s", dbPath, svcAccount),
 		fmt.Sprintf("write %s", unitPath),
-		"reload systemd and start agent-busd")
+		"reload systemd and start agent-busd, restarting a running one whose unit or release changed, and wait until it reports the installed release")
 	if *keyF != "" {
 		steps = append(steps, fmt.Sprintf("make %s the first user, from %s", me, *keyF))
 	}
@@ -230,11 +230,31 @@ func setup() error {
 			"Use --dry-run to see the steps, or --print-unit for the unit alone",
 			steps[0], unitPath, strings.Join(os.Args, " "), svcAccount)
 	}
-	if *reinstall {
-		if err := setAside(aside); err != nil {
-			return err
-		}
+	// What the node was before this run: a reinstall that fails midway puts it
+	// back, and setup over a running node restarts it only when that is what
+	// applies the change.
+	priorUnit, unitErr := os.ReadFile(unitPath)
+	if unitErr != nil && !errors.Is(unitErr, os.ErrNotExist) {
+		return unitErr
 	}
+	hadUnit := unitErr == nil
+	priorRelease, releaseErr := priorReleaseForRollback()
+	if releaseErr != nil {
+		return releaseErr
+	}
+	if *reinstall {
+		// Not `:=` on err: the rollback below reads setup's own result.
+		wasActive, asideErr := setAside(aside)
+		if asideErr != nil {
+			return asideErr
+		}
+		defer func() {
+			if err != nil {
+				err = rollbackReinstall(aside, priorUnit, hadUnit, priorRelease, wasActive, err)
+			}
+		}()
+	}
+	active := exec.Command("systemctl", "is-active", "--quiet", "agent-busd").Run() == nil
 	if selectRelease != nil {
 		if err := selectRelease(); err != nil {
 			return fmt.Errorf("install package: %w", err)
@@ -319,7 +339,26 @@ func setup() error {
 	if err := run("systemctl", "daemon-reload"); err != nil {
 		return err
 	}
-	if err := run("systemctl", "enable", "--now", "agent-busd"); err != nil {
+	if err := run("systemctl", "enable", "agent-busd"); err != nil {
+		return err
+	}
+	// A running node keeps its process across `enable --now`, so a changed
+	// unit or a replaced binary is applied by a restart, and setup waits, as
+	// --upgrade does, until the daemon reports the release it installed.
+	wantVersion, wantBuild, err := programVersion(*exe)
+	if err != nil {
+		return err
+	}
+	start := "start"
+	if active && (!bytes.Equal(priorUnit, []byte(unit)) || !hadUnit ||
+		!serving(*addr, wantVersion, wantBuild)) {
+		start = "restart"
+	}
+	if err := run("systemctl", start, "agent-busd"); err != nil {
+		return err
+	}
+	node, err := waitNodeIdentity(*addr, wantVersion, wantBuild, 20*time.Second)
+	if err != nil {
 		return err
 	}
 	// The first user is the installer, and adding one is the admin program's
@@ -357,8 +396,10 @@ func setup() error {
 			}
 		}
 	}
-	fmt.Printf("agent-busd runs as %s, owned by %s, state in %s; services are %s's, in %s\n",
-		svcAccount, me, svcHome, runAccount, svcDir)
+	// The Owner is the node's durable one, which --owner seeds only once: a
+	// transfer since then is what the node answers to.
+	fmt.Printf("agent-busd %s (%s) runs as %s, owned by %s, state in %s; services are %s's, in %s\n",
+		node.Version, node.Build, svcAccount, node.Owner, svcHome, runAccount, svcDir)
 	return nil
 }
 
@@ -366,52 +407,193 @@ func setup() error {
 // the daemon is stopped, and everything it kept — the database or the 0.6
 // dump, the credentials, authorized keys — and every drop-in that would
 // override the new unit moves into one root-only directory beside its home.
-// Nothing there is read again. A daemon that will not stop is not
-// reinstalled, and an existing set-aside directory is never overwritten.
-func setAside(aside string) error {
+// Nothing there is read again. A daemon that will not stop, or one still
+// holding its home outside systemd, is not reinstalled, and an existing
+// set-aside directory is never overwritten. It reports whether the unit was
+// running, so a failure later puts the node back as it was.
+func setAside(aside string) (bool, error) {
 	// A host that never had the unit has nothing to stop: that is the fresh
 	// case, not a daemon that refuses to stop.
+	wasActive := exec.Command("systemctl", "is-active", "--quiet", "agent-busd").Run() == nil
 	load, _ := exec.Command("systemctl", "show", "-p", "LoadState", "--value", "agent-busd").Output()
 	if strings.TrimSpace(string(load)) != "not-found" {
 		if err := run("systemctl", "stop", "agent-busd"); err != nil {
-			return fmt.Errorf("agent-busd will not stop, so it is not reinstalled: %w", err)
+			return false, fmt.Errorf("agent-busd will not stop, so it is not reinstalled: %w", err)
 		}
 	}
 	if out, _ := exec.Command("systemctl", "is-active", "agent-busd").Output(); strings.TrimSpace(string(out)) == "active" {
-		return fmt.Errorf("agent-busd is still active, so it is not reinstalled")
+		return false, fmt.Errorf("agent-busd is still active, so it is not reinstalled")
 	}
+	// A daemon started by hand holds the database outside the unit, and
+	// moving the file from under it would leave two nodes.
+	pids, err := holders(svcHome)
+	if err == nil && len(pids) != 0 {
+		err = fmt.Errorf("process %s still holds %s outside systemd, so it is not reinstalled; stop it and run setup again",
+			strings.Join(pids, ", "), svcHome)
+	}
+	if err == nil {
+		err = moveAside(aside, svcHome, unitPath+".d")
+	}
+	if err != nil {
+		if wasActive {
+			if startErr := startDaemon(); startErr != nil {
+				return false, fmt.Errorf("%w; restarting agent-busd also failed: %v", err, startErr)
+			}
+		}
+		return false, err
+	}
+	fmt.Printf("set aside the old daemon state in %s\n", aside)
+	return wasActive, nil
+}
+
+// moveAside is setAside's file half: home's entries go to aside/home and the
+// drop-ins to aside/agent-busd.service.d, inside a new directory only root
+// can open.
+func moveAside(aside, home, dropins string) error {
 	if err := os.Mkdir(aside, 0o700); err != nil {
 		return fmt.Errorf("set aside: %w", err)
 	}
-	moveAll := func(from, into string) error {
-		entries, err := os.ReadDir(from)
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		if len(entries) == 0 {
-			return nil
-		}
-		if err := os.MkdirAll(into, 0o700); err != nil {
-			return err
-		}
-		for _, e := range entries {
-			if err := os.Rename(filepath.Join(from, e.Name()), filepath.Join(into, e.Name())); err != nil {
-				return err
-			}
-		}
-		return nil
+	// Mkdir honours the umask; the mode is the design, so it is set.
+	if err := os.Chmod(aside, 0o700); err != nil {
+		return fmt.Errorf("set aside: %w", err)
 	}
-	if err := moveAll(svcHome, filepath.Join(aside, "home")); err != nil {
-		return fmt.Errorf("set aside %s: %w", svcHome, err)
+	if err := moveEntries(home, filepath.Join(aside, "home")); err != nil {
+		return fmt.Errorf("set aside %s: %w", home, err)
 	}
-	if err := moveAll(unitPath+".d", filepath.Join(aside, "agent-busd.service.d")); err != nil {
+	if err := moveEntries(dropins, filepath.Join(aside, "agent-busd.service.d")); err != nil {
 		return fmt.Errorf("set aside the unit's drop-ins: %w", err)
 	}
-	fmt.Printf("set aside the old daemon state in %s\n", aside)
 	return nil
+}
+
+// moveEntries moves every entry of from into into, creating into 0700 only
+// when there is something to move.
+func moveEntries(from, into string) error {
+	entries, err := os.ReadDir(from)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+	if err := os.MkdirAll(into, 0o700); err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if err := os.Rename(filepath.Join(from, e.Name()), filepath.Join(into, e.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// restoreAside undoes moveAside. What the failed install left in home is
+// kept, root-only, in aside/failed-reinstall rather than deleted; aside is
+// removed when nothing remains in it.
+func restoreAside(aside, home, dropins string) error {
+	if err := moveEntries(home, filepath.Join(aside, "failed-reinstall")); err != nil {
+		return err
+	}
+	if err := moveEntries(filepath.Join(aside, "home"), home); err != nil {
+		return err
+	}
+	if err := moveEntries(filepath.Join(aside, "agent-busd.service.d"), dropins); err != nil {
+		return err
+	}
+	_ = os.Remove(filepath.Join(aside, "home"))
+	_ = os.Remove(filepath.Join(aside, "agent-busd.service.d"))
+	_ = os.Remove(aside)
+	return nil
+}
+
+// rollbackReinstall is a reinstall that failed after its state was set
+// aside: the old home, drop-ins, unit and release come back, and a node that
+// was running is started again rather than left stopped.
+func rollbackReinstall(aside string, priorUnit []byte, hadUnit bool, priorRelease string, wasActive bool, cause error) error {
+	_ = run("systemctl", "stop", "agent-busd")
+	var failed []string
+	if err := restoreAside(aside, svcHome, unitPath+".d"); err != nil {
+		failed = append(failed, "state: "+err.Error())
+	}
+	if hadUnit {
+		if err := os.WriteFile(unitPath, priorUnit, 0o644); err != nil {
+			failed = append(failed, "unit: "+err.Error())
+		}
+	} else if err := os.Remove(unitPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		failed = append(failed, "unit: "+err.Error())
+	}
+	if priorRelease != "" {
+		if _, err := selectBundle(priorRelease); err != nil {
+			failed = append(failed, "release: "+err.Error())
+		}
+	}
+	if err := run("systemctl", "daemon-reload"); err != nil {
+		failed = append(failed, err.Error())
+	}
+	if wasActive && len(failed) == 0 {
+		if err := startDaemon(); err != nil {
+			failed = append(failed, err.Error())
+		}
+	}
+	if len(failed) != 0 {
+		return fmt.Errorf("%v; rollback failed (%s); the old state is in %s", cause, strings.Join(failed, "; "), aside)
+	}
+	state := "left stopped, as it was"
+	if wasActive {
+		state = "started again"
+	}
+	return fmt.Errorf("%v; rolled back: the old state, unit and drop-ins are restored and agent-busd is %s", cause, state)
+}
+
+// holders are the processes with a file under dir open.
+func holders(dir string) ([]string, error) {
+	procs, err := os.ReadDir("/proc")
+	if err != nil {
+		return nil, err
+	}
+	prefix := filepath.Clean(dir) + "/"
+	var pids []string
+	for _, p := range procs {
+		if p.Name()[0] < '0' || p.Name()[0] > '9' {
+			continue
+		}
+		fdDir := filepath.Join("/proc", p.Name(), "fd")
+		fds, err := os.ReadDir(fdDir)
+		if err != nil {
+			continue // gone, or not ours to read
+		}
+		for _, fd := range fds {
+			if target, err := os.Readlink(filepath.Join(fdDir, fd.Name())); err == nil && strings.HasPrefix(target, prefix) {
+				pids = append(pids, p.Name())
+				break
+			}
+		}
+	}
+	return pids, nil
+}
+
+// serving is one short look at whether the running daemon is already the
+// installed release and build.
+func serving(addr, version, build string) bool {
+	_, err := waitNodeIdentity(addr, version, build, time.Second)
+	return err == nil
+}
+
+// programVersion is what a program's --version reports: the release and its
+// build_info stamp.
+func programVersion(exe string) (string, string, error) {
+	out, err := exec.Command(exe, "--version").Output()
+	if err != nil {
+		return "", "", fmt.Errorf("%s --version: %w", exe, err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) != 2 || !strings.HasPrefix(lines[1], "build_info: ") {
+		return "", "", fmt.Errorf("%s --version did not report a release and its build_info", exe)
+	}
+	return strings.TrimSpace(lines[0]), strings.TrimPrefix(lines[1], "build_info: "), nil
 }
 
 func waitForSocket(path string, timeout time.Duration) error {

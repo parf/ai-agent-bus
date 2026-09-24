@@ -139,6 +139,53 @@ for account in alice bob; do
 done
 pass "credential-bearing sockets have their exact owner and mode"
 
+# The release the node reports is the package's own build, not only its
+# number: an unstamped or foreign build with the same VERSION is refused.
+package_version=$(cat /root/valid/internal/version/VERSION)
+package_build=$(/root/valid/agent-busd --version | sed -n 's/^build_info: //p')
+[ -n "$package_build" ] && [ "$package_build" != "development (unstamped)" ] || fail "package agent-busd is unstamped: $package_build"
+identity_field() { sed -n 's/.*"'"$2"'":"\([^"]*\)".*/\1/p' "$1"; }
+curl -fsS http://127.0.0.1:6767/identity >/evidence/identity-installed.json || fail "identity after install"
+[ "$(identity_field /evidence/identity-installed.json version)" = "$package_version" ] || fail "node does not report $package_version"
+[ "$(identity_field /evidence/identity-installed.json build_info)" = "$package_build" ] || fail "node build_info is not the package's $package_build"
+for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web; do
+  [ "$("/usr/local/bin/$command" --version | sed -n 's/^build_info: //p')" = "$package_build" ] || fail "$command build_info is not the package's"
+done
+pass "installed commands and the running node report the package's build_info $package_build"
+
+# Setup over a running node: the durable Owner is reported, not the --owner
+# seed, and a changed unit is applied — setup returns only once the daemon
+# answers from it with the installed release.
+agent-bus-admin token owner@fresh >/root/owner.token
+agent-bus-admin token alice@fresh >/root/alice.token
+code=$(curl -sS --max-time 4 --unix-socket /run/agent-bus/bus.sock -H "X-Agent-Bus-Token: $(cat /root/owner.token)" \
+  -H 'Content-Type: application/json' --data '{"name":"alice@fresh"}' -o /evidence/owner-transfer.json -w '%{http_code}' http://bus/owner)
+[ "$code" = 200 ] || fail "daemon ownership transfer got $code: $(cat /evidence/owner-transfer.json)"
+curl -fsS http://127.0.0.1:6767/identity >/evidence/identity-transferred.json
+[ "$(identity_field /evidence/identity-transferred.json owner)" = alice@fresh ] || fail "transfer positive control: owner is not alice@fresh"
+before_pid=$(systemctl show agent-busd -p MainPID --value)
+./agent-bus-setup --owner owner@fresh --addr 127.0.0.1:6768 >/evidence/setup-changed-unit.log 2>&1 ||
+  { cat /evidence/setup-changed-unit.log >&2; fail "setup over the running node with a changed unit failed"; }
+# One look, no retry: setup has already waited.
+curl -fsS --max-time 2 http://127.0.0.1:6768/identity >/evidence/identity-changed-unit.json ||
+  fail "setup returned before the daemon answered on its changed address"
+grep -qF 'owned by alice@fresh,' /evidence/setup-changed-unit.log || fail "setup did not report the durable Owner: $(tail -1 /evidence/setup-changed-unit.log)"
+if grep -qF 'owned by owner@fresh' /evidence/setup-changed-unit.log; then fail "setup reported the --owner seed as the Owner"; fi
+[ "$(identity_field /evidence/identity-changed-unit.json build_info)" = "$package_build" ] || fail "changed-unit node build_info"
+[ "$(systemctl show agent-busd -p MainPID --value)" != "$before_pid" ] || fail "the changed unit was not applied by a restart"
+if curl -fsS --max-time 2 http://127.0.0.1:6767/identity >/dev/null 2>&1; then fail "the old unit's address still answers"; fi
+pass "setup over a running node applies a changed unit, waits for the release, and reports the durable Owner"
+# Put the node back as the checks after this one expect it: owner@fresh owns
+# it and the generated unit serves on 6767.
+code=$(curl -sS --max-time 4 --unix-socket /run/agent-bus/bus.sock -H "X-Agent-Bus-Token: $(cat /root/alice.token)" \
+  -H 'Content-Type: application/json' --data '{"name":"owner@fresh"}' -o /evidence/owner-transfer-back.json -w '%{http_code}' http://bus/owner)
+[ "$code" = 200 ] || fail "daemon ownership transfer back got $code"
+./agent-bus-setup --owner owner@fresh >/evidence/setup-unit-restored.log 2>&1 ||
+  { cat /evidence/setup-unit-restored.log >&2; fail "setup restoring the default unit failed"; }
+grep -qF 'owned by owner@fresh,' /evidence/setup-unit-restored.log || fail "setup did not report the transferred-back Owner"
+curl -fsS --max-time 2 http://127.0.0.1:6767/identity >/dev/null || fail "the restored unit does not answer on 6767"
+
+
 main_pid=$(systemctl show agent-busd -p MainPID --value)
 bus_pid=$(find_bus_child "$main_pid") || fail "bus child was not found"
 web_pid=$(pgrep -f '^/agent-bus-web([[:space:]]|$)' | head -1 || true)
@@ -225,6 +272,7 @@ after=$(readlink /usr/local/lib/agent-bus/current)
 [ "$before" = "$after" ] || fail "identical reinstall selected another release"
 [ "$(find /usr/local/lib/agent-bus/releases -mindepth 1 -maxdepth 1 -type d | wc -l)" -eq 1 ] || fail "identical reinstall duplicated the release"
 pass "identical package reinstall is idempotent"
+
 
 systemctl show agent-busd -p ActiveState -p User -p FragmentPath >/evidence/unit-state.txt
 systemctl --version | head -1 >/evidence/host.txt
