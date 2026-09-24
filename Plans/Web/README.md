@@ -34,7 +34,7 @@ checks are retired at [cutover](#cutover), not ported.
 | Credential | none of its own. `POST /session` with the typed token, then the session id per call, as [shell § process model](../../docs/web-face/shell.md#process-model) states |
 | State | none: no session map, no cache, no writable path. A restart ends nothing |
 | Binary | one self-contained executable from `bun build --compile`, version from `src/internal/version/VERSION`, build stamp as [setup § build information](../../docs/09-setup.md#build-information) requires; `--version` prints both |
-| Confinement | systemd sandboxing in place of the supervisor's bubblewrap: read-only filesystem, private `/tmp`, no new privileges, no capabilities, address families `AF_UNIX AF_INET AF_INET6`, `MemoryMax=256M`, `MemorySwapMax=0`, `TasksMax=64`, `CPUQuota=100%`, only the socket directory and TLS files readable. Choice: [Q116](QUESTIONS.md#q116-confinement) |
+| Confinement | systemd sandboxing in place of the supervisor's bubblewrap: read-only filesystem, private `/tmp`, no new privileges, no capabilities, address families `AF_UNIX AF_INET AF_INET6`, `MemoryMax=256M`, `MemorySwapMax=0`, `TasksMax=64`, `CPUQuota=100%`, only the socket directory and TLS files readable. Owner decision: [Q116](DECISIONS.md#decisions) |
 | Listen | `AGENT_BUS_WEB_ADDR`, default `127.0.0.1:6780`; TLS only with both cert and key, a missing one refuses to start |
 
 ## Stack

@@ -1,20 +1,10 @@
 # Questions Web face rewrite
 
-📌 **TL;DR:** Five owner choices before W.1. Each states the recommendation
+📌 **TL;DR:** Four owner choices before W.1. Each states the recommendation
 first; the [README](README.md#web-face-rewrite) is written on those
 recommendations and changes if the answer differs.
 
 ## Open questions
-
-### Q116 Confinement
-
-The Go child is confined by the supervisor's bubblewrap and cgroup. A face
-under its own account needs its own.
-
-| Option | |
-|---|---|
-| **A (recommended)** | Its own systemd unit with sandboxing and resource limits ([process and account](README.md#process-and-account)); the supervisor drops `-web`, bubblewrap and the cgroup code |
-| B | Keep supervising it from `agent-busd` under bubblewrap, switching the user inside the sandbox |
 
 ### Q117 CSP
 
