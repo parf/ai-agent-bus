@@ -1,6 +1,6 @@
 # Decisions Web face rewrite
 
-📌 **TL;DR:** Dated owner decisions for the web face rewrite, Q116–Q120 and
+📌 **TL;DR:** Dated owner decisions for the web face rewrite, Q116–Q121 and
 five unnumbered directions. Each row names the decision and links its home in
 the [README](README.md#web-face-rewrite); replaced ones are under
 [superseded](#superseded).
@@ -18,6 +18,7 @@ the [README](README.md#web-face-rewrite); replaced ones are under
 | 2026-09-24 | — | External fonts and popular JS libraries load from the CDN with integrity hashes, never imported into our code | [external assets](README.md#external-assets) |
 | 2026-09-24 | — | Internet is required in the visitor's browser; pages rely on the CDN libraries and no offline or no-JavaScript fallback is built | [external assets](README.md#external-assets) |
 | 2026-09-24 | — | Development environment kept simple: `/var/lib/agent-bus/web` links straight to the git checkout's `src/web`, run from source by the system bun under a locked-down systemd unit; no compile or release packaging | [process and account](README.md#process-and-account), [the unit](README.md#the-unit) |
+| 2026-09-24 | Q121 | Icons are the designer's call: Lucide icons on the web for navigation, kinds and authority, each mapped to a `display` glyph; the CLI keeps its emoji | [design language](README.md#design-language) |
 
 ## Superseded
 
