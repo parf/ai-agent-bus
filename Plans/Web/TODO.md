@@ -1,7 +1,7 @@
 # TODO Web face rewrite
 
 📌 **TL;DR:** Eleven steps from an empty `src/web/` to the Go face removed.
-Each step ends with a commit, a version bump and a falsifiable check that was
+Each step ends with a commit, a `0.8.x` PATCH bump and a falsifiable check that was
 first seen to fail ([mutation first](../../CLAUDE.md#mutation-first-then-belief)).
 Design and rules are in the [README](README.md#web-face-rewrite).
 
