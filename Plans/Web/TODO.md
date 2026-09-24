@@ -13,7 +13,7 @@ design; the Go face gone.
 
 ## Next step
 
-W.1. Every choice before it is [settled](DECISIONS.md#decisions).
+W.11 cutover, after the owner accepts the pages on `127.0.0.1:6781`. W.1–W.10 are built ([DONE](DONE.md#done--web)); the rows marked partial there keep their open checks.
 
 ## Steps
 

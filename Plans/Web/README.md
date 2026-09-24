@@ -58,7 +58,7 @@ listed with its reason.
 |---|---|
 | Identity | `User=agent-bus-web`, `Group=agent-bus-web`, `UMask=0077`; `After=agent-busd.service`, `Restart=on-failure`, `RestartSec=2` |
 | Privilege | `NoNewPrivileges=yes`, `CapabilityBoundingSet=` (empty, so a listen port is ≥ 1024), `AmbientCapabilities=`, `RestrictSUIDSGID=yes`, `LockPersonality=yes`, `RestrictRealtime=yes`, `RestrictNamespaces=yes`, `KeyringMode=private`, `RemoveIPC=yes` |
-| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `TemporaryFileSystem=/var/lib:ro` with `BindReadOnlyPaths=/var/lib/agent-bus/web` (resolves to the checkout) so no other state directory exists for it; the checkout under `/usr/local/src` stays visible, read-only by `ProtectSystem=strict`, because bun resolves imports through the link's real path; `/run/agent-bus` is read-only too, and connecting to the socket needs no write |
+| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `InaccessiblePaths=` the daemon's, runner's and `service.d` state, `/root`, `/etc/ssh` and the checkout's `.git`. `/var/lib/agent-bus/web` stays a plain link: bun resolves it to the checkout, which is read-only under `ProtectSystem=strict` (a bind mount at the link would hide `../internal/version/VERSION`). `/run/agent-bus` is read-only too; connecting to the socket needs no write |
 | Exec | `NoExecPaths=/`, `ExecPaths=/usr/bin/bun /usr/lib /usr/lib64`: bun and the shared libraries it maps, nothing else; the checkout is not executable (W.1 proves `ExecPaths` takes a file path) |
 | Kernel | `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectKernelLogs`, `ProtectControlGroups`, `ProtectClock`, `ProtectHostname`, `ProtectProc=invisible`, `ProcSubset=pid` |
 | System calls | `SystemCallArchitectures=native`, `SystemCallFilter=@system-service` minus `@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap`, `SystemCallErrorNumber=EPERM` |
@@ -67,7 +67,7 @@ listed with its reason.
 | Resources | `MemoryMax=256M`, `MemorySwapMax=0`, `TasksMax=64`, `CPUQuota=100%`, `LimitNOFILE=1024` |
 | Environment | only `AGENT_BUS_ADDR`, `AGENT_BUS_WEB_ADDR`, `BUN_RUNTIME_TRANSPILER_CACHE_PATH=0` (bun would otherwise write a transpiler cache; W.1 proves none is written) and, with TLS, the two paths above; nothing inherited. `AGENT_BUS_WEB_DEV` is never set by the unit |
 | Left out | `MemoryDenyWriteExecute`: bun's JavaScript JIT needs writable-executable memory. `PrivateNetwork`: it must listen |
-| Proven in W.1 | `PrivateUsers=yes` (socket `0666`, directory `0711`), `ProcSubset=pid` and the `@resources` removal (bun raises `RLIMIT_NOFILE` at start) are kept only if the face serves `/healthz` under this unit in the container; a directive that breaks it moves to Left out with its reason |
+| Proven | `PrivateUsers=yes`, `ProcSubset=pid` and the `@resources` removal all kept: the face serves every page under this unit. `systemd-analyze security agent-bus-web` scores **0.9 SAFE** (2026-09-24) |
 
 ## Stack
 

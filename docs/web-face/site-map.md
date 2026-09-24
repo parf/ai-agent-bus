@@ -5,7 +5,9 @@ the specification for rewriting the web face from Go to TypeScript. This index
 lists every address the admin web face (`agent-bus-web`, port 6780) answers and
 links the page that specifies it — route and parameters, access by role, daemon
 calls, content, states, controls, every form field by name, and links out —
-as built in 0.8.31. No other document links here.
+as built in 0.8.31. No other document links here. The TypeScript face in
+`src/web` implements it with the [behaviour changes](../../Plans/Web/README.md#behaviour-changes)
+the plan lists; the last three address rows exist only there.
 
 ## The specification
 
@@ -52,6 +54,9 @@ code was followed and the difference is listed.
 | `/account` | Your identity, owned records and credentials | [Account `/account](people.md#account-account) |
 | `/healthz`, `/ui.js`, favicons, `/agent-bus.jpg` | Liveness and assets | [/healthz](node.md#healthz), [Static assets](node.md#static-assets) |
 | `/channels`, `/channel`, other old addresses | Redirects kept for bookmarks | [Redirects and catch-alls](node.md#redirects-and-catch-alls) |
+| `/palette.json` | TypeScript face only: the `⌘K` palette's names, the visitor's own view; JSON `401` signed out, `403` cross-site | [interactive features](../../Plans/Web/README.md#interactive-features) |
+| `/app.<hash>.css`, `/ui.<hash>.js`, `/agent-bus.<hash>.webp` | TypeScript face only: hashed assets, cached for good; replace `/ui.js` and `/agent-bus.jpg` | [caching](../../Plans/Web/README.md#stack) |
+| `/_styleguide` | TypeScript face only, with `AGENT_BUS_WEB_DEV=1`: every component; `404` otherwise | [W.2](../../Plans/Web/TODO.md#steps) |
 
 ## Shared rules
 
