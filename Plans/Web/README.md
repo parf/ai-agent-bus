@@ -48,7 +48,7 @@ Built-in first, per [external tools](../../docs/10-modules.md#external-tools).
 | HTML | server-rendered TSX through our own ~100-line JSX runtime that escapes every string by default | type-checked templates, no React, no hydration; raw HTML only through one named helper |
 | CSS | one hand-written stylesheet on design tokens, bundled and served as a hashed `/app.<hash>.css` | lets the CSP drop `style-src 'unsafe-inline'` ([Q117](QUESTIONS.md#q117-csp)) |
 | Client script | one bundled `/ui.<hash>.js`, progressive enhancement only; every page works without it | CSP `script-src 'self'` stays |
-| Font | Inter variable and JetBrains Mono, self-hosted `woff2` (OFL), or the system stack ([Q118](QUESTIONS.md#q118-fonts)) | no CDN |
+| Fonts | any open-licensed faces the design needs, self-hosted `woff2`, their licences shipped with the package; the look comes first, size second ([Q118](DECISIONS.md#decisions)) | no CDN |
 | Tests | `bun test`; a disposable `agent-busd` for contract tests; Playwright + axe in the container for browser checks | as the existing acceptance scripts do |
 
 ### Layout of the code
@@ -80,7 +80,7 @@ dense operator console, not a document.
 | Theme | dark-first, light as equal; follows `prefers-color-scheme`, overridable by a toggle kept in a non-authority cookie `ab_theme` |
 | Palette | deep ink surfaces (`#0b0d12` → `#161a22`), one electric accent (the bus red, softened to coral `#ff5a4e`, with an indigo secondary), semantic green / amber / red / blue for states; contrast AA on both themes |
 | Shell | left sidebar with the nine sections and their marks, collapsible to icons; glass top bar with release, host, account menu and the palette hint (`⌘K`); a phone gets a bottom bar and a drawer |
-| Type | Inter for text, tabular figures in every number; JetBrains Mono for names, addresses and ACL lines |
+| Type | Inter for text, tabular figures in every number; JetBrains Mono for names, addresses and ACL lines; a display face for headings, the landing and KPI figures (Geist or Space Grotesk, picked on the W.2 style guide) |
 | Surfaces | cards with 12 px radius, 1 px hairline borders, soft inner glow on hover; no heavy shadows |
 | Status | pills with a dot (`● Active`, `● Inactive`), severity as a coloured rail on attention items, `INACTIVE` badge kept |
 | Data | tables with sticky headers, zebra-free, row hover, right-aligned tabular numbers; stacked cards at ≤ 40 rem |

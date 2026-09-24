@@ -1,6 +1,6 @@
 # Questions Web face rewrite
 
-📌 **TL;DR:** Four owner choices before W.1. Each states the recommendation
+📌 **TL;DR:** Three owner choices before W.1. Each states the recommendation
 first; the [README](README.md#web-face-rewrite) is written on those
 recommendations and changes if the answer differs.
 
@@ -12,13 +12,6 @@ recommendations and changes if the answer differs.
 |---|---|
 | **A (recommended)** | `style-src 'self'` with a hashed stylesheet (no inline styles), `font-src 'self'`, `connect-src 'self'` for the palette's `/palette.json` |
 | B | Keep the current policy: inline styles, no `connect-src`, no palette data |
-
-### Q118 Fonts
-
-| Option | |
-|---|---|
-| **A (recommended)** | Self-hosted Inter and JetBrains Mono, about 400 KB, cached a day |
-| B | System font stack only |
 
 ### Q119 Behaviour changes
 
