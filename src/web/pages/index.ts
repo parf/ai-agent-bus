@@ -48,3 +48,6 @@ route("GET", "/group/edit", ppl.editGroup);
 route("POST", "/groups", ppl.postGroups);
 route("GET", "/account", ppl.account);
 route("GET", "/palette.json", ppl.palette, false);
+
+import { styleguide } from "./styleguide.tsx";
+route("GET", "/_styleguide", styleguide, false);

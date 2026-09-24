@@ -82,6 +82,13 @@ describe("signed out", () => {
       expect(t).toContain(`name="return" value="${p.replace("&", "&amp;")}"`);
     }
   });
+  test("the style guide exists only in development", async () => {
+    expect((await req("/_styleguide")).status).toBe(404);
+    const dev = makeHandler({ daemon: join(dir, "bus.sock"), listen: { hostname: "127.0.0.1", port: 6781 }, dev: true });
+    const r = await dev(new Request(ORIGIN + "/_styleguide", { headers: { host: "127.0.0.1:6781" } }));
+    expect(r.status).toBe(200);
+    expect(/\sstyle=/.test(await r.text())).toBe(false);
+  });
   test("an unknown address is a 404, not a front page", async () => {
     const r = await req("/no-such-page");
     expect(r.status).toBe(404);

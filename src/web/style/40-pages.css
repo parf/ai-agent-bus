@@ -138,3 +138,12 @@ table.exchanges td { vertical-align: top; }
 .static-list { padding-left: 1.1rem; color: var(--text-2); display: grid; gap: .3rem; }
 .card-note { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .card-note h3 { display: flex; align-items: center; gap: .45rem; font-size: .9rem; }
+
+/* ---------- style guide */
+.sg-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .75rem; }
+.sg-swatch { display: flex; align-items: center; gap: .6rem; }
+.sg-swatch span { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--sw); flex: none; }
+.sg-surface-0 { --sw: var(--surface-0); } .sg-surface-1 { --sw: var(--surface-1); } .sg-surface-2 { --sw: var(--surface-2); } .sg-surface-3 { --sw: var(--surface-3); } .sg-surface-4 { --sw: var(--surface-4); }
+.sg-text-1 { --sw: var(--text-1); } .sg-text-2 { --sw: var(--text-2); } .sg-text-3 { --sw: var(--text-3); } .sg-accent { --sw: var(--accent); } .sg-accent-2 { --sw: var(--accent-2); }
+.sg-indigo { --sw: var(--indigo); } .sg-sky { --sw: var(--sky); } .sg-ok { --sw: var(--ok); } .sg-warn { --sw: var(--warn); } .sg-bad { --sw: var(--bad); } .sg-info { --sw: var(--info); }
+@media (max-width: 640px) { .landing-hero { align-items: stretch; } table.data.stack td.num .badge { margin: 0; } }

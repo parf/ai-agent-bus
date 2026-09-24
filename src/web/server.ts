@@ -61,6 +61,7 @@ export function makeHandler(cfg: Config) {
       try { ctx.form = new URLSearchParams(new TextDecoder().decode(buf)); }
       catch { ctx.form = new URLSearchParams(); }
     }
+    if (path === "/_styleguide" && !cfg.dev) return notFoundPage(ctx);
     const m = match(req.method, path);
     try {
       if (!m.known) return await notFoundPage(ctx);
