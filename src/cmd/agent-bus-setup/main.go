@@ -238,7 +238,10 @@ func setup() (err error) {
 		return unitErr
 	}
 	hadUnit := unitErr == nil
-	priorRelease, _ := currentReleaseID()
+	priorRelease, releaseErr := priorReleaseForRollback()
+	if releaseErr != nil {
+		return releaseErr
+	}
 	if *reinstall {
 		// Not `:=` on err: the rollback below reads setup's own result.
 		wasActive, asideErr := setAside(aside)

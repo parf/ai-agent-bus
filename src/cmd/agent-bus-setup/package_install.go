@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -223,6 +224,17 @@ func selectBundle(releaseID string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(installRoot, "current"), nil
+}
+
+// priorReleaseForRollback is the release a failed reinstall returns to. No
+// release yet is a first install; anything else unreadable is refused, or a
+// rollback would start the new program against the restored old home.
+func priorReleaseForRollback() (string, error) {
+	id, err := currentReleaseID()
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("the current release cannot be read, so a failed reinstall could not be rolled back: %w", err)
+	}
+	return id, nil
 }
 
 func currentReleaseID() (string, error) {

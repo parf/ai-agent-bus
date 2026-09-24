@@ -140,3 +140,31 @@ func TestCgroupProcessInspectionDescendsDelegatedSubgroups(t *testing.T) {
 		}
 	}
 }
+
+func TestAReinstallRefusesAnUnreadableCurrentRelease(t *testing.T) {
+	root, _ := withInstallPaths(t)
+	if id, err := priorReleaseForRollback(); err != nil || id != "" {
+		t.Fatalf("no release yet: %q, %v; want a first install", id, err)
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if id, err := priorReleaseForRollback(); err != nil || id != "" {
+		t.Fatalf("no release yet: %q, %v; want a first install", id, err)
+	}
+	if err := os.Symlink("/elsewhere", filepath.Join(root, "current")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := priorReleaseForRollback(); err == nil || !strings.Contains(err.Error(), "could not be rolled back") {
+		t.Fatalf("an unsafe current link was accepted for rollback: %v", err)
+	}
+	if err := os.Remove(filepath.Join(root, "current")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("releases/0.8.24-abc", filepath.Join(root, "current")); err != nil {
+		t.Fatal(err)
+	}
+	if id, err := priorReleaseForRollback(); err != nil || id != "0.8.24-abc" {
+		t.Fatalf("a relative release link, as release.sh writes it: %q, %v", id, err)
+	}
+}

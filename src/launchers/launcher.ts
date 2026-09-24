@@ -8,7 +8,7 @@ import { Codex } from "../mcp/codex.ts";
 import { Opencode } from "../mcp/opencode.ts";
 import { sidecarMessage } from "../mcp/messages.ts";
 import { startPush, sleep, type Push } from "../mcp/push.ts";
-import { faceMarks } from "../mcp/face-mark.ts";
+import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
 import { version } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeTitle, sameBase, type Session } from "./sessions.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
@@ -461,8 +461,8 @@ See docs/08-runner-role.md#smart-launchers.`);
   let faceLost = 0, faceStuck = false, faceResume: (() => void) | undefined;
   const watchFaces = async () => {
     if (stopping) return; // faces end with the session; that is no loss
-    const faces = faceMarks(runDir!);
-    if (faces.lost) {
+    const event = faceEvent(!!faceLost, faceMarks(runDir!));
+    if (event === "lost") {
       const wasPushing = !!push?.running();
       push?.stop();
       await push?.done;
@@ -474,7 +474,7 @@ See docs/08-runner-role.md#smart-launchers.`);
       if (codex) { warn("reloading the agent-bus MCP server"); await codex.reloadMcp().catch(e => warn(`reload failed: ${e}`)); }
       else if (opencode) { warn("reconnecting the agent-bus MCP server"); await opencode.reconnectMcp("agent-bus").catch(e => warn(`reconnect failed: ${e}`)); }
       else warn("to restore it, type /mcp in this session, select agent-bus and choose Reconnect");
-    } else if (faceLost && faces.live) {
+    } else if (event === "back" && faceLost) {
       faceLost = 0;
       faceResume?.();
       faceResume = undefined;
