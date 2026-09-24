@@ -10,7 +10,7 @@ ordinary use needs neither.
 | MVP | Scope |
 |---|---|
 | Built | Distributable archive, installer, administration, token helper, accounts, daemon unit and stamped builds; fresh-host installation, populated upgrade/recovery and [backup/restore](#backup-and-restore) acceptance. |
-| Pending | Installed runtime acceptance; [browser acceptance](05-discovery.md#browser-acceptance) is built. |
+| Pending | Nothing for MVP: installed [browser](05-discovery.md#browser-acceptance) and [runtime](../Plans/MVP/done/fresh-host-runtime.md#checks) acceptance passed on a fresh host in 0.8.26–0.8.30. |
 
 ## The programs
 

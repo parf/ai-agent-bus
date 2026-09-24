@@ -1,9 +1,9 @@
 # TODO MVP
 
-📌 **TL;DR:** Finish accepted behavior and the remaining browser and runtime
-journeys on the installed release. Built results live in DONE, the 0.7
-constitution work is tracked in its own plan, and the task IDs and acceptance
-below stay in force.
+📌 **TL;DR:** MVP is complete (2026-09-23, 0.8.30): every task row and both
+installed stage gates passed, with their evidence in [DONE](DONE.md#done--mvp).
+What remains in this file is the record of how the gates close; follow-up ideas
+live in [FUTURE](FUTURE.md) and later releases in their own plans.
 
 ## Objective
 
@@ -11,8 +11,8 @@ Finish the [MVP scope](README.md#scope). Built wave results are in [DONE](DONE.m
 
 ## Next step
 
-The [0.7 constitution work](0.7.0-TODO.md#next-step) is stable at 0.7.20; the
-0.8 line continues the rows below, whose acceptance and task IDs remain in force.
+None for MVP. The [0.7 constitution work](0.7.0-TODO.md#next-step) is stable
+at 0.7.20 and MVP closed on the 0.8 line; the next stage is [R1](../R1/README.md#scope).
 
 H.1 and H.1.1 have [fresh-install](done/fresh-install.md#checks) and [populated-upgrade](done/upgrade-recovery.md#checks) evidence. H.9.5 has [Codex/OpenCode](done/runtime-interactive.md#checks) and [Claude channel](done/runtime-interactive.md#claude-channel-checks) evidence. F.12 has [installed browser evidence](done/installed-browser-acceptance.md#checks). The installed runtimes passed on a [fresh host](done/fresh-host-runtime.md#checks). H.5.3 has [administrative crash-recovery evidence](done/administrative-durability.md#checks). H.5.2 has [real-SSH evidence](done/ssh-onboarding.md#checks); G.1.2 and G.1.3 have installed [resource](done/web-resources.md#checks) and [authority-isolation](done/web-isolation.md#checks) evidence. The [review evidence](done/release-gap-review.md#findings) distinguishes reproduced failures from unverified risks. Choices are tracked in [QUESTIONS](QUESTIONS.md#open-questions).
 
@@ -56,8 +56,8 @@ remaining rows concern broader operational and runtime/browser acceptance.
 
 | Gate | Dependencies | Required evidence and mutation |
 |---|---|---|
-| Operational acceptance | H.5.2–H.5.3, H.9.5–H.9.6, G.1.2–G.1.3; [F.12 complete](done/installed-browser-acceptance.md#checks); [H.1.1 complete](done/upgrade-recovery.md#checks) | Retain each task's installed evidence and named mutation failure; fixture-only results cannot close an installed or live-runtime requirement |
-| Fresh installed release | [H.1 package exercise complete](done/fresh-install.md#checks); [F.12 browser complete](done/installed-browser-acceptance.md#checks); [runtime acceptance complete](done/fresh-host-runtime.md#checks) (H.8, H.9–H.9.6); operational acceptance remains | Closes with operational acceptance; no browser or runtime run remains on the fresh host |
+| Operational acceptance | Complete 2026-09-23: H.5.2–H.5.3, H.9.5–H.9.6, G.1.2–G.1.3, F.12 and H.1.1 are done with installed evidence and named mutation failures | [DONE](DONE.md#done--mvp) |
+| Fresh installed release | Complete 2026-09-23: [H.1 package](done/fresh-install.md#checks), [F.12 browser](done/installed-browser-acceptance.md#checks) and [runtime acceptance](done/fresh-host-runtime.md#checks) (H.8, H.9–H.9.6) on a host without `/rd` or the checkout | [fresh-host runtime](done/fresh-host-runtime.md#checks) |
 
 The installed gates do not replace feature acceptance. Before closing MVP, also complete the accepted feature sections below and the remaining F.13 acceptance. Keep deferred decisions out of that gate: Q69 hardening and broader transfer-recipient eligibility were deferred, while Q63 and Administrator control of ordinary group membership confirm existing behavior ([decisions](../../docs/decisions.md#settled)).
 
