@@ -57,8 +57,8 @@ Built-in first, per [external tools](../../docs/10-modules.md#external-tools).
 | Daemon client | bun `fetch` with its `unix` socket option; one small module | no dependency; one place maps refusals |
 | HTML | server-rendered TSX through our own ~100-line JSX runtime that escapes every string by default | type-checked templates, no React, no hydration; raw HTML only through one named helper |
 | CSS | one hand-written stylesheet on design tokens, served as a hashed `/app.<hash>.css`; no `style=` attributes | lets the CSP drop `style-src 'unsafe-inline'` ([Q117](DECISIONS.md#decisions)) |
-| Client script | our own `/ui.<hash>.js`, progressive enhancement only; every page works without it | CSP allows only this site and the pinned CDN |
-| Fonts | any open-licensed faces the design needs, loaded from the CDN ([external assets](#external-assets)); the look comes first, size second ([Q118](DECISIONS.md#decisions)) | the system stack is the fallback |
+| Client script | our own `/ui.<hash>.js` with the CDN libraries; pages may rely on both | CSP allows only this site and the pinned CDN |
+| Fonts | any open-licensed faces the design needs, loaded from the CDN ([external assets](#external-assets)); the look comes first, size second ([Q118](DECISIONS.md#decisions)) | — |
 | Popular JS libraries | loaded from the CDN, never imported or bundled into our code ([external assets](#external-assets)) | owner rule |
 | Tests | `bun test`; a disposable `agent-busd` for contract tests; Playwright + axe in the container for browser checks | as the existing acceptance scripts do |
 
@@ -74,7 +74,7 @@ welcome, loaded by the browser from a CDN and **never imported into our code**
 | Pinning | an exact version in every URL, never `latest` or a range |
 | Hash | every external `<script>` and `<link rel=stylesheet>` carries `integrity="sha384-…"` and `crossorigin=anonymous`; one table in `src/web/assets.ts` holds URL and hash, and a test fails on an external tag without them |
 | Fonts | from `@fontsource` packages on the same CDN, their stylesheets hashed. Font files a stylesheet names cannot carry a hash of their own; a font is data, not code, and the hashed stylesheet fixes which files they are |
-| Offline | the dashboard is on `127.0.0.1` and the browser may have no internet: pages fall back to the system fonts and to our own script, and every page and form still works (a browser check with the CDN blocked) |
+| Internet | **required** in the visitor's browser: the pages depend on the CDN libraries and fonts. No offline fallback is built. The face itself still reaches only the daemon socket; the browser, not the server, fetches the CDN |
 | Choice | each library is named with its reason on the W.2 style guide; candidates: Lucide icons, uPlot for the interactive day chart, a command-palette component |
 
 ### Content-Security-Policy
@@ -130,7 +130,7 @@ dense operator console, not a document.
 | Landing | full-bleed hero over the bus picture with a gradient veil, the heading and lede on it, four feature cards below, sign-in as a floating card |
 | Overview | attention items as a stack of alert cards; the node strip as KPI tiles with sparklines; the Find row as quick-action chips |
 
-### Enhancements (JavaScript only; nothing depends on them)
+### Interactive features
 
 | Feature | Behaviour |
 |---|---|
