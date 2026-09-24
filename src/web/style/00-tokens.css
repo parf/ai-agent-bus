@@ -25,7 +25,10 @@
   --border-strong: rgba(148, 163, 196, .26);
   --text-1: #eef1f7;
   --text-2: #a9b1c3;
-  --text-3: #6f788c;
+  --text-3: #8b94a9;
+  --btn-primary-1: #d8342a;
+  --btn-primary-2: #e2532a;
+  --btn-danger: #d42a3a;
   --accent: #ff5a4e;
   --accent-2: #ff8a5c;
   --accent-text: #ff7b70;
@@ -74,7 +77,7 @@
   --border-strong: rgba(30, 41, 70, .22);
   --text-1: #111522;
   --text-2: #4a5268;
-  --text-3: #7a8298;
+  --text-3: #5f6780;
   --accent: #e5392d;
   --accent-2: #f26b3a;
   --accent-text: #c2261b;
@@ -83,9 +86,9 @@
   --indigo: #4b5bdc;
   --indigo-soft: rgba(75, 91, 220, .09);
   --sky: #0a84c6;
-  --ok: #138a5a;
+  --ok: #0c6e46;
   --ok-soft: rgba(19, 138, 90, .10);
-  --warn: #a45f00;
+  --warn: #8a4f00;
   --warn-soft: rgba(196, 118, 0, .11);
   --bad: #c42335;
   --bad-soft: rgba(196, 35, 53, .09);
@@ -116,10 +119,10 @@
   :root:not([data-theme]) {
     --surface-0: #eef0f5; --surface-1: #f6f7fa; --surface-2: #ffffff; --surface-3: #f1f3f8; --surface-4: #e5e8f0;
     --glass: rgba(255, 255, 255, .78); --border: rgba(30, 41, 70, .10); --border-strong: rgba(30, 41, 70, .22);
-    --text-1: #111522; --text-2: #4a5268; --text-3: #7a8298;
+    --text-1: #111522; --text-2: #4a5268; --text-3: #5f6780;
     --accent: #e5392d; --accent-2: #f26b3a; --accent-text: #c2261b; --accent-soft: rgba(229, 57, 45, .09); --accent-glow: rgba(229, 57, 45, .25);
     --indigo: #4b5bdc; --indigo-soft: rgba(75, 91, 220, .09); --sky: #0a84c6;
-    --ok: #138a5a; --ok-soft: rgba(19, 138, 90, .10); --warn: #a45f00; --warn-soft: rgba(196, 118, 0, .11);
+    --ok: #0c6e46; --ok-soft: rgba(19, 138, 90, .10); --warn: #8a4f00; --warn-soft: rgba(196, 118, 0, .11);
     --bad: #c42335; --bad-soft: rgba(196, 35, 53, .09); --info: #0b6fb8; --info-soft: rgba(11, 111, 184, .09);
     --focus: #4b5bdc;
     --shadow: 0 1px 2px rgba(17, 21, 34, .05), 0 8px 24px -12px rgba(17, 21, 34, .14);
