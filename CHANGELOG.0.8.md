@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.27 — 2026-09-23
+
+`agent-bus-admin` writes the invoked `/usr/local/bin` path into a forced command,
+which survives deploys, and refuses to swap another daemon's address for the
+installed account; the installed browser gates refuse to run outside their container.
+
 ## 0.8.26 — 2026-09-23
 
 Every web table has an accessible name, and the daemon's Users listing builds

@@ -333,3 +333,37 @@ func TestLocalImportAcceptsNoCallerPersonName(t *testing.T) {
 		t.Fatal("invalid free-form input reached the trusted account lookup")
 	}
 }
+
+// A caller aimed at another daemon is refused rather than switched to the
+// installed account, where sudo would drop its address and edit the live node.
+func TestAnotherDaemonsAddressIsNotTradedForTheInstalledOne(t *testing.T) {
+	if err := switchRefusal(""); err != nil {
+		t.Errorf("no address: %v", err)
+	}
+	if err := switchRefusal(installedSocket); err != nil {
+		t.Errorf("the installed socket: %v", err)
+	}
+	if err := switchRefusal("/tmp/f12/bus.sock"); err == nil || !strings.Contains(err.Error(), "AGENT_BUS_HOME") {
+		t.Errorf("another daemon's socket was not refused: %v", err)
+	}
+}
+
+// The forced command follows the path the program was run as, so a key added
+// through /usr/local/bin keeps working after a deploy prunes the release.
+func TestTheForcedCommandUsesTheInvokedPath(t *testing.T) {
+	dir := t.TempDir()
+	link := filepath.Join(dir, "agent-bus-admin")
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(self, link); err != nil {
+		t.Fatal(err)
+	}
+	was := os.Args[0]
+	defer func() { os.Args[0] = was }()
+	os.Args[0] = link
+	if got, err := invoked(); err != nil || got != link {
+		t.Fatalf("invoked() = %q, %v; want the symlink %q, not the file it resolves to", got, err, link)
+	}
+}

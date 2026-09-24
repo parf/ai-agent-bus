@@ -89,6 +89,12 @@ def wait_page(page, url: str, signed_in: bool, timeout: float = 12) -> None:
 
 
 def main() -> None:
+    # It signs in, creates Users and kills the node's web and bus children, so
+    # it runs only inside the disposable container fresh-install.sh starts,
+    # which podman marks with /run/.containerenv. On a real host it would act
+    # on the live daemon.
+    if not Path("/run/.containerenv").exists():
+        raise SystemExit("refusing: this gate acts on the node's own daemon and runs only inside the fresh-install container (src/acceptance/fresh-install.sh)")
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", required=True)
     parser.add_argument("--token", type=Path, required=True)
