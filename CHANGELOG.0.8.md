@@ -10,6 +10,11 @@ A launcher finds its account's installed socket by uid, as the CLI does, not
 by `$USER`: without it Bun reported `unknown`, and a changed one named another account.
 `ab-claude` reports a channel registration that `claude mcp add` claimed but never wrote.
 
+## 0.8.29 — 2026-09-23
+
+A Codex session's TUI gets the enforced mode too — no approval prompts, full
+access — as its App Server always did.
+
 ## 0.8.28 — 2026-09-23
 
 A launcher whose App Server or OpenCode server dies at startup now prints the

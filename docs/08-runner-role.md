@@ -10,7 +10,7 @@ session behind a name with bus tools loaded.
 | MVP | Scope |
 |---|---|
 | Built | Script agents, bounded parallel execution, graceful stop, logs, optional systemd sandbox, runtime adapters and smart launchers with MCP tools. |
-| Pending | Fresh-host acceptance. [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/MVP/done/runtime-launch.md#checks)). Codex's enforced mode does not reach the thread its TUI runs ([gap](../Plans/MVP/done/runtime-launch.md#defect-found)). |
+| Pending | Fresh-host acceptance. [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/MVP/done/runtime-launch.md#checks)). From 0.8.29 Codex's enforced mode is also given to the TUI that runs its thread ([gap closed](../Plans/MVP/done/runtime-launch.md#defect-found)). |
 
 ## What the runner does
 
@@ -146,7 +146,7 @@ runtime dependencies of the installed V2 scripts.
 | Configuration | Use V2 [access](02-access.md#getting-a-token) and [face configuration](../src/mcp/README.md#environment); an explicit address wins. Without one, discover the account's socket in its login runtime directory, then the installed [local socket](02-access.md#local-socket). With a token, select the shared listener instead |
 | Bus tools | Load the [MCP minimum](05-discovery.md#mcp-minimum) into the launched session alongside message delivery; authorize the agent-bus MCP namespace in Claude and set Codex's server-specific `default_tools_approval_mode="approve"` so those calls need no initial tool prompt |
 | Session | Resume the current directory's conversation when available; otherwise start fresh. Preserve caller arguments and route messages to the intended live session |
-| Automatic execution | Always enable Claude's `--enable-auto-mode`; configure Codex's App Server with `approval_policy="never"` and `sandbox_mode="danger-full-access"`, overriding contrary launch options |
+| Automatic execution | Always enable Claude's `--enable-auto-mode`; configure Codex's App Server and the TUI that runs its thread with `approval_policy="never"` and `sandbox_mode="danger-full-access"`, overriding contrary launch options |
 | Continuation | Always continue the last available session in the launch directory. Claude uses `--continue`; Codex selects the latest thread and pins its ID when attaching the TUI. With no saved conversation, let the runtime create one; the Codex pusher attaches after the TUI creates its thread |
 | Accounts | `ab-claude` accepts `-2`, `-3` and `-4`: the Claude configuration home becomes `~/.claude2`, `~/.claude3` or `~/.claude4`, or a set `CLAUDE_CONFIG_DIR` with that digit appended, so several accounts run side by side with their own login, sessions and servers. The launcher consumes the flag; the runtime never receives it |
 | Session naming | Prefer an assigned session name under the [session naming contract](#session-names); use the launch directory as the fallback |

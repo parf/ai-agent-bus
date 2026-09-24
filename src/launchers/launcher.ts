@@ -387,7 +387,12 @@ See docs/08-runner-role.md#smart-launchers.`);
   if (codex) {
     const thread = fresh ? undefined : await codex.openThread(session.id);
     if (thread) bindThread(thread);
-    runtimeArgs = ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...(thread ? ["resume", thread.id] : []), ...runtimeArgs];
+    // The remote TUI starts and resumes its thread with its own sandbox and
+    // approval settings, not the App Server's, so the enforced mode is given
+    // to it too; without it every session ran workspace-write and asked first
+    // (owner, 2026-09-23: docs/08-runner-role.md#smart-launchers).
+    const enforced = ["-c", 'approval_policy="never"', "-c", 'sandbox_mode="danger-full-access"'];
+    runtimeArgs = ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...enforced, ...(thread ? ["resume", thread.id] : []), ...runtimeArgs];
   } else if (opencode) {
     bindSession(session.id);
     runtimeArgs = ["attach", remote!, "--dir", cwd, "--session", session.id, ...runtimeArgs];

@@ -27,11 +27,10 @@ This section is unfinished MVP work, not optional follow-up.
 
 The required dashboard has [implementation and mutation evidence](done/owner-controls.md#verification); its [resource confinement](done/web-resources.md#checks) is built and exercised in a disposable generated unit.
 
-H.8, H.9, H.9.2 and H.9.3 passed live on the development host ([delivery](done/runtime-delivery.md#checks), [launchers](done/runtime-launch.md#checks), [MCP minimum](done/mcp-minimum.md#checks)); H.9.1 is open on one Codex check. H.9.4’s OpenCode launcher and adapter are also [built](../../docs/08-runner-role.md#smart-launchers); its [live acceptance](DONE.md#done--mvp) passed 2026-09-23. A built component does not close its row.
+H.8, H.9 and H.9.1–H.9.3 passed live on the development host ([delivery](done/runtime-delivery.md#checks), [launchers](done/runtime-launch.md#checks), [MCP minimum](done/mcp-minimum.md#checks)). H.9.4’s OpenCode launcher and adapter are also [built](../../docs/08-runner-role.md#smart-launchers); its [live acceptance](DONE.md#done--mvp) passed 2026-09-23. A built component does not close its row.
 
 | ID | Deliverable | Depends on | Acceptance and mutation |
 |---|---|---|---|
-| H.9.1 | Launcher failure handling | H.9 | Exercise missing runtime, absent bus configuration, helper startup failure and runtime exit. Check diagnostics, plain-session fallback, exit status and cleanup while a separate session stays alive. Suppress readiness failure, force a zero exit status or remove cleanup separately: each fails its check. Supply contrary runtime mode options and verify the [enforced mode](../../docs/08-runner-role.md#smart-launchers) still applies; removing the enforcement must fail. **Open 2026-09-23:** everything passes live except Codex's enforced mode, whose thread runs workspace-write/on-request ([evidence](done/runtime-launch.md#defect-found)); the fix widens a sandbox and needs the owner |
 Known upgrade hazard, not a row: a 0.7.<20 development database whose user record carries a list is ignored with its User's records.
 
 ## Web redesign
