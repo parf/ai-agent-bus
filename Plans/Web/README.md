@@ -39,8 +39,8 @@ checks are retired at [cutover](#cutover), not ported.
 | | |
 |---|---|
 | Account | system account `agent-bus-web`, `nologin`, no SSH keys, not in the account map; it owns nothing on disk |
-| Code | `/var/lib/agent-bus/web`, a root-owned symlink to `/usr/local/lib/agent-bus/current/web`: the release `src/release.sh` built from a commit, as every binary in `/usr/local/bin` is. The account can read its code and never write it |
-| Binary | `web/agent-bus-web`, one self-contained executable from `bun build --compile`, version from `src/internal/version/VERSION`, build stamp as [setup § build information](../../docs/09-setup.md#build-information) requires; `--version` prints both |
+| Code | **development environment, kept simple:** `/var/lib/agent-bus/web` is a symlink straight to the git checkout, `/usr/local/src/ai-agent-bus/src/web` (owner, 2026-09-24). The account reads it and cannot write it. What runs is the working tree; `systemctl restart agent-bus-web` picks up edits |
+| Runtime | the system bun: `/usr/bin/bun run /var/lib/agent-bus/web/server.ts`, from source, no build step, no npm dependency; `--version` prints `src/internal/version/VERSION` |
 | Unit | `agent-bus-web.service`, its own locked-down systemd unit ([the unit](#the-unit)) |
 | Daemon link | `/run/agent-bus/bus.sock` (shared, mode `666`, [supplies no identity](../../docs/02-access.md#local-socket)). Mapped account sockets are mode `600` for other accounts, so it cannot open them |
 | Credential | none of its own. `POST /session` with the typed token, then the session id per call, as [shell § process model](../../docs/web-face/shell.md#process-model) states |
@@ -57,17 +57,16 @@ listed with its reason.
 |---|---|
 | Identity | `User=agent-bus-web`, `Group=agent-bus-web`, `UMask=0077`; `After=agent-busd.service`, `Restart=on-failure`, `RestartSec=2` |
 | Privilege | `NoNewPrivileges=yes`, `CapabilityBoundingSet=` (empty), `AmbientCapabilities=`, `RestrictSUIDSGID=yes`, `LockPersonality=yes`, `RestrictRealtime=yes`, `RestrictNamespaces=yes`, `KeyringMode=private`, `RemoveIPC=yes` |
-| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `TemporaryFileSystem=/var/lib:ro` with `BindReadOnlyPaths=/var/lib/agent-bus/web` so no other state directory exists for it (`/run/agent-bus` is already read-only under `ProtectSystem=strict`; connecting to the socket needs no write) |
-| Exec | `NoExecPaths=/`, `ExecPaths=/var/lib/agent-bus/web /usr/lib /usr/lib64`: its own binary and the shared libraries the loader maps (the compiled binary links libc). No release directory is executable, so `agent-busd` and `agent-bus-admin` cannot be started by path |
+| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `TemporaryFileSystem=/var/lib:ro` with `BindReadOnlyPaths=/var/lib/agent-bus/web` (resolves to the checkout) so no other state directory exists for it; the checkout under `/usr/local/src` is read-only by `ProtectSystem=strict` (`/run/agent-bus` is already read-only under `ProtectSystem=strict`; connecting to the socket needs no write) |
+| Exec | `NoExecPaths=/`, `ExecPaths=/usr/bin/bun /usr/lib /usr/lib64`: bun and the shared libraries it maps, nothing else |
 | Kernel | `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectKernelLogs`, `ProtectControlGroups`, `ProtectClock`, `ProtectHostname`, `ProtectProc=invisible`, `ProcSubset=pid` |
 | System calls | `SystemCallArchitectures=native`, `SystemCallFilter=@system-service` minus `@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap`, `SystemCallErrorNumber=EPERM` |
 | Network | `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6`; `IPAddressDeny=any` with `IPAddressAllow=localhost`: it answers on loopback and makes no outbound connection (the visitor's browser, not the face, fetches the CDN). A non-loopback `AGENT_BUS_WEB_ADDR` widens `IPAddressAllow` by setup, never by hand |
 | TLS | `LoadCredential=cert:… key:…` when configured, with `AGENT_BUS_WEB_CERT=%d/cert` and `AGENT_BUS_WEB_KEY=%d/key`: the face reads them from the credentials directory, never from their own paths |
 | Resources | `MemoryMax=256M`, `MemorySwapMax=0`, `TasksMax=64`, `CPUQuota=100%`, `LimitNOFILE=1024` |
-| Environment | only `AGENT_BUS_ADDR`, `AGENT_BUS_WEB_ADDR` and, with TLS, the two paths above; nothing inherited |
+| Environment | only `AGENT_BUS_ADDR`, `AGENT_BUS_WEB_ADDR`, `BUN_RUNTIME_TRANSPILER_CACHE_PATH=0` (no cache to write) and, with TLS, the two paths above; nothing inherited |
 | Left out | `MemoryDenyWriteExecute`: bun's JavaScript JIT needs writable-executable memory. `PrivateNetwork`: it must listen |
-| Proven in W.1 | `PrivateUsers=yes` (socket `0666`, directory `0711`), `ProcSubset=pid` and the `@resources` removal (bun raises `RLIMIT_NOFILE` at start) are kept only if the compiled binary serves `/healthz` under this unit in the container; a directive that breaks it moves to Left out with its reason |
-| Release | the link resolves when the unit starts, so every switch of `current` must restart this unit ([release and rollback](#release-and-rollback)) |
+| Proven in W.1 | `PrivateUsers=yes` (socket `0666`, directory `0711`), `ProcSubset=pid` and the `@resources` removal (bun raises `RLIMIT_NOFILE` at start) are kept only if the face serves `/healthz` under this unit in the container; a directive that breaks it moves to Left out with its reason |
 
 ## Stack
 
@@ -179,14 +178,6 @@ behaviour in the step that builds it.
 | [node](../../docs/web-face/node.md#inconsistencies-worth-fixing-in-the-rewrite) | Diagnostics renders exchanges with `reply_to`; held and loss tables include inactive records; a `/users` failure shows a section notice; an unreachable daemon at sign-in says so; Activity accepts inactive records visible to the caller; one Uptime source per page |
 | [records](../../docs/web-face/records.md#differences-from-the-older-specs) | `kind` kept on paging, Back and Clear filters; the confirmation guard **always** applies to transfer and delete; managers see the description; detail addresses redirect to the kind's own path; a user inbox is not offered Remove; no unused daemon reads; valid HTML on Deliver-To |
 | [people](../../docs/web-face/people.md#worth-fixing-in-the-rewrite) | "Not visible to you" renders on hidden groups; register refuses an existing group name instead of replacing it; post-create failures say what was saved; no Transfer on `@<user>/…` groups; redirects use the daemon's stored name; one identity pill; Account lists inactive owned records; `/avatar` dropped (no page references it; photos stay inline `data:` URIs); `/users?kind=other` after sign-in |
-
-## Release and rollback
-
-| Case | `src/release.sh` does |
-|---|---|
-| Target has `web/agent-bus-web` | checks `web/agent-bus-web --version` before switching; after the switch restarts `agent-bus-web.service` and waits for `/healthz` |
-| Target has no `web/` (a release before W.10, reached by `--rollback`) | stops `agent-bus-web.service` and prints why: that release has no TypeScript face. The unit's `BindReadOnlyPaths` then has nothing to bind and stays down with that reason in its log |
-| `/usr/local/bin/agent-bus-web` | links the Go binary while it exists; after cutover the link is removed, since the face is started only by its unit |
 
 ## Cutover
 
