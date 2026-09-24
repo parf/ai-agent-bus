@@ -453,7 +453,6 @@ No forms. Links: group chips, owned-record links.
 | [discovery](../05-discovery.md#dashboard), pages § Groups | Group registration entry and route only for Administrators / conditional | offered to every signed-in user; the daemon decides |
 | forms § remaining work | Activate offered to an already-active user | only the applicable transition is offered |
 | pages § User | state in the identity section | separate Access section |
-| [site map](site-map.md#pages) | prefixed groups offer no transfer; `/groups` shows member counts | transfer offered (refused at the last step); member names |
 
 ## Worth fixing in the rewrite
 

@@ -10,7 +10,7 @@ form-origin validation or authorization each fails a named check.
 
 This reruns and extends the [session foundation](installed-browser-foundation.md#checks)
 and the [authority matrix](installed-browser-role-matrix.md#checks) against the
-0.8 addresses in the [site map](../../../docs/web-face/site-map.md#pages). The
+0.8 addresses in the internal site map (`docs/web-face/site-map.md`). The
 old drivers expected a Channels page; 0.8.4 split it into Queues (`/queues`) and
 PubSub (`/pubsub`). The drivers are `src/acceptance/installed-browser.py` and
 `installed-browser-roles.py`, run by `fresh-install-container.sh`. Every
