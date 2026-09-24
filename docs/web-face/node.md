@@ -347,6 +347,8 @@ TypeScript face: each option also names that record's hits — everything its
 five series counted in the last day, as `name (hits)` — `jobs@dev (14)` —
 from one `GET /activity?name=` per visible active record; an inactive one
 reads `name (inactive)`, and **All visible** carries the unfiltered total.
+A record with no hits is left out — there is nothing to draw — unless it is
+the one chosen.
 
 ### Links out
 

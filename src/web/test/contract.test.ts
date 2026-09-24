@@ -219,7 +219,9 @@ describe("pages as the daemon owner", () => {
   test("the Activity chooser shows each record's hits in the last day", async () => {
     const t = await (await req("/activity", { cookie: s })).text();
     expect(t).toMatch(/<option value="jobs@test">jobs@test \(1\)<\/option>/);
-    expect(t).toMatch(/<option value="db@test">db@test \(0\)<\/option>/);
+    expect(t).not.toContain('<option value="db@test">');
+    const chosen = await (await req("/activity?name=db@test", { cookie: s })).text();
+    expect(chosen).toMatch(/<option value="db@test" selected>db@test \(0\)<\/option>/);
     expect(t).toMatch(/<option value="">All visible \(\d+\)<\/option>/);
   });
   test("an absent name is 404 No such name, with no Try again", async () => {

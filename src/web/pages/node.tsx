@@ -149,13 +149,13 @@ export async function activity(ctx: Ctx): Promise<Response> {
   const body = <>
     <PageHead icon={<Icon name="activity" />} title="Activity graphs"
       help={<Help id="activity-help" label="About activity history" title="Activity history"
-        items={["The last 24 hours in ten-minute slots of the node's clock, 00:00 … 23:50, saved across restarts.", "Time the daemon was down reads as zero.", "The last slot is still counting.", "Unfiltered Refused is node-wide for the daemon Owner and covers visible records for others.", "Dequeued is not completion: a message taken is not a message finished.", "The chooser shows each record's hits in brackets: everything its five series counted in the last day."]} />}
+        items={["The last 24 hours in ten-minute slots of the node's clock, 00:00 … 23:50, saved across restarts.", "Time the daemon was down reads as zero.", "The last slot is still counting.", "Unfiltered Refused is node-wide for the daemon Owner and covers visible records for others.", "Dequeued is not completion: a message taken is not a message finished.", "The chooser lists records with hits in the last day, the count in brackets; a record with none has nothing to draw."]} />}
       sub={<>{name ? <>Scope: <code>{name}</code></> : "Scope: visible records"}{start ? <> · {slotLabel(start)} to {endLabel}, ten-minute slots</> : null} · Uptime {id?.up || st.up || "unavailable"}</>}>
       <form method="get" class="scope-form">
         <label for="scope-name" class="sr-only">Record</label>
         <select id="scope-name" name="name" data-submit-on-change>
           <option value="">All visible{hitLabel(allHits)}</option>
-          {names.map(n => <option value={n} selected={n === name}>{n}{hitLabel(hits.get(n), records.find(r => r.name === n)?.status === "inactive")}</option>)}
+          {names.filter(n => n === name || (hits.get(n) ?? 0) > 0).map(n => <option value={n} selected={n === name}>{n}{hitLabel(hits.get(n), records.find(r => r.name === n)?.status === "inactive")}</option>)}
         </select>
       </form>
     </PageHead>
