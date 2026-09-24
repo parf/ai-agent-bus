@@ -10,7 +10,7 @@ session behind a name with bus tools loaded.
 | MVP | Scope |
 |---|---|
 | Built | Script agents, bounded parallel execution, graceful stop, logs, optional systemd sandbox, runtime adapters and smart launchers with MCP tools. |
-| Pending | Fresh-host acceptance. [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/MVP/done/runtime-launch.md#checks)). From 0.8.29 Codex's enforced mode is also given to the TUI that runs its thread ([gap closed](../Plans/MVP/done/runtime-launch.md#defect-found)). |
+| Accepted | [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/MVP/done/runtime-launch.md#checks)) and, installed from the package, on a [fresh host](../Plans/MVP/done/fresh-host-runtime.md#checks). From 0.8.29 Codex's enforced mode is also given to the TUI that runs its thread ([gap closed](../Plans/MVP/done/runtime-launch.md#defect-found)). |
 
 ## What the runner does
 
