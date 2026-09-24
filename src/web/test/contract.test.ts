@@ -216,6 +216,15 @@ describe("pages as the daemon owner", () => {
     expect(await (await req("/queue?name=owner@test", { cookie: s })).text()).not.toContain("/service-danger");
     expect((await req("/service-danger?name=owner@test", { cookie: s })).status).toBe(403);
   });
+  test("a kind chosen on Personal drives the tabs, the one Register action and the sidebar", async () => {
+    const t = await (await req("/personal?kind=service", { cookie: s })).text();
+    expect(t).toMatch(/<a href="\/services" class="side-link" aria-current="page"/);
+    expect(t).not.toMatch(/<a href="\/agents" class="side-link" aria-current="page"/);
+    expect(t.match(/href="\/[a-z]+\/new[^"]*"/g)).toEqual(['href="/services/new?personal=1"']);
+    const form = await (await req("/services/new?personal=1", { cookie: s })).text();
+    expect(form).toMatch(/name="personal" value="on" checked/);
+    expect(form).toContain('href="/personal?kind=service"');
+  });
   test("the Activity chooser shows each record's hits in the last day", async () => {
     const t = await (await req("/activity", { cookie: s })).text();
     expect(t).toMatch(/<option value="jobs@test">jobs@test \(1\)<\/option>/);

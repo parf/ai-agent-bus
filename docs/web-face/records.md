@@ -155,6 +155,13 @@ groups and users excluded, before toolbar filters.
 | `/pubsub` | All · Personal → `/personal?kind=pubsub` · Register pub/sub topic |
 | `/personal` | the Agents tabs; Personal is current and counts the selected kind, or all Personal records |
 
+TypeScript face: there is no Register tab — one Register action sits in the
+page head, or in the empty state when the list is empty. On `/personal` the
+chosen `kind` (Agents when none) decides the tabs, the sidebar section and that
+action, which opens `{kind}/new?personal=1`: the form starts Personal and its
+Back returns to `/personal?kind=`. A Personal record's detail marks its own
+kind's section.
+
 Tabs keep `state`, `q`, `readers`, `work`, `sort` (and `owner` for the daemon
 Owner on Personal); Queues, PubSub and Services Personal tabs and Register
 links are plain. The current tab has `aria-current=true`; My has class

@@ -36,7 +36,6 @@ export function listOf(r: Rec): string {
 }
 function sectionOf(r: Rec): Section {
   if (r.kind === "user") return "queues";
-  if (r.personal) return "agents";
   return isKind(r.kind) ? KINDS[r.kind].section : "services";
 }
 
@@ -69,8 +68,6 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const personalOf = (k?: Kind) => records.filter(r => r.personal && (!k || r.kind === k) && (owner0 || r.owner === you));
   const kind = key === "personal" ? undefined : LIST_KIND[key];
   let category = key === "personal" ? personalOf(kindParam).filter(r => !ownerParam || r.owner === ownerParam) : records.filter(r => r.kind === kind && !r.personal);
-  const allCount = key === "personal" ? records.filter(r => r.kind === "agent" && !r.personal).length : category.length;
-  const myCount = records.filter(r => r.kind === (kind ?? "agent") && !r.personal && r.owner === you).length;
   if (scope === "my") category = category.filter(r => r.owner === you);
 
   const needle = q.toLowerCase();
@@ -95,18 +92,18 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const here = listUrl(path, { ...params, page: pageNo > 1 ? String(pageNo) : undefined });
   const keepFilters = { state, q, readers, work, sort };
   const title = key === "personal" ? "Personal" : KINDS[kind!].noun === "PubSub" ? "PubSub" : KINDS[kind!].noun + "s";
-  const listKind = kind ?? "agent";
-  const tabs = key === "personal" || key === "agents" ? [
-    { href: listUrl("/agents", keepFilters), text: "All", count: allCount, current: key === "agents" && !scope },
-    { href: listUrl("/agents", { ...keepFilters, scope: "my" }), text: "My", count: myCount, current: key === "agents" && scope === "my", className: "my-view" },
-    { href: listUrl("/personal", { ...keepFilters, kind: "agent", owner: owner0 ? ownerParam : undefined }), text: "Personal", count: key === "personal" ? category.length : personalOf("agent").length, current: key === "personal", className: "personal-view", icon: "lock" },
-    { href: "/agents/new", text: "Register agent", className: "register", icon: "plus" },
-  ] : [
-    { href: listUrl(path, keepFilters), text: "All", count: allCount, current: !scope },
-    ...(services ? [{ href: listUrl(path, { ...keepFilters, scope: "my" }), text: "My", count: myCount, current: scope === "my", className: "my-view" }] : []),
-    { href: `/personal?kind=${listKind}`, text: "Personal", count: personalOf(listKind).length, className: "personal-view", icon: "lock" },
-    { href: KINDS[listKind].newPath, text: `Register ${KINDS[listKind].lower}`, className: "register", icon: "plus" },
+  // On /personal the chosen kind decides everything kind-shaped: the tabs, the
+  // Register action and the sidebar; with no kind chosen it reads as Agents.
+  const listKind: Kind = kind ?? kindParam ?? "agent";
+  const kl = KINDS[listKind];
+  const tabAll = records.filter(r => r.kind === listKind && !r.personal);
+  const tabs = [
+    { href: listUrl(kl.list, keepFilters), text: "All", count: tabAll.length, current: key !== "personal" && !scope },
+    ...(listKind === "agent" || listKind === "service" ? [{ href: listUrl(kl.list, { ...keepFilters, scope: "my" }), text: "My", count: tabAll.filter(r => r.owner === you).length, current: key !== "personal" && scope === "my", className: "my-view" }] : []),
+    { href: listUrl("/personal", { ...keepFilters, kind: listKind, owner: owner0 ? ownerParam : undefined }), text: "Personal", count: key === "personal" ? category.length : personalOf(listKind).length, current: key === "personal", className: "personal-view", icon: "lock" },
   ];
+  const registerHref = key === "personal" ? `${kl.newPath}?personal=1` : kl.newPath;
+  const registerText = key === "personal" ? `Register Personal ${kl.lower}` : `Register ${kl.lower}`;
   const filterLink = (name: string, value: string) => listUrl(path, { ...params, [name]: value || undefined });
   const owners = [...new Set(personalOf(kindParam).map(r => r.owner))].sort();
   const nodeOwner = id?.owner ?? "";
@@ -135,7 +132,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const body = <>
     <PageHead icon={<Icon name={key === "personal" ? "lock" : entity(kind!)!.icon} />} title={title}
       help={<Help id="service-views-help" label={`About ${title}`} title={title} items={helpItems} />}>
-      <LinkButton href={key === "personal" ? "/agents/new" : KINDS[kind!].newPath} tone="primary" icon="plus">Register {key === "personal" ? "agent" : KINDS[kind!].lower}</LinkButton>
+      {category.length ? <LinkButton href={registerHref} tone="primary" icon="plus">{registerText}</LinkButton> : null}
     </PageHead>
     <Tabs label="Record views" items={tabs} />
     {key === "personal" ? (owner0
@@ -177,7 +174,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
           {personalOf(kind).length} Personal {KINDS[kind!].lower}{personalOf(kind).length === 1 ? " is" : "s are"} under the Personal tab, which this list omits. {KINDS[kind!].blurb}
         </Empty>
       : <Empty icon={key === "personal" ? "lock" : entity(kind!)!.icon} title={`No ${key === "personal" ? "Personal records" : KINDS[kind!].plural} yet`}
-          action={<LinkButton href={key === "personal" ? "/agents/new" : KINDS[kind!].newPath} tone="primary" icon="plus">Register a{key === "personal" || kind === "agent" ? "n agent" : ` ${KINDS[kind!].lower}`}</LinkButton>}>
+          action={<LinkButton href={registerHref} tone="primary" icon="plus">{registerText}</LinkButton>}>
           {key === "personal" ? "Personal records belong to their Owner's own view instead of the shared lists." : KINDS[kind!].blurb}
         </Empty>)
       : matched === 0 ? <Empty icon="filter" title="No records match these filters" action={<a class="btn" href={listUrl(path, { scope, owner: owner0 ? ownerParam : undefined, kind: kindParam })}>Clear filters</a>}>Change the active filters above or clear filters.</Empty>
@@ -197,12 +194,12 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
         <Pager label="Record pages" prev={pageNo > 1 ? listUrl(path, { ...params, page: String(pageNo - 1) }) : undefined} next={pageNo < pages ? listUrl(path, { ...params, page: String(pageNo + 1) }) : undefined}>Page {pageNo} of {pages}</Pager>
       </>}
   </>;
-  return respond(ctx, { title, section: key === "personal" ? "agents" : KINDS[kind!].section, signedIn: true, you }, body);
+  return respond(ctx, { title, section: kl.section, signedIn: true, you }, body);
 }
 
 // ------------------------------------------------------------------ record form
 
-const RECORD_KEEP = ["name", "descr", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal"];
+const RECORD_KEEP = ["from_personal", "name", "descr", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal"];
 
 function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormState; mode: "create" | "save"; rec?: Rec; errId: string }) {
   const n = noun(kind);
@@ -261,16 +258,21 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
 async function registerPage(ctx: Ctx, kind: Kind, st: FormState = { values: {} }, status = 200): Promise<Response> {
   const s = await ctx.status();
   const k = KINDS[kind];
+  // Arriving from a Personal list: the form starts Personal, and Back returns there.
+  const fromPersonal = ctx.q("personal") === "1" || st.values.from_personal === "1";
+  if (fromPersonal && !st.error && st.values.personal == null) st = { ...st, values: { ...st.values, personal: "on" } };
+  const back = fromPersonal ? { href: `/personal?kind=${kind}`, label: "Back to Personal" } : { href: k.list, label: `Back to ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` };
   const body = <>
-    <PageHead back={{ href: k.list, label: `Back to ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` }} icon={<Icon name={entity(kind)!.icon} />} title={`Register ${k.lower}`}
+    <PageHead back={back} icon={<Icon name={entity(kind)!.icon} />} title={`Register ${k.lower}`}
       sub={<>You become its Owner. {k.blurb}</>} />
     <ErrorSummary id="create" error={st.error} />
     <form id="form-create" class="card form-card editor-card task-card" method="post" action="/service">
       <div class="card-body">
         <input type="hidden" name="action" value="create" /><input type="hidden" name="kind" value={kind} />
+        {fromPersonal ? <input type="hidden" name="from_personal" value="1" /> : null}
         <RecordFields kind={kind} st={st} mode="create" errId="create-error" />
         <FieldError id="create-error" error={st.error} />
-        <div class="actions"><Button tone="primary" icon="plus">Register {k.lower}</Button><a class="btn btn-ghost" href={k.list}>Cancel</a></div>
+        <div class="actions"><Button tone="primary" icon="plus">Register {k.lower}</Button><a class="btn btn-ghost" href={back.href}>Cancel</a></div>
       </div>
     </form>
   </>;
