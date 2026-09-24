@@ -10,7 +10,7 @@ session behind a name with bus tools loaded.
 | MVP | Scope |
 |---|---|
 | Built | Script agents, bounded parallel execution, graceful stop, logs, optional systemd sandbox, runtime adapters and smart launchers with MCP tools. |
-| Pending | Full live-runtime and fresh-host acceptance of [runtime integration delivery](#runtime-integration-delivery). [Isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host, not yet on a fresh host. |
+| Pending | Fresh-host acceptance. [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/MVP/done/runtime-launch.md#checks)). Codex's enforced mode does not reach the thread its TUI runs ([gap](../Plans/MVP/done/runtime-launch.md#defect-found)). |
 
 ## What the runner does
 
@@ -118,7 +118,7 @@ mode — that is the adapter's policy as a receiver
 
 ## Runtime integration delivery
 
-**Implementation built; installed live-runtime acceptance pending.** Ship usable Claude channels and Codex App Server integration with
+**Built; passed [live acceptance](../Plans/MVP/done/runtime-delivery.md#checks) on the development host; fresh-host acceptance pending.** Ship usable Claude channels and Codex App Server integration with
 the [installation](09-setup.md#install), building on the existing
 [adapters](#adapters). Adapter smoke tests alone do not establish that a new
 user can install and launch either integration.

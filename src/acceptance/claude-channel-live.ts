@@ -7,7 +7,7 @@
 // real model. It passes only when a peer's bus message reaches the session as
 // a channel event and the model answers it with ab_reply, correlated and
 // carrying a random value the peer alone knows.
-import { mkdirSync, readdirSync, readFileSync, writeFileSync, openSync, closeSync, copyFileSync, chmodSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, openSync, closeSync, copyFileSync, chmodSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { userInfo } from "node:os";
 import { randomBytes } from "node:crypto";
@@ -93,7 +93,8 @@ try {
   check(!!sent, "peer send accepted");
   // Nobody typed: the turn must be the channel event, answered with ab_reply.
   const transcripts = join(config, "projects");
-  const read = () => readdirSync(transcripts).flatMap(d => readdirSync(join(transcripts, d)).filter(f => f.endsWith(".jsonl")).map(f => readFileSync(join(transcripts, d, f), "utf8"))).join("\n");
+  // No transcript at all is a session that never took a turn: an empty read, not a crash.
+  const read = () => !existsSync(transcripts) ? "" : readdirSync(transcripts).flatMap(d => readdirSync(join(transcripts, d)).filter(f => f.endsWith(".jsonl")).map(f => readFileSync(join(transcripts, d, f), "utf8"))).join("\n");
   const answered = /"type":"tool_use"[^}]*"name":"mcp__agent-bus__ab_reply"/;
   // The transcript is written after the tool returns; give it that moment.
   await until(() => answered.test(read()), "transcript records the reply", 20000).catch(() => {});
