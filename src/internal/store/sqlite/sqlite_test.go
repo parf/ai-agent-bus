@@ -3,6 +3,7 @@ package sqlite
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -366,5 +367,70 @@ func TestSchemaFourMigratesWithItsData(t *testing.T) {
 	var left int
 	if err := s.db.QueryRow(`SELECT count(*) FROM queues WHERE name = 'svc@h'`).Scan(&left); err != nil || left != 0 {
 		t.Fatalf("the removed record's queue row and its activity remain: %d %v", left, err)
+	}
+}
+
+// A schema-4 database migrates through 5 to 6 and can keep days at once.
+func TestOldSchemasMigrateToKeepActivityDays(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bus.db")
+	old, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range schema4 {
+		if _, err := old.Exec(stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	old.Close()
+	s, err := Open(path, false)
+	if err != nil {
+		t.Fatalf("schema 4 did not open: %v", err)
+	}
+	defer s.Close()
+	if err := s.SaveActivityDays([]ports.ActivityDay{{Date: 260924, Name: "svc@h", Slots: []byte{1}}}); err != nil {
+		t.Fatalf("a migrated database keeps no days: %v", err)
+	}
+}
+
+func TestActivityDaysAreKeptByDateAndName(t *testing.T) {
+	s, _ := open(t)
+	day := func(d int, n string, b ...byte) ports.ActivityDay {
+		return ports.ActivityDay{Date: d, Name: n, Slots: b}
+	}
+	if err := s.SaveActivityDays([]ports.ActivityDay{day(260922, "a", 1), day(260923, "a", 2), day(260924, "a", 3), day(260924, "", 4), day(260924, "b", 5)}); err != nil {
+		t.Fatal(err)
+	}
+	// Written again whole: the new bytes replace the old.
+	if err := s.SaveActivityDays([]ports.ActivityDay{day(260924, "a", 7)}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ActivityDays(260923, 260924)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []ports.ActivityDay{day(260923, "a", 2), day(260924, "", 4), day(260924, "a", 7), day(260924, "b", 5)}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("range 260923–260924:\n got  %v\n want %v", got, want)
+	}
+	// An empty day removes its row.
+	if err := s.SaveActivityDays([]ports.ActivityDay{day(260924, "b")}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.ActivityDays(260924, 260924); len(got) != 2 {
+		t.Fatalf("after the empty write: %v", got)
+	}
+	if err := s.PruneActivity(260923); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.ActivityDays(0, 999999); len(got) != 3 || got[0].Date != 260923 {
+		t.Fatalf("after pruning before 260923: %v", got)
+	}
+	// Removing the name's queue removes its history in the same commit.
+	if err := s.Commit(ports.Change{DropQueues: []string{"a"}}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.ActivityDays(0, 999999); len(got) != 1 || got[0].Name != "" {
+		t.Fatalf("after removing a: %v", got)
 	}
 }

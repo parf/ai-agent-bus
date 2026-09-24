@@ -155,10 +155,13 @@ type Bus struct {
 	mu                sync.Mutex
 	// node is the node-wide refusals' day, the daemon Owner's Refused series
 	// (activity.go). clock is the time as the bus reads it; a test moves it.
-	node    activity.Ring
-	clock   func() time.Time
-	records map[string]protocol.Record
-	admin   string
+	node  activity.Ring
+	clock func() time.Time
+	// prunedOn is the day old activity days were last dropped
+	// (activity_days.go).
+	prunedOn activity.Date
+	records  map[string]protocol.Record
+	admin    string
 	// ownerRestored means a current snapshot, rather than setup, supplied
 	// admin. ownerRestoreErr is retained until startup validates that durable
 	// authority before serving anything.

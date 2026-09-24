@@ -105,6 +105,13 @@ wire-format invention.
 Use the built-in HTTP client for API and public-key requests. A shell script
 behind an agent may use `curl`, because that is its ordinary client.
 
+### In-process libraries
+
+| Work | Library |
+|---|---|
+| SQLite | `modernc.org/sqlite`, pure Go |
+| Stored activity days, compressed | `github.com/klauspost/compress/zstd`, pure Go ([activity history](05-discovery.md#activity-history)) |
+
 ### What we do shell out to
 
 | Built operation | System tool |

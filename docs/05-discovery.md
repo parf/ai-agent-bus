@@ -372,11 +372,12 @@ other backend address, which is the general rule in
 
 ### Activity history
 
-**Built in 0.8.12.** Each record keeps its last day of traffic: a ring of 144
-ten-minute slots of the node's local clock, 00:00, 00:10 … 23:50, saved with
-its queue and restored at start. Service and channel detail embeds the
-record's day and links to the same filtered `/activity` view with its slot
-table; the unfiltered view sums what the caller may see.
+**Built in 0.8.12; durable days in 0.8.41.** Each record keeps its last day of
+traffic live: a ring of 144 ten-minute slots of the node's local clock, 00:00,
+00:10 … 23:50. Every calendar day it counted anything is also kept, for 400
+days, as one row per name and date, so a week or a month can be read back.
+`/activity` and every record's detail page show Day, Week and Month with
+‹ Prev and Next ›; the unfiltered view sums what the caller may see.
 
 <details><summary>Rules</summary>
 
@@ -386,13 +387,16 @@ table; the unfiltered view sums what the caller may see.
 | Day | The 144 slots, oldest first. The last is the current slot, read live and still counting |
 | Zero | A slot carries its counts and nothing else. Time the daemon was down, or an hour daylight saving skipped, reads zero like a quiet interval |
 | Clock | Slots close at :00, :10 … :50 local time whenever the daemon started; the bus ticks at every minute of the clock, and a read ticks the rings it sums first. A clock that steps back moves nothing, and its counts stay in the open slot. A daylight-saving fall repeats 01:00–01:50, and the second pass overwrites the first |
-| Durability | Every queue save writes the record's day as it stands, the open slot's counts included, in the same batch. A restart drops what is older than a day and reads the time since the save as zero; a restart inside the open slot keeps what it counted. Node-wide refusals are saved beside the queues. An unreadable stored day is reported once, starts empty and is saved again |
+| Durable days | Table `activity_days`: the local date as yymmdd (`260924`), the name, and that day's non-empty slots only — each as the gap since the previous one and its five counts — zstd-compressed. A silent day has no row; the name `""` holds the node-wide refusals. Kept 400 days, pruned by the first boundary of each day |
+| Durability | A row is written when a slot that counted anything closes, right after the boundary — once per ten minutes at most, never on the send or consume path and never on the one-minute queue flush — and the graceful stop writes every held day with the open slot's counts so far. A start rebuilds each ring from yesterday's and today's rows; the time the daemon was down reads zero, and a restart inside the open slot keeps what it counted. An unclean stop loses at most the open ten minutes. A database from before durable days starts from the ring its queue carried. An unreadable stored day is reported and reads as nothing |
+| Range | `GET /activity/days?name=&from=yymmdd&to=yymmdd`, at most 62 days, answers each day's 144 slots from 00:00; the days the rings hold come from them, older days from the store. The same scope as the day, and an unreal date, a reversed or a longer range is `400` |
 | Lifecycle | Removal deletes the day in the removal's commit. A transfer keeps it: activity belongs to the name. An inactive record's day is kept and served to nobody |
 | Scope | A named view is record-scoped for all five series. The unfiltered view sums the live records the caller may see; Refused is node-wide for the daemon Owner, on the terms [refusals](#refusals) sets — every endpoint refusal, including authentication failures and malformed requests, and not the router's rejections or our own failures. Pub/sub copies count in the subscriber inboxes that accept them. Dequeued means handed to a reader, never completed work. Bodies never enter this history |
-| Web | A fixed 24-hour axis with a tick at every hour and a label every third; one continuous line per nonzero series, on one scale; zero-only series are summarized; the table lists each slot by its start time |
+| Web | Day: a fixed 24-hour axis, one continuous line per nonzero series on one scale, and a table of each slot; a past day reads its stored row. Week: hourly lines and seven rows of 144 cells, one row per day. Month: day bars with the other series over them, and a calendar of 30 cells. ‹ Prev and Next › step one range while the days are kept; a record's detail page carries the same ranges |
 
-The ring, its pointers and every clock rule live in `src/internal/activity`;
-the store keeps each day in its queue's row. Export remains
+The ring, its pointers, every clock rule and the day codec live in
+`src/internal/activity`; zstd is `github.com/klauspost/compress`, an
+established pure-Go library ([external tools](10-modules.md#external-tools)). Export remains
 [R1](../Plans/R1/discovery.md#dashboard-extensions).
 
 </details>

@@ -30,7 +30,7 @@ import (
 // schema is the layout this daemon reads and writes. A database at an older
 // version with a migration below is brought up to it at open, in one
 // transaction; any other version is refused rather than guessed at.
-const schema = 5
+const schema = 6
 
 var tables = []string{
 	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -39,6 +39,7 @@ var tables = []string{
 	`CREATE TABLE accounts (account TEXT PRIMARY KEY, principal TEXT NOT NULL)`,
 	`CREATE TABLE queues (name TEXT PRIMARY KEY, in_count INTEGER NOT NULL, out_count INTEGER NOT NULL, dropped INTEGER NOT NULL, expired INTEGER NOT NULL, activity BLOB NOT NULL DEFAULT x'')`,
 	`CREATE TABLE messages (queue TEXT NOT NULL, seq INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY (queue, seq))`,
+	`CREATE TABLE activity_days (day INTEGER NOT NULL, name TEXT NOT NULL, slots BLOB NOT NULL, PRIMARY KEY (day, name))`,
 	`CREATE TABLE credentials (name TEXT PRIMARY KEY, current TEXT NOT NULL, previous TEXT NOT NULL, issued TEXT NOT NULL, used TEXT NOT NULL DEFAULT '', user_id INTEGER NOT NULL DEFAULT 0, agent_id INTEGER NOT NULL DEFAULT 0)`,
 }
 
@@ -47,6 +48,9 @@ var migrations = map[int][]string{
 	// 0.8.12: a record's day of activity is saved with its queue, so it goes
 	// with the queue's row (docs/05-discovery.md#activity-history).
 	4: {`ALTER TABLE queues ADD COLUMN activity BLOB NOT NULL DEFAULT x''`},
+	// 0.8.41: every name's traffic is kept per calendar day, beyond the ring's
+	// last 24 hours (docs/05-discovery.md#activity-history).
+	5: {`CREATE TABLE activity_days (day INTEGER NOT NULL, name TEXT NOT NULL, slots BLOB NOT NULL, PRIMARY KEY (day, name))`},
 }
 
 // ErrMissing is a database that is not there and was not asked to be made.
@@ -454,6 +458,10 @@ func (s *Store) Commit(c ports.Change) error {
 		if _, err := tx.Exec(`DELETE FROM queues WHERE name = ?`, name); err != nil {
 			return err
 		}
+		// Its history goes with it: every stored reference to the name does.
+		if _, err := tx.Exec(`DELETE FROM activity_days WHERE name = ?`, name); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }
@@ -501,6 +509,52 @@ func (s *Store) SaveQueues(qs []ports.Queue, activity []byte, clean bool) error 
 		return err
 	}
 	return tx.Commit()
+}
+
+// SaveActivityDays writes the given days whole, in one transaction.
+func (s *Store) SaveActivityDays(days []ports.ActivityDay) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, d := range days {
+		if len(d.Slots) == 0 {
+			if _, err := tx.Exec(`DELETE FROM activity_days WHERE day = ? AND name = ?`, d.Date, d.Name); err != nil {
+				return err
+			}
+			continue
+		}
+		if _, err := tx.Exec(`INSERT INTO activity_days (day, name, slots) VALUES (?, ?, ?)
+			ON CONFLICT(day, name) DO UPDATE SET slots = excluded.slots`, d.Date, d.Name, d.Slots); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// ActivityDays reads every row from one date to another, both included.
+func (s *Store) ActivityDays(from, to int) ([]ports.ActivityDay, error) {
+	rows, err := s.db.Query(`SELECT day, name, slots FROM activity_days WHERE day BETWEEN ? AND ? ORDER BY day, name`, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ports.ActivityDay
+	for rows.Next() {
+		var d ports.ActivityDay
+		if err := rows.Scan(&d.Date, &d.Name, &d.Slots); err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+// PruneActivity drops the rows older than before.
+func (s *Store) PruneActivity(before int) error {
+	_, err := s.db.Exec(`DELETE FROM activity_days WHERE day < ?`, before)
+	return err
 }
 
 // Tokens is the credential half of the same database, behind the token port.

@@ -196,6 +196,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /user/state", g(s.audited("user-state", s.userState)))
 	mux.HandleFunc("POST /identity/remove", g(s.audited("remove-identity", s.removeIdentity)))
 	mux.HandleFunc("GET /activity", g(s.activity))
+	mux.HandleFunc("GET /activity/days", g(s.activityDays))
 	mux.HandleFunc("POST /group", g(s.audited("group", s.group)))
 	mux.HandleFunc("GET /ls", g(s.ls))
 	mux.HandleFunc("GET /inactive", g(s.inactive))
@@ -717,6 +718,7 @@ var codes = []struct {
 	{core.ErrPersonal, http.StatusBadRequest, "malformed"},
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
 	{core.ErrNoRemoval, http.StatusBadRequest, "malformed"},
+	{core.ErrRange, http.StatusBadRequest, "malformed"},
 	{core.ErrUnknown, http.StatusNotFound, "unknown"},
 	// Not 503: a full inbox is the sender outrunning the reader, not the
 	// service being unavailable — and 503 is the service's own answer for

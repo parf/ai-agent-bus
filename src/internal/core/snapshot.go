@@ -98,11 +98,15 @@ func (b *Bus) FlushQueues(clean bool) error {
 			Name: name, In: in.in, Out: in.out,
 			Dropped: in.dropped, Expired: in.expired,
 			Messages: append([]protocol.Envelope(nil), in.queue...),
-			Activity: in.act.Save(in.totals()),
+			Activity: b.queueActivity(in),
 		})
 		marks[name] = m
 	}
-	if err := b.store.SaveQueues(qs, b.node.Save(b.refusedTotal()), clean); err != nil {
+	var node []byte
+	if b.activityStore() == nil {
+		node = b.node.Save(b.refusedTotal())
+	}
+	if err := b.store.SaveQueues(qs, node, clean); err != nil {
 		return fmt.Errorf("persist queues: %w", err)
 	}
 	for name, m := range marks {
@@ -480,4 +484,13 @@ func (b *Bus) incorrect(r protocol.Record) string {
 		}
 	}
 	return ""
+}
+
+// queueActivity is the ring a queue row carries: none once the store keeps
+// days, which the ten-minute boundary writes instead of every flush.
+func (b *Bus) queueActivity(in *inbox) []byte {
+	if b.activityStore() != nil {
+		return nil
+	}
+	return in.act.Save(in.totals())
 }

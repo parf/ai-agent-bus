@@ -108,6 +108,10 @@ func TestActivitySurvivesARestart(t *testing.T) {
 	b.RecordRefusal("#svc@h")
 	b.Refuse("auth")
 	clock.t = localAt(12, 5) // the save is after 12:00; the tick put them there
+	// The graceful stop: the days with the open slot so far, then the queues.
+	if err := b.FlushActivity(); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.FlushQueues(true); err != nil {
 		t.Fatal(err)
 	}
@@ -116,6 +120,8 @@ func TestActivitySurvivesARestart(t *testing.T) {
 	back := New()
 	back.Clock(clock.now)
 	back.Restore(saved)
+	back.Persistence(st)
+	back.RestoreActivityDays()
 	day, err := back.Activity("alice@h", "#svc@h")
 	if err != nil {
 		t.Fatal(err)
@@ -249,12 +255,20 @@ func TestActivityGoesWithRemovalAndStaysWithTransfer(t *testing.T) {
 	saved := stored(t, b, st)
 	for _, q := range saved.Queues {
 		if q.Name == "#gone@h" {
-			t.Fatalf("the removed record's day is still stored: %d bytes", len(q.Activity))
+			t.Fatalf("the removed record's queue is still stored: %d bytes", len(q.Activity))
+		}
+	}
+	days, _ := st.ActivityDays(0, 999999)
+	for _, d := range days {
+		if d.Name == "#gone@h" {
+			t.Fatalf("the removed record's day %d is still stored", d.Date)
 		}
 	}
 	back := New()
 	back.Clock(clock.now)
 	back.Restore(saved)
+	back.Persistence(st)
+	back.RestoreActivityDays()
 	if closed, _ := last(t, back, "bob@h", "#kept@h"); closed.In != 1 {
 		t.Fatalf("the transferred record lost its day: %+v", closed.Counts)
 	}

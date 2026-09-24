@@ -39,14 +39,22 @@ func (b *Bus) Clock(now func() time.Time) {
 }
 
 // TickActivity is driven by the bus process at every minute of the clock;
-// each ring closes its slot at :00, :10 … :50 and ignores the rest.
+// each ring closes its slot at :00, :10 … :50 and ignores the rest. The
+// boundary that closes a slot which counted anything writes that day's row,
+// after the bus is released (activity_days.go).
 func (b *Bus) TickActivity(now time.Time) {
 	b.mu.Lock()
-	defer b.unlock()
-	for _, in := range b.inboxes {
-		in.act.Tick(now, in.totals())
+	rows := b.closing(now)
+	as := b.activityStore()
+	today := activity.DateOf(now)
+	prune := as != nil && b.prunedOn != today
+	if prune {
+		b.prunedOn = today
 	}
-	b.node.Tick(now, b.refusedTotal())
+	b.unlock()
+	if as != nil {
+		b.writeDays(as, rows, today, prune)
+	}
 }
 
 func (b *Bus) RecordRefusal(name string) {

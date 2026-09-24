@@ -7,6 +7,7 @@ package memory
 
 import (
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -111,6 +112,7 @@ type State struct {
 	nextRec  uint32
 	nextUser uint32
 	activity []byte
+	days     map[[2]string]ports.ActivityDay
 	// Enter, when set, is closed as the first commit starts, which then waits
 	// for Release: a test's way to hold a write open.
 	Enter, Release chan struct{}
@@ -123,6 +125,7 @@ func NewState() *State {
 		users:    map[string]protocol.User{},
 		records:  map[string]protocol.Record{},
 		queues:   map[string]ports.Queue{},
+		days:     map[[2]string]ports.ActivityDay{},
 		tokens:   NewTokens(),
 	}
 }
@@ -196,6 +199,11 @@ func (s *State) Commit(c ports.Change) error {
 	}
 	for _, name := range c.DropQueues {
 		delete(s.queues, name)
+		for k := range s.days {
+			if k[1] == name {
+				delete(s.days, k)
+			}
+		}
 	}
 	s.tokens.apply(c.Credentials)
 	if c.NextRecordID != nil {
@@ -227,3 +235,51 @@ func (s *State) SaveQueues(qs []ports.Queue, activity []byte, clean bool) error 
 }
 
 func (s *State) Close() error { return nil }
+
+func dayKey(date int, name string) [2]string { return [2]string{strconv.Itoa(date), name} }
+
+func (s *State) SaveActivityDays(days []ports.ActivityDay) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.Err != nil {
+		return s.Err
+	}
+	for _, d := range days {
+		if len(d.Slots) == 0 {
+			delete(s.days, dayKey(d.Date, d.Name))
+			continue
+		}
+		d.Slots = append([]byte(nil), d.Slots...)
+		s.days[dayKey(d.Date, d.Name)] = d
+	}
+	return nil
+}
+
+func (s *State) ActivityDays(from, to int) ([]ports.ActivityDay, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []ports.ActivityDay
+	for _, d := range s.days {
+		if d.Date >= from && d.Date <= to {
+			out = append(out, ports.ActivityDay{Date: d.Date, Name: d.Name, Slots: append([]byte(nil), d.Slots...)})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Date != out[j].Date {
+			return out[i].Date < out[j].Date
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out, nil
+}
+
+func (s *State) PruneActivity(before int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for k, d := range s.days {
+		if d.Date < before {
+			delete(s.days, k)
+		}
+	}
+	return nil
+}

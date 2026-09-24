@@ -29,6 +29,13 @@ type CallWindow struct {
 	Count     uint64 `json:"count"`
 }
 
+// ActivityDay is one local calendar day on the wire: its date as yymmdd and
+// its 144 slots, 00:00 first (docs/05-discovery.md#activity-history).
+type ActivityDay struct {
+	Day   int            `json:"day"`
+	Slots []ActivitySlot `json:"slots"`
+}
+
 // ActivitySlot is one ten-minute slot of a record's day on the wire: when it
 // starts on the node's clock, and its counts
 // (docs/05-discovery.md#activity-history). A day is 144 of them, oldest

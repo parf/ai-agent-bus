@@ -4,6 +4,7 @@ import { Ctx, NotFound, type Rec, type Status, type Identity } from "../ctx.ts";
 import { respond } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Figure, Name, Muted, recordHref, KindIcon, Empty } from "../ui/kit.tsx";
 import { Ribbon, DayChart, SERIES, total, type Slot, Spark } from "../ui/charts.tsx";
+import { parseRange, loadRange, hits, scopeLine, RangeNav, RangeChart, RangeTable, type RangeData } from "../ui/range.tsx";
 import { html } from "../http.ts";
 import { number, duration, slotLabel, stamp } from "../format.ts";
 import { sectionProblem } from "../problem.tsx";
@@ -134,46 +135,42 @@ export async function activity(ctx: Ctx): Promise<Response> {
   const [st, records] = await Promise.all([ctx.status(), ctx.records()]);
   if (name && !records.some(r => r.name === name)) throw new NotFound();
   const rec = records.find(r => r.name === name);
-  const slots = rec?.status === "inactive" ? [] : (await ctx.get<Slot[]>("/activity", name ? { name } : undefined)) ?? [];
-  const names = records.map(r => r.name).sort();
-  // Hits: everything the five series counted in the last day, per record, for the chooser.
-  const dayHits = (sl: Slot[] | null | undefined) => (sl ?? []).reduce((a, x) => a + (x.in ?? 0) + (x.out ?? 0) + (x.dropped ?? 0) + (x.expired ?? 0) + (x.refused ?? 0), 0);
-  const hits = new Map<string, number | undefined>(await Promise.all(records.map(async r =>
-    [r.name, r.status === "inactive" ? undefined : await ctx.get<Slot[]>("/activity", { name: r.name }).then(dayHits, () => undefined)] as const)));
-  const allHits = name ? await ctx.get<Slot[]>("/activity").then(dayHits, () => undefined) : dayHits(slots);
+  const r = parseRange(ctx);
+  const data: RangeData = rec?.status === "inactive" ? { slots: [], days: [] } : await loadRange(ctx, r, name || undefined);
+  const names = records.map(x => x.name).sort();
+  // The chooser names each record's hits over the chosen range; none, nothing to draw.
+  const counts = new Map<string, number | undefined>(await Promise.all(records.map(async x =>
+    [x.name, x.status === "inactive" ? undefined : await loadRange(ctx, r, x.name).then(d => hits(d.slots), () => undefined)] as const)));
+  const allHits = name ? await loadRange(ctx, r).then(d => hits(d.slots), () => undefined) : hits(data.slots);
   const hitLabel = (n: number | undefined, inactive?: boolean) => inactive ? " (inactive)" : n == null ? "" : ` (${number(n)})`;
   const id = await ctx.identity();
-  const start = slots[0]?.at, end = slots.at(-1)?.at;
-  const endLabel = end ? slotEnd(end) : "";
-  const zero = SERIES.filter(s => total(slots, s.key) === 0);
+  const href = (p: { range?: string; at?: number }) => {
+    const q = new URLSearchParams();
+    if (name) q.set("name", name);
+    if (p.range) q.set("range", p.range);
+    if (p.at) q.set("at", String(p.at));
+    return q.size ? `/activity?${q}` : "/activity";
+  };
+  const dayHref = (at: number) => href({ at });
   const body = <>
     <PageHead icon={<Icon name="activity" />} title="Activity graphs"
       help={<Help id="activity-help" label="About activity history" title="Activity history"
-        items={["The last 24 hours in ten-minute slots of the node's clock, 00:00 … 23:50, saved across restarts.", "Time the daemon was down reads as zero.", "The last slot is still counting.", "Unfiltered Refused is node-wide for the daemon Owner and covers visible records for others.", "Dequeued is not completion: a message taken is not a message finished.", "The chooser lists records with hits in the last day, the count in brackets; a record with none has nothing to draw."]} />}
-      sub={<>{name ? <>Scope: <code>{name}</code></> : "Scope: visible records"}{start ? <> · {slotLabel(start)} to {endLabel}, ten-minute slots</> : null} · Uptime {id?.up || st.up || "unavailable"}</>}>
+        items={["Day is ten-minute slots of the node's clock, 00:00 … 23:50; Week sums them per hour, Month per day.", "Every day is kept for 400 days: ‹ Prev and Next › step through them.", "Time the daemon was down reads as zero, and today's last slot is still counting.", "Unfiltered Refused is node-wide for the daemon Owner and covers visible records for others.", "Dequeued is not completion: a message taken is not a message finished.", "The chooser lists records with hits in the chosen range, the count in brackets; a record with none has nothing to draw."]} />}
+      sub={<>{name ? <>Scope: <code>{name}</code></> : "Scope: visible records"} · {scopeLine(r, data)} · Uptime {id?.up || st.up || "unavailable"}</>}>
       <form method="get" class="scope-form">
+        {r.kind !== "day" ? <input type="hidden" name="range" value={r.kind} /> : null}
+        {r.at !== r.today ? <input type="hidden" name="at" value={String(r.at)} /> : null}
         <label for="scope-name" class="sr-only">Record</label>
         <select id="scope-name" name="name" data-submit-on-change>
           <option value="">All visible{hitLabel(allHits)}</option>
-          {names.filter(n => n === name || (hits.get(n) ?? 0) > 0).map(n => <option value={n} selected={n === name}>{n}{hitLabel(hits.get(n), records.find(r => r.name === n)?.status === "inactive")}</option>)}
+          {names.filter(n => n === name || (counts.get(n) ?? 0) > 0).map(n => <option value={n} selected={n === name}>{n}{hitLabel(counts.get(n), records.find(x => x.name === n)?.status === "inactive")}</option>)}
         </select>
       </form>
     </PageHead>
+    <RangeNav r={r} href={href} label="Activity range" />
     {rec?.status === "inactive" ? <Empty icon="moon" title="Inactive record">An inactive record serves no activity while it is inactive; its history is kept and returns when it is reactivated.</Empty>
-      : !slots.length ? <p class="muted">The daemon answered no activity.</p>
-      : zero.length === SERIES.length ? <Empty icon="activity" title="A quiet day">All five series: <strong>0</strong> in the last day.</Empty>
-      : <Card className="chart-card">
-          <DayChart slots={slots} id="activity-chart" />
-          {zero.length ? <p class="muted small">Zero all day: {zero.map(z => z.label).join(", ")}.</p> : null}
-          <p class="muted small">Shared scale per ten-minute slot over the displayed nonzero series; a tick at every hour.</p>
-        </Card>}
-    {slots.length ? <details class="card slot-table">
-      <summary>Slot values</summary>
-      <div class="table-scroll"><table class="data fit" aria-label="Slot values, one row per ten-minute slot">
-        <thead><tr><th>Slot</th>{SERIES.map(s => <th class="num">{s.label}</th>)}</tr></thead>
-        <tbody>{slots.map(s => <tr><td>{slotLabel(s.at)}</td>{SERIES.map(x => <td class="num">{number(s[x.key])}</td>)}</tr>)}</tbody>
-      </table></div>
-    </details> : null}
+      : <Card className="chart-card"><RangeChart r={r} data={data} id="activity-chart" dayHref={dayHref} /></Card>}
+    <RangeTable r={r} data={data} />
   </>;
   return respond(ctx, { title: "Activity graphs", section: "activity", signedIn: true, you: st.you, charts: true }, body);
 }

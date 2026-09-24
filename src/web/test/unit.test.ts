@@ -9,6 +9,7 @@ import { attentionItems, exchanges, type Envelope } from "../pages/node.tsx";
 import { usedBy } from "../pages/people.tsx";
 import { lineRefusal } from "../problem.tsx";
 import { Ribbon } from "../ui/charts.tsx";
+import { parseRange, bucket, addDays, KEEP_DAYS } from "../ui/range.tsx";
 import { duration, relative } from "../format.ts";
 import type { Rec, Status } from "../ctx.ts";
 
@@ -155,6 +156,30 @@ describe("charts", () => {
     const html = render(Ribbon({ slots: [{ at: "</title><img src=x>", in: 1, out: 0, dropped: 0, expired: 0, refused: 0 }], label: "x" }));
     expect(html).not.toContain("<img");
     expect(html).toContain("&lt;/title&gt;");
+  });
+});
+
+describe("ranges", () => {
+  const ctxWith = (q: string) => ({ q: (n: string) => new URLSearchParams(q).get(n) ?? "" }) as any;
+  test("a range clamps to today and to what the daemon keeps, and steps by its own length", () => {
+    const today = 260924;
+    const w = parseRange(ctxWith("range=week"), today);
+    expect([w.from, w.to, w.prev, w.next]).toEqual([260918, 260924, 260917, undefined]);
+    const past = parseRange(ctxWith("range=month&at=260801"), today);
+    expect([past.from, past.to, past.prev, past.next]).toEqual([260703, 260801, 260702, 260831]);
+    expect(parseRange(ctxWith("at=991231"), today).at).toBe(today);
+    const oldest = addDays(today, -(KEEP_DAYS - 1));
+    const first = parseRange(ctxWith("range=week&at=200101"), today);
+    expect(first.from).toBe(oldest);
+    expect(first.prev).toBeUndefined();
+    expect(parseRange(ctxWith("range=nonsense"), today).kind).toBe("day");
+    expect(parseRange(ctxWith(""), today).live).toBe(true);
+    expect(parseRange(ctxWith("at=260923"), today).live).toBe(false);
+  });
+  test("buckets sum their slots and start at the first", () => {
+    const s = Array.from({ length: 12 }, (_, i) => ({ at: `t${i}`, in: 1, out: i, dropped: 0, expired: 0, refused: 0 }));
+    const b = bucket(s, 6);
+    expect(b.map(x => [x.at, x.in, x.out])).toEqual([["t0", 6, 15], ["t6", 6, 51]]);
   });
 });
 

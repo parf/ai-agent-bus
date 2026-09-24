@@ -70,7 +70,7 @@ func TestPublicNodeIdentityIsOnlyThePublishedFacts(t *testing.T) {
 			t.Fatalf("not this daemon's uptime: %q", got.Up)
 		}
 	}
-	for _, path := range []string{"/status", "/users", "/ls", "/names", "/recent", "/activity"} {
+	for _, path := range []string{"/status", "/users", "/ls", "/names", "/recent", "/activity", "/activity/days?from=260924&to=260924"} {
 		w := httptest.NewRecorder()
 		s.Handler().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		if w.Code != 401 {
@@ -89,5 +89,36 @@ func TestUnwiredCallCounterIsUnavailable(t *testing.T) {
 	}
 	if got.Calls != nil {
 		t.Fatal("unwired process counter invented zero calls")
+	}
+}
+
+// A range answers one day per date with its 144 slots; a range the daemon does
+// not read is a refusal, not an empty answer.
+func TestActivityDaysAnswersARange(t *testing.T) {
+	bus := core.New()
+	s, tok := serverFor(t, bus, "owner@h")
+	bus.SetDaemonOwner("owner@h")
+	get := func(q string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("GET", "/activity/days?"+q, nil)
+		r.Header.Set("X-Agent-Bus-Token", tok("owner@h"))
+		s.Handler().ServeHTTP(w, r)
+		return w
+	}
+	w := get("from=260922&to=260924")
+	var days []protocol.ActivityDay
+	if err := json.Unmarshal(w.Body.Bytes(), &days); err != nil || w.Code != 200 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	if len(days) != 3 || days[0].Day != 260922 || days[2].Day != 260924 || len(days[1].Slots) != 144 {
+		t.Fatalf("range: %d days, first %d", len(days), days[0].Day)
+	}
+	for _, bad := range []string{"from=260924&to=260922", "from=x&to=260924", "from=260101&to=260924", "from=260931&to=260931"} {
+		if w := get(bad); w.Code != 400 {
+			t.Errorf("%s answered %d", bad, w.Code)
+		}
+	}
+	if w := get("name=%23nobody@h&from=260924&to=260924"); w.Code != 404 {
+		t.Errorf("an unknown name answered %d", w.Code)
 	}
 }

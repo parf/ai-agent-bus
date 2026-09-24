@@ -7,7 +7,8 @@ import { Ctx, NotFound, LocalProblem, ConditionsChanged, Refusal, type Rec, type
 import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
 import { TextField, LinesField, SecretField, SelectField, CheckField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
-import { DayChart, Ribbon, SERIES, total, type Slot } from "../ui/charts.tsx";
+import { Ribbon, type Slot } from "../ui/charts.tsx";
+import { parseRange, loadRange, scopeLine, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
 import { number, relative, stamp, slotLabel } from "../format.ts";
 import { classify, formRefusal, lineRefusal, notYours, sectionProblem } from "../problem.tsx";
@@ -306,12 +307,20 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
   if (canonical !== pathKind) return redirect(`${canonical}${ctx.url.search}`, 302);
   const [users, act] = await Promise.all([
     ctx.users().catch(() => null),
-    ctx.get<Slot[]>("/activity", { name }).then(a => ({ ok: a ?? [] }), e => ({ err: sectionProblem(e) })),
+    loadRange(ctx, parseRange(ctx), name).then(a => ({ ok: a }), e => ({ err: sectionProblem(e) })),
   ]);
   const back = returnTo(ctx.q("return"), [listOf(rec)], listOf(rec));
   const manage = !!rec.can_manage, inbox = rec.kind === "user", n = noun(rec.kind);
   const editHref = `${detailPath(rec.kind)}/edit?${new URLSearchParams({ name, ...(ctx.q("return") ? { return: back } : {}) })}`;
-  const slots = "ok" in act ? act.ok : [];
+  const range = parseRange(ctx);
+  const rangeHref = (p: { range?: string; at?: number }) => {
+    const q = new URLSearchParams({ name });
+    if (ctx.q("return")) q.set("return", back);
+    if (p.range) q.set("range", p.range);
+    if (p.at) q.set("at", String(p.at));
+    return `${detailPath(rec.kind)}?${q}#activity`;
+  };
+  const fullHref = (() => { const q = new URLSearchParams({ name }); if (range.kind !== "day") q.set("range", range.kind); if (range.at !== range.today) q.set("at", String(range.at)); return `/activity?${q}`; })();
   const onList = (rec.subs ?? []).includes(st.you);
 
   const counters = rec.kind !== "service" ? <Card title="Queue & counters" icon="gauge">
@@ -347,14 +356,13 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     {!manage ? <p class="muted small"><Icon name="eye" /> You can view this record; its owner and assigned maintainers can manage it.</p> : null}
     <div class="detail-grid">
       <div>
-        <Card title="Activity" icon="activity" actions={<a class="btn btn-ghost btn-sm" href={`/activity?name=${encodeURIComponent(name)}`}>All activity<Icon name="chevron-right" /></a>}>
+        <Card title="Activity" icon="activity" id="activity" actions={<a class="btn btn-ghost btn-sm" href={fullHref}>Open in Activity<Icon name="chevron-right" /></a>}>
+          <RangeNav r={range} href={rangeHref} label={`Activity range for ${name}`} />
           {"err" in act ? <p class="warn">Activity unavailable: {act.err}</p>
-            : !slots.length ? <p class="muted">The daemon answered no activity.</p>
             : <>
-              <p class="muted small">Scope: <code>{name}</code> · {slotLabel(slots[0]!.at)} to {slotLabel(slots.at(-1)!.at)}, ten-minute slots.</p>
-              <Ribbon slots={slots} label={`Traffic per ten-minute slot for ${name}`} />
-              {SERIES.some(s => total(slots, s.key) > 0) ? <DayChart slots={slots} id="record-chart" compact />
-                : <p class="muted small">All five series: <strong>0</strong> in the last day.</p>}
+              <p class="muted small">Scope: <code>{name}</code> · {scopeLine(range, act.ok)}.</p>
+              {range.kind === "day" && act.ok.slots.length ? <Ribbon slots={act.ok.slots} label={`Traffic per ten-minute slot for ${name}`} /> : null}
+              <RangeChart r={range} data={act.ok} id="record-chart" compact dayHref={at => rangeHref({ at })} />
             </>}
         </Card>
         {rec.kind === "agent" || rec.kind === "queue" ? <Card title="Deliver-To route" icon="waypoints" id="route" className="route-card">

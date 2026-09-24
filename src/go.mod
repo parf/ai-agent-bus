@@ -4,6 +4,7 @@ go 1.26
 
 require (
 	github.com/erikdubbelboer/gspt v0.0.0-20190125194910-e68493906b83
+	github.com/klauspost/compress v1.20.0
 	modernc.org/sqlite v1.59.0
 )
 

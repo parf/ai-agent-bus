@@ -343,6 +343,12 @@ Same for every role.
 
 `<noscript><button>Apply</button></noscript>`. `/ui.js` submits on change. No daemon call beyond reloading the page.
 
+TypeScript face, 0.8.41: Day · Week · Month tabs (`range=`), an anchor date
+`at=yymmdd`, ‹ Prev and Next › and a Today link, on this page and in every
+record detail's Activity card; see [activity history](../05-discovery.md#activity-history).
+Week draws hourly lines and a 7×144 grid, Month day bars and a 30-day calendar,
+each row or cell a link to its day.
+
 TypeScript face: each option also names that record's hits — everything its
 five series counted in the last day, as `name (hits)` — `jobs@dev (14)` —
 from one `GET /activity?name=` per visible active record; an inactive one

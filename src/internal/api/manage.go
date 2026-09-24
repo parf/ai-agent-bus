@@ -2,6 +2,9 @@ package api
 
 import (
 	"fmt"
+	"strconv"
+
+	"github.com/parf/ai-agent-bus/internal/activity"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"net/http"
@@ -100,6 +103,28 @@ func (s *Server) activity(w http.ResponseWriter, r *http.Request, caller protoco
 		for i, d := range day {
 			out[i] = protocol.ActivitySlot{At: d.At, In: d.In, Out: d.Out, Dropped: d.Dropped, Expired: d.Expired, Refused: d.Refused}
 		}
+	}
+	s.reply(w, out, err)
+}
+
+// activityDays is a range of calendar days, from and to as yymmdd, both
+// included (docs/05-discovery.md#activity-history).
+func (s *Server) activityDays(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	q := r.URL.Query()
+	from, err1 := strconv.Atoi(q.Get("from"))
+	to, err2 := strconv.Atoi(q.Get("to"))
+	if err1 != nil || err2 != nil {
+		s.reply(w, nil, core.ErrRange)
+		return
+	}
+	days, err := s.bus.ActivityDays(caller.String(), q.Get("name"), activity.Date(from), activity.Date(to))
+	var out []protocol.ActivityDay
+	for _, d := range days {
+		day := protocol.ActivityDay{Day: int(d.Date), Slots: make([]protocol.ActivitySlot, len(d.Slots))}
+		for i, x := range d.Slots {
+			day.Slots[i] = protocol.ActivitySlot{At: x.At, In: x.In, Out: x.Out, Dropped: x.Dropped, Expired: x.Expired, Refused: x.Refused}
+		}
+		out = append(out, day)
 	}
 	s.reply(w, out, err)
 }

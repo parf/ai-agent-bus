@@ -231,6 +231,25 @@ describe("pages as the daemon owner", () => {
     expect(form).toMatch(/name="personal" value="on" checked/);
     expect(form).toContain('href="/personal?kind=service"');
   });
+  test("Week and Month ranges render, with Prev and Next where they lead somewhere", async () => {
+    const week = await (await req("/activity?range=week", { cookie: s })).text();
+    expect(week).toContain('aria-current="true">Week</a>');
+    expect(week).toMatch(/rel="prev"/);
+    expect(week).not.toMatch(/rel="next"/);
+    expect((week.match(/class="week-row"/g) ?? []).length).toBe(7);
+    expect(week).toMatch(/<option value="jobs@test">jobs@test \(1\)<\/option>/);
+    const month = await (await req("/queue?name=jobs@test&range=month", { cookie: s })).text();
+    expect((month.match(/class="cal-cell/g) ?? []).length).toBe(30);
+    expect(month).toContain('href="/activity?name=jobs%40test&amp;range=month"');
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    const y = (d.getFullYear() % 100) * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    const past = await (await req(`/activity?at=${y}`, { cookie: s })).text();
+    expect(past).toMatch(/rel="next"/);
+    expect(past).toContain(">Today</a>");
+    const future = await (await req("/activity?range=week&at=991231", { cookie: s })).text();
+    expect(future).not.toMatch(/rel="next"/);
+    expect(future).not.toContain(">Today</a>");
+  });
   test("the Activity chooser shows each record's hits in the last day", async () => {
     const t = await (await req("/activity", { cookie: s })).text();
     expect(t).toMatch(/<option value="jobs@test">jobs@test \(1\)<\/option>/);

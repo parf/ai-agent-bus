@@ -2755,11 +2755,19 @@ dur_up first
 is_empty "a first start has nothing to say about a previous one" \
   "$(grep 'did not stop cleanly' "$D/dur/first.log")"
 dab register '#keeper@srv1' --kind agent --allow '*' --descr "keeps things" >/dev/null
+dab register '#silent@srv1' --kind agent --allow '*' >/dev/null
 KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#keeper@srv1')
 dab send '#keeper@srv1' "before the restart" >/dev/null
 dab send '#keeper@srv1' "also before it" >/dev/null
 has "a reader took the first of them" "$(dkeep consume --wait 0s)" 'before the restart'
 dur_down -TERM
+# The graceful stop writes each day that counted something, open slot
+# included, as one row per name and date; a silent name has none
+# (docs/05-discovery.md#activity-history).
+TODAY=$(date +%y%m%d)
+rows=$(sqlite3 "$D/dur/bus.db" "SELECT day || ' ' || name FROM activity_days ORDER BY name" 2>&1)
+has "the stop kept today's traffic as a row of its own" "$rows" "^$TODAY #keeper@srv1\$"
+lacks "and a record that stayed silent has no row" "$rows" 'silent'
 
 dur_up second
 has "the registry is back after a graceful stop" "$(dab ls '#keeper@srv1')" 'keeps things'
@@ -2770,6 +2778,11 @@ is_empty "and status says nothing about a stop that was clean" \
 has "the counters come back too, not just the messages" "$(dsvc in)" '^2$'
 has "and a read is remembered as a read" "$(dsvc out)" '^1$'
 has "and so is the message nobody had taken" "$(dkeep consume --wait 0s)" 'also before it'
+# The start rebuilt the ring from that row: today's range still counts the
+# two sends and the read made before the stop.
+dday=$(curl -s --unix-socket "$D/dur/bus.sock" -H "X-Agent-Bus-Token: $DTOK" "http://unix/activity/days?name=%23keeper%40srv1&from=$TODAY&to=$TODAY")
+has "today's range after a restart still holds the traffic before it" \
+  "$(printf '%s' "$dday" | grep -o '"in":[0-9]*' | awk -F: '{s+=$2} END {print s+0}')" '^2$'
 dur_down -TERM
 
 dur_up third

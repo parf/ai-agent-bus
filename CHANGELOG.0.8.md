@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.41 — 2026-09-24
+
+Activity is kept per calendar day for 400 days — one zstd row per name and
+yymmdd date, non-empty slots only, written at each ten-minute boundary (schema
+6) — and Activity and every record page show Day, Week and Month with Prev/Next.
+
 ## 0.8.40 — 2026-09-24
 
 Every record list shows its Register action in the page head, empty or not.

@@ -71,6 +71,9 @@ func runBus(c config) {
 	// Bound before the first write, so setup's seed below commits like any
 	// other change.
 	bus.Persistence(st)
+	// Today's and yesterday's stored days put each ring back
+	// (docs/05-discovery.md#activity-history).
+	bus.RestoreActivityDays()
 	if err := bus.EstablishDaemonOwner(me.String()); err != nil {
 		log.Fatalf("owner: %v", err)
 	}
@@ -91,6 +94,14 @@ func runBus(c config) {
 	// Written straight away and not clean: the next start needs to tell a
 	// first one from one that follows a death, and only the database can.
 	save := func(clean bool) {
+		// The graceful stop also writes the days with the open slot's counts
+		// so far; while running, days are written at each ten-minute boundary.
+		if clean {
+			if err := bus.FlushActivity(); err != nil {
+				log.Printf("activity: %v", err)
+				logs.Report(ports.Error, "activity days not saved at stop: "+err.Error())
+			}
+		}
 		if err := bus.FlushQueues(clean); err != nil {
 			log.Printf("flush: %v", err)
 			logs.Report(ports.Error, "queue flush failed: "+err.Error())

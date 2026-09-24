@@ -147,3 +147,20 @@ table.exchanges td { vertical-align: top; }
 .sg-text-1 { --sw: var(--text-1); } .sg-text-2 { --sw: var(--text-2); } .sg-text-3 { --sw: var(--text-3); } .sg-accent { --sw: var(--accent); } .sg-accent-2 { --sw: var(--accent-2); }
 .sg-indigo { --sw: var(--indigo); } .sg-sky { --sw: var(--sky); } .sg-ok { --sw: var(--ok); } .sg-warn { --sw: var(--warn); } .sg-bad { --sw: var(--bad); } .sg-info { --sw: var(--info); }
 @media (max-width: 640px) { .landing-hero { align-items: stretch; } table.data.stack td.num .badge { margin: 0; } }
+
+/* ---------- activity ranges */
+.range-nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; margin-bottom: 1rem; }
+.card .range-nav { margin-bottom: .75rem; }
+.range-steps { display: flex; gap: .35rem; align-items: center; }
+.range-steps [aria-disabled="true"] { opacity: .4; cursor: default; pointer-events: none; }
+.week-grid { display: grid; gap: .3rem; margin-top: 1rem; }
+.week-row { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr) 4rem; align-items: center; gap: .6rem; text-decoration: none; color: var(--text-2); font-size: .8rem; border-radius: 6px; padding: .1rem .3rem; }
+.week-row:hover { background: var(--surface-3); color: var(--text-1); }
+.week-row .ribbon { height: 18px; }
+.week-total { text-align: right; font-variant-numeric: tabular-nums; }
+.calendar { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: .35rem; margin-top: 1rem; }
+.cal-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; aspect-ratio: 1; border-radius: 9px; text-decoration: none; color: var(--text-1); border: 1px solid var(--border); font-variant-numeric: tabular-nums; transition: transform var(--t-fast); }
+.cal-cell:hover { transform: translateY(-2px); border-color: var(--border-strong); color: var(--text-1); }
+.cal-cell.r0 { background: var(--r0); } .cal-cell.r1 { background: var(--r1); } .cal-cell.r2 { background: var(--r2); } .cal-cell.r3 { background: var(--r3); } .cal-cell.r4 { background: var(--r4); color: #fff; }
+.cal-dow { font-size: .62rem; color: inherit; opacity: .75; text-transform: uppercase; letter-spacing: .04em; }
+.cal-day { font-size: .95rem; font-weight: 650; }

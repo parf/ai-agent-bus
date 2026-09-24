@@ -83,6 +83,28 @@ func (c Change) Empty() bool {
 // Store keeps the durable state. Management writes commit one Change as one
 // transaction before the daemon publishes it; queue contents and counters
 // travel separately, on their own cadence, never once per message.
+// ActivityDay is one name's traffic on one local calendar day, as package
+// activity encodes it: Date is yymmdd, Slots the day's non-empty slots, and
+// the name "" the node's own refusal series
+// (docs/05-discovery.md#activity-history).
+type ActivityDay struct {
+	Date  int
+	Name  string
+	Slots []byte
+}
+
+// ActivityStore keeps the durable days. A store without it keeps only the
+// last day, with its queues.
+type ActivityStore interface {
+	// SaveActivityDays writes each day whole, in one batch; empty Slots
+	// removes that row, since an empty day has none.
+	SaveActivityDays([]ActivityDay) error
+	// ActivityDays is every row from one date to another, both included.
+	ActivityDays(from, to int) ([]ActivityDay, error)
+	// PruneActivity drops every row older than before.
+	PruneActivity(before int) error
+}
+
 type Store interface {
 	// Load reads the whole durable state. An unreadable, incompatible or
 	// damaged store is an error, never an empty node.

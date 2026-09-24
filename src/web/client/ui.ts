@@ -222,6 +222,8 @@ function initCharts() {
     const data = JSON.parse(host.dataset.chart!);
     if (!data.series.length) continue;
     let plot: any;
+    const span = data.t.length > 1 ? data.t.at(-1) - data.t[0] : 0;
+    const bars = data.bars && uPlot.paths?.bars ? uPlot.paths.bars({ size: [0.7, 40], gap: 2 }) : undefined;
     const build = () => {
       plot?.destroy();
       const grid = cssVar("--chart-grid"), axis = cssVar("--text-3");
@@ -233,15 +235,22 @@ function initCharts() {
         legend: { show: false },
         scales: { x: { time: true }, y: { range: (_u: any, _min: number, max: number) => [0, Math.max(1, max * 1.15)] } },
         axes: [
-          { stroke: axis, grid: { stroke: grid, width: 1 }, ticks: { stroke: grid }, space: 60, values: (_u: any, ts: number[]) => ts.map(t => { const d = new Date(t * 1000); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; }) },
+          { stroke: axis, grid: { stroke: grid, width: 1 }, ticks: { stroke: grid }, space: 60, values: (_u: any, ts: number[]) => ts.map(t => {
+            const d = new Date(t * 1000);
+            // Past a day the axis names days; within one, the time.
+            if (span > 86400 * 1.5) return d.toLocaleDateString([], { month: "short", day: "numeric" }) + (span < 86400 * 10 && d.getHours() ? ` ${String(d.getHours()).padStart(2, "0")}h` : "");
+            return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+          }) },
           { stroke: axis, grid: { stroke: grid, width: 1 }, ticks: { show: false }, size: 44 },
         ],
         series: [{ value: (_u: any, t: number) => t == null ? "—" : new Date(t * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) },
-          ...data.series.map((s: any) => ({
+          // A month draws Accepted as day bars and the rest as lines over them.
+          ...data.series.map((s: any, i: number) => ({
             label: s.label, stroke: cssVar(`--series-${s.key}`), width: 2,
-            fill: s.key === "in" ? cssVar("--series-in-fill") : undefined,
+            fill: bars && i === 0 ? cssVar("--series-in-fill") : !bars && s.key === "in" ? cssVar("--series-in-fill") : undefined,
             dash: s.key === "out" ? [6, 4] : s.key === "expired" ? [3, 3] : s.key === "refused" ? [1, 3] : undefined,
-            points: { show: false },
+            paths: bars && i === 0 ? bars : undefined,
+            points: { show: !!data.bars && i > 0, size: 5 },
           }))],
       }, [data.t, ...data.series.map((s: any) => s.values)], host);
     };
