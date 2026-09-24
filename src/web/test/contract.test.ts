@@ -148,6 +148,12 @@ describe("sign-in", () => {
     const r = await req("/signin", { form: { token: owner, return: "//evil.example/x" } });
     expect(r.headers.get("location")).toBe("/");
   });
+  test("a malformed cookie or token is refused, never a crash", async () => {
+    const r = await handle(new Request(ORIGIN + "/agents", { headers: { host: "127.0.0.1:6781", cookie: "agent_bus_session=%E0%A4%A" } }));
+    expect(r.status).toBe(401);
+    const t = await req("/signin", { form: { token: "abc\r\ndef" } });
+    expect(t.status).toBe(401);
+  });
   test("an ended session asks to sign in again", async () => {
     const r = await req("/agents", { cookie: "deadbeef" });
     expect(r.status).toBe(401);

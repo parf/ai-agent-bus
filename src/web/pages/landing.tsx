@@ -67,7 +67,8 @@ export async function postSignIn(ctx: Ctx): Promise<Response> {
   const token = ctx.f("token").trim();
   const ret = local(ctx.f("return"));
   const keep = ret === "/" ? "" : ret;
-  if (!token) return signInPage(ctx, "that credential was not accepted", 401, keep);
+  // A token is printable ASCII; anything else could not be a header, so it is refused here.
+  if (!token || !/^[\x21-\x7e]+$/.test(token)) return signInPage(ctx, "that credential was not accepted", 401, keep);
   try {
     const s = await ctx.daemon.call<{ session: string }>("POST", "/session", { cred: token });
     if (!s?.session) throw new Refusal(401, "no session");
