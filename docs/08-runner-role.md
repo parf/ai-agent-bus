@@ -143,7 +143,7 @@ runtime dependencies of the installed V2 scripts.
 | Concern | Required behavior |
 |---|---|
 | Startup | Find the installed runtime and integration assets; explain missing prerequisites; work without `/rd` or a repository checkout |
-| Configuration | Use V2 [access](02-access.md#getting-a-token) and [face configuration](../src/mcp/README.md#environment); an explicit address wins. Without one, discover the account's socket in its login runtime directory, then the installed [local socket](02-access.md#local-socket). With a token, select the shared listener instead |
+| Configuration | Use V2 [access](02-access.md#getting-a-token) and [face configuration](../src/mcp/README.md#environment); an explicit address wins. Without one, discover the socket of the account the launcher runs as, found by uid rather than `$USER`, in its login runtime directory, then the installed [local socket](02-access.md#local-socket). With a token, select the shared listener instead |
 | Bus tools | Load the [MCP minimum](05-discovery.md#mcp-minimum) into the launched session alongside message delivery; authorize the agent-bus MCP namespace in Claude and set Codex's server-specific `default_tools_approval_mode="approve"` so those calls need no initial tool prompt |
 | Session | Resume the current directory's conversation when available; otherwise start fresh. Preserve caller arguments and route messages to the intended live session |
 | Automatic execution | Always enable Claude's `--enable-auto-mode`; configure Codex's App Server and the TUI that runs its thread with `approval_policy="never"` and `sandbox_mode="danger-full-access"`, overriding contrary launch options |
