@@ -218,9 +218,9 @@ describe("pages as the daemon owner", () => {
   });
   test("the Activity chooser shows each record's hits in the last day", async () => {
     const t = await (await req("/activity", { cookie: s })).text();
-    expect(t).toMatch(/<option value="jobs@test">jobs@test — 1 hit<\/option>/);
-    expect(t).toMatch(/<option value="db@test">db@test — 0 hits<\/option>/);
-    expect(t).toMatch(/<option value="">All visible — \d+ hits?<\/option>/);
+    expect(t).toMatch(/<option value="jobs@test">jobs@test \(1\)<\/option>/);
+    expect(t).toMatch(/<option value="db@test">db@test \(0\)<\/option>/);
+    expect(t).toMatch(/<option value="">All visible \(\d+\)<\/option>/);
   });
   test("an absent name is 404 No such name, with no Try again", async () => {
     const r = await req("/agent?name=%23nobody@test", { cookie: s });

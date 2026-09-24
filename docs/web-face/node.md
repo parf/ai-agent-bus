@@ -344,9 +344,9 @@ Same for every role.
 `<noscript><button>Apply</button></noscript>`. `/ui.js` submits on change. No daemon call beyond reloading the page.
 
 TypeScript face: each option also names that record's hits — everything its
-five series counted in the last day (`jobs@dev — 14 hits`), from one
-`GET /activity?name=` per visible active record; an inactive one reads
-`— inactive`, and **All visible** carries the unfiltered total.
+five series counted in the last day, as `name (hits)` — `jobs@dev (14)` —
+from one `GET /activity?name=` per visible active record; an inactive one
+reads `name (inactive)`, and **All visible** carries the unfiltered total.
 
 ### Links out
 
