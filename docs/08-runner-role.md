@@ -154,7 +154,7 @@ runtime dependencies of the installed V2 scripts.
 | opencode wiring | Start the server the session attaches to, and give it the face and the launcher's enforced permission through `OPENCODE_CONFIG_CONTENT`. The server is loopback with a password passed by environment, never as an argument: anything that reaches it can drive the session |
 | Codex wiring | Connect the terminal and pusher to the same App Server, with the tools and inbox reader arranged as [documented](../src/mcp/README.md#one-app-server-two-clients) |
 | Readiness | Report whether bus integration is active. With no bus configuration, allow a plain runtime session with an explicit notice; failed integration must never be reported as connected |
-| Lifecycle | Wait for readiness before attaching; propagate the runtime's exit status and stop only the helper processes created by this launch on exit or startup failure |
+| Lifecycle | Wait for readiness before attaching; propagate the runtime's exit status and stop only the helper processes created by this launch on exit or startup failure. A helper that dies at startup is reported with the last lines of its own log, which cleanup then removes |
 | Permissions | The launcher's enforced mode is chosen at startup; incoming messages cannot change it or the [adapter policy](#adapters) |
 | Terminal helpers | Apply and restore [terminal appearance](#terminal-appearance); optional styling tools must not prevent startup |
 

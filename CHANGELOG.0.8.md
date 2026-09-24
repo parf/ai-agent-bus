@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.27 — 2026-09-23
+
+A launcher whose App Server or OpenCode server dies at startup now prints the
+server's own last words, which were in a log its cleanup removed.
+
 ## 0.8.26 — 2026-09-23
 
 Every web table has an accessible name, and the daemon's Users listing builds

@@ -52,6 +52,15 @@ function channelName(cwd: string, face: string) {
   } catch (e) { warn(`could not register the channel server: ${e}`); }
 }
 
+// A helper that dies at startup says why in its own log, and that log lives in
+// the run directory cleanup removes. Its last lines go into the diagnostic.
+function why(file: string): string {
+  let text = "";
+  try { text = readFileSync(file, "utf8"); } catch { return "it wrote nothing"; }
+  const lines = text.replace(/\x1b\[[0-9;]*m/g, "").split("\n").map(l => l.trim()).filter(Boolean);
+  return lines.length ? lines.slice(-4).join(" | ").slice(-600) : "it wrote nothing";
+}
+
 const option = (names: string[]) => {
   for (let i = 0; i < args.length; i++) for (const n of names) {
     if (args[i]!.startsWith(n + "=")) return args[i]!.slice(n.length + 1);
@@ -236,11 +245,11 @@ See docs/08-runner-role.md#smart-launchers.`);
     opencode = new Opencode(cwd, adapterLog, remote, password);
     let ready = false;
     for (let i = 0; i < 200; i++) {
-      if (serverChild.proc.exitCode !== null) throw new Error("the opencode server exited during startup");
+      if (serverChild.proc.exitCode !== null) throw new Error(`the opencode server exited during startup: ${why(join(runDir, "server.log"))}`);
       if (await opencode.probe()) { ready = true; break; }
       await sleep(50);
     }
-    if (!ready) throw new Error("the opencode server did not become ready");
+    if (!ready) throw new Error(`the opencode server did not become ready: ${why(join(runDir, "server.log"))}`);
     await opencode.start();
     tuiEnv.OPENCODE_SERVER_PASSWORD = password;
     const listed = await opencode.sessions();
@@ -306,11 +315,12 @@ See docs/08-runner-role.md#smart-launchers.`);
     closeSync(fd);
     let ready = false;
     for (let i = 0; i < 100; i++) {
-      if (serverChild.proc.exitCode !== null) throw new Error("App Server exited during startup; Codex must support --ws-auth capability-token and --remote-auth-token-env");
+      // An older Codex without --ws-auth and --remote-auth-token-env says so here too.
+      if (serverChild.proc.exitCode !== null) throw new Error(`App Server exited during startup: ${why(join(runDir, "app-server.log"))}`);
       try { const response = await fetch(remote.replace("ws:", "http:"), { signal: AbortSignal.timeout(100) }); if (response) { ready = true; break; } } catch { /* not bound yet */ }
       await sleep(50);
     }
-    if (!ready) throw new Error("App Server did not become ready");
+    if (!ready) throw new Error(`App Server did not become ready: ${why(join(runDir, "app-server.log"))}`);
     codex = new Codex(cwd, adapterLog, remote, password);
     await codex.start();
     const sessions = await codex.threads();

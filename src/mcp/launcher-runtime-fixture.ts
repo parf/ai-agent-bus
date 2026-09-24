@@ -14,7 +14,7 @@ event("config-dir", process.env.CLAUDE_CONFIG_DIR || null);
 const savedTitle = () => process.env.TEST_TITLE_FILE && existsSync(process.env.TEST_TITLE_FILE)
   ? readFileSync(process.env.TEST_TITLE_FILE, "utf8") : process.env.TEST_TITLE || null;
 const saveTitle = (title: string) => { if (process.env.TEST_TITLE_FILE) writeFileSync(process.env.TEST_TITLE_FILE, title); };
-if (process.env.TEST_FAIL_START && (args[0] === "app-server" || args[0] === "serve")) process.exit(7);
+if (process.env.TEST_FAIL_START && (args[0] === "app-server" || args[0] === "serve")) { console.error("fixture server refuses to start: TEST_FAIL_START"); process.exit(7); }
 
 // opencode: the server the launcher owns, and the TUI attaches to it.
 if (args[0] === "serve") {

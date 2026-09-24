@@ -207,7 +207,8 @@ try {
     if (runtime === "codex" || runtime === "opencode") {
       const broken = Bun.spawn([launcher], { cwd, env: { ...env, TEST_FAIL_START: "1" }, stdout: "pipe", stderr: "pipe" });
       processes.push(broken);
-      check(`${runtime} startup failure is reported`, await broken.exited !== 0 && (await new Response(broken.stderr).text()).includes("startup"));
+      // The helper's own reason, from a log that cleanup then removes.
+      check(`${runtime} startup failure is reported with the helper's own reason`, await broken.exited !== 0 && /exited during startup: .*fixture server refuses to start: TEST_FAIL_START/.test(await new Response(broken.stderr).text()));
       check(`${runtime} failed startup releases locks`, !readdirSync(state).some(f => f.endsWith(".lock")));
     }
     if (process.env.TEST_MAPPED_SOCKET) {
