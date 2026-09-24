@@ -57,15 +57,17 @@ listed with its reason.
 |---|---|
 | Identity | `User=agent-bus-web`, `Group=agent-bus-web`, `UMask=0077`; `After=agent-busd.service`, `Restart=on-failure`, `RestartSec=2` |
 | Privilege | `NoNewPrivileges=yes`, `CapabilityBoundingSet=` (empty), `AmbientCapabilities=`, `RestrictSUIDSGID=yes`, `LockPersonality=yes`, `RestrictRealtime=yes`, `RestrictNamespaces=yes`, `KeyringMode=private`, `RemoveIPC=yes` |
-| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `TemporaryFileSystem=/var/lib:ro` with `BindReadOnlyPaths=/var/lib/agent-bus/web` so no other state directory exists for it; `ReadOnlyPaths=/run/agent-bus` for the socket |
-| Exec | `NoExecPaths=/`, `ExecPaths=/var/lib/agent-bus/web /usr/local/lib/agent-bus/releases`: it can start its own binary and nothing else |
+| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `TemporaryFileSystem=/var/lib:ro` with `BindReadOnlyPaths=/var/lib/agent-bus/web` so no other state directory exists for it (`/run/agent-bus` is already read-only under `ProtectSystem=strict`; connecting to the socket needs no write) |
+| Exec | `NoExecPaths=/`, `ExecPaths=/var/lib/agent-bus/web /usr/lib /usr/lib64`: its own binary and the shared libraries the loader maps (the compiled binary links libc). No release directory is executable, so `agent-busd` and `agent-bus-admin` cannot be started by path |
 | Kernel | `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectKernelLogs`, `ProtectControlGroups`, `ProtectClock`, `ProtectHostname`, `ProtectProc=invisible`, `ProcSubset=pid` |
 | System calls | `SystemCallArchitectures=native`, `SystemCallFilter=@system-service` minus `@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap`, `SystemCallErrorNumber=EPERM` |
 | Network | `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6`; `IPAddressDeny=any` with `IPAddressAllow=localhost`: it answers on loopback and makes no outbound connection (the visitor's browser, not the face, fetches the CDN). A non-loopback `AGENT_BUS_WEB_ADDR` widens `IPAddressAllow` by setup, never by hand |
-| TLS | `LoadCredential=cert:… key:…` when configured: the face reads them from `$CREDENTIALS_DIRECTORY`, never from their own paths |
+| TLS | `LoadCredential=cert:… key:…` when configured, with `AGENT_BUS_WEB_CERT=%d/cert` and `AGENT_BUS_WEB_KEY=%d/key`: the face reads them from the credentials directory, never from their own paths |
 | Resources | `MemoryMax=256M`, `MemorySwapMax=0`, `TasksMax=64`, `CPUQuota=100%`, `LimitNOFILE=1024` |
-| Environment | only `AGENT_BUS_ADDR`, `AGENT_BUS_WEB_ADDR`; nothing inherited |
-| Left out | `MemoryDenyWriteExecute`: bun's JavaScript JIT needs writable-executable memory. `PrivateNetwork`: it must listen. `PrivateUsers`: tried at W.10, kept only if the socket connection still works |
+| Environment | only `AGENT_BUS_ADDR`, `AGENT_BUS_WEB_ADDR` and, with TLS, the two paths above; nothing inherited |
+| Left out | `MemoryDenyWriteExecute`: bun's JavaScript JIT needs writable-executable memory. `PrivateNetwork`: it must listen |
+| Proven in W.1 | `PrivateUsers=yes` (socket `0666`, directory `0711`), `ProcSubset=pid` and the `@resources` removal (bun raises `RLIMIT_NOFILE` at start) are kept only if the compiled binary serves `/healthz` under this unit in the container; a directive that breaks it moves to Left out with its reason |
+| Release | the link resolves when the unit starts, so every switch of `current` must restart this unit ([release and rollback](#release-and-rollback)) |
 
 ## Stack
 
@@ -75,8 +77,9 @@ Built-in first, per [external tools](../../docs/10-modules.md#external-tools).
 |---|---|---|
 | Runtime and HTTP | bun, `Bun.serve` | already the MCP runtime; HTTP is built in |
 | Daemon client | bun `fetch` with its `unix` socket option; one small module | no dependency; one place maps refusals |
-| HTML | server-rendered TSX through our own ~100-line JSX runtime that escapes every string by default | type-checked templates, no React, no hydration; raw HTML only through one named helper |
-| CSS | one hand-written stylesheet on design tokens, served as a hashed `/app.<hash>.css`; no `style=` attributes | lets the CSP drop `style-src 'unsafe-inline'` ([Q117](DECISIONS.md#decisions)) |
+| HTML | server-rendered TSX through our own ~100-line JSX runtime (`tsconfig` `jsx: react`, `jsxFactory: h`) that escapes every string by default | type-checked templates, no React, no hydration; raw HTML only through one named helper |
+| CSS | one hand-written stylesheet on design tokens, served as a hashed `/app.<hash>.css`; no `style=` attributes anywhere, SVG colours by `fill` and classes | lets the CSP drop `style-src 'unsafe-inline'` ([Q117](DECISIONS.md#decisions)) |
+| Caching | hashed assets `public, max-age=31536000, immutable`; pages and everything else `no-store` | a hash in the name is what makes long caching safe; shell § security headers is amended in W.1 |
 | Client script | our own `/ui.<hash>.js` with the CDN libraries; pages may rely on both | CSP allows only this site and the pinned CDN |
 | Fonts | any open-licensed faces the design needs, loaded from the CDN ([external assets](#external-assets)); the look comes first, size second ([Q118](DECISIONS.md#decisions)) | — |
 | Popular JS libraries | loaded from the CDN, never imported or bundled into our code ([external assets](#external-assets)) | owner rule |
@@ -90,12 +93,12 @@ welcome, loaded by the browser from a CDN and **never imported into our code**
 
 | Rule | |
 |---|---|
-| Host | one CDN, `cdn.jsdelivr.net`, named in the CSP; nothing else external |
-| Pinning | an exact version in every URL, never `latest` or a range |
+| Host | one CDN, `cdn.jsdelivr.net`; the CSP names each file's exact URL (fonts: their `files/` directory), generated from `src/web/assets.ts`, never the bare host |
+| Pinning | an exact version in every URL, never `latest`, a range or a `+esm` bundle (regenerated, so its bytes and hash are not stable) |
 | Hash | every external `<script>` and `<link rel=stylesheet>` carries `integrity="sha384-…"` and `crossorigin=anonymous`; one table in `src/web/assets.ts` holds URL and hash, and a test fails on an external tag without them |
 | Fonts | from `@fontsource` packages on the same CDN, their stylesheets hashed. Font files a stylesheet names cannot carry a hash of their own; a font is data, not code, and the hashed stylesheet fixes which files they are |
 | Internet | **required** in the visitor's browser: the pages depend on the CDN libraries and fonts. No offline fallback is built. The face itself still reaches only the daemon socket; the browser, not the server, fetches the CDN |
-| Choice | each library is named with its reason on the W.2 style guide; candidates: Lucide icons, uPlot for the interactive day chart, a command-palette component |
+| Choice | each library is named with its reason on the W.2 style guide: Lucide icons, uPlot for the day charts, a command-palette component |
 
 ### Content-Security-Policy
 
@@ -103,10 +106,12 @@ welcome, loaded by the browser from a CDN and **never imported into our code**
 
 | Directive | Value | Why |
 |---|---|---|
-| `script-src` | `'self' https://cdn.jsdelivr.net` | our script and the hashed libraries |
-| `style-src` | `'self' https://cdn.jsdelivr.net` | no `'unsafe-inline'`: injected CSS can leak page content or overlay a false control |
-| `font-src` | `'self' https://cdn.jsdelivr.net` | today's `default-src 'none'` would block every font |
+| `script-src` | `'self'` and each library's exact CDN URL | the bare host would admit every file jsdelivr serves; SRI covers only tags we wrote |
+| `style-src` | `'self'` and each font stylesheet's exact URL | no `'unsafe-inline'`: injected CSS can leak page content or overlay a false control |
+| `font-src` | `'self'` and each font package's exact `files/` path | today's `default-src 'none'` would block every font |
 | `connect-src` | `'self'` | the palette's `/palette.json` |
+
+A test renders every page and fails on a `style=` attribute; the browser check fails on any `securitypolicyviolation` event.
 | the rest | `default-src 'none'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'` | unchanged |
 
 ### Layout of the code
@@ -123,7 +128,8 @@ welcome, loaded by the browser from a CDN and **never imported into our code**
 | `src/web/client/` | the browser script: palette, theme, shortcuts, submit-on-change |
 | `src/web/style/` | tokens and stylesheet |
 | `src/web/assets/` | logo, favicon, landing picture |
-| `src/web/assets.ts` | the pinned CDN table: URL and hash of every external font and library |
+| `src/web/assets.ts` | the pinned CDN table: URL and hash of every external font and library; the CSP is generated from it |
+| `src/web/glyphs.ts` | the entity and authority glyphs; canonical home stays `src/internal/display`, and a test compares this table with a dump from the Go package |
 
 A page never computes authority. Where the spec says a face-side rule
 (attention items, exchange folding, "used by visible records", may-edit on
@@ -136,30 +142,30 @@ dense operator console, not a document.
 
 | Element | Direction |
 |---|---|
-| Theme | dark-first, light as equal; follows `prefers-color-scheme`, overridable by a toggle kept in a non-authority cookie `ab_theme` |
-| Palette | deep ink surfaces (`#0b0d12` → `#161a22`), one electric accent (the bus red, softened to coral `#ff5a4e`, with an indigo secondary), semantic green / amber / red / blue for states; contrast AA on both themes |
-| Shell | left sidebar with the nine sections and their marks, collapsible to icons; glass top bar with release, host, account menu and the palette hint (`⌘K`); a phone gets a bottom bar and a drawer |
-| Type | Inter for text, tabular figures in every number; JetBrains Mono for names, addresses and ACL lines; a display face for headings, the landing and KPI figures (Geist or Space Grotesk, picked on the W.2 style guide) |
+| Theme | dark-first, light as equal; follows `prefers-color-scheme`, overridable by a toggle kept in a non-authority cookie `ab_theme` (`dark` or `light`, anything else ignored); the server writes `data-theme` on `<html>` so the first paint is right |
+| Palette | elevation tokens `--surface-0` … `--surface-3` of deep ink (`#0b0d12` → `#1c212b`), one focus-ring token, one electric accent (the bus red, softened to coral `#ff5a4e`, with an indigo secondary), semantic green / amber / red / blue for states; contrast AA on both themes |
+| Shell | left sidebar with the nine sections and their icons ([Q121](QUESTIONS.md#q121-icons)), collapsible to icons; glass top bar with release, host, account menu and the palette hint (`⌘K`); a phone gets a bottom bar and a drawer |
+| Type | two families: Geist for text and display (headings, landing, KPI figures), tabular figures (`tnum`) in every number; JetBrains Mono for names, addresses and ACL lines. Inter is the alternative shown on the W.2 style guide |
 | Surfaces | cards with 12 px radius, 1 px hairline borders, soft inner glow on hover; no heavy shadows |
 | Status | pills with a dot (`● Active`, `● Inactive`), severity as a coloured rail on attention items, `INACTIVE` badge kept |
 | Data | tables with sticky headers, zebra-free, row hover, right-aligned tabular numbers; stacked cards at ≤ 40 rem |
-| Charts | inline SVG, server-drawn: the day chart with hour ticks and a hover crosshair; a 144-cell **day ribbon** (heat strip) per record on lists and detail; tiny sparklines in the Overview tiles |
-| Motion | CSS cross-document View Transitions (`@view-transition { navigation: auto }`) for page changes, shared element names on the page title; 150 ms ease; `prefers-reduced-motion` turns it all off |
+| Charts | uPlot for the day charts on Activity and record detail (hour ticks, hover crosshair, series toggles); server-drawn SVG for the 144-cell **day ribbon** (heat strip) per record on lists and detail and the sparklines in the Overview tiles |
+| Motion | CSS cross-document View Transitions (`@view-transition { navigation: auto }`); sidebar and top bar carry their own `view-transition-name` so only `main` morphs; icon boxes are sized before the icons render, so nothing jumps; 150 ms ease; `prefers-reduced-motion` turns it all off |
 | Forms | floating labels, inline help as native popovers, the error summary as a pinned alert card, list fields (allow, subs, maintainers, members) as monospace textareas with line numbers so `Line N:` refusals point at a visible line |
 | Danger | the Danger Zone and every confirmation in a red-rimmed card; the confirm button repeats the verb and the name |
-| Landing | full-bleed hero over the bus picture with a gradient veil, the heading and lede on it, four feature cards below, sign-in as a floating card |
+| Landing | the bus picture blurred as a full-bleed backdrop under a gradient veil, the crisp 648×432 picture in its own card beside the heading and lede, four feature cards below, sign-in as a floating card; on a phone the sign-in card comes first |
 | Overview | attention items as a stack of alert cards; the node strip as KPI tiles with sparklines; the Find row as quick-action chips |
 
 ### Interactive features
 
 | Feature | Behaviour |
 |---|---|
-| Command palette | `⌘K` / `Ctrl-K`: jump to any section, or to any record, user or group the visitor may see; data from a same-origin `GET /palette.json` made with the visitor's session ([Q117](DECISIONS.md#decisions)) |
+| Command palette | `⌘K` / `Ctrl-K`: jump to any section, or to any record, user or group the visitor may see; data from a same-origin `GET /palette.json` made with the visitor's session only when the palette opens ([Q117](DECISIONS.md#decisions)). It answers JSON, `401` JSON when signed out (never the sign-in page), refuses a `Sec-Fetch-Site` other than `same-origin`, and costs `/status`, `/ls` and `/groups`; specified in shell in W.9 |
 | Shortcuts | `g o` Overview, `g a` Agents, `g s` Services, `g q` Queues, `g p` PubSub, `g u` Users, `g g` Groups, `/` focuses search, `?` lists them |
 | Theme toggle | writes `ab_theme`, swaps without reload |
-| Submit on change | the spec's `data-submit-on-change`, kept |
-| Copy | a copy button beside every `<code>` name |
-| Flash | a success toast after a `303`, carried by a short-lived `ab_flash` cookie that holds only a message key |
+| Submit on change | the spec's `data-submit-on-change`, kept; its `<noscript>` Apply button is dropped (no fallbacks), with the shell spec edited in W.1 |
+| Copy | a copy button beside a record, user or group name in page headings and in the first cell of a row |
+| Flash | a success toast after a `303`: an `ab_flash` cookie holding one allowlisted message key (`HttpOnly; SameSite=Strict`), rendered by the server on the next page, which clears it (`Max-Age=0`) so back navigation does not repeat it |
 
 ## Behaviour changes
 
@@ -169,19 +175,27 @@ behaviour in the step that builds it.
 
 | From | Change |
 |---|---|
-| [shell](../../docs/web-face/shell.md#differences-from-older-docs) | one signed-out answer everywhere (`401`, `sign in to open this page`), `/` excepted; a real `404` page for unknown paths; a status failure never renders a blank account link; sign-out clears the cookie with the attributes it was set with; `Origin` required on every POST; assets cost no daemon call; `405` pages framed; no `Try again` on `404`; fonts and libraries from one pinned, hashed CDN in place of "no external asset" |
+| [shell](../../docs/web-face/shell.md#differences-from-older-docs) | `HEAD` answered as `GET` without a body on every page and asset (`Bun.serve` does not do it by itself); one signed-out answer everywhere (`401`, `sign in to open this page`), `/` excepted; a real `404` page for unknown paths; a status failure never renders a blank account link; sign-out clears the cookie with the attributes it was set with; `Origin` required on every POST; assets cost no daemon call; `405` pages framed; no `Try again` on `404`; fonts and libraries from one pinned, hashed CDN in place of "no external asset" |
 | [node](../../docs/web-face/node.md#inconsistencies-worth-fixing-in-the-rewrite) | Diagnostics renders exchanges with `reply_to`; held and loss tables include inactive records; a `/users` failure shows a section notice; an unreachable daemon at sign-in says so; Activity accepts inactive records visible to the caller; one Uptime source per page |
 | [records](../../docs/web-face/records.md#differences-from-the-older-specs) | `kind` kept on paging, Back and Clear filters; the confirmation guard **always** applies to transfer and delete; managers see the description; detail addresses redirect to the kind's own path; a user inbox is not offered Remove; no unused daemon reads; valid HTML on Deliver-To |
-| [people](../../docs/web-face/people.md#worth-fixing-in-the-rewrite) | "Not visible to you" renders on hidden groups; register refuses an existing group name instead of replacing it; post-create failures say what was saved; no Transfer on `@<user>/…` groups; redirects use the daemon's stored name; one identity pill; Account lists inactive owned records; `/avatar` dropped or used; `/users?kind=other` after sign-in |
+| [people](../../docs/web-face/people.md#worth-fixing-in-the-rewrite) | "Not visible to you" renders on hidden groups; register refuses an existing group name instead of replacing it; post-create failures say what was saved; no Transfer on `@<user>/…` groups; redirects use the daemon's stored name; one identity pill; Account lists inactive owned records; `/avatar` dropped (no page references it; photos stay inline `data:` URIs); `/users?kind=other` after sign-in |
+
+## Release and rollback
+
+| Case | `src/release.sh` does |
+|---|---|
+| Target has `web/agent-bus-web` | checks `web/agent-bus-web --version` before switching; after the switch restarts `agent-bus-web.service` and waits for `/healthz` |
+| Target has no `web/` (a release before W.10, reached by `--rollback`) | stops `agent-bus-web.service` and prints why: that release has no TypeScript face. The unit's `BindReadOnlyPaths` then has nothing to bind and stays down with that reason in its log |
+| `/usr/local/bin/agent-bus-web` | links the Go binary while it exists; after cutover the link is removed, since the face is started only by its unit |
 
 ## Cutover
 
 1. The TS face runs beside the Go one on `127.0.0.1:6781` until every
    [site-map](../../docs/web-face/site-map.md#every-address) row passes its checks.
-2. Setup installs the account, the `/var/lib/agent-bus/web` link and the unit; the daemon unit stops passing `-web`;
-   the TS face takes `6780`.
-3. The Go face, its `-web` supervision, its bubblewrap and cgroup code and its
-   smoke checks are removed in one commit after the owner accepts the pages.
+2. Setup installs the account, the `/var/lib/agent-bus/web` link and the unit;
+   the daemon unit stops passing `-web`; the TS face takes `6780`.
+3. After the owner accepts the pages, one commit removes the Go face and
+   everything that exists only for it ([W.11](TODO.md#steps) lists it).
 4. Current docs take the substance: [discovery § dashboard](../../docs/05-discovery.md#dashboard),
    [processes § web authority boundary](../../docs/11-processes.md#web-authority-boundary),
    [setup § the two accounts](../../docs/09-setup.md#the-two-accounts), with decision rows.
