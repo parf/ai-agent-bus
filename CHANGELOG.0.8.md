@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.29 — 2026-09-23
+
+A Codex session's TUI gets the enforced mode too — no approval prompts, full
+access — as its App Server always did.
+
 ## 0.8.28 — 2026-09-23
 
 A launcher whose App Server or OpenCode server dies at startup now prints the

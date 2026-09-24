@@ -23,7 +23,7 @@ The fresh-host run stays in the [installed stage gate](../TODO.md#installed-stag
 
 | Before | After, 0.8.28 |
 |---|---|
-| Codex's enforced mode reached only the App Server. The remote TUI starts and resumes its thread with its own settings, so every launcher-started Codex session ran `workspace-write` with `on-request` approval: a command outside the working directory waits for a prompt | **Open, owner decision.** Passing the same mode to the TUI fixes it in a test build, but widens the session's sandbox beyond the [documented contract](../../../docs/08-runner-role.md#smart-launchers) (enforced on the App Server); not committed |
+| Codex's enforced mode reached only the App Server. The remote TUI starts and resumes its thread with its own settings, so every launcher-started Codex session ran `workspace-write` with `on-request` approval: a command outside the working directory waits for a prompt | **Fixed in 0.8.29, owner decision 2026-09-23:** the TUI gets the same `approval_policy="never"` and `sandbox_mode="danger-full-access"`. `runtime-launch.ts codex failure`: 39 checks, 0 failed (`tmp/h91.log`); built without them, `[enforced-mode]` times out, 37 passed, 1 failed (`tmp/h91m.log`) |
 | An App Server that died at startup was reported as "Codex must support --ws-auth capability-token and --remote-auth-token-env", whatever the cause; OpenCode said only "exited during startup". The server's own reason was in a log that cleanup removed | The diagnostic carries the last lines of the server's log: `App Server exited during startup: Error: error loading default config … invalid type: integer 5, expected a map`; OpenCode's names its `EACCES` |
 
 ## Checks

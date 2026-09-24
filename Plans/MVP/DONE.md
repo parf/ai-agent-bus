@@ -5,6 +5,7 @@ gates are in [TODO](TODO.md#objective).
 
 | Work | Result | Evidence |
 |---|---|---|
+| H.9.1 Launcher failure handling | Done 2026-09-23 in 0.8.28–0.8.29: missing runtime, no bus configuration, helper startup failure, runtime exit and cleanup with a sibling alive pass on all three runtimes; the enforced mode holds against contrary options on each, Codex's from 0.8.29 by owner decision | [launch evidence](done/runtime-launch.md#checks) |
 | H.9.3 Assigned session names | Done 2026-09-23 on 0.8.28 for Codex, OpenCode and Claude: fallback, assigned and explicit names, colliding titles, a self-rename with its reply pending, and restart with a retained old inbox | [evidence](done/runtime-launch.md#h93-session-names-names); 20 mutants each fail at their named check |
 | H.9 Smart launchers | Done 2026-09-23 on 0.8.28 for all three runtimes: a path with spaces, a fresh start beside another directory's conversation, exact forwarded arguments in the runtime's own argv, continuation of the intended conversation, active integration; two concurrent launches stay isolated | [evidence](done/runtime-launch.md#h9-smart-launchers-launch); 15 mutants each fail |
 | H.8 Runtime integration delivery | Done 2026-09-23 on 0.8.28: from a build.sh program dir into clean profiles, a bus message reaches each live interactive session and a correlated reply returns | [evidence](done/runtime-delivery.md#checks); channel, Codex and OpenCode tool-configuration and headless-reply mutants fail |
