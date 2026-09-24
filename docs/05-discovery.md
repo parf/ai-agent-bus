@@ -689,6 +689,14 @@ HTTP handler tests and command-line cookie jars remain useful evidence but
 do not establish this browser workflow. [F.12](../Plans/MVP/TODO.md#remaining-work)
 owns the installed exercise and mutation checks.
 
+**Accessibility, cost and old addresses: built in 0.8.26.** No page scrolls
+sideways at desktop, 200% zoom or a 420 px phone. Rendered text meets WCAG AA
+contrast. Every table and graph has an accessible name. The main journeys work
+from the keyboard with visible focus. Every retired address lands on its
+replacement. A page's bus calls do not grow with the directory. The budgets,
+fixtures and measurements are in the
+[F.13.6 evidence](../Plans/MVP/done/web-acceptance.md#budgets).
+
 ## Identity labels in web and CLI
 
 **Built in 0.5.54, one label per stored kind since 0.6.3.** In the web interface

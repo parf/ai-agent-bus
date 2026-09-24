@@ -270,6 +270,8 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		{Name: "#agent@h", Owner: "admin@h", Kind: "agent"},
 		{Name: "channel@h", Owner: "admin@h", Kind: protocol.KindQueue},
 		{Name: "other-channel@h", Owner: "admin@h", Kind: protocol.KindQueue},
+		// A record using a group, so the group page draws its uses table.
+		{Name: "ops-queue@h", Owner: "admin@h", Kind: protocol.KindQueue, Allow: []string{"@ops"}},
 	} {
 		m.register(record)
 	}
@@ -328,6 +330,7 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 		{"/service?name=missing@h", "", ""},
 	}
 	seen := map[string]string{}
+	tables := 0
 	check := func(path, current, alias, body string) {
 		t.Helper()
 		title := section(t, body, "<title>", "</title>")
@@ -355,6 +358,12 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 				t.Errorf("%s carries %s %d times, want %d", path, want, got, n)
 			}
 		}
+		// Every table is named for assistive technology: a caption, or a
+		// label naming its section (docs/05-discovery.md#browser-acceptance).
+		for _, table := range unnamedTables(body) {
+			t.Errorf("%s has a table without an accessible name: %s", path, table)
+		}
+		tables += strings.Count(body, "<table")
 		// Sign-out and the way to one's own account belong beside the name
 		// they act on, which means on the page, not on a chosen few. The
 		// form's action alone is not the control: a missing button leaves it.
@@ -379,6 +388,23 @@ func TestEverySignedInPageIsTitledUniquelyAndCarriesItsShell(t *testing.T) {
 	for _, route := range routes {
 		body, _ := getAs(t, m, route.path)
 		check(route.path, route.current, route.alias, body)
+	}
+	// Positive control for the table names: every table-drawing template
+	// was reached, so the check above did not pass on pages without one.
+	for _, want := range []string{"aria-labelledby=credentials", "aria-labelledby=loss",
+		"aria-labelledby=leftovers", "aria-labelledby=group-uses", `aria-label="Slot values`} {
+		found := false
+		for _, route := range []string{"/account", "/diagnostics", "/group?name=%40ops", "/activity"} {
+			if body, _ := getAs(t, m, route); strings.Contains(body, want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("no page drew the table named by %s", want)
+		}
+	}
+	if tables < 10 {
+		t.Errorf("only %d tables were checked for a name", tables)
 	}
 	// A refusal names the refusal and not the name that was asked for, so two
 	// not-found pages are deliberately one title: telling a hidden record from
@@ -504,6 +530,28 @@ func TestAFailedRecordReadIsARefusalNotAnEmptyRegistry(t *testing.T) {
 		// The sentence as the problem's detail, not inside its JSON envelope.
 		if !strings.Contains(body, "<p class=warn>the registry could not be read</p>") {
 			t.Errorf("%s does not carry the daemon's own reason: %s", path, body)
+		}
+	}
+}
+
+// unnamedTables returns each opening table tag that neither starts with a
+// caption nor carries an aria-label or aria-labelledby.
+func unnamedTables(body string) []string {
+	var bad []string
+	for rest := body; ; {
+		i := strings.Index(rest, "<table")
+		if i < 0 {
+			return bad
+		}
+		rest = rest[i:]
+		end := strings.Index(rest, ">")
+		if end < 0 {
+			return append(bad, rest)
+		}
+		tag := rest[:end+1]
+		rest = rest[end+1:]
+		if !strings.Contains(tag, "aria-label") && !strings.HasPrefix(rest, "<caption>") {
+			bad = append(bad, tag)
 		}
 	}
 }

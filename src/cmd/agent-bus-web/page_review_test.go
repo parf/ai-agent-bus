@@ -103,7 +103,7 @@ func TestUserPageStatesTheDaemonOwnerOnce(t *testing.T) {
 func TestAccountCredentialsStackAndMarkTheUser(t *testing.T) {
 	p := reviewFixture(t)
 	page, _ := p.request("bob@h", "GET", "/account", nil, 200)
-	if !strings.Contains(page, `<table class="record-table credentials-table">`) {
+	if !strings.Contains(page, `<table class="record-table credentials-table" aria-labelledby=credentials>`) {
 		t.Fatal("the credentials table is not a stacking record table")
 	}
 	if !strings.Contains(page, `<td data-label=Name><code>bob@h</code></td><td data-label=Kind>👤 User</td>`) {
@@ -120,7 +120,7 @@ func TestDiagnosticsTablesFitAPhone(t *testing.T) {
 		`table:not(.record-table):not(.fit-table){display:block;overflow-x:auto}`,
 		`<table class=fit-table><caption>Refusals since this daemon started, by reason</caption><thead><tr><th scope=col>Reason<th scope=col class=num>Count</tr>`,
 		`<table class=fit-table><caption>Inboxes holding messages`,
-		`<table class=fit-table><thead><tr><th scope=col>Name<th scope=col class=num>Dropped`,
+		`<table class=fit-table aria-labelledby=loss><thead><tr><th scope=col>Name<th scope=col class=num>Dropped`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("diagnostics lacks %q", want)

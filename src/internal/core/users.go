@@ -758,6 +758,55 @@ func (b *Bus) RefreshGithub(caller, name string) (protocol.User, error) {
 }
 
 func (b *Bus) userView(caller, name string) protocol.User {
+	return b.userViewFrom(caller, name, nil)
+}
+
+// directoryIndex is what a whole-directory answer would otherwise rescan for
+// every row: the groups each name is a member of, directly or through a
+// nested group, and the live records each name owns. Built once per answer,
+// it keeps the Users listing linear in the directory rather than
+// users x records (Plans/MVP/done/web-acceptance.md#defects-fixed). Caller holds b.mu.
+type directoryIndex struct {
+	groups map[string][]string
+	owned  map[string][]string
+}
+
+func (b *Bus) indexDirectory() *directoryIndex {
+	ix := &directoryIndex{groups: map[string][]string{}, owned: map[string][]string{}}
+	for name, r := range b.records {
+		if r.Kind == protocol.KindGroup {
+			reached := map[string]bool{}
+			b.reachThrough(name, map[string]bool{}, reached)
+			for member := range reached {
+				ix.groups[member] = append(ix.groups[member], name)
+			}
+		}
+		if r.Owner != "" && r.Name != r.Owner && b.live(r) {
+			ix.owned[r.Owner] = append(ix.owned[r.Owner], r.Name)
+		}
+	}
+	return ix
+}
+
+// reachThrough collects every name member(name, group) would find: the
+// same graph walk as memberThrough, gathering instead of searching.
+func (b *Bus) reachThrough(group string, seen, reached map[string]bool) {
+	if !groupName(group) || seen[group] {
+		return
+	}
+	seen[group] = true
+	members, _ := b.groupMembers(group)
+	for _, member := range members {
+		reached[member] = true
+		if group != AdministratorsGroup && groupName(member) {
+			b.reachThrough(member, seen, reached)
+		}
+	}
+}
+
+// userViewFrom is userView, reading memberships and ownership from ix when
+// one is given and scanning the records otherwise.
+func (b *Bus) userViewFrom(caller, name string, ix *directoryIndex) protocol.User {
 	u := b.users[name]
 	u.Name = name
 	u.Kind = b.identityKind(name)
@@ -772,15 +821,19 @@ func (b *Bus) userView(caller, name string) protocol.User {
 	u.CanSetEmail = u.Kind == protocol.DirectoryUser && caller == name && b.acting(caller) == nil
 	u.CanActivate = u.CanEdit
 	u.CanRemove = b.acting(caller) == nil && b.isAdministrator(caller) && b.ownerless(name)
-	for group, r := range b.records {
-		if r.Kind == protocol.KindGroup && b.member(name, group) {
-			u.Groups = append(u.Groups, group)
+	if ix != nil {
+		u.Groups = append([]string(nil), ix.groups[name]...)
+		u.Services = append([]string(nil), ix.owned[name]...)
+	} else {
+		for group, r := range b.records {
+			if r.Kind == protocol.KindGroup && b.member(name, group) {
+				u.Groups = append(u.Groups, group)
+			}
 		}
-	}
-	sort.Strings(u.Groups)
-	for _, r := range b.records {
-		if r.Owner == name && r.Name != name && b.live(r) {
-			u.Services = append(u.Services, r.Name)
+		for _, r := range b.records {
+			if r.Owner == name && r.Name != name && b.live(r) {
+				u.Services = append(u.Services, r.Name)
+			}
 		}
 	}
 	sort.Strings(u.Groups)
@@ -812,9 +865,13 @@ func (b *Bus) Users(caller string, credentialNames []string) []protocol.User {
 		}
 	}
 	out := []protocol.User{}
+	var ix *directoryIndex
 	for name := range names {
 		if caller == name || b.acting(caller) == nil && b.isAdministrator(caller) {
-			out = append(out, b.userView(caller, name))
+			if ix == nil {
+				ix = b.indexDirectory()
+			}
+			out = append(out, b.userViewFrom(caller, name, ix))
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })

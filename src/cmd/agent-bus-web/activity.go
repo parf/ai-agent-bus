@@ -120,7 +120,7 @@ const activityViewTemplate = `{{define "activity-help"}}<ul><li>The last 24 hour
 <ul class=activity-legend>{{range .Series}}<li><span class="activity-swatch {{.Class}}" aria-hidden=true></span>{{.Label}}: {{number .Total}} in the last day</li>{{end}}</ul></figure>
 {{else}}<p>All five series: <strong>0</strong> in the last day.</p>{{end}}
 {{if not .AllZero}}{{with .Zero}}<p class=muted>Zero all day: {{join . ", "}}.</p>{{end}}{{end}}
-{{if .ShowTable}}<details><summary>Slot values</summary><table><thead><tr><th scope=col>Slot<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Dropped<th scope=col class=num>Expired<th scope=col class=num>Refused</tr></thead><tbody>{{range .Points}}<tr><td>{{.At.Format "Jan 2 15:04"}}<td class=num>{{number .In}}<td class=num>{{number .Out}}<td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}<td class=num>{{number .Refused}}</tr>{{end}}</tbody></table></details>{{end}}
+{{if .ShowTable}}<details><summary>Slot values</summary><table aria-label="Slot values, one row per ten-minute slot"><thead><tr><th scope=col>Slot<th scope=col class=num>Accepted<th scope=col class=num>Dequeued<th scope=col class=num>Dropped<th scope=col class=num>Expired<th scope=col class=num>Refused</tr></thead><tbody>{{range .Points}}<tr><td>{{.At.Format "Jan 2 15:04"}}<td class=num>{{number .In}}<td class=num>{{number .Out}}<td class=num>{{number .Dropped}}<td class=num>{{number .Expired}}<td class=num>{{number .Refused}}</tr>{{end}}</tbody></table></details>{{end}}
 {{else}}<p class=muted>The daemon answered no activity.</p>{{end}}
 {{if not .ShowTable}}</section>{{end}}
 {{end}}{{end}}`
