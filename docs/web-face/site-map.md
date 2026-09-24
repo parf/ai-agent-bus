@@ -26,9 +26,9 @@ code was followed and the difference is listed.
 
 | Address | What it is | Specified in |
 |---|---|---|
-| `/` (signed out) | Landing page with sign-in by token at its foot | [/` signed out: landing and sign-in](node.md#-signed-out-landing-and-sign-in) |
+| `/` — homepage for an unregistered visitor | Landing page: picture, what agent-bus is, four feature cards, project links, and sign-in by token at its foot. Also what any unmatched address shows without a session | [/` signed out: landing and sign-in](node.md#-signed-out-landing-and-sign-in) |
 | `POST /signin`, `POST /signout` | Start and end a browser session | [POST /signin](node.md#post-signin), [POST /signout](node.md#post-signout) |
-| `/` (signed in) | Overview: attention items, node strip, Find row | [/` signed in: Overview](node.md#-signed-in-overview) |
+| `/` — homepage for a signed-in user | Overview: attention items, the node strip, the Find row. Also what any unmatched address shows with a session | [/` signed in: Overview](node.md#-signed-in-overview) |
 | `/activity` | A day of activity per visible record, 144 ten-minute slots | [/activity](node.md#activity) |
 | `/diagnostics` | Refusals, held inboxes, retained exchanges, loss, leftover names | [/diagnostics](node.md#diagnostics) |
 | `/agents` `/services` `/queues` `/pubsub` `/personal` | One kind's records; Personal holds every kind, `?kind=` narrows it | [Lists](records.md#lists) |
