@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Partial F.12 journey on the packaged disposable real-systemd host."""
+"""F.12 session, cookie and restart journey on the packaged disposable real-systemd host."""
 
 import argparse
 import json
@@ -94,6 +94,7 @@ def main() -> None:
     parser.add_argument("--token", type=Path, required=True)
     parser.add_argument("--supervisor", type=int, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
+    parser.add_argument("--browser", default="/usr/bin/chromium")
     args = parser.parse_args()
     token = args.token.read_text().strip()
     check(bool(token), "fixture owner token is empty")
@@ -101,13 +102,14 @@ def main() -> None:
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
             headless=True,
-            executable_path="/usr/bin/chromium",
+            executable_path=args.browser,
             args=["--no-sandbox"],
         )
         context = browser.new_context(viewport={"width": 375, "height": 820})
         page = context.new_page()
         page.goto(args.base, wait_until="domcontentloaded")
         check(page.locator('input[name="token"]').count() == 1, "anonymous sign-in form is absent")
+        check(page.locator("form.who").count() == 0, "an anonymous browser is shown as signed in")
         page.get_by_role("textbox", name="token").fill(token)
         page.get_by_role("button", name="sign in").click()
         page.wait_for_load_state("domcontentloaded")
@@ -124,15 +126,24 @@ def main() -> None:
 
         # Every tab is its own page: "/" also answers an unknown path, so each
         # is held to its own title rather than to having one.
-        routes = {"/": "Overview", "/agents": "Agents", "/services": "Services", "/personal": "Personal",
-                  "/channels": "Channels", "/users": "Users", "/groups": "Groups", "/activity": "Activity"}
+        # The 0.8 addresses (docs/web-face/site-map.md): Channels split into
+        # Queues and PubSub in 0.8.4; the header links every one of them.
+        routes = {"/": "Overview", "/agents": "Agents", "/services": "Services", "/queues": "Queues",
+                  "/pubsub": "PubSub", "/personal": "Personal", "/users": "Users", "/groups": "Groups",
+                  "/activity": "Activity", "/diagnostics": "Diagnostics", "/account": "Account"}
         titles = {}
         for route, title in routes.items():
-            page.goto(args.base + route, wait_until="domcontentloaded")
+            response = page.goto(args.base + route, wait_until="domcontentloaded")
+            check(response.status == 200, f"{route} answered {response.status}")
             check(page.locator("h1").count() == 1, f"{route} has no unique title")
             check(page.locator("form.who code").inner_text() == "owner@fresh", f"{route} lost the signed-in identity")
             titles[route] = page.locator("h1").inner_text()
             check(title in titles[route], f"{route} is titled {titles[route]!r}, not {title}")
+        for route in ("/agents", "/services", "/queues", "/pubsub", "/users", "/groups", "/activity", "/diagnostics"):
+            check(page.locator(f'header nav a[href="{route}"]').count() == 1, f"the header does not link {route}")
+        page.goto(args.base + "/channels", wait_until="domcontentloaded")
+        check(page.url == args.base + "/queues", f"the retired /channels address did not redirect to /queues: {page.url}")
+        titles["/channels"] = "-> " + page.url[len(args.base):]
         page.screenshot(path=args.evidence / "browser-owner.png", full_page=True)
 
         old_web = web_renderer()
@@ -180,7 +191,7 @@ def main() -> None:
         }, indent=2) + "\n")
         browser.close()
 
-    print("PASS installed Chromium sign-in, cookie boundary, required tabs, restart semantics and sign-out")
+    print("PASS installed Chromium sign-in, cookie boundary, 0.8 pages, web and bus restart semantics and sign-out")
 
 
 if __name__ == "__main__":
