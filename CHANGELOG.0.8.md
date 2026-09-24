@@ -4,10 +4,16 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
-## 0.8.27 — 2026-09-23
+## 0.8.28 — 2026-09-23
 
 A launcher whose App Server or OpenCode server dies at startup now prints the
 server's own last words, which were in a log its cleanup removed.
+
+## 0.8.27 — 2026-09-23
+
+`agent-bus-admin` writes the invoked `/usr/local/bin` path into a forced command,
+which survives deploys, and refuses to swap another daemon's address for the
+installed account; the installed browser gates refuse to run outside their container.
 
 ## 0.8.26 — 2026-09-23
 

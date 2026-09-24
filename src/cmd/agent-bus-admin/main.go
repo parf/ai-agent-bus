@@ -32,7 +32,33 @@ const (
 	svcAccount = "agent-busd"
 	// Somewhere other than the install: a second one, or a test.
 	homeEnv = "AGENT_BUS_HOME"
+	// The installed daemon's socket (the unit's -socket). An AGENT_BUS_ADDR
+	// naming anything else is a different daemon, which becoming the
+	// installed account would silently trade for this one.
+	installedSocket = "/run/agent-bus/bus.sock"
 )
+
+// invoked is the path this program was run as, symlinks kept: through
+// /usr/local/bin that follows the live release, where os.Executable names
+// one release directory that a later deploy prunes (docs/09-setup.md#install).
+func invoked() (string, error) {
+	if name := os.Args[0]; strings.Contains(name, "/") {
+		return filepath.Abs(name)
+	} else if p, err := exec.LookPath(name); err == nil {
+		return filepath.Abs(p)
+	}
+	return os.Executable()
+}
+
+// switchRefusal says why this run must not become the installed account:
+// sudo drops AGENT_BUS_ADDR, so a caller aimed at another daemon would edit
+// the installed one instead, with nothing to tell it so.
+func switchRefusal(addr string) error {
+	if addr != "" && addr != installedSocket {
+		return fmt.Errorf("AGENT_BUS_ADDR is %s, not the installed daemon; set %s to that daemon's home, or unset AGENT_BUS_ADDR to administer the installed one", addr, homeEnv)
+	}
+	return nil
+}
 
 const usage = `agent-bus-admin — what the agent-busd account owns
 
@@ -179,7 +205,10 @@ func beTheAccount() error {
 	if err != nil || uid == os.Getuid() {
 		return nil
 	}
-	self, err := os.Executable()
+	if err := switchRefusal(os.Getenv("AGENT_BUS_ADDR")); err != nil {
+		return err
+	}
+	self, err := invoked()
 	if err != nil {
 		return err
 	}
@@ -327,7 +356,7 @@ func userAdd(args []string) error {
 	if err != nil {
 		return err
 	}
-	self, err := os.Executable()
+	self, err := invoked()
 	if err != nil {
 		return err
 	}

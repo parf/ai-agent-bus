@@ -9,8 +9,9 @@ answer.
 
 ## Scope
 
+The branch built this tree as 0.8.27 before main took that number; it ships as 0.8.28.
 Development host, disposable daemons and clean runtime profiles; the live node
-was not touched. The program dir was built by `src/build.sh` from the 0.8.27
+was not touched. The program dir was built by `src/build.sh` from the 0.8.28
 tree, as a package ships it. Codex CLI 0.156.1, OpenCode 1.18.30 (upstream
 build), Claude Code 2.1.281. The [MCP minimum](../../../docs/05-discovery.md#mcp-minimum)
 owns the contract.

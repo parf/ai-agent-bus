@@ -91,10 +91,12 @@ printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIalicefixture alice@fresh' >/
 printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIbobfixture bob@fresh' >/root/bob-key.pub
 printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIcarolfixture carol@fresh' >/root/carol-key.pub
 printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIdavefixture dave@fresh' >/root/dave-key.pub
+printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIevefixture eve@fresh' >/root/eve-key.pub
 agent-bus-admin user add alice@fresh - --admin </root/alice-key.pub >/evidence/add-alice.log
 agent-bus-admin user add bob@fresh - </root/bob-key.pub >/evidence/add-bob.log
 agent-bus-admin user add carol@fresh - </root/carol-key.pub >/evidence/add-carol.log
 agent-bus-admin user add dave@fresh - </root/dave-key.pub >/evidence/add-dave.log
+agent-bus-admin user add eve@fresh - </root/eve-key.pub >/evidence/add-eve.log
 agent-bus-admin account set alice alice@fresh >/evidence/map-alice.log
 agent-bus-admin account set bob bob@fresh >/evidence/map-bob.log
 grep -q 'restart agent-busd' /evidence/map-alice.log || fail "alice mapping did not require the listener restart"
@@ -208,12 +210,13 @@ pass "supervisor alone holds CAP_CHOWN; bus and web hold none; all run as agent-
 # driver records cookie properties and screenshots, never the token value.
 agent-bus-admin token owner@fresh >/root/owner.token
 python /fixture/browser.py --base http://127.0.0.1:6780 --token /root/owner.token --supervisor "$main_pid" --evidence /evidence
-pass "real installed browser follows sign-in, web-restart, bus-restart and sign-out session semantics"
+pass "real installed browser follows sign-in, cookie, 0.8 pages, web-restart, bus-restart and sign-out session semantics"
 
 agent-bus-admin token alice@fresh >/root/alice.token
 agent-bus-admin token bob@fresh >/root/bob.token
 agent-bus-admin token carol@fresh >/root/carol.token
 agent-bus-admin token dave@fresh >/root/dave.token
+agent-bus-admin token eve@fresh >/root/eve.token
 cat >/root/fresh-echo.sh <<'SH'
 #!/bin/sh
 printf 'fresh reply: %s\n' "$1"
@@ -240,8 +243,8 @@ pass "new user calls a real script agent using only installed programs; a User i
 python /fixture/browser-roles.py --base http://127.0.0.1:6780 \
   --owner-token /root/owner.token --administrator-token /root/alice.token \
   --resource-owner-token /root/bob.token --maintainer-token /root/carol.token \
-  --ordinary-token /root/dave.token --evidence /evidence
-pass "real installed browser exercises the authority/action matrix, origin refusal and activity graph"
+  --ordinary-token /root/dave.token --stranger-token /root/eve.token --evidence /evidence
+pass "real installed browser exercises the five-role service/queue/pubsub/user/group matrix, stranger and origin refusals and activity graph"
 
 for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web; do
   [ -L "/usr/local/bin/$command" ] || fail "$command is not a stable link"

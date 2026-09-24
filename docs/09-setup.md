@@ -10,7 +10,7 @@ ordinary use needs neither.
 | MVP | Scope |
 |---|---|
 | Built | Distributable archive, installer, administration, token helper, accounts, daemon unit and stamped builds; fresh-host installation, populated upgrade/recovery and [backup/restore](#backup-and-restore) acceptance. |
-| Pending | Installed runtime/browser acceptance. |
+| Pending | Installed runtime acceptance; [browser acceptance](05-discovery.md#browser-acceptance) is built. |
 
 ## The programs
 
@@ -34,7 +34,12 @@ in the daemon account's `authorized_keys` is restricted to a forced command:
 `agent-bus-token <principal>` for an ordinary key, or
 `agent-bus-admin <principal>` for an operator. The entitlement is the principal
 in that entry; `SSH_ORIGINAL_COMMAND` is parsed as a request, not executed as
-shell text.
+shell text. From 0.8.27 the forced command names the program as it was invoked
+(`/usr/local/bin/…`), which follows the live release, never the release
+directory a later deploy prunes. `agent-bus-admin` becomes the daemon account
+through sudo, which drops `AGENT_BUS_ADDR`, so with an `AGENT_BUS_ADDR` naming
+another daemon and no `AGENT_BUS_HOME` it refuses rather than edit the
+installed one.
 
 **`user add` creates the user it adds.** A credential is only issued to a name
 the daemon already holds a profile or a record for

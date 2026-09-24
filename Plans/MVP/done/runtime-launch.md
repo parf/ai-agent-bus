@@ -5,12 +5,13 @@ Claude, each in a launcher-owned native TUI from a program dir built by
 `src/build.sh`. H.9.1 passed everywhere except Codex's enforced mode: the
 thread the TUI runs is workspace-write with on-request approval, whatever the
 App Server is given. That fix widens a sandbox and waits for the owner.
-Startup diagnostics now carry the dying server's own reason (0.8.27).
+Startup diagnostics now carry the dying server's own reason (0.8.28).
 
 ## Scope
 
+The branch built this tree as 0.8.27 before main took that number; it ships as 0.8.28.
 Development host, disposable daemons and clean runtime profiles; the live node
-was not touched. 0.8.27 program dir; Codex CLI 0.156.1, OpenCode 1.18.30
+was not touched. 0.8.28 program dir; Codex CLI 0.156.1, OpenCode 1.18.30
 (upstream build), Claude Code 2.1.281. Codex and OpenCode take model decisions
 from a loopback fixture that never calls MCP or the bus; Claude runs the real
 model under a copied claude.ai login, since only such a profile has channels.
@@ -20,7 +21,7 @@ The fresh-host run stays in the [installed stage gate](../TODO.md#installed-stag
 
 ## Defect found
 
-| Before | After, 0.8.27 |
+| Before | After, 0.8.28 |
 |---|---|
 | Codex's enforced mode reached only the App Server. The remote TUI starts and resumes its thread with its own settings, so every launcher-started Codex session ran `workspace-write` with `on-request` approval: a command outside the working directory waits for a prompt | **Open, owner decision.** Passing the same mode to the TUI fixes it in a test build, but widens the session's sandbox beyond the [documented contract](../../../docs/08-runner-role.md#smart-launchers) (enforced on the App Server); not committed |
 | An App Server that died at startup was reported as "Codex must support --ws-auth capability-token and --remote-auth-token-env", whatever the cause; OpenCode said only "exited during startup". The server's own reason was in a log that cleanup removed | The diagnostic carries the last lines of the server's log: `App Server exited during startup: Error: error loading default config … invalid type: integer 5, expected a map`; OpenCode's names its `EACCES` |

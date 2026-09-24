@@ -9,7 +9,8 @@ configuration fails the exchange, and a reply made outside the session does not 
 
 ## Scope
 
-Development host, disposable daemons; the live node was not touched. 0.8.27
+The branch built this tree as 0.8.27 before main took that number; it ships as 0.8.28.
+Development host, disposable daemons; the live node was not touched. 0.8.28
 program dir, Codex CLI 0.156.1, OpenCode 1.18.30 (upstream build), Claude Code
 2.1.281. Each runtime profile is new: a fresh `HOME`, `CODEX_HOME`, XDG
 directories and, for Claude, a configuration home holding only a copied

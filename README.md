@@ -15,8 +15,8 @@ whole [MVP scope](Plans/MVP/README.md#scope), with built and pending explicit.
 |---|---|
 | Principal credentials, local sockets, service ACL, profiles and Maintainers | — |
 | Registry, topics, calls and restart snapshots | — |
-| Foreground scripts, MCP, runtime adapters, launchers and fresh-host package | [Live-runtime, upgrade and installed browser acceptance](Plans/MVP/TODO.md#remaining-work) |
-| Signed-in dashboard, people view and process split | Installed browser acceptance |
+| Foreground scripts, MCP, runtime adapters, launchers and fresh-host package | [Live-runtime and upgrade acceptance](Plans/MVP/TODO.md#remaining-work) |
+| Signed-in dashboard, people view, process split and installed [browser acceptance](docs/05-discovery.md#browser-acceptance) | — |
 
 [Current docs](docs/00-overview.md#document-ownership) own the contracts;
 [remaining work](Plans/MVP/TODO.md#objective) owns acceptance.
