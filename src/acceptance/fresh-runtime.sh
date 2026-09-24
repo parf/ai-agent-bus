@@ -37,9 +37,11 @@ image=${FRESH_INSTALL_IMAGE:-localhost/agent-bus-fresh-install:arch-systemd}
 podman build --pull=never -t "$image" -f "$here/fresh-install.Containerfile" "$here" >"$out/image-build.log"
 
 names=()
+# The login copy never sits inside the evidence directory, even if the trap never runs.
+stage="$out.login"
 cleanup() {
   for n in "${names[@]}"; do podman stop -t 10 "$n" >/dev/null 2>&1 || true; done
-  rm -rf "$out/login"
+  rm -rf "$stage"
 }
 trap cleanup EXIT
 host() { # host MODE NETWORK EXTRA...
@@ -66,10 +68,10 @@ status=0
 [ "${OFFLINE:-1}" = 0 ] || host offline none || status=1
 if [ -n "$login" ]; then
   # Only the login: the credential file and the account fields a profile needs.
-  mkdir -m 700 "$out/login"
-  install -m 0600 "$login/.credentials.json" "$out/login/.credentials.json"
-  bun -e 'const a = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); console.log(JSON.stringify({ oauthAccount: a.oauthAccount, userID: a.userID }))' "$login/.claude.json" >"$out/login/.claude.json"
-  chmod 0600 "$out/login/.claude.json"
-  host claude pasta -v "$out/login:/login:ro" || status=1
+  mkdir -m 700 "$stage"
+  install -m 0600 "$login/.credentials.json" "$stage/.credentials.json"
+  bun -e 'const a = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); console.log(JSON.stringify({ oauthAccount: a.oauthAccount, userID: a.userID }))' "$login/.claude.json" >"$stage/.claude.json"
+  chmod 0600 "$stage/.claude.json"
+  host claude pasta -v "$stage:/login:ro" || status=1
 fi
 exit "$status"

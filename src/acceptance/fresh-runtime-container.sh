@@ -33,8 +33,9 @@ pass "packaged agent-bus-setup installed a real systemd node ($(cat /root/valid/
 useradd --create-home --shell /bin/bash alice
 printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIalicefixture alice@fresh' | agent-bus-admin user add alice@fresh - >/evidence/add-alice.log 2>&1 || fail "user add alice"
 agent-bus-admin account set alice alice@fresh >/evidence/map-alice.log 2>&1 || fail "account set alice"
-systemctl restart agent-busd
+systemctl restart agent-busd || fail "the node did not restart after the account mapping"
 for _ in $(seq 1 100); do [ -S /run/agent-bus/user-alice.sock ] && break; sleep .1; done
+[ -S /run/agent-bus/user-alice.sock ] || fail "alice's socket did not appear after the restart"
 runuser -u alice -- agent-bus status >/evidence/alice.status 2>&1 || fail "alice cannot use her socket"
 grep -q '"you":"alice@fresh"' /evidence/alice.status || fail "alice's socket does not authenticate alice@fresh"
 getent passwd agent-bus-runner >/dev/null || fail "setup did not create the second account agent-bus-runner"

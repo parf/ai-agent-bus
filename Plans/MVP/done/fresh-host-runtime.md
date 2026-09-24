@@ -5,7 +5,7 @@
 `agent-bus-setup` as a real systemd node on a disposable host with no `/rd`, no
 checkout and no Go. The installed `ab-codex`, `ab-opencode` and `ab-claude`
 passed delivery, the MCP minimum, launch, failure handling, naming and recovery:
-18 gate runs, 0 failures. Two launcher defects were found and fixed in 0.8.30.
+16 gate runs, 0 failures. Two launcher defects were found and fixed in 0.8.30.
 
 ## Scope
 
@@ -23,14 +23,14 @@ the installed `agent-busd`. The live node, its unit and its accounts were not to
 
 ```
 src/package.sh "$PWD/tmp/frt/dist"
-src/acceptance/fresh-runtime.sh tmp/frt/dist/agent-bus-0.8.30-linux-x86_64.tar.gz tmp/frt/final /home/parf/.claude2
+src/acceptance/fresh-runtime.sh tmp/frt/dist/agent-bus-0.8.30-linux-x86_64.tar.gz tmp/frt/final2 /home/parf/.claude2
 ```
 
 The [driver](../../../src/acceptance/fresh-runtime.sh) bundles the gate programs
 with `bun build`, so no source tree goes onto the host. It mounts the archive,
 the bundles and read-only copies of the runtime executables. It then runs the
 [container script](../../../src/acceptance/fresh-runtime-container.sh) on two
-disposable hosts. **Result: exit 0.** Evidence is under `tmp/frt/final/`.
+disposable hosts. **Result: exit 0.** Evidence is under `tmp/frt/final2/`.
 
 | Host condition | Offline host | Claude host |
 |---|---|---|
@@ -87,6 +87,22 @@ account socket. That socket always speaks as its account, so the "peer" was
 principal. The peer now uses the shared socket, and the reply's `to` is
 asserted.
 
+## Review
+
+A read-only review from the live OpenCode session of `git diff main...HEAD`
+found no either-way checks, leaks or wrong-process signals. It raised five low
+findings:
+
+| Finding | Outcome |
+|---|---|
+| The TL;DR said 18 gate runs; there are 16 | Fixed |
+| The login copy was staged inside the evidence directory, removed only by the EXIT trap | Fixed: it is staged beside it, as `<out>.login` |
+| An unchecked `systemctl restart` and an unbounded socket wait would be blamed on alice's socket | Fixed: each fails with its own sentence |
+| Without `id` on `PATH`, discovery finds no account and the launcher starts a plain session | Kept. `id` is coreutils, and the launcher needs `bun` on the same `PATH` |
+| A swallowed transcript wait can hide a slow transcript behind the next check's name | Kept. The next two checks re-assert the transcript directly |
+
+The gate was rerun after the fixes (`tmp/frt/final2/`).
+
 ## Repository verification
 
 `PORT=38000 src/smoke.sh --slow` passed **784/0** on the 0.8.30 tree.
@@ -94,4 +110,5 @@ asserted.
 ## Not claimed
 
 - The Codex and OpenCode models are the loopback fixture, not a provider.
-- Distributions other than Arch Linux, and hosts without Bun installed by hand.
+- Distributions other than Arch Linux.
+- Bun and the runtimes are prerequisites the host brings; the package installs neither.
