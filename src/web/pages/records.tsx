@@ -379,7 +379,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
           <p class="muted small">Updated {stamp(rec.at)} · Config {rec.config_sha || "—"}</p>
         </Card>
         {where}{policy}{counters}
-        {manage ? <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">configuration{rec.can_transfer && !inbox ? ", transfer" : ""}{inbox ? "" : ", removal"}</span></a> : null}
+        {manage && !inbox ? <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">configuration{rec.can_transfer && !inbox ? ", transfer" : ""}{inbox ? "" : ", removal"}</span></a> : null}
       </div>
     </div>
   </>;
@@ -421,7 +421,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
   if (rec.kind === "group") return redirect(`/group/edit?name=${encodeURIComponent(rec.name)}`, 302);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can change this record's settings");
-  const ret = st.values.return ?? returnTo(ctx.q("return"), [listOf(rec)], "");
+  const ret = returnTo(st.values.return ?? ctx.q("return"), [listOf(rec)], "");
   const detailHref = recordHref(rec, ret ? { return: ret } : undefined);
   const body = <>
     <PageHead back={{ href: detailHref, label: `Back to ${rec.name}` }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<>Edit {noun(rec.kind)} <Name>{rec.name}</Name></>} />
@@ -466,6 +466,7 @@ async function deactivatePage(ctx: Ctx): Promise<Response> {
 export async function dangerPage(ctx: Ctx, name: string, err?: { section: "configure" | "transfer"; error: FormError; owner?: string }, status = 200): Promise<Response> {
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can manage this record");
+  if (rec.kind === "user") throw notYours("a user's inbox has no configuration, transfer or removal; it follows its user");
   const group = rec.kind === "group";
   const prefixed = group && /^@[^/]+\//.test(rec.name);
   const configurable = rec.kind === "agent" || rec.kind === "service" || group;
@@ -585,7 +586,7 @@ async function postService(ctx: Ctx): Promise<Response> {
         await ctx.bus("POST", "/register", { body, headers: { "If-None-Match": "*" } });
       } catch (e) {
         const r = formRefusal(e);
-        const line = r ? attribute(ctx, r.message, ["subs", "allow"]) : undefined;
+        const line = r && r.status !== 412 ? attribute(ctx, r.message, ["subs", "allow"]) : undefined;
         if (!r || (!r.preserve && !line)) throw e;
         return registerPage(ctx, kind, { values, error: { status: r.status, message: line?.message ?? r.message, field: line?.field ?? (r.status === 412 ? "name" : undefined), line: line?.line } }, r.status);
       }

@@ -145,8 +145,8 @@ describe("exchanges", () => {
 describe("used by", () => {
   test("direct, maintainer and nested uses are named", () => {
     const groups = { "@ops": ["alice"], "@all": ["@ops"] };
-    const recs = [rec({ name: "q1", allow: ["@ops"] }), rec({ name: "q2", maintainers: ["@ops"] }), rec({ name: "q3", allow: ["@all"] }), rec({ name: "@all", kind: "group", allow: ["@ops"] }), rec({ name: "@top", kind: "group", allow: ["@all"] })];
-    expect(usedBy("@ops", recs, { ...groups, "@top": ["@all"] }).map(u => `${u.rec.name}:${u.uses.join("+")}`)).toEqual(["@all:member", "@top:member via @all", "q1:ACL", "q2:Maintainers", "q3:ACL via @all"]);
+    const recs = [rec({ name: "q1", allow: ["@ops"] }), rec({ name: "q2", maintainers: ["@ops"] }), rec({ name: "q3", allow: ["@all"] }), rec({ name: "q4", maintainers: ["@all"] }), rec({ name: "@all", kind: "group", allow: ["@ops"] }), rec({ name: "@top", kind: "group", allow: ["@all"] })];
+    expect(usedBy("@ops", recs, { ...groups, "@top": ["@all"] }).map(u => `${u.rec.name}:${u.uses.join("+")}`)).toEqual(["@all:member", "@top:member via @all", "q1:ACL", "q2:Maintainers", "q3:ACL via @all", "q4:Maintainers via @all"]);
   });
 });
 

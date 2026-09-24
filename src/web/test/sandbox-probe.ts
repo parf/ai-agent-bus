@@ -15,6 +15,8 @@ expectFail("read /etc/ssh", () => readdirSync("/etc/ssh"));
 expectFail("read /root", () => readdirSync("/root"));
 const ex = spawnSync("/usr/local/lib/agent-bus/current/agent-busd", ["--version"]);
 out.push(ex.error || ex.status !== 0 ? `ok   exec agent-busd: ${(ex.error as any)?.code ?? ex.status}` : "FAIL exec agent-busd: ran");
+const ex2 = spawnSync("/usr/lib/systemd/systemd-executor", ["--version"]);
+out.push(ex2.error || ex2.status !== 0 ? `ok   exec a program under /usr/lib: ${(ex2.error as any)?.code ?? ex2.status}` : "FAIL exec a program under /usr/lib: ran");
 const sh = spawnSync("/bin/sh", ["-c", "echo hi"]);
 out.push(sh.error || sh.status !== 0 ? `ok   exec /bin/sh: ${(sh.error as any)?.code ?? sh.status}` : "FAIL exec /bin/sh: ran");
 try { await fetch("http://1.1.1.1/", { signal: AbortSignal.timeout(3000) }); out.push("FAIL connect out: allowed"); } catch (e: any) { out.push(`ok   connect out: ${e.name}`); }

@@ -74,10 +74,15 @@ export function formRefusal(e: unknown): { status: number; message: string; pres
 
 /** The 1-based line of a submitted list field that the daemon's message names, if any. */
 export function lineRefusal(message: string, lines: string[]): number {
-  const words = new Set(message.split(/[\s:,;"'()]+/).filter(Boolean));
+  // The daemon's own "Line N:" wins; otherwise a line counts only where the
+  // message names a term — after ": ", in quotes, or last — never as any word.
+  const own = /^Line (\d+):/.exec(message);
+  if (own) return Number(own[1]) <= lines.length ? Number(own[1]) : 0;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i]!.trim();
-    if (l && (words.has(l) || message.includes(` ${l}:`) || message.endsWith(` ${l}`))) return i + 1;
+    if (!l) continue;
+    const at = (s: string) => message.includes(s);
+    if (at(`: ${l}`) || at(`"${l}"`) || at(` ${l}:`) || message.endsWith(` ${l}`)) return i + 1;
   }
   return 0;
 }

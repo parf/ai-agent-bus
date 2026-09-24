@@ -70,7 +70,9 @@ export class Ctx {
   constructor(readonly req: Request, readonly daemon: Daemon, readonly tls: boolean) {
     this.url = new URL(req.url);
     this.cookies = parseCookies(req.headers.get("cookie"));
-    this.session = this.cookies[COOKIE] ?? "";
+    // The daemon's session id is hex; anything else is not a session this face set.
+    const sid = this.cookies[COOKIE] ?? "";
+    this.session = /^[0-9a-f]{8,128}$/.test(sid) ? sid : "";
   }
 
   get signedIn() { return this.session !== ""; }

@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.34 — 2026-09-24
+
+The web face takes Fable's review: only a hex session id is a session, `return`
+values are checked everywhere, `412` marks the name, a user inbox has no Danger
+Zone, and the unit may execute bun and its five libraries only.
+
 ## 0.8.33 — 2026-09-24
 
 The TypeScript web face survives a malformed cookie, escapes the day ribbon's

@@ -3,7 +3,8 @@
 📌 **TL;DR:** W.1–W.10 are built in `src/web` (0.8.32, 2026-09-24): every
 site-map address, the new design, and a development install running as its
 own account on `127.0.0.1:6781` against the live daemon. W.11, the cutover,
-waits for the owner. Open checks are named per row.
+waits for the owner. OpenCode and Fable reviewed the code on 2026-09-24; every
+verified finding is fixed with a check that fails without it (0.8.33–0.8.34). Open checks are named per row.
 
 ## Done — Web
 

@@ -49,9 +49,9 @@ BindReadOnlyPaths=/var/lib/agent-bus/web:/var/lib/agent-bus/web
 BindReadOnlyPaths=/usr/local/src/ai-agent-bus/src/internal/version:/var/lib/agent-bus/internal/version
 InaccessiblePaths=-/root -/etc/ssh -/usr/local/src/ai-agent-bus/.git
 
-# Exec: bun and the libraries it maps, nothing else.
+# Exec: bun and the five libraries it links (ldd /usr/bin/bun), nothing else.
 NoExecPaths=/
-ExecPaths=/usr/bin/bun /usr/lib /usr/lib64
+ExecPaths=/usr/bin/bun /usr/lib64/ld-linux-x86-64.so.2 /usr/lib64/libc.so.6 /usr/lib64/libm.so.6 /usr/lib64/libdl.so.2 /usr/lib64/libpthread.so.0
 
 # Kernel
 ProtectKernelTunables=yes

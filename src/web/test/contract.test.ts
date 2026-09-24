@@ -38,6 +38,7 @@ beforeAll(async () => {
   await api("/register", { name: "news@test", kind: "pubsub", subs: ["jobs@test"], allow: ["*"] });
   await api("/register", { name: "db@test", kind: "service", addr: "db:5432", protocol: "postgresql" });
   await api("/group", { Name: "@ops", Members: ["bob"] });
+  await api("/group", { Name: "@hidden", Members: ["owner@test"] });
   await api("/send", { to: "jobs@test", body: "hello", topic: "t", tag: "x" });
   handle = makeHandler({ daemon: join(dir, "bus.sock"), listen: { hostname: "127.0.0.1", port: 6781 }, dev: false });
 }, 120_000);
@@ -155,6 +156,11 @@ describe("sign-in", () => {
     const t = await req("/signin", { form: { token: "abc\r\ndef" } });
     expect(t.status).toBe(401);
   });
+  test("a cookie that is not a session id is no session, not a daemon outage", async () => {
+    const r = await handle(new Request(ORIGIN + "/agents", { headers: { host: "127.0.0.1:6781", cookie: "agent_bus_session=abc%0d%0aX-Agent-Bus-Token: def" } }));
+    expect(r.status).toBe(401);
+    expect(await r.text()).toContain("sign in to open this page");
+  });
   test("an ended session asks to sign in again", async () => {
     const r = await req("/agents", { cookie: "deadbeef" });
     expect(r.status).toBe(401);
@@ -177,6 +183,38 @@ describe("pages as the daemon owner", () => {
       expect(`${p} ${/\sstyle=/.test(t)}`).toBe(`${p} false`);
       expect(`${p} ${/<script(?![^>]*\bsrc=)/.test(t)}`).toBe(`${p} false`);
     }
+  });
+  test("signed in, /users?kind=other goes to the leftovers", async () => {
+    const r = await req("/users?kind=other", { cookie: s });
+    expect(r.status).toBe(303);
+    expect(r.headers.get("location")).toBe("/diagnostics#leftovers");
+  });
+  test("a bad return on a user action cannot fail it afterwards", async () => {
+    const r = await req("/user", { cookie: s, form: { action: "active", name: "bob", return: "/user?a\r\nb" } });
+    expect(r.status).toBe(303);
+  });
+  test("a refused save never re-emits a foreign return", async () => {
+    const r = await req("/service", { cookie: s, form: { action: "save", name: "jobs@test", descr: "Jobs", bound: "abc", return: "https://evil.example/x" } });
+    expect(r.status).toBe(400);
+    expect(await r.text()).not.toContain("evil.example");
+  });
+  test("a taken name marks the name even when a list line reads like the message", async () => {
+    const r = await req("/service", { cookie: s, form: { action: "create", kind: "queue", name: "jobs@test", allow: "registered\n@owner" } });
+    expect(r.status).toBe(412);
+    const t = await r.text();
+    expect(t).toMatch(/id="create-name"[^>]*aria-invalid="true"/);
+    expect(t).toMatch(/id="f-allow"[^>]*aria-invalid="false"/);
+  });
+  test("a daemon refusal naming a member line marks that line", async () => {
+    const r = await req("/groups", { cookie: s, form: { action: "save", name: "@ops", members: "bob\nnosuchuser" } });
+    expect(r.status).toBe(404);
+    const t = await r.text();
+    expect(t).toMatch(/id="f-members"[^>]*data-bad-line="2"[^>]*aria-invalid="true"/);
+    expect(t).toContain("Line 2:");
+  });
+  test("a user inbox offers no Danger Zone", async () => {
+    expect(await (await req("/queue?name=owner@test", { cookie: s })).text()).not.toContain("/service-danger");
+    expect((await req("/service-danger?name=owner@test", { cookie: s })).status).toBe(403);
   });
   test("an absent name is 404 No such name, with no Try again", async () => {
     const r = await req("/agent?name=%23nobody@test", { cookie: s });
@@ -248,6 +286,18 @@ describe("pages as an ordinary user", () => {
     expect(t).not.toContain("/user?name=owner%40test");
     expect(t).not.toContain('href="/users/new"');
   });
+  test("their palette omits what they may not see", async () => {
+    const j = await (await req("/palette.json", { cookie: s, headers: { "sec-fetch-site": "same-origin" } })).json() as { entries: { title: string }[] };
+    const titles = j.entries.map(e => e.title);
+    expect(titles).toContain("jobs@test");
+    expect(titles).not.toContain("#helper@test");
+    expect(titles).not.toContain("db@test");
+  });
+  test("a group whose record they cannot see says so, not a blank owner", async () => {
+    const t = await (await req("/groups", { cookie: s })).text();
+    const row = t.slice(t.indexOf("@hidden"), t.indexOf("</tr>", t.indexOf("@hidden")));
+    expect(row).toContain("Not visible to you");
+  });
   test("a record they may not see is No such name", async () => {
     const r = await req("/agent?name=%23helper@test", { cookie: s });
     expect(r.status).toBe(404);
@@ -260,14 +310,15 @@ describe("pages as an ordinary user", () => {
   });
   test("palette refuses a cross-site fetch and a signed-out one", async () => {
     expect((await req("/palette.json", { cookie: s, headers: { "sec-fetch-site": "cross-site" } })).status).toBe(403);
-    expect((await req("/palette.json")).status).toBe(401);
+    expect((await req("/palette.json", { headers: { "sec-fetch-site": "same-origin" } })).status).toBe(401);
+    expect((await req("/palette.json", { cookie: s })).status).toBe(403);
   });
 });
 
 describe("the daemon unreachable", () => {
   test("502 The bus is not answering, and the socket path never shows", async () => {
     const h = makeHandler({ daemon: join(dir, "missing.sock"), listen: { hostname: "127.0.0.1", port: 6781 }, dev: false });
-    const r = await h(new Request(ORIGIN + "/agents", { headers: { host: "127.0.0.1:6781", cookie: "agent_bus_session=abc" } }));
+    const r = await h(new Request(ORIGIN + "/agents", { headers: { host: "127.0.0.1:6781", cookie: "agent_bus_session=abcdef0123456789" } }));
     expect(r.status).toBe(502);
     const t = await r.text();
     expect(t).toContain("The bus is not answering");

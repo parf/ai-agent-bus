@@ -89,6 +89,7 @@ if (import.meta.main) {
     port: cfg.listen.port,
     fetch: handler,
     maxRequestBodySize: 2 << 20,
+    idleTimeout: 150, // longer than the daemon client's own 120 s wait
     ...(cfg.tls ? { tls: { cert: Bun.file(cfg.tls.cert), key: Bun.file(cfg.tls.key) } } : {}),
   });
   console.log(`agent-bus-web ${VERSION} listening on ${cfg.tls ? "https" : "http"}://${server.hostname}:${server.port}/ (daemon ${cfg.daemon})`);

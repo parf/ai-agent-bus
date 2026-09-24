@@ -5,7 +5,7 @@ import { Ctx, NotFound, LocalProblem, Refusal, SignInRequired, type Rec, type Us
 import { respond, flashRedirect } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, recordHref } from "../ui/kit.tsx";
 import { TextField, LinesField, SecretField, CheckField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
-import { redirect, returnTo, json } from "../http.ts";
+import { redirect, returnTo, json, local } from "../http.ts";
 import { number, relative, minute, validTime } from "../format.ts";
 import { formRefusal, lineRefusal, notYours } from "../problem.tsx";
 import { authority, entityLabel, entity, DAEMON_OWNER, MAINTAINER } from "../glyphs.ts";
@@ -299,7 +299,7 @@ async function credentialRemovePage(ctx: Ctx): Promise<Response> {
 
 async function postUser(ctx: Ctx): Promise<Response> {
   const action = ctx.f("action"), name = ctx.f("name").trim();
-  const ret = (() => { const r = ctx.f("return"); return r.startsWith("/user?") ? r : userReturn(r); })();
+  const ret = (() => { const r = local(ctx.f("return")); return r.startsWith("/user?") ? r : userReturn(r); })();
   const s = await ctx.status();
   const profile = () => ({
     name, person_name: ctx.f("person_name"), email: ctx.f("email"), github_user: ctx.f("github_user"),
@@ -410,7 +410,10 @@ export function usedBy(name: string, records: Rec[], groups: Groups): { rec: Rec
     const inList = r.kind === "group" ? "member" : "ACL";
     if ((r.allow ?? []).includes(name)) uses.push(inList);
     if ((r.maintainers ?? []).includes(name)) uses.push("Maintainers");
-    for (const [outer] of outers) if ((r.allow ?? []).includes(outer)) uses.push(`${inList} via ${outer}`);
+    for (const [outer] of outers) {
+      if ((r.allow ?? []).includes(outer)) uses.push(`${inList} via ${outer}`);
+      if ((r.maintainers ?? []).includes(outer)) uses.push(`Maintainers via ${outer}`);
+    }
     if (uses.length) out.push({ rec: r, uses });
   }
   return out.sort((a, b) => a.rec.name.localeCompare(b.rec.name));
@@ -636,7 +639,7 @@ async function accountPage(ctx: Ctx): Promise<Response> {
 /** What the ⌘K palette offers: only names this visitor's own answers contain. */
 async function paletteJson(ctx: Ctx): Promise<Response> {
   const site = ctx.req.headers.get("sec-fetch-site");
-  if (site && site !== "same-origin" && site !== "none") return json({ error: "same-origin request required" }, 403);
+  if (site !== "same-origin" && site !== "none") return json({ error: "same-origin request required" }, 403);
   if (!ctx.signedIn) return json({ error: "sign in required" }, 401);
   try {
     const [records, groups, users] = await Promise.all([ctx.records(), ctx.groups(), ctx.users().catch(() => [] as UserRow[])]);
