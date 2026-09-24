@@ -1,0 +1,80 @@
+# agent-bus web face (TypeScript), development environment: runs the git
+# checkout through /var/lib/agent-bus/web under its own account, with nothing
+# of its own to read but that code and the daemon's shared socket.
+# Installed by src/web/install-dev.sh; see Plans/Web/README.md#the-unit.
+[Unit]
+Description=agent-bus web face (TypeScript)
+After=agent-busd.service network.target
+Wants=agent-busd.service
+
+[Service]
+Type=simple
+User=agent-bus-web
+Group=agent-bus-web
+ExecStart=/usr/bin/bun run /var/lib/agent-bus/web/server.ts
+WorkingDirectory=/var/lib/agent-bus/web
+Restart=on-failure
+RestartSec=2
+UMask=0077
+
+# Only what the face is told.
+Environment=AGENT_BUS_ADDR=/run/agent-bus/bus.sock
+Environment=AGENT_BUS_WEB_ADDR=127.0.0.1:6781
+Environment=BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
+Environment=HOME=/nonexistent
+
+# Privilege
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+KeyringMode=private
+RemoveIPC=yes
+PrivateUsers=yes
+
+# Filesystem: everything read-only; no home, no devices, a private /tmp; the
+# daemon's and runner's state directories do not exist for it.
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+DevicePolicy=closed
+InaccessiblePaths=-/var/lib/agent-bus/daemon -/var/lib/agent-bus/runner -/var/lib/agent-bus/service.d -/root -/etc/ssh -/usr/local/src/ai-agent-bus/.git
+
+# Exec: bun and the libraries it maps, nothing else.
+NoExecPaths=/
+ExecPaths=/usr/bin/bun /usr/lib /usr/lib64
+
+# Kernel
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+
+# System calls
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap
+SystemCallErrorNumber=EPERM
+
+# Network: answers on loopback, connects out to nothing.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+# Resources
+MemoryMax=256M
+MemorySwapMax=0
+TasksMax=64
+CPUQuota=100%
+LimitNOFILE=1024
+
+[Install]
+WantedBy=multi-user.target
