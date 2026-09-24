@@ -1,0 +1,16 @@
+{
+  "name": "@agent-bus/web",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "agent-bus web face: server-rendered pages over the daemon's shared socket, the visitor's session only",
+  "scripts": {
+    "start": "bun run server.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "typescript": "^5.9.0"
+  }
+}

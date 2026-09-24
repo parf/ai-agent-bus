@@ -1,0 +1,62 @@
+/* Base elements. */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-1);
+  background: var(--surface-0);
+  background-image: var(--bg-glow);
+  background-attachment: fixed;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+h1, h2, h3 { line-height: 1.2; margin: 0; font-weight: 650; letter-spacing: -.015em; }
+h1 { font-size: 1.75rem; letter-spacing: -.025em; }
+h2 { font-size: 1.05rem; }
+h3 { font-size: .95rem; }
+p { margin: .5rem 0; }
+a { color: var(--text-1); text-decoration-color: var(--border-strong); text-underline-offset: 3px; transition: color var(--t-fast); }
+a:hover { color: var(--accent-text); text-decoration-color: currentColor; }
+code, kbd, pre, .mono { font-family: var(--mono); font-size: .86em; font-feature-settings: normal; }
+code { color: var(--text-1); overflow-wrap: anywhere; }
+kbd {
+  display: inline-block; min-width: 1.5em; padding: 0 .35em; border-radius: 5px; text-align: center;
+  border: 1px solid var(--border-strong); border-bottom-width: 2px; background: var(--surface-3); color: var(--text-2); font-size: .72rem; line-height: 1.5;
+}
+strong, b { font-weight: 620; }
+small, .small { font-size: .82rem; }
+.muted { color: var(--text-3); }
+.warn { color: var(--bad); font-weight: 520; }
+.num, td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.sr-only { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+img { max-width: 100%; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+::selection { background: var(--accent-soft); color: var(--text-1); }
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+
+.skip-link { position: absolute; left: 1rem; top: -3rem; z-index: 100; padding: .5rem .9rem; border-radius: var(--radius-sm); background: var(--accent); color: #fff; transition: top var(--t); }
+.skip-link:focus { top: .75rem; color: #fff; }
+
+/* Icons: the box is fixed before Lucide draws, so nothing moves when it does. */
+.ic { display: inline-block; width: 1.05em; height: 1.05em; flex: none; vertical-align: -.16em; }
+svg.ic, svg.lucide { stroke-width: 1.75; }
+
+/* Cross-document transitions: only main morphs; the frame stays put. */
+@view-transition { navigation: auto; }
+.sidebar { view-transition-name: sidebar; }
+.topbar { view-transition-name: topbar; }
+.page-head h1 { view-transition-name: page-title; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 160ms; animation-timing-function: var(--ease); }
+::view-transition-old(page-title) { animation: 140ms var(--ease) both vt-out; }
+::view-transition-new(page-title) { animation: 180ms var(--ease) both vt-in; }
+@keyframes vt-out { to { opacity: 0; transform: translateY(-4px); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

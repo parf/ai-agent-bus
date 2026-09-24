@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.32 — 2026-09-24
+
+The TypeScript web face (`src/web`, Plans/Web) serves every page from the site
+map on bun, with the new design; the Go face still runs beside it until cutover.
+
 ## 0.8.31 — 2026-09-23
 
 `ab-claude` counts a channel Claude registered under the enclosing Git repository,

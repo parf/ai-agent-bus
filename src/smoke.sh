@@ -72,7 +72,7 @@ PORT=${PORT:-7911}
 SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   script_done script_confined listing backlog ttl full_queue enrolment restart
   orphans transfer corrupt_pair supervisor
-  mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename)
+  mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -3334,6 +3334,21 @@ mcp_push() { mcp_face "claude push" mcp_push_body; }
 mcp_codex() { mcp_face "codex adapter" mcp_codex_body; }
 mcp_launcher() { mcp_face "installed launcher" mcp_launcher_body; }
 mcp_rename() { mcp_face "coordinated launcher rename" mcp_rename_body; }
+# The TypeScript web face: its unit tests and its contract tests, which run
+# every page through the real handler against a disposable daemon built here.
+# Each bun test is one check, so a test that fails is a failed check.
+web_ts() {
+  sec "TypeScript web face (src/web): unit and contract tests"
+  local out rc p f
+  out=$(cd "$(dirname "$SELF")/web" && AGENT_BUS_BIN_DIR="$D" AGENT_BUS_TMP="$D" timeout 180 bun test 2>&1); rc=$?
+  p=$(sed -n 's/^ *\([0-9][0-9]*\) pass$/\1/p' <<<"$out" | tail -1); f=$(sed -n 's/^ *\([0-9][0-9]*\) fail$/\1/p' <<<"$out" | tail -1)
+  p=${p:-0}; f=${f:-0}
+  pass=$((pass + p)); fail=$((fail + f))
+  grep -A12 '^(fail)\|error:' <<<"$out" | head -60 | sed 's/^/  /'
+  if [ "$rc" != 0 ] && [ "$f" = 0 ]; then echo "  FAIL bun test exited $rc with no failed test"; fail=$((fail + 1)); fi
+  [ "$p" -gt 40 ] || { echo "  FAIL only $p web tests ran"; fail=$((fail + 1)); }
+  echo "  ok   $p web tests"
+}
 core_10() {
 sec "the run stops what it started"
 # $DPID is what the exit trap kills, and this file spawns dozens of
