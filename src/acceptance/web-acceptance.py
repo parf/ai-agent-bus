@@ -695,6 +695,7 @@ def legacy(browser, web, bus):
         (f"/channel/edit?name=legacy-queue{r}", f"/queue/edit?name=legacy-queue{r}", "legacy-queue"),
         (f"/channel/edit?name=legacy-topic{r}", f"/pubsub/topic/edit?name=legacy-topic{r}", "legacy-topic"),
         ("/users?kind=other", "/diagnostics#leftovers", "Diagnostics"),
+        # The retired kind=users filter is ignored: the Users page, not a refusal.
         ("/users?kind=users", "/users?kind=users", "Users"),
     ]
     for old, new, heading in cases:
@@ -702,7 +703,7 @@ def legacy(browser, web, bus):
         h1 = page.locator("h1").first.inner_text() if page.locator("h1").count() else ""
         check(resp.status == 200 and page.url == web.url + new and heading.lower() in h1.lower(),
               f"legacy {old} lands on {new}", (resp.status, page.url, h1))
-    # /favicon.ico is answered, deliberately empty: the icon is the SVG.
+    # /favicon.ico is a deliberate 404: the icon is the SVG.
     for path, want in [("/healthz", 200), ("/ui.js", 200), ("/favicon.svg", 200), ("/favicon.ico", 404),
                        ("/agent-bus.jpg", 200)]:
         resp = page.goto(web.url + path)
