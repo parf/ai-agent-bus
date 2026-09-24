@@ -13,14 +13,14 @@ design; the Go face gone.
 
 ## Next step
 
-Owner answers to [QUESTIONS](QUESTIONS.md#open-questions), then W.1.
+W.1. Every choice before it is [settled](DECISIONS.md#decisions).
 
 ## Steps
 
 | ID | Step | Acceptance |
 |---|---|---|
 | W.1 | **Skeleton.** `src/web/` package, `Bun.serve`, the JSX runtime, the daemon client, security headers, origin checks, body cap, `/healthz`, `--version` | unescaped text in a view fails a test; a foreign or missing `Origin` on a POST gets `403 same-origin form required`; a transport error's text never reaches a page; `--version` prints the build stamp |
-| W.2 | **Design system.** Tokens, both themes, the stylesheet, fonts, every component in `src/web/ui/`, and a `/_styleguide` page served only with `AGENT_BUS_WEB_DEV=1` | the style guide renders every component in both themes at 1440, 768 and 390 px with no sideways scroll; axe finds no violation; the owner approves the look before W.4 |
+| W.2 | **Design system.** Tokens, both themes, the stylesheet, fonts, every component in `src/web/ui/`, and a `/_styleguide` page served only with `AGENT_BUS_WEB_DEV=1` | the style guide renders every component in both themes at 1440, 768 and 390 px with no sideways scroll; axe finds no violation; an external tag without `integrity` fails a test; with the CDN blocked every page still works; the owner approves the look before W.4 |
 | W.3 | **Shell and session.** Frame, sidebar, header, footer, landing (signed-out homepage), `POST /signin`, `POST /signout`, the problem pages, the signed-out answer, `return` rules | a signed-out request to any page shows sign-in with the right status and `return`; `return=//evil` lands on `/`; the cookie never holds the token and has no `Max-Age`; every row of [problem page](../../docs/web-face/shell.md#problem-page) is produced by a daemon answer in a contract test |
 | W.4 | **Overview** (signed-in homepage) | every attention item condition from [the spec](../../docs/web-face/node.md#attention-items) appears and sorts as stated; an ordinary user never sees the owner-inactive item; zero reads as `—` in the strip |
 | W.5 | **Activity and Diagnostics** | 144 slots with hour ticks; a hidden name is `404`; exchange folding passes a table of cases from [Diagnostics](../../docs/web-face/node.md#diagnostics), `reply_to` included; refusals list every reason at a measured `0` |

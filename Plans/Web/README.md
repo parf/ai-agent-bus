@@ -56,10 +56,38 @@ Built-in first, per [external tools](../../docs/10-modules.md#external-tools).
 | Runtime and HTTP | bun, `Bun.serve` | already the MCP runtime; HTTP is built in |
 | Daemon client | bun `fetch` with its `unix` socket option; one small module | no dependency; one place maps refusals |
 | HTML | server-rendered TSX through our own ~100-line JSX runtime that escapes every string by default | type-checked templates, no React, no hydration; raw HTML only through one named helper |
-| CSS | one hand-written stylesheet on design tokens, bundled and served as a hashed `/app.<hash>.css` | lets the CSP drop `style-src 'unsafe-inline'` ([Q117](QUESTIONS.md#q117-csp)) |
-| Client script | one bundled `/ui.<hash>.js`, progressive enhancement only; every page works without it | CSP `script-src 'self'` stays |
-| Fonts | any open-licensed faces the design needs, self-hosted `woff2`, their licences shipped with the package; the look comes first, size second ([Q118](DECISIONS.md#decisions)) | no CDN |
+| CSS | one hand-written stylesheet on design tokens, served as a hashed `/app.<hash>.css`; no `style=` attributes | lets the CSP drop `style-src 'unsafe-inline'` ([Q117](DECISIONS.md#decisions)) |
+| Client script | our own `/ui.<hash>.js`, progressive enhancement only; every page works without it | CSP allows only this site and the pinned CDN |
+| Fonts | any open-licensed faces the design needs, loaded from the CDN ([external assets](#external-assets)); the look comes first, size second ([Q118](DECISIONS.md#decisions)) | the system stack is the fallback |
+| Popular JS libraries | loaded from the CDN, never imported or bundled into our code ([external assets](#external-assets)) | owner rule |
 | Tests | `bun test`; a disposable `agent-busd` for contract tests; Playwright + axe in the container for browser checks | as the existing acceptance scripts do |
+
+### External assets
+
+Owner rule, 2026-09-24: external fonts and popular JavaScript libraries are
+welcome, loaded by the browser from a CDN and **never imported into our code**
+— no npm dependency, no vendored copy, no bundling.
+
+| Rule | |
+|---|---|
+| Host | one CDN, `cdn.jsdelivr.net`, named in the CSP; nothing else external |
+| Pinning | an exact version in every URL, never `latest` or a range |
+| Hash | every external `<script>` and `<link rel=stylesheet>` carries `integrity="sha384-…"` and `crossorigin=anonymous`; one table in `src/web/assets.ts` holds URL and hash, and a test fails on an external tag without them |
+| Fonts | from `@fontsource` packages on the same CDN, their stylesheets hashed. Font files a stylesheet names cannot carry a hash of their own; a font is data, not code, and the hashed stylesheet fixes which files they are |
+| Offline | the dashboard is on `127.0.0.1` and the browser may have no internet: pages fall back to the system fonts and to our own script, and every page and form still works (a browser check with the CDN blocked) |
+| Choice | each library is named with its reason on the W.2 style guide; candidates: Lucide icons, uPlot for the interactive day chart, a command-palette component |
+
+### Content-Security-Policy
+
+[Q117](DECISIONS.md#decisions). Today's policy with three changes:
+
+| Directive | Value | Why |
+|---|---|---|
+| `script-src` | `'self' https://cdn.jsdelivr.net` | our script and the hashed libraries |
+| `style-src` | `'self' https://cdn.jsdelivr.net` | no `'unsafe-inline'`: injected CSS can leak page content or overlay a false control |
+| `font-src` | `'self' https://cdn.jsdelivr.net` | today's `default-src 'none'` would block every font |
+| `connect-src` | `'self'` | the palette's `/palette.json` |
+| the rest | `default-src 'none'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'` | unchanged |
 
 ### Layout of the code
 
@@ -74,7 +102,8 @@ Built-in first, per [external tools](../../docs/10-modules.md#external-tools).
 | `src/web/ui/` | components: frame, nav, card, pill, table, toolbar, pager, tabs, help popover, empty state, charts, form fields |
 | `src/web/client/` | the browser script: palette, theme, shortcuts, submit-on-change |
 | `src/web/style/` | tokens and stylesheet |
-| `src/web/assets/` | logo, favicon, landing picture, fonts |
+| `src/web/assets/` | logo, favicon, landing picture |
+| `src/web/assets.ts` | the pinned CDN table: URL and hash of every external font and library |
 
 A page never computes authority. Where the spec says a face-side rule
 (attention items, exchange folding, "used by visible records", may-edit on
@@ -105,7 +134,7 @@ dense operator console, not a document.
 
 | Feature | Behaviour |
 |---|---|
-| Command palette | `⌘K` / `Ctrl-K`: jump to any section, or to any record, user or group the visitor may see; data from a same-origin `GET /palette.json` made with the visitor's session ([Q117](QUESTIONS.md#q117-csp)) |
+| Command palette | `⌘K` / `Ctrl-K`: jump to any section, or to any record, user or group the visitor may see; data from a same-origin `GET /palette.json` made with the visitor's session ([Q117](DECISIONS.md#decisions)) |
 | Shortcuts | `g o` Overview, `g a` Agents, `g s` Services, `g q` Queues, `g p` PubSub, `g u` Users, `g g` Groups, `/` focuses search, `?` lists them |
 | Theme toggle | writes `ab_theme`, swaps without reload |
 | Submit on change | the spec's `data-submit-on-change`, kept |
@@ -120,7 +149,7 @@ behaviour in the step that builds it.
 
 | From | Change |
 |---|---|
-| [shell](../../docs/web-face/shell.md#differences-from-older-docs) | one signed-out answer everywhere (`401`, `sign in to open this page`), `/` excepted; a real `404` page for unknown paths; a status failure never renders a blank account link; sign-out clears the cookie with the attributes it was set with; `Origin` required on every POST; assets cost no daemon call; `405` pages framed; no `Try again` on `404` |
+| [shell](../../docs/web-face/shell.md#differences-from-older-docs) | one signed-out answer everywhere (`401`, `sign in to open this page`), `/` excepted; a real `404` page for unknown paths; a status failure never renders a blank account link; sign-out clears the cookie with the attributes it was set with; `Origin` required on every POST; assets cost no daemon call; `405` pages framed; no `Try again` on `404`; fonts and libraries from one pinned, hashed CDN in place of "no external asset" |
 | [node](../../docs/web-face/node.md#inconsistencies-worth-fixing-in-the-rewrite) | Diagnostics renders exchanges with `reply_to`; held and loss tables include inactive records; a `/users` failure shows a section notice; an unreachable daemon at sign-in says so; Activity accepts inactive records visible to the caller; one Uptime source per page |
 | [records](../../docs/web-face/records.md#differences-from-the-older-specs) | `kind` kept on paging, Back and Clear filters; the confirmation guard **always** applies to transfer and delete; managers see the description; detail addresses redirect to the kind's own path; a user inbox is not offered Remove; no unused daemon reads; valid HTML on Deliver-To |
 | [people](../../docs/web-face/people.md#worth-fixing-in-the-rewrite) | "Not visible to you" renders on hidden groups; register refuses an existing group name instead of replacing it; post-create failures say what was saved; no Transfer on `@<user>/…` groups; redirects use the daemon's stored name; one identity pill; Account lists inactive owned records; `/avatar` dropped or used; `/users?kind=other` after sign-in |

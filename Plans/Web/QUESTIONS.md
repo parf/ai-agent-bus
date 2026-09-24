@@ -1,14 +1,9 @@
 # Questions Web face rewrite
 
-📌 **TL;DR:** One owner choice before W.1. Each states the recommendation
-first; the [README](README.md#web-face-rewrite) is written on those
-recommendations and changes if the answer differs.
+📌 **TL;DR:** No open questions: Q116–Q120 are settled in
+[DECISIONS](DECISIONS.md#decisions). A new choice found while building is
+added here with its recommendation first.
 
 ## Open questions
 
-### Q117 CSP
-
-| Option | |
-|---|---|
-| **A (recommended)** | `style-src 'self'` with a hashed stylesheet (no inline styles), `font-src 'self'`, `connect-src 'self'` for the palette's `/palette.json` |
-| B | Keep the current policy: inline styles, no `connect-src`, no palette data |
+None. Every choice before W.1 is in [DECISIONS](DECISIONS.md#decisions).
