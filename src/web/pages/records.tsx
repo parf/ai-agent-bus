@@ -132,7 +132,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const body = <>
     <PageHead icon={<Icon name={key === "personal" ? "lock" : entity(kind!)!.icon} />} title={title}
       help={<Help id="service-views-help" label={`About ${title}`} title={title} items={helpItems} />}>
-      {category.length ? <LinkButton href={registerHref} tone="primary" icon="plus">{registerText}</LinkButton> : null}
+      <LinkButton href={registerHref} tone="primary" icon="plus">{registerText}</LinkButton>
     </PageHead>
     <Tabs label="Record views" items={tabs} />
     {key === "personal" ? (owner0
@@ -173,8 +173,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
       ? <Empty icon="lock" title={`No shared ${KINDS[kind!].plural}`} action={<a class="btn" href={`/personal?kind=${kind}`}>Open the Personal tab</a>}>
           {personalOf(kind).length} Personal {KINDS[kind!].lower}{personalOf(kind).length === 1 ? " is" : "s are"} under the Personal tab, which this list omits. {KINDS[kind!].blurb}
         </Empty>
-      : <Empty icon={key === "personal" ? "lock" : entity(kind!)!.icon} title={`No ${key === "personal" ? "Personal records" : KINDS[kind!].plural} yet`}
-          action={<LinkButton href={registerHref} tone="primary" icon="plus">{registerText}</LinkButton>}>
+      : <Empty icon={key === "personal" ? "lock" : entity(kind!)!.icon} title={`No ${key === "personal" ? "Personal records" : KINDS[kind!].plural} yet`}>
           {key === "personal" ? "Personal records belong to their Owner's own view instead of the shared lists." : KINDS[kind!].blurb}
         </Empty>)
       : matched === 0 ? <Empty icon="filter" title="No records match these filters" action={<a class="btn" href={listUrl(path, { scope, owner: owner0 ? ownerParam : undefined, kind: kindParam })}>Clear filters</a>}>Change the active filters above or clear filters.</Empty>

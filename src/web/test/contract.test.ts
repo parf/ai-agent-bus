@@ -216,6 +216,12 @@ describe("pages as the daemon owner", () => {
     expect(await (await req("/queue?name=owner@test", { cookie: s })).text()).not.toContain("/service-danger");
     expect((await req("/service-danger?name=owner@test", { cookie: s })).status).toBe(403);
   });
+  test("every list has exactly one Register action, empty or not", async () => {
+    for (const p of ["/agents", "/services", "/personal?kind=pubsub", "/pubsub"]) {
+      const t = await (await req(p, { cookie: s })).text();
+      expect(`${p} ${(t.match(/href="\/[a-z]+\/new[^"]*"/g) ?? []).length}`).toBe(`${p} 1`);
+    }
+  });
   test("a kind chosen on Personal drives the tabs, the one Register action and the sidebar", async () => {
     const t = await (await req("/personal?kind=service", { cookie: s })).text();
     expect(t).toMatch(/<a href="\/services" class="side-link" aria-current="page"/);

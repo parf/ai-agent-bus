@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.40 — 2026-09-24
+
+Every record list shows its Register action in the page head, empty or not.
+
 ## 0.8.39 — 2026-09-24
 
 The favicon is a red bus filling a white square, big enough to read in a tab.
