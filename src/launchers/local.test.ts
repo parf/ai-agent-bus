@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Bus } from "../mcp/bus.ts";
-import { localAddress, runtimeBinary } from "./local.ts";
+import { channelRegistered, gitRoot, localAddress, runtimeBinary } from "./local.ts";
 
 test("OpenCode uses the user wrapper ahead of PATH, with explicit executable overrides authoritative", () => {
   const root = resolve(import.meta.dir, "../../tmp/runtime-discovery");
@@ -87,4 +87,18 @@ test("connection errors identify the bus endpoint without disclosing the credent
     expect(String(e)).toContain(`GET /status failed at ${path}`);
     expect(String(e)).not.toContain("private-token");
   }
+});
+
+test("a channel registered under the enclosing repository counts for a directory inside it", () => {
+  const config = { projects: { "/rd": { mcpServers: { "agent-bus": {} } } } };
+  expect(channelRegistered(config, "/rd/tmp", "/rd")).toBe(true); // Claude keyed it by the git root
+  expect(channelRegistered(config, "/rd", undefined)).toBe(true);
+  expect(channelRegistered(config, "/elsewhere/tmp", "/elsewhere")).toBe(false);
+  expect(channelRegistered({ projects: { "/rd": { mcpServers: {} } } }, "/rd/tmp", "/rd")).toBe(false);
+});
+
+test("the git root of a directory inside a repository is the repository", () => {
+  const here = resolve(import.meta.dir);
+  expect(gitRoot(here)).toBe(resolve(import.meta.dir, "../.."));
+  expect(gitRoot("/")).toBeUndefined();
 });

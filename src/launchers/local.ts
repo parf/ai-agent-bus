@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -33,4 +34,17 @@ export function localAddress(env: NodeJS.ProcessEnv, systemDir = "/run/agent-bus
   return dirs.map(dir => join(dir, filename)).find(path => {
     try { return statSync(path).isSocket(); } catch { return false; }
   });
+}
+
+// Claude keeps a directory's local MCP servers under the project it counts the
+// directory in, which is the enclosing Git repository when there is one: a
+// server added in /rd/tmp inside the repository /rd is written under "/rd".
+export function gitRoot(cwd: string): string | undefined {
+  const r = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" });
+  return r.status === 0 ? r.stdout.trim() || undefined : undefined;
+}
+
+/** Whether Claude's configuration names the agent-bus server for cwd. */
+export function channelRegistered(config: any, cwd: string, root = gitRoot(cwd)): boolean {
+  return [cwd, root].some(key => !!key && !!config?.projects?.[key]?.mcpServers?.["agent-bus"]);
 }

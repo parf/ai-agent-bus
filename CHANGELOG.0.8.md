@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.31 — 2026-09-23
+
+`ab-claude` counts a channel Claude registered under the enclosing Git repository,
+so a session in a subdirectory no longer warns that it has no channel.
+
 ## 0.8.30 — 2026-09-23
 
 A launcher finds its account's installed socket by uid, as the CLI does, not

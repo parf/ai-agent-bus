@@ -11,7 +11,7 @@ import { startPush, sleep, type Push } from "../mcp/push.ts";
 import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
 import { version } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeTitle, sameBase, type Session } from "./sessions.ts";
-import { localAddress, runtimeBinary } from "./local.ts";
+import { channelRegistered, localAddress, runtimeBinary } from "./local.ts";
 import { Terminal } from "./terminal.ts";
 import { claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
@@ -44,7 +44,7 @@ const claudeConfig = () => process.env.CLAUDE_CONFIG_DIR ? join(process.env.CLAU
 function channelName(cwd: string, face: string) {
   try {
     const conf = claudeConfig();
-    const registered = () => !!(existsSync(conf) && JSON.parse(readFileSync(conf, "utf8"))?.projects?.[cwd]?.mcpServers?.["agent-bus"]);
+    const registered = () => existsSync(conf) && channelRegistered(JSON.parse(readFileSync(conf, "utf8")), cwd);
     if (registered()) return;
     const done = spawnSync("claude", ["mcp", "add", "--scope", "local", "agent-bus", "--", process.execPath, face],
       { cwd, stdio: "ignore" });
