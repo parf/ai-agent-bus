@@ -9,8 +9,8 @@ The CLI listings, the MCP minimum and the dashboard tabs are here.
 
 | MVP | Scope |
 |---|---|
-| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), [web authority isolation](11-processes.md#web-authority-boundary) and resource limits. |
-| Pending | Post-redesign [browser acceptance](#browser-acceptance); the installed session/restart foundation and current five-role authority matrix are built. |
+| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), [web authority isolation](11-processes.md#web-authority-boundary), resource limits and installed [browser acceptance](#browser-acceptance). |
+| Pending | — |
 
 ## What a listing answers
 
@@ -81,7 +81,7 @@ An empty result says `No matching records.`; lookup errors remain errors.
 |---|---|---|
 | API | Registry, messaging, credentials, sessions and dashboard administration | — |
 | MCP | Bus tools and a catalog filtered by the daemon | — |
-| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; confined with resource limits | Installed browser acceptance |
+| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; confined with resource limits; installed [browser acceptance](#browser-acceptance) | — |
 
 ## MCP minimum
 
@@ -673,21 +673,18 @@ pending.
 
 ## Browser acceptance
 
-**Required MVP; current installed foundation and authority matrix built,
-post-redesign rerun pending.** Real
-Chromium on the package-only host signs in and out through visible controls,
-checks the cookie boundary, visits the current required tabs, retains its
-session across a real web-child restart and loses it across a real bus-child
-restart ([evidence](../Plans/MVP/done/installed-browser-foundation.md#checks)).
-Five independent browser sessions exercise the current service/channel,
-user/group, denial, foreign-origin and activity paths as daemon Owner,
-Administrator, resource Owner/Maintainer and ordinary user
-([evidence](../Plans/MVP/done/installed-browser-role-matrix.md#checks)). Retain
-and rerun both sets against the approved redesign. Web and bus restarts
-continue to follow the [session contract](#signing-in).
-HTTP handler tests and command-line cookie jars remain useful evidence but
-do not establish this browser workflow. [F.12](../Plans/MVP/TODO.md#remaining-work)
-owns the installed exercise and mutation checks.
+**Required MVP; built against the 0.8 web on 0.8.26.** Real Chromium on the
+package-only host signs in and out through visible controls and checks the
+cookie boundary. It visits every 0.8 tab. The session survives a real web-child
+restart and ends with a real bus-child restart, as the
+[session contract](#signing-in) says. Separate browser sessions act as daemon
+Owner, Administrator, resource Owner, Maintainer, ordinary user and stranger.
+They cover service, queue, pub/sub, user and group journeys, denials,
+foreign-origin forms and activity. The fresh-install gate runs all of it.
+HTTP handler tests and command-line cookie jars remain useful evidence but do
+not establish this browser workflow. The checks and the mutations that break
+form-origin validation and authorization are in the
+[F.12 evidence](../Plans/MVP/done/installed-browser-acceptance.md#checks).
 
 **Accessibility, cost and old addresses: built in 0.8.26.** No page scrolls
 sideways at desktop, 200% zoom or a 420 px phone. Rendered text meets WCAG AA

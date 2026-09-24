@@ -14,7 +14,7 @@ Finish the [MVP scope](README.md#scope). Built wave results are in [DONE](DONE.m
 The [0.7 constitution work](0.7.0-TODO.md#next-step) is stable at 0.7.20; the
 0.8 line continues the rows below, whose acceptance and task IDs remain in force.
 
-H.1 and H.1.1 have [fresh-install](done/fresh-install.md#checks) and [populated-upgrade](done/upgrade-recovery.md#checks) evidence. H.9.5 has [Codex/OpenCode](done/runtime-interactive.md#checks) and [Claude channel](done/runtime-interactive.md#claude-channel-checks) evidence. Continue browser and live-runtime acceptance. H.5.3 has [administrative crash-recovery evidence](done/administrative-durability.md#checks). H.5.2 has [real-SSH evidence](done/ssh-onboarding.md#checks); G.1.2 and G.1.3 have installed [resource](done/web-resources.md#checks) and [authority-isolation](done/web-isolation.md#checks) evidence. The [review evidence](done/release-gap-review.md#findings) distinguishes reproduced failures from unverified risks. Choices are tracked in [QUESTIONS](QUESTIONS.md#open-questions).
+H.1 and H.1.1 have [fresh-install](done/fresh-install.md#checks) and [populated-upgrade](done/upgrade-recovery.md#checks) evidence. H.9.5 has [Codex/OpenCode](done/runtime-interactive.md#checks) and [Claude channel](done/runtime-interactive.md#claude-channel-checks) evidence. F.12 has [installed browser evidence](done/installed-browser-acceptance.md#checks). Continue live-runtime acceptance. H.5.3 has [administrative crash-recovery evidence](done/administrative-durability.md#checks). H.5.2 has [real-SSH evidence](done/ssh-onboarding.md#checks); G.1.2 and G.1.3 have installed [resource](done/web-resources.md#checks) and [authority-isolation](done/web-isolation.md#checks) evidence. The [review evidence](done/release-gap-review.md#findings) distinguishes reproduced failures from unverified risks. Choices are tracked in [QUESTIONS](QUESTIONS.md#open-questions).
 
 The owner reviewed the web design through rendered pages and iterative
 corrections. Remaining [web work](#web-redesign) is acceptance, not a design
@@ -36,7 +36,6 @@ H.8 and H.9–H.9.3 have [built implementation and automated evidence](done/laun
 | H.9.1 | Launcher failure handling | H.9 | Exercise missing runtime, absent bus configuration, helper startup failure and runtime exit. Check diagnostics, plain-session fallback, exit status and cleanup while a separate session stays alive. Suppress readiness failure, force a zero exit status or remove cleanup separately: each fails its check. Supply contrary runtime mode options and verify the [enforced mode](../../docs/08-runner-role.md#smart-launchers) still applies; removing the enforcement must fail |
 | H.9.2 | [MCP minimum](../../docs/05-discovery.md#mcp-minimum) in each shipped runtime | H.8, H.9; existing MCP face | In each installed, launcher-started session, list a known allowed service and call it for a unique response. Hide a known forbidden service and refuse a direct call to it. Remove tool loading, replace the listing with empty output, drop the response or bypass the ACL separately: each fails its corresponding check. An acceptance receipt cannot satisfy the service-response assertion |
 | H.9.3 | [Assigned session names](../../docs/08-runner-role.md#session-names) | H.9; verify each runtime's name/session lookup | Check explicit bus identity, an assigned runtime name and missing-name fallback separately. Ignore an available assigned name or remove fallback and the corresponding assertion fails. Launch sessions with colliding titles or derived names and deliver a unique message to each; merge their bindings and delivery fails. Rename during a live launch with a reply pending: changing its inbox or credential must fail reply delivery and identity assertions. On restart, verify the documented address-change and old-inbox behavior; removing the rename, discarding queued messages or changing an explicit address must fail its corresponding check |
-| F.12 | [Installed browser acceptance](../../docs/05-discovery.md#browser-acceptance); [session/restart foundation](done/installed-browser-foundation.md#checks) and [current authority matrix](done/installed-browser-role-matrix.md#checks) complete | [F.13.6](done/web-acceptance.md#checks), done 0.8.26 | Retain and rerun the installed five-role service/channel, user/group, denial, activity, cookie and separate web/bus restart checks against the approved redesign. Break form-origin validation or authorization separately: each fails its check |
 Known upgrade hazard, not a row: a 0.7.<20 development database whose user record carries a list is ignored with its User's records.
 
 ## Web redesign
@@ -47,10 +46,10 @@ records observed shortcomings. F.13.0 is complete through the owner's rendered
 page selection and iterative browser corrections
 ([evidence](done/web-design-owner-review.md#evidence)). F.13.1–F.13.7 are
 [done](DONE.md#done--mvp); no redesign row remains open, and the installed
-rerun of the redesigned journeys is [F.12](#remaining-work). The owner's
+rerun of the redesigned journeys, [F.12](DONE.md#done--mvp), is done. The owner's
 preference remains compact, plain administration rather than decorative polish.
 
-Local mapping administration is the operator key or a user token ([administering the account map](../../docs/09-setup.md#administering-the-account-map)); it is not hidden inside a new Settings page. [G.1.2 resource limits](done/web-resources.md#checks) are complete. Read-only screenshots do not close F.12. UI development can use an isolated populated daemon while installed isolation work proceeds separately.
+Local mapping administration is the operator key or a user token ([administering the account map](../../docs/09-setup.md#administering-the-account-map)); it is not hidden inside a new Settings page. [G.1.2 resource limits](done/web-resources.md#checks) are complete. UI development can use an isolated populated daemon while installed isolation work proceeds separately.
 
 ## Installed stage gate
 
@@ -62,8 +61,8 @@ remaining rows concern broader operational and runtime/browser acceptance.
 
 | Gate | Dependencies | Required evidence and mutation |
 |---|---|---|
-| Operational acceptance | H.5.2–H.5.3, H.9.5–H.9.6, F.12, G.1.2–G.1.3; [H.1.1 complete](done/upgrade-recovery.md#checks) | Retain each task's installed evidence and named mutation failure; fixture-only results cannot close an installed or live-runtime requirement |
-| Fresh installed release | [H.1 package exercise complete](done/fresh-install.md#checks); H.8 and H.9–H.9.6, browser and operational acceptance remain | Run the remaining browser and runtime integration acceptance on a host without `/rd` or the checkout; retain commands, results, runtime versions and host conditions in the completion evidence |
+| Operational acceptance | H.5.2–H.5.3, H.9.5–H.9.6, G.1.2–G.1.3; [F.12 complete](done/installed-browser-acceptance.md#checks); [H.1.1 complete](done/upgrade-recovery.md#checks) | Retain each task's installed evidence and named mutation failure; fixture-only results cannot close an installed or live-runtime requirement |
+| Fresh installed release | [H.1 package exercise complete](done/fresh-install.md#checks); [F.12 browser complete](done/installed-browser-acceptance.md#checks); H.8 and H.9–H.9.6 and operational acceptance remain | Run the remaining runtime integration acceptance on a host without `/rd` or the checkout; retain commands, results, runtime versions and host conditions in the completion evidence |
 
 The installed gates do not replace feature acceptance. Before closing MVP, also complete the accepted feature sections below and the remaining F.13 acceptance. Keep deferred decisions out of that gate: Q69 hardening and broader transfer-recipient eligibility were deferred, while Q63 and Administrator control of ordinary group membership confirm existing behavior ([decisions](../../docs/decisions.md#settled)).
 
@@ -110,4 +109,4 @@ proposal](../Future/storage.md#storage) is not a remaining MVP database requirem
 
 ## Authority model
 
-Built: the [authority specification](../../docs/01-identity-and-roles.md#role-names-and-scopes) has no pending change, and the historical fixture cleanup is [done](DONE.md#done--mvp). Each dependent web control is verified against it in [F.12](#remaining-work)'s installed browser acceptance.
+Built: the [authority specification](../../docs/01-identity-and-roles.md#role-names-and-scopes) has no pending change, and the historical fixture cleanup is [done](DONE.md#done--mvp). Each dependent web control is verified against it in [F.12](done/installed-browser-acceptance.md#checks)'s installed browser acceptance.

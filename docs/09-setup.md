@@ -10,7 +10,7 @@ ordinary use needs neither.
 | MVP | Scope |
 |---|---|
 | Built | Distributable archive, installer, administration, token helper, accounts, daemon unit and stamped builds; fresh-host installation, populated upgrade/recovery and [backup/restore](#backup-and-restore) acceptance. |
-| Pending | Installed runtime/browser acceptance. |
+| Pending | Installed runtime acceptance; [browser acceptance](05-discovery.md#browser-acceptance) is built. |
 
 ## The programs
 
