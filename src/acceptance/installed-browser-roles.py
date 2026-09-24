@@ -335,17 +335,15 @@ def main() -> None:
         # listings hold no row for it, and each change is refused.
         stranger_context, stranger = sign_in(browser, args.base, tokens["stranger"])
         check(stranger.locator("form.who code").inner_text() == "eve@fresh", "stranger identity is wrong")
-        response = stranger.goto(args.base + "/service?name=never-registered%40fresh", wait_until="domcontentloaded")
-        unknown = (response.status, stranger.locator("main").inner_text().replace("never-registered", "NAME"))
-        for path, name in (("/service?name=browser-svc%40fresh", "browser-svc"),
-                           ("/queue?name=browser-queue%40fresh", "browser-queue"),
-                           ("/pubsub/topic?name=browser-topic%40fresh", "browser-topic"),
-                           ("/activity?name=browser-svc%40fresh", "browser-svc")):
-            response = stranger.goto(args.base + path, wait_until="domcontentloaded")
-            seen = (response.status, stranger.locator("main").inner_text().replace(name, "NAME").replace("activity?NAME", "service?NAME"))
-            check(response.status == 404 and "No such name" in seen[1], f"stranger was not answered unknown at {path}: {response.status}")
-            if path.startswith("/service"):
-                check(seen == unknown, f"{path} answers the stranger differently from an unregistered name")
+        # Each page is compared with the same page for a name nobody holds.
+        for route, name in (("/service", "browser-svc"), ("/queue", "browser-queue"),
+                            ("/pubsub/topic", "browser-topic"), ("/activity", "browser-svc")):
+            response = stranger.goto(f"{args.base}{route}?name=never-registered%40fresh", wait_until="domcontentloaded")
+            unknown = (response.status, stranger.locator("main").inner_text().replace("never-registered", "NAME"))
+            response = stranger.goto(f"{args.base}{route}?name={name}%40fresh", wait_until="domcontentloaded")
+            seen = (response.status, stranger.locator("main").inner_text().replace(name, "NAME"))
+            check(response.status == 404 and "No such name" in seen[1], f"stranger was not answered unknown at {route}?name={name}: {response.status}")
+            check(seen == unknown, f"{route}?name={name} answers the stranger differently from an unregistered name")
         for listing, href in (("/services?q=browser-svc", "browser-svc%40fresh"),
                               ("/queues?q=browser-queue", "browser-queue%40fresh"),
                               ("/pubsub?q=browser-topic", "browser-topic%40fresh")):
@@ -357,9 +355,9 @@ def main() -> None:
             denied = direct_post(stranger, action, values)
             check(refused(denied), f"stranger {values['action']} of {values['name']} was not refused: {denied['status']}")
         response = stranger.goto(args.base + "/group/edit?name=%40browser-team", wait_until="domcontentloaded")
-        check(response.status == 403, "stranger reached another User's group editor")
+        check(response.status == 403 and "Not yours to see" in stranger.locator("h1").inner_text(), "stranger reached another User's group editor")
         response = stranger.goto(args.base + "/users/new", wait_until="domcontentloaded")
-        check(response.status == 403, "stranger reached user registration")
+        check(response.status == 403 and "Not yours to see" in stranger.locator("h1").inner_text(), "stranger reached user registration")
         stranger_context.close()
 
         # Nobody signed in: every page is the sign-in page, and a posted
@@ -370,8 +368,10 @@ def main() -> None:
             anon.goto(args.base + path, wait_until="domcontentloaded")
             check(anon.locator('input[name="token"]').count() == 1 and anon.locator("form.who").count() == 0, f"anonymous {path} is not the sign-in page")
         anon.goto(args.base + "/", wait_until="domcontentloaded")
-        direct_post(anon, "/service", {"action": "deactivate", "name": "browser-queue@fresh"})
+        posted = direct_post(anon, "/service", {"action": "deactivate", "name": "browser-queue@fresh"})
         check(anon.locator("form.who").count() == 0, "an anonymous post signed somebody in")
+        check(anon.locator('input[name="token"]').count() == 1 or posted["status"] in (401, 403), f"an anonymous post was answered {posted['status']}, not with sign-in")
+        # The daemon Owner below finds the queue still active.
         anonymous.close()
         results["stranger"] = ["service, queue, topic and activity answer as unregistered", "no listing row", "service save, queue deactivate and group save refused", "group editor and user registration refused", "anonymous pages are sign-in and an anonymous post changes nothing"]
 

@@ -182,7 +182,7 @@ def main() -> None:
         page.screenshot(path=args.evidence / "browser-signed-out.png", full_page=True)
 
         (args.evidence / "browser.json").write_text(json.dumps({
-            "browser": subprocess.check_output(["/usr/bin/chromium", "--version"], text=True).strip(),
+            "browser": subprocess.check_output([args.browser, "--version"], text=True).strip(),
             "cookie": {"httpOnly": cookie["httpOnly"], "sameSite": cookie["sameSite"], "secure": cookie["secure"]},
             "routes": titles,
             "web": {"before": old_web, "after": new_web},

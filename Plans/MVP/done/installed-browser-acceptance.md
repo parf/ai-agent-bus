@@ -41,7 +41,7 @@ is `browser.json`, `browser-roles.json` and four screenshots under
 | Resource Owner `bob` | Registers a 📡 service, edits it and assigns Maintainer `carol`. Registers a 📮 queue from the Queues tab, deactivates it (Status filter moves the row), and reactivates it. Registers a 📣 topic that delivers to the queue, and edits the topic's settings |
 | Maintainer `carol` | Edits the service. The Maintainers and Personal fields are disabled for her, and she is not offered transfer |
 | Ordinary user `dave` | Reads the service, queue and topic that admit him, with no Settings. Direct saves to the service and the queue are refused. Registers and owns `@browser-team`. User registration and the protected group are refused. As a positive control, he sees the rows the stranger does not |
-| Stranger `eve` | The service, queue, topic and activity pages answer exactly as an unregistered name does (404, "No such name"). No listing row. Saving the service, deactivating the queue and saving the group are refused; so are the group editor and user registration. Signed out, four pages show sign-in, and an anonymous post changes nothing |
+| Stranger `eve` | The service, queue, topic and activity pages each answer exactly as the same page does for a name nobody holds (404, "No such name"). No listing row. Saving the service, deactivating the queue and saving the group are refused; so are the group editor and user registration. Signed out, four pages show sign-in, and an anonymous post changes nothing |
 | Administrator `alice` | Creates a user and finds its Users row (Authority "User"), deactivates it, and finds it under Inactive. Edits another User's ordinary group. Cannot edit or save `@administrators`, cannot edit or deactivate the daemon Owner, and cannot manage the unrelated service. Registers a queue from the dashboard's own origin. Three real forms from a second loopback origin, for group, record and user, are each refused 403 and none of them created anything |
 | Daemon Owner | Creates a user, saves `@administrators` and the ordinary group, and manages bob's service. Every refused change above left its record unchanged: the service and queue descriptions, the queue still active, `eve` not a member. The installed `#fresh-echo` agent's real call draws its activity chart, with a nonzero maximum and slot values |
 
@@ -56,9 +56,18 @@ assertion. **3/3 caught.**
 |---|---|
 | Form-origin validation broken: `sameOrigin` accepts every origin | `foreign-origin /group form was not refused` |
 | Management authorization broken: `core` `manages` is true for every caller | `ordinary caller did not get the read-only service` |
-| Use/visibility authorization broken: `core` `may` is true for every caller | `stranger was not answered unknown at /service?name=browser-svc%40fresh: 200` |
+| Use/visibility authorization broken: `core` `may` is true for every caller | `stranger was not answered unknown at /service?name=browser-svc: 200` |
 
 The logs are `tmp/f12/mut/<name>/gate.log`.
+
+A read-only OpenCode review raised five points. Four are fixed: each
+stranger page is now compared with its own unregistered-name page; the
+stranger's 403s must render "Not yours to see"; the anonymous post must be
+answered with sign-in; the recorded browser version comes from the browser
+that ran. The fifth was refuted. It said the refused foreign queue would be
+invisible to the Administrator anyway, but a record's creator owns it and
+sees it: a queue alice registers with only `dave@fresh` allowed answers her
+200. The gate and all three mutants were rerun after the fixes.
 
 ## Repository verification
 
@@ -67,8 +76,8 @@ these driver SHA-256 values:
 
 | File | SHA-256 |
 |---|---|
-| `installed-browser.py` | `638e8936568b2241b84f686e9295604257581b5e3286afea1b77a713bd98affc` |
-| `installed-browser-roles.py` | `18ab93a31019e4aa14ab22e1ffa4706e29336742cee0c3439b594ecd53c0b9b6` |
+| `installed-browser.py` | `fa5254759c22e61f705d63a988ec82a770940905d9d2c42226610510ba51eb4b` |
+| `installed-browser-roles.py` | `dbdfc8953ac8c6b573e267210d70e821dc29ae440d84efc2e0c543003efc5dd5` |
 | `fresh-install-container.sh` | `a9f22fccf95d525b87e6e880c98a1af2ae59a59f43ee079691d0d37af1702cd8` |
 
 ## Not claimed
