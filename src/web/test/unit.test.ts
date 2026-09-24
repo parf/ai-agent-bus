@@ -8,6 +8,7 @@ import { STYLESHEETS, SCRIPTS, FONTS, csp } from "../assets.ts";
 import { attentionItems, exchanges, type Envelope } from "../pages/node.tsx";
 import { usedBy } from "../pages/people.tsx";
 import { lineRefusal } from "../problem.tsx";
+import { Ribbon } from "../ui/charts.tsx";
 import { duration, relative } from "../format.ts";
 import type { Rec, Status } from "../ctx.ts";
 
@@ -146,6 +147,14 @@ describe("used by", () => {
     const groups = { "@ops": ["alice"], "@all": ["@ops"] };
     const recs = [rec({ name: "q1", allow: ["@ops"] }), rec({ name: "q2", maintainers: ["@ops"] }), rec({ name: "q3", allow: ["@all"] }), rec({ name: "@all", kind: "group", allow: ["@ops"] }), rec({ name: "@top", kind: "group", allow: ["@all"] })];
     expect(usedBy("@ops", recs, { ...groups, "@top": ["@all"] }).map(u => `${u.rec.name}:${u.uses.join("+")}`)).toEqual(["@all:member", "@top:member via @all", "q1:ACL", "q2:Maintainers", "q3:ACL via @all"]);
+  });
+});
+
+describe("charts", () => {
+  test("a daemon value never reaches the ribbon's markup unescaped", () => {
+    const html = render(Ribbon({ slots: [{ at: "</title><img src=x>", in: 1, out: 0, dropped: 0, expired: 0, refused: 0 }], label: "x" }));
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;/title&gt;");
   });
 });
 

@@ -591,7 +591,7 @@ async function postService(ctx: Ctx): Promise<Response> {
       }
       await storeSecret(ctx, name, `The ${noun(kind)} was registered`);
       const rec = await ctx.lookup(name).catch(() => undefined);
-      return flashRedirect(ctx, rec ? recordHref(rec) : `${detailPath(kind)}?name=${encodeURIComponent(name)}`, "registered");
+      return flashRedirect(ctx, rec ? recordHref(rec) : `/service?name=${encodeURIComponent(name)}`, "registered");
     }
     case "save": {
       const rec = await activeRecord(ctx, name);
@@ -707,7 +707,11 @@ function channelsRedirect(to: { queue: string; pubsub: string }) {
 function channelRedirect(edit: boolean) {
   return async (ctx: Ctx) => {
     if (!ctx.signedIn) throw new (await import("../ctx.ts")).SignInRequired("sign in to open this page");
-    const rec = await ctx.lookup(ctx.q("name"));
+    const name = ctx.q("name");
+    const off = (await ctx.inactive().catch(() => [] as Rec[])).find(r => r.name === name);
+    // An inactive record is served here, as its own view; only a visible queue or topic moves.
+    if (off) return edit ? Promise.reject(new NotFound()) : inactiveView(ctx, await ctx.status(), off);
+    const rec = await ctx.lookup(name);
     const base = rec.kind === "pubsub" ? "/pubsub/topic" : rec.kind === "queue" ? "/queue" : detailPath(rec.kind);
     return redirect(`${base}${edit ? "/edit" : ""}${ctx.url.search}`, 301);
   };

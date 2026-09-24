@@ -125,6 +125,7 @@ describe("requests", () => {
     expect(a.headers.get("cache-control")).toContain("immutable");
     expect((await req("/favicon.ico")).status).toBe(404);
     expect((await req("/healthz")).status).toBe(200);
+    expect((await req("/healthz", { method: "POST", body: "" })).status).toBe(405);
   });
 });
 

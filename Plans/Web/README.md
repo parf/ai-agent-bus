@@ -58,7 +58,7 @@ listed with its reason.
 |---|---|
 | Identity | `User=agent-bus-web`, `Group=agent-bus-web`, `UMask=0077`; `After=agent-busd.service`, `Restart=on-failure`, `RestartSec=2` |
 | Privilege | `NoNewPrivileges=yes`, `CapabilityBoundingSet=` (empty, so a listen port is ≥ 1024), `AmbientCapabilities=`, `RestrictSUIDSGID=yes`, `LockPersonality=yes`, `RestrictRealtime=yes`, `RestrictNamespaces=yes`, `KeyringMode=private`, `RemoveIPC=yes` |
-| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `InaccessiblePaths=` the daemon's, runner's and `service.d` state, `/root`, `/etc/ssh` and the checkout's `.git`. `/var/lib/agent-bus/web` stays a plain link: bun resolves it to the checkout, which is read-only under `ProtectSystem=strict` (a bind mount at the link would hide `../internal/version/VERSION`). `/run/agent-bus` is read-only too; connecting to the socket needs no write |
+| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `TemporaryFileSystem=/var/lib:ro` with two read-only binds, `/var/lib/agent-bus/web` (the link, resolved to the checkout's `src/web`) and the checkout's `internal/version` beside it, so no other service's state exists for it; `InaccessiblePaths=` `/root`, `/etc/ssh` and the checkout's `.git`. The checkout under `/usr/local/src` stays read-only under `ProtectSystem=strict`; `/run/agent-bus` is read-only too, and connecting to the socket needs no write |
 | Exec | `NoExecPaths=/`, `ExecPaths=/usr/bin/bun /usr/lib /usr/lib64`: bun and the shared libraries it maps, nothing else; the checkout is not executable (W.1 proves `ExecPaths` takes a file path) |
 | Kernel | `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectKernelLogs`, `ProtectControlGroups`, `ProtectClock`, `ProtectHostname`, `ProtectProc=invisible`, `ProcSubset=pid` |
 | System calls | `SystemCallArchitectures=native`, `SystemCallFilter=@system-service` minus `@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap`, `SystemCallErrorNumber=EPERM` |
@@ -160,7 +160,7 @@ dense operator console, not a document.
 
 | Feature | Behaviour |
 |---|---|
-| Command palette | `⌘K` / `Ctrl-K`: jump to any section, or to any record, user or group the visitor may see; data from a same-origin `GET /palette.json` made with the visitor's session only when the palette opens ([Q117](DECISIONS.md#decisions)). It answers JSON, `401` JSON when signed out (never the sign-in page), refuses a `Sec-Fetch-Site` other than `same-origin`, and costs `/status`, `/ls` and `/groups`; specified in shell in W.9 |
+| Command palette | `⌘K` / `Ctrl-K`: jump to any section, or to any record, user or group the visitor may see; data from a same-origin `GET /palette.json` made with the visitor's session only when the palette opens ([Q117](DECISIONS.md#decisions)). It answers JSON, `401` JSON when signed out (never the sign-in page), refuses a `Sec-Fetch-Site` other than `same-origin` or `none` (a person opening it directly), and costs `/status`, `/ls` and `/groups`; specified in shell in W.9 |
 | Shortcuts | `g o` Overview, `g a` Agents, `g s` Services, `g q` Queues, `g p` PubSub, `g u` Users, `g g` Groups, `/` focuses search, `?` lists them |
 | Theme toggle | writes `ab_theme`, swaps without reload |
 | Submit on change | the spec's `data-submit-on-change`, kept; its `<noscript>` Apply button is dropped (no fallbacks), with the shell spec edited in W.1 |

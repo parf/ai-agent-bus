@@ -36,13 +36,18 @@ RemoveIPC=yes
 PrivateUsers=yes
 
 # Filesystem: everything read-only; no home, no devices, a private /tmp; the
-# daemon's and runner's state directories do not exist for it.
+# only its own code exists under /var/lib.
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes
 DevicePolicy=closed
-InaccessiblePaths=-/var/lib/agent-bus/daemon -/var/lib/agent-bus/runner -/var/lib/agent-bus/service.d -/root -/etc/ssh -/usr/local/src/ai-agent-bus/.git
+# Under /var/lib only the face's own code exists: the link's target and the
+# shared VERSION beside it are bound in, every other service's state is gone.
+TemporaryFileSystem=/var/lib:ro
+BindReadOnlyPaths=/var/lib/agent-bus/web:/var/lib/agent-bus/web
+BindReadOnlyPaths=/usr/local/src/ai-agent-bus/src/internal/version:/var/lib/agent-bus/internal/version
+InaccessiblePaths=-/root -/etc/ssh -/usr/local/src/ai-agent-bus/.git
 
 # Exec: bun and the libraries it maps, nothing else.
 NoExecPaths=/

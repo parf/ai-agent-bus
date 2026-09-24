@@ -1,7 +1,7 @@
 // Charts. The day chart is drawn in the browser by uPlot from the slots this
 // markup carries; the ribbon and sparklines are small SVG drawn here, coloured
 // by class so no inline style is ever written.
-import { h, Fragment, raw } from "../jsx.ts";
+import { h, Fragment, raw, escape } from "../jsx.ts";
 import { number, slotLabel } from "../format.ts";
 
 export type Slot = { at: string; in: number; out: number; dropped: number; expired: number; refused: number };
@@ -18,14 +18,14 @@ export const total = (slots: Slot[], k: keyof Omit<Slot, "at">) => slots.reduce(
 
 /** 144 cells, one per ten minutes; intensity by the slot's traffic against the day's peak. */
 export function Ribbon({ slots, label }: { slots: Slot[]; label: string }) {
-  const v = slots.map(s => (s.in ?? 0) + (s.out ?? 0));
-  const bad = slots.map(s => (s.dropped ?? 0) + (s.expired ?? 0) + (s.refused ?? 0));
+  const v = slots.map(s => (Number(s.in) || 0) + (Number(s.out) || 0));
+  const bad = slots.map(s => (Number(s.dropped) || 0) + (Number(s.expired) || 0) + (Number(s.refused) || 0));
   const max = Math.max(1, ...v);
   const w = 3, gap = 1, n = slots.length || 144;
   let cells = "";
   slots.forEach((s, i) => {
     const lvl = v[i] === 0 ? 0 : Math.min(4, 1 + Math.floor((v[i]! / max) * 3.999));
-    cells += `<rect x="${i * (w + gap)}" y="0" width="${w}" height="14" rx="1" class="r${bad[i] ? "x" : lvl}"><title>${slotLabel(s.at)} · ${v[i]} moved${bad[i] ? ` · ${bad[i]} lost or refused` : ""}</title></rect>`;
+    cells += `<rect x="${i * (w + gap)}" y="0" width="${w}" height="14" rx="1" class="r${bad[i] ? "x" : lvl}"><title>${escape(slotLabel(String(s.at)))} · ${Number(v[i])} moved${bad[i] ? ` · ${Number(bad[i])} lost or refused` : ""}</title></rect>`;
   });
   return <svg class="ribbon" viewBox={`0 0 ${n * (w + gap) - gap} 14`} preserveAspectRatio="none" role="img" aria-label={label}>{raw(cells)}</svg>;
 }

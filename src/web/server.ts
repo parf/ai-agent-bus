@@ -51,6 +51,8 @@ export function makeHandler(cfg: Config) {
       }
     }
     const ctx = new Ctx(req, daemon, !!cfg.tls);
+    // Liveness and assets answer GET only; any other method is the framed 405.
+    if (path === "/healthz" || path === "/favicon.ico" || statics.has(path)) return methodPage(ctx);
     if (req.method === "POST") {
       // Every POST, sign-in and sign-out included, must come from a page of this face.
       if (!sameOrigin(req, !!cfg.tls)) return text("403 same-origin form required", 403);

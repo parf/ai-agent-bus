@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.33 — 2026-09-24
+
+The TypeScript web face survives a malformed cookie, escapes the day ribbon's
+labels, answers 405 on asset paths, and its unit sees nothing else under `/var/lib`.
+
 ## 0.8.32 — 2026-09-24
 
 The TypeScript web face (`src/web`, Plans/Web) serves every page from the site
