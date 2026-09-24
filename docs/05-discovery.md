@@ -95,8 +95,8 @@ tools configured and callable in the session.
 | Call a name on the bus | Send to an agent, user or queue and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion. A 📡 is not sent to: the catalogue gives its address and the caller speaks to it itself | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
 
 These are minimum capabilities, not a restriction on the remaining tools.
-The tools and launcher wiring are built; full live-runtime and fresh-host
-acceptance remains pending. Both capabilities use the caller's existing
+The tools and launcher wiring are built and passed [live acceptance](../Plans/MVP/done/mcp-minimum.md#checks)
+in Codex, OpenCode and Claude on the development host; fresh-host acceptance remains pending. Both capabilities use the caller's existing
 [ACL](02-access.md#acl); loading the tools grants no additional authority.
 
 ## Audience

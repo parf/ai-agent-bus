@@ -10,18 +10,23 @@ export class RuntimeModelFixture {
   listed = false;
   denied = false;
   serviceSent = false;
+  consumeAt = 0;
   replied = false;
   sawServiceResponse = "";
   #sequence = 0;
   #release!: () => void;
   #hold = new Promise<void>(resolve => { this.#release = resolve; });
-  constructor(readonly slot: number, readonly dir: string, readonly secretPrefix: string, readonly runtime: "codex" | "opencode") {}
+  constructor(readonly slot: number, readonly dir: string, readonly secretPrefix: string, readonly runtime: "codex" | "opencode" | "claude") {}
   release() { this.released = true; this.#release(); }
   async respond(req: Request): Promise<Response> {
     const body = await req.json() as any;
     this.requests.push(body);
     appendFileSync(join(this.dir, "provider.jsonl"), JSON.stringify(body) + "\n");
-    const input = this.runtime === "codex" ? body.input ?? [] : (body.messages ?? []).map((m: any) => m.role === "tool" ? { type: "function_call_output", call_id: m.tool_call_id, output: m.content } : m);
+    // Claude speaks the Messages API: a tool result is a block in a user turn.
+    const input = this.runtime === "codex" ? body.input ?? []
+      : this.runtime === "claude" ? (body.messages ?? []).flatMap((m: any) => typeof m.content === "string" ? [{ role: m.role, content: m.content }]
+        : m.content.map((b: any) => b.type === "tool_result" ? { type: "function_call_output", call_id: b.tool_use_id, output: b.content } : { role: m.role, content: b }))
+      : (body.messages ?? []).map((m: any) => m.role === "tool" ? { type: "function_call_output", call_id: m.tool_call_id, output: m.content } : m);
     const output = (name: string) => input.findLast((x: any) => x.type === "function_call_output" && x.call_id === `${name}-${this.slot}`);
     const user = input.filter((x: any) => x.role === "user").map((x: any) => JSON.stringify(x)).join("\n");
     let item: any;
@@ -29,6 +34,9 @@ export class RuntimeModelFixture {
     const call = (id: string, name: string, args: unknown) => ({ type: "function_call", id: `fc-${++this.#sequence}`, call_id: `${id}-${this.slot}`, namespace: "mcp__agent_bus", name, arguments: JSON.stringify(args), status: "completed" });
     if (this.runtime === "opencode" && body.messages?.[0]?.content?.includes("You are a title generator")) {
       item = message(`Fixture session ${this.slot}`);
+    } else if (this.runtime === "claude" && !body.tools?.length) {
+      item = message(`Fixture session ${this.slot}`); // quota probe, title and other side requests
+
     } else if (!user.includes(`KICKOFF-${this.slot}`)) {
       if (!user.includes(`KEYBOARD-${this.slot}`)) throw new Error("unexpected model input");
       item = message(`KEYBOARD-OK-${this.slot}`);
@@ -39,9 +47,12 @@ export class RuntimeModelFixture {
       }
       const names = this.runtime === "codex"
         ? body.tools?.find((t: any) => t.name === "mcp__agent_bus")?.tools?.map((t: any) => t.name)
+        : this.runtime === "claude" ? body.tools?.map((t: any) => t.name?.replace(/^mcp__agent-bus__/, ""))
         : body.tools?.map((t: any) => t.function?.name?.replace(/^agent-bus_/, ""));
       if (!["ab_ls", "ab_send"].every(n => names?.includes(n))) throw new Error("runtime did not load the real MCP tools");
-      const response = user.match(new RegExp(`${this.secretPrefix}-[a-f0-9]+`))?.[0];
+      // Codex and OpenCode get the answer pushed in as user input; Claude,
+      // without a channel here, collects it with a filtered ab_consume.
+      const response = (user + JSON.stringify(output("consume") ?? "")).match(new RegExp(`${this.secretPrefix}-[a-f0-9]+`))?.[0];
       if (response) {
         this.sawServiceResponse = response;
         if (!output("reply")) item = call("reply", "ab_send", { to: `#peer-${this.slot}@fixture`, topic: "interactive", tag: `slot-${this.slot}`, text: response });
@@ -60,10 +71,24 @@ export class RuntimeModelFixture {
         if (denial.includes("the bus accepted") || !/not found|not visible|refused|forbidden/i.test(denial)) throw new Error("forbidden MCP send did not refuse: " + denial);
         this.denied = true;
         item = call("service", "ab_send", { to: "#echo@fixture", topic: "interactive", tag: `slot-${this.slot}`, text: `QUESTION-${this.slot}` });
+      } else if (this.runtime === "claude" && !output("consume")) {
+        if (!JSON.stringify(output("service")).includes("the bus accepted")) throw new Error("service call did not reach daemon");
+        this.serviceSent = true; this.consumeAt = Date.now();
+        item = call("consume", "ab_consume", { topic: "interactive", tag: `slot-${this.slot}`, wait: "45s" });
+      } else if (this.runtime === "claude") {
+        throw new Error("filtered ab_consume returned no service answer: " + JSON.stringify(output("consume")).slice(0, 300));
       } else {
         if (!JSON.stringify(output("service")).includes("the bus accepted")) throw new Error("service call did not reach daemon");
         this.serviceSent = true; item = message(`REQUEST-SENT-${this.slot}`);
       }
+    }
+    if (this.runtime === "claude") {
+      const start = { type: "message_start", message: { id: `msg-${this.slot}-${++this.#sequence}`, type: "message", role: "assistant", model: body.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } };
+      const block = item.type === "function_call"
+        ? [{ type: "content_block_start", index: 0, content_block: { type: "tool_use", id: item.call_id, name: "mcp__agent-bus__" + item.name, input: {} } }, { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: item.arguments } }]
+        : [{ type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }, { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: item.content[0].text } }];
+      const events = [start, ...block, { type: "content_block_stop", index: 0 }, { type: "message_delta", delta: { stop_reason: item.type === "function_call" ? "tool_use" : "end_turn", stop_sequence: null }, usage: { output_tokens: 1 } }, { type: "message_stop" }];
+      return new Response(events.map(e => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join(""), { headers: { "content-type": "text/event-stream" } });
     }
     if (this.runtime === "opencode") {
       const id = `chatcmpl-${this.slot}-${this.#sequence}`;
