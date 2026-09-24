@@ -15,3 +15,4 @@ the decision and links its home in the [README](README.md#web-face-rewrite).
 | 2026-09-24 | Q117 | CSP adds the one pinned CDN for scripts, styles and fonts, `connect-src 'self'`, and drops inline styles | [Content-Security-Policy](README.md#content-security-policy) |
 | 2026-09-24 | — | External fonts and popular JS libraries load from the CDN with integrity hashes, never imported into our code | [external assets](README.md#external-assets) |
 | 2026-09-24 | — | Internet is required in the visitor's browser; pages rely on the CDN libraries and no offline or no-JavaScript fallback is built | [external assets](README.md#external-assets) |
+| 2026-09-24 | — | Code at `/var/lib/agent-bus/web`, a link to the current release; a locked-down systemd unit | [process and account](README.md#process-and-account), [the unit](README.md#the-unit) |

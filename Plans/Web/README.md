@@ -38,14 +38,34 @@ checks are retired at [cutover](#cutover), not ported.
 
 | | |
 |---|---|
-| Account | system account `agent-bus-web`, `nologin`, no home contents, no SSH keys, not in the account map |
-| Unit | `agent-bus-web.service`, its own systemd unit, `User=agent-bus-web`, ordered `After=agent-busd.service`, `Restart=on-failure` |
-| Daemon link | `/run/agent-bus/bus.sock` (shared, mode `666`, [supplies no identity](../../docs/02-access.md#local-socket)). Never a mapped account socket |
+| Account | system account `agent-bus-web`, `nologin`, no SSH keys, not in the account map; it owns nothing on disk |
+| Code | `/var/lib/agent-bus/web`, a root-owned symlink to `/usr/local/lib/agent-bus/current/web`: the release `src/release.sh` built from a commit, as every binary in `/usr/local/bin` is. The account can read its code and never write it |
+| Binary | `web/agent-bus-web`, one self-contained executable from `bun build --compile`, version from `src/internal/version/VERSION`, build stamp as [setup § build information](../../docs/09-setup.md#build-information) requires; `--version` prints both |
+| Unit | `agent-bus-web.service`, its own locked-down systemd unit ([the unit](#the-unit)) |
+| Daemon link | `/run/agent-bus/bus.sock` (shared, mode `666`, [supplies no identity](../../docs/02-access.md#local-socket)). Mapped account sockets are mode `600` for other accounts, so it cannot open them |
 | Credential | none of its own. `POST /session` with the typed token, then the session id per call, as [shell § process model](../../docs/web-face/shell.md#process-model) states |
 | State | none: no session map, no cache, no writable path. A restart ends nothing |
-| Binary | one self-contained executable from `bun build --compile`, version from `src/internal/version/VERSION`, build stamp as [setup § build information](../../docs/09-setup.md#build-information) requires; `--version` prints both |
-| Confinement | systemd sandboxing in place of the supervisor's bubblewrap: read-only filesystem, private `/tmp`, no new privileges, no capabilities, address families `AF_UNIX AF_INET AF_INET6`, `MemoryMax=256M`, `MemorySwapMax=0`, `TasksMax=64`, `CPUQuota=100%`, only the socket directory and TLS files readable. Owner decision: [Q116](DECISIONS.md#decisions) |
 | Listen | `AGENT_BUS_WEB_ADDR`, default `127.0.0.1:6780`; TLS only with both cert and key, a missing one refuses to start |
+
+### The unit
+
+Secured as far as the face still works. `systemd-analyze security
+agent-bus-web` must score **1.5 or lower** ("OK"); each directive left out is
+listed with its reason.
+
+| Area | Directives |
+|---|---|
+| Identity | `User=agent-bus-web`, `Group=agent-bus-web`, `UMask=0077`; `After=agent-busd.service`, `Restart=on-failure`, `RestartSec=2` |
+| Privilege | `NoNewPrivileges=yes`, `CapabilityBoundingSet=` (empty), `AmbientCapabilities=`, `RestrictSUIDSGID=yes`, `LockPersonality=yes`, `RestrictRealtime=yes`, `RestrictNamespaces=yes`, `KeyringMode=private`, `RemoveIPC=yes` |
+| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `TemporaryFileSystem=/var/lib:ro` with `BindReadOnlyPaths=/var/lib/agent-bus/web` so no other state directory exists for it; `ReadOnlyPaths=/run/agent-bus` for the socket |
+| Exec | `NoExecPaths=/`, `ExecPaths=/var/lib/agent-bus/web /usr/local/lib/agent-bus/releases`: it can start its own binary and nothing else |
+| Kernel | `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectKernelLogs`, `ProtectControlGroups`, `ProtectClock`, `ProtectHostname`, `ProtectProc=invisible`, `ProcSubset=pid` |
+| System calls | `SystemCallArchitectures=native`, `SystemCallFilter=@system-service` minus `@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap`, `SystemCallErrorNumber=EPERM` |
+| Network | `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6`; `IPAddressDeny=any` with `IPAddressAllow=localhost`: it answers on loopback and makes no outbound connection (the visitor's browser, not the face, fetches the CDN). A non-loopback `AGENT_BUS_WEB_ADDR` widens `IPAddressAllow` by setup, never by hand |
+| TLS | `LoadCredential=cert:… key:…` when configured: the face reads them from `$CREDENTIALS_DIRECTORY`, never from their own paths |
+| Resources | `MemoryMax=256M`, `MemorySwapMax=0`, `TasksMax=64`, `CPUQuota=100%`, `LimitNOFILE=1024` |
+| Environment | only `AGENT_BUS_ADDR`, `AGENT_BUS_WEB_ADDR`; nothing inherited |
+| Left out | `MemoryDenyWriteExecute`: bun's JavaScript JIT needs writable-executable memory. `PrivateNetwork`: it must listen. `PrivateUsers`: tried at W.10, kept only if the socket connection still works |
 
 ## Stack
 
@@ -158,7 +178,7 @@ behaviour in the step that builds it.
 
 1. The TS face runs beside the Go one on `127.0.0.1:6781` until every
    [site-map](../../docs/web-face/site-map.md#every-address) row passes its checks.
-2. Setup installs the account and unit; the daemon unit stops passing `-web`;
+2. Setup installs the account, the `/var/lib/agent-bus/web` link and the unit; the daemon unit stops passing `-web`;
    the TS face takes `6780`.
 3. The Go face, its `-web` supervision, its bubblewrap and cgroup code and its
    smoke checks are removed in one commit after the owner accepts the pages.
