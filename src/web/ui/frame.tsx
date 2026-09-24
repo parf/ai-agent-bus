@@ -89,7 +89,7 @@ function head(o: PageOptions) {
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="color-scheme" content="dark light" />
     <title>{o.title} · agent-bus</title>
-    <link rel="icon" href={a.favicon.path} type="image/svg+xml" />
+    <link rel="icon" href={a.favicon.href ?? a.favicon.path} type="image/svg+xml" />
     {STYLESHEETS.filter(s => o.charts || s !== LIBS.uplotCss).map(s => <link rel="stylesheet" href={s.url} integrity={s.integrity} crossorigin="anonymous" />)}
     <link rel="stylesheet" href={a.css.path} />
     {SCRIPTS.filter(s => o.charts || s !== LIBS.uplot).map(s => <script defer src={s.url} integrity={s.integrity} crossorigin="anonymous"></script>)}

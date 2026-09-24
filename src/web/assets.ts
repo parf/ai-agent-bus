@@ -38,7 +38,7 @@ export function csp(): string {
   ].join("; ");
 }
 
-export type Local = { path: string; type: string; body: Uint8Array | string };
+export type Local = { path: string; type: string; body: Uint8Array | string; href?: string };
 
 const hash = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex").slice(0, 12);
 const dir = import.meta.dir;
@@ -63,6 +63,7 @@ export function buildLocal(): { css: Local; js: Local; hero: Local; favicon: Loc
     css: { path: `/app.${hash(css)}.css`, type: "text/css; charset=utf-8", body: css },
     js: { path: `/ui.${hash(js)}.js`, type: "text/javascript; charset=utf-8", body: js },
     hero: { path: `/agent-bus.${hash(hero)}.webp`, type: "image/webp", body: hero },
-    favicon: { path: "/favicon.svg", type: "image/svg+xml; charset=utf-8", body: favicon },
+    // Browsers keep a favicon long past its page; the hash in the link retires the old one.
+    favicon: { path: "/favicon.svg", href: `/favicon.svg?v=${hash(favicon)}`, type: "image/svg+xml; charset=utf-8", body: favicon },
   };
 }
