@@ -104,8 +104,9 @@ dense operator console, not a document.
 
 ## Behaviour changes
 
-The rewrite fixes what the spec files list as worth fixing, unless the owner
-keeps one ([Q119](QUESTIONS.md#q119-behaviour-changes)).
+The rewrite fixes every item the spec files list as worth fixing
+([Q119](DECISIONS.md#decisions)). Each spec file is updated to the new
+behaviour in the step that builds it.
 
 | From | Change |
 |---|---|
