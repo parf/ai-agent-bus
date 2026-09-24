@@ -17,6 +17,16 @@ and nothing else; work steps are in [TODO](TODO.md#steps), open choices in
 | The "worth fixing" items each spec file ends with ([behaviour changes](#behaviour-changes)) | The daemon-side refusal text that names a hidden record's kind; that is a daemon fix |
 | A new look ([design language](#design-language)) | CLI and MCP faces |
 
+## Page structure
+
+Owner direction, 2026-09-24: pages and their structure may change a little
+where that gives a clearer logical view — merging or splitting a section,
+reordering cards, moving a control to where its subject is. Not a redesign of
+the site map: addresses, forms, field names and daemon calls stay as specified
+unless a change is needed for the better view. Each change is written into its
+`docs/web-face/` file in the step that builds it, and listed for the owner at
+the W.2 or page acceptance.
+
 ## Clean-room rule
 
 The rewrite is written from `docs/web-face/` only. Nobody working on it reads
