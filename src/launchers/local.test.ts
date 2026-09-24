@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { userInfo } from "node:os";
 import { join, resolve } from "node:path";
 import { Bus } from "../mcp/bus.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
@@ -31,7 +30,7 @@ test("local discovery prefers the login socket, falls back to the system socket,
   const system = join(dir, "system");
   mkdirSync(join(login, "agent-bus"), { recursive: true });
   mkdirSync(system);
-  const filename = `user-${userInfo().username}.sock`;
+  const filename = `user-${Bun.spawnSync(["id", "-nu"]).stdout.toString().trim()}.sock`;
   const systemPath = join(system, filename);
   const loginPath = join(login, "agent-bus", filename);
   const listeners: ReturnType<typeof Bun.listen>[] = [];
@@ -54,6 +53,28 @@ test("local discovery prefers the login socket, falls back to the system socket,
   } finally {
     for (const listener of listeners) listener.stop(true);
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("local discovery names the socket after the uid's account, whatever $USER says", () => {
+  const root = resolve(import.meta.dir, "../../tmp/local-discovery");
+  mkdirSync(root, { recursive: true });
+  const system = mkdtempSync(join(root, "account-"));
+  const account = Bun.spawnSync(["id", "-nu"]).stdout.toString().trim();
+  const own = join(system, `user-${account}.sock`);
+  const listener = Bun.listen({ unix: own, socket: { data() {} } });
+  const decoy = Bun.listen({ unix: join(system, "user-someone-else.sock"), socket: { data() {} } });
+  // Bun reads $USER once, at startup: each environment needs its own process.
+  const discovered = (env: Record<string, string>) => Bun.spawnSync([process.execPath, "-e",
+    `import { localAddress } from ${JSON.stringify(join(import.meta.dir, "local.ts"))}; console.log(localAddress({}, ${JSON.stringify(system)}))`],
+    { env: { PATH: process.env.PATH!, ...env } }).stdout.toString().trim();
+  try {
+    // A person's socket is theirs by uid; an environment cannot rename them.
+    expect(discovered({ USER: "someone-else", LOGNAME: "someone-else" })).toBe(own);
+    expect(discovered({})).toBe(own);
+  } finally {
+    listener.stop(true); decoy.stop(true);
+    rmSync(system, { recursive: true, force: true });
   }
 });
 

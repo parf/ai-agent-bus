@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.30 — 2026-09-23
+
+A launcher finds its account's installed socket by uid, as the CLI does, not
+by `$USER`: without it Bun reported `unknown`, and a changed one named another account.
+`ab-claude` reports a channel registration that `claude mcp add` claimed but never wrote.
+
 ## 0.8.28 — 2026-09-23
 
 A launcher whose App Server or OpenCode server dies at startup now prints the

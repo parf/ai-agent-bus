@@ -44,11 +44,13 @@ const claudeConfig = () => process.env.CLAUDE_CONFIG_DIR ? join(process.env.CLAU
 function channelName(cwd: string, face: string) {
   try {
     const conf = claudeConfig();
-    const all = existsSync(conf) ? JSON.parse(readFileSync(conf, "utf8")) : {};
-    if (all?.projects?.[cwd]?.mcpServers?.["agent-bus"]) return;
+    const registered = () => !!(existsSync(conf) && JSON.parse(readFileSync(conf, "utf8"))?.projects?.[cwd]?.mcpServers?.["agent-bus"]);
+    if (registered()) return;
     const done = spawnSync("claude", ["mcp", "add", "--scope", "local", "agent-bus", "--", process.execPath, face],
       { cwd, stdio: "ignore" });
-    if (done.status !== 0) warn("could not register the channel server; this session has tools but no channel");
+    // `claude mcp add` can say it added the server and exit 0 with nothing
+    // written (a read-only configuration directory): believe the file.
+    if (done.status !== 0 || !registered()) warn("could not register the channel server; this session has tools but no channel");
   } catch (e) { warn(`could not register the channel server: ${e}`); }
 }
 

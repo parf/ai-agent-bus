@@ -490,13 +490,14 @@ try {
       // Codex refuses a mistyped setting the person passed; OpenCode cannot open its data directory.
       if (runtime === "codex") { args = ["-c", "model_providers=5"]; expected = "App Server exited during startup"; reason = "invalid type: integer `5`, expected a map"; }
       else if (runtime === "opencode") { const ro = join(out, "read-only data"); mkdirSync(ro, { mode: 0o500 }); extra = { XDG_DATA_HOME: ro }; expected = "the opencode server exited during startup"; reason = "EACCES"; }
-      else { chmodSync(join(config, ".claude.json"), 0o400); expected = "could not register the channel server; this session has tools but no channel"; }
+      else { // Claude replaces its file by rename, so only a read-only directory stops the write.
+        chmodSync(join(config, ".claude.json"), 0o400); chmodSync(config, 0o500); expected = "could not register the channel server; this session has tools but no channel"; }
       const helper = launch("helper", dirs["helper dir"]!, args, { ...extra, AGENT_BUS_NAME: `#${runtime}/helper@fixture` }); open.push(helper);
       if (live) {
         // Claude's helper is the channel registration; its failure is reported and the session keeps its tools.
         await until(() => helper.said(expected), "the launcher reports the failed channel registration", 60000, [helper]);
         check(true, `the launcher reports the failed helper: ${expected}`);
-        chmodSync(join(config, ".claude.json"), 0o600);
+        chmodSync(config, 0o700); chmodSync(join(config, ".claude.json"), 0o600);
         await started(helper, `#${runtime}/helper@fixture`);
         const code = await stop(helper); open.pop();
         check(code === 143, `a terminated session exits 143 (${code})`);
