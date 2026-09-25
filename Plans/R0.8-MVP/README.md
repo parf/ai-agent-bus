@@ -1,16 +1,15 @@
 # R0.8
 
-Formerly MVP.
+The MVP release.
 
 📌 **TL;DR:** Somebody other than the author can install agent-bus and use it
-safely on a shared host. Core behavior is built; accepted additions and the
-installed release gates remain, so completion still depends on the remaining
-work and its acceptance.
+safely on a shared host. MVP is complete (2026-09-23) and released on the 0.8
+line; its follow-up is [constitution conformance](TODO.md#constitution-conformance).
 
 ## Purpose
 
 Somebody other than the author can install it and use it safely on a shared host.
-MVP is active; completion still depends on [remaining work and installed acceptance](TODO.md#objective). The [0.6.0 record kinds](0.6.0-TODO.md#objective) plan closes `kind` into five named kinds.
+MVP is complete; its acceptance is in [DONE](DONE.md#done--mvp). The [0.6.0 record kinds](0.6.0-TODO.md#objective) plan closed `kind` into named kinds, six today.
 
 The [0.7 constitution plan](0.7.0-TODO.md#objective) implements the owner's
 [intended model](../../docs/constitution.md#project-constitution); it is stable at 0.7.20.
@@ -31,14 +30,14 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 
 ## Scope
 
-[Current docs](../../docs/00-overview.md#document-ownership) own the MVP contracts and distinguish built behavior from pending requirements. This table tracks stage coverage, not completion of release acceptance.
+[Current docs](../../docs/00-overview.md#document-ownership) own the MVP contracts. This table tracks what the release covers.
 
 | Area | Status | Canonical contract |
 |---|---|---|
 | Identity, credentials and local isolation | Built | [identity](../../docs/01-identity-and-roles.md#scope), [access](../../docs/02-access.md#scope) |
 | Registry, channels and private configuration | Built, including Personal classification and web grouping | [records](../../docs/03-records.md#status) |
 | Messaging and restart persistence | Built, including administrative crash durability and explicit inbox selection | [messaging](../../docs/04-messaging.md#status) |
-| API, CLI, MCP and dashboard | Built; browser acceptance passed on a fresh installed host | [discovery](../../docs/05-discovery.md#status) |
+| API, CLI, MCP and web face | Built; the TypeScript web face under its own unit from 0.8.50, its installed container gates passed on 0.8.51; a real-browser rerun on an installed host is follow-up | [discovery](../../docs/05-discovery.md#status) |
 | Foreground agents and adapters | Built, including launchers; live-runtime acceptance passed on the development and a fresh installed host | [runner](../../docs/08-runner-role.md#status) |
 | Installation and service account | Package, setup, upgrade, reinstall and fresh-host acceptance passed | [setup](../../docs/09-setup.md#status) |
 | Process isolation | Split, web authority isolation, resource limits and installed account/socket/capability acceptance built | [processes](../../docs/11-processes.md#status) |
@@ -53,4 +52,4 @@ The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02
 
 ## Web redesign
 
-The [web interface proposal](web-interfaces.md#proposal) covers requirements, page structure, data gaps and Go tooling, grounded in the [browser and source review](done/web-review.md#scope). The owner reviewed the design through rendered pages and iterative corrections; [F.13 work](TODO.md#web-redesign) now tracks only remaining acceptance.
+The web face was rewritten in TypeScript ([web plan](web/README.md#web-face-rewrite)) and cut over in 0.8.50. History: the earlier [web interface proposal](web-interfaces.md#proposal), the [browser and source review](done/web-review.md#scope) and [F.13](TODO.md#web-redesign).

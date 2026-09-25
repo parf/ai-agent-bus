@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** Q122–Q129 are open, raised by the [constitution review](constitution-review.md#code-violations) of 2026-09-24. Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
+📌 **TL;DR:** Q122–Q130 are open, raised by the [constitution review](constitution-review.md#code-violations) of 2026-09-24. Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
@@ -19,6 +19,7 @@ Recommendation first in each.
 | Q127 | A 📣 copy that fails through a forwarding 👾 or 📮: whose `dropped` counts it? | the listed recipient's, since that branch is what failed; the forwarding rule "counts neither overflow case" is for a direct send | K.35 |
 | Q128 | Edits made in the web face reach the daemon over the socket, so the audit log has no client IP although the visitor has one | document that web-face edits carry no IP in MVP; forwarding the visitor's IP from the face is an R1 choice | — |
 | Q129 | An Agent's old Owner keeps a working token after a transfer | rotate the token on transfer, since the old Owner holds live bytes it may no longer fetch | — |
+| Q130 | With nothing needing attention, the web face's Overview shows a "Nothing to report" card, while the 0.5.83 decision hides the section entirely | keep the card, since an empty Overview reads as a broken page; supersede the decision in [decisions](../../docs/decisions.md#settled) | — |
 
 Q115, Q105, Q106 and Q108 were settled on 2026-09-23 and Q94–Q104 on
 2026-09-22, all moved to the
