@@ -12,6 +12,7 @@ import { Ribbon } from "../ui/charts.tsx";
 import { parseRange, bucket, addDays, KEEP_DAYS } from "../ui/range.tsx";
 import { duration, relative } from "../format.ts";
 import type { Rec, Status } from "../ctx.ts";
+import { titleArea, titleBytes } from "../proctitle.ts";
 
 describe("jsx", () => {
   test("text and attributes are escaped", () => {
@@ -194,5 +195,27 @@ describe("helpers", () => {
     const now = new Date("2026-09-24T12:00:00Z");
     expect(relative("2026-09-24T11:58:00Z", now)).toBe("2m ago");
     expect(relative("0001-01-01T00:00:00Z", now)).toBe("—");
+  });
+});
+
+describe("process title", () => {
+  test("the argv bounds come after the command name, whatever it holds", () => {
+    const tail = Array.from({ length: 50 }, (_, i) => String(i + 3)); // fields 3..52
+    tail[45] = "1000"; tail[46] = "1050";
+    expect(titleArea(`42 (b) u (n) ${tail.join(" ")}\n`)).toEqual({ start: 1000, size: 50 });
+    expect(titleArea("42 (bun) S 1")).toBeNull();
+  });
+  test("the title is cut to the area and zero filled", () => {
+    expect(Array.from(titleBytes("abcdef", 4))).toEqual([97, 98, 99, 0]);
+    expect(Array.from(titleBytes("ab", 5))).toEqual([97, 98, 0, 0, 0]);
+  });
+  test("a running process shows the title in ps", async () => {
+    const p = Bun.spawn(["bun", "run", join(import.meta.dir, "title-probe.ts"), "x".repeat(60)], { stdout: "pipe" });
+    try {
+      const reader = p.stdout.getReader();
+      expect(new TextDecoder().decode((await reader.read()).value)).toContain("titled");
+      const cmdline = readFileSync(`/proc/${p.pid}/cmdline`, "latin1").replace(/\0+$/, "");
+      expect(cmdline).toBe("agent-bus-web 9.9.9 ; Calls: 7");
+    } finally { p.kill(); }
   });
 });

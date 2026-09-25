@@ -13,8 +13,12 @@ import { match } from "./router.ts";
 import { problemPage } from "./problem.tsx";
 import { notFoundPage, methodPage } from "./pages/errors.tsx";
 import "./pages/index.ts";
+import * as proctitle from "./proctitle.ts";
 
 const BODY_LIMIT = 1 << 20;
+
+// Requests received, refusals and failures included: the ps line's Calls.
+export let calls = 0;
 
 export function makeHandler(cfg: Config) {
   const daemon = new Daemon(cfg.daemon);
@@ -23,6 +27,7 @@ export function makeHandler(cfg: Config) {
   const statics = new Map([local.css, local.js, local.hero, local.favicon].map(a => [a.path, a]));
 
   return async function handle(req: Request): Promise<Response> {
+    calls++;
     const url = new URL(req.url);
     const head = req.method === "HEAD";
     let res: Response;
@@ -92,5 +97,6 @@ if (import.meta.main) {
     idleTimeout: 150, // longer than the daemon client's own 120 s wait
     ...(cfg.tls ? { tls: { cert: Bun.file(cfg.tls.cert), key: Bun.file(cfg.tls.key) } } : {}),
   });
+  proctitle.start("agent-bus-web", VERSION, () => calls);
   console.log(`agent-bus-web ${VERSION} listening on ${cfg.tls ? "https" : "http"}://${server.hostname}:${server.port}/ (daemon ${cfg.daemon})`);
 }

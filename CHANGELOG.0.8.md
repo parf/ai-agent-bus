@@ -9,6 +9,8 @@ previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 The release package carries the whole web face: every `web/` file is in the
 manifest, checked and installed, so a packaged install starts it; `--upgrade`
 from a pre-0.8.50 release works again, and a second `--samples` run succeeds.
+The web face's ps line reads `agent-bus-web <version> ; Calls: <count>`, like
+the Go programs.
 
 ## 0.8.50 — 2026-09-24
 

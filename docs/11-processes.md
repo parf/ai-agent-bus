@@ -43,6 +43,7 @@ any work. The MCP and web entry points accept the same flag via
 | Supervisor | `agent-busd <version> ; supervisor` | No counter; it serves no requests |
 | Bus child | `agent-busd <version> ; Calls: <count> ; bus` | HTTP requests received across every listener, including refusals and requests still in progress |
 | Foreground script runner | `agent-bus-runner <version> ; Calls: <count> ; <name>` | Inbox messages taken, including work that later fails or is skipped |
+| Web face | `agent-bus-web <version> ; Calls: <count>` | HTTP requests received, refusals, assets and `/healthz` included; written over bun's own argv, so a title longer than the unit's command line is cut |
 
 Counts are cumulative for the process lifetime, start at zero, and reset on
 restart. Titles are set at start and refreshed once a second; the request path

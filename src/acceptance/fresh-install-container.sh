@@ -217,6 +217,11 @@ curl -fsS -c "$jar" -o /dev/null -H 'Origin: http://127.0.0.1:6780' --data-urlen
   fail "the installed web face refused the owner's sign-in"
 curl -fsS -b "$jar" http://127.0.0.1:6780/ | grep -q 'Overview' || fail "the installed web face did not serve the Overview"
 pass "the installed web face signs the owner in and serves the Overview"
+# Its ps line, written over bun's argv inside the unit's sandbox.
+sleep 1.2 # the title refreshes once a second
+web_title=$(tr '\0' ' ' </proc/"$(systemctl show agent-bus-web -p MainPID --value)"/cmdline)
+grep -Eq "^agent-bus-web $package_version ; Calls: [1-9][0-9]* *\$" <<<"$web_title" || fail "the web face's ps line is: $web_title"
+pass "the web face's ps line names its version and counts the requests it served"
 
 agent-bus-admin token alice@fresh >/root/alice.token
 agent-bus-admin token bob@fresh >/root/bob.token
