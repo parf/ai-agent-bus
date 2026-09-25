@@ -8,8 +8,8 @@ import { html, redirect, local, referer, cookie } from "../http.ts";
 
 const FEATURES = [
   { icon: "id-card", title: "Registry", text: "Who and what is on the bus: users, agents, queues, services and groups. Every record has an owner and a list of who may reach it." },
-  { icon: "inbox", title: "Messages", text: "Queues hold what was sent until somebody reads it. Pub/sub copies one publication to everyone subscribed." },
-  { icon: "bot", title: "MCP server", text: "An agent reaches the bus through MCP, so finding a peer and sending it a message are tools the model already knows how to call." },
+  { icon: "kind:queue", title: "Messages", text: "Queues hold what was sent until somebody reads it. Pub/sub copies one publication to everyone subscribed." },
+  { icon: "kind:agent", title: "MCP server", text: "An agent reaches the bus through MCP, so finding a peer and sending it a message are tools the model already knows how to call." },
   { icon: "layout-dashboard", title: "Dashboard", text: "This web face, once you are signed in: what is registered, what is waiting, and what has gone wrong." },
 ];
 

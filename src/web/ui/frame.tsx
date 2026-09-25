@@ -6,16 +6,16 @@ import { STYLESHEETS, SCRIPTS, LIBS, type Local } from "../assets.ts";
 import { Icon, Logo, Avatar } from "./kit.tsx";
 import { generated } from "../format.ts";
 
-export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "users" | "groups" | "activity" | "diagnostics" | "account" | "";
+export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "kind:group" | "groups" | "activity" | "diagnostics" | "account" | "";
 
 export const NAV: { key: Section; label: string; href: string; icon: string; keys: string }[] = [
   { key: "overview", label: "Overview", href: "/", icon: "layout-dashboard", keys: "g o" },
-  { key: "agents", label: "Agents", href: "/agents", icon: "bot", keys: "g a" },
-  { key: "services", label: "Services", href: "/services", icon: "satellite-dish", keys: "g s" },
-  { key: "queues", label: "Queues", href: "/queues", icon: "inbox", keys: "g q" },
-  { key: "pubsub", label: "PubSub", href: "/pubsub", icon: "megaphone", keys: "g p" },
-  { key: "users", label: "Users", href: "/users", icon: "user-round", keys: "g u" },
-  { key: "groups", label: "Groups", href: "/groups", icon: "users", keys: "g g" },
+  { key: "agents", label: "Agents", href: "/agents", icon: "kind:agent", keys: "g a" },
+  { key: "services", label: "Services", href: "/services", icon: "kind:service", keys: "g s" },
+  { key: "queues", label: "Queues", href: "/queues", icon: "kind:queue", keys: "g q" },
+  { key: "pubsub", label: "PubSub", href: "/pubsub", icon: "kind:pubsub", keys: "g p" },
+  { key: "kind:group", label: "Users", href: "/users", icon: "kind:user", keys: "g u" },
+  { key: "groups", label: "Groups", href: "/groups", icon: "kind:group", keys: "g g" },
   { key: "activity", label: "Activity", href: "/activity", icon: "activity", keys: "g t" },
   { key: "diagnostics", label: "Diagnostics", href: "/diagnostics", icon: "scan-search", keys: "g d" },
 ];

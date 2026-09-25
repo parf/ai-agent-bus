@@ -40,7 +40,7 @@ const Time = ({ iso, inactive }: { iso?: string; inactive?: boolean }) => {
 const IdentityPill = ({ u }: { u: UserRow }) => u.daemon_owner
   ? <span class="pill tone-accent"><Icon name={DAEMON_OWNER.icon} />{DAEMON_OWNER.word}</span>
   : u.administrator ? <span class="pill tone-info"><Icon name="shield" />Daemon administrator</span>
-  : <span class="pill"><Icon name="user-round" />User</span>;
+  : <span class="pill"><Icon name="kind:user" />User</span>;
 
 // ------------------------------------------------------------------ /users
 
@@ -61,7 +61,7 @@ async function usersPage(ctx: Ctx): Promise<Response> {
   const admin = !!st.administrator;
   const agents = (name: string) => records.filter(r => r.kind === "agent" && r.owner === name).length;
   const body = <>
-    <PageHead icon={<Icon name="user-round" />} title="Users"
+    <PageHead icon={<Icon name="kind:user" />} title="Users"
       help={<Help label="About Users" title="Users" items={["A User is a person on this node; every record belongs to one.", "Active users call the bus; an inactive user's calls are refused and their names are struck through.", "Last used is when the user's own credential last reached the daemon.", "Counts are computed here from what the daemon lets you see."]} />}>
       {admin ? <LinkButton href="/users/new" tone="primary" icon="user-plus">Register user</LinkButton> : null}
     </PageHead>
@@ -74,8 +74,8 @@ async function usersPage(ctx: Ctx): Promise<Response> {
         href: url({ q, state: v === "active" ? undefined : v }), text: <>{t}<span class="count">{searched.filter(u => inState(u, v!)).length}</span></>, current: state === v }))} />
     </form>
     {!matched ? (q ? <Empty icon="search-x" title="No user matches this search" action={<a class="btn" href="/users">Clear the search</a>}>A User is a person on this node; every record belongs to one.</Empty>
-      : state === "inactive" ? <Empty icon="user-round" title="No inactive users">A User is a person on this node; every record belongs to one.</Empty>
-      : <Empty icon="user-round" title="No users yet" action={admin ? <LinkButton href="/users/new" tone="primary" icon="user-plus">Register a user</LinkButton> : undefined}>A User is a person on this node; every record belongs to one.</Empty>)
+      : state === "inactive" ? <Empty icon="kind:user" title="No inactive users">A User is a person on this node; every record belongs to one.</Empty>
+      : <Empty icon="kind:user" title="No users yet" action={admin ? <LinkButton href="/users/new" tone="primary" icon="user-plus">Register a user</LinkButton> : undefined}>A User is a person on this node; every record belongs to one.</Empty>)
       : <>
         <div class="results-line"><span>Showing {(pageNo - 1) * PAGE + 1}–{Math.min(pageNo * PAGE, matched)} of {number(matched)} matching users.</span></div>
         <div class="table-wrap"><table class="data stack">
@@ -101,7 +101,7 @@ async function usersPage(ctx: Ctx): Promise<Response> {
           next={pageNo < pages ? url({ q, state: state !== "active" ? state : undefined, page: String(pageNo + 1) }) : undefined}>Page {pageNo} of {pages}</Pager>
       </>}
   </>;
-  return respond(ctx, { title: "Users", section: "users", signedIn: true, you: st.you }, body);
+  return respond(ctx, { title: "Users", section: "kind:group", signedIn: true, you: st.you }, body);
 }
 
 // ------------------------------------------------------------------ profile form
@@ -142,7 +142,7 @@ async function registerUserPage(ctx: Ctx, st: FormState = { values: {} }, status
       </Card>
     </div>
   </>;
-  return respond(ctx, { title: "Add user", section: "users", signedIn: true, you: s.you }, body, status);
+  return respond(ctx, { title: "Add user", section: "kind:group", signedIn: true, you: s.you }, body, status);
 }
 
 // ------------------------------------------------------------------ /user
@@ -180,7 +180,7 @@ async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: numbe
           <Button tone="danger" icon="key-round">Review credential removal…</Button></form> : null}
       </Card>
     </>;
-    return respond(ctx, { title: row.name, section: "users", signedIn: true, you: st.you }, body);
+    return respond(ctx, { title: row.name, section: "kind:group", signedIn: true, you: st.you }, body);
   }
   const off = row.status === "inactive";
   const canAccess = !!row.can_activate && !row.daemon_owner;
@@ -221,8 +221,8 @@ async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: numbe
         <Card title="Owned records" icon="boxes"><OwnedList recs={ownedRecords(row, records)} /></Card>
       </div>
       <div>
-        <Card title="Groups" icon="users">
-          {row.groups?.length ? <div class="chip-list">{row.groups.map(g => <a href={`/group?name=${encodeURIComponent(g)}`}><Icon name="users" />{g}</a>)}</div> : <p class="muted">No memberships</p>}
+        <Card title="Groups" icon="kind:group">
+          {row.groups?.length ? <div class="chip-list">{row.groups.map(g => <a href={`/group?name=${encodeURIComponent(g)}`}><Icon name="kind:group" />{g}</a>)}</div> : <p class="muted">No memberships</p>}
         </Card>
         <Card title="Access" icon="power" actions={<Help label="About access" title="Access" items={["An active user's calls reach the bus; an inactive user's are refused.", "Deactivating keeps their records, queued work and tokens, and stops nothing already running.", "Only the daemon Owner reactivates an Administrator."]} />}>
           <p>Current: <StatePill inactive={off} /></p>
@@ -235,7 +235,7 @@ async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: numbe
       </div>
     </div>
   </>;
-  return respond(ctx, { title: row.name, section: "users", signedIn: true, you: st.you }, body, stateOverride?.status ?? 200);
+  return respond(ctx, { title: row.name, section: "kind:group", signedIn: true, you: st.you }, body, stateOverride?.status ?? 200);
 }
 
 async function editUserPage(ctx: Ctx, st: FormState = { values: {} }, status = 200): Promise<Response> {
@@ -257,7 +257,7 @@ async function editUserPage(ctx: Ctx, st: FormState = { values: {} }, status = 2
       <div class="actions"><Button tone="primary" icon="check">Save profile</Button><a class="btn btn-ghost" href={back}>Cancel</a></div>
     </div></form>
   </>;
-  return respond(ctx, { title: `Edit ${row.name}`, section: "users", signedIn: true, you: s.you }, body, status);
+  return respond(ctx, { title: `Edit ${row.name}`, section: "kind:group", signedIn: true, you: s.you }, body, status);
 }
 
 async function deactivateUserPage(ctx: Ctx): Promise<Response> {
@@ -276,7 +276,7 @@ async function deactivateUserPage(ctx: Ctx): Promise<Response> {
         <Button name="action" value="inactive" tone="danger" icon="power">Deactivate user</Button><a class="btn btn-ghost" href={back}>Cancel</a></form>
     </Card>
   </>;
-  return respond(ctx, { title: `Confirm deactivation · ${row.name}`, section: "users", signedIn: true, you: st.you }, body);
+  return respond(ctx, { title: `Confirm deactivation · ${row.name}`, section: "kind:group", signedIn: true, you: st.you }, body);
 }
 
 async function credentialRemovePage(ctx: Ctx): Promise<Response> {
@@ -294,7 +294,7 @@ async function credentialRemovePage(ctx: Ctx): Promise<Response> {
         <Button name="action" value="remove-credential" tone="danger" icon="trash-2">Remove credential</Button><a class="btn btn-ghost" href={back}>Cancel</a></form>
     </Card>
   </>;
-  return respond(ctx, { title: `Confirm credential removal · ${row.name}`, section: "users", signedIn: true, you: st.you }, body);
+  return respond(ctx, { title: `Confirm credential removal · ${row.name}`, section: "kind:group", signedIn: true, you: st.you }, body);
 }
 
 async function postUser(ctx: Ctx): Promise<Response> {
@@ -372,7 +372,7 @@ async function groupsPage(ctx: Ctx): Promise<Response> {
   const personalNames = all.filter(n => recs.get(n)?.personal);
   const names = personal ? personalNames : all.filter(n => !recs.get(n)?.personal);
   const body = <>
-    <PageHead icon={<Icon name="users" />} title="Groups"
+    <PageHead icon={<Icon name="kind:group" />} title="Groups"
       help={<Help label="About Groups" tip="Named sets of users, agents and other groups, used in allow lists and as Maintainers." title="Groups"
         items={["A group is a named set of users, agents and nested groups.", "@owner is ACL syntax for a record's Owner, not a group.", "Anyone may register a group and becomes its Owner.", "Its Owner, its Maintainers and the daemon Administrators change its membership.", "You see a group's details when you are in it or manage it."]} />}>
       <LinkButton href={personal ? "/groups/new?personal=1" : "/groups/new"} tone="primary" icon="plus">{personal ? "Register Personal group" : "Register group"}</LinkButton>
@@ -392,7 +392,7 @@ async function groupsPage(ctx: Ctx): Promise<Response> {
           <td data-label="Maintainers">{r ? (r.maintainers?.length ? <code>{r.maintainers.join(", ")}</code> : <Muted>None</Muted>) : <Muted>Not visible to you</Muted>}</td>
           <td data-label="Members">{visible && members ? (members.length ? <ul class="members">{members.map(m => <li><code>{m}</code></li>)}</ul> : <Muted>No members</Muted>) : <Muted>Not visible to you</Muted>}</td>
         </tr>;
-      })}</tbody></table></div> : <Empty icon={personal ? "lock" : "users"} title={personal ? "No Personal groups yet" : "No groups registered"}>{personal ? <>A Personal group is named for its Owner, <code>@{st.you}/…</code>, and lists only the Owner and the Owner's own agents.</> : undefined}</Empty>}
+      })}</tbody></table></div> : <Empty icon={personal ? "lock" : "kind:group"} title={personal ? "No Personal groups yet" : "No groups registered"}>{personal ? <>A Personal group is named for its Owner, <code>@{st.you}/…</code>, and lists only the Owner and the Owner's own agents.</> : undefined}</Empty>}
   </>;
   return respond(ctx, { title: personal ? "Groups · Personal" : "Groups", section: "groups", signedIn: true, you: st.you, personal }, body);
 }
@@ -434,11 +434,11 @@ async function groupPage(ctx: Ctx): Promise<Response> {
   const protectedGroup = key === "@administrators";
   const used = usedBy(key, ls, groups);
   const body = <>
-    <PageHead back={{ href: rec?.personal ? "/groups?personal=1" : "/groups", label: "Back to Groups" }} icon={<Icon name="users" />} title={<Name copy>{key}</Name>}
+    <PageHead back={{ href: rec?.personal ? "/groups?personal=1" : "/groups", label: "Back to Groups" }} icon={<Icon name="kind:group" />} title={<Name copy>{key}</Name>}
       sub={<div class="meta-row">
         {protectedGroup ? <Pill tone="accent"><Icon name="shield" />protected</Pill> : null}
         {rec ? <>
-          <span class="owner-chip"><Icon name="user-round" /><span>Owner</span><code>{rec.owner}</code></span>
+          <span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span>
           <span class="pill"><Icon name={MAINTAINER.icon} />Maintainers: {protectedGroup ? "none — its Owner follows daemon ownership" : rec.maintainers?.length ? rec.maintainers.join(", ") : "none"}</span>
           {rec.personal ? <Pill tone="warn"><Icon name="lock" />Personal</Pill> : null}
         </> : <Muted>Owner and Maintainers are not visible to you.</Muted>}
@@ -453,7 +453,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
     </div> : null}
     <div class="detail-grid">
       <div>
-        <Card title="Members" icon="users" id="members-edit" actions={members ? <span class="count">{members.length}</span> : undefined}>
+        <Card title="Members" icon="kind:group" id="members-edit" actions={members ? <span class="count">{members.length}</span> : undefined}>
           {members ? (members.length ? <ul class="members">{members.map(m => <li><code>{m}</code></li>)}</ul> : <p class="muted">No members</p>) : <p class="muted">Membership is not visible to you.</p>}
           <p class="muted small">{protectedGroup ? "Only the daemon owner changes this protected group." : "Its Owner, its Maintainers and the daemon Administrators change this group's membership."}</p>
         </Card>
@@ -492,7 +492,7 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
   const title = create ? "Register group" : `Edit ${name}`;
   const back = create ? "/groups" : `/group?name=${encodeURIComponent(name)}`;
   const body = <>
-    <PageHead back={{ href: back, label: create ? "Back to Groups" : `Back to ${name}` }} icon={<Icon name="users" />} title={create ? "Register group" : <>Edit <Name>{name}</Name></>} />
+    <PageHead back={{ href: back, label: create ? "Back to Groups" : `Back to ${name}` }} icon={<Icon name="kind:group" />} title={create ? "Register group" : <>Edit <Name>{name}</Name></>} />
     <ErrorSummary id="save" error={st.error} />
     <form id="form-save" class="card form-card" method="post" action="/groups"><div class="card-body">
       <input type="hidden" name="action" value="save" />
@@ -609,7 +609,7 @@ async function accountPage(ctx: Ctx): Promise<Response> {
             <Avatar photo={me.photo_png} name={me.person_name || me.name} size="lg" />
             <div><h2>{me.person_name || me.name}</h2>
               <div class="person-sub"><Name copy>{me.name}</Name><IdentityPill u={me} /><StatePill inactive={me.status === "inactive"} /></div>
-              {me.groups?.length ? <div class="chip-list">{me.groups.map(g => <a href={`/group?name=${encodeURIComponent(g)}`}><Icon name="users" />{g}</a>)}</div> : null}
+              {me.groups?.length ? <div class="chip-list">{me.groups.map(g => <a href={`/group?name=${encodeURIComponent(g)}`}><Icon name="kind:group" />{g}</a>)}</div> : null}
               <p><a href={`/user?name=${encodeURIComponent(me.name)}`}>Open your profile</a></p>
             </div>
           </div> : own ? <><p><KindPill kind={own.kind} /> <Name copy>{own.name}</Name></p><p class="muted">This identity has a registered record and no person profile visible here.</p></>
@@ -648,9 +648,9 @@ async function paletteJson(ctx: Ctx): Promise<Response> {
   try {
     const [records, groups, users] = await Promise.all([ctx.records(), ctx.groups(), ctx.users().catch(() => [] as UserRow[])]);
     const entries = [
-      ...records.filter(r => r.kind !== "group" && r.kind !== "user").map(r => ({ title: r.name, hint: r.descr ?? noun(r.kind), href: recordHref(r), icon: entity(r.kind)?.icon ?? "box", group: "Records" })),
-      ...users.filter(u => u.kind === "user").map(u => ({ title: u.name, hint: u.person_name ?? "", href: `/user?name=${encodeURIComponent(u.name)}`, icon: "user-round", group: "Users" })),
-      ...Object.keys(groups).map(g => ({ title: g, hint: "", href: `/group?name=${encodeURIComponent(g)}`, icon: "users", group: "Groups" })),
+      ...records.filter(r => r.kind !== "group" && r.kind !== "user").map(r => ({ title: r.name, hint: r.descr ?? noun(r.kind), href: recordHref(r), icon: entity(r.kind)?.icon ?? "box", glyph: entity(r.kind)?.glyph, group: "Records" })),
+      ...users.filter(u => u.kind === "user").map(u => ({ title: u.name, hint: u.person_name ?? "", href: `/user?name=${encodeURIComponent(u.name)}`, icon: "kind:user", glyph: entity("user")!.glyph, group: "Users" })),
+      ...Object.keys(groups).map(g => ({ title: g, hint: "", href: `/group?name=${encodeURIComponent(g)}`, icon: "kind:group", glyph: entity("group")!.glyph, group: "Groups" })),
     ];
     return json({ entries });
   } catch (e) {

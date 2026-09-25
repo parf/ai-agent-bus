@@ -60,3 +60,13 @@ svg.ic, svg.lucide { stroke-width: 1.75; }
   @view-transition { navigation: none; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* The shared kind glyphs (src/internal/display), the same the CLI prints. */
+.glyph {
+  display: inline-grid; place-items: center; width: 1.35em; height: 1.2em; flex: none; line-height: 1; font-size: 1.02em; vertical-align: -.12em;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif; font-style: normal;
+}
+.side-link .glyph { font-size: 1.1rem; width: 1.3rem; }
+.title-mark .glyph { font-size: 1.35rem; width: auto; height: auto; }
+.feature-mark .glyph, .empty-mark .glyph { font-size: 1.5rem; width: auto; height: auto; }
+.tile-label .glyph { font-size: .9rem; }

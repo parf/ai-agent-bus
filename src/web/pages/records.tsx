@@ -282,7 +282,7 @@ async function registerPage(ctx: Ctx, kind: Kind, st: FormState = { values: {} }
 function OwnerChip({ rec, users }: { rec: Rec; users: UserRow[] | null }) {
   const u = users?.find(x => x.kind === "user" && x.name === rec.owner);
   return u ? <a class="owner-chip" href={`/user?name=${encodeURIComponent(u.name)}`}><Avatar photo={u.photo_png} name={u.person_name || u.name} size="sm" /><span>Owner</span><code>{rec.owner}</code></a>
-    : <span class="owner-chip"><Icon name="user-round" /><span>Owner</span><code>{rec.owner}</code></span>;
+    : <span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span>;
 }
 
 function routeState(r: Rec): Child {
@@ -346,7 +346,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         <KindPill kind={rec.kind} />
         <OwnerChip rec={rec} users={users} />
         {rec.maintainers?.length ? <span class="pill"><Icon name={MAINTAINER.icon} />Maintainers: {rec.maintainers.join(", ")}</span> : null}
-        <span class="pill"><Icon name={rec.kind === "pubsub" ? "megaphone" : "arrow-right"} />Delivery: {rec.kind === "pubsub" ? "a copy to each subscriber" : "one at a time"}</span>
+        <span class="pill"><Icon name={rec.kind === "pubsub" ? "kind:pubsub" : "arrow-right"} />Delivery: {rec.kind === "pubsub" ? "a copy to each subscriber" : "one at a time"}</span>
       </div>}>
       {manage ? <LinkButton href={editHref} icon="settings">Edit settings</LinkButton> : null}
     </PageHead>
@@ -398,7 +398,7 @@ async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
   const back = returnTo(ctx.q("return"), [listPath(rec)], listOf(rec));
   const body = <>
     <PageHead back={{ href: back, label: "Back to records" }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<><Name>{rec.name}</Name> <Badge>INACTIVE</Badge></>}
-      sub={<div class="meta-row"><KindPill kind={rec.kind} /><span class="owner-chip"><Icon name="user-round" /><span>Owner</span><code>{rec.owner}</code></span></div>} />
+      sub={<div class="meta-row"><KindPill kind={rec.kind} /><span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span></div>} />
     <Card title="Status" icon="power" className="confirm-card">
       <p class="big-state"><StatePill inactive /></p>
       <ul>

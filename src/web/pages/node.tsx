@@ -50,8 +50,8 @@ const Tile = ({ label, value, icon, spark, href, tone }: { label: string; value:
 };
 
 const KIND_TILES: [string, string, string, string][] = [
-  ["agent", "Agents", "bot", "/agents"], ["service", "Services", "satellite-dish", "/services"], ["queue", "Queues", "inbox", "/queues"],
-  ["pubsub", "PubSub", "megaphone", "/pubsub"], ["user", "Users", "user-round", "/users"], ["group", "Groups", "users", "/groups"],
+  ["agent", "Agents", "kind:agent", "/agents"], ["service", "Services", "kind:service", "/services"], ["queue", "Queues", "kind:queue", "/queues"],
+  ["pubsub", "PubSub", "kind:pubsub", "/pubsub"], ["user", "Users", "kind:user", "/users"], ["group", "Groups", "kind:group", "/groups"],
 ];
 
 function callTiles(id: Identity | null): Child {
@@ -73,7 +73,7 @@ async function overview(ctx: Ctx): Promise<Response> {
     <PageHead icon={<Icon name="layout-dashboard" />} title="Overview"
       help={<Help id="overview-help" label="About Overview" tip="Only enumerated observations appear. An empty list does not claim the node is healthy." title="Overview scope"
         items={["Attention covers conditions over records visible to you, node-wide refusals, the previous-stop marker and, for Administrators, owner-inactive records.", "A backlog alone is ordinary work, so it is not an attention item.", "Node totals and your lists have different scopes; they never have to agree."]} />}
-      sub={<>Signed in as <code>{st.you}</code>{st.daemon_owner ? <> · <span class="pill tone-accent"><Icon name="crown" />Daemon owner</span></> : st.administrator ? <> · <span class="pill">Daemon administrator</span></> : null}</>} />
+      sub={<>Signed in as <code>{st.you}</code>{st.daemon_owner ? <> · <span class="pill tone-accent"><Icon name="kind:owner" />Daemon owner</span></> : st.administrator ? <> · <span class="pill">Daemon administrator</span></> : null}</>} />
 
     {items.length ? <section class="attention" aria-labelledby="attention">
       <h2 id="attention" class="section-title"><Icon name="bell-ring" />Needs attention <span class="count">{items.length}</span></h2>
@@ -112,9 +112,9 @@ async function overview(ctx: Ctx): Promise<Response> {
 
     <nav class="overview-links quick" aria-label="Find records">
       <strong>Find</strong>
-      <a href="/agents?sort=queued&work=held" class="chip"><Icon name="bot" />Agents holding work</a>
-      <a href="/queues?sort=queued&work=held" class="chip"><Icon name="inbox" />Queues holding work</a>
-      <a href="/services" class="chip"><Icon name="satellite-dish" />External services</a>
+      <a href="/agents?sort=queued&work=held" class="chip"><Icon name="kind:agent" />Agents holding work</a>
+      <a href="/queues?sort=queued&work=held" class="chip"><Icon name="kind:queue" />Queues holding work</a>
+      <a href="/services" class="chip"><Icon name="kind:service" />External services</a>
     </nav>
   </>;
   return respond(ctx, { title: "Overview", section: "overview", signedIn: true, you: st.you }, body);
@@ -293,7 +293,7 @@ async function diagnostics(ctx: Ctx): Promise<Response> {
         </table> : <p class="muted">nothing lost</p>}
       </Card>
     </div>
-    <Card title="Inboxes holding messages" icon="inbox" id="stuck">
+    <Card title="Inboxes holding messages" icon="kind:queue" id="stuck">
       <table class="data stack"><caption>Inboxes holding messages, longest wait first — visible to you</caption>
         <thead><tr><th>Name</th><th class="num">Readers</th><th class="num">Held now</th><th>Oldest held</th><th>Capacity</th></tr></thead>
         <tbody>{held.length ? held.map(r => <tr>{nameCell(r)}

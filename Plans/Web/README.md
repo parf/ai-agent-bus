@@ -144,7 +144,7 @@ dense operator console, not a document.
 |---|---|
 | Theme | dark-first, light as equal; follows `prefers-color-scheme`, overridable by a toggle kept in a non-authority cookie `ab_theme` (`dark` or `light`, anything else ignored); the server writes `data-theme` on `<html>` so the first paint is right |
 | Palette | per-theme `--accent` and `--accent-text` (coral on light surfaces fails AA for text, so text uses a darker shade); elevation tokens `--surface-0` … `--surface-3` of deep ink (`#0b0d12` → `#1c212b`), one focus-ring token, one electric accent (the bus red, softened to coral `#ff5a4e`, with an indigo secondary), semantic green / amber / red / blue for states; contrast AA on both themes |
-| Shell | left sidebar with the nine sections and their Lucide icons ([Q121](DECISIONS.md#decisions)), collapsible to icons; glass top bar with release, host, account menu and the palette hint (`⌘K`); a phone gets a bottom bar and a drawer |
+| Shell | left sidebar with the nine sections and their marks: the shared kind glyphs for the kind sections, Lucide for the rest ([decisions](DECISIONS.md#decisions)), collapsible to icons; glass top bar with release, host, account menu and the palette hint (`⌘K`); a phone gets a bottom bar and a drawer |
 | Type | two families: Geist for text and display (headings, landing, KPI figures), tabular figures (`tnum`) in every number; JetBrains Mono for names, addresses and ACL lines. Inter is the alternative shown on the W.2 style guide |
 | Surfaces | cards with 12 px radius, 1 px hairline borders, soft inner glow on hover; no heavy shadows |
 | Status | pills with a dot (`● Active`, `● Inactive`), severity as a coloured rail on attention items, `INACTIVE` badge kept |

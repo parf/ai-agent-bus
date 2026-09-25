@@ -1,14 +1,20 @@
 // The component kit. Views compose these; the stylesheet styles these class
 // names and nothing else, so a new page looks like the old ones for free.
 import { h, Fragment, type Child, Html, raw } from "../jsx.ts";
-import { entity, identity as identityMark } from "../glyphs.ts";
+import { entity, identity as identityMark, kindGlyph } from "../glyphs.ts";
 import { number } from "../format.ts";
 
 /** A Lucide icon, drawn by the pinned library; the box is sized before it renders. */
-export const Icon = ({ name, label, className }: { name: string; label?: string; className?: string }) =>
-  label
+export const Icon = ({ name, label, className }: { name: string; label?: string; className?: string }) => {
+  // A kind is drawn with its shared glyph, the one the CLI prints.
+  const g = kindGlyph(name);
+  if (g) return label
+    ? <span class={`glyph ${className ?? ""}`} role="img" aria-label={label}>{g.glyph}</span>
+    : <span class={`glyph ${className ?? ""}`} aria-hidden="true">{g.glyph}</span>;
+  return label
     ? <i class={`ic ${className ?? ""}`} data-lucide={name} role="img" aria-label={label}></i>
     : <i class={`ic ${className ?? ""}`} data-lucide={name} aria-hidden="true"></i>;
+};
 
 export const KindIcon = ({ kind, owner }: { kind: string; owner?: boolean }) => {
   const e = identityMark(kind, !!owner);

@@ -42,11 +42,11 @@ export async function styleguide(ctx: Ctx): Promise<Response> {
     <Card title="Navigation" icon="compass">
       <Tabs label="Example tabs" items={[{ href: "#", text: "All", count: 12, current: true }, { href: "#", text: "My", count: 3 }, { href: "#", text: "Personal", count: 1, icon: "lock" }, { href: "#", text: "Register agent", className: "register", icon: "plus" }]} />
       <div class="toolbar"><Segmented label="Status" items={[{ href: "#", text: "All", current: true }, { href: "#", text: "Active" }, { href: "#", text: "Inactive" }]} />
-        <a class="chip" href="#"><Icon name="bot" />Agents holding work</a></div>
+        <a class="chip" href="#"><Icon name="kind:agent" />Agents holding work</a></div>
       <Pager label="Example pages" prev="#" next="#">Page 2 of 5</Pager>
     </Card>
     <div class="node-strip">
-      {[["Readers", "radio", 3], ["Queued", "layers", 128], ["Agents", "bot", 7], ["Services", "satellite-dish", 0]].map(([l, i, n]) =>
+      {[["Readers", "radio", 3], ["Queued", "layers", 128], ["Agents", "kind:agent", 7], ["Services", "kind:service", 0]].map(([l, i, n]) =>
         <div class="node-fact tile"><span class="tile-label"><Icon name={String(i)} />{l}</span><strong class="tile-value"><Figure n={Number(n)} /></strong><Spark values={s.map(x => x.in)} label="trend" /></div>)}
     </div>
     <div class="attention-list">
@@ -79,7 +79,7 @@ export async function styleguide(ctx: Ctx): Promise<Response> {
       <div class="actions"><Button tone="primary" type="button" icon="check">Save</Button><Button tone="danger" type="button" icon="trash-2">Remove</Button><Button type="button">Cancel</Button></div>
     </div></form>
     <Card title="Danger" tone="danger" icon="flame"><p>A red-rimmed card holds every irreversible action.</p></Card>
-    <Empty icon="inbox" title="No queues yet" action={<LinkButton href="#" tone="primary" icon="plus">Register a queue</LinkButton>}>A queue holds what was sent until one reader takes it.</Empty>
+    <Empty icon="kind:queue" title="No queues yet" action={<LinkButton href="#" tone="primary" icon="plus">Register a queue</LinkButton>}>A queue holds what was sent until one reader takes it.</Empty>
     <section class="problem"><div class="problem-mark"><Icon name="triangle-alert" /></div><p class="problem-code">403</p><h1>Not yours to see</h1><p class="warn">only the owner or an assigned Maintainer can change this record's settings</p><p class="advice">You are signed in, and refused for lack of permission.</p></section>
   </>;
   return respond(ctx, { title: "Style guide", signedIn: true, you: "styleguide", charts: true, flash: "Toasts look like this." }, body);

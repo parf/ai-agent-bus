@@ -104,12 +104,13 @@ function toast(msg: string) {
 
 // ------------------------------------------------------------------ palette
 
-type Entry = { title: string; hint?: string; href: string; icon: string; group: string };
+type Entry = { title: string; hint?: string; href: string; icon: string; glyph?: string; group: string };
 let entries: Entry[] | null = null;
 let dialog: HTMLDialogElement | null = null;
 
 function pages(): Entry[] {
-  return $$<HTMLAnchorElement>(".side-link").map(a => ({ title: a.textContent!.trim(), href: a.getAttribute("href")!, icon: a.querySelector("[data-lucide]")?.getAttribute("data-lucide") ?? "circle", group: "Pages", hint: a.dataset.keys }));
+  return $$<HTMLAnchorElement>(".side-link").map(a => ({ title: a.querySelector(".side-label")?.textContent?.trim() ?? a.textContent!.trim(), href: a.getAttribute("href")!,
+    icon: a.querySelector("[data-lucide]")?.getAttribute("data-lucide") ?? "circle", glyph: a.querySelector(".glyph")?.textContent ?? undefined, group: "Pages", hint: a.dataset.keys }));
 }
 
 async function loadEntries(): Promise<Entry[]> {
@@ -155,7 +156,8 @@ function openPalette() {
         const li = document.createElement("li");
         li.className = "palette-item" + (i === sel ? " sel" : "");
         li.setAttribute("role", "option");
-        li.innerHTML = `<i data-lucide="${e.icon}" class="ic"></i><span class="pt"></span><span class="ph"></span>`;
+        li.innerHTML = `${e.glyph ? '<span class="glyph" aria-hidden="true"></span>' : `<i data-lucide="${e.icon.replace(/[^a-z0-9-]/g, "")}" class="ic"></i>`}<span class="pt"></span><span class="ph"></span>`;
+        if (e.glyph) li.querySelector(".glyph")!.textContent = e.glyph;
         li.querySelector(".pt")!.textContent = e.title;
         li.querySelector(".ph")!.textContent = e.hint ?? "";
         li.addEventListener("click", () => { location.href = e.href; });

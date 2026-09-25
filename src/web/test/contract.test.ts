@@ -2,7 +2,7 @@
 // handler and the real daemon over its socket. AGENT_BUS_BIN_DIR names built
 // Go programs; without it they are built into a temporary directory.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir, userInfo } from "node:os";
 import { makeHandler } from "../server.ts";
@@ -285,6 +285,15 @@ describe("pages as the daemon owner", () => {
     const chosen = await (await req("/activity?name=db@test", { cookie: s })).text();
     expect(chosen).toMatch(/<option value="db@test" selected>db@test \(0\)<\/option>/);
     expect(t).toMatch(/<option value="">All visible \(\d+\)<\/option>/);
+  });
+  test("kinds are drawn with the CLI's own glyphs, never a drawing of their own", async () => {
+    const go = readFileSync(join(import.meta.dir, "../../internal/display/entity.go"), "utf8");
+    for (const [p, glyph] of [["/agents", "👾"], ["/queue?name=jobs@test", "📮"], ["/groups", "👥"], ["/users", "👤"]]) {
+      const t = await (await req(p, { cookie: s })).text();
+      expect(go).toContain(`"${glyph}`);
+      expect(`${p} ${t.includes(`>${glyph}</span>`)}`).toBe(`${p} true`);
+      for (const drawn of ["bot", "inbox", "megaphone", "satellite-dish", "user-round", "users", "crown"]) expect(`${p} ${t.includes(`data-lucide="${drawn}"`)}`).toBe(`${p} false`);
+    }
   });
   test("an absent name is 404 No such name, with no Try again", async () => {
     const r = await req("/agent?name=%23nobody@test", { cookie: s });
