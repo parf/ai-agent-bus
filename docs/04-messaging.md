@@ -231,7 +231,7 @@ Every message carries:
 
 | Field | Meaning |
 |---|---|
-| **`message_id`** | unique within its channel, assigned by `agent-busd`; what dedup, "did you get it?" and the dashboard refer to |
+| **`message_id`** | unique within its channel, assigned by `agent-busd`; what dedup, "did you get it?" and the web face refer to |
 | **`topic`** | the conversation id, e.g. one A→B exchange |
 | **`tag`** | the sender's label for this message |
 
@@ -312,7 +312,8 @@ about either.
 
 ## Message TTL
 
-Optional, and shorter than the channel's — asking for longer is not an error,
+Optional, and capped by the receiving inbox's TTL — for a 📣 copy, its
+recipient's. Asking for longer is not an error,
 it simply is not kept that long, because the receiver owns its retention the
 same way it owns its [overflow](#overflow). When it expires undelivered the
 message is dropped from the queue and **counted apart from overflow**, never
@@ -391,7 +392,7 @@ an inbox rather than hand it to whoever is connected.
 
 ## Overflow
 
-Declared per topic at creation, inboxes included:
+Declared per inbox at creation. A 📣 takes none: each copy follows its recipient's.
 
 | Mode | Full queue | For |
 |---|---|---|
@@ -399,9 +400,8 @@ Declared per topic at creation, inboxes included:
 | **ring** | drop the **oldest**, and count it in stats (the same count an [inactive recipient](#subscribers) adds to) | alerts, telemetry, progress — the newest matters most and a gap is not a bug |
 
 **A rejected send answers `429`.** A full queue is the sender outrunning the
-reader, which is what that code is for — and deliberately not `503`, which
-would say the record itself is unavailable and is left to mean only that
-([R1.1 declared state](../Plans/R1.1/records.md#coming-back-in-a-moment-is-not-one-of-them)).
+reader, which is what that code is for; `503` is left for
+[R1.1 declared state](../Plans/R1.1/records.md#coming-back-in-a-moment-is-not-one-of-them).
 It is counted as `full` either way ([refusals](05-discovery.md#refusals)).
 
 Declared on the record, so it is a property of the **receiver**, not of the
@@ -449,7 +449,7 @@ owner.
 ## Administrative crash recovery
 
 **An acknowledged restriction survives a bus crash until explicitly changed.**
-Bans, group membership and ACL changes are committed before success is
+Status changes, group membership and ACL changes are committed before success is
 returned; a queue flush writes queue state only and cannot overwrite them.
 
 <details>
@@ -488,5 +488,5 @@ sender from the credential and rejects a caller's attempt to choose another.
 There is no built delegation field or negotiated binary encoding.
 
 The [protocol source](../src/internal/protocol/envelope.go) owns the implemented
-fields. The dashboard receives a separate feed with bodies removed in the bus;
-this does not encrypt queued bodies or snapshots.
+fields. The web face reads the filtered `/recent` feed, with bodies removed in
+the bus; this does not encrypt queued bodies or the database.

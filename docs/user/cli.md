@@ -5,9 +5,7 @@ do with the bus from a terminal. There are five programs, and the first covers
 almost all everyday use; the others get you a credential, add people, and
 install the whole thing once.
 
-Everything you do with agent-bus from a terminal. Start here.
-
-There are five programs. You will use the first one almost always:
+You will use the first one almost always:
 
 | Program | It is for | You are |
 |---|---|---|
@@ -23,17 +21,18 @@ Assuming somebody has installed it already ([setup](../09-setup.md#install)):
 
 ```sh
 agent-bus status                      # is it alive, and who does it think I am?
-agent-bus register me@myhost          # give myself an inbox
 agent-bus ls -h                       # what is on this bus?
-agent-bus send me@myhost "hello"      # talk to myself
+agent-bus send me@myhost "hello"      # talk to myself — a User's inbox already exists
 agent-bus consume --wait 5s           # and read it back
 ```
+
+`me@myhost` stands for the name `status` reports as `you`.
 
 `status` is the one to try first. It answers with your name, so it tells you
 two things at once — the bus is up, **and** it knows who you are:
 
 ```json
-{"up":"6s","services":2,"queued":1,"you":"me@demo","administrator":true}
+{"up":"6s","services":2,"queued":0,"waiting":0,"dropped":0,"expired":0,…,"you":"me@demo","administrator":true}
 ```
 
 ✅ If you see your name, you are done setting up. Nothing else to configure.
@@ -62,8 +61,8 @@ agent-bus-token me@myhost --key ~/.ssh/id_ed25519        # with a key, no ssh
 ```
 
 💡 Asking twice gives you the **same** token — it is a read, not a reset. To
-actually replace it, say `--rotate`; the old one keeps working for a while so
-messages already in flight are not stranded.
+actually replace it, say `--rotate`; the old one keeps working until the next
+rotation, so callers still holding it are not stranded.
 
 ## 📇 Registering things
 
@@ -71,26 +70,32 @@ Nothing exists on the bus until somebody says it does, and **registering is
 just stating a description**. The thing described does not have to know the
 bus exists.
 
+⚠️ **An agent's name begins with `#`**, which a shell reads as a comment:
+quote it (`'#echo@demo'`) or write `--agent echo@demo` wherever a name goes.
+A name without `#` and without `--kind` registers a 📡 service, which needs
+`--addr` and `--protocol`.
+
 ```sh
-agent-bus register echo@demo --descr "says it back"
+agent-bus register '#echo@demo' --descr "says it back"
 agent-bus ls -h
-agent-bus unregister echo@demo
+agent-bus unregister '#echo@demo'
 ```
 
 ```
-NAME         KIND        OWNER    READERS  QUEUED  DESCRIPTION
-me@demo      👤 User     me@demo  0        0       just me
-hi@demo      👾 Agent    me@demo  1        0       greets
-echo@demo    👾 Agent    me@demo  0        1       says it back
-alerts@demo  📣 PubSub   me@demo  0        0       shouting
-db@demo      📡 Service  me@demo  -        -       the database
+NAME         KIND        OWNER    READERS  QUEUED  LAST USED  DESCRIPTION
+#echo@demo   👾 Agent    me@demo  0        1       -          says it back
+#hi@demo     👾 Agent    me@demo  1        0       just now   greets
+alerts@demo  📣 PubSub   me@demo  0        0       -          shouting
+db@demo      📡 Service  me@demo  -        -       -          the database
+me@demo      👤 User     me@demo  0        0       -
 ```
 
-`READERS` counts reads waiting right now, and `QUEUED` how much is waiting for
-them. A row with `0` and a growing number is the picture of an agent that has
-stopped. 🔍 A 📡 shows `-` for both: it is
-[something outside](../06-services.md#what-a-service-is) with no queue here, so
-there is nothing to count.
+`READERS` counts reads waiting right now, `QUEUED` how much is waiting for
+them, and `LAST USED` when the name's credential last made a call. A row with
+`READERS 0` and a growing `QUEUED` is the picture of an agent that has
+stopped. 🔍 A 📡 and a 👥 group show `-` for both: a service is
+[something outside](../06-services.md#what-a-service-is) with no queue here,
+and a group is a list of members, so there is nothing to count.
 
 Useful extras when you register:
 
@@ -98,7 +103,7 @@ Useful extras when you register:
 |---|---|
 | `--descr` | what it is, in a few words. This is what everyone else sees |
 | `--allow a@b,c@d` or `--allow '*'` | who may use it. Leave it out and the bus decides |
-| `--ttl 1h` · `--bound 1000` | how long its queue keeps things, and how much of it |
+| `--ttl 1h` · `--bound 1000` | how long an agent's or queue's inbox keeps things, and how much of it. A 📣 pubsub takes neither: each copy lives by its recipient's TTL |
 | `--overflow ring\|strict` | when full: drop the oldest, or refuse new ones |
 | `--addr` · `--protocol` | where it really lives — required when the record is a 📡 [service](../06-services.md#how-to-call-it), which is something outside |
 
@@ -129,7 +134,7 @@ alone) and a 👥 group (read by its members) have one.
 ```sh
 agent-bus manage jobs@demo --add-to-set-allow bob@demo        # add, unless already there
 agent-bus manage jobs@demo --remove-allow bob@demo            # take it out
-agent-bus manage jobs@demo --deliver-to '#worker@demo'        # route the queue to an agent
+agent-bus manage jobs@demo --deliver-to '#worker@demo'        # route the queue to an agent that allows it
 agent-bus manage jobs@demo --status inactive                  # hide it; --status active brings it back
 agent-bus group @crew alice@demo '#worker@demo'               # a group's whole membership
 ```
@@ -144,8 +149,8 @@ as if it did not exist until it is reactivated.
 Three shapes, and the difference is only how long you wait:
 
 ```sh
-agent-bus send  echo@demo "no answer wanted"
-agent-bus call  hi@demo --wait 10s "ping"        # wait for the reply
+agent-bus send  '#echo@demo' "no answer wanted"
+agent-bus call  '#hi@demo' --wait 10s "ping"     # wait for the reply
 agent-bus consume --wait 30s                     # read my own inbox
 agent-bus consume --follow                       # ...and keep reading
 ```
@@ -153,8 +158,8 @@ agent-bus consume --follow                       # ...and keep reading
 A `call` shows you the receipt first, then the answer:
 
 ```
-ack from hi@demo
-{"message_id":"573c…","from":"hi@demo","body":"you said: ping", …}
+ack from #hi@demo
+{"message_id":"5b70…","from":"#hi@demo","to":"me@demo","topic":"call","body":"you said: ping", …}
 ```
 
 | Word | Means |
@@ -169,7 +174,7 @@ Answering by hand:
 agent-bus ack  <message-id>
 agent-bus done <message-id>
 agent-bus reply <message-id> "here you go"
-agent-bus reply --to someone@host --topic t "unprompted"
+agent-bus reply --to '#hi@demo' --topic t "unprompted"
 ```
 
 ⚠️ **One reader per inbox.** A second `consume` on the same name is **refused**
@@ -204,10 +209,10 @@ The shortest way to put something on the bus: one command line, and your
 script is an agent — the kind with a queue something reads.
 
 ```sh
-agent-bus start hi@demo --algo=args /full/path/to/hi.sh --descr "greets"
+agent-bus start '#hi@demo' --algo=args /full/path/to/hi.sh --descr "greets"
 ```
 
-Now `agent-bus call hi@demo "ping"` runs the script, and whatever it prints on
+Now `agent-bus call '#hi@demo' "ping"` runs the script, and whatever it prints on
 stdout comes back as the answer.
 
 | Flag | |
@@ -219,8 +224,8 @@ stdout comes back as the answer.
 | `--network` | let it reach the network. Not unless asked |
 
 ```sh
-agent-bus logs hi@demo --lines 50 --follow
-agent-bus stop hi@demo
+agent-bus logs '#hi@demo' --lines 50 --follow
+agent-bus stop '#hi@demo'
 ```
 
 ⚠️ **Use an absolute path for the script.** The child runs in a work directory
@@ -248,10 +253,10 @@ Fetching a public key is not proof of anything; **signing the challenge is**.
 | You see | It usually means |
 |---|---|
 | `set AGENT_BUS_TOKEN` | you are on the shared socket, not your own — see [above](#-how-it-finds-the-bus-and-how-it-knows-you) |
-| `no inbox for you@host: register it first` | you tried to `consume` before registering **your own** name |
+| `no inbox for …: register it first` | you asked to `consume` from a name nobody registered. A User's own inbox always exists |
 | `no answer within 30s` | the message *was* accepted — do not send it again. Nobody answered in time |
 | a name that "does not exist" | sending to an unregistered name is refused on purpose, so you learn now rather than later |
-| `ls` shows `READER no` and `QUEUED` climbing | whatever serves that name is not running |
+| `ls` shows `READERS 0` and `QUEUED` climbing | whatever serves that name is not running |
 
 Ask the daemon how it is doing with `agent-bus status` — `dropped`, `expired`
 and `refused` there are the counters worth watching.

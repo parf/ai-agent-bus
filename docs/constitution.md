@@ -3,8 +3,8 @@
 📌 **TL;DR:** The model every face and the daemon implement: Users own
 everything, names say their kind, one write-through SQLite store, and an
 inactive or incorrect entity is no such entity. **MUST**, **MUST NOT**,
-**SHOULD** and **MAY** are normative. Built in 0.7; what is still pending is
-the [0.7 plan](../Plans/R0.8-MVP/0.7.0-TODO.md#storage-and-identity)'s, never this page's.
+**SHOULD** and **MAY** are normative. Built; the remaining gaps are the
+[constitution conformance](../Plans/R0.8-MVP/TODO.md#constitution-conformance) rows.
 
 Each section states its essentials first; the full rules are in the closed
 blocks below them, and are just as normative.
@@ -17,9 +17,8 @@ loads every durable entity and ignores — never repairs — an incorrect record
 reporting it. Queue contents are flushed in batches, so a crash MAY lose the
 last minute of traffic.
 
-0.7 uses SQLite. Configurable [additional backends](../Plans/R1.0-Release/storage.md#backends)
-are R1 work. Every backend MUST preserve the same identity, authority and
-durability rules, behind the existing storage ports.
+Other [backends](../Plans/R1.0-Release/storage.md#backends) are R1 work and MUST keep
+these rules behind the existing storage ports.
 
 <details>
 <summary>Write rules</summary>
@@ -42,9 +41,7 @@ That ordering is write-through. It covers record lifecycle changes too.
 
 Queue contents and their `in`, `out`, `dropped` and `expired` counters keep the
 [checkpoint boundary](04-messaging.md#durability): in memory during traffic, flushed as one batch every minute and on graceful shutdown, never once
-per message, so a crash MAY lose changes since the last flush. State from
-before this model is never imported: an installation moves to it by a
-[clean reinstall](../Plans/R0.8-MVP/0.7-cutover.md#procedure).
+per message, so a crash MAY lose changes since the last flush.
 A durable queue whose record is absent or cannot hold a queue is such an
 incorrect record: startup MUST ignore and report it, and MUST NOT silently drop
 or reattach that backlog.
@@ -92,9 +89,7 @@ its cached view. Whether the process exits is its own decision.
 
 The SQLite driver is `modernc.org/sqlite`.
 
-A reload API or SIGHUP (`kill -HUP <pid>`) MAY be added later; no current
-operation needs one. It would replace one complete view with another and rebuild the
-derived indexes, never exposing a partly reloaded state.
+Daemon reload is [R1 work](../Plans/R1.0-Release/operations.md#reload).
 
 </details>
 
@@ -672,11 +667,13 @@ boundary.
 
 ## Open questions
 
-The [question index](../Plans/R0.8-MVP/QUESTIONS.md#open-questions) owns every open
-choice; none is open on this page.
+Q122–Q129 are the open constitution choices
+([MVP questions](../Plans/R0.8-MVP/QUESTIONS.md#open-questions)).
 
 ## History
 
 What this model replaced, and the owner clarifications of September 19, 2026,
 are [history](../Plans/R0.8-MVP/done/constitution-history.md#what-this-replaced);
-nothing here depends on them.
+nothing here depends on them. State from before this model is never imported:
+an installation moved to it by a
+[clean reinstall](../Plans/R0.8-MVP/0.7-cutover.md#procedure).

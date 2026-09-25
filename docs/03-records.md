@@ -11,7 +11,6 @@ which fields are filled in.
 | MVP | Scope |
 |---|---|
 | Built | [Six record kinds](#record-kinds) closing `kind`, registry records, [agent templates](#agent-templates), private registry configuration and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](#agent-templates). |
-| Pending | Nothing here. The 📮 and 📣 kinds are owned by [channels](07-channels.md#status), and the 📡 kind by [services](06-services.md#status). |
 
 ## Record kinds
 
@@ -55,7 +54,7 @@ page.** It has no queue here, so nothing is sent to it, nothing subscribes it
 and nothing consumes from it; it carries an address and a protocol instead, and
 the daemon reaches neither. See [services](06-services.md#what-a-service-is).
 
-Before 1.1 there is no compatibility obligation, so no migration is written:
+Before R1.1 there is no compatibility obligation, so no migration is written:
 existing records are registered again under the kind they should carry.
 
 ### Restoring a record
@@ -91,7 +90,7 @@ name.
 
 **A record's method information is its description, and nothing else.** The
 record's one free-text field is what `ls` and the MCP catalog show, so anything
-whose callers need to know its verbs writes them into that sentence. The MVP has
+whose callers need to know its verbs writes them into that sentence. The release has
 no method list, no per-method destructive hint and nothing generated from one; a
 better representation is proposed in
 [R1 method metadata](../Plans/R1.0-Release/discovery.md#method-metadata).
@@ -125,7 +124,7 @@ configurable.
 |---|---|
 | the configuration | **arbitrary JSON, stored opaque** and compacted before storage and hashing. The only check is that it *is* JSON — a syntax check, not interpretation. Nothing looks for a server, a user, a mailbox or a credential. A stored configuration that is not compact JSON is [ignored and reported](constitution.md#persistence-and-loading) at load |
 | who may write it | the principals with [record management authority](01-identity-and-roles.md#groups). Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so an agent restarting keeps what it was configured with. A registration carries **neither half**: not the bytes, and not the digest, which is derived from them and would otherwise let anyone claim any setup |
-| who may read it | **an 👾 agent itself, and nobody else — its owner included**; for a 📡 service, which has no principal, whoever its [ACL](02-access.md#acl) admits. A caller who may not see the record learns only that there is no such name. Setup data goes in and is used; it does not come back out to whoever wrote it |
+| who may read it | **an 👾 agent itself, and nobody else — its owner included**; for a 📡 service, which has no principal, whoever its [ACL](02-access.md#acl) admits; for a 👥 group, its members. A caller who may not see the record learns only that there is no such name. Setup data goes in and is used; it does not come back out to whoever wrote it |
 | what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record — the whole listing, a query for one name (`agent-bus ls <name>`), and the answer to setting one ([why a digest at all](#why-a-digest-at-all)) |
 | where the bytes are **not** | anywhere else. No listing carries them, and the one read is the record's own |
 | nothing to store | refused: no configuration at all, something that is not JSON, and `null` — which would read back exactly like never having been configured |
@@ -172,7 +171,7 @@ means `sha256sum cfg.json` matches only if the file is already compact.
 
 A digest of a short, guessable configuration can be recovered by trying
 candidates. The current configuration is plaintext in daemon state, including
-the restart snapshot. The caller restrictions are real; secrecy from the daemon
+the database. The caller restrictions are real; secrecy from the daemon
 is not claimed.
 
 **A record fetches its own configuration; nothing injects it** — and it is
@@ -198,7 +197,7 @@ hundreds of per-user agents sit apart. Built in 0.7.5.
 | `allow` and `maintainers` | only the Owner, the Owner's own agents by name, and the runtime [`@owner` and `@agent` terms](02-access.md#acl) |
 | Refused | another user's agent, an ordinary group, a user entry other than the Owner, and the [wildcard grant](02-access.md#acl) — each an error on every save, at creation and after it |
 | Everything else | unaffected: delivery, `deliver_to` and forwarding behave as on a shared record |
-| Main web pages | exclude Personal records; they are on the **Personal** tab instead |
+| Main web pages | exclude Personal records; each kind's list shows them under its `?personal=1` filter |
 | Launchers | the [`ab-*` launchers](08-runner-role.md#session-names) register their session agents Personal, with `@owner` in the ACL |
 
 Hiding a record from the main web pages does not revoke authorized access or

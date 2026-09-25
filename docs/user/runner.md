@@ -3,26 +3,26 @@
 📌 **TL;DR:** `agent-bus start` serves messages through your script — or your
 agent session, or anything else that answers. One command registers the name,
 obtains its credential, reads the queue and runs your script per message.
-There is no separate runner program today.
+The `ab-*` launchers do the same for a Claude Code, Codex or opencode session.
 
-Your script, your agent session, or anything else that answers messages.
+The runner is `agent-bus start`, part of the ordinary [`agent-bus`](cli.md)
+command. A managed runner with autostart and restart policies is
+[R1 scope](../../Plans/R1.0-Release/runner.md#managed-runner).
 
-ℹ️ **There is no `agent-bus-runner` program today.** The runner is
-`agent-bus start` — part of the ordinary [`agent-bus`](cli.md) command. A
-separate managed runner, with autostart and restart policies, is planned for
-R1. Everything below is what you can actually run right now.
+ℹ️ An agent's name begins with `#`: quote it (`'#hi@demo'`) or write
+`--agent hi@demo`.
 
 ## ⚡ The one-liner
 
 ```sh
-agent-bus start hi@demo --algo=args /full/path/to/hi.sh --descr "greets"
+agent-bus start '#hi@demo' --algo=args /full/path/to/hi.sh --descr "greets"
 ```
 
 That single command does four things for you:
 
 | | |
 |---|---|
-| 1️⃣ | registers `hi@demo` so everyone can see it |
+| 1️⃣ | registers `#hi@demo` so everyone can see it |
 | 2️⃣ | gets the agent its own credential |
 | 3️⃣ | reads its inbox, forever |
 | 4️⃣ | runs your script **once per message**, and sends back what it printed |
@@ -59,15 +59,15 @@ cat > ~/hi.sh <<'SH'
 echo "you said: $1"
 SH
 chmod +x ~/hi.sh
-agent-bus start hi@demo --algo=args ~/hi.sh --descr "greets"
+agent-bus start '#hi@demo' --algo=args ~/hi.sh --descr "greets"
 ```
 
 ```sh
-agent-bus call hi@demo --wait 10s "ping"
+agent-bus call '#hi@demo' --wait 10s "ping"
 ```
 ```
-ack from hi@demo
-{"from":"hi@demo","body":"you said: ping", …}
+ack from #hi@demo
+{"from":"#hi@demo","body":"you said: ping", …}
 ```
 🎉
 
@@ -86,7 +86,7 @@ twice is safe. If you want a retry, the caller asks again.
 ## 🔢 More than one at a time
 
 ```sh
-agent-bus start busy@demo -5 --algo=json /full/path/to/worker.sh
+agent-bus start '#busy@demo' -5 --algo=json /full/path/to/worker.sh
 ```
 
 `-5` means at most five copies of the script at once. One by default.
@@ -100,9 +100,9 @@ queued, waiting for whatever reads that inbox next. Nothing evaporates.
 From any terminal of yours, not just the one it is running in:
 
 ```sh
-agent-bus logs hi@demo --lines 50
-agent-bus logs hi@demo --follow
-agent-bus stop hi@demo
+agent-bus logs '#hi@demo' --lines 50
+agent-bus logs '#hi@demo' --follow
+agent-bus stop '#hi@demo'
 ```
 
 | | |
@@ -112,7 +112,7 @@ agent-bus stop hi@demo
 | **only you can stop it** | a running agent leaves a note in **your own** state directory, and that is what `stop` and `logs` read. Nobody else can see it, so nobody else can touch it 🔒 |
 
 `stop` leaves the **registration** in place, so the name still exists and its
-queue still collects. To remove the name too: `agent-bus unregister hi@demo`.
+queue still collects. To remove the name too: `agent-bus unregister '#hi@demo'`.
 
 Starting a name that is already running **here** is refused — that is a
 duplicate, not a second worker.
@@ -150,11 +150,12 @@ that holds the secrets is not the thing that runs your code.
 
 ## 🧠 Putting an AI session on the bus
 
-Two launchers ship with agent-bus and do the whole arrangement for you:
+Three launchers ship with agent-bus and do the whole arrangement for you:
 
 ```sh
 ab-claude          # a Claude Code session, on the bus
 ab-codex           # a Codex session, on the bus
+ab-opencode        # an opencode session, on the bus
 ```
 
 They find your socket, register the session under a name, load the bus tools
@@ -165,12 +166,12 @@ session. Bun and the runtime itself must be installed.
 |---|---|
 | `AGENT_BUS_ADDR` | skip discovery, use this address |
 | `AGENT_BUS_TOKEN` | a token, when the socket is not enough |
-| `AGENT_BUS_NAME` | the bus name you want. Otherwise one is derived from the session title or the directory |
+| `AGENT_BUS_NAME` | the bus name you want, beginning with `#`. Otherwise `#<runtime>/<session title or directory>@<host>` is derived |
 
 👉 The interesting part is that you can then **talk to that running session**
 from any terminal — see [Claude Code, Codex and opencode](agents.md).
 
-`ab-claude --help` / `ab-codex --help` say the rest. They always continue the
+`ab-claude --help` (and the same for the other two) says the rest. They always continue the
 last session in the current directory, and they enforce automatic execution —
 so the session is not waiting on a prompt when a message arrives.
 

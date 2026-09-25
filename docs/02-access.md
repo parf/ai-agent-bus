@@ -11,8 +11,8 @@ For ownership and management, see [Identity and roles](01-identity-and-roles.md#
 
 Tokens, key-possession enrolment, account sockets, rotation, browser sessions,
 ACLs and nested groups are built. Record-defined roles and group expressions are
-[R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles). Startup revocation remains
-[best effort](#ownerless-credentials); further hardening is deferred. Future encryption is separate.
+[R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles). Startup revocation is
+[best effort](#ownerless-credentials).
 The [Owner-and-Maintainers empty ACL rule](#acl) applies to new and restored records.
 
 ## What a call carries
@@ -194,9 +194,6 @@ Faces cannot widen these permissions. Enter ACLs in the project's
 <details>
 <summary>Grants and upgrade behavior</summary>
 
-Version 0.5.44 replaces the former open-empty default, including on restored
-records. See the [upgrade note](09-setup.md#empty-acl-upgrade).
-
 | Rule | Effect for an active, known caller |
 |---|---|
 | Resource management authority | Owner, resource's own principal and assigned Maintainers have access |
@@ -204,11 +201,12 @@ records. See the [upgrade note](09-setup.md#empty-acl-upgrade).
 | Matching name, ordinary group or `*` | Grants access |
 | `@owner` | Grants access to the direct Owner and the agents that Owner directly owns |
 
-Version 0.5.74 removes the former master layer, including its flag and record
-field. The daemon Owner keeps
+The daemon Owner has
 [node-wide management](01-identity-and-roles.md#daemon-owner), which permits
-discovery and editing without opening a resource's message interface. See the
-[release note](09-setup.md#owner-acl-and-master-removal).
+discovery and editing without opening a resource's message interface.
+History: the open-empty default and the master layer were removed in
+[0.5.44](09-setup.md#empty-acl-upgrade) and
+[0.5.74](09-setup.md#owner-acl-and-master-removal).
 
 Allow lists are registry settings, never values taken from private
 [registry configuration](03-records.md#configuring-a-template). Queries, sends, consumes and writes still obey their applicable
@@ -228,7 +226,7 @@ Principal tokens never expire or rotate because of time, inactivity or restart.
 Explicit rotation keeps the current and previous token valid. Removing an
 agent deletes its credentials in the removal's own commit, and
 [ownerless cleanup](#ownerless-credentials) collects credentials that answer
-for nobody; pausing or banning a user retains theirs.
+for nobody; deactivating a user retains theirs.
 
 <details>
 <summary>Persistence, rotation and sessions</summary>
@@ -245,14 +243,12 @@ for nobody; pausing or banning a user retains theirs.
   credential issued before its principal was bound is bound on first check.
 * Credential listings show only identities the caller holds, using keyed
   fingerprints rather than token bytes.
-* A person's credential lasts while their user profile exists; MVP does not
-  delete users. Removing a person's registry record does not remove their
+* A person's credential lasts while their user profile exists; Users are
+  never deleted. Removing a person's registry record does not remove their
   profile or credential. See [record removal](01-identity-and-roles.md#unregistering).
 * Browser sessions have a [separate lifetime](05-discovery.md#signing-in) and
   are not persisted; they are not principal-token rotation.
-* The no-automatic-expiry rule also protects future encrypted backlog recovery:
-  replacing key material does not make old ciphertext decryptable. The
-  [future key lifecycle](../Plans/R1.0-Release/access.md#key-modes) must account for it.
+* The R1 [key lifecycle](../Plans/R1.0-Release/access.md#key-modes) keeps this rule.
 
 </details>
 
@@ -321,7 +317,7 @@ not served, it is not listed, and `account remove` still deletes its row.
 
 ## Trust boundary
 
-MVP assumes a trusted host: message bodies and stored configuration are readable
+The release assumes a trusted host: message bodies and stored configuration are readable
 by the daemon. No peer handshake or message encryption is built. Hiding bodies
-from the dashboard is a disclosure boundary, not encryption; the future design
-lives in [R1](../Plans/R1.0-Release/access.md#encrypted-sessions).
+from the web face is a disclosure boundary, not encryption; encrypted sessions
+are [R1 work](../Plans/R1.0-Release/access.md#encrypted-sessions).

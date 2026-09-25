@@ -1,16 +1,17 @@
 # ⚙️ The daemon
 
 📌 **TL;DR:** Install and operate the bus, and tell whether it is healthy.
-`agent-busd` is the whole bus — registry, broker and MCP server in one
-process, with no broker and no database server beside it; the dashboard is its
-own small service beside it. This page is for whoever looks after them.
+`agent-busd` is the whole bus — registry and queues in one daemon, with no
+separate broker or database server. The dashboard and the MCP face are
+separate processes that talk to it. This page is for whoever looks after them.
 
-`agent-busd` is the whole bus: registry, broker and MCP server, in one
-process. Nothing else needs installing — **no broker, no database server.** 🎈
-The dashboard, `agent-bus-web`, is a separate systemd service that setup installs beside it
-([processes § the web face](../11-processes.md#the-web-face)).
+`agent-busd` holds the registry and the queues. Nothing else needs installing —
+**no broker, no database server.** 🎈 The dashboard, `agent-bus-web`, is its own
+systemd service that setup installs beside it
+([processes § the web face](../11-processes.md#the-web-face)); the MCP face runs
+inside each agent session that loads it ([agents](agents.md)).
 
-Most people never run it by hand. This page is for whoever looks after it.
+Most people never run it by hand.
 
 ## 📦 Installing it, once
 
@@ -25,29 +26,38 @@ That one command:
 
 | | |
 |---|---|
-| 👥 | makes two service accounts — one for the daemon, one for runners |
-| 🏠 | creates their homes, `0700`, and their runtime directories |
-| 📝 | writes and enables a systemd unit |
+| 👥 | makes three service accounts — the daemon, the dashboard, and one reserved for a later runner |
+| 🏠 | creates their homes and their runtime directories |
+| 📝 | writes and enables two systemd units: `agent-busd` and `agent-bus-web` |
 | 🔑 | adds **you** as the first user and an administrator, using your `id_ed25519.pub` |
 
 Look before you leap:
 
 ```sh
-sudo ./agent-bus-setup -dry-run      # say what would happen, change nothing
-sudo ./agent-bus-setup -print-unit   # show the unit file, change nothing
+sudo ./agent-bus-setup --dry-run      # say what would happen, change nothing
+sudo ./agent-bus-setup --print-unit   # show the unit file, change nothing
+```
+
+Something to look at, and away again
+([setup § sample data](../09-setup.md#sample-data)):
+
+```sh
+sudo agent-bus-setup --samples          # sample users, agents, services, queues, topics, groups
+sudo agent-bus-setup --remove-samples   # take exactly those away
 ```
 
 Worth knowing:
 
 | Flag | |
 |---|---|
-| `-owner user` | who this daemon belongs to, realm optional. Defaults to you |
-| `-user account=user[@realm]` | seed a local account mapping on the first current start — repeat per person |
-| `-key path` | a different public key for the first user |
-| `-addr` · `-exec` | listen address, and which `agent-busd` to run |
+| `--owner user` | who this daemon belongs to, realm optional. Defaults to you |
+| `--user account=user[@realm]` | seed a local account mapping on the first current start — repeat per person |
+| `--key path` | a different public key for the first user |
+| `--addr` · `--exec` | listen address, and which `agent-busd` to run |
+| `--upgrade` · `--recover` | replace the installed release, with automatic rollback; finish an interrupted one ([INSTALL](../../src/INSTALL.md#upgrade-and-recover)) |
 
-🔐 **Two accounts, on purpose.** The daemon holds credentials; the runner runs
-your code. They are separate so that one cannot become the other. See
+🔐 **Separate accounts, on purpose.** The daemon holds credentials; the
+dashboard holds none and asks the daemon for each visitor's view. See
 [setup § the two accounts](../09-setup.md#the-two-accounts).
 
 ## 🚪 The doors it opens
@@ -56,7 +66,7 @@ Four ways in, and they are not equal:
 
 | Door | Where | Who gets in |
 |---|---|---|
-| 🥇 **your own socket** | `/run/agent-bus/user-<name>.sock` | one account. The socket **is** the credential — the kernel already knows who you are, so no token |
+| 🥇 **your own socket** | `/run/agent-bus/user-<account>.sock` | one account. The socket **is** the credential — the kernel already knows who you are, so no token |
 | 🤝 **the shared socket** | `/run/agent-bus/bus.sock` | anyone on the machine, **with a token** |
 | 🌐 **loopback TCP** | `127.0.0.1:6767` | with a token. Refuses to bind anything that is not loopback ✅. Opened in a browser it sends you to the dashboard ([where it listens](../05-discovery.md#where-it-listens)) |
 | 🖥️ **the dashboard** | `127.0.0.1:6780` | a browser |
@@ -82,8 +92,12 @@ sudo systemctl status  agent-bus-web     # the dashboard
 By hand — for a test bus of your own, in your own session:
 
 ```sh
-agent-busd -owner me@demo -user $USER=me@demo -addr 127.0.0.1:6791
+agent-busd -owner me@demo -addr 127.0.0.1:6791 -db ~/test-bus/agent-bus.db -create
 ```
+
+`-create` makes the database on the first run only. Your own account is this
+daemon's account, so your own socket answers as its owner — no token and no
+`-user` for yourself.
 
 The flags:
 
@@ -97,6 +111,7 @@ The flags:
 | `-init` · `-create` | make the database: `-init` alone and exit, `-create` then serve. Only an explicit act creates one |
 | `-flush-every` | how often queue contents and counters are written, one batch; `0` only at a graceful stop |
 | `-log-dir` · `-debug-log` | where `audit.log`, `error.log` and the on-demand `debug.log` go, and whether the last starts on |
+| `-dashboard url` | where a browser opening the API address is sent; empty serves no root page |
 | `-web` | accepted and ignored since 0.8.50, so an older unit still starts; the dashboard is its own service |
 
 ## 💾 What it keeps, and what it does not
@@ -105,7 +120,7 @@ The flags:
 |---|---|---|
 | 📇 registry — agents, channels, services, people | its database | ✅ yes |
 | 🎟️ tokens | the same database | ✅ yes |
-| 📬 queued messages, statistics | **memory**, flushed to the database in batches | ⚠️ across a **graceful** restart, yes; a crash loses what came since the last flush |
+| 📬 queued messages, statistics | **memory**, flushed to the database in batches — every minute by default (`-flush-every`) | ⚠️ across a **graceful** restart, yes; a crash loses what came since the last flush |
 | 🔋 liveness — who is reading, who is up | memory | ❌ no, and should not — it is re-learned in a second |
 
 💡 So: `systemctl restart` keeps the queues. A crash or `kill -9` keeps them
@@ -123,7 +138,7 @@ agent-bus status
 ```
 
 ```json
-{"up":"6s","services":2,"queued":1,"you":"me@demo","administrator":true,"daemon_owner":true}
+{"up":"6s","services":2,"queued":0,"waiting":0,"dropped":0,"expired":0,"refused":{"credential":3},…,"you":"me@demo","administrator":true,"daemon_owner":true}
 ```
 
 The counters worth a glance:
@@ -164,20 +179,17 @@ is implicit and cannot be edited.
 
 ## 🧬 How it is put together
 
-Not one blob. A small supervisor with least-privilege children:
+| Process | Holds | Runs as |
+|---|---|---|
+| the supervisor | the listening sockets and one capability, **no state** | `agent-busd.service` |
+| the bus, its one child | the registry, the queues and the tokens | the same unit and account |
+| the dashboard | no secrets at all | `agent-bus-web.service`, its own account |
+| a script agent | its inbox reader and your script | you, in your session (`agent-bus start`) |
 
-| Piece | Holds |
-|---|---|
-| the supervisor | one capability, **no state** |
-| bus | the registry and the queues |
-| auth | principal token secrets — and it is the **only** one that does |
-| web, health | no secrets at all |
+**No process the daemon starts may exec** — that is why a script agent runs
+in your own session, not as a child of the daemon.
 
-They talk over unix sockets and passed file descriptors, nothing shared
-implicitly. And **no process the daemon starts may exec** — that is why the
-runner is a separate program under a separate account, not a child.
-
-📖 The design: [processes § supervisor](../11-processes.md).
+📖 The design: [processes § the processes](../11-processes.md#the-processes).
 
 ## 🆘 When it will not start
 

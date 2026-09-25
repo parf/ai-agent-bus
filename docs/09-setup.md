@@ -9,8 +9,7 @@ ordinary use needs neither.
 
 | MVP | Scope |
 |---|---|
-| Built | Distributable archive, installer, administration, token helper, accounts, daemon unit and stamped builds; fresh-host installation, populated upgrade/recovery and [backup/restore](#backup-and-restore) acceptance. |
-| Pending | Nothing for MVP: installed [browser](05-discovery.md#browser-acceptance) and [runtime](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance passed on a fresh host in 0.8.26–0.8.30. |
+| Built | Distributable archive, installer, administration, token helper, accounts, daemon and web units and stamped builds; fresh-host installation, populated upgrade/recovery, [backup/restore](#backup-and-restore) and installed [runtime](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance. Installed [browser acceptance](05-discovery.md#browser-acceptance) (0.8.26–0.8.30) covered the former Go face; the TypeScript face's installed-browser rerun is [follow-up](../Plans/R0.8-MVP/web/TODO.md#next-step). |
 
 ## The programs
 
@@ -20,12 +19,12 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 
 | Program | Runs as | What it is for |
 |---|---|---|
-| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the accounts ([the two accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the daemon and web units, then hands over to `agent-bus-admin` for the first user and their local person name |
+| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the accounts ([the accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the daemon and web units, then hands over to `agent-bus-admin` for the first user and their local person name |
 | `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](11-processes.md#processes-and-privileges)) |
-| `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the dashboard, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](11-processes.md#the-web-face)) |
+| `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](11-processes.md#the-web-face)) |
 
 ## SSH admin
 
@@ -229,10 +228,10 @@ with the Go web binary and no `web/` tree, remains a rollback target. Without ro
 refuses and prints the command to run. `--dry-run` and `--print-unit` are
 read-only and need no root.
 
-**MVP ships its own install script and nothing else.** The tar archive is a
+**The release ships its own install script and nothing else.** The tar archive is a
 transport for that script, not a second installer. There is no `npm install`
-path or package registry; publishing the MCP face or a container stays
-[R1](../Plans/R1.0-Release/distribution.md#container-runtime) work. The packaged
+path or package registry; other distribution is
+[R1 work](../Plans/R1.0-Release/distribution.md#container-runtime). The packaged
 `INSTALL.md` is the standalone supported path exercised by
 [installation acceptance](#installation-acceptance).
 
@@ -301,13 +300,13 @@ sudo systemctl restart agent-busd
 
 The mapped principal must already be known and active, and the local OS account
 must exist. The daemon account's own socket is implicit and cannot be reassigned
-or removed. A successful edit is in the snapshot before it is acknowledged,
+or removed. A successful edit is in the database before it is acknowledged,
 but listeners belong to the supervisor: the command reports `restart required`
 until a full daemon restart applies the desired map. A bus-child restart alone
 keeps the existing listeners.
 
 The first current start seeds this map from setup's `-user` flags. Once the
-snapshot carries the establishment marker, the stored map is authoritative;
+database carries the establishment marker, the stored map is authoritative;
 changing or retaining an old flag cannot restore a removed mapping. Startup
 rejects malformed mappings, duplicate accounts, missing OS accounts and any
 attempt to put the implicit daemon account into the editable map. Retired socket
@@ -331,12 +330,11 @@ claim limits.
 the next release while the old daemon serves, then stops cleanly, backs up the
 whole daemon home, switches `current`, starts and checks both public identity
 and the unit's real process tree. The existing unit and drop-ins remain byte
-identical. A failed start restores the prior release with its matching snapshot,
+identical. A failed start restores the prior release with its matching database,
 credentials and SSH authorization; an interrupted transaction leaves a durable
 marker for the documented `--recover` command. The retained
 [H.1.1 evidence](../Plans/R0.8-MVP/done/upgrade-recovery.md#checks) covers credentials,
-registry, queued state, ACLs, local mappings and operator configuration. This
-does not select the future runner backup mechanism.
+registry, queued state, ACLs, local mappings and operator configuration.
 
 The fresh-install and reinstall gates compare every installed command's and
 the running node's `build_info` with the archive's own, not only VERSION; the
@@ -385,7 +383,7 @@ From that the daemon opens one socket per user
 ([access § local socket](02-access.md#local-socket)) and knows who is calling
 on every request.
 
-Result: a bus with AUTH off that **serves every user on the host at once**, so
+Result: a bus that **serves every user on the host at once**, so
 record ACLs apply per user with nothing for anyone to configure. Setup's
 initial principal is the first daemon Owner; after transfer, the stored current
 Owner holds node-wide management authority
@@ -403,14 +401,11 @@ once, as the daemon account, to create it, and the unit never passes `-create`.
 Every record and user carries an internal ID from 0.7.3: stable, persisted,
 never on an answer, and never handed out twice, because the database keeps each
 high-water mark rather than deriving it from what is left.
-The [0.7 transition](../Plans/R0.8-MVP/0.7-cutover.md#scope) uses clean reinstall: the
-0.6 JSON dump and token file are neither read nor kept as stores. Additional
-database adapters remain [R1 work](../Plans/R1.0-Release/storage.md#backends). Durability is
-defined in [messaging § durability](04-messaging.md#durability).
-
-Follow the [reinstall procedure](../Plans/R0.8-MVP/0.7-cutover.md#procedure) for 0.7
-bootstrap and client reconnection. SQLite state and backups retain the daemon
-account's private directory and file boundary.
+Other database backends are [R1 work](../Plans/R1.0-Release/storage.md#backends).
+Durability is defined in [messaging § durability](04-messaging.md#durability).
+SQLite state and backups retain the daemon account's private directory and file
+boundary. History: the [0.7 transition](../Plans/R0.8-MVP/0.7-cutover.md#scope) was a
+clean reinstall, reading no earlier store.
 
 ## Backup and restore
 
@@ -474,15 +469,15 @@ compressed, by copy and truncate so the daemon never reopens a file.
 
 ## The two accounts
 
-The installer creates the daemon and runner system accounts, and a third for
-the web face. The daemon and the web face are installed runtimes; the runner
-account and directories prepare a later runner. The heading keeps its name for
-existing references.
+The installer creates three system accounts: the daemon's, the web face's and
+the runner's. The daemon and the web face are installed runtimes; the runner
+account and its directories are reserved for the
+[managed runner](../Plans/R1.0-Release/runner.md#managed-runner). The heading keeps its name for existing links.
 
 | Account | Home | Shell | Runs |
 |---|---|---|---|
 | `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
-| `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | nothing yet |
+| `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | nothing; reserved |
 | `agent-bus-web` | `/var/lib/agent-bus/web`, the link, which it cannot write | `nologin` | the [web face](11-processes.md#the-web-face); owns nothing on disk |
 
 | Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
@@ -520,8 +515,8 @@ run two actual mapped accounts through their own sockets, refuse both cross-
 account attempts, and verify from `/proc` that only the supervisor retains the
 capability.
 
-The installer also maps the prepared runner account to a local socket. The
-future runner unit is defined in [R1 operations](../Plans/R1.0-Release/operations.md#runner-unit).
+The installer also maps the reserved runner account to a local socket. A
+runner unit is [R1 work](../Plans/R1.0-Release/operations.md#runner-unit).
 
 ## Sample data
 
@@ -552,4 +547,4 @@ Current daemon configuration comes from command flags and environment; setup
 writes the flags into its unit. The per-program defaults are in
 [daemon source](../src/cmd/agent-busd/main.go). A general configuration-file
 format is not implemented. Per-record ACL editing is available through the
-[dashboard](05-discovery.md#required-tabs).
+[web face](web-face/records.md#settings).

@@ -23,7 +23,7 @@ not manage installed instances, autostart, reload or restart policies.
 
 A script agent is a **script behind an 👾 agent record**: the name is an
 agent because that is the kind with a queue to read
-([records § five record kinds](03-records.md#record-kinds)). A 📡
+([records § record kinds](03-records.md#record-kinds)). A 📡
 `service` is the external case, and nothing runs behind one here.
 
 | Form | Input | Output |
@@ -76,7 +76,8 @@ Stopping leaves the registration in place; remove an idle address with
 The script receives message id, sender, receiver, topic, tag and its work path
 through environment variables. Their exact names are owned by
 [the runner source](../src/cmd/agent-bus/start.go). These values describe the
-work and authenticate nothing. Managed configuration layers are not built.
+work and authenticate nothing. Managed configuration layers are
+[R1 work](../Plans/R1.0-Release/runner.md#the-three-env-layers).
 
 ## Who it runs as
 
@@ -118,7 +119,7 @@ mode — that is the adapter's policy as a receiver
 
 ## Runtime integration delivery
 
-**Built; passed [live acceptance](../Plans/R0.8-MVP/done/runtime-delivery.md#checks) on the development host; fresh-host acceptance pending.** Ship usable Claude channels and Codex App Server integration with
+**Built; passed [live acceptance](../Plans/R0.8-MVP/done/runtime-delivery.md#checks) on the development host and on a [fresh host](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks).** Ship usable Claude channels and Codex App Server integration with
 the [installation](09-setup.md#install), building on the existing
 [adapters](#adapters). Adapter smoke tests alone do not establish that a new
 user can install and launch either integration.
@@ -128,17 +129,14 @@ Both integrations include the [MCP minimum](05-discovery.md#mcp-minimum).
 | Deliverable | Required behavior |
 |---|---|
 | Claude channel | Installed channel configuration, incoming messages in the running session, and replies through the bus; document required runtime support and activation |
-| Codex App Server | Ship the App Server integration with the [smart launcher](#smart-launchers), bus tools and live-session messaging. This is the owner's intended meaning of "Codex apps"; a separate app/plugin is outside this MVP requirement |
+| Codex App Server | Ship the App Server integration with the [smart launcher](#smart-launchers), bus tools and live-session messaging. This is the owner's intended meaning of "Codex apps"; a separate app/plugin is outside the release |
 
-Any vendor approval needed for an official listing is external; a future
-listing cannot substitute for the working integration required in MVP.
+An official vendor listing is external and not part of the release.
 
 ## Smart launchers
 
 **Built.** `ab-claude`, `ab-codex` and `ab-opencode` are ordinary-user
-scripts. References: `/rd/bin/ai-claude`, `/rd/bin/ai-codex` and their shared
-`/rd/bin/.ai-common.sh`; these are behavioral examples, not
-runtime dependencies of the installed V2 scripts.
+scripts, modelled on the Legacy-V1 launchers and independent of them.
 
 | Concern | Required behavior |
 |---|---|
@@ -336,7 +334,7 @@ OpenCode on an MCP disconnect and connect.
 
 This adds no replay or exactly-once guarantee:
 [consumption](04-messaging.md#one-reader-per-inbox) and
-[snapshots](04-messaging.md#durability) retain their loss boundaries. A message
+[queue checkpoints](04-messaging.md#durability) retain their loss boundaries. A message
 consumed at the moment of a failure may be lost, and after a crash one consumed
 since the last flush may arrive again under its own `message_id`.
 

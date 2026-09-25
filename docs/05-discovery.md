@@ -3,19 +3,19 @@
 📌 **TL;DR:** Discover the records you may reach, and inspect what the daemon
 actually knows. Being in the registry and being callable are different facts,
 so a listing has to say what a name is and whether anything answers for it.
-The CLI listings, the MCP minimum and the dashboard tabs are here.
+The CLI listings, the MCP minimum and the dashboard tabs are here; the web
+face's page contract is [its site map](web-face/site-map.md#every-address).
 
 ## Status
 
-| MVP | Scope |
+| Release | Scope |
 |---|---|
 | Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), the [web face](11-processes.md#the-web-face) under its own account and unit, and [browser acceptance](#browser-acceptance) by its own tests. |
-| Pending | — |
 
 ## What a listing answers
 
 **Being in the registry and being callable are different facts.** "There is a
-MySQL on `db1:3306`" is a complete 📡 registration ([records § five record
+MySQL on `db1:3306`" is a complete 📡 registration ([records § record
 kinds](03-records.md#record-kinds)) and nothing on this bus
 answers for it; an agent template is registered and deliberately does not run
 ([records § agent templates](03-records.md#agent-templates)).
@@ -23,25 +23,25 @@ So a caller reading a listing needs more than a name:
 
 | Field | Says | Absent means |
 |---|---|---|
-| **`protocol`** | how to call a 📡, which is not through the bus ([services § how to call it](06-services.md#how-to-call-it)) | one of the four kinds that has a queue here: send to the name |
+| **`protocol`** | how to call a 📡, which is not through the bus ([services § how to call it](06-services.md#how-to-call-it)) | any other kind: send to the name |
 | **`readers`** | how many consume requests are outstanding now, filtered and unfiltered together | unavailable; a current daemon publishes measured zero explicitly |
 | **`reading`** | compatibility-only flag: an unfiltered read is outstanding now. Human faces render `readers`; new consumers should use it | no unfiltered read observed; this does not mean nobody is attached |
 | **`queued`** | how many messages are waiting in it | none are |
-| **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, since the daemon started | none have |
-| **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, since then ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
+| **`in`** · **`out`** | how many messages have arrived for it, and how many a reader has taken, in total | none have |
+| **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, in total ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
 | **`oldest`** | how long the message at the head of its queue has been waiting | its queue is empty |
 | **`at_bound`** | its queue held the limit it is allowed **when the question was asked**. Not a prediction about the next message: a waiting reader is handed one without it ever queueing, and enqueueing prunes what has expired before it tests fullness, so if the queue is still full then the record's [overflow policy](04-messaging.md#overflow) applies — refuse, or forget the oldest | there is room. The daemon answers it because a record that declares no bound takes the daemon's, and a reader cannot know what that is |
 | **`last_used`** | when the name's credential last authenticated a call, live; the listing puts the most recently used first, then the never used by name. Built in 0.8.2 | the name holds no credential, or it was never used |
 
 These are **observations attached to the listing**, not values a registrant
-may state. Traffic and loss counters survive through snapshots; `readers` and
-`reading` do not ([overview § principles](00-overview.md#principles)). They
+may state. Traffic and loss counters are durable totals, kept with the queue in
+the database and checkpointed every minute; `readers` and `reading` are not ([overview § principles](00-overview.md#principles)). They
 describe the observed inbox, not health or a guarantee that a particular
 request will be handled.
 
 **A 📡 answers none of them.** It has no queue here, so the daemon states no
 reader count and no queued total for one rather than reporting a zero it never
-measured ([records § five record kinds](03-records.md#record-kinds)).
+measured ([records § record kinds](03-records.md#record-kinds)).
 
 An inbox that was drained and one nobody ever wrote to both read as empty.
 `in` and `out` are what tell them apart, and they are per name: a busy bus
@@ -77,11 +77,11 @@ An empty result says `No matching records.`; lookup errors remain errors.
 
 ## Faces
 
-| Face | Built | Pending MVP |
-|---|---|---|
-| API | Registry, messaging, credentials, sessions and dashboard administration | — |
-| MCP | Bus tools and a catalog filtered by the daemon | — |
-| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; its own account and locked-down unit ([processes § the web face](11-processes.md#the-web-face)); [browser acceptance](#browser-acceptance) by its own tests | — |
+| Face | Built |
+|---|---|
+| API | Registry, messaging, credentials, sessions and dashboard administration |
+| MCP | Bus tools and a catalog filtered by the daemon |
+| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; its own account and locked-down unit ([processes § the web face](11-processes.md#the-web-face)); [browser acceptance](#browser-acceptance) by its own tests; page contract in [the site map](web-face/site-map.md#every-address) |
 
 ## MCP minimum
 
@@ -96,7 +96,8 @@ tools configured and callable in the session.
 
 These are minimum capabilities, not a restriction on the remaining tools.
 The tools and launcher wiring are built and passed [live acceptance](../Plans/R0.8-MVP/done/mcp-minimum.md#checks)
-in Codex, OpenCode and Claude on the development host; fresh-host acceptance remains pending. Both capabilities use the caller's existing
+in Codex, OpenCode and Claude on the development host, and [fresh-host acceptance](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks)
+on a package-only host. Both capabilities use the caller's existing
 [ACL](02-access.md#acl); loading the tools grants no additional authority.
 
 ## Audience
@@ -108,7 +109,7 @@ in the MVP.
 
 ## Dashboard
 
-The [web face](11-processes.md#the-web-face) presents the bus and forwards
+The [web face](11-processes.md#the-web-face) ([page contract](web-face/site-map.md#every-address)) presents the bus and forwards
 administration **as the person looking**. The daemon owns state and authorization: every page and form uses
 the visitor's authority, and the face has no independent privileges
 ([audience](#audience)). The [required tabs](#required-tabs) use the same daemon authorization as direct API calls.
@@ -132,54 +133,48 @@ is which: *the node refused 40 calls* and *you were refused 2* are both true,
 and neither is the other.
 
 The diagnostics page carries the built rows of [what it shows](#what-it-shows);
-service/channel, user and group administration and activity graphs have separate pages. The ordering, the grouping and the late mark
+record, user and group administration and activity graphs have separate pages. The ordering, the grouping and the late mark
 are the page's; everything else on it is an answer the bus gave that caller,
 so a view cannot show more than the caller may ask for.
 
 ### Required tabs
 
-**Required MVP, built.** Owner confirmation of scope, 2026-09-13.
+**Built.** Owner confirmation of scope, 2026-09-13.
 The daemon owner has the administrative view; other visitors see and change only
 what the daemon permits. “All” means all visible to that visitor.
 
 | Tab | Required functionality |
 |---|---|
-| Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which have their own tab. Administrative availability and reader observation are distinct facts |
+| Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which its Personal filter shows. Administrative availability and reader observation are distinct facts |
 | Services | 📡 records alone — something [external](03-records.md#record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
-| Personal | Owner-tagged agents grouped separately without changing access. Ordinary visitors see their own; the daemon owner may filter by owner across the node-wide management view |
+| Personal | Not a tab: the `?personal=1` filter on each kind's list (Agents, Services, Queues, PubSub, Groups) shows owner-tagged records without changing access. Ordinary visitors see their own; the daemon owner sees every visible owner's and may narrow to one |
 | Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory lists 👤 Users only, laid out like the other list pages: one search and **Status** toolbar (**Active**, **Inactive**, **All states**, counted; opens on Active), then User, Authority, Contact, Agents owned and Last used columns, or an empty-state card when nothing matches. An inactive User is struck and marked beside the name rather than in a column of its own. From 0.8.8 it has no Other section: a name that is neither User nor Agent is [a Diagnostics leftover](#overview-and-diagnostics). Applicable daemon-authorized actions sit behind **Change**. Deactivation and unused-credential removal use consequence confirmations |
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
-| Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-service and per-channel filtering. Dequeued messages are not proof of successful execution. Inline SVG over [the last day](#activity-history) in ten-minute slots of the node clock |
+| Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-record filtering. Dequeued messages are not proof of successful execution. Day, Week and Month charts over [the stored days](#activity-history), in ten-minute slots of the node clock |
 | Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work. Split from the combined Channels tab in 0.8.4 |
 | PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a topic keeps nothing. Split from the combined Channels tab in 0.8.4 |
 
-The [Personal view](03-records.md#personal-and-shared) is built. **Built in
-0.7:** any kind may be Personal and a user record always is, so the main
-collections show shared records only.
+The [Personal view](03-records.md#personal-and-shared) is that filter. Any kind
+may be Personal and a user record always is, so the main collections show
+shared records only.
 
 ### Section navigation and registration
 
-**Built in 0.5.64, reassigned to Agents in 0.6.3.** Agents shows caller-visible
-**All**, **My** and **Personal** category counts; Services, Queues and PubSub show
-their caller-visible totals. Users and Groups show their visible directory
-totals. These are counts computed from the page's existing daemon answers, not
-node-wide metrics and not additional reads.
-From 0.8.9 a shared list that is empty only because its records of that kind are
-Personal says how many are under the **Personal** tab and links there, rather
-than claiming there are none; which records each tab holds is unchanged.
-From 0.8.10 each section's **Personal** tab counts that section's kind and
-opens the Personal page narrowed to it (`/personal?kind=queue`); the Personal
-page itself holds every kind and has a Kind filter.
+Agents and Services show caller-visible **All**, **My** and **Personal**
+counts; Queues, PubSub and Groups **All** and **Personal**; Users its visible
+directory total. These are counts computed from the page's existing daemon
+answers, not node-wide metrics and not additional reads. A shared list that is
+empty only because its records are Personal says how many are under the
+Personal filter and links there ([records § lists](web-face/records.md#lists)).
 
-**Built in 0.5.79.** The signed-in identity links to Account outside the section
-row. Account shows its optional user profile or own record, caller-visible owned
+The signed-in identity in the top bar links to Account. Account shows its optional user profile or own record, caller-visible owned
 records, held credential fingerprints and command-line rotation help. A
 non-user principal does not need a user-directory row. Diagnostics no longer
 duplicates credential facts.
 
 ### Registry filters and paging
 
-**Built in 0.5.77.** Agents, Personal and Queues filter work held and live
+Agents and Queues filter work held and live
 reader observations independently; PubSub filters neither, a topic holding no queue. Reader choices distinguish a positive count,
 measured zero and an unavailable observation; none is a health claim. Search,
 owner and sort remain URL state beside those filters. Services offers
@@ -196,131 +191,64 @@ and uses tabular figures. Prose-embedded counts remain part of their sentence.
 
 ### Agent, service and channel journeys
 
-**Built in 0.5.78, split by kind in 0.6.3 and 0.8.4.** The four registry pages
-share the compact frame and answer different questions. Agents identify a
-daemon-stated 👾 and show queued inbox work. Services identify a 📡 and show
-where it is: address, protocol and description, and nothing about a queue.
-Queues (`/queues`, detail `/queue`) carry the 📮 records and PubSub (`/pubsub`,
-detail `/pubsub/topic`), the 📣 records, each with its own title, glyph,
-heading, registration and settings page. No section has a Kind filter: each
-lists one kind.
+Each kind has its own list, detail, registration and settings page, and no
+section has a Kind filter: each lists one kind.
 
-A queue row reports messages held for a reader beside its Readers count; a
-pub/sub row reports messages accepted and copies delivered, and its Deliver-To
-count, and never suggests a topic backlog. The PubSub **Accepted** sort is the
-Queues **Queued** sort's counterpart.
+| Kind | List | Detail | A row shows |
+|---|---|---|---|
+| 👾 Agents | `/agents` | `/agent` | queued inbox work beside its Readers count |
+| 📡 Services | `/services` | `/service` | address and protocol; nothing about a queue |
+| 📮 Queues | `/queues` | `/queue` | messages held for a reader beside its Readers count |
+| 📣 PubSub | `/pubsub` | `/pubsub/topic` | messages accepted, copies out and its Deliver-To count; never a topic backlog |
 
-The combined `/channels` page redirects permanently to `/pubsub` for
-`kind=pubsub` and to `/queues` otherwise, keeping the rest of its query;
-`/channels/new` redirects the same way, and `/channel` and `/channel/edit`
-still serve any channel record, so bookmarks keep working.
+The old `/channels`, `/channels/new`, `/channel` and `/channel/edit` redirect
+permanently to the kind's own address, so bookmarks keep working. Search,
+filters, sort and page are plain URL state kept through detail and back; a
+successful registration or edit returns to that record. Caller-visible facts
+stay readable while edit controls appear only when the daemon grants
+management authority. Ownership and Personal marks come only from the returned
+Owner and tag.
 
-Search, Readers, sort and page remain plain URL state through
-detail and back. A successful registration or ordinary edit
-returns to that record. Caller-visible operational facts remain readable while
-edit controls appear only when the daemon grants management authority. An empty
-Queues or PubSub category explains its kind and offers registration; a filtered empty
-result instead keeps its filters and offers to clear them.
-
-Registration opens dedicated `/agents/new`, `/services/new`, `/queues/new`,
-`/pubsub/new`, `/users/new` and `/groups/new` pages from the matching section navigation. User and Group
-entries appear only when the daemon says the visitor is an Administrator;
-the routes repeat that authority check. The old empty `/user` registration URL
-continues to work.
-
-Two- and three-value URL filters are visible links whose active state and plain
-values remain in the URL. Two-value creation choices are labelled radio
-buttons. An owned row on any registry page uses a blue leading rule and blue
-semibold linked name; the **My** category link uses the same blue. The row does
-not repeat a **Yours** label. A Personal row keeps the visible **Personal** word
-and uses stronger orange, bold emphasis shared by the **Personal** category
-link. Orange overrides blue when both facts apply. Ownership comes only from
-the returned Owner, and Personal only from the returned tag; the protocol hint
-changes neither. The compact row treatment began in 0.5.66 and its labels were
-refined without a version bump on 2026-09-17.
-
-The linked name is the single route to read-first detail and any controls the
-daemon authorizes there; the former duplicate Edit column is gone. List update
-times read `now`, whole minutes, hours or days while under 30 days old, then
-`Jan 1` within the current year or `Jan 12, 2025` across years. Detail retains
-the full registration-update timestamp. Missing time remains unavailable.
+Registration opens `/agents/new`, `/services/new`, `/queues/new`,
+`/pubsub/new`, `/users/new` and `/groups/new`. Register user appears only when
+the daemon says the visitor is an Administrator, and the route repeats that
+check; anyone may register a group, and the daemon decides. The old empty
+`/user` URL still opens user registration. The pages are specified in
+[records](web-face/records.md#lists) and [people](web-face/people.md#users-users).
 
 ### Page titles and compact help
 
-**Built in 0.5.65.** Every page title starts with one decorative image or
-glyph and keeps its visible text. Static pages use their section category;
-record detail uses the daemon-stated kind, with the Service section mark as the
-fallback. The marks are fixed inline markup, never an external asset, caller
-text or a machine-readable value.
-
-The Services, Queues, PubSub, Personal and Users collections keep their definitions
-behind a visible `ⓘ` button using the browser's native popover. Service detail
-uses the same pattern for Delivery, Policy, Queue & counters and Activity: hovering or
-focusing the adjacent button shows the explanation immediately, while clicking
-opens the structured list. The button has an accessible name and the panel uses
-a heading and short list. Current scope, counts, filters, form constraints,
-refusals and dangerous consequences remain visible where they affect a decision.
+Every page title starts with one decorative mark and keeps its visible text:
+the kind glyph on kind pages, record detail using the daemon-stated kind, and a
+Lucide icon elsewhere; never caller text or a machine-readable value.
+Definitions sit behind an `ⓘ` button: hover or focus shows the explanation, a
+click opens the native popover ([shell § titles and help](web-face/shell.md#titles-and-help)).
+Current scope, counts, filters, form constraints, refusals and dangerous
+consequences stay visible where they affect a decision.
 
 [Administrative and record authority](01-identity-and-roles.md#groups) applies
-to every control and to direct API calls. Membership and policy changes must
+to every control and to direct API calls. Membership and policy changes
 survive restart. User lifecycle effects are [daemon policy](01-identity-and-roles.md#user-states),
-not merely labels on the Users page.
-
-Keep the [built views](#what-it-shows), including inboxes holding messages, exchanges,
-credential fingerprints, losses, refusals and node status, accessible in the
-new navigation. Their existing functionality is not deferred by this split.
-[Optional additions](../Plans/R1.0-Release/discovery.md#dashboard-extensions) belong to R1.
+not merely labels on the Users page. Every [built view](#what-it-shows) is
+reachable from the navigation;
+[optional additions](../Plans/R1.0-Release/discovery.md#dashboard-extensions) belong to R1.
 
 ### Compact administration pages
 
-**Built in 0.5.73.** Service and Channel registration, User detail, Groups,
-Diagnostics and record detail share the same cards, responsive field grids and
-line-list textareas. Current facts, form labels, errors and actions stay visible.
-Definitions and caveats that do not change the immediate decision use the
-adjacent `ⓘ` control: hover or keyboard focus shows them immediately and click
-opens the structured native popover.
+**Adding an entity and editing one are the same form**, one page per kind and
+one field set rendered by both, for a 👤 user and a 👥 group as much as for a
+record ([records § register](web-face/records.md#register)).
 
-Record detail presents Delivery, Policy and Queue & counters as one compact
-fact row, followed by Activity, and links to the settings form rather than
-carrying it; configuration, transfer and removal remain in the red Danger Zone.
+| Rule | |
+|---|---|
+| Fields by kind | a 👾 and a 📮 declare the TTL, capacity and overflow of the inbox they hold; a 📣 declares a [Deliver-To list](04-messaging.md#subscribers) and no queue policy; a 📡, a 👾 and a 👥 offer a [secret](06-services.md#secrets), written by a second call and never filled in again |
+| Settings | every field the daemon lets that kind's manager change ([record fields](constitution.md#common-record-fields)): a 👤 user's own inbox its description and queue policy; a 👥 group its description, members, Personal, Maintainers and secret |
+| Not yours to change | a field the caller may not change is shown disabled, not hidden, and the form says which owner-only fields it carried, so a Maintainer saving a description cannot clear what it was not offered |
+| Danger Zone | configuration, transfer and removal sit on a separate red page; status is a separate action. A group has no removal and no status: it is retired by emptying it |
+| Numbers | human-facing counts use grouped figures; JSON, URLs, form values and editable syntax stay plain. The Overview strip writes none as a dash; a table column keeps `0` |
 
-**Adding an entity and editing one are the same form**, one page per kind
-and one field set rendered by both — for a 👤 user and a 👥 group as much as
-for a record
-([forms](../Plans/R0.8-MVP/web-handoff/forms.md#rules)) — so a 👾 and a 📮 declare the TTL,
-capacity and overflow of the inbox they hold, a 📣 declares a
-[Deliver-To list](04-messaging.md#subscribers) and no queue policy, and a 📡, a
-👾 and a 👥 offer a field for their [secret](06-services.md#secrets), written by a
-second call to that verb and never filled in again. **From 0.8.5 every settings
-form offers every field the daemon lets that kind's manager change**
-([record fields](constitution.md#common-record-fields)): a 👤 user's own inbox
-its description and queue policy and no allow list or Maintainers, which the
-daemon refuses on it; a 👥 group its description, members, Personal,
-Maintainers and secret, saved in one daemon change, with owner transfer and
-configuration in its Danger Zone and no removal, a group being retired by
-emptying it. Status stays a separate action beside each record, and a group has
-none: no view shows an inactive group to reactivate it from. What differs between the
-two is what is already in the form: a field the caller may not change is shown
-disabled rather than hidden, and the form states separately that it carried the
-owner-only fields, so a Maintainer saving a description cannot clear what it
-was not offered. User detail states the
-profile beside identity, authority, groups, lifecycle and owned resources, and
-links to the profile form. Groups use a compact Group/Members table; selecting
-a name opens one group, its description and a Danger Zone for its managers, and the way to its settings form appears only when
-the caller may change it — as does the form itself, which refuses whoever the
-link was withheld from.
-Diagnostics keeps refusal, held-work, retained-envelope and loss evidence
-without duplicating the full registry catalogue or its former paragraph walls.
-The Services, Queues and PubSub tables carry their own accepted/dequeued counters.
-
-Human-facing integer counts use grouped decimal figures, including the compact
-footer, registry, diagnostics and Activity totals. JSON, URLs, form values and
-editable syntax remain unchanged plain values. The Overview node strip is
-divided in two: how the node stands right now, then what has happened since it
-started. A strip figure of none is a dash rather than a zero — the same answer,
-written so that a quiet node does not read as a page of readings to check. A
-table column keeps the plain number, where a dash would break the alignment
-that makes the column scannable.
+The Go dashboard's layout and styling prose is
+[history](../Plans/R0.8-MVP/done/web-go-face-differences.md#05-discoverymd).
 
 ### Overview and diagnostics
 
@@ -328,11 +256,9 @@ that makes the column scannable.
 only supported attention conditions: an unclean prior stop, nonzero refusal
 reasons, queue capacity, loss, and inactive records still holding work. Ordinary
 backlog is work rather than an alarm. One record produces one item while the
-item retains every supporting fact. **From 0.5.83 an Overview with nothing to
-report carries no attention section at all**: by owner instruction the heading
-and its explanation are hidden rather than shown empty, so absence is absence
-rather than a block that has to be read to learn it says nothing. The page still
-makes no health claim, because it now makes no claim.
+item retains every supporting fact. With nothing to report, the attention
+section gives way to one short `Nothing to report` card that makes no health
+claim.
 
 **Records inactive because their owner is — built in 0.8.22.** `GET /status`
 carries `owner_inactive`: how many records are inactive only because their
@@ -348,17 +274,15 @@ linking to the inactive Users; the face joins nothing per record.
 | absent field | unobserved — an older daemon or a caller not answered — and raises no item. It never reads as zero |
 | beside the per-record items | an inactive record the caller may see still gets its own item from the [read-only inactive view](constitution.md#common-record-fields); the node-wide count may include records the page does not list |
 
-The node strip is node-wide. **From 0.5.82 it also carries the call counters**
-moved out of the shared footer, and registered records are counted one tile per kind — Agents,
-Services, Queues, PubSub, Users and Groups
+The node strip is node-wide. It carries the call counters and one tile per
+kind — Agents, Services, Queues, PubSub, Users and Groups
 ([status](#what-a-node-says-about-itself)). **When the page was generated is
-stated once, in the shared footer**, and there is no Refresh link: both were
-owner decisions at 0.5.83, and the footer is on every page, so every page is
-dated by one line rather than each page dating itself. Attention and record
-links contain only facts the caller may see, so their scopes need not agree. The Find row links the two
-holding-work views and nothing else: Users and Diagnostics are navigation
-entries, and repeating them there was duplication the owner removed at 0.5.83.
-Holding-work links are real URL filters rather than preselected prose.
+stated once, in the shared footer**, and Overview has no Refresh link; the
+footer is on every page, so every page is dated by one line. Diagnostics has a
+Refresh button. Attention and record links contain only facts the caller may
+see, so their scopes need not agree. The Find row links the two holding-work
+views, real URL filters, and External services; Users and Diagnostics are
+navigation entries.
 
 Diagnostics retains the detailed refusal, held-work, bounded envelope and loss
 evidence. Record names link to their visible record detail. **From 0.8.8 it
@@ -401,7 +325,7 @@ established pure-Go library ([external tools](10-modules.md#external-tools)). Ex
 
 </details>
 
-Who receives a 📣 copy is the channel manager's
+Who receives a 📣 copy is the topic manager's
 [Deliver-To list](04-messaging.md#subscribers); a name can take itself off it
 and cannot put itself on.
 
@@ -411,7 +335,7 @@ and cannot put itself on.
 |---|---|
 | **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the project's description, links and picture (from 0.8.7), the sign-in form at its foot, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
-| **One repository-owned script; no CDN or external asset** | The local script only submits marked selectors on change. It reads no page data, stores nothing and makes no request of its own. Pages remain ordinary URL-backed forms, with a `noscript` Apply control. Graphs stay inline SVG; avatars and the anonymous page's project picture are served from this node, never hotlinked. The page's own `img-src 'self'` enforces it: a picture named anywhere else is refused by the browser, and the page renders as though it had none |
+| **Pinned, hashed assets only** | Fonts, Lucide and uPlot come from one CDN at exact versions with `integrity` hashes; the page's own stylesheet and script are same-origin, and the CSP admits nothing else ([shell § security headers](web-face/shell.md#security-headers)). The script requests only the palette's `/palette.json`. Pages remain ordinary URL-backed forms. The landing picture is served from this node and photos are inline, never hotlinked: `img-src 'self' data:` refuses a picture named anywhere else |
 | **The web face writes nothing of its own.** A form posts *as the person*, never as the face | It is the least trusted process and the design gives it no write path ([processes § the web face](11-processes.md#the-web-face)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
 | **The sign-in form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
 
@@ -435,7 +359,7 @@ credential, and the closed list below is still the closed list.
 | | |
 |---|---|
 | what is published | release, host name, daemon owner name, uptime, **calls served** — and the build. **Nothing else**: no record names, no principals, no refusal counts, nothing about who is using it |
-| where each one shows | **the header has a two-row bus mark** derived from the [project artwork](img/agent-bus.png) at the far left. Beside it, `AgentBus v<release> @ <host>` carries build detail in the Version tooltip; navigation sits below. The compact footer carries owner and uptime, and from 0.5.83 the time the page was generated, which is a fact about the page rather than about the node; the call counts sit in the signed-in Overview node strip from 0.5.82. No separate build line or web-build value appears |
+| where each one shows | the brand at the top of the sidebar (the sign-in page's top bar) has a bus mark drawn after the [project artwork](img/agent-bus.png) and `AgentBus v<release> @ <host>`, with build detail in the version tooltip. The footer carries owner and uptime, and the time the page was generated, which is a fact about the page rather than about the node; the call counts sit in the signed-in Overview node strip. No separate build line or web-build value appears |
 | to whom | any caller that reaches the face, with no credential and no session |
 | host name | the machine's hostname as the OS reports it, `srv1`. The daemon has no node name of its own, so this is a new field rather than a restatement of one; it is not the realm, which the owner's name already carries |
 | uptime | a plain figure behind an explicit label, `uptime: 1h23m`, as the owner asked. It is what was true when the page rendered, and the page does not refresh itself |
@@ -476,8 +400,8 @@ compact dashboard does not explain them:
 | it counts requests **admitted**, not work completed | the counter increments before the handler runs, so a refusal, a router 404, a bad token and a served call all count the same. A node being hammered with rejected requests reads as busy, which is correct — it is traffic reaching the daemon, not work the daemon agreed to do |
 | a long poll counts when it **starts** | a waiting `consume` holds one request open for as long as it waits, and it was counted on arrival. On a bus whose faces sit in long polls, a quiet minute in which several readers attach still shows calls. Nothing is wrong with the figure; it is answering a different question than "how much happened" |
 | the dashboard counts itself | `GET /identity` is a request like any other, so loading a page adds to the figures that page then shows. No page refreshes itself ([what it shows](#what-it-shows)), so an open page left alone generates nothing; it is a **person** reloading who moves the number they are watching |
-| the windows are **sampled**, and the header does not say by how much | a window begins at the newest reading at or before its cutoff, so its span is **whatever the readings allow**, not what its name says. With the usual minute cadence and enough history, `minute:` covers roughly one to two minutes and `hour:` a little over the hour; a delayed tick widens it, a young node shortens it below the nominal span entirely, and it matches exactly when the cutoff falls on a retained reading. None of those is the guaranteed case, which is why the daemon measures each span rather than reasoning about it. **The header prints the label alone**, by owner decision at 0.5.40, taken with this stated: `uptime:` beside it shows how young the node is, and that was judged enough for a glance. The span is still measured and still published — `observed` on each window of `GET /identity` — but **no page says so**: the answer lives on the API, not in the dashboard |
-| history is **shorter than the window** after a restart | the counter starts at zero with the process, and an hour of readings takes an hour to accumulate. **A window's span is its own, not the node's age**: on a node up three minutes, `minute:` still finds a baseline near its own cutoff and covers about a minute, while `hour:` covers the three minutes it has. `observed` carries this on the wire; the header does not. **Unobserved history is never shown as zero** — that is the distinction this whole layer exists for |
+| the windows are **sampled**, and the page does not say by how much | a window begins at the newest reading at or before its cutoff, so its span is **whatever the readings allow**, not what its name says. With the usual minute cadence and enough history, `minute:` covers roughly one to two minutes and `hour:` a little over the hour; a delayed tick widens it, a young node shortens it below the nominal span entirely, and it matches exactly when the cutoff falls on a retained reading. None of those is the guaranteed case, which is why the daemon measures each span rather than reasoning about it. **The page prints the label alone**, by owner decision at 0.5.40, taken with this stated: `uptime:` beside it shows how young the node is, and that was judged enough for a glance. The span is still measured and still published — `observed` on each window of `GET /identity` — but **no page says so**: the answer lives on the API, not in the dashboard |
+| history is **shorter than the window** after a restart | the counter starts at zero with the process, and an hour of readings takes an hour to accumulate. **A window's span is its own, not the node's age**: on a node up three minutes, `minute:` still finds a baseline near its own cutoff and covers about a minute, while `hour:` covers the three minutes it has. `observed` carries this on the wire; the page does not. **Unobserved history is never shown as zero** — that is the distinction this whole layer exists for |
 | `total:` is **exact**; the windows are not | the total is the counter read directly, with no sampling in it. Only `minute:` and `hour:` are differences between a reading and now, and only they carry an `observed` span on the wire |
 | the three may legitimately be **equal** | during the first minute, and whenever every call the node has served falls inside the shortest observed window. Nothing is wrong and nothing should be built assuming they differ — but nor do they collapse merely because the daemon is young: at ten minutes, `minute:` covers the last one while `hour:` and `total:` cover all ten |
 | all three reset on restart | the counter lives with the process. A restart is not a quiet node, and `uptime:` on the same line is what tells them apart |
@@ -495,10 +419,10 @@ and from then on the browser carries that id and nothing else.
 
 | | |
 |---|---|
-| the cookie | the session id alone — `HttpOnly`, `Secure`, `SameSite=Strict`. No `Max-Age`: the bus's idle timeout ends the session, and a fixed browser lifetime would sign out someone still working. Never the token, never in a URL |
+| the cookie | the session id alone — `HttpOnly`, `SameSite=Strict`, and `Secure` when the face serves TLS. No `Max-Age`: the bus's idle timeout ends the session, and a fixed browser lifetime would sign out someone still working. Never the token, never in a URL |
 | a web-face restart | logs nobody out, because the face was holding nothing. A session map inside it would be a second store, of the worst possible contents: every signed-in person's live credential in the one process that is restarted on failure |
 | what the face holds | nothing. It reaches the bus only over the shared socket, which supplies no identity — a web face with the owner's authority would be a credential mint ([access § getting a token](02-access.md#getting-a-token)) |
-| enrolling | not here. The proof is a signature made by the host's own `ssh-keygen` ([identity § proving possession](02-access.md#proving-possession)); the local selector script neither reads keys nor signs. The dashboard prints the host onboarding command |
+| enrolling | not here. The proof is a signature made by the host's own `ssh-keygen` ([identity § proving possession](02-access.md#proving-possession)); the browser script neither reads keys nor signs. The dashboard prints the host onboarding command |
 
 
 A bus restart invalidates browser sessions: their map is not persisted.
@@ -513,17 +437,17 @@ sessions with its token.
 
 ### What it shows
 
-| View | MVP status | Source or remaining dependency |
-|---|---|---|
-| the sign-in page and the token help | Built | — |
-| **registry**, as this caller may see it: kind, owner, protocol, description, `readers`/`queued`/`in`/`out`, when the record was last written, the configuration's digest | Built | — it is `/ls` |
-| **inboxes holding messages** — a backlog, oldest first, marked when the queue is at its bound and accompanied by the Readers count. Holding is not being stuck; filtered readers may coexist with unmatched queued work, and the count is observation rather than health. The one view an incident actually needs | Built | — `oldest` and `readers` on the record ([what a listing answers](#what-a-listing-answers)) |
-| **exchanges** — retained messages and referenced receipt evidence | Built | [correlation and limits](#retained-exchanges) |
-| **my names** — what I hold a credential for, whose it is and what it is for, its fingerprint, when it was issued and last used, and how to rotate it | Built | — the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)). A person's own identity is distinguished from the services they registered. A credential [goes with its address](01-identity-and-roles.md#unregistering), so the list stays names something answers on |
-| **loss by name** — what each inbox dropped to overflow and what expired in it | Built | — `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
-| **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | Built | Diagnostics shows every supported reason, including measured zero; counters are on `status` ([refusals](#refusals)) |
-| **node** — its name, uptime, the registry's totals, and whether the last stop was clean | Built | — `status` carries the unclean-restart fact |
-| **people** — identities, profiles, local avatars, authority, state, group membership and owned services | Built | [person records](01-identity-and-roles.md#users-and-profiles) and [user lifecycle](01-identity-and-roles.md#user-states) |
+| View | Source |
+|---|---|
+| the sign-in page and the token help | — |
+| **registry**, as this caller may see it: kind, owner, protocol, description, `readers`/`queued`/`in`/`out`, when the record was last written, the configuration's digest | `/ls` |
+| **inboxes holding messages** — a backlog, oldest first, marked when the queue is at its bound and accompanied by the Readers count. Holding is not being stuck; filtered readers may coexist with unmatched queued work, and the count is observation rather than health. The one view an incident actually needs | `oldest` and `readers` on the record ([what a listing answers](#what-a-listing-answers)) |
+| **exchanges** — retained messages and referenced receipt evidence | [correlation and limits](#retained-exchanges) |
+| **my names** — what I hold a credential for, whose it is and what it is for, its fingerprint, when it was issued and last used, and how to rotate it | the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)). A person's own identity is distinguished from the services they registered. A credential [goes with its address](01-identity-and-roles.md#unregistering), so the list stays names something answers on |
+| **loss by name** — what each inbox dropped to overflow and what expired in it | `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
+| **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | Diagnostics shows every supported reason, including measured zero; counters are on `status` ([refusals](#refusals)) |
+| **node** — its name, uptime, the registry's totals, and whether the last stop was clean | `status` carries the unclean-restart fact |
+| **people** — identities, profiles, photos, authority, state, group membership and owned services | [person records](01-identity-and-roles.md#users-and-profiles) and [user lifecycle](01-identity-and-roles.md#user-states) |
 
 ### Retained exchanges
 
@@ -547,7 +471,7 @@ when their identity differs from the addressed topic; untagged ordinary
 messages get no inferred response links. Rows sort by newest observed activity,
 with message identity breaking ties; displayed times include their UTC offset.
 Bodies never enter this view. [MVP verification](../Plans/R0.8-MVP/done/exchange-evidence.md#checks)
-records the implemented checks; installed browser acceptance remains separate.
+records the implemented checks.
 
 ### Refusals
 
@@ -654,11 +578,11 @@ never a page reporting that nothing is registered.
 
 ### Form recovery and keyboard entry
 
-**Built in 0.5.70.** Public and signed-in pages start with a keyboard skip link
+Public and signed-in pages start with a keyboard skip link
 to the main content. It becomes visible when focused; the ordinary shell still
 supplies the page title, landmarks, current navigation and signed-in identity.
 
-A refused Service, Channel, User or Group submission returns its form when the
+A refused record, user or group submission returns its form when the
 face can still render that target. The page keeps only an explicit allowlist of
 nonsensitive values, including line-preserving ACL, Maintainer and Group
 textareas. Tokens, unknown submitted fields and private configuration never
@@ -671,9 +595,7 @@ page.
 The daemon remains the validator. Its JSON error envelope is rendered as a
 human message, not raw JSON. A malformed or retired browser action that never
 reaches the daemon says so on the shared shell rather than attributing the
-refusal to the daemon. [F.13.2](../Plans/R0.8-MVP/done/web-shell-recovery.md#checks)
-is complete; the remaining page redesign and typed-component migration stay
-pending.
+refusal to the daemon ([shell § form recovery](web-face/shell.md#form-recovery)).
 
 ## Browser acceptance
 
@@ -737,7 +659,7 @@ JSON output or prescribe MCP output.
 WEB applies the same daemon-kind mapping to directory, agent, service,
 Personal, detail and diagnostics views. A directory row with no caller-visible
 record kind stays unlabeled; the face does not infer a glyph from its name or
-credential. Channel remains the web term for a 📮 or 📣 record. Human
+credential. Human
 `agent-bus ls -h` uses the same identity labels; raw `ls` keeps the daemon's
 JSON unchanged. Filter and form values remain plain vocabulary
 even when their visible option label carries a glyph.
@@ -771,7 +693,7 @@ identified as proposed; this display rule does not introduce new parser syntax.
 
 ### Resource Danger Zone
 
-**Built in 0.5.63.** Ordinary Service and Channel detail pages do not render
+**Built in 0.5.63.** Ordinary record detail pages do not render
 configuration replacement, ownership transfer or registration removal forms.
 An authorized manager follows the red **Danger Zone** link to a separate page;
 the face repeats the caller-visible record lookup and the daemon remains the

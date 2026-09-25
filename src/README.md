@@ -1,7 +1,9 @@
 # src
 
-The code for [stages § MVP](../Plans/R0.8-MVP/README.md#scope), built wave by wave
-against [MVP work](../Plans/R0.8-MVP/TODO.md#objective).
+📌 **TL;DR:** The code of the current release, [MVP](../Plans/R0.8-MVP/README.md#scope):
+Go programs and internal packages for the daemon, CLI, installer and token
+program, and TypeScript on Bun for the MCP face, launchers and web face.
+`smoke.sh --slow` is the gate every change is measured against.
 
 | | |
 |---|---|
@@ -14,12 +16,13 @@ against [MVP work](../Plans/R0.8-MVP/TODO.md#objective).
 | `internal/api` | the HTTP face: a request in, a core call out |
 | `internal/auth` | credentials: issue, rotate, resolve a token to its principal |
 | `internal/ports` | the interfaces core depends on — the seam every dependency is swapped at |
-| `internal/store`, `internal/dump`, `internal/directory`, `internal/signature`, `internal/sandbox` | one adapter each behind those ports |
-| `mcp/` | the MCP face and both push adapters, on bun — [mcp/README.md](mcp/README.md#the-mcp-face) |
+| `internal/store` (SQLite, memory), `internal/directory` (GitHub, key files), `internal/signature`, `internal/sandbox`, `internal/journal` | the adapters behind those ports |
+| `internal/activity`, `internal/callstats`, `internal/display`, `internal/keyproof`, `internal/proctitle`, `internal/dashboard`, `internal/version` | day-of-traffic rings, request sampling, human labels, the client half of key proof, process titles, the dashboard address, the shared release number |
+| `mcp/` | the MCP face and its Claude, Codex and opencode push adapters, on bun — [mcp/README.md](mcp/README.md#the-mcp-face) |
 | `web/` | the web face, TypeScript on bun under its own account and unit — [processes § the web face](../docs/11-processes.md#the-web-face) |
 | `launchers/` | smart runtime launchers — [contract and usage](../docs/08-runner-role.md#running-the-launchers) |
 | `cmd/agent-bus-token` | the token program, and the forced command behind an ordinary user's key ([access § getting a token](../docs/02-access.md#getting-a-token)) |
-| `smoke.sh` | automated acceptance checks; installed and manual gates remain in the MVP plan |
+| `smoke.sh` | the automated acceptance checks |
 
 Layering is the design's: protocol → core → api, faces outside, nothing
 pointing back in ([modules](../docs/10-modules.md#the-rule)).
@@ -65,54 +68,49 @@ By hand. Build the binaries first — nothing installs them:
 bash ./build.sh
 ```
 
-**1 — the daemon.** It writes the token file on first run, so it goes first:
+**1 — the daemon**, as you, so you are its owner. A port other than 6767
+keeps it clear of an installed node; `-create` is for the first run only:
 
 ```sh
-./agent-busd
+./agent-busd -owner "$USER" -addr 127.0.0.1:6791 -create
 ```
 
-The other two shells each need **a credential of their own** — the name is the
-inbox, so two shells sharing one would read each other's messages
-([messaging § one reader per inbox](../docs/04-messaging.md#one-reader-per-inbox)).
-The CLI finds the socket by itself; `AGENT_BUS_ADDR` is for a bus on another
-host.
+Your own shell needs no token: the CLI finds your own socket by itself, and it
+answers as you. An agent's name begins with `#`, so quote it.
+
+**2 — an agent.** An agent *is* a name, and the shell that answers takes its
+credential — the name is the inbox, so two shells sharing one would read each
+other's messages
+([messaging § one reader per inbox](../docs/04-messaging.md#one-reader-per-inbox)):
 
 ```sh
-export AGENT_BUS_TOKEN=$(./agent-bus-token echo@$(hostname -s))
-```
-
-**2 — an agent.** An agent *is* a name, so the shell that answers takes it:
-
-```sh
-./agent-bus register echo@$(hostname -s) --kind agent --descr "answers"
+./agent-bus register "#echo@$(hostname -s)" --descr "answers"
+export AGENT_BUS_TOKEN=$(./agent-bus-token "#echo@$(hostname -s)")
 ./agent-bus consume --wait 5m          # prints the envelope, with its message_id
 ./agent-bus ack   <message-id>         # got it
 ./agent-bus reply <message-id> "42"    # the answer
 ```
 
-…or let a shell script be the service, which is the same thing without the
+…or let a shell script be the agent, which is the same thing without the
 typing ([runner § script agents](../docs/08-runner-role.md#script-agents)).
-This shell still needs a credential — it registers the service before becoming
-it, and that registration is a call like any other — but the token it
-registers with is the *owner's*, not the service's:
+`start` registers the name and fetches its credential itself; the script path
+must be absolute:
 
 ```sh
 echo 'echo "Hello $1"' > hello-world.sh && chmod +x hello-world.sh
-./agent-bus start hello@$(hostname -s) --algo args ./hello-world.sh -4 --descr "greets you"
+./agent-bus start "#hello@$(hostname -s)" --algo args "$PWD/hello-world.sh" -4 --descr "greets you"
 ```
 
-**3 — the caller**, with a credential of its own, calling whichever of the two
+**3 — the caller** is you, on your own socket, calling whichever of the two
 you started:
 
 ```sh
-export AGENT_BUS_TOKEN=$(./agent-bus-token caller@$(hostname -s))
-./agent-bus ls                                        # find it
-./agent-bus call echo@$(hostname -s)  "what is 6 times 7?"   # answered by hand, above
-./agent-bus call hello@$(hostname -s) world                  # → Hello world
+./agent-bus ls -h                                             # find it
+./agent-bus call "#echo@$(hostname -s)"  "what is 6 times 7?"  # answered by hand, above
+./agent-bus call "#hello@$(hostname -s)" world                 # → Hello world
 ```
 
-A channel needs nobody registered at either end — a publisher that is
-nobody, and a consumer that was not running when it was sent:
+A queue needs nobody reading when it is sent — the consumer may start later:
 
 ```sh
 ./agent-bus channel create jobs@$(hostname -s) --descr "work queue"
@@ -122,6 +120,6 @@ nobody, and a consumer that was not running when it was sent:
 
 ## Two agents
 
-A Claude Code session and a Codex session talk over the same daemon through
-the MCP face; loading it into each, and the live recipe, are in
-[mcp/README.md](mcp/README.md#the-mcp-face).
+Claude Code, Codex and opencode sessions talk over the same daemon through
+the MCP face; the `ab-*` launchers load it ([agents](../docs/user/agents.md)),
+and loading it by hand is in [mcp/README.md](mcp/README.md#loading-it).

@@ -1,20 +1,19 @@
 # Layers and modules
 
 📌 **TL;DR:** Core decides; ports isolate dependencies; faces translate
-requests. Protocol and ports sit inward, storage, directory, signature and
-sandbox implementations sit behind their ports, and command entry points
+requests. Protocol and ports sit inward, storage, directory, signature, journal
+and sandbox implementations sit behind their ports, and command entry points
 assemble them. Core never imports an adapter.
 
 ## Status
 
-The table below describes built code. Future packages and client-library plans
-are not dependencies of the current system.
+The table below describes built code.
 
 ## The rule
 
 Protocol and ports sit inward; core owns registry, queues and access decisions.
-Storage, directory, signature and sandbox implementations sit behind their
-ports. Command entry points assemble them. HTTP faces translate requests and
+Storage, directory, signature, journal and sandbox implementations sit behind
+their ports. Command entry points assemble them. HTTP faces translate requests and
 clients may compose operations without deciding registry authority.
 
 Core never imports an adapter. External I/O needed by core goes through a port.
@@ -23,7 +22,8 @@ the runtime, not to the domain core.
 
 ## 0.7 implementation requirements
 
-Requirements the [0.7 work](../Plans/R0.8-MVP/0.7.0-TODO.md#verification) was built to, and later work keeps:
+Standing implementation requirements, first set for the
+[0.7 work](../Plans/R0.8-MVP/0.7.0-TODO.md#verification):
 
 - Keep authority, validation and lifecycle rules in core, shared by every face
   and backend. Share list mechanics without merging distinct permission rules.
@@ -70,14 +70,18 @@ rewrite policy or credential material.
 | Built area | Responsibility |
 |---|---|
 | `internal/protocol` | Names, records, envelopes and JSON representation |
-| `internal/ports` | Credential storage, snapshot, directory, signature and sandbox interfaces |
+| `internal/ports` | Durable-state store, activity store, token store and credential index, directory, signature, journal and sandbox interfaces |
 | `internal/core` | Registry, queues, ownership, ACL, enrolment and counters |
 | `internal/auth` | Tokens and browser sessions |
-| `internal/store`, `internal/dump` | Text-file credentials, memory test store and JSON snapshots |
-| `internal/directory`, `internal/signature` | Public-key lookup and system signature verification |
-| `internal/sandbox` | Current confinement backend |
+| `internal/store/sqlite`, `internal/store/memory` | The SQLite store and the in-memory test store |
+| `internal/directory/file`, `internal/directory/github`, `internal/signature/sshkeygen`, `internal/keyproof` | Public-key lookup, system signature verification and the client's proof of possession |
+| `internal/journal` | The three logs and syslog |
+| `internal/activity`, `internal/callstats` | Per-record activity days and the daemon's request-rate samples |
+| `internal/sandbox` | Script confinement backends |
 | `internal/api` | HTTP routes, credentials and errors |
+| `internal/display`, `internal/dashboard` | Human-facing labels and ages, and the web face's address |
 | `internal/version`, `internal/proctitle` | Shared program version, build stamp and process titles |
+| `internal/baseline` | Performance baseline tests only |
 | `cmd/`, `mcp/`, `web/` | Program entry points and client faces |
 
 ## Languages
@@ -123,6 +127,5 @@ behind an agent may use `curl`, because that is its ordinary client.
 
 ## What this buys
 
-A storage or directory implementation can be replaced behind its port. No
-future backend is required to make the current boundary real; smoke checks
+A storage or directory implementation can be replaced behind its port; smoke checks
 both the prohibited inward imports and actual adapter assembly.

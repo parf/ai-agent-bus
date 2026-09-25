@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** A 📡 `service` is a card saying where something outside is and how
 to reach it; nothing on this bus answers for it. It is the external one of the
-five record kinds, so it has no queue here and refuses everything that would
+six record kinds, so it has no queue here and refuses everything that would
 need one. Its address and protocol are required.
 
 ## Status
@@ -42,7 +42,7 @@ agent-bus register mysql-prod@srv1 --addr host:3306 --protocol mysql
 
 **Call it directly**, at `addr`, speaking `protocol`. The bus is not in the path
 at all; the four kinds that have a queue are reached by sending to the name
-instead ([records § five record kinds](03-records.md#record-kinds)).
+instead ([records § record kinds](03-records.md#record-kinds)).
 
 A service's `addr` and `protocol` are the registration's own words, stored raw
 and **never interpreted**. The daemon does not implement a second protocol and
@@ -73,7 +73,7 @@ not see the name learns only that.
 | consume from it | refused: there is no queue here to read |
 | its reader count and backlog | **not stated.** A zero would be an observation of something that does not exist |
 | TTL, capacity, overflow policy, delivery switch | refused at registration and at a settings edit |
-| a snapshot holding a queue under its name | refused, as [an unknown kind is](03-records.md#restoring-a-record) |
+| a stored queue under its name | ignored and reported at [load](constitution.md#persistence-and-loading) |
 
 ## Secrets
 
@@ -86,7 +86,7 @@ credential, held on the record and handed to whoever its
 | `agent-bus secret <name>` | print it |
 | `cat .env \| agent-bus secret <name> -` | set it, bytes on stdin |
 | `agent-bus secret <name> 'TOKEN=abc'` | the same, inline |
-| the dashboard's [service registration](05-discovery.md#compact-administration-pages) | set it once, as the record is created |
+| the web face's [service registration](web-face/records.md#register) | set it once, as the record is created |
 
 One verb, and the direction is whether a secret was handed to it — the shape
 [agent-template](03-records.md#configuring-a-template) uses. The read writes
@@ -126,12 +126,17 @@ exception, so a non-conforming stored secret is ignored at load.
 | Who reads it | an agent itself (its owner is refused), or whoever a service's or group's [ACL](02-access.md#acl) admits | the same |
 | What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
 
-**History, built through 0.6: the daemon did not read inside a secret.** `KEY=value`
+<details>
+<summary>History: secrets before 0.7.8</summary>
+
+Through 0.6 the daemon did not read inside a secret. `KEY=value`
 lines are what callers agree to write, not a grammar anything checks: blank
 lines, comments, `export`, duplicate keys and an invalid identifier are all the
 caller's business, and a malformed secret is discovered by whatever uses it.
 Only an empty secret is refused, because it reads back exactly like never having
 set one. The 0.7 rule above, built in 0.7.8, replaced this content contract.
+
+</details>
 
 The rule that configuration never leaves the daemon for anyone but its own
 record is unchanged by this.

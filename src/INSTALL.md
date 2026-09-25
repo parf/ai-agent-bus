@@ -1,8 +1,9 @@
 # Install agent-bus
 
-`agent-bus-setup` inside this archive is the single supported MVP installer.
-It installs the complete release, creates the service accounts and starts the
-daemon plus its loopback dashboard.
+📌 **TL;DR:** `agent-bus-setup` inside this archive is the single supported
+release installer. It installs the complete release, creates the service
+accounts and starts the daemon plus its loopback dashboard. `--upgrade`
+replaces a release in place and rolls back by itself when the new one fails.
 
 ## Prerequisites
 
@@ -24,6 +25,8 @@ sha256sum -c agent-bus-*.tar.gz.sha256
 mkdir agent-bus-install
 tar -xzf agent-bus-*.tar.gz -C agent-bus-install --strip-components=1
 cd agent-bus-install
+sudo ./agent-bus-setup --dry-run       # what would be done; changes nothing
+sudo ./agent-bus-setup --print-unit    # the daemon unit; changes nothing
 sudo ./agent-bus-setup --owner "$USER@$(hostname -s)"
 ```
 
@@ -48,21 +51,25 @@ The dashboard is at <http://127.0.0.1:6780/>. Setup imports the invoking
 user's public SSH key when one exists; otherwise an operator can add a user
 later with `agent-bus-admin user add`.
 
+For something to look at, `sudo agent-bus-setup --samples` adds sample users,
+agents, services, queues, topics and groups; `--remove-samples` takes exactly
+those away again.
+
 ## Call a service
 
-The restrictive ACL default applies to reply inboxes too. Grant this service
-permission to answer you, then run it in one terminal:
+A User's inbox takes a reply only from an agent whose ACL admits that User,
+so the agent admits you. An agent's name begins with `#`. Run it in one
+terminal:
 
 ```sh
 realm=$(hostname -s)
 me="$USER@$realm"
-service="fresh-echo@$realm"
+service="#fresh-echo@$realm"
 cat >"$HOME/fresh-echo.sh" <<'SH'
 #!/bin/sh
 printf 'fresh reply: %s\n' "$1"
 SH
 chmod +x "$HOME/fresh-echo.sh"
-agent-bus register "$me" --kind agent --allow "$service"
 agent-bus start "$service" --algo=args --allow "$me" "$HOME/fresh-echo.sh"
 ```
 
@@ -89,7 +96,7 @@ sudo ./agent-bus-upgrade/agent-bus-setup --upgrade
 
 Upgrade verifies and stages the complete new release while the old daemon is
 still serving. It then stops the daemon cleanly, copies the whole daemon state
-tree — snapshot, credentials and SSH authorization together — into
+tree — database, credentials and SSH authorization together — into
 `/var/lib/agent-bus/backups`, atomically switches `current`, and starts the new
 release. The existing daemon unit and its drop-ins are preserved byte for
 byte. Setup waits for the public identity and verifies that the supervisor and

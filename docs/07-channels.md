@@ -1,6 +1,6 @@
 # Channels
 
-📌 **TL;DR:** Two of the five record kinds are channels: 📮 hands each message
+📌 **TL;DR:** Two of the six record kinds are channels: 📮 hands each message
 to one consumer, 📣 copies each publication to every subscriber. A channel is
 the record; a topic is only a label carried on one message. What a channel
 declares and what publishing puts on the message are owned here.
@@ -23,7 +23,7 @@ owner, an ACL and a queue.
 | **Channel** | a 📮 or 📣 [record](03-records.md#record-kinds) | `channel create`, `publish --channel`, `subscribe <channel>`, and `channel` on the wire |
 | **Topic** | a label on one [envelope](04-messaging.md#envelope), matched by a filtered read | `send --topic`, `consume --topic`, `reply --topic`, and `topic` on the wire |
 
-The old spellings are not kept as aliases: before 1.1 there is no compatibility
+The old spellings are not kept as aliases: before R1.1 there is no compatibility
 obligation, and a second name for one thing is a second thing to explain.
 
 ## The two channel kinds
@@ -65,14 +65,14 @@ nothing.
 A channel **declares its kind at creation** — a 📮 its TTL, bound and overflow
 policy, a 📣 its [Deliver-To list](04-messaging.md#subscribers):
 
-| Aspect | MVP behavior |
+| Aspect | Behavior |
 |---|---|
 | Create and change | [Ownership](01-identity-and-roles.md#ownership) applies |
 | Visibility and use | [Audience](05-discovery.md#audience) and the record ACL apply — on a 📣 the ACL is who may publish, and delivery follows its [Deliver-To list](04-messaging.md#subscribers) |
 | Storage | [Restart persistence](04-messaging.md#durability), with messages in memory |
 | Observations | [Listing state](05-discovery.md#what-a-listing-answers) |
 
-Inboxes belong to registered names ([messaging § inbox queues](04-messaging.md#inbox-queues)). Signed records and upstream namespaces are proposed in [R1 registry](../Plans/R1.0-Release/registry.md#registry-sync) and [federation](../Plans/R1.0-Release/federation.md#chaining).
+Inboxes belong to registered names ([messaging § inbox queues](04-messaging.md#inbox-queues)). Signed records are [R1 work](../Plans/R1.0-Release/registry.md#registry-sync).
 
 ## What publish puts on the message
 

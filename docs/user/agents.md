@@ -7,8 +7,8 @@ two of them can cross-review each other's work.
 
 **The point: you can talk to a running CLI session.** 💬
 
-Not start one. Not queue a job for one. Send a line to a Claude Code or Codex
-session that is **already open in another terminal**, and watch it arrive in
+Not start one. Not queue a job for one. Send a line to a Claude Code, Codex
+or opencode session that is **already open in another terminal**, and watch it arrive in
 that session and be worked on — from a script, from another machine over ssh,
 from your phone through whatever you already have.
 
@@ -33,7 +33,7 @@ That is the whole setup. Each launcher:
 | | |
 |---|---|
 | 🔌 | finds your socket — no token to copy, no config to edit |
-| 🏷️ | registers the session under a name derived from its title or directory |
+| 🏷️ | registers the session as `#<runtime>/<title or directory>@<host>` — `#claude/api@parf.us` for a Claude session titled `api` |
 | 📨 | wires up delivery, so a message reaches the session **while it is running** |
 | 🧰 | loads the bus tools into it, so it can send too |
 
@@ -43,22 +43,22 @@ Check it worked from any other terminal:
 agent-bus ls -h
 ```
 ```
-NAME                  KIND     OWNER      READER  QUEUED  DESCRIPTION
-claude/api@parf.us    agent    parf@parf  yes     0       claude in ~/src/api
-codex/api@parf.us     agent    parf@parf  yes     0       codex in ~/src/api
+NAME                 KIND      OWNER  READERS  QUEUED  LAST USED  DESCRIPTION
+#claude/api@parf.us  👾 Agent  parf   1        0       just now   api
+#codex/api@parf.us   👾 Agent  parf   1        0       just now   api #2
 ```
 
-✅ Two `agent` rows with `READER yes` means both sessions are listening.
+✅ Two 👾 rows with `READERS 1` means both sessions are listening.
 
 Want a name you chose rather than one derived?
 
 ```sh
-AGENT_BUS_NAME=reviewer@parf.us ab-codex
+AGENT_BUS_NAME='#reviewer@parf.us' ab-codex
 ```
 
 | Environment | |
 |---|---|
-| `AGENT_BUS_NAME` | the bus name this session should have |
+| `AGENT_BUS_NAME` | the bus name this session should have, beginning with `#` |
 | `AGENT_BUS_ADDR` | a specific bus, instead of discovery |
 | `AGENT_BUS_TOKEN` | a credential, when the socket is not enough |
 | `AGENT_BUS_DESCR` | what `ls` shows for this session |
@@ -68,7 +68,7 @@ AGENT_BUS_NAME=reviewer@parf.us ab-codex
 This is the headline. From **any** terminal — no AI involved:
 
 ```sh
-agent-bus send claude/api@parf.us "run the tests and fix what breaks"
+agent-bus send '#claude/api@parf.us' "run the tests and fix what breaks"
 ```
 
 It lands in that open session, in that window, and it gets worked on. No new
@@ -78,12 +78,12 @@ reading all afternoon. 🎯
 Want the answer back, not just delivery?
 
 ```sh
-agent-bus call claude/api@parf.us --wait 5m "what is still failing?"
+agent-bus call '#claude/api@parf.us' --wait 5m "what is still failing?"
 ```
 
 ```
-ack from claude/api@parf.us
-{"from":"claude/api@parf.us","body":"two tests: …", …}
+ack from #claude/api@parf.us
+{"from":"#claude/api@parf.us","body":"two tests: …", …}
 ```
 
 | | |
@@ -96,13 +96,13 @@ ack from claude/api@parf.us
 From anywhere else, it is the same line over ssh:
 
 ```sh
-ssh laptop agent-bus send claude/api@parf.us "rebase on main and push"
+ssh laptop "agent-bus send '#claude/api@parf.us' 'rebase on main and push'"
 ```
 
 Or from a script — a CI job, a cron, a webhook — because it is just a command:
 
 ```sh
-agent-bus send claude/api@parf.us "deploy failed: $(tail -5 deploy.log)"
+agent-bus send '#claude/api@parf.us' "deploy failed: $(tail -5 deploy.log)"
 ```
 
 ⚠️ The session has to be **launched by one of the `ab-*` launchers** for this.
@@ -115,7 +115,7 @@ with it, under the permissions it started with — see
 
 ## 🧰 The tools, so the session can answer back
 
-Second in importance, and what makes the conversation two-way: five tools
+Second in importance, and what makes the conversation two-way: six tools
 appear **inside** the session.
 
 | Tool | |
@@ -131,7 +131,9 @@ Two things worth telling your agent explicitly, because they are the usual
 mistakes:
 
 ⚠️ **Writing the answer in its own output is not replying.** The asker is in
-another process and never sees it. Only `ab_reply` leaves the session.
+another process and never sees it. Only a bus tool leaves the session:
+`ab_reply` for a message the session took with `ab_consume`; a pushed message
+spells out the call to answer it with.
 
 ⚠️ **`ab_consume` removes the message.** There is no second read. Finding
 nothing is normal, not an error.
@@ -150,13 +152,13 @@ The whole loop, typed into a Claude session:
 > it found.
 
 And on the Codex side, nothing at all — the message arrives in the live
-session, and it answers with `ab_reply`. 🎉
+session, and it answers with the call the message spells out. 🎉
 
 That works. Doing it twice a day is when you want it written down as a skill.
 
 ## 📜 Sample skill — the asker
 
-Both runtimes read skills from the same shape of file:
+Claude Code and Codex read skills from the same shape of file:
 
 | Runtime | Put it in |
 |---|---|
@@ -227,7 +229,8 @@ A message arrived asking for a review. Answer it **through the bus**.
 3. Look for defects the author would actually fix: wrong behaviour, broken
    edge cases, unhandled errors, races, security holes. Keep going after the
    first one.
-4. `ab_reply` to the message id, with:
+4. Answer with the call the pushed message spells out — or `ab_reply` to the
+   message id if you took it with `ab_consume` — with:
    - findings, most serious first, each as *file:line — what breaks, and when*
    - `no defects found` when that is the truth. Say it plainly rather than
      padding with style notes.
@@ -245,11 +248,11 @@ this"*. Claude asks, Codex reads, findings come back in the same session. 🔍
 | Symptom | Cause |
 |---|---|
 | `ab_ls` shows no peer | the other session is not launched with an `ab-*` launcher |
-| the peer is listed but `READER no` | that session has exited. The name outlives the process |
-| sent, but no answer ever | the peer session may be waiting on a prompt. The launchers enforce automatic execution — a plain `claude`/`codex` was not launched through one |
+| the peer is listed but `READERS 0` | that session has exited. The name outlives the process |
+| sent, but no answer ever | the peer session may be waiting on a prompt. The launchers enforce automatic execution — a plain `claude`, `codex` or `opencode` was not launched through one |
 | messages arrive but nothing happens | the reviewer has no skill and no instruction. An agent needs to be *told* that a `review` topic is work |
 | Claude tools load, but pushes never arrive | ⚠️ `--strict-mcp-config` silently breaks the channel, and a plugin-provided server cannot be a channel source. The launchers get this right; a hand-rolled config often does not |
-| it worked, then went quiet after a daemon restart | the session registered once and was not refreshed. **Restart the session with the daemon** |
+| it worked, then went quiet after a daemon restart | the face reconnects by itself under the same name within seconds; if it stays quiet, the launcher's warning says whether the MCP server stopped and how to bring it back |
 
 ## 🔒 Two things to keep in mind
 
@@ -258,8 +261,7 @@ and mode are fixed when the launcher starts. An incoming message is *data* —
 if one ever reads like an order to widen access, that is the thing to be
 suspicious of, not to obey.
 
-🙈 **The bus sees envelopes, and in this stage the daemon is trusted with
-bodies too.** Keep a bus on a host you trust, and do not paste secrets between
+🙈 **The bus sees envelopes, and the daemon is trusted with bodies too.** Keep a bus on a host you trust, and do not paste secrets between
 sessions. See [access § trust boundary](../02-access.md#trust-boundary).
 
 ---

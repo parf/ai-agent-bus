@@ -27,8 +27,8 @@ remain separate.
 | Web face | HTTP rendering, no credential store | `agent-bus-web.service`: bun, as the `agent-bus-web` account ([the web face](#the-web-face)) |
 | Foreground script runner | Its agent's inbox reader and script children | User-launched CLI; outside the daemon |
 
-Only the bus is a child of the supervisor. AUTH and health are not
-implemented children.
+The bus is the supervisor's only child. An AUTH role is
+[R1 work](../Plans/R1.0-Release/auth.md#auth-role).
 
 ## Process titles
 
@@ -87,8 +87,7 @@ another account can use the intended socket.
 
 ## What is shared
 
-Inherited listener descriptors and explicit API calls. The bus owns the store
-and snapshot; the supervisor does not keep a store handle. The web face, a
+Inherited listener descriptors and explicit API calls. The bus owns the store; the supervisor does not keep a store handle. The web face, a
 separate unit, gets the shared socket and no principal token. It forwards each
 visitor's credentials and then uses their browser session.
 
@@ -102,7 +101,7 @@ state or writable path of its own.
 
 | | |
 |---|---|
-| Account | `agent-bus-web`: system account, `nologin`, home `/var/lib/agent-bus/web`, no SSH keys, not in the account map; owns nothing on disk ([setup § the two accounts](09-setup.md#the-two-accounts)) |
+| Account | `agent-bus-web`: system account, `nologin`, home `/var/lib/agent-bus/web`, no SSH keys, not in the account map; owns nothing on disk ([setup § the accounts](09-setup.md#the-two-accounts)) |
 | Code | `/var/lib/agent-bus/web`, a link to the current release's `web/` directory, or to a checkout's `src/web` in development |
 | Runtime | `/usr/bin/bun run /var/lib/agent-bus/web/server.ts`, no build step |
 | Unit | `agent-bus-web.service`, shipped as `src/web/agent-bus-web.service`; setup writes it with the host's exec paths |

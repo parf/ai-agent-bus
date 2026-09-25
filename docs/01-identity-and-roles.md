@@ -9,14 +9,13 @@ credentials and checks belong to [Access](02-access.md#what-a-call-carries).
 
 Names, profiles, registration, resource ownership, groups and status are built
 as the [constitution](constitution.md#project-constitution) states them;
-[remaining work](../Plans/R0.8-MVP/TODO.md#authority-model) and
-[open choices](../Plans/R0.8-MVP/QUESTIONS.md#open-questions) stay in the plans.
+[open choices](../Plans/R0.8-MVP/QUESTIONS.md#open-questions) stay in the plan.
 
 ## Identities
 
 A **User** is a registered person. A **principal** is the identity a credential
 represents; it must have a user profile or a registry record to use the bus.
-A record is one of [six kinds](03-records.md#record-kinds): 👤 `user`, 👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service`.
+A record is one of [six kinds](03-records.md#record-kinds): 👤 `user`, 👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service`, 👥 `group`.
 
 ## Names
 
@@ -99,7 +98,7 @@ owner; the daemon then stores that position and a transfer survives restart.
 The daemon account's socket speaks for the Owner of each request, so a transfer
 moves it at once ([local socket](02-access.md#local-socket)).
 
-* Assign and revoke Administrators; edit, activate, pause and ban them.
+* Assign and revoke Administrators; edit, activate and deactivate them.
 * Manage users and all groups.
 * Edit any record, including its ACL, Maintainers and owner.
 * Transfer daemon ownership to another user.
@@ -110,8 +109,8 @@ moves it at once ([local socket](02-access.md#local-socket)).
 Only the current active Owner may transfer the position, to a different active
 registered User. The recipient becomes an Administrator; the former Owner stays
 an Administrator until the new Owner changes that group. A startup owner value
-seeds a legacy or first snapshot only and cannot replace a transferred Owner.
-A current snapshot with a missing, invalid, inactive or unknown Owner fails
+seeds a legacy or first store only and cannot replace a transferred Owner.
+Stored state with a missing, invalid, inactive or unknown Owner fails
 startup rather than silently restoring the seed.
 
 Root management includes discovery, settings, ACL, Maintainers, ownership,
@@ -125,9 +124,9 @@ position.
 ## Daemon Administrators
 
 Administrators manage ordinary users and groups, but cannot edit the daemon
-owner or peer Administrators, or grant those positions. The accepted model
-allows ordinary-user unbanning; this is built, while the Owner retains authority
-over every level.
+owner or peer Administrators, or grant those positions. They may
+reactivate an ordinary user, while the Owner retains authority over every
+level.
 Record management requires the [resource assignment](#record-authority).
 
 ## Users and profiles
@@ -188,7 +187,7 @@ name and never overwrite an existing one.
   return from details; counts cover the visible entries, not the whole store.
   Entries link to relevant records; avatars do not trigger another directory
   fetch per person.
-* Profiles and membership persist in snapshots. Phone and IM routes belong to
+* Profiles and membership persist in the database. Phone and IM routes belong to
   [later contact routing](../Plans/R1.1/people.md#how-to-reach-a-person).
 
 </details>
@@ -234,7 +233,7 @@ stops no process, and is reversible. Users are never deleted.
 A record has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
 The following model is built. **Record-defined roles** are
-[R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles), the first R1 topic after 0.7.
+[R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles).
 Maintainers is a list of named users, groups and records. Only the
 resource Owner or daemon Owner replaces it; group entries use ordinary nested
 membership. Human editors use one plain term per line, as ACL editors do.
@@ -331,7 +330,7 @@ until populated, and any path to a principal grants effective membership.
   same reachability rule. Record-defined roles and the proposed expression
   syntax are [R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles).
 * `@administrators` accepts direct user identities only; the Owner remains a
-  direct member. A snapshot that nests a group there is refused at startup.
+  direct member. Stored state that nests a group there is refused at startup.
   An ordinary group may name `@administrators`: its direct members then receive
   that ordinary group's access or Maintainer grant, without creating nested
   Administrator authority.

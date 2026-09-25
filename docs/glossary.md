@@ -1,8 +1,8 @@
 # Glossary
 
 📌 **TL;DR:** Names and terms, linked to their definitions: the programs, the
-current vocabulary, the glyphs in use, and the words reserved for later
-stages.
+current vocabulary and the glyphs in use. Later stages keep their own
+vocabulary in their plans.
 
 ## Names
 
@@ -42,7 +42,8 @@ the [record kinds](03-records.md#record-kinds): a card
 describing something this bus does not run. Anything running behind a bus name
 is an **agent**. Say record for a registered name whose kind does not matter to
 the sentence. Personal is an owner-selected
-[classification](03-records.md#personal-and-shared) of any kind, not a kind.
+[classification](03-records.md#personal-and-shared) of any kind, not a kind;
+the web face shows it as the `?personal=1` filter on each kind's list.
 `generic`, `topic` as a **kind**, and delivery *mode* named kinds before 0.6.3
 and name nothing now.
 
@@ -59,7 +60,7 @@ and *disabled* name nothing now.
 One glyph per meaning, and this table is where a meaning is fixed. Most rows
 name an entity type; `🔱` and `👮` name an authority, which is allowed because
 neither can appear often enough to become a column heading.
-[Web glyphs](../Plans/R0.8-MVP/web-handoff/glyphs.md#the-rule-that-matters-most) owns where a
+[Web face glyphs](web-face/shell.md#glyphs) owns where a
 glyph may appear, how it renders and what it must never carry on its own.
 
 | Glyph | Code point | Name | Means | Status |
@@ -71,15 +72,15 @@ glyph may appear, how it renders and what it must never carry on its own.
 | 🔑 | `U+1F511` | Credentials | credentials proving an identity; never the secret value | built |
 | 🔱 | `U+1F531` | Daemon owner | the one authority on a node that cannot be delegated | built in 0.6.2 |
 | 👮 | `U+1F46E` | Maintainers | the named list that may edit a record's settings and ACL | built in 0.6.2 |
-| ⚙️ | `U+2699 U+FE0F` | Daemon | the daemon itself, never a record | reserved; labels nothing yet |
+| ⚙️ | `U+2699 U+FE0F` | Daemon | the daemon itself, never a record | reserved for the daemon; labels nothing |
 | 📡 | `U+1F4E1` | Service | something external, not on this bus | built in 0.6.3 |
 | 📮 | `U+1F4EE` | Queue | a registered queue | built in 0.6.3 |
 | 📣 | `U+1F4E3` | PubSub | a pub/sub channel | built in 0.6.3 |
 
 `📡`, `📮` and `📣` arrived with the
 [record kinds](03-records.md#record-kinds) in 0.6.3, where
-`📡` took Service from `⚙️`. `⚙️` labels no record now and is held for the
-daemon; nothing carries it yet.
+`📡` took Service from `⚙️`, which labels no record and is held for the
+daemon.
 History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 `👾` in 0.6.1.
 
@@ -100,14 +101,14 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | Member | Basic access to a record | [definition](01-identity-and-roles.md#role-names-and-scopes) |
 | Person profile | Identifying and descriptive information | [definition](01-identity-and-roles.md#users-and-profiles) |
 | Agent template | The unconfigured source a configured name was made from | [definition](03-records.md#agent-templates) |
-| Personal agent | Owner-tagged agent classification with a dedicated web view; access remains ordinary record access | [definition](03-records.md#personal-and-shared) |
+| Personal | Owner-tagged classification of any kind, a `?personal=1` filter on the web face; access remains ordinary record access | [definition](03-records.md#personal-and-shared) |
 | Protocol hint | How a caller reaches an external service | [definition](06-services.md#how-to-call-it) |
 | Registry configuration | Private setup fetched by the record it belongs to | [definition](03-records.md#configuring-a-template) |
-| Record kind | What a record is, as one of five stored values | [definition](03-records.md#record-kinds) |
+| Record kind | What a record is, as one of six stored values | [definition](03-records.md#record-kinds) |
 | Service secret | Credential held on an external service record, read by principals it admits | [definition](06-services.md#secrets) |
 | Channel | The 📮 or 📣 **record** published to: a name nobody acts as | [definition](07-channels.md#the-two-channel-kinds) |
 | Topic | A **label on one message**, matched by a filtered read — never a record | [definition](04-messaging.md#envelope) |
-| Inbox | Queue belonging to a registered name; the four kinds that are not 📡 have one | [definition](04-messaging.md#inbox-queues) |
+| Inbox | Queue belonging to a registered name; the four kinds that are neither 📡 nor 👥 have one | [definition](04-messaging.md#inbox-queues) |
 | Receipt | Receiver acknowledgement of progress | [definition](04-messaging.md#receipts) |
 | Envelope | Message routing and body container | [definition](04-messaging.md#envelope) |
 | Shared reader | Member of an explicit consumer pool | [definition](04-messaging.md#several-readers-may-wait-when-they-say-so) |
@@ -120,6 +121,5 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 
 ## Future vocabulary
 
-Future terms stay with their owning design: [R1](../Plans/R1.0-Release/README.md#scope),
-[R1.1](../Plans/R1.1/README.md#scope), [R1.2](../Plans/R1.2/README.md#scope).
+Future terms stay with their owning plan ([plan index](../Plans/README.md#stages)).
 The [historical glossary](../Plans/R0.8-MVP/done/glossary-before-rewrite.md#glossary) preserves earlier names and proposed verbs; it is not a list of shipped commands.
