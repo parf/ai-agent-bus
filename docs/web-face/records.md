@@ -155,12 +155,18 @@ groups and users excluded, before toolbar filters.
 | `/pubsub` | All · Personal → `/personal?kind=pubsub` · Register pub/sub topic |
 | `/personal` | the Agents tabs; Personal is current and counts the selected kind, or all Personal records |
 
-TypeScript face: there is no Register tab — one Register action sits in the
-page head, or in the empty state when the list is empty. On `/personal` the
-chosen `kind` (Agents when none) decides the tabs, the sidebar section and that
-action, which opens `{kind}/new?personal=1`: the form starts Personal and its
-Back returns to `/personal?kind=`. A Personal record's detail marks its own
-kind's section.
+**TypeScript face, 0.8.43: Personal is a filter, not a page.** `/personal` is
+gone, with no redirect. Each kind's list takes `personal=1` (`/agents?personal=1`,
+also `/groups?personal=1`) and its tabs are All · My (Agents and Services) ·
+Personal. The sidebar is the kind axis: there is no Kind filter, and while the
+filter is on the sidebar's Agents, Services, Queues, PubSub and Groups links
+keep `personal=1`, marked with a lock; a Personal record's own pages keep it
+too. Filters, paging, Clear filters and the one Register action
+(`{kind}/new?personal=1`, which starts the form Personal and returns to the
+Personal list) carry the flag, and the daemon Owner's owner chooser appears
+with it. A list shows only columns that tell its rows apart: never Type, and
+on a Personal list no Owner unless the daemon Owner sees several. There is no
+Register tab: the page head holds the one Register action.
 
 Tabs keep `state`, `q`, `readers`, `work`, `sort` (and `owner` for the daemon
 Owner on Personal); Queues, PubSub and Services Personal tabs and Register

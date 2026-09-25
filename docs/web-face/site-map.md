@@ -33,7 +33,7 @@ code was followed and the difference is listed.
 | `/` — homepage for a signed-in user | Overview: attention items, the node strip, the Find row. Also what any unmatched address shows with a session | [/` signed in: Overview](node.md#-signed-in-overview) |
 | `/activity` | A day of activity per visible record, 144 ten-minute slots | [/activity](node.md#activity) |
 | `/diagnostics` | Refusals, held inboxes, retained exchanges, loss, leftover names | [/diagnostics](node.md#diagnostics) |
-| `/agents` `/services` `/queues` `/pubsub` `/personal` | One kind's records; Personal holds every kind, `?kind=` narrows it | [Lists](records.md#lists) |
+| `/agents` `/services` `/queues` `/pubsub` | One kind's records; `?personal=1` shows its Personal ones (TypeScript face; the Go face's `/personal?kind=` is not carried over) | [Lists](records.md#lists) |
 | `/agents/new` `/services/new` `/queues/new` `/pubsub/new` | Register a record of that kind | [Register](records.md#register) |
 | `/agent` `/service` `/queue` `/pubsub/topic` `?name=` | One record; an inactive one is read-only with Reactivate | [Record detail](records.md#record-detail), [Inactive record view](records.md#inactive-record-view) |
 | `/agent/edit` `/service/edit` `/queue/edit` `/pubsub/topic/edit` | Settings for the Owner or a Maintainer | [Settings](records.md#settings) |

@@ -27,9 +27,17 @@ body.bare main { max-width: 1320px; }
 }
 .side-link .ic { width: 1.15rem; height: 1.15rem; }
 .side-link:hover { background: var(--surface-3); color: var(--text-1); }
-.side-link[aria-current="page"] { background: linear-gradient(90deg, var(--accent-soft), transparent); color: var(--text-1); }
-.side-link[aria-current="page"]::before { content: ""; position: absolute; left: -.75rem; top: 20%; bottom: 20%; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
-.side-link[aria-current="page"] .ic { color: var(--accent-text); }
+/* The current section has to read at a glance: a solid accent pill, white text. */
+.side-link[aria-current="page"] {
+  background: linear-gradient(135deg, var(--btn-primary-1), var(--btn-primary-2));
+  color: #fff; font-weight: 650;
+  box-shadow: 0 6px 18px -6px var(--accent-glow), 0 0 0 1px rgba(255, 255, 255, .08) inset;
+}
+.side-link[aria-current="page"]:hover { color: #fff; filter: brightness(1.06); }
+.side-link[aria-current="page"]::before { content: ""; position: absolute; left: -.75rem; top: 15%; bottom: 15%; width: 4px; border-radius: 0 4px 4px 0; background: var(--accent); box-shadow: 0 0 14px var(--accent-glow); }
+.side-link[aria-current="page"] .ic { color: #fff; }
+.side-lock { width: .85rem !important; height: .85rem !important; margin-left: auto; opacity: .7; }
+.side-link[aria-current="page"] .side-lock { opacity: 1; }
 .side-foot { margin-top: auto; }
 .side-collapse { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .55rem .7rem; border: 0; border-radius: 10px; background: none; color: var(--text-3); font: inherit; font-size: .85rem; cursor: pointer; }
 .side-collapse:hover { background: var(--surface-3); color: var(--text-1); }

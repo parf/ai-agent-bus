@@ -33,6 +33,7 @@ export type PageOptions = {
   charts?: boolean;           // load uPlot
   bodyClass?: string;
   flash?: string;
+  personal?: boolean;         // the Personal filter is on: the kind links keep it
 };
 
 const Brand = ({ id }: { id: Identity | null }) => <a class="brand" href="/" aria-label="agent-bus home">
@@ -46,12 +47,18 @@ const Brand = ({ id }: { id: Identity | null }) => <a class="brand" href="/" ari
   </span>
 </a>;
 
-const Sidebar = ({ section, id }: { section: Section; id: Identity | null }) => <aside class="sidebar" aria-label="Sections">
+/** The kind sections, which carry the Personal filter from one to the next. */
+const KIND_SECTIONS = new Set<Section>(["agents", "services", "queues", "pubsub", "groups"]);
+
+const Sidebar = ({ section, id, personal }: { section: Section; id: Identity | null; personal?: boolean }) => <aside class="sidebar" aria-label="Sections">
   <Brand id={id} />
   <nav class="side-nav" aria-label="sections">
-    {NAV.map(n => <a href={n.href} class="side-link" aria-current={n.key === section ? "page" : undefined} data-keys={n.keys}>
-      <Icon name={n.icon} /><span class="side-label">{n.label}</span>
-    </a>)}
+    {NAV.map(n => {
+      const keep = personal && KIND_SECTIONS.has(n.key);
+      return <a href={keep ? `${n.href}?personal=1` : n.href} class={`side-link ${keep ? "personal" : ""}`} aria-current={n.key === section ? "page" : undefined} data-keys={n.keys}>
+        <Icon name={n.icon} /><span class="side-label">{n.label}</span>{keep ? <Icon name="lock" label="Personal" className="side-lock" /> : null}
+      </a>;
+    })}
   </nav>
   <div class="side-foot">
     <button type="button" class="side-collapse" data-action="collapse" aria-label="Collapse the sidebar"><Icon name="panel-left" /><span class="side-label">Collapse</span></button>
@@ -136,7 +143,7 @@ export async function page(ctx: Ctx, o: PageOptions, body: Child): Promise<strin
     {head(o)}
     <body class={`${signedIn ? "app" : "bare"} ${o.bodyClass ?? ""}`}>
       <a class="skip-link" href="#main">Skip to main content</a>
-      {signedIn ? <Sidebar section={o.section ?? ""} id={id} /> : null}
+      {signedIn ? <Sidebar section={o.section ?? ""} id={id} personal={o.personal} /> : null}
       <div class="shell">
         {signedIn ? <Topbar you={o.you ?? ""} section={o.section ?? ""} /> : <header class="topbar bare-top" aria-label="Site header"><Brand id={id} />
           <button type="button" class="icon-btn theme-btn" data-action="theme" aria-label="Switch theme"><Icon name="sun" className="when-dark" /><Icon name="moon" className="when-light" /></button></header>}

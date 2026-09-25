@@ -14,7 +14,6 @@ route("GET", "/agents", rec.agents);
 route("GET", "/services", rec.services);
 route("GET", "/queues", rec.queues);
 route("GET", "/pubsub", rec.pubsub);
-route("GET", "/personal", rec.personal);
 route("GET", "/agents/new", rec.newAgent);
 route("GET", "/services/new", rec.newService);
 route("GET", "/queues/new", rec.newQueue);

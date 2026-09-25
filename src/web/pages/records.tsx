@@ -17,7 +17,7 @@ import { entity, MAINTAINER } from "../glyphs.ts";
 // ------------------------------------------------------------------ kinds
 
 type Kind = "agent" | "service" | "queue" | "pubsub";
-type ListKey = "agents" | "services" | "queues" | "pubsub" | "personal";
+type ListKey = "agents" | "services" | "queues" | "pubsub";
 
 export const KINDS: Record<Kind, { list: string; newPath: string; noun: string; plural: string; section: Section; lower: string; blurb: string }> = {
   agent: { list: "/agents", newPath: "/agents/new", noun: "Agent", plural: "agents", section: "agents", lower: "agent", blurb: "An agent is a model or a program with an inbox: peers find it by name and send it work." },
@@ -28,13 +28,15 @@ export const KINDS: Record<Kind, { list: string; newPath: string; noun: string; 
 const isKind = (k: string): k is Kind => k in KINDS;
 
 export function noun(kind: string) { return kind === "user" ? "User" : isKind(kind) ? KINDS[kind].noun : kind === "group" ? "Group" : kind; }
-/** The list a record lives on; a Personal record lives on /personal. */
+/** The list a record lives on; a Personal record lives on its kind's list with `personal=1`. */
 export function listOf(r: Rec): string {
-  if (r.kind === "group") return "/groups";
+  if (r.kind === "group") return r.personal ? "/groups?personal=1" : "/groups";
   if (r.kind === "user") return "/users";
-  if (r.personal) return "/personal";
-  return isKind(r.kind) ? KINDS[r.kind].list : "/services";
+  const list = isKind(r.kind) ? KINDS[r.kind].list : "/services";
+  return r.personal ? `${list}?personal=1` : list;
 }
+/** The path alone of listOf: what a return address is checked against. */
+export const listPath = (r: Rec) => listOf(r).split("?")[0]!;
 function sectionOf(r: Rec): Section {
   if (r.kind === "user") return "queues";
   return isKind(r.kind) ? KINDS[r.kind].section : "services";
@@ -43,7 +45,7 @@ function sectionOf(r: Rec): Section {
 // ------------------------------------------------------------------ lists
 
 const PAGE = 25;
-const LIST_KIND: Record<Exclude<ListKey, "personal">, Kind> = { agents: "agent", services: "service", queues: "queue", pubsub: "pubsub" };
+const LIST_KIND: Record<ListKey, Kind> = { agents: "agent", services: "service", queues: "queue", pubsub: "pubsub" };
 
 function listUrl(path: string, p: Record<string, string | undefined>, drop: string[] = []): string {
   const q = new URLSearchParams();
@@ -51,24 +53,28 @@ function listUrl(path: string, p: Record<string, string | undefined>, drop: stri
   return q.size ? `${path}?${q}` : path;
 }
 
+// One list per kind; `personal=1` is the Personal filter on it. The sidebar is
+// the kind axis, so the page has no kind filter of its own.
 async function list(ctx: Ctx, key: ListKey): Promise<Response> {
-  const path = key === "personal" ? "/personal" : `/${key}`;
+  const kind = LIST_KIND[key];
+  const k = KINDS[kind];
+  const path = k.list;
   const [st, all, id] = await Promise.all([ctx.status(), ctx.records(), ctx.identity()]);
   const you = st.you, owner0 = !!st.daemon_owner;
-  const q = ctx.q("q"), scope = ctx.q("scope") === "my" ? "my" : "";
+  const personal = ctx.q("personal") === "1";
+  const q = ctx.q("q"), scope = !personal && ctx.q("scope") === "my" && (kind === "agent" || kind === "service") ? "my" : "";
   const state = ["active", "inactive"].includes(ctx.q("state")) ? ctx.q("state") : "";
-  const kindParam = key === "personal" && isKind(ctx.q("kind")) ? ctx.q("kind") as Kind : undefined;
   const services = key === "services", pubsub = key === "pubsub";
   const readers = !services && ["present", "none", "unavailable"].includes(ctx.q("readers")) ? ctx.q("readers") : "";
   const work = !services && !pubsub && ctx.q("work") === "held" ? "held" : "";
   const sort = ctx.q("sort") === "updated" || (ctx.q("sort") === "queued" && !services) ? ctx.q("sort") : "";
-  let ownerParam = key === "personal" ? ctx.q("owner") : "";
+  const ownerParam = personal ? ctx.q("owner") : "";
   if (ownerParam && !owner0) return redirect(listUrl(path, { ...Object.fromEntries(ctx.url.searchParams), owner: undefined }));
 
-  const records = all.filter(r => isKind(r.kind));
-  const personalOf = (k?: Kind) => records.filter(r => r.personal && (!k || r.kind === k) && (owner0 || r.owner === you));
-  const kind = key === "personal" ? undefined : LIST_KIND[key];
-  let category = key === "personal" ? personalOf(kindParam).filter(r => !ownerParam || r.owner === ownerParam) : records.filter(r => r.kind === kind && !r.personal);
+  const records = all.filter(r => r.kind === kind);
+  const personalRecs = records.filter(r => r.personal && (owner0 || r.owner === you));
+  const shared = records.filter(r => !r.personal);
+  let category = personal ? personalRecs.filter(r => !ownerParam || r.owner === ownerParam) : shared;
   if (scope === "my") category = category.filter(r => r.owner === you);
 
   const needle = q.toLowerCase();
@@ -89,29 +95,28 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const pageNo = Math.min(pages, Math.max(1, Math.floor(Number(ctx.q("page"))) || 1));
   rows = rows.slice((pageNo - 1) * PAGE, pageNo * PAGE);
 
-  const params = { q, scope, state, readers, work, sort, kind: kindParam, owner: ownerParam };
+  const pflag = personal ? "1" : undefined;
+  const params = { personal: pflag, q, scope, state, readers, work, sort, owner: ownerParam };
   const here = listUrl(path, { ...params, page: pageNo > 1 ? String(pageNo) : undefined });
   const keepFilters = { state, q, readers, work, sort };
-  const title = key === "personal" ? "Personal" : KINDS[kind!].noun === "PubSub" ? "PubSub" : KINDS[kind!].noun + "s";
-  // On /personal the chosen kind decides everything kind-shaped: the tabs, the
-  // Register action and the sidebar; with no kind chosen it reads as Agents.
-  const listKind: Kind = kind ?? kindParam ?? "agent";
-  const kl = KINDS[listKind];
-  const tabAll = records.filter(r => r.kind === listKind && !r.personal);
+  const plural = kind === "pubsub" ? "PubSub" : k.noun + "s";
+  const title = personal ? `${plural} · Personal` : plural;
   const tabs = [
-    { href: listUrl(kl.list, keepFilters), text: "All", count: tabAll.length, current: key !== "personal" && !scope },
-    ...(listKind === "agent" || listKind === "service" ? [{ href: listUrl(kl.list, { ...keepFilters, scope: "my" }), text: "My", count: tabAll.filter(r => r.owner === you).length, current: key !== "personal" && scope === "my", className: "my-view" }] : []),
-    { href: listUrl("/personal", { ...keepFilters, kind: listKind, owner: owner0 ? ownerParam : undefined }), text: "Personal", count: key === "personal" ? category.length : personalOf(listKind).length, current: key === "personal", className: "personal-view", icon: "lock" },
+    { href: listUrl(path, keepFilters), text: "All", count: shared.length, current: !personal && !scope },
+    ...(kind === "agent" || kind === "service" ? [{ href: listUrl(path, { ...keepFilters, scope: "my" }), text: "My", count: shared.filter(r => r.owner === you).length, current: scope === "my", className: "my-view" }] : []),
+    { href: listUrl(path, { personal: "1", ...keepFilters, owner: owner0 ? ownerParam : undefined }), text: "Personal", count: personalRecs.length, current: personal, className: "personal-view", icon: "lock" },
   ];
-  const registerHref = key === "personal" ? `${kl.newPath}?personal=1` : kl.newPath;
-  const registerText = key === "personal" ? `Register Personal ${kl.lower}` : `Register ${kl.lower}`;
+  const registerHref = personal ? `${k.newPath}?personal=1` : k.newPath;
+  const registerText = personal ? `Register Personal ${k.lower}` : `Register ${k.lower}`;
   const filterLink = (name: string, value: string) => listUrl(path, { ...params, [name]: value || undefined });
-  const owners = [...new Set(personalOf(kindParam).map(r => r.owner))].sort();
+  const owners = [...new Set(personalRecs.map(r => r.owner))].sort();
   const nodeOwner = id?.owner ?? "";
+  // Only columns that tell rows apart: the kind is the page's own, and on a
+  // Personal list the owner is you, unless the daemon Owner sees every owner.
+  const showOwner = !personal || (owner0 && !ownerParam && owners.length > 1);
 
   const columns: { head: string; num?: boolean; cell: (r: Rec) => Child }[] = [
-    { head: "Type", cell: r => <KindPill kind={r.kind} /> },
-    { head: "Owner", cell: r => <code class={r.owner === you ? "you" : ""}>{r.owner}</code> },
+    ...(showOwner ? [{ head: "Owner", cell: (r: Rec) => <code class={r.owner === you ? "you" : ""}>{r.owner}</code> }] : []),
     { head: "Status", cell: r => <StatePill inactive={r.status === "inactive"} /> },
   ];
   const readersCol = { head: "Readers", num: true, cell: (r: Rec) => r.readers == null ? <Muted>unavailable</Muted> : <>{number(r.readers)}</> };
@@ -119,82 +124,75 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const inCol = { head: "Accepted", num: true, cell: (r: Rec) => <>{number(r.in)}</> };
   const outCol = (head: string) => ({ head, num: true, cell: (r: Rec) => <>{number(r.out)}</> });
   const updCol = { head: "Updated", cell: (r: Rec) => <time datetime={r.at} title={stamp(r.at)}>{relative(r.at)}</time> };
-  if (key === "agents" || key === "personal") columns.push(readersCol, heldCol("Queued"), inCol, outCol("Dequeued"), updCol);
+  if (key === "agents") columns.push(readersCol, heldCol("Queued"), inCol, outCol("Dequeued"), updCol);
   else if (services) columns.push({ head: "Address", cell: r => <code>{r.addr}</code> }, { head: "Protocol", cell: r => r.protocol ? <Pill>{r.protocol}</Pill> : <Muted>—</Muted> }, updCol);
   else if (key === "queues") columns.push(readersCol, heldCol("Held"), inCol, outCol("Dequeued"), updCol);
   else columns.push(inCol, outCol("Copies out"), { head: "Deliver-To", num: true, cell: r => <>{number(r.subs?.length ?? 0)}</> }, updCol);
-  const firstHead = key === "personal" ? "Record" : KINDS[kind!].noun;
+  const firstHead = k.noun;
 
   const filtered = !!(q || state || readers || work || sort);
-  const helpItems = key === "personal"
-    ? ["Personal records belong to their Owner's own view instead of the shared lists; delivery is unchanged.", "The daemon Owner can choose one owner or see every Personal record visible to them."]
-    : [KINDS[kind!].blurb, "Counts on the tabs are over records visible to you, before the filters below.", "Status: Active, or Inactive — hidden from use and kept.", ...(services ? [] : ["Readers: consumers waiting on this inbox now.", "Accepted and Dequeued: messages in and taken out since the daemon started."])];
+  const clear = listUrl(path, { personal: pflag, scope, owner: owner0 ? ownerParam : undefined });
+  const helpItems = [k.blurb, personal ? "Personal: records their Owner keeps out of the shared lists; delivery is unchanged. The sidebar keeps this choice from kind to kind." : "Personal records are under the Personal tab, not in these lists.",
+    "Counts on the tabs are over records visible to you, before the filters below.", "Status: Active, or Inactive — hidden from use and kept.",
+    ...(services ? [] : ["Readers: consumers waiting on this inbox now.", "Accepted and Dequeued: messages in and taken out since the daemon started."])];
 
   const body = <>
-    <PageHead icon={<Icon name={key === "personal" ? "lock" : entity(kind!)!.icon} />} title={title}
+    <PageHead icon={<Icon name={personal ? "lock" : entity(kind)!.icon} />} title={title}
       help={<Help id="service-views-help" label={`About ${title}`} title={title} items={helpItems} />}>
       <LinkButton href={registerHref} tone="primary" icon="plus">{registerText}</LinkButton>
     </PageHead>
     <Tabs label="Record views" items={tabs} />
-    {key === "personal" ? (owner0
-      ? <form method="get" class="toolbar owner-chooser">
-          {[["state", state], ["readers", readers], ["work", work], ["q", q], ["kind", kindParam ?? ""], ["sort", sort]].map(([n, v]) => v ? <input type="hidden" name={n} value={v} /> : null)}
-          <label for="owner-select" class="seg-label">Owner</label>
-          <select id="owner-select" name="owner" data-submit-on-change>
-            <option value="">All visible owners</option>
-            {owners.map(o => <option value={o} selected={o === ownerParam}>{o}</option>)}
-          </select>
-        </form>
-      : <p class="muted">Owned by <code>{you}</code></p>) : null}
+    {personal && owner0 ? <form method="get" class="toolbar owner-chooser">
+        <input type="hidden" name="personal" value="1" />
+        {[["state", state], ["readers", readers], ["work", work], ["q", q], ["sort", sort]].map(([n, v]) => v ? <input type="hidden" name={n} value={v} /> : null)}
+        <label for="owner-select" class="seg-label">Owner</label>
+        <select id="owner-select" name="owner" data-submit-on-change>
+          <option value="">All visible owners</option>
+          {owners.map(o => <option value={o} selected={o === ownerParam}>{o}</option>)}
+        </select>
+      </form> : null}
     <form class="toolbar record-search" method="get" action={path}>
       <div class="search"><Icon name="search" /><label for="record-query" class="sr-only">Search records</label>
-        <input id="record-query" type="search" name="q" value={q} placeholder="Search by name, owner, or description" /></div>
-      {[["scope", scope], ["state", state], ["readers", readers], ["work", work], ["kind", kindParam ?? ""], ["owner", ownerParam]].map(([n, v]) => v ? <input type="hidden" name={n} value={v} /> : null)}
-      {!services ? <><label for="record-sort" class="sr-only">Sort</label>
-        <select id="record-sort" name="sort" data-submit-on-change>
-          <option value="">Name (A–Z)</option>
-          <option value="updated" selected={sort === "updated"}>Recently updated</option>
-          <option value="queued" selected={sort === "queued"}>{pubsub ? "Accepted (high–low)" : "Queued (high–low)"}</option>
-        </select></> : <><label for="record-sort" class="sr-only">Sort</label>
-        <select id="record-sort" name="sort" data-submit-on-change>
-          <option value="">Name (A–Z)</option>
-          <option value="updated" selected={sort === "updated"}>Recently updated</option>
-        </select></>}
+        <input id="record-query" type="search" name="q" value={q} placeholder={showOwner ? "Search by name, owner, or description" : "Search by name or description"} /></div>
+      {[["personal", pflag ?? ""], ["scope", scope], ["state", state], ["readers", readers], ["work", work], ["owner", ownerParam]].map(([n, v]) => v ? <input type="hidden" name={n} value={v} /> : null)}
+      <label for="record-sort" class="sr-only">Sort</label>
+      <select id="record-sort" name="sort" data-submit-on-change>
+        <option value="">Name (A–Z)</option>
+        <option value="updated" selected={sort === "updated"}>Recently updated</option>
+        {!services ? <option value="queued" selected={sort === "queued"}>{pubsub ? "Accepted (high–low)" : "Queued (high–low)"}</option> : null}
+      </select>
     </form>
     <div class="toolbar filters">
-      {key === "personal" ? <Segmented label="Kind" items={[{ href: filterLink("kind", ""), text: "All", current: !kindParam },
-        ...(Object.keys(KINDS) as Kind[]).map(k => ({ href: filterLink("kind", k), text: <><Icon name={entity(k)!.icon} />{KINDS[k].noun}</>, current: kindParam === k }))]} /> : null}
       <Segmented label="Status" items={[["", "All"], ["active", "Active"], ["inactive", "Inactive"]].map(([v, t]) => ({ href: filterLink("state", v!), text: t!, current: state === v }))} />
       {!services && !pubsub ? <>
         <Segmented label="Readers" items={[["", "All"], ["present", "Reading now"], ["none", "No reader now"], ["unavailable", "Unavailable"]].map(([v, t]) => ({ href: filterLink("readers", v!), text: t!, current: readers === v }))} />
         <Segmented label="Queue" items={[["", "All"], ["held", "Holding work"]].map(([v, t]) => ({ href: filterLink("work", v!), text: t!, current: work === v }))} />
       </> : null}
     </div>
-    {category.length === 0 ? (key !== "personal" && personalOf(kind).length
-      ? <Empty icon="lock" title={`No shared ${KINDS[kind!].plural}`} action={<a class="btn" href={`/personal?kind=${kind}`}>Open the Personal tab</a>}>
-          {personalOf(kind).length} Personal {KINDS[kind!].lower}{personalOf(kind).length === 1 ? " is" : "s are"} under the Personal tab, which this list omits. {KINDS[kind!].blurb}
+    {category.length === 0 ? (!personal && personalRecs.length
+      ? <Empty icon="lock" title={`No shared ${k.plural}`} action={<a class="btn" href={listUrl(path, { personal: "1" })}>Open the Personal tab</a>}>
+          {personalRecs.length} Personal {k.lower}{personalRecs.length === 1 ? " is" : "s are"} under the Personal tab, which this list omits. {k.blurb}
         </Empty>
-      : <Empty icon={key === "personal" ? "lock" : entity(kind!)!.icon} title={`No ${key === "personal" ? "Personal records" : KINDS[kind!].plural} yet`}>
-          {key === "personal" ? "Personal records belong to their Owner's own view instead of the shared lists." : KINDS[kind!].blurb}
+      : <Empty icon={personal ? "lock" : entity(kind)!.icon} title={`No ${personal ? "Personal " : ""}${k.plural} yet`}>
+          {personal ? "Personal records belong to their Owner's own view instead of the shared lists." : k.blurb}
         </Empty>)
-      : matched === 0 ? <Empty icon="filter" title="No records match these filters" action={<a class="btn" href={listUrl(path, { scope, owner: owner0 ? ownerParam : undefined, kind: kindParam })}>Clear filters</a>}>Change the active filters above or clear filters.</Empty>
+      : matched === 0 ? <Empty icon="filter" title="No records match these filters" action={<a class="btn" href={clear}>Clear filters</a>}>Change the active filters above or clear filters.</Empty>
       : <>
-        {key === "personal" ? <p class="muted small">{owner0 ? "This per-owner view contains only Personal records visible through your normal access; it is not a node-wide inventory." : "Your Personal records."}</p> : null}
+        {personal ? <p class="muted small">{owner0 ? "Only Personal records visible through your normal access; not a node-wide inventory." : <>Owned by <code>{you}</code>.</>}</p> : null}
         <div class="results-line"><span>Showing {(pageNo - 1) * PAGE + 1}–{Math.min(pageNo * PAGE, matched)} of {number(matched)} matching records, caller-visible on this page and not a count of this node.</span>
-          {filtered ? <a href={listUrl(path, { scope, owner: owner0 ? ownerParam : undefined, kind: kindParam })}>Clear filters</a> : null}</div>
+          {filtered ? <a href={clear}>Clear filters</a> : null}</div>
         <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
           <thead><tr><th>{firstHead}</th>{columns.map(c => <th class={c.num ? "num" : ""}>{c.head}</th>)}</tr></thead>
-          <tbody>{rows.map(r => <tr class={[r.owner === you ? "owned-record" : "", r.personal ? "personal-record" : "", r.status === "inactive" ? "inactive-record" : ""].join(" ")}>
+          <tbody>{rows.map(r => <tr class={[r.owner === you ? "owned-record" : "", r.personal && !personal ? "personal-record" : "", r.status === "inactive" ? "inactive-record" : ""].join(" ")}>
             <td data-label={firstHead}><div class="rec-cell"><KindIcon kind={r.kind} owner={r.kind === "user" && r.name === nodeOwner} />
-              <div class="rec-title"><a href={recordHref(r, { return: here })}>{r.descr ? <><strong>{r.descr}</strong><code>{r.name}</code></> : <strong><code>{r.name}</code></strong>}</a>
-                {r.personal ? <span class="owned-mark">PERSONAL</span> : null}</div></div></td>
+              <div class="rec-title"><a href={recordHref(r, { return: here })}>{r.descr ? <><strong>{r.descr}</strong><code>{r.name}</code></> : <strong><code>{r.name}</code></strong>}</a></div></div></td>
             {columns.map(c => <td class={c.num ? "num" : ""} data-label={c.head}>{c.cell(r)}</td>)}
           </tr>)}</tbody>
         </table></div></div>
         <Pager label="Record pages" prev={pageNo > 1 ? listUrl(path, { ...params, page: String(pageNo - 1) }) : undefined} next={pageNo < pages ? listUrl(path, { ...params, page: String(pageNo + 1) }) : undefined}>Page {pageNo} of {pages}</Pager>
       </>}
   </>;
-  return respond(ctx, { title, section: kl.section, signedIn: true, you }, body);
+  return respond(ctx, { title, section: k.section, signedIn: true, you, personal }, body);
 }
 
 // ------------------------------------------------------------------ record form
@@ -261,7 +259,7 @@ async function registerPage(ctx: Ctx, kind: Kind, st: FormState = { values: {} }
   // Arriving from a Personal list: the form starts Personal, and Back returns there.
   const fromPersonal = ctx.q("personal") === "1" || st.values.from_personal === "1";
   if (fromPersonal && !st.error && st.values.personal == null) st = { ...st, values: { ...st.values, personal: "on" } };
-  const back = fromPersonal ? { href: `/personal?kind=${kind}`, label: "Back to Personal" } : { href: k.list, label: `Back to ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` };
+  const back = fromPersonal ? { href: `${k.list}?personal=1`, label: `Back to Personal ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` } : { href: k.list, label: `Back to ${kind === "pubsub" ? "PubSub" : k.noun + "s"}` };
   const body = <>
     <PageHead back={back} icon={<Icon name={entity(kind)!.icon} />} title={`Register ${k.lower}`}
       sub={<>You become its Owner. {k.blurb}</>} />
@@ -276,7 +274,7 @@ async function registerPage(ctx: Ctx, kind: Kind, st: FormState = { values: {} }
       </div>
     </form>
   </>;
-  return respond(ctx, { title: `Register ${k.lower}`, section: k.section, signedIn: true, you: s.you }, body, status);
+  return respond(ctx, { title: `Register ${k.lower}`, section: k.section, signedIn: true, you: s.you, personal: fromPersonal }, body, status);
 }
 
 // ------------------------------------------------------------------ detail
@@ -309,7 +307,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     ctx.users().catch(() => null),
     loadRange(ctx, rangeFor(ctx, st), name).then(a => ({ ok: a }), e => ({ err: sectionProblem(e) })),
   ]);
-  const back = returnTo(ctx.q("return"), [listOf(rec)], listOf(rec));
+  const back = returnTo(ctx.q("return"), [listPath(rec)], listOf(rec));
   const manage = !!rec.can_manage, inbox = rec.kind === "user", n = noun(rec.kind);
   const editHref = `${detailPath(rec.kind)}/edit?${new URLSearchParams({ name, ...(ctx.q("return") ? { return: back } : {}) })}`;
   const range = rangeFor(ctx, st);
@@ -392,12 +390,12 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       </div>
     </div>
   </>;
-  return respond(ctx, { title: `${n} ${rec.name}`, section: sectionOf(rec), signedIn: true, you: st.you, charts: true }, body);
+  return respond(ctx, { title: `${n} ${rec.name}`, section: sectionOf(rec), signedIn: true, you: st.you, charts: true, personal: !!rec.personal }, body);
 }
 
 async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
   const n = noun(rec.kind);
-  const back = returnTo(ctx.q("return"), [listOf(rec)], listOf(rec));
+  const back = returnTo(ctx.q("return"), [listPath(rec)], listOf(rec));
   const body = <>
     <PageHead back={{ href: back, label: "Back to records" }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<><Name>{rec.name}</Name> <Badge>INACTIVE</Badge></>}
       sub={<div class="meta-row"><KindPill kind={rec.kind} /><span class="owner-chip"><Icon name="user-round" /><span>Owner</span><code>{rec.owner}</code></span></div>} />
@@ -413,7 +411,7 @@ async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
         : <p class="muted">Its owner and assigned maintainers can reactivate it.</p>}
     </Card>
   </>;
-  return respond(ctx, { title: `${n} ${rec.name}`, section: sectionOf(rec), signedIn: true, you: st.you }, body);
+  return respond(ctx, { title: `${n} ${rec.name}`, section: sectionOf(rec), signedIn: true, you: st.you, personal: !!rec.personal }, body);
 }
 
 /** The record for a page that needs it active and visible; inactive reads as absent. */
@@ -430,7 +428,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
   if (rec.kind === "group") return redirect(`/group/edit?name=${encodeURIComponent(rec.name)}`, 302);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can change this record's settings");
-  const ret = returnTo(st.values.return ?? ctx.q("return"), [listOf(rec)], "");
+  const ret = returnTo(st.values.return ?? ctx.q("return"), [listPath(rec)], "");
   const detailHref = recordHref(rec, ret ? { return: ret } : undefined);
   const body = <>
     <PageHead back={{ href: detailHref, label: `Back to ${rec.name}` }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<>Edit {noun(rec.kind)} <Name>{rec.name}</Name></>} />
@@ -446,7 +444,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
     </form>
     <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><Icon name="chevron-right" /></a>
   </>;
-  return respond(ctx, { title: `Edit ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you }, body, status);
+  return respond(ctx, { title: `Edit ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body, status);
 }
 
 // ------------------------------------------------------------------ deactivate
@@ -467,7 +465,7 @@ async function deactivatePage(ctx: Ctx): Promise<Response> {
         <a class="btn btn-ghost" href={recordHref(rec)}>Cancel</a></form>
     </Card>
   </>;
-  return respond(ctx, { title: `Confirm deactivation · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you }, body);
+  return respond(ctx, { title: `Confirm deactivation · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body);
 }
 
 // ------------------------------------------------------------------ danger zone
@@ -512,7 +510,7 @@ export async function dangerPage(ctx: Ctx, name: string, err?: { section: "confi
       </Card> : group ? <Card title="Removal" icon="trash-2"><p class="muted">A group is retired by emptying its members, never removed: records that name it keep a stable meaning.</p></Card> : null}
     </div>
   </>;
-  return respond(ctx, { title: `Danger Zone · ${rec.name}`, section: group ? "groups" : sectionOf(rec), signedIn: true, you: s.you }, body, status);
+  return respond(ctx, { title: `Danger Zone · ${rec.name}`, section: group ? "groups" : sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body, status);
 }
 
 async function postConfirm(ctx: Ctx): Promise<Response> {
@@ -533,7 +531,7 @@ async function postConfirm(ctx: Ctx): Promise<Response> {
         </form>
       </Card>
     </>;
-    return respond(ctx, { title: `Confirm ownership transfer · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you }, body);
+    return respond(ctx, { title: `Confirm ownership transfer · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body);
   }
   if (action === "delete") {
     if (!rec.can_manage || rec.kind === "group" || rec.kind === "user") throw notYours("only the owner or an assigned Maintainer can remove this record");
@@ -549,7 +547,7 @@ async function postConfirm(ctx: Ctx): Promise<Response> {
         </form>
       </Card>
     </>;
-    return respond(ctx, { title: `Confirm removal · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you }, body);
+    return respond(ctx, { title: `Confirm removal · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body);
   }
   throw new LocalProblem(400, "That confirmation action is not available.");
 }
@@ -630,7 +628,7 @@ async function postService(ctx: Ctx): Promise<Response> {
       await storeSecret(ctx, name, "The settings were saved");
       ctx.forget("/lookup");
       const fresh = await ctx.lookup(name).catch(() => rec);
-      const ret = returnTo(ctx.f("return"), [listOf(fresh)], "");
+      const ret = returnTo(ctx.f("return"), [listPath(fresh)], "");
       return flashRedirect(ctx, recordHref(fresh, ret ? { return: ret } : undefined), "saved");
     }
     case "configure": {
@@ -729,7 +727,7 @@ function channelRedirect(edit: boolean) {
 
 export const handlers = {
   agents: (ctx: Ctx) => list(ctx, "agents"), services: (ctx: Ctx) => list(ctx, "services"), queues: (ctx: Ctx) => list(ctx, "queues"),
-  pubsub: (ctx: Ctx) => list(ctx, "pubsub"), personal: (ctx: Ctx) => list(ctx, "personal"),
+  pubsub: (ctx: Ctx) => list(ctx, "pubsub"),
   newAgent: (ctx: Ctx) => registerPage(ctx, "agent"), newService: (ctx: Ctx) => registerPage(ctx, "service"),
   newQueue: (ctx: Ctx) => registerPage(ctx, "queue"), newPubsub: (ctx: Ctx) => registerPage(ctx, "pubsub"),
   agent: (ctx: Ctx) => detail(ctx, "/agent"), service: (ctx: Ctx) => detail(ctx, "/service"), queue: (ctx: Ctx) => detail(ctx, "/queue"), topic: (ctx: Ctx) => detail(ctx, "/pubsub/topic"),

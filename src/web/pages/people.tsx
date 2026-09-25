@@ -366,31 +366,35 @@ function mayEdit(name: string, rec: Rec | undefined, st: Status): boolean {
 
 async function groupsPage(ctx: Ctx): Promise<Response> {
   const [st, groups, ls] = await Promise.all([ctx.status(), ctx.groups(), ctx.ls()]);
-  const names = Object.keys(groups).sort();
+  const personal = ctx.q("personal") === "1";
   const recs = new Map(ls.filter(r => r.kind === "group").map(r => [r.name, r]));
+  const all = Object.keys(groups).sort();
+  const personalNames = all.filter(n => recs.get(n)?.personal);
+  const names = personal ? personalNames : all.filter(n => !recs.get(n)?.personal);
   const body = <>
     <PageHead icon={<Icon name="users" />} title="Groups"
       help={<Help label="About Groups" tip="Named sets of users, agents and other groups, used in allow lists and as Maintainers." title="Groups"
         items={["A group is a named set of users, agents and nested groups.", "@owner is ACL syntax for a record's Owner, not a group.", "Anyone may register a group and becomes its Owner.", "Its Owner, its Maintainers and the daemon Administrators change its membership.", "You see a group's details when you are in it or manage it."]} />}>
-      <LinkButton href="/groups/new" tone="primary" icon="plus">Register group</LinkButton>
+      <LinkButton href={personal ? "/groups/new?personal=1" : "/groups/new"} tone="primary" icon="plus">{personal ? "Register Personal group" : "Register group"}</LinkButton>
     </PageHead>
-    <Tabs label="Group views" items={[{ href: "/groups", text: "All", count: names.length, current: true }, { href: "/groups/new", text: "Register group", className: "register", icon: "plus" }]} />
+    <Tabs label="Group views" items={[{ href: "/groups", text: "All", count: all.length - personalNames.length, current: !personal },
+      { href: "/groups?personal=1", text: "Personal", count: personalNames.length, current: personal, className: "personal-view", icon: "lock" }]} />
     {names.length ? <div class="table-wrap"><table class="data stack">
       <caption>{plural(names.length, "group")}</caption>
-      <thead><tr><th>Group</th><th>Owner</th><th>Maintainers</th><th>Members</th></tr></thead>
+      <thead><tr><th>Group</th>{personal ? null : <th>Owner</th>}<th>Maintainers</th><th>Members</th></tr></thead>
       <tbody>{names.map(n => {
         const r = recs.get(n), members = groups[n];
         const visible = !!st.administrator || !!r;
         return <tr>
           <td data-label="Group"><a class="rec-link" href={`/group?name=${encodeURIComponent(n)}`}><KindIcon kind="group" /><code>{n}</code></a>{n === "@administrators" ? <> <Pill tone="accent">protected</Pill></> : null}
             {r?.descr ? <div class="muted small">{r.descr}</div> : null}</td>
-          <td data-label="Owner">{r ? <code>{r.owner}</code> : <Muted>Not visible to you</Muted>}</td>
+          {personal ? null : <td data-label="Owner">{r ? <code>{r.owner}</code> : <Muted>Not visible to you</Muted>}</td>}
           <td data-label="Maintainers">{r ? (r.maintainers?.length ? <code>{r.maintainers.join(", ")}</code> : <Muted>None</Muted>) : <Muted>Not visible to you</Muted>}</td>
           <td data-label="Members">{visible && members ? (members.length ? <ul class="members">{members.map(m => <li><code>{m}</code></li>)}</ul> : <Muted>No members</Muted>) : <Muted>Not visible to you</Muted>}</td>
         </tr>;
-      })}</tbody></table></div> : <Empty icon="users" title="No groups registered" />}
+      })}</tbody></table></div> : <Empty icon={personal ? "lock" : "users"} title={personal ? "No Personal groups yet" : "No groups registered"}>{personal ? <>A Personal group is named for its Owner, <code>@{st.you}/…</code>, and lists only the Owner and the Owner's own agents.</> : undefined}</Empty>}
   </>;
-  return respond(ctx, { title: "Groups", section: "groups", signedIn: true, you: st.you }, body);
+  return respond(ctx, { title: personal ? "Groups · Personal" : "Groups", section: "groups", signedIn: true, you: st.you, personal }, body);
 }
 const plural = (n: number, w: string) => `${number(n)} ${w}${n === 1 ? "" : "s"}`;
 
@@ -430,7 +434,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
   const protectedGroup = key === "@administrators";
   const used = usedBy(key, ls, groups);
   const body = <>
-    <PageHead back={{ href: "/groups", label: "Back to Groups" }} icon={<Icon name="users" />} title={<Name copy>{key}</Name>}
+    <PageHead back={{ href: rec?.personal ? "/groups?personal=1" : "/groups", label: "Back to Groups" }} icon={<Icon name="users" />} title={<Name copy>{key}</Name>}
       sub={<div class="meta-row">
         {protectedGroup ? <Pill tone="accent"><Icon name="shield" />protected</Pill> : null}
         {rec ? <>
@@ -465,7 +469,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
       </div>
     </div>
   </>;
-  return respond(ctx, { title: `Group ${key}`, section: "groups", signedIn: true, you: st.you }, body);
+  return respond(ctx, { title: `Group ${key}`, section: "groups", signedIn: true, you: st.you, personal: !!rec?.personal }, body);
 }
 
 const GROUP_KEEP = ["name", "members", "new", "descr", "maintainers", "personal"];
@@ -484,7 +488,7 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
   const protectedGroup = name === "@administrators";
   const assign = create || (!protectedGroup && !!rec?.can_transfer);
   const v = (n: string, from: string) => st.values[n] ?? from;
-  const personal = st.values.personal != null || st.values.new != null ? st.values.personal === "on" : !!rec?.personal;
+  const personal = st.values.personal != null || st.values.new != null ? st.values.personal === "on" : create ? ctx.q("personal") === "1" : !!rec?.personal;
   const title = create ? "Register group" : `Edit ${name}`;
   const back = create ? "/groups" : `/group?name=${encodeURIComponent(name)}`;
   const body = <>
@@ -518,7 +522,7 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
       <div class="actions"><Button tone="primary" icon="check">{create ? "Register group" : "Save group"}</Button><a class="btn btn-ghost" href={back}>Cancel</a></div>
     </div></form>
   </>;
-  return respond(ctx, { title, section: "groups", signedIn: true, you: s.you }, body, status);
+  return respond(ctx, { title, section: "groups", signedIn: true, you: s.you, personal: create ? ctx.q("personal") === "1" || st.values.personal === "on" : !!rec?.personal }, body, status);
 }
 
 async function postGroups(ctx: Ctx): Promise<Response> {

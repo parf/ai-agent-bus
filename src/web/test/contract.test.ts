@@ -40,6 +40,9 @@ beforeAll(async () => {
   await api("/register", { name: "db@test", kind: "service", addr: "db:5432", protocol: "postgresql" });
   await api("/group", { Name: "@ops", Members: ["bob"] });
   await api("/group", { Name: "@hidden", Members: ["owner@test"] });
+  await api("/register", { name: "mine@test", kind: "service", addr: "mine:1", protocol: "https", personal: true });
+  await api("/group", { Name: "@owner@test/team", Members: ["owner@test"] });
+  await api("/manage", { name: "@owner@test/team", personal: true });
   await api("/send", { to: "jobs@test", body: "hello", topic: "t", tag: "x" });
   handle = makeHandler({ daemon: join(dir, "bus.sock"), listen: { hostname: "127.0.0.1", port: 6781 }, dev: false });
 }, 120_000);
@@ -172,7 +175,7 @@ describe("sign-in", () => {
 describe("pages as the daemon owner", () => {
   let s = "";
   beforeAll(async () => { s = await signIn(owner); });
-  const pages = ["/", "/agents", "/services", "/queues", "/pubsub", "/personal", "/personal?kind=queue", "/agents/new", "/services/new", "/queues/new", "/pubsub/new",
+  const pages = ["/", "/agents", "/services", "/queues", "/pubsub", "/agents?personal=1", "/queues?personal=1", "/services?personal=1", "/groups?personal=1", "/agents/new", "/services/new", "/queues/new", "/pubsub/new",
     "/agent?name=%23helper@test", "/queue?name=jobs@test", "/pubsub/topic?name=news@test", "/service?name=db@test", "/agent/edit?name=%23helper@test",
     "/service-deactivate?name=jobs@test", "/service-danger?name=jobs@test", "/activity", "/activity?name=jobs@test", "/diagnostics",
     "/users", "/users/new", "/user?name=bob", "/user/edit?name=bob", "/user-deactivate?name=bob", "/groups", "/groups/new", "/group?name=@ops", "/group/edit?name=@ops", "/account"];
@@ -218,19 +221,42 @@ describe("pages as the daemon owner", () => {
     expect((await req("/service-danger?name=owner@test", { cookie: s })).status).toBe(403);
   });
   test("every list has exactly one Register action, empty or not", async () => {
-    for (const p of ["/agents", "/services", "/personal?kind=pubsub", "/pubsub"]) {
+    for (const p of ["/agents", "/services", "/pubsub?personal=1", "/pubsub", "/groups", "/groups?personal=1"]) {
       const t = await (await req(p, { cookie: s })).text();
       expect(`${p} ${(t.match(/href="\/[a-z]+\/new[^"]*"/g) ?? []).length}`).toBe(`${p} 1`);
     }
   });
-  test("a kind chosen on Personal drives the tabs, the one Register action and the sidebar", async () => {
-    const t = await (await req("/personal?kind=service", { cookie: s })).text();
-    expect(t).toMatch(/<a href="\/services" class="side-link" aria-current="page"/);
-    expect(t).not.toMatch(/<a href="\/agents" class="side-link" aria-current="page"/);
+  test("Personal is a filter on each kind's list, kept by the sidebar", async () => {
+    const t = await (await req("/services?personal=1", { cookie: s })).text();
+    expect(t).toContain("mine@test");
+    expect(t).not.toContain("db@test");
+    expect(t).not.toContain('aria-label="Kind"');
+    expect(t).toMatch(/class="tab personal-view" aria-current="true"/);
+    // The sidebar keeps the filter on every kind, and never elsewhere.
+    for (const p of ["/agents", "/queues", "/pubsub", "/groups"]) expect(t).toContain(`href="${p}?personal=1" class="side-link personal"`);
+    expect(t).toMatch(/<a href="\/services\?personal=1" class="side-link personal" aria-current="page"/);
+    expect(t).toContain('href="/users" class="side-link "');
+    // Only the columns that tell rows apart: no Type, and no Owner on your own list.
+    expect(t).not.toMatch(/<th[^>]*>Type<\/th>/);
+    expect(t).not.toMatch(/<th[^>]*>Owner<\/th>/);
+    expect(t).toMatch(/<th[^>]*>Status<\/th>/);
     expect(t.match(/href="\/[a-z]+\/new[^"]*"/g)).toEqual(['href="/services/new?personal=1"']);
+    // Filters and paging keep the filter too.
+    expect(t).toContain('href="/services?personal=1&amp;state=active"');
+    const plain = await (await req("/services", { cookie: s })).text();
+    expect(plain).not.toContain("?personal=1\" class=\"side-link");
+    expect(plain).toMatch(/<th[^>]*>Owner<\/th>/);
     const form = await (await req("/services/new?personal=1", { cookie: s })).text();
     expect(form).toMatch(/name="personal" value="on" checked/);
-    expect(form).toContain('href="/personal?kind=service"');
+    expect(form).toContain('href="/services?personal=1"');
+    // A Personal record's page leads back to its Personal list and keeps the sidebar's filter.
+    const detail = await (await req("/service?name=mine@test", { cookie: s })).text();
+    expect(detail).toContain('class="back-link" href="/services?personal=1"');
+    expect(detail).toContain('href="/agents?personal=1" class="side-link personal"');
+    const groups = await (await req("/groups?personal=1", { cookie: s })).text();
+    expect(groups).toContain("@owner@test/team");
+    expect(groups).not.toContain(">@ops<");
+    for (const gone of ["/personal", "/personal?kind=service"]) expect((await req(gone, { cookie: s })).status).toBe(404);
   });
   test("Week and Month ranges render, with Prev and Next where they lead somewhere", async () => {
     const week = await (await req("/activity?range=week", { cookie: s })).text();

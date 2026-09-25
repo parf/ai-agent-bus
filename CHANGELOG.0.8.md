@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.43 — 2026-09-24
+
+Personal is a filter on each kind's list (`/agents?personal=1`), kept by the
+sidebar from kind to kind; lists drop columns that never differ; the current
+sidebar section is a bright accent pill.
+
 ## 0.8.42 — 2026-09-24
 
 Stored activity days are whole: a per-name ledger replaces the ring's window, so
