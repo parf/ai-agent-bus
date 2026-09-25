@@ -17,7 +17,7 @@ Other proposed work needs scope confirmation and resolution of
 |---|---|
 | [Record-defined roles](identity.md#groups-and-roles), the first R1 topic after 0.7 | 0.7 typed actor terms and User ownership; an owner-approved storage and transport representation |
 | [Additional storage backends](storage.md#backends) | SQLite persistence contract and exclusive database access implemented in 0.7 |
-| [TLS on the daemon's listener](access.md#tls) | The certificate source ([Q131](QUESTIONS.md#open-questions)) and client trust ([Q132](QUESTIONS.md#open-questions)); the release's any-address plain-HTTP listener |
+| [TLS on the daemon's listener](access.md#tls) | The release's any-address plain-HTTP listener; self-signed certificate and pinned fingerprint settled (Q131, Q132) |
 | Scoped credentials and encryption | [Settled lifetime policy](../../docs/02-access.md#token-lifetime); remaining key recovery and token grammar decisions |
 | D.1–D.4 encryption carried from MVP | [Encryption acceptance](encryption-wave.md#d--the-bus-stops-reading-payloads); key lifecycle decisions |
 | Federation | Namespace, record authenticity and clock decisions |
