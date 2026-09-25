@@ -115,6 +115,9 @@ type inbox struct {
 
 	queue   []protocol.Envelope
 	waiters []*waiter
+	// days is its durable days in progress, today and yesterday
+	// (activity_days.go).
+	days activity.Ledger
 	// act is its last day of traffic, differenced from the counters above at
 	// each ten-minute boundary (activity.go).
 	act activity.Ring
@@ -157,9 +160,10 @@ type Bus struct {
 	// (activity.go). clock is the time as the bus reads it; a test moves it.
 	node  activity.Ring
 	clock func() time.Time
-	// prunedOn is the day old activity days were last dropped
-	// (activity_days.go).
+	// prunedOn is the day old activity days were last dropped, and
+	// nodeDays the node's own refusals in progress (activity_days.go).
 	prunedOn activity.Date
+	nodeDays activity.Ledger
 	records  map[string]protocol.Record
 	admin    string
 	// ownerRestored means a current snapshot, rather than setup, supplied

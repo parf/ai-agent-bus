@@ -533,22 +533,48 @@ func (s *Store) SaveActivityDays(days []ports.ActivityDay) error {
 	return tx.Commit()
 }
 
-// ActivityDays reads every row from one date to another, both included.
-func (s *Store) ActivityDays(from, to int) ([]ports.ActivityDay, error) {
-	rows, err := s.db.Query(`SELECT day, name, slots FROM activity_days WHERE day BETWEEN ? AND ? ORDER BY day, name`, from, to)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+// ActivityDays reads every row from one date to another, both included, of
+// the names given or of all of them.
+func (s *Store) ActivityDays(from, to int, names []string) ([]ports.ActivityDay, error) {
 	var out []ports.ActivityDay
-	for rows.Next() {
-		var d ports.ActivityDay
-		if err := rows.Scan(&d.Date, &d.Name, &d.Slots); err != nil {
+	read := func(q string, args ...any) error {
+		rows, err := s.db.Query(q, args...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var d ports.ActivityDay
+			if err := rows.Scan(&d.Date, &d.Name, &d.Slots); err != nil {
+				return err
+			}
+			out = append(out, d)
+		}
+		return rows.Err()
+	}
+	if names == nil {
+		return out, read(`SELECT day, name, slots FROM activity_days WHERE day BETWEEN ? AND ? ORDER BY day, name`, from, to)
+	}
+	// In batches, under SQLite's bound-parameter limit.
+	for len(names) > 0 {
+		n := min(len(names), 500)
+		args := []any{from, to}
+		for _, name := range names[:n] {
+			args = append(args, name)
+		}
+		q := `SELECT day, name, slots FROM activity_days WHERE day BETWEEN ? AND ? AND name IN (?` + strings.Repeat(",?", n-1) + `)`
+		if err := read(q, args...); err != nil {
 			return nil, err
 		}
-		out = append(out, d)
+		names = names[n:]
 	}
-	return out, rows.Err()
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Date != out[j].Date {
+			return out[i].Date < out[j].Date
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out, nil
 }
 
 // PruneActivity drops the rows older than before.

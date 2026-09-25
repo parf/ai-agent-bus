@@ -82,25 +82,89 @@ func (r *Ring) Days(total Counts) map[Date]*DaySlots {
 	return out
 }
 
-// Closed is the date of the slot the last Tick closed, and whether a Tick
-// closed one with counts in it: the row a boundary has to write.
-func (r *Ring) closedDate(prevEnd int64) (Date, bool) {
-	if prevEnd == r.end {
-		return 0, false
-	}
-	return dateOfCivil(floorDiv(prevEnd, Slots)), r.cells[cell(prevEnd)] != (Counts{})
+// Closed is the slot a Tick closed: its day, its index in the day and what
+// it counted.
+type Closed struct {
+	Date   Date
+	Index  int
+	Counts Counts
 }
 
-// TickClosing is Tick that also says which calendar day's row the closed
-// slot changed, when it counted anything; nothing else needs writing.
-func (r *Ring) TickClosing(now time.Time, total Counts) (Date, bool) {
-	prev := r.end
+// TickClosing is Tick that also hands back the slot it closed, when it
+// counted anything: what a durable day adds, and nothing else needs writing.
+// Its counts are taken before the tick, since a jump of a day or more reuses
+// the closed slot's cell.
+func (r *Ring) TickClosing(now time.Time, total Counts) (Closed, bool) {
 	fresh := r.at == 0 && r.end == 0
+	prev := r.end
+	c := r.cells[cell(prev)]
+	c.add(total.since(r.base))
 	r.Tick(now, total)
-	if fresh {
-		return 0, false
+	if fresh || r.end == prev || c == (Counts{}) {
+		return Closed{}, false
 	}
-	return r.closedDate(prev)
+	day := floorDiv(prev, Slots)
+	return Closed{Date: dateOfCivil(day), Index: int(prev - day*Slots), Counts: c}, true
+}
+
+// Open is the open slot so far: its day, index and counts.
+func (r *Ring) Open(total Counts) Closed {
+	c := r.cells[cell(r.end)]
+	c.add(total.since(r.base))
+	day := floorDiv(r.end, Slots)
+	return Closed{Date: dateOfCivil(day), Index: int(r.end - day*Slots), Counts: c}
+}
+
+// Ledger is one name's durable days in progress: every closed slot is set
+// into its date, so a day's row is whole whatever the ring still holds. It
+// keeps the day of the latest slot and the one before, which is all a
+// boundary or a stop can still change.
+type Ledger struct {
+	days map[Date]*DaySlots
+}
+
+// Seed puts a stored day back, as the start reads it.
+func (l *Ledger) Seed(d Date, s DaySlots) {
+	if l.days == nil {
+		l.days = map[Date]*DaySlots{}
+	}
+	l.days[d] = &s
+}
+
+// Set records a closed slot and drops days older than the one before it. A
+// daylight-saving fall repeats a slot, and the second pass overwrites the
+// first, as the ring does.
+func (l *Ledger) Set(c Closed) *DaySlots {
+	if l.days == nil {
+		l.days = map[Date]*DaySlots{}
+	}
+	s := l.days[c.Date]
+	if s == nil {
+		s = &DaySlots{}
+		l.days[c.Date] = s
+	}
+	s[c.Index] = c.Counts
+	for d := range l.days {
+		if d < c.Date.AddDays(-1) {
+			delete(l.days, d)
+		}
+	}
+	return s
+}
+
+// Days is every day the ledger holds, with the open slot's counts so far set
+// into a copy: what a stop writes. The ledger itself is not changed.
+func (l *Ledger) Days(open Closed) map[Date]DaySlots {
+	out := map[Date]DaySlots{}
+	for d, s := range l.days {
+		out[d] = *s
+	}
+	if open.Counts != (Counts{}) {
+		s := out[open.Date]
+		s[open.Index] = open.Counts
+		out[open.Date] = s
+	}
+	return out
 }
 
 // Day is the ring's slots of one calendar day, open slot included; days it

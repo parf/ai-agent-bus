@@ -255,12 +255,16 @@ func (s *State) SaveActivityDays(days []ports.ActivityDay) error {
 	return nil
 }
 
-func (s *State) ActivityDays(from, to int) ([]ports.ActivityDay, error) {
+func (s *State) ActivityDays(from, to int, names []string) ([]ports.ActivityDay, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	want := map[string]bool{}
+	for _, n := range names {
+		want[n] = true
+	}
 	var out []ports.ActivityDay
 	for _, d := range s.days {
-		if d.Date >= from && d.Date <= to {
+		if d.Date >= from && d.Date <= to && (names == nil || want[d.Name]) {
 			out = append(out, ports.ActivityDay{Date: d.Date, Name: d.Name, Slots: append([]byte(nil), d.Slots...)})
 		}
 	}

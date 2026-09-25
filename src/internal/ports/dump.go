@@ -99,8 +99,9 @@ type ActivityStore interface {
 	// SaveActivityDays writes each day whole, in one batch; empty Slots
 	// removes that row, since an empty day has none.
 	SaveActivityDays([]ActivityDay) error
-	// ActivityDays is every row from one date to another, both included.
-	ActivityDays(from, to int) ([]ActivityDay, error)
+	// ActivityDays is every row from one date to another, both included, of
+	// the names given, or of every name when names is nil.
+	ActivityDays(from, to int, names []string) ([]ActivityDay, error)
 	// PruneActivity drops every row older than before.
 	PruneActivity(before int) error
 }

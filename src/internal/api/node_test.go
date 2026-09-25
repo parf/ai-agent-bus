@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/parf/ai-agent-bus/internal/callstats"
 	"net/http/httptest"
 	"os"
@@ -120,5 +121,30 @@ func TestActivityDaysAnswersARange(t *testing.T) {
 	}
 	if w := get("name=%23nobody@h&from=260924&to=260924"); w.Code != 404 {
 		t.Errorf("an unknown name answered %d", w.Code)
+	}
+}
+
+func TestActivityTotalsAndStatusDay(t *testing.T) {
+	bus := core.New()
+	s, tok := serverFor(t, bus, "owner@h")
+	bus.SetDaemonOwner("owner@h")
+	get := func(path string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("GET", path, nil)
+		r.Header.Set("X-Agent-Bus-Token", tok("owner@h"))
+		s.Handler().ServeHTTP(w, r)
+		return w
+	}
+	var st struct {
+		Today int `json:"today"`
+		Kept  int `json:"activity_days_kept"`
+	}
+	if err := json.Unmarshal(get("/status").Body.Bytes(), &st); err != nil || st.Today < 260101 || st.Kept != core.KeepDays {
+		t.Fatalf("status day: %+v %v", st, err)
+	}
+	w := get(fmt.Sprintf("/activity/days?totals=1&from=%d&to=%d", st.Today, st.Today))
+	var totals map[string]protocol.ActivitySlot
+	if err := json.Unmarshal(w.Body.Bytes(), &totals); err != nil || w.Code != 200 {
+		t.Fatalf("totals: %d %s", w.Code, w.Body)
 	}
 }

@@ -32,7 +32,7 @@ to mangle it ([secrets](06-services.md#secrets)).
 | `GET /status` | totals and counters, and who the caller is and with what authority |
 | `GET /recent` | the last exchanges, bodies struck out ([what it shows](05-discovery.md#what-it-shows)) |
 | `GET /activity` | one name's last day, or the caller's visible sum ([activity history](05-discovery.md#activity-history)) |
-| `GET /activity/days` | a range of calendar days, `from` and `to` as yymmdd, at most 62 ([activity history](05-discovery.md#activity-history)) |
+| `GET /activity/days` | a range of calendar days, `from` and `to` as yymmdd, at most 62; `totals=1` for each record's sums ([activity history](05-discovery.md#activity-history)) |
 
 ## Credentials
 

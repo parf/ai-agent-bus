@@ -258,7 +258,7 @@ func TestActivityGoesWithRemovalAndStaysWithTransfer(t *testing.T) {
 			t.Fatalf("the removed record's queue is still stored: %d bytes", len(q.Activity))
 		}
 	}
-	days, _ := st.ActivityDays(0, 999999)
+	days, _ := st.ActivityDays(0, 999999, nil)
 	for _, d := range days {
 		if d.Name == "#gone@h" {
 			t.Fatalf("the removed record's day %d is still stored", d.Date)

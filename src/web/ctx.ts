@@ -28,6 +28,7 @@ export type Status = {
   kinds?: Record<string, number>; refused?: Record<string, number>; unclean?: boolean;
   owner_inactive?: { records: number; messages: number };
   you: string; administrator?: boolean; daemon_owner?: boolean;
+  today?: number; activity_days_kept?: number;
 };
 
 export type Rec = {

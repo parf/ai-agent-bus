@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir, userInfo } from "node:os";
 import { makeHandler } from "../server.ts";
+import { addDays } from "../ui/range.tsx";
 
 const ORIGIN = "http://127.0.0.1:6781";
 let dir = "", bin = "", daemon: ReturnType<typeof Bun.spawn> | undefined;
@@ -241,8 +242,9 @@ describe("pages as the daemon owner", () => {
     const month = await (await req("/queue?name=jobs@test&range=month", { cookie: s })).text();
     expect((month.match(/class="cal-cell/g) ?? []).length).toBe(30);
     expect(month).toContain('href="/activity?name=jobs%40test&amp;range=month"');
-    const d = new Date(); d.setDate(d.getDate() - 1);
-    const y = (d.getFullYear() % 100) * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    // Yesterday on the daemon's clock: bun test runs in UTC, the daemon does not.
+    const st = await (await fetch("http://unix/status", { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit)).json() as { today: number };
+    const y = addDays(st.today, -1);
     const past = await (await req(`/activity?at=${y}`, { cookie: s })).text();
     expect(past).toMatch(/rel="next"/);
     expect(past).toContain(">Today</a>");

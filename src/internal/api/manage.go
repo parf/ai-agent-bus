@@ -117,6 +117,17 @@ func (s *Server) activityDays(w http.ResponseWriter, r *http.Request, caller pro
 		s.reply(w, nil, core.ErrRange)
 		return
 	}
+	// totals=1: each visible record's counts summed over the range, in one
+	// answer, instead of a range read per record.
+	if q.Get("totals") == "1" {
+		totals, err := s.bus.ActivityTotals(caller.String(), activity.Date(from), activity.Date(to))
+		out := map[string]protocol.ActivitySlot{}
+		for n, c := range totals {
+			out[n] = protocol.ActivitySlot{In: c.In, Out: c.Out, Dropped: c.Dropped, Expired: c.Expired, Refused: c.Refused}
+		}
+		s.reply(w, out, err)
+		return
+	}
 	days, err := s.bus.ActivityDays(caller.String(), q.Get("name"), activity.Date(from), activity.Date(to))
 	var out []protocol.ActivityDay
 	for _, d := range days {

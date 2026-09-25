@@ -92,7 +92,7 @@ func TestTickClosingNamesTheRowOnlyWhenTheClosedSlotCounted(t *testing.T) {
 	}
 	total.In = 3
 	d, write := r.TickClosing(at(23, 10, 10), total)
-	if !write || d != 260923 {
+	if !write || d.Date != 260923 {
 		t.Fatalf("closing a slot with counts: %d %v", d, write)
 	}
 	if _, write := r.TickClosing(at(23, 10, 20), total); write {
@@ -101,7 +101,7 @@ func TestTickClosingNamesTheRowOnlyWhenTheClosedSlotCounted(t *testing.T) {
 	// The slot that closes at midnight writes the day it belongs to.
 	r2 := Start(at(23, 23, 50), Counts{})
 	d, write = r2.TickClosing(at(24, 0, 0), Counts{Out: 1})
-	if !write || d != 260923 {
+	if !write || d.Date != 260923 {
 		t.Fatalf("23:50 closing at midnight: %d %v", d, write)
 	}
 }
@@ -164,5 +164,59 @@ func TestASilentRingHoldsNoDays(t *testing.T) {
 	r.Tick(at(24, 8, 0), Counts{})
 	if d := r.Days(Counts{}); len(d) != 0 {
 		t.Fatalf("a silent ring holds days %v", keys(d))
+	}
+}
+
+// A ledger holds a day whole whatever the ring still covers: the slot at
+// midnight survives the next day's ticks, and a jump of a day or more still
+// hands back the slot it closed, never an empty day in its place.
+func TestALedgerKeepsWholeDays(t *testing.T) {
+	var l Ledger
+	var total Counts
+	r := Start(at(23, 0, 0), total)
+	total.In = 1 // 00:00 on the 23rd
+	c, ok := r.TickClosing(at(23, 0, 10), total)
+	if !ok || c.Date != 260923 || c.Index != 0 || c.Counts.In != 1 {
+		t.Fatalf("the 00:00 slot closed as %+v %v", c, ok)
+	}
+	l.Set(c)
+	// A whole day on, the ring no longer covers the 23rd's 00:00; the ledger does.
+	r.Tick(at(23, 23, 50), total)
+	total.In = 2 // in the 23:50 slot
+	c, _ = r.TickClosing(at(24, 0, 0), total)
+	day := l.Set(c)
+	if c.Date != 260923 || c.Index != 143 || day[0].In != 1 || day[143].In != 1 {
+		t.Fatalf("the 23rd after midnight: slot 0 %v, slot 143 %v (closed %+v)", day[0], day[143], c)
+	}
+	// A jump of exactly two days reuses the closed slot's cell: its counts
+	// must be taken before the tick, and it is still no empty day.
+	total.In = 5
+	c, ok = r.TickClosing(at(26, 0, 0), total)
+	if !ok || c.Date != 260924 || c.Index != 0 || c.Counts.In != 3 {
+		t.Fatalf("after a two-day jump: %+v %v", c, ok)
+	}
+	day = l.Set(c)
+	if day.Empty() {
+		t.Fatal("a jump left an empty day to write")
+	}
+	// Only the latest day and the one before are kept.
+	l.Set(Closed{Date: 260926, Index: 1, Counts: Counts{In: 1}})
+	if len(l.Days(Closed{})) != 1 {
+		t.Fatalf("days kept: %d", len(l.Days(Closed{})))
+	}
+}
+
+// A stop writes the ledger's days with the open slot set into a copy; the
+// ledger itself is not changed by it.
+func TestAStopWritesTheOpenSlotWithoutKeepingIt(t *testing.T) {
+	var l Ledger
+	l.Seed(260923, DaySlots{5: {In: 2}})
+	open := Closed{Date: 260924, Index: 60, Counts: Counts{Out: 1}}
+	days := l.Days(open)
+	if days[260923][5].In != 2 || days[260924][60].Out != 1 {
+		t.Fatalf("stop days: %v", days)
+	}
+	if again := l.Days(Closed{}); len(again) != 1 {
+		t.Fatalf("the open slot stayed in the ledger: %v", again)
 	}
 }

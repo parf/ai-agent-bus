@@ -374,7 +374,12 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.
 		You           string `json:"you"`
 		Administrator bool   `json:"administrator,omitempty"`
 		DaemonOwner   bool   `json:"daemon_owner,omitempty"`
-	}{Status: s.bus.StatusFor(caller.String()), You: caller.String(), Administrator: s.bus.IsAdministrator(caller.String()), DaemonOwner: caller.String() == owner})
+		// Today and how many days, today included, the activity days keep
+		// (docs/05-discovery.md#activity-history): what a range is clamped to.
+		Today    int `json:"today"`
+		KeptDays int `json:"activity_days_kept"`
+	}{Status: s.bus.StatusFor(caller.String()), You: caller.String(), Administrator: s.bus.IsAdministrator(caller.String()), DaemonOwner: caller.String() == owner,
+		Today: int(s.bus.Today()), KeptDays: core.KeepDays})
 }
 
 // subscribe puts the caller on a 📣 channel, or takes it off. The caller

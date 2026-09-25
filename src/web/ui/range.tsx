@@ -11,7 +11,7 @@ export type RangeKind = "day" | "week" | "month";
 export const RANGES: { key: RangeKind; label: string; days: number }[] = [
   { key: "day", label: "Day", days: 1 }, { key: "week", label: "Week", days: 7 }, { key: "month", label: "Month", days: 30 },
 ];
-/** How far back the daemon keeps days (core.KeepDays). */
+/** Used only when a daemon states no retention of its own. */
 export const KEEP_DAYS = 400;
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -32,11 +32,12 @@ export type Range = {
   oldest: Ymd;
 };
 
-/** The range the request asks for, clamped to what the daemon keeps. */
-export function parseRange(ctx: Ctx, today: Ymd = ymdOf(new Date())): Range {
+/** The range the request asks for, clamped to what the daemon keeps. Today
+ * and the retention are the daemon's own (`/status`), never this process's clock. */
+export function parseRange(ctx: Ctx, today: Ymd = ymdOf(new Date()), kept = KEEP_DAYS): Range {
   const kind = (RANGES.find(r => r.key === ctx.q("range"))?.key ?? "day") as RangeKind;
   const days = RANGES.find(r => r.key === kind)!.days;
-  const oldest = addDays(today, -(KEEP_DAYS - 1));
+  const oldest = addDays(today, -(kept - 1));
   let at = Number(ctx.q("at"));
   if (!validYmd(at) || at > today) at = today;
   if (at < addDays(oldest, days - 1)) at = addDays(oldest, days - 1);
@@ -50,6 +51,21 @@ export function parseRange(ctx: Ctx, today: Ymd = ymdOf(new Date())): Range {
 }
 
 export type Day = { day: Ymd; slots: Slot[] };
+
+/** The daemon's range for a status answer: its today and its retention. */
+export function rangeFor(ctx: Ctx, st: { today?: number; activity_days_kept?: number }): Range {
+  return parseRange(ctx, validYmd(st.today ?? 0) ? st.today! : ymdOf(new Date()), st.activity_days_kept || KEEP_DAYS);
+}
+
+/** Each visible record's hits over the range, from one daemon answer. */
+export async function rangeTotals(ctx: Ctx, r: Range): Promise<Map<string, number>> {
+  const q = r.live ? { totals: "1", from: String(r.today), to: String(r.today) } : { totals: "1", from: String(r.from), to: String(r.to) };
+  const t = (await ctx.get<Record<string, Slot>>("/activity/days", q)) ?? {};
+  return new Map(Object.entries(t).map(([n, s]) => [n, hits([s])]));
+}
+
+/** yymmdd of a daemon timestamp, read from its own date, not converted. */
+export const ymdOfIso = (iso: string): Ymd => { const m = /^\d{2}(\d{2})-(\d{2})-(\d{2})/.exec(iso); return m ? Number(m[1]! + m[2]! + m[3]!) : 0; };
 export type RangeData = { slots: Slot[]; days: Day[] };
 
 /** Every slot of the range: the live day, or the stored days from the daemon. */
@@ -163,7 +179,7 @@ export function RangeTable({ r, data }: { r: Range; data: RangeData }) {
     <summary>{r.kind === "month" ? "Day values" : r.kind === "week" ? "Hour values" : "Slot values"}</summary>
     <div class="table-scroll"><table class="data fit" aria-label={`Values, one row per ${unit}`}>
       <thead><tr><th>{r.kind === "month" ? "Day" : r.kind === "week" ? "Hour" : "Slot"}</th>{SERIES.map(s => <th class="num">{s.label}</th>)}</tr></thead>
-      <tbody>{rows.map(s => <tr><td>{r.kind === "month" ? ymdLabel(ymdOf(new Date(s.at))) : slotLabel(s.at)}</td>{SERIES.map(x => <td class="num">{number(s[x.key])}</td>)}</tr>)}</tbody>
+      <tbody>{rows.map(s => <tr><td>{r.kind === "month" ? ymdLabel(ymdOfIso(s.at)) : slotLabel(s.at)}</td>{SERIES.map(x => <td class="num">{number(s[x.key])}</td>)}</tr>)}</tbody>
     </table></div>
   </details>;
 }

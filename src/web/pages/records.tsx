@@ -8,7 +8,7 @@ import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
 import { TextField, LinesField, SecretField, SelectField, CheckField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
 import { Ribbon, type Slot } from "../ui/charts.tsx";
-import { parseRange, loadRange, scopeLine, RangeNav, RangeChart } from "../ui/range.tsx";
+import { rangeFor, loadRange, scopeLine, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
 import { number, relative, stamp, slotLabel } from "../format.ts";
 import { classify, formRefusal, lineRefusal, notYours, sectionProblem } from "../problem.tsx";
@@ -307,12 +307,12 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
   if (canonical !== pathKind) return redirect(`${canonical}${ctx.url.search}`, 302);
   const [users, act] = await Promise.all([
     ctx.users().catch(() => null),
-    loadRange(ctx, parseRange(ctx), name).then(a => ({ ok: a }), e => ({ err: sectionProblem(e) })),
+    loadRange(ctx, rangeFor(ctx, st), name).then(a => ({ ok: a }), e => ({ err: sectionProblem(e) })),
   ]);
   const back = returnTo(ctx.q("return"), [listOf(rec)], listOf(rec));
   const manage = !!rec.can_manage, inbox = rec.kind === "user", n = noun(rec.kind);
   const editHref = `${detailPath(rec.kind)}/edit?${new URLSearchParams({ name, ...(ctx.q("return") ? { return: back } : {}) })}`;
-  const range = parseRange(ctx);
+  const range = rangeFor(ctx, st);
   const rangeHref = (p: { range?: string; at?: number }) => {
     const q = new URLSearchParams({ name });
     if (ctx.q("return")) q.set("return", back);

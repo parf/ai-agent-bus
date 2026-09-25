@@ -4,7 +4,7 @@ import { Ctx, NotFound, type Rec, type Status, type Identity } from "../ctx.ts";
 import { respond } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Figure, Name, Muted, recordHref, KindIcon, Empty } from "../ui/kit.tsx";
 import { Ribbon, DayChart, SERIES, total, type Slot, Spark } from "../ui/charts.tsx";
-import { parseRange, loadRange, hits, scopeLine, RangeNav, RangeChart, RangeTable, type RangeData } from "../ui/range.tsx";
+import { rangeFor, rangeTotals, loadRange, hits, scopeLine, RangeNav, RangeChart, RangeTable, type RangeData } from "../ui/range.tsx";
 import { html } from "../http.ts";
 import { number, duration, slotLabel, stamp } from "../format.ts";
 import { sectionProblem } from "../problem.tsx";
@@ -135,13 +135,14 @@ export async function activity(ctx: Ctx): Promise<Response> {
   const [st, records] = await Promise.all([ctx.status(), ctx.records()]);
   if (name && !records.some(r => r.name === name)) throw new NotFound();
   const rec = records.find(r => r.name === name);
-  const r = parseRange(ctx);
+  const r = rangeFor(ctx, st);
   const data: RangeData = rec?.status === "inactive" ? { slots: [], days: [] } : await loadRange(ctx, r, name || undefined);
   const names = records.map(x => x.name).sort();
-  // The chooser names each record's hits over the chosen range; none, nothing to draw.
-  const counts = new Map<string, number | undefined>(await Promise.all(records.map(async x =>
-    [x.name, x.status === "inactive" ? undefined : await loadRange(ctx, r, x.name).then(d => hits(d.slots), () => undefined)] as const)));
-  const allHits = name ? await loadRange(ctx, r).then(d => hits(d.slots), () => undefined) : hits(data.slots);
+  // The chooser names each record's hits over the chosen range, from one
+  // answer; a record with none has nothing to draw. A live day counts the
+  // last 24 hours on the chart and the calendar day in the chooser.
+  const counts: Map<string, number | undefined> = await rangeTotals(ctx, r).catch(() => new Map());
+  const allHits = name ? [...counts.values()].reduce((a: number, b) => a + (b ?? 0), 0) : hits(data.slots);
   const hitLabel = (n: number | undefined, inactive?: boolean) => inactive ? " (inactive)" : n == null ? "" : ` (${number(n)})`;
   const id = await ctx.identity();
   const href = (p: { range?: string; at?: number }) => {

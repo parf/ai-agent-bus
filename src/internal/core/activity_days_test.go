@@ -30,7 +30,7 @@ func daysBus(t *testing.T, clock *testClock) (*Bus, *memory.State) {
 
 func rows(t *testing.T, st *memory.State) map[string][]int {
 	t.Helper()
-	all, err := st.ActivityDays(0, 999999)
+	all, err := st.ActivityDays(0, 999999, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,8 +168,8 @@ func TestTodayIsLoadedBackAtStart(t *testing.T) {
 func TestOldDaysArePrunedOncePerDay(t *testing.T) {
 	clock := &testClock{dayAt(24, 9, 0)}
 	b, st := daysBus(t, clock)
-	old := activity.Date(260924).AddDays(-KeepDays - 1)
-	keep := activity.Date(260924).AddDays(-KeepDays)
+	keep := Oldest(260924)
+	old := keep.AddDays(-1)
 	st.SaveActivityDays([]ports.ActivityDay{{Date: int(old), Name: "#busy@h", Slots: []byte{1}}, {Date: int(keep), Name: "#busy@h", Slots: []byte{1}}})
 	b.TickActivity(clock.t)
 	r := rows(t, st)["#busy@h"]
@@ -201,5 +201,122 @@ func TestTheOwnersRangeRefusedIsNodeWide(t *testing.T) {
 	}
 	if got := refused("alice@h"); got != 0 {
 		t.Fatalf("alice's range refused %d, want 0", got)
+	}
+}
+
+func storedDay(t *testing.T, st *memory.State, name string, d int) activity.DaySlots {
+	t.Helper()
+	all, _ := st.ActivityDays(d, d, []string{name})
+	if len(all) != 1 {
+		t.Fatalf("%s has %d rows on %d", name, len(all), d)
+	}
+	s, err := activity.DecodeDay(all[0].Slots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+// A day's row is whole at midnight: the slot at 00:00 is still in it when
+// 23:50 closes a day later.
+func TestTheMidnightRowKeepsItsFirstSlot(t *testing.T) {
+	clock := &testClock{dayAt(23, 0, 0)}
+	b, st := daysBus(t, clock)
+	b.TickActivity(clock.t)
+	b.Send(protocol.Envelope{From: "alice@h", To: "#busy@h", Body: "00:05"})
+	clock.t = dayAt(23, 0, 10)
+	b.TickActivity(clock.t)
+	clock.t = dayAt(23, 23, 50)
+	b.TickActivity(clock.t)
+	b.Send(protocol.Envelope{From: "alice@h", To: "#busy@h", Body: "23:55"})
+	clock.t = dayAt(24, 0, 0)
+	b.TickActivity(clock.t)
+	s := storedDay(t, st, "#busy@h", 260923)
+	if s[0].In != 1 || s[143].In != 1 {
+		t.Fatalf("the 23rd's row: 00:00 %d, 23:50 %d; want 1 and 1", s[0].In, s[143].In)
+	}
+}
+
+// A stop the next day writes yesterday whole, not only what the ring still
+// covers.
+func TestAStopAfterMidnightKeepsYesterdaysMorning(t *testing.T) {
+	clock := &testClock{dayAt(23, 8, 0)}
+	b, st := daysBus(t, clock)
+	b.TickActivity(clock.t)
+	b.Send(protocol.Envelope{From: "alice@h", To: "#busy@h", Body: "morning"})
+	clock.t = dayAt(23, 8, 10)
+	b.TickActivity(clock.t)
+	// Evening traffic the ring still covers at the stop; the morning it does not.
+	clock.t = dayAt(23, 20, 0)
+	b.TickActivity(clock.t)
+	b.Send(protocol.Envelope{From: "alice@h", To: "#busy@h", Body: "evening"})
+	clock.t = dayAt(23, 20, 10)
+	b.TickActivity(clock.t)
+	clock.t = dayAt(24, 12, 0)
+	b.TickActivity(clock.t)
+	if err := b.FlushActivity(); err != nil {
+		t.Fatal(err)
+	}
+	if s := storedDay(t, st, "#busy@h", 260923); s[48].In != 1 || s[120].In != 1 {
+		t.Fatalf("the 23rd after a stop on the 24th: 08:00 %d, 20:00 %d; want 1 and 1", s[48].In, s[120].In)
+	}
+}
+
+// A tick a day or more late writes the slot it closed; it never replaces the
+// day with an empty one.
+func TestALongGapNeverDeletesADay(t *testing.T) {
+	clock := &testClock{dayAt(23, 9, 0)}
+	b, st := daysBus(t, clock)
+	b.TickActivity(clock.t)
+	b.Send(protocol.Envelope{From: "alice@h", To: "#busy@h", Body: "x"})
+	clock.t = dayAt(23, 9, 10)
+	b.TickActivity(clock.t)
+	b.Send(protocol.Envelope{From: "alice@h", To: "#busy@h", Body: "y"})
+	clock.t = dayAt(25, 9, 20)
+	b.TickActivity(clock.t)
+	if s := storedDay(t, st, "#busy@h", 260923); s[54].In != 1 || s[55].In != 1 {
+		t.Fatalf("the 23rd after a two-day gap: 09:00 %d, 09:10 %d", s[54].In, s[55].In)
+	}
+}
+
+// A ring carried from before durable days is written as rows at start, so the
+// first queue flush, which no longer carries rings, loses nothing.
+func TestACarriedRingIsWrittenAtStart(t *testing.T) {
+	clock := &testClock{dayAt(24, 11, 0)}
+	ring := activity.Start(dayAt(24, 9, 0), activity.Counts{})
+	ring.Tick(dayAt(24, 9, 10), activity.Counts{In: 3})
+	b, _ := daysBus(t, clock)
+	saved := b.Snapshot()
+	saved.Queues = []ports.Queue{{Name: "#quiet@h", In: 3, Activity: ring.Save(activity.Counts{In: 3})}}
+	st := memory.NewState()
+	up := New()
+	up.Clock(clock.now)
+	up.Restore(saved)
+	up.Persistence(st)
+	up.RestoreActivityDays()
+	if s := storedDay(t, st, "#quiet@h", 260924); s[54].In != 3 {
+		t.Fatalf("the carried 09:00 slot as a row: %d, want 3", s[54].In)
+	}
+}
+
+func TestTotalsSumEachVisibleRecordOverTheRange(t *testing.T) {
+	clock := &testClock{dayAt(24, 9, 0)}
+	b, _ := daysBus(t, clock)
+	b.TickActivity(clock.t)
+	b.Send(protocol.Envelope{From: "alice@h", To: "#busy@h", Body: "x"})
+	b.Send(protocol.Envelope{From: "alice@h", To: "#private@h", Body: "y"})
+	got, err := b.ActivityTotals("bob@h", 260918, 260924)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["#busy@h"].In != 1 {
+		t.Fatalf("bob's #busy total %+v", got["#busy@h"])
+	}
+	if _, leaked := got["#private@h"]; leaked {
+		t.Fatal("a hidden record's total reached bob")
+	}
+	owner, _ := b.ActivityTotals("admin@h", 260924, 260924)
+	if _, node := owner[""]; node {
+		t.Fatal("the node's own series is listed as a record")
 	}
 }

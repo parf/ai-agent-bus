@@ -405,7 +405,7 @@ func TestActivityDaysAreKeptByDateAndName(t *testing.T) {
 	if err := s.SaveActivityDays([]ports.ActivityDay{day(260924, "a", 7)}); err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.ActivityDays(260923, 260924)
+	got, err := s.ActivityDays(260923, 260924, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -417,20 +417,20 @@ func TestActivityDaysAreKeptByDateAndName(t *testing.T) {
 	if err := s.SaveActivityDays([]ports.ActivityDay{day(260924, "b")}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := s.ActivityDays(260924, 260924); len(got) != 2 {
+	if got, _ := s.ActivityDays(260924, 260924, nil); len(got) != 2 {
 		t.Fatalf("after the empty write: %v", got)
 	}
 	if err := s.PruneActivity(260923); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := s.ActivityDays(0, 999999); len(got) != 3 || got[0].Date != 260923 {
+	if got, _ := s.ActivityDays(0, 999999, nil); len(got) != 3 || got[0].Date != 260923 {
 		t.Fatalf("after pruning before 260923: %v", got)
 	}
 	// Removing the name's queue removes its history in the same commit.
 	if err := s.Commit(ports.Change{DropQueues: []string{"a"}}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := s.ActivityDays(0, 999999); len(got) != 1 || got[0].Name != "" {
+	if got, _ := s.ActivityDays(0, 999999, nil); len(got) != 1 || got[0].Name != "" {
 		t.Fatalf("after removing a: %v", got)
 	}
 }
