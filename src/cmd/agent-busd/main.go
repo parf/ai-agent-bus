@@ -43,7 +43,6 @@ type config struct {
 	every                 time.Duration
 	users                 accounts
 	vouch                 values
-	web                   bool
 }
 
 func main() {
@@ -51,6 +50,10 @@ func main() {
 		return
 	}
 	var c config
+	// -web ran the Go dashboard as a child until 0.8.50; the web face is now
+	// its own unit (docs/11-processes.md#the-web-face). Accepted and ignored,
+	// so a unit written before then still starts.
+	flag.Bool("web", false, "ignored: the web face is its own agent-bus-web unit since 0.8.50")
 	flag.StringVar(&c.addr, "addr", env("AGENT_BUS_ADDR", "127.0.0.1:6767"), "TCP listen address — loopback only")
 	flag.StringVar(&c.sock, "socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
 	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", ""), "initial daemon owner (required; later transfers are durable)")
@@ -60,7 +63,6 @@ func main() {
 	flag.BoolVar(&c.debugLog, "debug-log", false, "write debug.log, a line per request, from the start; the daemon owner can also switch it at run time")
 	flag.BoolVar(&c.init, "init", false, "create the database if it is absent, check it, and exit: what setup runs before the first start")
 	flag.DurationVar(&c.every, "flush-every", time.Minute, "how often queue contents and counters are saved while running; 0 saves them only at a graceful stop")
-	flag.BoolVar(&c.web, "web", false, "run the dashboard as a child too (docs/05-discovery.md#dashboard)")
 	flag.StringVar(&c.dash, "dashboard", env("AGENT_BUS_DASHBOARD", dashboard.URL), "where a browser opening the API `url` is sent; empty serves no root at all")
 	flag.Var(&c.vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
 	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")

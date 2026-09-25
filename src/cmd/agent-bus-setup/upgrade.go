@@ -88,6 +88,10 @@ func upgradeBundle(b checkedBundle) error {
 	if err := waitRunningRelease(b.releaseID, 10*time.Second); err != nil {
 		return rollbackUpgrade(j, addr, fmt.Errorf("verify running release: %w", err))
 	}
+	// The web face is its own unit; it follows the release it links to.
+	if err := installWeb(filepath.Join(installRoot, "current", "web")); err != nil {
+		fmt.Fprintf(os.Stderr, "web: %v; the daemon upgraded and serves without it\n", err)
+	}
 	unitAfter, err := os.ReadFile(unitPath)
 	if err != nil || bytesSHA256(unitAfter) != j.UnitSHA256 {
 		if err == nil {
@@ -280,7 +284,7 @@ func waitRunningRelease(releaseID string, timeout time.Duration) error {
 			if cgErr == nil {
 				pids, readErr := cgroupPIDs(filepath.Join("/sys/fs/cgroup", strings.TrimPrefix(strings.TrimSpace(cgroup), "/")))
 				if readErr == nil {
-					daemons, webs, webBinds := 0, 0, 0
+					daemons := 0
 					wrong := ""
 					for _, pid := range pids {
 						exe, linkErr := os.Readlink(filepath.Join("/proc", pid, "exe"))
@@ -293,22 +297,12 @@ func waitRunningRelease(releaseID string, timeout time.Duration) error {
 							if exe != filepath.Join(wantRoot, "agent-busd") {
 								wrong = exe
 							}
-						case "agent-bus-web":
-							webs++
-							if exe != filepath.Join(wantRoot, "agent-bus-web") && exe != "/agent-bus-web" {
-								wrong = exe
-							}
-						}
-						cmdline, _ := os.ReadFile(filepath.Join("/proc", pid, "cmdline"))
-						args := strings.ReplaceAll(string(cmdline), "\x00", " ")
-						if strings.Contains(args, filepath.Join(wantRoot, "agent-bus-web")) && strings.Contains(args, " /agent-bus-web") {
-							webBinds++
 						}
 					}
-					if wrong == "" && daemons >= 2 && webs >= 1 && webBinds >= 1 {
+					if wrong == "" && daemons >= 2 {
 						return nil
 					}
-					last = fmt.Errorf("release processes: daemons=%d web=%d web-bind=%d wrong=%q", daemons, webs, webBinds, wrong)
+					last = fmt.Errorf("release processes: daemons=%d wrong=%q", daemons, wrong)
 				} else {
 					last = readErr
 				}

@@ -4,6 +4,16 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.50 — 2026-09-24
+
+The web face is the TypeScript face only: `agent-bus-setup` installs it as its
+own `agent-bus-web` account (home `/var/lib/agent-bus/web`) and locked-down
+systemd unit on `127.0.0.1:6780`, linked to the current release's `web/`. The
+Go dashboard, its supervised child, bubblewrap confinement and web cgroup are
+removed; `agent-busd -web` is accepted and ignored so old units still start.
+`agent-bus-setup --samples` / `--remove-samples` add and take away a Star
+Wars and Spaceballs sample node: every kind, in realms. 0.8.47–0.8.49 are skipped.
+
 ## 0.8.46 — 2026-09-24
 
 Activity names its dates in the title, in bold, and no longer talks about

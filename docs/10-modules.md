@@ -78,12 +78,12 @@ rewrite policy or credential material.
 | `internal/sandbox` | Current confinement backend |
 | `internal/api` | HTTP routes, credentials and errors |
 | `internal/version`, `internal/proctitle` | Shared program version, build stamp and process titles |
-| `cmd/`, `mcp/` | Program entry points and client faces |
+| `cmd/`, `mcp/`, `web/` | Program entry points and client faces |
 
 ## Languages
 
 Go implements the daemon, CLI and administrative programs. TypeScript on bun
-implements the MCP face and push adapters. The process-title helper needs cgo;
+implements the MCP face, its push adapters and the [web face](11-processes.md#the-web-face). The process-title helper needs cgo;
 [setup § build information](09-setup.md#build-information) owns build requirements.
 This is not a claim that the executable has no native dependencies.
 
@@ -118,8 +118,7 @@ behind an agent may use `curl`, because that is its ordinary client.
 |---|---|
 | Sign or verify possession | `ssh-keygen` |
 | Optional script confinement | `systemd-run --user` |
-| Supervised web confinement | `bwrap`; [runtime requirements](09-setup.md#install) |
-| Install accounts and daemon unit | Host account tools and systemd |
+| Install accounts, daemon and web units | Host account tools and systemd; `ldd` for the web unit's exec paths |
 | Switch to the admin account | `sudo` |
 
 ## What this buys

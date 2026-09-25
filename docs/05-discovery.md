@@ -9,7 +9,7 @@ The CLI listings, the MCP minimum and the dashboard tabs are here.
 
 | MVP | Scope |
 |---|---|
-| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), [web authority isolation](11-processes.md#web-authority-boundary), resource limits and installed [browser acceptance](#browser-acceptance). |
+| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), the [web face](11-processes.md#the-web-face) under its own account and unit, and [browser acceptance](#browser-acceptance) by its own tests. |
 | Pending | — |
 
 ## What a listing answers
@@ -81,7 +81,7 @@ An empty result says `No matching records.`; lookup errors remain errors.
 |---|---|---|
 | API | Registry, messaging, credentials, sessions and dashboard administration | — |
 | MCP | Bus tools and a catalog filtered by the daemon | — |
-| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; confined with resource limits; installed [browser acceptance](#browser-acceptance) | — |
+| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; its own account and locked-down unit ([processes § the web face](11-processes.md#the-web-face)); [browser acceptance](#browser-acceptance) by its own tests | — |
 
 ## MCP minimum
 
@@ -108,8 +108,8 @@ in the MVP.
 
 ## Dashboard
 
-The WEB child presents the bus and forwards administration **as the person
-looking**. The daemon owns state and authorization: every page and form uses
+The [web face](11-processes.md#the-web-face) presents the bus and forwards
+administration **as the person looking**. The daemon owns state and authorization: every page and form uses
 the visitor's authority, and the face has no independent privileges
 ([audience](#audience)). The [required tabs](#required-tabs) use the same daemon authorization as direct API calls.
 
@@ -412,7 +412,7 @@ and cannot put itself on.
 | **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the project's description, links and picture (from 0.8.7), the sign-in form at its foot, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
 | **One repository-owned script; no CDN or external asset** | The local script only submits marked selectors on change. It reads no page data, stores nothing and makes no request of its own. Pages remain ordinary URL-backed forms, with a `noscript` Apply control. Graphs stay inline SVG; avatars and the anonymous page's project picture are served from this node, never hotlinked. The page's own `img-src 'self'` enforces it: a picture named anywhere else is refused by the browser, and the page renders as though it had none |
-| **The web child writes nothing of its own.** A form posts *as the person*, never as the child | It is the least trusted process and the design gives it no write path ([processes § the processes](11-processes.md#the-processes)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
+| **The web face writes nothing of its own.** A form posts *as the person*, never as the face | It is the least trusted process and the design gives it no write path ([processes § the web face](11-processes.md#the-web-face)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
 | **The sign-in form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
 
 ### What a node says about itself
@@ -442,7 +442,7 @@ credential, and the closed list below is still the closed list.
 | calls served | the count of **HTTP requests the bus process has served**, over the **last minute** and **the last hour**, plus the **total since the daemon started**. Every request on every listener, gated or refused or served — it is counted before the handler runs, so it is traffic reaching the daemon rather than work it agreed to do. A node-wide figure, not this caller's. **No host reading is published**: the owner asked for the daemon's own calls only, and an OS load average is a fact about the machine rather than about this node |
 | what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The call counts are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal, no endpoint and no direction of business. From 0.5.82 the cost is paid at the API rather than on a page: `GET /identity` still answers the counts to anybody, and no dashboard page shows them before sign-in |
 | how it is read | **`GET /identity`**, a public daemon call answering these fields and nothing else to a caller with no credential. There was no such call: every route but enrolment and a root redirect sits behind the token gate, and `GET /status` is authenticated and answers refusals and the caller's own standing besides. So this is a new endpoint rather than a relaxation of `/status`, which keeps its gate and its contents |
-| the face's part | it asks as anybody does. The face still holds no credential and still acts as the visitor for everything else ([web authority boundary](11-processes.md#web-authority-boundary)): this is a fact the daemon publishes, not a privileged call the face makes |
+| the face's part | it asks as anybody does. The face still holds no credential and still acts as the visitor for everything else ([processes § the web face](11-processes.md#the-web-face)): this is a fact the daemon publishes, not a privileged call the face makes |
 
 The total needs no sampler at all: it is the counter itself. The minute and
 hour windows come from a **separate 61-sample history of that counter** — plain
@@ -490,14 +490,14 @@ name to type, no other kind of credential and no password anywhere.
 
 The part worth stating is where the session lives: **in the bus**, which is
 the process that holds state ([processes § what is shared](11-processes.md#what-is-shared)).
-The child forwards it once, the bus answers with an expiring session id,
+The face forwards it once, the bus answers with an expiring session id,
 and from then on the browser carries that id and nothing else.
 
 | | |
 |---|---|
 | the cookie | the session id alone — `HttpOnly`, `Secure`, `SameSite=Strict`. No `Max-Age`: the bus's idle timeout ends the session, and a fixed browser lifetime would sign out someone still working. Never the token, never in a URL |
-| a web-child restart | logs nobody out, because the child was holding nothing. A session map inside it would be a second store, of the worst possible contents: every signed-in person's live credential in the one child that is restarted with backoff |
-| what the child holds | nothing. It stops reaching the bus over the owner's socket the moment people sign in — a web child with the owner's authority is a credential mint ([access § getting a token](02-access.md#getting-a-token)) |
+| a web-face restart | logs nobody out, because the face was holding nothing. A session map inside it would be a second store, of the worst possible contents: every signed-in person's live credential in the one process that is restarted on failure |
+| what the face holds | nothing. It reaches the bus only over the shared socket, which supplies no identity — a web face with the owner's authority would be a credential mint ([access § getting a token](02-access.md#getting-a-token)) |
 | enrolling | not here. The proof is a signature made by the host's own `ssh-keygen` ([identity § proving possession](02-access.md#proving-possession)); the local selector script neither reads keys nor signs. The dashboard prints the host onboarding command |
 
 
@@ -608,8 +608,8 @@ address it binds, not a name anybody has to make resolve.
 
 | It wants | Default |
 |---|---|
-| where to listen | `127.0.0.1:6780`, with `-addr` or `AGENT_BUS_WEB_ADDR` |
-| a certificate | **none.** Supply `-cert` *and* `-key` and it serves HTTPS on the address it was given. Ask for one and miss it and it **refuses to start**: either flag is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
+| where to listen | `127.0.0.1:6780`, with `AGENT_BUS_WEB_ADDR` in the unit's environment; the face takes no flags |
+| a certificate | **none.** Set `AGENT_BUS_WEB_CERT` *and* `AGENT_BUS_WEB_KEY` and it serves HTTPS on the address it was given. Ask for one and miss it and it **refuses to start**: either variable is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
 | a port it may not bind | an error. No port is a default any more, so every one was asked for on purpose and none is silently traded for another |
 
 **The bus does not listen off this machine**, so the page is for the person at
@@ -648,7 +648,7 @@ cannot help.
 **A failed section is not an empty one.** When part of a page cannot be read
 and the rest is still true, that part says so. A refusal the daemon worded is
 shown as its message rather than its JSON envelope; anything else is logged and
-replaced, because the transport text names the socket or address this child
+replaced, because the transport text names the socket or address this face
 talks to. No page renders that address. A failed whole-page read is a refusal,
 never a page reporting that nothing is registered.
 
@@ -677,26 +677,21 @@ pending.
 
 ## Browser acceptance
 
-**Required MVP; built against the 0.8 web on 0.8.26.** Real Chromium on the
-package-only host signs in and out through visible controls and checks the
-cookie boundary. It visits every 0.8 tab. The session survives a real web-child
-restart and ends with a real bus-child restart, as the
-[session contract](#signing-in) says. Separate browser sessions act as daemon
-Owner, Administrator, resource Owner, Maintainer, ordinary user and stranger.
-They cover service, queue, pub/sub, user and group journeys, denials,
-foreign-origin forms and activity. The fresh-install gate runs all of it.
-HTTP handler tests and command-line cookie jars remain useful evidence but do
-not establish this browser workflow. The checks and the mutations that break
-form-origin validation and authorization are in the
-[F.12 evidence](../Plans/MVP/done/installed-browser-acceptance.md#checks).
+**The TypeScript face's own tests, from 0.8.50.** `src/web/test` runs against a
+real daemon as the `web_ts` shard of `src/smoke.sh`; `src/web/probe-unit.sh`
+exercises the [unit's walls](11-processes.md#the-web-face) on an installed
+host. The page contract they check is [the web face spec](web-face/site-map.md#every-address).
 
-**Accessibility, cost and old addresses: built in 0.8.26.** No page scrolls
-sideways at desktop, 200% zoom or a 420 px phone. Rendered text meets WCAG AA
-contrast. Every table and graph has an accessible name. The main journeys work
-from the keyboard with visible focus. Every retired address lands on its
-replacement. A page's bus calls do not grow with the directory. The budgets,
-fixtures and measurements are in the
-[F.13.6 evidence](../Plans/MVP/done/web-acceptance.md#budgets).
+<details>
+<summary>History: the Go dashboard's acceptance</summary>
+
+The removed Go dashboard was accepted on 0.8.26 by real Chromium on a
+package-only host, across every tab and role; those scripts went with it. The
+[F.12 evidence](../Plans/MVP/done/installed-browser-acceptance.md#checks) and
+[F.13.6 evidence](../Plans/MVP/done/web-acceptance.md#budgets) record what they
+proved of that face.
+
+</details>
 
 ## Identity labels in web and CLI
 

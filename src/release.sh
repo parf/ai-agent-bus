@@ -17,7 +17,7 @@ src="$(pwd -P)"
 root=/usr/local/lib/agent-bus
 bindir=/usr/local/bin
 unit=agent-busd.service
-progs=(agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web)
+progs=(agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token)
 launchers=(ab-claude ab-codex ab-opencode)
 keep=5
 
@@ -31,6 +31,8 @@ switch() { # release-dir
     ln -sfn "releases/$(basename "$1")" "$root/current.new"
     mv -T "$root/current.new" "$root/current"
     for p in "${progs[@]}"; do ln -sfn "$root/current/$p" "$bindir/$p"; done
+    # The Go dashboard is gone since 0.8.50; its link would dangle.
+    [ -L "$bindir/agent-bus-web" ] && rm -f "$bindir/agent-bus-web"
     for p in "${launchers[@]}"; do ln -sfn "$root/current/launchers/$p" "$bindir/$p"; done
     if command -v restorecon >/dev/null && [ "$(getenforce 2>/dev/null)" != Disabled ]; then
         restorecon -RF "$root" >/dev/null
@@ -43,6 +45,14 @@ switch() { # release-dir
     done
     systemctl is-active --quiet "$unit" || { echo "$unit did not start; roll back with: sudo $0 --rollback" >&2; exit 1; }
     echo "live: $(basename "$1") ($("$bindir/agent-busd" -version | tail -1))"
+    # The web face is its own unit: restarted so it serves the same release.
+    if [ -f /etc/systemd/system/agent-bus-web.service ]; then
+        systemctl restart agent-bus-web.service
+        addr=$(systemctl show agent-bus-web.service -p Environment --value | tr ' ' '\n' | sed -n 's/^AGENT_BUS_WEB_ADDR=//p')
+        for _ in $(seq 1 50); do curl -sf -o /dev/null "http://${addr:-127.0.0.1:6780}/healthz" && break; sleep 0.2; done
+        curl -sf -o /dev/null "http://${addr:-127.0.0.1:6780}/healthz" && echo "web: agent-bus-web answers on http://${addr:-127.0.0.1:6780}/" \
+            || echo "web: agent-bus-web did not answer; journalctl -u agent-bus-web" >&2
+    fi
 }
 
 if [ "${1:-}" = --rollback ]; then

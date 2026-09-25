@@ -13,7 +13,7 @@ and nothing else; work steps are in [TODO](TODO.md#steps), open choices in
 | In | Out |
 |---|---|
 | Every address in the [site map](../../docs/web-face/site-map.md#every-address), both homepages included | Daemon API changes; the web face renders what the daemon answers |
-| The [shared rules](../../docs/web-face/shell.md#process-model): session, origin checks, headers, problem pages, form recovery, paging, `return` | New authority: the face still [acts on the visitor's token and nothing else](../../docs/11-processes.md#web-authority-boundary) |
+| The [shared rules](../../docs/web-face/shell.md#process-model): session, origin checks, headers, problem pages, form recovery, paging, `return` | New authority: the face still [acts on the visitor's token and nothing else](../../docs/11-processes.md#the-web-face) |
 | The "worth fixing" items each spec file ends with ([behaviour changes](#behaviour-changes)) | The daemon-side refusal text that names a hidden record's kind; that is a daemon fix |
 | A new look ([design language](#design-language)) | CLI and MCP faces |
 
@@ -38,11 +38,11 @@ checks are retired at [cutover](#cutover), not ported.
 
 | | |
 |---|---|
-| Account | system account `agent-bus-web`, `nologin`, no SSH keys, not in the account map; it owns nothing on disk |
-| Code | **development environment, kept simple:** `/var/lib/agent-bus/web` is a symlink straight to the git checkout, `/usr/local/src/ai-agent-bus/src/web` (owner, 2026-09-24). The account reads it and cannot write it. What runs is the working tree; `systemctl restart agent-bus-web` picks up edits. The checkout must sit outside `/home` (`ProtectHome=yes`); the whole checkout is readable to the account, read-only, which a development node accepts |
+| Account | system account `agent-bus-web`, `nologin`, home `/var/lib/agent-bus/web` (its code), no SSH keys, not in the account map; it owns nothing on disk |
+| Code | `/var/lib/agent-bus/web`, a symlink: `agent-bus-setup` links it to the current release's `web/` (`/usr/local/lib/agent-bus/current/web`, shipped by `src/build.sh`), so a release switch carries the face; in development `src/web/install-dev.sh` links it to a checkout's `src/web`. The account reads its code and never writes it |
 | Runtime | the system bun: `ExecStart=/usr/bin/bun run /var/lib/agent-bus/web/server.ts`, `WorkingDirectory=/var/lib/agent-bus/web` so bun finds `tsconfig.json`; from source, no build step, no npm dependency; `--version` prints `src/internal/version/VERSION`, read at runtime (an interpreted face reports SemVer only, per [build information](../../docs/09-setup.md#build-information)) |
 | Unit | `agent-bus-web.service`, its own locked-down systemd unit ([the unit](#the-unit)), a checked-in file `src/web/agent-bus-web.service` |
-| Install | `src/web/install-dev.sh`, run once with sudo: creates the account, the link and the unit, and enables it. Not `agent-bus-setup`: the development environment stays simple |
+| Install | `agent-bus-setup` (install and `--upgrade`) creates the account, the link and the unit from the release's `web/agent-bus-web.service`, with `ExecPaths` computed from the host's `ldd /usr/bin/bun`, and waits for `/healthz`; `src/release.sh` restarts it on every switch |
 | Daemon link | `/run/agent-bus/bus.sock` (shared, mode `666`, [supplies no identity](../../docs/02-access.md#local-socket)). Mapped account sockets are mode `600` for other accounts, so it cannot open them |
 | Credential | none of its own. `POST /session` with the typed token, then the session id per call, as [shell § process model](../../docs/web-face/shell.md#process-model) states |
 | State | none: no session map, no cache, no writable path. A restart ends nothing |
@@ -182,24 +182,8 @@ behaviour in the step that builds it.
 
 ## Cutover
 
-1. `install-dev.sh` puts the TS face on `127.0.0.1:6781` beside the Go one on
-   `6780` until every [site-map](../../docs/web-face/site-map.md#every-address)
-   row passes its checks. Cookies ignore ports, so the two faces share
-   `agent_bus_session`, `ab_theme` and `ab_flash`: signing out of one ends both.
-   Accepted; compare them as `localhost` against `127.0.0.1` to keep them apart.
-2. One change flips the ports: the daemon unit stops passing `-web`
-   (`agent-bus-setup` writes it), and the TS unit takes `6780`.
-3. After the owner accepts the pages, one commit removes the Go face and
-   everything that exists only for it ([W.11](TODO.md#steps) lists it).
-4. Current docs take the substance, with decision rows:
-
-   | Doc | Sections |
-   |---|---|
-   | [discovery](../../docs/05-discovery.md#dashboard) | dashboard, where it listens (environment only, no `-addr` / `-cert` flags), signing in, shell and recovery, browser acceptance |
-   | [processes](../../docs/11-processes.md#web-authority-boundary) | the processes, web authority boundary, web resource limits, how a child is started (`-web` goes) |
-   | [setup](../../docs/09-setup.md#the-two-accounts) | install (bwrap requirement goes), the two accounts and the two units (a web account and unit now exist), build information |
-   | [modules](../../docs/10-modules.md#languages) | languages, external tools (bwrap row goes) |
-   | [glossary](../../docs/glossary.md#names) | the `agent-bus-web` entry |
-5. The five `docs/web-face/` TL;DRs become the TypeScript contract ("as built
-   in 0.8.x by `src/web`"), and their "differences" and "worth fixing" sections
-   are marked history, so one claim owns each behaviour.
+Done in 0.8.50 ([W.11](TODO.md#steps)): the TypeScript face listens on
+`127.0.0.1:6780`; the Go face, its supervised child, bubblewrap and web cgroup
+are removed, and `agent-busd -web` is accepted and ignored so an old unit still
+starts. The current docs own the arrangement:
+[processes § the web face](../../docs/11-processes.md#the-web-face).

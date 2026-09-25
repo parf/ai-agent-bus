@@ -18,11 +18,19 @@ if [ "${1:-}" = --remove ]; then
 fi
 
 [ -x /usr/bin/bun ] || { echo "the unit runs /usr/bin/bun; install bun there" >&2; exit 1; }
-id agent-bus-web >/dev/null 2>&1 || useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin agent-bus-web
+# Its home is its code, the link: it owns nothing and writes nowhere.
+if id agent-bus-web >/dev/null 2>&1; then
+  [ "$(getent passwd agent-bus-web | cut -d: -f6)" = "$link" ] || usermod --home "$link" agent-bus-web
+else
+  useradd --system --no-create-home --home-dir "$link" --shell /usr/sbin/nologin agent-bus-web
+fi
 mkdir -p /var/lib/agent-bus
 if [ -e "$link" ] && [ ! -L "$link" ]; then echo "$link exists and is not a link; not touching it" >&2; exit 1; fi
 ln -sfn "$here" "$link"
-install -m 0644 "$here/agent-bus-web.service" "$unit"
+# The unit may execute bun and the libraries it links here, resolved, and
+# nothing else; where a distribution keeps them differs.
+paths="ExecPaths=/usr/bin/bun $(ldd /usr/bin/bun | sed -n 's|.*\(/[^ ]*\) (0x.*|\1|p' | xargs -r -n1 readlink -f | tr '\n' ' ')"
+sed "s|^ExecPaths=.*|${paths% }|" "$here/agent-bus-web.service" > "$unit"; chmod 0644 "$unit"
 systemctl daemon-reload
 systemctl enable agent-bus-web.service >/dev/null
 systemctl restart agent-bus-web.service

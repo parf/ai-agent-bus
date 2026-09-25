@@ -2,8 +2,7 @@
 
 📌 **TL;DR:** W.1–W.10 are built in `src/web` (0.8.32, 2026-09-24): every
 site-map address, the new design, and a development install running as its
-own account on `127.0.0.1:6781` against the live daemon. W.11, the cutover,
-waits for the owner. OpenCode and Fable reviewed the code on 2026-09-24; every
+own account on `127.0.0.1:6781` against the live daemon. W.11, the cutover, landed in 0.8.50. OpenCode and Fable reviewed the code on 2026-09-24; every
 verified finding is fixed with a check that fails without it (0.8.33–0.8.34). Open checks are named per row.
 
 ## Done — Web
@@ -19,3 +18,4 @@ verified finding is fixed with a check that fails without it (0.8.33–0.8.34). 
 | W.8 | Users, user, profile editor, own-email form, GitHub refresh, Groups, group, group editor, Account | contract tests: own row only, no Register for an ordinary user, Personal group prefix, existing group name refused | — |
 | W.9 | Palette with `/palette.json`, shortcuts, copy buttons, flash toasts | contract tests: palette scope, `401` and cross-site `403`, flash shown once | reduced-motion browser check |
 | W.10 | `src/web/install-dev.sh`, `agent-bus-web` account, `agent-bus-web.service` on `6781` | runs as uid `agent-bus-web`; security score 0.9; pages render for a live session; `src/web/probe-unit.sh` shows ten walls holding under the unit (daemon, runner, `.git`, `/root`, `/etc/ssh` unreadable; checkout read-only; `agent-busd` and `/bin/sh` refused; no outbound connection; shared socket answers; no capabilities), and `--without NoExecPaths` or `IPAddressDeny` makes its line fail. Dropping `ProtectSystem` or `CapabilityBoundingSet` alone does not, because file modes and the unprivileged account are a second wall. Pressure under the unit's limits: an allocator is killed after 224 MiB; bun cannot start threads past `TasksMax=64` and exits, which `Restart=on-failure` answers | — |
+| W.11 | Cutover (0.8.50): the Go face, its supervised child, bubblewrap and web cgroup removed; `agent-bus-setup` installs the `agent-bus-web` account (home `/var/lib/agent-bus/web`), the link to the current release's `web/` and the unit on `6780`, with `ExecPaths` from the host's `ldd /usr/bin/bun`; `agent-busd -web` accepted and ignored | `smoke.sh --slow` without the Go web checks; setup tests of the daemon and web units; supervisor section with one child | re-run the installed container gates (fresh, upgrade) against the TypeScript face |

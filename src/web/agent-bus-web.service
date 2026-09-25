@@ -1,7 +1,8 @@
-# agent-bus web face (TypeScript), development environment: runs the git
-# checkout through /var/lib/agent-bus/web under its own account, with nothing
-# of its own to read but that code and the daemon's shared socket.
-# Installed by src/web/install-dev.sh; see Plans/Web/README.md#the-unit.
+# agent-bus web face (TypeScript): runs the code /var/lib/agent-bus/web links
+# to — a release's web directory, or a checkout's in development — under its
+# own account, with nothing to read but that code and the daemon's shared
+# socket. Installed by agent-bus-setup (or src/web/install-dev.sh in
+# development); see docs/11-processes.md#the-web-face.
 [Unit]
 Description=agent-bus web face (TypeScript)
 After=agent-busd.service network.target
@@ -19,9 +20,9 @@ UMask=0077
 
 # Only what the face is told.
 Environment=AGENT_BUS_ADDR=/run/agent-bus/bus.sock
-Environment=AGENT_BUS_WEB_ADDR=127.0.0.1:6781
+Environment=AGENT_BUS_WEB_ADDR=127.0.0.1:6780
 Environment=BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
-Environment=HOME=/nonexistent
+Environment=HOME=/var/lib/agent-bus/web
 
 # Privilege
 NoNewPrivileges=yes
@@ -35,19 +36,16 @@ KeyringMode=private
 RemoveIPC=yes
 PrivateUsers=yes
 
-# Filesystem: everything read-only; no home, no devices, a private /tmp; the
-# only its own code exists under /var/lib.
+# Filesystem: everything read-only; no home, no devices, a private /tmp. The
+# link stays a link, so bun reads the code and its VERSION where they are;
+# the daemon's, the runner's and root's state and the host's SSH keys do not
+# exist for it.
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes
 DevicePolicy=closed
-# Under /var/lib only the face's own code exists: the link's target and the
-# shared VERSION beside it are bound in, every other service's state is gone.
-TemporaryFileSystem=/var/lib:ro
-BindReadOnlyPaths=/var/lib/agent-bus/web:/var/lib/agent-bus/web
-BindReadOnlyPaths=/usr/local/src/ai-agent-bus/src/internal/version:/var/lib/agent-bus/internal/version
-InaccessiblePaths=-/root -/etc/ssh -/usr/local/src/ai-agent-bus/.git
+InaccessiblePaths=-/var/lib/agent-bus/daemon -/var/lib/agent-bus/runner -/var/lib/agent-bus/service.d -/root -/etc/ssh
 
 # Exec: bun and the five libraries it links (ldd /usr/bin/bun), nothing else.
 NoExecPaths=/

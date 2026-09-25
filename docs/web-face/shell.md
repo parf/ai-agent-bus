@@ -28,13 +28,13 @@ request.
 | Body limit | each POST body is capped at 1 MiB |
 | Mutations | every write is a daemon call made with the visitor's session. The face never retries as anybody else |
 
-<details><summary>Confinement when supervised</summary>
+<details><summary>Confinement</summary>
 
-Owned by `docs/11-processes.md#web-authority-boundary`: bubblewrap sandbox,
-read-only static binary, shared socket only, empty environment apart from the
-API address and listen/TLS settings, and a cgroup of 256 MiB, 64 tasks and one
-CPU. A rewrite must still run as one static process with no writable state,
-no child processes and nothing to read but TLS files.
+Owned by [processes § the web face](../11-processes.md#the-web-face) since
+0.8.50: its own `agent-bus-web` account and locked-down systemd unit, the
+shared socket only, no credential of its own, no writable path, and a unit
+that may execute bun and nothing else. The Go face's supervised bubblewrap
+child is gone.
 
 </details>
 

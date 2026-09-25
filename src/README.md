@@ -6,9 +6,8 @@ against [MVP work](../Plans/MVP/TODO.md#objective).
 | | |
 |---|---|
 | `cmd/agent-busd` | the daemon: unix socket and loopback TCP, one token per principal |
-| `cmd/agent-bus-setup` | the root-only installer: verified release, two accounts, tree and unit |
+| `cmd/agent-bus-setup` | the root-only installer: verified release, accounts, tree, daemon and web units |
 | `cmd/agent-bus-admin` | what edits the `agent-busd` account's files |
-| `cmd/agent-bus-web` | the dashboard, a separate process speaking the API |
 | `cmd/agent-bus` | the CLI — `agent-bus help` lists every verb |
 | `internal/protocol` | names and envelopes, no behaviour |
 | `internal/core` | the registry and the queues — the only place a routing decision is made |
@@ -17,6 +16,7 @@ against [MVP work](../Plans/MVP/TODO.md#objective).
 | `internal/ports` | the interfaces core depends on — the seam every dependency is swapped at |
 | `internal/store`, `internal/dump`, `internal/directory`, `internal/signature`, `internal/sandbox` | one adapter each behind those ports |
 | `mcp/` | the MCP face and both push adapters, on bun — [mcp/README.md](mcp/README.md#the-mcp-face) |
+| `web/` | the web face, TypeScript on bun under its own account and unit — [processes § the web face](../docs/11-processes.md#the-web-face) |
 | `launchers/` | smart runtime launchers — [contract and usage](../docs/08-runner-role.md#running-the-launchers) |
 | `cmd/agent-bus-token` | the token program, and the forced command behind an ordinary user's key ([access § getting a token](../docs/02-access.md#getting-a-token)) |
 | `smoke.sh` | automated acceptance checks; installed and manual gates remain in the MVP plan |
@@ -31,11 +31,13 @@ Build requirements and version output follow
 Release numbering follows [working rules § versioning](../CLAUDE.md#versioning).
 
 With an output-directory argument, the build also bundles the MCP face and
-launchers with Bun, copies the release version, license and standalone install
-guide, and exposes launcher entry points at the output root. `package.sh` adds
+launchers with Bun, copies the web face's sources and unit (no tests), the
+release version, license and standalone install guide, and exposes launcher
+entry points at the output root. `package.sh` adds
 the exact artifact manifest and produces the supported tar archive plus its
 portable SHA-256 file. Running a launcher requires Bun and the selected AI
-runtime; the installed daemon and dashboard do not.
+runtime; the installed dashboard requires Bun at `/usr/bin/bun`; the daemon
+requires neither.
 
 ```sh
 bash ./build.sh       # build every Go program with build information
@@ -46,7 +48,7 @@ go test -race ./...
 ./smoke.sh --heavy    # everything, including what cannot fit that minute; on demand
 ```
 
-`smoke.sh` needs `bun` for the MCP half. It builds once and runs its shards in
+`smoke.sh` needs `bun` for the MCP and web shards. It builds once and runs its shards in
 parallel, each with a temporary socket, token and daemon of its own, so it never
 touches a daemon you are running. `PORT=` moves its loopback base; a run owns
 fifteen ports per shard from there, so two runs at once need bases a few

@@ -15,7 +15,7 @@ Current naming index. Canonical values and definitions remain in the linked sect
 | agent-bus-setup | Installer | [installation](09-setup.md#install) |
 | agent-bus-token | Credential program | [programs](09-setup.md#the-programs) |
 | agent-bus-admin | Administration program | [SSH administration](09-setup.md#ssh-admin) |
-| agent-bus-web | Dashboard process | [processes](11-processes.md#the-processes) |
+| agent-bus-web | The web face: TypeScript on bun, its own account and systemd unit | [the web face](11-processes.md#the-web-face) |
 | ab_ | MCP tool prefix only; never CLI or prose shorthand | [faces](05-discovery.md#faces) |
 
 ## Vocabulary

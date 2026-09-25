@@ -1,13 +1,14 @@
 # ⚙️ The daemon
 
 📌 **TL;DR:** Install and operate the bus, and tell whether it is healthy.
-`agent-busd` is the whole thing — registry, broker, MCP server and dashboard
-in one process, with no broker and no database server beside it. This page is
-for whoever looks after it.
+`agent-busd` is the whole bus — registry, broker and MCP server in one
+process, with no broker and no database server beside it; the dashboard is its
+own small service beside it. This page is for whoever looks after them.
 
-`agent-busd` is the whole bus: registry, broker, MCP server and dashboard, in
-one process. Nothing else needs installing — **no broker,
-no database server.** 🎈
+`agent-busd` is the whole bus: registry, broker and MCP server, in one
+process. Nothing else needs installing — **no broker, no database server.** 🎈
+The dashboard, `agent-bus-web`, is a separate systemd service that setup installs beside it
+([processes § the web face](../11-processes.md#the-web-face)).
 
 Most people never run it by hand. This page is for whoever looks after it.
 
@@ -63,10 +64,9 @@ Four ways in, and they are not equal:
 The daemon **cannot** listen on a public address. That is not a setting — it
 checks, and refuses. To reach it from elsewhere, tunnel over ssh. 🔒
 
-The dashboard is plain HTTP on loopback. Give it `-cert` and `-key` and it
-serves HTTPS on the address you gave it instead
-([where it listens](../05-discovery.md#where-it-listens)). A running daemon
-prints the scheme and address it took.
+The dashboard is plain HTTP on loopback. Set `AGENT_BUS_WEB_CERT` and
+`AGENT_BUS_WEB_KEY` in its unit and it serves HTTPS on its address instead
+([where it listens](../05-discovery.md#where-it-listens)).
 
 ## ▶️ Running it
 
@@ -76,6 +76,7 @@ Under systemd, after setup:
 sudo systemctl status  agent-busd
 sudo systemctl restart agent-busd
 journalctl -u agent-busd -f
+sudo systemctl status  agent-bus-web     # the dashboard
 ```
 
 By hand — for a test bus of your own, in your own session:
@@ -96,7 +97,7 @@ The flags:
 | `-init` · `-create` | make the database: `-init` alone and exit, `-create` then serve. Only an explicit act creates one |
 | `-flush-every` | how often queue contents and counters are written, one batch; `0` only at a graceful stop |
 | `-log-dir` · `-debug-log` | where `audit.log`, `error.log` and the on-demand `debug.log` go, and whether the last starts on |
-| `-web` | run the dashboard as a child too |
+| `-web` | accepted and ignored since 0.8.50, so an older unit still starts; the dashboard is its own service |
 
 ## 💾 What it keeps, and what it does not
 
@@ -184,7 +185,7 @@ runner is a separate program under a separate account, not a child.
 |---|---|
 | `journalctl -u agent-busd -n 50` | ✅ start here. It says why |
 | refuses the address | `-addr` is not loopback. That is the check doing its job |
-| the dashboard did not start | the port it was given is somebody else's, or not yours to bind — the log says which |
+| the dashboard did not start | `journalctl -u agent-bus-web`: its port is somebody else's, or `/usr/bin/bun` is missing — the log says which |
 | a user has no socket | check `agent-bus-admin account list`; add the mapping and restart the full daemon |
 | the queues are missing recent messages after a restart | it did not exit gracefully, so what arrived since the last flush was never written |
 

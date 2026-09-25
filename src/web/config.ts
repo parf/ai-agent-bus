@@ -30,7 +30,7 @@ export function load(env: NodeJS.ProcessEnv = process.env): Config {
   }
   return {
     daemon: env.AGENT_BUS_ADDR || defaultSocket(env),
-    listen: listenAddr(env.AGENT_BUS_WEB_ADDR || "127.0.0.1:6781"),
+    listen: listenAddr(env.AGENT_BUS_WEB_ADDR || "127.0.0.1:6780"),
     tls,
     dev: env.AGENT_BUS_WEB_DEV === "1",
   };

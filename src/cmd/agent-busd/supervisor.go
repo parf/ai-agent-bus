@@ -125,9 +125,6 @@ func runSupervisor(c config) {
 		env:  []string{roleEnv + "=" + roleBus, fdsEnv + "=" + strings.Join(names, ","), accountsEnv + "=" + string(activeJSON)},
 		fds:  fds,
 	}}
-	if c.web {
-		kids = append(kids, webChild(filepath.Join(filepath.Dir(exe), "agent-bus-web"), c.sock))
-	}
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	var wg sync.WaitGroup
@@ -209,45 +206,19 @@ func clearRetiredUserSockets(dir string, keep map[string]bool) error {
 	return nil
 }
 
-// webChild is the dashboard, which speaks the API like any other client. It
-// is given the **shared** socket and no credential: on the owner's own socket
-// every page it rendered would be the owner's, served to whoever connected,
-// and a child with the owner's authority is a credential mint. Here it can
-// say nothing until somebody signs in and lends it a session.
-// See docs/05-discovery.md#signing-in.
-func webChild(exe, shared string) *child {
-	if _, err := os.Stat(exe); err != nil {
-		log.Fatalf("web: %v — the dashboard is a separate binary beside this one", err)
-	}
-	wrap, err := exec.LookPath("bwrap")
-	if err != nil {
-		log.Fatal("web: bubblewrap is required; refusing to start an unconfined dashboard")
-	}
-	return &child{what: "web", path: wrap, args: webSandbox(exe, shared, os.Getenv), cleanEnv: true, limited: true}
-}
-
-// Only the bus inherits the supervisor environment. The sandbox wrapper gets
-// explicit values only, so even loader variables cannot reach it before bwrap
-// clears its own environment.
+// environ is the child's environment: the supervisor's, and its own on top.
 func (k *child) environ(around []string) []string {
-	out := []string{}
-	if !k.cleanEnv {
-		out = append(out, around...)
-	}
-	return append(out, k.env...)
+	return append(append([]string{}, around...), k.env...)
 }
 
 // child is one supervised process. A child dying is normal: it is contained,
 // restarted with backoff, and only the supervisor surviving matters.
 type child struct {
-	what      string
-	path      string
-	args      []string
-	env       []string
-	cleanEnv  bool
-	limited   bool
-	resources *webResources
-	fds       []*os.File
+	what string
+	path string
+	args []string
+	env  []string
+	fds  []*os.File
 
 	mu      sync.Mutex
 	cmd     *exec.Cmd
@@ -272,13 +243,6 @@ func (k *child) keepAlive() {
 	if err := clearAmbient(); err != nil {
 		log.Printf("%s: ambient capabilities stay as they are: %v", k.what, err)
 	}
-	defer func() {
-		if k.resources != nil {
-			if err := k.resources.close(); err != nil {
-				log.Printf("web resource cleanup: %v", err)
-			}
-		}
-	}()
 	wait := backoffMin
 	for {
 		at := time.Now()
@@ -301,18 +265,6 @@ func (k *child) keepAlive() {
 }
 
 func (k *child) run() error {
-	if k.limited {
-		if k.resources == nil {
-			var err error
-			k.resources, err = newWebResources()
-			if err != nil {
-				return fmt.Errorf("web limits unavailable; refusing unlimited web: %w", err)
-			}
-		}
-		if err := k.resources.empty(); err != nil {
-			return err
-		}
-	}
 	cmd := exec.Command(k.path, k.args...)
 	cmd.Env = k.environ(os.Environ())
 	cmd.ExtraFiles = k.fds
@@ -322,12 +274,6 @@ func (k *child) run() error {
 	// address in use. The forking thread is locked for the child's whole
 	// life, which is what makes this reliable in a Go process.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGTERM}
-	if k.resources != nil {
-		// clone3 places the wrapper in its limited group before any user code
-		// runs. Moving it after Start would leave an unlimited allocation race.
-		cmd.SysProcAttr.UseCgroupFD = true
-		cmd.SysProcAttr.CgroupFD = int(k.resources.fd.Fd())
-	}
 	if err := cmd.Start(); err != nil {
 		return err
 	}

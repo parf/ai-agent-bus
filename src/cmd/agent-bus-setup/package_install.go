@@ -20,7 +20,8 @@ var (
 )
 
 var bundleFiles = []string{
-	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token", "agent-bus-web",
+	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token",
+	"web/server.ts", "web/agent-bus-web.service",
 	"mcp/server.js", "launchers/launcher.js",
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode",
 	"internal/version/VERSION", "LICENSE.md", "INSTALL.md",
@@ -28,7 +29,7 @@ var bundleFiles = []string{
 
 var executableFiles = map[string]bool{
 	"agent-bus": true, "agent-busd": true, "agent-bus-admin": true,
-	"agent-bus-setup": true, "agent-bus-token": true, "agent-bus-web": true,
+	"agent-bus-setup": true, "agent-bus-token": true,
 	"launchers/ab-claude": true, "launchers/ab-codex": true, "launchers/ab-opencode": true,
 }
 
@@ -318,7 +319,7 @@ func syncTree(root string) error {
 
 func commandLinks() map[string]string {
 	links := make(map[string]string)
-	for _, name := range []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token", "agent-bus-web"} {
+	for _, name := range []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token"} {
 		links[name] = filepath.Join(installRoot, "current", name)
 	}
 	for _, name := range []string{"ab-claude", "ab-codex", "ab-opencode"} {
@@ -348,6 +349,10 @@ func installCommandLinks() error {
 	if err := os.MkdirAll(installBin, 0o755); err != nil {
 		return err
 	}
+	// The Go dashboard's link, from before 0.8.50, would dangle.
+	if old := filepath.Join(installBin, "agent-bus-web"); isSymlink(old) {
+		_ = os.Remove(old)
+	}
 	for name, target := range commandLinks() {
 		path := filepath.Join(installBin, name)
 		tmp := filepath.Join(installBin, fmt.Sprintf(".agent-bus-%s-%d", name, os.Getpid()))
@@ -361,4 +366,9 @@ func installCommandLinks() error {
 		}
 	}
 	return nil
+}
+
+func isSymlink(path string) bool {
+	info, err := os.Lstat(path)
+	return err == nil && info.Mode()&os.ModeSymlink != 0
 }

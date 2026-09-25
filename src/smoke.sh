@@ -72,7 +72,7 @@ PORT=${PORT:-7911}
 SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   script_done script_confined listing backlog ttl full_queue enrolment restart
   orphans transfer corrupt_pair supervisor
-  mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts)
+  mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -283,7 +283,7 @@ sec "the layers hold"
 is_empty "core never imports an adapter" \
   "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump|directory|signature|journal)')"
 is_empty "nor does a face" \
-  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-web ./cmd/agent-bus-setup ./cmd/agent-bus-token ./cmd/agent-bus-admin | grep -E 'internal/(store|dump|directory|signature|journal)')"
+  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-setup ./cmd/agent-bus-token ./cmd/agent-bus-admin | grep -E 'internal/(store|dump|directory|signature|journal)')"
 is_empty "and a port names no outside world of its own" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -E '^(os|net|net/http|os/exec|database/sql)$')"
 has "while the process that assembles them holds the ones that persist" \
@@ -2173,10 +2173,17 @@ has "the runner's home is its own alone" "$out" "/var/lib/agent-bus/runner agent
 has "and what a service is, is readable by anyone" "$out" "/var/lib/agent-bus/service.d agent-bus-runner's own, 0755"
 has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
 has "and the start" "$out" 'would reload systemd'
+# The web face is its own account and unit (docs/11-processes.md#the-web-face).
+has "the web face gets its own account" "$out" 'would create the system account agent-bus-web'
+has "and its code is linked where its unit runs it" "$out" 'would link /var/lib/agent-bus/web to '
+has "and its unit is the one the release ships" "$out" 'would write /etc/systemd/system/agent-bus-web.service from .*/web/agent-bus-web.service'
+
 has "and hands the first user to the program that owns that file" "$out" "would make $OWNER the first user"
 out=$("$D/agent-bus-setup" --print-unit --owner parf 2>&1); rc=$?
 ok_exit "an owner without a realm is a whole name" $rc
-has "and is written as given, with nothing appended" "$out" '-owner parf -web'
+has "and is written as given, with nothing appended" "$out" '-owner parf\( -user\|$\)'
+lacks "and the daemon runs no web face of its own" "$out" ' -web\|Delegate'
+
 out=$("$D/agent-bus-setup" --print-unit --owner -parf 2>&1); rc=$?
 bad_exit "while an owner that is no name is refused before anything is written" $rc
 
@@ -2302,430 +2309,8 @@ is_empty "but not one between two other names" \
 # whatever the rule became.
 NODE=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/recent")
 has "while the daemon Owner sees an exchange between two other names" "$NODE" "$ASENT"
-# The child is given NO credential and the shared socket rather than the
-# owner's: on the owner's own socket every page it rendered would be the
-# owner's, served to whoever connected, and a child with the owner's
-# authority is a credential mint. See docs/05-discovery.md#signing-in.
-WEB="http://127.0.0.1:$((PORT+9))"
-AGENT_BUS_ADDR=$D/bus.sock \
-  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) >"$D/web.log" 2>&1 &
-WPID=$!
-for _ in $(seq 1 50); do curl -s -o /dev/null "$WEB/" && break; sleep 0.1; done
-ANON=$(curl -s "$WEB/")
-has "an anonymous visitor gets the sign-in form" "$ANON" 'name=token'
-has "the login header includes its inline bus logo" "$ANON" '<svg class=node-logo'
-has "the login header names the node release" "$ANON" "AgentBus <span class=build-tip.*>v$(cat internal/version/VERSION)</span>"
-has "the login footer names the daemon owner" "$ANON" "<strong>Owner</strong> <code>$OWNER</code>"
-has "the login footer shows uptime" "$ANON" '<strong>Uptime</strong> [0-9][0-9a-z.]*</span>'
-# The counts moved to the signed-in Overview strip at 0.5.82 by owner
-# instruction; the daemon still answers them to anybody on GET /identity, but no
-# page shows them before sign-in. See docs/05-discovery.md#what-a-node-says-about-itself.
-lacks "the login footer no longer publishes call counts" "$ANON" '<strong>Calls</strong>'
-lacks "nor the strip's wording for them" "$ANON" 'Calls, minute\|Calls, hour\|Calls, total'
-lacks "nor an anonymous node strip" "$ANON" '<div class=node-strip>'
-lacks "observed spans stay out of the header" "$ANON" '(observed '
-lacks "the footer has no About section or repeated version" "$ANON" 'About call counts\|Web <code>v'
-lacks "OS and inbox readings are removed" "$ANON" 'Host load\|About load readings\|accepted /\|dequeued'
-has "the login version tooltip identifies the daemon build once" "$ANON" 'title="Build daemon [^"]*"'
-lacks "identical builds are not repeated" "$ANON" 'Daemon build:\|Web build:'
-# Node identity and sampled request counts are public; registry contents stay private.
-# See docs/05-discovery.md#what-a-node-says-about-itself.
-# Asked of the catalogue path itself: root is Overview and carries no records
-# for anybody now, so a check there could no longer fail the way it must.
-is_empty "and no records or registry totals" \
-  "$(printf '%s\n%s' "$ANON" "$(curl -s "$WEB/agents")" \
-     | grep -oE 'watched by the board|[0-9]+ records')"
-has "health still answers an empty 200" \
-  "$(curl -s -o /dev/null -w '%{http_code}:%{size_download}' "$WEB/healthz")" '^200:0$'
-# The tab icon. Asked of the type and of a shape only the icon has: `GET /`
-# answers every unmatched path, so a missing route still returns 200 with a
-# page in it, and a check on the status code alone could not tell the two
-# apart.
-has "the tab icon is served as an svg" \
-  "$(curl -s -o /dev/null -w '%{http_code}:%{content_type}' "$WEB/favicon.svg")" \
-  '^200:image/svg+xml'
-has "and it is the bus mark, not a page" \
-  "$(curl -s "$WEB/favicon.svg")" '<svg[^>]*viewBox="0 0 32 32"'
-# A browser asks for this one whichever icon the head names, and answering it
-# with the sign-in page is worse than answering nothing.
-has "a browser asking for favicon.ico is told there is none" \
-  "$(curl -s -o /dev/null -w '%{http_code}' "$WEB/favicon.ico")" '^404$'
-has "and the signed-out page names the icon it does have" \
-  "$ANON" '<link rel=icon href=/favicon.svg'
-# One message however it failed: telling a bad credential from an unknown
-# name is an oracle for which names exist.
-has "a refused sign-in says one thing" \
-  "$(curl -s -X POST -d 'token=nope' "$WEB/signin")" 'not accepted'
-# Deliberately hostile: the child pointed at a socket that supplies the
-# identity, where an empty credential would otherwise be answered. Nothing
-# signs in, because a web child that can mint the owner is the whole thing
-# the arrangement is against. See docs/05-discovery.md#signing-in.
-AGENT_BUS_ADDR=$D/user-$ACCOUNT.sock \
-  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+14)) >"$D/web-own.log" 2>&1 &
-WOPID=$!
-for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+14))/" && break; sleep 0.1; done
-OWNJAR=$D/web-own.jar; rm -f "$OWNJAR"
-curl -s -c "$OWNJAR" -o /dev/null -X POST -d 'token=' "http://127.0.0.1:$((PORT+14))/signin"
-is_empty "an empty credential signs nobody in, even on a socket that would answer" \
-  "$(grep -o agent_bus_session "$OWNJAR")"
-kill $WOPID 2>/dev/null; wait $WOPID 2>/dev/null
-JAR=$D/web.jar; rm -f "$JAR"
-has "signing in is a redirect, not a page" \
-  "$(curl -s -c "$JAR" -o /dev/null -w '%{http_code}' -X POST -d "token=$TOKEN" "$WEB/signin")" '303'
-has "and the browser carries a session" \
-  "$(awk '/agent_bus_session/{print $NF}' "$JAR")" '^[0-9a-f]\{48\}$'
-is_empty "which is never the token itself" "$(grep -o "$TOKEN" "$JAR")"
-PAGE=$(curl -s -b "$JAR" "$WEB/")
-# Where the counts went. Node-wide facts sit in one strip in the middle of
-# Overview (docs/05-discovery.md#overview-and-diagnostics), and the record
-# count names the kinds it sums because it is every registered record.
-NODE=$(sect node "$PAGE")
-has "Overview carries the node strip" "$NODE" '<div class=node-strip>'
-has "the strip reports sampled minute calls" "$NODE" '<span>Calls, minute</span><strong>[0-9]'
-has "the strip reports sampled hour calls" "$NODE" '<span>Calls, hour</span><strong>[0-9]'
-has "the strip reports total calls" "$NODE" '<span>Calls, total</span><strong>[0-9]'
-# One cell per thing a record can be, because a single total cannot say which
-# of the four listings grew. Each is asked for separately.
-for label in Agents Services Queues PubSub Users Groups; do
-  has "the strip counts $label on its own" "$NODE" \
-    "<span>$label</span><strong>\\([0-9]\\|<span class=muted>&mdash;\\)"
-done
-lacks "and no longer sums them into one cell" "$NODE" \
-  '<span>Records</span>\|<span>Agents + Services + Channels + Users</span>\|<span>Channels</span>'
-# Against the daemon rather than against the page: four cells each holding a
-# plausible digit is what a constant looks like. Their sum is the node's whole
-# registry, which is the one number the old cell reported.
-# A dash counts as nothing, which is what it means. Empty is what the strip
-# prints for a kind the node has none of.
-STRIPSUM=$(printf '%s' "$NODE" \
-  | grep -o '<span>\(Agents\|Services\|Queues\|PubSub\|Users\|Groups\)</span><strong>[0-9,]*' \
-  | grep -o '[0-9,]*$' | tr -d ',' | awk '{n+=$1} END{print n+0}')
-NODETOTAL=$(tbody "$TOKEN" /status | grep -o '"services":[0-9]*' | grep -o '[0-9]*$')
-has "the daemon states a registry total for them to be checked against" "$NODETOTAL" '^[0-9]\+$'
-has "and the six counts add up to it" "$STRIPSUM" "^$NODETOTAL$"
-# What the node holds leads; how it is running follows on its own row. Asked
-# as the order of the markup, because every cell is on the page either way.
-has "how the node stands now leads, and what it has done since start follows" \
-  "$(printf '%s' "$NODE" | grep -o '<span>Readers</span>\|<span>Users</span>\|<div class=node-break\|<span>Uptime</span>\|<span>Calls, total</span>' | paste -sd,)" \
-  '^<span>Readers</span>,<span>Users</span>,<div class=node-break,<span>Uptime</span>,<span>Calls, total</span>$'
-# None is a dash. Which cell is empty depends on what this run registered, so
-# the three checks are about the strip rather than about a named cell: it has
-# at least one of each, and nowhere a bare zero. A strip that numbered
-# everything loses the dash and gains the zero; one that dashed everything
-# loses the figure.
-has "some strip cell has none and says so with a dash" "$NODE" \
-  '<strong><span class=muted>&mdash;</span></strong>'
-has "and some cell has something and states the figure" "$NODE" '<strong>[0-9]'
-lacks "no strip cell prints a bare zero" "$NODE" '<strong>0</strong>'
-lacks "the signed-in footer does not repeat the counts" \
-  "$(printf '%s' "$PAGE" | grep 'class=footer-node')" 'Calls'
-NAV=$(printf '%s' "$PAGE" | grep 'nav aria-label=.sections.')
-has "the Overview menu entry carries its house mark" "$NAV" '>🏠</span>Overview</a>'
-has "and Diagnostics carries its own drawn one" "$NAV" '</svg>Diagnostics</a>'
-lacks "no menu entry is left unmarked" "$NAV" '<a href=/groups>Groups</a>'
-# Queues and PubSub are two sections now, each marked with its kind's glyph.
-has "Queues is a menu entry with its glyph" "$NAV" '<a href=/queues><span class=page-title-mark aria-hidden=true>📮</span>Queues</a>'
-has "and so is PubSub" "$NAV" '<a href=/pubsub><span class=page-title-mark aria-hidden=true>📣</span>PubSub</a>'
-lacks "and the combined Channels entry is gone" "$NAV" '>Channels</a>'
-# One page load is one observation, and the shared footer dates every page
-# (docs/05-discovery.md#overview-and-diagnostics). The body states no time and
-# offers no Refresh link; the browser already has one.
-has "the page states when it was generated, exactly once" \
-  "$(printf '%s' "$PAGE" | grep -o '<strong>Generated</strong>' | wc -l | tr -d ' ')" '^1$'
-has "and states it in the shared footer" \
-  "$(printf '%s' "$PAGE" | grep 'class=footer-node')" '<strong>Generated</strong>'
-lacks "Overview offers no Refresh link of its own" "$PAGE" '>Refresh</a>'
-# The Administrators group is the one group whose membership is an authority,
-# so its page states that authority. No other group page makes the claim
-# (docs/01-identity-and-roles.md#daemon-administrators).
-curl -s -b "$JAR" -o /dev/null -H "Origin: $WEB" \
-  -d 'action=save&name=%40smoke-ops&members=' "$WEB/groups"
-ADMGRP=$(curl -s -b "$JAR" "$WEB/group?name=%40administrators")
-has "the Administrators page states what membership grants" "$ADMGRP" '<h2>What membership grants</h2>'
-has "and what it does not" "$ADMGRP" '<h2>What it does not grant</h2>'
-has "resource management is not part of it" "$ADMGRP" 'Administering the node is not managing its resources.'
-ORDGRP=$(curl -s -b "$JAR" "$WEB/group?name=%40smoke-ops")
-has "the ordinary group page renders, so the next check can fail" "$ORDGRP" '<code>@smoke-ops</code>'
-lacks "an ordinary group claims no authority of its own" "$ORDGRP" 'What membership grants'
-# Root is Overview and is allowed to be short; the retained envelopes are on
-# Three pages, one per thing a record is: an agent is on this bus and is
-# somebody, a queue is a channel it reads through, and a service is external
-# (docs/03-records.md#record-kinds). Each listing paginates,
-# so the three questions about one name are asked of a search for that name.
-ab "$OWNER" channel create smoke-chan@srv1 --allow '*' --descr "a registered channel" >/dev/null
-AGENTS=$(curl -s -b "$JAR" "$WEB/agents?q=human%40srv1")
-CHANS=$(curl -s -b "$JAR" "$WEB/queues")
-has "an agent's record is listed on the agents page" "$AGENTS" 'href="/agent?name=%23human%40srv1'
-has "and the row says what it is" "$AGENTS" '<td data-label=Type>👾 Agent'
-lacks "and it is not among the queues it reads through" \
-  "$(curl -s -b "$JAR" "$WEB/queues?q=human%40srv1")" 'name=%23human%40srv1'
-lacks "nor among the services, which are the ones this bus does not run" \
-  "$(curl -s -b "$JAR" "$WEB/services?q=human%40srv1")" 'name=%23human%40srv1'
-has "a registered channel is listed on Queues as the queue it is" \
-  "$(curl -s -b "$JAR" "$WEB/queues?q=smoke-chan%40srv1")" '<td data-label=Type>📮 Queue'
-has "the PubSub page renders, so the next check can fail" \
-  "$(curl -s -b "$JAR" "$WEB/pubsub")" '<h1><span class=page-title-mark aria-hidden=true>📣</span> PubSub</h1>'
-lacks "and PubSub does not list it" \
-  "$(curl -s -b "$JAR" "$WEB/pubsub?q=smoke-chan%40srv1")" 'name=smoke-chan%40srv1'
-lacks "and neither section offers a kind filter" \
-  "$CHANS" 'aria-label="Kind filter"'
-# An old bookmark of the combined page lands on the section its kind named.
-has "an old /channels?kind=pubsub bookmark lands on PubSub" \
-  "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -b "$JAR" "$WEB/channels?kind=pubsub")" '^301 .*/pubsub$'
-
-# A credential is read by the caller that needs it, not looked at in a
-# browser: the page carries the digest so that a change is visible, and the
-# bytes appear on no page at all. See docs/06-services.md#secrets.
-SVCPAGE=$(curl -s -b "$JAR" "$WEB/service?name=vault%40srv1")
-has "the external service page names the record it is about" "$SVCPAGE" 'vault@srv1'
-has "and states the digest of the secret it holds" \
-  "$SVCPAGE" '<dt>Secret<dd><code>[0-9a-f]\{64\}</code>'
-lacks "while the secret itself is on no page" "$SVCPAGE" 'PGPASSWORD\|rotated'
-has "a service with no secret says so rather than showing a stale digest" \
-  "$(curl -s -b "$JAR" "$WEB/service?name=keyless%40srv1")" '<dt>Secret<dd><span class=muted>none'
-# Registration asks each kind its own questions. The two channel kinds are two
-# sections, because a queue declares a policy the topic has no queue for.
-NEWQ=$(curl -s -b "$JAR" "$WEB/queues/new")
-NEWT=$(curl -s -b "$JAR" "$WEB/pubsub/new")
-has "the queue form carries its own kind" "$NEWQ" '<input type=hidden name=kind value=queue>'
-has "the pub/sub form carries its own" "$NEWT" '<input type=hidden name=kind value=pubsub>'
-has "a queue declares the policy of the queue it will hold" "$NEWQ" 'name=ttl'
-lacks "and a topic is not asked about one it will not have" "$NEWT" 'name=ttl\|name=bound\|name=overflow'
-# The topic declares the other thing it has instead: who it delivers to.
-# The exact field, because name=subs-anything contains name=subs.
-has "a topic declares who it delivers to" "$NEWT" '<textarea name=subs '
-lacks "and a queue, which delivers to one reader, is not asked" "$NEWQ" '<textarea name=subs'
-# A service and an agent hold a secret, so their forms offer one; a queue and
-# a topic hold none (docs/constitution.md#-private-values).
-NEWS=$(curl -s -b "$JAR" "$WEB/services/new")
-has "the service form offers a secret field" "$NEWS" '<textarea name=secret rows=4 autocomplete=off'
-has "and so does the agent form" "$(curl -s -b "$JAR" "$WEB/agents/new")" '<textarea name=secret rows=4 autocomplete=off'
-lacks "no channel registration does" \
-  "$(printf '%s\n%s' "$NEWQ" "$NEWT")" 'name=secret'
-# Registered through the page, read back through the daemon: the bytes the
-# form sent are the bytes stored, newlines and all.
-curl -s -b "$JAR" -o /dev/null -H "Origin: $WEB" \
-  --data-urlencode 'action=create' --data-urlencode "name=webvault@localhost" \
-  --data-urlencode 'kind=service' --data-urlencode 'addr=db:5432' \
-  --data-urlencode 'protocol=postgresql' \
-  --data-urlencode "$(printf 'secret=A=one\r\nB=two')" "$WEB/service"
-# Read back through the daemon as the owner that registered it. A browser
-# submits a textarea with CRLF whatever the page was served with, and these
-# bytes are stored as sent, so the check is on the bytes rather than the text.
-has "a secret typed into the form is stored with the newline that was typed" \
-  "$(tbody "$TOKEN" "/secret?name=webvault%40localhost" | od -c | head -2)" \
-  'A   =   o   n   e  \\n   B   =   t   w   o'
-lacks "and not with the carriage return the wire carried" \
-  "$(tbody "$TOKEN" "/secret?name=webvault%40localhost" | od -c | head -2)" '\\r'
-# The settings form is a page of its own, and it is the registration form with
-# the record already in it. The detail page links to it and holds no editor.
-lacks "the detail page carries no editor of its own" "$SVCPAGE" '<textarea name=allow'
-has "and links to the one that does" "$SVCPAGE" 'id=settings class=editor-link href="/service/edit?name=vault%40srv1'
-SVCEDIT=$(curl -s -b "$JAR" "$WEB/service/edit?name=vault%40srv1")
-has "the settings form carries Maintainers" "$SVCEDIT" '<textarea name=maintainers'
-has "and the allow list beside them" "$SVCEDIT" '<textarea name=allow'
-has "and the credential, which is a field of this kind like any other" \
-  "$SVCEDIT" '<textarea name=secret rows=4 autocomplete=off'
-lacks "while showing none of the stored bytes back" "$SVCEDIT" 'A=one\|B=two'
-lacks "classification and sharing has no section of its own" "$SVCEDIT" 'Classification and sharing'
-# Registering and editing are one form, so they ask one set of questions. The
-# comparison is of the field names inside each form, because a page that had
-# dropped a field would still have the heading above it.
-asked() { printf '%s' "$1" | sed 's/</\n</g' | grep -o '^<\(input\|textarea\|select\)[^>]*name=[a-z_]*' \
-  | grep -o 'name=[a-z_]*$' | grep -v 'name=\(kind\|new\|action\|return\|edit_[a-z]*\)$' | sort -u | tr '\n' ' '; }
-# Both sides non-empty first, or two forms that asked nothing would agree.
-has "the service form asks for the fields a service has" \
-  "$(asked "$SVCEDIT")" '^name=addr name=allow name=descr name=maintainers name=name name=personal name=protocol name=secret $'
-# One difference, on purpose: a registration carries no Maintainers, which are
-# set on the record once it exists (Plans/MVP/web/forms.md).
-has "registering a service asks what editing one does, but Maintainers" \
-  "$(asked "$(curl -s -b "$JAR" "$WEB/services/new")")" "^$(asked "$SVCEDIT" | sed 's/name=maintainers //')\$"
-# The same rule for the other two entities: a person and a group are added and
-# changed by one form each, on pages of their own.
-USERNEW=$(curl -s -b "$JAR" "$WEB/users/new")
-USEREDIT=$(curl -s -b "$JAR" "$WEB/user/edit?name=$(printf '%s' "$OWNER" | sed 's/@/%40/')")
-has "the profile form asks for the fields a person has" \
-  "$(asked "$USEREDIT")" '^name=company name=email name=github_user name=location name=name name=person_name name=twitter $'
-has "adding a person and editing one ask the same questions" \
-  "$(asked "$USEREDIT")" "^$(asked "$USERNEW")\$"
-# The user directory takes Last used from the real token store: the signed-in
-# owner's credential made this request, so their own row carries a time.
-OWNROW=$(curl -s -b "$JAR" "$WEB/users" | tr -d '\n' | sed 's/<tr>/\n<tr>/g' | grep '^<tr>' | grep -F "<code>$OWNER</code>")
-has "the user directory says when the owner's credential was last used" \
-  "$OWNROW" '<td data-label="Last used"><time datetime='
-has "an old Other-filter link lands on Diagnostics' leftover names" \
-  "$(curl -s -b "$JAR" -o /dev/null -w '%{http_code} %{redirect_url}' "$WEB/users?kind=other")" '^303 .*/diagnostics#leftovers$'
-GRPNEW=$(curl -s -b "$JAR" "$WEB/groups/new")
-GRPEDIT=$(curl -s -b "$JAR" "$WEB/group/edit?name=%40smoke-ops")
-has "the group form asks for the fields a group has" \
-  "$(asked "$GRPEDIT")" '^name=descr name=maintainers name=members name=name name=personal name=secret $'
-# One difference, as for a record: Maintainers are set once the group exists.
-has "registering a group asks what editing one does, but Maintainers" \
-  "$(asked "$GRPNEW")" "^$(asked "$GRPEDIT" | sed 's/name=maintainers //')\$"
-# The form says whether it carried the owner-only fields. Without that flag a
-# save cannot change them, which is how a Maintainer's save leaves them alone.
-has "the owner's form states that it carries the sharing fields" \
-  "$SVCEDIT" '<input type=hidden name=edit_sharing value=1>'
-lacks "and that field is not disabled for the caller who may change it" \
-  "$SVCEDIT" '<textarea name=maintainers rows=5 disabled'
-
-# Diagnostics and the registry catalogue on Agents, which is where a record
-# registered as one is listed (Plans/MVP/web/pages.md#overview).
-DIAG=$(curl -s -b "$JAR" "$WEB/diagnostics")
-RECS=$(curl -s -b "$JAR" "$WEB/agents")
-has "the dashboard renders the envelope" "$(sect exchanges "$DIAG")" '#board-svc@srv1'
-has "and the record it was for" "$RECS" 'watched by the board'
-is_empty "and no body reaches the page" \
-  "$(printf '%s\n%s\n%s' "$PAGE" "$DIAG" "$RECS" | grep -o "$SECRET")"
-# Two principals, one URL, different pages. The resource owner sees its record;
-# the daemon Owner sees it for management even though it has no implicit
-# message access. The earlier send check pins that visibility does not grant use.
-OJAR=$D/web-owner.jar; rm -f "$OJAR"
-curl -s -c "$OJAR" -o /dev/null -X POST -d "token=$(tok acl-owner@srv1)" "$WEB/signin"
-has "a second principal gets their own page" \
-  "$(curl -s -b "$OJAR" "$WEB/agents")" 'direct access only'
-has "and the daemon Owner sees that ACL-restricted record for management" \
-  "$RECS" 'direct access only'
-
-# The views the MVP owes, each a reshape of what the bus already answered
-# THIS caller: the ordering, the grouping and the late mark are the page's
-# and nothing else is. See docs/05-discovery.md#what-it-shows.
-# A backlog only ever grows where nobody is reading — an unfiltered reader
-# is handed the message as it arrives — so an agent with a reader is the
-# control that says the list is not just every record over again.
-ab owner@srv1 register '#busy-svc@srv1' --kind agent --allow '*' --descr "somebody home" >/dev/null
-ab '#busy-svc@srv1' consume --wait 10s >/dev/null 2>&1 &
-busy_pid=$!
-ab parf@localhost register '#slow-svc@srv1' --kind agent --allow '*' --descr "nobody home" >/dev/null
-ab parf@localhost send '#slow-svc@srv1' "waiting since before the rest" >/dev/null
-# At its bound, which the DAEMON answers: a record that declares none takes
-# the daemon's, and the page has no way to know what that is.
-ab parf@localhost register '#tight-svc@srv1' --kind agent --allow '*' --bound 2 --descr "a small queue" >/dev/null
-ab parf@localhost send '#tight-svc@srv1' "one" >/dev/null
-ab parf@localhost send '#tight-svc@srv1' "two" >/dev/null
-# Loss against the name that suffered it, not against a node-wide total: a
-# ring keeps the newest and the oldest is gone.
-ab parf@localhost register '#lossy-svc@srv1' --kind agent --allow '*' --bound 1 --overflow ring --descr "keeps the newest" >/dev/null
-ab parf@localhost send '#lossy-svc@srv1' "first" >/dev/null
-ab parf@localhost send '#lossy-svc@srv1' "second" >/dev/null
-# A request and its ack, one exchange: same topic and tag, two envelopes.
-# The asker is registered because a receipt goes back to it by name.
-ab owner@srv1 register '#job-caller@srv1' --kind agent --allow '*' --descr "asks for work" >/dev/null
-ab owner@srv1 register '#work-svc@srv1' --kind agent --allow '*' --descr "does the work" >/dev/null
-ab '#job-caller@srv1' send '#work-svc@srv1' --topic job --tag 77 "do it" >/dev/null
-( msg=$(ab '#work-svc@srv1' consume --wait 5s)
-  id=$(printf '%s' "$msg" | sed 's/.*"message_id":"\([^"]*\)".*/\1/')
-  [ -n "$id" ] && ab '#work-svc@srv1' ack "$id" ) >/dev/null 2>&1
-# The newer backlog is the DEEPER one, so ordering by depth puts it first and
-# ordering by age puts the stalled one first. Oldest first is the rule.
-sleep 2
-ab parf@localhost register '#burst-svc@srv1' --kind agent --allow '*' --descr "a burst" >/dev/null
-for n in 1 2 3; do ab parf@localhost send '#burst-svc@srv1' "burst $n" >/dev/null; done
-VIEWS=$(curl -s -b "$JAR" "$WEB/")
-DIAGV=$(curl -s -b "$JAR" "$WEB/diagnostics")
-STUCK=$(sect stuck "$DIAGV")
-has "a backlog is listed as stuck" "$STUCK" '#slow-svc@srv1'
-is_empty "and an agent with a reader and nothing waiting is not" \
-  "$(printf '%s' "$STUCK" | grep -o '#busy-svc@srv1')"
-has "and the oldest backlog is ahead of a deeper, newer one" \
-  "$(first_of "$STUCK" '#slow-svc@srv1' '#burst-svc@srv1')" '#slow-svc@srv1'
-# "at capacity when observed", not "full": what was true at the moment of the
-# read, never a prediction about the next send
-# (Plans/MVP/web/data-dictionary.md#queue).
-has "a queue at its bound is marked at capacity, and dated to the observation" \
-  "$(printf '%s' "$STUCK" | grep '#tight-svc@srv1')" 'at capacity when observed'
-is_empty "and one with room is not" \
-  "$(printf '%s' "$STUCK" | grep '#slow-svc@srv1' | grep -o 'at capacity')"
-ab parf@localhost send '#busy-svc@srv1' "go" >/dev/null
-wait $busy_pid 2>/dev/null
-LOSS=$(sect loss "$DIAGV")
-has "loss is shown against the name that suffered it" "$LOSS" '#lossy-svc@srv1'
-is_empty "and not against a name that lost nothing" \
-  "$(printf '%s' "$LOSS" | grep -o '#slow-svc@srv1')"
-XCH=$(sect exchanges "$DIAGV")
-has "a request and its ack are one exchange, not two lines" \
-  "$(printf '%s' "$XCH" | grep 'job' | grep '77')" '>2<'
-NODE_VIEW=$(sect node "$VIEWS")
-has "a signed-in caller is told how long the node has been up" \
-  "$NODE_VIEW" '>Uptime</span><strong>[0-9]'
-# Only the reasons that have happened: a reason with a zero beside it is
-# noise on every other node. See docs/05-discovery.md#refusals.
-tcode not-a-token /ls >/dev/null
-REFUSALS=$(sect refusals "$(curl -s -b "$JAR" "$WEB/diagnostics")")
-has "and what the node is refusing" "$REFUSALS" 'credential'
-has "including a reason that has not happened, as a measured zero" \
-  "$(printf '%s' "$REFUSALS" | grep -o '<td class=num>0' | wc -l | tr -d ' ')" '^[1-9]'
-is_empty "and the short Overview carries none of that detail" \
-  "$(printf '%s' "$NODE_VIEW" | grep -o 'credential')"
-# A fingerprint names a credential without being one, which is the whole
-# reason a page may show it. See docs/02-access.md#token-lifetime.
-FP=$(tbody "$TOKEN" /names | sed -n 's/.*"fingerprint":"\([0-9a-f]*\)".*/\1/p' | head -1)
-WEB_ACCOUNT_PAGE=$(curl -s -b "$JAR" "$WEB/account")
-has "a caller's own credential is named by its fingerprint" "$WEB_ACCOUNT_PAGE" "$FP"
-# Every page family the old single wall stood for, because the split left this
-# check looking at Overview alone.
-is_empty "and no page carries the token anywhere on it" \
-  "$(printf '%s\n%s\n%s\n%s' "$VIEWS" "$DIAGV" "$RECS" "$WEB_ACCOUNT_PAGE" \
-     | grep -o "$TOKEN")"
-# The session lives in the bus, so the child has nothing to lose. A session
-# map inside the child passes every check above and fails this one.
-kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
-AGENT_BUS_ADDR=$D/bus.sock \
-  "$D/agent-bus-web" -addr 127.0.0.1:$((PORT+9)) >>"$D/web.log" 2>&1 &
-WPID=$!
-for _ in $(seq 1 50); do curl -s -o /dev/null "$WEB/" && break; sleep 0.1; done
-has "a web child restarted mid-session logs nobody out" \
-  "$(curl -s -b "$JAR" "$WEB/agents")" 'watched by the board'
-curl -s -b "$JAR" -o /dev/null -X POST "$WEB/signout"
-is_empty "and signing out ends the session" \
-  "$(curl -s -b "$JAR" "$WEB/agents" | grep -o 'watched by the board')"
-kill $WPID 2>/dev/null; wait $WPID 2>/dev/null
-# HTTPS is not the default any more, but it is still there for somebody who
-# has a certificate: supply one and the dashboard serves it. The suite makes
-# its own for `localhost`, which resolves without asking anyone — which costs
-# about a second, so this half is opt-in.
-# See docs/05-discovery.md#where-it-listens.
-if slow; then
-mkdir -p "$D/tls"
-openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=localhost" \
-  -addext "subjectAltName=DNS:localhost" \
-  -keyout "$D/tls/key" -out "$D/tls/crt" >/dev/null 2>&1
-AGENT_BUS_ADDR=$D/bus.sock \
-  "$D/agent-bus-web" -addr "localhost:$((PORT+11))" -cert "$D/tls/crt" -key "$D/tls/key" >"$D/webtls.log" 2>&1 &
-WTPID=$!
-for _ in $(seq 1 50); do curl -sk -o /dev/null "https://localhost:$((PORT+11))/" && break; sleep 0.1; done
-TJAR=$D/tls.jar; rm -f "$TJAR"
-curl -sS --cacert "$D/tls/crt" -c "$TJAR" -o /dev/null -X POST -d "token=$TOKEN" \
-  "https://localhost:$((PORT+11))/signin"
-has "a session cookie made over https is marked secure" "$(cat "$TJAR")" 'TRUE.*agent_bus_session'
-# Diagnostics, because that is where the retained envelopes are now
-# (Plans/MVP/web/pages.md#overview-); the point here is the certificate, the
-# cookie and the absent body, not which page carries them.
-TLSPAGE=$(curl -sS --cacert "$D/tls/crt" -b "$TJAR" "https://localhost:$((PORT+11))/diagnostics" 2>&1)
-# curl verifies the chain and the hostname against that file alone — no -k —
-# so an answer at all is the certificate being the one it was handed.
-has "the dashboard answers https when it is given a certificate" \
-  "$(sect exchanges "$TLSPAGE")" '#board-svc@srv1'
-is_empty "with no body there either" "$(printf '%s' "$TLSPAGE" | grep -o "$SECRET")"
-has "it says which scheme it came up on" "$(cat "$D/webtls.log")" 'https://'
-kill $WTPID 2>/dev/null; wait $WTPID 2>/dev/null
-# Every port is asked for on purpose now that none is a default, so a port it
-# may not bind is an error rather than a quiet move to a neighbouring one.
-has "a port it may not bind is an error, not a quiet move" \
-  "$(AGENT_BUS_ADDR=$D/bus.sock \
-     timeout 2 "$D/agent-bus-web" -addr 127.0.0.1:80 -cert "$D/tls/crt" -key "$D/tls/key" 2>&1)" \
-  'permission denied'
-# Without a pair it is plain HTTP on loopback. Use a suite-owned port so an
-# installed dashboard can keep running while the suite checks this behavior.
-out=$(AGENT_BUS_ADDR=$D/bus.sock \
-  timeout 2 "$D/agent-bus-web" -addr "127.0.0.1:$((PORT+11))" -cert "$D/tls/absent" -key "$D/tls/absent" 2>&1)
-has "a certificate that was asked for and is not there refuses to start" "$out" 'refusing to start'
-lacks "and never comes up on plain http instead" "$out" "http://127.0.0.1:$((PORT+11))"
-# Half a pair is the same ask, and the same refusal.
-out=$(AGENT_BUS_ADDR=$D/bus.sock \
-  timeout 2 "$D/agent-bus-web" -addr "127.0.0.1:$((PORT+11))" -cert "$D/tls/crt" 2>&1)
-has "a certificate with no key is the same refusal" "$out" 'refusing to start'
-fi
+# The dashboard is the TypeScript web face since 0.8.50, its own unit and
+# its own tests: the web_ts shard (src/web/test).
 
 }
 restart() {
@@ -3140,58 +2725,21 @@ sec "the supervisor holds the sockets, and the bus serves them"
 # request; the process that serves is handed listeners that already exist and
 # could not make one. See docs/11-processes.md#the-rule.
 mkdir -p "$D/sup"
-# The production setup unit supplies the delegated subgroup used by web-only
-# limits. This development fixture uses an explicit transient user unit with
-# the same construction; running the binary directly would correctly leave
-# web down rather than silently unbounded.
-SUPUNIT=agent-bus-smoke-$BASHPID
-systemd-run --user --unit="$SUPUNIT" --collect --wait --pipe --quiet \
-  --working-directory="$(pwd)" --setenv=AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) \
-  --setenv=AGENT_BUS_WEB_USER_DELEGATION=1 \
-  -p Delegate=cpu -p Delegate=memory -p Delegate=pids -p DelegateSubgroup=supervisor \
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" \
+# -web ran the Go dashboard as a child until 0.8.50; a unit written before
+# then still passes it, so it is accepted and does nothing.
+SUPUNIT=""
+"$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" \
   -owner "$OWNER" -db "$D/sup/bus.db" -create -flush-every 0 -web >"$D/sup/log" 2>&1 &
 SUPRUN=$!
-for _ in $(seq 1 100); do
-  SUP=$(systemctl --user show "$SUPUNIT" -p MainPID --value 2>/dev/null)
-  [ "${SUP:-0}" -gt 0 ] && break
-  sleep 0.05
-done
+SUP=$SUPRUN
 ready "$D/sup/bus.sock" || echo "  WARNING: $D/sup/bus.sock never answered"
 # By parent pid throughout: a pattern would match anything else on the host.
-has "the daemon is a supervisor and its children" "$(pgrep -P "$SUP" | wc -l)" '^2$'
-# Bubblewrap owns the web's PID namespace and reaper. Inspect the descendant
-# tree, rather than mistaking its wrapper for the renderer or losing orphans.
+has "the daemon is a supervisor and its one child, the bus" "$(pgrep -P "$SUP" | wc -l)" '^1$'
+lacks "and the old -web asks for no dashboard child" "$(pgrep -P "$SUP" -a)" 'agent-bus-web\|bwrap'
 descendants() {
   local child
   for child in $(pgrep -P "$1"); do echo "$child"; descendants "$child"; done
 }
-for _ in $(seq 1 50); do
-  WEBPID=$(ps -o pid=,comm= -p $(descendants "$SUP" | paste -sd, -) | awk '$2 == "agent-bus-web" {print $1}')
-  [ -n "$WEBPID" ] && break
-  sleep 0.1
-done
-has "and the dashboard is one of them, not something it embeds" \
-  "$(ps -o comm= -p "$WEBPID")" 'agent-bus-web'
-is_empty "the dashboard carries no token of its own" \
-  "$(tr '\0' '\n' < /proc/$WEBPID/environ | grep AGENT_BUS_TOKEN)"
-# And not the owner's socket either, which is the half a missing token does
-# not cover: on that socket it would be the owner without a credential at all.
-# See docs/05-discovery.md#signing-in.
-has "and reaches the bus over the shared socket, not the owner's" \
-  "$(tr '\0' '\n' < /proc/$WEBPID/environ | grep AGENT_BUS_ADDR)" '^AGENT_BUS_ADDR=/bus.sock$'
-AGENT_BUS_ADDR=$D/sup/user-$ACCOUNT.sock "$D/agent-bus" register '#sup-svc@srv1' --kind agent --allow '*' \
-  --descr "seen through the supervisor" >/dev/null
-for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+12))/" && break; sleep 0.1; done
-# The record is there and the page still will not say so: a supervised child
-# has no more authority than one started by hand.
-is_empty "so it names nobody until somebody signs in" \
-  "$(curl -s "http://127.0.0.1:$((PORT+12))/agents" | grep -o 'seen through the supervisor')"
-SJAR=$D/sup/jar; rm -f "$SJAR"
-curl -s -c "$SJAR" -o /dev/null -X POST -d "token=$(owner_token "$D/sup")" \
-  "http://127.0.0.1:$((PORT+12))/signin"
-has "and what a signed-in caller sees came from the bus behind it" \
-  "$(curl -s -b "$SJAR" "http://127.0.0.1:$((PORT+12))/agents")" 'seen through the supervisor'
 BUSPID=$(pgrep -P "$SUP" -x agent-busd)
 INODE=$(stat -c %i "$D/sup/user-$ACCOUNT.sock")
 kill -9 "$BUSPID" 2>/dev/null
@@ -3220,7 +2768,7 @@ is_empty "and takes the sockets it made with it" "$(ls "$D/sup/"*.sock 2>/dev/nu
 # A supervisor that is killed outright cannot tidy up, so the kernel does it:
 # an orphaned bus would keep the listeners and the next start would find the
 # address in use.
-AGENT_BUS_WEB_ADDR=127.0.0.1:$((PORT+12)) \
+
   "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" \
   -owner "$OWNER" -db "$D/sup/bus.db" -create -flush-every 0 >"$D/sup/log2" 2>&1 &
 SUP2=$!
@@ -3347,6 +2895,48 @@ mcp_push() { mcp_face "claude push" mcp_push_body; }
 mcp_codex() { mcp_face "codex adapter" mcp_codex_body; }
 mcp_launcher() { mcp_face "installed launcher" mcp_launcher_body; }
 mcp_rename() { mcp_face "coordinated launcher rename" mcp_rename_body; }
+# agent-bus-setup --samples fills a node with a galaxy far, far away, and
+# --remove-samples takes exactly that away again. Its own daemon, so the
+# samples meet no other section's names (docs/09-setup.md#sample-data).
+samples() {
+  sec "setup adds sample data, and takes exactly it away"
+  mkdir -p "$D/smp"
+  "$D/agent-busd" -addr 127.0.0.1:$((PORT+1)) -socket "$D/smp/bus.sock" -owner "$OWNER" \
+    -db "$D/smp/bus.db" -create -flush-every 0 >"$D/smp/log" 2>&1 &
+  local SPID=$!
+  ready "$D/smp/bus.sock" || echo "  WARNING: $D/smp/bus.sock never answered"
+  local S=$D/smp/user-$ACCOUNT.sock STOK
+  STOK=$(owner_token "$D/smp")
+  sget() { curl -s --unix-socket "$D/smp/bus.sock" -H "X-Agent-Bus-Token: $STOK" "http://unix$1"; }
+  # A real record under a sample's name, with its own description, is left alone.
+  curl -s --unix-socket "$D/smp/bus.sock" -H "X-Agent-Bus-Token: $STOK" \
+    -d '{"name":"schwartz@vega","kind":"service","addr":"real:1","protocol":"https","descr":"not a sample"}' http://unix/register >/dev/null
+  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --samples 2>&1)
+  has "the samples are added" "$out" 'sample data added: 9 users, 18 records, 4 groups'
+  has "except a real record under a sample's name, which is named and left alone" "$out" 'left alone, since they are not samples: schwartz@vega'
+  has "and keeps its own owner" "$(sget '/lookup?name=schwartz%40vega')" "\"owner\":\"$OWNER\""
+  has "an agent belongs to its sample user" "$(sget '/lookup?name=%23c3po%40tatooine')" '"owner":"luke@tatooine"'
+  has "a service carries its realm and its own protocol" "$(sget '/lookup?name=death-star%40empire')" '"protocol":"superlaser"'
+  has "and a group its members" "$(sget /groups)" '"@rebels":\["han@corellia","leia@alderaan","luke@tatooine"\]'
+  has "and a little traffic" "$(sget '/lookup?name=jabba-debts%40tatooine')" '"queued":1'
+  has "a queue routes on to an agent" "$(sget '/lookup?name=droid-inbox%40tatooine')" '"subs":\["#r2d2@naboo"\]'
+  has "a service has Maintainers and a stored secret" "$(sget '/lookup?name=death-star%40empire')" '"maintainers":\["@empire"\].*"secret_sha"'
+  has "a queue and a topic are Personal" "$(sget '/lookup?name=falcon-repairs%40corellia')$(sget '/lookup?name=jedi-journal%40dagobah')" '"personal":true.*"personal":true'
+  has "and one record is inactive" "$(sget /inactive)" 'death-star-ii@endor'
+  again=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --samples 2>&1)
+  has "a second run changes nothing, and sends nothing twice" "$(sget '/lookup?name=jabba-debts%40tatooine')" '"queued":1'
+  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --remove-samples 2>&1)
+  has "removal takes the sample records, draining their inboxes first" "$out" 'sample data removed: 17 records unregistered'
+  has "and names what it left alone" "$out" 'left alone.*schwartz@vega'
+  has "which is still there as it was" "$(sget '/lookup?name=schwartz%40vega')" '"descr":"not a sample"'
+  lacks "no sample record remains" "$(sget /ls)" 'c3po\|death-star\|air-supply'
+  lacks "and no sample group" "$(sget /groups)" '@rebels\|@jedi'
+  has "while the sample users are deactivated, never removed" "$(sget /users)" '"name":"luke@tatooine"[^}]*"status":"inactive"'
+  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --samples --dry-run 2>&1); rc=$?
+  bad_exit "and the option takes no other" $rc
+  kill "$SPID" 2>/dev/null; wait "$SPID" 2>/dev/null
+}
+
 # The TypeScript web face: its unit tests and its contract tests, which run
 # every page through the real handler against a disposable daemon built here.
 # Each bun test is one check, so a test that fails is a failed check.

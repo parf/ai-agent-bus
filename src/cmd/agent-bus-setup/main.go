@@ -92,9 +92,26 @@ func setup() (err error) {
 	upgrade := fs.Bool("upgrade", false, "upgrade an existing packaged installation, preserving configuration and state")
 	recover := fs.Bool("recover", false, "roll back an interrupted packaged upgrade")
 	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state aside, and install fresh: the 0.7 cutover")
+	samples := fs.Bool("samples", false, "add sample users, agents, services, queues, topics and groups (Star Wars and Spaceballs) to the running node")
+	removeSamplesF := fs.Bool("remove-samples", false, "take the sample data away again: unregister its records, empty its groups, deactivate its users")
 	var users list
 	fs.Var(&users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")
 	fs.Parse(os.Args[1:])
+	if *samples || *removeSamplesF {
+		if *samples && *removeSamplesF {
+			return fmt.Errorf("choose one of --samples or --remove-samples")
+		}
+		if fs.NFlag() != 1 {
+			return fmt.Errorf("--samples and --remove-samples take no other option")
+		}
+		if _, root := ownerSocket(); root && os.Geteuid() != 0 {
+			return fmt.Errorf("the samples are written as the daemon Owner, on the daemon account's socket; run sudo %s", strings.Join(os.Args, " "))
+		}
+		if *samples {
+			return addSamples()
+		}
+		return removeSamples()
+	}
 	if *reinstall && (*upgrade || *recover) {
 		return fmt.Errorf("--reinstall cannot be combined with --upgrade or --recover")
 	}
@@ -212,6 +229,7 @@ func setup() (err error) {
 		fmt.Sprintf("initialize the database %s as %s", dbPath, svcAccount),
 		fmt.Sprintf("write %s", unitPath),
 		"reload systemd and start agent-busd, restarting a running one whose unit or release changed, and wait until it reports the installed release")
+	steps = append(steps, webSteps(webDirFor(*exe))...)
 	if *keyF != "" {
 		steps = append(steps, fmt.Sprintf("make %s the first user, from %s", me, *keyF))
 	}
@@ -360,6 +378,11 @@ func setup() (err error) {
 	node, err := waitNodeIdentity(*addr, wantVersion, wantBuild, 20*time.Second)
 	if err != nil {
 		return err
+	}
+	// The web face is its own unit; a node without it still serves every
+	// other face, so a failure is reported and not fatal.
+	if err := installWeb(webDirFor(*exe)); err != nil {
+		fmt.Fprintf(os.Stderr, "web: %v; agent-busd serves without its web face\n", err)
 	}
 	// The first user is the installer, and adding one is the admin program's
 	// job — setup does not learn a second way to do it.
@@ -664,7 +687,7 @@ StateDirectoryMode=0700
 RuntimeDirectory=%[5]s
 # 0711: everyone walks through to their own socket, nobody reads the rest.
 RuntimeDirectoryMode=0711
-ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -log-dir %[8]s -owner %[7]s -web`,
+ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -log-dir %[8]s -owner %[7]s`,
 		svcAccount, svcHome, exe, addr, filepath.Base(api.SystemRuntimeDir), api.SystemSocket(), owner, logDir)
 	for _, u := range users {
 		fmt.Fprintf(&b, " -user %s", u)
@@ -672,9 +695,6 @@ ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -log-dir %[8]s 
 	fmt.Fprintf(&b, `
 Restart=on-failure
 RestartSec=2
-# Web-only cgroup; the supervisor and bus stay outside its limits.
-Delegate=cpu memory pids
-DelegateSubgroup=supervisor
 # One capability, declared rather than taken: a per-account socket has to be
 # handed to its account. The supervisor keeps it and no child inherits it —
 # docs/11-processes.md#why-the-supervisor-holds-cap_chown

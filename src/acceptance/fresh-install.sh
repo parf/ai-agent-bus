@@ -12,8 +12,6 @@ out=$(realpath -m "${2:?new evidence directory required}")
 mkdir -m 700 -p "$out/package" "$out/fixture" "$out/evidence"
 cp "$archive" "$checksum" "$out/package/"
 cp "$(dirname "$0")/fresh-install-container.sh" "$out/fixture/run.sh"
-cp "$(dirname "$0")/installed-browser.py" "$out/fixture/browser.py"
-cp "$(dirname "$0")/installed-browser-roles.py" "$out/fixture/browser-roles.py"
 
 image=${FRESH_INSTALL_IMAGE:-localhost/agent-bus-fresh-install:arch-systemd}
 podman build --pull=never -t "$image" -f "$(dirname "$0")/fresh-install.Containerfile" "$(dirname "$0")" >"$out/image-build.log"

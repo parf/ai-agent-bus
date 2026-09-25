@@ -33,7 +33,7 @@ mutate_missing() {
   pristine || fail "$label changed accounts, state, unit or current"
   pass "$label missing artifact fails before host mutation"
 }
-mutate_missing binary agent-bus-web
+mutate_missing web web/server.ts
 mutate_missing mcp mcp/server.js
 mutate_missing launcher launchers/launcher.js
 
@@ -150,7 +150,7 @@ identity_field() { sed -n 's/.*"'"$2"'":"\([^"]*\)".*/\1/p' "$1"; }
 curl -fsS http://127.0.0.1:6767/identity >/evidence/identity-installed.json || fail "identity after install"
 [ "$(identity_field /evidence/identity-installed.json version)" = "$package_version" ] || fail "node does not report $package_version"
 [ "$(identity_field /evidence/identity-installed.json build_info)" = "$package_build" ] || fail "node build_info is not the package's $package_build"
-for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web; do
+for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token; do
   [ "$("/usr/local/bin/$command" --version | sed -n 's/^build_info: //p')" = "$package_build" ] || fail "$command build_info is not the package's"
 done
 pass "installed commands and the running node report the package's build_info $package_build"
@@ -190,11 +190,15 @@ curl -fsS --max-time 2 http://127.0.0.1:6767/identity >/dev/null || fail "the re
 
 main_pid=$(systemctl show agent-busd -p MainPID --value)
 bus_pid=$(find_bus_child "$main_pid") || fail "bus child was not found"
-web_pid=$(pgrep -f '^/agent-bus-web([[:space:]]|$)' | head -1 || true)
-[ -n "$web_pid" ] || fail "confined web child was not found"
+# The web face is its own unit and account since 0.8.50
+# (docs/11-processes.md#the-web-face).
+web_pid=$(systemctl show agent-bus-web -p MainPID --value)
+[ "${web_pid:-0}" -gt 0 ] || fail "the agent-bus-web unit has no process"
 assert_process_boundary "$main_pid" supervisor 0000000000000001
 assert_process_boundary "$bus_pid" bus 0000000000000000
-assert_process_boundary "$web_pid" web 0000000000000000
+[ "$(status_field "$web_pid" Uid)" = "$(id -u agent-bus-web)" ] || fail "web does not run as agent-bus-web"
+[ "$(status_field "$web_pid" CapEff)" = 0000000000000000 ] || fail "web holds a capability"
+[ "$(status_field "$web_pid" NoNewPrivs)" = 1 ] || fail "web lacks NoNewPrivs"
 {
   printf 'supervisor=%s\nbus=%s\nweb=%s\n' "$main_pid" "$bus_pid" "$web_pid"
   for pid in "$main_pid" "$bus_pid" "$web_pid"; do
@@ -203,14 +207,16 @@ assert_process_boundary "$web_pid" web 0000000000000000
     printf '\n'
   done
 } >/evidence/process-boundary.txt
-pass "supervisor alone holds CAP_CHOWN; bus and web hold none; all run as agent-busd with NoNewPrivs"
+pass "supervisor alone holds CAP_CHOWN; the bus holds none as agent-busd; the web face holds none as agent-bus-web; all with NoNewPrivs"
 
-# F.12's installed-browser foundation uses a real distribution browser against
-# this packaged host. Keep the credential inside the disposable container; the
-# driver records cookie properties and screenshots, never the token value.
+# The installed web face signs the owner in and serves the Overview; its
+# pages and rules are src/web/test's, run by smoke before any package.
 agent-bus-admin token owner@fresh >/root/owner.token
-python /fixture/browser.py --base http://127.0.0.1:6780 --token /root/owner.token --supervisor "$main_pid" --evidence /evidence
-pass "real installed browser follows sign-in, cookie, 0.8 pages, web-restart, bus-restart and sign-out session semantics"
+jar=/root/web.jar
+curl -fsS -c "$jar" -o /dev/null -H 'Origin: http://127.0.0.1:6780' --data-urlencode "token=$(cat /root/owner.token)" http://127.0.0.1:6780/signin ||
+  fail "the installed web face refused the owner's sign-in"
+curl -fsS -b "$jar" http://127.0.0.1:6780/ | grep -q 'Overview' || fail "the installed web face did not serve the Overview"
+pass "the installed web face signs the owner in and serves the Overview"
 
 agent-bus-admin token alice@fresh >/root/alice.token
 agent-bus-admin token bob@fresh >/root/bob.token
@@ -240,13 +246,8 @@ reply=$(timeout 15 /usr/local/bin/agent-bus call '#fresh-echo@fresh' --wait 5s '
   fail "installed agent call got no reply: $reply"
 grep -q 'fresh reply: installation works' <<<"$reply" || fail "installed agent call did not return its unique reply"
 pass "new user calls a real script agent using only installed programs; a User is refused as an agent"
-python /fixture/browser-roles.py --base http://127.0.0.1:6780 \
-  --owner-token /root/owner.token --administrator-token /root/alice.token \
-  --resource-owner-token /root/bob.token --maintainer-token /root/carol.token \
-  --ordinary-token /root/dave.token --stranger-token /root/eve.token --evidence /evidence
-pass "real installed browser exercises the five-role service/queue/pubsub/user/group matrix, stranger and origin refusals and activity graph"
 
-for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web; do
+for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token; do
   [ -L "/usr/local/bin/$command" ] || fail "$command is not a stable link"
   target=$(readlink "/usr/local/bin/$command")
   [ "$target" = "/usr/local/lib/agent-bus/current/$command" ] || fail "$command targets $target"
@@ -261,9 +262,11 @@ done
 [ -f /usr/local/lib/agent-bus/current/launchers/launcher.js ] || fail "launcher face was not installed"
 (cd /usr/local/lib/agent-bus/current && sha256sum -c MANIFEST.sha256 >/dev/null)
 unit=$(cat /etc/systemd/system/agent-busd.service)
-[ "$(grep -oE -- ' -web([[:space:]]|$)' <<<"$unit" | wc -l)" -eq 1 ] || fail "unit does not enable web exactly once"
+if grep -qE -- ' -web([[:space:]]|$)' <<<"$unit"; then fail "the daemon unit still runs a web child"; fi
+[ -L /var/lib/agent-bus/web ] && [ "$(readlink /var/lib/agent-bus/web)" = /usr/local/lib/agent-bus/current/web ] || fail "the web link does not follow the current release"
+systemctl is-active --quiet agent-bus-web || fail "the agent-bus-web unit is not active"
 if grep -Eq '/root/valid|/package|/fixture|/home/|/rd/' <<<"$unit"; then fail "unit contains a build-host path"; fi
-for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web ab-claude ab-codex ab-opencode; do
+for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token ab-claude ab-codex ab-opencode; do
   case $(readlink "/usr/local/bin/$command") in /usr/local/lib/agent-bus/current/*) ;; *) fail "$command escaped the installed tree" ;; esac
 done
 pass "complete stamped release is installed without build-host paths"

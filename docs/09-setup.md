@@ -20,12 +20,12 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 
 | Program | Runs as | What it is for |
 |---|---|---|
-| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the **two accounts** ([the two accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the unit, then hands over to `agent-bus-admin` for the first user and their local person name |
+| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the accounts ([the two accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the daemon and web units, then hands over to `agent-bus-admin` for the first user and their local person name |
 | `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](11-processes.md#processes-and-privileges)) |
-| `agent-bus-web` | the **`agent-busd` account**, started by the daemon as a child | the dashboard, speaking the API like any other client and holding no write path of its own ([discovery § dashboard](05-discovery.md#dashboard)) |
+| `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the dashboard, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](11-processes.md#the-web-face)) |
 
 ## SSH admin
 
@@ -197,31 +197,31 @@ current version returns.
 
 ## Install
 
-Enabling `-web` requires bubblewrap (`bwrap` on `PATH`) and working unprivileged
-user namespaces under the unit's restrictions. It also requires unified cgroup
-v2 and systemd 254 or newer for delegated controllers and
-`DelegateSubgroup=supervisor`. Build with `src/build.sh`:
-its static web binary needs no host libraries inside the
-[web sandbox](11-processes.md#web-authority-boundary). Missing sandbox support
-is a startup failure, never an unconfined fallback. No setuid helper or extra
-capability is granted; the web listener retains the host's unprivileged port
-rules. Fresh-host acceptance must verify this dependency on the target host.
+The web face needs **bun at `/usr/bin/bun`**; its unit executes that path and
+the libraries `ldd` reports for it, nothing else
+([processes § the web face](11-processes.md#the-web-face)). A missing bun is
+reported and the daemon still installs, without its web face. No setuid helper
+or capability is granted; the face's listener keeps the host's unprivileged
+port rules.
 
-The generated unit supplies the dashboard's [separate resource group](11-processes.md#web-resource-limits).
-Starting `agent-busd -web` outside that unit deliberately leaves web down. For
-a development run, use a transient **user** service with `Delegate=cpu`,
-`Delegate=memory`, `Delegate=pids`, `DelegateSubgroup=supervisor` and
-`AGENT_BUS_WEB_USER_DELEGATION=1`; the supervisor still verifies ownership,
-controllers, subgroup name and writability before starting web.
+**The web face.** Setup creates the `agent-bus-web` account, links
+`/var/lib/agent-bus/web` to `/usr/local/lib/agent-bus/current/web`, writes
+`/etc/systemd/system/agent-bus-web.service` from the release's unit with
+`ExecPaths` computed for this host, enables and restarts it and waits for
+`/healthz`. `--upgrade` refreshes it the same way, and `release.sh` restarts it
+after a switch, so it serves the release its link names. For development,
+`sudo src/web/install-dev.sh` links the same path to a checkout's `src/web`
+instead.
 
 **Built:** `src/package.sh [output-directory]` creates one version/platform/
-architecture archive and a portable SHA-256 file. The archive contains all six
-Go programs, the MCP face, three runtime launchers, their shared adapter,
-license, exact artifact manifest and standalone `INSTALL.md`. Build it, verify
+architecture archive and a portable SHA-256 file. The archive contains all five
+Go programs, the MCP face, the web face's sources and unit, three runtime
+launchers, their shared adapter, license, exact artifact manifest and
+standalone `INSTALL.md`. Build it, verify
 and unpack it, then run `sudo ./agent-bus-setup`. Setup validates the complete
 manifest before changing the host, installs a digest-addressed release under
 `/usr/local/lib/agent-bus`, creates stable commands under `/usr/local/bin`,
-creates the accounts and tree, writes/enables the daemon plus dashboard unit,
+creates the accounts and tree, writes/enables the daemon and web units,
 and installs the first user's key through the admin program. Without root it
 refuses and prints the command to run. `--dry-run` and `--print-unit` are
 read-only and need no root.
@@ -317,9 +317,9 @@ before rollback; they may describe an earlier identity assignment.
 ## Installation acceptance
 
 **Fresh installation is built and accepted.** A disposable host with real
-systemd, cgroup v2 and bubblewrap installs from only the archive and standalone
-instructions, starts the generated daemon/dashboard unit and completes a real
-call over the bus. Removing a daemon binary, MCP face or launcher face separately
+systemd and the system bun installs from only the archive and standalone
+instructions, starts the generated daemon and web units and completes a real
+call over the bus. Removing a daemon binary, MCP face, web face or launcher face separately
 fails before accounts, state, unit or current release exist. The retained
 [H.1 evidence](../Plans/MVP/done/fresh-install.md#checks) records the host and
 claim limits.
@@ -364,7 +364,8 @@ and `build_info: <stamp>` on the second; no daemon connection or privileges
 are needed.
 
 A direct `go build` reports `development (unstamped)` instead of inventing a
-build date. The interpreted MCP face reports the shared SemVer only.
+build date. The interpreted MCP and web faces report the shared SemVer only,
+read from `VERSION`.
 Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
 ## Local users
@@ -470,14 +471,23 @@ compressed, by copy and truncate so the daemon never reopens a file.
 
 ## The two accounts
 
-The installer creates both system accounts now. Only the daemon's runtime is
-installed; the second account and directories prepare a later runner.
+The installer creates the daemon and runner system accounts, and a third for
+the web face. The daemon and the web face are installed runtimes; the runner
+account and directories prepare a later runner. The heading keeps its name for
+existing references.
+
+| Account | Home | Shell | Runs |
+|---|---|---|---|
+| `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
+| `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | nothing yet |
+| `agent-bus-web` | `/var/lib/agent-bus/web`, the link, which it cannot write | `nologin` | the [web face](11-processes.md#the-web-face); owns nothing on disk |
 
 | Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
 |---|---|---|---|
 | `daemon/` | `agent-busd` | 700 | Daemon home and its database |
 | `runner/` | `agent-bus-runner` | 700 | Prepared runner home; no managed instances installed |
 | `service.d/` | `agent-bus-runner` | 755 | Prepared shareable script directory |
+| `web` | root, a symlink | — | The web face's code: the current release's `web/`, or a checkout's `src/web` in development |
 
 The daemon account uses `/bin/sh` because sshd runs even forced commands through
 the account shell; each issued key is restricted to its named helper, without
@@ -485,14 +495,16 @@ PTY or forwarding. The runner keeps `nologin` and receives no SSH keys. Setup
 repairs the daemon account’s former `nologin` default while preserving custom
 shells; an operator choosing one must ensure it can execute the forced helpers.
 Runtime sockets live at the [access location](02-access.md#local-socket),
-not under either home.
+not under any home.
 
 ### The two units
 
-**Built:** `/etc/systemd/system/agent-busd.service`. The heading is retained
-for existing references; a second unit is not installed in the MVP.
+**Built:** `/etc/systemd/system/agent-busd.service` for the daemon and, from
+0.8.50, `/etc/systemd/system/agent-bus-web.service` for the web face, whose
+settings [processes § the web face](11-processes.md#the-web-face) owns. The
+daemon unit no longer passes `-web` or delegates cgroup controllers.
 
-| Setting | Purpose |
+| Daemon unit setting | Purpose |
 |---|---|
 | `User=agent-busd` | Run as the service account |
 | Working/state directories and explicit state mode | Keep state under its own home |
@@ -507,6 +519,29 @@ capability.
 
 The installer also maps the prepared runner account to a local socket. The
 future runner unit is defined in [R1 operations](../Plans/R1/operations.md#runner-unit).
+
+## Sample data
+
+`sudo agent-bus-setup --samples` fills a running node with something to look
+at, from a galaxy far, far away and from Spaceballs, each name in its own
+realm; `sudo agent-bus-setup --remove-samples` takes exactly that away again.
+Both write as the daemon Owner on the daemon account's socket; with
+`AGENT_BUS_ADDR` set to a development daemon's owner socket they need no root.
+
+| Kind | Samples |
+|---|---|
+| Users | `luke@tatooine`, `leia@alderaan`, `han@corellia`, `yoda@dagobah`, `vader@empire`, `lone-starr@druidia`, `vespa@druidia`, `dark-helmet@spaceball`, `yogurt@vega` |
+| Agents | `#r2d2@naboo` (Maintainer, configuration), `#c3po@tatooine`, `#k2so@scarif`, `#dot-matrix@druidia` (Personal), `#barf@druidia` |
+| Services | `death-star@empire` (Maintainers, secret, configuration), `death-star-ii@endor` (inactive), `jedi-archives@coruscant`, `spaceball-one@spaceball`, `schwartz@vega` (secret) |
+| Queues | `rebel-alerts@hoth`, `jabba-debts@tatooine`, `air-supply@druidia`, `falcon-repairs@corellia` (Personal), `droid-inbox@tatooine` (Deliver-To route to `#r2d2@naboo`) |
+| PubSub | `imperial-news@empire`, `spaceballs-merch@spaceball`, `jedi-journal@dagobah` (Personal) |
+| Groups | `@rebels`, `@jedi`, `@empire`, `@spaceballs` |
+
+| Rule | |
+|---|---|
+| Idempotent | a second `--samples` changes nothing and sends no message twice |
+| Real data | a name that exists without its sample description — or a user with another person name — is left alone, on adding and on removing, and named |
+| Removal | sample records are drained and unregistered; sample groups are emptied, which is how a group retires; sample users are deactivated, since the daemon never removes a user. `--samples` again brings them back |
 
 ## Config locations
 

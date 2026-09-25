@@ -85,13 +85,13 @@ old_pid=$(systemctl show agent-busd -p MainPID --value)
 pass "populated old release has credentials, queued state, ACLs, local mappings and operator configuration"
 
 cp -a /root/new /root/incomplete
-unlink /root/incomplete/agent-bus-web
+unlink /root/incomplete/web/server.ts
 if /root/incomplete/agent-bus-setup --upgrade >/evidence/incomplete.out 2>&1; then
   fail "incomplete release upgraded"
 fi
 [ "$(readlink /usr/local/lib/agent-bus/current)" = "$old_current" ] || fail "incomplete release changed current"
 [ "$(systemctl show agent-busd -p MainPID --value)" = "$old_pid" ] || fail "incomplete release stopped the old daemon"
-grep -q 'agent-bus-web' /evidence/incomplete.out || fail "incomplete release did not name the missing component"
+grep -q 'web/server.ts' /evidence/incomplete.out || fail "incomplete release did not name the missing component"
 pass "incomplete release fails before stopping the old daemon"
 
 /root/new/agent-bus-setup --upgrade >/evidence/config-change.out 2>&1 &
@@ -141,7 +141,8 @@ chmod 0755 /root/broken/agent-busd
 (
   cd /root/broken
   sha256sum \
-    agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web \
+    agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token \
+    web/server.ts web/agent-bus-web.service \
     mcp/server.js launchers/launcher.js \
     launchers/ab-claude launchers/ab-codex launchers/ab-opencode \
     internal/version/VERSION LICENSE.md INSTALL.md >MANIFEST.sha256
@@ -175,27 +176,24 @@ grep -q 'queued before upgrade' <<<"$queued" || fail "queued message was lost"
 
 current=$(readlink -f /usr/local/lib/agent-bus/current)
 case "$current" in */releases/"$new_version"-*) ;; *) fail "current is not the new release: $current" ;; esac
-for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token agent-bus-web; do
+for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token; do
   [ "$("/usr/local/bin/$command" --version | head -1)" = "$new_version" ] || fail "$command is not $new_version"
 done
 cgroup=$(systemctl show agent-busd -p ControlGroup --value)
 daemons=0
-webs=0
-web_binds=0
 while read -r pid; do
   exe=$(readlink "/proc/$pid/exe" 2>/dev/null || true)
   case "$exe" in
     "$current/agent-busd") daemons=$((daemons+1)) ;;
-    "$current/agent-bus-web"|/agent-bus-web) webs=$((webs+1)) ;;
-    */releases/*/agent-busd|*/releases/*/agent-bus-web) fail "mixed running release: $exe" ;;
+    */releases/*/agent-busd) fail "mixed running release: $exe" ;;
   esac
-  args=$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null || true)
-  if [[ "$args" == *"$current/agent-bus-web"*" /agent-bus-web"* ]]; then web_binds=$((web_binds+1)); fi
 done < <(find "/sys/fs/cgroup/${cgroup#/}" -name cgroup.procs -type f -exec cat {} + | sort -u)
-[ "$daemons" -ge 2 ] && [ "$webs" -ge 1 ] && [ "$web_binds" -ge 1 ] || fail "new running set is incomplete: daemon=$daemons web=$webs web-bind=$web_binds"
+[ "$daemons" -ge 2 ] || fail "new running set is incomplete: daemon=$daemons"
+# The web face is its own unit, following the release its link names.
+systemctl is-active --quiet agent-bus-web || fail "agent-bus-web is not active after the upgrade"
 curl -fsS http://127.0.0.1:6780/ >/evidence/web.html
 # The node summary's own element, not any mention of the version.
-grep -qF ">v$new_version</span></strong>" /evidence/web.html || fail "web does not show the new node release"
+grep -qF ">v$new_version</span>" /evidence/web.html || fail "web does not show the new node release"
 pass "successful upgrade preserves state and configuration and runs one intended release"
 
 systemctl show agent-busd -p ActiveState -p MainPID -p ControlGroup >/evidence/unit-state.txt
