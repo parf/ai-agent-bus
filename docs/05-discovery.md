@@ -536,8 +536,8 @@ address it binds, not a name anybody has to make resolve.
 | a certificate | **none.** Set `AGENT_BUS_WEB_CERT` *and* `AGENT_BUS_WEB_KEY` and it serves HTTPS on the address it was given. Ask for one and miss it and it **refuses to start**: either variable is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
 | a port it may not bind | an error. No port is a default any more, so every one was asked for on purpose and none is silently traded for another |
 
-**The bus does not listen off this machine**, so the page is for the person at
-it. A borrowed public hostname bought a certificate a browser would accept and
+**The web face listens on loopback**, so the page is for the person at the
+machine; agents on other hosts use the daemon's own TCP address instead. A borrowed public hostname bought a certificate a browser would accept and
 nothing else; the one this project used had expired, which left the trust
 decision without even that to show for it. Anybody who wants HTTPS here has a
 certificate of their own and says where it is.

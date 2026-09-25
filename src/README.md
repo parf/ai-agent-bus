@@ -7,7 +7,7 @@ program, and TypeScript on Bun for the MCP face, launchers and web face.
 
 | | |
 |---|---|
-| `cmd/agent-busd` | the daemon: unix socket and loopback TCP, one token per principal |
+| `cmd/agent-busd` | the daemon: unix socket and TCP on any address, one token per principal |
 | `cmd/agent-bus-setup` | the root-only installer: verified release, accounts, tree, daemon and web units |
 | `cmd/agent-bus-admin` | what edits the `agent-busd` account's files |
 | `cmd/agent-bus` | the CLI — `agent-bus help` lists every verb |

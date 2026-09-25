@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.54 — 2026-09-25
+
+`agent-busd` binds any TCP address it is given, so agents on other hosts
+connect directly; off loopback it is plain HTTP and says so at start.
+
 ## 0.8.53 — 2026-09-25
 
 `agent-busd -addr` no longer falls back to the CLI's `AGENT_BUS_ADDR`; two web

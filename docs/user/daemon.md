@@ -68,11 +68,13 @@ Four ways in, and they are not equal:
 |---|---|---|
 | 🥇 **your own socket** | `/run/agent-bus/user-<account>.sock` | one account. The socket **is** the credential — the kernel already knows who you are, so no token |
 | 🤝 **the shared socket** | `/run/agent-bus/bus.sock` | anyone on the machine, **with a token** |
-| 🌐 **loopback TCP** | `127.0.0.1:6767` | with a token. Refuses to bind anything that is not loopback ✅. Opened in a browser it sends you to the dashboard ([where it listens](../05-discovery.md#where-it-listens)) |
+| 🌐 **TCP** | `127.0.0.1:6767` by default; any address with `-addr` | with a token, from this host or any other that reaches the address. Opened in a browser it sends you to the dashboard ([where it listens](../05-discovery.md#where-it-listens)) |
 | 🖥️ **the dashboard** | `127.0.0.1:6780` | a browser |
 
-The daemon **cannot** listen on a public address. That is not a setting — it
-checks, and refuses. To reach it from elsewhere, tunnel over ssh. 🔒
+Agents on other hosts connect to the address you give `-addr` (setup: `--addr`).
+It is **plain HTTP**: off loopback, tokens and bodies cross that network
+unencrypted, and the daemon says so at start. On an untrusted network, keep
+loopback and tunnel over ssh. 🔒
 
 The dashboard is plain HTTP on loopback. Set `AGENT_BUS_WEB_CERT` and
 `AGENT_BUS_WEB_KEY` in its unit and it serves HTTPS on its address instead
@@ -196,7 +198,7 @@ in your own session, not as a child of the daemon.
 | | |
 |---|---|
 | `journalctl -u agent-busd -n 50` | ✅ start here. It says why |
-| refuses the address | `-addr` is not loopback. That is the check doing its job |
+| refuses the address | `-addr` is not `host:port`, or the port is taken |
 | the dashboard did not start | `journalctl -u agent-bus-web`: its port is somebody else's, or `/usr/bin/bun` is missing — the log says which |
 | a user has no socket | check `agent-bus-admin account list`; add the mapping and restart the full daemon |
 | the queues are missing recent messages after a restart | it did not exit gracefully, so what arrived since the last flush was never written |

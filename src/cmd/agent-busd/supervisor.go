@@ -23,11 +23,16 @@ import (
 )
 
 func runSupervisor(c config) {
-	// Bodies are plaintext until R1, so loopback or an SSH tunnel,
-	// never a public interface.
+	// The daemon binds the address it is given, so agents on other hosts
+	// can reach it. It speaks plain HTTP: off loopback, tokens and bodies
+	// cross that network unencrypted, which is said once at start.
 	// See docs/02-access.md#trust-boundary.
-	if err := loopbackOnly(c.addr); err != nil {
+	public, err := offLoopback(c.addr)
+	if err != nil {
 		log.Fatal(err)
+	}
+	if public {
+		log.Printf("listening on %s, which is not loopback: tokens and message bodies cross that network as plain HTTP", c.addr)
 	}
 	tcp, err := net.Listen("tcp", c.addr)
 	if err != nil {

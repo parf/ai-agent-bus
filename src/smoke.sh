@@ -1362,9 +1362,17 @@ has "--follow reads the next one too" "$(cat "$D/follow.out")" 'second'
 out=$("$D/agent-busd" -addr 127.0.0.1:$((PORT+1)) -socket "$D/no-owner.sock" -db "$D/no-owner.db" -create -flush-every 0 2>&1); rc=$?
 bad_exit "the daemon refuses to derive ownership from the OS account" $rc
 has "and requires an explicit owner before opening listeners" "$out" 'required --owner name'
-out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -owner "$OWNER" -db "$D/public.db" -create -flush-every 0 2>&1); rc=$?
-bad_exit "the daemon refuses a public interface" $rc
-has "and says why" "$out" 'not loopback'
+# Agents on other hosts reach the daemon on the address it is given
+# (docs/02-access.md#trust-boundary): a wildcard bind starts and answers, and
+# the daemon says once that this is plain HTTP.
+mkdir -p "$D/pub"
+"$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/pub/bus.sock" -owner "$OWNER" -db "$D/pub/bus.db" -create -flush-every 0 >"$D/pub/log" 2>&1 &
+PUBPID=$!
+for _ in $(seq 1 50); do curl -fsS "http://127.0.0.1:$((PORT+1))/identity" >/dev/null 2>&1 && break; sleep 0.1; done
+out=$(curl -fsS "http://127.0.0.1:$((PORT+1))/identity" 2>&1)
+kill $PUBPID 2>/dev/null; wait $PUBPID 2>/dev/null
+has "the daemon binds a non-loopback address and answers on it" "$out" '"version"'
+has "and warns that it is plain HTTP there" "$(cat "$D/pub/log")" 'not loopback: tokens and message bodies cross that network as plain HTTP'
 # AGENT_BUS_ADDR is the CLI's socket path; the daemon's TCP address is its own
 # flag, so a shell that points the CLI at a socket cannot move the listener.
 out=$(AGENT_BUS_ADDR="$D/cli-only.sock" "$D/agent-busd" -h 2>&1)

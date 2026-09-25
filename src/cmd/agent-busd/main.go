@@ -54,7 +54,7 @@ func main() {
 	// its own unit (docs/11-processes.md#the-web-face). Accepted and ignored,
 	// so a unit written before then still starts.
 	flag.Bool("web", false, "ignored: the web face is its own agent-bus-web unit since 0.8.50")
-	flag.StringVar(&c.addr, "addr", "127.0.0.1:6767", "TCP listen address — loopback only; AGENT_BUS_ADDR is the CLI's socket, never this")
+	flag.StringVar(&c.addr, "addr", "127.0.0.1:6767", "TCP listen address, any interface; plain HTTP, so off loopback tokens and bodies cross the network unencrypted. AGENT_BUS_ADDR is the CLI's socket, never this")
 	flag.StringVar(&c.sock, "socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
 	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", ""), "initial daemon owner (required; later transfers are durable)")
 	flag.StringVar(&c.db, "db", env("AGENT_BUS_DB", defaultDB()), "the SQLite database holding every durable entity, credential and queue")
@@ -247,15 +247,15 @@ func clearStaleSocket(path string) error {
 	return os.Remove(path)
 }
 
-func loopbackOnly(addr string) error {
+// offLoopback says whether addr reaches past this machine: an empty host,
+// a wildcard, a name or any non-loopback IP does.
+func offLoopback(addr string) (bool, error) {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
-		return fmt.Errorf("bad -addr %q: %w", addr, err)
+		return false, fmt.Errorf("bad -addr %q: %w", addr, err)
 	}
-	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
-		return fmt.Errorf("-addr %q is not loopback: bodies are plaintext, so the daemon does not bind a public interface", addr)
-	}
-	return nil
+	ip := net.ParseIP(host)
+	return ip == nil || !ip.IsLoopback(), nil
 }
 
 func env(k, def string) string {

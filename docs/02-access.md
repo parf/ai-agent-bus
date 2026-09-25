@@ -68,8 +68,8 @@ Public exceptions are listed below.
   [key enrolment](#proving-possession) do not require an existing token.
   Neither grants unrelated registry access.
 * SSH exposes the [installed command grammar](09-setup.md#ssh-admin), not an
-  arbitrary remote-command proxy. Remote clients can tunnel to the loopback
-  listener; the daemon refuses public-interface binds.
+  arbitrary remote-command proxy. Remote clients reach the TCP listener on
+  whatever address the daemon is given, or tunnel to it over SSH.
 
 </details>
 
@@ -318,6 +318,10 @@ not served, it is not listed, and `account remove` still deletes its row.
 ## Trust boundary
 
 The release assumes a trusted host: message bodies and stored configuration are readable
-by the daemon. No peer handshake or message encryption is built. Hiding bodies
+by the daemon. No peer handshake or message encryption is built. The TCP
+listener binds any address it is given and speaks plain HTTP: off loopback,
+tokens and bodies cross that network unencrypted, and the daemon says so at
+start. Agents on other hosts connect directly on a trusted network, or through
+an SSH tunnel. Hiding bodies
 from the web face is a disclosure boundary, not encryption; encrypted sessions
 are [R1 work](../Plans/R1.0-Release/access.md#encrypted-sessions).

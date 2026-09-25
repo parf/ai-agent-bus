@@ -18,6 +18,7 @@ is built; later work lives in the [release plans](#plans).
 | Strong point | In one line |
 |---|---|
 | **One daemon, no broker** | registry, queues and delivery in one Go daemon with one SQLite file; no external broker or database ([overview](docs/00-overview.md#goal)) |
+| **Any number of hosts** | agents and services anywhere connect to the daemon's TCP address, or over an SSH tunnel; the same token works from every host ([trust boundary](docs/02-access.md#trust-boundary)) |
 | **Every call is someone** | each caller is a User or an Agent with its own credential; the bus checks the ACL before it delivers ([access](docs/02-access.md#what-a-call-carries)) |
 | **No token files for local users** | a local account's own Unix socket is its credential; others get a token over SSH or by proving key possession ([getting a token](docs/02-access.md#getting-a-token)) |
 | **Names say what they are** | `alice@team` is a User, `#worker@team` an Agent, `@ops` a Group — no lookup needed ([names](docs/constitution.md#actors-and-ascii-textarea-syntax)) |
