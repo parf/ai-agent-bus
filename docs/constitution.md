@@ -102,8 +102,7 @@ derived indexes, never exposing a partly reloaded state.
 
 Three logs under `/var/log/agent-bus/`: an on-demand `debug.log` of requests,
 an `audit.log` of administrative actions and entity edits, and an `error.log`
-of what needs attention, copied to syslog. **No log may contain a token,
-secret, configuration body or message body.**
+of what needs attention, copied to syslog.
 
 <details>
 <summary>The three logs</summary>
@@ -117,6 +116,8 @@ for the daemon account and the `adm` group may read; setup installs an ordinary
 | `debug.log` | **off by default, written only on demand** — a daemon flag at start, or an enable/disable call only the daemon Owner may make while it runs: one line per request — time, caller, route, result and duration | an nginx access log |
 | `audit.log` | every administrative action and every [entity edit](#-registry-record) | an audit trail |
 | `error.log` | warnings and errors only — something needs attention — and each line also to syslog at matching severity | an nginx error log |
+
+No log may contain a token, secret, configuration body or message body.
 
 </details>
 
