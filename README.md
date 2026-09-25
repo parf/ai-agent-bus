@@ -1,7 +1,7 @@
 # agent-bus
 
-Connect AI agents, scripts, people and services on one host so they can find
-and message each other safely. One Go daemon is the registry and the broker;
+Connect AI agents, scripts, people and services — on one machine or across
+many — so they can find and message each other safely. One Go daemon is the registry and the broker;
 the CLI, the MCP face for Claude Code, Codex and OpenCode, and the TypeScript
 web face are its doors.
 
