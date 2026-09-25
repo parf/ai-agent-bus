@@ -18,7 +18,7 @@ Credential lifetime follows the same [manual-change policy](../docs/02-access.md
 
 ## MVP
 
-**Turn the working prototype into a bus other people can install and share.** The major change is independent caller identity with enforced access, supported by restart recovery, a dashboard and a process split. Much of this is built, but MVP remains active: people administration, packaging and installed isolation evidence still prevent stage acceptance ([MVP scope](MVP/README.md#scope), [remaining work](MVP/TODO.md#remaining-work)).
+**Turn the working prototype into a bus other people can install and share.** The major change is independent caller identity with enforced access, supported by restart recovery, a dashboard and a process split. Much of this is built, but MVP remains active: people administration, packaging and installed isolation evidence still prevent stage acceptance ([MVP scope](R0.8/README.md#scope), [remaining work](R0.8/TODO.md#remaining-work)).
 
 | Major change from PoC | What changes for users and operators | Status and detail |
 |---|---|---|
@@ -27,7 +27,7 @@ Credential lifetime follows the same [manual-change policy](../docs/02-access.md
 | Publish to subscribers | Topic delivery expands from competing consumers to fan-out into subscriber inboxes | Built: [subscribers](../docs/04-messaging.md#subscribers) |
 | **Recovery across restarts** | Registry and waiting work can return after a restart, within the documented loss window | Built: [durability](../docs/04-messaging.md#durability) |
 | Operational visibility | Operators can inspect permitted records, backlog, losses and message activity through a signed-in dashboard | Built, with people view pending: [dashboard views](../docs/05-discovery.md#what-it-shows) |
-| **Installation and privilege separation** | The daemon gains a managed installation; separate processes and optional script confinement narrow responsibilities | Setup and split built; package and installed checks pending: [setup](../docs/09-setup.md#status), [stage gate](MVP/TODO.md#installed-stage-gate) |
+| **Installation and privilege separation** | The daemon gains a managed installation; separate processes and optional script confinement narrow responsibilities | Setup and split built; package and installed checks pending: [setup](../docs/09-setup.md#status), [stage gate](R0.8/TODO.md#installed-stage-gate) |
 | Usable runtime integrations | Packaged integrations and smart launchers make the existing adapters usable from a fresh installation | Built implementation; live-runtime and fresh-host acceptance pending: [integration delivery](../docs/08-runner-role.md#runtime-integration-delivery), [launchers](../docs/08-runner-role.md#smart-launchers) |
 | Trusted people and service descriptions | Maintainer-controlled profiles and a description on every record make the registry more useful to people and agents | Built: [person records](../docs/01-identity-and-roles.md#users-and-profiles), [service description](../docs/03-records.md#agent-templates); generated method information moved to [R1](R1/discovery.md#method-metadata) |
 | Release identification | Programs report a consistent release identity, and running processes expose operational context | Built: [build information](../docs/09-setup.md#build-information), [process titles](../docs/11-processes.md#process-titles) |
@@ -79,11 +79,11 @@ Catalogue selection, shared-state authority and contact visibility still have [o
 
 ## Future
 
-**Keep useful ideas visible without assigning them a release.** Future is an unassigned holding area, not the version after R1.2. Its proposals become release work only after an owner chooses scope and dependencies ([Future topics](Future/README.md#topics)).
+**Keep useful ideas visible without assigning them a release.** Future is an unassigned holding area, not the version after R1.2. Its proposals become release work only after an owner chooses scope and dependencies ([Future topics](R2.0/README.md#topics)).
 
 | Direction | Potential change | Owning proposal |
 |---|---|---|
-| Paid services | Add charging and balance enforcement around routed use | [Billing](Future/billing.md#billing-role--future) |
-| Additional identity and public lookup | Broaden identity sources or expose a public directory, subject to their distinct access decisions | [Directory integration](Future/ldap-ad.md#one-source-not-two), [public directory](Future/public-directory.md#a-public-directory-of-people-and-their-keys) |
-| Storage alternatives | Reconsider persistence, encryption at rest and replication after evaluating the actual engine properties | [Storage](Future/storage.md#storage) |
-| Additional adapters and diagnostics | Extend host/runtime support and troubleshooting as concrete needs arise | [Candidates](Future/FUTURE.md#candidates), [debug tracing](Future/debug.md#debug-mode) |
+| Paid services | Add charging and balance enforcement around routed use | [Billing](R2.0/billing.md#billing-role--future) |
+| Additional identity and public lookup | Broaden identity sources or expose a public directory, subject to their distinct access decisions | [Directory integration](R2.0/ldap-ad.md#one-source-not-two), [public directory](R2.0/public-directory.md#a-public-directory-of-people-and-their-keys) |
+| Storage alternatives | Reconsider persistence, encryption at rest and replication after evaluating the actual engine properties | [Storage](R2.0/storage.md#storage) |
+| Additional adapters and diagnostics | Extend host/runtime support and troubleshooting as concrete needs arise | [Candidates](R2.0/FUTURE.md#candidates), [debug tracing](R2.0/debug.md#debug-mode) |

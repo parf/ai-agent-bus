@@ -48,7 +48,7 @@ check consults the kind.
 a record in both directions ([ACL](02-access.md#acl)), so a kind naming a single
 principal describes what the record is *for*, not a reader the daemon enforces.
 Splitting that list into a write side and a delivery side is a separate,
-undecided question ([directional access](../Plans/Future/acl-direction.md#where-direction-is-needed)).
+undecided question ([directional access](../Plans/R2.0/acl-direction.md#where-direction-is-needed)).
 
 **A service is the external case, and everything about it lives on its own
 page.** It has no queue here, so nothing is sent to it, nothing subscribes it

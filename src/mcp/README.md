@@ -2,7 +2,7 @@
 
 One package, on bun. Five tools over stdio, and two ways to push into a live
 session. Design: [modules § languages](../../docs/10-modules.md#languages);
-scope: [stages § MVP](../../Plans/MVP/README.md#scope).
+scope: [stages § MVP](../../Plans/R0.8/README.md#scope).
 
 | File | |
 |---|---|

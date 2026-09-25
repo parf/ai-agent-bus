@@ -34,7 +34,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the two accounts](../../../docs/09-setup.md#the-two-accounts) |
 | Writing is subject to the ACL, like reading | [identity § acl](../../../docs/02-access.md#acl) |
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](../../../docs/01-identity-and-roles.md#registration) |
-| MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](../../../docs/01-identity-and-roles.md#registration) · [future](../../Future/ldap-ad.md#ldap--active-directory--future) |
+| MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](../../../docs/01-identity-and-roles.md#registration) · [future](../../R2.0/ldap-ad.md#ldap--active-directory--future) |
 | Self-service enrolment: open (auto, minimal role) or closed (approval queue) | [identity § registration](../../../docs/01-identity-and-roles.md#registration) |
 | A record carries `GithubUser` — the login, on any record and not only a `@github` one; proving one cryptographically is after R1.1 | [identity § registration](../../../docs/01-identity-and-roles.md#registration) |
 | Only a maintainer writes a user's fields, never the person, and no maintainer touches another maintainer's record or the owner's | [identity § who may write a record](../../../docs/01-identity-and-roles.md#users-and-profiles) |
@@ -117,15 +117,15 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The bus keeps a bounded feed of routed envelopes, body struck out where it is written | [discovery § dashboard](../../../docs/05-discovery.md#dashboard) |
 | The envelope feed is filtered per caller — what you were party to, and the node's for master | [discovery § dashboard](../../../docs/05-discovery.md#dashboard) |
 | The dashboard has a real hostname and a real certificate, from a public source | [discovery § where it listens](../../../docs/05-discovery.md#where-it-listens) |
-| Admin-only debug trace per service | [discovery § debug mode](../../Future/debug.md#debug-mode) |
+| Admin-only debug trace per service | [discovery § debug mode](../../R2.0/debug.md#debug-mode) |
 | The bus holds the store, and the supervisor holds nothing durable | [processes § what is shared](../../../docs/11-processes.md#what-is-shared) |
 | One binary, the role from the environment; the supervisor opens every listener and hands it down | [processes § how a child is started](../../../docs/11-processes.md#how-a-child-is-started) |
 | AUTH merged into `agent-busd` as an optional role; WEB child cgroup-limited | [overview § roles](../../../docs/00-overview.md#roles) |
 | Bundle in git over SSH; gaps resolved newer-generation-wins; master/slave | [AUTH role § topology](../../R1/auth.md#topology) |
 | `master_secret` is an out-of-band file | [AUTH role § where it runs](../../R1/auth.md#where-it-runs) |
 | Admin keys live in the bundle; root on the box is the break-glass | [AUTH role § SSH admin](../../R1/auth.md#ssh-admin) |
-| Minimal billing as an optional role: RADIUS balance, flat or per-call, no balance = denied | [future/billing.md](../../Future/billing.md#billing-role--future) |
-| Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](../../Future/billing.md#billing-role--future) |
+| Minimal billing as an optional role: RADIUS balance, flat or per-call, no balance = denied | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
+| Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
 | One push adapter per agent runtime; ChatGPT pull-only | [runner § adapters](../../../docs/08-runner-role.md#adapters) |
 | Development goes PoC → MVP → R1, each ending in something that works end to end | [stages](../../../docs/12-stages.md#stages) |
 | PoC: sockets + HTTP, one master token issued over SSH, a small set of CLI verbs, a basic MCP face, no npm | stages § PoC (PoC plan, removed 2026-09-18) |
@@ -188,7 +188,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | V2 code lives in this repo, in `src/` beside `docs/` | stages § PoC (PoC plan, removed 2026-09-18) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | The daemon keeps no reply state; a client replies from what it consumed, and `reply` is sugar over the routing fields | [messaging § reply routing](../../../docs/04-messaging.md#reply-routing) |
-| Billing is deferred out of every stage, design intact | [future/billing.md](../../Future/billing.md#billing-role--future) |
+| Billing is deferred out of every stage, design intact | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
 | One outstanding unfiltered read per inbox, with filtered waiters served ahead of it; process ownership is convention, not enforcement | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | A PoC daemon binds loopback or an SSH tunnel, never a public interface | stages § PoC (PoC plan, removed 2026-09-18) |
 | A queue topic is an inbox with a name, read by `consume --topic` | stages § PoC (PoC plan, removed 2026-09-18) |
@@ -278,9 +278,9 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 
 | ❓ | Settled by | Where |
 |---|---|---|
-| Per-method pricing needs the method name in the envelope | owner | [future/billing.md](../../Future/billing.md#billing-role--future) |
-| A newcomer with no balance cannot reach `pay` | owner | [future/billing.md](../../Future/billing.md#billing-role--future) |
-| Direct talk bypasses billing | owner | [future/billing.md](../../Future/billing.md#billing-role--future) |
+| Per-method pricing needs the method name in the envelope | owner | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
+| A newcomer with no balance cannot reach `pay` | owner | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
+| Direct talk bypasses billing | owner | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](../../R1/auth.md#ssh-admin) |
 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](../../R1/registry.md#registry-sync) |
 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
@@ -349,5 +349,5 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The MVP encrypts bodies end to end | struck: the daemon issues the key they would derive from — R1, on pairwise or derived keys — [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 | `register` both issues a credential and states a registry record | `token` issues the credential; `register` only states a record — [access § getting a token](../../../docs/02-access.md#getting-a-token) |
 | One token reaches every name, and the face overwriting `from` is the only guard | a token backs exactly one principal, and it is the only thing the daemon reads a caller out of — [access § what a call carries](../../../docs/02-access.md#what-a-call-carries) |
-| LDAP/AD in scope | deferred — [future](../../Future/ldap-ad.md#ldap--active-directory--future) |
+| LDAP/AD in scope | deferred — [future](../../R2.0/ldap-ad.md#ldap--active-directory--future) |
 | NATS · Redis Streams · AUTH-signed JWT keys | dropped; the V1 notes that described them were removed from the tree on 2026-09-18 and are in Git history at `45e0ccb` |

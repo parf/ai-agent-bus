@@ -23,7 +23,7 @@ the runtime, not to the domain core.
 
 ## 0.7 implementation requirements
 
-Requirements the [0.7 work](../Plans/MVP/0.7.0-TODO.md#verification) was built to, and later work keeps:
+Requirements the [0.7 work](../Plans/R0.8/0.7.0-TODO.md#verification) was built to, and later work keeps:
 
 - Keep authority, validation and lifecycle rules in core, shared by every face
   and backend. Share list mechanics without merging distinct permission rules.

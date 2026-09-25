@@ -44,17 +44,17 @@
 | `docs/12-stages.md#the-image` | [owner](../../R1.1/README.md#scope) |
 | `docs/future/1.2-UNDECIDED.md#shared-secrets-and-a-kv-with-locks` | [owner](../../R1.2/exploration.md#shared-secrets-and-a-kv-with-locks) |
 | `docs/future/1.2-UNDECIDED.md#whether-the-daemons-own-parts-become-services` | [owner](../../R1.2/exploration.md#whether-the-daemons-own-parts-become-services) |
-| `docs/future/1.2-UNDECIDED.md#a-public-directory-of-people-and-their-keys` | [owner](../../Future/public-directory.md#a-public-directory-of-people-and-their-keys) |
-| `docs/09-setup.md#storage` | [owner](../../Future/storage.md#storage) |
-| `docs/08-runner-role.md#in-process-queue` | [owner](../../Future/local-queues.md#in-process-queue) |
-| `docs/05-discovery.md#debug-mode` | [owner](../../Future/debug.md#debug-mode) |
+| `docs/future/1.2-UNDECIDED.md#a-public-directory-of-people-and-their-keys` | [owner](../../R2.0/public-directory.md#a-public-directory-of-people-and-their-keys) |
+| `docs/09-setup.md#storage` | [owner](../../R2.0/storage.md#storage) |
+| `docs/08-runner-role.md#in-process-queue` | [owner](../../R2.0/local-queues.md#in-process-queue) |
+| `docs/05-discovery.md#debug-mode` | [owner](../../R2.0/debug.md#debug-mode) |
 | `docs/10-modules.md#modules` | [owner](../../R1/modules.md#modules) |
 | `docs/10-modules.md#the-hot-path` | [owner](../../R1/modules.md#the-hot-path) |
 | `docs/10-modules.md#what-this-buys` | [owner](../../R1/modules.md#what-this-buys) |
 | `docs/12-stages.md#poc` | owner (PoC plan, removed 2026-09-18) |
 | `docs/12-stages.md#r1` | [owner](../../R1/README.md#scope) |
 | `docs/12-stages.md#r11` | [owner](../../R1.1/README.md#scope) |
-| `Plans/MVP/TODO.md#d--the-bus-stops-reading-payloads` | [owner](../../R1/encryption-wave.md#d--the-bus-stops-reading-payloads) |
+| `Plans/R0.8/TODO.md#d--the-bus-stops-reading-payloads` | [owner](../../R1/encryption-wave.md#d--the-bus-stops-reading-payloads) |
 
 ## Decision mapping
 
@@ -85,7 +85,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D21 | [owner](../../../docs/01-identity-and-roles.md#users-and-profiles) |
 | D22 | [owner](../../../docs/01-identity-and-roles.md#users-and-profiles) |
 | D23 | [owner](../../R1.1/people.md#how-to-reach-a-person) |
-| D24 | [owner](../../Future/FUTURE.md#candidates) |
+| D24 | [owner](../../R2.0/FUTURE.md#candidates) |
 | D25 | [owner](../../../docs/02-access.md#acl) |
 | D26 | [owner](decisions-before-rewrite.md#superseded) |
 | D27 | [owner](../../R1/identity.md#sigils) |
@@ -149,7 +149,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D85 | [owner](../../../docs/04-messaging.md#message-ttl) |
 | D86 | [owner](../../../docs/04-messaging.md#push-and-pull) |
 | D87 | [owner](../../../docs/04-messaging.md#overflow) |
-| D88 | [owner](../../Future/storage.md#storage) |
+| D88 | [owner](../../R2.0/storage.md#storage) |
 | D89 | [owner](../../../docs/04-messaging.md#envelope) |
 | D90 | [owner](../../../docs/05-discovery.md#what-a-listing-answers) |
 | D91 | [owner](../../../docs/05-discovery.md#what-a-listing-answers) |
@@ -161,15 +161,15 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D97 | [owner](../../../docs/05-discovery.md#dashboard) |
 | D98 | [owner](../../../docs/05-discovery.md#dashboard) |
 | D99 | [owner](../../../docs/05-discovery.md#where-it-listens) |
-| D100 | [owner](../../Future/debug.md#debug-mode) |
+| D100 | [owner](../../R2.0/debug.md#debug-mode) |
 | D101 | [owner](../../../docs/11-processes.md#what-is-shared) |
 | D102 | [owner](../../../docs/11-processes.md#how-a-child-is-started) |
 | D103 | [owner](../../R1/auth.md#where-it-runs) |
 | D104 | [owner](../../R1/auth.md#topology) |
 | D105 | [owner](../../R1/auth.md#where-it-runs) |
 | D106 | [owner](../../R1/auth.md#ssh-admin) |
-| D107 | [owner](../../Future/billing.md#billing-role--future) |
-| D108 | [owner](../../Future/billing.md#billing-role--future) |
+| D107 | [owner](../../R2.0/billing.md#billing-role--future) |
+| D108 | [owner](../../R2.0/billing.md#billing-role--future) |
 | D109 | [owner](../../../docs/08-runner-role.md#adapters) |
 | D110 | [owner](../../../docs/12-stages.md#stages) |
 | D111 | owner (PoC plan, removed 2026-09-18) |
@@ -232,7 +232,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D168 | owner (PoC plan, removed 2026-09-18) |
 | D169 | [owner](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | D170 | [owner](../../../docs/04-messaging.md#reply-routing) |
-| D171 | [owner](../../Future/billing.md#billing-role--future) |
+| D171 | [owner](../../R2.0/billing.md#billing-role--future) |
 | D172 | [owner](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | D173 | owner (PoC plan, removed 2026-09-18) |
 | D174 | owner (PoC plan, removed 2026-09-18) |
@@ -280,7 +280,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D216 | [owner](../../../docs/10-modules.md#external-tools) |
 | D217 | [owner](../../../docs/10-modules.md#the-rule) |
 | D218 | [owner](../../../docs/00-overview.md#goal) |
-| D219 | [owner](../../Future/FUTURE.md#candidates) |
+| D219 | [owner](../../R2.0/FUTURE.md#candidates) |
 | D220 | [owner](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | D221 | [owner](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | D222 | [owner](../../../docs/04-messaging.md#one-reader-per-inbox) |

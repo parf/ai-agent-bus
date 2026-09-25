@@ -6,7 +6,7 @@ Recorded results before the documentation rewrite; not proof of the remaining in
 
 What this stage has finished, wave by wave, and what each one proved. The
 active plan is [TODO.md](../TODO.md#todo-mvp); the stage's stable knowledge is
-[README.md](../README.md#mvp).
+[README.md](../README.md#r08).
 
 Everything below was accepted the same way
 ([PoC README § mutation first, then belief](../../../CLAUDE.md#mutation-first-then-belief)):

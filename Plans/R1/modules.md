@@ -11,7 +11,7 @@ Status: target design, not current package layout. The [built layers](../../docs
 | Managed runner | Core lifecycle logic assembled in a separate program; [runner](runner.md#what-the-runner-does) owns it |
 | Client libraries | Go, PHP, Rust, JS and Python; shared protocol description must be approved first |
 
-Database and dump alternatives are [unassigned storage work](../Future/storage.md#storage).
+Database and dump alternatives are [unassigned storage work](../R2.0/storage.md#storage).
 
 ## The hot path
 

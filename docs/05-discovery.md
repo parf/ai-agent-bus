@@ -95,7 +95,7 @@ tools configured and callable in the session.
 | Call a name on the bus | Send to an agent, user or queue and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion. A 📡 is not sent to: the catalogue gives its address and the caller speaks to it itself | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
 
 These are minimum capabilities, not a restriction on the remaining tools.
-The tools and launcher wiring are built and passed [live acceptance](../Plans/MVP/done/mcp-minimum.md#checks)
+The tools and launcher wiring are built and passed [live acceptance](../Plans/R0.8/done/mcp-minimum.md#checks)
 in Codex, OpenCode and Claude on the development host; fresh-host acceptance remains pending. Both capabilities use the caller's existing
 [ACL](02-access.md#acl); loading the tools grants no additional authority.
 
@@ -287,7 +287,7 @@ carrying it; configuration, transfer and removal remain in the red Danger Zone.
 **Adding an entity and editing one are the same form**, one page per kind
 and one field set rendered by both — for a 👤 user and a 👥 group as much as
 for a record
-([forms](../Plans/MVP/web/forms.md#rules)) — so a 👾 and a 📮 declare the TTL,
+([forms](../Plans/R0.8/web/forms.md#rules)) — so a 👾 and a 📮 declare the TTL,
 capacity and overflow of the inbox they hold, a 📣 declares a
 [Deliver-To list](04-messaging.md#subscribers) and no queue policy, and a 📡, a
 👾 and a 👥 offer a field for their [secret](06-services.md#secrets), written by a
@@ -546,7 +546,7 @@ comparisons. Receipts from topic subscribers or queue workers stay separate
 when their identity differs from the addressed topic; untagged ordinary
 messages get no inferred response links. Rows sort by newest observed activity,
 with message identity breaking ties; displayed times include their UTC offset.
-Bodies never enter this view. [MVP verification](../Plans/MVP/done/exchange-evidence.md#checks)
+Bodies never enter this view. [MVP verification](../Plans/R0.8/done/exchange-evidence.md#checks)
 records the implemented checks; installed browser acceptance remains separate.
 
 ### Refusals
@@ -671,7 +671,7 @@ page.
 The daemon remains the validator. Its JSON error envelope is rendered as a
 human message, not raw JSON. A malformed or retired browser action that never
 reaches the daemon says so on the shared shell rather than attributing the
-refusal to the daemon. [F.13.2](../Plans/MVP/done/web-shell-recovery.md#checks)
+refusal to the daemon. [F.13.2](../Plans/R0.8/done/web-shell-recovery.md#checks)
 is complete; the remaining page redesign and typed-component migration stay
 pending.
 
@@ -687,8 +687,8 @@ host. The page contract they check is [the web face spec](web-face/site-map.md#e
 
 The removed Go dashboard was accepted on 0.8.26 by real Chromium on a
 package-only host, across every tab and role; those scripts went with it. The
-[F.12 evidence](../Plans/MVP/done/installed-browser-acceptance.md#checks) and
-[F.13.6 evidence](../Plans/MVP/done/web-acceptance.md#budgets) record what they
+[F.12 evidence](../Plans/R0.8/done/installed-browser-acceptance.md#checks) and
+[F.13.6 evidence](../Plans/R0.8/done/web-acceptance.md#budgets) record what they
 proved of that face.
 
 </details>

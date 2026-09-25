@@ -4,7 +4,7 @@
 everything, names say their kind, one write-through SQLite store, and an
 inactive or incorrect entity is no such entity. **MUST**, **MUST NOT**,
 **SHOULD** and **MAY** are normative. Built in 0.7; what is still pending is
-the [0.7 plan](../Plans/MVP/0.7.0-TODO.md#storage-and-identity)'s, never this page's.
+the [0.7 plan](../Plans/R0.8/0.7.0-TODO.md#storage-and-identity)'s, never this page's.
 
 ## Persistence and loading
 
@@ -27,7 +27,7 @@ Queue contents and their `in`, `out`, `dropped` and `expired` counters keep the
 [checkpoint boundary](04-messaging.md#durability): in memory during traffic, flushed as one batch every minute and on graceful shutdown, never once
 per message, so a crash MAY lose changes since the last flush. State from
 before this model is never imported: an installation moves to it by a
-[clean reinstall](../Plans/MVP/0.7-cutover.md#procedure).
+[clean reinstall](../Plans/R0.8/0.7-cutover.md#procedure).
 A durable queue whose record is absent or cannot hold a queue is such an
 incorrect record: startup MUST ignore and report it, and MUST NOT silently drop
 or reattach that backlog.
@@ -474,11 +474,11 @@ boundary.
 
 ## Open questions
 
-The [question index](../Plans/MVP/QUESTIONS.md#open-questions) owns every open
+The [question index](../Plans/R0.8/QUESTIONS.md#open-questions) owns every open
 choice; none is open on this page.
 
 ## History
 
 What this model replaced, and the owner clarifications of September 19, 2026,
-are [history](../Plans/MVP/done/constitution-history.md#what-this-replaced);
+are [history](../Plans/R0.8/done/constitution-history.md#what-this-replaced);
 nothing here depends on them.

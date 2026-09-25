@@ -94,7 +94,7 @@ labels, answers 405 on asset paths, and its unit sees nothing else under `/var/l
 
 ## 0.8.32 — 2026-09-24
 
-The TypeScript web face (`src/web`, Plans/Web) serves every page from the site
+The TypeScript web face (`src/web`, Plans/R0.8-Web) serves every page from the site
 map on bun, with the new design; the Go face still runs beside it until cutover.
 
 ## 0.8.31 — 2026-09-23

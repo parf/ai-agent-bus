@@ -1,4 +1,6 @@
-# MVP
+# R0.8
+
+Formerly MVP.
 
 📌 **TL;DR:** Somebody other than the author can install agent-bus and use it
 safely on a shared host. Core behavior is built; accepted additions and the

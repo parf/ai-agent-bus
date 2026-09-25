@@ -4,8 +4,8 @@
 
 ## Source of truth
 
-- Selected visual direction: `Plans/MVP/web/img/services-option-2.png`
-- Selected content direction: Option 1 in `Plans/MVP/web/visual-options.md`
+- Selected visual direction: `Plans/R0.8/web/img/services-option-2.png`
+- Selected content direction: Option 1 in `Plans/R0.8/web/visual-options.md`
 - Implemented desktop capture: `tmp/services-option2-implementation-052.png`
 - Side-by-side comparison: `tmp/services-option2-comparison-052.png`
 - Comparison viewport: 1487 × 1058 CSS pixels at device scale 1

@@ -100,7 +100,7 @@ references.
 The 0.7 [open questions](QUESTIONS.md#open-questions) name the rows they block;
 the storage rows are unblocked.
 Implementation gaps are not reopened policy questions. The [Future storage
-proposal](../Future/storage.md#storage) is not a remaining MVP database requirement.
+proposal](../R2.0/storage.md#storage) is not a remaining MVP database requirement.
 
 ## Authority model
 

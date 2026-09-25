@@ -8,11 +8,11 @@ work; they are not prerequisites for that release.
 ## Storage
 
 The earlier adapter-based database proposal is split between
-[0.7 storage work](../MVP/0.7.0-TODO.md#storage-and-identity) and
+[0.7 storage work](../R0.8/0.7.0-TODO.md#storage-and-identity) and
 [R1 adapters](../R1/storage.md#backends).
 
 Built storage is defined in [setup § storage](../../docs/09-setup.md#storage).
-The [0.7 plan](../MVP/0.7.0-TODO.md#storage-and-identity) replaces that backend.
+The [0.7 plan](../R0.8/0.7.0-TODO.md#storage-and-identity) replaces that backend.
 
 **Earlier proposal, superseded by the 0.7 backend selection.** RocksDB was the preferred candidate for a replacement holding the daemon's data *and* the runner's, **encrypted at rest** — one
 store instead of a token file, a dump file, a snapshot and a directory of env

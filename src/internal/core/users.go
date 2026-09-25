@@ -765,7 +765,7 @@ func (b *Bus) userView(caller, name string) protocol.User {
 // every row: the groups each name is a member of, directly or through a
 // nested group, and the live records each name owns. Built once per answer,
 // it keeps the Users listing linear in the directory rather than
-// users x records (Plans/MVP/done/web-acceptance.md#defects-fixed). Caller holds b.mu.
+// users x records (Plans/R0.8/done/web-acceptance.md#defects-fixed). Caller holds b.mu.
 type directoryIndex struct {
 	groups map[string][]string
 	owned  map[string][]string

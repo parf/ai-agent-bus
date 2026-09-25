@@ -193,7 +193,7 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **mysql · postgres** | owner | one instance per account, granted read-only or read-write **as two names** |
 | **redis · kvrocks** | owner | the same shape |
 | **mongo** | owner | the same shape |
-| **kv** | owner | **shared, secure service state and configuration** — the small state that otherwise becomes a database nobody wanted. **The first version is an access wrapper around `kvrocks`**: the surface below is that server's own, and what this adds is who may touch which part of it. Reuse for daemon and runner storage remains an [unassigned proposal](../Future/storage.md#storage) |
+| **kv** | owner | **shared, secure service state and configuration** — the small state that otherwise becomes a database nobody wanted. **The first version is an access wrapper around `kvrocks`**: the surface below is that server's own, and what this adds is who may touch which part of it. Reuse for daemon and runner storage remains an [unassigned proposal](../R2.0/storage.md#storage) |
 | **elastic** | owner | search, and where logs go to live. `logwatch` answers about the last few minutes ([reading the box](#reading-the-box)); this answers about last month |
 | **clickhouse** | owner | analytics. Querying and ingesting are two names, as everywhere — they are rarely the same grant |
 | **object storage** | proposed | S3 and what speaks it. **files** for a disk, this for a bucket |
@@ -303,7 +303,7 @@ consumer* spent it rather than only how much the key did.
 **Which is what makes them the case billing was designed for.** A gateway needs
 nothing new to be billed: the billing role records exactly the (principal,
 service) pair a gateway already sees, and asks *may this principal call this
-service* through the [balance check](../Future/billing.md#billing-role--future). Until it is turned
+service* through the [balance check](../R2.0/billing.md#billing-role--future). Until it is turned
 on the same pair is a count and a dashboard row; after it, a cap. Splitting
 generation from embeddings **by name** rather than by verb is what makes that
 work with no new mechanism — price is declared per service, so two prices need

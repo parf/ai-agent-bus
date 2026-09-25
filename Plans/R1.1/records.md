@@ -233,7 +233,7 @@ deleted somewhere else*. The open question there gates this one.
 Status: **promoted out of R1.1 on 2026-09-18.** The design is current MVP scope
 and lives in [record kinds](../../docs/03-records.md#record-kinds)
 and [service secrets](../../docs/06-services.md#secrets),
-planned in [0.6.0](../MVP/0.6.0-TODO.md#remaining-work). This section is a
+planned in [0.6.0](../R0.8/0.6.0-TODO.md#remaining-work). This section is a
 pointer, not a second copy.
 
 What the owner settled changed the vocabulary this section was written in: the
@@ -245,4 +245,4 @@ nothing before 1.1 carries a compatibility obligation.
 **What R1.1 still owns** is narrower: how a secret is stored and rotated, and
 whether a read is recorded. That is [Q73](QUESTIONS.md#open-questions). Whether
 the daemon parses the stored bytes at all is a separate MVP question,
-[Q77](../MVP/QUESTIONS.md#open-questions).
+[Q77](../R0.8/QUESTIONS.md#open-questions).

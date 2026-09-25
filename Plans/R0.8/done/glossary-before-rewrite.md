@@ -73,7 +73,7 @@ wins.
 | **`master_secret`** | out-of-band file, AUTH replicas only | [AUTH role § where it runs](../../R1/auth.md#where-it-runs) |
 | **chaining / upstream** | query up, never replicate | [overview § chaining](../../R1/federation.md#chaining) |
 | **audience** | who may see and use a service or topic | [discovery § audience](../../../docs/05-discovery.md#audience) |
-| **debug mode** | admin-only message trace on one service | [discovery § debug mode](../../Future/debug.md#debug-mode) |
+| **debug mode** | admin-only message trace on one service | [discovery § debug mode](../../R2.0/debug.md#debug-mode) |
 | **adapter** (runtime) | per-runtime push path into a live agent session | [runner § adapters](../../../docs/08-runner-role.md#adapters) |
 | **thin glue** | built-in first, then the system's tool, then a library — never our own | [modules § external tools](../../../docs/10-modules.md#external-tools) |
 | **supervisor** | the `agent-busd` process that spawns the rest and holds nothing else | [processes](../../../docs/11-processes.md#processes-and-privileges) |

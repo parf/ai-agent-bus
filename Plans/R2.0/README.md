@@ -1,8 +1,8 @@
-# Future
+# R2.0
 
 ## Topics
 
-Generic undecided or unassigned plans. This directory is not a release and carries no delivery commitment.
+Generic undecided or unassigned plans, formerly Future. R2.0 names where they wait; it carries no delivery commitment.
 
 | Topic | Canonical knowledge |
 |---|---|

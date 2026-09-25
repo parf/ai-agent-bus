@@ -130,7 +130,7 @@ rather than convenient.
 | [pages](../web/pages.md#overview-) | the empty state carried `as of 14:22` | the time is stated once, and why |
 | [layouts](../web/layouts.md#overview--the-only-page-allowed-to-be-short) | the Overview mock showed a four-cell `Records` strip, a heading time, a per-item `observed 14:22` and an empty state time | the mock is the seven-fact strip and the once-only time; this is current layout guidance, not history, so it was corrected rather than annotated |
 | `src/smoke.sh` | three `has` checks for the counters in the anonymous footer | three absence checks there and nine signed-in Overview checks |
-| `Plans/MVP/done/design-qa.md` | recorded a `footer Owner/Uptime/Calls` observation | a dated correction line; the measurement itself is not rewritten, because it is what was observed then |
+| `Plans/R0.8/done/design-qa.md` | recorded a `footer Owner/Uptime/Calls` observation | a dated correction line; the measurement itself is not rewritten, because it is what was observed then |
 
 **One rendered-copy error the sweep found late.** The rewritten help said *the
 Services, Agents, Channels and Users pages*, which names a page that does not

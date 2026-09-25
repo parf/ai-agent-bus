@@ -48,6 +48,6 @@ reviewed their semantics; all six rendered in mdhouse and screenshots were
 inspected. The link check covered 2,728 local references with no errors.
 
 Access also embeds the existing `getting-tokens.svg` and `user-to-service.svg`.
-Both loaded in the browser. Their asset home remains `Plans/MVP` deliberately;
+Both loaded in the browser. Their asset home remains `Plans/R0.8` deliberately;
 moving that directory must update these image references as well. The originals
 were not lost in consolidation and remain linked from the MVP README.

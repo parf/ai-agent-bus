@@ -1,7 +1,7 @@
 # src
 
-The code for [stages § MVP](../Plans/MVP/README.md#scope), built wave by wave
-against [MVP work](../Plans/MVP/TODO.md#objective).
+The code for [stages § MVP](../Plans/R0.8/README.md#scope), built wave by wave
+against [MVP work](../Plans/R0.8/TODO.md#objective).
 
 | | |
 |---|---|

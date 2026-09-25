@@ -52,7 +52,7 @@ Public exceptions are listed below.
 | Local account socket | The principal mapped to that listener |
 | SSH token/admin command | The key's forced-command entitlement |
 
-![A user calls through the bus; the agent receives the message and verified sender, never the user token.](../Plans/MVP/user-to-service.svg)
+![A user calls through the bus; the agent receives the message and verified sender, never the user token.](../Plans/R0.8/user-to-service.svg)
 
 * A principal needs a profile or registry record. A bad token or unknown identity
   receives `401`; suspension receives `403 suspended`.
@@ -97,7 +97,7 @@ The key path uses [the enrolment proof](#proving-possession), including for a
 previously enrolled identity retrieving its credential again. No path issues a
 token for an unknown identity without first establishing that identity.
 
-![User credentials and the separate agent credential obtained during owner-authorized startup.](../Plans/MVP/getting-tokens.svg)
+![User credentials and the separate agent credential obtained during owner-authorized startup.](../Plans/R0.8/getting-tokens.svg)
 
 </details>
 

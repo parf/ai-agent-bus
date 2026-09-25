@@ -2020,7 +2020,7 @@ has "and the oldest backlog is ahead of a deeper, newer one" \
   "$(first_of "$STUCK" 'slow-svc@srv1' 'burst-svc@srv1')" 'slow-svc@srv1'
 # "at capacity when observed", not "full": what was true at the moment of the
 # read, never a prediction about the next send
-# (Plans/MVP/web/data-dictionary.md#queue).
+# (Plans/R0.8/web/data-dictionary.md#queue).
 has "a queue at its bound is marked at capacity, and dated to the observation" \
   "$(printf '%s' "$STUCK" | grep 'tight-svc@srv1')" 'at capacity when observed'
 is_empty "and one with room is not" \

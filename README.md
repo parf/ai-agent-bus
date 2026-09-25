@@ -9,17 +9,17 @@ MCP face and adapters run on bun.
 ## Status
 
 **MVP is in progress.** The PoC is complete. Current documentation describes the
-whole [MVP scope](Plans/MVP/README.md#scope), with built and pending explicit.
+whole [MVP scope](Plans/R0.8/README.md#scope), with built and pending explicit.
 
 | Built | Still pending |
 |---|---|
 | Principal credentials, local sockets, service ACL, profiles and Maintainers | — |
 | Registry, topics, calls and restart snapshots | — |
-| Foreground scripts, MCP, runtime adapters, launchers and fresh-host package | [Live-runtime and upgrade acceptance](Plans/MVP/TODO.md#remaining-work) |
+| Foreground scripts, MCP, runtime adapters, launchers and fresh-host package | [Live-runtime and upgrade acceptance](Plans/R0.8/TODO.md#remaining-work) |
 | Signed-in dashboard, people view, process split and installed [browser acceptance](docs/05-discovery.md#browser-acceptance) | — |
 
 [Current docs](docs/00-overview.md#document-ownership) own the contracts;
-[remaining work](Plans/MVP/TODO.md#objective) owns acceptance.
+[remaining work](Plans/R0.8/TODO.md#objective) owns acceptance.
 
 ## Using it
 
@@ -53,11 +53,11 @@ restart persistence has the [documented loss window](docs/04-messaging.md#durabi
 
 | Plan | Status |
 |---|---|
-| [MVP](Plans/MVP/README.md#scope) | Current development |
+| [MVP](Plans/R0.8/README.md#scope) | Current development |
 | [R1](Plans/R1/README.md#scope) | Proposed distributed identity and managed services |
 | [R1.1](Plans/R1.1/README.md#scope) | Proposed tools stage |
 | [R1.2](Plans/R1.2/README.md#scope) | Unscheduled exploration after tools |
-| [Future](Plans/Future/README.md#topics) | Generic undecided or unassigned ideas |
+| [Future](Plans/R2.0/README.md#topics) | Generic undecided or unassigned ideas |
 
 All local conventions live in [CLAUDE.md](CLAUDE.md#working-rules).
 
