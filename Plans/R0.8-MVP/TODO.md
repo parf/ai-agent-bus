@@ -12,7 +12,7 @@ Finish the [MVP scope](README.md#scope). Built wave results are in [DONE](DONE.m
 ## Next step
 
 None for MVP. The [0.7 constitution work](0.7.0-TODO.md#next-step) is stable
-at 0.7.20 and MVP closed on the 0.8 line; the next stage is [R1](../R1/README.md#scope).
+at 0.7.20 and MVP closed on the 0.8 line; the next stage is [R1](../R1.0-Release/README.md#scope).
 
 H.1 and H.1.1 have [fresh-install](done/fresh-install.md#checks) and [populated-upgrade](done/upgrade-recovery.md#checks) evidence. H.9.5 has [Codex/OpenCode](done/runtime-interactive.md#checks) and [Claude channel](done/runtime-interactive.md#claude-channel-checks) evidence. F.12 has [installed browser evidence](done/installed-browser-acceptance.md#checks). The installed runtimes passed on a [fresh host](done/fresh-host-runtime.md#checks). H.5.3 has [administrative crash-recovery evidence](done/administrative-durability.md#checks). H.5.2 has [real-SSH evidence](done/ssh-onboarding.md#checks); G.1.2 and G.1.3 have installed [resource](done/web-resources.md#checks) and [authority-isolation](done/web-isolation.md#checks) evidence. The [review evidence](done/release-gap-review.md#findings) distinguishes reproduced failures from unverified risks. Choices are tracked in [QUESTIONS](QUESTIONS.md#open-questions).
 
@@ -100,7 +100,7 @@ references.
 The 0.7 [open questions](QUESTIONS.md#open-questions) name the rows they block;
 the storage rows are unblocked.
 Implementation gaps are not reopened policy questions. The [Future storage
-proposal](../R2.0/storage.md#storage) is not a remaining MVP database requirement.
+proposal](../R2.0-Future/storage.md#storage) is not a remaining MVP database requirement.
 
 ## Authority model
 

@@ -19,7 +19,7 @@ F.6, F.6.1 and F.7–F.11. Installed resource-confinement acceptance remains ope
 | Browser boundary | Forms forward the visitor's session; exact-origin check, no-store responses and no rendering of credentials or stored private configuration |
 
 Optional managed runtime controls and advanced dashboard features remain
-[R1](../../R1/discovery.md#dashboard-extensions). State durability follows the
+[R1](../../R1.0-Release/discovery.md#dashboard-extensions). State durability follows the
 existing [snapshot contract](../../../docs/04-messaging.md#durability); this change
 does not add a synchronous persistence transaction per administrative request.
 

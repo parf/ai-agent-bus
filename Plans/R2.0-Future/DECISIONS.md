@@ -6,7 +6,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
-| Constitution | [0.7 work](../R0.8/0.7.0-TODO.md#objective) | Owner assigned implementation to 0.7; current decision is indexed in [MVP decisions](../../docs/decisions.md#settled) |
+| Constitution | [0.7 work](../R0.8-MVP/0.7.0-TODO.md#objective) | Owner assigned implementation to 0.7; current decision is indexed in [MVP decisions](../../docs/decisions.md#settled) |
 | Candidates | [definition](FUTURE.md#candidates) | D24, D219 |
 | Storage | [definition](storage.md#storage) | D88 |
 | Debug mode | [definition](debug.md#debug-mode) | D100 |
@@ -19,4 +19,4 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
 ## History
 
-Original wording and superseded choices are preserved in [decision history](../R0.8/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite). Original row identifiers are mapped in [migration evidence](../R0.8/done/document-migration.md#decision-mapping).
+Original wording and superseded choices are preserved in [decision history](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite). Original row identifiers are mapped in [migration evidence](../R0.8-MVP/done/document-migration.md#decision-mapping).

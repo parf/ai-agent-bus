@@ -1,5 +1,5 @@
 #!/bin/bash
-# K.17 clean-reinstall acceptance (Plans/R0.8/0.7-cutover.md#procedure). The
+# K.17 clean-reinstall acceptance (Plans/R0.8-MVP/0.7-cutover.md#procedure). The
 # disposable host sees a 0.6 release archive, a 0.7 one and this fixture, never
 # the checkout, /rd or the live installation.
 # Usage: reinstall-install.sh <0.6-archive> <0.7-archive> <new-output-directory>

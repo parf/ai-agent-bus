@@ -330,7 +330,7 @@ Every `return` value passes `local()` first: it must start with `/`, not
 | `docs/05-discovery.md#signing-in`: cookie is `Secure` | `Secure` only when serving TLS; plain-HTTP loopback cookies are not `Secure` |
 | Brief for this spec: signed-out request redirects to `/` with `return=` | no redirect; the sign-in form is served at the requested address with a hidden `return` |
 | `docs/05-discovery.md#what-a-node-says-about-itself`: header shows the realm | header shows `@ {host}` from `/identity`; there is no realm in the frame |
-| `Plans/R0.8/web-handoff/glyphs.md#where-a-glyph-is-allowed`: absence marks `¿` and `∅` | never rendered; `—` and `unavailable` are the only absence marks |
+| `Plans/R0.8-MVP/web-handoff/glyphs.md#where-a-glyph-is-allowed`: absence marks `¿` and `∅` | never rendered; `—` and `unavailable` are the only absence marks |
 
 <details><summary>Inconsistencies worth fixing in the rewrite</summary>
 

@@ -23,8 +23,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Process titles and call counts | [processes § process titles](../../../docs/11-processes.md#process-titles) |
 | Names are `user@realm`; the name is the identity, provider ids are only a check | [identity § names](../../../docs/01-identity-and-roles.md#names) |
 | What characters a name may hold, and that it starts alphanumeric | [identity § names](../../../docs/01-identity-and-roles.md#names) |
-| An ACL entry is `term(roles)`: `user`, `@group`, `#service` or `*`, with roles in parentheses and left out when there are none | [identity § sigils](../../R1/identity.md#sigils) |
-| Being in the list is the access, so there is no access level beside the role | [identity § sigils](../../R1/identity.md#sigils) |
+| An ACL entry is `term(roles)`: `user`, `@group`, `#service` or `*`, with roles in parentheses and left out when there are none | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
+| Being in the list is the access, so there is no access level beside the role | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
 | Setup installs the separate-user arrangement, and where the accounts live | [setup § the two accounts](../../../docs/09-setup.md#the-two-accounts) |
 | One program per privilege, split no finer | [setup § the programs](../../../docs/09-setup.md#the-programs) |
 | Over SSH a key reaches one forced command; the admin's is a superset, and the token verb is the same either way | [setup § the programs](../../../docs/09-setup.md#the-programs) |
@@ -34,7 +34,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The unit is what makes the arrangement true: the account, its home, one capability, restart | [setup § the two accounts](../../../docs/09-setup.md#the-two-accounts) |
 | Writing is subject to the ACL, like reading | [identity § acl](../../../docs/02-access.md#acl) |
 | Registration is a stated record; a provider is an alternative to typing it and is not needed after enrolment | [identity § registration](../../../docs/01-identity-and-roles.md#registration) |
-| MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](../../../docs/01-identity-and-roles.md#registration) · [future](../../R2.0/ldap-ad.md#ldap--active-directory--future) |
+| MVP is manual registration + GitHub; LDAP/AD deferred | [identity § registration](../../../docs/01-identity-and-roles.md#registration) · [future](../../R2.0-Future/ldap-ad.md#ldap--active-directory--future) |
 | Self-service enrolment: open (auto, minimal role) or closed (approval queue) | [identity § registration](../../../docs/01-identity-and-roles.md#registration) |
 | A record carries `GithubUser` — the login, on any record and not only a `@github` one; proving one cryptographically is after R1.1 | [identity § registration](../../../docs/01-identity-and-roles.md#registration) |
 | Only a maintainer writes a user's fields, never the person, and no maintainer touches another maintainer's record or the owner's | [identity § who may write a record](../../../docs/01-identity-and-roles.md#users-and-profiles) |
@@ -43,22 +43,22 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | How to reach a person — ordered, per severity — is part of the person's record in the daemon, not an alerter's configuration | [identity § how to reach a person](../../R1.1/people.md#how-to-reach-a-person) |
 | More identity sources later: Google, LinkedIn, Facebook — not designed | [identity § registration](../../../docs/01-identity-and-roles.md#registration) |
 | ACL is two layers: the service's record first, then master ACL; a service may refuse master access; `*:` covers the rest | [identity § acl](../../../docs/02-access.md#acl) |
-| A sigil says what an ACL entry is: bare is a user, `@` a group, `#` a role | [identity § sigils](../../R1/identity.md#sigils) |
-| A user starts alphanumeric, which every name does — so a sigil is free to lead | [identity § sigils](../../R1/identity.md#sigils) |
-| A group is only ever an ACL subject; a role only ever reaches a service, and as written | [identity § sigils](../../R1/identity.md#sigils) |
-| A group is local to one daemon, because every ACL a daemon enforces is its own | [identity § sigils](../../R1/identity.md#sigils) |
-| A group never travels: an upstream decides with its own list, so two daemons may both have `@dev` | [identity § sigils](../../R1/identity.md#sigils) |
+| A sigil says what an ACL entry is: bare is a user, `@` a group, `#` a role | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
+| A user starts alphanumeric, which every name does — so a sigil is free to lead | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
+| A group is only ever an ACL subject; a role only ever reaches a service, and as written | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
+| A group is local to one daemon, because every ACL a daemon enforces is its own | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
+| A group never travels: an upstream decides with its own list, so two daemons may both have `@dev` | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
 | The daemon filters, because it holds the record — not a face | [discovery § audience](../../../docs/05-discovery.md#audience) |
 | The MVP does not claim bodies are end to end; the bus is trusted on its own host | [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 | Possession is proved in a step of its own; the `directory` port only fetches | [identity § proving possession](../../../docs/02-access.md#proving-possession) |
 | A realm with a directory behind it is enrolled into, never registered into | [identity § proving possession](../../../docs/02-access.md#proving-possession) |
 | An enrolled record is owned by the name itself, and the proof hands out its credential | [identity § proving possession](../../../docs/02-access.md#proving-possession) |
 | `allow: *` means anyone who can authenticate | [identity § acl](../../../docs/02-access.md#acl) |
-| Delegation: A authenticates, adds an on-behalf-of claim | [identity § delegation](../../R1/identity.md#delegation) |
+| Delegation: A authenticates, adds an on-behalf-of claim | [identity § delegation](../../R1.0-Release/identity.md#delegation) |
 | Publish a service or topic: any authenticated principal; change: owner or maintainer | [identity § ownership](../../../docs/01-identity-and-roles.md#ownership) |
 | Changing a record is the owner's, and the record's own; publishing a new name stays open | [identity § ownership](../../../docs/01-identity-and-roles.md#ownership) |
 | Registry records are writer-signed where a key exists; static-token writes are unsigned | [identity § ownership](../../../docs/01-identity-and-roles.md#ownership) |
-| Sealed private config, opt-in, daemon cannot read it | [identity § sealed private config](../../R1/identity.md#sealed-private-config) |
+| Sealed private config, opt-in, daemon cannot read it | [identity § sealed private config](../../R1.0-Release/identity.md#sealed-private-config) |
 | A call carries a token and no name — the token is the principal | [access § what a call carries](../../../docs/02-access.md#what-a-call-carries) |
 | Three ways to get a token: over SSH, `token` on the box, or a key that signs a challenge | [access § getting a token](../../../docs/02-access.md#getting-a-token) |
 | `token` is the credential verb, `register` the registry one | [access § getting a token](../../../docs/02-access.md#getting-a-token) |
@@ -75,18 +75,18 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A start that follows an unclean stop says so, and from when it is missing traffic | [messaging § durability](../../../docs/04-messaging.md#durability) |
 | The socket is a credential, not an exemption from having one; one host, many users | [access § local socket](../../../docs/02-access.md#local-socket) |
 | Socket layout, ownership and the one capability it needs | [access § local socket](../../../docs/02-access.md#local-socket) |
-| Three key modes: static, pairwise, derived | [access § key modes](../../R1/access.md#key-modes) |
+| Three key modes: static, pairwise, derived | [access § key modes](../../R1.0-Release/access.md#key-modes) |
 | No forward secrecy | [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 | Bodies end-to-end encrypted; `encryption: off` per service for development | [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 | Wire is JSON, msgpack optional | [messaging § envelope](../../../docs/04-messaging.md#envelope) |
 | A service exchanges the credential it holds for one scoped to the service it is calling, as itself — which is not delegation and does not cover its first credential | [access § service to service](../../R1.1/access.md#service-to-service) |
-| Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](../../R1/access.md#key-confirmation) |
-| The daemon grants named locks — blocking, non-blocking, and a ttl that is the only other release — because a pool already shares exactly one authority | [messaging § shared locks](../../R1/locks.md#shared-locks) |
-| A set of locks is how a shared service shares countable resources: take any free one and be told which, rather than a semaphore that says only *you may* | [messaging § a set of locks](../../R1/locks.md#a-set-of-locks) |
-| Sets are not a second lock mechanism: a plain named lock is a member of the default set, and a declared set is the same thing plus the claim that its members are interchangeable | [messaging § a set of locks](../../R1/locks.md#a-set-of-locks) |
+| Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](../../R1.0-Release/access.md#key-confirmation) |
+| The daemon grants named locks — blocking, non-blocking, and a ttl that is the only other release — because a pool already shares exactly one authority | [messaging § shared locks](../../R1.0-Release/locks.md#shared-locks) |
+| A set of locks is how a shared service shares countable resources: take any free one and be told which, rather than a semaphore that says only *you may* | [messaging § a set of locks](../../R1.0-Release/locks.md#a-set-of-locks) |
+| Sets are not a second lock mechanism: a plain named lock is a member of the default set, and a declared set is the same thing plus the claim that its members are interchangeable | [messaging § a set of locks](../../R1.0-Release/locks.md#a-set-of-locks) |
 | A service name is its address and its inbox | [identity § names](../../../docs/01-identity-and-roles.md#names) |
 | Where the host is split off, and how wide an instance name may be | [identity § names](../../../docs/01-identity-and-roles.md#names) |
-| One service on many hosts, and scatter-gather over them, is R1 | [stages § R1](../../R1/README.md#scope) |
+| One service on many hosts, and scatter-gather over them, is R1 | [stages § R1](../../R1.0-Release/README.md#scope) |
 | A service is always configured; the unconfigured capability is a service template | [services § service and template](../../../docs/03-records.md#agent-templates) |
 | Config is arbitrary and separate from the name; nothing is parsed out of an address | [services § service and template](../../../docs/03-records.md#agent-templates) |
 | One verb configures a template and reads that configuration back | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
@@ -96,8 +96,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | MCP tool info stored raw, shape-checked | [services § service and template](../../../docs/03-records.md#agent-templates) |
 | Destructive methods are a hint in the description, enforced by nobody | [services § service and template](../../../docs/03-records.md#agent-templates) |
 | Topics are first-class records; kind, TTL, bound, overflow declared at creation | [services § topics](../../../docs/07-channels.md#the-two-channel-kinds) |
-| Peer registry sync is git push/pull on start; newer record wins per entry | [services § registry sync](../../R1/registry.md#registry-sync) |
-| Chaining queries an upstream, never replicates it | [overview § chaining](../../R1/federation.md#chaining) |
+| Peer registry sync is git push/pull on start; newer record wins per entry | [services § registry sync](../../R1.0-Release/registry.md#registry-sync) |
+| Chaining queries an upstream, never replicates it | [overview § chaining](../../R1.0-Release/federation.md#chaining) |
 | Per-agent queue on start; the address outlives the process | [messaging § inbox queues](../../../docs/04-messaging.md#inbox-queues) |
 | `send` to a known receiver, `publish` to a topic, `consume` your own queue | [messaging § verbs](../../../docs/04-messaging.md#verbs) |
 | `message_id` unique per channel; topic + tag; reply-to | [messaging § message fields](../../../docs/04-messaging.md#message-fields) |
@@ -117,15 +117,15 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The bus keeps a bounded feed of routed envelopes, body struck out where it is written | [discovery § dashboard](../../../docs/05-discovery.md#dashboard) |
 | The envelope feed is filtered per caller — what you were party to, and the node's for master | [discovery § dashboard](../../../docs/05-discovery.md#dashboard) |
 | The dashboard has a real hostname and a real certificate, from a public source | [discovery § where it listens](../../../docs/05-discovery.md#where-it-listens) |
-| Admin-only debug trace per service | [discovery § debug mode](../../R2.0/debug.md#debug-mode) |
+| Admin-only debug trace per service | [discovery § debug mode](../../R2.0-Future/debug.md#debug-mode) |
 | The bus holds the store, and the supervisor holds nothing durable | [processes § what is shared](../../../docs/11-processes.md#what-is-shared) |
 | One binary, the role from the environment; the supervisor opens every listener and hands it down | [processes § how a child is started](../../../docs/11-processes.md#how-a-child-is-started) |
 | AUTH merged into `agent-busd` as an optional role; WEB child cgroup-limited | [overview § roles](../../../docs/00-overview.md#roles) |
-| Bundle in git over SSH; gaps resolved newer-generation-wins; master/slave | [AUTH role § topology](../../R1/auth.md#topology) |
-| `master_secret` is an out-of-band file | [AUTH role § where it runs](../../R1/auth.md#where-it-runs) |
-| Admin keys live in the bundle; root on the box is the break-glass | [AUTH role § SSH admin](../../R1/auth.md#ssh-admin) |
-| Minimal billing as an optional role: RADIUS balance, flat or per-call, no balance = denied | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
-| Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
+| Bundle in git over SSH; gaps resolved newer-generation-wins; master/slave | [AUTH role § topology](../../R1.0-Release/auth.md#topology) |
+| `master_secret` is an out-of-band file | [AUTH role § where it runs](../../R1.0-Release/auth.md#where-it-runs) |
+| Admin keys live in the bundle; root on the box is the break-glass | [AUTH role § SSH admin](../../R1.0-Release/auth.md#ssh-admin) |
+| Minimal billing as an optional role: RADIUS balance, flat or per-call, no balance = denied | [future/billing.md](../../R2.0-Future/billing.md#billing-role--future) |
+| Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](../../R2.0-Future/billing.md#billing-role--future) |
 | One push adapter per agent runtime; ChatGPT pull-only | [runner § adapters](../../../docs/08-runner-role.md#adapters) |
 | Development goes PoC → MVP → R1, each ending in something that works end to end | [stages](../../../docs/12-stages.md#stages) |
 | PoC: sockets + HTTP, one master token issued over SSH, a small set of CLI verbs, a basic MCP face, no npm | stages § PoC (PoC plan, removed 2026-09-18) |
@@ -137,31 +137,31 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A shell script is a service: `start --algo=args\|std\|json\|jsonl\|msgpack [-N]`, stdout is the reply, no bus code in the script | [runner § script services](../../../docs/08-runner-role.md#script-services) |
 | A form names a channel (`args`, `std`), a channel and its payload (`json`), or that payload repeated (`jsonl`) | [runner § script services](../../../docs/08-runner-role.md#script-services) |
 | `std` is the body as bytes on stdin, so a binary service costs no base64 pass | [runner § script services](../../../docs/08-runner-role.md#script-services) |
-| A long-lived child is a framing, not a flag: a stream form reads frame after frame, so the process is kept | [runner § long-lived services](../../R1/runner.md#long-lived-services) |
+| A long-lived child is a framing, not a flag: a stream form reads frame after frame, so the process is kept | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-services) |
 | `msgpack` is `uint32` length + msgpack both ways — the envelope in-band, a binary body as bytes, and the process kept | [runner § script services](../../../docs/08-runner-role.md#script-services) |
-| A kept child takes one message at a time, and needs the per-message deadline the others do not | [runner § long-lived services](../../R1/runner.md#long-lived-services) |
-| `start --share` puts a service in a pool spread over any number of hosts, passing the word `consume` already has | [runner § one name on many hosts](../../R1/runner.md#one-name-on-many-hosts) |
-| A name is up while any pool member is, and which member answered is nobody's business | [runner § one name on many hosts](../../R1/runner.md#one-name-on-many-hosts) |
-| That pool members are interchangeable is the operator's promise, not something the bus checks | [runner § one name on many hosts](../../R1/runner.md#one-name-on-many-hosts) |
+| A kept child takes one message at a time, and needs the per-message deadline the others do not | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-services) |
+| `start --share` puts a service in a pool spread over any number of hosts, passing the word `consume` already has | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
+| A name is up while any pool member is, and which member answered is nobody's business | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
+| That pool members are interchangeable is the operator's promise, not something the bus checks | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
 | A realm is the name a daemon answers for; a hostname is only its default, so a pool may have a realm of its own | [identity § names](../../../docs/01-identity-and-roles.md#names) |
 | A bare name is completed with the local host as a convenience that asserts nothing; a complete name is taken whole | [identity § names](../../../docs/01-identity-and-roles.md#names) |
-| A pool is one bus — members that report to different daemons are two queues, not one service | [runner § one name on many hosts](../../R1/runner.md#one-name-on-many-hosts) |
-| The directory name is the default name to register, and `services.json` may state a complete one instead | [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
+| A pool is one bus — members that report to different daemons are two queues, not one service | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
+| The directory name is the default name to register, and `services.json` may state a complete one instead | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
 | A record is `kept` or `ephemeral`; ephemeral is what `agent-bus start` and the dashboard leave behind, and it expires after weeks of inactivity | [services § how long a record lives](../../R1.1/records.md#how-long-a-record-lives) |
 | Nothing being served ever expires; a person may delete anything, served or not | [services § how long a record lives](../../R1.1/records.md#how-long-a-record-lives) |
 | Deleting a served record forgets the name and cannot stop the process, which re-registers if it restarts | [services § how long a record lives](../../R1.1/records.md#how-long-a-record-lives) |
 | One owner, exactly one user: *whose is this?* needs one answer, and an expression can match many or none | [identity § ownership](../../../docs/01-identity-and-roles.md#ownership) |
 | The maintainer is a group and may change the ACL except its owner entry; only the owner moves ownership | [identity § ownership](../../../docs/01-identity-and-roles.md#ownership) |
-| A member states its hostname at registration: stated never observed, a label never an input, one entry per member | [discovery § where a member says it is](../../R1/discovery.md#where-a-member-says-it-is) |
-| A backup is `runner/` and nothing else: `service.d` is a checkout that can be fetched again | [runner § backing it up](../../R1/runner.md#backing-it-up) |
-| One encrypted archive, and the key is the operator's — never the daemon's | [runner § backing it up](../../R1/runner.md#backing-it-up) |
-| `services.json` lists every **installed** service, not every started one, and holds the host's options beside them | [runner § the list of what is installed](../../R1/runner.md#the-list-of-what-is-installed) |
-| `autostart: on \| off \| on-demand` is one field in that row, so installed and enabled stay separate states | [runner § the list of what is installed](../../R1/runner.md#the-list-of-what-is-installed) |
-| The runner keeps version, origin and `first-started`/`last-started` current, so a backup needs nothing generated | [runner § the list of what is installed](../../R1/runner.md#the-list-of-what-is-installed) |
-| `depends` orders starts and nothing else: no readiness wait, no watching, and a cycle is refused by name | [runner § what it comes after](../../R1/runner.md#what-it-comes-after) |
-| `depends` is the author's in `config.json`; the host adds to it and turns entries off in `services.json` | [runner § what it comes after](../../R1/runner.md#what-it-comes-after) |
-| A `depends` entry naming nothing installed here is refused: *this one is remote now* is said, never inferred | [runner § what it comes after](../../R1/runner.md#what-it-comes-after) |
-| A restore that cannot reach an origin fails by name rather than coming back short and quiet | [runner § backing it up](../../R1/runner.md#backing-it-up) |
+| A member states its hostname at registration: stated never observed, a label never an input, one entry per member | [discovery § where a member says it is](../../R1.0-Release/discovery.md#where-a-member-says-it-is) |
+| A backup is `runner/` and nothing else: `service.d` is a checkout that can be fetched again | [runner § backing it up](../../R1.0-Release/runner.md#backing-it-up) |
+| One encrypted archive, and the key is the operator's — never the daemon's | [runner § backing it up](../../R1.0-Release/runner.md#backing-it-up) |
+| `services.json` lists every **installed** service, not every started one, and holds the host's options beside them | [runner § the list of what is installed](../../R1.0-Release/runner.md#the-list-of-what-is-installed) |
+| `autostart: on \| off \| on-demand` is one field in that row, so installed and enabled stay separate states | [runner § the list of what is installed](../../R1.0-Release/runner.md#the-list-of-what-is-installed) |
+| The runner keeps version, origin and `first-started`/`last-started` current, so a backup needs nothing generated | [runner § the list of what is installed](../../R1.0-Release/runner.md#the-list-of-what-is-installed) |
+| `depends` orders starts and nothing else: no readiness wait, no watching, and a cycle is refused by name | [runner § what it comes after](../../R1.0-Release/runner.md#what-it-comes-after) |
+| `depends` is the author's in `config.json`; the host adds to it and turns entries off in `services.json` | [runner § what it comes after](../../R1.0-Release/runner.md#what-it-comes-after) |
+| A `depends` entry naming nothing installed here is refused: *this one is remote now* is said, never inferred | [runner § what it comes after](../../R1.0-Release/runner.md#what-it-comes-after) |
+| A restore that cannot reach an origin fails by name rather than coming back short and quiet | [runner § backing it up](../../R1.0-Release/runner.md#backing-it-up) |
 | Bundled services ship as ordinary services, and none of them may need a daemon change | [bundled services § rules they all obey](../../R1.1/services.md#rules-they-all-obey) |
 | No bundled service enforces access: the daemon refused the call before it arrived, which is why the tools stay small | [bundled services § rules they all obey](../../R1.1/services.md#rules-they-all-obey) |
 | Danger is a name, never a flag: read-only and read-write, shell and root-shell, are separate names because access is granted per name | [bundled services § rules they all obey](../../R1.1/services.md#rules-they-all-obey) |
@@ -188,7 +188,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | V2 code lives in this repo, in `src/` beside `docs/` | stages § PoC (PoC plan, removed 2026-09-18) |
 | `consume` is at-most-once: handed over and gone, with the loss on a crash documented | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | The daemon keeps no reply state; a client replies from what it consumed, and `reply` is sugar over the routing fields | [messaging § reply routing](../../../docs/04-messaging.md#reply-routing) |
-| Billing is deferred out of every stage, design intact | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
+| Billing is deferred out of every stage, design intact | [future/billing.md](../../R2.0-Future/billing.md#billing-role--future) |
 | One outstanding unfiltered read per inbox, with filtered waiters served ahead of it; process ownership is convention, not enforcement | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | A PoC daemon binds loopback or an SSH tunnel, never a public interface | stages § PoC (PoC plan, removed 2026-09-18) |
 | A queue topic is an inbox with a name, read by `consume --topic` | stages § PoC (PoC plan, removed 2026-09-18) |
@@ -199,7 +199,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | No verb exists only in a face: every CLI and MCP operation is first a core API | [modules § languages](../../../docs/10-modules.md#languages) |
 | Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](../../../docs/10-modules.md#external-tools) |
 | HTTP is a first-class citizen and always the built-in client, never a subprocess — unless the caller is a script | [modules § HTTP is built in](../../../docs/10-modules.md#external-tools) |
-| The per-message hot path stays in-process: a well-known library, never our own primitives | [modules § the hot path](../../R1/modules.md#the-hot-path) |
+| The per-message hot path stays in-process: a well-known library, never our own primitives | [modules § the hot path](../../R1.0-Release/modules.md#the-hot-path) |
 | Plumbing written a third time becomes one small internal module, preferred over a dependency | [modules § our own small module](../../../docs/10-modules.md#external-tools) |
 | A registration never carries a configuration or its digest; the digest is derived | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
 | An inbox belongs to a registered name: consuming as an unregistered one is refused | [messaging § inbox queues](../../../docs/04-messaging.md#inbox-queues) |
@@ -214,22 +214,22 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The runner is not part of `agent-busd`: a separate program under its own account, and no process the daemon starts may exec | [processes § nothing the daemon runs may exec](../../../docs/11-processes.md#nothing-the-daemon-runs-may-exec) |
 | Two system accounts, one per secret domain, under one `/var/lib/agent-bus` | [setup § the two accounts](../../../docs/09-setup.md#the-two-accounts) |
 | ssh with a forced command is a third way a caller is named, and how a remote daemon is reached | [access § the three doors](../../../docs/02-access.md#what-a-call-carries) |
-| The runner is a service on the bus; deploying on a host is its service ACL, not a second door | [runner § reaching the runner](../../R1/runner.md#reaching-the-runner) |
-| The runner registers as `runner@<host>`, a name like any other | [runner § reaching the runner](../../R1/runner.md#reaching-the-runner) |
+| The runner is a service on the bus; deploying on a host is its service ACL, not a second door | [runner § reaching the runner](../../R1.0-Release/runner.md#reaching-the-runner) |
+| The runner registers as `runner@<host>`, a name like any other | [runner § reaching the runner](../../R1.0-Release/runner.md#reaching-the-runner) |
 | Two accounts, two units, started and stopped independently | [setup § the two units](../../../docs/09-setup.md#the-two-units) |
 | Which bus the runner serves is a setting, defaulting to the local one | [setup § the two units](../../../docs/09-setup.md#the-two-units) |
 | A local runner wants the local daemon and starts after it, but is not stopped with it | [setup § the two units](../../../docs/09-setup.md#the-two-units) |
-| `service.d` is externally controlled — usually a checkout — so no local state lives in it | [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
-| Configuration is three env layers overlaid, and the more secret one wins | [runner § the three env layers](../../R1/runner.md#the-three-env-layers) |
-| `env.dist` declares the surface; a service needs an instance exactly when something is declared without a default | [runner § the three env layers](../../R1/runner.md#the-three-env-layers) |
-| A script under the runner holds no credential; a linked service holds one, as a variable in its env | [runner § what the child is told](../../R1/runner.md#what-the-child-is-told) |
-| The runner may never mint a credential; it asks for one for a name it owns, like anyone else | [runner § what the child is told](../../R1/runner.md#what-the-child-is-told) |
-| `config.json` owns the command line and travels with the code; `services.json` owns what is installed, whether, how many and how confined | [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
-| Configuration is write-only: it is never handed back | [runner § reaching the runner](../../R1/runner.md#reaching-the-runner) |
-| A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](../../R1/runner.md#where-it-runs) |
-| A directory is the installed state; installed, enabled and running are three states with one home each | [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
-| `reload` is `SIGHUP` to a kept child and refused on every other shape — the one place the runner cares what kind of child it has | [runner § what the runner does](../../R1/runner.md#what-the-runner-does) |
-| The verb is `start`, never `run` | [runner § what the runner does](../../R1/runner.md#what-the-runner-does) |
+| `service.d` is externally controlled — usually a checkout — so no local state lives in it | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
+| Configuration is three env layers overlaid, and the more secret one wins | [runner § the three env layers](../../R1.0-Release/runner.md#the-three-env-layers) |
+| `env.dist` declares the surface; a service needs an instance exactly when something is declared without a default | [runner § the three env layers](../../R1.0-Release/runner.md#the-three-env-layers) |
+| A script under the runner holds no credential; a linked service holds one, as a variable in its env | [runner § what the child is told](../../R1.0-Release/runner.md#what-the-child-is-told) |
+| The runner may never mint a credential; it asks for one for a name it owns, like anyone else | [runner § what the child is told](../../R1.0-Release/runner.md#what-the-child-is-told) |
+| `config.json` owns the command line and travels with the code; `services.json` owns what is installed, whether, how many and how confined | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
+| Configuration is write-only: it is never handed back | [runner § reaching the runner](../../R1.0-Release/runner.md#reaching-the-runner) |
+| A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](../../R1.0-Release/runner.md#where-it-runs) |
+| A directory is the installed state; installed, enabled and running are three states with one home each | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
+| `reload` is `SIGHUP` to a kept child and refused on every other shape — the one place the runner cares what kind of child it has | [runner § what the runner does](../../R1.0-Release/runner.md#what-the-runner-does) |
+| The verb is `start`, never `run` | [runner § what the runner does](../../R1.0-Release/runner.md#what-the-runner-does) |
 | The runner is `agent-bus-runner` as a program and an account, and `runner` on the bus | [glossary § names that are enforced](../../../docs/glossary.md#names) |
 | `CAP_CHOWN` is the supervisor's alone, so no long-running child holds a capability | [processes § why the supervisor holds CAP_CHOWN](../../../docs/11-processes.md#why-the-supervisor-holds-cap_chown) |
 | Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](../../../docs/10-modules.md#the-rule) |
@@ -266,7 +266,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The web child stops reaching the bus as the owner once people sign in | [discovery § signing in](../../../docs/05-discovery.md#signing-in) |
 | Which dashboard views are MVP, and what each one costs the daemon | [discovery § what it shows](../../../docs/05-discovery.md#what-it-shows) |
 | A person record carries three description fields; status and role are not among them | [identity § registration](../../../docs/01-identity-and-roles.md#registration) |
-| A group before AUTH is a flat named set expanded where `allow` is checked | [identity § groups and roles](../../R1/identity.md#groups-and-roles) |
+| A group before AUTH is a flat named set expanded where `allow` is checked | [identity § groups and roles](../../R1.0-Release/identity.md#groups-and-roles) |
 | A script service is started by its owner: becoming a name needs that name's credential | [runner § script services](../../../docs/08-runner-role.md#script-services) |
 | A script service is the name it registered — it reads and answers as that name | [runner § script services](../../../docs/08-runner-role.md#script-services) |
 | A script service takes a message only when a worker is free; stopping waits for the running ones | [runner § script services](../../../docs/08-runner-role.md#script-services) |
@@ -278,26 +278,26 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 
 | ❓ | Settled by | Where |
 |---|---|---|
-| Per-method pricing needs the method name in the envelope | owner | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
-| A newcomer with no balance cannot reach `pay` | owner | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
-| Direct talk bypasses billing | owner | [future/billing.md](../../R2.0/billing.md#billing-role--future) |
-| `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](../../R1/auth.md#ssh-admin) |
-| Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](../../R1/registry.md#registry-sync) |
+| Per-method pricing needs the method name in the envelope | owner | [future/billing.md](../../R2.0-Future/billing.md#billing-role--future) |
+| A newcomer with no balance cannot reach `pay` | owner | [future/billing.md](../../R2.0-Future/billing.md#billing-role--future) |
+| Direct talk bypasses billing | owner | [future/billing.md](../../R2.0-Future/billing.md#billing-role--future) |
+| `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](../../R1.0-Release/auth.md#ssh-admin) |
+| Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](../../R1.0-Release/registry.md#registry-sync) |
 | How a queued body is decrypted by a receiver that was not present when it was sent | owner, with the MVP | [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 | What carries a service's method information | owner, with the MVP faces | [services § service and template](../../../docs/03-records.md#agent-templates) |
 | What else lives in the store, and whether RocksDB replaces it — holding the daemon's and the runner's data encrypted and replicating itself, linked in or a unit of its own | owner | [setup § storage](../../../docs/09-setup.md#storage) |
 | Where the ACL and the user-to-account map are edited | owner | [setup § the programs](../../../docs/09-setup.md#the-programs) |
 | npm install vs Go-first for the first release | owner | [setup § install](../../../docs/09-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](../../../docs/08-runner-role.md#adapters) |
-| How a dormant name is woken, and what the daemon has to learn to do it | owner, in R1 | [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
-| Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](../../R1/runner.md#long-lived-services) |
+| How a dormant name is woken, and what the daemon has to learn to do it | owner, in R1 | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
+| Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-services) |
 | Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](../../../docs/08-runner-role.md#sandboxing) |
-| Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](../../R1/runner.md#where-it-runs) |
+| Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](../../R1.0-Release/runner.md#where-it-runs) |
 | How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](../../../docs/02-access.md#what-a-call-carries) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](../../../docs/10-modules.md#layers-and-modules) |
 | MVP and R1 contents | owner | [stages](../../../docs/12-stages.md#stages) |
 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
-| A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](../../R1/federation.md#chaining) |
+| A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](../../R1.0-Release/federation.md#chaining) |
 | Whether reading an inbox and filtering one become separate options | owner, with the MVP CLI | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | Whether a service holds a key of its own, and where shared secrets and a locking KV live | owner, after R1.1 | [future/1.2-UNDECIDED.md](../../R1.2/exploration.md#later-exploration) |
 | Whether the daemon's own parts — dashboard, health, stats — become bundled services rather than supervisor children | owner, once the catalogue is real | [future/1.2-UNDECIDED.md](../../R1.2/exploration.md#later-exploration) |
@@ -313,16 +313,16 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 |---|---|
 | A principal writes its own details, and its own contact list | only a maintainer writes a user's fields; trust comes from who may write rather than from the person's say-so — [identity § who may write a record](../../../docs/01-identity-and-roles.md#users-and-profiles) |
 | `kv` is ours and not a gateway: memory-only or persistent, chosen per instance | the first version is an access wrapper around `kvrocks` — the data structures are that server's, ours is the namespace and the ACL over it — [bundled services § data](../../R1.1/services.md#data) |
-| `#` marks a **role**, and an entry is a subject mapped to access and an optional role — `parf@github => rw, #admin` | `#` marks a **service**, roles moved into parentheses, and the access level went away with them: being in the list *is* the access — [identity § sigils](../../R1/identity.md#sigils) |
+| `#` marks a **role**, and an entry is a subject mapped to access and an optional role — `parf@github => rw, #admin` | `#` marks a **service**, roles moved into parentheses, and the access level went away with them: being in the list *is* the access — [identity § sigils](../../R1.0-Release/identity.md#sigils) |
 | Owner is an expression, with `owner` and `maintainer` as tiers | one owner, exactly one user, and the maintainer is a group — [identity § ownership](../../../docs/01-identity-and-roles.md#ownership) |
-| `autostart.json` — the host's file, listing what to bring up | `services.json`, listing everything **installed** with `autostart` as one field on each row, so a configured instance can be kept and started by hand — [runner § the list of what is installed](../../R1/runner.md#the-list-of-what-is-installed) |
-| The runner has no `reload`; there is no long-lived child to signal | long-lived services arrive in R1, and a kept child is exactly something to signal — [runner § what the runner does](../../R1/runner.md#what-the-runner-does) |
+| `autostart.json` — the host's file, listing what to bring up | `services.json`, listing everything **installed** with `autostart` as one field on each row, so a configured instance can be kept and started by hand — [runner § the list of what is installed](../../R1.0-Release/runner.md#the-list-of-what-is-installed) |
+| The runner has no `reload`; there is no long-lived child to signal | long-lived services arrive in R1, and a kept child is exactly something to signal — [runner § what the runner does](../../R1.0-Release/runner.md#what-the-runner-does) |
 | `--algo=std` is the envelope as one JSON line on stdin | `std` names the channel and claims nothing about the payload; the envelope form is `json`, and `std` is the raw body in bytes — [runner § script services](../../../docs/08-runner-role.md#script-services) |
-| A service's credential is handed to the runner at install | a script needs none at all and the runner asks for its own at start; a linked service carries one in its env — [runner § what the child is told](../../R1/runner.md#what-the-child-is-told) |
-| The runner has an ssh door of its own, and reaching it is the right to install | it is a service on the bus, reached by a call like anything else; the service ACL decides who may deploy — [runner § reaching the runner](../../R1/runner.md#reaching-the-runner) |
-| An instance directory holds the description, the config, the code and the credential | code and its declared surface are `service.d`, which is a checkout; only env files are the host's, under `runner/` — [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
+| A service's credential is handed to the runner at install | a script needs none at all and the runner asks for its own at start; a linked service carries one in its env — [runner § what the child is told](../../R1.0-Release/runner.md#what-the-child-is-told) |
+| The runner has an ssh door of its own, and reaching it is the right to install | it is a service on the bus, reached by a call like anything else; the service ACL decides who may deploy — [runner § reaching the runner](../../R1.0-Release/runner.md#reaching-the-runner) |
+| An instance directory holds the description, the config, the code and the credential | code and its declared surface are `service.d`, which is a checkout; only env files are the host's, under `runner/` — [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
 | Sandboxing is on by default, with a profile per child | off by default and opted into per service: secrets are injected as environment and never sit on a path the child can open, so confinement is hardening rather than what makes the layout correct — [runner § sandboxing](../../../docs/08-runner-role.md#sandboxing) |
-| The directory being there is the desired state, and there is no catalogue | it is the *installed* state; what should be **up**, and how many, is a list the runner reads at start — [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
+| The directory being there is the desired state, and there is no catalogue | it is the *installed* state; what should be **up**, and how many, is a list the runner reads at start — [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
 | The runner is one of the supervisor's children, and the only one that may exec | it is outside the daemon entirely, under its own account, so nothing the daemon starts execs at all — [processes § nothing the daemon runs may exec](../../../docs/11-processes.md#nothing-the-daemon-runs-may-exec) |
 | The daemon's system account is `agent-bus` | `agent-busd`, so the account and the CLI are not the same word — [setup § the two accounts](../../../docs/09-setup.md#the-two-accounts) |
 | The setup user gets the `agent-bus-admin` role | they hold master, and the name is the operator's program instead — [setup § the programs](../../../docs/09-setup.md#the-programs) |
@@ -349,5 +349,5 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The MVP encrypts bodies end to end | struck: the daemon issues the key they would derive from — R1, on pairwise or derived keys — [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 | `register` both issues a credential and states a registry record | `token` issues the credential; `register` only states a record — [access § getting a token](../../../docs/02-access.md#getting-a-token) |
 | One token reaches every name, and the face overwriting `from` is the only guard | a token backs exactly one principal, and it is the only thing the daemon reads a caller out of — [access § what a call carries](../../../docs/02-access.md#what-a-call-carries) |
-| LDAP/AD in scope | deferred — [future](../../R2.0/ldap-ad.md#ldap--active-directory--future) |
+| LDAP/AD in scope | deferred — [future](../../R2.0-Future/ldap-ad.md#ldap--active-directory--future) |
 | NATS · Redis Streams · AUTH-signed JWT keys | dropped; the V1 notes that described them were removed from the tree on 2026-09-18 and are in Git history at `45e0ccb` |

@@ -15,24 +15,24 @@ were argued for.
 |---|---|---|
 | 1 | **The runner is outside the daemon** — its own program under its own account, not a supervised child. So the claim is not "only one child may exec" but *no process the daemon starts may exec at all* | [processes § nothing the daemon runs may exec](../../../docs/11-processes.md#nothing-the-daemon-runs-may-exec) |
 | 2 | **Two accounts, one per secret domain**: the daemon holds every credential, the runner holds every configuration, and neither reads the other's | [setup § the two accounts](../../../docs/09-setup.md#the-two-accounts) |
-| 3 | **The runner is a service on the bus**, reached by a call like anything else. No second ssh door; who may deploy on a host is that service's ACL | [runner § reaching the runner](../../R1/runner.md#reaching-the-runner) |
-| 4 | **A service is a checkout; an instance is an env file beside it.** What a service *is* stays externally controlled and holds no secret; what a host *decided* lives apart, so a `git pull` moves no local state | [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
-| 5 | **Configuration is three layers overlaid, and the more secret one wins.** Precedence and visibility run in opposite directions | [runner § the three env layers](../../R1/runner.md#the-three-env-layers) |
-| 6 | **A declared surface does two jobs**: it makes an upload checkable, and it says whether a service needs an instance at all — so there is no second flag to disagree with | [runner § the three env layers](../../R1/runner.md#the-three-env-layers) |
-| 7 | **The author owns the command line, the host owns whether and how many.** Neither file restates the other | [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
-| 8 | **Installed, enabled and running are three states with one home each** — systemd's split, and the reason the runner keeps a list rather than walking a tree | [runner § what an instance is](../../R1/runner.md#what-an-instance-is) |
+| 3 | **The runner is a service on the bus**, reached by a call like anything else. No second ssh door; who may deploy on a host is that service's ACL | [runner § reaching the runner](../../R1.0-Release/runner.md#reaching-the-runner) |
+| 4 | **A service is a checkout; an instance is an env file beside it.** What a service *is* stays externally controlled and holds no secret; what a host *decided* lives apart, so a `git pull` moves no local state | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
+| 5 | **Configuration is three layers overlaid, and the more secret one wins.** Precedence and visibility run in opposite directions | [runner § the three env layers](../../R1.0-Release/runner.md#the-three-env-layers) |
+| 6 | **A declared surface does two jobs**: it makes an upload checkable, and it says whether a service needs an instance at all — so there is no second flag to disagree with | [runner § the three env layers](../../R1.0-Release/runner.md#the-three-env-layers) |
+| 7 | **The author owns the command line, the host owns whether and how many.** Neither file restates the other | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
+| 8 | **Installed, enabled and running are three states with one home each** — systemd's split, and the reason the runner keeps a list rather than walking a tree | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
 | 9 | **Sandboxing is off by default, opted into per service.** No secret reaches a child as a file, so confinement is hardening rather than what makes the layout correct | [runner § sandboxing](../../../docs/08-runner-role.md#sandboxing) |
-| 10 | **A script holds no credential; a linked service holds its own.** The runner asks for one for a name it owns, like anyone else, and may never mint one | [runner § what the child is told](../../R1/runner.md#what-the-child-is-told) |
-| 11 | **Configuration is write-only** — it goes in and is never handed back. Whoever truly needs the bytes becomes root | [runner § reaching the runner](../../R1/runner.md#reaching-the-runner) |
-| 12 | **The verb is `start`, never `run`** — one word whether you sit in front of it or the runner does it for you | [runner § what the runner does](../../R1/runner.md#what-the-runner-does) |
-| 13 | **A bus that is away is not a service that failed.** The client reconnects; the runner restarts nothing | [runner § where it runs](../../R1/runner.md#where-it-runs) |
+| 10 | **A script holds no credential; a linked service holds its own.** The runner asks for one for a name it owns, like anyone else, and may never mint one | [runner § what the child is told](../../R1.0-Release/runner.md#what-the-child-is-told) |
+| 11 | **Configuration is write-only** — it goes in and is never handed back. Whoever truly needs the bytes becomes root | [runner § reaching the runner](../../R1.0-Release/runner.md#reaching-the-runner) |
+| 12 | **The verb is `start`, never `run`** — one word whether you sit in front of it or the runner does it for you | [runner § what the runner does](../../R1.0-Release/runner.md#what-the-runner-does) |
+| 13 | **A bus that is away is not a service that failed.** The client reconnects; the runner restarts nothing | [runner § where it runs](../../R1.0-Release/runner.md#where-it-runs) |
 
 ## What each stage gets
 
 The split is **not** MVP work. What the MVP already ships is the thing the
 runner wraps ([stages § MVP](../README.md#scope)); the runner itself
-is [stages § R1](../../R1/README.md#scope) and is planned in
-[Plans/R1](../../R1/TODO.md#todo-r1).
+is [stages § R1](../../R1.0-Release/README.md#scope) and is planned in
+[Plans/R1.0-Release](../../R1.0-Release/TODO.md#todo-r1).
 
 | | |
 |---|---|
@@ -62,8 +62,8 @@ replaced by one that does not need the rule.**
 
 | ❓ | Where it waits |
 |---|---|
-| how a dormant name is woken, and what the daemon has to learn to do it | [runner § what an instance is](../../R1/runner.md#what-an-instance-is) — R1 |
-| whether one kept child may have several messages in flight | [runner § long-lived services](../../R1/runner.md#long-lived-services) — R1 |
+| how a dormant name is woken, and what the daemon has to learn to do it | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) — R1 |
+| whether one kept child may have several messages in flight | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-services) — R1 |
 
 The environment a child is told about is **deliberately not closed** — it is
 what the child is serving rather than who it is, and it will grow when

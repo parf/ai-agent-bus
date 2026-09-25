@@ -11,7 +11,7 @@ For ownership and management, see [Identity and roles](01-identity-and-roles.md#
 
 Tokens, key-possession enrolment, account sockets, rotation, browser sessions,
 ACLs and nested groups are built. Record-defined roles and group expressions are
-[R1 work](../Plans/R1/identity.md#groups-and-roles). Startup revocation remains
+[R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles). Startup revocation remains
 [best effort](#ownerless-credentials); further hardening is deferred. Future encryption is separate.
 The [Owner-and-Maintainers empty ACL rule](#acl) applies to new and restored records.
 
@@ -52,7 +52,7 @@ Public exceptions are listed below.
 | Local account socket | The principal mapped to that listener |
 | SSH token/admin command | The key's forced-command entitlement |
 
-![A user calls through the bus; the agent receives the message and verified sender, never the user token.](../Plans/R0.8/user-to-service.svg)
+![A user calls through the bus; the agent receives the message and verified sender, never the user token.](../Plans/R0.8-MVP/user-to-service.svg)
 
 * A principal needs a profile or registry record. A bad token or unknown identity
   receives `401`; suspension receives `403 suspended`.
@@ -97,7 +97,7 @@ The key path uses [the enrolment proof](#proving-possession), including for a
 previously enrolled identity retrieving its credential again. No path issues a
 token for an unknown identity without first establishing that identity.
 
-![User credentials and the separate agent credential obtained during owner-authorized startup.](../Plans/R0.8/getting-tokens.svg)
+![User credentials and the separate agent credential obtained during owner-authorized startup.](../Plans/R0.8-MVP/getting-tokens.svg)
 
 </details>
 
@@ -252,7 +252,7 @@ for nobody; pausing or banning a user retains theirs.
   are not persisted; they are not principal-token rotation.
 * The no-automatic-expiry rule also protects future encrypted backlog recovery:
   replacing key material does not make old ciphertext decryptable. The
-  [future key lifecycle](../Plans/R1/access.md#key-modes) must account for it.
+  [future key lifecycle](../Plans/R1.0-Release/access.md#key-modes) must account for it.
 
 </details>
 
@@ -324,4 +324,4 @@ not served, it is not listed, and `account remove` still deletes its row.
 MVP assumes a trusted host: message bodies and stored configuration are readable
 by the daemon. No peer handshake or message encryption is built. Hiding bodies
 from the dashboard is a disclosure boundary, not encryption; the future design
-lives in [R1](../Plans/R1/access.md#encrypted-sessions).
+lives in [R1](../Plans/R1.0-Release/access.md#encrypted-sessions).

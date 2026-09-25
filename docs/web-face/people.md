@@ -448,7 +448,7 @@ No forms. Links: group chips, owned-record links.
 
 | Doc | Says | Code |
 |---|---|---|
-| [pages](../../Plans/R0.8/web-handoff/pages.md#user-username), [forms](../../Plans/R0.8/web-handoff/forms.md#the-set) | Lifecycle Pause/Ban/Activate; confirm for ban | Active/Inactive only: Deactivate… (confirmed), Reactivate (direct) |
+| [pages](../../Plans/R0.8-MVP/web-handoff/pages.md#user-username), [forms](../../Plans/R0.8-MVP/web-handoff/forms.md#the-set) | Lifecycle Pause/Ban/Activate; confirm for ban | Active/Inactive only: Deactivate… (confirmed), Reactivate (direct) |
 | pages § Groups, forms | group delete: “the handler accepts it” | `action=delete` → 400 local refusal |
 | [discovery](../05-discovery.md#dashboard), pages § Groups | Group registration entry and route only for Administrators / conditional | offered to every signed-in user; the daemon decides |
 | forms § remaining work | Activate offered to an already-active user | only the applicable transition is offered |

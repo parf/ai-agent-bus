@@ -6,12 +6,12 @@ scope are owned by the [plan index](../Plans/README.md#stages).
 
 ## MVP
 
-[Active scope](../Plans/R0.8/README.md#scope) and
-[remaining work](../Plans/R0.8/TODO.md#objective).
+[Active scope](../Plans/R0.8-MVP/README.md#scope) and
+[remaining work](../Plans/R0.8-MVP/TODO.md#objective).
 
 ## R1
 
-[Proposed stage](../Plans/R1/README.md#scope).
+[Proposed stage](../Plans/R1.0-Release/README.md#scope).
 
 ## R1.1
 
@@ -23,4 +23,4 @@ scope are owned by the [plan index](../Plans/README.md#stages).
 
 ## Future
 
-[Generic undecided plans](../Plans/R2.0/README.md#topics).
+[Generic undecided plans](../Plans/R2.0-Future/README.md#topics).

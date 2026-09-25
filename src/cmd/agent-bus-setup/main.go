@@ -337,7 +337,7 @@ func setup() (err error) {
 	}
 	// The database is made here, explicitly, as the daemon's account: the unit
 	// never creates one, so a database lost later refuses the start rather
-	// than silently becoming an empty node (Plans/R0.8/0.7-cutover.md#procedure).
+	// than silently becoming an empty node (Plans/R0.8-MVP/0.7-cutover.md#procedure).
 	// An existing database is the node's state: setup over a running node,
 	// an identical reinstall included, uses it rather than initializing it
 	// again, which the daemon's exclusive lock would refuse anyway.
@@ -426,7 +426,7 @@ func setup() (err error) {
 	return nil
 }
 
-// setAside is the reinstall's first half (Plans/R0.8/0.7-cutover.md#procedure):
+// setAside is the reinstall's first half (Plans/R0.8-MVP/0.7-cutover.md#procedure):
 // the daemon is stopped, and everything it kept — the database or the 0.6
 // dump, the credentials, authorized keys — and every drop-in that would
 // override the new unit moves into one root-only directory beside its home.

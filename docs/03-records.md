@@ -48,7 +48,7 @@ check consults the kind.
 a record in both directions ([ACL](02-access.md#acl)), so a kind naming a single
 principal describes what the record is *for*, not a reader the daemon enforces.
 Splitting that list into a write side and a delivery side is a separate,
-undecided question ([directional access](../Plans/R2.0/acl-direction.md#where-direction-is-needed)).
+undecided question ([directional access](../Plans/R2.0-Future/acl-direction.md#where-direction-is-needed)).
 
 **A service is the external case, and everything about it lives on its own
 page.** It has no queue here, so nothing is sent to it, nothing subscribes it
@@ -94,7 +94,7 @@ record's one free-text field is what `ls` and the MCP catalog show, so anything
 whose callers need to know its verbs writes them into that sentence. The MVP has
 no method list, no per-method destructive hint and nothing generated from one; a
 better representation is proposed in
-[R1 method metadata](../Plans/R1/discovery.md#method-metadata).
+[R1 method metadata](../Plans/R1.0-Release/discovery.md#method-metadata).
 
 ## Configuring a template
 

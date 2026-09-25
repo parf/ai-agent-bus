@@ -30,7 +30,7 @@ The owner already requested an administrative application. The gap is not a miss
 | [A record's method information](../../docs/03-records.md#agent-templates) | Show the description before asking someone to use a name; do not promise a generated method browser |
 | [Dashboard boundary](../../docs/05-discovery.md#dashboard) and [sign-in](../../docs/05-discovery.md#signing-in) | Preserve visitor-scoped data and administration throughout navigation and error recovery |
 | [Current rendering rules](../../docs/05-discovery.md#rules-it-is-built-to) | The baseline design must work within the existing browser and asset restrictions |
-| [Release split](../R1/discovery.md#dashboard-extensions) | Do not quietly bring managed processes, health checks or long-term analytics into MVP |
+| [Release split](../R1.0-Release/discovery.md#dashboard-extensions) | Do not quietly bring managed processes, health checks or long-term analytics into MVP |
 
 ## Primary journeys
 
@@ -111,7 +111,7 @@ This is an inventory of existing information and missing observations, not a pro
 | Credential fingerprints | Built: [held credentials](../../src/internal/auth/tokens.go), [names response](../../src/internal/api/server.go) | Move from the long diagnostics page to the account area; credential age is not automatic expiry |
 | Node label and running build | Version/build exist in [program version output](../../docs/09-setup.md#build-information); the inspected status answer does not supply them or a node name | Useful narrow read addition for the node area. Do not label the web executable's version as the bus version or derive a node hostname from a principal realm |
 | Process PID, runtime session ID, cwd, process start, OS uptime | Some session bookkeeping is local to [launchers](../../src/launchers/sessions.ts); the bus record does not expose this set | The requested familiar session view can use descriptions now. A real process inventory requires producer support and explicit scope; the web child must not scrape launcher homes or `/proc` |
-| Health, execution results, latency distributions, audit history | Not supplied by the inspected MVP dashboard data | Keep [R1 extensions](../R1/discovery.md#dashboard-extensions) separate. Do not fill absent data with green badges, zeroes or fabricated history |
+| Health, execution results, latency distributions, audit history | Not supplied by the inspected MVP dashboard data | Keep [R1 extensions](../R1.0-Release/discovery.md#dashboard-extensions) separate. Do not fill absent data with green badges, zeroes or fabricated history |
 
 The built directory distinguishes current identity evidence and keeps cleanup candidates visible; startup collection and explicit removal follow [ownerless credentials](../../docs/02-access.md#ownerless-credentials), including the interim dependency on orphan-service handling. Support for the category is permanent, its occupancy is not. Presentation must remain correct when empty or populated; absent historical provenance cannot be reconstructed automatically. See the [completed directory slice](done/identity-cleanup.md#scope).
 
@@ -174,6 +174,6 @@ Missing-certificate startup policy is settled in [where it listens](../../docs/0
 
 The [execution plan](TODO.md#web-redesign) handles visual design, data semantics, shared presentation, feature migration and installed acceptance separately. Existing isolation and crash-recovery gates remain release blockers; a redesigned page does not close them.
 
-Keep managed runtime controls, process health, advanced exchanges, long histories and central settings in their [assigned release](../R1/discovery.md#dashboard-extensions). Later declared record states remain [R1.1](../R1.1/records.md#down-and-retired). A browser message composer is not added: it needs a separately accepted body-handling workflow, whereas the present dashboard is for discovery, administration and envelope diagnostics.
+Keep managed runtime controls, process health, advanced exchanges, long histories and central settings in their [assigned release](../R1.0-Release/discovery.md#dashboard-extensions). Later declared record states remain [R1.1](../R1.1/records.md#down-and-retired). A browser message composer is not added: it needs a separately accepted body-handling workflow, whereas the present dashboard is for discovery, administration and envelope diagnostics.
 
 The main missing MVP work is trustworthy presentation and complete journeys. Narrow read additions may be needed for identity origin, node/build identity and effective inherited values. Those additions must be justified by a specific screen; they do not authorize schemas, new storage or broader telemetry collection.

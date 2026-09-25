@@ -1,7 +1,7 @@
 // Entity and authority marks. The canonical glyphs are src/internal/display
 // (shared with the CLI); test/glyphs.test.ts fails when this table drifts from
 // it. The web draws the same glyphs the CLI prints, so a kind looks the same
-// everywhere (owner, 2026-09-24; Plans/R0.8/web/DECISIONS.md). An icon named
+// everywhere (owner, 2026-09-24; Plans/R0.8-MVP/web/DECISIONS.md). An icon named
 // "kind:<kind>" is one of these glyphs, not a Lucide drawing.
 
 export type Kind = "user" | "agent" | "queue" | "pubsub" | "service" | "group";

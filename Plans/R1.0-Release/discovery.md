@@ -17,7 +17,7 @@ which is right, and leaves *which box do I go and look at* unanswered.
 | **not part of the identity** | the name is the identity ([identity § names](../../docs/01-identity-and-roles.md#names)); this is a fact about a process serving it. Keeping the two apart is the whole reason the realm stopped carrying a hostname |
 
 It is also where a **version** would go when a service can say one
-([Plans/R1](TODO.md#todo-r1)) — same shape, same reason: per member,
+([Plans/R1.0-Release](TODO.md#todo-r1)) — same shape, same reason: per member,
 stated, and the answer to *which of these four is the odd one out*.
 
 ## Method metadata

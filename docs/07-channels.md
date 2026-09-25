@@ -72,7 +72,7 @@ policy, a 📣 its [Deliver-To list](04-messaging.md#subscribers):
 | Storage | [Restart persistence](04-messaging.md#durability), with messages in memory |
 | Observations | [Listing state](05-discovery.md#what-a-listing-answers) |
 
-Inboxes belong to registered names ([messaging § inbox queues](04-messaging.md#inbox-queues)). Signed records and upstream namespaces are proposed in [R1 registry](../Plans/R1/registry.md#registry-sync) and [federation](../Plans/R1/federation.md#chaining).
+Inboxes belong to registered names ([messaging § inbox queues](04-messaging.md#inbox-queues)). Signed records and upstream namespaces are proposed in [R1 registry](../Plans/R1.0-Release/registry.md#registry-sync) and [federation](../Plans/R1.0-Release/federation.md#chaining).
 
 ## What publish puts on the message
 

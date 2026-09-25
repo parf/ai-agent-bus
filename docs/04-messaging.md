@@ -474,7 +474,7 @@ Publication is the lock being released, so it cannot fail after a commit
 
 Browser sessions remain process-local; after restart, callers sign in again.
 Persistent tokens and mapped sockets are checked against the recovered policy.
-The [H.5.3 evidence](../Plans/R0.8/done/administrative-durability.md#checks) covers
+The [H.5.3 evidence](../Plans/R0.8-MVP/done/administrative-durability.md#checks) covers
 real bus-child kills, storage failure and the old-checkpoint ordering hazard.
 It does not certify every filesystem or simulate hardware power loss.
 

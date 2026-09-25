@@ -1,7 +1,7 @@
 // Package baseline_test is the 0.7 K.1 performance baseline: the same
 // operations measured before the SQLite store replaces the JSON snapshot, and
 // again after it, at increasing registry and backlog sizes.
-// See Plans/R0.8/0.7.0-TODO.md#verification.
+// See Plans/R0.8-MVP/0.7.0-TODO.md#verification.
 //
 // It sits outside core so that core keeps importing no adapter: the
 // management benchmark writes through the real SQLite store, because what a
@@ -146,7 +146,7 @@ func BenchmarkConcurrentSendConsume(b *testing.B) {
 
 // BenchmarkManage is a one-field edit acknowledged only once durable. Through
 // 0.6 that was a full snapshot through the JSON adapter — the whole registry
-// and backlog per edit (Plans/R0.8/0.7-baseline.md). From 0.7 it is one record
+// and backlog per edit (Plans/R0.8-MVP/0.7-baseline.md). From 0.7 it is one record
 // committed to SQLite; core's TestOneEditCommitsOneRecord is what proves the
 // write volume, and this measures what it costs.
 func BenchmarkManage(b *testing.B) {

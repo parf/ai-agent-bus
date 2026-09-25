@@ -10,7 +10,7 @@ ordinary use needs neither.
 | MVP | Scope |
 |---|---|
 | Built | Distributable archive, installer, administration, token helper, accounts, daemon unit and stamped builds; fresh-host installation, populated upgrade/recovery and [backup/restore](#backup-and-restore) acceptance. |
-| Pending | Nothing for MVP: installed [browser](05-discovery.md#browser-acceptance) and [runtime](../Plans/R0.8/done/fresh-host-runtime.md#checks) acceptance passed on a fresh host in 0.8.26–0.8.30. |
+| Pending | Nothing for MVP: installed [browser](05-discovery.md#browser-acceptance) and [runtime](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance passed on a fresh host in 0.8.26–0.8.30. |
 
 ## The programs
 
@@ -102,7 +102,7 @@ compatibility obligation before 1.1, so nothing is migrated at load time.
 Upgrading a node that has run an earlier line therefore means editing its
 snapshot while the daemon is stopped: the procedure, the mapping and what it
 was verified against are in the
-[cutover runbook](../Plans/R0.8/cutover.md#the-procedure). Two things to expect
+[cutover runbook](../Plans/R0.8-MVP/cutover.md#the-procedure). Two things to expect
 even where the kinds look right: a record that becomes 📡 must lose the queue
 settings every old record carried, and its inbox must be empty.
 
@@ -232,7 +232,7 @@ read-only and need no root.
 **MVP ships its own install script and nothing else.** The tar archive is a
 transport for that script, not a second installer. There is no `npm install`
 path or package registry; publishing the MCP face or a container stays
-[R1](../Plans/R1/distribution.md#container-runtime) work. The packaged
+[R1](../Plans/R1.0-Release/distribution.md#container-runtime) work. The packaged
 `INSTALL.md` is the standalone supported path exercised by
 [installation acceptance](#installation-acceptance).
 
@@ -260,7 +260,7 @@ it stops the daemon, moves its whole home and the unit's drop-ins into a
 root-only `daemon.before-0.7-<time>` directory that nothing reads again, and
 installs fresh — new database, generated unit, the installer as Owner. Every
 old credential stops working. It replaces whichever release is installed,
-0.6 included; the [reinstall procedure](../Plans/R0.8/0.7-cutover.md#procedure)
+0.6 included; the [reinstall procedure](../Plans/R0.8-MVP/0.7-cutover.md#procedure)
 owns the steps. From 0.8.23 it refuses while any process outside systemd
 holds a file in the daemon home, and a failure after the set-aside puts the
 home, drop-ins, unit and release back and restarts a node that was running.
@@ -277,7 +277,7 @@ all stable command links exist. A failed first install is recovered by running
 the same setup again; an identical release is reused. Plain setup refuses to
 replace a different release. The standalone package instructions define the
 `--upgrade` and interrupted `--recover` paths; their populated-node behavior is
-accepted under [H.1.1](../Plans/R0.8/done/upgrade-recovery.md#checks).
+accepted under [H.1.1](../Plans/R0.8-MVP/done/upgrade-recovery.md#checks).
 
 ## Administering the account map
 
@@ -324,7 +324,7 @@ systemd and the system bun installs from only the archive and standalone
 instructions, starts the generated daemon and web units and completes a real
 call over the bus. Removing a daemon binary, MCP face, web face or launcher face separately
 fails before accounts, state, unit or current release exist. The retained
-[H.1 evidence](../Plans/R0.8/done/fresh-install.md#checks) records the host and
+[H.1 evidence](../Plans/R0.8-MVP/done/fresh-install.md#checks) records the host and
 claim limits.
 
 **Upgrade/recovery is built and accepted.** The installer verifies and stages
@@ -334,23 +334,23 @@ and the unit's real process tree. The existing unit and drop-ins remain byte
 identical. A failed start restores the prior release with its matching snapshot,
 credentials and SSH authorization; an interrupted transaction leaves a durable
 marker for the documented `--recover` command. The retained
-[H.1.1 evidence](../Plans/R0.8/done/upgrade-recovery.md#checks) covers credentials,
+[H.1.1 evidence](../Plans/R0.8-MVP/done/upgrade-recovery.md#checks) covers credentials,
 registry, queued state, ACLs, local mappings and operator configuration. This
 does not select the future runner backup mechanism.
 
 The fresh-install and reinstall gates compare every installed command's and
 the running node's `build_info` with the archive's own, not only VERSION; the
-[H.10 evidence](../Plans/R0.8/done/setup-hardening.md#checks) lists their checks.
+[H.10 evidence](../Plans/R0.8-MVP/done/setup-hardening.md#checks) lists their checks.
 
 SSH onboarding is accepted through an actual sshd installation for both
 ordinary and operator keys, including the documented token command,
 entitlement enforcement and restricted access. Checking generated
-`authorized_keys` text alone is insufficient. The [SSH onboarding evidence](../Plans/R0.8/done/ssh-onboarding.md#checks) records the real-sshd exercise and its environment limits; its [0.7 re-run](../Plans/R0.8/done/ssh-onboarding.md#07-re-run) adds realm-less names, two-token rotation and credentials surviving a restart.
+`authorized_keys` text alone is insufficient. The [SSH onboarding evidence](../Plans/R0.8-MVP/done/ssh-onboarding.md#checks) records the real-sshd exercise and its environment limits; its [0.7 re-run](../Plans/R0.8-MVP/done/ssh-onboarding.md#07-re-run) adds realm-less names, two-token rotation and credentials surviving a restart.
 
 [Backup and restore](#backup-and-restore) is accepted on packaged hosts.
 
-[H.1.1](../Plans/R0.8/done/upgrade-recovery.md#checks) records completed upgrade/recovery acceptance;
-[H.5.2](../Plans/R0.8/done/ssh-onboarding.md#checks) records the completed SSH exercise.
+[H.1.1](../Plans/R0.8-MVP/done/upgrade-recovery.md#checks) records completed upgrade/recovery acceptance;
+[H.5.2](../Plans/R0.8-MVP/done/ssh-onboarding.md#checks) records the completed SSH exercise.
 
 ## Build information
 
@@ -403,12 +403,12 @@ once, as the daemon account, to create it, and the unit never passes `-create`.
 Every record and user carries an internal ID from 0.7.3: stable, persisted,
 never on an answer, and never handed out twice, because the database keeps each
 high-water mark rather than deriving it from what is left.
-The [0.7 transition](../Plans/R0.8/0.7-cutover.md#scope) uses clean reinstall: the
+The [0.7 transition](../Plans/R0.8-MVP/0.7-cutover.md#scope) uses clean reinstall: the
 0.6 JSON dump and token file are neither read nor kept as stores. Additional
-database adapters remain [R1 work](../Plans/R1/storage.md#backends). Durability is
+database adapters remain [R1 work](../Plans/R1.0-Release/storage.md#backends). Durability is
 defined in [messaging § durability](04-messaging.md#durability).
 
-Follow the [reinstall procedure](../Plans/R0.8/0.7-cutover.md#procedure) for 0.7
+Follow the [reinstall procedure](../Plans/R0.8-MVP/0.7-cutover.md#procedure) for 0.7
 bootstrap and client reconnection. SQLite state and backups retain the daemon
 account's private directory and file boundary.
 
@@ -515,13 +515,13 @@ daemon unit no longer passes `-web` or delegates cgroup controllers.
 | `Restart=on-failure` | Restart a failed daemon |
 | `AmbientCapabilities=CAP_CHOWN`, bounded to that capability | Own the per-user sockets without running the daemon as root |
 
-The packaged [installed shared-host checks](../Plans/R0.8/done/installed-shared-host.md#checks)
+The packaged [installed shared-host checks](../Plans/R0.8-MVP/done/installed-shared-host.md#checks)
 run two actual mapped accounts through their own sockets, refuse both cross-
 account attempts, and verify from `/proc` that only the supervisor retains the
 capability.
 
 The installer also maps the prepared runner account to a local socket. The
-future runner unit is defined in [R1 operations](../Plans/R1/operations.md#runner-unit).
+future runner unit is defined in [R1 operations](../Plans/R1.0-Release/operations.md#runner-unit).
 
 ## Sample data
 

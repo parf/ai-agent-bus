@@ -207,7 +207,7 @@ Named so nobody fills them with a green badge, a zero, or a guess:
 | | |
 |---|---|
 | process health, liveness, execution results | not supplied by MVP data |
-| latency distributions, audit history | [R1](../../R1/discovery.md#dashboard-extensions) |
+| latency distributions, audit history | [R1](../../R1.0-Release/discovery.md#dashboard-extensions) |
 | PID, runtime session id, working directory, process start | launcher-local; the web child must not read launcher homes or `/proc` |
 | node label and running build | plausible narrow read addition, justified by the Overview node section — and the web executable's version is **not** the bus version |
 | effective resolved queue settings | would need a narrow daemon read; until then inheritance is stated honestly |

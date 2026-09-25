@@ -9,8 +9,8 @@ credentials and checks belong to [Access](02-access.md#what-a-call-carries).
 
 Names, profiles, registration, resource ownership, groups and status are built
 as the [constitution](constitution.md#project-constitution) states them;
-[remaining work](../Plans/R0.8/TODO.md#authority-model) and
-[open choices](../Plans/R0.8/QUESTIONS.md#open-questions) stay in the plans.
+[remaining work](../Plans/R0.8-MVP/TODO.md#authority-model) and
+[open choices](../Plans/R0.8-MVP/QUESTIONS.md#open-questions) stay in the plans.
 
 ## Identities
 
@@ -234,7 +234,7 @@ stops no process, and is reversible. Users are never deleted.
 A record has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
 The following model is built. **Record-defined roles** are
-[R1 work](../Plans/R1/identity.md#groups-and-roles), the first R1 topic after 0.7.
+[R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles), the first R1 topic after 0.7.
 Maintainers is a list of named users, groups and records. Only the
 resource Owner or daemon Owner replaces it; group entries use ordinary nested
 membership. Human editors use one plain term per line, as ACL editors do.
@@ -272,7 +272,7 @@ membership. Human editors use one plain term per line, as ACL editors do.
 * Management includes configuration, access, availability and removal, subject
   to [removal conditions](#unregistering). Only the record itself may fetch its
   [private configuration](03-records.md#configuring-a-template).
-  Managed runtime start/stop remains [runner work](../Plans/R1/runner.md#what-the-runner-does).
+  Managed runtime start/stop remains [runner work](../Plans/R1.0-Release/runner.md#what-the-runner-does).
 
 </details>
 
@@ -329,7 +329,7 @@ until populated, and any path to a principal grants effective membership.
 * Nested membership is built in 0.5.57. Stored group lists show direct entries;
   user views report effective membership. ACL and Maintainer checks use the
   same reachability rule. Record-defined roles and the proposed expression
-  syntax are [R1 work](../Plans/R1/identity.md#groups-and-roles).
+  syntax are [R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles).
 * `@administrators` accepts direct user identities only; the Owner remains a
   direct member. A snapshot that nests a group there is refused at startup.
   An ordinary group may name `@administrators`: its direct members then receive

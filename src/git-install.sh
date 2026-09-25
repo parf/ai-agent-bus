@@ -118,7 +118,7 @@ done
 if [ "$reinstall" = yes ]; then
     # The cutover, against the linked daemon: stop, set the old state and the
     # unit's drop-ins aside, initialize a fresh database, write the unit and
-    # bootstrap the installer (Plans/R0.8/0.7-cutover.md#procedure).
+    # bootstrap the installer (Plans/R0.8-MVP/0.7-cutover.md#procedure).
     "$src/agent-bus-setup" --reinstall --exec "$bindir/agent-busd"
 else
     systemctl restart "$unit"

@@ -29,7 +29,7 @@ backend plus off (G.2). What is left:
 | **built** | A, B, C, E, F.1, F.3–F.5, G, H.2–H.7; F.6 but its people view |
 | **blocked on the owner** | F.2 — nothing on a record carries method information; H.1 — npm install or Go first |
 | **unblocked, in progress** | F.6's last row — **people**. Seven of the eight views the review settled are built ([discovery § what it shows](../../../docs/05-discovery.md#what-it-shows)); people is the one that still needs the daemon to keep something, and it is the row the ACL-editing ❓ below sits on |
-| **struck** | D, to [Plans/R1](../../R1/TODO.md#todo-r1) — the MVP's key mode cannot carry the end-to-end claim |
+| **struck** | D, to [Plans/R1.0-Release](../../R1.0-Release/TODO.md#todo-r1) — the MVP's key mode cannot carry the end-to-end claim |
 
 ## Blockers
 
@@ -56,7 +56,7 @@ with wave D:
 | A.5 | whether several readers may block on one inbox | when each asks to share it — [messaging § several readers may wait when they say so](../../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | C.3 | what a subscriber is, and where a copy goes | a registered name, and its own inbox — [messaging § subscribers](../../../docs/04-messaging.md#subscribers) |
 | G.2 | how many sandbox backends | one, plus off — [runner § sandboxing](../../../docs/08-runner-role.md#sandboxing) |
-| D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/R1](../../R1/TODO.md#todo-r1)'s — [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
+| D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/R1.0-Release](../../R1.0-Release/TODO.md#todo-r1)'s — [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 
 ⚠️ **Ownership is only as strong as enrolment.** B.7 closed
 re-registering somebody else's record and B.8 closed claiming a name in a realm
@@ -195,12 +195,12 @@ waiting on it since the PoC.
 
 🚫 **Cut from this stage.** The sentence is not reachable in the MVP's key
 mode: the daemon issues the token and holds it on the local socket
-([access § key modes](../../R1/access.md#key-modes),
+([access § key modes](../../R1.0-Release/access.md#key-modes),
 [access § encrypted sessions](../../../docs/02-access.md#trust-boundary)), so
 AEAD over it would pass every check but the one that matters. The docs now say
 the bus is trusted on its own host and end to end is R1's, on the
 pairwise or derived keys that make it true
-([stages § R1](../../R1/README.md#scope)). Nothing below is
+([stages § R1](../../R1.0-Release/README.md#scope)). Nothing below is
 built, and the rows stay as the shape R1 inherits.
 
 | ID | Task | Notes |
@@ -215,7 +215,7 @@ built, and the rows stay as the shape R1 inherits.
 - an exact plaintext round trip between two real endpoints, one Go and one
   bun;
 - a tampered body, a wrong key and a replayed message are each **rejected**
-  ([access § key confirmation](../../R1/access.md#key-confirmation)) —
+  ([access § key confirmation](../../R1.0-Release/access.md#key-confirmation)) —
   opaque-looking bytes pass a weaker check, and so does base64;
 - the daemon's own key material **cannot** decrypt a captured body. If that
   check cannot be made to pass, the blocker was real and the docs change
@@ -340,7 +340,7 @@ the binaries arrive, and are built
 | H.2 | ✅ _done_, and now H.4's program — it creates the two accounts and the tree they own, writes the unit and starts the daemon as one of them, refusing without root rather than half-installing; `--dry-run` / `--print-unit` need nothing ([setup § the two accounts](../../../docs/09-setup.md#the-two-accounts)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
 | H.3 | ✅ _done_ — the account, its home, the one declarative capability and restart, all in the unit and each falsified on its own |
 | H.4 | ✅ _done_ — `agent-bus-setup` is its own program, root-only, and prints the `sudo` line rather than failing flat ([setup § the programs](../../../docs/09-setup.md#the-programs)) |
-| H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../R1/auth.md#ssh-admin)). It re-runs itself under `sudo -u agent-busd` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the programs](../../../docs/09-setup.md#the-programs)* |
+| H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../R1.0-Release/auth.md#ssh-admin)). It re-runs itself under `sudo -u agent-busd` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the programs](../../../docs/09-setup.md#the-programs)* |
 | H.6 | ✅ _done_ — `agent-bus-token` prints a credential and nothing else. Under SSH the authorized_keys line is the entitlement and `$SSH_ORIGINAL_COMMAND` is the request, so a key may only ask for the name its line names. The CLI's `token` verb went with it |
 | H.7 | ✅ _done_ — `--key` proves the name against what the realm publishes and gets a credential with no credential to start from ([access § getting a token](../../../docs/02-access.md#getting-a-token)). It is enrolment's own challenge with a second caller; the one change the daemon needed was to stop asking `/enrol` for a credential, which was a circle ([identity § proving possession](../../../docs/02-access.md#proving-possession)) |
 

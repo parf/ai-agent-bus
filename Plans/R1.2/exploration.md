@@ -16,7 +16,7 @@ processes share a list of batches, `id → todo · processing · done`, and exac
 one of them may move a batch to `processing`.
 
 **The claiming half is settled and the storing half is not.** R1 gives
-the daemon named locks ([messaging § shared locks](../R1/locks.md#shared-locks)),
+the daemon named locks ([messaging § shared locks](../R1.0-Release/locks.md#shared-locks)),
 so *exactly one of them* is answered by the authority a pool already shares —
 and what is left here is where the `id → status` map itself lives. That is a
 smaller question than the one this page opened with: a store that holds values
@@ -32,7 +32,7 @@ store has to be **blind** to what it holds, which is the table below — a
 **Network-shared** is the word that matters in both. A service may run
 anywhere, including somewhere nobody here administers, and the members of a
 pool sit on different machines ([runner § one name on many
-hosts](../R1/runner.md#one-name-on-many-hosts)).
+hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)).
 
 ### Why a service would want a key of its own
 
@@ -49,7 +49,7 @@ hop *after the first* needs no key. What stays open is the first one, on a box
 with no runner and nobody to ask, which is the only place this want still bites.
 
 This is already assumed elsewhere: private config is sealed **to the service's
-own key** ([identity § sealed private config](../R1/identity.md#sealed-private-config)),
+own key** ([identity § sealed private config](../R1.0-Release/identity.md#sealed-private-config)),
 and nothing yet says where that key comes from. Deliberately nothing in the
 main documents does — the owner key would appear only in a **backup** of a
 service key, as a recovery path rather than a run-time dependency, and that
@@ -82,7 +82,7 @@ is not a feature:
 
 | | |
 |---|---|
-| **sealed private config** | the proposed daemon would hold opaque bytes it cannot read, sealed to the service's key, versioned ([identity § sealed private config](../R1/identity.md#sealed-private-config)). The secrets want may be this plus *the service may write it*, rather than a new mechanism |
+| **sealed private config** | the proposed daemon would hold opaque bytes it cannot read, sealed to the service's key, versioned ([identity § sealed private config](../R1.0-Release/identity.md#sealed-private-config)). The secrets want may be this plus *the service may write it*, rather than a new mechanism |
 | **`kv` in the catalogue** | already listed, and its first version is an access wrapper around `kvrocks` ([bundled services § data](../R1.1/services.md#data)) — values with a ttl, `cas`, hashes, lists with blocking forms and pull-push, none of it ours to build. `cas` and pull-push each claim work without a lock, which is most of the state want |
 | **redis · kvrocks gateways** | also already listed — and fast shared KV with locks is exactly what they do. If a gateway serves this, *ours* has to justify existing |
 
@@ -106,7 +106,7 @@ that and become entries in the catalogue like everything else, leaving
 | For | Against |
 |---|---|
 | each gets a **name and an ACL**, so who may see the dashboard is granted the way everything else is granted, instead of being a second mechanism | **what you open when the bus is sick must not be something the bus delivers.** A dashboard that needs a working bus to tell you the bus is broken is no dashboard |
-| each can then run on **another host**, which a passed fd cannot ([runner § one name on many hosts](../R1/runner.md#one-name-on-many-hosts)) | a child that never had a token cannot leak one, and this hands three of them a credential |
+| each can then run on **another host**, which a passed fd cannot ([runner § one name on many hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)) | a child that never had a token cannot leak one, and this hands three of them a credential |
 | the daemon shrinks, which is the direction [modules](../../docs/10-modules.md#layers-and-modules) already points | health and stats are *about the daemon*, and a service asking the daemon about itself is a round trip to answer what was already in memory |
 
 **It is the opposite question to the one R1.1 asks.** That stage's

@@ -2,7 +2,7 @@
 # Runs only inside reinstall-install.sh's disposable real-systemd container.
 # A real stopped-to-be 0.6 installation, with an operator drop-in overriding
 # ExecStart, is replaced by `agent-bus-setup --reinstall`; then the fresh 0.7
-# installation is itself reinstalled. See Plans/R0.8/0.7-cutover.md#procedure.
+# installation is itself reinstalled. See Plans/R0.8-MVP/0.7-cutover.md#procedure.
 set -euo pipefail
 export PATH=/usr/local/bin:/usr/bin:/usr/sbin
 fail() { echo "FAIL $*" >&2; exit 1; }

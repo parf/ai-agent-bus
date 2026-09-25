@@ -59,7 +59,7 @@ and *disabled* name nothing now.
 One glyph per meaning, and this table is where a meaning is fixed. Most rows
 name an entity type; `🔱` and `👮` name an authority, which is allowed because
 neither can appear often enough to become a column heading.
-[Web glyphs](../Plans/R0.8/web-handoff/glyphs.md#the-rule-that-matters-most) owns where a
+[Web glyphs](../Plans/R0.8-MVP/web-handoff/glyphs.md#the-rule-that-matters-most) owns where a
 glyph may appear, how it renders and what it must never carry on its own.
 
 | Glyph | Code point | Name | Means | Status |
@@ -120,6 +120,6 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 
 ## Future vocabulary
 
-Future terms stay with their owning design: [R1](../Plans/R1/README.md#scope),
+Future terms stay with their owning design: [R1](../Plans/R1.0-Release/README.md#scope),
 [R1.1](../Plans/R1.1/README.md#scope), [R1.2](../Plans/R1.2/README.md#scope).
-The [historical glossary](../Plans/R0.8/done/glossary-before-rewrite.md#glossary) preserves earlier names and proposed verbs; it is not a list of shipped commands.
+The [historical glossary](../Plans/R0.8-MVP/done/glossary-before-rewrite.md#glossary) preserves earlier names and proposed verbs; it is not a list of shipped commands.

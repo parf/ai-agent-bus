@@ -5,7 +5,7 @@ All repository conventions live here. `AGENTS.md` only points here.
 ## What this repo is
 
 agent-bus V2 connects AI agents and services through a registry, broker and faces.
-Current development is R0.8 (formerly MVP); [scope and status](Plans/R0.8/README.md#scope) distinguish built code from pending requirements.
+Current development is R0.8 (formerly MVP); [scope and status](Plans/R0.8-MVP/README.md#scope) distinguish built code from pending requirements.
 Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/realty/Plans/PRF-25/`. Read those when a legacy fact is needed; this repository builds V2.
 
 ## Document map
@@ -16,16 +16,16 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 | [Glossary](docs/glossary.md#names) | Current naming and links to definitions |
 | [Decisions](docs/decisions.md#settled) | Current decision names and links |
 | [Plans](Plans/README.md#stages) | Stage status and release scope navigation |
-| [R0.8](Plans/R0.8/README.md#scope), its [web face](Plans/R0.8/web/README.md#scope) | Active stage knowledge; current contracts remain in docs |
-| [R1](Plans/R1/README.md#scope), [R1.1](Plans/R1.1/README.md#scope), [R1.2](Plans/R1.2/README.md#scope) | Future release knowledge and plans |
-| [R2.0](Plans/R2.0/README.md#topics) | Generic undecided or unassigned ideas |
+| [R0.8](Plans/R0.8-MVP/README.md#scope), its [web face](Plans/R0.8-MVP/web/README.md#scope) | Active stage knowledge; current contracts remain in docs |
+| [R1](Plans/R1.0-Release/README.md#scope), [R1.1](Plans/R1.1/README.md#scope), [R1.2](Plans/R1.2/README.md#scope) | Future release knowledge and plans |
+| [R2.0](Plans/R2.0-Future/README.md#topics) | Generic undecided or unassigned ideas |
 | `Plans/done/` and each plan's `done/` | Historical completion evidence, never current contracts |
 
 ## Working rules
 
 - **No data models, schemas or wire formats until the owner asks.** Do not invent tables of fields, JSON shapes or endpoint lists during planning.
 - **Current scope.** `docs/` describes the whole MVP scope, with built and pending explicit. A pending requirement is not an implementation claim.
-- **Future scope.** Future design belongs in `Plans/<release>/README.md` or its topic files. Use `Plans/R2.0/` when the release or idea is undecided. Do not assign an idea to the current release merely because it was mentioned now.
+- **Future scope.** Future design belongs in `Plans/<release>/README.md` or its topic files. Use `Plans/R2.0-Future/` when the release or idea is undecided. Do not assign an idea to the current release merely because it was mentioned now.
 - **Canonical home.** Every value has one owning section. Any other document may restate its claim in one sentence with a section link. If changing the value would require editing the summary, remove the value. The root README CLI example block is the sole example exception.
 - **Plan lifecycle.** Follow `/rd/vhosts/realty/Plans/README.md`: README and topic files hold stable knowledge; TODO holds unfinished work, dependencies and falsifiable acceptance; DONE holds concise results; FUTURE holds follow-up; QUESTIONS holds only unresolved choices; DECISIONS holds dated decision names, brief rationale and links. Move completed task detail to `done/`, completed stages to `Plans/done/`. Never renumber task IDs.
 - **Promote on acceptance.** When future scope becomes current, move its accepted substance to the owning current doc, update built/pending status and links, and leave plan history pointing to that home. Do not maintain competing copies.
