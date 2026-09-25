@@ -173,6 +173,24 @@ func (c *ownerClient) lookup(name string) (map[string]any, bool) {
 	return r, json.Unmarshal(out, &r) == nil
 }
 
+// inactiveRecord finds name among the inactive records the Owner may see.
+func (c *ownerClient) inactiveRecord(name string) (map[string]any, bool) {
+	code, out, err := c.call("GET", "/inactive", nil)
+	if err != nil || code != 200 {
+		return nil, false
+	}
+	var list []map[string]any
+	if json.Unmarshal(out, &list) != nil {
+		return nil, false
+	}
+	for _, rec := range list {
+		if rec["name"] == name {
+			return rec, true
+		}
+	}
+	return nil, false
+}
+
 func urlEscape(s string) string { return strings.NewReplacer("#", "%23", "@", "%40", "/", "%2F").Replace(s) }
 
 // addSamples puts the sample node in place. Anything already there is left
@@ -214,6 +232,12 @@ func addSamples() error {
 	fresh := map[string]bool{}
 	for _, r := range sampleRecords {
 		rec, exists := c.lookup(r.name)
+		if !exists && r.inactive {
+			// An inactive record is answered to nobody; a rerun finds it here.
+			if rec, exists = c.inactiveRecord(r.name); exists && rec["descr"] == r.descr {
+				continue // already made and deactivated
+			}
+		}
 		if exists && rec["descr"] != r.descr {
 			kept = append(kept, r.name) // a real record under a sample's name
 			continue

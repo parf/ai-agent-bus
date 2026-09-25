@@ -279,6 +279,25 @@ after=$(readlink /usr/local/lib/agent-bus/current)
 [ "$(find /usr/local/lib/agent-bus/releases -mindepth 1 -maxdepth 1 -type d | wc -l)" -eq 1 ] || fail "identical reinstall duplicated the release"
 pass "identical package reinstall is idempotent"
 
+# Sample data: the installed setup fills the node, the installed web face
+# shows it, and removal takes exactly it away (docs/09-setup.md#sample-data).
+./agent-bus-setup --samples >/evidence/samples.log 2>&1 || { cat /evidence/samples.log >&2; fail "setup --samples failed"; }
+grep -q 'sample data added: 9 users, 18 records, 4 groups' /evidence/samples.log || fail "samples did not report what they added: $(cat /evidence/samples.log)"
+agent-bus-admin token owner@fresh >/root/owner.token
+ownerget() { curl -fsS --unix-socket /run/agent-bus/bus.sock -H "X-Agent-Bus-Token: $(cat /root/owner.token)" "http://bus$1"; }
+ownerget '/lookup?name=%23c3po%40tatooine' | grep -q '"owner":"luke@tatooine"' || fail "the sample agent is not its user's"
+ownerget /inactive | grep -q 'death-star-ii@endor' || fail "the inactive sample is missing"
+sjar=/root/samples.jar
+curl -fsS -c "$sjar" -o /dev/null -H 'Origin: http://127.0.0.1:6780' --data-urlencode "token=$(cat /root/owner.token)" http://127.0.0.1:6780/signin
+curl -fsS -b "$sjar" http://127.0.0.1:6780/agents | grep -q 'c3po@tatooine' || fail "the web face does not list the sample agent"
+curl -fsS -b "$sjar" 'http://127.0.0.1:6780/queues?personal=1' | grep -q 'falcon-repairs@corellia' || fail "the web face does not list the Personal sample queue"
+./agent-bus-setup --samples >/evidence/samples-again.log 2>&1 || fail "a second --samples failed"
+./agent-bus-setup --remove-samples >/evidence/samples-removed.log 2>&1 || { cat /evidence/samples-removed.log >&2; fail "setup --remove-samples failed"; }
+grep -q 'sample data removed: 18 records unregistered' /evidence/samples-removed.log || fail "removal did not take every sample record: $(cat /evidence/samples-removed.log)"
+if ownerget /ls | grep -q 'c3po@tatooine\|death-star'; then fail "a sample record survived removal"; fi
+ownerget /users | grep -q '"name":"luke@tatooine"[^}]*"status":"inactive"' || fail "the sample users were not deactivated"
+pass "setup adds the sample node, the web face shows it, and removal takes exactly it away"
+
 
 systemctl show agent-busd -p ActiveState -p User -p FragmentPath >/evidence/unit-state.txt
 systemctl --version | head -1 >/evidence/host.txt

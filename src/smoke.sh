@@ -2923,7 +2923,9 @@ samples() {
   has "a service has Maintainers and a stored secret" "$(sget '/lookup?name=death-star%40empire')" '"maintainers":\["@empire"\].*"secret_sha"'
   has "a queue and a topic are Personal" "$(sget '/lookup?name=falcon-repairs%40corellia')$(sget '/lookup?name=jedi-journal%40dagobah')" '"personal":true.*"personal":true'
   has "and one record is inactive" "$(sget /inactive)" 'death-star-ii@endor'
-  again=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --samples 2>&1)
+  again=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --samples 2>&1); rc=$?
+  ok_exit "a second run succeeds, the inactive sample included" $rc
+  has "and says so" "$again" 'sample data added: 9 users, 18 records, 4 groups'
   has "a second run changes nothing, and sends nothing twice" "$(sget '/lookup?name=jabba-debts%40tatooine')" '"queued":1'
   out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --remove-samples 2>&1)
   has "removal takes the sample records, draining their inboxes first" "$out" 'sample data removed: 17 records unregistered'

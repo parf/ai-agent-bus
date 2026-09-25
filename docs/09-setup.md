@@ -222,7 +222,10 @@ and unpack it, then run `sudo ./agent-bus-setup`. Setup validates the complete
 manifest before changing the host, installs a digest-addressed release under
 `/usr/local/lib/agent-bus`, creates stable commands under `/usr/local/bin`,
 creates the accounts and tree, writes/enables the daemon and web units,
-and installs the first user's key through the admin program. Without root it
+and installs the first user's key through the admin program. The manifest names
+every file under `web/`, each checked and installed. `--upgrade` holds the
+release it replaces to that release's own manifest, so one from before 0.8.50,
+with the Go web binary and no `web/` tree, remains a rollback target. Without root it
 refuses and prints the command to run. `--dry-run` and `--print-unit` are
 read-only and need no root.
 

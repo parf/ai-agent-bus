@@ -28,7 +28,10 @@ required=(
 )
 (
   cd "$root"
-  sha256sum "${required[@]}" > MANIFEST.sha256
+  # The web face's whole tree: its sources change with it, so they are
+  # listed as they are, each checked like any other artifact.
+  mapfile -t webfiles < <(find web -type f ! -path web/server.ts ! -path web/agent-bus-web.service | sort)
+  sha256sum "${required[@]}" "${webfiles[@]}" > MANIFEST.sha256
   sha256sum -c MANIFEST.sha256 >/dev/null
 )
 

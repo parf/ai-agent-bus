@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/parf/ai-agent-bus/internal/version"
@@ -26,6 +27,16 @@ var bundleFiles = []string{
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode",
 	"internal/version/VERSION", "LICENSE.md", "INSTALL.md",
 }
+
+// rollbackFiles is what an installed release needs to be run again. An older
+// release is held to its own manifest, not to today's bundle: before 0.8.50
+// it shipped the Go agent-bus-web binary and no web/ tree.
+var rollbackFiles = []string{
+	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token",
+	"internal/version/VERSION",
+}
+
+var legacyFiles = map[string]bool{"agent-bus-web": true}
 
 var executableFiles = map[string]bool{
 	"agent-bus": true, "agent-busd": true, "agent-bus-admin": true,
@@ -82,14 +93,33 @@ func checkBundleVersion(root, expectedVersion string) (checkedBundle, error) {
 	if err := s.Err(); err != nil {
 		return b, err
 	}
-	if len(b.fileHashes) != len(bundleFiles) {
-		return b, fmt.Errorf("package manifest has %d artifacts; want %d", len(b.fileHashes), len(bundleFiles))
+	// The required artifacts, plus the web face's own sources under web/ —
+	// a tree whose files change with the face — and nothing else.
+	needed := bundleFiles
+	allowed := map[string]bool{}
+	if expectedVersion == "" {
+		needed = rollbackFiles
+		for _, name := range bundleFiles {
+			allowed[name] = true
+		}
+		for name := range legacyFiles {
+			allowed[name] = true
+		}
 	}
-	for _, name := range bundleFiles {
-		want, ok := b.fileHashes[name]
-		if !ok {
+	required := map[string]bool{}
+	for _, name := range needed {
+		required[name] = true
+		if _, ok := b.fileHashes[name]; !ok {
 			return b, fmt.Errorf("package is incomplete: %s is not in MANIFEST.sha256", name)
 		}
+	}
+	for name := range b.fileHashes {
+		if !required[name] && !allowed[name] && !strings.HasPrefix(name, "web/") {
+			return b, fmt.Errorf("package manifest names %s, which is not a release artifact", name)
+		}
+	}
+	for _, name := range b.files() {
+		want := b.fileHashes[name]
 		path := filepath.Join(root, filepath.FromSlash(name))
 		info, err := os.Lstat(path)
 		if err != nil {
@@ -98,7 +128,7 @@ func checkBundleVersion(root, expectedVersion string) (checkedBundle, error) {
 		if !info.Mode().IsRegular() {
 			return b, fmt.Errorf("package artifact %s is not a regular file", name)
 		}
-		if executableFiles[name] && info.Mode().Perm()&0o111 == 0 {
+		if (executableFiles[name] || legacyFiles[name]) && info.Mode().Perm()&0o111 == 0 {
 			return b, fmt.Errorf("package artifact %s is not executable", name)
 		}
 		got, err := fileSHA256(path)
@@ -173,7 +203,7 @@ func stageBundle(b checkedBundle) (string, error) {
 				_ = os.RemoveAll(stage)
 			}
 		}()
-		for _, name := range bundleFiles {
+		for _, name := range b.files() {
 			if err := copyBundleFile(b.root, stage, name); err != nil {
 				return "", err
 			}
@@ -371,4 +401,15 @@ func installCommandLinks() error {
 func isSymlink(path string) bool {
 	info, err := os.Lstat(path)
 	return err == nil && info.Mode()&os.ModeSymlink != 0
+}
+
+// files is every artifact the manifest names, sorted: the required ones and
+// the web face's tree.
+func (b checkedBundle) files() []string {
+	out := make([]string, 0, len(b.fileHashes))
+	for name := range b.fileHashes {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }

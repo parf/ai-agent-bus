@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.51 — 2026-09-24
+
+The release package carries the whole web face: every `web/` file is in the
+manifest, checked and installed, so a packaged install starts it; `--upgrade`
+from a pre-0.8.50 release works again, and a second `--samples` run succeeds.
+
 ## 0.8.50 — 2026-09-24
 
 The web face is the TypeScript face only: `agent-bus-setup` installs it as its

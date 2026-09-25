@@ -125,8 +125,43 @@ func TestBundleManifestIsAnExactAllowlist(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "extra-file"), extra, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "artifacts") {
+	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "not a release artifact") {
 		t.Fatalf("extra manifest entry: %v", err)
+	}
+}
+
+// The web face's tree rides along: every file under web/ the manifest names
+// is checked and installed, and a changed one is refused.
+func TestWebSourcesAreInstalledAndChecked(t *testing.T) {
+	withInstallPaths(t)
+	root := fixtureBundle(t, "web")
+	src := []byte("export const x = 1;\n")
+	if err := os.WriteFile(filepath.Join(root, "web", "config.ts"), src, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h := sha256.Sum256(src)
+	f, err := os.OpenFile(filepath.Join(root, "MANIFEST.sha256"), os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Fprintf(f, "%x  web/config.ts\n", h)
+	f.Close()
+	b, err := checkBundle(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	installed, err := installBundle(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(filepath.Join(installed, "web", "config.ts")); err != nil || string(got) != string(src) {
+		t.Fatalf("web/config.ts was not installed: %q %v", got, err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "web", "config.ts"), []byte("tampered"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("a changed web source: %v", err)
 	}
 }
 
@@ -239,5 +274,54 @@ func TestCommandCollisionLeavesReleaseUnselected(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(root, "current")); !os.IsNotExist(err) {
 		t.Fatalf("current exists after collision: %v", err)
+	}
+}
+
+// An installed release from before 0.8.50 is a rollback target by its own
+// manifest: the Go web binary and no web/ tree. It is still refused as an
+// incoming package, and it still needs its daemon.
+func TestOlderReleaseIsARollbackTargetByItsOwnManifest(t *testing.T) {
+	old := func(t *testing.T, drop string) string {
+		t.Helper()
+		root := t.TempDir()
+		var lines []string
+		names := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token", "agent-bus-web",
+			"mcp/server.js", "launchers/launcher.js", "internal/version/VERSION", "LICENSE.md", "INSTALL.md"}
+		for _, name := range names {
+			if name == drop {
+				continue
+			}
+			body := []byte("old " + name + "\n")
+			if name == "internal/version/VERSION" {
+				body = []byte("0.8.27\n")
+			}
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, name), body, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			lines = append(lines, fmt.Sprintf("%x  %s", sha256.Sum256(body), name))
+		}
+		if err := os.WriteFile(filepath.Join(root, "MANIFEST.sha256"), []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return root
+	}
+	root := old(t, "")
+	if b, err := checkBundleVersion(root, ""); err != nil || !strings.HasPrefix(b.releaseID, "0.8.27-") {
+		t.Fatalf("0.8.27-shaped rollback target: %v", err)
+	}
+	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "web/server.ts") {
+		t.Fatalf("0.8.27-shaped incoming package: %v", err)
+	}
+	if _, err := checkBundleVersion(old(t, "agent-busd"), ""); err == nil || !strings.Contains(err.Error(), "agent-busd") {
+		t.Fatalf("rollback target without its daemon: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "agent-bus-web"), []byte("changed"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := checkBundleVersion(root, ""); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("changed legacy web binary: %v", err)
 	}
 }
