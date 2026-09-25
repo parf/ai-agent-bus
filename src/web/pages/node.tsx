@@ -27,7 +27,7 @@ export function recordLine(r: Rec): Child {
 /** Enumerated observations only; an empty list claims nothing about health. */
 export function attentionItems(st: Status, records: Rec[]): Attention[] {
   const out: Attention[] = [];
-  if (st.unclean) out.push({ level: "red", title: "The previous stop was not clean", key: "", body: "Memory from the previous run may not have reached the snapshot.", href: "/#node", link: "View node totals" });
+  if (st.unclean) out.push({ level: "red", title: "The previous stop was not clean", key: "", body: "Queue traffic since the last checkpoint may not have reached the database.", href: "/#node", link: "View node totals" });
   for (const [reason, n] of Object.entries(st.refused ?? {})) if (n > 0)
     out.push({ level: "blue", title: "Requests were refused", key: reason, body: <><code>{reason}</code> · {number(n)} since this daemon started</>, href: "/diagnostics#refusals", link: "View refusal reasons" });
   const oi = st.owner_inactive;

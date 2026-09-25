@@ -1365,6 +1365,11 @@ has "and requires an explicit owner before opening listeners" "$out" 'required -
 out=$("$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/public.sock" -owner "$OWNER" -db "$D/public.db" -create -flush-every 0 2>&1); rc=$?
 bad_exit "the daemon refuses a public interface" $rc
 has "and says why" "$out" 'not loopback'
+# AGENT_BUS_ADDR is the CLI's socket path; the daemon's TCP address is its own
+# flag, so a shell that points the CLI at a socket cannot move the listener.
+out=$(AGENT_BUS_ADDR="$D/cli-only.sock" "$D/agent-busd" -h 2>&1)
+has "the daemon's TCP address does not follow the CLI's AGENT_BUS_ADDR" "$out" 'default "127.0.0.1:6767"'
+lacks "and never becomes that socket path" "$out" 'cli-only.sock'
 
 sec "a name is name@host, or template/instance-name@host"
 # The template part is part of the identity, so it has to survive the whole

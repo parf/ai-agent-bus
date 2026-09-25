@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.53 — 2026-09-25
+
+`agent-busd -addr` no longer falls back to the CLI's `AGENT_BUS_ADDR`; two web
+texts say "database" and "kept across restarts"; a new installed real-browser
+gate walks the TypeScript face with its CDN assets.
+
 ## 0.8.52 — 2026-09-24
 
 A pub/sub topic takes no TTL, capacity or overflow policy, and each published

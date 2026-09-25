@@ -54,7 +54,7 @@ func main() {
 	// its own unit (docs/11-processes.md#the-web-face). Accepted and ignored,
 	// so a unit written before then still starts.
 	flag.Bool("web", false, "ignored: the web face is its own agent-bus-web unit since 0.8.50")
-	flag.StringVar(&c.addr, "addr", env("AGENT_BUS_ADDR", "127.0.0.1:6767"), "TCP listen address — loopback only")
+	flag.StringVar(&c.addr, "addr", "127.0.0.1:6767", "TCP listen address — loopback only; AGENT_BUS_ADDR is the CLI's socket, never this")
 	flag.StringVar(&c.sock, "socket", env("AGENT_BUS_SOCKET", api.DefaultSocket()), "unix socket path")
 	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", ""), "initial daemon owner (required; later transfers are durable)")
 	flag.StringVar(&c.db, "db", env("AGENT_BUS_DB", defaultDB()), "the SQLite database holding every durable entity, credential and queue")

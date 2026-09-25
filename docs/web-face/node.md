@@ -181,7 +181,7 @@ at most. Sort order: level (red, orange, blue), then title, then name or reason.
 
 | Kind | Condition | Level | `<h3>` title | Paragraph | Link |
 |---|---|---|---|---|---|
-| unclean | `status.unclean` true | red | The previous stop was not clean | Memory from the previous run may not have reached the snapshot. | `/#node` · View node totals |
+| unclean | `status.unclean` true | red | The previous stop was not clean | Queue traffic since the last checkpoint may not have reached the database. | `/#node` · View node totals |
 | refusal | each reason in `status.refused` with count > 0 | blue | Requests were refused | `<code>{reason}</code> · {count} since this daemon started` | `/diagnostics#refusals` · View refusal reasons |
 | owner-inactive | `status.owner_inactive.records` > 0 | orange | Records inactive because their owner is | `{records} record(s) · {messages} message(s) held · node-wide; each returns when its owner is reactivated` | `/users?state=inactive` · View inactive users |
 | record | inactive and `queued` > 0 | orange | Inactive and work is held | record line | record detail · View record |

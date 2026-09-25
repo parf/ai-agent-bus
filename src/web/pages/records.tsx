@@ -134,7 +134,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const clear = listUrl(path, { personal: pflag, scope, owner: owner0 ? ownerParam : undefined });
   const helpItems = [k.blurb, personal ? "Personal: records their Owner keeps out of the shared lists; delivery is unchanged. The sidebar keeps this choice from kind to kind." : "Personal records are under the Personal tab, not in these lists.",
     "Counts on the tabs are over records visible to you, before the filters below.", "Status: Active, or Inactive — hidden from use and kept.",
-    ...(services ? [] : ["Readers: consumers waiting on this inbox now.", "Accepted and Dequeued: messages in and taken out since the daemon started."])];
+    ...(services ? [] : ["Readers: consumers waiting on this inbox now.", "Accepted and Dequeued: messages in and taken out, kept across restarts."])];
 
   const body = <>
     <PageHead icon={<Icon name={personal ? "lock" : entity(kind)!.icon} />} title={title}
