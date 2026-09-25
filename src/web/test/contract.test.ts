@@ -188,6 +188,14 @@ describe("pages as the daemon owner", () => {
       expect(`${p} ${/<script(?![^>]*\bsrc=)/.test(t)}`).toBe(`${p} false`);
     }
   });
+  test("a topic's page has no queue policy, which a queue's page has", async () => {
+    const policy = /<h2>(?:<[^>]+><\/[^>]+>)?Policy<\/h2>/;
+    const queue = await (await req("/queue?name=jobs@test", { cookie: s })).text();
+    expect(policy.test(queue)).toBe(true);
+    const topic = await (await req("/pubsub/topic?name=news@test", { cookie: s })).text();
+    expect(policy.test(topic)).toBe(false);
+    expect(topic).toContain("Deliver-To");
+  });
   test("signed in, /users?kind=other goes to the leftovers", async () => {
     const r = await req("/users?kind=other", { cookie: s });
     expect(r.status).toBe(303);

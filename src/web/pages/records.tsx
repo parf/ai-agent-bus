@@ -329,7 +329,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       ["Accepted", number(rec.in)], ["Dequeued", number(rec.out)], ["Dropped / expired", `${number(rec.dropped)} / ${number(rec.expired)}`],
     ]} />
   </Card> : null;
-  const policy = rec.kind !== "service" ? <Card title="Policy" icon="sliders-horizontal">
+  const policy = rec.kind !== "service" && rec.kind !== "pubsub" ? <Card title="Policy" icon="sliders-horizontal">
     <Facts rows={[
       ["Reached", rec.protocol ? "external" : "this bus"], ["Queue bound", rec.bound ? number(rec.bound) : "default"],
       ["Retention", rec.ttl || "none"], ["When full", rec.overflow === "ring" ? "drop the oldest" : "refuse"],

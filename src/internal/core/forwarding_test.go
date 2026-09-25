@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -331,5 +332,93 @@ func TestABrokenRouteIsLoggedAndAnUnknownNameIsNot(t *testing.T) {
 	}
 	if len(rep.lines) != n {
 		t.Fatalf("a send to an unknown name was logged: %v", rep.lines[n:])
+	}
+}
+
+// A 📣 keeps nothing, so no path stores a TTL, capacity or overflow policy on
+// one, and it gets no overflow default (docs/constitution.md#common-record-fields).
+func TestAPubSubTakesNoQueueSettings(t *testing.T) {
+	b := New()
+	known(t, b, "alice@h")
+	for _, bad := range []protocol.Record{
+		{Name: "p1@h", Owner: "alice@h", Kind: protocol.KindPubSub, TTL: "1h"},
+		{Name: "p2@h", Owner: "alice@h", Kind: protocol.KindPubSub, Bound: 10},
+		{Name: "p3@h", Owner: "alice@h", Kind: protocol.KindPubSub, Full: protocol.OverflowRing},
+	} {
+		if _, err := b.Register(bad); !errors.Is(err, ErrKind) {
+			t.Fatalf("register %s with a queue setting: err = %v, want ErrKind", bad.Name, err)
+		}
+	}
+	r, err := b.Register(protocol.Record{Name: "news@h", Owner: "alice@h", Kind: protocol.KindPubSub})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Full != "" || b.records["news@h"].Full != "" {
+		t.Fatalf("a pubsub was given overflow %q", b.records["news@h"].Full)
+	}
+	for _, change := range []Management{
+		{Name: "news@h", TTL: ptr("1h")},
+		{Name: "news@h", Bound: ptr(10)},
+		{Name: "news@h", Full: ptr(protocol.OverflowStrict)},
+	} {
+		if _, err := b.Manage("alice@h", change); !errors.Is(err, ErrKind) {
+			t.Fatalf("manage %+v: err = %v, want ErrKind", change, err)
+		}
+	}
+	if s := b.records["news@h"]; s.TTL != "" || s.Bound != 0 || s.Full != "" {
+		t.Fatalf("a refused change was stored: %+v", s)
+	}
+}
+
+// Each published copy lives as long as its own recipient keeps messages, or
+// as the publisher asked when that is shorter — as a direct send would.
+func TestAPublishedCopyTakesItsRecipientsTTL(t *testing.T) {
+	b := New()
+	known(t, b, "alice@h")
+	provision(t, b, nil,
+		protocol.Record{Name: "#short@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}, TTL: "1s", Full: protocol.OverflowStrict},
+		protocol.Record{Name: "#long@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}, Full: protocol.OverflowStrict},
+		protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "alice@h", Allow: []string{"*"}, Subs: []string{"#short@h", "#long@h"}},
+	)
+	e, err := b.Send(protocol.Envelope{From: "alice@h", To: "news@h", Body: "b", TTL: "1m"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]time.Duration{"#short@h": time.Second, "#long@h": time.Minute} {
+		q := b.inboxes[name].queue
+		if len(q) != 1 {
+			t.Fatalf("%s holds %d copies", name, len(q))
+		}
+		if got := q[0].Expires.Sub(e.At); got != want {
+			t.Fatalf("%s's copy lives %v, want %v", name, got, want)
+		}
+	}
+}
+
+// A topic stored before 0.8.52 carries the overflow default and may carry a
+// TTL or capacity: load drops them and keeps the topic, reporting only a
+// setting somebody chose (Q123).
+func TestAStoredTopicLosesItsQueueSettings(t *testing.T) {
+	b := New()
+	j := &reports{}
+	b.Journal(j)
+	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+		{Name: "plain@h", Kind: protocol.KindPubSub, Owner: "alice@h", Full: protocol.OverflowStrict},
+		{Name: "timed@h", Kind: protocol.KindPubSub, Owner: "alice@h", TTL: "1h", Bound: 5, Full: protocol.OverflowRing},
+	}}, "alice@h"))
+	for _, name := range []string{"plain@h", "timed@h"} {
+		r, loaded := b.records[name]
+		if !loaded {
+			t.Fatalf("%s was ignored: %v", name, j.lines)
+		}
+		if r.TTL != "" || r.Bound != 0 || r.Full != "" {
+			t.Fatalf("%s kept queue settings: %+v", name, r)
+		}
+	}
+	if j.has("plain@h") {
+		t.Fatalf("the stored default was reported: %v", j.lines)
+	}
+	if !j.has("stored topic timed@h carried") {
+		t.Fatalf("a chosen setting was dropped silently: %v", j.lines)
 	}
 }

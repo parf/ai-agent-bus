@@ -330,6 +330,7 @@ func (b *Bus) UserName(id uint32) (string, bool) {
 // Caller holds b.mu.
 func (b *Bus) ignoreIncorrect() {
 	b.ignoreSharedIdentities()
+	b.dropTopicQueueSettings()
 	for {
 		var gone []string
 		names := make([]string, 0, len(b.records))
@@ -456,6 +457,25 @@ func (b *Bus) ignoreSharedIdentities() {
 		for key := range keys {
 			held[key] = name
 		}
+	}
+}
+
+// dropTopicQueueSettings takes queue settings off a stored 📣. Before 0.8.52
+// every topic was stored with the overflow default, and one could be given a
+// TTL or capacity; none had a meaning of its own, so they are dropped rather
+// than making a working topic incorrect (Q123). Only a setting somebody chose
+// is reported. The next write of the topic stores it without them. Caller
+// holds b.mu.
+func (b *Bus) dropTopicQueueSettings() {
+	for name, r := range b.records {
+		if r.Kind != protocol.KindPubSub || r.TTL == "" && r.Bound == 0 && r.Full == "" {
+			continue
+		}
+		if r.TTL != "" || r.Bound != 0 || r.Full != protocol.OverflowStrict {
+			b.report(ports.Warning, "stored topic %s carried a TTL, capacity or overflow policy, which a topic cannot have; they are dropped", name)
+		}
+		r.TTL, r.Bound, r.Full = "", 0, ""
+		b.records[name] = r
 	}
 }
 

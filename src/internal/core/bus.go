@@ -294,6 +294,12 @@ func validateKind(r protocol.Record) error {
 	// other kind (docs/constitution.md#common-record-fields).
 	switch r.Kind {
 	case protocol.KindPubSub:
+		// A 📣 keeps nothing, so it has no queue for a TTL, capacity or
+		// overflow policy to be about: each recipient's own inbox applies
+		// its own (docs/constitution.md#common-record-fields).
+		if r.TTL != "" || r.Bound != 0 || r.Full != "" {
+			return fmt.Errorf("%w: a pubsub keeps nothing, so it takes no TTL, capacity or overflow policy", ErrKind)
+		}
 	case protocol.KindAgent, protocol.KindQueue:
 		if len(r.Subs) > 1 {
 			return fmt.Errorf("%w: a %s's deliver_to holds one destination, not %d", ErrKind, r.Kind, len(r.Subs))
@@ -395,7 +401,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// An overflow policy is about a queue, so only a record that has one gets
 	// the default. A service stating one is a caller error, which validateKind
 	// below is where it is told.
-	if r.Full == "" && onBus(r) {
+	if r.Full == "" && onBus(r) && r.Kind != protocol.KindPubSub {
 		r.Full = protocol.OverflowStrict
 	}
 	if r.Full != "" && r.Full != protocol.OverflowStrict && r.Full != protocol.OverflowRing {
@@ -1267,6 +1273,13 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		c.To, c.Forwards = s, e.Forwards+1
 		if c.OriginalTo == "" {
 			c.OriginalTo = topic.Name
+		}
+		// The recipient's own TTL, as for a direct send and a forward hop.
+		if d, err := life(sub.TTL, e.TTL); err == nil {
+			c.Expires = time.Time{}
+			if d > 0 {
+				c.Expires = e.At.Add(d)
+			}
 		}
 		if err := b.route(sub, c); err != nil {
 			failed, why = append(failed, s), append(why, err)

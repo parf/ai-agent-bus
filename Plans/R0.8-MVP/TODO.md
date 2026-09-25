@@ -11,7 +11,8 @@ Finish the [MVP scope](README.md#scope). Built wave results are in [DONE](DONE.m
 
 ## Next step
 
-None for MVP. The [0.7 constitution work](0.7.0-TODO.md#next-step) is stable
+[Constitution conformance](#constitution-conformance): the 2026-09-24 review's
+fixes. Otherwise none for MVP. The [0.7 constitution work](0.7.0-TODO.md#next-step) is stable
 at 0.7.20 and MVP closed on the 0.8 line; the next stage is [R1](../R1.0-Release/README.md#scope).
 
 H.1 and H.1.1 have [fresh-install](done/fresh-install.md#checks) and [populated-upgrade](done/upgrade-recovery.md#checks) evidence. H.9.5 has [Codex/OpenCode](done/runtime-interactive.md#checks) and [Claude channel](done/runtime-interactive.md#claude-channel-checks) evidence. F.12 has [installed browser evidence](done/installed-browser-acceptance.md#checks). The installed runtimes passed on a [fresh host](done/fresh-host-runtime.md#checks). H.5.3 has [administrative crash-recovery evidence](done/administrative-durability.md#checks). H.5.2 has [real-SSH evidence](done/ssh-onboarding.md#checks); G.1.2 and G.1.3 have installed [resource](done/web-resources.md#checks) and [authority-isolation](done/web-isolation.md#checks) evidence. The [review evidence](done/release-gap-review.md#findings) distinguishes reproduced failures from unverified risks. Choices are tracked in [QUESTIONS](QUESTIONS.md#open-questions).
@@ -101,6 +102,30 @@ The 0.7 [open questions](QUESTIONS.md#open-questions) name the rows they block;
 the storage rows are unblocked.
 Implementation gaps are not reopened policy questions. The [Future storage
 proposal](../R2.0-Future/storage.md#storage) is not a remaining MVP database requirement.
+
+## Constitution conformance
+
+The [2026-09-24 review](constitution-review.md#code-violations) found where
+0.8.51 departs from the [constitution](../../docs/constitution.md#project-constitution).
+Each row closes one finding there; its mutation must compile and fail on an
+assertion.
+
+| ID | Deliverable | Depends on | Acceptance and mutation |
+|---|---|---|---|
+| K.23 | A name freed by an ignored record inherits nothing | — | registering it leaves no stored ACL, Maintainer or Group-member reference admitting the new holder; removing the cleanup fails the check |
+| K.24 | Ownership follows `user_id` | — | a User recreated under a vanished User's name owns none of its records after restart; comparing by name fails the check |
+| K.25 | Waiting readers are refused only after the commit | — | a failed commit leaves a waiting reader waiting; signalling before the commit fails the check |
+| K.26 | An ignored User keeps its credential | — | the start sweep leaves it; dropping the ignored mark fails the check |
+| K.27 | Done 0.8.52: a published copy takes its recipient's TTL | — | a copy expires under its recipient's TTL; keeping the topic's expiry fails the check |
+| K.28 | A kind refuses fields it cannot have | Q124 | 📣 queue settings: done 0.8.52 (`TestAPubSubTakesNoQueueSettings`, `TestAStoredTopicLosesItsQueueSettings`). Remaining: non-📡 `addr`/`protocol` refused on register and manage; removing the refusal fails its check |
+| K.29 | A corrupt token row is never repaired | — | an agent row with an empty pair and a re-issue over an ignored row are both reported; silent binding fails the check |
+| K.30 | Users inside a 📣's Group are answered by the rule Q126 settles | Q126 | the chosen outcome is asserted; a silent skip fails the check |
+| K.31 | `/group` de-duplicates members | — | a repeated member is stored once; removing the de-duplication fails the check |
+| K.32 | A User name has no template part | — | `tmpl/eve` is refused as a User; removing the refusal fails the check |
+| K.33 | Start and token-store failures reach the error log and syslog | — | each named case writes an `error.log` line; removing the report fails the check |
+| K.34 | Registration refuses the fields it does not write | — | `status`, `maintainers`, `owner` and counters on `/register` are refused, and the reply carries the stored `created_at` |
+| K.35 | The constitution's text matches the code | Q122, Q125, Q127 | every [doc correction](constitution-review.md#doc-corrections) row is applied; links and anchors check clean |
+| K.36 | The untested claims have checks | — | each [untested claim](constitution-review.md#untested-claims) has a check that fails when its code is removed |
 
 ## Authority model
 

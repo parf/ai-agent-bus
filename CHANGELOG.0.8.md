@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.52 — 2026-09-24
+
+A pub/sub topic takes no TTL, capacity or overflow policy, and each published
+copy lives by its recipient's TTL; a stored topic's old settings are dropped at
+load. Its web page no longer shows a queue Policy card.
+
 ## 0.8.51 — 2026-09-24
 
 The release package carries the whole web face: every `web/` file is in the
