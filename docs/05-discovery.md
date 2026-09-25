@@ -604,6 +604,14 @@ real daemon as the `web_ts` shard of `src/smoke.sh`; `src/web/probe-unit.sh`
 exercises the [unit's walls](11-processes.md#the-web-face) on an installed
 host. The page contract they check is [the web face spec](web-face/site-map.md#every-address).
 
+**Installed, in a real browser, from 0.8.53.** `src/acceptance/installed-browser.sh
+<archive> <new-dir>` installs the release on a disposable real-systemd host with
+the sample data, and Chromium walks the face: sign-in and the session cookie,
+the CDN fonts, icons and charts under the CSP, every page and sample record,
+the theme, the palette, no sideways scroll at 390 px, a web restart that keeps
+the session, a daemon restart that ends it, and sign-out. Its container has a
+network, since the page's assets come from the pinned CDN.
+
 <details>
 <summary>History: the Go dashboard's acceptance</summary>
 

@@ -9,7 +9,7 @@ ordinary use needs neither.
 
 | MVP | Scope |
 |---|---|
-| Built | Distributable archive, installer, administration, token helper, accounts, daemon and web units and stamped builds; fresh-host installation, populated upgrade/recovery, [backup/restore](#backup-and-restore) and installed [runtime](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance. Installed [browser acceptance](05-discovery.md#browser-acceptance) (0.8.26–0.8.30) covered the former Go face; the TypeScript face's installed-browser rerun is [follow-up](../Plans/R0.8-MVP/web/TODO.md#next-step). |
+| Built | Distributable archive, installer, administration, token helper, accounts, daemon and web units and stamped builds; fresh-host installation, populated upgrade/recovery, [backup/restore](#backup-and-restore) and installed [runtime](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance. Installed [browser acceptance](05-discovery.md#browser-acceptance) of the TypeScript face passed on 0.8.53. |
 
 ## The programs
 

@@ -13,7 +13,7 @@ design; the Go face gone.
 
 ## Next step
 
-None: W.1–W.11 are built ([DONE](DONE.md#done--web)). The installed fresh-install and upgrade container gates passed against the TypeScript face on 0.8.51, sample data included; a real-browser run on an installed host is follow-up.
+None: W.1–W.11 are built ([DONE](DONE.md#done--web)). The installed fresh-install and upgrade container gates passed against the TypeScript face on 0.8.51, sample data included, and the installed real-browser gate (W.12) on 0.8.53.
 
 ## Steps
 

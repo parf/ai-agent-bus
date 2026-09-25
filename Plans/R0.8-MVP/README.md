@@ -37,7 +37,7 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 | Identity, credentials and local isolation | Built | [identity](../../docs/01-identity-and-roles.md#scope), [access](../../docs/02-access.md#scope) |
 | Registry, channels and private configuration | Built, including Personal classification and web grouping | [records](../../docs/03-records.md#status) |
 | Messaging and restart persistence | Built, including administrative crash durability and explicit inbox selection | [messaging](../../docs/04-messaging.md#status) |
-| API, CLI, MCP and web face | Built; the TypeScript web face under its own unit from 0.8.50, its installed container gates passed on 0.8.51; a real-browser rerun on an installed host is follow-up | [discovery](../../docs/05-discovery.md#status) |
+| API, CLI, MCP and web face | Built; the TypeScript web face under its own unit from 0.8.50, its installed container gates passed on 0.8.51 and its installed real-browser gate on 0.8.53 | [discovery](../../docs/05-discovery.md#status) |
 | Foreground agents and adapters | Built, including launchers; live-runtime acceptance passed on the development and a fresh installed host | [runner](../../docs/08-runner-role.md#status) |
 | Installation and service account | Package, setup, upgrade, reinstall and fresh-host acceptance passed | [setup](../../docs/09-setup.md#status) |
 | Process isolation | Split, web authority isolation, resource limits and installed account/socket/capability acceptance built | [processes](../../docs/11-processes.md#status) |
