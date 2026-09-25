@@ -7,8 +7,8 @@ Owner-steered refinement of the built web surface. The contracts stay in
 [what it shows](../../../docs/05-discovery.md#what-it-shows), [overview and
 diagnostics](../../../docs/05-discovery.md#overview-and-diagnostics) and
 [identity and roles](../../../docs/01-identity-and-roles.md#user-states); the
-page and form specs are [pages](../web/pages.md#users-users) and
-[forms](../web/forms.md#the-set). No requirement row closed here.
+page and form specs are [pages](../web-handoff/pages.md#users-users) and
+[forms](../web-handoff/forms.md#the-set). No requirement row closed here.
 
 ## What the owner asked
 

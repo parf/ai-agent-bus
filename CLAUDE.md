@@ -16,7 +16,7 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 | [Glossary](docs/glossary.md#names) | Current naming and links to definitions |
 | [Decisions](docs/decisions.md#settled) | Current decision names and links |
 | [Plans](Plans/README.md#stages) | Stage status and release scope navigation |
-| [R0.8](Plans/R0.8/README.md#scope), [R0.8-Web](Plans/R0.8-Web/README.md#scope) | Active stage knowledge; current contracts remain in docs |
+| [R0.8](Plans/R0.8/README.md#scope), its [web face](Plans/R0.8/web/README.md#scope) | Active stage knowledge; current contracts remain in docs |
 | [R1](Plans/R1/README.md#scope), [R1.1](Plans/R1.1/README.md#scope), [R1.2](Plans/R1.2/README.md#scope) | Future release knowledge and plans |
 | [R2.0](Plans/R2.0/README.md#topics) | Generic undecided or unassigned ideas |
 | `Plans/done/` and each plan's `done/` | Historical completion evidence, never current contracts |
@@ -69,7 +69,7 @@ is read by byte offset while it runs — never edit it mid-run.
 
 - Small files, main ideas only, tables over prose; terse English.
 - Current docs open with a `📌 **TL;DR:**` paragraph: the essence in two to four lines, never a single clause. Lead sections with a short summary; put supporting detail in closed `<details>` / `<summary>` blocks and remove duplication.
-- Use R0.8, R0.8-Web, R1, R1.1, R1.2 and R2.0 for stages; Legacy-V1 for the NATS system.
+- Use R0.8, R1, R1.1, R1.2 and R2.0 for stages; Legacy-V1 for the NATS system.
 - Beyond the TL;DR marker, no glyph by default. Use question, conflict, failure, blocked, cancelled, deferred, partial, done, handed-off and superseded glyphs only when they add information. One glyph per cell.
 
 ## Design boundaries

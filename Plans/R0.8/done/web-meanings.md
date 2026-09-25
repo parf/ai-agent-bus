@@ -3,14 +3,14 @@
 **Later decision (2026-09-17):** Q70 is settled by the [single Readers count](../../../docs/05-discovery.md#readers). The open-question wording below records the state when this work shipped.
 
 Shipped in 0.5.36. Evidence for the acceptance in [TODO](../TODO.md#web-redesign)
-as that row stood before removal. The [data dictionary](../web/data-dictionary.md#the-rule)
+as that row stood before removal. The [data dictionary](../web-handoff/data-dictionary.md#the-rule)
 owns the vocabulary; this records what the pages now say and what proves it.
 
 ## Scope
 
 The audit found that almost every misleading value was a true fact presented as
 a different one ([W01–W17](web-review.md#findings),
-[C01–C16](../web/review/codex.md#junk-and-misleading-content)). The rule is that
+[C01–C16](../web-handoff/review/codex.md#junk-and-misleading-content)). The rule is that
 **declared state, observed state and health are three things**, and the pages had
 one word for all three. This task fixes the words and adds the read facts whose
 absence forced a reader to guess. It changes no daemon behaviour: the one export

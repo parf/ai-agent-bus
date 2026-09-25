@@ -8,7 +8,7 @@ Owner-steered refinement of [F.13.5](web-overview-diagnostics.md#checks); the
 contracts stay in [overview and
 diagnostics](../../../docs/05-discovery.md#overview-and-diagnostics), [what a
 node says about itself](../../../docs/05-discovery.md#what-a-node-says-about-itself)
-and [glyphs](../web/glyphs.md#the-same-marks-in-the-navigation). No requirement
+and [glyphs](../web-handoff/glyphs.md#the-same-marks-in-the-navigation). No requirement
 row closed here.
 
 ## What the owner asked
@@ -125,10 +125,10 @@ rather than convenient.
 |---|---|---|
 | [what a node says about itself](../../../docs/05-discovery.md#what-a-node-says-about-itself) | the public closed list included calls served, shown in the footer and on the sign-in page | the placement is revised and the audience change is stated in three places, including what it costs |
 | [overview and diagnostics](../../../docs/05-discovery.md#overview-and-diagnostics) | the strip was four node-wide facts | seven, with the label and the once-only time named |
-| [glyphs](../web/glyphs.md#page-title-images-and-glyphs) | Overview's mark was *the inline AgentBus mark* | 🏠, plus the navigation exception as its own section and a row in the where-allowed table |
-| [information architecture](../web/information-architecture.md#navigation) | a plain nav row | the row notes each entry's mark |
-| [pages](../web/pages.md#overview-) | the empty state carried `as of 14:22` | the time is stated once, and why |
-| [layouts](../web/layouts.md#overview--the-only-page-allowed-to-be-short) | the Overview mock showed a four-cell `Records` strip, a heading time, a per-item `observed 14:22` and an empty state time | the mock is the seven-fact strip and the once-only time; this is current layout guidance, not history, so it was corrected rather than annotated |
+| [glyphs](../web-handoff/glyphs.md#page-title-images-and-glyphs) | Overview's mark was *the inline AgentBus mark* | 🏠, plus the navigation exception as its own section and a row in the where-allowed table |
+| [information architecture](../web-handoff/information-architecture.md#navigation) | a plain nav row | the row notes each entry's mark |
+| [pages](../web-handoff/pages.md#overview-) | the empty state carried `as of 14:22` | the time is stated once, and why |
+| [layouts](../web-handoff/layouts.md#overview--the-only-page-allowed-to-be-short) | the Overview mock showed a four-cell `Records` strip, a heading time, a per-item `observed 14:22` and an empty state time | the mock is the seven-fact strip and the once-only time; this is current layout guidance, not history, so it was corrected rather than annotated |
 | `src/smoke.sh` | three `has` checks for the counters in the anonymous footer | three absence checks there and nine signed-in Overview checks |
 | `Plans/R0.8/done/design-qa.md` | recorded a `footer Owner/Uptime/Calls` observation | a dated correction line; the measurement itself is not rewritten, because it is what was observed then |
 
@@ -269,4 +269,4 @@ Read from the live cgroup and the sandboxed child's own `/proc` entry.
 - Whether the nav should wrap or collapse at narrow widths. It scrolls today and
   scrolled before; deciding it belongs to F.13.6's viewport work.
 - The `∅`/`—`/`¿` rendering question and the CSS-versus-emoji proposal stay
-  [open](../web/glyphs.md#open); this slice added no new glyph semantics.
+  [open](../web-handoff/glyphs.md#open); this slice added no new glyph semantics.

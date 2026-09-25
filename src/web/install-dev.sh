@@ -1,5 +1,5 @@
 #!/bin/bash
-# Development install of the TypeScript web face (Plans/R0.8-Web/README.md#process-and-account):
+# Development install of the TypeScript web face (Plans/R0.8/web/README.md#process-and-account):
 # the agent-bus-web account, /var/lib/agent-bus/web linked to this checkout,
 # and the locked-down unit. Run with sudo. Idempotent; --remove undoes it.
 set -euo pipefail

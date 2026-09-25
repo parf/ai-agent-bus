@@ -74,7 +74,7 @@ failure says which path stopped counting rather than that a total is wrong.
 |---|---|
 | counting cannot be derived from the status | `403` and `409` each carry three reasons. The first design counted by code and would have merged them |
 | the consume bypass is one branch, not two | a filter matching nothing is an ordinary empty wait, not a refusal. The only bypass was the topic naming a name |
-| `/consume` defaults its inbox to the caller | the sole HTTP override is a caller-visible topic named with `topic=` and no tag; there is no `name=` parameter. Found by a fixture that passed one and watched it read the caller's own inbox, and it corrected a specification claim as well ([delegated drain](../web/pages.md#overview-)) |
+| `/consume` defaults its inbox to the caller | the sole HTTP override is a caller-visible topic named with `topic=` and no tag; there is no `name=` parameter. Found by a fixture that passed one and watched it read the caller's own inbox, and it corrected a specification claim as well ([delegated drain](../web-handoff/pages.md#overview-)) |
 | the coverage is a fact about the paths there are | every refusing path calls the shared counter, and nothing structural prevents a future handler answering around it. A guard on the writer's callers was considered and rejected: it would pin this implementation and still miss a new handler reaching for `http.Error` or the raw writer. The contract and the pages say what is counted, not that a bypass is impossible |
 
 ## Verification

@@ -44,7 +44,7 @@ It is also kept out of `visible`, and the reason is narrower than the first
 draft of this document said. `visible` computes `r.Disabled || !active(r.Name)`
 already, so `Disabled` does **not** mean *the owner turned delivery off* — it
 means *delivery is off*, with the bit unable to say which of two reasons
-applies ([data dictionary](../web/data-dictionary.md#fields)). Folding
+applies ([data dictionary](../web-handoff/data-dictionary.md#fields)). Folding
 suspension in would put a third distinct fact into a field that cannot carry
 the two it has. Keeping it separate leaves a face free to answer it separately,
 or not at all, rather than answering it wrongly.

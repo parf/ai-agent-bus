@@ -27,7 +27,7 @@ between the two sweeps and one answer.
 | [`core.UnregisterAnd`](../../../src/internal/core/unregister.go) | a non-person now goes through `forgetName`; a registered user keeps their standing, so only their record and inbox go |
 | [`core.ownerless`](../../../src/internal/core/users.go) | the interim guard is gone |
 | [`agent-busd`](../../../src/cmd/agent-busd/bus.go) | the sweep runs at start, **after `api.New` and before the credential sweep**, and the snapshot is written again after both |
-| [`agent-bus-web`](../../../src/cmd/agent-bus-web/users.go), [`core.RemoveOwnerless`](../../../src/internal/core/users.go), [pages](../web/pages.md#user-username) | the copy describing the interim guard, in three places, for a state no longer reachable |
+| [`agent-bus-web`](../../../src/cmd/agent-bus-web/users.go), [`core.RemoveOwnerless`](../../../src/internal/core/users.go), [pages](../web-handoff/pages.md#user-username) | the copy describing the interim guard, in three places, for a state no longer reachable |
 
 **A registered user's own record is never wreckage, whoever the store says owns
 it.** The rule rests on there being no principal behind the name, and a person

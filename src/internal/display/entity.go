@@ -9,7 +9,7 @@ const (
 	// one. Every other role stays a word: the node has exactly one daemon
 	// owner and a record names its maintainers once, so neither mark can
 	// spread far enough to become a column heading — which is the whole
-	// reason the default is no glyph (Plans/R0.8/web/glyphs.md#the-rule-that-matters-most).
+	// reason the default is no glyph (Plans/R0.8/web-handoff/glyphs.md#the-rule-that-matters-most).
 	DaemonOwnerGlyph = "🔱"
 	MaintainerGlyph  = "👮"
 )
@@ -74,7 +74,7 @@ func Entity(kind string) string {
 // one authority that outranks an entity type. A node has exactly one daemon
 // owner, so the mark cannot spread far enough to become a column heading, which
 // is the rule the quiet default exists for
-// (Plans/R0.8/web/glyphs.md#the-rule-that-matters-most). The cell still carries
+// (Plans/R0.8/web-handoff/glyphs.md#the-rule-that-matters-most). The cell still carries
 // one glyph and one word.
 func Identity(kind string, daemonOwner bool) string {
 	if daemonOwner {

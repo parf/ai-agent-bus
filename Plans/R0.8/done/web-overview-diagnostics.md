@@ -4,8 +4,8 @@
 detail and stopped repeating the registry.
 
 Contract: [what it shows](../../../docs/05-discovery.md#what-it-shows).
-Page spec: [Overview](../web/pages.md#overview-),
-[attention levels](../web/glyphs.md#attention-levels).
+Page spec: [Overview](../web-handoff/pages.md#overview-),
+[attention levels](../web-handoff/glyphs.md#attention-levels).
 
 codex wrote the slice. This file records the audit, the corrections and the
 evidence; the mutation and browser work below is mine.
@@ -148,7 +148,7 @@ The two elements this slice adds, `.attention-list` and `.node-strip`, measured
 
 ## Not implemented
 
-[The Overview page spec](../web/pages.md#overview-) admits two further items that this
+[The Overview page spec](../web-handoff/pages.md#overview-) admits two further items that this
 slice does not emit, and does not supply:
 
 - **Services of a suspended owner** needs the owner's user state, which the

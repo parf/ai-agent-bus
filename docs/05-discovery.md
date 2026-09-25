@@ -287,7 +287,7 @@ carrying it; configuration, transfer and removal remain in the red Danger Zone.
 **Adding an entity and editing one are the same form**, one page per kind
 and one field set rendered by both — for a 👤 user and a 👥 group as much as
 for a record
-([forms](../Plans/R0.8/web/forms.md#rules)) — so a 👾 and a 📮 declare the TTL,
+([forms](../Plans/R0.8/web-handoff/forms.md#rules)) — so a 👾 and a 📮 declare the TTL,
 capacity and overflow of the inbox they hold, a 📣 declares a
 [Deliver-To list](04-messaging.md#subscribers) and no queue policy, and a 📡, a
 👾 and a 👥 offer a field for their [secret](06-services.md#secrets), written by a

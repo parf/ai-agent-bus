@@ -2,7 +2,7 @@
 
 **Superseded in part.** The owner reopened this as a full redesign on
 2026-09-16, and the current specifications live in
-[the redesign directory](web/README.md#what-each-document-owns): architecture,
+[the redesign directory](web-handoff/README.md#what-each-document-owns): architecture,
 pages, forms, components, the data dictionary, glyphs, visual design and
 technology, with peer review beside them. This file remains the earlier
 proposal and the plan's topic entry; where the two disagree the redesign is
@@ -130,7 +130,7 @@ A compact operations application: neutral surfaces, strong text hierarchy, a res
 | Quiet state | A brief factual statement with a next action; do not give empty tables or flat charts most of the screen |
 | Refresh | A visible observation time and Refresh action. Optional full-page refresh must be explicitly enabled and pausable; never reload a form or unexpectedly move focus |
 
-Validate the proposed design with populated, empty, unavailable, denied and long-name examples before implementation. The current production data is too quiet to validate incident presentation. Reviewable page designs were produced and reviewed in F.13.0 ([visual options](web/visual-options.md#selected-direction)); this document does not pretend the whole redesign has since been accepted, which is F.13.6.
+Validate the proposed design with populated, empty, unavailable, denied and long-name examples before implementation. The current production data is too quiet to validate incident presentation. Reviewable page designs were produced and reviewed in F.13.0 ([visual options](web-handoff/visual-options.md#selected-direction)); this document does not pretend the whole redesign has since been accepted, which is F.13.6.
 
 ## Architecture recommendation
 

@@ -87,7 +87,7 @@ Submit: `<button type=submit>sign in</button>`. The label is `<label for=token>t
 
 | Older doc | Code |
 |---|---|
-| `Plans/R0.8/web/pages.md#landing-and-sign-in-`: acquisition help mentions the SSH onboarding path | the popover states two commands and the non-expiry note only |
+| `Plans/R0.8/web-handoff/pages.md#landing-and-sign-in-`: acquisition help mentions the SSH onboarding path | the popover states two commands and the non-expiry note only |
 
 ## `POST /signin`
 
@@ -252,10 +252,10 @@ Navigation; attention links; Find: `/agents?sort=queued&work=held` (Agents holdi
 
 | Older doc | Code |
 |---|---|
-| `Plans/R0.8/web/pages.md#overview-`: heading has observation time and a Refresh | no time or Refresh on the page; the footer states `Generated` |
+| `Plans/R0.8/web-handoff/pages.md#overview-`: heading has observation time and a Refresh | no time or Refresh on the page; the footer states `Generated` |
 | same: "Unregistered credentials awaiting review" item, blue | not built; leftovers appear only on Diagnostics |
 | `docs/05-discovery.md#overview-and-diagnostics`: Find links the two holding-work views "and nothing else" | a third link, `External services` → `/services` |
-| `Plans/R0.8/web/glyphs.md#where-a-glyph-is-allowed`: one severity glyph per attention item | no glyph; the level is a coloured left border only |
+| `Plans/R0.8/web-handoff/glyphs.md#where-a-glyph-is-allowed`: one severity glyph per attention item | no glyph; the level is a coloured left border only |
 
 ## `/activity`
 
@@ -364,7 +364,7 @@ Navigation only.
 
 | Older doc | Code |
 |---|---|
-| `Plans/R0.8/web/pages.md#activity-activity`: about 145 readings; a restart empties history; `¿` marks unobserved slots | 144 fixed slots, saved across restarts; down time is `0`; no `¿` |
+| `Plans/R0.8/web-handoff/pages.md#activity-activity`: about 145 readings; a restart empties history; `¿` marks unobserved slots | 144 fixed slots, saved across restarts; down time is `0`; no `¿` |
 | `docs/web-face/site-map.md`: "reset on restart" | saved across restarts (`docs/05-discovery.md#activity-history` agrees with the code) |
 | Select label "Service or channel" | also lists users, agents and groups |
 
@@ -496,7 +496,7 @@ Refresh; record detail per name; `#message-` anchors; `/user?name=…&return=/di
 
 | Older doc | Code |
 |---|---|
-| `Plans/R0.8/web/pages.md#diagnostics-diagnostics`: sections are exchanges, refusals and losses | also inboxes holding messages and leftovers; order is refusals, inboxes, exchanges, loss, leftovers |
+| `Plans/R0.8/web-handoff/pages.md#diagnostics-diagnostics`: sections are exchanges, refusals and losses | also inboxes holding messages and leftovers; order is refusals, inboxes, exchanges, loss, leftovers |
 | same: demote the Envelopes column and the repeated "No completion receipt" line | both still on every row |
 | `docs/05-discovery.md#overview-and-diagnostics`: no Refresh link (owner, 0.5.83) | Diagnostics still has `Refresh`; Overview has none |
 

@@ -35,7 +35,7 @@ Known upgrade hazard, not a row: a 0.7.<20 development database whose user recor
 
 ## Web redesign
 
-The [specifications](web/README.md#what-each-document-owns) supersede parts of
+The [specifications](web-handoff/README.md#what-each-document-owns) supersede parts of
 the [earlier proposal](web-interfaces.md#proposal); the [audit](done/web-review.md#findings)
 records observed shortcomings. F.13.0 is complete through the owner's rendered
 page selection and iterative browser corrections

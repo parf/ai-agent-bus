@@ -137,7 +137,7 @@ the CLI. It is a face, not an authority.
 Reaching a limit may kill the face; systemd restarts it, and bus calls continue
 while it is absent. `src/web/probe-unit.sh` exercises these walls on an
 installed unit. The design and its checks are in
-[Web § process and account](../Plans/R0.8-Web/README.md#process-and-account).
+[Web § process and account](../Plans/R0.8/web/README.md#process-and-account).
 
 </details>
 
