@@ -6,6 +6,8 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
+| Q131 | Where the daemon's TLS certificate comes from: operator-supplied files, a self-signed one setup makes, or an ACME client | owner, with TLS; recommended: operator files first, as the web face takes them, with a self-signed one setup can make for a private network | [access § TLS](access.md#tls) |
+| Q132 | How a client trusts the daemon's certificate: the system CA store, a fingerprint pinned from `ssh agent-busd@<node> token`, or both | owner, with TLS; recommended: the system store, plus a pinned fingerprint for self-signed certificates, delivered with the token over SSH | [access § TLS](access.md#tls) |
 | Q4 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](auth.md#ssh-admin) |
 | Q5 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](registry.md#registry-sync) |
 | Q6 | How an absent receiver obtains decryption material, and how manual credential changes affect retained keys and queued bodies | owner, with R1 | [access § key modes](access.md#key-modes) |

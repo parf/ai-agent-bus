@@ -594,9 +594,10 @@ host. Three arrangements, and the third is what the split buys:
 | one host | local, `agent-busd` | local, `agent-bus-runner` |
 | **edge box** | **elsewhere** | local, alone — a machine that hosts services and holds no bus state |
 
-A remote daemon is reached the way anything else here is reached, over **ssh**
-([access § the three doors](../../docs/02-access.md#what-a-call-carries)): no port opened to
-a network, and no TLS between bus citizens.
+A remote daemon is reached over **ssh**
+([access § the three doors](../../docs/02-access.md#what-a-call-carries)), or
+directly on its TCP address, which is plain HTTP in the release and
+[TLS](access.md#tls) in R1.
 
 **A bus that is away is not a service that failed.** When the daemon is
 unreachable the services are running perfectly well and simply cannot take

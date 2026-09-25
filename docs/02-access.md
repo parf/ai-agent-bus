@@ -322,6 +322,6 @@ by the daemon. No peer handshake or message encryption is built. The TCP
 listener binds any address it is given and speaks plain HTTP: off loopback,
 tokens and bodies cross that network unencrypted, and the daemon says so at
 start. Agents on other hosts connect directly on a trusted network, or through
-an SSH tunnel. Hiding bodies
+an SSH tunnel; TLS on the listener is [R1 work](../Plans/R1.0-Release/access.md#tls). Hiding bodies
 from the web face is a disclosure boundary, not encryption; encrypted sessions
 are [R1 work](../Plans/R1.0-Release/access.md#encrypted-sessions).

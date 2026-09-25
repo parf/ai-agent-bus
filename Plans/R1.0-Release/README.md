@@ -11,6 +11,7 @@ backends are owner-assigned; other scope remains proposed and subject to the own
 | Identity and policy | [Identity and policy](identity.md#groups-and-roles) |
 | AUTH distribution | [AUTH distribution](auth.md#bundle) |
 | Scoped credentials and encryption | [Scoped credentials and encryption](access.md#token-scope) |
+| TLS on the daemon's listener | [TLS](access.md#tls) |
 | Federation | [Federation](federation.md#chaining) |
 | Peer registry | [Peer registry](registry.md#registry-sync) |
 | Shared locks | [Shared locks](locks.md#shared-locks) |

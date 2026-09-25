@@ -29,7 +29,7 @@ The trust boundary: the daemon can read message bodies and stored configuration 
 | Major change from MVP | Proposed result | Owning design |
 |---|---|---|
 | **Distributed identity and policy** | Identity administration can span deployments, with richer organizational access decisions | [AUTH](R1.0-Release/auth.md#bundle), [groups and roles](R1.0-Release/identity.md#groups-and-roles) |
-| **A stronger trust boundary** | Credentials can be limited to their destination, and endpoint encryption can keep bodies unreadable to the bus | [Scoped credentials](R1.0-Release/access.md#token-scope), [encryption](R1.0-Release/access.md#encrypted-sessions) |
+| **A stronger trust boundary** | TLS on the daemon's listener protects tokens and bodies between hosts; credentials can be limited to their destination, and endpoint encryption can keep bodies unreadable to the bus | [TLS](R1.0-Release/access.md#tls), [scoped credentials](R1.0-Release/access.md#token-scope), [encryption](R1.0-Release/access.md#encrypted-sessions) |
 | Federation | Discovery and calls can reach upstream services; peer nodes can exchange registry records | [Chaining](R1.0-Release/federation.md#chaining), [peer registry](R1.0-Release/registry.md#registry-sync) |
 | **Managed service lifecycle** | Services become installed deployments with startup and restart behavior; kept children can retain state between messages | [Managed runner](R1.0-Release/runner.md#what-the-runner-does), [long-lived services](R1.0-Release/runner.md#long-lived-services) |
 | Distributed work and coordination | Workers can serve a shared name across hosts, and shared resources can be coordinated through the bus | [Pools](R1.0-Release/runner.md#one-name-on-many-hosts), [locks](R1.0-Release/locks.md#shared-locks) |

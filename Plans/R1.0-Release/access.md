@@ -61,7 +61,7 @@ replay protection. Never use `access_key` raw as the cipher key.
   visible on the registry record so nobody is surprised.
 - Integrity is free: a message that decrypts is from a party AUTH or the local
   mapping file vouched for.
-- Transport: anything direct — TCP, WebSocket, unix socket. No TLS, no PKI.
+- Transport: anything direct — TCP, WebSocket, unix socket. Encrypted sessions need no TLS or PKI of their own; [TLS](#tls) protects the transport separately.
 - **No forward secrecy** (decided): no ephemeral exchange; a leaked long-term
   key exposes recorded sessions.
 - Payload encoding is the envelope's ([target payload](#payload)).
@@ -70,6 +70,25 @@ The [MVP trust boundary](../../docs/02-access.md#trust-boundary) remains unchang
 until this design is implemented. The dashboard continues to use the
 [body-free feed](../../docs/05-discovery.md#dashboard); that restriction is not
 proof of encryption or a claim that the current daemon cannot read bodies.
+
+## TLS
+
+The daemon's TCP listener serves HTTPS when it is given a certificate and key,
+so agents on other hosts reach it directly without their token or message
+bodies crossing the network in plain text. The release binds any address as
+plain HTTP ([trust boundary](../../docs/02-access.md#trust-boundary)); TLS adds
+the encrypted transport, it does not replace SSH tunnels or encrypted sessions.
+
+| Part | Proposed |
+|---|---|
+| Daemon | a certificate and key given to `agent-busd` and to setup; asking for one and missing it refuses the start, as the web face already does ([where it listens](../../docs/05-discovery.md#where-it-listens)) |
+| Clients | the CLI, the MCP face, the launchers, the runner and the web face accept an `https://` daemon address and verify the certificate; a failed verification refuses the call, never falls back to plain HTTP |
+| Loopback and sockets | unchanged: the unix sockets and a loopback listener need no certificate |
+| Plain HTTP off loopback | still allowed, and still warned about at start (owner decision 2026-09-25) |
+| What it protects | tokens and bodies in transit between hosts. The daemon still reads bodies; hiding them from the daemon is [encrypted sessions](#encrypted-sessions) |
+
+Open: where the certificate comes from ([Q131](QUESTIONS.md#open-questions))
+and how a client decides to trust it ([Q132](QUESTIONS.md#open-questions)).
 
 ## Key confirmation
 
