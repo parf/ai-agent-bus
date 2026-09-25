@@ -8,7 +8,7 @@ import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
 import { TextField, LinesField, SecretField, SelectField, CheckField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
 import { Ribbon, type Slot } from "../ui/charts.tsx";
-import { rangeFor, loadRange, scopeLine, RangeNav, RangeChart } from "../ui/range.tsx";
+import { rangeFor, loadRange, rangeTitle, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
 import { number, relative, stamp, slotLabel } from "../format.ts";
 import { classify, formRefusal, lineRefusal, notYours, sectionProblem } from "../problem.tsx";
@@ -358,7 +358,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
           <RangeNav r={range} href={rangeHref} label={`Activity range for ${name}`} />
           {"err" in act ? <p class="warn">Activity unavailable: {act.err}</p>
             : <>
-              <p class="muted small">Scope: <code>{name}</code> · {scopeLine(range, act.ok)}.</p>
+              <p class="range-title"><strong>{rangeTitle(range)}</strong></p>
               {range.kind === "day" && act.ok.slots.length ? <Ribbon slots={act.ok.slots} label={`Traffic per ten-minute slot for ${name}`} /> : null}
               <RangeChart r={range} data={act.ok} id="record-chart" compact dayHref={at => rangeHref({ at })} />
             </>}

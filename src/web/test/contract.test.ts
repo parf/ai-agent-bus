@@ -274,6 +274,11 @@ describe("pages as the daemon owner", () => {
     const past = await (await req(`/activity?at=${y}`, { cookie: s })).text();
     expect(past).toMatch(/rel="next"/);
     expect(past).toContain(">Today</a>");
+    // The dates are the title, in bold; the page does not talk about slots.
+    const titled = await (await req(`/activity?range=week&at=${y}`, { cookie: s })).text();
+    expect(titled).toMatch(/<span class="title-date">[A-Z][a-z]{2} \d+ – (?:[A-Z][a-z]{2} )?\d+<\/span>/);
+    expect(titled).toMatch(/<title>Activity · [A-Z][a-z]{2} \d+ – /);
+    expect(titled).not.toMatch(/ten-minute slots|, hourly|, daily/);
     const future = await (await req("/activity?range=week&at=991231", { cookie: s })).text();
     expect(future).not.toMatch(/rel="next"/);
     expect(future).not.toContain(">Today</a>");

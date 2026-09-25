@@ -91,13 +91,14 @@ export function bucket(slots: Slot[], n: number): Slot[] {
   return out;
 }
 
-export function scopeLine(r: Range, data: RangeData): string {
-  if (r.live) {
-    const s = data.slots;
-    return s.length ? `the last 24 hours · ${slotLabel(s[0]!.at)} to now, ten-minute slots` : "the last 24 hours";
-  }
-  if (r.kind === "day") { const d = dateOf(r.at); return `${DOW[d.getDay()]} ${ymdLabel(r.at)}, ten-minute slots`; }
-  return `${ymdLabel(r.from)} – ${ymdLabel(r.to)}, ${r.kind === "week" ? "hourly" : "daily"}`;
+/** The dates a range shows, in words: what the page's title names. */
+export function rangeTitle(r: Range): string {
+  if (r.live) return "Last 24 hours";
+  const d = dateOf(r.at);
+  if (r.kind === "day") return `${DOW[d.getDay()]}, ${ymdLabel(r.at)}`;
+  const from = dateOf(r.from);
+  const sameMonth = from.getMonth() === d.getMonth();
+  return `${ymdLabel(r.from)} – ${sameMonth ? d.getDate() : ymdLabel(r.to)}`;
 }
 
 /** Day · Week · Month tabs, ‹ Prev, Next ›, and Today when away from it. */
@@ -174,7 +175,7 @@ export function RangeChart({ r, data, id, compact, dayHref }: { r: Range; data: 
 export function RangeTable({ r, data }: { r: Range; data: RangeData }) {
   if (!data.slots.length) return <></>;
   const rows = r.kind === "week" ? bucket(data.slots, 6) : r.kind === "month" ? bucket(data.slots, 144) : data.slots;
-  const unit = r.kind === "week" ? "hour" : r.kind === "month" ? "day" : "ten-minute slot";
+  const unit = r.kind === "week" ? "hour" : r.kind === "month" ? "day" : "time slot";
   return <details class="card slot-table">
     <summary>{r.kind === "month" ? "Day values" : r.kind === "week" ? "Hour values" : "Slot values"}</summary>
     <div class="table-scroll"><table class="data fit" aria-label={`Values, one row per ${unit}`}>

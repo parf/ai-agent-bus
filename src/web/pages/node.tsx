@@ -4,7 +4,7 @@ import { Ctx, NotFound, type Rec, type Status, type Identity } from "../ctx.ts";
 import { respond } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Figure, Name, Muted, recordHref, KindIcon, Empty } from "../ui/kit.tsx";
 import { Ribbon, DayChart, SERIES, total, type Slot, Spark } from "../ui/charts.tsx";
-import { rangeFor, rangeTotals, loadRange, hits, scopeLine, RangeNav, RangeChart, RangeTable, type RangeData } from "../ui/range.tsx";
+import { rangeFor, rangeTotals, loadRange, hits, rangeTitle, RangeNav, RangeChart, RangeTable, type RangeData } from "../ui/range.tsx";
 import { html } from "../http.ts";
 import { number, duration, slotLabel, stamp } from "../format.ts";
 import { sectionProblem } from "../problem.tsx";
@@ -154,10 +154,10 @@ export async function activity(ctx: Ctx): Promise<Response> {
   };
   const dayHref = (at: number) => href({ at });
   const body = <>
-    <PageHead icon={<Icon name="activity" />} title="Activity graphs"
+    <PageHead icon={<Icon name="activity" />} title={<>Activity <span class="title-date">{rangeTitle(r)}</span></>}
       help={<Help id="activity-help" label="About activity history" title="Activity history"
-        items={["Day is ten-minute slots of the node's clock, 00:00 … 23:50; Week sums them per hour, Month per day.", "Every day is kept for 400 days: ‹ Prev and Next › step through them.", "Time the daemon was down reads as zero, and today's last slot is still counting.", "Unfiltered Refused is node-wide for the daemon Owner and covers visible records for others.", "Dequeued is not completion: a message taken is not a message finished.", "The chooser lists records with hits in the chosen range, the count in brackets; a record with none has nothing to draw."]} />}
-      sub={<>{name ? <>Scope: <code>{name}</code></> : "Scope: visible records"} · {scopeLine(r, data)} · Uptime {id?.up || st.up || "unavailable"}</>}>
+        items={["Day shows the day on the node's clock; Week sums it per hour, Month per day.", "Every day is kept for 400 days: ‹ Prev and Next › step through them.", "Time the daemon was down reads as zero, and today's last slot is still counting.", "Unfiltered Refused is node-wide for the daemon Owner and covers visible records for others.", "Dequeued is not completion: a message taken is not a message finished.", "The chooser lists records with hits in the chosen range, the count in brackets; a record with none has nothing to draw."]} />}
+      sub={<>{name ? <>Scope: <code>{name}</code></> : "Scope: visible records"} · Uptime {id?.up || st.up || "unavailable"}</>}>
       <form method="get" class="scope-form">
         {r.kind !== "day" ? <input type="hidden" name="range" value={r.kind} /> : null}
         {r.at !== r.today ? <input type="hidden" name="at" value={String(r.at)} /> : null}
@@ -173,7 +173,7 @@ export async function activity(ctx: Ctx): Promise<Response> {
       : <Card className="chart-card"><RangeChart r={r} data={data} id="activity-chart" dayHref={dayHref} /></Card>}
     <RangeTable r={r} data={data} />
   </>;
-  return respond(ctx, { title: "Activity graphs", section: "activity", signedIn: true, you: st.you, charts: true }, body);
+  return respond(ctx, { title: `Activity · ${rangeTitle(r)}`, section: "activity", signedIn: true, you: st.you, charts: true }, body);
 }
 
 /** The end of a slot, ten minutes on, on the daemon's clock. */

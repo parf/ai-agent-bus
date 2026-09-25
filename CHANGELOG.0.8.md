@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.46 — 2026-09-24
+
+Activity names its dates in the title, in bold, and no longer talks about
+ten-minute slots.
+
 ## 0.8.45 — 2026-09-24
 
 The web face draws every kind with the same Unicode glyph the CLI prints

@@ -164,3 +164,6 @@ table.exchanges td { vertical-align: top; }
 .cal-cell.r0 { background: var(--r0); } .cal-cell.r1 { background: var(--r1); } .cal-cell.r2 { background: var(--r2); } .cal-cell.r3 { background: var(--r3); } .cal-cell.r4 { background: var(--r4); color: #fff; }
 .cal-dow { font-size: .62rem; color: inherit; opacity: .75; text-transform: uppercase; letter-spacing: .04em; }
 .cal-day { font-size: .95rem; font-weight: 650; }
+.title-date { margin-left: .5rem; padding-left: .7rem; border-left: 2px solid var(--border-strong); font-weight: 750; color: var(--accent-text); }
+.range-title { margin: 0 0 .5rem; font-size: 1.05rem; }
+.range-title strong { font-weight: 700; }
