@@ -84,6 +84,9 @@ func installWeb(web string) error {
 			return err
 		}
 	} else if u.HomeDir != webLink {
+		// An account in use cannot be changed: the unit stops first, and is
+		// restarted below.
+		_ = exec.Command("systemctl", "stop", webUnitName).Run()
 		if err := run("usermod", "--home", webLink, webAccount); err != nil {
 			return err
 		}
