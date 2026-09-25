@@ -6,11 +6,23 @@ inactive or incorrect entity is no such entity. **MUST**, **MUST NOT**,
 **SHOULD** and **MAY** are normative. Built in 0.7; what is still pending is
 the [0.7 plan](../Plans/R0.8-MVP/0.7.0-TODO.md#storage-and-identity)'s, never this page's.
 
+Each section states its essentials first; the full rules are in the closed
+blocks below them, and are just as normative.
+
 ## Persistence and loading
+
+One write-through SQLite store: a write validates, commits as one transaction,
+then publishes, so no reader sees an uncommitted or partial change. Startup
+loads every durable entity and ignores — never repairs — an incorrect record,
+reporting it. Queue contents are flushed in batches, so a crash MAY lose the
+last minute of traffic.
 
 0.7 uses SQLite. Configurable [additional backends](../Plans/R1.0-Release/storage.md#backends)
 are R1 work. Every backend MUST preserve the same identity, authority and
 durability rules, behind the existing storage ports.
+
+<details>
+<summary>Write rules</summary>
 
 | Rule | Requirement |
 |---|---|
@@ -23,6 +35,11 @@ durability rules, behind the existing storage ports.
 
 That ordering is write-through. It covers record lifecycle changes too.
 
+</details>
+
+<details>
+<summary>Queue checkpoint</summary>
+
 Queue contents and their `in`, `out`, `dropped` and `expired` counters keep the
 [checkpoint boundary](04-messaging.md#durability): in memory during traffic, flushed as one batch every minute and on graceful shutdown, never once
 per message, so a crash MAY lose changes since the last flush. State from
@@ -31,6 +48,11 @@ before this model is never imported: an installation moves to it by a
 A durable queue whose record is absent or cannot hold a queue is such an
 incorrect record: startup MUST ignore and report it, and MUST NOT silently drop
 or reattach that backlog.
+
+</details>
+
+<details>
+<summary>What startup ignores</summary>
 
 Startup also ignores and reports what no write of this version allows, and
 keeps an ignored record's credential for the operator who repairs it:
@@ -41,6 +63,11 @@ keeps an ignored record's credential for the operator who repairs it:
 | a Group | a nested member names no stored Group, so its grant would pass to whoever created the name |
 | a local account mapping | its principal is no User or Agent; its socket is [not served](02-access.md#local-socket) |
 
+</details>
+
+<details>
+<summary>Identity changes</summary>
+
 Identity changes MUST invalidate stale credentials and grants in durable state
 and memory together:
 
@@ -50,6 +77,11 @@ and memory together:
 | Removing an Agent or record | drop every stored ACL, Maintainer, Group-member and Deliver-To reference to that name in the same transaction |
 | Reusing a name | inherit no authority and no delivery from the former holder |
 | Users | never removed |
+
+</details>
+
+<details>
+<summary>Lock, publication failure, driver and reload</summary>
 
 One active daemon SHOULD use a database, and it MUST take whatever exclusive
 lock the storage engine offers before serving, so a competing instance cannot
@@ -64,7 +96,17 @@ A reload API or SIGHUP (`kill -HUP <pid>`) MAY be added later; no current
 operation needs one. It would replace one complete view with another and rebuild the
 derived indexes, never exposing a partly reloaded state.
 
+</details>
+
 ## Logs
+
+Three logs under `/var/log/agent-bus/`: an on-demand `debug.log` of requests,
+an `audit.log` of administrative actions and entity edits, and an `error.log`
+of what needs attention, copied to syslog. **No log may contain a token,
+secret, configuration body or message body.**
+
+<details>
+<summary>The three logs</summary>
 
 The daemon writes three logs under `/var/log/agent-bus/`, which the unit creates
 for the daemon account and the `adm` group may read; setup installs an ordinary
@@ -76,14 +118,18 @@ for the daemon account and the `adm` group may read; setup installs an ordinary
 | `audit.log` | every administrative action and every [entity edit](#-registry-record) | an audit trail |
 | `error.log` | warnings and errors only — something needs attention — and each line also to syslog at matching severity | an nginx error log |
 
-No log may contain a token, secret, configuration body or message body.
+</details>
 
 ## Errors and alerts
 
 A conceptual error is a condition this model says cannot occur: a violated
-invariant, corrupt stored state, or a failure to answer with authority. An
-ordinary refusal — malformed request, denied permission, unknown name — is not
-one, and goes only to its caller.
+invariant, corrupt stored state, or a failure to answer with authority. It is
+reported twice, to syslog and the error log. An ordinary refusal — malformed
+request, denied permission, unknown name — is not one, and goes only to its
+caller.
+
+<details>
+<summary>Where each goes</summary>
 
 Every conceptual error and alert MUST be reported twice: to syslog at a
 severity matching the condition, and to the [error log](#logs). An ordinary
@@ -92,9 +138,18 @@ line while the debug log is on.
 [Entity-edit logging](#-registry-record) goes to the audit log: authorized
 edits, not impossible states.
 
+</details>
+
 ## Entities
 
 ### 👤 User
+
+A User has a stable internal `user_id`, a globally unique name whose realm is
+part of its identity, and exactly one 👤 record that is never removed. An
+inactive User makes every record it owns inactive too.
+
+<details>
+<summary>Fields</summary>
 
 | Field | Requirement |
 |---|---|
@@ -105,6 +160,11 @@ edits, not impossible states.
 | Ed25519 public key | when key-based enrolment is used |
 | `created_at`, `updated_at`, `last_used_at` | |
 | `status` | `active` or `inactive` |
+
+</details>
+
+<details>
+<summary>The 👤 record, inactivity and reactivation</summary>
 
 Every User has exactly one 👤 record: `kind` = `user`, `owner_id` = that
 `user_id`. It MUST NOT be removed while the User exists, and removing it is
@@ -120,9 +180,16 @@ Under the owning [User-state contract](01-identity-and-roles.md#user-states),
 an Administrator may reactivate an ordinary User but not another
 Administrator; only the daemon Owner may reactivate an Administrator.
 
+</details>
+
 ### 😈 Daemon
 
-The daemon is configuration, not a registry entity.
+The daemon is configuration, not a registry entity. It is owned by the daemon
+Owner; version, build information, hostname, uptime and call counters are
+runtime facts rather than durable daemon fields.
+
+<details>
+<summary>Fields</summary>
 
 | Field | Requirement |
 |---|---|
@@ -130,10 +197,16 @@ The daemon is configuration, not a registry entity.
 | description | |
 | listen addresses | TCP and Unix-socket addresses where applicable |
 
-Version, build information, hostname, uptime and call counters are runtime facts
-rather than durable daemon fields.
+</details>
 
 ### 🔐 Token
+
+A token acts as its User, or as one Agent that User owns. Transferring an
+Agent moves its tokens in the same commit. A token whose User and Agent do not
+match is corrupt state: ignored, reported at `alert`, never repaired.
+
+<details>
+<summary>Fields</summary>
 
 | Field | Requirement |
 |---|---|
@@ -141,6 +214,11 @@ rather than durable daemon fields.
 | `user_id` | stable `user_id`; always present |
 | `agent_id` | stable `registry_id` of an Agent, or absent |
 | `created_at`, `updated_at`, `last_used_at` | `last_used_at` follows the [statistics persistence schedule](10-modules.md#statistics-persistence) and means credential use, not necessarily a browser login |
+
+</details>
+
+<details>
+<summary>User and Agent tokens, transfer, and a mismatched pair</summary>
 
 - Without `agent_id` the token acts as the User alone.
 - With `agent_id` the named User MUST be that Agent's Owner. The Agent is then
@@ -158,13 +236,28 @@ authenticates nothing, and MUST report it as a
 User, Agent and current Owner. It MUST NOT repair the row or reinterpret it as
 a User token.
 
+</details>
+
 ### 📋 Registry record
+
+Every registry record, and the daemon, is owned by a 👤 User. An Agent may
+manage what it does not own, but creating or managing an object never makes it
+the owner or grants it authority. Every direct edit and administrative action
+writes one audit-log entry, and every field is validated by its own contract.
+
+<details>
+<summary>Ownership and Maintainers</summary>
 
 A registry record MUST be owned by a 👤 User, and so MUST the daemon. An Agent
 MAY manage what it does not own; managing or creating an object never makes it
 the owner, and creating one grants the Agent no authority over it. Where an
 Agent must manage a record, the Owner names it among the Maintainers: a rare,
 explicit exception.
+
+</details>
+
+<details>
+<summary>Audit entries</summary>
 
 Every direct edit to a User, registry record or Group, and every other
 administrative action, MUST write one entry to the [audit log](#logs):
@@ -177,9 +270,16 @@ administrative action, MUST write one entry to the [audit log](#logs):
 | a `status` change | is such an edit, so suspension is never silent |
 | credential operations, reads, sends, consumes | write no audit-log entry; while the debug log is on, each is a request line there |
 
+</details>
+
+<details>
+<summary>Validation</summary>
+
 Every field MUST be validated and normalized by its own contract, which MUST
 state that normalization explicitly. Validating a format authorizes no
 interpretation of application-specific values.
+
+</details>
 
 #### 🏷️ Record kind
 
@@ -197,7 +297,8 @@ The closed set of record kinds:
 #### Actors and ASCII textarea syntax
 
 An **actor** is a 👤 User, 👾 Agent, or 👥 Group. ACL, Maintainer and
-group-member textareas accept one ASCII term per line:
+group-member textareas accept one ASCII term per line, and the prefix alone
+says what a term names:
 
 | Actor | Term |
 |---|---|
@@ -207,6 +308,9 @@ group-member textareas accept one ASCII term per line:
 | Every active registered User and every active Agent | `*` |
 | Owner and its directly owned Agents | `@owner` |
 | The record's own Agent | `@agent` |
+
+<details>
+<summary>Prefixes, runtime terms and input rules</summary>
 
 - A term is stored exactly as written, and for the first three it **is** the
   record's canonical name: a bare `alice@team` names a User and nothing else.
@@ -237,7 +341,25 @@ group-member textareas accept one ASCII term per line:
 The [ACL rules](02-access.md#acl), including the empty-list default, wildcard
 eligibility and `@owner`, remain in force unless explicitly revised.
 
+</details>
+
 #### Common record fields
+
+Every record has an owner, a kind, a globally unique name, a description, a
+status and Personal, Maintainer and allow settings; the rest depend on the
+kind, and a field a kind cannot have is refused. **A record whose `status` is
+not `active` MUST be treated as no such entity.** A message succeeds while at
+least one recipient takes it.
+
+| Field | 👾 | 📮 | 📣 | 📡 | 👥 |
+|---|---|---|---|---|---|
+| `ttl`, `bound`, `overflow` | ✓ | ✓ | — | — | — |
+| `deliver_to` | one slot | one slot | list | — | — |
+| `config`, `secret` | ✓ | — | — | ✓ | ✓ |
+| `addr`, `protocol` | — | — | — | ✓ | — |
+
+<details>
+<summary>Fields every record carries</summary>
 
 | Field | Requirement |
 |---|---|
@@ -253,14 +375,12 @@ eligibility and `@owner`, remain in force unless explicitly revised.
 | `created_at`, `updated_at` | maintained by the system, not editable by callers |
 
 Every record carries those, except that a 👤 has neither `maintainers` nor
-`allow`. The rest depend on the kind:
+`allow`. The rest depend on the kind, as the table above gives them.
 
-| Field | 👾 | 📮 | 📣 | 📡 | 👥 |
-|---|---|---|---|---|---|
-| `ttl`, `bound`, `overflow` | ✓ | ✓ | — | — | — |
-| `deliver_to` | one slot | one slot | list | — | — |
-| `config`, `secret` | ✓ | — | — | ✓ | ✓ |
-| `addr`, `protocol` | — | — | — | ✓ | — |
+</details>
+
+<details>
+<summary>The 👤 record, and fields a kind cannot have</summary>
 
 A 👤 record is the User's own inbox: it takes `ttl`, `bound` and `overflow` and
 nothing else from this table, who may reach it follows the
@@ -270,6 +390,11 @@ User is not.
 
 A `—`, and any field a kind is not listed as carrying, means the kind cannot
 have it: submitting one is refused, never stored and ignored.
+
+</details>
+
+<details>
+<summary>An inactive record is no such entity</summary>
 
 **A record whose `status` is not `active` MUST be treated as no such entity**,
 whatever its kind:
@@ -283,6 +408,11 @@ whatever its kind:
 | the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
 | the one exception | a dedicated read-only call for the web face shows inactive records to the actors their `allow` admits, and always to the daemon Owner. It reads; it sends, consumes, drains, transfers and removes nothing |
 | reactivation | a status edit by the record's Owner, a Maintainer or the daemon Owner, never a re-creation; to anyone else the record stays no such entity |
+
+</details>
+
+<details>
+<summary>Flow outcomes: absent and inactive recipients</summary>
 
 An absent record is the same case. Whether the caller is refused depends on
 whether anything still gets through:
@@ -302,6 +432,8 @@ A missing sole recipient is the flow: a direct send to an absent or inactive
 name, a publication whose recipients have all failed, and a forwarding route
 whose one destination is gone are all refused to the caller.
 
+</details>
+
 #### Authority rules
 
 | Who | MAY | MUST NOT change |
@@ -311,6 +443,9 @@ whose one destination is gone are all refused to the caller.
 | The matching Agent principal, on its own record | what a Maintainer may | what a Maintainer may not |
 
 `@agent` is an input alias for that same principal.
+
+<details>
+<summary>Authorization and ownership transfer</summary>
 
 A modifying operation MUST be authorized against current state, including the
 caller's right to change each submitted field, and the complete candidate record
@@ -323,9 +458,20 @@ complete view, and subsequent checks use the new Owner. Runtime terms such as
 `@owner` resolve against it. Restart loads that same saved ownership; it does
 not authorize the transfer again or restore the old Owner.
 
+</details>
+
 ## Kind-specific fields
 
 ### 📢 Channels
+
+`deliver_to` is the recipient list on a 📣 and zero or one forwarding
+destination on a 👾 or 📮, resolved against the registry. A 👾 or 📮 MAY forward
+through that one slot: for `sender → A → B` the sender passes A's ACL and B's
+ACL lists A. A forwarded envelope keeps its original sender, carries
+`original_to` and a forward counter, and a step past ten is an error.
+
+<details>
+<summary>What <code>deliver_to</code> accepts</summary>
 
 `deliver_to` is the recipient list on a 📣 and zero or one forwarding
 destination on a 👾 or 📮. Which it is depends on the record a term resolves to,
@@ -357,6 +503,11 @@ so the daemon MUST resolve it against the registry:
   write, never an add overwriting a concurrent choice. A write carrying two
   destinations stores nothing.
 
+</details>
+
+<details>
+<summary>Forwarding checks</summary>
+
 **Forwarding — owner-corrected September 20, 2026.** A 👾 Agent or 📮 Queue
 record MAY forward to another destination. For `sender → A → B`:
 
@@ -371,6 +522,11 @@ For a 📮 source that is a channel-name ACL reference, not a credential-bearing
 principal. Revoking B's permission denies forwarding without clearing
 `deliver_to`, and restoring it resumes; human faces MUST distinguish a
 configured route from a currently allowed one.
+
+</details>
+
+<details>
+<summary>The forwarded envelope, destination rules and counters</summary>
 
 A forwarded envelope keeps its original sender and MUST carry one `original_to`
 naming the destination it came through, plus a forward counter. Every step
@@ -392,7 +548,17 @@ nowhere else to go.
 
 The forwarding record counts neither overflow case.
 
+</details>
+
 #### PubSub routing
+
+A 📣 routes and stores nothing of its own. Its `in` counts publications at
+least one recipient took and its `out` counts accepted copies. Each recipient
+is an independent branch under its own rules, so one broken recipient never
+breaks a working pipeline.
+
+<details>
+<summary>Counters and branches</summary>
 
 A 📣 routes and stores nothing of its own: a copy is delivered when a recipient
 inbox accepts it — through that recipient's own route included — not when a
@@ -417,6 +583,8 @@ log and syslog, carrying no credential and no body. Forwarding into a 📣 is
 answered the same way, and each branch it fans out to increments the forward
 counter.
 
+</details>
+
 ### 📡 Service
 
 | Field | Requirement |
@@ -425,6 +593,13 @@ counter.
 | `secret` | optional; see [private values](#-private-values) |
 
 ### 🔒 Private values
+
+`config` and `secret` are private bodies. The Owner or a Maintainer writes
+them. The record's own principal reads them where one exists, and otherwise
+the actors in `allow` do. Everyone else sees a SHA-256 digest.
+
+<details>
+<summary>Readers and validation</summary>
 
 `config` and `secret` are private bodies. Both are written by the Owner or a Maintainer, read by the record's own
 principal where one exists and otherwise by the actors in `allow`, and shown to
@@ -439,7 +614,17 @@ membership — reads them: every member reads a Group's secret.
 
 Invalid input rejects the complete write.
 
+</details>
+
 ### 👥 Group
+
+A Group's `allow` is its membership of Users, live Agents and Groups, and its
+name begins with `@`. Nested resolution uses a visited set. A name carrying
+its Owner's prefix is reserved to that User and never transferred. The
+protected `@administrators` belongs to the daemon Owner alone.
+
+<details>
+<summary>Membership and who edits it</summary>
 
 A Group is an ordinary record whose `allow` is its membership: typed User,
 Agent or Group terms naming Users and live Agents that exist — never a queue, a
@@ -455,6 +640,11 @@ authority remains.
 Nested resolution MUST use a visited set, and grants membership only when a
 finite path reaches the requested actor.
 
+</details>
+
+<details>
+<summary>Owner-prefixed names</summary>
+
 A name MAY carry its Owner's prefix: `@<owner>/<name>[@realm]`, where
 `<owner>` is the User's whole name, realm included, and the realm after the
 group's own name is the Owner's choice — `@alice@srv1/friends@batch1` is
@@ -466,11 +656,18 @@ one is an administrator editing the database and restarting the daemon. A
 stored Group whose prefix is not its Owner, or a Personal one without a prefix,
 is incorrect and ignored at load. Unprefixed names are the shared namespace.
 
+</details>
+
+<details>
+<summary>The protected <code>@administrators</code></summary>
+
 The protected `@administrators` group is outside this model: its Owner MUST be
 the daemon Owner and MUST NOT be assigned independently of daemon ownership, it
 has no Maintainers, and only the daemon Owner changes its direct membership.
 Ordinary Group ownership or Maintainer assignment MUST NOT bypass that
 boundary.
+
+</details>
 
 ## Open questions
 
