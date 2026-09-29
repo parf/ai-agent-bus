@@ -315,6 +315,38 @@ not served, it is not listed, and `account remove` still deletes its row.
 
 </details>
 
+### Using your socket on another host
+
+SSH's remote forward carries an account socket to another machine, so a CLI
+there — and a [script runner](08-runner-role.md#script-agents) — acts as its
+mapped principal with no token. The forwarded path must keep the
+`user-<something>.sock` shape: a client recognises an identity socket by its
+basename, and any other name makes it demand a token.
+
+```sh
+ssh -fN -S /tmp/fwd-acct -R $HOME/user-parf.sock:/run/agent-bus/user-parf.sock rdvp
+ssh -fN -S /tmp/fwd-bus  -R $HOME/bus.sock:/run/agent-bus/bus.sock rdvp
+```
+
+`AGENT_BUS_ADDR` alone does not say what a socket is, so point it at the
+forwarded account socket by name:
+
+```sh
+AGENT_BUS_ADDR=$HOME/user-parf.sock agent-bus status    # answers "you" as the mapped principal
+```
+
+The shared socket is forwarded as well because `agent-bus start` registers over
+the account socket and then consumes over the shared one. A stale socket from a
+previous forward makes the next bind fail; remove both remote paths first. The
+program itself comes from the [release archive](09-setup.md#install); a
+launcher needs its packaged tree beside it.
+
+The forward is the credential: the socket appears in the remote home owned by
+that account and nothing wider, and anyone who can reach it there is you.
+Every connection through it is a channel of the one `ssh` process, so
+long-poll consumes ride it fine; close both with `ssh -S /tmp/fwd-acct -O exit
+rdvp` (and the bus one) when done.
+
 ## Trust boundary
 
 The release assumes a trusted host: message bodies and stored configuration are readable
