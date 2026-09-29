@@ -235,23 +235,31 @@ path or package registry; other distribution is
 `INSTALL.md` is the standalone supported path exercised by
 [installation acceptance](#installation-acceptance).
 
-**Deploying a commit.** From 0.8.19 `sudo src/release.sh [commit]` is how a
-checkout's node changes: it builds that commit (HEAD by default) from
-`git archive`, never the working tree, into
-`/usr/local/lib/agent-bus/releases/<version>-<sha>`, switches
-`/usr/local/lib/agent-bus/current` to it with one rename, points
-`/usr/local/bin` through `current`, restarts the daemon and checks it reports
-that version. Uncommitted edits, anyone's, never reach the live node. The last
-five releases are kept; `--rollback` switches to the previous one.
+**Development install — how the development node runs.** `sudo src/git-install.sh`
+builds the checkout and symlinks its programs and launchers into
+`/usr/local/bin`, and the web face's `/var/lib/agent-bus/web` links to
+`src/web`. The CLI and every tool are then always the checkout's. A change goes
+live by committing it, then running `src/build.sh && sudo systemctl restart
+agent-busd`, and `agent-bus-web` too after a web edit; back up the database
+first when the daemon changes.
+- **Checkout location:** it must live outside `/home`, since the daemon runs
+  behind `ProtectHome=yes` and cannot exec a binary in a home directory. The
+  script refuses one that does and says where to move it.
+- **Undoing it:** `--revert` copies real binaries back.
+- **State:** daemon state under `/var/lib/agent-bus` is untouched, except by
+  `--reinstall`.
 
-**Development install.** `src/git-install.sh` symlinks the built programs into
-`/usr/local/bin` instead of copying them, so a change is a build and a restart
-rather than a reinstall. That serves the working tree itself, so a node that
-other workers share is deployed with `release.sh` instead. The checkout must live outside `/home`: the daemon runs
-behind `ProtectHome=yes` and cannot exec a binary in a home directory at all.
-The script refuses one that does and says where to move it; `--revert` copies
-real binaries back. Daemon state under `/var/lib/agent-bus` is untouched, except
-by `--reinstall`.
+**Deploying a fixed release.** `sudo src/release.sh [commit]` is for a node
+that runs a release copy rather than the checkout.
+- **How it builds:** from that commit (HEAD by default) through `git archive`,
+  never the working tree, into
+  `/usr/local/lib/agent-bus/releases/<version>-<sha>`.
+- **How it switches:** it moves `/usr/local/lib/agent-bus/current` to that
+  release with one rename, points `/usr/local/bin` through `current`, restarts
+  the daemon and checks it reports that version. The last five releases are
+  kept, and `--rollback` switches to the previous one.
+- **Not on the development node:** there it would replace the checkout's links
+  with a release copy. `src/git-install.sh` puts them back.
 
 **Reinstall.** `agent-bus-setup --reinstall` (and, on a checkout,
 `src/git-install.sh --reinstall`) is the one explicit way to start a node over:
