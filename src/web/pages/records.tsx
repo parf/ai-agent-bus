@@ -381,12 +381,11 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       </div>
       <div>
         <Card title="Status" icon="power">
-          <div class="status-line"><span class="big-state"><StatePill /></span>
-            {manage && !inbox ? <form method="get" action="/service-deactivate" class="inline-form"><input type="hidden" name="name" value={rec.name} /><Button tone="ghost btn-sm" icon="power">Deactivate…</Button></form> : null}</div>
+          <div class="status-line"><span class="big-state"><StatePill /></span></div>
           <p class="muted small">Updated {stamp(rec.at)} · Config {rec.config_sha || "—"}</p>
         </Card>
         {where}{policy}{counters}
-        {manage && !inbox ? <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">configuration{rec.can_transfer && !inbox ? ", transfer" : ""}{inbox ? "" : ", removal"}</span></a> : null}
+        {manage && !inbox ? <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.kind === "agent" || rec.kind === "service" ? ", configuration" : ""}{rec.can_transfer ? ", transfer" : ""}, removal</span></a> : null}
       </div>
     </div>
   </>;
@@ -452,8 +451,9 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
 async function deactivatePage(ctx: Ctx): Promise<Response> {
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, ctx.q("name"))]);
   if (!rec.can_manage || rec.kind === "user") throw notYours("only the owner or an assigned Maintainer can deactivate this record");
+  const back = `/service-danger?name=${encodeURIComponent(rec.name)}`;
   const body = <>
-    <PageHead back={{ href: recordHref(rec), label: `Back to ${rec.name}` }} icon={<Icon name="triangle-alert" />} title="Confirm deactivation" />
+    <PageHead back={{ href: back, label: "Back to the Danger Zone" }} icon={<Icon name="triangle-alert" />} title="Confirm deactivation" />
     <Card className="confirm-card" tone="danger" title={<>Deactivate <code>{rec.name}</code>?</>} icon="power">
       <ul>
         <li>It disappears from listings and refuses use until it is reactivated.</li>
@@ -462,7 +462,7 @@ async function deactivatePage(ctx: Ctx): Promise<Response> {
       </ul>
       <form method="post" action="/service" class="actions"><input type="hidden" name="name" value={rec.name} />
         <Button name="action" value="deactivate" tone="danger" icon="power">Deactivate {rec.name}</Button>
-        <a class="btn btn-ghost" href={recordHref(rec)}>Cancel</a></form>
+        <a class="btn btn-ghost" href={back}>Cancel</a></form>
     </Card>
   </>;
   return respond(ctx, { title: `Confirm deactivation · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body);
@@ -483,9 +483,13 @@ export async function dangerPage(ctx: Ctx, name: string, err?: { section: "confi
   const backHref = group ? `/group?name=${encodeURIComponent(rec.name)}` : recordHref(rec);
   const body = <>
     <PageHead back={{ href: backHref, label: `Back to ${rec.name}` }} icon={<Icon name="flame" />} title={<>Danger Zone · <Name>{rec.name}</Name></>}
-      sub="Each action here changes who controls this record or what it holds. Transfer and removal ask once more before they happen." />
+      sub="Deactivation, transfer and removal ask once more before they happen." />
     <ErrorSummary id={err?.section ?? "configure"} error={err?.error} />
     <div class="stack-gap">
+      {!group ? <Card title="Deactivate" icon="power" tone="danger">
+        <p>Hide this record from listings and stop its use. Queued work is kept.</p>
+        <div class="actions"><a class="btn btn-danger" href={`/service-deactivate?name=${encodeURIComponent(rec.name)}`}><Icon name="power" />Continue to confirmation</a></div>
+      </Card> : null}
       {configurable ? <Card title="Replace configuration" icon="file-cog" tone="danger">
         <form id="form-configure" method="post" action="/service">
           <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="action" value="configure" />

@@ -139,7 +139,11 @@ pill (“🔱 Daemon owner”, “Daemon administrator” or “User”) and the
 | Profile `id=profile-edit` | `dl`, each pair only when set: Person name · Email · GitHub login (`@login` → `https://github.com/<login>`) · Company · Location · Twitter/X (`@handle` → `https://x.com/<handle>`); “No profile details yet.” when none. `can_edit` with a GitHub login: form `id=form-refresh-github` → `action=refresh-github`, button **Refresh from GitHub**. Own email: form `id=form-email`, field `email` “Your email”, button **Save email** (`action=email`). Neither: muted “Trusted profile fields are edited by a daemon administrator.” |
 | Owned records | links by kind, each with its kind pill and `INACTIVE` when inactive; none: muted “None” |
 | Groups | chips → `/group?name=`, from row `groups` (direct and nested membership, daemon-computed); none: muted “No memberships” |
-| Access | ⓘ help; “Current: Active” or “Inactive”; inactive → POST form **Reactivate** (`action=active`); active → GET form **Deactivate…** → `/user-deactivate` |
+| Access | ⓘ help; “Current: Active” or “Inactive”; inactive → POST form **Reactivate** (`action=active`) |
+
+An authorized manager of an active User gets a **Danger Zone** link. It opens
+`/user-danger?name=&return=` with a Deactivate card leading to the existing
+`/user-deactivate` confirmation. The daemon Owner and inactive Users have no link.
 
 ### A non-user identity (`kind: record` or `credential`, Administrators only)
 
@@ -232,8 +236,8 @@ Retained on refusal: `name`, `person_name`, `email`, `github_user`, `company`,
 | Access | row `kind: user`, not daemon Owner, `can_activate`, currently active. Else **403** “that user cannot be deactivated by you in their current state” (also for self, the Owner, an inactive user); absent → 404 |
 | Daemon calls | `load` |
 
-Title `Confirm deactivation · <name>`; **Back to user** →
-`/user?name=&return=`; h1 Confirm deactivation; “Deactivate `<name>`?”;
+Title `Confirm deactivation · <name>`; **Back to the Danger Zone** →
+`/user-danger?name=&return=`; h1 Confirm deactivation; “Deactivate `<name>`?”;
 bullets: bus access stops and owned records become inactive; queued work and
 tokens kept, processes not stopped; then “Only the daemon Owner can reactivate
 this Administrator later.” (target is an Administrator) or “An authorized

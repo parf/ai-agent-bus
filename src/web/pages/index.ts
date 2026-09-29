@@ -37,6 +37,7 @@ route("GET", "/users", ppl.users);
 route("GET", "/users/new", ppl.newUser);
 route("GET", "/user", ppl.user);
 route("GET", "/user/edit", ppl.editUser);
+route("GET", "/user-danger", ppl.userDanger);
 route("GET", "/user-deactivate", ppl.deactivateUser);
 route("GET", "/credential-remove", ppl.credentialRemove);
 route("POST", "/user", ppl.postUser);

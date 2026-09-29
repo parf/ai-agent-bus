@@ -178,7 +178,7 @@ describe("pages as the daemon owner", () => {
   const pages = ["/", "/agents", "/services", "/queues", "/pubsub", "/agents?personal=1", "/queues?personal=1", "/services?personal=1", "/groups?personal=1", "/agents/new", "/services/new", "/queues/new", "/pubsub/new",
     "/agent?name=%23helper@test", "/queue?name=jobs@test", "/pubsub/topic?name=news@test", "/service?name=db@test", "/agent/edit?name=%23helper@test",
     "/service-deactivate?name=jobs@test", "/service-danger?name=jobs@test", "/activity", "/activity?name=jobs@test", "/diagnostics",
-    "/users", "/users/new", "/user?name=bob", "/user/edit?name=bob", "/user-deactivate?name=bob", "/groups", "/groups/new", "/group?name=@ops", "/group/edit?name=@ops", "/account"];
+    "/users", "/users/new", "/user?name=bob", "/user/edit?name=bob", "/user-danger?name=bob", "/user-deactivate?name=bob", "/groups", "/groups/new", "/group?name=@ops", "/group/edit?name=@ops", "/account"];
   test("every page renders, with no inline style", async () => {
     for (const p of pages) {
       const r = await req(p, { cookie: s });
@@ -227,6 +227,26 @@ describe("pages as the daemon owner", () => {
   test("a user inbox offers no Danger Zone", async () => {
     expect(await (await req("/queue?name=owner@test", { cookie: s })).text()).not.toContain("/service-danger");
     expect((await req("/service-danger?name=owner@test", { cookie: s })).status).toBe(403);
+  });
+  test("deactivation starts from the Danger Zone for each active registry kind", async () => {
+    for (const [detail, name] of [["/agent", "#helper@test"], ["/service", "db@test"], ["/queue", "jobs@test"], ["/pubsub/topic", "news@test"]]) {
+      const q = `name=${encodeURIComponent(name)}`;
+      const page = await (await req(`${detail}?${q}`, { cookie: s })).text();
+      expect(page).toContain(`/service-danger?${q}`);
+      expect(page).not.toContain('action="/service-deactivate"');
+      const danger = await (await req(`/service-danger?${q}`, { cookie: s })).text();
+      expect(danger).toContain(`href="/service-deactivate?${q}"`);
+    }
+    const group = await (await req("/service-danger?name=%40ops", { cookie: s })).text();
+    expect(group).not.toContain("/service-deactivate");
+  });
+  test("user deactivation starts from the user's Danger Zone", async () => {
+    const detail = await (await req("/user?name=bob", { cookie: s })).text();
+    expect(detail).toContain("/user-danger?name=bob");
+    expect(detail).not.toContain('action="/user-deactivate"');
+    const danger = await (await req("/user-danger?name=bob", { cookie: s })).text();
+    expect(danger).toContain("/user-deactivate?name=bob");
+    expect((await req("/user-danger?name=owner%40test", { cookie: s })).status).toBe(403);
   });
   test("every list has exactly one Register action, empty or not", async () => {
     for (const p of ["/agents", "/services", "/pubsub?personal=1", "/pubsub", "/groups", "/groups?personal=1"]) {

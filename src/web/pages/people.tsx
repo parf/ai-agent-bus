@@ -226,12 +226,11 @@ async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: numbe
         </Card>
         <Card title="Access" icon="power" actions={<Help label="About access" title="Access" items={["An active user's calls reach the bus; an inactive user's are refused.", "Deactivating keeps their records, queued work and tokens, and stops nothing already running.", "Only the daemon Owner reactivates an Administrator."]} />}>
           <p>Current: <StatePill inactive={off} /></p>
-          {canAccess ? (off
+          {canAccess && off
             ? <form method="post" action="/user" class="actions"><input type="hidden" name="name" value={row.name} /><input type="hidden" name="return" value={`/user?${new URLSearchParams({ name: row.name, return: ret })}`} />
-                <Button name="action" value="active" tone="primary" icon="power">Reactivate</Button></form>
-            : <form method="get" action="/user-deactivate" class="actions"><input type="hidden" name="name" value={row.name} /><input type="hidden" name="return" value={ret} />
-                <Button tone="ghost" icon="power">Deactivate…</Button></form>) : null}
+                <Button name="action" value="active" tone="primary" icon="power">Reactivate</Button></form> : null}
         </Card>
+        {canAccess && !off ? <a class="danger-link" href={`/user-danger?${new URLSearchParams({ name: row.name, return: ret })}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation</span></a> : null}
       </div>
     </div>
   </>;
@@ -260,19 +259,38 @@ async function editUserPage(ctx: Ctx, st: FormState = { values: {} }, status = 2
   return respond(ctx, { title: `Edit ${row.name}`, section: "kind:group", signedIn: true, you: s.you }, body, status);
 }
 
-async function deactivateUserPage(ctx: Ctx): Promise<Response> {
+async function userDangerPage(ctx: Ctx): Promise<Response> {
   const { st, users } = await load(ctx);
   const row = findRow(users, ctx.q("name"));
   if (!row) throw new NotFound();
   if (row.kind !== "user" || row.daemon_owner || !row.can_activate || row.status === "inactive") throw notYours("that user cannot be deactivated by you in their current state");
   const ret = userReturn(ctx.q("return"));
   const back = `/user?${new URLSearchParams({ name: row.name, return: ret })}`;
+  const confirm = `/user-deactivate?${new URLSearchParams({ name: row.name, return: ret })}`;
   const body = <>
-    <PageHead back={{ href: back, label: "Back to user" }} icon={<Icon name="triangle-alert" />} title="Confirm deactivation" />
+    <PageHead back={{ href: back, label: `Back to ${row.name}` }} icon={<Icon name="flame" />} title={<>Danger Zone · <Name>{row.name}</Name></>} />
+    <Card title="Deactivate" icon="power" tone="danger">
+      <p>Stop this user's bus access. Their records become inactive; queued work and tokens are kept.</p>
+      <div class="actions"><a class="btn btn-danger" href={confirm}><Icon name="power" />Continue to confirmation</a></div>
+    </Card>
+  </>;
+  return respond(ctx, { title: `Danger Zone · ${row.name}`, section: "kind:group", signedIn: true, you: st.you }, body);
+}
+
+async function deactivateUserPage(ctx: Ctx): Promise<Response> {
+  const { st, users } = await load(ctx);
+  const row = findRow(users, ctx.q("name"));
+  if (!row) throw new NotFound();
+  if (row.kind !== "user" || row.daemon_owner || !row.can_activate || row.status === "inactive") throw notYours("that user cannot be deactivated by you in their current state");
+  const ret = userReturn(ctx.q("return"));
+  const detail = `/user?${new URLSearchParams({ name: row.name, return: ret })}`;
+  const back = `/user-danger?${new URLSearchParams({ name: row.name, return: ret })}`;
+  const body = <>
+    <PageHead back={{ href: back, label: "Back to the Danger Zone" }} icon={<Icon name="triangle-alert" />} title="Confirm deactivation" />
     <Card className="confirm-card" tone="danger" title={<>Deactivate <code>{row.name}</code>?</>} icon="power">
       <ul><li>Their bus access stops, and the records they own become inactive.</li><li>Queued work and tokens are kept; running processes are not stopped.</li>
         <li>{row.administrator ? "Only the daemon Owner can reactivate this Administrator later." : "An authorized Administrator or the daemon Owner can reactivate this user later."}</li></ul>
-      <form method="post" action="/user" class="actions"><input type="hidden" name="name" value={row.name} /><input type="hidden" name="return" value={back} />
+      <form method="post" action="/user" class="actions"><input type="hidden" name="name" value={row.name} /><input type="hidden" name="return" value={detail} />
         <Button name="action" value="inactive" tone="danger" icon="power">Deactivate user</Button><a class="btn btn-ghost" href={back}>Cancel</a></form>
     </Card>
   </>;
@@ -661,7 +679,7 @@ async function paletteJson(ctx: Ctx): Promise<Response> {
 
 export const handlers = {
   users: usersPage, newUser: (ctx: Ctx) => registerUserPage(ctx), user: (ctx: Ctx) => userPage(ctx), editUser: (ctx: Ctx) => editUserPage(ctx),
-  deactivateUser: deactivateUserPage, credentialRemove: credentialRemovePage, postUser,
+  userDanger: userDangerPage, deactivateUser: deactivateUserPage, credentialRemove: credentialRemovePage, postUser,
   groups: groupsPage, newGroup: (ctx: Ctx) => groupFormPage(ctx, true), group: groupPage, editGroup: (ctx: Ctx) => groupFormPage(ctx, false), postGroups,
   account: accountPage, palette: paletteJson,
 };

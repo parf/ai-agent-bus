@@ -34,14 +34,14 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `/agent` `/service` `/queue` `/pubsub/topic` `?name=` | One record; an inactive one is read-only with Reactivate | [Record detail](records.md#record-detail), [Inactive record view](records.md#inactive-record-view) |
 | `/agent/edit` `/service/edit` `/queue/edit` `/pubsub/topic/edit` | Settings for the Owner or a Maintainer | [Settings](records.md#settings) |
 | `/service-deactivate` | Confirm deactivating a record | [Deactivate](records.md#deactivate) |
-| `/service-danger` | Danger Zone: configuration, transfer, removal | [Danger Zone](records.md#danger-zone) |
+| `/service-danger` | Danger Zone: deactivation, configuration, transfer, removal | [Danger Zone](records.md#danger-zone) |
 | `POST /service`, `POST /service-confirm` | Every record change, and confirmed transfer and removal | [POST /service](records.md#post-service), [POST /service-confirm](records.md#post-service-confirm) |
 | `/users` | The Users directory | [Users `/users](people.md#users-users) |
 | `/users/new` | Register a user | [Register user `/users/new](people.md#register-user-usersnew) |
 | `/user?name=` | One user | [User `/user?name=](people.md#user-username) |
 | `/user/edit?name=` | Profile editor | [Edit user `/user/edit?name=](people.md#edit-user-usereditname) |
 | `POST /user` | Create or save a profile, own email, GitHub refresh, user state, credential removal | [POST /user](people.md#post-user) |
-| `/user-deactivate`, `/credential-remove` | Confirm deactivating a user, or removing a credential | [Confirm deactivation `/user-deactivate?name=](people.md#confirm-deactivation-user-deactivatename), [Confirm credential removal `/credential-remove?name=](people.md#confirm-credential-removal-credential-removename) |
+| `/user-danger`, `/user-deactivate`, `/credential-remove` | User Danger Zone and deactivation confirmation, or credential removal | [User](people.md#a-user-kind-user), [Confirm deactivation `/user-deactivate?name=](people.md#confirm-deactivation-user-deactivatename), [Confirm credential removal `/credential-remove?name=](people.md#confirm-credential-removal-credential-removename) |
 | `/groups`, `/groups/new` | Groups, with `?personal=1`, and registering one | [Groups `/groups](people.md#groups-groups), [Register group `/groups/new](people.md#register-group-groupsnew) |
 | `/group?name=`, `/group/edit?name=` | One group, and its editor | [Group `/group?name=](people.md#group-groupname), [Edit group `/group/edit?name=](people.md#edit-group-groupeditname) |
 | `POST /groups` | Create or save a group | [POST /groups](people.md#post-groups) |

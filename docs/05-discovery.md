@@ -248,7 +248,7 @@ record ([records § register](web-face/records.md#register)).
 | Fields by kind | a 👾 and a 📮 declare the TTL, capacity and overflow of the inbox they hold; a 📣 declares a [Deliver-To list](04-messaging.md#subscribers) and no queue policy; a 📡, a 👾 and a 👥 offer a [secret](06-services.md#secrets), written by a second call and never filled in again |
 | Settings | every field the daemon lets that kind's manager change ([record fields](constitution.md#common-record-fields)): a 👤 user's own inbox its description and queue policy; a 👥 group its description, members, Personal, Maintainers and secret |
 | Not yours to change | a field the caller may not change is shown disabled, not hidden, and the form says which owner-only fields it carried, so a Maintainer saving a description cannot clear what it was not offered |
-| Danger Zone | configuration, transfer and removal sit on a separate red page; status is a separate action. A group has no removal and no status: it is retired by emptying it |
+| Danger Zone | deactivation, configuration, transfer and removal sit on a separate red page where applicable. A group has no deactivation or removal: it is retired by emptying it. Users have their own deactivation Danger Zone |
 | Numbers | human-facing counts use grouped figures; JSON, URLs, form values and editable syntax stay plain. The Overview strip writes none as a dash; a table column keeps `0` |
 
 The Go dashboard's layout and styling prose is
@@ -705,12 +705,14 @@ identified as proposed; this display rule does not introduce new parser syntax.
 
 ### Resource Danger Zone
 
-**Built in 0.5.63.** Ordinary record detail pages do not render
-configuration replacement, ownership transfer or registration removal forms.
+**Built in 0.5.63; deactivation moved here in 0.8.61.** Ordinary record detail pages do not render
+deactivation, configuration replacement, ownership transfer or registration removal controls.
 An authorized manager follows the red **Danger Zone** link to a separate page;
 the face repeats the caller-visible record lookup and the daemon remains the
 authority for every submitted action.
 
+For active agents, services, queues, topics and users, deactivation starts here
+and keeps its consequence confirmation. Groups have no deactivation state.
 Configuration replacement accepts a new JSON value there and never displays
 the stored private value. Transfer and removal first post to a server-rendered
 confirmation that re-reads the record. The final submission rechecks the facts

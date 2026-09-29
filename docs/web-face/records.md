@@ -331,7 +331,7 @@ Back to the list; Cancel.
 
 | Role | Gets |
 |---|---|
-| Owner, Maintainer, record itself, daemon Owner (`can_manage`) | full page with Edit settings, Deactivate…, the route settings link, Deliver-To Remove buttons and the Danger Zone link |
+| Owner, Maintainer, record itself, daemon Owner (`can_manage`) | full page with Edit settings, the route settings link, Deliver-To Remove buttons and the Danger Zone link |
 | Other visible caller | read-only page and `You can view this record; its owner and assigned maintainers can manage it.` |
 | Stranger, missing name | `404 No such name` |
 | Inactive record | [inactive view](#inactive-record-view) instead |
@@ -358,11 +358,11 @@ Back to the list; Cancel.
 | 5 | **Activity** card `id=activity`: Day · Week · Month, Prev, Next and Today (links keep `name` and `return`, `#activity`), the range title, the day ribbon on a Day, the chart; `Open in Activity` → `/activity?name=` with the range | all |
 | 6 | **Deliver-To route** card `id=route`: `{name} → {dest}` with route state and the sentence that the destination checks this record itself, not the sender or Owner; or `No route. A message sent here stays in this {Noun}’s own queue.`; managers get `Set a route` / `Replace or clear the route` `in the settings` | agent, queue |
 | 7 | **Deliver-To** card `id=subscribers`, with the count: each `subs` entry as `<code>`, a Remove button per entry for managers; `Nobody. A publication here reaches no inbox.` when empty; `Take my inbox off this list` when your own name is on it | pubsub |
-| 8 | **Status** card: `Active` pill, `Deactivate…` for managers (not a user inbox); `Updated {at} · Config {config_sha or —}` | all |
+| 8 | **Status** card: `Active` pill; `Updated {at} · Config {config_sha or —}` | all |
 | 9 | **Where it is** card: Address, Protocol, Secret (`secret_sha` or `none`) | service |
 | 10 | **Policy** card: Reached (`external` if `protocol` set, else `this bus`), Queue bound (`bound` or `default`), Retention (`ttl` or `none`), When full | agent, queue, user inbox |
 | 11 | **Queue & counters** card: Readers, Held now (+ at-capacity badge), Oldest held (`—` when empty), Accepted, Dequeued, Dropped / expired | all but service |
-| 12 | managers (not a user inbox): red `Danger Zone` link → `/service-danger?name=`, naming configuration, transfer (with `can_transfer`) and removal | all |
+| 12 | managers (not a user inbox): red `Danger Zone` link → `/service-danger?name=`, naming deactivation, configuration where supported, transfer (with `can_transfer`) and removal | all |
 
 Route state (`route_allowed`, only for agent and queue with exactly one
 `subs`): `true` → `Route allowed now.`; `false` → warning `Configured, but
@@ -388,7 +388,7 @@ whether your name is on `subs`.
 | Control | Manager | Viewer |
 |---|---|---|
 | Edit settings, route settings link, Danger Zone | shown (Danger Zone not for a user inbox) | omitted |
-| `Deactivate…` (`GET /service-deactivate`, hidden `name`) | shown, not for a user inbox | omitted |
+| Deactivate → `GET /service-deactivate` | in Danger Zone, not for a user inbox or group | omitted |
 | Deliver-To Remove | shown | omitted |
 | Take my inbox off | anyone whose name is on `subs` | same |
 
@@ -396,7 +396,7 @@ whether your name is on `subs`.
 
 | Form | Action | Fields | Daemon call | Result |
 |---|---|---|---|---|
-| Deactivate… | `GET /service-deactivate` | hidden `name` | – | confirmation page |
+| Deactivate | `GET /service-deactivate` | `name` in URL, from Danger Zone | – | confirmation page |
 | Remove recipient | `POST /service` | hidden `name`, `subscriber`; button `name=action value=remove-subscriber` | `POST /subscriber/remove {channel, subscriber}` | `303` → detail `#subscribers` |
 | Take my inbox off | `POST /service` | hidden `name`; button `action=unsubscribe` | `POST /subscribe {channel, off: true}` | `303` → detail |
 
@@ -522,8 +522,8 @@ Back to detail; Cancel; Danger Zone.
 | Access | `can_manage` and not a user inbox; else `403` `only the owner or an assigned Maintainer can deactivate this record`. Stranger or inactive: `404` |
 | Calls | `/status`, `/inactive`, `/lookup` |
 | Title | `Confirm deactivation · {name}` |
-| Content | `Back to {name}`; `<h1>` warning mark `Confirm deactivation`; card `Deactivate <code>name</code>?` and bullets: it disappears from listings and refuses use; `Queued work is kept ({queued} held now), and running processes are not stopped.`; reactivation from its Inactive view |
-| Form | `POST /service`, hidden `name`, button `name=action value=deactivate` `Deactivate {name}` (red), `Cancel` → detail |
+| Content | `Back to the Danger Zone`; `<h1>` warning mark `Confirm deactivation`; card `Deactivate <code>name</code>?` and bullets: it disappears from listings and refuses use; `Queued work is kept ({queued} held now), and running processes are not stopped.`; reactivation from its Inactive view |
+| Form | `POST /service`, hidden `name`, button `name=action value=deactivate` `Deactivate {name}` (red), `Cancel` → Danger Zone |
 | Submit | the record is re-read, then `POST /manage {name, status: "inactive"}` → `303` detail (now the inactive view) |
 
 ## Danger Zone
@@ -534,8 +534,8 @@ Back to detail; Cancel; Danger Zone.
 
 | Role | Gets |
 |---|---|
-| Owner, daemon Owner | configuration (agent, service, group), transfer, removal (not group) |
-| Maintainer, record itself | configuration and removal; **transfer omitted** |
+| Owner, daemon Owner | deactivation (not group), configuration (agent, service, group), transfer, removal (not group) |
+| Maintainer, record itself | deactivation (not group), configuration and removal; **transfer omitted** |
 | Other visible | `403` `only the owner or an assigned Maintainer can manage this record` |
 | User inbox | `403` `a user's inbox has no configuration, transfer or removal; it follows its user` |
 | Stranger, inactive | `404` |
@@ -543,12 +543,12 @@ Back to detail; Cancel; Danger Zone.
 ### Content and forms
 
 Calls: `/status`, `/inactive`, `/lookup`. Title `Danger Zone · {name}`.
-`Back to {name}`, `<h1>` `Danger Zone · {name}`, the sub line `Each action here
-changes who controls this record or what it holds. Transfer and removal ask once
-more before they happen.`, error summary, then:
+`Back to {name}`, `<h1>` `Danger Zone · {name}`, the sub line `Deactivation,
+transfer and removal ask once more before they happen.`, error summary, then:
 
 | Section | Shown when | Form |
 |---|---|---|
+| Deactivate | kind is agent, service, queue or pubsub | link to `GET /service-deactivate?name=`, which confirms the action |
 | Replace configuration | kind is agent, service or group | `id=form-configure`, `POST /service`, hidden `name`, `action=configure`; `<textarea name=config rows=6 required autocomplete=off>` always empty; `Existing private configuration and a refused replacement are never displayed.`; button `Replace configuration` |
 | Transfer ownership | `can_transfer`, name ≠ `@administrators`, name ≠ owner, not a `@<user>/…` group | `id=form-transfer`, `POST /service-confirm`, hidden `name`, `action=transfer`; `<input name=owner required>` (label `New owner`, refilled after a refusal); note on credentials; button `Continue to confirmation` |
 | Transfer note | a `@<user>/…` group | `A group named for its owner (@<user>/…) is never transferred. Its new owner creates their own instead.` |

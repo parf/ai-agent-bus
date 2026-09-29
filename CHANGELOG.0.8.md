@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.61 — 2026-09-29
+
+Deactivation for active agents, services, queues, topics and users now starts
+in the Danger Zone, then uses its existing confirmation.
+
 ## 0.8.60 — 2026-09-29
 
 Optional TLS on the daemon's port, beside plain HTTP on the same port (a dual
