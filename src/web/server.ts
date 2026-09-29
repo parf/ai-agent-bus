@@ -14,6 +14,8 @@ import { problemPage } from "./problem.tsx";
 import { notFoundPage, methodPage } from "./pages/errors.tsx";
 import "./pages/index.ts";
 import * as proctitle from "./proctitle.ts";
+import { dualFront } from "./listen.ts";
+import { rmSync } from "node:fs";
 
 const BODY_LIMIT = 1 << 20;
 
@@ -89,14 +91,27 @@ if (import.meta.main) {
   }
   const cfg = load();
   const handler = makeHandler(cfg);
-  const server = Bun.serve({
-    hostname: cfg.listen.hostname,
-    port: cfg.listen.port,
+  const common = {
     fetch: handler,
     maxRequestBodySize: 2 << 20,
     idleTimeout: 150, // longer than the daemon client's own 120 s wait
-    ...(cfg.tls ? { tls: { cert: Bun.file(cfg.tls.cert), key: Bun.file(cfg.tls.key) } } : {}),
-  });
+    ...(cfg.tls ? { tls: { cert: cfg.tls.cert, key: cfg.tls.key } } : {}),
+  };
+  let where: string;
+  if (cfg.tls?.front) {
+    // TLS and plain HTTP on the one port, only when TLS is on: the app's
+    // server listens behind the front on a unix socket (docs/11-processes.md#the-web-face).
+    const inner = cfg.inner!;
+    rmSync(inner, { force: true });
+    // idleTimeout is honoured on a unix socket too; Bun's types omit it there.
+    Bun.serve({ ...common, unix: inner } as any);
+    const front = await dualFront({ hostname: cfg.listen.hostname, port: cfg.listen.port, inner });
+    const a = front.address() as { address: string; port: number };
+    where = `https://${a.address}:${a.port}/ (plain HTTP there is redirected)`;
+  } else {
+    const server = Bun.serve({ ...common, hostname: cfg.listen.hostname, port: cfg.listen.port });
+    where = `${cfg.tls ? "https" : "http"}://${server.hostname}:${server.port}/`;
+  }
   proctitle.start("agent-bus-web", VERSION, () => calls);
-  console.log(`agent-bus-web ${VERSION} listening on ${cfg.tls ? "https" : "http"}://${server.hostname}:${server.port}/ (daemon ${cfg.daemon})`);
+  console.log(`agent-bus-web ${VERSION} listening on ${where} (daemon ${cfg.daemon})`);
 }
