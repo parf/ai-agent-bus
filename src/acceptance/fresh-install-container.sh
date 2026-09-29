@@ -324,6 +324,25 @@ fi
 grep -q -- ' -tls-dir /etc/agent-bus/tls' /etc/systemd/system/agent-busd.service || fail "a setup run without --tls dropped TLS"
 pass "setup turns TLS on with a self-signed certificate; the port answers both; the pinned CLI and the forced command agree, and a re-run keeps it"
 
+# The web face follows: its own copy of the certificate, a drop-in naming it,
+# TLS on its port and plain HTTP there redirected, health still plain.
+[ -f /etc/systemd/system/agent-bus-web.service.d/tls.conf ] || fail "setup wrote no TLS drop-in for the web face"
+[ "$(stat -c '%U:%G %a' /etc/agent-bus/web-tls/key.pem)" = "root:agent-bus-web 640" ] || fail "the web key is $(stat -c '%U:%G %a' /etc/agent-bus/web-tls/key.pem), not root:agent-bus-web 640"
+[ "$(sha256sum </etc/agent-bus/tls/cert.pem)" = "$(sha256sum </etc/agent-bus/web-tls/cert.pem)" ] || fail "the web face does not serve the node's certificate"
+curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem https://127.0.0.1:6780/ | grep -q '<html' || fail "the web face does not answer TLS"
+[ "$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' http://127.0.0.1:6780/agents)" = "301 https://127.0.0.1:6780/agents" ] || fail "plain HTTP on the web port is not redirected to https"
+[ "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:6780/healthz)" = 200 ] || fail "plain /healthz stopped answering"
+wjar=/root/web-tls.jar
+curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem -c "$wjar" -D /evidence/web-tls-signin.txt -o /dev/null -H 'Origin: https://127.0.0.1:6780' \
+  --data-urlencode "token=$(cat /root/owner.token)" https://127.0.0.1:6780/signin || fail "sign-in over https failed"
+grep -qi '^set-cookie: agent_bus_session=.*; Secure' /evidence/web-tls-signin.txt || fail "the session cookie over https is not Secure"
+curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem -b "$wjar" https://127.0.0.1:6780/ | grep -q 'Overview' || fail "the signed-in Overview over https"
+./agent-bus-setup --owner owner@fresh --tls off >/evidence/setup-tls-off.log 2>&1 || fail "setup --tls off failed"
+[ ! -e /etc/systemd/system/agent-bus-web.service.d/tls.conf ] || fail "--tls off left the web face's TLS drop-in"
+curl -fsS http://127.0.0.1:6780/healthz >/dev/null || fail "after --tls off the web face does not answer plain HTTP"
+if grep -q -- '-tls-dir' /etc/systemd/system/agent-busd.service; then fail "--tls off left -tls-dir in the daemon unit"; fi
+pass "the web face serves TLS with its own copy, redirects plain HTTP, keeps /healthz, signs in with a Secure cookie, and --tls off takes it all back"
+
 
 systemctl show agent-busd -p ActiveState -p User -p FragmentPath >/evidence/unit-state.txt
 systemctl --version | head -1 >/evidence/host.txt

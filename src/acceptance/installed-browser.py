@@ -11,6 +11,7 @@ import argparse
 import json
 import subprocess
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -29,7 +30,8 @@ def healthy(base: str, timeout: float = 20) -> None:
     until = time.monotonic() + timeout
     while time.monotonic() < until:
         try:
-            with urllib.request.urlopen(base + "/healthz", timeout=2) as r:
+            # Plain /healthz: with TLS on, the front answers it for the app.
+            with urllib.request.urlopen(base.replace("https://", "http://") + "/healthz", timeout=2) as r:
                 if r.status == 200:
                     return
         except OSError:
@@ -57,6 +59,7 @@ def main() -> None:
         raise SystemExit("refusing: this gate restarts the node's own units and runs only inside the installed-browser container (src/acceptance/installed-browser.sh)")
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", required=True)
+    ap.add_argument("--ca", help="with an https:// base: the certificate the face must serve")
     ap.add_argument("--token", type=Path, required=True)
     ap.add_argument("--version", required=True)
     ap.add_argument("--evidence", type=Path, required=True)
@@ -64,11 +67,29 @@ def main() -> None:
     args = ap.parse_args()
     base, token = args.base, args.token.read_text().strip()
     check(bool(token), "the owner token fixture is empty")
+    https = base.startswith("https://")
+    if https:
+        # Chromium is not told to trust the certificate, so it is checked
+        # here instead: the face must serve exactly the one setup wrote.
+        import ssl
+        host, port = base[len("https://"):].rstrip("/").split(":")
+        served = ssl.get_server_certificate((host, int(port)))
+        check(ssl.PEM_cert_to_DER_cert(served) == ssl.PEM_cert_to_DER_cert(Path(args.ca).read_text()), "the web face serves another certificate than setup's")
+        # Plain HTTP on the same port is only a redirect to https://.
+        req = urllib.request.Request(base.replace("https://", "http://") + "/agents", method="GET")
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *a, **k): return None
+        try:
+            urllib.request.build_opener(NoRedirect).open(req, timeout=3)
+            raise RuntimeError("plain HTTP was served instead of redirected")
+        except urllib.error.HTTPError as e:
+            check(e.code == 301 and e.headers.get("Location") == base.rstrip("/") + "/agents", f"plain HTTP answered {e.code} {e.headers.get('Location')}")
+    ctx_opts = {"ignore_https_errors": True} if https else {}
 
     problems: list[str] = []
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True, executable_path=args.browser, args=["--no-sandbox"])
-        context = browser.new_context(viewport={"width": 1440, "height": 900})
+        context = browser.new_context(viewport={"width": 1440, "height": 900}, **ctx_opts)
         # A CSP refusal is an event, not always a console line: record both.
         context.add_init_script("window.__csp = []; document.addEventListener('securitypolicyviolation', e => window.__csp.push(e.blockedURI + ' ' + e.violatedDirective));")
         page = context.new_page()
@@ -99,7 +120,7 @@ def main() -> None:
         cookie = cookies[0]
         check(cookie["value"] != token, "the session cookie repeats the token")
         check(cookie["httpOnly"] and cookie["sameSite"] == "Strict", "the session cookie is not HttpOnly and SameSite=Strict")
-        check(not cookie["secure"], "plain installed HTTP marks the cookie Secure")
+        check(cookie["secure"] == https, "the session cookie's Secure flag does not follow the scheme")
         check(token not in page.url and token not in page.content(), "the token reached the URL or the page")
 
         # The CDN assets arrived and ran: fonts, icons, charts.
@@ -161,7 +182,7 @@ def main() -> None:
         clean("palette")
 
         # A phone-width viewport has no sideways scroll.
-        phone = browser.new_context(viewport={"width": 390, "height": 844})
+        phone = browser.new_context(viewport={"width": 390, "height": 844}, **ctx_opts)
         phone.add_cookies([{"name": COOKIE, "value": cookie["value"], "url": base}])
         pp = phone.new_page()
         for path in ("/", "/agents", "/activity", "/queue?name=air-supply%40druidia"):
@@ -196,7 +217,7 @@ def main() -> None:
         page.locator("form.who button[type=submit]").click()
         page.wait_for_load_state("networkidle")
         check(page.locator("input#token").count() == 1, "sign-out did not return to the sign-in form")
-        replay = browser.new_context()
+        replay = browser.new_context(**ctx_opts)
         replay.add_cookies([{"name": COOKIE, "value": renewed[0]["value"], "url": base}])
         rp = replay.new_page()
         rp.goto(base + "/account", wait_until="networkidle")

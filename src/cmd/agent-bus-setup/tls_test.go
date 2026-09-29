@@ -240,3 +240,41 @@ func TestTheUnitCarriesTheTLSDirectoryWhenOn(t *testing.T) {
 		t.Fatalf("a plain unit carries -tls-dir:\n%s", off)
 	}
 }
+
+// The web face gets its own copy of the node's certificate, which only its
+// account reads, and a drop-in that names it; off, the drop-in goes.
+func TestTheWebFaceGetsItsOwnCopyAndDropIn(t *testing.T) {
+	me, _ := user.Current()
+	g, _ := user.LookupGroupId(me.Gid)
+	oldOwner, oldDir, oldDrop, oldAcct := tlsOwner, webTLSDir, webTLSDropIn, webTLSAccount
+	base := t.TempDir()
+	tlsOwner, webTLSDir, webTLSDropIn, webTLSAccount = os.Getuid(), filepath.Join(base, "web-tls"), filepath.Join(base, "unit.d", "tls.conf"), g.Name
+	t.Cleanup(func() { tlsOwner, webTLSDir, webTLSDropIn, webTLSAccount = oldOwner, oldDir, oldDrop, oldAcct })
+	daemon := &tlsChoice{mode: "self-signed", dir: filepath.Join(base, "tls")}
+	want, err := daemon.install(g.Name, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := webTLS(true, daemon.dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("the web copy serves %s, the daemon %s", got, want)
+	}
+	if st, _ := os.Stat(filepath.Join(webTLSDir, tlsdir.KeyFile)); st == nil || st.Mode().Perm() != 0o640 {
+		t.Fatalf("the web key is %v", st)
+	}
+	if b, err := os.ReadFile(webTLSDropIn); err != nil || !strings.Contains(string(b), "Environment=AGENT_BUS_WEB_TLS_DIR="+webTLSDir+"\n") {
+		t.Fatalf("the drop-in: %q, %v", b, err)
+	}
+	if fp, err := webTLS(false, daemon.dir); err != nil || fp != "" {
+		t.Fatalf("turning it off: %q, %v", fp, err)
+	}
+	if _, err := os.Stat(webTLSDropIn); !os.IsNotExist(err) {
+		t.Fatal("the drop-in outlived TLS being off")
+	}
+	if !tlsdir.Present(webTLSDir) {
+		t.Fatal("turning TLS off removed the web copy, which setup leaves in place")
+	}
+}

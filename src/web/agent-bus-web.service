@@ -46,6 +46,10 @@ PrivateTmp=yes
 PrivateDevices=yes
 DevicePolicy=closed
 InaccessiblePaths=-/var/lib/agent-bus/daemon -/var/lib/agent-bus/runner -/var/lib/agent-bus/service.d -/root -/etc/ssh
+# The one place it may write: with TLS on, its own server listens on a unix
+# socket here behind the port's front (docs/11-processes.md#the-web-face).
+RuntimeDirectory=agent-bus-web
+RuntimeDirectoryMode=0700
 
 # Exec: bun and the five libraries it links (ldd /usr/bin/bun), nothing else.
 NoExecPaths=/

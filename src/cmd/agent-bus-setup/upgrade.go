@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
 
 const upgradeJournalName = "upgrade.json"
@@ -89,7 +90,10 @@ func upgradeBundle(b checkedBundle) error {
 		return rollbackUpgrade(j, addr, fmt.Errorf("verify running release: %w", err))
 	}
 	// The web face is its own unit; it follows the release it links to.
-	if err := installWeb(filepath.Join(installRoot, "current", "web")); err != nil {
+	// The node keeps its TLS through an upgrade: the web face follows what
+	// the daemon has (docs/09-setup.md#tls).
+	node := tlsChoice{dir: tlsdir.Installed()}
+	if err := installWeb(filepath.Join(installRoot, "current", "web"), node.enabled(), node.dir); err != nil {
 		fmt.Fprintf(os.Stderr, "web: %v; the daemon upgraded and serves without it\n", err)
 	}
 	unitAfter, err := os.ReadFile(unitPath)

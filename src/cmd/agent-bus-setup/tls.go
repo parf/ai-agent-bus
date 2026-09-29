@@ -261,33 +261,53 @@ func (c *tlsChoice) install(account string, warn io.Writer) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if err := writeTLSDir(c.dir, account, certPEM, chainPEM, keyPEM); err != nil {
+		return "", err
+	}
+	if err := os.Remove(filepath.Join(c.dir, offMarker)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	cert, err := tlsdir.Load(c.dir)
+	if err != nil {
+		return "", err
+	}
+	return tlsdir.Fingerprint(cert), nil
+}
+
+// writeTLSDir writes a certificate, its key and its chain into dir, owned by
+// root and readable by account: the certificate and chain by anyone, the key
+// by root and that account alone. A choice without a chain removes an old one.
+func writeTLSDir(dir, account string, certPEM, chainPEM, keyPEM []byte) error {
+	if st, err := os.Lstat(dir); err == nil && !st.IsDir() {
+		return fmt.Errorf("%s is not a directory (%s); setup writes TLS files only into a real one", dir, st.Mode().Type())
+	}
 	gid := -1
 	if g, err := user.LookupGroup(account); err == nil {
 		gid, _ = strconv.Atoi(g.Gid)
 	} else {
-		return "", fmt.Errorf("the daemon account's group %s: %w", account, err)
+		return fmt.Errorf("the account's group %s: %w", account, err)
 	}
-	// The parents are walked through by the daemon's account, so a parent
+	// The parents are walked through by the reading account, so a parent
 	// setup creates is 0755; one that already exists is left as it is.
-	parent := filepath.Dir(c.dir)
+	parent := filepath.Dir(dir)
 	_, statErr := os.Stat(parent)
 	if err := os.MkdirAll(parent, 0o755); err != nil {
-		return "", err
+		return err
 	}
 	// MkdirAll honours the umask; a parent made here is set, not asked for.
 	if errors.Is(statErr, os.ErrNotExist) {
 		if err := os.Chmod(parent, 0o755); err != nil {
-			return "", err
+			return err
 		}
 	}
-	if err := os.Mkdir(c.dir, 0o750); err != nil && !errors.Is(err, os.ErrExist) {
-		return "", err
+	if err := os.Mkdir(dir, 0o750); err != nil && !errors.Is(err, os.ErrExist) {
+		return err
 	}
-	if err := os.Chown(c.dir, tlsOwner, gid); err != nil {
-		return "", err
+	if err := os.Chown(dir, tlsOwner, gid); err != nil {
+		return err
 	}
-	if err := os.Chmod(c.dir, 0o750); err != nil {
-		return "", err
+	if err := os.Chmod(dir, 0o750); err != nil {
+		return err
 	}
 	files := []struct {
 		name string
@@ -299,36 +319,29 @@ func (c *tlsChoice) install(account string, warn io.Writer) (string, error) {
 		{tlsdir.ChainFile, chainPEM, 0o644},
 	}
 	for _, f := range files {
-		path := filepath.Join(c.dir, f.name)
+		path := filepath.Join(dir, f.name)
 		if f.name == tlsdir.ChainFile && len(f.data) == 0 {
 			// A chain from an earlier choice would be appended to this
 			// certificate, so it goes when this one has none.
 			if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-				return "", err
+				return err
 			}
 			continue
 		}
-		// Written aside and renamed, so the daemon never reads half a key.
+		// Written aside and renamed, so the reader never sees half a key.
 		tmp := path + ".new"
 		if err := os.WriteFile(tmp, f.data, f.mode); err != nil {
-			return "", err
+			return err
 		}
 		if err := os.Chown(tmp, tlsOwner, gid); err != nil {
-			return "", err
+			return err
 		}
 		if err := os.Chmod(tmp, f.mode); err != nil {
-			return "", err
+			return err
 		}
 		if err := os.Rename(tmp, path); err != nil {
-			return "", err
+			return err
 		}
 	}
-	if err := os.Remove(filepath.Join(c.dir, offMarker)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", err
-	}
-	cert, err := tlsdir.Load(c.dir)
-	if err != nil {
-		return "", err
-	}
-	return tlsdir.Fingerprint(cert), nil
+	return nil
 }

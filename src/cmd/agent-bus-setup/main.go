@@ -424,7 +424,7 @@ func setup() (err error) {
 	}
 	// The web face is its own unit; a node without it still serves every
 	// other face, so a failure is reported and not fatal.
-	if err := installWeb(webDirFor(*exe)); err != nil {
+	if err := installWeb(webDirFor(*exe), tlsC.enabled(), tlsC.dir); err != nil {
 		fmt.Fprintf(os.Stderr, "web: %v; agent-busd serves without its web face\n", err)
 	}
 	// The first user is the installer, and adding one is the admin program's

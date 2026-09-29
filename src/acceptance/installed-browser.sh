@@ -3,7 +3,8 @@
 # host installs the release archive, adds the sample data, and a real Chromium
 # walks the TypeScript face. Unlike fresh-install.sh the container has a
 # network: the page loads its pinned CDN assets, which the owner requires.
-# Usage: installed-browser.sh <archive> <new-output-directory>
+# Usage: [TLS=1] installed-browser.sh <archive> <new-output-directory>
+# TLS=1 turns TLS on with setup first: the face is walked over https://.
 set -euo pipefail
 archive=$(realpath "${1:?release archive required}")
 checksum="$archive.sha256"
@@ -34,5 +35,5 @@ for _ in $(seq 1 100); do
   sleep .1
 done
 case ${state:-} in running|degraded) ;; *) echo "systemd did not start: ${state:-unknown}" >&2; exit 1 ;; esac
-podman exec "$name" bash /fixture/run.sh | tee "$out/evidence/result.log"
+podman exec -e TLS="${TLS:-0}" "$name" bash /fixture/run.sh | tee "$out/evidence/result.log"
 exit "${PIPESTATUS[0]}"
