@@ -60,7 +60,7 @@ export class RuntimeModelFixture {
           if (!JSON.stringify(output("reply")).includes("the bus accepted")) throw new Error("reply tool did not succeed");
           this.replied = true; item = message(`COMPLETE-${this.slot}: ${response}`);
         }
-      } else if (!output("list")) item = call("list", "ab_ls", {});
+      } else if (!output("list")) item = call("list", "ab_ls", { kind: "agent" }); // every agent: #echo is not reading yet, and #forbidden must be hidden by its ACL, not by the reader filter
       else if (!output("deny")) {
         const listing = JSON.stringify(output("list"));
         if (!listing.includes("#echo@fixture") || listing.includes("#forbidden@fixture")) throw new Error("MCP listing absent or leaked hidden service");

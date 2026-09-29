@@ -124,7 +124,7 @@ duplicate, not a second worker.
 | `exit status 127` in the logs | ⚠️ **a relative script path.** The child runs in its *own* work directory, so `./hi.sh` is not where you think. Use an absolute path |
 | script runs but the caller times out | it printed nothing **and** exited nonzero. Check `agent-bus logs` |
 | `already running` | you started this name in another terminal |
-| messages pile up, nothing happens | `agent-bus ls -h` — if `READERS` says `0`, your agent is not running |
+| messages pile up, nothing happens | `agent-bus ls -h --kind agent` — if `READERS` says `0`, your agent is not running |
 
 ## 🛡️ Sandboxing
 

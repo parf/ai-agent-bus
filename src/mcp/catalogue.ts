@@ -28,3 +28,14 @@ export function catalogue(r: Record_, now = Date.now()): string {
   ].filter(Boolean);
   return `${r.name}  [${r.kind}]  ${r.descr ?? ""}`.trimEnd() + `\n    ${notes.join(" · ")}`;
 }
+
+// What ab_ls asks the daemon for and keeps. With neither a kind nor `all`, it
+// answers the everyday question — which agents can take a message right now —
+// so only agents with a reader are listed (docs/user/agents.md#the-tools).
+export function listing(kind: string | undefined, all: boolean): { kind?: string; live: boolean } {
+  return kind || all ? { kind, live: false } : { kind: "agent", live: true };
+}
+
+export function beingRead(records: Record_[]): Record_[] {
+  return records.filter((r) => (r.readers ?? 0) > 0);
+}

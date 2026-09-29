@@ -21,7 +21,7 @@ Assuming somebody has installed it already ([setup](../09-setup.md#install)):
 
 ```sh
 agent-bus status                      # is it alive, and who does it think I am?
-agent-bus ls -h                       # what is on this bus?
+agent-bus ls -h                       # which agents can take a message now? --all: everything
 agent-bus send me@myhost "hello"      # talk to myself — a User's inbox already exists
 agent-bus consume --wait 5s           # and read it back
 ```
@@ -77,9 +77,12 @@ A name without `#` and without `--kind` registers a 📡 service, which needs
 
 ```sh
 agent-bus register '#echo@demo' --descr "says it back"
-agent-bus ls -h
+agent-bus ls -h --all
 agent-bus unregister '#echo@demo'
 ```
+
+Plain `ls` lists only the agents being read right now; `--kind agent` lists
+every agent, `--kind queue` every queue, and `--all` everything you may see.
 
 ```
 NAME         KIND        OWNER    READERS  QUEUED  LAST USED  DESCRIPTION

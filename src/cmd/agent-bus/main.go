@@ -40,7 +40,7 @@ const usage = `agent-bus — talk to agent-busd
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to reach it; a service needs --addr and --protocol
                             no --kind registers a service: something that is not on this bus
-  agent-bus ls [<name>] [--kind k] [-h]   -h: human-readable table
+  agent-bus ls [<name>] [--kind k] [--all] [-h]   agents being read now; --kind k: every k; --all: everything; -h: table
   agent-bus unregister <name>          remove an idle registry entry; does not stop a process
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
@@ -222,12 +222,15 @@ func register(args []string) error {
 // than the configuration itself.
 // See docs/03-records.md#configuring-a-template.
 func ls(args []string) error {
-	human := false
+	human, all := false, false
 	filtered := make([]string, 0, len(args))
 	for _, arg := range args {
-		if arg == "-h" {
+		switch arg {
+		case "-h":
 			human = true
-		} else {
+		case "--all":
+			all = true
+		default:
 			filtered = append(filtered, arg)
 		}
 	}
@@ -244,12 +247,23 @@ func ls(args []string) error {
 	if k := flags["kind"]; k != "" {
 		q.Set("kind", k)
 	}
-	if !human {
-		return get(path, q)
+	// With no name, kind or --all, ls answers the everyday question: which
+	// agents can take a message right now (docs/user/cli.md#ls).
+	live := len(pos) == 0 && flags["kind"] == "" && !all
+	if live {
+		q.Set("kind", protocol.KindAgent)
 	}
 	body, code, err := call("GET", path, q, nil)
 	if err != nil || code >= 400 {
 		return show(body, code, err)
+	}
+	if live {
+		if body, err = withReaders(body); err != nil {
+			return err
+		}
+	}
+	if !human {
+		return show(body, code, nil)
 	}
 	var records []protocol.Record
 	if len(pos) == 1 {
@@ -263,7 +277,11 @@ func ls(args []string) error {
 		return err
 	}
 	if len(records) == 0 {
-		fmt.Println("No matching records.")
+		if live {
+			fmt.Println("No agent is being read right now. --kind agent lists every agent; --all lists everything.")
+		} else {
+			fmt.Println("No matching records.")
+		}
 		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
@@ -816,6 +834,32 @@ func postQuiet(path string, body any) error {
 		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// withReaders keeps the records someone is reading right now, each exactly as
+// the daemon sent it.
+func withReaders(body []byte) ([]byte, error) {
+	var all []json.RawMessage
+	if err := json.Unmarshal(body, &all); err != nil {
+		return nil, err
+	}
+	kept := make([]json.RawMessage, 0, len(all))
+	for _, raw := range all {
+		var r struct {
+			Readers *int `json:"readers"`
+		}
+		if err := json.Unmarshal(raw, &r); err != nil {
+			return nil, err
+		}
+		if r.Readers != nil && *r.Readers > 0 {
+			kept = append(kept, raw)
+		}
+	}
+	out, err := json.Marshal(kept)
+	if err != nil {
+		return nil, err
+	}
+	return append(out, '\n'), nil
 }
 
 func show(body []byte, code int, err error) error {

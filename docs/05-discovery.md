@@ -66,7 +66,11 @@ rule](04-messaging.md#one-reader-per-inbox).
 ## CLI listing
 
 **Built:** `agent-bus ls -h` renders a table; plain `ls` retains JSON.
-Both accept a single name or `--kind` filtering through the same API calls.
+**With no option, both list only the agents being read now** — agents with at
+least one reader, the ones that can take a message. `--kind k` lists every
+record of that kind, readers or not; `--all` lists everything the caller may
+see; a single name looks that record up. `ab_ls` follows the same rule, with
+`kind` and `all: true`. The web face's lists are not filtered this way.
 The table shows name, kind, owner, Readers count, queued count and description.
 A current daemon reports a numeric Readers and queued value for every row that
 has a queue, and `-` for a 📡, which has none; a missing older answer renders as
@@ -91,7 +95,7 @@ tools configured and callable in the session.
 
 | Capability | Required outcome | Existing implementation |
 |---|---|---|
-| List the bus | Discover registered agents, queues, topics and external services through the caller's [catalogue view](#audience) | `ab_ls` in the [MCP face](../src/mcp/server.ts) |
+| List the bus | Find the agents being read now; `kind` or `all` for queues, topics, services and idle agents, through the caller's [catalogue view](#audience) | `ab_ls` in the [MCP face](../src/mcp/server.ts) |
 | Call a name on the bus | Send to an agent, user or queue and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion. A 📡 is not sent to: the catalogue gives its address and the caller speaks to it itself | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
 
 These are minimum capabilities, not a restriction on the remaining tools.

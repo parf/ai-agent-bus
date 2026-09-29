@@ -152,7 +152,7 @@ The counters worth a glance:
 | `expired` | messages that outlived their TTL before anyone took them |
 | `refused` | a call was turned away. A few is normal; a flood is somebody misconfigured. It is counted per reason, and each reason has its own status code ([refusals](../05-discovery.md#refusals)) |
 
-And `agent-bus ls -h` for the picture at a glance — an agent with `READERS 0`
+And `agent-bus ls -h --kind agent` for the picture at a glance — an agent with `READERS 0`
 and a rising `QUEUED` is one that has stopped.
 
 ## 👤 Letting people in

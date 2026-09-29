@@ -147,7 +147,8 @@ if (args[0] === "serve") {
   await shareFixtureInbox(new Bus(busEnv));
   event("mcp-pid", transport.pid);
   event("tools", (await client.listTools()).tools.map(t => t.name));
-  event("listed", await client.callTool({ name: "ab_ls", arguments: {} }));
+  // Every agent, read or not: the hidden one has no reader, so only its ACL may keep it out.
+  event("listed", await client.callTool({ name: "ab_ls", arguments: { kind: "agent" } }));
   event("sent", await client.callTool({ name: "ab_send", arguments: { to: process.env.TEST_PEER, text: "launcher-question", topic: "launch", tag: process.env.TEST_TAG || "test" } }));
   if (process.env.TEST_DENIED) event("denied", await client.callTool({ name: "ab_send", arguments: { to: process.env.TEST_DENIED, text: "must refuse" } }));
   for (let i = 0; i < 200; i++) {

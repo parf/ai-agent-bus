@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ago, catalogue } from "./catalogue.ts";
+import { ago, beingRead, catalogue, listing } from "./catalogue.ts";
 
 describe("catalogue reader count", () => {
   test("distinguishes unavailable from measured zero", () => {
@@ -26,5 +26,21 @@ describe("catalogue last use", () => {
     expect(ago("2026-09-23T11:59:30Z", now)).toBe("just now");
     expect(ago("2026-09-23T07:00:00Z", now)).toBe("5h ago");
     expect(ago("2026-09-20T12:00:00Z", now)).toBe("3d ago");
+  });
+});
+
+describe("the default listing", () => {
+  test("with nothing asked, only agents, and only those being read", () => {
+    expect(listing(undefined, false)).toEqual({ kind: "agent", live: true });
+    const rows = [
+      { name: "#on@h", kind: "agent", owner: "o", readers: 1 },
+      { name: "#off@h", kind: "agent", owner: "o", readers: 0 },
+      { name: "#old@h", kind: "agent", owner: "o" },
+    ];
+    expect(beingRead(rows).map((r) => r.name)).toEqual(["#on@h"]);
+  });
+  test("a kind or all asks for that, readers or not", () => {
+    expect(listing("queue", false)).toEqual({ kind: "queue", live: false });
+    expect(listing(undefined, true)).toEqual({ kind: undefined, live: false });
   });
 });

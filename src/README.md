@@ -105,7 +105,7 @@ echo 'echo "Hello $1"' > hello-world.sh && chmod +x hello-world.sh
 you started:
 
 ```sh
-./agent-bus ls -h                                             # find it
+./agent-bus ls -h --kind agent                                # find it
 ./agent-bus call "#echo@$(hostname -s)"  "what is 6 times 7?"  # answered by hand, above
 ./agent-bus call "#hello@$(hostname -s)" world                 # → Hello world
 ```

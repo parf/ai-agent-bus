@@ -79,9 +79,15 @@ try {
   check("ab_consume refuses an empty explicit inbox", emptyInbox.isError && emptyInbox.text.includes("non-empty"), emptyInbox.text);
 
   const me = process.env.AGENT_BUS_NAME!;
-  const ls = await call("ab_ls");
+  const ls = await call("ab_ls", { all: true });
   check("registered itself on start", ls.text.includes(me), ls.text);
   check("catalogue renders the reader count", ls.text.includes("readers: 0 outstanding"), ls.text);
+  // With no argument, ab_ls lists the agents being read now; this face is
+  // not reading, so it is left out until a kind is asked for.
+  const live = await call("ab_ls");
+  check("ab_ls with no argument leaves out an agent nobody reads", !live.isError && !live.text.includes(me), live.text);
+  const agents = await call("ab_ls", { kind: "agent" });
+  check("and kind lists every agent of that kind", agents.text.includes(me), agents.text);
 
   const peerName = process.env.SMOKE_PEER!;
   // The harness mints the credentials it needs as the daemon's owner: a name
@@ -101,7 +107,7 @@ try {
   // See docs/05-discovery.md#audience.
   const hidden = "#peers-only@srv1";
   await peer.register({ name: hidden, kind: "agent", descr: "for the peer alone", allow: [peerName] });
-  const mine = await call("ab_ls");
+  const mine = await call("ab_ls", { all: true });
   check("the catalog leaves out what its caller may not use", !mine.text.includes(hidden), mine.text);
   const theirs = await peer.ls();
   check("while the principal it is for sees it", theirs.some((r) => r.name === hidden), JSON.stringify(theirs.map((r) => r.name)));
@@ -251,7 +257,7 @@ try {
     const refused = await call("ab_rename", { name: "Smoke renamed session" });
     check("ab_rename without a launcher is refused and says why",
       refused.isError && refused.text.includes("needs an ab-* launcher") && refused.text.includes("No address was changed"), refused.text.slice(0, 200));
-    const listed = await call("ab_ls");
+    const listed = await call("ab_ls", { all: true });
     check("and registers nothing", !listed.isError && listed.text.includes(me) && !listed.text.includes("smoke-renamed-session"), listed.text.slice(0, 200));
     await call("ab_send", { to: peerName, text: "after the refused rename", topic: "t-rn", tag: "g9" });
     const still = await peer.consume({ topic: "t-rn", tag: "g9", wait: "5s" });

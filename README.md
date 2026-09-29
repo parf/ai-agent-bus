@@ -70,7 +70,7 @@ agent-bus register mysql-prod@srv1 --addr host:3306 --protocol mysql
 agent-bus channel create alerts.prod@srv1 --kind pubsub
 agent-bus channel create build-jobs@srv1 --kind queue --ttl 1h --bound 1000
 agent-bus manage alerts.prod@srv1 --add-to-set-allow '@ops'
-agent-bus ls
+agent-bus ls --all
 agent-bus publish --channel alerts.prod@srv1 "disk nearly full"
 agent-bus send '#worker@srv1' "an agent's name begins with #"
 ```

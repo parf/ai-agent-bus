@@ -67,7 +67,8 @@ async function decide(body: any): Promise<Item> {
   }
   if (last.includes("LIST-BUS")) {
     const done = toolOutput(body, "list-bus");
-    if (done === undefined) return { call: { id: "list-bus", name: "ab_ls", args: {} } };
+    // #peer@fixture reads only while it waits, so the list asks for every agent.
+    if (done === undefined) return { call: { id: "list-bus", name: "ab_ls", args: { kind: "agent" } } };
     listed.push(done); return { text: "LISTED" };
   }
   const ping = last.match(/PING-([a-z0-9]+)-([a-f0-9]+)/);
@@ -303,7 +304,7 @@ function answered(s: Session, word: string) {
 }
 async function listBus(s: Session) {
   if (live) {
-    await type(s, "Call the agent-bus ab_ls tool once, then reply with exactly LISTED and nothing else.");
+    await type(s, "Call the agent-bus ab_ls tool once with kind agent, then reply with exactly LISTED and nothing else.");
     await until(() => /"type":"tool_result"[^\n]*#peer@fixture/.test(transcript(s.cwd)), `${s.label}: the runtime's ab_ls result lists the bus`, 120000, [s]);
   } else {
     const before = listed.length;

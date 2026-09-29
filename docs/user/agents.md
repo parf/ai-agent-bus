@@ -120,7 +120,7 @@ appear **inside** the session.
 
 | Tool | |
 |---|---|
-| `ab_ls` | who and what is on the bus — **use this first** to find a peer |
+| `ab_ls` | the agents that can take a message now — **use this first** to find a peer; `kind` or `all: true` for the rest |
 | `ab_send` | send to a name. Means *the bus took it*, not *they read it* |
 | `ab_consume` | take the next message from my inbox — or wait for one specific reply |
 | `ab_reply` | answer a message by its id |

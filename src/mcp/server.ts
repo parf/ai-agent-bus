@@ -11,7 +11,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { Bus, BusError, defaultName, type Envelope, type Record_, withOwnerACL } from "./bus.ts";
-import { catalogue } from "./catalogue.ts";
+import { beingRead, catalogue, listing } from "./catalogue.ts";
 import { startPush, type Push } from "./push.ts";
 import { Codex } from "./codex.ts";
 import { version } from "./version.ts";
@@ -71,10 +71,14 @@ const tools = [
   {
     name: "ab_ls",
     description:
-      "List what is registered on the agent bus: agents, channels, users and external services, with their descriptions. Use it to find who or what to talk to.",
+      "List the agents on the agent bus that can take a message right now — those with a reader — with their descriptions. Use it to find who to talk to. " +
+      "Pass kind to list every record of one kind (user, agent, queue, pubsub, service or group), readers or not, or all: true for everything registered.",
     inputSchema: {
       type: "object",
-      properties: { kind: { type: "string", description: "only this kind: user, agent, queue, pubsub or service" } },
+      properties: {
+        kind: { type: "string", description: "every record of this kind: user, agent, queue, pubsub, service or group" },
+        all: { type: "boolean", description: "everything registered, every kind, read or not" },
+      },
     },
   },
   {
@@ -178,10 +182,12 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
     await refreshSession();
     switch (req.params.name) {
       case "ab_ls": {
-        const records = await bus.ls(maybe(args, "kind"));
+        const ask = listing(maybe(args, "kind"), args.all === true);
+        let records = await bus.ls(ask.kind);
+        if (ask.live) records = beingRead(records);
         return text(
           records.length === 0
-            ? "nothing is registered"
+            ? ask.live ? "no agent is being read right now; pass kind: \"agent\" for every agent, or all: true for everything" : "nothing is registered"
             : records.map((r) => catalogue(r)).join("\n"),
         );
       }
