@@ -60,7 +60,10 @@ func switchRefusal(addr string) error {
 	return nil
 }
 
-const usage = `agent-bus-admin — what the agent-busd account owns
+// usage opens with the program and its version, like every agent-bus program.
+var usage = "agent-bus-admin " + version.String + usageText
+
+const usageText = ` — what the agent-busd account owns
 
   agent-bus-admin user add <user[@realm]> <key.pub|-> [--admin]
   agent-bus-admin user import-local <user[@realm]> <local-account>
@@ -76,6 +79,10 @@ or this program with --admin. See docs/09-setup.md#ssh-admin.`
 
 func main() {
 	if version.Print() {
+		return
+	}
+	if len(os.Args) == 2 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
+		fmt.Println(usage)
 		return
 	}
 	if err := admin(); err != nil {

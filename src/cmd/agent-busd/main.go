@@ -66,6 +66,17 @@ func main() {
 	flag.StringVar(&c.dash, "dashboard", env("AGENT_BUS_DASHBOARD", dashboard.URL), "where a browser opening the API `url` is sent; empty serves no root at all")
 	flag.Var(&c.vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
 	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "agent-busd %s\n\nUsage of agent-busd:\n", version.String)
+		flag.PrintDefaults()
+	}
+	// Asked for help, it answers on stdout and succeeds, as every agent-bus
+	// program does; the flag package would say it on stderr and exit 2.
+	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "-help" || os.Args[1] == "--help") {
+		flag.CommandLine.SetOutput(os.Stdout)
+		flag.Usage()
+		return
+	}
 	flag.Parse()
 	if c.logDir == "" {
 		c.logDir = filepath.Join(filepath.Dir(c.db), "logs")

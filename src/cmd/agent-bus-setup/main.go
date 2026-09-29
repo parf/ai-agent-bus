@@ -83,6 +83,17 @@ func main() {
 
 func setup() (err error) {
 	fs := flag.CommandLine
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), "agent-bus-setup %s\n\nUsage of agent-bus-setup:\n", version.String)
+		fs.PrintDefaults()
+	}
+	// Asked for help, it answers on stdout and succeeds, as every agent-bus
+	// program does; the flag package would say it on stderr and exit 2.
+	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "-help" || os.Args[1] == "--help") {
+		fs.SetOutput(os.Stdout)
+		fs.Usage()
+		os.Exit(0)
+	}
 	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: a `name`, the installer's account name by default")
 	addr := fs.String("addr", "127.0.0.1:6767", "the daemon's TCP `address`; any interface, plain HTTP")
 	exe := fs.String("exec", "", "source-build or package-less acceptance `path` to agent-busd; bypasses package installation")

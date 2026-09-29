@@ -302,6 +302,13 @@ else skipped=$((skipped+1)); fi
 
 }
 core_1() {
+sec "every program's help opens with its name and the shared version"
+want_version=$(cat internal/version/VERSION)
+for prog in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token; do
+  has "$prog --help names $want_version" "$("$D/$prog" --help 2>/dev/null | head -1)" "^$prog $want_version\b"
+  "$D/$prog" --help >/dev/null 2>&1; ok_exit "and succeeds" $?
+done
+has "and bare agent-bus prints the same" "$("$D/agent-bus" 2>&1 | head -1)" "^agent-bus $want_version\b"
 sec "status on both listeners"
 has "unix socket" "$(ab parf@localhost status)" '"services"'
 has "loopback tcp" "$(AGENT_BUS_ADDR=http://127.0.0.1:$PORT AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=parf@localhost "$D/agent-bus" status)" '"up"'

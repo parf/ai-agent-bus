@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.56 — 2026-09-29
+
+Every program's help opens with its name and the shared version: `agent-bus`,
+`agent-bus --help`, and `--help` on `agent-busd`, `-admin`, `-setup`, `-token`.
+
 ## 0.8.55 — 2026-09-29
 
 `agent-bus ls` and `ab_ls` list, by default, only the agents being read now;

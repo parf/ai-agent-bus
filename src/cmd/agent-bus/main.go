@@ -28,7 +28,10 @@ import (
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
-const usage = `agent-bus — talk to agent-busd
+// usage opens with the program and its version, like every agent-bus program.
+var usage = "agent-bus " + version.String + usageText
+
+const usageText = ` — talk to agent-busd
 
   agent-bus [--addr <socket-path|http://host:port>] <command> ...
 

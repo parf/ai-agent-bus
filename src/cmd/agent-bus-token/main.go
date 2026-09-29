@@ -22,7 +22,10 @@ import (
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
-const usage = `agent-bus-token <name> [--rotate] [--key <path>]
+// usage opens with the program and its version, like every agent-bus program.
+var usage = "agent-bus-token " + version.String + "\n\n" + usageText
+
+const usageText = `agent-bus-token <name> [--rotate] [--key <path>]
 
   <name>    a User (alice, or alice@realm) or an agent (#name, or #name@realm);
             the realm is optional (docs/01-identity-and-roles.md#names)
@@ -34,6 +37,10 @@ the line is the only one that key may ask for.`
 
 func main() {
 	if version.Print() {
+		return
+	}
+	if len(os.Args) == 2 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
+		fmt.Println(usage)
 		return
 	}
 	if err := issue(); err != nil {
