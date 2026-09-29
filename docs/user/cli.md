@@ -45,6 +45,7 @@ You usually do not have to think about either.
 |---|---|
 | **on your own machine** | `agent-bus` finds your socket by itself. The socket *is* your credential — the operating system already knows which account opened it, so **no token is needed** |
 | **from somewhere else** | set `AGENT_BUS_ADDR` to `http://host:port` and `AGENT_BUS_TOKEN` to your credential |
+| **over TLS** | `AGENT_BUS_ADDR=https://host:port`, and `AGENT_BUS_TLS_FINGERPRINT` to what `ssh agent-busd@thehost token --fingerprint` prints ([TLS](../02-access.md#tls)) |
 | **pointing somewhere specific** | `--addr <socket-path>` or `--addr http://host:port` beats both |
 
 ⚠️ `set AGENT_BUS_TOKEN` as an answer means you reached the **shared** socket

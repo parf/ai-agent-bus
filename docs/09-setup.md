@@ -541,6 +541,39 @@ Both write as the daemon Owner on the daemon account's socket; with
 | Real data | a name that exists without its sample description — or a user with another person name — is left alone, on adding and on removing, and named |
 | Removal | sample records are drained and unregistered; sample groups are emptied, which is how a group retires; sample users are deactivated, since the daemon never removes a user. `--samples` again brings them back |
 
+## TLS
+
+Setup asks, at a terminal, whether to enable SSL on the daemon's port. Yes
+means a certificate it generates or one you provide, chain included. Without a
+terminal, the flags decide, and without flags a node keeps what it has. The
+port then answers TLS beside plain HTTP ([access § TLS](02-access.md#tls)).
+
+| Flag | |
+|---|---|
+| `--tls self-signed` | generate an ECDSA P-256 certificate, valid ten years, for `localhost`, `127.0.0.1`, `::1`, the host's names and addresses, and each `--tls-name` |
+| `--tls files --tls-cert c --tls-key k [--tls-chain ch]` | check that the key is the certificate's, that the chain parses and that the certificate has not expired, then copy them |
+| `--tls off` | plain HTTP only, and later runs keep it so until `--tls` turns it on again; the files stay where they are |
+| no `--tls` | keep what the node has: a re-run and `--upgrade` never drop TLS |
+
+<details>
+<summary>Files, modes and what setup prints</summary>
+
+- **Where:** `/etc/agent-bus/tls/`, `root:agent-busd 0750`.
+- **Files:** `cert.pem` and `chain.pem` `0644`; `key.pem` `root:agent-busd 0640`.
+  Each is written aside and renamed into place. A choice without a chain
+  removes an old `chain.pem`, which would otherwise be appended to the new
+  certificate.
+- **Unit:** it carries `-tls-dir /etc/agent-bus/tls` exactly while TLS is on.
+  A present directory that does not load stops setup before the unit is
+  written.
+- **Output:** setup ends with the fingerprint and the client settings,
+  `AGENT_BUS_ADDR=https://<host>:<port>` and `AGENT_BUS_TLS_FINGERPRINT=sha256:…`.
+- **Scope:** the web face does not use this directory yet; its own
+  certificate settings are in
+  [where it listens](05-discovery.md#where-it-listens).
+
+</details>
+
 ## Config locations
 
 Current daemon configuration comes from command flags and environment; setup

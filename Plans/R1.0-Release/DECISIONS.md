@@ -6,8 +6,8 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
-| R1 adds TLS on the daemon's TCP listener | [TLS](access.md#tls) | 2026-09-25 owner instruction; the release binds any address as plain HTTP, and TLS protects tokens and bodies between hosts |
-| The daemon's TLS certificate is self-signed and clients pin its fingerprint (Q131, Q132) | [TLS](access.md#tls) | 2026-09-25 owner decision; enough between the owner's own hosts, with no CA, DNS name or bought certificate |
+| R1 adds TLS on the daemon's TCP listener; promoted to the release in 0.8.60 | [access § TLS](../../docs/02-access.md#tls) | 2026-09-25 owner instruction; the release binds any address as plain HTTP, and TLS protects tokens and bodies between hosts |
+| The daemon's TLS certificate is self-signed and clients pin its fingerprint (Q131, Q132); promoted in 0.8.60 | [setup § TLS](../../docs/09-setup.md#tls) | 2026-09-25 owner decision; enough between the owner's own hosts, with no CA, DNS name or bought certificate |
 | Record-defined roles move to R1 as its first topic | [groups and roles](identity.md#groups-and-roles) | 2026-09-22 owner decision; moved out of MVP, no representation adopted |
 | Additional storage backends assigned to R1 | [storage](storage.md#backends) | 2026-09-20 owner instruction; implement SQLite first in 0.7 |
 | Locks are held in memory and never stored | [shared locks](locks.md#shared-locks) | 2026-09-22 owner decision; a `sync.Map`, nothing in the database, no dump and no grant numbers, so a restart releases everything |

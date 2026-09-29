@@ -72,9 +72,10 @@ Four ways in, and they are not equal:
 | 🖥️ **the dashboard** | `127.0.0.1:6780` | a browser |
 
 Agents on other hosts connect to the address you give `-addr` (setup: `--addr`).
-It is **plain HTTP**: off loopback, tokens and bodies cross that network
-unencrypted, and the daemon says so at start. On an untrusted network, keep
-loopback and tunnel over ssh. 🔒
+It is **plain HTTP** unless you turn TLS on: off loopback, plain tokens and
+bodies cross that network unencrypted, and the daemon says so at start.
+`sudo agent-bus-setup --tls self-signed` makes the same port answer TLS as well,
+and clients pin its fingerprint ([setup § TLS](../09-setup.md#tls)). 🔒
 
 The dashboard is plain HTTP on loopback. Set `AGENT_BUS_WEB_CERT` and
 `AGENT_BUS_WEB_KEY` in its unit and it serves HTTPS on its address instead

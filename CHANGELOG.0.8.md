@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.60 — 2026-09-29
+
+Optional TLS on the daemon's port, beside plain HTTP on the same port (a dual
+listener): setup asks, generates a self-signed certificate or installs yours
+with its chain, and clients pin its fingerprint (`token --fingerprint`).
+
 ## 0.8.56 — 2026-09-29
 
 Every program's help opens with its name and the shared version: `agent-bus`,

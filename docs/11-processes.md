@@ -85,6 +85,27 @@ the bus inherit it.
 The supervisor reports a failed ownership change. That does not certify that
 another account can use the intended socket.
 
+## The TCP listener
+
+The supervisor binds the TCP address; the bus child serves it. With a TLS
+directory (`-tls-dir`, [setup § TLS](09-setup.md#tls)), every connection on
+that port is sniffed: a first byte of `0x16`, a TLS handshake, is answered
+over TLS with HTTP/2 or HTTP/1.1, and anything else as plain HTTP. Without
+one, the port is plain HTTP alone. The unix sockets never answer TLS.
+
+<details>
+<summary>Limits</summary>
+
+| | |
+|---|---|
+| First byte | within 5 s, or the connection is closed; each is sniffed on its own, so a silent client holds up nobody |
+| Handshake | bounded by the bus server's header timeout |
+| A pair that does not load | refuses the start before anything is bound, with the reason |
+| A key readable by everyone | refused the same way |
+| Fingerprint | logged at start, by the supervisor and again by the bus child for the certificate it serves |
+
+</details>
+
 ## What is shared
 
 Inherited listener descriptors and explicit API calls. The bus owns the store; the supervisor does not keep a store handle. The web face, a

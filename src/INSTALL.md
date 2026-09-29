@@ -51,6 +51,7 @@ The dashboard is at <http://127.0.0.1:6780/>. Setup imports the invoking
 user's public SSH key when one exists; otherwise an operator can add a user
 later with `agent-bus-admin user add`.
 
+For TLS on the daemon's port, `--tls self-signed` (or `--tls files --tls-cert … --tls-key …`); at a terminal setup asks ([setup § TLS](../docs/09-setup.md#tls)).
 For something to look at, `sudo agent-bus-setup --samples` adds sample users,
 agents, services, queues, topics and groups; `--remove-samples` takes exactly
 those away again.

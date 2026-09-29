@@ -319,9 +319,43 @@ not served, it is not listed, and `account remove` still deletes its row.
 
 The release assumes a trusted host: message bodies and stored configuration are readable
 by the daemon. No peer handshake or message encryption is built. The TCP
-listener binds any address it is given and speaks plain HTTP: off loopback,
-tokens and bodies cross that network unencrypted, and the daemon says so at
-start. Agents on other hosts connect directly on a trusted network, or through
-an SSH tunnel; TLS on the listener is [R1 work](../Plans/R1.0-Release/access.md#tls). Hiding bodies
+listener binds any address it is given. It speaks plain HTTP, and TLS as well
+once [TLS](#tls) is on; off loopback, plain-HTTP tokens and bodies cross that
+network unencrypted, and the daemon says so at start. Agents on other hosts use
+TLS, a trusted network, or an SSH tunnel. Hiding bodies
 from the web face is a disclosure boundary, not encryption; encrypted sessions
 are [R1 work](../Plans/R1.0-Release/access.md#encrypted-sessions).
+
+## TLS
+
+Optional, and off by default. With it on, the daemon's TCP port answers TLS
+**and** plain HTTP on the same port. A client that wants TLS asks for
+`https://`, and one that does not is served as before. A self-signed
+certificate is trusted by its **pinned fingerprint**, never by chance. Setup
+turns it on ([setup § TLS](09-setup.md#tls)); the listener is described in
+[processes § the TCP listener](11-processes.md#the-tcp-listener).
+
+| Client setting | |
+|---|---|
+| `AGENT_BUS_ADDR=https://host:port` | reach the port over TLS; the CLI, admin, token helper, runner, MCP face and launchers all accept it |
+| `AGENT_BUS_TLS_FINGERPRINT=sha256:<hex>` | trust exactly the certificate with that SHA-256, a self-signed one included, and no other |
+| no fingerprint | the system's trust store decides, which suits a CA-issued certificate |
+
+<details>
+<summary>Where the fingerprint comes from, and what a mismatch does</summary>
+
+- `ssh agent-busd@<node> token --fingerprint` is the forced command that hands
+  out tokens, answering the fingerprint instead. It needs no name and no
+  credential, since the fingerprint is public.
+- `agent-bus-token --fingerprint` and `agent-bus-admin tls` answer it on the
+  node, from the certificate alone and never the key. Setup prints it when it
+  finishes.
+- A certificate that does not match the pin refuses the call. Nothing retries
+  over plain HTTP.
+- A certificate replaced later, on renewal, has a new fingerprint, so clients
+  fetch it again the same way.
+- The TypeScript faces check the certificate on one TLS connection, then trust
+  exactly that certificate for every call. Bun's `fetch` cannot compare a
+  fingerprint itself.
+
+</details>
