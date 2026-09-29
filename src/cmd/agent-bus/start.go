@@ -122,7 +122,22 @@ func start(args []string) error {
 		return fmt.Errorf("could not leave a note for stop and logs: %w", err)
 	}
 	defer os.Remove(notePath(svc.Name))
-	return serve(svc)
+	serveErr := serve(svc)
+	// A deliberate exit leaves no name behind: when nothing is waiting, the
+	// runner unregisters itself, so the next `start` begins clean. A daemon
+	// that refuses — messages still queued — keeps the name. Only the
+	// deliberate stop unregisters: an error exit (a refused read, a daemon
+	// that went away) keeps the name too, so a transient fault does not
+	// take the registration with it, which is also the answer for a crash:
+	// no graceful exit, no unregister (docs/08-runner-role.md#script-agents).
+	if serveErr == nil {
+		if err := postQuiet("/unregister", map[string]string{"name": svc.Name}); err != nil {
+			fmt.Fprintf(svc.say, "%s stays registered: %v\n", svc.Name, err)
+		} else {
+			fmt.Fprintf(svc.say, "%s unregistered\n", svc.Name)
+		}
+	}
+	return serveErr
 }
 
 // openLog is where the service and its scripts write. Append, because a
@@ -199,8 +214,20 @@ func describe(args []string) (service, error) {
 		svc.Instances = count
 	}
 
+	// The runner publishes an agent, and an agent's name begins with #; a
+	// plainly written `start hi@demo` names the same thing
+	// (docs/08-runner-role.md#script-agents). Anything else is left alone:
+	// the daemon's refusal names the rule better than a rewrite here could.
+	if svc.Name != "" && !strings.HasPrefix(svc.Name, "#") {
+		svc.Name = "#" + svc.Name
+	}
+
 	if svc.Name == "" || svc.Script == "" {
 		return svc, fmt.Errorf("an agent needs a name and a script")
+	}
+	command := strings.TrimSpace(svc.Script)
+	if strings.HasPrefix(command, "./") || strings.HasPrefix(command, "../") {
+		return svc, fmt.Errorf("use an absolute script path: the runner starts scripts in its work directory, not the launch directory")
 	}
 	if svc.Algo == "" {
 		svc.Algo = algoJSON

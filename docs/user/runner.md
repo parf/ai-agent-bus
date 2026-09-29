@@ -9,8 +9,8 @@ The runner is `agent-bus start`, part of the ordinary [`agent-bus`](cli.md)
 command. A managed runner with autostart and restart policies is
 [R1 scope](../../Plans/R1.0-Release/runner.md#managed-runner).
 
-ℹ️ An agent's name begins with `#`: quote it (`'#hi@demo'`) or write
-`--agent hi@demo`.
+ℹ️ An agent's name begins with `#`. `start` adds it for you: `hi@demo` and
+`'#hi@demo'` publish the same agent.
 
 ## ⚡ The one-liner
 
@@ -111,8 +111,12 @@ agent-bus stop '#hi@demo'
 | **the logs** | outlive the run on purpose — what a run said is most wanted after it has ended |
 | **only you can stop it** | a running agent leaves a note in **your own** state directory, and that is what `stop` and `logs` read. Nobody else can see it, so nobody else can touch it 🔒 |
 
-`stop` leaves the **registration** in place, so the name still exists and its
-queue still collects. To remove the name too: `agent-bus unregister '#hi@demo'`.
+A deliberate exit takes the **registration** with it: when nothing is waiting
+in the queue, the agent unregisters itself, so a name nobody serves answers
+"no such name" instead of quietly collecting messages. A **crash** is not a
+deliberate exit — the name and its queue stay, so the agent can be started
+again and picks up where the queue left off. If messages were still waiting
+when a stopped agent tried to leave, it stays registered for the same reason.
 
 Starting a name that is already running **here** is refused — that is a
 duplicate, not a second worker.

@@ -32,19 +32,19 @@ agent because that is the kind with a queue to read
 | `--algo=json` | Envelope JSON on stdin; the default form | Stdout at exit |
 
 ```sh
-agent-bus start hello@srv1 --algo=args ./hello-world.sh --descr "greets you"
+agent-bus start hello@srv1 --algo=args "$PWD/hello-world.sh" --descr "greets you"
 cat service.json | agent-bus start -5
 ```
 
 | Rule | Built behavior |
 |---|---|
-| Script argument | One shell command line; quote it if it contains arguments |
+| Script argument | One shell command line; quote it if it contains arguments. Use an absolute script path: the child starts in its work directory |
 | `-N` | At most N script processes; default 1. One runner reads one inbox |
 | Success with output | Send the output as the answer |
 | Silent success | Send `done` so the caller can stop waiting |
 | Nonzero exit | Log failure and send no answer; no retry |
 | Expired caller deadline | Skip the script; message TTL is enforced separately in the daemon |
-| Stop | Stop taking work and wait for scripts already running; leave the registry record and queue intact |
+| Stop | Stop taking work and wait for scripts already running; unregister after a graceful stop when its inbox is idle |
 | Work directory | One per agent; the script starts there |
 | Credentials | The launcher must be allowed to obtain that agent's credential; it cannot become somebody else's agent |
 | Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the records the direct Owner owns. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-roles.md#registration). Reply inboxes need their own grants |
@@ -64,11 +64,14 @@ check in it — nobody else can see the file.
 | a note with no process behind it | is cleared, not reported as running — an agent killed outright leaves its note behind |
 | starting a name that is already running here | is refused; the foreground `start` command has no shared-start mode |
 
+`start`, `stop` and `logs` accept a script agent name with or without its
+leading `#`; all three refer to the same local run.
+
 Because a message is taken from the daemon only when a script process is free
 to run it, an agent that dies loses only the work already in flight; the rest
 is still queued for whatever reads that inbox next.
 
-Stopping leaves the registration in place; remove an idle address with
+A forced kill leaves the registration in place; remove an idle address with
 [unregister](01-identity-and-roles.md#unregistering).
 
 ## What the child is told

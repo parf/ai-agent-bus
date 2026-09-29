@@ -1210,9 +1210,12 @@ if slow; then
   else
     wait $TPID; ok_exit "a stopped agent leaves its consume, exit 0" $?
   fi
-  ab caller@srv1 send '#stopper@srv1' --topic w --tag 3 "after the stop" >/dev/null
-  sleep 1
-  has "and runs nothing after it stopped" "$(ab '#stopper@srv1' consume --wait 2s)" 'after the stop'
+  # A deliberate exit took the registration with it: a stopped agent no
+  # longer collects, and a caller is told so at once rather than left
+  # waiting on a name nothing serves.
+  out=$(ab caller@srv1 send '#stopper@srv1' --topic w --tag 3 "after the stop" 2>&1); rc=$?
+  bad_exit "and takes nothing after it stopped" $rc
+  has "and says the name is gone" "$out" 'no such receiver'
 
   # What the deadline is FOR: an agent handed work nobody is waiting for any
   # more does not do it. Both messages are queued before the agent starts,
@@ -1336,15 +1339,42 @@ if slow; then
   # took the whole account with it would pass every check above.
   has "while the one beside it is still running" \
     "$(kill -0 $LOPID 2>/dev/null && echo yes)" 'yes'
-  # Stopping is not unregistering: the name still owns its queue, which is
-  # the whole point of a name-owned inbox.
-  has "a stopped agent is still registered" "$(ab '#asker@srv1' ls '#twin@srv1')" 'a twin'
-  ab caller@srv1 send '#twin@srv1' "after the stop" >/dev/null
-  has "and messages still wait in its queue" "$(ab '#twin@srv1' consume --wait 3s)" 'after the stop'
+  # A deliberate exit cleans up after itself: the runner unregisters its name
+  # when nothing is waiting, so a name nobody serves is gone rather than
+  # silently collecting messages.
+  sleep 1
+  has "a stopped agent says it unregistered itself" "$(cat "$D/twin.log")" '#twin@srv1 unregistered'
+  out=$(ab '#asker@srv1' ls '#twin@srv1' 2>&1); rc=$?
+  bad_exit "a stopped agent's name is gone" $rc
+  has "and the daemon says no such name" "$out" 'no such'
+  out=$(ab caller@srv1 send '#twin@srv1' "after the stop" 2>&1); rc=$?
+  bad_exit "and takes no more messages" $rc
+  has "and says so" "$out" 'no such receiver'
+  # A crash is not a deliberate exit: no graceful shutdown ran, so the name
+  # and its queue stay for the restart, which is the durability point.
+  kill -9 $LOPID 2>/dev/null; wait $LOPID 2>/dev/null
+  has "a crashed agent stays registered" "$(ab '#asker@srv1' ls '#loose@srv1')" 'loose'
+  ab caller@srv1 send '#loose@srv1' "survived the crash" >/dev/null
+  has "and messages still wait in its queue" "$(ab caller@srv1 consume --inbox '#loose@srv1' --wait 3s)" 'survived the crash'
   has "logs shows what it wrote, after it has stopped" \
     "$(ab launcher@srv1 logs '#twin@srv1')" '#twin@srv1 is'
   has "and --lines bounds it" \
     "$(ab launcher@srv1 logs '#twin@srv1' --lines 1 | wc -l | tr -d ' ')" '^1$'
+  ab launcher@srv1 unregister '#loose@srv1' >/dev/null
+  # An error exit is not a deliberate stop: a runner whose name is held by
+  # somebody else's read fails at its first consume and must leave the
+  # registration exactly as it found it.
+  ab launcher@srv1 register '#clash@srv1' --allow '*' --kind agent >/dev/null
+  ab '#asker@srv1' consume --inbox '#clash@srv1' --wait 20s >/dev/null 2>&1 &
+  HOLDPID=$!
+  for _ in $(seq 1 30); do ab '#asker@srv1' status | grep -q '"waiting":[1-9]' && break; sleep 0.2; done
+  out=$(abt launcher@srv1 start '#clash@srv1' --allow '*' --algo args "$D/quick.sh" 2>&1); rc=$?
+  kill $HOLDPID 2>/dev/null; wait $HOLDPID 2>/dev/null
+  bad_exit "a runner on a held name fails" $rc
+  has "and says whose reader holds it" "$out" 'already has a reader'
+  has "while the name survives the failed start" \
+    "$(ab '#asker@srv1' ls '#clash@srv1')" 'clash'
+  ab launcher@srv1 unregister '#clash@srv1' >/dev/null
   out=$(ab launcher@srv1 stop '#twin@srv1' 2>&1); rc=$?
   bad_exit "stopping something that is not running is an error" $rc
   has "and says so rather than pretending" "$out" 'not running from this account'

@@ -45,6 +45,15 @@ func runDir() string {
 // would otherwise make it two.
 func segment(name string) string { return strings.ReplaceAll(name, "/", "%") }
 
+// Script agents may be named with or without the leading # at the CLI.
+// start canonicalizes the name before writing its local note and log.
+func scriptAgentName(name string) string {
+	if name != "" && !strings.HasPrefix(name, "#") {
+		return "#" + name
+	}
+	return name
+}
+
 func notePath(name string) string {
 	return filepath.Join(runDir(), "services", segment(name)+".json")
 }
@@ -68,6 +77,7 @@ func (r running) note() error {
 // is still there. A service killed outright leaves its note behind, so the
 // stale one is cleared here rather than reported as a running service.
 func alive(name string) (running, error) {
+	name = scriptAgentName(name)
 	b, err := os.ReadFile(notePath(name))
 	if err != nil {
 		return running{}, fmt.Errorf("%s is not running from this account", name)
@@ -124,10 +134,11 @@ func logsVerb(args []string) error {
 		}
 		last = n
 	}
-	path := logPath(pos[0])
+	name := scriptAgentName(pos[0])
+	path := logPath(name)
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("nothing logged for %s here", pos[0])
+		return fmt.Errorf("nothing logged for %s here", name)
 	}
 	if lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n"); len(b) > 0 {
 		if len(lines) > last {
