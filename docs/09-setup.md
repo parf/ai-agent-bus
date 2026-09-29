@@ -576,9 +576,15 @@ port then answers TLS beside plain HTTP ([access § TLS](02-access.md#tls)).
   written.
 - **Output:** setup ends with the fingerprint and the client settings,
   `AGENT_BUS_ADDR=https://<host>:<port>` and `AGENT_BUS_TLS_FINGERPRINT=sha256:…`.
-- **Scope:** the web face does not use this directory yet; its own
-  certificate settings are in
-  [where it listens](05-discovery.md#where-it-listens).
+- **The web face:** it gets its own copy in `/etc/agent-bus/web-tls/`,
+  `root:agent-bus-web 0750`, with the key `0640`, so neither account reads the
+  other's key.
+  - A drop-in, `agent-bus-web.service.d/tls.conf`, names that copy
+    (`AGENT_BUS_WEB_TLS_DIR`).
+  - Its port then serves TLS and redirects plain HTTP there to `https://`.
+  - Setup waits for its health over `https://`, pinned to the copy.
+  - `--tls off` removes the drop-in, and a re-run or `--upgrade` keeps what
+    the node has.
 
 </details>
 

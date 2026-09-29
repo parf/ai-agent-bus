@@ -537,7 +537,7 @@ address it binds, not a name anybody has to make resolve.
 | It wants | Default |
 |---|---|
 | where to listen | `127.0.0.1:6780`, with `AGENT_BUS_WEB_ADDR` in the unit's environment; the face takes no flags |
-| a certificate | **none.** Set `AGENT_BUS_WEB_CERT` *and* `AGENT_BUS_WEB_KEY` and it serves HTTPS on the address it was given. Ask for one and miss it and it **refuses to start**: either variable is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
+| a certificate | **none**, unless setup turned TLS on ([setup § TLS](09-setup.md#tls)). Then `AGENT_BUS_WEB_TLS_DIR` names the face's copy of the node's certificate, and the port answers TLS, redirecting plain HTTP to `https://`. By hand, `AGENT_BUS_WEB_CERT` *and* `AGENT_BUS_WEB_KEY` still serve HTTPS alone on the address it was given. Ask for one and miss it and it **refuses to start**: either variable is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
 | a port it may not bind | an error. No port is a default any more, so every one was asked for on purpose and none is silently traded for another |
 
 **The web face listens on loopback**, so the page is for the person at the

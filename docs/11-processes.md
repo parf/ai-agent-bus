@@ -128,6 +128,7 @@ state or writable path of its own.
 | Unit | `agent-bus-web.service`, shipped as `src/web/agent-bus-web.service`; setup writes it with the host's exec paths |
 | Daemon link | `/run/agent-bus/bus.sock` only; mapped account sockets are closed to it by their mode |
 | Listen | [discovery § where it listens](05-discovery.md#where-it-listens) |
+| With TLS on | a small front on the port sniffs each connection: TLS is piped to the face's own server, which holds the certificate on a unix socket in its `RuntimeDirectory` (`/run/agent-bus-web/https.sock`); plain HTTP is answered at the front with a `301` to `https://` and never reaches the app, except `/healthz`, answered for the app. Without TLS the face binds the port itself, as before ([setup § TLS](09-setup.md#tls)) |
 
 **The face acts on the visitor's session, and on nothing else.** Owner-settled,
 2026-09-16. Every call a signed-in person causes is made with that person's

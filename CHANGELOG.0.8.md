@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.62 — 2026-09-29
+
+The web face takes the node's TLS too: setup gives it its own copy of the
+certificate, its port answers TLS and redirects plain HTTP to `https://`.
+
 ## 0.8.61 — 2026-09-29
 
 Deactivation for active agents, services, queues, topics and users now starts
