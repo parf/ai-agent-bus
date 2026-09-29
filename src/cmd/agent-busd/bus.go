@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,12 +26,14 @@ import (
 	"github.com/parf/ai-agent-bus/internal/core"
 	dirfile "github.com/parf/ai-agent-bus/internal/directory/file"
 	"github.com/parf/ai-agent-bus/internal/directory/github"
+	"github.com/parf/ai-agent-bus/internal/duallisten"
 	"github.com/parf/ai-agent-bus/internal/journal"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/signature/sshkeygen"
 	"github.com/parf/ai-agent-bus/internal/store/sqlite"
+	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
 
 func runBus(c config) {
@@ -155,9 +158,12 @@ func runBus(c config) {
 
 	callHistory.Sample(time.Now())
 	var srvs []*http.Server
-	serve := func(l net.Listener, h http.Handler) {
+	serve := func(l net.Listener, h http.Handler, tlsCfg *tls.Config) {
 		srv := &http.Server{
-			Handler: countCalls(&calls, h),
+			// Set on the TCP listener when it also answers TLS, so that
+			// net/http offers HTTP/2 on those connections.
+			TLSConfig: tlsCfg,
+			Handler:   countCalls(&calls, h),
 			// Long-poll consume holds a request open, so there is no write
 			// deadline; the header and idle deadlines cost nothing.
 			ReadHeaderTimeout: 10 * time.Second,
@@ -180,7 +186,21 @@ func runBus(c config) {
 			in.l.Close()
 			continue
 		}
-		serve(in.l, h)
+		// The TCP port answers TLS as well as plain HTTP when there is a
+		// TLS directory; the unix sockets never do (docs/11-processes.md#the-tcp-listener).
+		if in.tcp && c.tlsDir != "" {
+			cert, err := tlsdir.Load(c.tlsDir)
+			if err != nil {
+				log.Fatalf("-tls-dir %s: %v", c.tlsDir, err)
+			}
+			// The pair actually served is the one this names; the
+			// supervisor's check before binding was of the same directory.
+			log.Printf("serving TLS on %s with certificate %s", in.l.Addr(), tlsdir.Fingerprint(cert))
+			cfg := tlsdir.ServerConfig(cert)
+			serve(duallisten.New(in.l, cfg), h, cfg)
+			continue
+		}
+		serve(in.l, h, nil)
 	}
 	log.Printf("bus serving %d listeners for %s (database %s)", len(srvs), owner, c.db)
 
@@ -309,6 +329,8 @@ func socketHandler(bus *core.Bus, face *api.Server, in inlet) (http.Handler, err
 type inlet struct {
 	l   net.Listener
 	who string
+	// tcp marks the TCP listener, the one a TLS directory applies to.
+	tcp bool
 	// owner marks the daemon account's socket, which answers as the durable
 	// daemon Owner rather than a name fixed at supervisor start.
 	owner bool
@@ -334,7 +356,7 @@ func inherited() []inlet {
 		if rest, ok := strings.CutPrefix(what, "user:"); ok {
 			who = rest
 		}
-		in = append(in, inlet{l: l, who: who, owner: what == "owner:"})
+		in = append(in, inlet{l: l, who: who, owner: what == "owner:", tcp: what == "tcp"})
 	}
 	return in
 }

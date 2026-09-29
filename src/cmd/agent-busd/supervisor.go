@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/store/sqlite"
+	"github.com/parf/ai-agent-bus/internal/tlsdir"
 )
 
 func runSupervisor(c config) {
@@ -33,6 +34,20 @@ func runSupervisor(c config) {
 	}
 	if public {
 		log.Printf("listening on %s, which is not loopback: tokens and message bodies cross that network as plain HTTP", c.addr)
+	}
+	// A TLS directory is checked before anything is bound: a pair that does
+	// not load refuses the start, rather than serving plain HTTP alone.
+	if c.tlsDir != "" {
+		cert, err := tlsdir.Load(c.tlsDir)
+		if err != nil {
+			log.Fatalf("-tls-dir %s: %v", c.tlsDir, err)
+		}
+		log.Printf("TLS offered on %s beside plain HTTP; certificate fingerprint %s", c.addr, tlsdir.Fingerprint(cert))
+		if left := time.Until(cert.Leaf.NotAfter); left <= 0 {
+			log.Printf("the TLS certificate expired %s; clients that check it will refuse", cert.Leaf.NotAfter.Format(time.DateOnly))
+		} else if left < 30*24*time.Hour {
+			log.Printf("the TLS certificate expires %s", cert.Leaf.NotAfter.Format(time.DateOnly))
+		}
 	}
 	tcp, err := net.Listen("tcp", c.addr)
 	if err != nil {

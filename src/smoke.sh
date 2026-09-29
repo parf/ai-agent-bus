@@ -72,7 +72,7 @@ PORT=${PORT:-7911}
 SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   script_done script_confined listing backlog ttl full_queue enrolment restart
   orphans transfer corrupt_pair supervisor
-  mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples)
+  mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -2933,6 +2933,40 @@ mcp_rename() { mcp_face "coordinated launcher rename" mcp_rename_body; }
 # agent-bus-setup --samples fills a node with a galaxy far, far away, and
 # --remove-samples takes exactly that away again. Its own daemon, so the
 # samples meet no other section's names (docs/09-setup.md#sample-data).
+# The TCP port answers TLS beside plain HTTP only when a TLS directory is given
+# (docs/09-setup.md#tls): its own daemons, a certificate made here.
+tls_port() {
+  sec "the TCP port answers TLS and plain HTTP, only when TLS is enabled"
+  local T=$D/tlsp P1=$((PORT+16)) P2=$((PORT+17)) TPID PPID2 out
+  mkdir -p "$T/tls" "$T/plain" "$T/on"
+  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 2 -subj /CN=localhost \
+    -addext "subjectAltName=IP:127.0.0.1,DNS:localhost" -keyout "$T/tls/key.pem" -out "$T/tls/cert.pem" 2>/dev/null
+  # Without a TLS directory the port is plain HTTP alone.
+  "$D/agent-busd" -addr 127.0.0.1:$P1 -socket "$T/plain/bus.sock" -owner "$OWNER" -db "$T/plain/bus.db" -create -flush-every 0 >"$T/plain/log" 2>&1 &
+  PPID2=$!
+  ready "$T/plain/bus.sock" || echo "  WARNING: the plain daemon never answered"
+  has "without -tls-dir the port answers plain HTTP" "$(curl -sS http://127.0.0.1:$P1/identity)" '"version"'
+  out=$(curl -sS --max-time 5 --cacert "$T/tls/cert.pem" https://127.0.0.1:$P1/identity 2>&1); rc=$?
+  bad_exit "and refuses a TLS handshake" $rc
+  kill $PPID2 2>/dev/null; wait $PPID2 2>/dev/null
+  # With it, the same port answers both, HTTP/2 over TLS included.
+  "$D/agent-busd" -addr 127.0.0.1:$P2 -socket "$T/on/bus.sock" -owner "$OWNER" -db "$T/on/bus.db" -create -flush-every 0 -tls-dir "$T/tls" >"$T/on/log" 2>&1 &
+  TPID=$!
+  ready "$T/on/bus.sock" || echo "  WARNING: the TLS daemon never answered"
+  has "with -tls-dir the port answers TLS" "$(curl -sS --cacert "$T/tls/cert.pem" https://127.0.0.1:$P2/identity)" '"version"'
+  has "negotiating HTTP/2" "$(curl -sS --http2 -o /dev/null -w '%{http_version}' --cacert "$T/tls/cert.pem" https://127.0.0.1:$P2/identity)" '^2$'
+  has "and still answers plain HTTP on the same port" "$(curl -sS http://127.0.0.1:$P2/identity)" '"version"'
+  local want
+  want=$(openssl x509 -in "$T/tls/cert.pem" -noout -fingerprint -sha256 | sed 's/.*=//; s/://g' | tr A-F a-f)
+  has "the log names the certificate's fingerprint" "$(cat "$T/on/log")" "fingerprint sha256:$want"
+  kill $TPID 2>/dev/null; wait $TPID 2>/dev/null
+  # A TLS directory that does not load refuses the start instead of serving plain HTTP alone.
+  out=$(timeout 10 "$D/agent-busd" -addr 127.0.0.1:$P2 -socket "$T/on/bus.sock" -owner "$OWNER" -db "$T/on/bus.db" -create -flush-every 0 -tls-dir "$T/missing" 2>&1); rc=$?
+  bad_exit "a TLS directory that does not load refuses the start" $rc
+  [ $rc -ne 124 ]; ok_exit "at once, before anything is bound, not in a restart loop" $?
+  has "and says which" "$out" "tls-dir $T/missing"
+}
+
 samples() {
   sec "setup adds sample data, and takes exactly it away"
   mkdir -p "$D/smp"
