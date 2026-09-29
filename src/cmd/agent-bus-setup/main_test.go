@@ -12,7 +12,7 @@ import (
 // The daemon's unit runs no web face since 0.8.50: that is its own unit, so
 // the daemon keeps no cgroup delegation and no -web.
 func TestTheDaemonUnitRunsNoWebFace(t *testing.T) {
-	unit := unitFor("/program/agent-busd", "127.0.0.1:6767", "owner@example", nil)
+	unit := unitFor("/program/agent-busd", "127.0.0.1:6767", "owner@example", nil, "")
 	if strings.Count(unit, "CapabilityBoundingSet=CAP_CHOWN") != 1 {
 		t.Error("the daemon unit lost its one capability")
 	}

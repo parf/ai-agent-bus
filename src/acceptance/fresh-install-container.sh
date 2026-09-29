@@ -303,6 +303,27 @@ if ownerget /ls | grep -q 'c3po@tatooine\|death-star'; then fail "a sample recor
 ownerget /users | grep -q '"name":"luke@tatooine"[^}]*"status":"inactive"' || fail "the sample users were not deactivated"
 pass "setup adds the sample node, the web face shows it, and removal takes exactly it away"
 
+# TLS on the daemon's port (docs/09-setup.md#tls): setup generates the
+# certificate, the unit names it, the port answers TLS beside plain HTTP, and
+# a client reaches it by the fingerprint the forced SSH command hands out.
+./agent-bus-setup --owner owner@fresh --tls self-signed >/evidence/setup-tls.log 2>&1 || { cat /evidence/setup-tls.log >&2; fail "setup --tls self-signed failed"; }
+grep -q -- ' -tls-dir /etc/agent-bus/tls' /etc/systemd/system/agent-busd.service || fail "the unit does not name the TLS directory"
+[ "$(stat -c '%U:%G %a' /etc/agent-bus/tls/key.pem)" = "root:agent-busd 640" ] || fail "the TLS key is $(stat -c '%U:%G %a' /etc/agent-bus/tls/key.pem), not root:agent-busd 640"
+curl -fsS --cacert /etc/agent-bus/tls/cert.pem https://127.0.0.1:6767/identity | grep -q '"version"' || fail "the port does not answer TLS"
+curl -fsS http://127.0.0.1:6767/identity | grep -q '"version"' || fail "the port stopped answering plain HTTP"
+tls_fp=$(runuser -u agent-busd -- env SSH_ORIGINAL_COMMAND='token --fingerprint' /usr/local/bin/agent-bus-token owner@fresh)
+want_fp=sha256:$(openssl x509 -in /etc/agent-bus/tls/cert.pem -noout -fingerprint -sha256 | sed 's/.*=//; s/://g' | tr A-F a-f)
+[ "$tls_fp" = "$want_fp" ] || fail "the forced command's fingerprint $tls_fp is not the certificate's $want_fp"
+grep -q "AGENT_BUS_TLS_FINGERPRINT=$want_fp" /evidence/setup-tls.log || fail "setup did not print the client settings"
+AGENT_BUS_ADDR=https://127.0.0.1:6767 AGENT_BUS_TOKEN="$(cat /root/owner.token)" AGENT_BUS_TLS_FINGERPRINT="$tls_fp" agent-bus status | grep -q '"you":"owner@fresh"' ||
+  fail "the CLI did not reach the https:// port by its pin"
+if AGENT_BUS_ADDR=https://127.0.0.1:6767 AGENT_BUS_TOKEN="$(cat /root/owner.token)" AGENT_BUS_TLS_FINGERPRINT=sha256:$(printf '0%.0s' $(seq 64)) agent-bus status >/dev/null 2>&1; then
+  fail "a wrong pin reached the port"
+fi
+./agent-bus-setup --owner owner@fresh >/evidence/setup-tls-kept.log 2>&1 || fail "setup over a TLS node failed"
+grep -q -- ' -tls-dir /etc/agent-bus/tls' /etc/systemd/system/agent-busd.service || fail "a setup run without --tls dropped TLS"
+pass "setup turns TLS on with a self-signed certificate; the port answers both; the pinned CLI and the forced command agree, and a re-run keeps it"
+
 
 systemctl show agent-busd -p ActiveState -p User -p FragmentPath >/evidence/unit-state.txt
 systemctl --version | head -1 >/evidence/host.txt

@@ -2176,6 +2176,15 @@ has "the database lives under that account's home" "$UNIT" 'db /var/lib/agent-bu
 # before either account's mode is consulted.
 has "and it may write there and to its logs, nowhere else" "$UNIT" '^ReadWritePaths=/var/lib/agent-bus/daemon /var/log/agent-bus$'
 has "which it is told the place of" "$UNIT" 'log-dir /var/log/agent-bus'
+# TLS on the port is setup's to turn on (docs/09-setup.md#tls): the unit then
+# names the directory, and a node without it serves plain HTTP only.
+setup_tls() { AGENT_BUS_TLS_DIR=$D/setup-tls "$D/agent-bus-setup" --owner "$OWNER" --exec /usr/local/bin/agent-busd "$@" </dev/null 2>&1; }
+has "--tls self-signed puts the TLS directory in the unit" "$(setup_tls --print-unit --tls self-signed)" " -tls-dir $D/setup-tls"
+lacks "while a node without TLS gets none" "$(setup_tls --print-unit)" 'tls-dir'
+has "and a dry run says it would generate the certificate" "$(setup_tls --dry-run --tls self-signed)" 'would generate a self-signed TLS certificate'
+out=$(setup_tls --dry-run --tls files); rc=$?
+bad_exit "--tls files without its files is refused" $rc
+has "and says what is missing" "$out" 'needs --tls-cert and --tls-key'
 # systemd owns that directory's mode once StateDirectory names it, and re-applies
 # its own default on every start. Left unstated, the 0700 setup made becomes
 # 0755 the moment the daemon first runs, which no test passing a home would see.

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/tlsdir"
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
@@ -105,6 +107,7 @@ func setup() (err error) {
 	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state aside, and install fresh: the 0.7 cutover")
 	samples := fs.Bool("samples", false, "add sample users, agents, services, queues, topics and groups (Star Wars and Spaceballs) to the running node")
 	removeSamplesF := fs.Bool("remove-samples", false, "take the sample data away again: unregister its records, empty its groups, deactivate its users")
+	tlsC := tlsFlags(fs)
 	var users list
 	fs.Var(&users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")
 	fs.Parse(os.Args[1:])
@@ -122,6 +125,12 @@ func setup() (err error) {
 			return addSamples()
 		}
 		return removeSamples()
+	}
+	if err := tlsC.check(); err != nil {
+		return err
+	}
+	if tlsC.mode != "" && (*upgrade || *recover) {
+		return fmt.Errorf("--tls is set by setup; --upgrade keeps the node's TLS as it is")
 	}
 	if *reinstall && (*upgrade || *recover) {
 		return fmt.Errorf("--reinstall cannot be combined with --upgrade or --recover")
@@ -211,7 +220,23 @@ func setup() (err error) {
 			*exe = filepath.Join(installed, "agent-busd")
 		}
 	}
-	unit := unitFor(*exe, *addr, me.String(), users)
+	// TLS on the daemon's port: asked at a terminal, otherwise what the flags
+	// say, otherwise what the node already has (docs/09-setup.md#tls).
+	if tlsC.mode == "" && !*printUnit && !*dry && !*upgrade && !*recover && terminal() {
+		if err := tlsC.ask(os.Stdin, os.Stdout); err != nil {
+			return err
+		}
+	}
+	if tlsC.enabled() && tlsC.mode == "" {
+		if _, err := tlsdir.Load(tlsC.dir); err != nil {
+			return fmt.Errorf("the node's TLS directory %s does not load, and the daemon would refuse to start: %w; fix it, or pass --tls off", tlsC.dir, err)
+		}
+	}
+	tlsDirArg := ""
+	if tlsC.enabled() {
+		tlsDirArg = tlsC.dir
+	}
+	unit := unitFor(*exe, *addr, me.String(), users, tlsDirArg)
 	if *printUnit {
 		fmt.Print(unit)
 		return nil
@@ -237,7 +262,11 @@ func setup() (err error) {
 	}
 	steps = append(steps,
 		fmt.Sprintf("make %s the daemon's to write and adm's to read, rotated by %s", logDir, logrotate),
-		fmt.Sprintf("initialize the database %s as %s", dbPath, svcAccount),
+		fmt.Sprintf("initialize the database %s as %s", dbPath, svcAccount))
+	if s := tlsC.step(); s != "" {
+		steps = append(steps, s)
+	}
+	steps = append(steps,
 		fmt.Sprintf("write %s", unitPath),
 		"reload systemd and start agent-busd, restarting a running one whose unit or release changed, and wait until it reports the installed release")
 	steps = append(steps, webSteps(webDirFor(*exe))...)
@@ -359,6 +388,9 @@ func setup() (err error) {
 	} else if err != nil {
 		return err
 	}
+	if _, err := tlsC.install(svcAccount, os.Stderr); err != nil {
+		return fmt.Errorf("TLS: %w", err)
+	}
 	if err := os.MkdirAll(filepath.Dir(unitPath), 0o755); err != nil {
 		return err
 	}
@@ -434,7 +466,23 @@ func setup() (err error) {
 	// transfer since then is what the node answers to.
 	fmt.Printf("agent-busd %s (%s) runs as %s, owned by %s, state in %s; services are %s's, in %s\n",
 		node.Version, node.Build, svcAccount, node.Owner, svcHome, runAccount, svcDir)
+	// What a client elsewhere sets to reach the port over TLS; the same
+	// fingerprint is on offer as `ssh agent-busd@<node> token --fingerprint`.
+	if tlsC.enabled() {
+		if cert, err := tlsdir.LoadCert(tlsC.dir); err == nil {
+			fmt.Printf("TLS is on for %s beside plain HTTP, certificate %s. A client elsewhere sets:\n    AGENT_BUS_ADDR=https://<this host>:%s AGENT_BUS_TLS_FINGERPRINT=%s\n",
+				*addr, tlsdir.Fingerprint(cert), portOf(*addr), tlsdir.Fingerprint(cert))
+		}
+	}
 	return nil
+}
+
+// portOf is addr's port, or addr itself when it has none.
+func portOf(addr string) string {
+	if _, p, err := net.SplitHostPort(addr); err == nil {
+		return p
+	}
+	return addr
 }
 
 // setAside is the reinstall's first half (Plans/R0.8-MVP/0.7-cutover.md#procedure):
@@ -679,7 +727,7 @@ func installerKey() string {
 
 // unitFor is the unit, and the only place its values are written down.
 // See docs/09-setup.md#the-two-accounts.
-func unitFor(exe, addr, owner string, users list) string {
+func unitFor(exe, addr, owner string, users list, tlsDir string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, `[Unit]
 Description=agent-bus: registry, broker and MCP server for agents
@@ -702,6 +750,9 @@ ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -log-dir %[8]s 
 		svcAccount, svcHome, exe, addr, filepath.Base(api.SystemRuntimeDir), api.SystemSocket(), owner, logDir)
 	for _, u := range users {
 		fmt.Fprintf(&b, " -user %s", u)
+	}
+	if tlsDir != "" {
+		fmt.Fprintf(&b, " -tls-dir %s", tlsDir)
 	}
 	fmt.Fprintf(&b, `
 Restart=on-failure
