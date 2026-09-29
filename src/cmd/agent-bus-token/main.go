@@ -14,11 +14,13 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/keyproof"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/tlsdir"
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
@@ -26,6 +28,7 @@ import (
 var usage = "agent-bus-token " + version.String + "\n\n" + usageText
 
 const usageText = `agent-bus-token <name> [--rotate] [--key <path>]
+agent-bus-token --fingerprint   the node's TLS certificate fingerprint, to pin (AGENT_BUS_TLS_FINGERPRINT)
 
   <name>    a User (alice, or alice@realm) or an agent (#name, or #name@realm);
             the realm is optional (docs/01-identity-and-roles.md#names)
@@ -50,6 +53,17 @@ func main() {
 }
 
 func issue() error {
+	// The fingerprint is a public fact about the node, asked for by
+	// anybody who will pin its TLS certificate: no name, no credential
+	// (docs/02-access.md#tls).
+	if slices.Contains(os.Args[1:], "--fingerprint") || slices.Contains(strings.Fields(os.Getenv("SSH_ORIGINAL_COMMAND")), "--fingerprint") {
+		cert, err := tlsdir.LoadCert(tlsdir.Installed())
+		if err != nil {
+			return fmt.Errorf("this node serves no TLS certificate: %w", err)
+		}
+		fmt.Println(tlsdir.Fingerprint(cert))
+		return nil
+	}
 	entitled, rotate, key, err := parse(protocol.ExpandAgentFlags(os.Args[1:]))
 	if err != nil {
 		return err

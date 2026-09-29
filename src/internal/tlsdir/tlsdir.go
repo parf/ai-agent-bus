@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"os"
@@ -25,6 +26,30 @@ const (
 	KeyFile   = "key.pem"
 	ChainFile = "chain.pem"
 )
+
+// Installed is the directory this node's programs read: Dir, or
+// AGENT_BUS_TLS_DIR when a test or a development daemon keeps it elsewhere.
+func Installed() string {
+	if v := os.Getenv("AGENT_BUS_TLS_DIR"); v != "" {
+		return v
+	}
+	return Dir
+}
+
+// Describe is what an operator is shown about the served certificate.
+func Describe(cert tls.Certificate) string {
+	l := cert.Leaf
+	names := append([]string{}, l.DNSNames...)
+	for _, ip := range l.IPAddresses {
+		names = append(names, ip.String())
+	}
+	self := "self-signed"
+	if len(cert.Certificate) > 1 || l.Issuer.String() != l.Subject.String() {
+		self = fmt.Sprintf("issued by %s, %d certificates in the chain", l.Issuer.CommonName, len(cert.Certificate))
+	}
+	return fmt.Sprintf("fingerprint %s\nnames       %s\nexpires     %s\nissuer      %s\n",
+		Fingerprint(cert), strings.Join(names, ", "), l.NotAfter.Format("2006-01-02"), self)
+}
 
 // Present says whether dir holds a certificate and a key. It does not say
 // they are valid; Load does.
@@ -63,6 +88,43 @@ func Load(dir string) (tls.Certificate, error) {
 		return tls.Certificate{}, err
 	}
 	return Pair(certPEM, chainPEM, keyPEM)
+}
+
+// LoadCert reads the certificate and its chain, never the key: what the
+// fingerprint and a description of the certificate need, which any user may
+// learn.
+func LoadCert(dir string) (tls.Certificate, error) {
+	certPEM, err := os.ReadFile(filepath.Join(dir, CertFile))
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	chainPEM, err := os.ReadFile(filepath.Join(dir, ChainFile))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return tls.Certificate{}, err
+	}
+	var cert tls.Certificate
+	rest := append(append(append([]byte{}, certPEM...), '\n'), chainPEM...)
+	for {
+		var block *pem.Block
+		if block, rest = pem.Decode(rest); block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		c, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return tls.Certificate{}, fmt.Errorf("certificate %d of the chain: %w", len(cert.Certificate)+1, err)
+		}
+		if cert.Leaf == nil {
+			cert.Leaf = c
+		}
+		cert.Certificate = append(cert.Certificate, block.Bytes)
+	}
+	if cert.Leaf == nil {
+		return tls.Certificate{}, fmt.Errorf("%s holds no certificate", filepath.Join(dir, CertFile))
+	}
+	return cert, nil
 }
 
 // Pair is Load on bytes: the certificate, then the chain, then the key.

@@ -1,3 +1,4 @@
+import { PIN_ENV, pinnedCertificate } from "./pin.ts";
 import os from "node:os";
 
 export const ownerACL = "@owner";
@@ -50,6 +51,11 @@ export type Record_ = { name: string; kind: string; addr?: string; descr?: strin
   // still matches the one it knew (docs/03-records.md#why-a-digest-at-all).
   config_sha?: string };
 
+/** The daemon's TCP port, plain or TLS, rather than a unix socket path. */
+export function isTCP(addr: string): boolean {
+  return addr.startsWith("http://") || addr.startsWith("https://");
+}
+
 export class BusError extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
@@ -61,13 +67,14 @@ export class Bus {
   readonly #token: string;
   readonly #addr: string;
   readonly #env: Record<string, string | undefined>;
+  #ca?: Promise<string>;
 
   constructor(env = process.env, allowLocal = false) {
     this.name = (env.AGENT_BUS_NAME || defaultName(env)).trim().toLowerCase();
     this.#token = env.AGENT_BUS_TOKEN ?? "";
     this.#addr = env.AGENT_BUS_ADDR ?? defaultSocket(env);
     this.#env = env;
-    if (!this.#token && !(allowLocal && !this.#addr.startsWith("http://"))) throw new Error("set AGENT_BUS_TOKEN");
+    if (!this.#token && !(allowLocal && !isTCP(this.#addr))) throw new Error("set AGENT_BUS_TOKEN");
   }
 
   /** A principal's credential, asked for with this one's. The daemon allows
@@ -86,12 +93,21 @@ export class Bus {
   }
 
   async #call(method: string, path: string, body?: unknown, signal?: AbortSignal, headers: Record<string, string> = {}): Promise<any> {
-    const overTCP = this.#addr.startsWith("http://");
+    const overTCP = isTCP(this.#addr);
     const url = (overTCP ? this.#addr.replace(/\/$/, "") : "http://localhost") + path;
+    // A pinned https:// daemon: its certificate, once checked against the
+    // pin, is the only one trusted (docs/02-access.md#tls).
+    const pin = this.#env[PIN_ENV];
+    let ca: string | undefined;
+    if (this.#addr.startsWith("https://") && pin) {
+      this.#ca ??= pinnedCertificate(this.#addr, pin).catch((err) => { this.#ca = undefined; throw err; });
+      ca = await this.#ca;
+    }
     const res = await fetch(url, {
       method,
       ...(signal ? { signal } : {}),
       ...(overTCP ? {} : { unix: this.#addr }),
+      ...(ca ? { tls: { ca } } : {}),
       headers: {
         "X-Agent-Bus-Token": this.#token,
         "Content-Type": "application/json",

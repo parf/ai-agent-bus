@@ -23,6 +23,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/tlsdir"
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
@@ -73,6 +74,7 @@ const usageText = ` — what the agent-busd account owns
   agent-bus-admin account list
   agent-bus-admin account set <local-account> <user[@realm]>
   agent-bus-admin account remove <local-account>
+  agent-bus-admin tls                            the served TLS certificate: fingerprint, names, expiry
 
 A key added here reaches one forced command and no shell: agent-bus-token,
 or this program with --admin. See docs/09-setup.md#ssh-admin.`
@@ -98,6 +100,15 @@ func admin() error {
 	}
 	if len(args) == 0 {
 		return fmt.Errorf("%s", usage)
+	}
+	// The served certificate is public; describing it needs no account.
+	if args[0] == "tls" {
+		cert, err := tlsdir.LoadCert(tlsdir.Installed())
+		if err != nil {
+			return fmt.Errorf("this node serves no TLS certificate: %w", err)
+		}
+		fmt.Print(tlsdir.Describe(cert))
+		return nil
 	}
 	if err := beTheAccount(); err != nil {
 		return err
@@ -144,7 +155,7 @@ func adminRequest(args []string, original string) ([]string, string, error) {
 	return request, n.String(), nil
 }
 
-func isVerb(s string) bool { return s == "user" || s == "token" || s == "account" }
+func isVerb(s string) bool { return s == "user" || s == "token" || s == "account" || s == "tls" }
 
 func accountVerb(args []string) error {
 	if len(args) == 1 && args[0] == "list" {

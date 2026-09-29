@@ -355,8 +355,9 @@ See docs/08-runner-role.md#smart-launchers.`);
   let bus = new Bus(env);
   if ((await bus.status()).you !== name) throw new Error("bus listener did not authenticate the session identity");
   const faceEnv: Record<string, string> = {};
-  for (const key of ["AGENT_BUS_NAME", "AGENT_BUS_TOKEN", "AGENT_BUS_RUNTIME", "AGENT_BUS_DESCR", "AGENT_BUS_PUSH", "AGENT_BUS_ADDR"] as const) {
-    if (env[key] !== undefined) faceEnv[key] = env[key]!;
+  for (const key of ["AGENT_BUS_NAME", "AGENT_BUS_TOKEN", "AGENT_BUS_RUNTIME", "AGENT_BUS_DESCR", "AGENT_BUS_PUSH", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT"] as const) {
+    const v = (env as Record<string, string | undefined>)[key];
+    if (v !== undefined) faceEnv[key] = v;
   }
   const saveEnv = () => {
     writeFileSync(envFile + ".new", JSON.stringify(faceEnv), { mode: 0o600 });

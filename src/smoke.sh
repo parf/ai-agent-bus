@@ -2959,6 +2959,21 @@ tls_port() {
   local want
   want=$(openssl x509 -in "$T/tls/cert.pem" -noout -fingerprint -sha256 | sed 's/.*=//; s/://g' | tr A-F a-f)
   has "the log names the certificate's fingerprint" "$(cat "$T/on/log")" "fingerprint sha256:$want"
+  # The fingerprint to pin comes from the token helper, asked directly or
+  # through the forced SSH command, and from admin; no credential is needed.
+  has "agent-bus-token --fingerprint prints it" "$(AGENT_BUS_TLS_DIR=$T/tls "$D/agent-bus-token" --fingerprint)" "^sha256:$want$"
+  has "and so does the SSH request token --fingerprint" "$(AGENT_BUS_TLS_DIR=$T/tls SSH_ORIGINAL_COMMAND='token --fingerprint' "$D/agent-bus-token" someone@srv1)" "^sha256:$want$"
+  has "agent-bus-admin tls describes the certificate" "$(AGENT_BUS_TLS_DIR=$T/tls "$D/agent-bus-admin" tls)" "fingerprint sha256:$want"
+  # A client reaches the https:// port with the pin, and with nothing else.
+  local TTOK
+  TTOK=$(owner_token "$T/on")
+  tcli() { env -u AGENT_BUS_NAME AGENT_BUS_ADDR=https://127.0.0.1:$P2 AGENT_BUS_TOKEN=$TTOK "$@"; }
+  has "agent-bus over https:// with the pin" "$(tcli AGENT_BUS_TLS_FINGERPRINT=sha256:$want "$D/agent-bus" status 2>&1)" '"you"'
+  out=$(tcli AGENT_BUS_TLS_FINGERPRINT=sha256:$(printf '0%.0s' $(seq 64)) "$D/agent-bus" status 2>&1); rc=$?
+  bad_exit "a wrong pin is refused" $rc
+  has "and says it is not the pinned certificate" "$out" 'not the pinned'
+  out=$(tcli "$D/agent-bus" status 2>&1); rc=$?
+  bad_exit "and with no pin a self-signed certificate is not trusted" $rc
   kill $TPID 2>/dev/null; wait $TPID 2>/dev/null
   # A TLS directory that does not load refuses the start instead of serving plain HTTP alone.
   out=$(timeout 10 "$D/agent-busd" -addr 127.0.0.1:$P2 -socket "$T/on/bus.sock" -owner "$OWNER" -db "$T/on/bus.db" -create -flush-every 0 -tls-dir "$T/missing" 2>&1); rc=$?

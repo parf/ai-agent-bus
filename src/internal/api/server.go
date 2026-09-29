@@ -30,6 +30,9 @@ func Dial(addr string) (*http.Client, string) {
 	if addr == "" {
 		addr = DefaultSocket()
 	}
+	if strings.HasPrefix(addr, "https://") {
+		return dialTLS(addr)
+	}
 	client := &http.Client{Timeout: 2 * time.Minute}
 	if strings.HasPrefix(addr, "http://") {
 		return client, strings.TrimSuffix(addr, "/")

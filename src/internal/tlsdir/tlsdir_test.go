@@ -146,3 +146,28 @@ func TestAPinMatchesHoweverItIsWritten(t *testing.T) {
 		t.Error("a blank pin matched")
 	}
 }
+
+// The fingerprint and description are public: they are read without the key,
+// so a user who may not read key.pem still learns them.
+func TestTheCertificateIsReadWithoutTheKey(t *testing.T) {
+	dir := t.TempDir()
+	ca := issue(t, "test ca", true, nil)
+	leaf := issue(t, "bus.example", false, &ca)
+	os.WriteFile(filepath.Join(dir, CertFile), leaf.pem, 0o644)
+	os.WriteFile(filepath.Join(dir, ChainFile), ca.pem, 0o644)
+	os.WriteFile(filepath.Join(dir, KeyFile), keyPEM(t, leaf.key), 0o000)
+	cert, err := LoadCert(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cert.Certificate) != 2 || cert.Leaf.Subject.CommonName != "bus.example" {
+		t.Fatalf("read %d certificates, leaf %v", len(cert.Certificate), cert.Leaf.Subject)
+	}
+	full, err := Pair(leaf.pem, ca.pem, keyPEM(t, leaf.key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if Fingerprint(cert) != Fingerprint(full) {
+		t.Fatal("the certificate alone gives another fingerprint than the served pair")
+	}
+}

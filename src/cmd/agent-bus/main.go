@@ -33,7 +33,8 @@ var usage = "agent-bus " + version.String + usageText
 
 const usageText = ` — talk to agent-busd
 
-  agent-bus [--addr <socket-path|http://host:port>] <command> ...
+  agent-bus [--addr <socket-path|http://host:port|https://host:port>] <command> ...
+                            https:// with AGENT_BUS_TLS_FINGERPRINT pins the daemon's certificate
 
   agent-bus --version
   agent-bus status
@@ -786,7 +787,7 @@ func onOwnSocket() bool {
 	// Judged from the address, not from transport's base URL: that is
 	// "http://localhost" over a unix socket too.
 	addr := socketPath()
-	return !strings.HasPrefix(addr, "http://") && api.IsUserSocket(addr)
+	return !api.IsTCP(addr) && api.IsUserSocket(addr)
 }
 
 func socketPath() string {
@@ -813,7 +814,7 @@ func connect() (*http.Client, string) {
 // client must leave the credential-bearing user socket at that boundary.
 func useToken(token string) {
 	addr := socketPath()
-	if api.IsUserSocket(addr) && !strings.HasPrefix(addr, "http://") {
+	if api.IsUserSocket(addr) && !api.IsTCP(addr) {
 		client, _ := transport()
 		client.CloseIdleConnections()
 		cliAddress = filepath.Join(filepath.Dir(addr), "bus.sock")
