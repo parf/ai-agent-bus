@@ -323,6 +323,18 @@ Agent** — and its allow list grants use of the record, not of its store.
 There are three kinds of value, each its own namespace: a **string** (any
 bytes, the default), an **int** (signed 63-bit) and a **json** object.
 
+**Per record** means every registered name carries a store of its own — the
+same name on two records is two values — and it lives and dies with that
+record:
+
+| Attach it to | For example | Who uses it |
+|---|---|---|
+| 👾 an Agent | a worker's checkpoint: `kv set --json '#indexer@team' progress '{"cursor":1200}'` | its Owner, its Maintainers, and the Agent itself |
+| 📮 a queue or 📣 a PubSub | the batch behind the work sent there: `kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"}]'` | its Owner and Maintainers |
+| 📡 a Service | facts about the thing outside: `kv set --int db@team schema 42`, the migration it is on | its Owner and Maintainers |
+| 👥 a Group | the team's shared state: `kv set @oncall@team current alice@team` | its Owner and Maintainers — not its members, whom the Group grants elsewhere |
+| 👤 a User's own record | a person's own notes and settings: `kv set alice@team theme dark` | that User |
+
 | Verb | String | Int | JSON |
 |---|---|---|---|
 | read one name | `kv get` | `kv get --int` | `kv get --json` |
