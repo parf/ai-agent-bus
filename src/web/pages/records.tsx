@@ -1,5 +1,5 @@
 // Record pages: lists, register, detail, inactive view, settings, deactivate,
-// Danger Zone, and the two POST handlers (docs/web-face/records.md).
+// Danger Zone, and the two POST handlers (src/web/web-face/records.md).
 // Authority is rendered, never computed: controls follow can_manage and
 // can_transfer on the record the daemon answered for this visitor.
 import { h, Fragment, type Child } from "../jsx.ts";

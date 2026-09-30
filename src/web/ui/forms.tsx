@@ -1,4 +1,4 @@
-// Form fields and refusal recovery (docs/web-face/shell.md#form-recovery).
+// Form fields and refusal recovery (src/web/web-face/shell.md#form-recovery).
 // A field is marked invalid only when the face can tell which one without
 // guessing from prose; every other field says aria-invalid="false".
 import { h, Fragment, type Child } from "../jsx.ts";

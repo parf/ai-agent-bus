@@ -1,4 +1,4 @@
-// Node pages: Overview, Activity, Diagnostics (docs/web-face/node.md).
+// Node pages: Overview, Activity, Diagnostics (src/web/web-face/node.md).
 import { h, Fragment, type Child } from "../jsx.ts";
 import { Ctx, NotFound, type Rec, type Status, type Identity } from "../ctx.ts";
 import { respond } from "../ui/frame.tsx";
@@ -207,7 +207,7 @@ const onRoute = (x: Envelope, orig: Envelope) => {
 /** A response answers a message when it comes from where the message went and travels its reply route. */
 const answers = (x: Envelope, orig: Envelope) => (x.from === orig.to || x.from === orig.original_to) && onRoute(x, orig);
 
-/** Rows from retained envelopes; bodies are never read (docs/web-face/node.md#diagnostics). */
+/** Rows from retained envelopes; bodies are never read (src/web/web-face/node.md#diagnostics). */
 export function exchanges(envs: Envelope[]): Exchange[] {
   const byId = new Map<string, Envelope[]>();
   for (const e of envs) byId.set(e.message_id, [...(byId.get(e.message_id) ?? []), e]);

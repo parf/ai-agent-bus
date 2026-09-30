@@ -4,7 +4,7 @@
 actually knows. Being in the registry and being callable are different facts,
 so a listing has to say what a name is and whether anything answers for it.
 The CLI listings, the MCP minimum and the dashboard tabs are here; the web
-face's page contract is [its site map](web-face/site-map.md#every-address).
+face's page contract is [its site map](../src/web/web-face/site-map.md#every-address).
 
 ## Status
 
@@ -85,7 +85,7 @@ An empty result says `No matching records.`; lookup errors remain errors.
 |---|---|
 | API | Registry, messaging, credentials, sessions and dashboard administration |
 | MCP | Bus tools and a catalog filtered by the daemon |
-| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; its own account and locked-down unit ([processes § the web face](11-processes.md#the-web-face)); [browser acceptance](#browser-acceptance) by its own tests; page contract in [the site map](web-face/site-map.md#every-address) |
+| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; its own account and locked-down unit ([processes § the web face](11-processes.md#the-web-face)); [browser acceptance](#browser-acceptance) by its own tests; page contract in [the site map](../src/web/web-face/site-map.md#every-address) |
 
 ## MCP minimum
 
@@ -113,7 +113,7 @@ in the MVP.
 
 ## Dashboard
 
-The [web face](11-processes.md#the-web-face) ([page contract](web-face/site-map.md#every-address)) presents the bus and forwards
+The [web face](11-processes.md#the-web-face) ([page contract](../src/web/web-face/site-map.md#every-address)) presents the bus and forwards
 administration **as the person looking**. The daemon owns state and authorization: every page and form uses
 the visitor's authority, and the face has no independent privileges
 ([audience](#audience)). The [required tabs](#required-tabs) use the same daemon authorization as direct API calls.
@@ -169,7 +169,7 @@ counts; Queues, PubSub and Groups **All** and **Personal**; Users its visible
 directory total. These are counts computed from the page's existing daemon
 answers, not node-wide metrics and not additional reads. A shared list that is
 empty only because its records are Personal says how many are under the
-Personal filter and links there ([records § lists](web-face/records.md#lists)).
+Personal filter and links there ([records § lists](../src/web/web-face/records.md#lists)).
 
 The signed-in identity in the top bar links to Account. Account shows its optional user profile or own record, caller-visible owned
 records, held credential fingerprints and command-line rotation help. A
@@ -218,7 +218,7 @@ Registration opens `/agents/new`, `/services/new`, `/queues/new`,
 the daemon says the visitor is an Administrator, and the route repeats that
 check; anyone may register a group, and the daemon decides. The old empty
 `/user` URL still opens user registration. The pages are specified in
-[records](web-face/records.md#lists) and [people](web-face/people.md#users-users).
+[records](../src/web/web-face/records.md#lists) and [people](../src/web/web-face/people.md#users-users).
 
 ### Page titles and compact help
 
@@ -226,7 +226,7 @@ Every page title starts with one decorative mark and keeps its visible text:
 the kind glyph on kind pages, record detail using the daemon-stated kind, and a
 Lucide icon elsewhere; never caller text or a machine-readable value.
 Definitions sit behind an `ⓘ` button: hover or focus shows the explanation, a
-click opens the native popover ([shell § titles and help](web-face/shell.md#titles-and-help)).
+click opens the native popover ([shell § titles and help](../src/web/web-face/shell.md#titles-and-help)).
 Current scope, counts, filters, form constraints, refusals and dangerous
 consequences stay visible where they affect a decision.
 
@@ -241,7 +241,7 @@ reachable from the navigation;
 
 **Adding an entity and editing one are the same form**, one page per kind and
 one field set rendered by both, for a 👤 user and a 👥 group as much as for a
-record ([records § register](web-face/records.md#register)).
+record ([records § register](../src/web/web-face/records.md#register)).
 
 | Rule | |
 |---|---|
@@ -339,7 +339,7 @@ and cannot put itself on.
 |---|---|
 | **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the project's description, links and picture (from 0.8.7), the sign-in form at its foot, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
-| **Pinned, hashed assets only** | Fonts, Lucide and uPlot come from one CDN at exact versions with `integrity` hashes; the page's own stylesheet and script are same-origin, and the CSP admits nothing else ([shell § security headers](web-face/shell.md#security-headers)). The script requests only the palette's `/palette.json`. Pages remain ordinary URL-backed forms. The landing picture is served from this node and photos are inline, never hotlinked: `img-src 'self' data:` refuses a picture named anywhere else |
+| **Pinned, hashed assets only** | Fonts, Lucide and uPlot come from one CDN at exact versions with `integrity` hashes; the page's own stylesheet and script are same-origin, and the CSP admits nothing else ([shell § security headers](../src/web/web-face/shell.md#security-headers)). The script requests only the palette's `/palette.json`. Pages remain ordinary URL-backed forms. The landing picture is served from this node and photos are inline, never hotlinked: `img-src 'self' data:` refuses a picture named anywhere else |
 | **The web face writes nothing of its own.** A form posts *as the person*, never as the face | It is the least trusted process and the design gives it no write path ([processes § the web face](11-processes.md#the-web-face)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
 | **The sign-in form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
 
@@ -599,14 +599,14 @@ page.
 The daemon remains the validator. Its JSON error envelope is rendered as a
 human message, not raw JSON. A malformed or retired browser action that never
 reaches the daemon says so on the shared shell rather than attributing the
-refusal to the daemon ([shell § form recovery](web-face/shell.md#form-recovery)).
+refusal to the daemon ([shell § form recovery](../src/web/web-face/shell.md#form-recovery)).
 
 ## Browser acceptance
 
 **The TypeScript face's own tests, from 0.8.50.** `src/web/test` runs against a
 real daemon as the `web_ts` shard of `src/smoke.sh`; `src/web/probe-unit.sh`
 exercises the [unit's walls](11-processes.md#the-web-face) on an installed
-host. The page contract they check is [the web face spec](web-face/site-map.md#every-address).
+host. The page contract they check is [the web face spec](../src/web/web-face/site-map.md#every-address).
 
 **Installed, in a real browser, from 0.8.53.** `src/acceptance/installed-browser.sh
 <archive> <new-dir>` installs the release on a disposable real-systemd host with

@@ -1,5 +1,5 @@
 // People pages: Users, a user, the profile editor, Groups, a group, its
-// editor, Account, and their POST handlers (docs/web-face/people.md).
+// editor, Account, and their POST handlers (src/web/web-face/people.md).
 import { h, Fragment, type Child } from "../jsx.ts";
 import { Ctx, NotFound, LocalProblem, Refusal, SignInRequired, type Rec, type UserRow, type Status } from "../ctx.ts";
 import { respond, flashRedirect } from "../ui/frame.tsx";

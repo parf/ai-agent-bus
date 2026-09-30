@@ -432,4 +432,4 @@ No forms. Links: group chips, profile link, owned-record links.
 ## Worth fixing in the rewrite
 
 History: the Go face's defects and its differences from older docs are in
-[web-go-face-differences § people](../../Plans/R0.8-MVP/done/web-go-face-differences.md#peoplemd).
+[web-go-face-differences § people](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#peoplemd).

@@ -20,7 +20,6 @@ Values have one owning section; other pages link to it.
 | [Channels](07-channels.md#the-two-channel-kinds) | The 📮 and 📣 kinds: delivery, retention and what publish stamps |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and durability |
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
-| [Web face](web-face/site-map.md) | The page contract of the web face |
 | [Runner](08-runner-role.md#script-agents) | Foreground script agents, push adapters, runtime launchers and sandboxing |
 | [Setup](09-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
 | [Modules](10-modules.md#the-rule) | Implementation boundaries, languages and dependency rules |

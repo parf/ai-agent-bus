@@ -1,5 +1,5 @@
 // The homepage for a visitor with no session, and sign-in in place of any
-// refused page (docs/web-face/node.md#-signed-out-landing-and-sign-in).
+// refused page (src/web/web-face/node.md#-signed-out-landing-and-sign-in).
 import { h, Fragment } from "../jsx.ts";
 import { Ctx, COOKIE, Refusal, Unreachable } from "../ctx.ts";
 import { respond, assets } from "../ui/frame.tsx";

@@ -60,7 +60,7 @@ and *disabled* name nothing now.
 One glyph per meaning, and this table is where a meaning is fixed. Most rows
 name an entity type; `🔱` and `👮` name an authority, which is allowed because
 neither can appear often enough to become a column heading.
-[Web face glyphs](web-face/shell.md#glyphs) owns where a
+[Web face glyphs](../src/web/web-face/shell.md#glyphs) owns where a
 glyph may appear, how it renders and what it must never carry on its own.
 
 | Glyph | Code point | Name | Means | Status |

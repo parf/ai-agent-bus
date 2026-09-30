@@ -1,5 +1,5 @@
 // Whole-page failures, one template. The advice sentences are the spec's own
-// (docs/web-face/shell.md#problem-page); the daemon's message is shown where
+// (src/web/web-face/shell.md#problem-page); the daemon's message is shown where
 // the table says so, and a transport error's text never is.
 import { h, Fragment } from "./jsx.ts";
 import { Ctx, Refusal, Unreachable, SignInRequired, LocalProblem, ConditionsChanged, NotFound } from "./ctx.ts";

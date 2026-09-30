@@ -4,7 +4,7 @@
 in `src/web`, port 6780). This index lists every address it answers and links
 the page that specifies it: route and parameters, access by role, daemon calls,
 content, states, controls, form fields by name and links out. The process, its
-account and its unit belong to [processes § the web face](../11-processes.md#the-web-face).
+account and its unit belong to [processes § the web face](../../../docs/11-processes.md#the-web-face).
 
 ## The specification
 
@@ -47,10 +47,10 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `POST /groups` | Create or save a group | [POST /groups](people.md#post-groups) |
 | `/service-danger?name=<group>` | A group's Danger Zone | [Group Danger Zone](people.md#group-danger-zone) |
 | `/account` | Your identity, owned records and credentials | [Account `/account](people.md#account-account) |
-| `/palette.json` | The `⌘K` palette's names, the visitor's own view; JSON `401` signed out, `403` cross-site | [interactive features](../../Plans/R0.8-MVP/web/README.md#interactive-features) |
+| `/palette.json` | The `⌘K` palette's names, the visitor's own view; JSON `401` signed out, `403` cross-site | [interactive features](../../../Plans/R0.8-MVP/web/README.md#interactive-features) |
 | `/healthz`, `/favicon.svg`, `/favicon.ico`, `/app.<hash>.css`, `/ui.<hash>.js`, `/agent-bus.<hash>.webp` | Liveness and assets | [/healthz](node.md#healthz), [Static assets](node.md#static-assets) |
 | `/channels`, `/channel`, other old addresses | Redirects kept for bookmarks | [Redirects and catch-alls](node.md#redirects-and-catch-alls) |
-| `/_styleguide` | With `AGENT_BUS_WEB_DEV=1`: every component; `404` otherwise | [W.2](../../Plans/R0.8-MVP/web/TODO.md#steps) |
+| `/_styleguide` | With `AGENT_BUS_WEB_DEV=1`: every component; `404` otherwise | [W.2](../../../Plans/R0.8-MVP/web/TODO.md#steps) |
 | Any other path | Framed `404 No such page`; a known path asked with the wrong method is a framed `405` | [shell § problem page](shell.md#problem-page) |
 
 ## Shared rules
@@ -58,4 +58,4 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 [Process model](shell.md#process-model) · [Session](shell.md#session) · [Signed-out requests](shell.md#signed-out-requests) · [Origin checks](shell.md#origin-checks) · [Security headers](shell.md#security-headers) · [Page frame](shell.md#page-frame) · [Titles and help](shell.md#titles-and-help) · [Problem page](shell.md#problem-page) · [Refusal routing](shell.md#refusal-routing) · [Form recovery](shell.md#form-recovery) · [Assets](shell.md#assets) · [Glyphs](shell.md#glyphs) · [Narrow screens and zoom](shell.md#narrow-screens-and-zoom) · [Pagination](shell.md#pagination) · [Return addresses](shell.md#return-addresses)
 
 What the Go face and older specs got differently is
-[history](../../Plans/R0.8-MVP/done/web-go-face-differences.md#site-mapmd).
+[history](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#site-mapmd).

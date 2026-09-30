@@ -259,7 +259,7 @@ Links here: navigation entry 8; Overview's `Open Activity`; record detail's
 | `GET /activity/days?name=&from=&to=` | any other range, from the stored days |
 | `GET /activity/days?totals=1&from=&to=` | each visible record's hits over the range, for the chooser; on failure the chooser offers only All visible and the chosen name |
 
-The rules behind these answers are [activity history](../05-discovery.md#activity-history).
+The rules behind these answers are [activity history](../../../docs/05-discovery.md#activity-history).
 
 ### Content
 
@@ -458,11 +458,11 @@ are specified with the [record pages](records.md#lists).
 | From | To | Status | Rule |
 |---|---|---|---|
 | `GET /users?kind=other`, signed in | `/diagnostics#leftovers` | `303` | any other `kind` is ignored |
-| Daemon `GET /` on its TCP API port (exact root) | the dashboard URL, default `http://127.0.0.1:6780/` | `301` | served by `agent-busd` ([where it listens](../05-discovery.md#where-it-listens)) |
+| Daemon `GET /` on its TCP API port (exact root) | the dashboard URL, default `http://127.0.0.1:6780/` | `301` | served by `agent-busd` ([where it listens](../../../docs/05-discovery.md#where-it-listens)) |
 | Any unknown path | — | `404` | framed `No such page` ([shell § problem page](shell.md#problem-page)) |
 | Known path, wrong method | — | `405` | framed `Not answered this way` |
 
 ## Inconsistencies worth fixing in the rewrite
 
 History: the Go face's list, and each page's differences from older docs, are in
-[web-go-face-differences § node](../../Plans/R0.8-MVP/done/web-go-face-differences.md#nodemd).
+[web-go-face-differences § node](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#nodemd).

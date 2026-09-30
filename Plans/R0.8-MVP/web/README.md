@@ -4,7 +4,7 @@
 runs as its **own process under its own system account**, talks to the daemon
 only over the shared socket with the visitor's session, and looks like a
 modern product: dark-first, one design system, cross-page transitions, a
-command palette. The behaviour contract is [docs/web-face](../../../docs/web-face/site-map.md#every-address)
+command palette. The behaviour contract is [src/web/web-face](../../../src/web/web-face/site-map.md#every-address)
 and nothing else; work steps are in [TODO](TODO.md#steps), open choices in
 [QUESTIONS](QUESTIONS.md#open-questions), later work in [FUTURE](FUTURE.md).
 
@@ -12,8 +12,8 @@ and nothing else; work steps are in [TODO](TODO.md#steps), open choices in
 
 | In | Out |
 |---|---|
-| Every address in the [site map](../../../docs/web-face/site-map.md#every-address), both homepages included | Daemon API changes; the web face renders what the daemon answers |
-| The [shared rules](../../../docs/web-face/shell.md#process-model): session, origin checks, headers, problem pages, form recovery, paging, `return` | New authority: the face still [acts on the visitor's token and nothing else](../../../docs/11-processes.md#the-web-face) |
+| Every address in the [site map](../../../src/web/web-face/site-map.md#every-address), both homepages included | Daemon API changes; the web face renders what the daemon answers |
+| The [shared rules](../../../src/web/web-face/shell.md#process-model): session, origin checks, headers, problem pages, form recovery, paging, `return` | New authority: the face still [acts on the visitor's token and nothing else](../../../docs/11-processes.md#the-web-face) |
 | The "worth fixing" items each spec file ends with ([behaviour changes](#behaviour-changes)) | The daemon-side refusal text that names a hidden record's kind; that is a daemon fix |
 | A new look ([design language](#design-language)) | CLI and MCP faces |
 
@@ -24,12 +24,12 @@ where that gives a clearer logical view — merging or splitting a section,
 reordering cards, moving a control to where its subject is. Not a redesign of
 the site map: addresses, forms, field names and daemon calls stay as specified
 unless a change is needed for the better view. Each change is written into its
-`docs/web-face/` file in the step that builds it, and listed for the owner at
+`src/web/web-face/` file in the step that builds it, and listed for the owner at
 the W.2 or page acceptance.
 
 ## Clean-room rule
 
-The rewrite is written from `docs/web-face/` only. Nobody working on it reads
+The rewrite is written from `src/web/web-face/` only. Nobody working on it reads
 `src/cmd/agent-bus-web/` or its templates. A gap in the spec is fixed in the
 spec first (one commit), then built. Tests are new too: the Go face's smoke
 checks are retired at [cutover](#cutover), not ported.
@@ -44,7 +44,7 @@ checks are retired at [cutover](#cutover), not ported.
 | Unit | `agent-bus-web.service`, its own locked-down systemd unit ([the unit](#the-unit)), a checked-in file `src/web/agent-bus-web.service` |
 | Install | `agent-bus-setup` (install and `--upgrade`) creates the account, the link and the unit from the release's `web/agent-bus-web.service`, with `ExecPaths` computed from the host's `ldd /usr/bin/bun`, and waits for `/healthz`; `src/release.sh` restarts it on every switch |
 | Daemon link | `/run/agent-bus/bus.sock` (shared, mode `666`, [supplies no identity](../../../docs/02-access.md#local-socket)). Mapped account sockets are mode `600` for other accounts, so it cannot open them |
-| Credential | none of its own. `POST /session` with the typed token, then the session id per call, as [shell § process model](../../../docs/web-face/shell.md#process-model) states |
+| Credential | none of its own. `POST /session` with the typed token, then the session id per call, as [shell § process model](../../../src/web/web-face/shell.md#process-model) states |
 | State | none: no session map, no cache, no writable path. A restart ends nothing |
 | Listen | `AGENT_BUS_WEB_ADDR`, default `127.0.0.1:6780`; TLS only with both cert and key, a missing one refuses to start |
 
@@ -175,10 +175,10 @@ behaviour in the step that builds it.
 
 | From | Change |
 |---|---|
-| [shell](../../../docs/web-face/shell.md#differences-from-older-docs) | `HEAD` answered as `GET` without a body on every page and asset (node.md's `/` row and its non-GET `405` row both edited); one signed-out answer everywhere (`401`, `sign in to open this page`), `/` excepted; a real `404` page for unknown paths; a status failure never renders a blank account link; sign-out clears the cookie with the attributes it was set with; `Origin` required on every POST; assets cost no daemon call; `405` pages framed; no `Try again` on `404`; fonts and libraries from one pinned, hashed CDN in place of "no external asset" |
-| [node](../../../docs/web-face/node.md#inconsistencies-worth-fixing-in-the-rewrite) | Diagnostics renders exchanges with `reply_to`; held and loss tables include inactive records; a `/users` failure shows a section notice; an unreachable daemon at sign-in says so; a refused sign-in answers `401` like an ended session; a receipt sent by a queue's consumer folds into the queue message it answers; Activity accepts inactive records visible to the caller; one Uptime source per page |
-| [records](../../../docs/web-face/records.md#differences-from-the-older-specs) | `kind` kept on paging, Back and Clear filters; the confirmation guard **always** applies to transfer and delete; managers see the description; detail addresses redirect to the kind's own path; a user inbox is not offered Remove; no unused daemon reads; valid HTML on Deliver-To; the Agents `Reached` column goes (always `—`); a save keeps its `return` on success; a non-owner's Personal search costs no `303`; a daemon-refused transfer marks `owner` |
-| [people](../../../docs/web-face/people.md#worth-fixing-in-the-rewrite) | "Not visible to you" renders on hidden groups; register refuses an existing group name instead of replacing it; post-create failures say what was saved; no Transfer on `@<user>/…` groups; redirects use the daemon's stored name; one identity pill; Account lists inactive owned records; `/avatar` dropped (no page references it; photos stay inline `data:` URIs); `/users?kind=other` after sign-in; a `Refresh from GitHub` control for `refresh-github` with its own form anchor; users edit their own email where `can_set_email` says so (`POST /profile`); filter counts follow the search and All (N) counts the current state; `email` refusals mark `email` and the Personal-naming refusal marks `name`; group-in-group reads `member via @outer`, not `ACL`; Account shows the status word, not raw `active` |
+| [shell](../../../src/web/web-face/shell.md#differences-from-older-docs) | `HEAD` answered as `GET` without a body on every page and asset (node.md's `/` row and its non-GET `405` row both edited); one signed-out answer everywhere (`401`, `sign in to open this page`), `/` excepted; a real `404` page for unknown paths; a status failure never renders a blank account link; sign-out clears the cookie with the attributes it was set with; `Origin` required on every POST; assets cost no daemon call; `405` pages framed; no `Try again` on `404`; fonts and libraries from one pinned, hashed CDN in place of "no external asset" |
+| [node](../../../src/web/web-face/node.md#inconsistencies-worth-fixing-in-the-rewrite) | Diagnostics renders exchanges with `reply_to`; held and loss tables include inactive records; a `/users` failure shows a section notice; an unreachable daemon at sign-in says so; a refused sign-in answers `401` like an ended session; a receipt sent by a queue's consumer folds into the queue message it answers; Activity accepts inactive records visible to the caller; one Uptime source per page |
+| [records](../../../src/web/web-face/records.md#differences-from-the-older-specs) | `kind` kept on paging, Back and Clear filters; the confirmation guard **always** applies to transfer and delete; managers see the description; detail addresses redirect to the kind's own path; a user inbox is not offered Remove; no unused daemon reads; valid HTML on Deliver-To; the Agents `Reached` column goes (always `—`); a save keeps its `return` on success; a non-owner's Personal search costs no `303`; a daemon-refused transfer marks `owner` |
+| [people](../../../src/web/web-face/people.md#worth-fixing-in-the-rewrite) | "Not visible to you" renders on hidden groups; register refuses an existing group name instead of replacing it; post-create failures say what was saved; no Transfer on `@<user>/…` groups; redirects use the daemon's stored name; one identity pill; Account lists inactive owned records; `/avatar` dropped (no page references it; photos stay inline `data:` URIs); `/users?kind=other` after sign-in; a `Refresh from GitHub` control for `refresh-github` with its own form anchor; users edit their own email where `can_set_email` says so (`POST /profile`); filter counts follow the search and All (N) counts the current state; `email` refusals mark `email` and the Personal-naming refusal marks `name`; group-in-group reads `member via @outer`, not `ACL`; Account shows the status word, not raw `active` |
 
 ## Cutover
 

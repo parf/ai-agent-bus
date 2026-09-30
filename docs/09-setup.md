@@ -594,4 +594,4 @@ Current daemon configuration comes from command flags and environment; setup
 writes the flags into its unit. The per-program defaults are in
 [daemon source](../src/cmd/agent-busd/main.go). A general configuration-file
 format is not implemented. Per-record ACL editing is available through the
-[web face](web-face/records.md#settings).
+[web face](../src/web/web-face/records.md#settings).

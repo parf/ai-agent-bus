@@ -5,7 +5,7 @@ for its rewrite from Go to TypeScript, each spec file recorded where the Go
 face disagreed with older docs and what was worth fixing. The TypeScript face
 fixed those items ([behaviour changes](../web/README.md#behaviour-changes)) and
 the Go face was removed in 0.8.50. The page contract is now
-[the web face site map](../../../docs/web-face/site-map.md#every-address); this
+[the web face site map](../../../src/web/web-face/site-map.md#every-address); this
 file keeps the removed lists and the Go-era dashboard prose of
 [discovery](../../../docs/05-discovery.md#dashboard), one section per source file.
 
@@ -70,7 +70,7 @@ version; those lists are the sections below.
 | Older doc | Code |
 |---|---|
 | `Plans/R0.8-MVP/web-handoff/pages.md#activity-activity`: about 145 readings; a restart empties history; `¿` marks unobserved slots | 144 fixed slots, saved across restarts; down time is `0`; no `¿` |
-| `docs/web-face/site-map.md`: "reset on restart" | saved across restarts (`docs/05-discovery.md#activity-history` agrees with the code) |
+| `src/web/web-face/site-map.md`: "reset on restart" | saved across restarts (`docs/05-discovery.md#activity-history` agrees with the code) |
 | Select label "Service or channel" | also lists users, agents and groups |
 
 ### Diagnostics

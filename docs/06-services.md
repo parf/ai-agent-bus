@@ -86,7 +86,7 @@ credential, held on the record and handed to whoever its
 | `agent-bus secret <name>` | print it |
 | `cat .env \| agent-bus secret <name> -` | set it, bytes on stdin |
 | `agent-bus secret <name> 'TOKEN=abc'` | the same, inline |
-| the web face's [service registration](web-face/records.md#register) | set it once, as the record is created |
+| the web face's [service registration](../src/web/web-face/records.md#register) | set it once, as the record is created |
 
 One verb, and the direction is whether a secret was handed to it — the shape
 [agent-template](03-records.md#configuring-a-template) uses. The read writes
